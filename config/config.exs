@@ -6,6 +6,7 @@ alias NervesHub.Workers.CleanUpSoftDeletedDevices
 alias NervesHub.Workers.DeleteExpiredCLISessionRecords
 alias NervesHub.Workers.ExpireInflightUpdates
 alias NervesHub.Workers.FirmwareDeltaTimeout
+alias NervesHub.Workers.RequeueStrandedScriptRunners
 alias NervesHub.Workers.ScheduleOrgAuditLogTruncation
 alias NervesHubWeb.API.ErrorJSON
 alias Phoenix.LiveView.Engine
@@ -109,6 +110,7 @@ config :nerves_hub, Oban,
       {"*/1 * * * *", CleanStaleDeviceConnections},
       {"* * * * *", FirmwareDeltaTimeout},
       {"*/5 * * * *", ExpireInflightUpdates},
+      {"*/5 * * * *", RequeueStrandedScriptRunners},
       {"*/15 * * * *", CleanUpSoftDeletedDevices}
     ]
   ],
@@ -124,6 +126,17 @@ config :nerves_hub, Oban,
     device: 1,
     firmware_delta_builder: 2,
     firmware_delta_timeout: 1,
+    # The ceiling on scripts in flight at once. Oban's queue limit is per node, so
+    # this is 500 per web node however many runs are going. The single source of
+    # the number: `NervesHub.Workers.ScriptRunnerDispatch.ceiling/0` reads it back
+    # to size each run's share, so changing it here changes both how many scripts
+    # run and how many are queued. Each job spends nearly all its time waiting on
+    # a device rather than on CPU, which is why it is so much larger than the
+    # queues around it.
+    script_runners: 500,
+    # Paces the queue above. One short-lived job per active run, so this only
+    # needs enough room for runs happening at once, not devices.
+    script_runner_dispatch: 10,
     truncate: 1,
     truncation: 1
   ]

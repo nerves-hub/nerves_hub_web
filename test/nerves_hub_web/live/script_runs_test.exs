@@ -1,0 +1,1316 @@
+defmodule NervesHubWeb.Live.ScriptRunsTest do
+  use NervesHubWeb.ConnCase.Browser, async: true
+
+  import Ecto.Query, only: [where: 3]
+
+  alias NervesHub.Accounts.OrgUser
+  alias NervesHub.Devices
+  alias NervesHub.Fixtures
+  alias NervesHub.ManagedDeployments
+  alias NervesHub.Repo
+  alias NervesHub.ScriptRunners
+  alias NervesHub.ScriptRunners.ScriptRunner
+  alias NervesHub.ScriptRunners.ScriptRunnerDevice
+
+  setup %{user: user, org: org} = context do
+    product = Fixtures.product_fixture(user, org, %{name: "Amazing"})
+    org_key = Fixtures.org_key_fixture(org, user)
+    firmware = Fixtures.firmware_fixture(org_key, product)
+
+    Map.merge(context, %{product: product, firmware: firmware})
+  end
+
+  defp create_run(ctx, opts) do
+    tag = Keyword.get(opts, :tag, "run-#{System.unique_integer([:positive])}")
+    text = Keyword.get(opts, :text, "IO.puts(:hi)")
+    name = Keyword.get(opts, :name, "Run #{System.unique_integer([:positive])}")
+
+    for _ <- 1..Keyword.get(opts, :devices, 1) do
+      Fixtures.device_fixture(ctx.org, ctx.product, ctx.firmware, %{tags: [tag]})
+    end
+
+    {:ok, run, []} =
+      ScriptRunners.create(ctx.product, ctx.user, %{
+        name: name,
+        description: Keyword.get(opts, :description),
+        text: text,
+        filter_type: Keyword.get(opts, :filter_type, :tags),
+        filter: Keyword.get(opts, :filter, %{tags: [tag], tag_operator: :or})
+      })
+
+    run
+  end
+
+  defp runs_path(ctx), do: "/org/#{ctx.org.name}/#{ctx.product.name}/scripts/runs"
+
+  describe "tabs" do
+    test "the scripts page offers both tabs", ctx do
+      ctx.conn
+      |> visit("/org/#{ctx.org.name}/#{ctx.product.name}/scripts")
+      |> within("#header + div", fn session ->
+        session
+        |> assert_has("a", text: "Support Scripts")
+        |> assert_has("a", text: "Script Runs")
+      end)
+    end
+
+    test "the runs tab is reachable from the scripts tab", ctx do
+      ctx.conn
+      |> visit("/org/#{ctx.org.name}/#{ctx.product.name}/scripts")
+      |> within("#header + div", &click_link(&1, "Script Runs"))
+      |> assert_path(runs_path(ctx))
+      |> assert_has("h1", text: "All Script Runs")
+    end
+
+    test "the scripts tab is reachable from the runs tab", ctx do
+      ctx.conn
+      |> visit(runs_path(ctx))
+      |> within("#header + div", &click_link(&1, "Support Scripts"))
+      |> assert_path("/org/#{ctx.org.name}/#{ctx.product.name}/scripts")
+      |> assert_has("h1", text: "All Support Scripts")
+    end
+  end
+
+  describe "list" do
+    test "shows a message when there are no runs", ctx do
+      ctx.conn
+      |> visit(runs_path(ctx))
+      |> assert_has("span", text: "#{ctx.product.name} doesn’t have any Script Runs")
+    end
+
+    test "shows a run with its name, status, device count and filter type", ctx do
+      _run = create_run(ctx, name: "Check uptime", text: "System.cmd(\"uptime\", [])", devices: 3)
+
+      ctx.conn
+      |> visit(runs_path(ctx))
+      |> assert_has("td", text: "Check uptime")
+      |> assert_has("td", text: "pending")
+      |> assert_has("td", text: "3")
+      |> assert_has("td", text: "Tags")
+    end
+
+    test "does not show the script's code, which belongs on the run's own page", ctx do
+      _run = create_run(ctx, name: "Check uptime", text: "System.cmd(\"uptime\", [])")
+
+      ctx.conn
+      |> visit(runs_path(ctx))
+      |> refute_has("td", text: "System.cmd(\"uptime\", [])")
+    end
+
+    test "does not show another product's runs", ctx do
+      other_product = Fixtures.product_fixture(ctx.user, ctx.org, %{name: "Other"})
+      other_key = Fixtures.org_key_fixture(ctx.org, ctx.user)
+      other_firmware = Fixtures.firmware_fixture(other_key, other_product)
+
+      Fixtures.device_fixture(ctx.org, other_product, other_firmware, %{tags: ["theirs"]})
+
+      {:ok, _their_run, []} =
+        ScriptRunners.create(other_product, ctx.user, %{
+          name: "THEIR RUN",
+          text: "THEIR SCRIPT",
+          filter_type: :tags,
+          filter: %{tags: ["theirs"], tag_operator: :or}
+        })
+
+      ctx.conn
+      |> visit(runs_path(ctx))
+      |> refute_has("td", text: "THEIR RUN")
+    end
+
+    test "labels the filter type a run was targeted by", ctx do
+      device = Fixtures.device_fixture(ctx.org, ctx.product, ctx.firmware)
+
+      _run =
+        create_run(ctx,
+          name: "By identifiers",
+          filter_type: :identifiers,
+          filter: %{identifiers: device.identifier}
+        )
+
+      ctx.conn
+      |> visit(runs_path(ctx))
+      |> assert_has("td", text: "Device identifiers")
+    end
+  end
+
+  describe "filtering" do
+    # The search box carries no label, so it is driven through its change event
+    # rather than `fill_in/3` — the same way the support scripts test does it.
+    test "search filters runs by name", ctx do
+      _uptime = create_run(ctx, name: "Check uptime")
+      _reboot = create_run(ctx, name: "Reboot everything")
+
+      {:ok, view, html} = live(ctx.conn, runs_path(ctx))
+
+      assert html =~ "Check uptime"
+      assert html =~ "Reboot everything"
+
+      filtered = render_change(view, "update-filters", %{"search" => "Reboot"})
+
+      assert filtered =~ "Reboot everything"
+      refute filtered =~ "Check uptime"
+    end
+
+    test "search does not reach the script contents", ctx do
+      _uptime = create_run(ctx, name: "Check uptime", text: "System.cmd(\"uptime\", [])")
+
+      {:ok, view, _html} = live(ctx.conn, runs_path(ctx))
+
+      assert render_change(view, "update-filters", %{"search" => "System.cmd"}) =~
+               "No Script Runs match the current filters."
+    end
+
+    test "shows a filter-specific message when nothing matches", ctx do
+      _run = create_run(ctx, name: "Say hi")
+
+      {:ok, view, _html} = live(ctx.conn, runs_path(ctx))
+
+      assert render_change(view, "update-filters", %{"search" => "nothing-matches-this"}) =~
+               "No Script Runs match the current filters."
+    end
+  end
+
+  describe "run a script button" do
+    test "leads to the new run page", ctx do
+      ctx.conn
+      |> visit(runs_path(ctx))
+      |> click_link("Run a Script")
+      |> assert_path("#{runs_path(ctx)}/new")
+      |> assert_has("h1", text: "Run a Script")
+    end
+  end
+
+  describe "the new run form" do
+    defp new_path(ctx), do: "#{runs_path(ctx)}/new"
+
+    test "offers the general and targeting sections", ctx do
+      ctx.conn
+      |> visit(new_path(ctx))
+      |> assert_has("div", text: "General settings")
+      |> assert_has("div", text: "Target devices")
+      |> assert_has("button", text: "Run script")
+    end
+
+    test "the targeting fields follow the chosen filter type", ctx do
+      {:ok, view, html} = live(ctx.conn, new_path(ctx))
+
+      # Nothing is chosen on arrival, so no filter values are asked for yet.
+      assert html =~ "Pick a filter to choose which devices this runs on."
+
+      # Each filter type's label is also an option of the filter select, so the
+      # inputs are asserted on by their form name rather than by label text.
+      tags = render_change(view, "validate", %{"script_runner" => %{"filter_type" => "tags"}})
+
+      assert tags =~ "script_runner[filter][tags]"
+      assert tags =~ "script_runner[filter][tag_operator]"
+      refute tags =~ "script_runner[filter][identifiers]"
+
+      identifiers = render_change(view, "validate", %{"script_runner" => %{"filter_type" => "identifiers"}})
+
+      assert identifiers =~ "script_runner[filter][identifiers]"
+      refute identifiers =~ "script_runner[filter][tag_operator]"
+
+      groups = render_change(view, "validate", %{"script_runner" => %{"filter_type" => "deployment_groups"}})
+
+      assert groups =~ "script_runner[filter][deployment_group_ids]"
+      refute groups =~ "script_runner[filter][tags]"
+    end
+
+    test "starts a run against tagged devices", ctx do
+      Fixtures.device_fixture(ctx.org, ctx.product, ctx.firmware, %{tags: ["cellular"]})
+
+      ctx.conn
+      |> visit(new_path(ctx))
+      |> fill_in("Name", with: "Reboot the cellular fleet")
+      |> fill_in("Script code", with: "Nerves.Runtime.reboot()")
+      |> select("Choose devices by", option: "Tags")
+      |> fill_in("Device tags", with: "cellular")
+      |> select("Tag matching", option: "Allow any")
+      |> click_button("Run script")
+      |> assert_path(runs_path(ctx))
+      |> assert_has("td", text: "Reboot the cellular fleet")
+    end
+
+    test "the script picker offers only this product's scripts, and starting blank", ctx do
+      other_product = Fixtures.product_fixture(ctx.user, ctx.org, %{name: "Somewhere else"})
+
+      Fixtures.support_script_fixture(ctx.product, ctx.user, %{name: "Reboot device"})
+      Fixtures.support_script_fixture(other_product, ctx.user, %{name: "Another product's script"})
+
+      ctx.conn
+      |> visit(new_path(ctx))
+      |> within("#copy-from-script", fn session ->
+        session
+        |> assert_has("option", text: "Choose from below")
+        |> assert_has("option", text: "Reboot device")
+        |> refute_has("option", text: "Another product's script")
+      end)
+    end
+
+    # The biggest products have thousands of device tags, so the form asks for
+    # matches as they are typed rather than embedding the lot.
+    test "the device tags input searches rather than shipping every tag", ctx do
+      for tag <- ~w(cellular cell-backup production) do
+        Fixtures.device_fixture(ctx.org, ctx.product, ctx.firmware, %{tags: [tag]})
+      end
+
+      {:ok, view, html} = live(ctx.conn, new_path(ctx))
+
+      # The tags are not in the markup...
+      refute html =~ "cell-backup"
+
+      html = render_change(view, "validate", %{"script_runner" => %{"filter_type" => "tags"}})
+
+      refute html =~ "cell-backup"
+      assert html =~ ~s(data-tag-search="search-device-tags")
+
+      # ...they are asked for by the hook, which gets them as a reply. Both score
+      # the same on similarity, so the alphabetical tiebreak orders them.
+      render_hook(view, "search-device-tags", %{"query" => "cell"})
+
+      assert_reply(view, %{tags: ["cell-backup", "cellular"]})
+    end
+
+    test "searching device tags with nothing typed returns nothing", ctx do
+      Fixtures.device_fixture(ctx.org, ctx.product, ctx.firmware, %{tags: ["cellular"]})
+
+      {:ok, view, _html} = live(ctx.conn, new_path(ctx))
+
+      render_hook(view, "search-device-tags", %{"query" => ""})
+
+      assert_reply(view, %{tags: []})
+    end
+
+    test "copying a support script fills in its code and name", ctx do
+      Fixtures.support_script_fixture(ctx.product, ctx.user, %{
+        name: "Reboot device",
+        text: "Nerves.Runtime.reboot()"
+      })
+
+      ctx.conn
+      |> visit(new_path(ctx))
+      |> select("Start from a support script", option: "Reboot device")
+      |> assert_has("textarea#script_runner_text", text: "Nerves.Runtime.reboot()")
+      |> assert_has("input#script_runner_name[value='Reboot device']")
+    end
+
+    test "copying a support script keeps a name the run already has", ctx do
+      Fixtures.support_script_fixture(ctx.product, ctx.user, %{
+        name: "Reboot device",
+        text: "Nerves.Runtime.reboot()"
+      })
+
+      ctx.conn
+      |> visit(new_path(ctx))
+      |> fill_in("Name", with: "Reboot the cellular fleet")
+      |> select("Start from a support script", option: "Reboot device")
+      |> assert_has("textarea#script_runner_text", text: "Nerves.Runtime.reboot()")
+      |> assert_has("input#script_runner_name[value='Reboot the cellular fleet']")
+    end
+
+    test "a filter matching no device is reported rather than started", ctx do
+      {:ok, view, _html} = live(ctx.conn, new_path(ctx))
+
+      submitted =
+        render_submit(view, "create-run", %{
+          "script_runner" => %{
+            "name" => "Nobody home",
+            "text" => "IO.puts(:hi)",
+            "filter_type" => "tags",
+            "filter" => %{"tags" => "nobody-has-this", "tag_operator" => "or"}
+          }
+        })
+
+      assert submitted =~ "No devices matched the filter"
+    end
+
+    test "a tags run without an operator is rejected", ctx do
+      Fixtures.device_fixture(ctx.org, ctx.product, ctx.firmware, %{tags: ["cellular"]})
+
+      {:ok, view, _html} = live(ctx.conn, new_path(ctx))
+
+      submitted =
+        render_submit(view, "create-run", %{
+          "script_runner" => %{
+            "name" => "No operator",
+            "text" => "IO.puts(:hi)",
+            "filter_type" => "tags",
+            "filter" => %{"tags" => "cellular"}
+          }
+        })
+
+      assert submitted =~ "a tag operator must be chosen"
+    end
+  end
+
+  describe "identifiers from a CSV" do
+    @describetag :tmp_dir
+
+    defp choose_identifiers(session) do
+      select(session, "Choose devices by", option: "Device identifiers")
+    end
+
+    defp choose_csv(session) do
+      choose(session, "Upload a CSV")
+    end
+
+    defp csv(tmp_dir, name, contents) do
+      path = Path.join(tmp_dir, name)
+      :ok = File.write(path, contents)
+      path
+    end
+
+    test "typing and uploading are alternatives, never both at once", ctx do
+      session =
+        ctx.conn
+        |> visit(new_path(ctx))
+        |> choose_identifiers()
+
+      # Typing is the default.
+      assert_has(session, "textarea#script_runner_filter_0_identifiers")
+
+      session
+      |> choose_csv()
+      |> refute_has("textarea#script_runner_filter_0_identifiers")
+      |> assert_has("label", text: "Choose a CSV file")
+    end
+
+    test "starts a run against the identifiers in the file", %{tmp_dir: tmp_dir} = ctx do
+      device = Fixtures.device_fixture(ctx.org, ctx.product, ctx.firmware)
+      path = csv(tmp_dir, "devices.csv", "identifier\n#{device.identifier}\n")
+
+      ctx.conn
+      |> visit(new_path(ctx))
+      |> fill_in("Name", with: "Reboot the listed devices")
+      |> fill_in("Script code", with: "Nerves.Runtime.reboot()")
+      |> choose_identifiers()
+      |> choose_csv()
+      |> upload("Choose a CSV file", path)
+      |> click_button("Run script")
+      |> assert_path(runs_path(ctx))
+      |> assert_has("td", text: "Reboot the listed devices")
+    end
+
+    test "a CSV with the wrong header is rejected", %{tmp_dir: tmp_dir} = ctx do
+      path = csv(tmp_dir, "bad_header.csv", "device_id\nsome-device\n")
+
+      ctx.conn
+      |> visit(new_path(ctx))
+      |> choose_identifiers()
+      |> choose_csv()
+      |> upload("Choose a CSV file", path)
+      |> assert_has("div", text: "CSV must have a single 'identifier' column header")
+    end
+
+    test "a CSV with only a header is rejected", %{tmp_dir: tmp_dir} = ctx do
+      path = csv(tmp_dir, "empty.csv", "identifier\n")
+
+      ctx.conn
+      |> visit(new_path(ctx))
+      |> choose_identifiers()
+      |> choose_csv()
+      |> upload("Choose a CSV file", path)
+      |> assert_has("div", text: "CSV contained no identifier values")
+    end
+
+    # A flash is stored in the session cookie, which browsers cap at 4KB, so the
+    # unmatched identifiers cannot all go in it.
+    test "unmatched identifiers are counted rather than all named", %{tmp_dir: tmp_dir} = ctx do
+      device = Fixtures.device_fixture(ctx.org, ctx.product, ctx.firmware)
+      ghosts = Enum.map_join(1..50, "\n", &"ghost-device-#{&1}")
+      path = csv(tmp_dir, "mostly_ghosts.csv", "identifier\n#{device.identifier}\n#{ghosts}\n")
+
+      session =
+        ctx.conn
+        |> visit(new_path(ctx))
+        |> fill_in("Name", with: "Mostly ghosts")
+        |> fill_in("Script code", with: "IO.puts(:hi)")
+        |> choose_identifiers()
+        |> choose_csv()
+        |> upload("Choose a CSV file", path)
+        |> click_button("Run script")
+        |> assert_has("div", text: "50 identifiers matched no device")
+        |> assert_has("div", text: "and 40 more")
+
+      # The 41st onwards are counted, not listed.
+      refute_has(session, "div", text: "ghost-device-50")
+    end
+  end
+
+  describe "the run page" do
+    defp run_path(ctx, run), do: "#{runs_path(ctx)}/#{run.id}"
+
+    test "a run's row links to its page", ctx do
+      run = create_run(ctx, name: "Reboot everything")
+
+      ctx.conn
+      |> visit(runs_path(ctx))
+      |> click_link("Reboot everything")
+      |> assert_path(run_path(ctx, run))
+      |> assert_has("h1", text: "Reboot everything")
+    end
+
+    test "shows the name, the code and the filter choice", ctx do
+      run = create_run(ctx, name: "Reboot the cellular fleet", text: "Nerves.Runtime.reboot()", tag: "cellular")
+
+      ctx.conn
+      |> visit(run_path(ctx, run))
+      |> assert_has("h1", text: "Reboot the cellular fleet")
+      |> assert_has("pre", text: "Nerves.Runtime.reboot()")
+      |> assert_has("span", text: "Tags")
+      |> assert_has("span", text: "cellular")
+      |> assert_has("span", text: "Allow any")
+    end
+
+    test "shows how the identifier filter chose its devices", ctx do
+      device = Fixtures.device_fixture(ctx.org, ctx.product, ctx.firmware)
+
+      {:ok, run, _unmatched} =
+        ScriptRunners.create(ctx.product, ctx.user, %{
+          name: "By identifier",
+          text: "IO.puts(:hi)",
+          filter_type: :identifiers,
+          filter: %{identifiers: [device.identifier]}
+        })
+
+      ctx.conn
+      |> visit(run_path(ctx, run))
+      |> assert_has("span", text: "Device identifiers")
+      |> assert_has("span", text: "1 named")
+    end
+
+    test "names the deployment groups a run targeted and links to each", ctx do
+      deployment_group = Fixtures.deployment_group_fixture(ctx.firmware, %{name: "Cellular fleet", user: ctx.user})
+
+      Fixtures.device_fixture(ctx.org, ctx.product, ctx.firmware, %{deployment_id: deployment_group.id})
+
+      {:ok, run, _unmatched} =
+        ScriptRunners.create(ctx.product, ctx.user, %{
+          name: "By deployment group",
+          text: "IO.puts(:hi)",
+          filter_type: :deployment_groups,
+          filter: %{deployment_group_ids: [deployment_group.id]}
+        })
+
+      ctx.conn
+      |> visit(run_path(ctx, run))
+      |> assert_has("span", text: "Deployment groups")
+      |> assert_has(
+        ~s|a[href="/org/#{ctx.org.name}/#{ctx.product.name}/deployment_groups/Cellular%20fleet"][target="_blank"]|,
+        text: "Cellular fleet"
+      )
+    end
+
+    test "a deployment group deleted since the run falls back to the count", ctx do
+      deployment_group = Fixtures.deployment_group_fixture(ctx.firmware, %{name: "Gone fleet", user: ctx.user})
+
+      Fixtures.device_fixture(ctx.org, ctx.product, ctx.firmware, %{deployment_id: deployment_group.id})
+
+      {:ok, run, _unmatched} =
+        ScriptRunners.create(ctx.product, ctx.user, %{
+          name: "By deployment group",
+          text: "IO.puts(:hi)",
+          filter_type: :deployment_groups,
+          filter: %{deployment_group_ids: [deployment_group.id]}
+        })
+
+      {:ok, _deleted} = ManagedDeployments.delete_deployment_group(deployment_group)
+
+      ctx.conn
+      |> visit(run_path(ctx, run))
+      |> refute_has("a", text: "Gone fleet")
+      |> assert_has("span", text: "1 selected")
+    end
+
+    test "lists the run's devices", ctx do
+      run = create_run(ctx, devices: 3)
+
+      session = visit(ctx.conn, run_path(ctx, run))
+
+      for result <- ScriptRunners.device_results(run) do
+        assert_has(session, "td", text: result.device.identifier)
+      end
+    end
+
+    test "searching narrows the devices to a matching identifier", ctx do
+      run = create_run(ctx, tag: "searchable", devices: 2)
+      [first, second] = ScriptRunners.device_results(run)
+
+      {:ok, view, _html} = live(ctx.conn, run_path(ctx, run))
+
+      filtered = render_change(view, "update-filters", %{"identifier" => first.device.identifier})
+
+      assert filtered =~ first.device.identifier
+      refute filtered =~ second.device.identifier
+    end
+
+    test "a search matching no device says so", ctx do
+      run = create_run(ctx, [])
+
+      {:ok, view, _html} = live(ctx.conn, run_path(ctx, run))
+
+      assert render_change(view, "update-filters", %{"identifier" => "nothing-matches-this"}) =~
+               "No devices match the current filters."
+    end
+
+    test "the device count follows the filters", ctx do
+      run = create_run(ctx, tag: "counted", devices: 3)
+      [first | _rest] = ScriptRunners.device_results(run)
+
+      1 = ScriptRunners.record_device_result(run.id, first.device_id, :completed, ":ok")
+
+      # The run's own counter is deliberately set to something the rows do not add
+      # up to, so a count taken from it rather than from the query is caught.
+      {:ok, _run} = Repo.update(Ecto.Changeset.change(run, device_count: 99))
+
+      {:ok, view, html} = live(ctx.conn, run_path(ctx, run))
+
+      # All three rows, not the run's 99.
+      assert devices_header(html) =~ "3"
+      refute devices_header(html) =~ "99"
+
+      # One of them is completed, so the count follows the filter.
+      filtered = render_change(view, "update-filters", %{"status" => "completed"})
+
+      assert devices_header(filtered) =~ "1"
+    end
+
+    test "the progress count shows what has an outcome over the total", ctx do
+      run = create_run(ctx, tag: "progressing", devices: 3)
+      [first, second, _third] = ScriptRunners.device_results(run)
+
+      {:ok, view, html} = live(ctx.conn, run_path(ctx, run))
+
+      # Nothing has an outcome yet, but all three are already counted.
+      assert progress(html) =~ "0 / 3"
+
+      # A failure is as finished as a success, so both move the count.
+      1 = ScriptRunners.record_device_result(run.id, first.device_id, :completed, ":ok")
+      1 = ScriptRunners.record_device_result(run.id, second.device_id, :failed, "boom")
+
+      :ok =
+        ScriptRunners.broadcast_progress(run.id, :device_finished, %{device_id: first.device_id, status: :completed})
+
+      assert progress(render(view)) =~ "2 / 3"
+    end
+
+    test "the progress count reaches the total when every device is done", ctx do
+      run = create_run(ctx, tag: "all-done", devices: 2)
+
+      for result <- ScriptRunners.device_results(run) do
+        1 = ScriptRunners.record_device_result(run.id, result.device_id, :completed, ":ok")
+      end
+
+      {:ok, _view, html} = live(ctx.conn, run_path(ctx, run))
+
+      assert progress(html) =~ "2 / 2"
+    end
+
+    test "the status filter offers every status a result can hold", ctx do
+      run = create_run(ctx, [])
+
+      session = visit(ctx.conn, run_path(ctx, run))
+
+      for status <- ScriptRunnerDevice.statuses() do
+        assert_has(session, "#device_result_status option", text: to_string(status))
+      end
+    end
+
+    test "filtering by status narrows the devices to that status", ctx do
+      run = create_run(ctx, tag: "by-status", devices: 2)
+      [first, second] = ScriptRunners.device_results(run)
+
+      1 = ScriptRunners.record_device_result(run.id, first.device_id, :completed, ":ok")
+      1 = ScriptRunners.record_device_result(run.id, second.device_id, :failed, "boom")
+
+      {:ok, view, _html} = live(ctx.conn, run_path(ctx, run))
+
+      completed = table(render_change(view, "update-filters", %{"status" => "completed"}))
+
+      assert completed =~ first.device.identifier
+      refute completed =~ second.device.identifier
+
+      failed = table(render_change(view, "update-filters", %{"status" => "failed"}))
+
+      assert failed =~ second.device.identifier
+      refute failed =~ first.device.identifier
+    end
+
+    test "the status filter combines with the identifier search", ctx do
+      run = create_run(ctx, tag: "combined", devices: 2)
+      [first, second] = ScriptRunners.device_results(run)
+
+      1 = ScriptRunners.record_device_result(run.id, first.device_id, :completed, ":ok")
+      1 = ScriptRunners.record_device_result(run.id, second.device_id, :failed, "boom")
+
+      {:ok, view, _html} = live(ctx.conn, run_path(ctx, run))
+
+      # Both identifiers start "device-", so the search alone matches the pair and
+      # only the status can separate them -- which is what makes this a test of the
+      # two filters together rather than of the search.
+      both = table(render_change(view, "update-filters", %{"identifier" => "device-"}))
+
+      assert both =~ first.device.identifier
+      assert both =~ second.device.identifier
+
+      narrowed =
+        table(render_change(view, "update-filters", %{"identifier" => "device-", "status" => "completed"}))
+
+      assert narrowed =~ first.device.identifier
+      refute narrowed =~ second.device.identifier
+    end
+
+    test "the run's finished time arrives without a reload", ctx do
+      run = create_run(ctx, tag: "finishing")
+
+      {:ok, view, html} = live(ctx.conn, run_path(ctx, run))
+
+      # Nothing to show until the run is done.
+      assert html =~ "Still running"
+
+      # What the dispatcher does on the pass that sees no unfinished devices.
+      {:ok, _finished} = ScriptRunners.mark_finished(run)
+      :ok = ScriptRunners.broadcast_progress(run.id, :finished)
+
+      updated = render(view)
+
+      refute updated =~ "Still running"
+      # `local_datetime/1` renders the timestamp as a `<time>` element.
+      assert updated =~ "<time "
+      # The header's own status comes from the same reload.
+      assert updated =~ "completed"
+    end
+
+    # A bookmarked URL outlives the statuses it was written against.
+    test "an unrecognised status in the URL is ignored rather than raising", ctx do
+      run = create_run(ctx, tag: "stale-bookmark")
+      [result] = ScriptRunners.device_results(run)
+
+      session = visit(ctx.conn, "#{run_path(ctx, run)}?status=not-a-status")
+
+      assert_has(session, "td", text: result.device.identifier)
+    end
+
+    test "the devices can be sorted by status", ctx do
+      run = create_run(ctx, tag: "sortable", devices: 2)
+      [first, second] = ScriptRunners.device_results(run)
+
+      # One of each, so the two orderings differ.
+      1 = ScriptRunners.record_device_result(run.id, first.device_id, :completed, ":ok")
+      1 = ScriptRunners.record_device_result(run.id, second.device_id, :failed, "boom")
+
+      {:ok, view, _html} = live(ctx.conn, run_path(ctx, run))
+
+      # Scoped to the table: both statuses also appear in the progress counts
+      # above it, which are not what is being ordered.
+      ascending = table(render_change(view, "sort", %{"sort" => "status"}))
+      assert position(ascending, "completed") < position(ascending, "failed")
+
+      descending = table(render_change(view, "sort", %{"sort" => "status"}))
+      assert position(descending, "failed") < position(descending, "completed")
+    end
+
+    test "a device's output is revealed by clicking its row", ctx do
+      run = create_run(ctx, tag: "with-output")
+      [result] = ScriptRunners.device_results(run)
+      1 = ScriptRunners.record_device_result(run.id, result.device_id, :completed, "uptime: 3 days")
+
+      {:ok, view, html} = live(ctx.conn, run_path(ctx, run))
+
+      refute html =~ "uptime: 3 days"
+
+      assert render_click(view, "toggle-output", %{"id" => result.id}) =~ "uptime: 3 days"
+
+      # Clicking the open row closes it again.
+      refute render_click(view, "toggle-output", %{"id" => result.id}) =~ "uptime: 3 days"
+    end
+
+    test "a device with no output says so rather than showing an empty block", ctx do
+      run = create_run(ctx, tag: "timed-out")
+      [result] = ScriptRunners.device_results(run)
+      1 = ScriptRunners.record_device_result(run.id, result.device_id, :timed_out, nil)
+
+      {:ok, view, _html} = live(ctx.conn, run_path(ctx, run))
+
+      assert render_click(view, "toggle-output", %{"id" => result.id}) =~ "Nothing was recorded for this device."
+    end
+
+    test "the status counts follow a device reporting in", ctx do
+      run = create_run(ctx, tag: "live-counts")
+      [result] = ScriptRunners.device_results(run)
+
+      {:ok, view, html} = live(ctx.conn, run_path(ctx, run))
+
+      # Scoped to the progress panel: the statuses also appear in the table's rows.
+      assert progress(html) =~ "pending"
+
+      # What the device worker does when a device answers.
+      1 = ScriptRunners.record_device_result(run.id, result.device_id, :completed, ":ok")
+
+      :ok =
+        ScriptRunners.broadcast_progress(run.id, :device_finished, %{device_id: result.device_id, status: :completed})
+
+      updated = progress(render(view))
+
+      assert updated =~ "completed"
+      refute updated =~ "pending"
+    end
+
+    test "another product's run is not reachable", ctx do
+      other_product = Fixtures.product_fixture(ctx.user, ctx.org, %{name: "Somewhere else"})
+      other_key = Fixtures.org_key_fixture(ctx.org, ctx.user)
+      other_firmware = Fixtures.firmware_fixture(other_key, other_product)
+      device = Fixtures.device_fixture(ctx.org, other_product, other_firmware, %{tags: ["elsewhere"]})
+
+      {:ok, other_run, []} =
+        ScriptRunners.create(other_product, ctx.user, %{
+          name: "Not yours",
+          text: "IO.puts(:hi)",
+          filter_type: :identifiers,
+          filter: %{identifiers: [device.identifier]}
+        })
+
+      assert_raise Ecto.NoResultsError, fn ->
+        visit(ctx.conn, run_path(ctx, other_run))
+      end
+    end
+  end
+
+  describe "rerunning a run" do
+    defp complete(run) do
+      for result <- ScriptRunners.device_results(run) do
+        1 = ScriptRunners.record_device_result(run.id, result.device_id, :completed, ":ok")
+      end
+
+      {:ok, run} = ScriptRunners.mark_finished(run)
+
+      run
+    end
+
+    test "a completed run offers a rerun", ctx do
+      run = ctx |> create_run(tag: "rerunnable") |> complete()
+
+      ctx.conn
+      |> visit(run_path(ctx, run))
+      |> assert_has("button", text: "Rerun")
+    end
+
+    test "a run still going does not offer a rerun", ctx do
+      run = create_run(ctx, tag: "still-going")
+
+      ctx.conn
+      |> visit(run_path(ctx, run))
+      |> refute_has("button", text: "Rerun")
+    end
+
+    test "the modal says a rerun is an entirely new run", ctx do
+      run = ctx |> create_run(tag: "explained") |> complete()
+
+      ctx.conn
+      |> visit(run_path(ctx, run))
+      |> click_button("Rerun")
+      |> assert_has("#rerun-modal", text: "entirely new script run with the same settings")
+    end
+
+    # The filter is re-resolved rather than copied, so the two counts differ once
+    # the fleet has moved.
+    test "the modal compares the tag filter's old count with its new one", ctx do
+      run = ctx |> create_run(tag: "growing", devices: 2) |> complete()
+
+      # A third device now carries the tag, so a rerun would reach one more.
+      Fixtures.device_fixture(ctx.org, ctx.product, ctx.firmware, %{tags: ["growing"]})
+
+      ctx.conn
+      |> visit(run_path(ctx, run))
+      |> click_button("Rerun")
+      |> assert_has("#rerun-modal", text: "2 devices")
+      |> assert_has("#rerun-modal", text: "3 devices")
+      |> assert_has("#rerun-modal", text: "1 more than before")
+    end
+
+    test "the modal compares the identifier filter's counts and names what no longer matches", ctx do
+      [first, second] =
+        for _ <- 1..2, do: Fixtures.device_fixture(ctx.org, ctx.product, ctx.firmware)
+
+      {:ok, run, []} =
+        ScriptRunners.create(ctx.product, ctx.user, %{
+          name: "By identifier",
+          text: "IO.puts(:hi)",
+          filter_type: :identifiers,
+          filter: %{identifiers: [first.identifier, second.identifier]}
+        })
+
+      run = complete(run)
+
+      {:ok, _deleted} = Devices.delete_device(second)
+
+      ctx.conn
+      |> visit(run_path(ctx, run))
+      |> click_button("Rerun")
+      |> assert_has("#rerun-modal", text: "2 devices")
+      |> assert_has("#rerun-modal", text: "1 device")
+      |> assert_has("#rerun-modal", text: "1 fewer than before")
+      |> assert_has("#rerun-modal", text: "1 of the named identifiers")
+    end
+
+    test "the modal names each deployment group with its device count", ctx do
+      first_group = Fixtures.deployment_group_fixture(ctx.firmware, %{name: "Alpha fleet", user: ctx.user})
+      second_group = Fixtures.deployment_group_fixture(ctx.firmware, %{name: "Beta fleet", user: ctx.user})
+
+      for _ <- 1..2 do
+        Fixtures.device_fixture(ctx.org, ctx.product, ctx.firmware, %{deployment_id: first_group.id})
+      end
+
+      Fixtures.device_fixture(ctx.org, ctx.product, ctx.firmware, %{deployment_id: second_group.id})
+
+      {:ok, run, []} =
+        ScriptRunners.create(ctx.product, ctx.user, %{
+          name: "By deployment group",
+          text: "IO.puts(:hi)",
+          filter_type: :deployment_groups,
+          filter: %{deployment_group_ids: [first_group.id, second_group.id]}
+        })
+
+      run = complete(run)
+
+      session =
+        ctx.conn
+        |> visit(run_path(ctx, run))
+        |> click_button("Rerun")
+        |> assert_has("#rerun-modal", text: "Alpha fleet")
+        |> assert_has("#rerun-modal", text: "Beta fleet")
+
+      # Two in one group and one in the other, adding up to the run's three.
+      assert_has(session, "#rerun-modal", text: "2 devices")
+      assert_has(session, "#rerun-modal", text: "1 device")
+      assert_has(session, "#rerun-modal", text: "3 devices")
+    end
+
+    test "the modal says when a targeted deployment group no longer exists", ctx do
+      group = Fixtures.deployment_group_fixture(ctx.firmware, %{name: "Departed fleet", user: ctx.user})
+
+      Fixtures.device_fixture(ctx.org, ctx.product, ctx.firmware, %{deployment_id: group.id})
+
+      {:ok, run, []} =
+        ScriptRunners.create(ctx.product, ctx.user, %{
+          name: "By deployment group",
+          text: "IO.puts(:hi)",
+          filter_type: :deployment_groups,
+          filter: %{deployment_group_ids: [group.id]}
+        })
+
+      run = complete(run)
+
+      {:ok, _deleted} = ManagedDeployments.delete_deployment_group(group)
+
+      ctx.conn
+      |> visit(run_path(ctx, run))
+      |> click_button("Rerun")
+      |> assert_has("#rerun-modal", text: "Deployment group no longer exists")
+    end
+
+    test "confirming creates a new run and leaves the original alone", ctx do
+      run = ctx |> create_run(name: "Reboot", tag: "rerun-me") |> complete()
+
+      {:ok, view, _html} = live(ctx.conn, run_path(ctx, run))
+
+      render_click(view, "preview-rerun", %{})
+      render_click(view, "rerun", %{})
+
+      assert_redirect(view)
+
+      # Both runs exist, told apart by id: they are created within the same second,
+      # which the listing's `inserted_at` ordering cannot separate.
+      runs = ScriptRunners.all_by_product(ctx.product)
+
+      assert length(runs) == 2
+
+      original = Enum.find(runs, &(&1.id == run.id))
+      newest = Enum.find(runs, &(&1.id != run.id))
+
+      # The original is untouched history.
+      assert original.status == :completed
+      assert original.finished_at
+
+      # The new run copies the settings under a copy name of its own.
+      assert newest.name == "Reboot copy 1"
+      assert newest.description == "copied from Reboot"
+      assert newest.text == run.text
+      assert newest.filter_type == run.filter_type
+      assert newest.filter.tags == run.filter.tags
+      assert newest.filter.tag_operator == run.filter.tag_operator
+      assert newest.status == :pending
+      assert newest.device_count == run.device_count
+    end
+
+    test "a filter that now matches nothing cannot be rerun", ctx do
+      device = Fixtures.device_fixture(ctx.org, ctx.product, ctx.firmware)
+
+      {:ok, run, []} =
+        ScriptRunners.create(ctx.product, ctx.user, %{
+          name: "Gone fleet",
+          text: "IO.puts(:hi)",
+          filter_type: :identifiers,
+          filter: %{identifiers: [device.identifier]}
+        })
+
+      run = complete(run)
+
+      {:ok, _deleted} = Devices.delete_device(device)
+
+      ctx.conn
+      |> visit(run_path(ctx, run))
+      |> click_button("Rerun")
+      |> assert_has("#rerun-modal", text: "Nothing matches the filter any more")
+    end
+
+    test "a viewer is not offered a rerun", ctx do
+      run = ctx |> create_run(tag: "read-only") |> complete()
+
+      {1, _} =
+        OrgUser
+        |> where([ou], ou.org_id == ^ctx.org.id and ou.user_id == ^ctx.user.id)
+        |> Repo.update_all(set: [role: :view])
+
+      ctx.conn
+      |> visit(run_path(ctx, run))
+      |> refute_has("button", text: "Rerun")
+    end
+  end
+
+  describe "the description" do
+    test "a run with no description says so", ctx do
+      run = create_run(ctx, tag: "undescribed")
+
+      ctx.conn
+      |> visit(run_path(ctx, run))
+      |> assert_has("span", text: "Description")
+      |> assert_has("span", text: "None")
+    end
+
+    test "a description is shown when the run has one", ctx do
+      run = create_run(ctx, tag: "described", description: "Checking the modem firmware")
+
+      ctx.conn
+      |> visit(run_path(ctx, run))
+      |> assert_has("span", text: "Checking the modem firmware")
+    end
+
+    test "editing saves the description without a reload", ctx do
+      run = create_run(ctx, tag: "editable")
+
+      {:ok, view, _html} = live(ctx.conn, run_path(ctx, run))
+
+      render_click(view, "edit-description", %{})
+
+      saved = render_submit(view, "save-description", %{"description" => "Turned out to be the antenna"})
+
+      assert saved =~ "Turned out to be the antenna"
+      assert Repo.reload(run).description == "Turned out to be the antenna"
+    end
+
+    test "cancelling leaves the description as it was", ctx do
+      run = create_run(ctx, tag: "cancelled-edit", description: "Original note")
+
+      {:ok, view, _html} = live(ctx.conn, run_path(ctx, run))
+
+      render_click(view, "edit-description", %{})
+      cancelled = render_click(view, "cancel-description", %{})
+
+      assert cancelled =~ "Original note"
+      assert Repo.reload(run).description == "Original note"
+    end
+
+    test "a viewer is not offered the edit control", ctx do
+      run = create_run(ctx, tag: "read-only-description")
+
+      {1, _} =
+        OrgUser
+        |> where([ou], ou.org_id == ^ctx.org.id and ou.user_id == ^ctx.user.id)
+        |> Repo.update_all(set: [role: :view])
+
+      ctx.conn
+      |> visit(run_path(ctx, run))
+      |> refute_has("button[aria-label='Edit the description']")
+    end
+  end
+
+  describe "deleting a run" do
+    test "the run and its device rows go, and the listing no longer shows it", ctx do
+      run = create_run(ctx, name: "Delete me", tag: "deletable", devices: 2)
+
+      {:ok, view, _html} = live(ctx.conn, run_path(ctx, run))
+
+      render_click(view, "delete-run", %{})
+
+      assert_redirect(view, runs_path(ctx))
+
+      refute Repo.get(ScriptRunner, run.id)
+
+      # Cascaded by the foreign key. Counted here too, because the UI is the only
+      # place this delete is reachable from.
+      assert Repo.aggregate(where(ScriptRunnerDevice, [srd], srd.script_runner_id == ^run.id), :count) == 0
+    end
+
+    test "a viewer is not offered a delete", ctx do
+      run = create_run(ctx, tag: "read-only-delete")
+
+      {1, _} =
+        OrgUser
+        |> where([ou], ou.org_id == ^ctx.org.id and ou.user_id == ^ctx.user.id)
+        |> Repo.update_all(set: [role: :view])
+
+      ctx.conn
+      |> visit(run_path(ctx, run))
+      |> refute_has("button", text: "Delete")
+    end
+  end
+
+  describe "unique names in the form" do
+    test "a name another run already has is rejected with an error on the field", ctx do
+      _existing = create_run(ctx, name: "Reboot the fleet", tag: "taken")
+
+      Fixtures.device_fixture(ctx.org, ctx.product, ctx.firmware, %{tags: ["cellular"]})
+
+      ctx.conn
+      |> visit(new_path(ctx))
+      |> fill_in("Name", with: "Reboot the fleet")
+      |> fill_in("Script code", with: "Nerves.Runtime.reboot()")
+      |> select("Choose devices by", option: "Tags")
+      |> fill_in("Device tags", with: "cellular")
+      |> select("Tag matching", option: "Allow any")
+      |> click_button("Run script")
+      |> assert_has("p", text: "has already been used by another run in this product")
+    end
+  end
+
+  describe "exporting the device results" do
+    test "the export button links to the CSV", ctx do
+      run = create_run(ctx, tag: "exportable")
+
+      ctx.conn
+      |> visit(run_path(ctx, run))
+      |> assert_has("a", text: "Export")
+    end
+
+    test "the CSV holds a row per device with its status, finished time and output", ctx do
+      run = create_run(ctx, name: "Reboot the fleet", tag: "csv", devices: 2)
+      [first, second] = ScriptRunners.device_results(run)
+
+      1 = ScriptRunners.record_device_result(run.id, first.device_id, :completed, "uptime: 3 days")
+      1 = ScriptRunners.record_device_result(run.id, second.device_id, :failed, "boom")
+
+      conn = get(ctx.conn, "#{run_path(ctx, run)}/export")
+
+      assert response_content_type(conn, :csv) =~ "text/csv"
+
+      body = response(conn, 200)
+      [header | rows] = body |> String.trim() |> String.split("\r\n")
+
+      assert header == "identifier,status,finished_at,output"
+      assert length(rows) == 2
+
+      assert Enum.any?(rows, &(&1 =~ first.device.identifier && &1 =~ "completed" && &1 =~ "uptime: 3 days"))
+      assert Enum.any?(rows, &(&1 =~ second.device.identifier && &1 =~ "failed" && &1 =~ "boom"))
+    end
+
+    # A device that never answered has no finished time and no output, and an empty
+    # cell says that better than the word "nil".
+    test "a device with no result exports empty cells rather than nil", ctx do
+      run = create_run(ctx, tag: "pending-export")
+      [result] = ScriptRunners.device_results(run)
+
+      body = ctx.conn |> get("#{run_path(ctx, run)}/export") |> response(200)
+
+      refute body =~ "nil"
+      assert body =~ "#{result.device.identifier},pending,,"
+    end
+
+    # The file is the record of the whole run, not of whatever the page was showing.
+    test "the export ignores the page's filters", ctx do
+      run = create_run(ctx, tag: "unfiltered-export", devices: 2)
+      [first, _second] = ScriptRunners.device_results(run)
+
+      1 = ScriptRunners.record_device_result(run.id, first.device_id, :completed, ":ok")
+
+      body = ctx.conn |> get("#{run_path(ctx, run)}/export?status=completed") |> response(200)
+
+      rows = body |> String.trim() |> String.split("\r\n") |> tl()
+
+      assert length(rows) == 2
+    end
+
+    # A run in progress exports differently a minute later, so the name says when
+    # this copy was taken.
+    test "the filename carries the run's name and the time of the export", ctx do
+      run = create_run(ctx, name: "Reboot the fleet", tag: "named-export")
+
+      conn = get(ctx.conn, "#{run_path(ctx, run)}/export")
+
+      [disposition] = get_resp_header(conn, "content-disposition")
+
+      assert disposition =~ "reboot-the-fleet-"
+      assert disposition =~ ~r/\d{4}-\d{2}-\d{2}_\d{6}\.csv/
+    end
+
+    test "another product's run cannot be exported", ctx do
+      other_product = Fixtures.product_fixture(ctx.user, ctx.org, %{name: "Somewhere else"})
+      other_key = Fixtures.org_key_fixture(ctx.org, ctx.user)
+      other_firmware = Fixtures.firmware_fixture(other_key, other_product)
+      device = Fixtures.device_fixture(ctx.org, other_product, other_firmware, %{tags: ["elsewhere"]})
+
+      {:ok, other_run, []} =
+        ScriptRunners.create(other_product, ctx.user, %{
+          name: "Not yours",
+          text: "IO.puts(:hi)",
+          filter_type: :identifiers,
+          filter: %{identifiers: [device.identifier]}
+        })
+
+      assert_raise Ecto.NoResultsError, fn ->
+        get(ctx.conn, "#{run_path(ctx, other_run)}/export")
+      end
+    end
+  end
+
+  describe "pagination" do
+    # Sorted by name rather than the default `inserted_at`: these runs are all
+    # created within the same second, and that column has no tiebreaker, so which
+    # of them lands on page two would otherwise be undefined.
+    test "the runs listing paginates past 25 runs", ctx do
+      Fixtures.device_fixture(ctx.org, ctx.product, ctx.firmware, %{tags: ["paged"]})
+
+      for i <- 1..26 do
+        create_run(ctx, name: "Run #{String.pad_leading("#{i}", 2, "0")}", tag: "paged")
+      end
+
+      session =
+        ctx.conn
+        |> visit("#{runs_path(ctx)}?sort=name&sort_direction=asc")
+        |> assert_has("button", text: "2")
+        # 26 runs, 25 to a page, so only the last by name is on page two.
+        |> assert_has("td", text: "Run 01")
+        |> refute_has("td", text: "Run 26")
+
+      session
+      |> click_button("button[phx-click='paginate'][phx-value-page='2']", "2")
+      |> assert_has("td", text: "Run 26")
+      |> refute_has("td", text: "Run 01")
+    end
+
+    test "no pager is offered when everything fits on one page", ctx do
+      _run = create_run(ctx, tag: "unpaged")
+
+      ctx.conn
+      |> visit(runs_path(ctx))
+      |> refute_has("button[phx-click='paginate']")
+    end
+
+    test "changing the page size puts the runs back on one page", ctx do
+      Fixtures.device_fixture(ctx.org, ctx.product, ctx.firmware, %{tags: ["resized"]})
+
+      for i <- 1..26 do
+        create_run(ctx, name: "Run #{String.pad_leading("#{i}", 2, "0")}", tag: "resized")
+      end
+
+      {:ok, view, html} = live(ctx.conn, "#{runs_path(ctx)}?sort=name&sort_direction=asc")
+
+      refute html =~ "Run 26"
+
+      # All 26 fit once the page holds 50.
+      resized = render_click(view, "set-paginate-opts", %{"page-size" => "50"})
+
+      assert resized =~ "Run 26"
+    end
+
+    # A run can be tens of thousands of devices wide, so this is the pager that
+    # matters most.
+    test "the device results paginate past 25 devices", ctx do
+      run = create_run(ctx, tag: "many-devices", devices: 26)
+
+      results = ScriptRunners.device_results(run)
+      last = List.last(results)
+
+      session =
+        ctx.conn
+        |> visit(run_path(ctx, run))
+        |> assert_has("button", text: "2")
+        # Sorted by identifier ascending, so the last one is on page two.
+        |> refute_has("td", text: last.device.identifier)
+
+      session
+      |> click_button("button[phx-click='paginate'][phx-value-page='2']", "2")
+      |> assert_has("td", text: last.device.identifier)
+    end
+
+    test "the device page size can be changed", ctx do
+      run = create_run(ctx, tag: "resizable-devices", devices: 26)
+
+      last = run |> ScriptRunners.device_results() |> List.last()
+
+      {:ok, view, html} = live(ctx.conn, run_path(ctx, run))
+
+      refute html =~ last.device.identifier
+
+      resized = render_click(view, "set-paginate-opts", %{"page-size" => "50"})
+
+      assert resized =~ last.device.identifier
+    end
+
+    # Narrowing the results has to go back to page one, or a filter applied from
+    # page three shows an empty page.
+    test "filtering the device results returns to the first page", ctx do
+      run = create_run(ctx, tag: "filtered-paging", devices: 26)
+
+      [first | _rest] = ScriptRunners.device_results(run)
+
+      {:ok, view, _html} = live(ctx.conn, run_path(ctx, run))
+
+      # Onto page two, then filter down to a single device that sorts first.
+      _page_two = render_click(view, "paginate", %{"page" => "2"})
+
+      filtered = render_change(view, "update-filters", %{"identifier" => first.device.identifier})
+
+      assert filtered =~ first.device.identifier
+    end
+  end
+
+  # Private helpers, kept at the end rather than in the describe block that uses
+  # them: a `defp` inside a `describe` belongs to the module either way.
+  defp position(html, text) do
+    case :binary.match(html, text) do
+      {at, _length} -> at
+      :nomatch -> flunk("expected to find #{inspect(text)} in the rendered page")
+    end
+  end
+
+  # The statuses appear in three places: the progress counts, the status filter's
+  # options and the table's rows. An assertion about one has to say which it
+  # means. The progress panel ends where the filter form begins.
+  defp progress(html) do
+    html
+    |> region("run-progress")
+    |> String.split(~s(id="device-results-filters-form"), parts: 2)
+    |> hd()
+  end
+
+  defp table(html), do: region(html, "device-results")
+
+  # The count beside the "Devices" heading, and nothing else on that bar. Stops at
+  # the export link rather than at the filter form: the export URL carries the run's
+  # id, so a run whose id contains the number being asserted about would otherwise
+  # match here.
+  defp devices_header(html) do
+    html
+    |> region("devices-heading")
+    |> String.split(~s(<a href=), parts: 2)
+    |> hd()
+    |> String.split(~s(id="device-results-filters-form"), parts: 2)
+    |> hd()
+  end
+
+  defp region(html, id) do
+    [_before, within] = String.split(html, ~s(id="#{id}"), parts: 2)
+    within
+  end
+end

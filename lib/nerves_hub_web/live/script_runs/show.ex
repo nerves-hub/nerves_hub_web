@@ -1,0 +1,364 @@
+defmodule NervesHubWeb.Live.ScriptRuns.Show do
+  @moduledoc """
+  One run: what it ran, which devices it chose, and what each of them said.
+
+  The device results are paginated, searchable by identifier and sortable, the
+  same way the listings are. A run can be tens of thousands of devices wide, so
+  nothing here loads the whole result set — including the live updates, which
+  refresh the status counts (one grouped query) and leave the visible page of rows
+  where the operator put it.
+  """
+
+  use NervesHubWeb, :live_view
+
+  alias NervesHub.ManagedDeployments
+  alias NervesHub.ScriptRunners
+  alias NervesHub.ScriptRunners.ScriptRunner
+  alias NervesHub.ScriptRunners.ScriptRunnerDevice
+  alias NervesHub.Scripts.Script
+  alias NervesHubWeb.Components.Sorting
+
+  @default_page 1
+  @default_page_size 25
+
+  @default_pagination %{
+    page_number: @default_page,
+    page_size: @default_page_size,
+    page_sizes: [25, 50, 100],
+    total_pages: 0
+  }
+
+  @pagination_types %{
+    page_number: :integer,
+    page_size: :integer,
+    page_sizes: {:array, :integer},
+    total_pages: :integer
+  }
+
+  # Identifier ascending: the one column a person scans, and the order they would
+  # look a device up in.
+  @default_sorting %{sort_direction: "asc", sort: "identifier"}
+  @sort_types %{sort_direction: :string, sort: :string}
+
+  @default_filters %{identifier: "", status: ""}
+  @filter_types %{identifier: :string, status: :string}
+
+  @impl Phoenix.LiveView
+  def mount(%{"script_run_id" => id}, _session, %{assigns: %{current_scope: scope}} = socket) do
+    run = ScriptRunners.get_by_id!(scope, id)
+
+    if connected?(socket) do
+      :ok = ScriptRunners.subscribe(run)
+    end
+
+    socket
+    |> page_title("#{run.name} - #{scope.product.name}")
+    # Shares the sidebar entry with the scripts listing, like the runs index.
+    |> sidebar_tab(:support_scripts)
+    |> assign(:script_run, run)
+    |> assign(:targeted_deployment_groups, targeted_deployment_groups(scope.product, run))
+    |> assign(:status_counts, ScriptRunners.status_counts(run))
+    |> assign(:expanded_device_id, nil)
+    |> assign(:rerun_preview, nil)
+    |> assign(:editing_description?, false)
+    |> assign(:paginate_opts, @default_pagination)
+    |> assign(:sort_direction, @default_sorting.sort_direction)
+    |> assign(:current_sort, @default_sorting.sort)
+    |> assign(:current_filters, @default_filters)
+    |> assign(:currently_filtering, false)
+    |> ok()
+  end
+
+  @impl Phoenix.LiveView
+  def handle_params(params, _uri, socket) do
+    pagination_opts = Map.merge(@default_pagination, pagination_changes(params))
+    filters = Map.merge(@default_filters, filter_changes(params))
+
+    socket
+    |> assign(:params, params)
+    |> assign(:paginate_opts, pagination_opts)
+    |> assign(:current_sort, Map.get(params, "sort", @default_sorting.sort))
+    |> assign(:sort_direction, Map.get(params, "sort_direction", @default_sorting.sort_direction))
+    |> assign(:current_filters, filters)
+    |> assign(:currently_filtering, filters != @default_filters)
+    |> assign_devices_with_pagination()
+    |> noreply()
+  end
+
+  @impl Phoenix.LiveView
+  def handle_event("paginate", %{"page" => page_num}, socket) do
+    socket
+    |> push_patch(to: self_path(socket, %{"page_number" => page_num}))
+    |> noreply()
+  end
+
+  def handle_event("set-paginate-opts", %{"page-size" => page_size}, socket) do
+    socket
+    |> push_patch(to: self_path(socket, %{"page_size" => page_size, "page_number" => 1}))
+    |> noreply()
+  end
+
+  def handle_event("update-filters", params, %{assigns: %{paginate_opts: paginate_opts}} = socket) do
+    page_params = %{"page_number" => @default_page, "page_size" => paginate_opts.page_size}
+
+    socket
+    |> push_patch(to: self_path(socket, Map.merge(params, page_params)))
+    |> noreply()
+  end
+
+  # Clicking the column already sorted reverses it.
+  def handle_event("sort", %{"sort" => value}, %{assigns: %{current_sort: value}} = socket) do
+    sort_direction = if socket.assigns.sort_direction == "desc", do: "asc", else: "desc"
+
+    socket
+    |> push_patch(to: self_path(socket, %{sort_direction: sort_direction, sort: value}))
+    |> noreply()
+  end
+
+  def handle_event("sort", %{"sort" => value}, socket) do
+    socket
+    |> push_patch(to: self_path(socket, %{sort_direction: "asc", sort: value}))
+    |> noreply()
+  end
+
+  # Output is often long and sometimes many lines, so it is revealed a row at a
+  # time rather than given a column. Clicking the open row closes it.
+  def handle_event("toggle-output", %{"id" => id}, socket) do
+    # The browser sends the value as a string; a test pushing the event directly
+    # sends whatever it was given.
+    id = if is_binary(id), do: String.to_integer(id), else: id
+    expanded = if socket.assigns.expanded_device_id != id, do: id
+
+    socket
+    |> assign(:expanded_device_id, expanded)
+    |> noreply()
+  end
+
+  # A rerun is a new run with the same settings, and the fleet moves between runs,
+  # so what it would target is resolved and shown before anything is created.
+  def handle_event("preview-rerun", _params, %{assigns: %{current_scope: scope}} = socket) do
+    authorized!(:"script_runner:create", scope)
+
+    socket
+    |> assign(:rerun_preview, ScriptRunners.rerun_preview(scope, socket.assigns.script_run))
+    |> noreply()
+  end
+
+  def handle_event("cancel-rerun", _params, socket) do
+    socket
+    |> assign(:rerun_preview, nil)
+    |> noreply()
+  end
+
+  def handle_event("rerun", _params, %{assigns: %{current_scope: scope}} = socket) do
+    authorized!(:"script_runner:create", scope)
+
+    case ScriptRunners.rerun(scope, scope.user, socket.assigns.script_run) do
+      {:ok, run, _unmatched} ->
+        socket
+        |> put_flash(:info, "Running “#{run.name}” on #{run.device_count} #{devices(run.device_count)}.")
+        |> push_navigate(to: ~p"/org/#{scope.org}/#{scope.product}/scripts/runs/#{run.id}")
+        |> noreply()
+
+      {:error, :no_devices} ->
+        socket
+        |> assign(:rerun_preview, nil)
+        |> put_flash(:error, "No devices match the filter any more, so there is nothing to run.")
+        |> noreply()
+
+      {:error, _changeset} ->
+        socket
+        |> assign(:rerun_preview, nil)
+        |> put_flash(:error, "There was an error starting the Script Run.")
+        |> noreply()
+    end
+  end
+
+  # The description is operator commentary rather than a record of the run, so it
+  # stays editable. Edited in place in the Details card rather than on a page of its
+  # own: it is one field, and the rest of what it annotates is right there.
+  def handle_event("edit-description", _params, %{assigns: %{current_scope: scope}} = socket) do
+    authorized!(:"script_runner:update", scope)
+
+    socket
+    |> assign(:editing_description?, true)
+    |> noreply()
+  end
+
+  def handle_event("cancel-description", _params, socket) do
+    socket
+    |> assign(:editing_description?, false)
+    |> noreply()
+  end
+
+  def handle_event("save-description", %{"description" => description}, %{assigns: %{current_scope: scope}} = socket) do
+    authorized!(:"script_runner:update", scope)
+
+    case ScriptRunners.update_description(socket.assigns.script_run, description) do
+      {:ok, run} ->
+        socket
+        |> assign(:script_run, run)
+        |> assign(:editing_description?, false)
+        |> put_flash(:info, "Description saved.")
+        |> noreply()
+
+      {:error, _changeset} ->
+        socket
+        |> put_flash(:error, "There was an error saving the description.")
+        |> noreply()
+    end
+  end
+
+  # Deleting a run takes its devices' output with it, which is the whole record of
+  # what the fleet said, so it is confirmed in the browser before it gets here.
+  def handle_event("delete-run", _params, %{assigns: %{current_scope: scope}} = socket) do
+    authorized!(:"script_runner:delete", scope)
+
+    case ScriptRunners.delete(socket.assigns.script_run, scope.user, scope.product) do
+      {:ok, run} ->
+        socket
+        |> put_flash(:info, "Deleted “#{run.name}”.")
+        |> push_navigate(to: ~p"/org/#{scope.org}/#{scope.product}/scripts/runs")
+        |> noreply()
+
+      {:error, _changeset} ->
+        socket
+        |> put_flash(:error, "There was an error deleting the Script Run.")
+        |> noreply()
+    end
+  end
+
+  # Only the counts are refreshed as devices report. Reloading the visible page of
+  # rows on every device would re-query a paginated table once per device, and a
+  # run can be tens of thousands of devices wide.
+  @impl Phoenix.LiveView
+  def handle_info({:script_runner, :device_finished, _payload}, socket) do
+    socket
+    |> assign(:status_counts, ScriptRunners.status_counts(socket.assigns.script_run))
+    |> noreply()
+  end
+
+  # The run's own status changed, which the header shows.
+  def handle_info({:script_runner, event, _payload}, socket) when event in [:started, :finished] do
+    run = ScriptRunners.get_by_id!(socket.assigns.current_scope, socket.assigns.script_run.id)
+
+    socket
+    |> assign(:script_run, run)
+    |> assign(:status_counts, ScriptRunners.status_counts(run))
+    |> noreply()
+  end
+
+  def handle_info(_message, socket), do: noreply(socket)
+
+  # The groups a `:deployment_groups` run targeted, so the page can name them
+  # rather than only count them. The run stores ids, and a group can be renamed or
+  # deleted after the run, so this is a lookup rather than a snapshot: a group that
+  # no longer exists simply drops out, and the stored count still tells the
+  # operator how many were chosen.
+  defp targeted_deployment_groups(product, %ScriptRunner{filter_type: :deployment_groups} = run) do
+    ManagedDeployments.get_deployment_groups_by_ids(product, run.filter.deployment_group_ids)
+  end
+
+  defp targeted_deployment_groups(_product, _run), do: []
+
+  defp assign_devices_with_pagination(socket) do
+    %{
+      assigns: %{
+        script_run: run,
+        paginate_opts: paginate_opts,
+        sort_direction: sort_direction,
+        current_sort: current_sort,
+        current_filters: current_filters
+      }
+    } = socket
+
+    opts = %{
+      pagination: %{page: paginate_opts.page_number, page_size: paginate_opts.page_size},
+      sort: {String.to_existing_atom(sort_direction), String.to_existing_atom(current_sort)},
+      filters: current_filters
+    }
+
+    {entries, pager_meta} = ScriptRunners.filter_devices(run, opts)
+
+    socket
+    |> assign(:device_results, entries)
+    |> assign(:pager_meta, pager_meta)
+  end
+
+  defp self_path(socket, new_params) do
+    params = Enum.into(stringify_keys(new_params), socket.assigns.params)
+
+    query =
+      params
+      |> filter_changes()
+      |> Map.merge(pagination_changes(params))
+      |> Map.merge(sort_changes(params))
+
+    scope = socket.assigns.current_scope
+
+    ~p"/org/#{scope.org}/#{scope.product}/scripts/runs/#{socket.assigns.script_run.id}?#{query}"
+  end
+
+  defp pagination_changes(params) do
+    Ecto.Changeset.cast({@default_pagination, @pagination_types}, params, Map.keys(@default_pagination)).changes
+  end
+
+  defp sort_changes(params) do
+    Ecto.Changeset.cast({@default_sorting, @sort_types}, params, Map.keys(@default_sorting)).changes
+  end
+
+  defp filter_changes(params) do
+    Ecto.Changeset.cast({@default_filters, @filter_types}, params, Map.keys(@default_filters), empty_values: []).changes
+  end
+
+  defp stringify_keys(params) do
+    for {key, value} <- params, into: %{} do
+      if is_atom(key), do: {to_string(key), value}, else: {key, value}
+    end
+  end
+
+  # Every status a device result can hold, for the progress counts and the status
+  # filter to offer. The schema's own order, so the two always agree.
+  defp statuses(), do: ScriptRunnerDevice.statuses()
+
+  defp status_count(counts, status), do: Map.get(counts, status, 0)
+
+  # Devices that reached an outcome, of any kind -- a failure is as finished as a
+  # success. Only `:pending` and `:running` are not counted, being the two statuses
+  # a device can still move off.
+  defp finished_count(counts) do
+    counts
+    |> Map.take(ScriptRunnerDevice.terminal_statuses())
+    |> count_values()
+  end
+
+  # Every device the run has a row for, counted the same way as the numerator so
+  # the two always agree.
+  defp total_count(counts), do: count_values(counts)
+
+  defp count_values(counts), do: counts |> Map.values() |> Enum.sum()
+
+  defp devices(1), do: "device"
+  defp devices(_many), do: "devices"
+
+  # A description the operator cleared comes back as "" rather than nil, and both
+  # mean the same thing on the page.
+  defp present?(nil), do: false
+  defp present?(""), do: false
+  defp present?(_value), do: true
+
+  defp identifiers(1), do: "identifier"
+  defp identifiers(_many), do: "identifiers"
+
+  # How the rerun's target set compares with the original's, since the two counts
+  # on their own leave the reader to subtract.
+  defp target_difference(%{previous_device_count: same, new_device_count: same}), do: "(unchanged)"
+
+  defp target_difference(%{previous_device_count: previous, new_device_count: new}) when new > previous do
+    "(#{new - previous} more than before)"
+  end
+
+  defp target_difference(%{previous_device_count: previous, new_device_count: new}) do
+    "(#{previous - new} fewer than before)"
+  end
+end

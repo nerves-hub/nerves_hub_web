@@ -38,6 +38,10 @@ defmodule NervesHub.DeviceLink do
   # is why one arriving in that mode is put back on automatic.
   @update_mode_api_version ">= 2.4.0"
 
+  # Only used for a `:run_script` that arrives without a timeout, which is the
+  # message shape of the previous release. Callers send their own.
+  @default_script_timeout to_timeout(second: 15)
+
   # ------------------------------------------------------------------------
   # Device channel
   #
@@ -326,7 +330,14 @@ defmodule NervesHub.DeviceLink do
     {session, []}
   end
 
+  # The pre-timeout message shape. A web node still running the old release
+  # broadcasts this, so it has to keep working across a rolling deploy; remove it
+  # once one has completed.
   defp do_device_notify(session, {:run_script, pid, text}) do
+    do_device_notify(session, {:run_script, pid, text, @default_script_timeout})
+  end
+
+  defp do_device_notify(session, {:run_script, pid, text, timeout}) do
     if safe_to_run_scripts?(session) do
       ref = Base.encode64(:crypto.strong_rand_bytes(4), padding: false)
       session = %{session | script_refs: Map.put(session.script_refs, ref, pid)}
@@ -334,7 +345,10 @@ defmodule NervesHub.DeviceLink do
       {session,
        [
          {:push, "scripts/run", %{"text" => text, "ref" => ref}},
-         {:send_after, {:script_ref, ref}, {:clear_script_ref, ref}, 15_000}
+         # The caller's own deadline, so the reference outlives the wait rather
+         # than expiring inside it -- a shorter timeout here silently discarded
+         # answers that arrived in time.
+         {:send_after, {:script_ref, ref}, {:clear_script_ref, ref}, timeout}
        ]}
     else
       send(pid, {:error, :incompatible_version})

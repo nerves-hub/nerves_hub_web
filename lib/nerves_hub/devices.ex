@@ -30,6 +30,7 @@ defmodule NervesHub.Devices do
   alias NervesHub.Products.Product
   alias NervesHub.Repo
   alias NervesHub.Types.Tag
+  alias NimbleCSV.RFC4180, as: CSV
 
   @doc """
   Pair counted analytics results with their devices, in the order given.
@@ -706,6 +707,94 @@ defmodule NervesHub.Devices do
     |> select([d], fragment("distinct unnest(?)", d.tags))
     |> Repo.all()
     |> Enum.sort()
+  end
+
+  @doc """
+  The device tags of a product that best match `query`, at most `limit` of them.
+
+  For autocomplete on products with too many tags to send to the browser: the
+  biggest have thousands, which is hundreds of kilobytes of markup and a dropdown
+  nobody can read. This answers one token at a time instead.
+
+  Ranked by trigram similarity rather than returned alphabetically, so the closest
+  tag comes first and a typo or transposition still finds it — `pg_trgm` is
+  already enabled. A blank query matches nothing: a list of arbitrary tags is no
+  help before the person has said anything about what they want.
+
+  Devices are narrowed before their tags are unnested, using the same
+  `string_array_to_string` predicate the device tag filter uses. That is what
+  `devices_tags_index` is built on, so the match is served by the index; filtering
+  on the unnested value alone cannot use it, and unnests every device row in the
+  product on each keystroke. The unnested value is still matched afterwards,
+  because the indexed predicate tests the whole array joined into one string and
+  so admits devices whose other tags matched.
+  """
+  @spec search_tags_for_product(Product.t(), String.t(), pos_integer()) :: [String.t()]
+  def search_tags_for_product(product, query, limit \\ 5)
+
+  def search_tags_for_product(%Product{}, query, _limit) when not is_binary(query), do: []
+
+  def search_tags_for_product(%Product{} = product, query, limit) do
+    case String.trim(query) do
+      "" ->
+        []
+
+      trimmed ->
+        tags =
+          Device
+          |> where([d], d.product_id == ^product.id)
+          |> where([d], not is_nil(d.tags))
+          |> where([d], fragment("string_array_to_string(?, ' ', ' ') ILIKE ?", d.tags, ^"%#{trimmed}%"))
+          |> select([d], %{tag: fragment("distinct unnest(?)", d.tags)})
+
+        from(t in subquery(tags),
+          where: ilike(t.tag, ^"%#{trimmed}%"),
+          order_by: [desc: fragment("similarity(?, ?)", t.tag, ^trimmed), asc: t.tag],
+          limit: ^limit,
+          select: t.tag
+        )
+        |> Repo.all()
+    end
+  end
+
+  @doc """
+  Read device identifiers from an uploaded CSV.
+
+  One column, headed `identifier`. Values are trimmed, blanks dropped and repeats
+  collapsed, so callers get the list a person meant rather than the file's exact
+  rows. Anything else — a different header, more than one column — is
+  `{:error, :invalid_csv}`; a file with only a header is `{:ok, []}`, which is a
+  different problem and worth a different message.
+
+  Shared by the pages that accept such a file: importing devices into a
+  deployment group, and choosing the devices for a script run.
+  """
+  @spec parse_identifier_csv(Path.t()) :: {:ok, [String.t()]} | {:error, :invalid_csv}
+  def parse_identifier_csv(path) do
+    path
+    |> File.stream!()
+    |> CSV.parse_stream(skip_headers: false)
+    |> Enum.reduce({nil, []}, fn
+      [header], {nil, []} ->
+        if String.trim(header) == "identifier", do: {:ok, []}, else: {:error, :bad_header}
+
+      [id], {:ok, acc} ->
+        {:ok, [String.trim(id) | acc]}
+
+      _unexpected_row, {:error, _reason} = error ->
+        error
+
+      # A row with more than one column, or a row before the header.
+      _unexpected_row, _acc ->
+        {:error, :bad_row}
+    end)
+    |> case do
+      {:ok, ids} ->
+        {:ok, ids |> Enum.reverse() |> Enum.reject(&(&1 == "")) |> Enum.uniq()}
+
+      _invalid ->
+        {:error, :invalid_csv}
+    end
   end
 
   @spec add_tag(Device.t(), User.t(), String.t()) :: {:ok, Device.t()} | {:error, any()} | {:error, any(), any(), any()}

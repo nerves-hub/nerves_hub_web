@@ -131,6 +131,14 @@ defmodule NervesHubWeb.CoreComponents do
   attr(:id, :string, required: true)
   attr(:show, :boolean, default: false)
   attr(:on_cancel, JS, default: %JS{})
+
+  attr(:close_button_class, :string,
+    default: "top-6 right-5",
+    doc:
+      "where the close button sits. The default clears a modal opening with its own header bar; " <>
+        "a modal whose first line is a plain title lines the button up with it instead."
+  )
+
   slot(:inner_block, required: true)
 
   # The root is absolute so it stays out of flow once shown. Showing it sets
@@ -140,7 +148,7 @@ defmodule NervesHubWeb.CoreComponents do
   def modal(assigns) do
     ~H"""
     <div id={@id} phx-mounted={@show && show_modal(@id)} phx-remove={hide_modal(@id)} data-cancel={JS.exec(@on_cancel, "phx-remove")} class="absolute z-50 hidden">
-      <div id={"#{@id}-bg"} class="bg-base-200/90 fixed inset-0 transition-opacity" aria-hidden="true" />
+      <div id={"#{@id}-bg"} class="bg-scrim/90 fixed inset-0 transition-opacity" aria-hidden="true" />
       <div class="fixed inset-0 overflow-y-auto" aria-labelledby={"#{@id}-title"} aria-describedby={"#{@id}-description"} role="dialog" aria-modal="true" tabindex="0">
         <div class="flex min-h-full items-center justify-center">
           <div class="w-full max-w-3xl p-4 sm:p-6 lg:py-8">
@@ -151,8 +159,8 @@ defmodule NervesHubWeb.CoreComponents do
               phx-click-away={JS.exec("data-cancel", to: "##{@id}")}
               class="bg-base-900 ring-base-700/10 shadow-base-700/10 relative hidden rounded-2xl p-4 shadow-lg ring-1 transition"
             >
-              <div class="absolute top-6 right-5">
-                <button phx-click={JS.exec("data-cancel", to: "##{@id}")} type="button" class="-m-3 flex-none p-3 opacity-20 hover:opacity-40" aria-label={gettext("close")}>
+              <div class={["absolute", @close_button_class]}>
+                <button phx-click={JS.exec("data-cancel", to: "##{@id}")} type="button" class="-m-3 flex-none p-3 opacity-20 hover:cursor-pointer hover:opacity-40" aria-label={gettext("close")}>
                   <.icon name="close" class="stroke-base-200 size-8" />
                 </button>
               </div>
@@ -636,19 +644,34 @@ defmodule NervesHubWeb.CoreComponents do
   @doc """
   Renders a comma-separated tags text input with an autocomplete dropdown.
 
-  Suggestions are filtered client-side (via the `TagAutocomplete` JS hook) from
-  the `available_tags` list, matching the token currently being typed after the
-  last comma. Tags already present in the input are excluded from suggestions.
+  Suggestions match the token currently being typed after the last comma, and
+  exclude tags already present in the input. They come from one of two places,
+  both handled by the `TagAutocomplete` JS hook:
+
+    * `available_tags` — every known tag, filtered in the browser. Right for the
+      small sets.
+    * `search_event` — the name of a LiveView event the hook pushes the typed
+      token to, which replies with `%{tags: [...]}`. Right for device tags, where
+      a big product has thousands: sending them all is hundreds of kilobytes of
+      markup and a dropdown nobody can read. Nothing is suggested until something
+      is typed. See `NervesHub.Devices.search_tags_for_product/3`.
 
   ## Examples
 
       <.tag_input field={@form[:tags]} label="Tags" available_tags={@available_tags} />
+      <.tag_input field={@form[:tags]} label="Device tags" search_event="search-device-tags" />
   """
   attr(:id, :any, default: nil)
   attr(:name, :any)
   attr(:label, :string, default: nil)
   attr(:value, :any)
   attr(:available_tags, :list, default: [], doc: "existing tags to offer as autocomplete suggestions")
+
+  attr(:search_event, :string,
+    default: nil,
+    doc: "a LiveView event to search for matches instead of filtering `available_tags` in the browser"
+  )
+
   attr(:field, FormField, doc: "a form field struct retrieved from the form, for example: @form[:tags]")
   attr(:errors, :list, default: [])
   attr(:rest, :global, include: ~w(placeholder))
@@ -670,11 +693,14 @@ defmodule NervesHubWeb.CoreComponents do
     ~H"""
     <div phx-feedback-for={@name}>
       <.label for={@id}>{@label}</.label>
+      <%!-- Only one source of suggestions is sent: a `search_event` input has no
+            use for the full list, which is the point of it. --%>
       <div
         id={"#{@id}-autocomplete"}
         class="relative mt-2"
         phx-hook="TagAutocomplete"
-        data-available-tags={Jason.encode!(@available_tags)}
+        data-tag-search={@search_event}
+        data-available-tags={!@search_event && Jason.encode!(@available_tags)}
       >
         <input
           type="text"
