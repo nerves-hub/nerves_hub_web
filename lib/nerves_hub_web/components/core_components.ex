@@ -131,6 +131,14 @@ defmodule NervesHubWeb.CoreComponents do
   attr(:id, :string, required: true)
   attr(:show, :boolean, default: false)
   attr(:on_cancel, JS, default: %JS{})
+
+  attr(:close_button_class, :string,
+    default: "top-6 right-5",
+    doc:
+      "where the close button sits. The default clears a modal opening with its own header bar; " <>
+        "a modal whose first line is a plain title lines the button up with it instead."
+  )
+
   slot(:inner_block, required: true)
 
   # The root is absolute so it stays out of flow once shown. Showing it sets
@@ -151,8 +159,8 @@ defmodule NervesHubWeb.CoreComponents do
               phx-click-away={JS.exec("data-cancel", to: "##{@id}")}
               class="bg-base-900 ring-base-700/10 shadow-base-700/10 relative hidden rounded-2xl p-4 shadow-lg ring-1 transition"
             >
-              <div class="absolute top-6 right-5">
-                <button phx-click={JS.exec("data-cancel", to: "##{@id}")} type="button" class="-m-3 flex-none p-3 opacity-20 hover:opacity-40" aria-label={gettext("close")}>
+              <div class={["absolute", @close_button_class]}>
+                <button phx-click={JS.exec("data-cancel", to: "##{@id}")} type="button" class="-m-3 flex-none p-3 opacity-20 hover:cursor-pointer hover:opacity-40" aria-label={gettext("close")}>
                   <.icon name="close" class="stroke-base-200 size-8" />
                 </button>
               </div>

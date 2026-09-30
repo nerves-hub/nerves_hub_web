@@ -1,7 +1,12 @@
 defmodule NervesHubWeb.Live.ScriptRunsTest do
   use NervesHubWeb.ConnCase.Browser, async: true
 
+  import Ecto.Query, only: [where: 3]
+
+  alias NervesHub.Accounts.OrgUser
+  alias NervesHub.Devices
   alias NervesHub.Fixtures
+  alias NervesHub.ManagedDeployments
   alias NervesHub.Repo
   alias NervesHub.ScriptRunners
   alias NervesHub.ScriptRunners.ScriptRunnerDevice
@@ -472,6 +477,49 @@ defmodule NervesHubWeb.Live.ScriptRunsTest do
       |> assert_has("span", text: "1 named")
     end
 
+    test "names the deployment groups a run targeted and links to each", ctx do
+      deployment_group = Fixtures.deployment_group_fixture(ctx.firmware, %{name: "Cellular fleet", user: ctx.user})
+
+      Fixtures.device_fixture(ctx.org, ctx.product, ctx.firmware, %{deployment_id: deployment_group.id})
+
+      {:ok, run, _unmatched} =
+        ScriptRunners.create(ctx.product, ctx.user, %{
+          name: "By deployment group",
+          text: "IO.puts(:hi)",
+          filter_type: :deployment_groups,
+          filter: %{deployment_group_ids: [deployment_group.id]}
+        })
+
+      ctx.conn
+      |> visit(run_path(ctx, run))
+      |> assert_has("span", text: "Deployment groups")
+      |> assert_has(
+        ~s|a[href="/org/#{ctx.org.name}/#{ctx.product.name}/deployment_groups/Cellular%20fleet"][target="_blank"]|,
+        text: "Cellular fleet"
+      )
+    end
+
+    test "a deployment group deleted since the run falls back to the count", ctx do
+      deployment_group = Fixtures.deployment_group_fixture(ctx.firmware, %{name: "Gone fleet", user: ctx.user})
+
+      Fixtures.device_fixture(ctx.org, ctx.product, ctx.firmware, %{deployment_id: deployment_group.id})
+
+      {:ok, run, _unmatched} =
+        ScriptRunners.create(ctx.product, ctx.user, %{
+          name: "By deployment group",
+          text: "IO.puts(:hi)",
+          filter_type: :deployment_groups,
+          filter: %{deployment_group_ids: [deployment_group.id]}
+        })
+
+      {:ok, _deleted} = ManagedDeployments.delete_deployment_group(deployment_group)
+
+      ctx.conn
+      |> visit(run_path(ctx, run))
+      |> refute_has("a", text: "Gone fleet")
+      |> assert_has("span", text: "1 selected")
+    end
+
     test "lists the run's devices", ctx do
       run = create_run(ctx, devices: 3)
 
@@ -724,37 +772,240 @@ defmodule NervesHubWeb.Live.ScriptRunsTest do
         visit(ctx.conn, run_path(ctx, other_run))
       end
     end
+  end
 
-    defp position(html, text) do
-      case :binary.match(html, text) do
-        {at, _length} -> at
-        :nomatch -> flunk("expected to find #{inspect(text)} in the rendered page")
+  describe "rerunning a run" do
+    defp complete(run) do
+      for result <- ScriptRunners.device_results(run) do
+        1 = ScriptRunners.record_device_result(run.id, result.device_id, :completed, ":ok")
       end
+
+      {:ok, run} = ScriptRunners.mark_finished(run)
+
+      run
     end
 
-    # The statuses appear in three places: the progress counts, the status filter's
-    # options and the table's rows. An assertion about one has to say which it
-    # means. The progress panel ends where the filter form begins.
-    defp progress(html) do
-      html
-      |> region("run-progress")
-      |> String.split(~s(id="device-results-filters-form"), parts: 2)
-      |> hd()
+    test "a completed run offers a rerun", ctx do
+      run = ctx |> create_run(tag: "rerunnable") |> complete()
+
+      ctx.conn
+      |> visit(run_path(ctx, run))
+      |> assert_has("button", text: "Rerun")
     end
 
-    defp table(html), do: region(html, "device-results")
+    test "a run still going does not offer a rerun", ctx do
+      run = create_run(ctx, tag: "still-going")
 
-    # The count beside the "Devices" heading, up to the filter form beside it.
-    defp devices_header(html) do
-      html
-      |> region("devices-heading")
-      |> String.split(~s(id="device-results-filters-form"), parts: 2)
-      |> hd()
+      ctx.conn
+      |> visit(run_path(ctx, run))
+      |> refute_has("button", text: "Rerun")
     end
 
-    defp region(html, id) do
-      [_before, within] = String.split(html, ~s(id="#{id}"), parts: 2)
-      within
+    test "the modal says a rerun is an entirely new run", ctx do
+      run = ctx |> create_run(tag: "explained") |> complete()
+
+      ctx.conn
+      |> visit(run_path(ctx, run))
+      |> click_button("Rerun")
+      |> assert_has("#rerun-modal", text: "entirely new script run with the same settings")
     end
+
+    # The filter is re-resolved rather than copied, so the two counts differ once
+    # the fleet has moved.
+    test "the modal compares the tag filter's old count with its new one", ctx do
+      run = ctx |> create_run(tag: "growing", devices: 2) |> complete()
+
+      # A third device now carries the tag, so a rerun would reach one more.
+      Fixtures.device_fixture(ctx.org, ctx.product, ctx.firmware, %{tags: ["growing"]})
+
+      ctx.conn
+      |> visit(run_path(ctx, run))
+      |> click_button("Rerun")
+      |> assert_has("#rerun-modal", text: "2 devices")
+      |> assert_has("#rerun-modal", text: "3 devices")
+      |> assert_has("#rerun-modal", text: "1 more than before")
+    end
+
+    test "the modal compares the identifier filter's counts and names what no longer matches", ctx do
+      [first, second] =
+        for _ <- 1..2, do: Fixtures.device_fixture(ctx.org, ctx.product, ctx.firmware)
+
+      {:ok, run, []} =
+        ScriptRunners.create(ctx.product, ctx.user, %{
+          name: "By identifier",
+          text: "IO.puts(:hi)",
+          filter_type: :identifiers,
+          filter: %{identifiers: [first.identifier, second.identifier]}
+        })
+
+      run = complete(run)
+
+      {:ok, _deleted} = Devices.delete_device(second)
+
+      ctx.conn
+      |> visit(run_path(ctx, run))
+      |> click_button("Rerun")
+      |> assert_has("#rerun-modal", text: "2 devices")
+      |> assert_has("#rerun-modal", text: "1 device")
+      |> assert_has("#rerun-modal", text: "1 fewer than before")
+      |> assert_has("#rerun-modal", text: "1 of the named identifiers")
+    end
+
+    test "the modal names each deployment group with its device count", ctx do
+      first_group = Fixtures.deployment_group_fixture(ctx.firmware, %{name: "Alpha fleet", user: ctx.user})
+      second_group = Fixtures.deployment_group_fixture(ctx.firmware, %{name: "Beta fleet", user: ctx.user})
+
+      for _ <- 1..2 do
+        Fixtures.device_fixture(ctx.org, ctx.product, ctx.firmware, %{deployment_id: first_group.id})
+      end
+
+      Fixtures.device_fixture(ctx.org, ctx.product, ctx.firmware, %{deployment_id: second_group.id})
+
+      {:ok, run, []} =
+        ScriptRunners.create(ctx.product, ctx.user, %{
+          name: "By deployment group",
+          text: "IO.puts(:hi)",
+          filter_type: :deployment_groups,
+          filter: %{deployment_group_ids: [first_group.id, second_group.id]}
+        })
+
+      run = complete(run)
+
+      session =
+        ctx.conn
+        |> visit(run_path(ctx, run))
+        |> click_button("Rerun")
+        |> assert_has("#rerun-modal", text: "Alpha fleet")
+        |> assert_has("#rerun-modal", text: "Beta fleet")
+
+      # Two in one group and one in the other, adding up to the run's three.
+      assert_has(session, "#rerun-modal", text: "2 devices")
+      assert_has(session, "#rerun-modal", text: "1 device")
+      assert_has(session, "#rerun-modal", text: "3 devices")
+    end
+
+    test "the modal says when a targeted deployment group no longer exists", ctx do
+      group = Fixtures.deployment_group_fixture(ctx.firmware, %{name: "Departed fleet", user: ctx.user})
+
+      Fixtures.device_fixture(ctx.org, ctx.product, ctx.firmware, %{deployment_id: group.id})
+
+      {:ok, run, []} =
+        ScriptRunners.create(ctx.product, ctx.user, %{
+          name: "By deployment group",
+          text: "IO.puts(:hi)",
+          filter_type: :deployment_groups,
+          filter: %{deployment_group_ids: [group.id]}
+        })
+
+      run = complete(run)
+
+      {:ok, _deleted} = ManagedDeployments.delete_deployment_group(group)
+
+      ctx.conn
+      |> visit(run_path(ctx, run))
+      |> click_button("Rerun")
+      |> assert_has("#rerun-modal", text: "Deployment group no longer exists")
+    end
+
+    test "confirming creates a new run and leaves the original alone", ctx do
+      run = ctx |> create_run(name: "Reboot", tag: "rerun-me") |> complete()
+
+      {:ok, view, _html} = live(ctx.conn, run_path(ctx, run))
+
+      render_click(view, "preview-rerun", %{})
+      render_click(view, "rerun", %{})
+
+      assert_redirect(view)
+
+      # Both runs exist, told apart by id: they are created within the same second,
+      # which the listing's `inserted_at` ordering cannot separate.
+      runs = ScriptRunners.all_by_product(ctx.product)
+
+      assert length(runs) == 2
+
+      original = Enum.find(runs, &(&1.id == run.id))
+      newest = Enum.find(runs, &(&1.id != run.id))
+
+      # The original is untouched history.
+      assert original.status == :completed
+      assert original.finished_at
+
+      # The new run copies the settings and starts fresh.
+      assert newest.name == run.name
+      assert newest.text == run.text
+      assert newest.filter_type == run.filter_type
+      assert newest.filter.tags == run.filter.tags
+      assert newest.filter.tag_operator == run.filter.tag_operator
+      assert newest.status == :pending
+      assert newest.device_count == run.device_count
+    end
+
+    test "a filter that now matches nothing cannot be rerun", ctx do
+      device = Fixtures.device_fixture(ctx.org, ctx.product, ctx.firmware)
+
+      {:ok, run, []} =
+        ScriptRunners.create(ctx.product, ctx.user, %{
+          name: "Gone fleet",
+          text: "IO.puts(:hi)",
+          filter_type: :identifiers,
+          filter: %{identifiers: [device.identifier]}
+        })
+
+      run = complete(run)
+
+      {:ok, _deleted} = Devices.delete_device(device)
+
+      ctx.conn
+      |> visit(run_path(ctx, run))
+      |> click_button("Rerun")
+      |> assert_has("#rerun-modal", text: "Nothing matches the filter any more")
+    end
+
+    test "a viewer is not offered a rerun", ctx do
+      run = ctx |> create_run(tag: "read-only") |> complete()
+
+      {1, _} =
+        OrgUser
+        |> where([ou], ou.org_id == ^ctx.org.id and ou.user_id == ^ctx.user.id)
+        |> Repo.update_all(set: [role: :view])
+
+      ctx.conn
+      |> visit(run_path(ctx, run))
+      |> refute_has("button", text: "Rerun")
+    end
+  end
+
+  # Private helpers, kept at the end rather than in the describe block that uses
+  # them: a `defp` inside a `describe` belongs to the module either way.
+  defp position(html, text) do
+    case :binary.match(html, text) do
+      {at, _length} -> at
+      :nomatch -> flunk("expected to find #{inspect(text)} in the rendered page")
+    end
+  end
+
+  # The statuses appear in three places: the progress counts, the status filter's
+  # options and the table's rows. An assertion about one has to say which it
+  # means. The progress panel ends where the filter form begins.
+  defp progress(html) do
+    html
+    |> region("run-progress")
+    |> String.split(~s(id="device-results-filters-form"), parts: 2)
+    |> hd()
+  end
+
+  defp table(html), do: region(html, "device-results")
+
+  # The count beside the "Devices" heading, up to the filter form beside it.
+  defp devices_header(html) do
+    html
+    |> region("devices-heading")
+    |> String.split(~s(id="device-results-filters-form"), parts: 2)
+    |> hd()
+  end
+
+  defp region(html, id) do
+    [_before, within] = String.split(html, ~s(id="#{id}"), parts: 2)
+    within
   end
 end
