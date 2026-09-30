@@ -276,7 +276,12 @@
             <tr class="border-base-800 cursor-pointer border-b" phx-click="toggle-output" phx-value-id={result.id}>
               <td class="h-[52px]">
                 <div class="flex items-center gap-2">
-                  <.icon name={if @expanded_device_id == result.id, do: "unpinned", else: "open"} class="stroke-base-400" />
+                  <%!-- Which way the row will move when it is clicked: down to reveal
+                        the output, up to put it away. --%>
+                  <span class={[
+                    "text-base-400 size-5 shrink-0",
+                    if(@expanded_device_id == result.id, do: "lucide-chevron-up--light", else: "lucide-chevron-down--light")
+                  ]}></span>
                   {result.device.identifier}
                 </div>
               </td>
