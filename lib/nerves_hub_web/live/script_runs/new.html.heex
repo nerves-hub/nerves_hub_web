@@ -20,6 +20,14 @@
             <div class="flex w-1/2 flex-col gap-6">
               <.input field={@form[:name]} label="Name" placeholder="Reboot the cellular fleet" phx-debounce="blur" />
               <.input
+                field={@form[:description]}
+                label="Description"
+                type="textarea"
+                placeholder="Why this is being run, and what to make of the results..."
+                hint="Optional, and editable later from the run's own page."
+                phx-debounce="blur"
+              />
+              <.input
                 name="script_id"
                 id="copy-from-script"
                 label="Start from a support script"

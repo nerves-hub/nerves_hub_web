@@ -60,9 +60,20 @@ defmodule NervesHub.Workers.ScriptRunnerDispatch do
   starving the queue or piling up jobs it cannot start.
   """
   @spec ceiling() :: pos_integer()
-  def ceiling() do
-    :nerves_hub
-    |> Application.get_env(Oban, [])
+  def ceiling(), do: ceiling(Application.get_env(:nerves_hub, Oban, []))
+
+  @doc """
+  The ceiling a given Oban config implies.
+
+  Takes the config rather than only reading it, so how a queue's limit is
+  interpreted can be checked without writing to the application environment.
+  `Application.put_env/3` is global while the suite runs tests concurrently, so a
+  test that retuned the real config would change the share another test was
+  measuring mid-flight.
+  """
+  @spec ceiling(keyword()) :: pos_integer()
+  def ceiling(oban_config) do
+    oban_config
     |> Keyword.get(:queues, [])
     |> Keyword.get(@queue)
     |> queue_limit()

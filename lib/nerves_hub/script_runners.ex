@@ -202,13 +202,75 @@ defmodule NervesHub.ScriptRunners do
   exactly as it was. The filter is re-resolved, so the new run targets whatever
   matches now rather than the device set the original recorded -- see
   `rerun_preview/2`, which shows that difference before anything is created.
+
+  The new run is named after the original with a `copy N` suffix, and its
+  description says which run it came from. Names are unique per product, so losing
+  a race for one is retried against the names that exist by then.
   """
   @spec rerun(Scope.t() | Product.t(), User.t(), ScriptRunner.t()) ::
           {:ok, ScriptRunner.t(), [String.t()]} | {:error, Changeset.t()} | {:error, :no_devices}
   def rerun(%Scope{product: product}, user, runner), do: rerun(product, user, runner)
 
   def rerun(%Product{} = product, user, %ScriptRunner{} = runner) do
-    create(product, user, rerun_params(runner))
+    case create(product, user, rerun_params(product, runner)) do
+      # Two reruns of the same run at once both read the same free suffix, and one
+      # of them gets there first. Retried once, against the names that exist by
+      # then; a second loss is reported rather than looped on.
+      {:error, %Changeset{} = changeset} = error ->
+        if Keyword.has_key?(changeset.errors, :name) do
+          create(product, user, rerun_params(product, runner))
+        else
+          error
+        end
+
+      result ->
+        result
+    end
+  end
+
+  @doc """
+  The name a rerun of this run would take: `"<name> copy <n>"`.
+
+  `n` is the lowest number not already used in the product, so reruns of the same
+  run read `copy 1`, `copy 2`, `copy 3`. An existing `copy N` suffix is replaced
+  rather than added to -- rerunning "Reboot copy 1" gives "Reboot copy 2", not
+  "Reboot copy 1 copy 1", so the base name stays put however many times a rerun is
+  itself rerun.
+  """
+  # The `copy_name/2` loop already skips every name it can see.
+  @spec copy_name(Product.t(), String.t()) :: String.t()
+  def copy_name(%Product{} = product, name) when is_binary(name) do
+    base = base_name(name)
+    taken = MapSet.new(names_starting_with(product, base))
+
+    Stream.iterate(1, &(&1 + 1))
+    |> Stream.map(&"#{base} copy #{&1}")
+    |> Enum.find(&(!MapSet.member?(taken, &1)))
+  end
+
+  # A trailing " copy <n>" is this scheme's own suffix, so it is stripped back to
+  # the name the operator gave rather than treated as part of it.
+  defp base_name(name), do: String.replace(name, ~r/ copy \d+$/, "")
+
+  # Only the names that could collide with a `copy N` of this base, rather than
+  # every name in the product.
+  defp names_starting_with(product, base) do
+    pattern = "#{escape_like(base)} copy %"
+
+    ScriptRunner
+    |> where([sr], sr.product_id == ^product.id)
+    |> where([sr], like(sr.name, ^pattern))
+    |> select([sr], sr.name)
+    |> Repo.all()
+  end
+
+  # The base name is operator-supplied and can hold `%` or `_`, which would
+  # otherwise be wildcards in the LIKE above.
+  defp escape_like(value) do
+    value
+    |> String.replace("\\", "\\\\")
+    |> String.replace("%", "\\%")
+    |> String.replace("_", "\\_")
   end
 
   @doc """
@@ -275,16 +337,33 @@ defmodule NervesHub.ScriptRunners do
     |> Map.new()
   end
 
-  # The settings a rerun copies: everything about what ran and who it ran on.
-  # Statuses, timestamps and counts are the new run's own to record.
-  defp rerun_params(%ScriptRunner{} = runner) do
+  # The settings a rerun copies: everything about what ran and who it ran on, under
+  # a new name, with a note of where it came from. Statuses, timestamps and counts
+  # are the new run's own to record.
+  defp rerun_params(product, %ScriptRunner{} = runner) do
     %{
-      name: runner.name,
+      name: copy_name(product, runner.name),
+      description: copied_from_description(runner),
       text: runner.text,
       language: runner.language,
       filter_type: runner.filter_type,
       filter: Map.from_struct(runner.filter)
     }
+  end
+
+  # The note goes below whatever the original said rather than replacing it: the
+  # original's description is as relevant to the copy as its code is. A run with no
+  # description gets the note on its own.
+  defp copied_from_description(%ScriptRunner{description: nil} = runner) do
+    "copied from #{runner.name}"
+  end
+
+  defp copied_from_description(%ScriptRunner{description: ""} = runner) do
+    "copied from #{runner.name}"
+  end
+
+  defp copied_from_description(%ScriptRunner{} = runner) do
+    "#{runner.description}\ncopied from #{runner.name}"
   end
 
   @doc """
@@ -318,6 +397,44 @@ defmodule NervesHub.ScriptRunners do
   end
 
   @doc """
+  Update a run's description.
+
+  The only part of a run that can be changed after it is created: see
+  `NervesHub.ScriptRunners.ScriptRunner`.
+  """
+  @spec update_description(ScriptRunner.t(), String.t() | nil) ::
+          {:ok, ScriptRunner.t()} | {:error, Changeset.t()}
+  def update_description(%ScriptRunner{} = runner, description) do
+    runner
+    |> ScriptRunner.description_changeset(%{description: description})
+    |> Repo.update()
+  end
+
+  @doc """
+  Delete a run and everything recorded for its devices.
+
+  The device rows go with it, cascaded by the foreign key rather than deleted here
+  -- a run can be tens of thousands of devices wide, and the database does that in
+  one statement.
+
+  Any dispatch job still queued for the run finds nothing to work on and stops;
+  see `NervesHub.Workers.ScriptRunnerDispatch`.
+  """
+  @spec delete(ScriptRunner.t(), User.t(), Product.t()) ::
+          {:ok, ScriptRunner.t()} | {:error, Changeset.t()}
+  def delete(%ScriptRunner{} = runner, %User{} = user, %Product{} = product) do
+    case Repo.delete(runner) do
+      {:ok, deleted} ->
+        :ok = ProductTemplates.audit_script_runner_deleted(user, product, deleted)
+
+        {:ok, deleted}
+
+      error ->
+        error
+    end
+  end
+
+  @doc """
   Fetch a run within a product's scope.
   """
   @spec get_by_id!(Scope.t() | Product.t(), integer() | String.t()) :: ScriptRunner.t()
@@ -340,6 +457,63 @@ defmodule NervesHub.ScriptRunners do
     |> order_by([device: d], asc: d.identifier)
     |> preload([device: d], device: d)
     |> Repo.all()
+  end
+
+  @doc """
+  The columns a device-results export carries, in order.
+  """
+  @spec export_csv_header() :: [String.t(), ...]
+  def export_csv_header(), do: ["identifier", "status", "finished_at", "output"]
+
+  @doc """
+  Stream one run's device results through `callback`, a row at a time.
+
+  Streamed rather than loaded: a run can be tens of thousands of devices wide, and
+  every device's output is in here. Ordered by identifier, the same as the table on
+  the run's page.
+
+  `callback` is given the accumulator and one row of `export_csv_header/0` columns,
+  and returns `{:ok, acc}` to continue or `{:error, term()}` to stop.
+  """
+  @spec export_reducer(ScriptRunner.t(), acc, (acc, [String.t()] -> {:ok, acc} | {:error, term()})) ::
+          {:ok, acc}
+        when acc: term()
+  def export_reducer(%ScriptRunner{id: id}, acc, callback) do
+    Repo.transact(
+      fn ->
+        ScriptRunnerDevice
+        |> where([srd], srd.script_runner_id == ^id)
+        |> join(:inner, [srd], d in assoc(srd, :device), as: :device)
+        |> order_by([device: d], asc: d.identifier)
+        |> select([srd, device: d], %{
+          identifier: d.identifier,
+          status: srd.status,
+          finished_at: srd.finished_at,
+          output: srd.output
+        })
+        |> Repo.stream(max_rows: 500)
+        |> Stream.map(&export_csv_line/1)
+        |> Enum.reduce_while(acc, fn line, acc ->
+          case callback.(acc, line) do
+            {:ok, acc} -> {:cont, acc}
+            {:error, _reason} -> {:halt, acc}
+          end
+        end)
+        |> then(&{:ok, &1})
+      end,
+      timeout: 90_000
+    )
+  end
+
+  # Every column a string, and a missing value an empty cell rather than the word
+  # "nil": a device that never answered has no finished time and no output.
+  defp export_csv_line(result) do
+    [
+      result.identifier,
+      to_string(result.status),
+      if(result.finished_at, do: DateTime.to_iso8601(result.finished_at), else: ""),
+      result.output || ""
+    ]
   end
 
   @doc """

@@ -36,9 +36,10 @@ defmodule NervesHub.Workers.ScriptRunnerDispatchTest do
       Fixtures.device_fixture(ctx.org, ctx.product, ctx.firmware, %{tags: [tag]})
     end
 
+    # These tests run several runs at once, and a name is unique within a product.
     {:ok, runner, []} =
       ScriptRunners.create(ctx.product, ctx.user, %{
-        name: "Say hi",
+        name: "Say hi #{tag}",
         text: "IO.puts(:hi)",
         filter_type: :tags,
         filter: %{tags: [tag], tag_operator: :or}
@@ -318,40 +319,32 @@ defmodule NervesHub.Workers.ScriptRunnerDispatchTest do
     end
   end
 
-  describe "ceiling/0" do
-    setup do
-      original = Application.fetch_env!(:nerves_hub, Oban)
-      on_exit(fn -> Application.put_env(:nerves_hub, Oban, original) end)
+  # Each of these is asked about a config it is handed, rather than one written to
+  # the application environment: `Application.put_env/3` is global, the suite runs
+  # tests concurrently, and retuning the real limit here changed the ceiling that
+  # the share tests above were measuring against half way through them.
+  describe "ceiling/1" do
+    test "is the configured queue limit" do
+      configured =
+        :nerves_hub
+        |> Application.fetch_env!(Oban)
+        |> Keyword.fetch!(:queues)
+        |> Keyword.fetch!(:script_runners)
 
-      %{original: original}
+      assert ScriptRunnerDispatch.ceiling() == configured
     end
 
-    defp put_queues(config, queues) do
-      Application.put_env(:nerves_hub, Oban, Keyword.put(config, :queues, queues))
-    end
-
-    test "is the configured queue limit", ctx do
-      assert ScriptRunnerDispatch.ceiling() ==
-               ctx.original |> Keyword.fetch!(:queues) |> Keyword.fetch!(:script_runners)
-    end
-
-    test "follows the config rather than a copy of the number", ctx do
-      put_queues(ctx.original, script_runners: 42)
-
-      assert ScriptRunnerDispatch.ceiling() == 42,
+    test "follows the config rather than a copy of the number" do
+      assert ScriptRunnerDispatch.ceiling(queues: [script_runners: 42]) == 42,
              "retuning the queue limit must retune the share, or the two drift apart"
     end
 
-    test "reads the limit out of a queue configured with options", ctx do
-      put_queues(ctx.original, script_runners: [limit: 17])
-
-      assert ScriptRunnerDispatch.ceiling() == 17
+    test "reads the limit out of a queue configured with options" do
+      assert ScriptRunnerDispatch.ceiling(queues: [script_runners: [limit: 17]]) == 17
     end
 
-    test "falls back to a sane number when the queue is not configured", ctx do
-      put_queues(ctx.original, other: 1)
-
-      assert ScriptRunnerDispatch.ceiling() == 500,
+    test "falls back to a sane number when the queue is not configured" do
+      assert ScriptRunnerDispatch.ceiling(queues: [other: 1]) == 500,
              "a missing queue must not make the share arithmetic divide by nil"
     end
   end

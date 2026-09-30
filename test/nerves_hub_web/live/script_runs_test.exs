@@ -9,6 +9,7 @@ defmodule NervesHubWeb.Live.ScriptRunsTest do
   alias NervesHub.ManagedDeployments
   alias NervesHub.Repo
   alias NervesHub.ScriptRunners
+  alias NervesHub.ScriptRunners.ScriptRunner
   alias NervesHub.ScriptRunners.ScriptRunnerDevice
 
   setup %{user: user, org: org} = context do
@@ -31,6 +32,7 @@ defmodule NervesHubWeb.Live.ScriptRunsTest do
     {:ok, run, []} =
       ScriptRunners.create(ctx.product, ctx.user, %{
         name: name,
+        description: Keyword.get(opts, :description),
         text: text,
         filter_type: Keyword.get(opts, :filter_type, :tags),
         filter: Keyword.get(opts, :filter, %{tags: [tag], tag_operator: :or})
@@ -930,8 +932,9 @@ defmodule NervesHubWeb.Live.ScriptRunsTest do
       assert original.status == :completed
       assert original.finished_at
 
-      # The new run copies the settings and starts fresh.
-      assert newest.name == run.name
+      # The new run copies the settings under a copy name of its own.
+      assert newest.name == "Reboot copy 1"
+      assert newest.description == "copied from Reboot"
       assert newest.text == run.text
       assert newest.filter_type == run.filter_type
       assert newest.filter.tags == run.filter.tags
@@ -972,6 +975,201 @@ defmodule NervesHubWeb.Live.ScriptRunsTest do
       ctx.conn
       |> visit(run_path(ctx, run))
       |> refute_has("button", text: "Rerun")
+    end
+  end
+
+  describe "the description" do
+    test "a run with no description says so", ctx do
+      run = create_run(ctx, tag: "undescribed")
+
+      ctx.conn
+      |> visit(run_path(ctx, run))
+      |> assert_has("span", text: "Description")
+      |> assert_has("span", text: "None")
+    end
+
+    test "a description is shown when the run has one", ctx do
+      run = create_run(ctx, tag: "described", description: "Checking the modem firmware")
+
+      ctx.conn
+      |> visit(run_path(ctx, run))
+      |> assert_has("span", text: "Checking the modem firmware")
+    end
+
+    test "editing saves the description without a reload", ctx do
+      run = create_run(ctx, tag: "editable")
+
+      {:ok, view, _html} = live(ctx.conn, run_path(ctx, run))
+
+      render_click(view, "edit-description", %{})
+
+      saved = render_submit(view, "save-description", %{"description" => "Turned out to be the antenna"})
+
+      assert saved =~ "Turned out to be the antenna"
+      assert Repo.reload(run).description == "Turned out to be the antenna"
+    end
+
+    test "cancelling leaves the description as it was", ctx do
+      run = create_run(ctx, tag: "cancelled-edit", description: "Original note")
+
+      {:ok, view, _html} = live(ctx.conn, run_path(ctx, run))
+
+      render_click(view, "edit-description", %{})
+      cancelled = render_click(view, "cancel-description", %{})
+
+      assert cancelled =~ "Original note"
+      assert Repo.reload(run).description == "Original note"
+    end
+
+    test "a viewer is not offered the edit control", ctx do
+      run = create_run(ctx, tag: "read-only-description")
+
+      {1, _} =
+        OrgUser
+        |> where([ou], ou.org_id == ^ctx.org.id and ou.user_id == ^ctx.user.id)
+        |> Repo.update_all(set: [role: :view])
+
+      ctx.conn
+      |> visit(run_path(ctx, run))
+      |> refute_has("button[aria-label='Edit the description']")
+    end
+  end
+
+  describe "deleting a run" do
+    test "the run and its device rows go, and the listing no longer shows it", ctx do
+      run = create_run(ctx, name: "Delete me", tag: "deletable", devices: 2)
+
+      {:ok, view, _html} = live(ctx.conn, run_path(ctx, run))
+
+      render_click(view, "delete-run", %{})
+
+      assert_redirect(view, runs_path(ctx))
+
+      refute Repo.get(ScriptRunner, run.id)
+
+      # Cascaded by the foreign key. Counted here too, because the UI is the only
+      # place this delete is reachable from.
+      assert Repo.aggregate(where(ScriptRunnerDevice, [srd], srd.script_runner_id == ^run.id), :count) == 0
+    end
+
+    test "a viewer is not offered a delete", ctx do
+      run = create_run(ctx, tag: "read-only-delete")
+
+      {1, _} =
+        OrgUser
+        |> where([ou], ou.org_id == ^ctx.org.id and ou.user_id == ^ctx.user.id)
+        |> Repo.update_all(set: [role: :view])
+
+      ctx.conn
+      |> visit(run_path(ctx, run))
+      |> refute_has("button", text: "Delete")
+    end
+  end
+
+  describe "unique names in the form" do
+    test "a name another run already has is rejected with an error on the field", ctx do
+      _existing = create_run(ctx, name: "Reboot the fleet", tag: "taken")
+
+      Fixtures.device_fixture(ctx.org, ctx.product, ctx.firmware, %{tags: ["cellular"]})
+
+      ctx.conn
+      |> visit(new_path(ctx))
+      |> fill_in("Name", with: "Reboot the fleet")
+      |> fill_in("Script code", with: "Nerves.Runtime.reboot()")
+      |> select("Choose devices by", option: "Tags")
+      |> fill_in("Device tags", with: "cellular")
+      |> select("Tag matching", option: "Allow any")
+      |> click_button("Run script")
+      |> assert_has("p", text: "has already been used by another run in this product")
+    end
+  end
+
+  describe "exporting the device results" do
+    test "the export button links to the CSV", ctx do
+      run = create_run(ctx, tag: "exportable")
+
+      ctx.conn
+      |> visit(run_path(ctx, run))
+      |> assert_has("a", text: "Export")
+    end
+
+    test "the CSV holds a row per device with its status, finished time and output", ctx do
+      run = create_run(ctx, name: "Reboot the fleet", tag: "csv", devices: 2)
+      [first, second] = ScriptRunners.device_results(run)
+
+      1 = ScriptRunners.record_device_result(run.id, first.device_id, :completed, "uptime: 3 days")
+      1 = ScriptRunners.record_device_result(run.id, second.device_id, :failed, "boom")
+
+      conn = get(ctx.conn, "#{run_path(ctx, run)}/export")
+
+      assert response_content_type(conn, :csv) =~ "text/csv"
+
+      body = response(conn, 200)
+      [header | rows] = body |> String.trim() |> String.split("\r\n")
+
+      assert header == "identifier,status,finished_at,output"
+      assert length(rows) == 2
+
+      assert Enum.any?(rows, &(&1 =~ first.device.identifier && &1 =~ "completed" && &1 =~ "uptime: 3 days"))
+      assert Enum.any?(rows, &(&1 =~ second.device.identifier && &1 =~ "failed" && &1 =~ "boom"))
+    end
+
+    # A device that never answered has no finished time and no output, and an empty
+    # cell says that better than the word "nil".
+    test "a device with no result exports empty cells rather than nil", ctx do
+      run = create_run(ctx, tag: "pending-export")
+      [result] = ScriptRunners.device_results(run)
+
+      body = ctx.conn |> get("#{run_path(ctx, run)}/export") |> response(200)
+
+      refute body =~ "nil"
+      assert body =~ "#{result.device.identifier},pending,,"
+    end
+
+    # The file is the record of the whole run, not of whatever the page was showing.
+    test "the export ignores the page's filters", ctx do
+      run = create_run(ctx, tag: "unfiltered-export", devices: 2)
+      [first, _second] = ScriptRunners.device_results(run)
+
+      1 = ScriptRunners.record_device_result(run.id, first.device_id, :completed, ":ok")
+
+      body = ctx.conn |> get("#{run_path(ctx, run)}/export?status=completed") |> response(200)
+
+      rows = body |> String.trim() |> String.split("\r\n") |> tl()
+
+      assert length(rows) == 2
+    end
+
+    # A run in progress exports differently a minute later, so the name says when
+    # this copy was taken.
+    test "the filename carries the run's name and the time of the export", ctx do
+      run = create_run(ctx, name: "Reboot the fleet", tag: "named-export")
+
+      conn = get(ctx.conn, "#{run_path(ctx, run)}/export")
+
+      [disposition] = get_resp_header(conn, "content-disposition")
+
+      assert disposition =~ "reboot-the-fleet-"
+      assert disposition =~ ~r/\d{4}-\d{2}-\d{2}_\d{6}\.csv/
+    end
+
+    test "another product's run cannot be exported", ctx do
+      other_product = Fixtures.product_fixture(ctx.user, ctx.org, %{name: "Somewhere else"})
+      other_key = Fixtures.org_key_fixture(ctx.org, ctx.user)
+      other_firmware = Fixtures.firmware_fixture(other_key, other_product)
+      device = Fixtures.device_fixture(ctx.org, other_product, other_firmware, %{tags: ["elsewhere"]})
+
+      {:ok, other_run, []} =
+        ScriptRunners.create(other_product, ctx.user, %{
+          name: "Not yours",
+          text: "IO.puts(:hi)",
+          filter_type: :identifiers,
+          filter: %{identifiers: [device.identifier]}
+        })
+
+      assert_raise Ecto.NoResultsError, fn ->
+        get(ctx.conn, "#{run_path(ctx, other_run)}/export")
+      end
     end
   end
 
