@@ -58,8 +58,10 @@ defmodule NervesHub.Support.Fwup do
     # signed with the missing `.priv` that anything complains -- as either
     # "Error opening private key file" or, if both files survived from different
     # pairs, `:invalid_signature`.
-    File.rm(key_path_no_extension <> ".pub")
-    File.rm(key_path_no_extension <> ".priv")
+    # Either outcome is the state this wants: the file is gone, or it was never
+    # there.
+    _ = File.rm(key_path_no_extension <> ".pub")
+    _ = File.rm(key_path_no_extension <> ".priv")
 
     {output, status} =
       System.cmd("fwup", ["-g", "-o", key_path_no_extension], stderr_to_stdout: true, env: [])
