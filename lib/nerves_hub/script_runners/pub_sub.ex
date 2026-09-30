@@ -40,17 +40,6 @@ defmodule NervesHub.ScriptRunners.PubSub do
     :ok = Group.join(@group, key(runner_id), %{})
   end
 
-  @doc "Remove the calling process from a run's progress group."
-  @spec unsubscribe(integer()) :: :ok
-  def unsubscribe(runner_id) do
-    # Unsubscribing from something never subscribed to is not an error, matching
-    # `Phoenix.PubSub.unsubscribe/2`, which callers here are drop-in replacing.
-    case Group.leave(@group, key(runner_id)) do
-      :ok -> :ok
-      {:error, :not_in_group} -> :ok
-    end
-  end
-
   @doc """
   Dispatch a progress event to every process joined to the run's group.
 

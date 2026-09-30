@@ -1173,6 +1173,108 @@ defmodule NervesHubWeb.Live.ScriptRunsTest do
     end
   end
 
+  describe "pagination" do
+    # Sorted by name rather than the default `inserted_at`: these runs are all
+    # created within the same second, and that column has no tiebreaker, so which
+    # of them lands on page two would otherwise be undefined.
+    test "the runs listing paginates past 25 runs", ctx do
+      Fixtures.device_fixture(ctx.org, ctx.product, ctx.firmware, %{tags: ["paged"]})
+
+      for i <- 1..26 do
+        create_run(ctx, name: "Run #{String.pad_leading("#{i}", 2, "0")}", tag: "paged")
+      end
+
+      session =
+        ctx.conn
+        |> visit("#{runs_path(ctx)}?sort=name&sort_direction=asc")
+        |> assert_has("button", text: "2")
+        # 26 runs, 25 to a page, so only the last by name is on page two.
+        |> assert_has("td", text: "Run 01")
+        |> refute_has("td", text: "Run 26")
+
+      session
+      |> click_button("button[phx-click='paginate'][phx-value-page='2']", "2")
+      |> assert_has("td", text: "Run 26")
+      |> refute_has("td", text: "Run 01")
+    end
+
+    test "no pager is offered when everything fits on one page", ctx do
+      _run = create_run(ctx, tag: "unpaged")
+
+      ctx.conn
+      |> visit(runs_path(ctx))
+      |> refute_has("button[phx-click='paginate']")
+    end
+
+    test "changing the page size puts the runs back on one page", ctx do
+      Fixtures.device_fixture(ctx.org, ctx.product, ctx.firmware, %{tags: ["resized"]})
+
+      for i <- 1..26 do
+        create_run(ctx, name: "Run #{String.pad_leading("#{i}", 2, "0")}", tag: "resized")
+      end
+
+      {:ok, view, html} = live(ctx.conn, "#{runs_path(ctx)}?sort=name&sort_direction=asc")
+
+      refute html =~ "Run 26"
+
+      # All 26 fit once the page holds 50.
+      resized = render_click(view, "set-paginate-opts", %{"page-size" => "50"})
+
+      assert resized =~ "Run 26"
+    end
+
+    # A run can be tens of thousands of devices wide, so this is the pager that
+    # matters most.
+    test "the device results paginate past 25 devices", ctx do
+      run = create_run(ctx, tag: "many-devices", devices: 26)
+
+      results = ScriptRunners.device_results(run)
+      last = List.last(results)
+
+      session =
+        ctx.conn
+        |> visit(run_path(ctx, run))
+        |> assert_has("button", text: "2")
+        # Sorted by identifier ascending, so the last one is on page two.
+        |> refute_has("td", text: last.device.identifier)
+
+      session
+      |> click_button("button[phx-click='paginate'][phx-value-page='2']", "2")
+      |> assert_has("td", text: last.device.identifier)
+    end
+
+    test "the device page size can be changed", ctx do
+      run = create_run(ctx, tag: "resizable-devices", devices: 26)
+
+      last = run |> ScriptRunners.device_results() |> List.last()
+
+      {:ok, view, html} = live(ctx.conn, run_path(ctx, run))
+
+      refute html =~ last.device.identifier
+
+      resized = render_click(view, "set-paginate-opts", %{"page-size" => "50"})
+
+      assert resized =~ last.device.identifier
+    end
+
+    # Narrowing the results has to go back to page one, or a filter applied from
+    # page three shows an empty page.
+    test "filtering the device results returns to the first page", ctx do
+      run = create_run(ctx, tag: "filtered-paging", devices: 26)
+
+      [first | _rest] = ScriptRunners.device_results(run)
+
+      {:ok, view, _html} = live(ctx.conn, run_path(ctx, run))
+
+      # Onto page two, then filter down to a single device that sorts first.
+      _page_two = render_click(view, "paginate", %{"page" => "2"})
+
+      filtered = render_change(view, "update-filters", %{"identifier" => first.device.identifier})
+
+      assert filtered =~ first.device.identifier
+    end
+  end
+
   # Private helpers, kept at the end rather than in the describe block that uses
   # them: a `defp` inside a `describe` belongs to the module either way.
   defp position(html, text) do
@@ -1194,10 +1296,15 @@ defmodule NervesHubWeb.Live.ScriptRunsTest do
 
   defp table(html), do: region(html, "device-results")
 
-  # The count beside the "Devices" heading, up to the filter form beside it.
+  # The count beside the "Devices" heading, and nothing else on that bar. Stops at
+  # the export link rather than at the filter form: the export URL carries the run's
+  # id, so a run whose id contains the number being asserted about would otherwise
+  # match here.
   defp devices_header(html) do
     html
     |> region("devices-heading")
+    |> String.split(~s(<a href=), parts: 2)
+    |> hd()
     |> String.split(~s(id="device-results-filters-form"), parts: 2)
     |> hd()
   end

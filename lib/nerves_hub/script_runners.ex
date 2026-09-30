@@ -737,13 +737,6 @@ defmodule NervesHub.ScriptRunners do
   def subscribe(id) when is_integer(id), do: PubSub.subscribe(id)
 
   @doc """
-  Stop watching a run's progress.
-  """
-  @spec unsubscribe(ScriptRunner.t() | integer()) :: :ok
-  def unsubscribe(%ScriptRunner{id: id}), do: unsubscribe(id)
-  def unsubscribe(id) when is_integer(id), do: PubSub.unsubscribe(id)
-
-  @doc """
   Tell subscribers a run moved on.
 
   Carries only what changed, so a subscriber decides for itself whether to reload
