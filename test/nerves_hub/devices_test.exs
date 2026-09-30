@@ -39,6 +39,7 @@ defmodule NervesHub.DevicesTest do
   alias NervesHub.Products
   alias NervesHub.Products.Notification
   alias NervesHub.Repo
+  alias NervesHub.Support.EspIdf
   alias NervesHub.Support.Fwup
   alias NervesHub.Workers.FirmwareDeltaBuilder
   alias Phoenix.Socket.Broadcast
@@ -2096,6 +2097,148 @@ defmodule NervesHub.DevicesTest do
       {:ok, _} = Devices.move(device, target_product, user)
 
       assert Repo.reload!(untouched).org_id == org.id
+    end
+  end
+
+  describe "move/3 and signing keys" do
+    setup %{user: user} do
+      target_org = Fixtures.org_fixture(user, %{name: "key-receiving-org"})
+      target_product = Fixtures.product_fixture(user, target_org)
+
+      # Not the user who registered the key, so the copy can be seen to record
+      # who moved the device rather than carry the original creator over.
+      mover = Fixtures.user_fixture()
+
+      %{target_org: target_org, target_product: target_product, mover: mover}
+    end
+
+    test "a move to another org copies the key the device's firmware is signed with", %{
+      device: device,
+      org_key: org_key,
+      target_org: target_org,
+      target_product: target_product,
+      mover: mover
+    } do
+      {:ok, _} = Devices.move(device, target_product, mover)
+
+      assert [copied] = Accounts.list_org_keys(target_org.id, false)
+      assert copied.name == org_key.name
+      assert copied.key == org_key.key
+      assert copied.scheme == :ed25519
+      assert copied.created_by_id == mover.id
+    end
+
+    test "the copied key keeps its scheme", %{
+      org: org,
+      user: user,
+      target_org: target_org,
+      mover: mover,
+      tmp_dir: tmp_dir
+    } do
+      esp_product = Fixtures.esp_idf_product_fixture(user, org)
+      esp_key = Fixtures.esp_idf_key_fixture(org, user)
+      {:ok, path} = EspIdf.create_firmware(esp_product.name, dir: tmp_dir)
+      {:ok, esp_firmware} = Firmwares.create_firmware(org, path)
+      esp_device = Fixtures.device_fixture(org, esp_product, esp_firmware)
+
+      target_product = Fixtures.esp_idf_product_fixture(user, target_org)
+
+      {:ok, _} = Devices.move(esp_device, target_product, mover)
+
+      assert [copied] = Accounts.list_org_keys(target_org.id, false)
+      assert copied.key == esp_key.key
+      assert copied.scheme == :secure_boot_v2_rsa
+    end
+
+    # A firmware's uuid is only unique within a product, so the lookup can find
+    # the device's firmware more than once in the org it is leaving.
+    test "firmware held by more than one product is copied once", %{
+      device: device,
+      firmware: firmware,
+      org: org,
+      org_key: org_key,
+      user: user,
+      target_org: target_org,
+      target_product: target_product,
+      mover: mover,
+      tmp_dir: tmp_dir
+    } do
+      other_product = Fixtures.product_fixture(user, org)
+      other_firmware = Fixtures.firmware_fixture(org_key, other_product, %{dir: tmp_dir})
+
+      {1, _} =
+        Firmware
+        |> where(id: ^other_firmware.id)
+        |> Repo.update_all(set: [uuid: firmware.uuid])
+
+      {:ok, _} = Devices.move(device, target_product, mover)
+
+      assert [copied] = Accounts.list_org_keys(target_org.id, false)
+      assert copied.key == org_key.key
+    end
+
+    test "a move that fails copies nothing", %{
+      device: device,
+      target_org: target_org,
+      target_product: target_product,
+      mover: mover
+    } do
+      # A soft deleted device refuses the update the move is made of.
+      {:ok, deleted} = Devices.delete_device(device)
+
+      assert {:error, :move, _changeset, _} = Devices.move(deleted, target_product, mover)
+
+      assert Accounts.list_org_keys(target_org.id, false) == []
+    end
+
+    test "a target org that already has the key gets no second copy", %{
+      device: device,
+      org_key: org_key,
+      user: user,
+      target_org: target_org,
+      target_product: target_product,
+      mover: mover
+    } do
+      {:ok, existing} =
+        Accounts.create_org_key(%{
+          org_id: target_org.id,
+          created_by_id: user.id,
+          name: "same-key-other-name",
+          key: org_key.key
+        })
+
+      {:ok, _} = Devices.move(device, target_product, mover)
+
+      assert [kept] = Accounts.list_org_keys(target_org.id, false)
+      assert kept.id == existing.id
+    end
+
+    test "a key whose name the target org already uses is skipped, and the move goes ahead", %{
+      device: device,
+      org_key: org_key,
+      user: user,
+      target_org: target_org,
+      target_product: target_product,
+      mover: mover
+    } do
+      {other_public_key, _private_key} = :crypto.generate_key(:eddsa, :ed25519)
+
+      {:ok, existing} =
+        Accounts.create_org_key(%{
+          org_id: target_org.id,
+          created_by_id: user.id,
+          name: org_key.name,
+          key: Base.encode64(other_public_key)
+        })
+
+      # The copy runs in the move's transaction, so a unique violation raised
+      # here would abort the move rather than skip the key.
+      assert {:ok, moved} = Devices.move(device, target_product, mover)
+      assert moved.org_id == target_org.id
+
+      assert [kept] = Accounts.list_org_keys(target_org.id, false)
+      assert kept.id == existing.id
+      assert kept.key == existing.key
     end
   end
 

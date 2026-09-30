@@ -1205,6 +1205,33 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
       end)
       |> assert_authorization_error()
     end
+
+    test "failure: a soft-deleted device is refused with the changeset error", %{
+      conn: conn,
+      user: user,
+      org: org,
+      tmp_dir: tmp_dir
+    } do
+      product = Fixtures.product_fixture(user, org)
+      org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
+      firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+      {:ok, device} = org |> Fixtures.device_fixture(product, firmware) |> Devices.delete_device()
+
+      org2 = Fixtures.org_fixture(user, %{name: "org2"})
+      product2 = Fixtures.product_fixture(user, org2, %{name: "product2"})
+
+      conn =
+        post(conn, Routes.api_device_path(conn, :move, device.identifier), %{
+          "new_org_name" => org2.name,
+          "new_product_name" => product2.name
+        })
+
+      assert json_response(conn, 422) == %{
+               "errors" => %{"deleted_at" => ["cannot update while marked as deleted"]}
+             }
+
+      assert Repo.reload(device).org_id == org.id
+    end
   end
 
   describe "scripts: send" do

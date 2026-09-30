@@ -84,7 +84,8 @@ defmodule NervesHub.Devices.UpdateHistoryTest do
     test "records a timestamp given at second precision", %{device: device} do
       # `DateTime64(6)` refuses anything coarser than microseconds, and a
       # rejected row fails the whole buffer batch rather than only itself.
-      at = DateTime.new!(~D[2026-02-03], ~T[04:05:06], "Etc/UTC")
+      # Yesterday rather than a fixed date, which the table's TTL would expire.
+      at = DateTime.new!(Date.add(Date.utc_today(), -1), ~T[04:05:06], "Etc/UTC")
 
       :ok = UpdateHistory.record(device, :expired, timestamp: at)
 
