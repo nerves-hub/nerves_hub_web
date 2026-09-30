@@ -24,6 +24,7 @@ defmodule NervesHub.ScriptRunners do
   alias NervesHub.AuditLogs.ProductTemplates
   alias NervesHub.Devices.Device
   alias NervesHub.Filtering, as: CommonFiltering
+  alias NervesHub.ManagedDeployments
   alias NervesHub.Products.Product
   alias NervesHub.Repo
   alias NervesHub.ScriptRunners.PubSub
@@ -192,6 +193,98 @@ defmodule NervesHub.ScriptRunners do
   # "Require all": the device carries every one of them.
   defp where_matching_tags(query, tags, :and) do
     where(query, [d], fragment("?::text[] <@ tags::text[]", ^tags))
+  end
+
+  @doc """
+  Start a new run with an existing run's settings.
+
+  A rerun is a new run, not a second attempt at an old one: the original row stays
+  exactly as it was. The filter is re-resolved, so the new run targets whatever
+  matches now rather than the device set the original recorded -- see
+  `rerun_preview/2`, which shows that difference before anything is created.
+  """
+  @spec rerun(Scope.t() | Product.t(), User.t(), ScriptRunner.t()) ::
+          {:ok, ScriptRunner.t(), [String.t()]} | {:error, Changeset.t()} | {:error, :no_devices}
+  def rerun(%Scope{product: product}, user, runner), do: rerun(product, user, runner)
+
+  def rerun(%Product{} = product, user, %ScriptRunner{} = runner) do
+    create(product, user, rerun_params(runner))
+  end
+
+  @doc """
+  What a rerun of this run would target, against what the original did.
+
+  Deliberately a preview rather than part of `rerun/3`: the fleet moves between
+  runs, so the operator is shown the new target set -- and, for deployment groups,
+  which groups are still there and how many devices each holds -- before a run is
+  created from it.
+
+  Returns the original's recorded `device_count` alongside the count the filter
+  resolves to now, plus the per-filter detail the modal shows:
+
+    * `:identifiers` - `:unmatched_identifiers`, the ones naming no device now
+    * `:deployment_groups` - `:deployment_groups`, one entry per stored id, each
+      with the group's name and device count, or `missing?: true` for a group that
+      has since been deleted
+  """
+  @spec rerun_preview(Scope.t() | Product.t(), ScriptRunner.t()) :: map()
+  def rerun_preview(%Scope{product: product}, runner), do: rerun_preview(product, runner)
+
+  def rerun_preview(%Product{} = product, %ScriptRunner{} = runner) do
+    {device_ids, unmatched} = resolve_targets(product, runner.filter_type, runner.filter)
+
+    %{
+      filter_type: runner.filter_type,
+      filter: runner.filter,
+      previous_device_count: runner.device_count,
+      new_device_count: length(device_ids),
+      unmatched_identifiers: unmatched,
+      deployment_groups: deployment_group_preview(product, runner)
+    }
+  end
+
+  # One entry per stored id, in the order the groups are named, so a group deleted
+  # since the run is reported as missing rather than silently dropped -- its devices
+  # are part of the difference in the totals either way.
+  defp deployment_group_preview(product, %ScriptRunner{filter_type: :deployment_groups} = runner) do
+    ids = runner.filter.deployment_group_ids
+    groups = Map.new(ManagedDeployments.get_deployment_groups_by_ids(product, ids), &{&1.id, &1})
+    counts = device_counts_by_deployment_group(product, ids)
+
+    ids
+    |> Enum.map(fn id ->
+      case groups[id] do
+        nil -> %{id: id, name: nil, device_count: 0, missing?: true}
+        group -> %{id: id, name: group.name, device_count: Map.get(counts, id, 0), missing?: false}
+      end
+    end)
+    |> Enum.sort_by(&{&1.missing?, &1.name})
+  end
+
+  defp deployment_group_preview(_product, _runner), do: []
+
+  # Counted the same way the run's targets are resolved, so the per-group numbers
+  # add up to the new total.
+  defp device_counts_by_deployment_group(product, ids) do
+    product
+    |> targetable_devices()
+    |> where([d], d.deployment_id in ^ids)
+    |> group_by([d], d.deployment_id)
+    |> select([d], {d.deployment_id, count(d.id)})
+    |> Repo.all()
+    |> Map.new()
+  end
+
+  # The settings a rerun copies: everything about what ran and who it ran on.
+  # Statuses, timestamps and counts are the new run's own to record.
+  defp rerun_params(%ScriptRunner{} = runner) do
+    %{
+      name: runner.name,
+      text: runner.text,
+      language: runner.language,
+      filter_type: runner.filter_type,
+      filter: Map.from_struct(runner.filter)
+    }
   end
 
   @doc """

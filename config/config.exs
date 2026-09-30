@@ -7,6 +7,7 @@ alias NervesHub.Workers.DeleteExpiredCLISessionRecords
 alias NervesHub.Workers.ExpireInflightUpdates
 alias NervesHub.Workers.FirmwareDeltaTimeout
 alias NervesHub.Workers.QueueStrandedChatEvents
+alias NervesHub.Workers.RequeueStrandedScriptRunners
 alias NervesHub.Workers.ScheduleOrgAuditLogTruncation
 alias NervesHubWeb.API.ErrorJSON
 alias Phoenix.LiveView.Engine

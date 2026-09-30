@@ -11,6 +11,7 @@ defmodule NervesHubWeb.Live.ScriptRuns.Show do
 
   use NervesHubWeb, :live_view
 
+  alias NervesHub.ManagedDeployments
   alias NervesHub.ScriptRunners
   alias NervesHub.ScriptRunners.ScriptRunner
   alias NervesHub.ScriptRunners.ScriptRunnerDevice
@@ -55,8 +56,10 @@ defmodule NervesHubWeb.Live.ScriptRuns.Show do
     # Shares the sidebar entry with the scripts listing, like the runs index.
     |> sidebar_tab(:support_scripts)
     |> assign(:script_run, run)
+    |> assign(:targeted_deployment_groups, targeted_deployment_groups(scope.product, run))
     |> assign(:status_counts, ScriptRunners.status_counts(run))
     |> assign(:expanded_device_id, nil)
+    |> assign(:rerun_preview, nil)
     |> assign(:paginate_opts, @default_pagination)
     |> assign(:sort_direction, @default_sorting.sort_direction)
     |> assign(:current_sort, @default_sorting.sort)
@@ -130,6 +133,46 @@ defmodule NervesHubWeb.Live.ScriptRuns.Show do
     |> noreply()
   end
 
+  # A rerun is a new run with the same settings, and the fleet moves between runs,
+  # so what it would target is resolved and shown before anything is created.
+  def handle_event("preview-rerun", _params, %{assigns: %{current_scope: scope}} = socket) do
+    authorized!(:"script_runner:create", scope)
+
+    socket
+    |> assign(:rerun_preview, ScriptRunners.rerun_preview(scope, socket.assigns.script_run))
+    |> noreply()
+  end
+
+  def handle_event("cancel-rerun", _params, socket) do
+    socket
+    |> assign(:rerun_preview, nil)
+    |> noreply()
+  end
+
+  def handle_event("rerun", _params, %{assigns: %{current_scope: scope}} = socket) do
+    authorized!(:"script_runner:create", scope)
+
+    case ScriptRunners.rerun(scope, scope.user, socket.assigns.script_run) do
+      {:ok, run, _unmatched} ->
+        socket
+        |> put_flash(:info, "Running “#{run.name}” on #{run.device_count} #{devices(run.device_count)}.")
+        |> push_navigate(to: ~p"/org/#{scope.org}/#{scope.product}/scripts/runs/#{run.id}")
+        |> noreply()
+
+      {:error, :no_devices} ->
+        socket
+        |> assign(:rerun_preview, nil)
+        |> put_flash(:error, "No devices match the filter any more, so there is nothing to run.")
+        |> noreply()
+
+      {:error, _changeset} ->
+        socket
+        |> assign(:rerun_preview, nil)
+        |> put_flash(:error, "There was an error starting the Script Run.")
+        |> noreply()
+    end
+  end
+
   # Only the counts are refreshed as devices report. Reloading the visible page of
   # rows on every device would re-query a paginated table once per device, and a
   # run can be tens of thousands of devices wide.
@@ -151,6 +194,17 @@ defmodule NervesHubWeb.Live.ScriptRuns.Show do
   end
 
   def handle_info(_message, socket), do: noreply(socket)
+
+  # The groups a `:deployment_groups` run targeted, so the page can name them
+  # rather than only count them. The run stores ids, and a group can be renamed or
+  # deleted after the run, so this is a lookup rather than a snapshot: a group that
+  # no longer exists simply drops out, and the stored count still tells the
+  # operator how many were chosen.
+  defp targeted_deployment_groups(product, %ScriptRunner{filter_type: :deployment_groups} = run) do
+    ManagedDeployments.get_deployment_groups_by_ids(product, run.filter.deployment_group_ids)
+  end
+
+  defp targeted_deployment_groups(_product, _run), do: []
 
   defp assign_devices_with_pagination(socket) do
     %{
@@ -231,4 +285,19 @@ defmodule NervesHubWeb.Live.ScriptRuns.Show do
 
   defp devices(1), do: "device"
   defp devices(_many), do: "devices"
+
+  defp identifiers(1), do: "identifier"
+  defp identifiers(_many), do: "identifiers"
+
+  # How the rerun's target set compares with the original's, since the two counts
+  # on their own leave the reader to subtract.
+  defp target_difference(%{previous_device_count: same, new_device_count: same}), do: "(unchanged)"
+
+  defp target_difference(%{previous_device_count: previous, new_device_count: new}) when new > previous do
+    "(#{new - previous} more than before)"
+  end
+
+  defp target_difference(%{previous_device_count: previous, new_device_count: new}) do
+    "(#{previous - new} fewer than before)"
+  end
 end
