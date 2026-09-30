@@ -7,7 +7,11 @@ defmodule NervesHub.ScriptRunners.ScriptRunner do
   created, so a run still shows what ran after the script it was copied from is
   edited or deleted — which is why there is no changeset here that writes `text`
   a second time, and no `update/2` in `NervesHub.ScriptRunners`. The changesets
-  below only move the run through its statuses.
+  below otherwise only move the run through its statuses.
+
+  `description` is the one exception: it is the operator's commentary on the run
+  rather than a record of what the run did, so it stays editable afterwards
+  through `description_changeset/2`.
   """
 
   use Ecto.Schema
@@ -49,6 +53,11 @@ defmodule NervesHub.ScriptRunners.ScriptRunner do
     # label for the one column a person scans; the name is what the operator
     # calls this run.
     field(:name, :string)
+
+    # Operator commentary: why this was run, what to make of what came back. The
+    # one field on a run that stays editable after it is created -- see
+    # `description_changeset/2` and the moduledoc.
+    field(:description, :string)
 
     field(:text, :string)
     field(:language, Ecto.Enum, values: Script.languages(), default: :elixir)
@@ -125,7 +134,7 @@ defmodule NervesHub.ScriptRunners.ScriptRunner do
   @spec create_changeset(Product.t(), User.t(), map()) :: Ecto.Changeset.t()
   def create_changeset(product, created_by, params) do
     %__MODULE__{}
-    |> cast(params, [:name, :text, :language, :filter_type, :device_count])
+    |> cast(params, [:name, :description, :text, :language, :filter_type, :device_count])
     |> validate_required([:name, :text, :filter_type])
     |> validate_length(:name, max: 255)
     |> cast_embed(:filter, required: true, with: &filter_changeset/2)
@@ -134,6 +143,33 @@ defmodule NervesHub.ScriptRunners.ScriptRunner do
     |> foreign_key_constraint(:product_id)
     |> put_assoc(:created_by, created_by)
     |> foreign_key_constraint(:created_by_id)
+    |> unique_name_constraint()
+  end
+
+  @doc """
+  Update a run's description.
+
+  The only changeset that writes to a run after it exists, and deliberately
+  narrow: everything else about a run is a record of what happened. See the
+  moduledoc.
+  """
+  @spec description_changeset(t(), map()) :: Ecto.Changeset.t()
+  def description_changeset(%__MODULE__{} = runner, params) do
+    cast(runner, params, [:description])
+  end
+
+  @doc """
+  Hang a duplicate-name error on `:name` rather than on the index.
+
+  Exposed because a rerun builds its own name and needs the same error shape when
+  it loses a race for it.
+  """
+  @spec unique_name_constraint(Ecto.Changeset.t()) :: Ecto.Changeset.t()
+  def unique_name_constraint(changeset) do
+    unique_constraint(changeset, :name,
+      name: :script_runners_product_id_name_index,
+      message: "has already been used by another run in this product"
+    )
   end
 
   @doc """

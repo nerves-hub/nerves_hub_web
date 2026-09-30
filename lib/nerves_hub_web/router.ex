@@ -308,6 +308,8 @@ defmodule NervesHubWeb.Router do
       DeploymentGroupController,
       :export_audit_logs
     )
+
+    get("/scripts/runs/:script_run_id/export", ScriptRunController, :export)
   end
 
   scope "/", NervesHubWeb do

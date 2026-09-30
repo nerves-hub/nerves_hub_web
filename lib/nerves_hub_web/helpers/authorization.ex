@@ -81,6 +81,11 @@ defmodule NervesHubWeb.Helpers.Authorization do
   # in front of you, is a heavier thing than `support_script:run`.
   def authorized?(:"script_runner:create", role), do: role_check(:manage, role)
 
+  # A run is a record of what was run on a fleet, so removing one -- and the
+  # per-device output that goes with it -- takes the same role as starting one.
+  def authorized?(:"script_runner:delete", role), do: role_check(:manage, role)
+  def authorized?(:"script_runner:update", role), do: role_check(:manage, role)
+
   defp role_check(required_role, %Scope{role: role}) do
     role_check(required_role, role)
   end

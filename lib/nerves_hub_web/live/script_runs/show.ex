@@ -60,6 +60,7 @@ defmodule NervesHubWeb.Live.ScriptRuns.Show do
     |> assign(:status_counts, ScriptRunners.status_counts(run))
     |> assign(:expanded_device_id, nil)
     |> assign(:rerun_preview, nil)
+    |> assign(:editing_description?, false)
     |> assign(:paginate_opts, @default_pagination)
     |> assign(:sort_direction, @default_sorting.sort_direction)
     |> assign(:current_sort, @default_sorting.sort)
@@ -169,6 +170,60 @@ defmodule NervesHubWeb.Live.ScriptRuns.Show do
         socket
         |> assign(:rerun_preview, nil)
         |> put_flash(:error, "There was an error starting the Script Run.")
+        |> noreply()
+    end
+  end
+
+  # The description is operator commentary rather than a record of the run, so it
+  # stays editable. Edited in place in the Details card rather than on a page of its
+  # own: it is one field, and the rest of what it annotates is right there.
+  def handle_event("edit-description", _params, %{assigns: %{current_scope: scope}} = socket) do
+    authorized!(:"script_runner:update", scope)
+
+    socket
+    |> assign(:editing_description?, true)
+    |> noreply()
+  end
+
+  def handle_event("cancel-description", _params, socket) do
+    socket
+    |> assign(:editing_description?, false)
+    |> noreply()
+  end
+
+  def handle_event("save-description", %{"description" => description}, %{assigns: %{current_scope: scope}} = socket) do
+    authorized!(:"script_runner:update", scope)
+
+    case ScriptRunners.update_description(socket.assigns.script_run, description) do
+      {:ok, run} ->
+        socket
+        |> assign(:script_run, run)
+        |> assign(:editing_description?, false)
+        |> put_flash(:info, "Description saved.")
+        |> noreply()
+
+      {:error, _changeset} ->
+        socket
+        |> put_flash(:error, "There was an error saving the description.")
+        |> noreply()
+    end
+  end
+
+  # Deleting a run takes its devices' output with it, which is the whole record of
+  # what the fleet said, so it is confirmed in the browser before it gets here.
+  def handle_event("delete-run", _params, %{assigns: %{current_scope: scope}} = socket) do
+    authorized!(:"script_runner:delete", scope)
+
+    case ScriptRunners.delete(socket.assigns.script_run, scope.user, scope.product) do
+      {:ok, run} ->
+        socket
+        |> put_flash(:info, "Deleted “#{run.name}”.")
+        |> push_navigate(to: ~p"/org/#{scope.org}/#{scope.product}/scripts/runs")
+        |> noreply()
+
+      {:error, _changeset} ->
+        socket
+        |> put_flash(:error, "There was an error deleting the Script Run.")
         |> noreply()
     end
   end
@@ -285,6 +340,12 @@ defmodule NervesHubWeb.Live.ScriptRuns.Show do
 
   defp devices(1), do: "device"
   defp devices(_many), do: "devices"
+
+  # A description the operator cleared comes back as "" rather than nil, and both
+  # mean the same thing on the page.
+  defp present?(nil), do: false
+  defp present?(""), do: false
+  defp present?(_value), do: true
 
   defp identifiers(1), do: "identifier"
   defp identifiers(_many), do: "identifiers"

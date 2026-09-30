@@ -23,8 +23,12 @@ defmodule NervesHub.ScriptRunnersTest do
     Fixtures.device_fixture(ctx.org, ctx.product, ctx.firmware, params)
   end
 
+  # A run's name is unique within its product, so the default is unique per call.
+  # A test that cares about the name passes its own.
   defp create(ctx, params) do
-    ScriptRunners.create(ctx.product, ctx.user, Map.merge(%{name: "Say hi", text: "IO.puts(:hi)"}, params))
+    defaults = %{name: "Say hi #{System.unique_integer([:positive])}", text: "IO.puts(:hi)"}
+
+    ScriptRunners.create(ctx.product, ctx.user, Map.merge(defaults, params))
   end
 
   defp targeted_device_ids(runner) do
@@ -32,6 +36,17 @@ defmodule NervesHub.ScriptRunnersTest do
     |> ScriptRunners.device_results()
     |> Enum.map(& &1.device_id)
     |> Enum.sort()
+  end
+
+  # The filter most of the tests below use, where the tags are not the point.
+  defp tag_filter(), do: %{tags: ["production"], tag_operator: :or}
+
+  # Counted straight from the table rather than through the context: these tests
+  # are about rows surviving or not surviving a delete.
+  defp device_row_count(runner_id) do
+    ScriptRunnerDevice
+    |> where([srd], srd.script_runner_id == ^runner_id)
+    |> Repo.aggregate(:count)
   end
 
   describe "create/3 targeting by tags" do
@@ -446,6 +461,199 @@ defmodule NervesHub.ScriptRunnersTest do
         })
 
       assert targeted_device_ids(runner) == [device.id]
+    end
+  end
+
+  describe "unique names" do
+    test "two runs in a product cannot share a name", ctx do
+      _device = device(ctx, %{tags: ["production"]})
+
+      {:ok, _first, []} = create(ctx, %{name: "Reboot", filter_type: :tags, filter: tag_filter()})
+
+      {:error, changeset} = create(ctx, %{name: "Reboot", filter_type: :tags, filter: tag_filter()})
+
+      assert "has already been used by another run in this product" in errors_on(changeset).name
+    end
+
+    # Names are scoped to the product, the way deployment group and support script
+    # names are.
+    test "two products can each have a run with the same name", ctx do
+      _device = device(ctx, %{tags: ["production"]})
+
+      other_product = Fixtures.product_fixture(ctx.user, ctx.org, %{name: "Elsewhere"})
+      other_key = Fixtures.org_key_fixture(ctx.org, ctx.user)
+      other_firmware = Fixtures.firmware_fixture(other_key, other_product)
+      _other_device = Fixtures.device_fixture(ctx.org, other_product, other_firmware, %{tags: ["production"]})
+
+      {:ok, _first, []} = create(ctx, %{name: "Reboot", filter_type: :tags, filter: tag_filter()})
+
+      assert {:ok, _second, []} =
+               ScriptRunners.create(other_product, ctx.user, %{
+                 name: "Reboot",
+                 text: "IO.puts(:hi)",
+                 filter_type: :tags,
+                 filter: tag_filter()
+               })
+    end
+  end
+
+  describe "descriptions" do
+    test "a run can be created with one, and it can be changed afterwards", ctx do
+      _device = device(ctx, %{tags: ["production"]})
+
+      {:ok, runner, []} =
+        create(ctx, %{description: "Checking the modem firmware", filter_type: :tags, filter: tag_filter()})
+
+      assert runner.description == "Checking the modem firmware"
+
+      {:ok, updated} = ScriptRunners.update_description(runner, "Turned out to be the antenna")
+
+      assert updated.description == "Turned out to be the antenna"
+    end
+
+    test "a run created without one has none", ctx do
+      _device = device(ctx, %{tags: ["production"]})
+
+      {:ok, runner, []} = create(ctx, %{filter_type: :tags, filter: tag_filter()})
+
+      assert is_nil(runner.description)
+    end
+  end
+
+  describe "rerun/3" do
+    test "the copy is named after the original, and says where it came from", ctx do
+      _device = device(ctx, %{tags: ["production"]})
+
+      {:ok, original, []} = create(ctx, %{name: "Reboot", filter_type: :tags, filter: tag_filter()})
+
+      {:ok, copy, []} = ScriptRunners.rerun(ctx.product, ctx.user, original)
+
+      assert copy.name == "Reboot copy 1"
+      assert copy.description == "copied from Reboot"
+    end
+
+    # The original's description is as relevant to the copy as its code is, so the
+    # note goes below it rather than over it.
+    test "an existing description is kept above the copied-from note", ctx do
+      _device = device(ctx, %{tags: ["production"]})
+
+      {:ok, original, []} =
+        create(ctx, %{name: "Reboot", description: "Modem check", filter_type: :tags, filter: tag_filter()})
+
+      {:ok, copy, []} = ScriptRunners.rerun(ctx.product, ctx.user, original)
+
+      assert copy.description == "Modem check\ncopied from Reboot"
+    end
+
+    test "the copy number climbs as the same run is rerun again", ctx do
+      _device = device(ctx, %{tags: ["production"]})
+
+      {:ok, original, []} = create(ctx, %{name: "Reboot", filter_type: :tags, filter: tag_filter()})
+
+      {:ok, first, []} = ScriptRunners.rerun(ctx.product, ctx.user, original)
+      {:ok, second, []} = ScriptRunners.rerun(ctx.product, ctx.user, original)
+      {:ok, third, []} = ScriptRunners.rerun(ctx.product, ctx.user, original)
+
+      assert first.name == "Reboot copy 1"
+      assert second.name == "Reboot copy 2"
+      assert third.name == "Reboot copy 3"
+    end
+
+    # Otherwise rerunning a rerun would read "Reboot copy 1 copy 1".
+    test "rerunning a copy keeps the base name rather than nesting suffixes", ctx do
+      _device = device(ctx, %{tags: ["production"]})
+
+      {:ok, original, []} = create(ctx, %{name: "Reboot", filter_type: :tags, filter: tag_filter()})
+
+      {:ok, first, []} = ScriptRunners.rerun(ctx.product, ctx.user, original)
+      {:ok, second, []} = ScriptRunners.rerun(ctx.product, ctx.user, first)
+
+      assert second.name == "Reboot copy 2"
+      # The note names the run it was actually copied from, which was the copy.
+      assert second.description =~ "copied from Reboot copy 1"
+    end
+
+    test "a name already taken by an unrelated run is skipped", ctx do
+      _device = device(ctx, %{tags: ["production"]})
+
+      {:ok, original, []} = create(ctx, %{name: "Reboot", filter_type: :tags, filter: tag_filter()})
+
+      # Someone named a run by hand exactly what the first copy would have been.
+      {:ok, _squatter, []} = create(ctx, %{name: "Reboot copy 1", filter_type: :tags, filter: tag_filter()})
+
+      {:ok, copy, []} = ScriptRunners.rerun(ctx.product, ctx.user, original)
+
+      assert copy.name == "Reboot copy 2"
+    end
+
+    # `%` and `_` are LIKE wildcards, and the name is operator-supplied.
+    test "a name holding LIKE wildcards is matched literally", ctx do
+      _device = device(ctx, %{tags: ["production"]})
+
+      {:ok, original, []} = create(ctx, %{name: "100% _done", filter_type: :tags, filter: tag_filter()})
+
+      # Would be matched by an unescaped "100% _done copy %" pattern, and would
+      # push the real copy to number 2.
+      {:ok, _decoy, []} = create(ctx, %{name: "100XX Ydone copy 1", filter_type: :tags, filter: tag_filter()})
+
+      {:ok, copy, []} = ScriptRunners.rerun(ctx.product, ctx.user, original)
+
+      assert copy.name == "100% _done copy 1"
+    end
+
+    test "the original is left exactly as it was", ctx do
+      _device = device(ctx, %{tags: ["production"]})
+
+      {:ok, original, []} = create(ctx, %{name: "Reboot", filter_type: :tags, filter: tag_filter()})
+
+      {:ok, _copy, []} = ScriptRunners.rerun(ctx.product, ctx.user, original)
+
+      reloaded = Repo.get!(ScriptRunner, original.id)
+
+      assert reloaded.name == "Reboot"
+      assert reloaded.text == original.text
+      assert is_nil(reloaded.description)
+    end
+  end
+
+  describe "delete/3" do
+    test "the run goes, and its device rows go with it", ctx do
+      for _ <- 1..3, do: device(ctx, %{tags: ["production"]})
+
+      {:ok, runner, []} = create(ctx, %{filter_type: :tags, filter: tag_filter()})
+
+      assert device_row_count(runner.id) == 3
+
+      {:ok, _deleted} = ScriptRunners.delete(runner, ctx.user, ctx.product)
+
+      refute Repo.get(ScriptRunner, runner.id)
+
+      # Cascaded by the foreign key rather than deleted in Elixir, so this is what
+      # proves the constraint is actually doing it.
+      assert device_row_count(runner.id) == 0
+    end
+
+    test "another run's device rows are left alone", ctx do
+      for _ <- 1..2, do: device(ctx, %{tags: ["production"]})
+
+      {:ok, doomed, []} = create(ctx, %{filter_type: :tags, filter: tag_filter()})
+      {:ok, kept, []} = create(ctx, %{filter_type: :tags, filter: tag_filter()})
+
+      {:ok, _deleted} = ScriptRunners.delete(doomed, ctx.user, ctx.product)
+
+      assert device_row_count(kept.id) == 2
+    end
+
+    test "the deletion is recorded in the audit log", ctx do
+      _device = device(ctx, %{tags: ["production"]})
+
+      {:ok, runner, []} = create(ctx, %{name: "Reboot", filter_type: :tags, filter: tag_filter()})
+
+      {:ok, _deleted} = ScriptRunners.delete(runner, ctx.user, ctx.product)
+
+      descriptions = Enum.map(AuditLogs.logs_for(ctx.product), & &1.description)
+
+      assert Enum.any?(descriptions, &(&1 =~ "deleted the script run named Reboot"))
     end
   end
 

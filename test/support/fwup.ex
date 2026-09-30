@@ -46,7 +46,27 @@ defmodule NervesHub.Support.Fwup do
   def gen_key_pair(key_name, dir \\ System.tmp_dir()) do
     key_path_no_extension = Path.join([dir, key_name])
 
-    _ = System.cmd("fwup", ["-g", "-o", key_path_no_extension], stderr_to_stdout: true, env: [])
+    # `fwup -g` refuses to overwrite and exits non-zero, leaving whichever of the
+    # two files already existed. The default `dir` is the shared system temp
+    # directory, which fills up with keys from every previous run, and
+    # `counter/0` restarts from zero each time the VM does -- so a name generated
+    # now can collide with one left behind weeks ago. Cleared first, so a
+    # collision regenerates rather than half-failing.
+    #
+    # Without this the failure surfaces much later and somewhere else: the `.pub`
+    # is readable, so the org key is created, and it is only when a firmware is
+    # signed with the missing `.priv` that anything complains -- as either
+    # "Error opening private key file" or, if both files survived from different
+    # pairs, `:invalid_signature`.
+    File.rm(key_path_no_extension <> ".pub")
+    File.rm(key_path_no_extension <> ".priv")
+
+    {output, status} =
+      System.cmd("fwup", ["-g", "-o", key_path_no_extension], stderr_to_stdout: true, env: [])
+
+    if status != 0 do
+      raise "fwup could not generate a key pair at #{key_path_no_extension}: #{output}"
+    end
 
     :ok
   end

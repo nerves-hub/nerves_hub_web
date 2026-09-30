@@ -7,19 +7,25 @@
 
   <:header>
     <h1 class="text-base-50 text-xl leading-[30px] font-semibold">{@script_run.name}</h1>
-    <%!-- Grouped so the status and the rerun beside it sit together, whether or not
-          the rerun is there to show. --%>
-    <div class="mr-auto flex items-center gap-4">
-      <span class="tag">{@script_run.status}</span>
-      <%!-- A rerun is a new run, so it is only offered once this one has nothing
-            left to do. --%>
-      <.button
-        :if={@script_run.status == :completed && authorized?(:"script_runner:create", @current_scope)}
-        phx-click="preview-rerun"
-      >
-        <.icon name="undo" /> Rerun
-      </.button>
-    </div>
+    <span class="tag mr-auto">{@script_run.status}</span>
+    <%!-- A rerun is a new run, so it is only offered once this one has nothing left
+          to do. Pushed to the far end of the header by the status's `mr-auto`. --%>
+    <.button
+      :if={@script_run.status == :completed && authorized?(:"script_runner:create", @current_scope)}
+      phx-click="preview-rerun"
+    >
+      <.icon name="undo" /> Rerun
+    </.button>
+
+    <%!-- Removes the run and every device's output with it, so it asks first. --%>
+    <.button
+      :if={authorized?(:"script_runner:delete", @current_scope)}
+      style="danger"
+      phx-click="delete-run"
+      data-confirm={"This deletes “#{@script_run.name}” and the recorded output for all #{@script_run.device_count} of its devices. Continue?"}
+    >
+      <.icon name="trash" /> Delete
+    </.button>
   </:header>
 
   <div class="h-0 flex-1 overflow-y-auto">
@@ -27,6 +33,57 @@
       <div class="flex gap-4">
         <div class="bg-surface-raised border-base-700 flex w-1/2 flex-col gap-3 rounded border p-4">
           <div class="text-base-50 leading-6 font-medium">Details</div>
+
+          <%!-- The one editable thing on a run: the operator's own notes, which
+                often only make sense once the results are in. --%>
+          <div class="flex items-start gap-4">
+            <span class="text-base-500 w-40 shrink-0 text-sm">Description:</span>
+
+            <form
+              :if={@editing_description?}
+              id="description-form"
+              class="flex flex-1 flex-col items-start gap-2"
+              phx-submit="save-description"
+            >
+              <textarea
+                name="description"
+                id="script_run_description"
+                rows="3"
+                class="bg-surface-muted border-base-600 text-base-300 block w-full rounded border px-3 py-1 text-sm font-normal"
+                placeholder="Why this was run, and what to make of the results..."
+                phx-mounted={JS.focus()}
+              >{@script_run.description}</textarea>
+
+              <div class="flex items-center gap-2">
+                <.button style="primary" type="submit"><.icon name="save" /> Save</.button>
+                <.button type="button" phx-click="cancel-description">Cancel</.button>
+              </div>
+            </form>
+
+            <div :if={!@editing_description?} class="flex flex-1 items-start gap-2">
+              <%!-- The value sits tight against its tags: `whitespace-pre-wrap` keeps
+                    the operator's own line breaks, and would keep this template's
+                    indentation too if it were wrapped onto its own line. --%>
+              <span
+                :if={present?(@script_run.description)}
+                class="text-base-300 flex-1 text-sm whitespace-pre-wrap"
+              >{@script_run.description}</span>
+              <span :if={!present?(@script_run.description)} class="text-base-500 flex-1 text-sm">None</span>
+
+              <button
+                :if={authorized?(:"script_runner:update", @current_scope)}
+                type="button"
+                class="ml-auto shrink-0 hover:cursor-pointer"
+                title="Edit the description"
+                aria-label="Edit the description"
+                phx-click="edit-description"
+              >
+                <span class="lucide-pencil--light text-base-400 size-4 shrink-0"></span>
+              </button>
+            </div>
+          </div>
+
+          <div class="border-base-700 border-b"></div>
 
           <div class="flex items-center gap-4">
             <span class="text-base-500 w-40 shrink-0 text-sm">Targeted by:</span>
@@ -131,7 +188,11 @@
       </div>
     </div>
 
-    <div class="border-base-700 flex h-14 items-center justify-between border-y px-6">
+    <%!-- Pinned to the top of the scroll area, which sits directly under the header,
+          so the count and the filters stay reachable while the device rows scroll
+          past. Opaque and raised above the rows, which would otherwise show through
+          it. --%>
+    <div class="bg-surface border-base-700 sticky top-0 z-10 flex h-14 items-center justify-between border-y px-6">
       <div id="devices-heading" class="flex items-center gap-2">
         <div class="text-base-50 text-base font-medium">Devices</div>
         <%!-- The filtered total rather than the run's own `device_count`, so it
@@ -141,42 +202,56 @@
         </div>
       </div>
 
-      <form id="device-results-filters-form" class="flex items-center gap-2" phx-change="update-filters">
-        <select
-          name="status"
-          id="device_result_status"
-          title="Filter by status"
-          class="bg-surface-muted border-base-600 text-base-400 block h-9 rounded border py-1 pr-8 pl-3 text-sm font-normal"
+      <div class="flex items-center gap-2">
+        <%!-- Outside the filter form, which submits on change: the export is a plain
+              GET for a file, not a filter. Every device in the run rather than the
+              filtered page, since the file is the record of the whole run. --%>
+        <.button
+          type="link"
+          href={~p"/org/#{@current_scope.org}/#{@current_scope.product}/scripts/runs/#{@script_run.id}/export"}
+          aria-label="Export the device results as a CSV"
+          title="Export the device results as a CSV"
         >
-          <option value="">Filter by status</option>
-          <option :for={status <- statuses()} value={status} selected={to_string(status) == @current_filters[:status]}>
-            {status}
-          </option>
-        </select>
+          <.icon name="export" /> Export
+        </.button>
 
-        <div class="grid grid-cols-1">
-          <input
-            type="text"
-            class="bg-surface-muted border-base-600 text-base-400 col-start-1 row-start-1 block h-9 w-64 gap-2 rounded border px-3 py-1 text-sm font-normal"
-            name="identifier"
-            id="device_result_search"
-            placeholder="Search by identifier..."
-            title="Search"
-            value={@current_filters[:identifier]}
-            phx-debounce="500"
-          />
+        <form id="device-results-filters-form" class="flex items-center gap-2" phx-change="update-filters">
+          <select
+            name="status"
+            id="device_result_status"
+            title="Filter by status"
+            class="bg-surface-muted border-base-600 text-base-400 block h-9 rounded border py-1 pr-8 pl-3 text-sm font-normal"
+          >
+            <option value="">Filter by status</option>
+            <option :for={status <- statuses()} value={status} selected={to_string(status) == @current_filters[:status]}>
+              {status}
+            </option>
+          </select>
 
-          <svg class="pointer-events-none col-start-1 row-start-1 mr-3 self-center justify-self-end" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="none">
-            <path
-              d="M16.6668 16.6666L13.2916 13.2914M13.2916 13.2914C14.3472 12.2358 15.0002 10.7775 15.0002 9.16665C15.0002 5.94499 12.3885 3.33331 9.16683 3.33331C5.94517 3.33331 3.3335 5.94499 3.3335 9.16665C3.3335 12.3883 5.94517 15 9.16683 15C10.7777 15 12.236 14.3471 13.2916 13.2914Z"
-              stroke="#A1A1AA"
-              stroke-width="1.2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
+          <div class="grid grid-cols-1">
+            <input
+              type="text"
+              class="bg-surface-muted border-base-600 text-base-400 col-start-1 row-start-1 block h-9 w-64 gap-2 rounded border px-3 py-1 text-sm font-normal"
+              name="identifier"
+              id="device_result_search"
+              placeholder="Search by identifier..."
+              title="Search"
+              value={@current_filters[:identifier]}
+              phx-debounce="500"
             />
-          </svg>
-        </div>
-      </form>
+
+            <svg class="pointer-events-none col-start-1 row-start-1 mr-3 self-center justify-self-end" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="none">
+              <path
+                d="M16.6668 16.6666L13.2916 13.2914M13.2916 13.2914C14.3472 12.2358 15.0002 10.7775 15.0002 9.16665C15.0002 5.94499 12.3885 3.33331 9.16683 3.33331C5.94517 3.33331 3.3335 5.94499 3.3335 9.16665C3.3335 12.3883 5.94517 15 9.16683 15C10.7777 15 12.236 14.3471 13.2916 13.2914Z"
+                stroke="#A1A1AA"
+                stroke-width="1.2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+            </svg>
+          </div>
+        </form>
+      </div>
     </div>
 
     <div :if={Enum.any?(@device_results)} id="device-results" class="listing">

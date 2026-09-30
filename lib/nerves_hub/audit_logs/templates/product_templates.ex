@@ -41,6 +41,15 @@ defmodule NervesHub.AuditLogs.ProductTemplates do
     AuditLogs.audit!(user, product, description)
   end
 
+  @spec audit_script_runner_deleted(User.t(), Product.t(), ScriptRunner.t()) :: :ok
+  def audit_script_runner_deleted(user, product, script_runner) do
+    description =
+      "User #{user.name} deleted the script run named #{script_runner.name} with id #{script_runner.id} " <>
+        "from product #{product.name}"
+
+    AuditLogs.audit!(user, product, description)
+  end
+
   @spec audit_firmware_deleted(User.t(), Product.t(), Firmware.t()) :: :ok
   def audit_firmware_deleted(user, product, firmware) do
     description =
