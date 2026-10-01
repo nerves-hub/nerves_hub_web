@@ -3,6 +3,7 @@ defmodule NervesHubWeb.UserLocalShellChannel do
 
   alias NervesHub.Accounts
   alias NervesHub.Accounts.OrgUser
+  alias NervesHub.Accounts.PubSub, as: AccessPubSub
   alias NervesHub.Accounts.Scope
   alias NervesHub.Consoles
   alias NervesHub.Devices
@@ -12,10 +13,11 @@ defmodule NervesHubWeb.UserLocalShellChannel do
   def join("user:local_shell:identifier-" <> identifier, _, socket) do
     if device = authorized?(socket.assigns.user, identifier) do
       :ok = Consoles.PubSub.subscribe_user_local_shell(device.id)
+      :ok = AccessPubSub.subscribe_access(socket.assigns.user.id, device.id)
 
       _ = Consoles.PubSub.connect_to_local_shell(device.id, self())
 
-      {:ok, assign(socket, :device_id, device.id)}
+      {:ok, socket |> assign(:device_id, device.id) |> assign(:identifier, identifier)}
     else
       {:error, %{reason: "unauthorized"}}
     end
@@ -43,6 +45,16 @@ defmodule NervesHubWeb.UserLocalShellChannel do
     {:noreply, socket}
   end
 
+  # The device's tags or the user's role changed. Checked the same way as on
+  # join; a user who couldn't open the shell now doesn't keep it.
+  def handle_info(:access_changed, socket) do
+    if authorized?(socket.assigns.user, socket.assigns.identifier) do
+      {:noreply, socket}
+    else
+      {:stop, {:shutdown, :closed}, socket}
+    end
+  end
+
   def handle_info(_msg, socket) do
     {:noreply, socket}
   end
@@ -52,7 +64,7 @@ defmodule NervesHubWeb.UserLocalShellChannel do
 
     with {:ok, device} <- Devices.get_by_identifier(scope, identifier),
          %OrgUser{} = org_user <- Accounts.find_org_user_with_device(user, device.id),
-         true <- Authorization.authorized?(:"device:console", org_user) do
+         true <- Authorization.authorized?(:"device:extensions:local_shell", org_user) do
       device
     else
       _ ->

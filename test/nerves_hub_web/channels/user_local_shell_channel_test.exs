@@ -43,6 +43,25 @@ defmodule NervesHubWeb.UserLocalShellChannelTest do
     end
   end
 
+  describe "a member with a custom role" do
+    test "needs the local shell permission, not the console one", %{tmp_dir: tmp_dir} do
+      user = Fixtures.user_fixture()
+      device = device_fixture(user, %{identifier: "shell-role-device"}, tmp_dir)
+      {:ok, org} = Accounts.get_org(device.org_id)
+      role = Fixtures.org_role_fixture(org, %{permissions: ["device:console"]})
+      {:ok, org_user} = Accounts.get_org_user(org, user)
+      {:ok, _} = Accounts.change_org_user_role(org_user, role)
+      {:ok, socket} = connect(APISocket, %{"token" => Accounts.create_user_api_token(user, "test-token")})
+      topic = "user:local_shell:identifier-#{device.identifier}"
+
+      assert {:error, %{reason: "unauthorized"}} = subscribe_and_join(socket, UserLocalShellChannel, topic)
+
+      {:ok, _} = Accounts.OrgRoles.update_org_role(role, %{"permissions" => ["device:extensions:local_shell"]})
+
+      assert {:ok, _reply, _channel} = subscribe_and_join(socket, UserLocalShellChannel, topic)
+    end
+  end
+
   describe "handle_in" do
     setup %{tmp_dir: tmp_dir} do
       user = Fixtures.user_fixture()

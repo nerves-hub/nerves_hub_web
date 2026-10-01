@@ -2,6 +2,7 @@ defmodule NervesHubWeb.UserConsoleChannelTest do
   use NervesHubWeb.ChannelCase
 
   alias NervesHub.Accounts
+  alias NervesHub.Devices
   alias NervesHub.Fixtures
   alias NervesHubWeb.APISocket
   alias NervesHubWeb.UserConsoleChannel
@@ -63,6 +64,57 @@ defmodule NervesHubWeb.UserConsoleChannelTest do
 
       assert {:error, %{reason: "unauthorized"}} =
                subscribe_and_join(socket, UserConsoleChannel, "user:console:identifier-#{device.identifier}")
+    end
+  end
+
+  describe "when access changes while the console is open" do
+    setup %{tmp_dir: tmp_dir} do
+      user = Fixtures.user_fixture()
+      device = device_fixture(user, %{identifier: "watched-device", tags: ["support"]}, tmp_dir)
+      {:ok, org} = Accounts.get_org(device.org_id)
+      role = Fixtures.org_role_fixture(org, %{device_tags: ["support"], permissions: ["device:console"]})
+      {:ok, org_user} = Accounts.get_org_user(org, user)
+      {:ok, org_user} = Accounts.change_org_user_role(org_user, role)
+      {:ok, socket} = connect(APISocket, %{"token" => Accounts.create_user_api_token(user, "test-token")})
+
+      {:ok, _reply, channel} =
+        subscribe_and_join(socket, UserConsoleChannel, "user:console:identifier-#{device.identifier}")
+
+      # The channel stops itself; the test only wants to see it go.
+      Process.unlink(channel.channel_pid)
+      ref = Process.monitor(channel.channel_pid)
+
+      %{device: device, role: role, org_user: org_user, ref: ref}
+    end
+
+    test "closes when the device's tags stop matching the role", %{device: device, ref: ref} do
+      {:ok, _} = Devices.update_device(device, %{tags: ["production"]})
+
+      assert_receive {:DOWN, ^ref, :process, _pid, {:shutdown, :closed}}, 1_000
+    end
+
+    test "stays open when the device still matches", %{device: device, ref: ref} do
+      {:ok, _} = Devices.update_device(device, %{tags: ["support", "bench"]})
+
+      refute_receive {:DOWN, ^ref, :process, _pid, _reason}, 300
+    end
+
+    test "closes when the role stops covering the device", %{role: role, ref: ref} do
+      {:ok, _} = Accounts.OrgRoles.update_org_role(role, %{"device_tags" => "eu"})
+
+      assert_receive {:DOWN, ^ref, :process, _pid, {:shutdown, :closed}}, 1_000
+    end
+
+    test "closes when the role loses the console permission", %{role: role, ref: ref} do
+      {:ok, _} = Accounts.OrgRoles.update_org_role(role, %{"permissions" => ["device:reboot"]})
+
+      assert_receive {:DOWN, ^ref, :process, _pid, {:shutdown, :closed}}, 1_000
+    end
+
+    test "closes when the member is given a role without it", %{org_user: org_user, ref: ref} do
+      {:ok, _} = Accounts.change_org_user_role(org_user, :view)
+
+      assert_receive {:DOWN, ^ref, :process, _pid, {:shutdown, :closed}}, 1_000
     end
   end
 

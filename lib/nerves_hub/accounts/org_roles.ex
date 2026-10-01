@@ -13,6 +13,7 @@ defmodule NervesHub.Accounts.OrgRoles do
   alias NervesHub.Accounts.Org
   alias NervesHub.Accounts.OrgRole
   alias NervesHub.Accounts.OrgUser
+  alias NervesHub.Accounts.PubSub, as: AccessPubSub
   alias NervesHub.Repo
 
   @doc """
@@ -62,13 +63,21 @@ defmodule NervesHub.Accounts.OrgRoles do
   Changes a custom role's name, description or permissions.
 
   Members holding the role get the new permissions the next time they load a
-  page; one they already have open keeps the old ones until then.
+  page. Consoles, shells and device pages they have open check their access
+  again straight away, and close if they've lost it.
   """
   @spec update_org_role(OrgRole.t(), map()) :: {:ok, OrgRole.t()} | {:error, Changeset.t()}
   def update_org_role(%OrgRole{} = role, params) do
-    role
-    |> OrgRole.changeset(params)
-    |> Repo.update()
+    with {:ok, updated} <- role |> OrgRole.changeset(params) |> Repo.update() do
+      role.org_id
+      |> active_members()
+      |> where([ou], ou.org_role_id == ^role.id)
+      |> select([ou], ou.user_id)
+      |> Repo.all()
+      |> AccessPubSub.broadcast_users_access_changed()
+
+      {:ok, updated}
+    end
   end
 
   @doc """
