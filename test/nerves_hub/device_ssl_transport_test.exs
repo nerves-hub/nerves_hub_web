@@ -1,6 +1,7 @@
 defmodule NervesHub.DeviceSSLTransportTest do
   # Touches application env, so it can't share the node with anything reading it.
   use ExUnit.Case, async: false
+  use AssertEventually, timeout: 2_000, interval: 20
 
   alias NervesHub.DeviceSSLTransport
 
@@ -75,10 +76,33 @@ defmodule NervesHub.DeviceSSLTransportTest do
     end
   end
 
-  defp start_server(proxy_protocol: proxy_protocol) do
+  # A client that opens a connection and never sends a ClientHello. Left alone,
+  # it would hold a handler process, an `:ssl` connection and a port for as long
+  # as it stayed quiet.
+  describe "a client that stalls before the TLS handshake" do
+    test "is hung up on without the PROXY protocol" do
+      {:ok, port: port, server: server} = start_server(proxy_protocol: nil, tls_handshake_timeout: 100)
+
+      socket = stall(port, "")
+
+      assert hang_up(socket) == :closed
+      assert_eventually {:ok, []} = ThousandIsland.connection_pids(server)
+    end
+
+    test "is hung up on after a PROXY header" do
+      {:ok, port: port, server: server} = start_server(proxy_protocol: :v2, tls_handshake_timeout: 100)
+
+      socket = stall(port, header(@proxy, @tcp_over_ipv4, ipv4_block({203, 0, 113, 7}, 51_234)))
+
+      assert hang_up(socket) == :closed
+      assert_eventually {:ok, []} = ThousandIsland.connection_pids(server)
+    end
+  end
+
+  defp start_server(config) do
     previous = Application.get_env(:nerves_hub, DeviceSSLTransport, [])
 
-    Application.put_env(:nerves_hub, DeviceSSLTransport, proxy_protocol: proxy_protocol)
+    Application.put_env(:nerves_hub, DeviceSSLTransport, config)
     on_exit(fn -> Application.put_env(:nerves_hub, DeviceSSLTransport, previous) end)
 
     server =
@@ -101,7 +125,25 @@ defmodule NervesHub.DeviceSSLTransportTest do
 
     {:ok, {_address, port}} = ThousandIsland.listener_info(server)
 
-    {:ok, port: port}
+    {:ok, port: port, server: server}
+  end
+
+  # Opens a clear socket and writes `preamble`, then goes quiet.
+  defp stall(port, preamble) do
+    {:ok, socket} = :gen_tcp.connect({127, 0, 0, 1}, port, [:binary, active: false])
+
+    if preamble != "", do: :ok = :gen_tcp.send(socket, preamble)
+
+    socket
+  end
+
+  # `:closed` if the server hangs up within two seconds, `:timeout` if it is
+  # still waiting. Anything it writes on the way out, an alert say, is read past.
+  defp hang_up(socket) do
+    case :gen_tcp.recv(socket, 0, 2_000) do
+      {:ok, _bytes} -> hang_up(socket)
+      {:error, reason} -> reason
+    end
   end
 
   # Opens a clear socket, writes `preamble` (a PROXY header, or nothing), then
