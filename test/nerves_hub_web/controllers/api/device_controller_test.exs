@@ -5,6 +5,7 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
 
   import Phoenix.ChannelTest
 
+  alias NervesHub.Accounts
   alias NervesHub.AdvancedQueryFixtures
   alias NervesHub.Devices
   alias NervesHub.Devices.Device
@@ -816,6 +817,42 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
     end
   end
 
+  describe "a member with a custom role" do
+    setup %{user: user, user2: user2, org: org, tmp_dir: tmp_dir} do
+      product = Fixtures.product_fixture(user, org)
+      org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
+      firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+      device = Fixtures.device_fixture(org, product, firmware)
+      role = Fixtures.org_role_fixture(org, %{permissions: ["device:reboot"]})
+      {:ok, _} = Accounts.add_org_user(org, user2, %{org_role_id: role.id})
+
+      %{device: device, product: product}
+    end
+
+    test "can do what the role grants, with the short url", %{conn2: conn, device: device} do
+      assert response(post(conn, Routes.api_device_path(conn, :reboot, device.identifier)), 204)
+
+      assert_error_sent(401, fn ->
+        post(conn, Routes.api_device_path(conn, :reconnect, device.identifier))
+      end)
+    end
+
+    test "can do what the role grants, with the nested url", %{conn2: conn, org: org, product: product, device: device} do
+      assert response(
+               post(conn, Routes.api_device_path(conn, :reboot, org.name, product.name, device.identifier)),
+               204
+             )
+
+      assert_error_sent(401, fn ->
+        post(conn, Routes.api_device_path(conn, :reconnect, org.name, product.name, device.identifier))
+      end)
+    end
+
+    test "can read the device", %{conn2: conn, device: device} do
+      assert json_response(get(conn, Routes.api_device_path(conn, :show, device.identifier)), 200)
+    end
+  end
+
   describe "reconnect" do
     test "success, with nested url", %{conn: conn, user: user, org: org, tmp_dir: tmp_dir} do
       product = Fixtures.product_fixture(user, org)
@@ -1120,6 +1157,33 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
         )
       end)
       |> assert_authorization_error()
+    end
+
+    test "a custom role in the new org has to be able to add devices",
+         %{conn: conn, user: user, org: org, tmp_dir: tmp_dir} do
+      product = Fixtures.product_fixture(user, org)
+      org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
+      firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+      device = Fixtures.device_fixture(org, product, firmware)
+
+      owner = Fixtures.user_fixture()
+      org2 = Fixtures.org_fixture(owner, %{name: "org2"})
+      product2 = Fixtures.product_fixture(owner, org2, %{name: "product2"})
+      role = Fixtures.org_role_fixture(org2, %{permissions: ["device:update"]})
+      {:ok, _} = Accounts.add_org_user(org2, user, %{org_role_id: role.id})
+
+      move = fn ->
+        post(conn, Routes.api_device_path(conn, :move, org.name, product.name, device.identifier), %{
+          "new_org_name" => org2.name,
+          "new_product_name" => product2.name
+        })
+      end
+
+      assert_error_sent(401, move)
+
+      {:ok, _} = Accounts.OrgRoles.update_org_role(role, %{"permissions" => ["device:create"]})
+
+      assert json_response(move.(), 200)["data"]["product_name"] == product2.name
     end
 
     test "success, with short url", %{conn: conn, user: user, org: org, tmp_dir: tmp_dir} do

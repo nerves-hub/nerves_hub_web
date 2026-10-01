@@ -15,8 +15,11 @@ defmodule NervesHubWeb.API.DeploymentGroupController do
 
   @auth_error_responses SchemaHelpers.auth_error_responses()
 
-  plug(:validate_role, [org: :manage] when action in [:create, :update, :delete])
-  plug(:validate_role, [org: :view] when action in [:index, :show])
+  plug(:require_membership when action in [:index, :show])
+  plug(:require_permission, :"deployment_group:create" when action in [:create])
+  plug(:require_permission, :"deployment_group:update" when action in [:update])
+  plug(:require_toggle_permissions when action in [:update])
+  plug(:require_permission, :"deployment_group:delete" when action in [:delete])
 
   operation(:index,
     summary: "List all Deployment Groups for a Product",
@@ -179,6 +182,22 @@ defmodule NervesHubWeb.API.DeploymentGroupController do
       send_resp(conn, :no_content, "")
     end
   end
+
+  # The dashboard turns a group, and its delta updates, on and off under their
+  # own permissions, and an update through here can do either.
+  defp require_toggle_permissions(%{params: %{"deployment" => params}} = conn, _opts) when is_map(params) do
+    conn
+    |> require_permission_if(
+      Map.has_key?(params, "is_active") or Map.has_key?(params, "state"),
+      :"deployment_group:toggle"
+    )
+    |> require_permission_if(Map.has_key?(params, "delta_updatable"), :"deployment_group:toggle_delta_updates")
+  end
+
+  defp require_toggle_permissions(conn, _opts), do: conn
+
+  defp require_permission_if(conn, true, permission), do: require_permission(conn, permission)
+  defp require_permission_if(conn, false, _permission), do: conn
 
   defp maybe_active_from_state(%{"state" => state} = params) do
     active? = if String.downcase(state) == "on", do: true, else: false

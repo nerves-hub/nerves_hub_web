@@ -190,10 +190,10 @@ defmodule NervesHubWeb.Live.Org.Roles do
 
   defp built_in_description(:admin), do: "Everything, including managing the organization, its members and its roles."
 
-  defp built_in_description(:manage),
-    do: "Everything except managing the organization, its members, its roles and its certificate authorities."
+  defp built_in_description(:manage), do: "Everything except managing the organization, its members and its roles."
 
-  defp built_in_description(:view), do: "Can view everything and run support scripts, but can't change anything."
+  defp built_in_description(:view),
+    do: "Can view everything and run support scripts, but can't change anything or download firmware."
 
   defp member_count(member_counts, %OrgRole{id: id}), do: Map.get(member_counts, id, 0)
   defp member_count(member_counts, role), do: Map.get(member_counts, role, 0)

@@ -14,28 +14,20 @@ defmodule NervesHubWeb.API.DeviceController do
   alias NervesHub.Products
   alias NervesHubWeb.API.PaginationHelpers
   alias NervesHubWeb.Endpoint
-  alias NervesHubWeb.Helpers.RoleValidateHelpers
+  alias NervesHubWeb.Helpers.Authorization
 
   require Logger
 
-  plug(
-    :validate_role,
-    [org: :manage]
-    when action in [
-           :create,
-           :update,
-           :delete,
-           :reboot,
-           :reconnect,
-           :upgrade,
-           :penalty,
-           :move,
-           :code,
-           :bulk_import
-         ]
-  )
-
-  plug(:validate_role, [org: :view] when action in [:index, :show, :auth])
+  plug(:require_membership when action in [:index, :show, :auth])
+  plug(:require_permission, :"device:create" when action in [:create, :bulk_import])
+  plug(:require_permission, :"device:update" when action in [:update, :move])
+  plug(:require_permission, :"device:delete" when action in [:delete])
+  plug(:require_permission, :"device:reboot" when action in [:reboot])
+  plug(:require_permission, :"device:reconnect" when action in [:reconnect])
+  plug(:require_permission, :"device:push-update" when action in [:upgrade])
+  plug(:require_permission, :"device:clear-penalty-box" when action in [:penalty])
+  # Sends keystrokes to the device's console, as someone at the console would.
+  plug(:require_permission, :"device:console" when action in [:code])
 
   def index(%{assigns: %{current_scope: %{org: org}, product: product}} = conn, params) do
     filters = Map.get(params, "filters", %{}) |> Map.new(fn {k, v} -> {String.to_existing_atom(k), v} end)
@@ -228,7 +220,7 @@ defmodule NervesHubWeb.API.DeviceController do
         "new_product_name" => product_name
       }) do
     with {:ok, move_to_org} <- Accounts.get_org_by_name(org_name),
-         RoleValidateHelpers.validate_org_user_role(conn, move_to_org, user, :manage),
+         :ok <- authorize_move_into!(move_to_org, user),
          {:ok, product} <- Products.get_product_by_org_id_and_name(move_to_org.id, product_name) do
       case Devices.move(device, product, user) do
         {:ok, device} ->
@@ -258,5 +250,16 @@ defmodule NervesHubWeb.API.DeviceController do
       "desc" -> :desc
       _ -> :asc
     end
+  end
+
+  # Moving a device into another org adds a device there, so the user has to be
+  # able to add devices in that org too.
+  defp authorize_move_into!(org, user) do
+    case Accounts.get_org_user(org, user) do
+      {:ok, org_user} -> Authorization.authorized!(:"device:create", org_user)
+      {:error, :not_found} -> raise NervesHubWeb.UnauthorizedError
+    end
+
+    :ok
   end
 end

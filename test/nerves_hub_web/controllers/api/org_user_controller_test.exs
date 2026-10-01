@@ -31,26 +31,19 @@ defmodule NervesHubWeb.API.OrgUserControllerTest do
                Enum.find(json_response(conn, 200)["data"], &(&1["email"] == member.email))
     end
 
-    test "error: a custom role cannot list org members", %{conn2: conn, org: org, user2: user} do
-      role = Fixtures.org_role_fixture(org, %{permissions: Accounts.Permissions.custom_role_options()})
-      {:ok, _} = Accounts.add_org_user(org, user, %{org_role_id: role.id})
+    test "any member can list the org's members", %{conn2: conn, org: org, user2: user} do
+      for role <- [%{role: :manage}, %{role: :view}, %{org_role_id: Fixtures.org_role_fixture(org).id}] do
+        {:ok, org_user} = Accounts.add_org_user(org, user, role)
 
-      assert_error_sent(401, fn ->
-        get(conn, Routes.api_org_user_path(conn, :index, org.name))
-      end)
-      |> assert_authorization_error()
-    end
+        emails =
+          conn
+          |> get(Routes.api_org_user_path(conn, :index, org.name))
+          |> json_response(200)
+          |> get_in(["data", Access.all(), "email"])
 
-    for role <- [:manage, :view] do
-      @role role
+        assert user.email in emails
 
-      test "error: org #{@role} cannot list org members", %{conn2: conn, org: org, user2: user} do
-        Accounts.add_org_user(org, user, %{role: @role})
-
-        assert_error_sent(401, fn ->
-          get(conn, Routes.api_org_user_path(conn, :index, org.name))
-        end)
-        |> assert_authorization_error()
+        :ok = Accounts.soft_delete_org_user(org_user)
       end
     end
   end
@@ -63,17 +56,13 @@ defmodule NervesHubWeb.API.OrgUserControllerTest do
                %{"email" => user.email, "role" => "admin", "custom_role" => nil, "name" => user.name}
     end
 
-    for role <- [:manage, :view] do
-      @role role
+    test "any member can view a member's details", %{conn2: conn, org: org, user: admin, user2: user} do
+      {:ok, _} = Accounts.add_org_user(org, user, %{org_role_id: Fixtures.org_role_fixture(org).id})
 
-      test "error: org #{@role} cannot view member details", %{conn2: conn, org: org, user2: user} do
-        Accounts.add_org_user(org, user, %{role: @role})
+      conn = get(conn, Routes.api_org_user_path(conn, :show, org.name, admin.email))
 
-        assert_error_sent(401, fn ->
-          get(conn, Routes.api_org_user_path(conn, :show, org.name, user.email))
-        end)
-        |> assert_authorization_error()
-      end
+      assert %{"email" => email, "role" => "admin"} = json_response(conn, 200)["data"]
+      assert email == admin.email
     end
   end
 

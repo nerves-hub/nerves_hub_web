@@ -13,8 +13,9 @@ defmodule NervesHubWeb.API.KeyController do
 
   @auth_error_responses SchemaHelpers.auth_error_responses()
 
-  plug(:validate_role, [org: :manage] when action in [:create, :delete])
-  plug(:validate_role, [org: :view] when action in [:index, :show])
+  plug(:require_membership when action in [:index, :show])
+  plug(:require_permission, :"signing_key:create" when action in [:create])
+  plug(:require_permission, :"signing_key:delete" when action in [:delete])
 
   operation(:index,
     summary: "List all Firmware and Archive Signing Keys for an Organization",

@@ -58,9 +58,9 @@ defmodule NervesHub.Accounts.Permissions do
      ]},
     {"Certificate authorities",
      [
-       {:"certificate_authority:create", :admin, :optional, "Add certificate authorities"},
-       {:"certificate_authority:update", :admin, :optional, "Edit certificate authorities"},
-       {:"certificate_authority:delete", :admin, :optional, "Delete certificate authorities"}
+       {:"certificate_authority:create", :manage, :optional, "Add certificate authorities"},
+       {:"certificate_authority:update", :manage, :optional, "Edit certificate authorities"},
+       {:"certificate_authority:delete", :manage, :optional, "Delete certificate authorities"}
      ]},
     {"Signing keys",
      [
@@ -104,6 +104,7 @@ defmodule NervesHub.Accounts.Permissions do
     {"Firmware and archives",
      [
        {:"firmware:upload", :manage, :optional, "Upload firmware"},
+       {:"firmware:download", :manage, :optional, "Download firmware"},
        {:"firmware:delete", :manage, :optional, "Delete firmware"},
        {:"archive:upload", :manage, :optional, "Upload archives"},
        {:"archive:delete", :manage, :optional, "Delete archives"}

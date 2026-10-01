@@ -2,6 +2,7 @@ defmodule NervesHubWeb.Live.FirmwareTest do
   use NervesHubWeb.ConnCase.Browser, async: false
   use Mimic
 
+  alias NervesHub.Accounts
   alias NervesHub.Firmwares
   alias NervesHub.Fixtures
   alias NervesHub.ManagedDeployments
@@ -257,6 +258,33 @@ defmodule NervesHubWeb.Live.FirmwareTest do
       |> assert_has("span", text: "This firmware was deleted by #{user.name}", exact: false)
       |> refute_has("button[aria-label='Delete firmware']")
       |> refute_has("a", text: "Download")
+    end
+
+    test "only members who can download firmware are offered it", %{
+      conn: conn,
+      user: user,
+      org: org,
+      tmp_dir: tmp_dir
+    } do
+      product = Fixtures.product_fixture(user, org, %{name: "AmazingProduct"})
+      org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
+      firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+      page = "/org/#{org.name}/#{product.name}/firmware/#{firmware.uuid}"
+
+      conn
+      |> visit(page)
+      |> assert_has("a", text: "Download")
+
+      {:ok, org_user} = Accounts.get_org_user(org, user)
+      {:ok, _} = Accounts.change_org_user_role(org_user, :view)
+
+      conn
+      |> visit(page)
+      |> refute_has("a", text: "Download")
+
+      assert_error_sent(401, fn ->
+        get(conn, "/org/#{org.name}/#{product.name}/firmware/#{firmware.uuid}/download")
+      end)
     end
 
     test "no flash is shown when new firmware is uploaded",

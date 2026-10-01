@@ -16,23 +16,11 @@ defmodule NervesHubWeb.API.FirmwareControllerTest do
       assert json_response(conn, 200)["data"] == []
     end
 
-    # The API checks built-in role levels rather than permissions, so a custom
-    # role counts as a member there and no more, whatever it grants.
-    test "a member with a custom role can list firmware, but not upload it", %{
-      conn2: conn2,
-      org: org,
-      product: product,
-      user2: user2
-    } do
-      role = Fixtures.org_role_fixture(org, %{permissions: ["firmware:upload"]})
-      {:ok, _} = Accounts.add_org_user(org, user2, %{org_role_id: role.id})
+    test "a member with a custom role can list firmware", %{conn2: conn2, org: org, product: product, user2: user2} do
+      {:ok, _} = Accounts.add_org_user(org, user2, %{org_role_id: Fixtures.org_role_fixture(org).id})
 
       conn = get(conn2, Routes.api_firmware_path(conn2, :index, org.name, product.name))
       assert json_response(conn, 200)["data"] == []
-
-      assert_error_sent(401, fn ->
-        post(conn2, Routes.api_firmware_path(conn2, :create, org.name, product.name))
-      end)
     end
   end
 
@@ -334,6 +322,24 @@ defmodule NervesHubWeb.API.FirmwareControllerTest do
         )
       end)
       |> assert_authorization_error(401)
+    end
+
+    test "a custom role can download only if it grants that", %{
+      conn2: conn2,
+      user2: user2,
+      org: org,
+      product: product,
+      firmware: firmware
+    } do
+      role = Fixtures.org_role_fixture(org, %{permissions: ["firmware:upload"]})
+      {:ok, _} = Accounts.add_org_user(org, user2, %{org_role_id: role.id})
+      path = Routes.api_firmware_path(conn2, :download, org.name, product.name, firmware.uuid)
+
+      assert_error_sent(401, fn -> get(conn2, path) end)
+
+      {:ok, _} = Accounts.OrgRoles.update_org_role(role, %{"permissions" => ["firmware:download"]})
+
+      assert redirected_to(get(conn2, path)) =~ "#{firmware.uuid}.fw"
     end
 
     test "user does not belong to org of chosen firmware", %{

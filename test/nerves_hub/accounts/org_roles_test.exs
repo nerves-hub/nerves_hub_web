@@ -188,16 +188,4 @@ defmodule NervesHub.Accounts.OrgRolesTest do
       assert %{org_role_id: ["is not a role in this organization"]} = errors_on(changeset)
     end
   end
-
-  describe "has_org_role?/3" do
-    test "counts a custom role as a member, and nothing more", %{org: org} do
-      role = Fixtures.org_role_fixture(org, %{permissions: Accounts.Permissions.custom_role_options()})
-      member = Fixtures.user_fixture()
-      {:ok, _} = Accounts.add_org_user(org, member, %{org_role_id: role.id})
-
-      assert Accounts.has_org_role?(org, member, :view)
-      refute Accounts.has_org_role?(org, member, :manage)
-      refute Accounts.has_org_role?(org, member, :admin)
-    end
-  end
 end

@@ -10,8 +10,10 @@ defmodule NervesHubWeb.API.FirmwareController do
 
   require Logger
 
-  plug(:validate_role, [org: :manage] when action in [:create, :delete, :download])
-  plug(:validate_role, [org: :view] when action in [:index, :show])
+  plug(:require_membership when action in [:index, :show])
+  plug(:require_permission, :"firmware:upload" when action in [:create])
+  plug(:require_permission, :"firmware:download" when action in [:download])
+  plug(:require_permission, :"firmware:delete" when action in [:delete])
 
   tags(["Firmwares"])
   security([%{"bearer_auth" => []}])
