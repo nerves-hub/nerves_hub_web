@@ -75,15 +75,17 @@ defmodule NervesHub.DeviceSSLTransport do
   # a few dozen bytes and the balancer writes it immediately.
   @proxy_header_timeout 5_000
 
-  # The header timeout above only covers the header. Without this, a client that
-  # sends a well formed one and then stalls holds a connection process for as
-  # long as it likes, because `:ssl.handshake/2` has no timeout of its own --
-  # which is equally true of the transport this replaces, so this is a gap being
-  # closed rather than one being opened.
+  # Bounds the TLS handshake on both paths, because `:ssl.handshake` waits
+  # forever unless given a timeout. Without one, a client that connects and then
+  # stalls -- after a well formed PROXY header, or straight away on a listener
+  # without one -- holds a connection process, its `:ssl` connection and a port
+  # for as long as it likes. The rate limit in `handshake/1` caps how fast those
+  # arrive, not how many can be open at once.
   #
   # Generous on purpose: a device on a poor cellular link doing full mutual TLS
   # is the case that must not be cut off, and 30s is far past any handshake that
-  # was ever going to finish.
+  # was ever going to finish. `:tls_handshake_timeout` in this module's config
+  # overrides it.
   @tls_handshake_timeout 30_000
 
   # Options that configure the listening socket rather than TLS. Everything else
@@ -157,7 +159,11 @@ defmodule NervesHub.DeviceSSLTransport do
 
   # Already a TLS socket, so the listener was opened by `:ssl` and there is no
   # PROXY header to read.
-  defp do_handshake(socket) when is_tls_socket(socket), do: SSL.handshake(socket)
+  defp do_handshake(socket) when is_tls_socket(socket) do
+    socket
+    |> :ssl.handshake(tls_handshake_timeout())
+    |> handshake_result()
+  end
 
   defp do_handshake(socket) do
     with {:ok, peer} <- read_proxy_header(socket),
@@ -192,14 +198,16 @@ defmodule NervesHub.DeviceSSLTransport do
 
   # `ThousandIsland.Transports.SSL.upgrade/2` without the timeout it doesn't take.
   defp upgrade_to_tls(socket, ssl_options) do
-    # Both shapes are `:ssl`'s own: the third element carries protocol extensions
-    # and is only present for the handshakes that negotiate any.
-    case :ssl.handshake(socket, ssl_options, @tls_handshake_timeout) do
-      {:ok, ssl_socket} -> {:ok, ssl_socket}
-      {:ok, ssl_socket, _protocol_extensions} -> {:ok, ssl_socket}
-      {:error, reason} -> {:error, reason}
-    end
+    socket
+    |> :ssl.handshake(ssl_options, tls_handshake_timeout())
+    |> handshake_result()
   end
+
+  # Both shapes are `:ssl`'s own: the third element carries protocol extensions
+  # and is only present for the handshakes that negotiate any.
+  defp handshake_result({:ok, ssl_socket}), do: {:ok, ssl_socket}
+  defp handshake_result({:ok, ssl_socket, _protocol_extensions}), do: {:ok, ssl_socket}
+  defp handshake_result({:error, reason}), do: {:error, reason}
 
   # The options `listen/2` held back, found by the port the connection arrived
   # on. `sockname/1` on an accepted socket is the listener's own address.
@@ -286,9 +294,11 @@ defmodule NervesHub.DeviceSSLTransport do
     end)
   end
 
-  defp proxy_protocol() do
-    :nerves_hub
-    |> Application.get_env(__MODULE__, [])
-    |> Keyword.get(:proxy_protocol)
+  defp proxy_protocol(), do: Keyword.get(config(), :proxy_protocol)
+
+  defp tls_handshake_timeout() do
+    Keyword.get(config(), :tls_handshake_timeout, @tls_handshake_timeout)
   end
+
+  defp config(), do: Application.get_env(:nerves_hub, __MODULE__, [])
 end
