@@ -5,6 +5,7 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
 
   import Phoenix.ChannelTest
 
+  alias NervesHub.Accounts
   alias NervesHub.AdvancedQueryFixtures
   alias NervesHub.Devices
   alias NervesHub.Devices.Device
@@ -12,6 +13,7 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
   alias NervesHub.Products.Notification
   alias NervesHub.Repo
   alias NervesHub.Scripts.Runner
+  alias Phoenix.Socket.Broadcast
 
   describe "create devices" do
     test "renders device when data is valid", %{conn: conn, org: org, product: product} do
@@ -1401,6 +1403,127 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
         )
       end)
       |> assert_authorization_error(404)
+    end
+  end
+
+  describe "devices in a deleted org" do
+    setup %{user: user, org: org, product: product, tmp_dir: tmp_dir} do
+      org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
+      firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+      device = Fixtures.device_fixture(org, product, firmware)
+      script = Fixtures.support_script_fixture(product, user)
+
+      # Deleting the org leaves the user's admin membership in place.
+      {:ok, _org} = Accounts.soft_delete_org(org)
+
+      %{device: device, firmware: firmware, script: script}
+    end
+
+    test "can't be reached by a former member through the short url", %{
+      conn: conn,
+      user: user,
+      org: org,
+      device: device,
+      firmware: firmware,
+      script: script
+    } do
+      new_org = Fixtures.org_fixture(user, %{name: "new-org"})
+      new_product = Fixtures.product_fixture(user, new_org, %{name: "new-product"})
+
+      requests = [
+        {:get, ~p"/api/devices/#{device.identifier}", %{}},
+        {:post, ~p"/api/devices/#{device.identifier}/code", %{body: "boop"}},
+        {:post, ~p"/api/devices/#{device.identifier}/move",
+         %{new_org_name: new_org.name, new_product_name: new_product.name}},
+        {:post, ~p"/api/devices/#{device.identifier}/reboot", %{}},
+        {:post, ~p"/api/devices/#{device.identifier}/reconnect", %{}},
+        {:post, ~p"/api/devices/#{device.identifier}/upgrade", %{uuid: firmware.uuid}},
+        {:delete, ~p"/api/devices/#{device.identifier}/penalty", %{}},
+        {:get, ~p"/api/devices/#{device.identifier}/scripts", %{}},
+        {:post, ~p"/api/devices/#{device.identifier}/scripts/#{script.id}", %{}},
+        {:get, ~p"/api/devices/#{device.identifier}/logs", %{}}
+      ]
+
+      for {method, path, params} <- requests do
+        assert_error_sent(404, fn -> dispatch(conn, @endpoint, method, path, params) end)
+        |> assert_authorization_error(404)
+      end
+
+      assert Repo.reload(device).org_id == org.id
+    end
+
+    test "can't be reached by a former member through the nested url", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device
+    } do
+      assert_error_sent(404, fn ->
+        get(conn, ~p"/api/orgs/#{org.name}/products/#{product.name}/devices/#{device.identifier}")
+      end)
+    end
+  end
+
+  describe "soft-deleted devices" do
+    setup %{user: user, org: org, product: product, tmp_dir: tmp_dir} do
+      org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
+      firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+      script = Fixtures.support_script_fixture(product, user)
+
+      {:ok, device} =
+        org
+        |> Fixtures.device_fixture(product, firmware)
+        |> Devices.delete_device()
+
+      %{device: device, firmware: firmware, script: script}
+    end
+
+    test "refuse anything that would reach the device, on both urls", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device,
+      firmware: firmware,
+      script: script
+    } do
+      Phoenix.PubSub.subscribe(NervesHub.PubSub, "device:#{device.id}")
+      Phoenix.PubSub.subscribe(NervesHub.PubSub, "device_socket:#{device.id}")
+      reject(Runner, :send, 3)
+
+      prefixes = [
+        ~p"/api/devices/#{device.identifier}",
+        ~p"/api/orgs/#{org.name}/products/#{product.name}/devices/#{device.identifier}"
+      ]
+
+      actions = [
+        {:post, "/reboot", %{}},
+        {:post, "/reconnect", %{}},
+        {:post, "/code", %{body: "boop"}},
+        {:post, "/upgrade", %{uuid: firmware.uuid}},
+        {:delete, "/penalty", %{}},
+        {:post, "/scripts/#{script.id}", %{}}
+      ]
+
+      for prefix <- prefixes, {method, action, params} <- actions do
+        response =
+          conn
+          |> dispatch(@endpoint, method, prefix <> action, params)
+          |> json_response(422)
+
+        assert response == %{"errors" => %{"detail" => "Device is deleted and must be restored to use."}}
+      end
+
+      refute_receive %Broadcast{}
+    end
+
+    test "can still be shown, and restored", %{conn: conn, device: device} do
+      conn = get(conn, ~p"/api/devices/#{device.identifier}")
+      assert json_response(conn, 200)["data"]["deleted"] == true
+
+      {:ok, device} = Devices.restore_device(device)
+
+      conn = post(conn, ~p"/api/devices/#{device.identifier}/reboot")
+      assert response(conn, 204)
     end
   end
 end

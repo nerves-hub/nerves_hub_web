@@ -4,6 +4,7 @@ defmodule NervesHubWeb.API.OpenAPI.DeviceControllerSpecs do
   alias NervesHubWeb.API.OpenAPI.SchemaHelpers
   alias NervesHubWeb.API.Schemas.DeviceCertificateSchemas
   alias NervesHubWeb.API.Schemas.DeviceSchemas
+  alias NervesHubWeb.API.Schemas.ErrorSchemas
 
   @organization_parameter SchemaHelpers.org_param()
   @product_parameter SchemaHelpers.product_param()
@@ -111,6 +112,12 @@ defmodule NervesHubWeb.API.OpenAPI.DeviceControllerSpecs do
   @common_errors SchemaHelpers.common_errors()
   @not_found_error SchemaHelpers.not_found_error()
   @validation_error SchemaHelpers.validation_error()
+
+  # Actions that reach the device refuse a soft-deleted one; see
+  # `NervesHubWeb.API.Plugs.RefuseDeletedDevice`.
+  @device_deleted_error %{
+    422 => response("Device is deleted and must be restored first", "application/json", ErrorSchemas.ErrorResponse)
+  }
 
   @path_structures %{
     short: %{
@@ -290,7 +297,7 @@ defmodule NervesHubWeb.API.OpenAPI.DeviceControllerSpecs do
         opts.tags,
         path_structure: path_structure,
         request_body: request_body,
-        response: Map.merge(@no_content_response, @not_found_error)
+        response: Map.merge(@no_content_response, Map.merge(@not_found_error, @device_deleted_error))
       )
 
     add_to_paths(openapi, "#{opts.path_prefix}/code", %OpenApiSpex.PathItem{
@@ -345,7 +352,7 @@ defmodule NervesHubWeb.API.OpenAPI.DeviceControllerSpecs do
         opts.parameters,
         opts.tags,
         path_structure: path_structure,
-        response: Map.merge(@no_content_response, @not_found_error)
+        response: Map.merge(@no_content_response, Map.merge(@not_found_error, @device_deleted_error))
       )
 
     add_to_paths(openapi, "#{opts.path_prefix}/reboot", %OpenApiSpex.PathItem{
@@ -363,7 +370,7 @@ defmodule NervesHubWeb.API.OpenAPI.DeviceControllerSpecs do
         opts.parameters,
         opts.tags,
         path_structure: path_structure,
-        response: Map.merge(@no_content_response, @not_found_error)
+        response: Map.merge(@no_content_response, Map.merge(@not_found_error, @device_deleted_error))
       )
 
     add_to_paths(openapi, "#{opts.path_prefix}/reconnect", %OpenApiSpex.PathItem{
@@ -408,7 +415,7 @@ defmodule NervesHubWeb.API.OpenAPI.DeviceControllerSpecs do
         opts.parameters,
         opts.tags,
         path_structure: path_structure,
-        response: Map.merge(@no_content_response, @not_found_error)
+        response: Map.merge(@no_content_response, Map.merge(@not_found_error, @device_deleted_error))
       )
 
     add_to_paths(openapi, "#{opts.path_prefix}/penalty", %OpenApiSpex.PathItem{
@@ -446,7 +453,7 @@ defmodule NervesHubWeb.API.OpenAPI.DeviceControllerSpecs do
     response =
       Map.merge(
         %{200 => response("Script output", "text/plain", %OpenApiSpex.Schema{type: :string})},
-        @not_found_error
+        Map.merge(@not_found_error, @device_deleted_error)
       )
 
     send_script_operation =

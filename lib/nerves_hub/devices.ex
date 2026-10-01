@@ -292,10 +292,18 @@ defmodule NervesHub.Devices do
     |> join(:left, [d, o], u in assoc(o, :users), as: :users)
     |> where(identifier: ^identifier)
     |> where([users: u], u.id == ^user.id)
+    |> where_org_not_deleted()
     |> scope_to_product(scope)
     |> preload([org: o], org: o)
     |> join_and_preload_deployment_group_and_current_release()
     |> join_and_preload(preload_assoc)
+  end
+
+  # Deleting an org leaves its memberships in place, and `org.users` only drops
+  # removed members, so a lookup that reaches the device through the user's
+  # membership has to rule the deleted org out itself.
+  defp where_org_not_deleted(query) do
+    where(query, [org: o], is_nil(o.deleted_at))
   end
 
   # A route carrying a :product_name segment puts the product on the scope, and
@@ -834,6 +842,7 @@ defmodule NervesHub.Devices do
     |> join(:left, [d, o], u in assoc(o, :users), as: :users)
     |> where([d], d.id in ^ids)
     |> where([users: u], u.id == ^user.id)
+    |> where_org_not_deleted()
     |> Repo.all()
   end
 
