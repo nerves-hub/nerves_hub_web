@@ -183,7 +183,14 @@ defmodule NervesHub.DeviceLink.Authentication do
         key_iterations: iterations,
         key_digest: digest,
         signed_at: signed_at,
-        max_age: max_hmac_age()
+        max_age: max_hmac_age(),
+        # Plug.Crypto caches each derived key in the `Plug.Crypto.Keys` ETS
+        # table unless told not to, keyed on the salt, and never evicts. This
+        # salt carries the signing time, so no two connections share one: the
+        # cache never hits, and every connect leaves a row behind for the life
+        # of the node. A production device node held 150,917 of them (41.5MB of
+        # ETS, plus the salts in binary memory) after 12 days.
+        cache: nil
       ]
 
       {:ok, key, expected_salt, opts}
