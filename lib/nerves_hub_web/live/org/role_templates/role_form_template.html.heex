@@ -30,11 +30,33 @@
           <div class="text-alert-content mt-1 text-sm">{error_tag(f, :description)}</div>
         </div>
 
+        <div class="mb-6">
+          <h2 class="text-base-50 text-base font-semibold">Devices</h2>
+          <p class="text-base-400 mb-3 text-sm">Leave the tags empty for a role that sees every device in the organization.</p>
+          <div class="flex gap-6">
+            <div class="w-1/2">
+              <.tag_input field={f[:device_tags]} label="Only devices tagged" placeholder="eg. support" available_tags={@available_tags} phx-debounce="blur" />
+            </div>
+            <div class="w-1/2">
+              <.input
+                field={f[:device_tag_operator]}
+                type="select"
+                options={[[value: "and", key: "Require all"], [value: "or", key: "Allow any"]]}
+                label="Tag matching"
+                hint="“Allow any” matches devices with at least one of the tags. “Require all” matches only devices that have every tag."
+              />
+            </div>
+          </div>
+        </div>
+
         <div class="mb-4 flex items-end justify-between gap-4">
           <div>
             <h2 class="text-base-50 text-base font-semibold">Permissions</h2>
-            <p class="text-base-400 text-sm">
+            <p :if={!limited_to_tags?(f)} class="text-base-400 text-sm">
               Every member can view the organization's products, devices and network identities.
+            </p>
+            <p :if={limited_to_tags?(f)} class="text-base-400 text-sm">
+              Members only see the devices these tags match, so the role can only be given permissions for single devices.
             </p>
             <p class="text-base-400 text-sm">
               Pick what this role can change.
@@ -61,7 +83,7 @@
 
         <input type="hidden" name="org_role[permissions][]" value="" />
 
-        <fieldset :for={{group, permissions} <- offered_groups()} class="mb-6">
+        <fieldset :for={{group, permissions} <- offered_groups(f)} class="mb-6">
           <legend class="text-base-50 mb-2 text-sm font-semibold">{group}</legend>
           <div class="border-base-800 divide-base-800 divide-y rounded border">
             <label :for={permission <- permissions} for={"permission-#{permission.name}"} class="flex cursor-pointer items-center gap-3 px-3 py-2 text-sm">

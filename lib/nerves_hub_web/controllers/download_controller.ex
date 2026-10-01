@@ -5,6 +5,7 @@ defmodule NervesHubWeb.DownloadController do
   alias NervesHub.Firmwares
 
   plug(:require_membership)
+  plug(:require_every_device)
   plug(:require_permission, :"firmware:download" when action in [:firmware])
 
   def archive(%{assigns: %{current_scope: scope}} = conn, %{"uuid" => uuid}) do

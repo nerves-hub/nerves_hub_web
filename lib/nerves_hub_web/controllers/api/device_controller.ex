@@ -21,6 +21,7 @@ defmodule NervesHubWeb.API.DeviceController do
   plug(:require_membership when action in [:index, :show, :auth])
   plug(:require_permission, :"device:create" when action in [:create, :bulk_import])
   plug(:require_permission, :"device:update" when action in [:update, :move])
+  plug(:require_tags_permission when action in [:update])
   plug(:require_permission, :"device:delete" when action in [:delete])
   plug(:require_permission, :"device:reboot" when action in [:reboot])
   plug(:require_permission, :"device:reconnect" when action in [:reconnect])
@@ -40,7 +41,8 @@ defmodule NervesHubWeb.API.DeviceController do
   defp list_devices(conn, org, product, params, filters) do
     opts = %{
       pagination: PaginationHelpers.atomize_pagination_params(Map.get(params, "pagination", %{})),
-      filters: filters
+      filters: filters,
+      visible_to: conn.assigns.current_scope.user
     }
 
     opts =
@@ -250,6 +252,12 @@ defmodule NervesHubWeb.API.DeviceController do
       "desc" -> :desc
       _ -> :asc
     end
+  end
+
+  # Tags decide which deployment groups a device can join, and which members
+  # see it, so changing them needs its own permission.
+  defp require_tags_permission(%{params: params} = conn, _opts) do
+    if Map.has_key?(params, "tags"), do: require_permission(conn, :"device:tags"), else: conn
   end
 
   # Moving a device into another org adds a device there, so the user has to be

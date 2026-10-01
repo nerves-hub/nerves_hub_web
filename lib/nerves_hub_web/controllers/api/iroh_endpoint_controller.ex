@@ -28,6 +28,7 @@ defmodule NervesHubWeb.API.IrohEndpointController do
   @service :iroh
 
   plug(:require_membership when action in [:index, :show])
+  plug(:require_every_device)
   plug(:require_permission, :"network_identity:create" when action in [:create])
   plug(:require_permission, :"network_identity:delete" when action in [:delete])
 

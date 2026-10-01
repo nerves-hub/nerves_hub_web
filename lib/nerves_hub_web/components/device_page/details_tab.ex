@@ -5,6 +5,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
 
   alias NervesHub.Accounts
   alias NervesHub.Accounts.Org
+  alias NervesHub.Accounts.Scope
   alias NervesHub.Accounts.User.DisplayPreferences
   alias NervesHub.AuditLogs.DeviceTemplates
   alias NervesHub.DeviceEvents
@@ -119,8 +120,8 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
 
   # Tags already on the device are excluded so the "add tag" suggestions only
   # offer tags that can actually be added.
-  defp assign_addable_tags(%{assigns: %{product: product, device: device}} = socket) do
-    addable_tags = Devices.distinct_tags_for_product(product) -- (device.tags || [])
+  defp assign_addable_tags(%{assigns: %{product: product, device: device, current_scope: scope}} = socket) do
+    addable_tags = Devices.distinct_tags_for_product(product, scope.user) -- (device.tags || [])
     assign(socket, :addable_tags, addable_tags)
   end
 
@@ -165,6 +166,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
           <.alarms_box :if={box == :alarms} alarms={@alarms} product={@product} device={@device} />
           <.general_info
             :if={box == :general_info}
+            current_scope={@current_scope}
             device={@device}
             addable_tags={@addable_tags}
             metadata_entries={@metadata_entries}
@@ -465,6 +467,8 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
   end
 
   def hooked_event("add-tag", %{"tag" => tag}, socket) do
+    authorized!(:"device:tags", socket.assigns.current_scope)
+
     Devices.add_tag(socket.assigns.device, socket.assigns.user, tag)
     |> case do
       {:ok, device} ->
@@ -482,6 +486,8 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
   end
 
   def hooked_event("remove-tag", %{"tag" => tag}, socket) do
+    authorized!(:"device:tags", socket.assigns.current_scope)
+
     Devices.remove_tag(socket.assigns.device, socket.assigns.user, tag)
     |> case do
       {:ok, device} ->
@@ -1140,6 +1146,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
 
   # Sits at the top of the right-hand column when the location map is hidden
   # and the user hasn't arranged the boxes themselves. See `details_columns/3`.
+  attr(:current_scope, Scope, required: true)
   attr(:device, Device, required: true)
   attr(:addable_tags, :list, required: true)
   attr(:metadata_entries, :list, required: true)
@@ -1214,6 +1221,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
             <span :for={tag <- @device.tags || []} class="bg-base-800 border-base-800 text-base-300 flex items-center gap-1 rounded border px-2 py-1 text-sm">
               {tag}
               <button
+                :if={authorized?(:"device:tags", @current_scope)}
                 type="button"
                 phx-click="remove-tag"
                 phx-value-tag={tag}
@@ -1226,6 +1234,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
               </button>
             </span>
             <button
+              :if={authorized?(:"device:tags", @current_scope)}
               id="add-tag-open"
               type="button"
               aria-label="Add tag"
@@ -1240,6 +1249,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
               <span class="lucide-plus--light size-3.5" />
             </button>
             <button
+              :if={authorized?(:"device:tags", @current_scope)}
               id="add-tag-close"
               type="button"
               aria-label="Cancel adding tag"
@@ -1255,6 +1265,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
               <span class="lucide-x--light size-3.5" />
             </button>
             <form
+              :if={authorized?(:"device:tags", @current_scope)}
               id="add-tag-form"
               phx-submit={
                 JS.push("add-tag")

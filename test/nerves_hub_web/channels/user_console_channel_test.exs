@@ -51,6 +51,13 @@ defmodule NervesHubWeb.UserConsoleChannelTest do
                subscribe_and_join(socket, UserConsoleChannel, "user:console:identifier-#{device.identifier}")
     end
 
+    test "can't open a console on a device the role's tags don't match", %{tmp_dir: tmp_dir} do
+      {socket, device} = custom_role_member(["device:console"], tmp_dir, %{device_tags: ["support"]})
+
+      assert {:error, %{reason: "unauthorized"}} =
+               subscribe_and_join(socket, UserConsoleChannel, "user:console:identifier-#{device.identifier}")
+    end
+
     test "can't open a console otherwise", %{tmp_dir: tmp_dir} do
       {socket, device} = custom_role_member(["device:reboot"], tmp_dir)
 
@@ -101,11 +108,11 @@ defmodule NervesHubWeb.UserConsoleChannelTest do
     end
   end
 
-  defp custom_role_member(permissions, tmp_dir) do
+  defp custom_role_member(permissions, tmp_dir, role_params \\ %{}) do
     user = Fixtures.user_fixture()
     device = device_fixture(user, %{identifier: "custom-role-device"}, tmp_dir)
     {:ok, org} = Accounts.get_org(device.org_id)
-    role = Fixtures.org_role_fixture(org, %{permissions: permissions})
+    role = Fixtures.org_role_fixture(org, Map.put(role_params, :permissions, permissions))
     {:ok, org_user} = Accounts.get_org_user(org, user)
     {:ok, _} = Accounts.change_org_user_role(org_user, role)
 

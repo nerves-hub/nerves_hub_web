@@ -12,9 +12,12 @@ defmodule NervesHubWeb.Live.Firmware do
   alias NervesHub.Products
   alias NervesHubWeb.Components.Sorting
   alias NervesHubWeb.Helpers.FirmwareDeletion
+  alias NervesHubWeb.Mounts.RequireEveryDevice
   alias Phoenix.Socket.Broadcast
 
   require Logger
+
+  on_mount(RequireEveryDevice)
 
   embed_templates("firmware_templates/*")
 

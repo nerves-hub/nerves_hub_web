@@ -87,7 +87,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
     |> assign(:valid_tags, true)
     |> assign(:device_tags, "")
     |> assign(:tag_operation, "set")
-    |> assign(:available_tags, Devices.distinct_tags_for_product(product))
+    |> assign(:available_tags, Devices.distinct_tags_for_product(product, scope.user))
     |> assign(:total_entries, 0)
     |> assign(:visible?, true)
     |> assign(:live_refresh_timer, nil)
@@ -325,7 +325,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
     |> noreply()
   end
 
-  @decorate requires_permission(:"device:update")
+  @decorate requires_permission(:"device:tags")
   def handle_event("tag-devices", %{"tags" => tags} = params, socket) do
     bulk_action = tag_bulk_action(tag_operation(params))
 
@@ -722,7 +722,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
   # and gets retried on the next navigation.
   defp assign_filter_data(%{assigns: %{filters_ready?: true}} = socket), do: socket
 
-  defp assign_filter_data(%{assigns: %{current_scope: %{product: product}}} = socket) do
+  defp assign_filter_data(%{assigns: %{current_scope: %{product: product, user: user}}} = socket) do
     socket
     |> start_async(:update_filter_data, fn ->
       distinct_metric_keys = Metrics.distinct_keys(product.id)
@@ -735,7 +735,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
         signer_cas: CACertificates.signer_cas_for_product(product.id),
         platforms: Devices.platforms(product.id),
         architectures: Devices.architectures(product.id),
-        advanced_query_tags: Devices.distinct_tags(product.id),
+        advanced_query_tags: Devices.distinct_tags(product.id, user),
         advanced_query_metric_keys: distinct_metric_keys,
         advanced_query_firmwares: Firmwares.firmware_versions_and_uuids(product.id)
       ]

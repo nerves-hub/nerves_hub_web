@@ -6,6 +6,9 @@ defmodule NervesHubWeb.Live.Product.Settings do
   alias NervesHub.Firmwares.UpdateTool
   alias NervesHub.Products
   alias NervesHub.Products.Product
+  alias NervesHubWeb.Mounts.RequireEveryDevice
+
+  on_mount(RequireEveryDevice)
 
   # How each optional format is described to a human. The tool module knows the
   # format; naming it for a settings page is presentation, so it lives here.

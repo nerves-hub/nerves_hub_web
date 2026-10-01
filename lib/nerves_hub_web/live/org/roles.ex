@@ -8,7 +8,10 @@ defmodule NervesHubWeb.Live.Org.Roles do
   alias NervesHub.Accounts.OrgRole
   alias NervesHub.Accounts.OrgRoles
   alias NervesHub.Accounts.Permissions
+  alias NervesHub.Devices
+  alias NervesHub.Types.Tag
   alias NervesHubWeb.Components.Utils
+  alias Phoenix.HTML.Form
 
   embed_templates("role_templates/*")
 
@@ -49,6 +52,7 @@ defmodule NervesHubWeb.Live.Org.Roles do
     |> assign(:role, %OrgRole{})
     |> assign(:form, to_form(OrgRoles.change_org_role(%OrgRole{})))
     |> assign(:roles_to_copy, OrgRoles.list_org_roles(socket.assigns.org))
+    |> assign(:available_tags, Devices.distinct_tags_for_org(socket.assigns.org))
     |> sidebar_tab(:roles)
     |> render_with(&role_form_template/1)
   end
@@ -61,6 +65,7 @@ defmodule NervesHubWeb.Live.Org.Roles do
     |> assign(:role, role)
     |> assign(:form, to_form(OrgRoles.change_org_role(role)))
     |> assign(:roles_to_copy, Enum.reject(OrgRoles.list_org_roles(socket.assigns.org), &(&1.id == role.id)))
+    |> assign(:available_tags, Devices.distinct_tags_for_org(socket.assigns.org))
     |> sidebar_tab(:roles)
     |> render_with(&role_form_template/1)
   end
@@ -73,7 +78,7 @@ defmodule NervesHubWeb.Live.Org.Roles do
   def handle_event("validate", %{"_target" => ["org_role", "copy_from"], "org_role" => params}, socket) do
     params =
       case role_to_copy(socket.assigns.org, params["copy_from"]) do
-        {:ok, role} -> Map.put(params, "permissions", permissions_to_copy(role))
+        {:ok, role} -> Map.put(params, "permissions", permissions_to_copy(role, params))
         {:error, :not_found} -> params
       end
 
@@ -179,10 +184,14 @@ defmodule NervesHubWeb.Live.Org.Roles do
   # What a role grants that a custom role can be given. A custom role's own
   # list can hold a permission that has since been removed or made admin-only;
   # going through what it grants leaves those behind.
-  defp permissions_to_copy(role) do
+  defp permissions_to_copy(role, params) do
     granted = Permissions.for_role(role)
+    device_only? = limited_to_tags?(params)
 
-    for %{custom_roles: :optional, name: name} <- Permissions.all(), name in granted, do: Atom.to_string(name)
+    for %{custom_roles: :optional, name: name} = permission <- Permissions.all(),
+        name in granted,
+        offered?(permission, device_only?),
+        do: Atom.to_string(name)
   end
 
   defp role_path(org, role) when is_atom(role), do: ~p"/org/#{org}/settings/roles/#{role}"
@@ -203,11 +212,41 @@ defmodule NervesHubWeb.Live.Org.Roles do
   end
 
   # The permissions a custom role can be given, by group. Those every member
-  # has, and those only the built-in admin role can have, aren't choices.
-  defp offered_groups() do
+  # has, and those only the built-in admin role can have, aren't choices. Nor,
+  # for a role limited to tagged devices, is anything but single devices.
+  defp offered_groups(form) do
+    device_only? = limited_to_tags?(form)
+
     for {group, permissions} <- Permissions.grouped(),
-        permissions = Enum.filter(permissions, &(&1.custom_roles == :optional)),
+        permissions = Enum.filter(permissions, &offered?(&1, device_only?)),
         permissions != [],
         do: {group, permissions}
   end
+
+  defp offered?(%{custom_roles: :optional, name: name}, true),
+    do: Atom.to_string(name) in Permissions.device_permissions()
+
+  defp offered?(%{custom_roles: :optional}, false), do: true
+  defp offered?(_permission, _device_only?), do: false
+
+  defp limited_to_tags?(%Form{source: changeset}), do: Ecto.Changeset.get_field(changeset, :device_tags) != []
+
+  defp limited_to_tags?(params) when is_map(params) do
+    case Tag.cast(params["device_tags"] || []) do
+      {:ok, tags} -> tags != []
+      _error -> false
+    end
+  end
+
+  defp device_scope_label(%OrgRole{device_tags: []}), do: nil
+  defp device_scope_label(%OrgRole{device_tags: [tag]}), do: "Only devices tagged #{tag}"
+
+  defp device_scope_label(%OrgRole{device_tags: tags, device_tag_operator: operator}) do
+    "Only devices tagged #{tag_operator_label(operator)} #{Enum.join(tags, ", ")}"
+  end
+
+  defp device_scope_label(_built_in_role), do: nil
+
+  defp tag_operator_label(:and), do: "all of"
+  defp tag_operator_label(:or), do: "any of"
 end

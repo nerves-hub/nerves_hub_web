@@ -56,6 +56,48 @@ defmodule NervesHub.Accounts.OrgRolesTest do
     end
   end
 
+  describe "limiting a role to tagged devices" do
+    test "takes the tags as the form sends them", %{org: org} do
+      {:ok, role} =
+        OrgRoles.create_org_role(org, %{
+          "name" => "Support",
+          "device_tags" => "support, eu",
+          "device_tag_operator" => "or",
+          "permissions" => ["device:reboot"]
+        })
+
+      assert role.device_tags == ["support", "eu"]
+      assert role.device_tag_operator == :or
+      assert OrgRole.limited_to_tags?(role)
+    end
+
+    test "only allows permissions that act on single devices", %{org: org} do
+      {:error, changeset} =
+        OrgRoles.create_org_role(org, %{
+          "name" => "Support",
+          "device_tags" => "support",
+          "permissions" => ["device:reboot", "deployment_group:update"]
+        })
+
+      assert %{permissions: ["can only act on single devices when the role is limited to tagged devices"]} =
+               errors_on(changeset)
+
+      assert {:ok, _role} =
+               OrgRoles.create_org_role(org, %{
+                 "name" => "Support",
+                 "device_tags" => "support",
+                 "permissions" => Accounts.Permissions.device_permissions()
+               })
+    end
+
+    test "an empty tag field means every device", %{org: org} do
+      {:ok, role} = OrgRoles.create_org_role(org, %{"name" => "Everyone", "device_tags" => ""})
+
+      assert role.device_tags == []
+      refute OrgRole.limited_to_tags?(role)
+    end
+  end
+
   describe "get_org_role/2" do
     test "only finds the org's own roles", %{org: org, user: user} do
       role = Fixtures.org_role_fixture(org)

@@ -19,6 +19,9 @@ defmodule NervesHubWeb.Live.Org.IrohEndpoints do
   alias NervesHub.Accounts
   alias NervesHub.Devices.NetworkIdentities
   alias NervesHub.Devices.NetworkIdentity
+  alias NervesHubWeb.Mounts.RequireEveryDevice
+
+  on_mount(RequireEveryDevice)
 
   # The page is named for iroh because that is what the keys are used for today.
   # The table underneath is not iroh-specific, so this is the one place that

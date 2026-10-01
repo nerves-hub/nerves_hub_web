@@ -40,6 +40,15 @@ defmodule NervesHubWeb.Live.Org.RolesTest do
       |> assert_has(~s(li[id="permission-device:reboot"] span[aria-label="Not granted"]))
     end
 
+    test "a role limited to tags says which", %{conn: conn, org: org} do
+      role =
+        Fixtures.org_role_fixture(org, %{name: "Support", device_tags: ["support", "eu"], device_tag_operator: :or})
+
+      conn
+      |> visit("/org/#{org.name}/settings/roles/#{role.id}")
+      |> assert_has("#device-scope", text: "Only devices tagged any of support, eu.")
+    end
+
     test "a custom role lists what was picked for it", %{conn: conn, org: org} do
       role = Fixtures.org_role_fixture(org, %{name: "Rebooter", permissions: ["device:reboot"]})
 
@@ -118,6 +127,22 @@ defmodule NervesHubWeb.Live.Org.RolesTest do
       role = Enum.find(OrgRoles.list_org_roles(org), &(&1.name == "Release Manager with Console"))
 
       assert role.permissions == ["deployment_group:update", "device:console", "firmware:upload"]
+    end
+
+    test "limiting a role to tags leaves only permissions for single devices", %{conn: conn, org: org} do
+      conn
+      |> visit("/org/#{org.name}/settings/roles/new")
+      |> assert_has("label", text: "Upload firmware")
+      |> fill_in("Name", with: "Support")
+      |> fill_in("Only devices tagged", with: "support")
+      |> refute_has("label", text: "Upload firmware")
+      |> assert_has("p", text: "Members only see the devices these tags match")
+      |> check("Reboot devices")
+      |> click_button("Create Role")
+      |> assert_has("div", text: "Role Support created")
+      |> assert_has("td", text: "Only devices tagged support")
+
+      assert [%{device_tags: ["support"], permissions: ["device:reboot"]}] = OrgRoles.list_org_roles(org)
     end
 
     test "shows what's wrong with the role", %{conn: conn, org: org} do

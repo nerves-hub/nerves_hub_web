@@ -853,6 +853,51 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
     end
   end
 
+  describe "a member limited to tagged devices" do
+    setup %{user: user, user2: user2, org: org, tmp_dir: tmp_dir} do
+      product = Fixtures.product_fixture(user, org)
+      org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
+      firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+      visible = Fixtures.device_fixture(org, product, firmware, %{tags: ["support"]})
+      hidden = Fixtures.device_fixture(org, product, firmware, %{tags: ["production"]})
+
+      role =
+        Fixtures.org_role_fixture(org, %{device_tags: ["support"], permissions: ["device:update", "device:reboot"]})
+
+      {:ok, _} = Accounts.add_org_user(org, user2, %{org_role_id: role.id})
+
+      %{product: product, visible: visible, hidden: hidden}
+    end
+
+    test "lists only the devices the role's tags match", %{conn2: conn, org: org, product: product, visible: visible} do
+      conn = get(conn, Routes.api_device_path(conn, :index, org.name, product.name))
+
+      assert [%{"identifier" => identifier}] = json_response(conn, 200)["data"]
+      assert identifier == visible.identifier
+    end
+
+    test "can't reach any other device", %{conn2: conn, org: org, product: product, visible: visible, hidden: hidden} do
+      assert response(post(conn, Routes.api_device_path(conn, :reboot, visible.identifier)), 204)
+
+      assert_error_sent(404, fn -> get(conn, Routes.api_device_path(conn, :show, hidden.identifier)) end)
+
+      assert_error_sent(404, fn ->
+        post(conn, Routes.api_device_path(conn, :reboot, org.name, product.name, hidden.identifier))
+      end)
+    end
+
+    test "can't change tags without the permission for it", %{conn2: conn, org: org, product: product, visible: visible} do
+      path = Routes.api_device_path(conn, :update, org.name, product.name, visible.identifier)
+
+      assert json_response(put(conn, path, %{"description" => "on the bench"}), 201)
+      assert_error_sent(401, fn -> put(conn, path, %{"tags" => "production"}) end)
+    end
+
+    test "can't list the product's firmware", %{conn2: conn, org: org, product: product} do
+      assert_error_sent(401, fn -> get(conn, Routes.api_firmware_path(conn, :index, org.name, product.name)) end)
+    end
+  end
+
   describe "reconnect" do
     test "success, with nested url", %{conn: conn, user: user, org: org, tmp_dir: tmp_dir} do
       product = Fixtures.product_fixture(user, org)

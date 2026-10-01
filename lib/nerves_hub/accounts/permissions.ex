@@ -87,7 +87,8 @@ defmodule NervesHub.Accounts.Permissions do
      [
        {:"device:view", :view, :always, "View devices and stream their events"},
        {:"device:create", :manage, :optional, "Add devices"},
-       {:"device:update", :manage, :optional, "Edit devices, their tags and settings"},
+       {:"device:update", :manage, :optional, "Edit devices and their settings"},
+       {:"device:tags", :manage, :optional, "Change device tags"},
        {:"device:delete", :manage, :optional, "Delete devices"},
        {:"device:restore", :manage, :optional, "Restore deleted devices"},
        {:"device:destroy", :manage, :optional, "Permanently destroy deleted devices"},
@@ -148,6 +149,28 @@ defmodule NervesHub.Accounts.Permissions do
 
   @custom_role_baseline for %{custom_roles: :always, name: name} <- @permissions, into: MapSet.new(), do: name
 
+  # What a custom role limited to tagged devices can be given: things done to
+  # one device at a time. Everything else acts on something its members can't
+  # see all of - a product, a deployment group, the org's firmware - and those
+  # pages are closed to them.
+  @device_permissions ~w(
+    device:update
+    device:tags
+    device:delete
+    device:restore
+    device:destroy
+    device:console
+    device:extensions:local_shell
+    device:identify
+    device:reboot
+    device:reconnect
+    device:push-update
+    device:toggle-updates
+    device:clear-penalty-box
+    device:set-deployment-group
+    support_script:run
+  )
+
   # Custom roles store their permissions as strings. Only these are read back,
   # so a permission that is renamed, removed, or made admin-only after a role
   # was saved stops granting anything rather than failing to load.
@@ -185,6 +208,13 @@ defmodule NervesHub.Accounts.Permissions do
   """
   @spec custom_role_options() :: [String.t()]
   def custom_role_options(), do: Map.keys(@custom_role_optional)
+
+  @doc """
+  The permissions a custom role limited to tagged devices can be given, as they
+  are stored on `NervesHub.Accounts.OrgRole`.
+  """
+  @spec device_permissions() :: [String.t()]
+  def device_permissions(), do: @device_permissions
 
   @doc """
   The permissions a role grants.

@@ -2,7 +2,10 @@ defmodule NervesHubWeb.Live.Product.Notifications do
   use NervesHubWeb, :live_view
 
   alias NervesHub.ProductNotifications
+  alias NervesHubWeb.Mounts.RequireEveryDevice
   alias Phoenix.Socket.Broadcast
+
+  on_mount(RequireEveryDevice)
 
   @impl Phoenix.LiveView
   def mount(_params, _session, %{assigns: %{current_scope: scope}} = socket) do

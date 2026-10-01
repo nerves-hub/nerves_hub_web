@@ -5,6 +5,7 @@ defmodule NervesHubWeb.DeploymentGroupController do
   alias NervesHub.ManagedDeployments
 
   plug(:require_membership)
+  plug(:require_every_device)
 
   def export_audit_logs(%{assigns: %{current_scope: %{org: org, product: product}}} = conn, %{"name" => deployment_name}) do
     case ManagedDeployments.get_deployment_group_by_name(product, deployment_name) do

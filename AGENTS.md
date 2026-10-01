@@ -76,6 +76,13 @@ when adding or removing one.
   same permissions with `plug(:require_permission, :"firmware:upload" when
   action in [:create])`, and read-only actions with `plug(:require_membership)`
   (`helpers/permission_plugs.ex`).
+- A custom role can be limited to devices with certain tags. Its members see
+  only those devices, so **every device query a user can reach must go through
+  `NervesHub.Devices.Visibility.where_visible/2`**, which checks the member's
+  role in SQL. Pages and endpoints built from all of a product's devices
+  (Insights, deployment groups, firmware, ...) are closed to them instead:
+  `on_mount(NervesHubWeb.Mounts.RequireEveryDevice)` for LiveViews,
+  `plug(:require_every_device)` for controllers.
 - `devices.ex` / `devices/` — device lifecycle, connections, health status,
   metrics, firmware update history (`update_history.ex` — how each update
   attempt ended, split across both stores: the device's consecutive failure
