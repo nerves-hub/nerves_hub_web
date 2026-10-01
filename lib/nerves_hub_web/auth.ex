@@ -5,6 +5,7 @@ defmodule NervesHubWeb.Auth do
   import Plug.Conn
 
   alias NervesHub.Accounts
+  alias NervesHub.Accounts.OrgUser
   alias NervesHub.Accounts.Scope
   alias NervesHub.Accounts.User
 
@@ -147,7 +148,7 @@ defmodule NervesHubWeb.Auth do
 
       current_scope
       |> Scope.put_org(membership.org)
-      |> Scope.put_role(membership.role)
+      |> Scope.put_role(OrgUser.assigned_role(membership))
       |> then(fn scope ->
         assign(conn, :current_scope, scope)
       end)
@@ -176,7 +177,7 @@ defmodule NervesHubWeb.Auth do
 
           scope
           |> Scope.put_org(membership.org)
-          |> Scope.put_role(membership.role)
+          |> Scope.put_role(OrgUser.assigned_role(membership))
           |> then(fn scope ->
             Phoenix.Component.assign(socket, :current_scope, scope)
           end)

@@ -6,6 +6,7 @@ defmodule NervesHub.Accounts.Org do
 
   alias __MODULE__
   alias NervesHub.Accounts.OrgKey
+  alias NervesHub.Accounts.OrgRole
   alias NervesHub.Accounts.OrgUser
   alias NervesHub.Devices.CACertificate
   alias NervesHub.Devices.Device
@@ -25,6 +26,7 @@ defmodule NervesHub.Accounts.Org do
     has_many(:ca_certificates, CACertificate)
 
     has_many(:org_users, OrgUser, where: [deleted_at: nil])
+    has_many(:org_roles, OrgRole, where: [deleted_at: nil])
     has_many(:users, through: [:org_users, :user])
 
     field(:name, :string)
@@ -50,8 +52,9 @@ defmodule NervesHub.Accounts.Org do
   end
 
   def add_user(struct, params) do
-    cast(struct, params, [:role])
-    |> validate_required([:role])
+    struct
+    |> cast(params, [:role, :org_role_id])
+    |> OrgRole.validate_assignment()
     |> unique_constraint(
       :org_users,
       name: "org_users_index",
@@ -60,8 +63,9 @@ defmodule NervesHub.Accounts.Org do
   end
 
   def change_user_role(struct, params \\ %{}) do
-    cast(struct, params, ~w(role)a)
-    |> validate_required(~w(role)a)
+    struct
+    |> cast(params, [:role, :org_role_id])
+    |> OrgRole.validate_assignment()
   end
 
   def creation_changeset(%Org{} = org, params) do

@@ -7,7 +7,8 @@
     <.form :let={f} id="edit-user-form" for={@form} phx-submit="update-org-user">
       <div class="mb-6">
         <label for="role_input" class="text-base-300 mb-2 block text-sm font-medium">Role</label>
-        {select(f, :role, Utils.role_options(),
+        {select(f, :role, Utils.role_options(@custom_roles),
+          selected: @role_choice,
           class: "w-full px-3 py-2 text-sm bg-base-900 border border-base-700 rounded text-base-50 focus:outline-none focus:ring-2 focus:ring-focus-ring",
           id: "role_input"
         )}

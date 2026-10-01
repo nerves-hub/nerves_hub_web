@@ -1,14 +1,46 @@
 defmodule NervesHubWeb.Components.Utils do
   use NervesHubWeb, :component
 
-  alias NervesHub.Accounts.OrgUser
+  alias NervesHub.Accounts.OrgRole
+  alias NervesHub.Accounts.Permissions
   alias Phoenix.HTML.FormField
 
-  def role_options() do
-    for {key, value} <- Ecto.Enum.mappings(OrgUser, :role),
-        key in [:admin, :manage, :view],
-        do: {String.capitalize(value), key}
+  @doc """
+  Options for a role select: the built-in roles, then the org's custom roles
+  when it has any. Read the chosen value back with `role_choice/1`'s format:
+  a built-in role's name, or `"custom:<id>"`.
+  """
+  def role_options(custom_roles \\ []) do
+    built_in = for role <- Permissions.built_in_roles(), do: {role_name(role), Atom.to_string(role)}
+
+    case custom_roles do
+      [] ->
+        built_in
+
+      custom_roles ->
+        [{"Built-in roles", built_in}, {"Custom roles", Enum.map(custom_roles, &{&1.name, "custom:#{&1.id}"})}]
+    end
   end
+
+  @doc """
+  The `role_options/1` value for the role a member holds or an invite offers.
+
+  Falls back to view rather than letting a select land on its first option,
+  which is admin.
+  """
+  def role_choice(%{org_role: %OrgRole{id: org_role_id}}), do: "custom:#{org_role_id}"
+  def role_choice(%{org_role_id: nil, role: role}) when not is_nil(role), do: Atom.to_string(role)
+  def role_choice(_), do: "view"
+
+  @doc """
+  A role's name for display. Takes a built-in role, a custom `OrgRole`, or a
+  member or invite, for the role it holds.
+  """
+  def role_name(%OrgRole{name: name}), do: name
+  def role_name(%{org_role_id: nil, role: role}), do: role_name(role)
+  def role_name(%{org_role: %OrgRole{} = org_role}), do: role_name(org_role)
+  def role_name(role) when is_atom(role) and not is_nil(role), do: role |> Atom.to_string() |> String.capitalize()
+  def role_name(_), do: "No role"
 
   @doc """
   A number for display. Elixir's default float rendering flips to scientific

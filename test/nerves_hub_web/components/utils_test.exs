@@ -1,6 +1,8 @@
 defmodule NervesHubWeb.Components.UtilsTest do
   use ExUnit.Case
 
+  alias NervesHub.Accounts.OrgRole
+  alias NervesHub.Accounts.OrgUser
   alias NervesHubWeb.Components.Utils
 
   describe "format_serial/1 with integer" do
@@ -24,13 +26,42 @@ defmodule NervesHubWeb.Components.UtilsTest do
     end
   end
 
-  describe "role_options/0" do
-    test "a list of formatted tuples is returned" do
+  describe "role_options/1" do
+    test "the built-in roles, when the org has no roles of its own" do
       assert Utils.role_options() == [
-               {"Admin", :admin},
-               {"Manage", :manage},
-               {"View", :view}
+               {"Admin", "admin"},
+               {"Manage", "manage"},
+               {"View", "view"}
              ]
+    end
+
+    test "the built-in roles and the org's own, grouped" do
+      assert Utils.role_options([%OrgRole{id: 7, name: "Release Manager"}]) == [
+               {"Built-in roles", [{"Admin", "admin"}, {"Manage", "manage"}, {"View", "view"}]},
+               {"Custom roles", [{"Release Manager", "custom:7"}]}
+             ]
+    end
+  end
+
+  describe "role_choice/1" do
+    test "picks the role a member holds" do
+      assert Utils.role_choice(%OrgUser{role: :manage}) == "manage"
+      assert Utils.role_choice(%OrgUser{org_role_id: 7, org_role: %OrgRole{id: 7}}) == "custom:7"
+    end
+
+    test "falls back to view rather than the first option, admin" do
+      assert Utils.role_choice(%OrgUser{role: nil}) == "view"
+      assert Utils.role_choice(%OrgUser{org_role_id: 7, org_role: nil}) == "view"
+    end
+  end
+
+  describe "role_name/1" do
+    test "names built-in and custom roles, and the role a member holds" do
+      assert Utils.role_name(:manage) == "Manage"
+      assert Utils.role_name(%OrgRole{name: "Release Manager"}) == "Release Manager"
+      assert Utils.role_name(%OrgUser{role: :view}) == "View"
+      assert Utils.role_name(%OrgUser{org_role_id: 7, org_role: %OrgRole{name: "Release Manager"}}) == "Release Manager"
+      assert Utils.role_name(%OrgUser{org_role_id: 7, org_role: nil}) == "No role"
     end
   end
 

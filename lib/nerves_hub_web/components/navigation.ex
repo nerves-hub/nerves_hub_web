@@ -105,6 +105,12 @@ defmodule NervesHubWeb.Components.Navigation do
       />
       <.nav_link label="Users" path={~p"/org/#{@scope.org}/settings/users"} selected={:users == @selected_tab} icon="data-[selected=false]:lucide-users--light data-[selected=true]:lucide-users" />
       <.nav_link
+        label="Roles"
+        path={~p"/org/#{@scope.org}/settings/roles"}
+        selected={:roles == @selected_tab}
+        icon="data-[selected=false]:lucide-shield-user--light data-[selected=true]:lucide-shield-user"
+      />
+      <.nav_link
         :if={org_iroh_endpoints_ui_enabled?()}
         label="Iroh Endpoints"
         path={~p"/org/#{@scope.org}/settings/iroh-endpoints"}

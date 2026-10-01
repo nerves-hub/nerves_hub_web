@@ -148,6 +148,46 @@ defmodule NervesHubWeb.Live.Org.UsersTest do
     end
   end
 
+  describe "custom roles" do
+    test "a member can be given one of the org's roles", %{conn: conn, org: org} do
+      Fixtures.org_role_fixture(org, %{name: "Release Manager"})
+      {:ok, org_user} = Accounts.add_org_user(org, Fixtures.user_fixture(), %{role: :view})
+
+      conn
+      |> visit("/org/#{org.name}/settings/users/#{org_user.user_id}/edit")
+      |> select("Role", option: "Release Manager")
+      |> click_button("Update")
+      |> assert_has("div", text: "Role updated")
+      |> assert_has("td", text: "Release Manager")
+
+      assert {:ok, %{role: nil, org_role: %{name: "Release Manager"}}} = Accounts.get_org_user(org, org_user.user_id)
+    end
+
+    test "the edit form starts on the member's custom role", %{conn: conn, org: org} do
+      role = Fixtures.org_role_fixture(org, %{name: "Release Manager"})
+      {:ok, org_user} = Accounts.add_org_user(org, Fixtures.user_fixture(), %{org_role_id: role.id})
+
+      conn
+      |> visit("/org/#{org.name}/settings/users/#{org_user.user_id}/edit")
+      |> assert_has("option[selected]", text: "Release Manager")
+    end
+
+    test "an invite can offer one of the org's roles", %{conn: conn, org: org} do
+      role = Fixtures.org_role_fixture(org, %{name: "Release Manager"})
+
+      conn
+      |> visit("/org/#{org.name}/settings/users/invite")
+      |> fill_in("Email", with: "josh@mrjosh.com")
+      |> select("Role", option: "Release Manager", exact: false)
+      |> click_button("Send Invitation")
+      |> assert_has("div", text: "User has been invited")
+      |> assert_has("td", text: "Release Manager")
+
+      assert [%{role: nil, org_role_id: org_role_id}] = Accounts.get_invites_for_org(org)
+      assert org_role_id == role.id
+    end
+  end
+
   describe "invites" do
     test "sends invite to user if they aren't registered", %{conn: conn, org: org} do
       conn
@@ -172,7 +212,7 @@ defmodule NervesHubWeb.Live.Org.UsersTest do
       |> visit("/org/#{org.name}/settings/users")
       |> assert_has("h2", text: "Outstanding Invites")
       |> assert_has("td", text: "josh@mrjosh.com")
-      |> assert_has("td", text: "manage")
+      |> assert_has("td", text: "Manage")
       |> assert_has("td", text: user.name)
     end
 

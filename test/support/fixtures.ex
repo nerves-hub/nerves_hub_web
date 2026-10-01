@@ -108,6 +108,14 @@ defmodule NervesHub.Fixtures do
     org
   end
 
+  def org_role_fixture(%Accounts.Org{} = org, params \\ %{}) do
+    params = Enum.into(params, %{name: "Role #{counter()}", permissions: []})
+
+    {:ok, role} = Accounts.OrgRoles.create_org_role(org, params)
+
+    role
+  end
+
   def org_key_fixture(%Accounts.Org{} = org, %Accounts.User{} = user, dir \\ System.tmp_dir()) do
     fwup_key_name = "org_key-#{counter()}"
 

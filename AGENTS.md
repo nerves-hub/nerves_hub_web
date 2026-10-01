@@ -65,7 +65,16 @@ when adding or removing one.
 
 ### `lib/nerves_hub/` (contexts)
 
-- `accounts.ex` / `accounts/` — users, orgs, org-users, tokens, scopes.
+- `accounts.ex` / `accounts/` — users, orgs, org-users, tokens, scopes, and
+  roles. `accounts/permissions.ex` is the catalog of every permission a member
+  can hold and which built-in role (`admin`, `manage`, `view`) first gets it.
+  An org can also define its own roles (`OrgRole`, managed through
+  `accounts/org_roles.ex`), each a set of permissions from that catalog; a
+  member holds a built-in role or a custom one, never both. A new
+  `authorized?/2` check needs its permission added to the catalog first — an
+  unknown permission raises rather than quietly denying. The JSON API still
+  checks built-in role levels (`plug(:validate_role, org: :manage)`), where a
+  custom role counts only as `view`.
 - `devices.ex` / `devices/` — device lifecycle, connections, health status,
   metrics, firmware update history (`update_history.ex` — how each update
   attempt ended, split across both stores: the device's consecutive failure

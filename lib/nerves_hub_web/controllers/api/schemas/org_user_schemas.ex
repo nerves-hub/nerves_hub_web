@@ -11,12 +11,23 @@ defmodule NervesHubWeb.API.Schemas.OrgUserSchemas do
       properties: %{
         name: %Schema{type: :string},
         email: %Schema{type: :string},
-        role: %Schema{type: :string, enum: ["admin", "manage", "view"]}
+        role: %Schema{
+          type: :string,
+          enum: ["admin", "manage", "view"],
+          nullable: true,
+          description: "The user's built-in role. Null when they hold one of the organization's custom roles."
+        },
+        custom_role: %Schema{
+          type: :string,
+          nullable: true,
+          description: "The name of the organization's custom role the user holds, if any."
+        }
       },
       example: %{
         "name" => "Jane Person",
         "email" => "jane@person.com",
-        "role" => "admin"
+        "role" => "admin",
+        "custom_role" => nil
       }
     })
   end

@@ -43,6 +43,22 @@ defmodule NervesHubWeb.UserConsoleChannelTest do
     end
   end
 
+  describe "a member with a custom role" do
+    test "can open a console if the role grants it", %{tmp_dir: tmp_dir} do
+      {socket, device} = custom_role_member(["device:console"], tmp_dir)
+
+      assert {:ok, _reply, _channel} =
+               subscribe_and_join(socket, UserConsoleChannel, "user:console:identifier-#{device.identifier}")
+    end
+
+    test "can't open a console otherwise", %{tmp_dir: tmp_dir} do
+      {socket, device} = custom_role_member(["device:reboot"], tmp_dir)
+
+      assert {:error, %{reason: "unauthorized"}} =
+               subscribe_and_join(socket, UserConsoleChannel, "user:console:identifier-#{device.identifier}")
+    end
+  end
+
   describe "handle_in" do
     setup %{tmp_dir: tmp_dir} do
       user = Fixtures.user_fixture()
@@ -83,6 +99,19 @@ defmodule NervesHubWeb.UserConsoleChannelTest do
       push(channel, "phx_ctrl_c", %{})
       refute_receive {:error, _}, 100
     end
+  end
+
+  defp custom_role_member(permissions, tmp_dir) do
+    user = Fixtures.user_fixture()
+    device = device_fixture(user, %{identifier: "custom-role-device"}, tmp_dir)
+    {:ok, org} = Accounts.get_org(device.org_id)
+    role = Fixtures.org_role_fixture(org, %{permissions: permissions})
+    {:ok, org_user} = Accounts.get_org_user(org, user)
+    {:ok, _} = Accounts.change_org_user_role(org_user, role)
+
+    {:ok, socket} = connect(APISocket, %{"token" => Accounts.create_user_api_token(user, "test-token")})
+
+    {socket, device}
   end
 
   defp device_fixture(user, device_params, tmp_dir) do
