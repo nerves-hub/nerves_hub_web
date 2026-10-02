@@ -1426,7 +1426,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
           <span class="text-base-50 text-xl leading-[30px]">{number_to_delimited(@latest_metrics["mem_used_mb"], precision: 0)}</span>
           <span class="text-base-50 text-sm leading-[30px]">MB</span>
         </div>
-        <div>
+        <div :if={@latest_metrics["mem_used_percent"]}>
           <span class="text-warning text-base">{round(@latest_metrics["mem_used_percent"])}</span>
           <span class="text-warning text-sm">%</span>
         </div>

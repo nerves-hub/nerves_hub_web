@@ -1027,6 +1027,23 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       |> assert_has("span", text: "Last updated:")
       |> assert_has("time", text: "now")
     end
+
+    # A device over the per-report key cap can have `mem_used_percent` cut
+    # while `mem_used_mb` survives, since the cap keeps keys in sorted order.
+    test "memory used without a percentage", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device
+    } do
+      assert {:ok, 2} = Metrics.record(to_device_info(device), %{"mem_size_mb" => 7892, "mem_used_mb" => 100})
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      |> assert_has("div", text: "Memory used")
+      |> assert_has("span", text: "100")
+      |> refute_has("span.text-warning", text: "%")
+    end
   end
 
   describe "engaged health metrics" do
