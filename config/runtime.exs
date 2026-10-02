@@ -68,7 +68,7 @@ config :nerves_hub,
     String.to_integer(System.get_env("DEVICE_LAST_SEEN_UPDATE_INTERVAL_JITTER_SECONDS", "300")),
   device_connection_update_limit: String.to_integer(System.get_env("DEVICE_CONNECTION_UPDATE_LIMIT", "100000")),
   device_metrics: [
-    max_keys_per_report: String.to_integer(System.get_env("DEVICE_METRICS_MAX_KEYS_PER_REPORT", "20"))
+    max_keys_per_report: String.to_integer(System.get_env("DEVICE_METRICS_MAX_KEYS_PER_REPORT", "50"))
   ],
   mapbox_access_token: System.get_env("MAPBOX_ACCESS_TOKEN"),
   extension_config: [

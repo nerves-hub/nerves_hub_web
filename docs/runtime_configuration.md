@@ -273,7 +273,7 @@ not configurable: it exists to protect a column type, not to express a policy.
 
 | Variable | Default | Description |
 | --- | --- | --- |
-| `DEVICE_METRICS_MAX_KEYS_PER_REPORT` | `20` | Most metric names stored from one report. Raise it for genuinely wide devices. |
+| `DEVICE_METRICS_MAX_KEYS_PER_REPORT` | `50` | Most metric names stored from one report. Raise it for genuinely wide devices. |
 
 ## Firmware formats
 
