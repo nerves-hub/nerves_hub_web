@@ -113,7 +113,7 @@ while a product reports a stable handful of them and expensive when it does not.
 So a report is trimmed rather than trusted:
 
 - A name longer than **64 bytes** is dropped.
-- At most **20 names** per report are kept, in sorted order — so a device over
+- At most **50 names** per report are kept, in sorted order — so a device over
   the limit loses the same readings every time rather than an arbitrary subset
   that changes between reports. A deployment can raise this
   (`DEVICE_METRICS_MAX_KEYS_PER_REPORT`).

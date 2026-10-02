@@ -133,7 +133,7 @@ config :nerves_hub, Oban,
 # keys in PostgreSQL and entries in the advanced-query autosuggest list, so one
 # confused client can widen all three permanently. Overridable in a deployment
 # with `DEVICE_METRICS_MAX_KEYS_PER_REPORT`; see `NervesHub.Devices.Metrics`.
-config :nerves_hub, :device_metrics, max_keys_per_report: 20
+config :nerves_hub, :device_metrics, max_keys_per_report: 50
 
 config :nerves_hub, :scopes,
   user: [

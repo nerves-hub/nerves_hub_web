@@ -24,7 +24,7 @@ defmodule NervesHub.Devices.Metrics do
   a product's operators read. So a report is trimmed rather than trusted:
 
     * Names longer than 64 bytes are dropped.
-    * At most `:max_keys_per_report` names are kept (20 by default, configurable
+    * At most `:max_keys_per_report` names are kept (50 by default, configurable
       — see `config/config.exs`), taken in sorted order so a device over the
       limit loses the same readings every report rather than an arbitrary
       subset that changes shape between them.
@@ -50,7 +50,7 @@ defmodule NervesHub.Devices.Metrics do
   alias NervesHub.Repo
 
   @max_key_bytes 64
-  @default_max_keys_per_report 20
+  @default_max_keys_per_report 50
 
   # One notification per device per minute, whatever the report. The budget is
   # per device rather than per product: a single broken device in a large fleet
