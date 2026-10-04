@@ -186,9 +186,14 @@ defmodule NervesHub.Devices.Updates do
     |> where([deployment_group: dg, target_release: tr], tr.id == dg.current_deployment_release_id)
   end
 
+  # Live firmware only. A build deleted and uploaded again has two rows with its
+  # uuid, and joining both lists the device twice, once through a row that never
+  # matches the current release.
   defp join_firmware(query) do
     join(query, :left, [d], f in Firmware,
-      on: f.product_id == d.product_id and f.uuid == fragment("(? #>> '{\"uuid\"}')", d.firmware_metadata),
+      on:
+        f.product_id == d.product_id and f.uuid == fragment("(? #>> '{\"uuid\"}')", d.firmware_metadata) and
+          is_nil(f.deleted_at),
       as: :firmware
     )
   end
