@@ -36,7 +36,7 @@ defmodule NervesHub.ProxyProtocol.TCP do
   @header_timeout 5_000
 
   @doc "The `cb_info` for `:ssl.listen/2`: this module, with `:gen_tcp`'s message tags."
-  @spec cb_info() :: {module(), :tcp, :tcp_closed, :tcp_error, :tcp_passive}
+  @spec cb_info() :: {__MODULE__, :tcp, :tcp_closed, :tcp_error, :tcp_passive}
   def cb_info(), do: {__MODULE__, :tcp, :tcp_closed, :tcp_error, :tcp_passive}
 
   # Passive whatever else is asked for, so that nothing arrives as a message

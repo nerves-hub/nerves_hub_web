@@ -65,11 +65,13 @@ defmodule NervesHub.ProxyProtocol.Peers do
   # connection gone before this runs is still forgotten. Only the default inet
   # backend hands out ports, and only ports can be monitored.
   @impl GenServer
-  def handle_cast({:watch, socket}, state) do
-    if is_port(socket), do: :erlang.monitor(:port, socket)
+  def handle_cast({:watch, socket}, state) when is_port(socket) do
+    _ref = :erlang.monitor(:port, socket)
 
     {:noreply, state}
   end
+
+  def handle_cast({:watch, _not_a_port}, state), do: {:noreply, state}
 
   @impl GenServer
   def handle_info({:DOWN, _ref, :port, socket, _reason}, state) do
