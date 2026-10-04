@@ -3015,6 +3015,39 @@ defmodule NervesHub.DevicesTest do
       assert length(available) == 1
       assert hd(available).id == device.id
     end
+
+    test "is not misled by deleted firmware sharing a uuid with what a device runs", %{
+      deployment_group: deployment_group,
+      org: org,
+      org_key: org_key,
+      product: product,
+      tmp_dir: tmp_dir
+    } do
+      current_firmware = deployment_group.current_release.firmware
+      old_firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+      _ = Fixtures.deleted_firmware_twin_fixture(current_firmware)
+      _ = Fixtures.deleted_firmware_twin_fixture(old_firmware)
+
+      # Already on the current release, so there is nothing to offer it
+      on_current = Fixtures.device_fixture(org, product, current_firmware, %{deployment_id: deployment_group.id})
+
+      # Behind, and offered the update once
+      %{id: behind_id} =
+        behind = Fixtures.device_fixture(org, product, old_firmware, %{deployment_id: deployment_group.id})
+
+      for device <- [on_current, behind] do
+        %DeviceConnection{}
+        |> Ecto.Changeset.change(%{
+          device_id: device.id,
+          established_at: DateTime.utc_now(),
+          last_seen_at: DateTime.utc_now(),
+          status: :connected
+        })
+        |> Repo.insert!()
+      end
+
+      assert [%{id: ^behind_id}] = Updates.available_for_update(deployment_group, 10)
+    end
   end
 
   describe "resolve_update/1" do
@@ -3257,6 +3290,34 @@ defmodule NervesHub.DevicesTest do
       assert Enum.member?(pairs, {firmware3.id, firmware.id})
       assert Enum.member?(pairs, {firmware4.id, firmware.id})
     end
+
+    test "leaves out deleted firmware", %{
+      org_key: org_key,
+      product: product,
+      org: org,
+      user: user,
+      deployment_group: deployment_group,
+      firmware: firmware,
+      tmp_dir: tmp_dir
+    } do
+      # Already on the release's firmware, whose uuid a deleted row also carries
+      _ = Fixtures.deleted_firmware_twin_fixture(firmware)
+
+      _ =
+        Fixtures.device_fixture(org, product, firmware)
+        |> Deployments.update_deployment_group(deployment_group)
+
+      # On firmware that has since been deleted, with no file left to build from
+      deleted_firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+
+      _ =
+        Fixtures.device_fixture(org, product, deleted_firmware)
+        |> Deployments.update_deployment_group(deployment_group)
+
+      {:ok, _} = Firmwares.delete_firmware(deleted_firmware, user)
+
+      assert Deployments.get_device_firmware_for_delta_generation_by_deployment_group(deployment_group.id) == []
+    end
   end
 
   describe "delta_ready?/2" do
@@ -3311,6 +3372,22 @@ defmodule NervesHub.DevicesTest do
       %{status: :completed} = Fixtures.firmware_delta_fixture(firmware, firmware2)
 
       assert Firmwares.delta_ready?(device, firmware2)
+    end
+
+    test "finds the delta when a deleted firmware shares the device's firmware uuid", %{
+      device: device,
+      firmware: firmware,
+      org_key: org_key,
+      product: product,
+      tmp_dir: tmp_dir
+    } do
+      _ = Fixtures.deleted_firmware_twin_fixture(firmware)
+      firmware2 = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+      delta = Fixtures.firmware_delta_fixture(firmware, firmware2)
+
+      assert Firmwares.delta_ready?(device, firmware2)
+      assert {:ok, found} = Firmwares.get_delta(device, firmware2)
+      assert found.id == delta.id
     end
   end
 

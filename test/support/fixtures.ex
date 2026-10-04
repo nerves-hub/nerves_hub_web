@@ -269,6 +269,18 @@ defmodule NervesHub.Fixtures do
     firmware
   end
 
+  # The row a firmware leaves behind when it is deleted and the same build is
+  # uploaded again: same uuid, same product, marked deleted. Only live firmware
+  # is held to one row per uuid, so the two sit side by side.
+  def deleted_firmware_twin_fixture(%Firmwares.Firmware{} = firmware) do
+    fields = Firmwares.Firmware.__schema__(:fields) -- [:id]
+
+    Firmwares.Firmware
+    |> struct(Map.take(firmware, fields))
+    |> Map.put(:deleted_at, DateTime.utc_now(:second))
+    |> Repo.insert!()
+  end
+
   def firmware_delta_fixture(
         %Firmwares.Firmware{id: source_id, uuid: source_uuid},
         %Firmwares.Firmware{id: target_id, org_id: org_id, uuid: target_uuid},

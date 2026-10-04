@@ -561,13 +561,20 @@ defmodule NervesHub.ManagedDeployments do
 
   # Every device in the group, with the firmware it is running and the release it
   # is headed for.
+  #
+  # Only live firmware counts as what a device is running. A delta can only be
+  # built from live firmware, so a device on deleted firmware takes the full
+  # image and needs no delta. A delta left over from a deleted source would
+  # otherwise keep the release waiting on a build that can never run.
   defp group_device_firmware_query(%DeploymentGroup{id: deployment_group_id}) do
     Device
     |> from(as: :device)
     |> join(:inner, [device: d], dg in DeploymentGroup, on: dg.id == d.deployment_id, as: :deployment_group)
     |> where([deployment_group: dg], dg.id == ^deployment_group_id)
     |> join(:inner, [device: d], f in Firmware,
-      on: f.product_id == d.product_id and f.uuid == fragment("?->>'uuid'", d.firmware_metadata),
+      on:
+        f.product_id == d.product_id and f.uuid == fragment("?->>'uuid'", d.firmware_metadata) and
+          is_nil(f.deleted_at),
       as: :firmware
     )
     |> join_target_release(deployment_group_id)
