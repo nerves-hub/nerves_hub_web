@@ -1,9 +1,11 @@
 defmodule NervesHub.DeviceSSLTransportTest do
-  # Touches application env, so it can't share the node with anything reading it.
+  # Touches application env, and counts what NervesHub.ProxyProtocol.Peers
+  # holds, so it can't share the node with anything else doing either.
   use ExUnit.Case, async: false
   use AssertEventually, timeout: 2_000, interval: 20
 
   alias NervesHub.DeviceSSLTransport
+  alias NervesHub.ProxyProtocol.Peers
 
   @signature <<13, 10, 13, 10, 0, 13, 10, 81, 85, 73, 84, 10>>
 
@@ -12,6 +14,9 @@ defmodule NervesHub.DeviceSSLTransportTest do
   @tcp_over_ipv4 0x11
 
   @fixtures Path.expand("../fixtures/ssl", __DIR__)
+
+  # What the device endpoint adds with DEVICE_ENABLE_TLS_13=true.
+  @tls_13 [versions: [:"tlsv1.3"], certificate_authorities: false, session_tickets: :stateless_with_cert]
 
   # Answers every connection with what the server believes about the other end,
   # which is the whole point of the transport.
@@ -60,6 +65,79 @@ defmodule NervesHub.DeviceSSLTransportTest do
       # follows can only fail.
       assert {:error, _reason} = connect(port, "")
     end
+
+    test "forgets every address once its connection has closed", %{port: port} do
+      for source_port <- 50_000..50_004 do
+        header = header(@proxy, @tcp_over_ipv4, ipv4_block({203, 0, 113, 7}, source_port))
+
+        assert {:ok, _reported} = connect(port, header)
+      end
+
+      # One is kept per connection, so anything left grows for as long as the
+      # node is up.
+      assert_eventually 0 == :ets.info(Peers, :size)
+    end
+
+    test "forgets a connection that ends without closing its socket" do
+      # A crashed or killed connection closes its socket with its owner, and
+      # nobody calls close/1 on the way out.
+      {:ok, listener} = :gen_tcp.listen(0, [:binary, active: false])
+      {:ok, port} = :inet.port(listener)
+      test = self()
+
+      owner =
+        spawn(fn ->
+          {:ok, socket} = :gen_tcp.connect({127, 0, 0, 1}, port, [:binary, active: false])
+          :ok = Peers.expect(socket)
+          :ok = Peers.put(socket, {{203, 0, 113, 7}, 51_234})
+          send(test, {:socket, socket})
+          Process.sleep(:infinity)
+        end)
+
+      assert_receive {:socket, socket}
+      assert Peers.get(socket) == {{203, 0, 113, 7}, 51_234}
+
+      Process.exit(owner, :kill)
+
+      assert_eventually not :ets.member(Peers, socket)
+    end
+  end
+
+  describe "TLS 1.3 session tickets" do
+    test "are issued behind the PROXY protocol, and a device resumes with one" do
+      {:ok, port: port, server: _server} = start_server([proxy_protocol: :v2], @tls_13)
+
+      header = header(@proxy, @tcp_over_ipv4, ipv4_block({203, 0, 113, 7}, 51_234))
+      {reported, resumed?, tickets} = resume(port, header)
+
+      assert reported == "203.0.113.7|51234|cert"
+      refute resumed?
+
+      assert tickets != [], """
+      No TLS 1.3 session tickets were issued behind the PROXY protocol. OTP only
+      keeps a ticket store for listeners `:ssl` opened, so a listener that
+      accepts in the clear and upgrades by hand never issues one.
+      """
+
+      header = header(@proxy, @tcp_over_ipv4, ipv4_block({198, 51, 100, 9}, 40_000))
+      {reported, resumed?, _tickets} = resume(port, header, use_ticket: [hd(tickets)])
+
+      assert resumed?
+
+      # DeviceSocket authenticates a device by its certificate, so a resumed
+      # connection has to carry the one from the handshake it resumes.
+      assert reported == "198.51.100.9|40000|cert"
+    end
+
+    test "are issued without the PROXY protocol, and a device resumes with one" do
+      {:ok, port: port, server: _server} = start_server([proxy_protocol: nil], @tls_13)
+
+      {_reported, false, [ticket | _]} = resume(port, "")
+      {reported, resumed?, _tickets} = resume(port, "", use_ticket: [ticket])
+
+      assert resumed?
+      assert ["127.0.0.1", _port, "cert"] = String.split(reported, "|")
+    end
   end
 
   describe "without the PROXY protocol" do
@@ -99,7 +177,7 @@ defmodule NervesHub.DeviceSSLTransportTest do
     end
   end
 
-  defp start_server(config) do
+  defp start_server(config, transport_options \\ []) do
     previous = Application.get_env(:nerves_hub, DeviceSSLTransport, [])
 
     Application.put_env(:nerves_hub, DeviceSSLTransport, config)
@@ -111,16 +189,20 @@ defmodule NervesHub.DeviceSSLTransportTest do
          port: 0,
          handler_module: Reporter,
          transport_module: DeviceSSLTransport,
-         transport_options: [
-           ip: {127, 0, 0, 1},
-           keyfile: Path.join(@fixtures, "device.nerves-hub.org-key.pem"),
-           certfile: Path.join(@fixtures, "device.nerves-hub.org.pem"),
-           cacertfile: Path.join(@fixtures, "ca.pem"),
-           verify: :verify_peer,
-           verify_fun: {fn _certificate, _event, state -> {:valid, state} end, nil},
-           fail_if_no_peer_cert: false,
-           versions: [:"tlsv1.2"]
-         ]}
+         transport_options:
+           Keyword.merge(
+             [
+               ip: {127, 0, 0, 1},
+               keyfile: Path.join(@fixtures, "device.nerves-hub.org-key.pem"),
+               certfile: Path.join(@fixtures, "device.nerves-hub.org.pem"),
+               cacertfile: Path.join(@fixtures, "ca.pem"),
+               verify: :verify_peer,
+               verify_fun: {fn _certificate, _event, state -> {:valid, state} end, nil},
+               fail_if_no_peer_cert: false,
+               versions: [:"tlsv1.2"]
+             ],
+             transport_options
+           )}
       )
 
     {:ok, {_address, port}} = ThousandIsland.listener_info(server)
@@ -163,6 +245,39 @@ defmodule NervesHub.DeviceSSLTransportTest do
     with {:ok, ssl_socket} <- :ssl.connect(socket, options, 2_000),
          {:ok, reported} <- :ssl.recv(ssl_socket, 0, 2_000) do
       {:ok, to_string(reported)}
+    end
+  end
+
+  # As `connect/3`, but as a device over TLS 1.3, keeping the session tickets the
+  # server issues. Returns what the server reported, whether the session was
+  # resumed, and the tickets.
+  defp resume(port, preamble, client_options \\ []) do
+    {:ok, socket} = :gen_tcp.connect({127, 0, 0, 1}, port, [:binary, active: false])
+
+    if preamble != "", do: :ok = :gen_tcp.send(socket, preamble)
+
+    options =
+      [
+        verify: :verify_none,
+        versions: [:"tlsv1.3"],
+        server_name_indication: ~c"device.nerves-hub.org",
+        session_tickets: :manual
+      ] ++ client_certificate() ++ client_options
+
+    {:ok, ssl_socket} = :ssl.connect(socket, options, 2_000)
+    {:ok, info} = :ssl.connection_information(ssl_socket, [:session_resumption])
+
+    # Tickets are sent after the handshake, ahead of this.
+    {:ok, reported} = :ssl.recv(ssl_socket, 0, 2_000)
+
+    {to_string(reported), info[:session_resumption], receive_tickets([])}
+  end
+
+  defp receive_tickets(tickets) do
+    receive do
+      {:ssl, :session_ticket, ticket} -> receive_tickets([ticket | tickets])
+    after
+      200 -> Enum.reverse(tickets)
     end
   end
 

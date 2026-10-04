@@ -15,6 +15,7 @@ defmodule NervesHub.Application do
   alias NervesHub.ManagedDeployments.OrchestratorRegistration
   alias NervesHub.PlugAttack.Storage, as: PlugAttackStorage
   alias NervesHub.Products.HealthProfiles.Cache
+  alias NervesHub.ProxyProtocol.Peers
   alias NervesHub.RateLimit.Alarms, as: AlarmsLimit
   alias NervesHub.RateLimit.ErrorReports, as: ErrorReportLimit
   alias NervesHub.RateLimit.LogLines
@@ -42,7 +43,11 @@ defmodule NervesHub.Application do
         NervesHub.StatsdMetricsReporter.config() ++
         [
           NervesHub.MetricsPoller.child_spec(),
-          NervesHub.RateLimit
+          NervesHub.RateLimit,
+          # Holds the address each PROXY header gave until its connection
+          # closes. Must be running before the device endpoint accepts anything
+          # behind a balancer.
+          Peers
         ] ++
         ecto_repos() ++
         [
