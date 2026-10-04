@@ -39,6 +39,32 @@ defmodule NervesHub.DeviceSSLTransportTest do
     end
   end
 
+  # Asks who connected only once the client has gone, as Bandit does for a
+  # client that hangs up straight after sending its request.
+  defmodule AskAfterHangUp do
+    use ThousandIsland.Handler
+
+    @impl ThousandIsland.Handler
+    def handle_connection(socket, test) do
+      send(test, :connected)
+      {:error, _closed} = ThousandIsland.Socket.recv(socket, 0, 5_000)
+      gone(socket.socket)
+      send(test, {:peer_after_hang_up, ThousandIsland.Socket.peername(socket)})
+
+      {:close, test}
+    end
+
+    # `:ssl` reports the hang-up before its connection process has finished
+    # closing the socket. Asking in between would pass whether or not the
+    # address outlives the socket.
+    defp gone(tls, attempts \\ 100) do
+      case :ssl.connection_information(tls, [:protocol]) do
+        {:error, _closed} -> :ok
+        {:ok, _open} when attempts > 0 -> Process.sleep(10) && gone(tls, attempts - 1)
+      end
+    end
+  end
+
   describe "with the PROXY protocol enabled" do
     setup do: start_server(proxy_protocol: :v2)
 
@@ -67,6 +93,8 @@ defmodule NervesHub.DeviceSSLTransportTest do
     end
 
     test "forgets every address once its connection has closed", %{port: port} do
+      forget_at_once()
+
       for source_port <- 50_000..50_004 do
         header = header(@proxy, @tcp_over_ipv4, ipv4_block({203, 0, 113, 7}, source_port))
 
@@ -75,31 +103,49 @@ defmodule NervesHub.DeviceSSLTransportTest do
 
       # One is kept per connection, so anything left grows for as long as the
       # node is up.
-      assert_eventually 0 == :ets.info(Peers, :size)
+      assert_eventually Enum.all?(
+                          50_000..50_004,
+                          &(:ets.match_object(Peers, {:_, {{203, 0, 113, 7}, &1}}) == [])
+                        )
     end
 
     test "forgets a connection that ends without closing its socket" do
       # A crashed or killed connection closes its socket with its owner, and
       # nobody calls close/1 on the way out.
-      {:ok, listener} = :gen_tcp.listen(0, [:binary, active: false])
-      {:ok, port} = :inet.port(listener)
-      test = self()
-
-      owner =
-        spawn(fn ->
-          {:ok, socket} = :gen_tcp.connect({127, 0, 0, 1}, port, [:binary, active: false])
-          :ok = Peers.expect(socket)
-          :ok = Peers.put(socket, {{203, 0, 113, 7}, 51_234})
-          send(test, {:socket, socket})
-          Process.sleep(:infinity)
-        end)
-
-      assert_receive {:socket, socket}
-      assert Peers.get(socket) == {{203, 0, 113, 7}, 51_234}
+      forget_at_once()
+      {socket, owner} = watched_socket()
 
       Process.exit(owner, :kill)
 
       assert_eventually not :ets.member(Peers, socket)
+    end
+
+    test "remembers an address for a while after its socket closes" do
+      {socket, owner} = watched_socket()
+
+      Process.exit(owner, :kill)
+      assert_eventually is_nil(Port.info(socket))
+      _ = :sys.get_state(Peers)
+
+      assert Peers.get(socket) == {{203, 0, 113, 7}, 51_234}
+
+      send(Peers, {:forget, socket})
+    end
+
+    test "still knows who connected once the client has gone" do
+      {:ok, port: port, server: _server} =
+        start_server([proxy_protocol: :v2], [], handler_module: AskAfterHangUp, handler_options: self())
+
+      header = header(@proxy, @tcp_over_ipv4, ipv4_block({203, 0, 113, 7}, 51_234))
+
+      # Bandit asks then, for a client that leaves straight after its request,
+      # and fails the connection with "Unable to obtain conn_data" if there is
+      # no answer.
+      assert {:ok, {{203, 0, 113, 7}, 51_234}} == peer_after_hang_up(port, header)
+
+      # The balancer's own health check names no client, so the answer is the
+      # socket's own address.
+      assert {:ok, {{127, 0, 0, 1}, _port}} = peer_after_hang_up(port, header(@local, 0x00, <<>>))
     end
   end
 
@@ -177,7 +223,7 @@ defmodule NervesHub.DeviceSSLTransportTest do
     end
   end
 
-  defp start_server(config, transport_options \\ []) do
+  defp start_server(config, transport_options \\ [], server \\ []) do
     previous = Application.get_env(:nerves_hub, DeviceSSLTransport, [])
 
     Application.put_env(:nerves_hub, DeviceSSLTransport, config)
@@ -187,7 +233,8 @@ defmodule NervesHub.DeviceSSLTransportTest do
       start_supervised!(
         {ThousandIsland,
          port: 0,
-         handler_module: Reporter,
+         handler_module: Keyword.get(server, :handler_module, Reporter),
+         handler_options: Keyword.get(server, :handler_options, []),
          transport_module: DeviceSSLTransport,
          transport_options:
            Keyword.merge(
@@ -271,6 +318,52 @@ defmodule NervesHub.DeviceSSLTransportTest do
     {:ok, reported} = :ssl.recv(ssl_socket, 0, 2_000)
 
     {to_string(reported), info[:session_resumption], receive_tickets([])}
+  end
+
+  # Completes a handshake behind `preamble`, hangs up, and returns what the
+  # handler was then told about who connected.
+  defp peer_after_hang_up(port, preamble) do
+    {:ok, socket} = :gen_tcp.connect({127, 0, 0, 1}, port, [:binary, active: false])
+    :ok = :gen_tcp.send(socket, preamble)
+
+    options = [verify: :verify_none, versions: [:"tlsv1.2"], server_name_indication: ~c"device.nerves-hub.org"]
+    {:ok, ssl_socket} = :ssl.connect(socket, options, 2_000)
+
+    assert_receive :connected
+    :ok = :ssl.close(ssl_socket)
+
+    assert_receive {:peer_after_hang_up, peer}, 5_000
+    peer
+  end
+
+  # A socket NervesHub.ProxyProtocol.Peers watches and holds an address for,
+  # owned by a process the test can kill.
+  defp watched_socket() do
+    {:ok, listener} = :gen_tcp.listen(0, [:binary, active: false])
+    {:ok, port} = :inet.port(listener)
+    test = self()
+
+    owner =
+      spawn(fn ->
+        {:ok, socket} = :gen_tcp.connect({127, 0, 0, 1}, port, [:binary, active: false])
+        :ok = Peers.expect(socket)
+        :ok = Peers.put(socket, {{203, 0, 113, 7}, 51_234})
+        send(test, {:socket, socket})
+        Process.sleep(:infinity)
+      end)
+
+    assert_receive {:socket, socket}
+    assert Peers.get(socket) == {{203, 0, 113, 7}, 51_234}
+
+    {socket, owner}
+  end
+
+  # Peers keeps an address for a minute after its socket closes. Tests of the
+  # forgetting itself have it forget straight away instead.
+  defp forget_at_once() do
+    %{remember_for: remember_for} = :sys.get_state(Peers)
+    _ = :sys.replace_state(Peers, &%{&1 | remember_for: 0})
+    on_exit(fn -> :sys.replace_state(Peers, &%{&1 | remember_for: remember_for}) end)
   end
 
   defp receive_tickets(tickets) do

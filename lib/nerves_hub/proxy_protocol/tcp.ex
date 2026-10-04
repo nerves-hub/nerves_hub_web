@@ -22,7 +22,11 @@ defmodule NervesHub.ProxyProtocol.TCP do
       the rate limit still runs before any of it.
 
     * `peername/1` answers with the address from the header. It is how
-      `:ssl.peername/1`, and so Thousand Island, learns who connected.
+      `:ssl.peername/1`, and so Thousand Island, learns who connected. For a
+      header naming no client -- the balancer's own health check -- it is the
+      socket's address, taken while the header is read. Either way the answer
+      no longer depends on the socket, which may have closed by the time
+      Thousand Island asks.
 
   The addresses are kept in `NervesHub.ProxyProtocol.Peers`.
   """
@@ -74,12 +78,7 @@ defmodule NervesHub.ProxyProtocol.TCP do
     end
   end
 
-  def close(socket) do
-    :ok = Peers.forget(socket)
-
-    :gen_tcp.close(socket)
-  end
-
+  defdelegate close(socket), to: :gen_tcp
   defdelegate controlling_process(socket, pid), to: :gen_tcp
   defdelegate send(socket, data), to: :gen_tcp
   defdelegate shutdown(socket, how), to: :gen_tcp
@@ -100,6 +99,9 @@ defmodule NervesHub.ProxyProtocol.TCP do
   defp take_header(socket) do
     if Peers.pending?(socket) do
       case ProxyProtocol.read_header(socket, @header_timeout) do
+        {:ok, nil} ->
+          Peers.put(socket, own_address(socket))
+
         {:ok, peer} ->
           Peers.put(socket, peer)
 
@@ -119,6 +121,13 @@ defmodule NervesHub.ProxyProtocol.TCP do
       end
     else
       :ok
+    end
+  end
+
+  defp own_address(socket) do
+    case :inet.peername(socket) do
+      {:ok, peer} -> peer
+      {:error, _reason} -> nil
     end
   end
 end
