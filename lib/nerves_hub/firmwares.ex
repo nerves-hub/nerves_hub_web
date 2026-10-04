@@ -820,11 +820,18 @@ defmodule NervesHub.Firmwares do
 
   # Builds the FirmwareDelta query from the device's current (source) firmware
   # UUID to the target firmware id. Shared by delta_ready?/2 and get_delta/2.
+  #
+  # The source is looked up among live firmware only. A build deleted and
+  # uploaded again leaves two rows carrying its uuid, and the subquery has to
+  # return one. `firmwares_product_id_uuid_index` makes live firmware unique per
+  # product, and deleting firmware takes its deltas with it, so the deleted row
+  # has nothing to find anyway.
   defp firmware_delta_query(source_uuid, product_id, target_id) do
     source_firmware_id_query =
       Firmware
       |> where(uuid: ^source_uuid)
       |> where(product_id: ^product_id)
+      |> Repo.exclude_deleted()
       |> select([f], f.id)
 
     FirmwareDelta
