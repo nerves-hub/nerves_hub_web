@@ -236,7 +236,7 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
               <span class="text-base-400 text-xs tracking-wide">Memory used</span>
               <div :if={@latest_metrics["mem_used_mb"]} class="flex items-end justify-between">
                 <span class="text-base-50 text-xl leading-[30px]">{round(@latest_metrics["mem_used_mb"])}MB</span>
-                <span class="text-warning text-base">{round(@latest_metrics["mem_used_percent"])}%</span>
+                <span :if={@latest_metrics["mem_used_percent"]} class="text-warning text-base">{round(@latest_metrics["mem_used_percent"])}%</span>
               </div>
               <div :if={!@latest_metrics["mem_used_mb"]} class="flex items-end justify-between">
                 <span class="text-base-500 text-xl leading-[30px]">Not reported</span>
