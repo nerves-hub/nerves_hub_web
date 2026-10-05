@@ -10,6 +10,7 @@ defmodule NervesHub.ManagedDeploymentsTest do
   alias NervesHub.Devices
   alias NervesHub.Devices.Deployments
   alias NervesHub.Devices.Device
+  alias NervesHub.Firmwares
   alias NervesHub.Firmwares.FirmwareDelta
   alias NervesHub.Fixtures
   alias NervesHub.ManagedDeployments
@@ -452,6 +453,59 @@ defmodule NervesHub.ManagedDeploymentsTest do
         ManagedDeployments.create_deployment_release(deployment_group, new_firmware, nil, user, %{})
 
       assert delta_status(deployment_group) == :preparing
+    end
+
+    test "doesn't wait on a delta from deleted firmware when a new release is created", %{
+      user: user,
+      org: org,
+      org_key: org_key,
+      product: product,
+      tmp_dir: tmp_dir
+    } do
+      current_firmware = Fixtures.firmware_fixture(org_key, product, %{version: "1.0.0", dir: tmp_dir})
+      deleted_firmware = Fixtures.firmware_fixture(org_key, product, %{version: "0.9.0", dir: tmp_dir})
+      new_firmware = Fixtures.firmware_fixture(org_key, product, %{version: "1.0.1", dir: tmp_dir})
+
+      deployment_group =
+        Fixtures.deployment_group_fixture(current_firmware, %{
+          name: "Delta Time",
+          is_active: true,
+          delta_updatable: true,
+          user: user
+        })
+
+      _device = Fixtures.device_fixture(org, product, deleted_firmware, %{deployment_id: deployment_group.id})
+      {:ok, _} = Firmwares.delete_firmware(deleted_firmware, user)
+
+      {:ok, {_release, deployment_group}} =
+        ManagedDeployments.create_deployment_release(deployment_group, new_firmware, nil, user, %{})
+
+      # The deleted firmware's file is gone, so the device takes the full image
+      refute_enqueued(worker: FirmwareDeltaBuilder, args: %{source_id: deleted_firmware.id})
+      assert delta_status(deployment_group) == :ready
+    end
+
+    test "a delta left over from deleted firmware doesn't hold its release back", %{
+      user: user,
+      org: org,
+      deployment_group: deployment_group,
+      org_key: org_key,
+      product: product,
+      tmp_dir: tmp_dir
+    } do
+      deleted_firmware = Fixtures.firmware_fixture(org_key, product, %{version: "0.9.0", dir: tmp_dir})
+      _device = Fixtures.device_fixture(org, product, deleted_firmware, %{deployment_id: deployment_group.id})
+      {:ok, _} = Firmwares.delete_firmware(deleted_firmware, user)
+
+      # Started after the delete, so the delete had no delta to take with it, and
+      # its build is cancelled for want of a source file
+      _ =
+        Fixtures.firmware_delta_fixture(deleted_firmware, deployment_group.current_release.firmware, %{
+          status: :processing
+        })
+
+      assert {:ok, %{delta_status: :ready}} =
+               ManagedDeployments.recalculate_release_delta_status(deployment_group.current_release)
     end
 
     test "doesn't set its release's delta status to :preparing when deltas are enabled and other information is updated, but no release is created",
