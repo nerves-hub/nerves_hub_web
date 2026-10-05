@@ -641,6 +641,87 @@ defmodule NervesHub.DevicesTest do
     end
   end
 
+  describe "search_tags_for_product/3" do
+    setup %{org: org, user: user, firmware: firmware} do
+      product = Fixtures.product_fixture(user, org, %{name: "Tag Search Product"})
+
+      for tag <- ~w(sensor site-1-sensor site-2-sensor site-3-sensor site-4-sensor site-5-sensor cellular production) do
+        Fixtures.device_fixture(org, product, firmware, %{tags: [tag]})
+      end
+
+      %{search_product: product}
+    end
+
+    test "ranks the closest tag first", %{search_product: product} do
+      [closest | rest] = Devices.search_tags_for_product(product, "sensor")
+
+      assert closest == "sensor"
+      assert Enum.all?(rest, &String.contains?(&1, "sensor"))
+    end
+
+    test "caps the number of matches", %{search_product: product} do
+      # Six tags contain "sensor"; the default cap is five.
+      assert length(Devices.search_tags_for_product(product, "sensor")) == 5
+      assert length(Devices.search_tags_for_product(product, "sensor", 2)) == 2
+    end
+
+    test "matches regardless of case", %{search_product: product} do
+      assert "cellular" in Devices.search_tags_for_product(product, "CELL")
+    end
+
+    test "matches on part of a tag", %{search_product: product} do
+      assert Devices.search_tags_for_product(product, "duct") == ["production"]
+    end
+
+    # A list of arbitrary tags is no help before the person has said anything.
+    test "returns nothing for a blank query", %{search_product: product} do
+      assert Devices.search_tags_for_product(product, "") == []
+      assert Devices.search_tags_for_product(product, "   ") == []
+    end
+
+    test "returns nothing for a query that matches no tag", %{search_product: product} do
+      assert Devices.search_tags_for_product(product, "no-such-tag") == []
+    end
+
+    test "is scoped to the given product", %{search_product: product, org: org, user: user, firmware: firmware} do
+      other = Fixtures.product_fixture(user, org, %{name: "Another Tag Product"})
+      Fixtures.device_fixture(org, other, firmware, %{tags: ["sensor-elsewhere"]})
+
+      refute "sensor-elsewhere" in Devices.search_tags_for_product(product, "sensor")
+      assert Devices.search_tags_for_product(other, "sensor") == ["sensor-elsewhere"]
+    end
+
+    # The query reaches this straight from a JS hook's payload.
+    test "tolerates a query that is not a string", %{search_product: product} do
+      assert Devices.search_tags_for_product(product, nil) == []
+    end
+
+    # Devices are narrowed by an indexed predicate over the whole tag array joined
+    # into one string, which admits a device because *some* tag matched. The tag
+    # actually returned still has to be one that matches, or a device carrying
+    # both "cellular" and "production" would offer "production" for a search of
+    # "cell".
+    test "returns only the tags that match, not every tag on a matching device", %{
+      org: org,
+      user: user,
+      firmware: firmware
+    } do
+      product = Fixtures.product_fixture(user, org, %{name: "Multi Tag Product"})
+      Fixtures.device_fixture(org, product, firmware, %{tags: ["cellular", "production"]})
+
+      assert Devices.search_tags_for_product(product, "cell") == ["cellular"]
+    end
+
+    # The indexed predicate joins tags with a space, so a query spanning that
+    # separator would match the joined string while matching no single tag.
+    test "does not match across the boundary between two tags", %{org: org, user: user, firmware: firmware} do
+      product = Fixtures.product_fixture(user, org, %{name: "Boundary Tag Product"})
+      Fixtures.device_fixture(org, product, firmware, %{tags: ["alpha", "beta"]})
+
+      assert Devices.search_tags_for_product(product, "alpha beta") == []
+    end
+  end
+
   describe "firmware_versions/1" do
     setup %{org: org, user: user, firmware: firmware} do
       product = Fixtures.product_fixture(user, org, %{name: "Firmware Versions Product"})

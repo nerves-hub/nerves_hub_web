@@ -4,6 +4,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
   import NervesHubWeb.LayoutView,
     only: [humanize_size: 1]
 
+  alias NervesHub.Devices
   alias NervesHub.Devices.BulkActions
   alias NervesHub.Devices.Deployments
   alias NervesHub.Devices.UpdateStats
@@ -13,7 +14,6 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
   alias NervesHub.ManagedDeployments
   alias NervesHub.ManagedDeployments.DeploymentWorkflowStep
   alias NervesHubWeb.CoreComponents
-  alias NimbleCSV.RFC4180, as: CSV
   alias Phoenix.Naming
 
   @impl Phoenix.LiveComponent
@@ -170,7 +170,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
 
     result =
       consume_uploaded_entry(socket, entry, fn %{path: path} ->
-        {:ok, parse_identifiers_from_csv(path)}
+        {:ok, Devices.parse_identifier_csv(path)}
       end)
 
     socket =
@@ -829,25 +829,5 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
   defp send_flash(socket, type, message) do
     send(self(), {:flash, type, message})
     socket
-  end
-
-  defp parse_identifiers_from_csv(path) do
-    path
-    |> File.stream!()
-    |> CSV.parse_stream(skip_headers: false)
-    |> Enum.reduce({nil, []}, fn
-      [header], {nil, []} ->
-        if String.trim(header) == "identifier", do: {:ok, []}, else: {:error, :bad_header}
-
-      [id], {:ok, acc} ->
-        {:ok, [String.trim(id) | acc]}
-
-      _, {:error, _} = err ->
-        err
-    end)
-    |> case do
-      {:ok, ids} -> {:ok, Enum.reverse(ids)}
-      _ -> {:error, :invalid_csv}
-    end
   end
 end

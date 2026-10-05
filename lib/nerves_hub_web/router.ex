@@ -308,6 +308,8 @@ defmodule NervesHubWeb.Router do
       DeploymentGroupController,
       :export_audit_logs
     )
+
+    get("/scripts/runs/:script_run_id/export", ScriptRunController, :export)
   end
 
   scope "/", NervesHubWeb do
@@ -448,6 +450,13 @@ defmodule NervesHubWeb.Router do
 
       live("/org/:org_name/:product_name/scripts", Live.SupportScripts.Index)
       live("/org/:org_name/:product_name/scripts/new", Live.SupportScripts.New)
+
+      # Before the `:script_id` route, or "runs" is read as a script id.
+      live("/org/:org_name/:product_name/scripts/runs", Live.ScriptRuns.Index)
+      # Before the `:script_run_id` route, or "new" is read as a run id.
+      live("/org/:org_name/:product_name/scripts/runs/new", Live.ScriptRuns.New)
+      live("/org/:org_name/:product_name/scripts/runs/:script_run_id", Live.ScriptRuns.Show)
+
       live("/org/:org_name/:product_name/scripts/:script_id/edit", Edit)
 
       live("/org/:org_name/:product_name/notifications", Notifications)

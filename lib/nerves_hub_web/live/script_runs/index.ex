@@ -1,8 +1,8 @@
-defmodule NervesHubWeb.Live.SupportScripts.Index do
+defmodule NervesHubWeb.Live.ScriptRuns.Index do
   use NervesHubWeb, :live_view
 
-  alias NervesHub.Scripts
-  alias NervesHub.Scripts.Script
+  alias NervesHub.ScriptRunners
+  alias NervesHub.ScriptRunners.ScriptRunner
   alias NervesHubWeb.Components.Sorting
 
   @default_page 1
@@ -22,7 +22,9 @@ defmodule NervesHubWeb.Live.SupportScripts.Index do
     total_pages: :integer
   }
 
-  @default_sorting %{sort_direction: "asc", sort: "name"}
+  # Newest first: a run has no name to sort by, and the most recent one is nearly
+  # always what someone came to look at.
+  @default_sorting %{sort_direction: "desc", sort: "inserted_at"}
   @sort_types %{sort_direction: :string, sort: :string}
 
   @default_filters %{
@@ -36,14 +38,16 @@ defmodule NervesHubWeb.Live.SupportScripts.Index do
   @impl Phoenix.LiveView
   def mount(_params, _session, socket) do
     socket
-    |> page_title("Support Scripts - #{socket.assigns.current_scope.product.name}")
+    |> page_title("Script Runs - #{socket.assigns.current_scope.product.name}")
     |> assign(:paginate_opts, @default_pagination)
     |> assign(:sort_direction, @default_sorting.sort_direction)
     |> assign(:current_sort, @default_sorting.sort)
     |> assign(:current_filters, @default_filters)
     |> assign(:currently_filtering, false)
+    # Shares the sidebar entry with the scripts listing -- the two are tabs of
+    # one page, so the sidebar should not move when switching between them.
     |> sidebar_tab(:support_scripts)
-    |> assign(:tab, :scripts)
+    |> assign(:tab, :runs)
     |> ok()
   end
 
@@ -60,7 +64,7 @@ defmodule NervesHubWeb.Live.SupportScripts.Index do
     |> assign(:sort_direction, Map.get(params, "sort_direction", @default_sorting.sort_direction))
     |> assign(:current_filters, filters)
     |> assign(:currently_filtering, filters != @default_filters)
-    |> assign_scripts_with_pagination()
+    |> assign_runs_with_pagination()
     |> noreply()
   end
 
@@ -98,7 +102,6 @@ defmodule NervesHubWeb.Live.SupportScripts.Index do
       when value == current_sort do
     %{sort_direction: sort_direction} = socket.assigns
 
-    # switch sort direction for column because
     sort_direction = if sort_direction == "desc", do: "asc", else: "desc"
     params = %{sort_direction: sort_direction, sort: value}
 
@@ -117,21 +120,7 @@ defmodule NervesHubWeb.Live.SupportScripts.Index do
     |> noreply()
   end
 
-  @impl Phoenix.LiveView
-  def handle_event("delete-support-script", %{"script_id" => script_id}, socket) do
-    authorized!(:"support_script:delete", socket.assigns.current_scope)
-
-    %{current_scope: %{product: product, user: user}} = socket.assigns
-
-    {:ok, _script} = Scripts.delete(script_id, product, user)
-
-    socket
-    |> put_flash(:info, "Script deleted")
-    |> assign(:scripts, Scripts.all_by_product(product))
-    |> noreply()
-  end
-
-  defp assign_scripts_with_pagination(socket) do
+  defp assign_runs_with_pagination(socket) do
     %{
       assigns: %{
         current_scope: scope,
@@ -148,10 +137,10 @@ defmodule NervesHubWeb.Live.SupportScripts.Index do
       filters: current_filters
     }
 
-    {entries, pager_meta} = Scripts.filter(scope, opts)
+    {entries, pager_meta} = ScriptRunners.filter(scope, opts)
 
     socket
-    |> assign(:scripts, entries)
+    |> assign(:script_runs, entries)
     |> assign(:pager_meta, pager_meta)
   end
 
@@ -166,7 +155,7 @@ defmodule NervesHubWeb.Live.SupportScripts.Index do
       |> Map.merge(pagination)
       |> Map.merge(sort)
 
-    ~p"/org/#{socket.assigns.current_scope.org}/#{socket.assigns.current_scope.product}/scripts?#{query}"
+    ~p"/org/#{socket.assigns.current_scope.org}/#{socket.assigns.current_scope.product}/scripts/runs?#{query}"
   end
 
   defp pagination_changes(params) do

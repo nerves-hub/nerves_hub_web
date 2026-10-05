@@ -68,6 +68,24 @@ defmodule NervesHub.ManagedDeployments do
     |> Repo.all()
   end
 
+  @doc """
+  The deployment groups for a product with the given ids, sorted by name.
+
+  Scoped to the product so an id from elsewhere resolves to nothing, and tolerant
+  of ids that no longer exist: a caller holding stored ids (a script run's
+  filter, say) can have outlived the groups it named.
+  """
+  @spec get_deployment_groups_by_ids(Product.t(), [integer()]) :: [DeploymentGroup.t()]
+  def get_deployment_groups_by_ids(_product, []), do: []
+
+  def get_deployment_groups_by_ids(%Product{id: product_id}, ids) when is_list(ids) do
+    DeploymentGroup
+    |> where([d], d.product_id == ^product_id)
+    |> where([d], d.id in ^ids)
+    |> order_by([d], asc: d.name)
+    |> Repo.all()
+  end
+
   @spec get_device_counts_by_product(Product.t()) :: %{integer() => integer()}
   def get_device_counts_by_product(%Product{id: product_id}) do
     Device

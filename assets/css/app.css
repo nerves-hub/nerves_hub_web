@@ -41,6 +41,11 @@
   --color-surface-raised: #1c1c1f; /* cards, chips, inputs — between surface-muted and zinc-800 */
   --color-surface-overlay: #18181b; /* menus, popovers, modals */
 
+  /* The dim behind a modal. Its own token rather than a step on the neutral ramp:
+     the ramp inverts between themes, which turned this into a near-white wash over
+     the dark UI. A scrim is the one surface that should read the same in both. */
+  --color-scrim: var(--color-zinc-800);
+
   --color-b-default: #3f3f46; /* zinc-700 — default hairline */
   --color-b-strong: #52525b; /* zinc-600 — inputs, buttons */
   --color-b-subtle: #27272a; /* zinc-800 — faint divider */
