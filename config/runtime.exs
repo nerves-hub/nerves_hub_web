@@ -323,6 +323,50 @@ if config_env() == :prod do
       hibernate_after: 15_000
     ]
 
+    # TLS 1.3 session tickets, so a reconnecting device can resume rather than
+    # repeat the full handshake. A resumed handshake never reaches verify_fun, so
+    # a check that lives only there is skipped for that device. What keeps a
+    # deleted device or certificate out is DeviceSocket's authenticate, which
+    # runs on every connection and needs the certificate to do it. Only the
+    # _with_cert modes carry it over: without, a resumed socket has no peer
+    # certificate and the device is refused.
+    #
+    # Stateless: the ticket is the session itself, encrypted, with the device's
+    # certificate inside. Nothing is kept on the node, and a ticket can be
+    # presented more than once while it lasts. Each node makes its own key
+    # unless DEVICE_TLS_SESSION_TICKET_SEED gives them one in common, so by
+    # default a device only resumes on the node that issued its ticket, and not
+    # once that node restarts.
+    #
+    # With the seed, any node resumes any node's tickets, across deploys -- so a
+    # device that keeps reconnecting may not do a full handshake again until the
+    # seed changes. And whoever holds the seed can mint a ticket for any device's
+    # certificate and connect as that device without its key; certificates are
+    # not secret. Keep it with the most sensitive secrets. Changing it voids
+    # every ticket, and devices fall back to a full handshake.
+    #
+    # anti_replay and early_data are left unset on purpose. Anti-replay only
+    # matters for early data, which stays off, and a shared seed defeats it
+    # across nodes anyway.
+    session_ticket_options = fn ->
+      case System.get_env("DEVICE_TLS_SESSION_TICKET_SEED", "") do
+        "" ->
+          [session_tickets: :stateless_with_cert]
+
+        seed when byte_size(seed) < 64 ->
+          raise """
+          DEVICE_TLS_SESSION_TICKET_SEED is #{byte_size(seed)} bytes long, and it has to be at least 64.
+
+          Every node holding it can decrypt, and mint, session tickets, so it has
+          to be impossible to guess. Generate one with `mix phx.gen.secret`, or
+          unset it for each node to make its own.
+          """
+
+        seed ->
+          [session_tickets: :stateless_with_cert, stateless_tickets_seed: seed]
+      end
+    end
+
     # Older versions of OTP 25 may break using using devices
     # that support TLS 1.3 or 1.2 negotiation. To mitigate that
     # potential error, by default we enforce TLS 1.2.
@@ -332,7 +376,7 @@ if config_env() == :prod do
     # See https://github.com/erlang/otp/issues/6492#issuecomment-1323874205
     transport_options =
       if System.get_env("DEVICE_ENABLE_TLS_13", "false") == "true" do
-        transport_options ++ [certificate_authorities: false]
+        transport_options ++ [certificate_authorities: false] ++ session_ticket_options.()
       else
         transport_options ++ [versions: [:"tlsv1.2"]]
       end
