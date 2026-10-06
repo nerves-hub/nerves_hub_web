@@ -200,15 +200,18 @@ defmodule NervesHub.Devices.Deployments do
   @spec remove_unmatched_devices_from_deployment_group([non_neg_integer()], DeploymentGroup.t()) ::
           {:ok, %{updated: non_neg_integer(), ignored: non_neg_integer()}}
   def remove_unmatched_devices_from_deployment_group(matched_device_ids, deployment_group) do
-    {devices_updated_count, _} =
+    {devices_updated_count, removed_device_ids} =
       Device
       |> Repo.exclude_deleted()
       |> where([d], d.deployment_id == ^deployment_group.id)
       |> where([d], d.product_id == ^deployment_group.product_id)
       |> where([d], d.id not in ^matched_device_ids)
+      |> select([d], d.id)
       |> Repo.update_all([set: [deployment_id: nil]], timeout: to_timeout(minute: 2))
 
-    :ok = Enum.each(matched_device_ids, &DeviceEvents.updated(%Device{id: &1}))
+    # Only the removed devices have anything to hear about. The ones kept are
+    # still where they were.
+    :ok = Enum.each(removed_device_ids, &DeviceEvents.deployment_cleared(%Device{id: &1}))
 
     {:ok,
      %{

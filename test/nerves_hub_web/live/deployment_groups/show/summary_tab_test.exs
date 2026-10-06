@@ -12,6 +12,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show.SummaryTabTest do
   alias NervesHub.Fixtures
   alias NervesHub.ManagedDeployments
   alias NervesHub.Repo
+  alias Phoenix.Socket.Broadcast
 
   setup %{
           conn: conn,
@@ -421,6 +422,43 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show.SummaryTabTest do
     |> then(fn _ ->
       refute Repo.reload(device1) |> Map.get(:deployment_id)
     end)
+  end
+
+  test "removing unmatched devices tells the removed devices, not the ones kept", %{
+    conn: conn,
+    org: org,
+    product: product,
+    device: kept_device,
+    fixture: %{firmware: firmware},
+    deployment_group: deployment_group
+  } do
+    removed_device =
+      Fixtures.device_fixture(org, product, firmware, %{
+        deployment_id: deployment_group.id,
+        tags: ["foo"]
+      })
+
+    Phoenix.PubSub.subscribe(NervesHub.PubSub, "device:#{removed_device.id}")
+    Phoenix.PubSub.subscribe(NervesHub.PubSub, "device:#{kept_device.id}")
+
+    conn
+    |> visit("/org/#{org.name}/#{product.name}/deployment_groups/#{deployment_group.name}")
+    |> click_button("Remove device")
+    |> assert_has("span",
+      text: "100% of devices in this deployment group match conditions",
+      timeout: 1
+    )
+
+    removed_topic = "device:#{removed_device.id}"
+    kept_topic = "device:#{kept_device.id}"
+
+    assert_receive %Broadcast{
+      topic: ^removed_topic,
+      event: "deployment_updated",
+      payload: %{deployment_id: nil}
+    }
+
+    refute_received %Broadcast{topic: ^kept_topic}
   end
 
   test "'Allow any' with no tags matches every device", %{
