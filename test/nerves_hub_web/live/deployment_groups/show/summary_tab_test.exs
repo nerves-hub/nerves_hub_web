@@ -485,6 +485,31 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show.SummaryTabTest do
     |> assert_has("button", text: "Move devices")
   end
 
+  test "a device reporting a version that isn't semver counts as unmatched", %{
+    conn: conn,
+    org: org,
+    product: product,
+    fixture: %{firmware: firmware},
+    deployment_group: deployment_group
+  } do
+    device =
+      Fixtures.device_fixture(org, product, firmware, %{
+        deployment_id: deployment_group.id,
+        tags: ["beta"]
+      })
+
+    # Devices report their own metadata, and nothing checks the version is semver
+    Repo.query!(
+      "UPDATE devices SET firmware_metadata = jsonb_set(firmware_metadata, '{version}', '\"not-semver\"') WHERE id = $1",
+      [device.id]
+    )
+
+    conn
+    |> visit("/org/#{org.name}/#{product.name}/deployment_groups/#{deployment_group.name}")
+    |> assert_has("span", text: "50% of devices in this deployment group match conditions")
+    |> assert_has("div", text: "1 device doesn't match inside deployment group")
+  end
+
   test "adding devices from outside deployment that matches conditions", %{
     conn: conn,
     org: org,

@@ -16,6 +16,7 @@ defmodule NervesHub.ManagedDeployments do
   alias NervesHub.ManagedDeployments.DeploymentRelease
   alias NervesHub.ManagedDeployments.DeploymentWorkflowStep
   alias NervesHub.ManagedDeployments.Orchestrator
+  alias NervesHub.ManagedDeployments.VersionRequirement
   alias NervesHub.Products.Product
   alias NervesHub.Repo
   alias Phoenix.Channel.Server, as: PhoenixChannelServer
@@ -1274,28 +1275,13 @@ defmodule NervesHub.ManagedDeployments do
     end
   end
 
-  # no tags, but version
-  defp do_matched_devices(%DeploymentGroup{conditions: %{tags: [], version: version}}, query, work_type)
-       when version != "" do
-    case work_type do
-      :count ->
-        query
-        |> select([d], d.firmware_metadata["version"])
-        |> Repo.all()
-        |> Enum.count(&Version.match?(&1, version))
-
-      :collect_ids ->
-        query
-        |> select([d], %{id: d.id, version: d.firmware_metadata["version"]})
-        |> Repo.all()
-        |> Enum.filter(&Version.match?(&1.version, version))
-        |> Enum.map(& &1.id)
-    end
-  end
-
-  # tags but no version
-  defp do_matched_devices(%DeploymentGroup{conditions: %{tags: tags, version: ""} = conditions}, query, work_type) do
-    query = where_matching_tags(query, tags, conditions.tag_operator)
+  # Tags and version are both checked in the database, so only a count or the
+  # ids leave it, however many devices the product has.
+  defp do_matched_devices(%DeploymentGroup{conditions: conditions}, query, work_type) do
+    query =
+      query
+      |> where_matching_tags(conditions.tags, conditions.tag_operator)
+      |> where_matching_version(conditions.version)
 
     case work_type do
       :count ->
@@ -1308,25 +1294,8 @@ defmodule NervesHub.ManagedDeployments do
     end
   end
 
-  # version and tags
-  defp do_matched_devices(%DeploymentGroup{conditions: %{tags: tags, version: version} = conditions}, query, work_type) do
-    query = where_matching_tags(query, tags, conditions.tag_operator)
-
-    case work_type do
-      :count ->
-        query
-        |> select([d], d.firmware_metadata["version"])
-        |> Repo.all()
-        |> Enum.count(&Version.match?(&1, version))
-
-      :collect_ids ->
-        query
-        |> select([d], %{id: d.id, version: d.firmware_metadata["version"]})
-        |> Repo.all()
-        |> Enum.filter(&Version.match?(&1.version, version))
-        |> Enum.map(& &1.id)
-    end
-  end
+  defp where_matching_version(query, ""), do: query
+  defp where_matching_version(query, requirement), do: VersionRequirement.where_matches(query, requirement)
 
   # A group with no tags matches every device, whichever the operator. Without
   # this, "Allow any" would ask for an overlap with an empty array, which is never
