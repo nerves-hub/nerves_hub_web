@@ -176,17 +176,13 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
       ManagedDeployments.matched_device_ids(deployment_group, in_deployment: true)
 
     remove_devices = fn ->
-      {:ok, %{updated: updated, ignored: ignored}} =
+      {:ok, %{updated: updated}} =
         Deployments.remove_unmatched_devices_from_deployment_group(
           matched_device_ids,
           deployment_group
         )
 
-      if ignored > 0 do
-        {:error, updated, ignored}
-      else
-        updated
-      end
+      updated
     end
 
     socket
@@ -243,31 +239,6 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
     |> put_flash(
       :error,
       "There was an issue moving devices to #{deployment_group.name}. We've been notified and are looking into it."
-    )
-    |> noreply()
-  end
-
-  @impl Phoenix.LiveView
-  def handle_async(:remove_devices_from_deployment, {:ok, {:error, updated_count, ignored_count}}, socket) do
-    %{assigns: %{deployment_group: deployment_group}} = socket
-
-    :ok =
-      Logging.log_to_sentry(
-        deployment_group,
-        "There was an issue removing devices from a deployment group.",
-        %{
-          updated_count: updated_count,
-          ignored_count: ignored_count,
-          deployment_group_id: deployment_group.id
-        }
-      )
-
-    send_update(SummaryTab, id: "deployment_group_summary", event: :update_matched_devices_count)
-
-    socket
-    |> put_flash(
-      :error,
-      "#{updated_count} devices removed from #{socket.assigns.deployment_group.name}. However, we couldn't remove #{ignored_count} devices. We've been notified and are looking into it."
     )
     |> noreply()
   end

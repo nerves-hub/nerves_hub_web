@@ -6,6 +6,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.ShowTest do
   alias NervesHub.Devices.Deployments
   alias NervesHub.Fixtures
   alias NervesHub.Helpers.Logging
+  alias NervesHub.Repo
 
   setup %{
           conn: conn,
@@ -145,7 +146,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.ShowTest do
     Fixtures.device_fixture(org, product, firmware, %{tags: ["beta"]})
 
     stub(Deployments, :remove_unmatched_devices_from_deployment_group, fn _, _ ->
-      {:ok, %{updated: 1, ignored: 0}}
+      {:ok, %{updated: 1}}
     end)
 
     conn
@@ -156,31 +157,30 @@ defmodule NervesHubWeb.Live.DeploymentGroups.ShowTest do
     |> assert_has("div", text: "1 devices removed from #{deployment_group.name}", timeout: 1000)
   end
 
-  test "remove-unmatched-devices partial success shows partial error flash", %{
+  test "remove-unmatched-devices keeps matching devices without reporting them as failures", %{
     conn: conn,
     org: org,
     product: product,
     firmware: firmware,
     deployment_group: deployment_group
   } do
-    Fixtures.device_fixture(org, product, firmware, %{tags: ["beta"]})
+    kept_one = Fixtures.device_fixture(org, product, firmware, %{tags: ["beta"], deployment_id: deployment_group.id})
+    kept_two = Fixtures.device_fixture(org, product, firmware, %{tags: ["beta"], deployment_id: deployment_group.id})
+    removed = Fixtures.device_fixture(org, product, firmware, %{tags: ["foo"], deployment_id: deployment_group.id})
 
-    stub(Logging, :log_to_sentry, fn _, _, _ -> :ok end)
-
-    stub(Deployments, :remove_unmatched_devices_from_deployment_group, fn _, _ ->
-      {:ok, %{updated: 0, ignored: 1}}
-    end)
+    reject(Logging, :log_to_sentry, 3)
 
     conn
     |> visit("/org/#{org.name}/#{product.name}/deployment_groups/#{deployment_group.name}")
     |> unwrap(fn view ->
       render_click(view, "remove-unmatched-devices-from-deployment-group", %{})
     end)
-    |> assert_has("div",
-      text: "couldn't remove 1 devices",
-      exact: false,
-      timeout: 1000
-    )
+    |> assert_has("div", text: "1 devices removed from #{deployment_group.name}", timeout: 1000)
+    |> refute_has("div", text: "couldn't remove", exact: false)
+
+    assert Repo.reload(kept_one).deployment_id == deployment_group.id
+    assert Repo.reload(kept_two).deployment_id == deployment_group.id
+    refute Repo.reload(removed).deployment_id
   end
 
   test "remove-unmatched-devices exit path shows flash error", %{

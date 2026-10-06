@@ -191,14 +191,16 @@ defmodule NervesHub.Devices.Deployments do
   fetched by their id and also filtered by the deployment group's id and
   product id.
 
-  `Repo.update_all()` is used to update the rows. The return informs how
-  many rows were updated and how many were ignored because of a problem.
+  `Repo.update_all()` is used to update the rows, and the return is how many
+  were removed. A single statement removes every device it selects, so there
+  is no partial result to report.
 
+  # devices 1, 2 and 3 match; the group's other two devices are removed
   remove_unmatched_devices_from_deployment_group([1, 2, 3], deployment_group)
-  > {:ok, %{updated: 3, ignored: 0}}
+  > {:ok, %{updated: 2}}
   """
   @spec remove_unmatched_devices_from_deployment_group([non_neg_integer()], DeploymentGroup.t()) ::
-          {:ok, %{updated: non_neg_integer(), ignored: non_neg_integer()}}
+          {:ok, %{updated: non_neg_integer()}}
   def remove_unmatched_devices_from_deployment_group(matched_device_ids, deployment_group) do
     {devices_updated_count, removed_device_ids} =
       Device
@@ -213,11 +215,7 @@ defmodule NervesHub.Devices.Deployments do
     # still where they were.
     :ok = Enum.each(removed_device_ids, &DeviceEvents.deployment_cleared(%Device{id: &1}))
 
-    {:ok,
-     %{
-       updated: devices_updated_count,
-       ignored: length(matched_device_ids) - devices_updated_count
-     }}
+    {:ok, %{updated: devices_updated_count}}
   end
 
   defp version_match?(_vsn, ""), do: true
