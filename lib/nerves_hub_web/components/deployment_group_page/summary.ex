@@ -165,6 +165,8 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
   def handle_event("validate-csv", _params, socket), do: {:noreply, socket}
 
   def handle_progress(:device_csv, %{done?: true} = entry, socket) do
+    authorized!(:"deployment_group:update", socket.assigns.current_scope)
+
     %{deployment_group: deployment_group, current_scope: %{product: product, user: user}} =
       socket.assigns
 
@@ -686,7 +688,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
                 <%!-- <.link navigate={~p"/org/#{@org}/#{@product}/devices"} class="flex items-center h-6 bg-base-800 border border-base-700 rounded-full">
                   <.icon name="open" class="stroke-base-400" />
                 </.link> --%>
-                <div class="flex items-center gap-2">
+                <div :if={authorized?(:"deployment_group:update", @current_scope)} class="flex items-center gap-2">
                   <div id="remove-devices-from-deployment-group" class="relative z-20" phx-hook="ToolTip" data-placement="top">
                     <.icon name="info" class="stroke-base-400" />
                     <div class="tooltip-content absolute top-0 left-0 z-20 hidden w-max rounded border border-base-700 bg-surface-muted px-2 py-1.5 text-xs">
@@ -713,7 +715,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
                 <%!-- <.link navigate={~p"/org/#{@org}/#{@product}/devices"} class="flex items-center h-6 bg-base-800 border border-base-700 rounded-full">
                   <.icon name="open" class="stroke-base-400" />
                 </.link> --%>
-                <div class="flex items-center gap-2">
+                <div :if={authorized?(:"deployment_group:update", @current_scope)} class="flex items-center gap-2">
                   <div id="move-devices-to-deployment-group" class="relative z-20" phx-hook="ToolTip" data-placement="top">
                     <.icon name="info" class="stroke-base-400" />
                     <div class="tooltip-content absolute top-0 left-0 z-20 hidden w-max rounded border border-base-700 bg-surface-muted px-2 py-1.5 text-xs">
@@ -733,7 +735,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
                 </div>
               </div>
             </div>
-            <div class="flex items-center justify-between border-t border-base-700 pt-3">
+            <div :if={authorized?(:"deployment_group:update", @current_scope)} class="flex items-center justify-between border-t border-base-700 pt-3">
               <span class="text-sm text-base-500">Import devices by identifier</span>
               <form id="import-devices-csv-form" phx-change="validate-csv" phx-target={@myself}>
                 <label

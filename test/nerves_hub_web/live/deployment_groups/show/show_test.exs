@@ -2,6 +2,9 @@ defmodule NervesHubWeb.Live.DeploymentGroups.ShowTest do
   use NervesHubWeb.ConnCase.Browser, async: false
   use Mimic
 
+  import Ecto.Query
+
+  alias NervesHub.Accounts.OrgUser
   alias NervesHub.Devices.BulkActions
   alias NervesHub.Devices.Deployments
   alias NervesHub.Fixtures
@@ -207,5 +210,75 @@ defmodule NervesHubWeb.Live.DeploymentGroups.ShowTest do
       text: "There was an issue removing devices from #{deployment_group.name}",
       timeout: 1000
     )
+  end
+
+  describe "a user who can only view" do
+    setup %{org: org, user: user} do
+      {1, _} =
+        OrgUser
+        |> where([ou], ou.org_id == ^org.id and ou.user_id == ^user.id)
+        |> Repo.update_all(set: [role: :view])
+
+      :ok
+    end
+
+    test "cannot move matching devices into the deployment group", %{
+      conn: conn,
+      org: org,
+      product: product,
+      firmware: firmware,
+      deployment_group: deployment_group
+    } do
+      device = Fixtures.device_fixture(org, product, firmware, %{tags: ["beta"]})
+
+      conn =
+        conn
+        |> visit("/org/#{org.name}/#{product.name}/deployment_groups/#{deployment_group.name}")
+        |> assert_has("span", text: "match outside of deployment group", exact: false)
+        |> refute_has("button", text: "Move device")
+
+      Process.flag(:trap_exit, true)
+
+      assert {{%NervesHubWeb.UnauthorizedError{}, _}, _} =
+               catch_exit(render_click(conn.view, "move-matched-devices-to-deployment-group", %{}))
+
+      refute Repo.reload(device).deployment_id
+    end
+
+    test "cannot remove unmatched devices from the deployment group", %{
+      conn: conn,
+      org: org,
+      product: product,
+      firmware: firmware,
+      deployment_group: deployment_group
+    } do
+      device =
+        Fixtures.device_fixture(org, product, firmware, %{tags: ["foo"], deployment_id: deployment_group.id})
+
+      conn =
+        conn
+        |> visit("/org/#{org.name}/#{product.name}/deployment_groups/#{deployment_group.name}")
+        |> assert_has("span", text: "match inside deployment group", exact: false)
+        |> refute_has("button", text: "Remove device")
+
+      Process.flag(:trap_exit, true)
+
+      assert {{%NervesHubWeb.UnauthorizedError{}, _}, _} =
+               catch_exit(render_click(conn.view, "remove-unmatched-devices-from-deployment-group", %{}))
+
+      assert Repo.reload(device).deployment_id == deployment_group.id
+    end
+
+    test "cannot import devices from a CSV", %{
+      conn: conn,
+      org: org,
+      product: product,
+      deployment_group: deployment_group
+    } do
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/deployment_groups/#{deployment_group.name}")
+      |> assert_has("div", text: "Device Matching Conditions")
+      |> refute_has("label", text: "Import from CSV")
+    end
   end
 end

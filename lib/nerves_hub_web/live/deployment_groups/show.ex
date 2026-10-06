@@ -148,6 +148,8 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
   end
 
   def handle_event("move-matched-devices-to-deployment-group", _params, socket) do
+    authorized!(:"deployment_group:update", socket.assigns.current_scope)
+
     %{assigns: %{current_scope: scope, deployment_group: deployment_group}} = socket
 
     move_devices = fn ->
@@ -170,6 +172,8 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
   end
 
   def handle_event("remove-unmatched-devices-from-deployment-group", _params, socket) do
+    authorized!(:"deployment_group:update", socket.assigns.current_scope)
+
     %{assigns: %{deployment_group: deployment_group}} = socket
 
     matched_device_ids =
