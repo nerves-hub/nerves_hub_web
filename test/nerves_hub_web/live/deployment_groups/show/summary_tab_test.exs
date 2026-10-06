@@ -423,6 +423,30 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show.SummaryTabTest do
     end)
   end
 
+  test "'Allow any' with no tags matches every device", %{
+    conn: conn,
+    org: org,
+    product: product,
+    user: user,
+    fixture: %{firmware: firmware},
+    deployment_group: deployment_group
+  } do
+    {:ok, deployment_group} =
+      ManagedDeployments.update_deployment_group(
+        deployment_group,
+        %{conditions: %{"tags" => [], "version" => "", "tag_operator" => "or"}},
+        user
+      )
+
+    Fixtures.device_fixture(org, product, firmware, %{tags: ["foo"]})
+
+    conn
+    |> visit("/org/#{org.name}/#{product.name}/deployment_groups/#{deployment_group.name}")
+    |> assert_has("span", text: "100% of devices in this deployment group match conditions")
+    |> refute_has("button", text: "Remove device")
+    |> assert_has("button", text: "Move devices")
+  end
+
   test "adding devices from outside deployment that matches conditions", %{
     conn: conn,
     org: org,

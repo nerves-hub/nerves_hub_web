@@ -1328,6 +1328,11 @@ defmodule NervesHub.ManagedDeployments do
     end
   end
 
+  # A group with no tags matches every device, whichever the operator. Without
+  # this, "Allow any" would ask for an overlap with an empty array, which is never
+  # true, and count every device as unmatched.
+  defp where_matching_tags(query, [], _operator), do: query
+
   # "Allow any": a device must have at least one of the tags
   defp where_matching_tags(query, tags, :or) do
     where(query, [d], fragment("?::text[] && tags::text[]", ^tags))
