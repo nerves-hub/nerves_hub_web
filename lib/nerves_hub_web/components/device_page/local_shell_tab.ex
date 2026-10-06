@@ -88,7 +88,7 @@ defmodule NervesHubWeb.Components.DevicePage.LocalShellTab do
     <div
       id="local-shell-tab"
       phx-mounted={JS.remove_class("opacity-0")}
-      class="phx-click-loading:opacity-50 tab-content size-full opacity-0 transition-all duration-500"
+      class="tab-content size-full opacity-0 transition-all duration-500 phx-click-loading:opacity-50"
     >
       <div class="flex size-full flex-col items-start justify-between">
         <.async_result :let={online?} assign={@local_shell_active?}>
@@ -114,18 +114,18 @@ defmodule NervesHubWeb.Components.DevicePage.LocalShellTab do
               style="background-color: rgb(14, 16, 25);"
             >
               <div id="local-shell" phx-hook="LocalShell" phx-update="ignore" data-user-token={@user_token} data-device-identifier={@device.identifier} class="z-10 size-full"></div>
-              <div id="immersive-device" class="text-base-800 pointer-events-none absolute top-4 left-6 z-20 hidden">
+              <div id="immersive-device" class="pointer-events-none absolute top-4 left-6 z-20 hidden text-base-800">
                 <div class="flex items-center gap-3">
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
                     viewBox="0 0 6 6"
                     fill="currentColor"
-                    class="data-[connection-status=connected]:fill-success data-[connection-status=connecting]:fill-alert data-[connection-status=disconnected]:fill-base-500 data-[connection-status=unknown]:fill-base-500 size-3 data-[connection-status=connecting]:animate-pulse"
+                    class="size-3 data-[connection-status=connected]:fill-success data-[connection-status=connecting]:animate-pulse data-[connection-status=connecting]:fill-alert data-[connection-status=disconnected]:fill-base-500 data-[connection-status=unknown]:fill-base-500"
                     data-connection-status={Map.get(@device_connection || %{}, :status) || "unknown"}
                   >
                     <circle cx="3" cy="3" r="3" />
                   </svg>
-                  <h1 class="text-base-50 font-mono text-xl leading-[30px] font-semibold">
+                  <h1 class="font-mono text-xl leading-[30px] font-semibold text-base-50">
                     System Shell : {@device.identifier}
                   </h1>
                 </div>
@@ -135,7 +135,7 @@ defmodule NervesHubWeb.Components.DevicePage.LocalShellTab do
                   class="hidden cursor-pointer items-center gap-2 rounded-full bg-neutral-900 px-3 py-1.5 text-xs text-neutral-50"
                   title="Send ⌥ (Option) to the device as Meta, for shortcuts such as M-b and M-f. Leave this off to type characters like [ ] { } | on non-US keyboard layouts."
                 >
-                  <input type="checkbox" id="option-as-meta" class="border-base-700 checked:bg-primary text-base-400 size-3.5 rounded focus:ring-0" />
+                  <input type="checkbox" id="option-as-meta" class="size-3.5 rounded border-base-700 text-base-400 checked:bg-primary focus:ring-0" />
                   <span>⌥ as Meta</span>
                 </label>
                 <button id="fullscreen" class="cursor-pointer rounded-full bg-neutral-900 hover:scale-[1.1]" phx-click={toggle_shell_fullscreen()} title="Toggle fullscreen">
@@ -155,7 +155,7 @@ defmodule NervesHubWeb.Components.DevicePage.LocalShellTab do
             <div :if={@shell_enabled? and authorized?(:"device:extensions:local_shell", @current_scope) and not online?} class="text-medium flex grow items-center justify-center gap-6 p-6 font-mono">
               The device's local shell isn't currently available.
             </div>
-            <div :if={not authorized?(:"device:extensions:local_shell", @current_scope)} class="text-alert text-medium flex grow items-center justify-center gap-6 p-6 font-mono">
+            <div :if={not authorized?(:"device:extensions:local_shell", @current_scope)} class="text-medium flex grow items-center justify-center gap-6 p-6 font-mono text-alert">
               You don't have the required permissions to access a local shell on the Device.
             </div>
           </div>

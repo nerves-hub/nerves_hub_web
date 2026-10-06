@@ -3,13 +3,13 @@
     Sign in to your account
   </:title>
   <:subheader :if={Application.get_env(:nerves_hub, :open_for_registrations)}>
-    Don't have an account? <.link href="/register" class="hover:text-primary-hover text-primary font-semibold">Sign up for free</.link>
+    Don't have an account? <.link href="/register" class="font-semibold text-primary hover:text-primary-hover">Sign up for free</.link>
   </:subheader>
   <:subheader :if={!Application.get_env(:nerves_hub, :open_for_registrations)}>
     Don't have an account? Please contact your platform admin.
   </:subheader>
 
-  <div :if={assigns[:error_message]} role="alert" class="bg-alert-soft fill-alert ring-alert text-alert-content mt-4 mr-2 w-full rounded-sm p-3 shadow-md ring-1">
+  <div :if={assigns[:error_message]} role="alert" class="mt-4 mr-2 w-full rounded-sm bg-alert-soft fill-alert p-3 text-alert-content shadow-md ring-1 ring-alert">
     <p class="mt-1 text-sm/5">{@error_message}</p>
   </div>
 
@@ -41,11 +41,11 @@
                 class=""
               />
             </div>
-            <label for="remember-me" class="text-base-300 block text-sm/6">Remember me</label>
+            <label for="remember-me" class="block text-sm/6 text-base-300">Remember me</label>
           </div>
 
           <div class="text-sm/6">
-            <a href="/password-reset" class="hover:text-primary-hover text-primary font-semibold">Forgot password?</a>
+            <a href="/password-reset" class="font-semibold text-primary hover:text-primary-hover">Forgot password?</a>
           </div>
         </div>
 
@@ -53,7 +53,7 @@
           <button
             id="login-submit"
             type="submit"
-            class="bg-primary focus-visible:outline-focus-ring hover:bg-primary-hover text-primary-content relative flex w-full justify-center rounded-md px-3 py-1.5 text-sm/6 font-semibold shadow-sm focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-75"
+            class="relative flex w-full justify-center rounded-md bg-primary px-3 py-1.5 text-sm/6 font-semibold text-primary-content shadow-sm hover:bg-primary-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring disabled:cursor-not-allowed disabled:opacity-75"
           >
             <span id="login-submit-spinner" class="absolute inset-0 hidden items-center justify-center">
               <span class="lucide-loader-circle size-5 animate-spin" />

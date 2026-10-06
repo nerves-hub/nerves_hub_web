@@ -6,9 +6,9 @@
   </:top_bar>
 
   <div class="flex h-0 flex-1 flex-col overflow-y-auto">
-    <div class="border-base-700 h-header flex shrink-0 justify-between border-b p-6">
+    <div class="flex h-header shrink-0 justify-between border-b border-base-700 p-6">
       <div class="flex items-center gap-3">
-        <h1 class="text-base-50 text-xl leading-[30px] font-semibold">
+        <h1 class="text-xl leading-[30px] font-semibold text-base-50">
           {@archive.uuid}
         </h1>
       </div>
@@ -19,12 +19,12 @@
         </.button>
 
         <button
-          class="bg-base-800 border-alert disabled:text-base-500 text-base-300 box-content flex h-5 items-center justify-center gap-2 rounded border px-3 py-1.5 text-sm font-medium"
+          class="box-content flex h-5 items-center justify-center gap-2 rounded border border-alert bg-base-800 px-3 py-1.5 text-sm font-medium text-base-300 disabled:text-base-500"
           aria-label="Delete archive"
           type="button"
           phx-click="delete-archive"
         >
-          <svg class="stroke-alert size-5" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <svg class="size-5 stroke-alert" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
             <path
               d="M12.4999 5.83337H7.49992M12.4999 5.83337H14.9999M12.4999 5.83337C12.4999 4.45266 11.3806 3.33337 9.99992 3.33337C8.61921 3.33337 7.49992 4.45266 7.49992 5.83337M7.49992 5.83337H4.99992M3.33325 5.83337H4.99992M4.99992 5.83337V15C4.99992 15.9205 5.74611 16.6667 6.66659 16.6667H13.3333C14.2537 16.6667 14.9999 15.9205 14.9999 15V5.83337M14.9999 5.83337H16.6666M8.33325 9.16671V13.3334M11.6666 13.3334V9.16671"
               stroke-width="1.2"
@@ -32,78 +32,78 @@
               stroke-linejoin="round"
             />
           </svg>
-          <span class="text-alert text-sm font-medium">Delete</span>
+          <span class="text-sm font-medium text-alert">Delete</span>
         </button>
       </div>
     </div>
 
     <div class="flex h-full items-start justify-between gap-4 p-6">
       <div class="flex w-1/2 flex-col gap-4">
-        <div class="bg-surface-raised border-base-700 shadow-device-details-content flex flex-col rounded border pb-4">
-          <div class="text-base-50 flex h-14 items-center pr-3 pl-4 leading-6 font-medium">
+        <div class="flex flex-col rounded border border-base-700 bg-surface-raised pb-4 shadow-device-details-content">
+          <div class="flex h-14 items-center pr-3 pl-4 leading-6 font-medium text-base-50">
             General info
           </div>
           <div class="flex flex-col gap-3">
             <div :if={@archive.author} class="flex min-h-7 items-center gap-4 px-4">
-              <span class="text-base-500 text-sm">Author:</span>
-              <span class="text-base-300 text-sm">{@archive.author}</span>
+              <span class="text-sm text-base-500">Author:</span>
+              <span class="text-sm text-base-300">{@archive.author}</span>
             </div>
 
             <div class="flex min-h-7 items-center gap-4 px-4">
-              <span class="text-base-500 text-sm">Description:</span>
-              <span :if={@archive.description} class="text-base-300 text-sm">{@archive.description}</span>
-              <span :if={!@archive.description} class="text-base-400 text-sm">No description</span>
+              <span class="text-sm text-base-500">Description:</span>
+              <span :if={@archive.description} class="text-sm text-base-300">{@archive.description}</span>
+              <span :if={!@archive.description} class="text-sm text-base-400">No description</span>
             </div>
 
             <div :if={@archive.misc} class="flex min-h-7 items-center gap-4 px-4">
-              <span class="text-base-500 text-sm">Misc:</span>
-              <span class="text-base-300 text-sm">{@archive.misc}</span>
+              <span class="text-sm text-base-500">Misc:</span>
+              <span class="text-sm text-base-300">{@archive.misc}</span>
             </div>
 
             <div class="flex min-h-7 items-center gap-4 px-4">
-              <span class="text-base-500 text-sm">Signed with:</span>
-              <span class="bg-base-800 border-base-700 flex items-center gap-1 rounded-full border py-0.5 pr-3 pl-2.5">
-                <code class="text-base-300 text-xs">{format_signed(@archive, @org_keys)}</code>
+              <span class="text-sm text-base-500">Signed with:</span>
+              <span class="flex items-center gap-1 rounded-full border border-base-700 bg-base-800 py-0.5 pr-3 pl-2.5">
+                <code class="text-xs text-base-300">{format_signed(@archive, @org_keys)}</code>
               </span>
             </div>
 
             <div class="flex min-h-7 items-center gap-4 px-4">
-              <span class="text-base-500 text-sm">Uploaded on:</span>
-              <span class="text-base-300 text-sm"><.local_datetime at={@archive.inserted_at} time_zone={@time_zone} /></span>
+              <span class="text-sm text-base-500">Uploaded on:</span>
+              <span class="text-sm text-base-300"><.local_datetime at={@archive.inserted_at} time_zone={@time_zone} /></span>
             </div>
           </div>
         </div>
       </div>
 
       <div class="flex w-1/2 flex-col gap-4">
-        <div class="bg-surface-raised border-base-700 shadow-device-details-content flex flex-col rounded border pb-4">
-          <div class="text-base-50 flex h-14 items-center pr-3 pl-4 leading-6 font-medium">
+        <div class="flex flex-col rounded border border-base-700 bg-surface-raised pb-4 shadow-device-details-content">
+          <div class="flex h-14 items-center pr-3 pl-4 leading-6 font-medium text-base-50">
             Metadata
           </div>
           <div class="flex flex-col gap-3">
             <div class="flex min-h-7 items-center gap-4 px-4">
-              <span class="text-base-500 text-sm">Version:</span>
-              <span class="text-base-300 text-sm">{@archive.version}</span>
+              <span class="text-sm text-base-500">Version:</span>
+              <span class="text-sm text-base-300">{@archive.version}</span>
             </div>
 
             <div class="flex min-h-7 items-center gap-4 px-4">
-              <span class="text-base-500 text-sm">Architecture:</span>
-              <span class="text-base-300 text-sm">{@archive.architecture}</span>
+              <span class="text-sm text-base-500">Architecture:</span>
+              <span class="text-sm text-base-300">{@archive.architecture}</span>
             </div>
 
             <div class="flex min-h-7 items-center gap-4 px-4">
-              <span class="text-base-500 text-sm">Platform:</span>
-              <span class="text-base-300 text-sm">{@archive.platform}</span>
+              <span class="text-sm text-base-500">Platform:</span>
+              <span class="text-sm text-base-300">{@archive.platform}</span>
             </div>
 
             <div :if={@archive.vcs_identifier} class="flex min-h-7 items-center gap-4 px-4">
-              <span class="text-base-500 text-sm">VCS ID:</span>
-              <span class="text-base-300 text-sm">{@archive.vcs_identifier}</span>
+              <span class="text-sm text-base-500">VCS ID:</span>
+              <span class="text-sm text-base-300">{@archive.vcs_identifier}</span>
             </div>
 
             <div class="flex min-h-7 items-center gap-4 px-4">
-              <span class="text-base-500 text-sm">Size:</span>
-              <span class="text-base-300 text-sm">{format_file_size(@archive.size)}</span>
+              <span class="text-sm text-base-500">Size:</span>
+              <span class="text-sm text-base-300">{format_file_size(@archive.size)}</span>
             </div>
           </div>
         </div>

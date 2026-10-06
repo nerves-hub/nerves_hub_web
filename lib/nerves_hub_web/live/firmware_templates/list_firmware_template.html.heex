@@ -1,31 +1,31 @@
 <NervesHubWeb.Layouts.sidebar flash={@flash} current_scope={@current_scope} sidebar_tab={@sidebar_tab}>
   <:header>
-    <h1 class="text-base-50 text-xl leading-[30px] font-semibold">All Firmware</h1>
-    <div class="bg-base-800 text-base-300 mr-auto rounded-sm px-1.5 py-0.5 text-xs">
+    <h1 class="text-xl leading-[30px] font-semibold text-base-50">All Firmware</h1>
+    <div class="mr-auto rounded-sm bg-base-800 px-1.5 py-0.5 text-xs text-base-300">
       {@pager_meta.total_count}
     </div>
 
     <div :for={entry <- @uploads.firmware.entries} class="flex w-2/5 flex-col items-center pr-2 pl-4">
       <div class="mb-1 flex justify-between">
-        <span class="text-primary text-sm dark:text-white">Uploading firmware... </span>
-        <span class="text-primary text-sm dark:text-white">{entry.progress}%</span>
+        <span class="text-sm text-primary dark:text-white">Uploading firmware... </span>
+        <span class="text-sm text-primary dark:text-white">{entry.progress}%</span>
       </div>
       <div class="h-2.5 w-full rounded-full bg-gray-200 dark:bg-gray-700">
-        <div class="bg-primary h-2.5 animate-pulse rounded-full" style={"width: #{entry.progress}%"}></div>
+        <div class="h-2.5 animate-pulse rounded-full bg-primary" style={"width: #{entry.progress}%"}></div>
       </div>
     </div>
 
-    <label class="text-base-300 flex items-center gap-2 text-sm font-medium hover:cursor-pointer">
+    <label class="flex items-center gap-2 text-sm font-medium text-base-300 hover:cursor-pointer">
       <input
         type="checkbox"
-        class="bg-base-800 border-base-700 checked:bg-primary text-base-400 rounded hover:cursor-pointer focus:ring-0"
+        class="rounded border-base-700 bg-base-800 text-base-400 checked:bg-primary hover:cursor-pointer focus:ring-0"
         checked={@include_deleted}
         phx-click="toggle-deleted-firmware"
       /> Show deleted
     </label>
 
     <form id="firmware-form" phx-change="validate-firmware" class={[Enum.any?(@uploads.firmware.entries) && "hidden"]}>
-      <div class="bg-base-800 border-base-600 flex gap-2 rounded border px-3 py-1.5 hover:cursor-pointer">
+      <div class="flex gap-2 rounded border border-base-600 bg-base-800 px-3 py-1.5 hover:cursor-pointer">
         <svg class="size-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="none">
           <path
             d="M4.1665 10.0001H9.99984M15.8332 10.0001H9.99984M9.99984 10.0001V4.16675M9.99984 10.0001V15.8334"
@@ -35,7 +35,7 @@
             stroke-linejoin="round"
           />
         </svg>
-        <label for={@uploads.firmware.ref} class="text-base-300 text-sm font-medium hover:cursor-pointer">Upload Firmware</label>
+        <label for={@uploads.firmware.ref} class="text-sm font-medium text-base-300 hover:cursor-pointer">Upload Firmware</label>
         <.live_file_input upload={@uploads.firmware} class="hidden" />
       </div>
     </form>
@@ -66,7 +66,7 @@
             </tr>
           </thead>
           <tbody>
-            <tr :for={firmware <- @firmware} class={["border-base-800 border-b", Firmware.deleted?(firmware) && "opacity-60"]}>
+            <tr :for={firmware <- @firmware} class={["border-b border-base-800", Firmware.deleted?(firmware) && "opacity-60"]}>
               <td>
                 <div class="flex items-center gap-2">
                   <.link patch={~p"/org/#{@current_scope.org}/#{@product}/firmware/#{firmware}"}>
@@ -74,7 +74,7 @@
                   </.link>
                   <span
                     :if={Firmware.deleted?(firmware)}
-                    class="bg-base-800 border-base-700 text-base-400 rounded-full border px-2 py-0.5 text-xs"
+                    class="rounded-full border border-base-700 bg-base-800 px-2 py-0.5 text-xs text-base-400"
                     title={deleted_summary(firmware, @time_zone)}
                   >
                     Deleted
@@ -89,8 +89,8 @@
               </td>
 
               <td>
-                <span class="bg-base-800 border-base-700 inline-flex gap-1 rounded-full border py-0.5 pr-3 pl-2.5">
-                  <code class="text-base-300 text-xs">{firmware.tool}</code>
+                <span class="inline-flex gap-1 rounded-full border border-base-700 bg-base-800 py-0.5 pr-3 pl-2.5">
+                  <code class="text-xs text-base-300">{firmware.tool}</code>
                 </span>
               </td>
 
@@ -107,8 +107,8 @@
               </td>
 
               <td>
-                <span class="bg-base-800 border-base-700 inline-flex gap-1 rounded-full border py-0.5 pr-3 pl-2.5">
-                  <code class="text-base-300 text-xs">{format_signed(firmware, @org_keys)}</code>
+                <span class="inline-flex gap-1 rounded-full border border-base-700 bg-base-800 py-0.5 pr-3 pl-2.5">
+                  <code class="text-xs text-base-300">{format_signed(firmware, @org_keys)}</code>
                 </span>
               </td>
 
@@ -164,7 +164,7 @@
       </div>
 
       <div :if={Enum.empty?(@firmware)} class="flex h-full items-center justify-center pb-16">
-        <span class="text-content-muted font-mono text-xl font-medium">{@current_scope.product.name} doesn’t have any available firmware.</span>
+        <span class="font-mono text-xl font-medium text-content-muted">{@current_scope.product.name} doesn’t have any available firmware.</span>
       </div>
     </div>
 
@@ -172,12 +172,12 @@
           keeps the drop itself landing on the target underneath. --%>
     <div
       aria-hidden="true"
-      class="bg-surface/70 phx-drop-target-active:opacity-100 pointer-events-none absolute inset-0 z-40 flex items-center justify-center p-6 opacity-0 backdrop-blur-xs transition-opacity duration-150"
+      class="pointer-events-none absolute inset-0 z-40 flex items-center justify-center bg-surface/70 p-6 opacity-0 backdrop-blur-xs transition-opacity duration-150 phx-drop-target-active:opacity-100"
     >
-      <div class="bg-primary/5 border-primary flex size-full flex-col items-center justify-center gap-3 rounded-lg border-2 border-dashed">
-        <span class="lucide-upload--light text-primary size-10"></span>
-        <span class="text-base-50 text-lg font-medium">Drop to upload firmware</span>
-        <span class="text-base-400 text-sm">Accepts .fw, .bin, .raucb and .avm files</span>
+      <div class="flex size-full flex-col items-center justify-center gap-3 rounded-lg border-2 border-dashed border-primary bg-primary/5">
+        <span class="lucide-upload--light size-10 text-primary"></span>
+        <span class="text-lg font-medium text-base-50">Drop to upload firmware</span>
+        <span class="text-sm text-base-400">Accepts .fw, .bin, .raucb and .avm files</span>
       </div>
     </div>
   </div>

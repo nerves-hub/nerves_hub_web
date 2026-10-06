@@ -6,14 +6,14 @@
   </:top_bar>
 
   <:header>
-    <h1 class="text-base-50 text-xl leading-[30px] font-semibold">Add Device</h1>
+    <h1 class="text-xl leading-[30px] font-semibold text-base-50">Add Device</h1>
   </:header>
 
   <div class="flex flex-col items-start justify-between gap-4 p-6">
     <.form id="add-device-form" for={@form} class="w-full" phx-submit="save-device">
-      <div class="bg-surface-raised border-base-700 flex w-full flex-col rounded border">
-        <div class="border-base-700 flex h-14 items-center justify-between border-b px-4">
-          <div class="text-base-50 text-base font-medium">General settings</div>
+      <div class="flex w-full flex-col rounded border border-base-700 bg-surface-raised">
+        <div class="flex h-14 items-center justify-between border-b border-base-700 px-4">
+          <div class="text-base font-medium text-base-50">General settings</div>
         </div>
         <div class="flex gap-6 p-6">
           <div class="flex w-1/2 flex-col gap-6">
@@ -26,10 +26,10 @@
 
           <div class="flex w-1/2 flex-col gap-2">
             <.input field={@form[:connecting_code]} label="First connect code" type="textarea" rows="10" />
-            <div class="text-base-400 text-xs tracking-wide">Make sure this is valid Elixir and will not crash the device</div>
+            <div class="text-xs tracking-wide text-base-400">Make sure this is valid Elixir and will not crash the device</div>
           </div>
         </div>
-        <div class="border-base-700 flex h-14 items-center justify-between border-t px-4">
+        <div class="flex h-14 items-center justify-between border-t border-base-700 px-4">
           <.button style="primary" type="submit">
             <.icon name="save" /> Add Device
           </.button>

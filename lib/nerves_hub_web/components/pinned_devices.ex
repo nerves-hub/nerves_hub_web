@@ -13,9 +13,9 @@ defmodule NervesHubWeb.Components.PinnedDevices do
     ~H"""
     <div>
       <div class="mt-12 flex h-[88px] items-center justify-between py-6">
-        <h1 class="text-base-50 text-xl leading-[30px] font-semibold">My Pinned Devices</h1>
+        <h1 class="text-xl leading-[30px] font-semibold text-base-50">My Pinned Devices</h1>
       </div>
-      <div class="bg-surface-raised border-base-700 rounded border">
+      <div class="rounded border border-base-700 bg-surface-raised">
         <div class="flex flex-col">
           <div class="listing">
             <table class="">
@@ -30,7 +30,7 @@ defmodule NervesHubWeb.Components.PinnedDevices do
                 </tr>
               </thead>
               <tbody>
-                <tr :for={device <- @devices} class="border-base-800 relative border-b last:rounded-b last:border-0">
+                <tr :for={device <- @devices} class="relative border-b border-base-800 last:rounded-b last:border-0">
                   <td>
                     <div class="flex items-center gap-[8px]">
                       <span title="status">
@@ -117,7 +117,7 @@ defmodule NervesHubWeb.Components.PinnedDevices do
             </table>
           </div>
 
-          <div :if={@total_count > @device_limit} phx-click="toggle-expand-devices" class="hover:text-base-50 text-base-400 px-6 py-2 text-center text-xs font-normal hover:cursor-pointer">
+          <div :if={@total_count > @device_limit} phx-click="toggle-expand-devices" class="px-6 py-2 text-center text-xs font-normal text-base-400 hover:cursor-pointer hover:text-base-50">
             {if @show_all?, do: "Show less", else: "Show all #{@total_count} devices"}
           </div>
         </div>

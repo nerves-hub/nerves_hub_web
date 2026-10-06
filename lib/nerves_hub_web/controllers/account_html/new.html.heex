@@ -3,7 +3,7 @@
     Create a new account
   </:title>
   <div class="mt-6">
-    <div :if={Enum.any?(@changeset.errors)} role="alert" class="bg-alert-soft fill-alert ring-alert text-alert-content mr-2 mb-6 w-full rounded-sm p-3 shadow-md ring-1">
+    <div :if={Enum.any?(@changeset.errors)} role="alert" class="mr-2 mb-6 w-full rounded-sm bg-alert-soft fill-alert p-3 text-alert-content shadow-md ring-1 ring-alert">
       <p class="mt-1 text-sm/5">Oops, we couldn't save your account details.</p>
     </div>
 

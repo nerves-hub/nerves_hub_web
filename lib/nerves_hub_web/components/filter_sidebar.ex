@@ -28,12 +28,12 @@ defmodule NervesHubWeb.Components.FilterSidebar do
     <div class="pointer-events-none fixed inset-y-0 right-0 z-40 flex max-w-full pl-10 sm:pl-16">
       <div
         id="filter-sidebar"
-        class="bg-surface-muted border-base-700 shadow-filter-slider pointer-events-auto mt-[55px] hidden h-full w-screen max-w-80 flex-col border-t border-l transition-transform"
+        class="pointer-events-auto mt-[55px] hidden h-full w-screen max-w-80 flex-col border-t border-l border-base-700 bg-surface-muted shadow-filter-slider transition-transform"
         phx-window-keydown={hide_filter_sidebar()}
         phx-key="escape"
       >
         <div class="h-0 flex-1 overflow-y-auto">
-          <div class="border-base-700 flex h-14 items-center border-b px-4 py-3">
+          <div class="flex h-14 items-center border-b border-base-700 px-4 py-3">
             <h4 class="text-base font-semibold">Filters</h4>
 
             <button class="ml-auto cursor-pointer p-1.5" type="button" phx-click={hide_filter_sidebar()}>
@@ -56,9 +56,9 @@ defmodule NervesHubWeb.Components.FilterSidebar do
                   <label class="sidebar-label" for={"input_#{filter.attr}"}>{filter.label}</label>
                   <div :if={filter[:hint]} class="relative z-20 flex items-center" id={"filter-hint-#{filter.attr}"} phx-hook="ToolTip" data-placement="left">
                     <.icon name="info" class="stroke-base-400" />
-                    <div class="bg-surface-muted border-base-700 tooltip-content absolute top-0 left-0 z-20 hidden w-max max-w-56 rounded border px-2 py-1.5 text-xs">
+                    <div class="tooltip-content absolute top-0 left-0 z-20 hidden w-max max-w-56 rounded border border-base-700 bg-surface-muted px-2 py-1.5 text-xs">
                       {filter.hint}
-                      <div class="bg-surface-muted border-base-700 tooltip-arrow absolute size-2 origin-center rotate-45"></div>
+                      <div class="tooltip-arrow absolute size-2 origin-center rotate-45 border-base-700 bg-surface-muted"></div>
                     </div>
                   </div>
                 </div>
@@ -79,7 +79,7 @@ defmodule NervesHubWeb.Components.FilterSidebar do
           </div>
         </div>
 
-        <div class="border-base-700 mb-14 flex h-16 shrink-0 justify-end border-t p-4">
+        <div class="mb-14 flex h-16 shrink-0 justify-end border-t border-base-700 p-4">
           <button class="sidebar-button" type="button" phx-click={@on_reset}>Reset Filters</button>
         </div>
       </div>

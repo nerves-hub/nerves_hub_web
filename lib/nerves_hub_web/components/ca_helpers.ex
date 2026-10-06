@@ -20,11 +20,11 @@ defmodule NervesHubWeb.Components.CAHelpers do
     ~H"""
     <div class="relative z-20 flex items-center" id={@id} phx-hook="ToolTip" data-placement={@placement}>
       <.icon name="info" class="stroke-base-400" />
-      <div class="bg-surface-muted border-base-700 tooltip-content absolute top-0 left-0 z-20 hidden w-max max-w-72 rounded border px-2 py-1.5 text-xs">
+      <div class="tooltip-content absolute top-0 left-0 z-20 hidden w-max max-w-72 rounded border border-base-700 bg-surface-muted px-2 py-1.5 text-xs">
         By default, the time validity of CA certificates is unchecked. You can
         toggle this to check expiration to prevent device certificates
         from being created from an expired signing CA certificate.
-        <div class="bg-surface-muted border-base-700 tooltip-arrow absolute size-2 origin-center rotate-45"></div>
+        <div class="tooltip-arrow absolute size-2 origin-center rotate-45 border-base-700 bg-surface-muted"></div>
       </div>
     </div>
     """

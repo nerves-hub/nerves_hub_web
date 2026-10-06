@@ -22,20 +22,20 @@ defmodule NervesHubWeb.Components.ListSettingsSidebar do
     <div class="pointer-events-none fixed inset-y-0 right-0 z-40 flex max-w-full pl-10 sm:pl-16">
       <div
         id="settings-sidebar"
-        class="bg-surface-muted border-base-700 shadow-filter-slider pointer-events-auto mt-[55px] hidden h-full w-screen max-w-80 flex-col border-t border-l transition-transform"
+        class="pointer-events-auto mt-[55px] hidden h-full w-screen max-w-80 flex-col border-t border-l border-base-700 bg-surface-muted shadow-filter-slider transition-transform"
         phx-window-keydown={hide_settings_sidebar()}
         phx-key="escape"
       >
         <div class="h-0 flex-1 overflow-y-auto">
-          <div class="border-base-700 flex h-14 items-center border-b px-4 py-3">
+          <div class="flex h-14 items-center border-b border-base-700 px-4 py-3">
             <h4 class="text-base font-semibold">Settings</h4>
 
             <button class="ml-auto cursor-pointer p-1.5" type="button" phx-click={hide_settings_sidebar()}>
-              <span class="lucide-x--light text-base-300 size-5" />
+              <span class="lucide-x--light size-5 text-base-300" />
             </button>
           </div>
 
-          <div class="border-base-700 flex flex-col px-4 py-3">
+          <div class="flex flex-col border-base-700 px-4 py-3">
             <span>Customize which columns you would like to see listed.</span>
             <.form :let={f} id="settings-form" for={@form} phx-change={@on_update}>
               <div :for={column <- @available_columns} class="mt-6">

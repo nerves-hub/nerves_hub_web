@@ -123,7 +123,7 @@ defmodule NervesHubWeb.Components.DevicePage.LogsTab do
     <div
       id="logs-tab"
       phx-mounted={JS.remove_class("opacity-0")}
-      class="bg-base-950 phx-click-loading:opacity-50 tab-content size-full pb-10 opacity-0 transition-all duration-500"
+      class="tab-content size-full bg-base-950 pb-10 opacity-0 transition-all duration-500 phx-click-loading:opacity-50"
     >
       <div class="text-medium flex size-full items-center justify-center gap-6 p-6 font-mono">
         <div>No logs have been received yet.</div>
@@ -137,12 +137,12 @@ defmodule NervesHubWeb.Components.DevicePage.LogsTab do
     <div
       id="logs-tab"
       phx-mounted={JS.remove_class("opacity-0")}
-      class="bg-base-950 phx-click-loading:opacity-50 tab-content size-full pb-10 opacity-0 transition-all duration-500"
+      class="tab-content size-full bg-base-950 pb-10 opacity-0 transition-all duration-500 phx-click-loading:opacity-50"
     >
       <div class="size-full">
-        <div class="border-base-700 flex h-11 flex-row items-center justify-between border-b px-12">
+        <div class="flex h-11 flex-row items-center justify-between border-b border-base-700 px-12">
           <div>
-            <span class="text-base-400 text-sm">Live log streaming :</span>
+            <span class="text-sm text-base-400">Live log streaming :</span>
             <button
               id="toggle-log-streaming"
               type="button"
@@ -164,7 +164,7 @@ defmodule NervesHubWeb.Components.DevicePage.LogsTab do
               ></span>
             </button>
           </div>
-          <span class="text-base-400 text-sm font-extralight">Showing the last 25 log lines.</span>
+          <span class="text-sm font-extralight text-base-400">Showing the last 25 log lines.</span>
         </div>
         <div class="relative size-full pb-10">
           <div id="log_lines" phx-update="stream" class="scrollable-inner flex h-full max-w-0 min-w-full flex-col items-start gap-3 overflow-x-auto overflow-y-visible px-12 pt-10">
@@ -172,7 +172,7 @@ defmodule NervesHubWeb.Components.DevicePage.LogsTab do
               <.local_datetime at={line.timestamp} time_zone={@time_zone} format={:log} class="min-w-fit" />
               <div
                 data-log-level={line.level}
-                class="data-[log-level=alert]:text-alert data-[log-level=critical]:text-alert data-[log-level=emergency]:text-alert data-[log-level=error]:text-alert data-[log-level=debug]:text-blue-500 data-[log-level=warn]:text-orange-500 data-[log-level=warning]:text-orange-500"
+                class="data-[log-level=alert]:text-alert data-[log-level=critical]:text-alert data-[log-level=debug]:text-blue-500 data-[log-level=emergency]:text-alert data-[log-level=error]:text-alert data-[log-level=warn]:text-orange-500 data-[log-level=warning]:text-orange-500"
               >
                 [{line.level}]
               </div>

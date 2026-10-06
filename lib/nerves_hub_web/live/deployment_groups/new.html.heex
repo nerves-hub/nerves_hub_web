@@ -6,14 +6,14 @@
   </:top_bar>
 
   <:header>
-    <h1 class="text-base-50 text-xl leading-[30px] font-semibold">Add Deployment Group</h1>
+    <h1 class="text-xl leading-[30px] font-semibold text-base-50">Add Deployment Group</h1>
   </:header>
 
   <div class="flex h-0 flex-1 flex-col overflow-y-auto">
     <div :if={@firmware_required} class="flex h-full flex-col items-center justify-center gap-4 p-6 pb-16">
-      <span class="text-base-50 text-xl font-medium">Please upload your first firmware before creating a deployment group.</span>
+      <span class="text-xl font-medium text-base-50">Please upload your first firmware before creating a deployment group.</span>
       <.link
-        class="hover:text-base-50 underline decoration-dotted underline-offset-4"
+        class="underline decoration-dotted underline-offset-4 hover:text-base-50"
         navigate={~p"/org/#{@current_scope.org}/#{@current_scope.product}/firmware"}
         aria-label="Add a new deployment group"
       >
@@ -23,12 +23,12 @@
 
     <div :if={!@firmware_required} class="flex flex-col items-start justify-between gap-4 p-6">
       <.form for={@form} id="new-deployment" class="w-full" phx-submit="create-deployment-group" phx-change="update-form" phx-auto-recover="recover-form">
-        <div class="bg-surface-raised border-base-700 flex w-2/3 flex-col rounded border">
-          <div class="border-base-700 flex h-14 items-center justify-between border-b px-4">
-            <div class="text-base-50 text-base font-medium">General settings</div>
+        <div class="flex w-2/3 flex-col rounded border border-base-700 bg-surface-raised">
+          <div class="flex h-14 items-center justify-between border-b border-base-700 px-4">
+            <div class="text-base font-medium text-base-50">General settings</div>
           </div>
 
-          <div class="border-base-700 flex gap-6 border-b p-6">
+          <div class="flex gap-6 border-b border-base-700 p-6">
             <div class="flex w-2/3 flex-col gap-6">
               <.input field={@form[:name]} label="Name" placeholder="eg. Production" phx-debounce="blur" />
               <.input field={@form[:delta_updatable]} type="checkbox" label="Delta updates">
@@ -49,7 +49,7 @@
             </div>
           </div>
 
-          <div class="border-base-700 flex gap-6 border-b p-6">
+          <div class="flex gap-6 border-b border-base-700 p-6">
             <div class="flex w-2/3 flex-col gap-6">
               <div class="flex gap-6">
                 <div class="w-1/2">
@@ -83,12 +83,12 @@
 
           <div class="flex gap-6 p-6">
             <div class="flex w-2/3 flex-col gap-6">
-              <div class="text-base-50 text-base font-medium">Device matching conditions</div>
+              <div class="text-base font-medium text-base-50">Device matching conditions</div>
               <div class="flex flex-col gap-3">
-                <p class="text-base-400 text-sm">
+                <p class="text-sm text-base-400">
                   These conditions are used for matching devices which don't have a configured deployment group.
                 </p>
-                <p class="text-base-400 text-sm">
+                <p class="text-sm text-base-400">
                   The matching is undertaken when a device connects to the platform.
                 </p>
               </div>
@@ -117,7 +117,7 @@
             </div>
           </div>
 
-          <div class="border-base-700 flex h-14 items-center justify-between border-t px-4">
+          <div class="flex h-14 items-center justify-between border-t border-base-700 px-4">
             <.button style="primary" type="submit">
               <.icon name="save" /> Save changes
             </.button>
