@@ -6,9 +6,9 @@
   </:top_bar>
 
   <div class="flex h-0 flex-1 flex-col overflow-y-auto">
-    <div class="border-base-700 h-header flex shrink-0 justify-between border-b p-6">
+    <div class="flex h-header shrink-0 justify-between border-b border-base-700 p-6">
       <div class="flex items-center gap-3">
-        <h1 class="text-base-50 text-xl leading-[30px] font-semibold">
+        <h1 class="text-xl leading-[30px] font-semibold text-base-50">
           {@firmware.uuid}
         </h1>
       </div>
@@ -27,7 +27,7 @@
           data-placement="bottom"
         >
           <button
-            class="bg-base-800 border-alert disabled:border-base-700 disabled:text-base-500 text-base-300 box-content flex h-5 items-center justify-center gap-2 rounded border px-3 py-1.5 text-sm font-medium hover:cursor-pointer disabled:cursor-not-allowed"
+            class="box-content flex h-5 items-center justify-center gap-2 rounded border border-alert bg-base-800 px-3 py-1.5 text-sm font-medium text-base-300 hover:cursor-pointer disabled:cursor-not-allowed disabled:border-base-700 disabled:text-base-500"
             aria-label="Delete firmware"
             type="button"
             disabled={@deletion_blockers != []}
@@ -54,18 +54,18 @@
           <div
             :if={@deletion_blockers != []}
             role="tooltip"
-            class="bg-surface-muted border-base-700 tooltip-content absolute top-0 left-0 z-20 hidden w-max max-w-72 rounded border px-2 py-1.5 text-xs"
+            class="tooltip-content absolute top-0 left-0 z-20 hidden w-max max-w-72 rounded border border-base-700 bg-surface-muted px-2 py-1.5 text-xs"
           >
             {FirmwareDeletion.blockers_message(@deletion_blockers)}
-            <div class="bg-surface-muted border-base-700 tooltip-arrow absolute size-2 origin-center rotate-45"></div>
+            <div class="tooltip-arrow absolute size-2 origin-center rotate-45 border-base-700 bg-surface-muted"></div>
           </div>
         </div>
       </div>
     </div>
 
-    <div :if={Firmware.deleted?(@firmware)} class="border-base-700 flex shrink-0 items-center gap-2 border-b px-6 py-3">
+    <div :if={Firmware.deleted?(@firmware)} class="flex shrink-0 items-center gap-2 border-b border-base-700 px-6 py-3">
       <.icon name="trash" class="stroke-base-400" />
-      <span class="text-base-300 text-sm">
+      <span class="text-sm text-base-300">
         This firmware was deleted<span :if={@firmware.deleted_by}> by {@firmware.deleted_by.name}</span>
         on <.local_datetime at={@firmware.deleted_at} time_zone={@time_zone} />. The firmware file is gone; this page is
         kept so device history and past deployment releases still resolve.
@@ -74,84 +74,84 @@
 
     <div class="flex h-full items-start justify-between gap-4 p-6">
       <div class="flex w-1/2 flex-col gap-4">
-        <div class="bg-surface-raised border-base-700 shadow-device-details-content flex flex-col rounded border pb-4">
-          <div class="text-base-50 flex h-14 items-center pr-3 pl-4 leading-6 font-medium">
+        <div class="flex flex-col rounded border border-base-700 bg-surface-raised pb-4 shadow-device-details-content">
+          <div class="flex h-14 items-center pr-3 pl-4 leading-6 font-medium text-base-50">
             General info
           </div>
           <div class="flex flex-col gap-3">
             <div class="flex min-h-7 items-center gap-4 px-4">
-              <span class="text-base-500 text-sm">Author:</span>
-              <span class="text-base-300 text-sm">{@firmware.author}</span>
+              <span class="text-sm text-base-500">Author:</span>
+              <span class="text-sm text-base-300">{@firmware.author}</span>
             </div>
 
             <div class="flex min-h-7 items-center gap-4 px-4">
-              <span class="text-base-500 text-sm">Description:</span>
-              <span :if={@firmware.description} class="text-base-300 text-sm">{@firmware.description}</span>
-              <span :if={!@firmware.description} class="text-base-400 text-sm">No description</span>
+              <span class="text-sm text-base-500">Description:</span>
+              <span :if={@firmware.description} class="text-sm text-base-300">{@firmware.description}</span>
+              <span :if={!@firmware.description} class="text-sm text-base-400">No description</span>
             </div>
 
             <div :if={@firmware.misc} class="flex min-h-7 items-center gap-4 px-4">
-              <span class="text-base-500 text-sm">Misc:</span>
-              <span class="text-base-300 text-sm">{@firmware.misc}</span>
+              <span class="text-sm text-base-500">Misc:</span>
+              <span class="text-sm text-base-300">{@firmware.misc}</span>
             </div>
 
             <div class="flex min-h-7 items-center gap-4 px-4">
-              <span class="text-base-500 text-sm">Install count:</span>
-              <span :if={@firmware.install_count} class="text-base-300 text-sm">{@firmware.install_count}</span>
-              <span :if={!@firmware.install_count} class="text-base-400 text-sm">No installations</span>
+              <span class="text-sm text-base-500">Install count:</span>
+              <span :if={@firmware.install_count} class="text-sm text-base-300">{@firmware.install_count}</span>
+              <span :if={!@firmware.install_count} class="text-sm text-base-400">No installations</span>
             </div>
 
             <div class="flex min-h-7 items-center gap-4 px-4">
-              <span class="text-base-500 text-sm">Signed with:</span>
-              <span class="bg-base-800 border-base-700 flex items-center gap-1 rounded-full border py-0.5 pr-3 pl-2.5">
-                <code class="text-base-300 text-xs">{format_signed(@firmware, @org_keys)}</code>
+              <span class="text-sm text-base-500">Signed with:</span>
+              <span class="flex items-center gap-1 rounded-full border border-base-700 bg-base-800 py-0.5 pr-3 pl-2.5">
+                <code class="text-xs text-base-300">{format_signed(@firmware, @org_keys)}</code>
               </span>
             </div>
 
             <div class="flex min-h-7 items-center gap-4 px-4">
-              <span class="text-base-500 text-sm">Uploaded on:</span>
-              <span class="text-base-300 text-sm"><.local_datetime at={@firmware.inserted_at} time_zone={@time_zone} /></span>
+              <span class="text-sm text-base-500">Uploaded on:</span>
+              <span class="text-sm text-base-300"><.local_datetime at={@firmware.inserted_at} time_zone={@time_zone} /></span>
             </div>
           </div>
         </div>
       </div>
 
       <div class="flex w-1/2 flex-col gap-4">
-        <div class="bg-surface-raised border-base-700 shadow-device-details-content flex flex-col rounded border pb-4">
-          <div class="text-base-50 flex h-14 items-center pr-3 pl-4 leading-6 font-medium">
+        <div class="flex flex-col rounded border border-base-700 bg-surface-raised pb-4 shadow-device-details-content">
+          <div class="flex h-14 items-center pr-3 pl-4 leading-6 font-medium text-base-50">
             Metadata
           </div>
           <div class="flex flex-col gap-3">
             <div class="flex min-h-7 items-center gap-4 px-4">
-              <span class="text-base-500 text-sm">Version:</span>
-              <span class="text-base-300 text-sm">{@firmware.version}</span>
+              <span class="text-sm text-base-500">Version:</span>
+              <span class="text-sm text-base-300">{@firmware.version}</span>
             </div>
 
             <div class="flex min-h-7 items-center gap-4 px-4">
-              <span class="text-base-500 text-sm">Update tool:</span>
-              <span class="bg-base-800 border-base-700 flex items-center gap-1 rounded-full border py-0.5 pr-3 pl-2.5">
-                <code class="text-base-300 text-xs">{@firmware.tool}</code>
+              <span class="text-sm text-base-500">Update tool:</span>
+              <span class="flex items-center gap-1 rounded-full border border-base-700 bg-base-800 py-0.5 pr-3 pl-2.5">
+                <code class="text-xs text-base-300">{@firmware.tool}</code>
               </span>
             </div>
 
             <div class="flex min-h-7 items-center gap-4 px-4">
-              <span class="text-base-500 text-sm">Architecture:</span>
-              <span class="text-base-300 text-sm">{@firmware.architecture}</span>
+              <span class="text-sm text-base-500">Architecture:</span>
+              <span class="text-sm text-base-300">{@firmware.architecture}</span>
             </div>
 
             <div class="flex min-h-7 items-center gap-4 px-4">
-              <span class="text-base-500 text-sm">Platform:</span>
-              <span class="text-base-300 text-sm">{@firmware.platform}</span>
+              <span class="text-sm text-base-500">Platform:</span>
+              <span class="text-sm text-base-300">{@firmware.platform}</span>
             </div>
 
             <div :if={@firmware.vcs_identifier} class="flex min-h-7 items-center gap-4 px-4">
-              <span class="text-base-500 text-sm">VCS ID:</span>
-              <span class="text-base-300 text-sm">{@firmware.vcs_identifier}</span>
+              <span class="text-sm text-base-500">VCS ID:</span>
+              <span class="text-sm text-base-300">{@firmware.vcs_identifier}</span>
             </div>
 
             <div class="flex min-h-7 items-center gap-4 px-4">
-              <span class="text-base-500 text-sm">Size:</span>
-              <span class="text-base-300 text-sm">{format_file_size(@firmware.size)}</span>
+              <span class="text-sm text-base-500">Size:</span>
+              <span class="text-sm text-base-300">{format_file_size(@firmware.size)}</span>
             </div>
           </div>
         </div>

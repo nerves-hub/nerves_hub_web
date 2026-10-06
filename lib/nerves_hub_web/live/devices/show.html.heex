@@ -9,15 +9,15 @@
     </.breadcrumb>
 
     <div class="mr-6 ml-auto flex items-center gap-2">
-      <div id="present-users" phx-update="stream" class="border-base-700 mr-3 flex h-8 flex-row-reverse -space-x-1 space-x-reverse overflow-hidden border-r px-5">
+      <div id="present-users" phx-update="stream" class="mr-3 flex h-8 flex-row-reverse -space-x-1 space-x-reverse overflow-hidden border-r border-base-700 px-5">
         <div :for={{id, %{user: user}} <- @streams.presences} class="z-10 inline-flex cursor-default items-center justify-center" id={id} phx-hook="ToolTip" data-placement="bottom">
-          <span :if={!@user.profile_picture_url} class="bg-base-800 ring-base-600 text-base-400 inline-flex size-7 items-center justify-center rounded-full px-1 text-sm font-medium ring-2">
+          <span :if={!@user.profile_picture_url} class="inline-flex size-7 items-center justify-center rounded-full bg-base-800 px-1 text-sm font-medium text-base-400 ring-2 ring-base-600">
             {String.split(user.name) |> Enum.map(fn w -> String.at(w, 0) |> String.upcase() end)}
           </span>
           <img :if={@user.profile_picture_url} src={@user.profile_picture_url} alt="User Profile Picture" class="size-full rounded-full object-cover" />
-          <div class="bg-surface-muted border-base-700 tooltip-content absolute top-0 left-0 z-20 hidden w-max rounded border px-2 py-1.5 text-xs">
+          <div class="tooltip-content absolute top-0 left-0 z-20 hidden w-max rounded border border-base-700 bg-surface-muted px-2 py-1.5 text-xs">
             {user.name}
-            <div class="bg-surface-muted border-base-700 tooltip-arrow absolute size-2 origin-center rotate-45"></div>
+            <div class="tooltip-arrow absolute size-2 origin-center rotate-45 border-base-700 bg-surface-muted"></div>
           </div>
         </div>
       </div>
@@ -47,14 +47,14 @@
     <div class="group/identifier flex shrink-0 items-center gap-3">
       <svg
         data-connection-status={Map.get(@device_connection || %{}, :status) || "unknown"}
-        class="data-[connection-status=connected]:fill-success data-[connection-status=connecting]:fill-primary-500 data-[connection-status=disconnected]:fill-base-500 data-[connection-status=unknown]:fill-base-500 size-3 shrink-0 data-[connection-status=connecting]:animate-pulse"
+        class="data-[connection-status=connecting]:fill-primary-500 size-3 shrink-0 data-[connection-status=connected]:fill-success data-[connection-status=connecting]:animate-pulse data-[connection-status=disconnected]:fill-base-500 data-[connection-status=unknown]:fill-base-500"
         xmlns="http://www.w3.org/2000/svg"
         viewBox="0 0 6 6"
         fill="currentColor"
       >
         <circle cx="3" cy="3" r="3" />
       </svg>
-      <h1 class="text-base-50 shrink-0 font-mono text-xl leading-[30px] font-semibold">
+      <h1 class="shrink-0 font-mono text-xl leading-[30px] font-semibold text-base-50">
         {@device.identifier}
       </h1>
       <button
@@ -64,31 +64,31 @@
         data-copy-value={@device.identifier}
         aria-label="Copy device identifier"
         title="Copy device identifier"
-        class="hover:text-base-200 text-base-500 shrink-0 cursor-pointer opacity-0 transition-opacity group-hover/identifier:opacity-100 focus-visible:opacity-100"
+        class="shrink-0 cursor-pointer text-base-500 opacity-0 transition-opacity group-hover/identifier:opacity-100 hover:text-base-200 focus-visible:opacity-100"
       >
         <span data-icon="copy" class="lucide-copy--light size-4"></span>
-        <span data-icon="check" class="lucide-check--light text-success hidden size-4"></span>
+        <span data-icon="check" class="lucide-check--light hidden size-4 text-success"></span>
       </button>
     </div>
 
     <div class="flex items-center gap-2">
-      <div :if={show_firmware_status_box(@device)} class="bg-base-800 flex items-center rounded px-2 py-1">
-        <span class="text-base-400 mr-1 hidden text-sm lg:block">Firmware:</span>
+      <div :if={show_firmware_status_box(@device)} class="flex items-center rounded bg-base-800 px-2 py-1">
+        <span class="mr-1 hidden text-sm text-base-400 lg:block">Firmware:</span>
 
-        <span :if={@device.firmware_validation_status == :validated && !@device.firmware_auto_revert_detected} class="text-base-300 font-mono text-sm">Validated</span>
+        <span :if={@device.firmware_validation_status == :validated && !@device.firmware_auto_revert_detected} class="font-mono text-sm text-base-300">Validated</span>
 
-        <span :if={@device.firmware_validation_status == :not_validated} class="text-alert-content font-mono text-sm">Not validated</span>
+        <span :if={@device.firmware_validation_status == :not_validated} class="font-mono text-sm text-alert-content">Not validated</span>
 
-        <span :if={@device.firmware_auto_revert_detected} class="text-alert-content font-mono text-sm">Revert detected</span>
+        <span :if={@device.firmware_auto_revert_detected} class="font-mono text-sm text-alert-content">Revert detected</span>
       </div>
 
-      <div class="bg-base-800 flex items-center rounded px-2 py-1">
-        <span class="text-base-400 mr-1 hidden text-sm lg:block">Version:</span>
+      <div class="flex items-center rounded bg-base-800 px-2 py-1">
+        <span class="mr-1 hidden text-sm text-base-400 lg:block">Version:</span>
 
-        <span :if={is_nil(@device.firmware_metadata)} class="text-base-300 font-mono text-sm">Unknown</span>
+        <span :if={is_nil(@device.firmware_metadata)} class="font-mono text-sm text-base-300">Unknown</span>
 
         <.link :if={@device.firmware_metadata} navigate={~p"/org/#{@org}/#{@product}/firmware/#{@device.firmware_metadata.uuid}"} class="flex items-center">
-          <span class="text-base-300 mr-1 font-mono text-sm">{@device.firmware_metadata.version} ({String.slice(@device.firmware_metadata.uuid, 0..7)})</span>
+          <span class="mr-1 font-mono text-sm text-base-300">{@device.firmware_metadata.version} ({String.slice(@device.firmware_metadata.uuid, 0..7)})</span>
           <svg class="size-4" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
             <path
               d="M8 10V8M8 6V5.99333M14 8C14 11.3137 11.3137 14 8 14C4.68629 14 2 11.3137 2 8C2 4.68629 4.68629 2 8 2C11.3137 2 14 4.68629 14 8Z"
@@ -101,14 +101,14 @@
         </.link>
       </div>
 
-      <div class="bg-base-800 flex items-center rounded px-2 py-1">
-        <span class="text-base-400 hidden text-sm lg:block">Firmware updates:</span>
+      <div class="flex items-center rounded bg-base-800 px-2 py-1">
+        <span class="hidden text-sm text-base-400 lg:block">Firmware updates:</span>
         <%= cond do %>
           <% is_nil(@device.deployment_id) -> %>
-            <span class="text-base-300 mr-1 ml-2 text-sm">N/A</span>
+            <span class="mr-1 ml-2 text-sm text-base-300">N/A</span>
           <% Updates.device_in_penalty_box?(@device) -> %>
             <div class="relative z-20" id={"update-status-#{@device.id}"} phx-hook="ToolTip" data-placement="left">
-              <svg class="stroke-warning mx-2 size-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none">
+              <svg class="mx-2 size-4 stroke-warning" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none">
                 <path
                   d="M19 14V5C17.5 5.16667 14 5 12 3C11.4286 3.57143 10.7347 3.9932 10 4.30029M5 5V14C5 18 12 21 12 21C12 21 15.2039 19.6269 17.2766 17.5M3 3L21 21"
                   stroke-width="2"
@@ -116,9 +116,9 @@
                   stroke-linejoin="round"
                 />
               </svg>
-              <div class="bg-surface-muted border-base-700 tooltip-content absolute top-0 left-0 z-20 hidden w-max rounded border px-2 py-1.5 text-xs">
+              <div class="tooltip-content absolute top-0 left-0 z-20 hidden w-max rounded border border-base-700 bg-surface-muted px-2 py-1.5 text-xs">
                 Updates blocked {DeviceUpdateStatus.friendly_blocked_until(@device.updates_blocked_until, @time_zone)}
-                <div class="bg-surface-muted border-base-700 tooltip-arrow absolute size-2 origin-center rotate-45"></div>
+                <div class="tooltip-arrow absolute size-2 origin-center rotate-45 border-base-700 bg-surface-muted"></div>
               </div>
             </div>
 
@@ -129,7 +129,7 @@
               phx-click="clear-penalty-box"
               aria-label="Clear the penalty box"
               disabled={!authorized?(:"device:clear-penalty-box", @current_scope)}
-              class="hover:bg-primary/20 hover:text-base-50 text-base-400 flex items-center rounded p-1 disabled:pointer-events-none disabled:opacity-60"
+              class="flex items-center rounded p-1 text-base-400 hover:bg-primary/20 hover:text-base-50 disabled:pointer-events-none disabled:opacity-60"
             >
               <span class="lucide-x--light size-4" />
             </button>
@@ -142,10 +142,10 @@
                 aria-haspopup="menu"
                 aria-label={"Firmware updates: #{update_mode_label(@device.update_mode)}"}
                 disabled={!authorized?(:"device:toggle-updates", @current_scope)}
-                class="hover:bg-primary/20 flex items-center gap-1 rounded p-1 disabled:pointer-events-none disabled:opacity-60"
+                class="flex items-center gap-1 rounded p-1 hover:bg-primary/20 disabled:pointer-events-none disabled:opacity-60"
               >
                 <span class={[update_mode_icon(@device.update_mode), update_mode_color(@device.update_mode), "size-4"]} />
-                <span class="lucide-chevron-down--light text-base-400 size-3" />
+                <span class="lucide-chevron-down--light size-3 text-base-400" />
               </button>
 
               <div
@@ -158,22 +158,22 @@
                 <div
                   id="update-mode-menu"
                   role="menu"
-                  class="bg-surface-overlay border-base-700 absolute top-9 right-0 z-30 flex w-80 flex-col rounded-md border p-2 shadow-lg"
+                  class="absolute top-9 right-0 z-30 flex w-80 flex-col rounded-md border border-base-700 bg-surface-overlay p-2 shadow-lg"
                 >
                   <button
                     :for={{mode, label, description} <- update_modes()}
                     type="button"
                     role="menuitem"
                     phx-click={JS.push("set-update-mode", value: %{mode: mode}) |> hide_update_mode_menu()}
-                    class="hover:bg-primary/20 flex items-start gap-2.5 rounded-md p-2 text-left"
+                    class="flex items-start gap-2.5 rounded-md p-2 text-left hover:bg-primary/20"
                   >
                     <span class={[update_mode_icon(mode), update_mode_color(mode), "mt-0.5 size-5 shrink-0"]} />
                     <span class="flex flex-col gap-0.5">
-                      <span class="text-base-50 flex items-center gap-1.5 text-sm font-medium">
+                      <span class="flex items-center gap-1.5 text-sm font-medium text-base-50">
                         {label}
-                        <span :if={@device.update_mode == mode} class="lucide-check--light text-primary size-4" />
+                        <span :if={@device.update_mode == mode} class="lucide-check--light size-4 text-primary" />
                       </span>
-                      <span class="text-base-400 text-xs/snug">{description}</span>
+                      <span class="text-xs/snug text-base-400">{description}</span>
                     </span>
                   </button>
                 </div>
@@ -197,8 +197,8 @@
   <:tabbed_nav_end path={~p"/org/#{@org}/#{@product}/devices/#{@device}/data_history"} selected={@tab == :data_history} label="Data History" />
 
   <div class="flex h-0 flex-1 flex-col overflow-y-auto">
-    <div :if={@device.deleted_at} class="bg-alert-soft flex h-[89px] shrink-0 items-center justify-center p-4">
-      <div class="text-alert font-medium">
+    <div :if={@device.deleted_at} class="flex h-[89px] shrink-0 items-center justify-center bg-alert-soft p-4">
+      <div class="font-medium text-alert">
         Device is deleted and must be restored to use.
       </div>
     </div>

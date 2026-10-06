@@ -44,7 +44,7 @@ defmodule NervesHubWeb.Components.Pager do
     ~H"""
     <div
       data-extra-spacing={"#{not is_nil(Application.get_env(:nerves_hub, :featurebase_app_id))}"}
-      class="bg-surface border-t-base-700 sticky bottom-0 z-10 flex h-16 w-full shrink-0 flex-row border-0 border-t px-6 py-4 data-[extra-spacing=true]:pr-20"
+      class="sticky bottom-0 z-10 flex h-16 w-full shrink-0 flex-row border-0 border-t border-t-base-700 bg-surface px-6 py-4 data-[extra-spacing=true]:pr-20"
     >
       <%= for {size, index} <- Enum.with_index(@page_sizes) do %>
         <button

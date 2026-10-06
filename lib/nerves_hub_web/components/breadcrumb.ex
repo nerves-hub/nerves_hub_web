@@ -58,7 +58,7 @@ defmodule NervesHubWeb.Components.Breadcrumb do
       </.link>
       <span :for={crumb <- @crumb} class="contents">
         <span class={["text-base-400", crumb[:class]]}>/</span>
-        <span class={["text-base-50 font-semibold", crumb[:class]]}>{render_slot(crumb)}</span>
+        <span class={["font-semibold text-base-50", crumb[:class]]}>{render_slot(crumb)}</span>
       </span>
     </div>
     """

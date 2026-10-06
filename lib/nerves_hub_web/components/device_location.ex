@@ -23,8 +23,8 @@ defmodule NervesHubWeb.Components.DeviceLocation do
     ~H"""
     <div class="flex h-[450px] w-full flex-col gap-4 p-4">
       <div class="flex items-end justify-between">
-        <div class="text-base-50 leading-6 font-medium">Location</div>
-        <div class="text-base-400 text-xs font-normal">
+        <div class="leading-6 font-medium text-base-50">Location</div>
+        <div class="text-xs font-normal text-base-400">
           Please select the devices location.
         </div>
       </div>
@@ -51,8 +51,8 @@ defmodule NervesHubWeb.Components.DeviceLocation do
     ~H"""
     <div class="flex h-[450px] w-full flex-col gap-4 p-4">
       <div class="flex items-end justify-between">
-        <div class="text-base-50 leading-6 font-medium">Location</div>
-        <div class="text-base-400 text-xs font-normal">The devices location is announced by the device after it connects.</div>
+        <div class="leading-6 font-medium text-base-50">Location</div>
+        <div class="text-xs font-normal text-base-400">The devices location is announced by the device after it connects.</div>
       </div>
 
       <div class="relative flex size-full flex-col items-center justify-center">
@@ -77,7 +77,7 @@ defmodule NervesHubWeb.Components.DeviceLocation do
     <div class="flex h-[450px] w-full flex-col gap-4 p-4">
       <div class="flex items-end justify-between">
         <div class="disabled:border-gray-300 disabled:bg-gray-100 disabled:checked:bg-gray-100">Location</div>
-        <div class="text-base-400 text-xs font-normal">The devices location is announced by the device after it connects.</div>
+        <div class="text-xs font-normal text-base-400">The devices location is announced by the device after it connects.</div>
       </div>
 
       <div class="relative flex size-full flex-col items-center justify-center">
@@ -96,7 +96,7 @@ defmodule NervesHubWeb.Components.DeviceLocation do
     ~H"""
     <div class="flex h-[450px] w-full flex-col gap-4 p-4">
       <div class="flex items-end justify-between">
-        <div class="text-base-50 leading-6 font-medium">Location</div>
+        <div class="leading-6 font-medium text-base-50">Location</div>
       </div>
 
       <div class="relative flex size-full flex-col items-center justify-center">
@@ -131,13 +131,13 @@ defmodule NervesHubWeb.Components.DeviceLocation do
     ~H"""
     <div class="flex h-[450px] w-full flex-col gap-4 p-4">
       <div class="flex items-end justify-between gap-2">
-        <div class="text-base-50 leading-6 font-medium">Location</div>
-        <div class="text-base-400 ml-auto text-xs font-normal">
+        <div class="leading-6 font-medium text-base-50">Location</div>
+        <div class="ml-auto text-xs font-normal text-base-400">
           {@source_information}
         </div>
         <div class="relative flex justify-end">
           <button
-            class="active:bg-primary bg-base-800 border-base-600 disabled:bg-base-800 hover:bg-base-700 rounded-sm border p-0.5"
+            class="rounded-sm border border-base-600 bg-base-800 p-0.5 hover:bg-base-700 active:bg-primary disabled:bg-base-800"
             id="location-settings-button"
             aria-expanded="true"
             aria-haspopup="true"
@@ -162,12 +162,12 @@ defmodule NervesHubWeb.Components.DeviceLocation do
             }
             phx-key="Escape"
           >
-            <.icon name="settings" class="fill-base-400 size-3" />
+            <.icon name="settings" class="size-3 fill-base-400" />
           </button>
 
           <div
             id="location-settings-menu"
-            class="bg-surface-overlay border-base-700 absolute right-0 z-10 mt-6 w-48 origin-top-right rounded border shadow-lg ring-1 ring-black/5 focus:outline-none"
+            class="absolute right-0 z-10 mt-6 w-48 origin-top-right rounded border border-base-700 bg-surface-overlay shadow-lg ring-1 ring-black/5 focus:outline-none"
             role="menu"
             style="display: none;"
             aria-orientation="vertical"
@@ -175,13 +175,13 @@ defmodule NervesHubWeb.Components.DeviceLocation do
             tabindex="-1"
           >
             <div role="none">
-              <button phx-click="enable-location-editor" class="hover:bg-base-700 text-base-300 block w-full px-4 pt-2 pb-3 text-left text-xs" role="menuitem" tabindex="-1">
+              <button phx-click="enable-location-editor" class="block w-full px-4 pt-2 pb-3 text-left text-xs text-base-300 hover:bg-base-700" role="menuitem" tabindex="-1">
                 Manually update location
               </button>
               <button
                 :if={@source == "manual"}
                 phx-click="clear-manual-location-information"
-                class="hover:bg-base-700 text-base-300 block w-full px-4 pt-2 pb-3 text-left text-xs"
+                class="block w-full px-4 pt-2 pb-3 text-left text-xs text-base-300 hover:bg-base-700"
                 role="menuitem"
                 tabindex="-1"
               >

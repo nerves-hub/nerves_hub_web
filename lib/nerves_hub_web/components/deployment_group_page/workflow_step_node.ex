@@ -82,7 +82,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.WorkflowStepNode do
         aria-label={"Skip step: #{@label}"}
         title="Skip this step"
         data-confirm={"Skip \"#{@label}\"? Its devices will be picked up by a later step."}
-        class="bg-base-800 border-base-600 hover:bg-base-700 hover:text-base-50 text-base-200 absolute -top-1 -right-1 rounded border px-2 py-0.5 text-[10px] font-medium opacity-0 transition-opacity group-hover/step:opacity-100 hover:cursor-pointer focus-visible:opacity-100"
+        class="absolute -top-1 -right-1 rounded border border-base-600 bg-base-800 px-2 py-0.5 text-[10px] font-medium text-base-200 opacity-0 transition-opacity group-hover/step:opacity-100 hover:cursor-pointer hover:bg-base-700 hover:text-base-50 focus-visible:opacity-100"
       >
         Skip
       </button>

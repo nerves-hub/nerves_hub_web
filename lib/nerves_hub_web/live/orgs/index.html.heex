@@ -2,45 +2,45 @@
   <%= if @onboarding do %>
     <div class="flex min-h-[60vh] items-center justify-center">
       <div class="w-full max-w-md">
-        <h1 class="text-base-50 mb-2 text-2xl font-semibold">Get Started</h1>
-        <p class="text-base-400 mb-6 text-sm">
+        <h1 class="mb-2 text-2xl font-semibold text-base-50">Get Started</h1>
+        <p class="mb-6 text-sm text-base-400">
           Create your first organization and product to start managing devices.
         </p>
 
-        <div :if={@onboarding_error} class="bg-alert-soft border-alert text-alert-content mb-4 rounded border p-3 text-sm">
+        <div :if={@onboarding_error} class="mb-4 rounded border border-alert bg-alert-soft p-3 text-sm text-alert-content">
           {@onboarding_error}
         </div>
 
         <form id="onboarding-form" phx-submit="save_onboarding" class="flex flex-col gap-4">
           <div class="flex flex-col gap-1.5">
-            <label for="org_name" class="text-base-300 text-sm font-medium">Organization name</label>
+            <label for="org_name" class="text-sm font-medium text-base-300">Organization name</label>
             <input
               type="text"
               name="org_name"
               id="org_name"
               value={@org_name}
               required
-              class="bg-surface-raised border-base-700 focus:border-focus-ring focus:ring-focus-ring text-base-50 w-full rounded border px-3 py-2 text-sm focus:ring-1"
+              class="w-full rounded border border-base-700 bg-surface-raised px-3 py-2 text-sm text-base-50 focus:border-focus-ring focus:ring-1 focus:ring-focus-ring"
             />
-            <p class="text-base-500 text-xs">Can be changed later.</p>
+            <p class="text-xs text-base-500">Can be changed later.</p>
           </div>
 
           <div class="flex flex-col gap-1.5">
-            <label for="product_name" class="text-base-300 text-sm font-medium">Product name</label>
+            <label for="product_name" class="text-sm font-medium text-base-300">Product name</label>
             <input
               type="text"
               name="product_name"
               id="product_name"
               value={@product_name}
               required
-              class="bg-surface-raised border-base-700 focus:border-focus-ring focus:ring-focus-ring text-base-50 w-full rounded border px-3 py-2 text-sm focus:ring-1"
+              class="w-full rounded border border-base-700 bg-surface-raised px-3 py-2 text-sm text-base-50 focus:border-focus-ring focus:ring-1 focus:ring-focus-ring"
             />
-            <p class="text-base-500 text-xs">Cannot be changed later.</p>
+            <p class="text-xs text-base-500">Cannot be changed later.</p>
           </div>
 
           <button
             type="submit"
-            class="bg-primary hover:bg-primary-hover text-primary-content mt-2 flex w-full items-center justify-center rounded px-4 py-2 text-sm font-medium transition-colors"
+            class="mt-2 flex w-full items-center justify-center rounded bg-primary px-4 py-2 text-sm font-medium text-primary-content transition-colors hover:bg-primary-hover"
           >
             Create & Get Started
           </button>
@@ -58,10 +58,10 @@
         total_count={length(@pinned_devices)}
       />
       <div class="flex h-[88px] items-center justify-between py-6">
-        <h1 class="text-base-50 text-xl leading-[30px] font-semibold">Organizations</h1>
+        <h1 class="text-xl leading-[30px] font-semibold text-base-50">Organizations</h1>
         <.link
           navigate={~p"/orgs/new"}
-          class="active:bg-primary active:border-primary active:text-primary-content bg-base-800 border-base-600 hover:bg-base-700 hover:text-base-50 text-base-300 flex items-center justify-center gap-2 rounded border px-3 py-1.5 text-sm font-medium transition-colors"
+          class="flex items-center justify-center gap-2 rounded border border-base-600 bg-base-800 px-3 py-1.5 text-sm font-medium text-base-300 transition-colors hover:bg-base-700 hover:text-base-50 active:border-primary active:bg-primary active:text-primary-content"
         >
           <svg xmlns="http://www.w3.org/2000/svg" class="size-4 stroke-current" viewBox="0 0 16 16" fill="none" stroke-width="1.5">
             <path d="M8 3.33334V12.6667M3.33334 8H12.6667" stroke-linecap="round" stroke-linejoin="round" />
@@ -70,7 +70,7 @@
         </.link>
       </div>
       <div class="flex flex-col gap-4">
-        <div :for={org <- @orgs} class="bg-surface-raised border-base-700 rounded border">
+        <div :for={org <- @orgs} class="rounded border border-base-700 bg-surface-raised">
           <% org_counts = Map.get(assigns, :"org_counts_#{org.id}") %>
           <% {org_connected, org_disconnected} =
             if org_counts && org_counts.ok?,
@@ -79,26 +79,26 @@
           <div class="flex h-14 items-center justify-between px-4">
             <div class="flex items-center gap-3">
               <.link navigate={~p"/org/#{org}"} class="contents">
-                <div class="bg-base-800 text-base-500 flex size-8 items-center justify-center rounded text-sm font-semibold uppercase">
+                <div class="flex size-8 items-center justify-center rounded bg-base-800 text-sm font-semibold text-base-500 uppercase">
                   {org.name |> String.split(" ") |> Enum.map(&String.first/1) |> Enum.join()}
                 </div>
-                <h3 class="text-base-50 text-base font-medium">{org.name}</h3>
+                <h3 class="text-base font-medium text-base-50">{org.name}</h3>
               </.link>
             </div>
             <div class="flex items-center gap-6 text-sm">
               <div class="flex items-center gap-4">
                 <div class="flex items-center gap-1.5">
-                  <div class="bg-status-online size-2 rounded-full"></div>
+                  <div class="size-2 rounded-full bg-status-online"></div>
                   <span id={"org-connected-devices-count-#{org.id}"} class="text-base-300">{if org_connected, do: number_to_delimited(org_connected, precision: 0), else: "—"}</span>
                 </div>
                 <div class="flex items-center gap-1.5">
-                  <div class="bg-status-offline size-2 rounded-full"></div>
+                  <div class="size-2 rounded-full bg-status-offline"></div>
                   <span id={"org-disconnected-devices-count-#{org.id}"} class="text-base-400">{if org_disconnected, do: number_to_delimited(org_disconnected, precision: 0), else: "—"}</span>
                 </div>
               </div>
               <.link
                 navigate={~p"/org/#{org}/new"}
-                class="hover:bg-base-800 hover:text-base-300 text-base-400 rounded p-1.5 transition-colors"
+                class="rounded p-1.5 text-base-400 transition-colors hover:bg-base-800 hover:text-base-300"
                 title="Create Product"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" class="size-5 stroke-current" viewBox="0 0 16 16" fill="none" stroke-width="1.5">
@@ -120,13 +120,13 @@
             </.link>
           </div> --%>
           </div>
-          <h4 class="text-base-400 px-4 pt-2 text-xs font-medium tracking-wide uppercase">Products ({Enum.count(org.products)})</h4>
+          <h4 class="px-4 pt-2 text-xs font-medium tracking-wide text-base-400 uppercase">Products ({Enum.count(org.products)})</h4>
           <%= if Enum.empty?(org.products) do %>
             <div class="px-4 pt-2 pb-4">
-              <div class="bg-base-800/30 border-base-700 rounded border p-4 text-center">
-                <p class="text-base-400 text-sm">
+              <div class="rounded border border-base-700 bg-base-800/30 p-4 text-center">
+                <p class="text-sm text-base-400">
                   No products yet.
-                  <.link navigate={~p"/org/#{org}/new"} class="hover:text-base-50 text-base-300 underline">
+                  <.link navigate={~p"/org/#{org}/new"} class="text-base-300 underline hover:text-base-50">
                     Create your first product
                   </.link>
                 </p>
@@ -137,9 +137,9 @@
               <.link
                 :for={product <- org.products}
                 navigate={~p"/org/#{org}/#{product}/insights"}
-                class="border-base-700 from-base-800/50 hover:border-base-500 to-base-800 flex w-full justify-between gap-4 rounded border bg-linear-to-r p-4 transition-colors"
+                class="flex w-full justify-between gap-4 rounded border border-base-700 bg-linear-to-r from-base-800/50 to-base-800 p-4 transition-colors hover:border-base-500"
               >
-                <div class="text-base-50 text-sm font-semibold">
+                <div class="text-sm font-semibold text-base-50">
                   {product.name}
                 </div>
                 <% {prod_connected, prod_disconnected} =
@@ -148,11 +148,11 @@
                     else: {nil, nil} %>
                 <div class="flex gap-4 text-sm font-medium">
                   <div class="flex items-center gap-1.5">
-                    <div class="bg-status-online size-2 rounded-full"></div>
+                    <div class="size-2 rounded-full bg-status-online"></div>
                     <span class="product-connected-devices-count text-base-300">{if prod_connected, do: number_to_delimited(prod_connected, precision: 0), else: "—"}</span>
                   </div>
                   <div class="flex items-center gap-1.5">
-                    <div class="bg-status-offline size-2 rounded-full"></div>
+                    <div class="size-2 rounded-full bg-status-offline"></div>
                     <span class="product-disconnected-devices-count text-base-400">{if prod_disconnected, do: number_to_delimited(prod_disconnected, precision: 0), else: "—"}</span>
                   </div>
                 </div>

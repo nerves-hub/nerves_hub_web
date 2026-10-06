@@ -30,7 +30,7 @@ defmodule NervesHubWeb.Components.AdvancedSearch do
       data-value={@query}
       class="h-8 w-64 transition-[width] duration-400 ease-in-out [&[data-value]:not([data-value=''])]:w-136"
     >
-      <div data-role="box" class="bg-surface-muted border-base-600 rounded border">
+      <div data-role="box" class="rounded border border-base-600 bg-surface-muted">
         <div class="grid grid-cols-1">
           <div
             id="advanced-query-input"
@@ -41,7 +41,7 @@ defmodule NervesHubWeb.Components.AdvancedSearch do
             autocorrect="off"
             autocapitalize="off"
             class={[
-              "ff-m scrollbar-none text-base-400 col-start-1 row-start-1 mr-9 block h-8 truncate overflow-x-scroll py-1.5 pl-3 text-sm font-normal outline-none",
+              "ff-m col-start-1 row-start-1 mr-9 scrollbar-none block h-8 truncate overflow-x-scroll py-1.5 pl-3 text-sm font-normal text-base-400 outline-none",
               "mask-[linear-gradient(to_right,transparent,black_2%,black_98%,transparent)]"
             ]}
           ></div>
@@ -52,11 +52,11 @@ defmodule NervesHubWeb.Components.AdvancedSearch do
             data-role="placeholder"
             phx-update="ignore"
             class={[
-              "ff-m text-base-500 pointer-events-none col-start-1 row-start-1 flex h-8 items-center gap-1.5 pl-3 text-sm",
+              "ff-m pointer-events-none col-start-1 row-start-1 flex h-8 items-center gap-1.5 pl-3 text-sm text-base-500",
               @query != "" && "hidden"
             ]}
           >
-            <kbd class="bg-base-800 border-base-600 text-base-300 inline-flex size-4 items-center justify-center rounded border text-xs leading-none">/</kbd>
+            <kbd class="inline-flex size-4 items-center justify-center rounded border border-base-600 bg-base-800 text-xs leading-none text-base-300">/</kbd>
             <span>Advanced search</span>
           </div>
 
@@ -64,19 +64,19 @@ defmodule NervesHubWeb.Components.AdvancedSearch do
             id="search-icon"
             phx-update="ignore"
             data-role="search-icon"
-            class="lucide-search--light text-content-faint pointer-events-none col-start-1 row-start-1 mr-3 size-5 self-center justify-self-end"
+            class="pointer-events-none col-start-1 row-start-1 mr-3 lucide-search--light size-5 self-center justify-self-end text-content-faint"
           />
 
           <button
             type="button"
             data-role="clear"
-            class="hover:text-base-200 text-base-400 col-start-1 row-start-1 mr-3 hidden self-center justify-self-end hover:cursor-pointer"
+            class="col-start-1 row-start-1 mr-3 hidden self-center justify-self-end text-base-400 hover:cursor-pointer hover:text-base-200"
             title="Clear"
             aria-label="Clear advanced query"
             phx-update="ignore"
             id="clear-button"
           >
-            <div class="bg-surface-muted"><span class="lucide-x--light text-content-faint size-4" /></div>
+            <div class="bg-surface-muted"><span class="lucide-x--light size-4 text-content-faint" /></div>
           </button>
         </div>
       </div>

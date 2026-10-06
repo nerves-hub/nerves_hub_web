@@ -5,12 +5,12 @@ defmodule NervesHubWeb.Components.BulkActionsSidebar do
     ~H"""
     <div class="pointer-events-none fixed inset-y-0 right-0 z-40 mb-[119px] flex max-w-full pl-10 sm:pl-16">
       <div class={[
-        "bg-surface-muted border-base-700 shadow-filter-slider pointer-events-auto mt-[55px] flex h-full w-screen max-w-80 flex-col border-y border-l transition-transform",
+        "pointer-events-auto mt-[55px] flex h-full w-screen max-w-80 flex-col border-y border-l border-base-700 bg-surface-muted shadow-filter-slider transition-transform",
         Enum.empty?(@selected_devices) && "translate-x-full",
         Enum.empty?(@selected_devices) && "invisible"
       ]}>
         <div class="h-0 flex-1 overflow-y-auto">
-          <div class="border-base-700 flex h-14 items-center border-b px-4 py-3">
+          <div class="flex h-14 items-center border-b border-base-700 px-4 py-3">
             <h4 :if={length(@selected_devices) == 1 and not @select_all_matching} class="text-base font-semibold">1 device selected</h4>
             <h4 :if={length(@selected_devices) > 1 and not @select_all_matching} class="text-base font-semibold">
               {length(@selected_devices) |> Number.Delimit.number_to_delimited(precision: 0)} devices selected
@@ -65,18 +65,18 @@ defmodule NervesHubWeb.Components.BulkActionsSidebar do
             <div :if={@selected_have_deployment_groups or @select_all_matching} class="flex flex-col gap-2">
               <label class="sidebar-label">Remove from deployment group</label>
               <div class="flex items-center gap-2">
-                <span :if={@selected_shared_deployment_group && not @select_all_matching} class="bg-base-800 border-base-700 flex items-center gap-1 rounded-full border py-0.5 pr-2.5 pl-1.5">
+                <span :if={@selected_shared_deployment_group && not @select_all_matching} class="flex items-center gap-1 rounded-full border border-base-700 bg-base-800 py-0.5 pr-2.5 pl-1.5">
                   <svg class="size-1.5" viewBox="0 0 6 6" fill="none" xmlns="http://www.w3.org/2000/svg">
                     <circle cx="3" cy="3" r="3" fill="#10B981" />
                   </svg>
-                  <span class="text-base-300 text-xs tracking-tight">{@selected_shared_deployment_group.name}</span>
+                  <span class="text-xs tracking-tight text-base-300">{@selected_shared_deployment_group.name}</span>
                 </span>
-                <span :if={is_nil(@selected_shared_deployment_group) or @select_all_matching} class="bg-base-800 border-base-700 flex items-center gap-1 rounded-full border py-0.5 pr-2.5 pl-1.5">
-                  <span class="text-base-300 text-xs tracking-tight italic">All deployment groups</span>
+                <span :if={is_nil(@selected_shared_deployment_group) or @select_all_matching} class="flex items-center gap-1 rounded-full border border-base-700 bg-base-800 py-0.5 pr-2.5 pl-1.5">
+                  <span class="text-xs tracking-tight text-base-300 italic">All deployment groups</span>
                 </span>
                 <button
                   id="remove-devices-from-deployment-group"
-                  class="bg-base-800 border-alert cursor-pointer rounded-full border p-1"
+                  class="cursor-pointer rounded-full border border-alert bg-base-800 p-1"
                   data-confirm="This will remove all selected devices from their deployment groups. Would you like to continue?"
                   aria-label="Remove selected devices from deployment group"
                   type="button"
@@ -162,7 +162,7 @@ defmodule NervesHubWeb.Components.BulkActionsSidebar do
                     data-tag-suggestions
                     role="listbox"
                     hidden
-                    class="bg-base-900 border-base-600 absolute z-10 mt-1 max-h-56 w-full overflow-y-auto rounded border py-1 shadow-lg"
+                    class="absolute z-10 mt-1 max-h-56 w-full overflow-y-auto rounded border border-base-600 bg-base-900 py-1 shadow-lg"
                   >
                   </ul>
                 </div>

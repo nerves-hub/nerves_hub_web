@@ -259,7 +259,7 @@ defmodule NervesHubWeb.Live.Product.HealthProfiles do
       phx-value-operator={to_string(@operator)}
       title={operator_title(@operator)}
       disabled={@disabled}
-      class="bg-base-900 border-base-600 hover:border-base-400 text-base-50 flex size-9 shrink-0 items-center justify-center rounded border font-mono text-lg hover:cursor-pointer disabled:cursor-not-allowed"
+      class="flex size-9 shrink-0 items-center justify-center rounded border border-base-600 bg-base-900 font-mono text-lg text-base-50 hover:cursor-pointer hover:border-base-400 disabled:cursor-not-allowed"
     >
       {operator_glyph(@operator)}
     </button>
@@ -303,7 +303,7 @@ defmodule NervesHubWeb.Live.Product.HealthProfiles do
         {@level}
       </div>
       <div class="flex flex-wrap items-end gap-3">
-        <label class="text-base-400 flex flex-col gap-1 text-xs">
+        <label class="flex flex-col gap-1 text-xs text-base-400">
           Threshold
           <input
             type="number"
@@ -312,10 +312,10 @@ defmodule NervesHubWeb.Live.Product.HealthProfiles do
             name={"metric[#{@level}_threshold]"}
             value={@threshold && NervesHubWeb.Components.Utils.format_number(@threshold)}
             disabled={@disabled}
-            class="bg-base-900 border-base-600 focus:border-base-400 text-base-400 block w-28 rounded border px-2 py-1 focus:ring-0 sm:text-sm"
+            class="block w-28 rounded border border-base-600 bg-base-900 px-2 py-1 text-base-400 focus:border-base-400 focus:ring-0 sm:text-sm"
           />
         </label>
-        <label class="text-base-400 flex flex-col gap-1 text-xs">
+        <label class="flex flex-col gap-1 text-xs text-base-400">
           Median over
           <div class="flex gap-2">
             <input
@@ -326,12 +326,12 @@ defmodule NervesHubWeb.Live.Product.HealthProfiles do
               name={"metric[#{@level}_period_value]"}
               value={period_value(@period_seconds)}
               disabled={@disabled}
-              class="bg-base-900 border-base-600 focus:border-base-400 text-base-400 block w-20 rounded border px-2 py-1 focus:ring-0 sm:text-sm"
+              class="block w-20 rounded border border-base-600 bg-base-900 px-2 py-1 text-base-400 focus:border-base-400 focus:ring-0 sm:text-sm"
             />
             <select
               name={"metric[#{@level}_period_unit]"}
               disabled={@disabled}
-              class="bg-base-900 border-base-600 focus:border-base-400 text-base-400 block rounded border px-2 py-1 focus:ring-0 sm:text-sm"
+              class="block rounded border border-base-600 bg-base-900 px-2 py-1 text-base-400 focus:border-base-400 focus:ring-0 sm:text-sm"
             >
               {Phoenix.HTML.Form.options_for_select([{"minutes", "minutes"}, {"hours", "hours"}], period_unit(@period_seconds))}
             </select>

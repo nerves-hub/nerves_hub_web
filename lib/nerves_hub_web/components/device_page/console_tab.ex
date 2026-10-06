@@ -105,7 +105,7 @@ defmodule NervesHubWeb.Components.DevicePage.ConsoleTab do
     <div
       id="console-tab"
       phx-mounted={JS.remove_class("opacity-0")}
-      class="phx-click-loading:opacity-50 tab-content size-full opacity-0 transition-all duration-500"
+      class="tab-content size-full opacity-0 transition-all duration-500 phx-click-loading:opacity-50"
     >
       <div class="flex size-full flex-col items-start justify-between">
         <.async_result :let={online?} assign={@console_active?}>
@@ -126,7 +126,7 @@ defmodule NervesHubWeb.Components.DevicePage.ConsoleTab do
           <div id="console-and-chat" class="flex size-full bg-black" style="background-color: rgb(14, 16, 25);">
             <div :if={authorized?(:"device:console", @current_scope) && online?} id="dropzone" class="relative flex grow gap-6 p-12" style="background-color: rgb(14, 16, 25);">
               <div id="console" phx-hook="Console" phx-update="ignore" data-user-token={@user_token} data-device-identifier={@device.identifier} class="z-10 size-full"></div>
-              <div id="immersive-device" class="text-base-800 pointer-events-none absolute top-4 left-6 z-20 hidden">
+              <div id="immersive-device" class="pointer-events-none absolute top-4 left-6 z-20 hidden text-base-800">
                 <div class="flex items-center gap-3">
                   <%= if Map.get(@device_connection || %{}, :status) == :connected do %>
                     <svg class="size-3" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 6 6" fill="none">
@@ -137,7 +137,7 @@ defmodule NervesHubWeb.Components.DevicePage.ConsoleTab do
                       <circle cx="3" cy="3" r="3" fill="#71717A" />
                     </svg>
                   <% end %>
-                  <h1 class="text-base-50 font-mono text-xl leading-[30px] font-semibold">
+                  <h1 class="font-mono text-xl leading-[30px] font-semibold text-base-50">
                     {@device.identifier}
                   </h1>
                 </div>
@@ -147,7 +147,7 @@ defmodule NervesHubWeb.Components.DevicePage.ConsoleTab do
                   class="hidden cursor-pointer items-center gap-2 rounded-full bg-neutral-900 px-3 py-1.5 text-xs text-neutral-50"
                   title="Send ⌥ (Option) to the device as Meta, for shortcuts such as M-b and M-f. Leave this off to type characters like [ ] { } | on non-US keyboard layouts."
                 >
-                  <input type="checkbox" id="option-as-meta" class="border-base-700 checked:bg-primary text-base-400 size-3.5 rounded focus:ring-0" />
+                  <input type="checkbox" id="option-as-meta" class="size-3.5 rounded border-base-700 text-base-400 checked:bg-primary focus:ring-0" />
                   <span>⌥ as Meta</span>
                 </label>
                 <button id="fullscreen" class="cursor-pointer rounded-full bg-neutral-900 hover:scale-[1.1]" phx-click={toggle_fullscreen()} title="Toggle fullscreen">
@@ -163,7 +163,7 @@ defmodule NervesHubWeb.Components.DevicePage.ConsoleTab do
             <div :if={authorized?(:"device:console", @current_scope) && !online?} class="text-medium flex grow items-center justify-center gap-6 p-6 font-mono">
               The device console isn't currently available.
             </div>
-            <div :if={!authorized?(:"device:console", @current_scope)} class="text-alert text-medium flex grow items-center justify-center gap-6 p-6 font-mono">
+            <div :if={!authorized?(:"device:console", @current_scope)} class="text-medium flex grow items-center justify-center gap-6 p-6 font-mono text-alert">
               You don't have the required permissions to access a Device console.
             </div>
           </div>

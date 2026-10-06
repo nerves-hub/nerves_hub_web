@@ -9,7 +9,7 @@
   <div class="mt-6">
     <%= case @mode do %>
       <% :accept -> %>
-        <p class="text-base-300 text-sm/6">
+        <p class="text-sm/6 text-base-300">
           Joining will give the {@org.name} organization's admins the ability to manage your membership.
         </p>
 
@@ -32,13 +32,13 @@
           </.form>
         </div>
       <% :wrong_account -> %>
-        <div role="alert" class="bg-alert-soft fill-alert ring-alert text-alert-content mr-2 w-full rounded-sm p-3 shadow-md ring-1">
+        <div role="alert" class="mr-2 w-full rounded-sm bg-alert-soft fill-alert p-3 text-alert-content shadow-md ring-1 ring-alert">
           <p class="mt-1 text-sm/5">
             This invitation was sent to a different email address. You're signed in as {@current_scope.user.email}.
           </p>
         </div>
 
-        <p class="text-base-300 mt-6 text-sm/6">
+        <p class="mt-6 text-sm/6 text-base-300">
           Sign out and sign back in with the invited account to accept it.
         </p>
 
@@ -48,7 +48,7 @@
           </.button>
         </div>
       <% :sign_in -> %>
-        <p class="text-base-300 text-sm/6">
+        <p class="text-sm/6 text-base-300">
           You already have a {platform_name()} account. Sign in with the invited email address to accept this invitation.
         </p>
 
@@ -69,7 +69,7 @@
           </.form>
         </div>
       <% :register -> %>
-        <div :if={Enum.any?(@changeset.errors)} role="alert" class="bg-alert-soft fill-alert ring-alert text-alert-content mr-2 mb-6 w-full rounded-sm p-3 shadow-md ring-1">
+        <div :if={Enum.any?(@changeset.errors)} role="alert" class="mr-2 mb-6 w-full rounded-sm bg-alert-soft fill-alert p-3 text-alert-content shadow-md ring-1 ring-alert">
           <p class="mt-1 text-sm/5">Oops, we couldn't save your account details.</p>
         </div>
 
@@ -98,7 +98,7 @@
             <button
               type="submit"
               id="decline-invite"
-              class="hover:text-base-200 text-base-400 text-sm/6 underline hover:cursor-pointer"
+              class="text-sm/6 text-base-400 underline hover:cursor-pointer hover:text-base-200"
               data-confirm={"Are you sure you want to decline the invitation to join #{@org.name}?"}
             >
               Decline this invitation
