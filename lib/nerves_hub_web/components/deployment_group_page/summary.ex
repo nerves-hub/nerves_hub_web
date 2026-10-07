@@ -16,6 +16,8 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
   alias NimbleCSV.RFC4180, as: CSV
   alias Phoenix.Naming
 
+  require Logger
+
   @impl Phoenix.LiveComponent
   def mount(socket) do
     {:ok,
@@ -36,18 +38,9 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
   end
 
   def update(%{event: :update_inflight_info}, socket) do
-    %{deployment_group: deployment_group} = socket.assigns
-
-    inflight_updates = FirmwareUpdates.inflight_updates_for(deployment_group)
-
     socket
-    |> assign(:inflight_updates, inflight_updates)
-    |> assign(:up_to_date_count, Deployments.up_to_date_count(deployment_group))
-    |> assign(:waiting_for_update_count, Deployments.waiting_for_update_count(deployment_group))
-    |> assign(:updating_count, Deployments.updating_count(deployment_group))
-    |> assign(:updates_disabled_count, Deployments.updates_disabled_count(deployment_group))
-    |> assign(:in_penalty_box_count, Deployments.in_penalty_box_count(deployment_group))
-    |> assign(:deltas, Firmwares.get_deltas_by_target_firmware(deployment_group.current_release.firmware))
+    |> assign_inflight_info(socket.assigns.deployment_group)
+    |> assign_deltas(socket.assigns.deployment_group)
     |> ok()
   end
 
@@ -59,18 +52,15 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
 
   def update(%{event: :firmware_deltas_updated}, socket) do
     socket
-    |> assign(
-      :deltas,
-      Firmwares.get_deltas_by_target_firmware(socket.assigns.deployment_group.current_release.firmware)
-    )
+    |> assign_deltas(socket.assigns.deployment_group)
     |> ok()
   end
 
   def update(%{updated_deployment: deployment_group}, socket) do
     socket
-    |> assign(:deltas, Firmwares.get_deltas_by_target_firmware(deployment_group.current_release.firmware))
+    |> assign(:deployment_group, deployment_group)
+    |> assign_deltas(deployment_group)
     |> assign_update_stats(deployment_group)
-    |> assign_deltas_and_stats()
     |> assign_matched_devices_count()
     |> ok()
   end
@@ -78,47 +68,42 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
   def update(assigns, socket) do
     %{deployment_group: deployment_group} = assigns
 
-    inflight_updates = FirmwareUpdates.inflight_updates_for(deployment_group)
-    updating_count = Deployments.updating_count(deployment_group)
-
     socket
     |> assign(assigns)
-    |> assign(
-      :deltas,
-      Firmwares.get_deltas_by_target_firmware(deployment_group.current_release.firmware)
-    )
-    |> assign_update_stats(deployment_group)
-    |> assign_deltas_and_stats()
-    |> assign(:up_to_date_count, Deployments.up_to_date_count(deployment_group))
-    |> assign(:waiting_for_update_count, Deployments.waiting_for_update_count(deployment_group))
-    |> assign(:updating_count, updating_count)
-    |> assign(:updates_disabled_count, Deployments.updates_disabled_count(deployment_group))
-    |> assign(:in_penalty_box_count, Deployments.in_penalty_box_count(deployment_group))
-    |> assign(:inflight_updates, inflight_updates)
     |> assign(:firmware, deployment_group.current_release.firmware)
-    |> assign(:deltas, Firmwares.get_deltas_by_target_firmware(deployment_group.current_release.firmware))
-    |> assign(:update_stats, UpdateStats.stats_by_deployment(deployment_group))
+    |> assign_deltas(deployment_group)
+    |> assign_update_stats(deployment_group)
+    |> assign_inflight_info(deployment_group)
+    |> assign_new(:matched_devices, fn -> nil end)
     |> assign_matched_devices_count()
     |> ok()
   end
 
-  defp assign_matched_devices_count(%{assigns: %{deployment_group: deployment_group}} = socket) do
-    current_device_count = ManagedDeployments.get_device_count(deployment_group)
-
-    matched_devices_count =
-      ManagedDeployments.matched_devices_count(deployment_group, in_deployment: true)
-
-    matched_devices_outside_deployment_group_count =
-      ManagedDeployments.matched_devices_count(deployment_group, in_deployment: false)
-
+  defp assign_inflight_info(socket, deployment_group) do
     socket
-    |> assign(:matched_device_count, matched_devices_count)
-    |> assign(:unmatched_device_count, current_device_count - matched_devices_count)
-    |> assign(
-      :matched_devices_outside_deployment_group_count,
-      matched_devices_outside_deployment_group_count
-    )
-    |> assign(:deployment_group, %{deployment_group | device_count: current_device_count})
+    |> assign(:inflight_updates, FirmwareUpdates.inflight_updates_for(deployment_group))
+    |> assign(:up_to_date_count, Deployments.up_to_date_count(deployment_group))
+    |> assign(:waiting_for_update_count, Deployments.waiting_for_update_count(deployment_group))
+    |> assign(:updating_count, Deployments.updating_count(deployment_group))
+    |> assign(:updates_disabled_count, Deployments.updates_disabled_count(deployment_group))
+    |> assign(:in_penalty_box_count, Deployments.in_penalty_box_count(deployment_group))
+  end
+
+  # The LiveView joins the delta topics for every firmware this group's devices
+  # are headed for and passes the news down, so both tabs see it and neither
+  # can drop the other's membership.
+  defp assign_deltas(socket, deployment_group) do
+    assign(socket, :deltas, Firmwares.get_deltas_by_target_firmware(deployment_group.current_release.firmware))
+  end
+
+  # The counts are three queries over every device in the product. They run off
+  # the LiveView's process so the page renders, and keeps answering events, while
+  # they do. Until the first result arrives the section shows no counts. After
+  # that the last counts stay up until fresher ones replace them. A refresh that
+  # starts while one is still running replaces it, and the older result is
+  # dropped.
+  defp assign_matched_devices_count(%{assigns: %{deployment_group: deployment_group}} = socket) do
+    start_async(socket, :matched_devices, fn -> ManagedDeployments.matched_devices_counts(deployment_group) end)
   end
 
   @impl Phoenix.LiveComponent
@@ -202,6 +187,27 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
   def handle_progress(:device_csv, _entry, socket), do: {:noreply, socket}
 
   @impl Phoenix.LiveComponent
+  def handle_async(:matched_devices, {:ok, counts}, socket) do
+    %{device_count: device_count, matched_in_group: matched_in_group} = counts
+
+    # Kept together, and apart from the deployment group the parent passes down,
+    # so the percentage is always worked out from counts taken at the same time.
+    socket
+    |> assign(:matched_devices, %{
+      device_count: device_count,
+      matched_device_count: matched_in_group,
+      unmatched_device_count: device_count - matched_in_group,
+      matched_devices_outside_deployment_group_count: counts.matched_outside_group
+    })
+    |> noreply()
+  end
+
+  # The last counts stay up. The next refresh tries again.
+  def handle_async(:matched_devices, {:exit, reason}, socket) do
+    Logger.warning("Couldn't count the devices matching a deployment group: #{inspect(reason)}")
+    noreply(socket)
+  end
+
   def handle_async(:import_devices_from_csv, {:ok, %{ok: updated, error: 0}}, socket) do
     send(self(), :refresh_device_count)
 
@@ -670,19 +676,26 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
               <code class="text-sm text-base-300">{@deployment_group.conditions.version}</code>
             </div>
             <div
-              :if={@deployment_group.device_count > 0 || @unmatched_device_count > 0 || @matched_devices_outside_deployment_group_count > 0}
+              :if={
+                @matched_devices &&
+                  (@matched_devices.device_count > 0 || @matched_devices.unmatched_device_count > 0 ||
+                     @matched_devices.matched_devices_outside_deployment_group_count > 0)
+              }
               class="flex flex-col justify-between gap-2 border-t border-base-700 pt-3"
             >
-              <div :if={@deployment_group.device_count > 0 && @matched_device_count == @deployment_group.device_count} class="flex items-center gap-4 pt-2">
+              <div :if={@matched_devices.device_count > 0 && @matched_devices.matched_device_count == @matched_devices.device_count} class="flex items-center gap-4 pt-2">
                 <span class="text-sm text-base-300">100% of devices in this deployment group match conditions</span>
               </div>
-              <div :if={@matched_device_count != @deployment_group.device_count} class="flex items-center gap-4">
-                <span class="text-sm text-base-300">{round(@matched_device_count / @deployment_group.device_count * 100)}% of devices in this deployment group match conditions</span>
+              <div
+                :if={@matched_devices.device_count > 0 && @matched_devices.matched_device_count != @matched_devices.device_count}
+                class="flex items-center gap-4"
+              >
+                <span class="text-sm text-base-300">{round(@matched_devices.matched_device_count / @matched_devices.device_count * 100)}% of devices in this deployment group match conditions</span>
               </div>
-              <div :if={@unmatched_device_count > 0} class="flex items-center justify-between gap-2 py-2">
+              <div :if={@matched_devices.unmatched_device_count > 0} class="flex items-center justify-between gap-2 py-2">
                 <div class="text-sm text-base-300">
-                  {@unmatched_device_count} {if @unmatched_device_count == 1, do: "device", else: "devices"}
-                  <span class="text-sm text-base-500">{if @unmatched_device_count == 1, do: "doesn't", else: "don't"} match inside deployment group</span>
+                  {@matched_devices.unmatched_device_count} {if @matched_devices.unmatched_device_count == 1, do: "device", else: "devices"}
+                  <span class="text-sm text-base-500">{if @matched_devices.unmatched_device_count == 1, do: "doesn't", else: "don't"} match inside deployment group</span>
                 </div>
                 <%!-- We have no way of filtering by version as of March 2025. When we do we can use this. --%>
                 <%!-- <.link navigate={~p"/org/#{@org}/#{@product}/devices"} class="flex items-center h-6 bg-base-800 border border-base-700 rounded-full">
@@ -692,7 +705,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
                   <div id="remove-devices-from-deployment-group" class="relative z-20" phx-hook="ToolTip" data-placement="top">
                     <.icon name="info" class="stroke-base-400" />
                     <div class="tooltip-content absolute top-0 left-0 z-20 hidden w-max rounded border border-base-700 bg-surface-muted px-2 py-1.5 text-xs">
-                      This action will remove {@unmatched_device_count} {if @matched_devices_outside_deployment_group_count == 1, do: "device", else: "devices"} from {@deployment_group.name}
+                      This action will remove {@matched_devices.unmatched_device_count} {if @matched_devices.matched_devices_outside_deployment_group_count == 1, do: "device", else: "devices"} from {@deployment_group.name}
                       <div class="tooltip-arrow absolute size-2 origin-center rotate-45 border-base-700 bg-surface-muted"></div>
                     </div>
                   </div>
@@ -700,16 +713,16 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
                     class="w-41"
                     style="danger"
                     phx-click="remove-unmatched-devices-from-deployment-group"
-                    data-confirm={"This will remove #{@unmatched_device_count} #{if @unmatched_device_count == 1, do: "device", else: "devices"} from #{@deployment_group.name}. Continue?"}
+                    data-confirm={"This will remove #{@matched_devices.unmatched_device_count} #{if @matched_devices.unmatched_device_count == 1, do: "device", else: "devices"} from #{@deployment_group.name}. Continue?"}
                   >
-                    <.icon name="trash" /> Remove {if @unmatched_device_count == 1, do: "device", else: "devices"}
+                    <.icon name="trash" /> Remove {if @matched_devices.unmatched_device_count == 1, do: "device", else: "devices"}
                   </.button>
                 </div>
               </div>
-              <div :if={@matched_devices_outside_deployment_group_count > 0} class="flex items-center justify-between gap-2">
+              <div :if={@matched_devices.matched_devices_outside_deployment_group_count > 0} class="flex items-center justify-between gap-2">
                 <div class="text-sm text-base-300">
-                  {@matched_devices_outside_deployment_group_count} {if @matched_devices_outside_deployment_group_count == 1, do: "device", else: "devices"}
-                  <span class="text-sm text-base-500">{if @matched_devices_outside_deployment_group_count == 1, do: "matches", else: "match"} outside of deployment group</span>
+                  {@matched_devices.matched_devices_outside_deployment_group_count} {if @matched_devices.matched_devices_outside_deployment_group_count == 1, do: "device", else: "devices"}
+                  <span class="text-sm text-base-500">{if @matched_devices.matched_devices_outside_deployment_group_count == 1, do: "matches", else: "match"} outside of deployment group</span>
                 </div>
                 <%!-- We have no way of filtering by version as of March 2025. When we do we can use this. --%>
                 <%!-- <.link navigate={~p"/org/#{@org}/#{@product}/devices"} class="flex items-center h-6 bg-base-800 border border-base-700 rounded-full">
@@ -719,8 +732,9 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
                   <div id="move-devices-to-deployment-group" class="relative z-20" phx-hook="ToolTip" data-placement="top">
                     <.icon name="info" class="stroke-base-400" />
                     <div class="tooltip-content absolute top-0 left-0 z-20 hidden w-max rounded border border-base-700 bg-surface-muted px-2 py-1.5 text-xs">
-                      This action will move {@matched_devices_outside_deployment_group_count} {if @matched_devices_outside_deployment_group_count == 1, do: "device", else: "devices"}<br />
-                      that do not belong to a deployment <br />group into {@deployment_group.name}
+                      This action will move {@matched_devices.matched_devices_outside_deployment_group_count} {if @matched_devices.matched_devices_outside_deployment_group_count == 1,
+                        do: "device",
+                        else: "devices"}<br /> that do not belong to a deployment <br />group into {@deployment_group.name}
                       <div class="tooltip-arrow absolute size-2 origin-center rotate-45 border-base-700 bg-surface-muted"></div>
                     </div>
                   </div>
@@ -728,9 +742,9 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
                     class="w-41"
                     style="secondary"
                     phx-click="move-matched-devices-to-deployment-group"
-                    data-confirm={"This will move #{@matched_devices_outside_deployment_group_count} #{if @matched_devices_outside_deployment_group_count == 1, do: "device", else: "devices"} into #{@deployment_group.name}. Continue?"}
+                    data-confirm={"This will move #{@matched_devices.matched_devices_outside_deployment_group_count} #{if @matched_devices.matched_devices_outside_deployment_group_count == 1, do: "device", else: "devices"} into #{@deployment_group.name}. Continue?"}
                   >
-                    <.icon name="folder-move" /> Move {if @matched_devices_outside_deployment_group_count == 1, do: "device", else: "devices"}
+                    <.icon name="folder-move" /> Move {if @matched_devices.matched_devices_outside_deployment_group_count == 1, do: "device", else: "devices"}
                   </.button>
                 </div>
               </div>
@@ -819,13 +833,6 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
     socket
     |> assign(:update_stats, update_stats)
     |> assign(:update_stat_for_current_firmware, update_stat_for_current_firmware)
-  end
-
-  defp assign_deltas_and_stats(%{assigns: %{deployment_group: deployment_group}} = socket) do
-    # The LiveView joins the delta topics for every firmware this group's devices
-    # are headed for and passes the news down, so both tabs see it and neither
-    # can drop the other's membership.
-    assign(socket, :deltas, Firmwares.get_deltas_by_target_firmware(deployment_group.current_release.firmware))
   end
 
   defp send_flash(socket, type, message) do

@@ -375,6 +375,35 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show.SummaryTabTest do
     end)
   end
 
+  test "the page doesn't wait for the match counts", %{
+    conn: conn,
+    org: org,
+    product: product,
+    deployment_group: deployment_group
+  } do
+    test_pid = self()
+
+    # Holds every count until the test lets it go, standing in for a slow query
+    stub(ManagedDeployments, :matched_devices_counts, fn group ->
+      send(test_pid, {:counting, self()})
+
+      receive do
+        :go -> call_original(ManagedDeployments, :matched_devices_counts, [group])
+      end
+    end)
+
+    conn =
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/deployment_groups/#{deployment_group.name}")
+      |> assert_has("div", text: "Device Matching Conditions")
+      |> refute_has("span", text: "match conditions", exact: false)
+
+    assert_receive {:counting, counter}
+    send(counter, :go)
+
+    assert_has(conn, "span", text: "100% of devices in this deployment group match conditions", timeout: 1_000)
+  end
+
   test "displays text when every device in deployment group matches conditions", %{
     conn: conn,
     org: org,
@@ -394,7 +423,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show.SummaryTabTest do
 
     conn
     |> visit("/org/#{org.name}/#{product.name}/deployment_groups/#{deployment_group.name}")
-    |> assert_has("span", text: "100% of devices in this deployment group match conditions")
+    |> assert_has("span", text: "100% of devices in this deployment group match conditions", timeout: 1_000)
   end
 
   test "removing device from deployment that doesn't match conditions", %{
@@ -412,7 +441,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show.SummaryTabTest do
 
     conn
     |> visit("/org/#{org.name}/#{product.name}/deployment_groups/#{deployment_group.name}")
-    |> assert_has("span", text: "50% of devices in this deployment group match conditions")
+    |> assert_has("span", text: "50% of devices in this deployment group match conditions", timeout: 1_000)
     |> assert_has("div", text: "1 device doesn't match inside deployment group")
     |> click_button("Remove device")
     |> assert_has("span",
@@ -443,6 +472,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show.SummaryTabTest do
 
     conn
     |> visit("/org/#{org.name}/#{product.name}/deployment_groups/#{deployment_group.name}")
+    |> assert_has("button", text: "Remove device", timeout: 1_000)
     |> click_button("Remove device")
     |> assert_has("span",
       text: "100% of devices in this deployment group match conditions",
@@ -480,7 +510,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show.SummaryTabTest do
 
     conn
     |> visit("/org/#{org.name}/#{product.name}/deployment_groups/#{deployment_group.name}")
-    |> assert_has("span", text: "100% of devices in this deployment group match conditions")
+    |> assert_has("span", text: "100% of devices in this deployment group match conditions", timeout: 1_000)
     |> refute_has("button", text: "Remove device")
     |> assert_has("button", text: "Move devices")
   end
@@ -506,7 +536,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show.SummaryTabTest do
 
     conn
     |> visit("/org/#{org.name}/#{product.name}/deployment_groups/#{deployment_group.name}")
-    |> assert_has("span", text: "50% of devices in this deployment group match conditions")
+    |> assert_has("span", text: "50% of devices in this deployment group match conditions", timeout: 1_000)
     |> assert_has("div", text: "1 device doesn't match inside deployment group")
   end
 
@@ -552,6 +582,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show.SummaryTabTest do
 
     conn
     |> visit("/org/#{org.name}/#{product.name}/deployment_groups/#{deployment_group.name}")
+    |> assert_has("button", text: "Move devices", timeout: 1_000)
     |> click_button("Move devices")
     |> assert_has("div", text: "3 devices moved to #{deployment_group.name}", timeout: 1000)
 

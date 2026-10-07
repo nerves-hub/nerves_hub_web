@@ -10,7 +10,6 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
   alias NervesHub.Devices.BulkActions
   alias NervesHub.Devices.Deployments
   alias NervesHub.Firmwares
-  alias NervesHub.FirmwareUpdates
   alias NervesHub.Helpers.Logging
   alias NervesHub.ManagedDeployments
   alias NervesHub.ManagedDeployments.DeploymentWorkflowStep
@@ -176,10 +175,10 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
 
     %{assigns: %{deployment_group: deployment_group}} = socket
 
-    matched_device_ids =
-      ManagedDeployments.matched_device_ids(deployment_group, in_deployment: true)
-
     remove_devices = fn ->
+      matched_device_ids =
+        ManagedDeployments.matched_device_ids(deployment_group, in_deployment: true)
+
       {:ok, %{updated: updated}} =
         Deployments.remove_unmatched_devices_from_deployment_group(
           matched_device_ids,
@@ -275,21 +274,13 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
   end
 
   @impl Phoenix.LiveView
+  # Only the summary tab shows these, and it counts them itself.
   def handle_info(:update_inflight_updates, %{assigns: %{tab: :summary}} = socket) do
     Process.send_after(self(), :update_inflight_updates, 5000)
 
-    %{assigns: %{deployment_group: deployment_group}} = socket
-
-    inflight_updates = FirmwareUpdates.inflight_updates_for(deployment_group)
-
     send_update(SummaryTab, id: "deployment_group_summary", event: :update_inflight_info)
 
-    socket
-    |> assign(:inflight_updates, inflight_updates)
-    |> assign(:up_to_date_count, Deployments.up_to_date_count(deployment_group))
-    |> assign(:waiting_for_update_count, Deployments.waiting_for_update_count(deployment_group))
-    |> assign(:updating_count, Deployments.updating_count(deployment_group))
-    |> noreply()
+    noreply(socket)
   end
 
   def handle_info(:update_inflight_updates, socket) do
