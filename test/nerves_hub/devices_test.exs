@@ -2135,40 +2135,15 @@ defmodule NervesHub.DevicesTest do
       firmware: firmware,
       user: user
     } do
-      # One more than a batch, so the last device is in the second
+      # One more than a batch, so one device is in a second batch
       devices = [device | for(_ <- 1..1_000, do: Fixtures.device_fixture(org, product, firmware))]
-      group_id = deployment_group.id
-      test_pid = self()
 
-      # Each listener notes when its broadcast arrived, rather than when this test
-      # gets round to reading it, which on a loaded runner can be much later.
-      for device <- [hd(devices), List.last(devices)] do
-        topic = DeviceEvents.topic(device)
-
-        spawn_link(fn ->
-          :ok = Phoenix.PubSub.subscribe(NervesHub.PubSub, topic)
-          send(test_pid, {:listening, topic})
-
-          receive do
-            %Broadcast{topic: ^topic, event: "deployment_updated", payload: %{deployment_id: ^group_id}} ->
-              send(test_pid, {:heard, topic, System.monotonic_time(:millisecond)})
-          end
-        end)
-
-        assert_receive {:listening, ^topic}
-      end
+      heard = listen_for_group_change(devices, deployment_group.id)
 
       %{updated: 1_001, ignored: 0} =
         BulkActions.move_many_to_deployment_group(Enum.map(devices, & &1.id), deployment_group, user)
 
-      first_topic = DeviceEvents.topic(hd(devices))
-      last_topic = DeviceEvents.topic(List.last(devices))
-
-      assert_receive {:heard, ^first_topic, first_at}, 1_000
-      assert_receive {:heard, ^last_topic, last_at}, 1_000
-
-      # The second batch waits for the pause after the first
-      assert last_at - first_at >= 50
+      assert_told_in_batches(heard, length(devices))
     end
 
     test "accepts an Ecto.Query for the first argument", %{
@@ -3934,5 +3909,49 @@ defmodule NervesHub.DevicesTest do
       org_id: device.org_id,
       product_id: device.product_id
     }
+  end
+
+  # Starts a listener on every device's topic. Each notes when its device heard
+  # it was moved to `group_id` (or out of its group, for `nil`), rather than when
+  # this test gets round to reading it, which on a loaded runner can be later.
+  defp listen_for_group_change(devices, group_id) do
+    test_pid = self()
+    ref = make_ref()
+
+    for device <- devices do
+      topic = DeviceEvents.topic(device)
+
+      spawn_link(fn ->
+        :ok = Phoenix.PubSub.subscribe(NervesHub.PubSub, topic)
+        send(test_pid, {:listening, ref})
+
+        receive do
+          %Broadcast{topic: ^topic, event: "deployment_updated", payload: %{deployment_id: ^group_id}} ->
+            send(test_pid, {:heard, ref, System.monotonic_time(:millisecond)})
+        end
+      end)
+    end
+
+    for _ <- devices, do: assert_receive({:listening, ^ref})
+
+    ref
+  end
+
+  # Every device is told once, and the times they heard split into a group of
+  # 1,000 and the rest, with the pause between batches between them. The
+  # batches follow the order the database returns ids in, so this can't say
+  # which device is in which, only that the split is there.
+  defp assert_told_in_batches(ref, count) do
+    times =
+      for _ <- 1..count do
+        assert_receive {:heard, ^ref, at}, 2_000
+        at
+      end
+      |> Enum.sort()
+
+    refute_receive {:heard, ^ref, _}, 100
+
+    {first_batch, rest} = Enum.split(times, 1_000)
+    assert List.first(rest) - List.last(first_batch) >= 50
   end
 end

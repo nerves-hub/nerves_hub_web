@@ -552,7 +552,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show.SummaryTabTest do
       })
 
     conn
-    |> assert_has("span", text: "100% of devices in this deployment group match conditions")
+    |> assert_has("span", text: "100% of devices in this deployment group match conditions", timeout: 1_000)
     |> assert_has("div", text: "1 device matches outside of deployment group")
     |> click_button("Move device")
     |> assert_has("span",

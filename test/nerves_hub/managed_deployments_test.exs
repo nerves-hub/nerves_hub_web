@@ -1416,7 +1416,7 @@ defmodule NervesHub.ManagedDeploymentsTest do
   end
 
   describe "matched_devices_query/2" do
-    test "selects the same devices as matched_device_ids/2", %{
+    test "selects the matching devices inside or outside the group", %{
       org: org,
       product: product,
       firmware: firmware,
@@ -1435,17 +1435,6 @@ defmodule NervesHub.ManagedDeploymentsTest do
       _other_firmware = Fixtures.device_fixture(org, product, %{firmware | platform: "foo"}, %{tags: ["beta"]})
       kept = Fixtures.device_fixture(org, product, firmware, %{tags: ["beta"], deployment_id: deployment_group.id})
 
-      for in_deployment <- [true, false] do
-        ids =
-          deployment_group
-          |> ManagedDeployments.matched_devices_query(in_deployment: in_deployment)
-          |> select([d], d.id)
-          |> Repo.all()
-
-        assert Enum.sort(ids) ==
-                 Enum.sort(ManagedDeployments.matched_device_ids(deployment_group, in_deployment: in_deployment))
-      end
-
       assert deployment_group
              |> ManagedDeployments.matched_devices_query(in_deployment: false)
              |> select([d], d.id)
@@ -1457,6 +1446,58 @@ defmodule NervesHub.ManagedDeploymentsTest do
              |> select([d], d.id)
              |> Repo.all() ==
                [kept.id]
+    end
+  end
+
+  describe "remove_unmatched_devices_from_deployment_group/2 notifications" do
+    test "tells removed devices in batches, not all at once", %{
+      org: org,
+      product: product,
+      firmware: firmware,
+      user: user
+    } do
+      {:ok, deployment_group} =
+        ManagedDeployments.create_deployment_group(
+          %{name: "Batched remove", conditions: %{"version" => "", "tags" => ["keep"]}},
+          product,
+          firmware,
+          user
+        )
+
+      # None match, and there's one more than a batch, so the last device to be
+      # told is in the second batch. Inserted in one statement, since a fixture
+      # each would take most of a minute.
+      template = Fixtures.device_fixture(org, product, firmware, %{tags: ["drop"], deployment_id: deployment_group.id})
+      now = NaiveDateTime.utc_now(:second)
+
+      rows =
+        for n <- 1..1_000 do
+          %{
+            org_id: org.id,
+            product_id: product.id,
+            deployment_id: deployment_group.id,
+            tags: ["drop"],
+            identifier: "batched-remove-#{System.unique_integer([:positive])}-#{n}",
+            firmware_metadata: template.firmware_metadata,
+            inserted_at: now,
+            updated_at: now
+          }
+        end
+
+      {1_000, inserted} = Repo.insert_all(Device, rows, returning: [:id])
+      devices = [template | Enum.map(inserted, &%Device{id: &1.id})]
+
+      heard = listen_for_group_change(devices, nil)
+
+      matched = ManagedDeployments.matched_devices_query(deployment_group, in_deployment: true)
+
+      {elapsed_us, {:ok, %{updated: 1_001}}} =
+        :timer.tc(fn -> Deployments.remove_unmatched_devices_from_deployment_group(matched, deployment_group) end)
+
+      # The caller isn't held up for the announcement
+      assert elapsed_us < 100_000
+
+      assert_told_in_batches(heard, length(devices))
     end
   end
 
@@ -1508,7 +1549,7 @@ defmodule NervesHub.ManagedDeploymentsTest do
     end
   end
 
-  describe "matched_device_ids/2" do
+  describe "matched_devices_query/2 matching rules" do
     test "takes platform and architecture into account", %{
       org: org,
       product: product,
@@ -1544,7 +1585,7 @@ defmodule NervesHub.ManagedDeploymentsTest do
           tags: ["beta", "rpi"]
         })
 
-      assert ManagedDeployments.matched_device_ids(deployment_group, in_deployment: false) == [
+      assert matched_ids(deployment_group, in_deployment: false) == [
                device2.id
              ]
     end
@@ -1589,7 +1630,7 @@ defmodule NervesHub.ManagedDeploymentsTest do
           tags: ["beta", "rpi"]
         })
 
-      assert ManagedDeployments.matched_device_ids(deployment_group, in_deployment: false) == [
+      assert matched_ids(deployment_group, in_deployment: false) == [
                device3.id
              ]
     end
@@ -1629,7 +1670,7 @@ defmodule NervesHub.ManagedDeploymentsTest do
           tags: ["beta", "rpi"]
         })
 
-      device_ids = ManagedDeployments.matched_device_ids(deployment_group, in_deployment: false)
+      device_ids = matched_ids(deployment_group, in_deployment: false)
 
       assert Enum.member?(device_ids, device1.id)
       assert Enum.member?(device_ids, device2.id)
@@ -1670,7 +1711,7 @@ defmodule NervesHub.ManagedDeploymentsTest do
           tags: ["beta", "rpi"]
         })
 
-      assert ManagedDeployments.matched_device_ids(deployment_group, in_deployment: false) == [
+      assert matched_ids(deployment_group, in_deployment: false) == [
                device2.id
              ]
     end
@@ -1727,7 +1768,7 @@ defmodule NervesHub.ManagedDeploymentsTest do
           tags: ["foo"]
         })
 
-      matched_ids = ManagedDeployments.matched_device_ids(deployment_group, in_deployment: false)
+      matched_ids = matched_ids(deployment_group, in_deployment: false)
 
       assert Enum.sort(matched_ids) ==
                Enum.sort([
@@ -1795,6 +1836,58 @@ defmodule NervesHub.ManagedDeploymentsTest do
   defp delta_status(deployment_group) do
     {:ok, deployment_group} = ManagedDeployments.get_deployment_group(deployment_group)
     deployment_group.current_release.delta_status
+  end
+
+  # Starts a listener on every device's topic. Each notes when its device heard
+  # it was moved to `group_id` (or out of its group, for `nil`), rather than when
+  # this test gets round to reading it, which on a loaded runner can be later.
+  defp listen_for_group_change(devices, group_id) do
+    test_pid = self()
+    ref = make_ref()
+
+    for device <- devices do
+      topic = "device:#{device.id}"
+
+      spawn_link(fn ->
+        :ok = Phoenix.PubSub.subscribe(NervesHub.PubSub, topic)
+        send(test_pid, {:listening, ref})
+
+        receive do
+          %Broadcast{topic: ^topic, event: "deployment_updated", payload: %{deployment_id: ^group_id}} ->
+            send(test_pid, {:heard, ref, System.monotonic_time(:millisecond)})
+        end
+      end)
+    end
+
+    for _ <- devices, do: assert_receive({:listening, ^ref})
+
+    ref
+  end
+
+  # Every device is told once, and the times they heard split into a group of
+  # 1,000 and the rest, with the pause between batches between them. The
+  # batches follow the order the database returns ids in, so this can't say
+  # which device is in which, only that the split is there.
+  defp assert_told_in_batches(ref, count) do
+    times =
+      for _ <- 1..count do
+        assert_receive {:heard, ^ref, at}, 2_000
+        at
+      end
+      |> Enum.sort()
+
+    refute_receive {:heard, ^ref, _}, 100
+
+    {first_batch, rest} = Enum.split(times, 1_000)
+    assert List.first(rest) - List.last(first_batch) >= 50
+  end
+
+  defp matched_ids(deployment_group, opts) do
+    deployment_group
+    |> ManagedDeployments.matched_devices_query(opts)
+    |> select([d], d.id)
+    |> order_by([d], asc: d.id)
+    |> Repo.all()
   end
 
   defp collect_queries(acc) do

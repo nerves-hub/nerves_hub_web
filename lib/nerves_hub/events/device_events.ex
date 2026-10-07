@@ -14,6 +14,7 @@ defmodule NervesHub.DeviceEvents do
   alias NervesHub.FirmwareUpdates
   alias NervesHub.ManagedDeployments
   alias NervesHub.Repo
+  alias NervesHub.TaskSupervisor, as: Tasks
   alias Phoenix.Channel.Server, as: ChannelServer
 
   def updated(device) do
@@ -26,6 +27,52 @@ defmodule NervesHub.DeviceEvents do
 
   def deployment_assigned(device) do
     broadcast(device, "deployment_updated", %{deployment_id: device.deployment_id})
+  end
+
+  # How many devices hear about a change of group at a time, and how long to
+  # wait between them. A device that hears `deployment_updated` looks up its
+  # group's archive, so telling a whole fleet at once is that many queries at
+  # once from the device nodes. These keep it to about 10,000 a second.
+  #
+  # The pauses come between batches, not after the last, so announcing a change
+  # takes at least (batches - 1) x 100ms, plus the time to send each batch:
+  #
+  #   10,000 devices    10 batches   0.9s
+  #   190,000 devices  190 batches   18.9s
+  #   250,000 devices  250 batches   24.9s
+  #
+  # A device keeps its old group until its batch is sent.
+  @group_change_batch_size 1_000
+  @group_change_batch_pause to_timeout(millisecond: 100)
+
+  @doc """
+  Tell many devices their deployment group has changed, to `deployment_id`, or
+  to none when it's `nil`, a batch at a time.
+
+  For devices whose rows are already committed, so this is only news for their
+  channels. A device that misses it reads its group again when it reconnects,
+  so it's sent from a task rather than holding the caller up for the seconds a
+  large change takes to announce.
+  """
+  @spec deployment_changed_for_many([pos_integer()], pos_integer() | nil) :: :ok
+  def deployment_changed_for_many([], _deployment_id), do: :ok
+
+  def deployment_changed_for_many(device_ids, deployment_id) do
+    {:ok, _pid} =
+      Task.Supervisor.start_child(Tasks, fn ->
+        device_ids
+        |> Enum.chunk_every(@group_change_batch_size)
+        |> Enum.intersperse(:pause)
+        |> Enum.each(fn
+          :pause ->
+            Process.sleep(@group_change_batch_pause)
+
+          batch ->
+            Enum.each(batch, &deployment_assigned(%Device{id: &1, deployment_id: deployment_id}))
+        end)
+      end)
+
+    :ok
   end
 
   def moved_product(device) do

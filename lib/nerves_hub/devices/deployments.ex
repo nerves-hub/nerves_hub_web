@@ -216,7 +216,7 @@ defmodule NervesHub.Devices.Deployments do
 
     # Only the removed devices have anything to hear about. The ones kept are
     # still where they were.
-    :ok = Enum.each(removed_device_ids, &DeviceEvents.deployment_cleared(%Device{id: &1}))
+    :ok = DeviceEvents.deployment_changed_for_many(removed_device_ids, nil)
 
     {:ok, %{updated: devices_updated_count}}
   end

@@ -1243,7 +1243,7 @@ defmodule NervesHub.ManagedDeployments do
 
     query = matched_devices_base_query(deployment_group, in_deployment)
 
-    do_matched_devices(deployment_group, query, :count)
+    count_matched_devices(deployment_group, query)
   end
 
   @doc """
@@ -1266,31 +1266,19 @@ defmodule NervesHub.ManagedDeployments do
 
     %{
       device_count: get_device_count(deployment_group),
-      matched_in_group:
-        do_matched_devices(deployment_group, matched_devices_base_query(deployment_group, true), :count),
+      matched_in_group: count_matched_devices(deployment_group, matched_devices_base_query(deployment_group, true)),
       matched_outside_group:
-        do_matched_devices(deployment_group, matched_devices_base_query(deployment_group, false), :count)
+        count_matched_devices(deployment_group, matched_devices_base_query(deployment_group, false))
     }
-  end
-
-  @doc """
-  Identical to matched_devices_count/2, but a list of device ids are returned instead.
-  """
-  @spec matched_device_ids(DeploymentGroup.t(), in_deployment: boolean()) :: [non_neg_integer()]
-  def matched_device_ids(deployment_group, in_deployment: in_deployment) do
-    deployment_group = Repo.preload(deployment_group, current_release: [:firmware])
-    query = matched_devices_base_query(deployment_group, in_deployment)
-
-    do_matched_devices(deployment_group, query, :collect_ids)
   end
 
   @doc """
   The devices matching a deployment group's conditions, as a query.
 
-  The same devices as `matched_device_ids/2`, for a caller that acts on them in
-  the database, such as moving them into the group or keeping them in it, so
-  their ids never have to be loaded. For a large fleet that is hundreds of
-  thousands of ids each way.
+  The same devices `matched_devices_count/2` counts, for a caller that acts on
+  them in the database, such as moving them into the group or keeping them in
+  it, so their ids never have to be loaded. For a large fleet that is hundreds
+  of thousands of ids.
   """
   @spec matched_devices_query(DeploymentGroup.t(), in_deployment: boolean()) :: Ecto.Query.t()
   def matched_devices_query(deployment_group, in_deployment: in_deployment) do
@@ -1319,20 +1307,12 @@ defmodule NervesHub.ManagedDeployments do
     end
   end
 
-  # Tags and version are both checked in the database, so only a count or the
-  # ids leave it, however many devices the product has.
-  defp do_matched_devices(%DeploymentGroup{conditions: conditions}, query, work_type) do
-    query = where_matching_conditions(query, conditions)
-
-    case work_type do
-      :count ->
-        Repo.aggregate(query, :count)
-
-      :collect_ids ->
-        query
-        |> select([d], d.id)
-        |> Repo.all()
-    end
+  # Tags and version are both checked in the database, so only the count leaves
+  # it, however many devices the product has.
+  defp count_matched_devices(%DeploymentGroup{conditions: conditions}, query) do
+    query
+    |> where_matching_conditions(conditions)
+    |> Repo.aggregate(:count)
   end
 
   defp where_matching_conditions(query, conditions) do
