@@ -209,9 +209,9 @@ defmodule NervesHub.Devices.BulkActions do
     # Use a transaction to ensure devices are updated and deltas are queued atomically
     # This minimizes the race condition window where the orchestrator could pick up devices
     # before their firmware_delta rows are created
-    {:ok, {devices_updated_count, _}} =
+    {:ok, moved_device_ids} =
       Repo.transact(fn ->
-        {count, _} =
+        {_count, moved_device_ids} =
           Device
           |> join(:inner, [d], o in assoc(d, :org), as: :org)
           |> join(:inner, [org: o], u in assoc(o, :users), as: :users)
@@ -227,19 +227,22 @@ defmodule NervesHub.Devices.BulkActions do
             d.firmware_metadata["architecture"] ==
               ^deployment_group.current_release.firmware.architecture
           )
+          |> select([d], d.id)
           |> Repo.update_all([set: [deployment_id: deployment_id]], timeout: to_timeout(minute: 2))
 
         # Queue delta generation for any new device firmware combinations immediately
         # after the device updates within the same transaction
         _ = ManagedDeployments.trigger_delta_generation_for_deployment_group(deployment_group)
 
-        {:ok, {count, nil}}
+        {:ok, moved_device_ids}
       end)
 
-    :ok = Enum.each(device_ids, &DeviceEvents.updated(%Device{id: &1}))
+    :ok = notify_deployment_assigned(moved_device_ids, deployment_id)
 
     # let the orchestrator know that some devices have been added to the deployment group
     DeploymentOrchestratorEvents.bulk_devices_added(deployment_group)
+
+    devices_updated_count = length(moved_device_ids)
 
     %{updated: devices_updated_count, ignored: length(device_ids) - devices_updated_count}
   end
@@ -289,6 +292,37 @@ defmodule NervesHub.Devices.BulkActions do
         DeploymentOrchestratorEvents.bulk_devices_added(deployment_group)
       end
     )
+  end
+
+  # How many moved devices hear about their new group at a time, and how long
+  # to wait between them. A device that hears `deployment_updated` looks up its
+  # group's archive, so telling a whole fleet at once is that many queries at
+  # once from the device nodes. These keep it to about 10,000 a second.
+  @notify_batch_size 1_000
+  @notify_batch_pause to_timeout(millisecond: 100)
+
+  # The rows are already committed, so this is only news for the devices'
+  # channels. A device that misses it reads its group again when it reconnects,
+  # so it's sent off the caller's process rather than holding it up for the
+  # minutes a large move takes to announce.
+  defp notify_deployment_assigned([], _deployment_id), do: :ok
+
+  defp notify_deployment_assigned(device_ids, deployment_id) do
+    {:ok, _pid} =
+      Task.Supervisor.start_child(Tasks, fn ->
+        device_ids
+        |> Enum.chunk_every(@notify_batch_size)
+        |> Enum.intersperse(:pause)
+        |> Enum.each(fn
+          :pause ->
+            Process.sleep(@notify_batch_pause)
+
+          batch ->
+            Enum.each(batch, &DeviceEvents.deployment_assigned(%Device{id: &1, deployment_id: deployment_id}))
+        end)
+      end)
+
+    :ok
   end
 
   @spec move_many_to_deployment_group_by_identifiers(

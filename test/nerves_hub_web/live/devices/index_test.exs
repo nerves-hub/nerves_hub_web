@@ -1456,8 +1456,9 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       end)
       |> assert_has("div", text: "All selected devices were added to deployment #{deployment_group.name}")
 
-      assert_receive %{event: "updated"}
-      assert_receive %{event: "updated"}
+      group_id = deployment_group.id
+      assert_receive %{event: "deployment_updated", payload: %{deployment_id: ^group_id}}
+      assert_receive %{event: "deployment_updated", payload: %{deployment_id: ^group_id}}
 
       assert Repo.reload(device) |> Map.get(:deployment_id)
       assert Repo.reload(device2) |> Map.get(:deployment_id)

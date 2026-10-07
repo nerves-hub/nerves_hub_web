@@ -1956,6 +1956,50 @@ defmodule NervesHub.DevicesTest do
       assert Repo.aggregate(where(Device, [d], d.deployment_id == ^deployment_group.id), :count) == 2
     end
 
+    test "tells moved devices about their new group in batches, not all at once", %{
+      deployment_group: deployment_group,
+      device: device,
+      org: org,
+      product: product,
+      firmware: firmware,
+      user: user
+    } do
+      # One more than a batch, so the last device is in the second
+      devices = [device | for(_ <- 1..1_000, do: Fixtures.device_fixture(org, product, firmware))]
+      group_id = deployment_group.id
+      test_pid = self()
+
+      # Each listener notes when its broadcast arrived, rather than when this test
+      # gets round to reading it, which on a loaded runner can be much later.
+      for device <- [hd(devices), List.last(devices)] do
+        topic = DeviceEvents.topic(device)
+
+        spawn_link(fn ->
+          :ok = Phoenix.PubSub.subscribe(NervesHub.PubSub, topic)
+          send(test_pid, {:listening, topic})
+
+          receive do
+            %Broadcast{topic: ^topic, event: "deployment_updated", payload: %{deployment_id: ^group_id}} ->
+              send(test_pid, {:heard, topic, System.monotonic_time(:millisecond)})
+          end
+        end)
+
+        assert_receive {:listening, ^topic}
+      end
+
+      %{updated: 1_001, ignored: 0} =
+        BulkActions.move_many_to_deployment_group(Enum.map(devices, & &1.id), deployment_group, user)
+
+      first_topic = DeviceEvents.topic(hd(devices))
+      last_topic = DeviceEvents.topic(List.last(devices))
+
+      assert_receive {:heard, ^first_topic, first_at}, 1_000
+      assert_receive {:heard, ^last_topic, last_at}, 1_000
+
+      # The second batch waits for the pause after the first
+      assert last_at - first_at >= 50
+    end
+
     test "accepts an Ecto.Query for the first argument", %{
       deployment_group: deployment_group,
       device: device1,

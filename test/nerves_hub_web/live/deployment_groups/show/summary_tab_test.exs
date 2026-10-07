@@ -534,6 +534,53 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show.SummaryTabTest do
     end)
   end
 
+  test "moving matching devices tells the moved devices their new group, and no one else", %{
+    conn: conn,
+    org: org,
+    product: product,
+    device: already_in_group,
+    fixture: %{firmware: firmware, device: setup_device},
+    deployment_group: deployment_group
+  } do
+    moved_one = Fixtures.device_fixture(org, product, firmware, %{tags: ["beta"]})
+    moved_two = Fixtures.device_fixture(org, product, firmware, %{tags: ["beta-edge"]})
+    not_matching = Fixtures.device_fixture(org, product, firmware, %{tags: ["foo"]})
+
+    for device <- [setup_device, moved_one, moved_two, not_matching, already_in_group] do
+      Phoenix.PubSub.subscribe(NervesHub.PubSub, "device:#{device.id}")
+    end
+
+    conn
+    |> visit("/org/#{org.name}/#{product.name}/deployment_groups/#{deployment_group.name}")
+    |> click_button("Move devices")
+    |> assert_has("div", text: "3 devices moved to #{deployment_group.name}", timeout: 1000)
+
+    group_id = deployment_group.id
+
+    for device <- [setup_device, moved_one, moved_two] do
+      topic = "device:#{device.id}"
+
+      assert_receive %Broadcast{
+        topic: ^topic,
+        event: "deployment_updated",
+        payload: %{deployment_id: ^group_id}
+      }
+
+      assert Repo.reload(device).deployment_id == group_id
+    end
+
+    # A device that hears "updated" goes back to the database for its whole
+    # record, which is the load that a large move multiplies.
+    refute_received %Broadcast{event: "updated"}
+
+    for device <- [not_matching, already_in_group] do
+      topic = "device:#{device.id}"
+      refute_received %Broadcast{topic: ^topic}
+    end
+
+    refute Repo.reload(not_matching).deployment_id
+  end
+
   test "shows notes when present", %{
     conn: conn,
     org: org,
