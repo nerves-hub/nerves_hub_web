@@ -298,13 +298,22 @@ defmodule NervesHub.Devices.BulkActions do
   # to wait between them. A device that hears `deployment_updated` looks up its
   # group's archive, so telling a whole fleet at once is that many queries at
   # once from the device nodes. These keep it to about 10,000 a second.
+  #
+  # The pauses come between batches, not after the last, so announcing a move
+  # takes at least (batches - 1) x 100ms, plus the time to send each batch:
+  #
+  #   10,000 devices    10 batches   0.9s
+  #   190,000 devices  190 batches   18.9s
+  #   250,000 devices  250 batches   24.9s
+  #
+  # A device keeps its old group until its batch is sent.
   @notify_batch_size 1_000
   @notify_batch_pause to_timeout(millisecond: 100)
 
   # The rows are already committed, so this is only news for the devices'
   # channels. A device that misses it reads its group again when it reconnects,
   # so it's sent off the caller's process rather than holding it up for the
-  # minutes a large move takes to announce.
+  # seconds a large move takes to announce.
   defp notify_deployment_assigned([], _deployment_id), do: :ok
 
   defp notify_deployment_assigned(device_ids, deployment_id) do
