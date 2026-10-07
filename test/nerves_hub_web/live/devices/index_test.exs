@@ -1,5 +1,6 @@
 defmodule NervesHubWeb.Live.Devices.IndexTest do
   use NervesHubWeb.ConnCase.Browser, async: false
+  use Mimic
 
   import Ecto.Query, only: [from: 2, where: 2]
 
@@ -9,6 +10,7 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
   alias NervesHub.DeviceEvents
   alias NervesHub.DeviceLink.DeviceInfo
   alias NervesHub.Devices
+  alias NervesHub.Devices.BulkActions
   alias NervesHub.Devices.CACertificates
   alias NervesHub.Devices.Connections
   alias NervesHub.Devices.Device
@@ -1658,6 +1660,41 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       )
 
       assert Repo.reload(devices) |> Enum.all?(fn device -> device.deployment_id == deployment_group.id end)
+    end
+
+    test "a move to a deployment group that fails shows an error", %{conn: conn, fixture: fixture} do
+      %{org: org, product: product, firmware: firmware, deployment_group: deployment_group} = fixture
+
+      Repo.delete_all(Device)
+
+      Enum.each(1..26, fn _ -> Fixtures.device_fixture(org, product, firmware) end)
+
+      stub(Sentry, :capture_message, fn _, _ -> {:ok, ""} end)
+
+      expect(BulkActions, :move_many_to_deployment_group, fn _, _, _ ->
+        raise "simulated chunk failure"
+      end)
+
+      conn
+      |> visit(~p"/org/#{org}/#{product}/devices")
+      |> assert_has("#device-count", text: "26", timeout: 1_000)
+      |> check("Select all devices", exact: false)
+      |> click_button("Select all")
+      |> assert_has("h4", "All devices selected")
+      |> within("form#deployment-set", fn session ->
+        session
+        |> select("Set deployment group",
+          option: deployment_group.name,
+          exact_option: false
+        )
+        |> submit()
+      end)
+      |> assert_has("div",
+        text: "There was an issue assigning devices to the selected deployment group.",
+        exact: false,
+        timeout: 3_000
+      )
+      |> assert_has("h1", text: "Devices")
     end
 
     test "changes tags", %{conn: conn, fixture: fixture} do

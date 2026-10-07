@@ -996,6 +996,23 @@ defmodule NervesHubWeb.Live.Devices.Index do
     |> noreply()
   end
 
+  # A move commits a chunk at a time, so when one fails some devices may
+  # already be in the group. Refreshing the list shows which.
+  def handle_async(:move_many_to_deployment_group, {:exit, reason}, socket) do
+    message =
+      "Live.Devices.Index.handle_async:move_many_to_deployment_group failed due to exit: #{inspect(reason)}"
+
+    _ = Sentry.capture_message(message, result: :none)
+
+    socket
+    |> put_flash(
+      :error,
+      "There was an issue assigning devices to the selected deployment group. Some devices may have been assigned."
+    )
+    |> assign_display_devices()
+    |> noreply()
+  end
+
   def handle_async(:move_many, {:ok, results}, socket) do
     case results do
       %{ok: _, error: 0} ->
