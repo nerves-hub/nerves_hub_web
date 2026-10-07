@@ -1941,6 +1941,126 @@ defmodule NervesHub.DevicesTest do
   end
 
   describe "move_many_to_deployment_group/3" do
+    test "a large move commits a chunk of devices at a time", %{
+      deployment_group: deployment_group,
+      device: device,
+      org: org,
+      product: product,
+      firmware: firmware,
+      user: user
+    } do
+      # One more than a chunk, so the move takes two. Inserted in one statement,
+      # since a fixture each would take most of a minute.
+      now = NaiveDateTime.utc_now(:second)
+
+      rows =
+        for n <- 1..5_000 do
+          %{
+            org_id: org.id,
+            product_id: product.id,
+            identifier: "chunk-#{System.unique_integer([:positive])}-#{n}",
+            firmware_metadata: device.firmware_metadata,
+            inserted_at: now,
+            updated_at: now
+          }
+        end
+
+      {5_000, inserted} = Repo.insert_all(Device, rows, returning: [:id])
+      device_ids = [device.id | Enum.map(inserted, & &1.id)]
+
+      transactions = :counters.new(1, [])
+      handler_id = "move-chunk-transactions-#{System.unique_integer([:positive])}"
+      test_pid = self()
+
+      :telemetry.attach(
+        handler_id,
+        [:nerves_hub, :repo, :query],
+        fn _event, _measurements, %{query: query}, _config ->
+          if self() == test_pid and String.starts_with?(query, ~s|UPDATE "devices"|),
+            do: :counters.add(transactions, 1, 1)
+        end,
+        nil
+      )
+
+      on_exit(fn -> :telemetry.detach(handler_id) end)
+
+      assert %{updated: 5_001, ignored: 0} =
+               BulkActions.move_many_to_deployment_group(device_ids, deployment_group, user)
+
+      assert :counters.get(transactions, 1) == 2
+      assert Repo.aggregate(where(Device, [d], d.deployment_id == ^deployment_group.id), :count) == 5_001
+    end
+
+    test "when a chunk fails, the devices already moved are told once", %{
+      deployment_group: deployment_group,
+      device: device,
+      org: org,
+      product: product,
+      user: user
+    } do
+      now = NaiveDateTime.utc_now(:second)
+
+      # Three chunks: two that go in, then one that fails. With two in, a
+      # failure that was handled at each level would tell the first chunk twice.
+      rows =
+        for n <- 1..10_000 do
+          %{
+            org_id: org.id,
+            product_id: product.id,
+            identifier: "chunk-fail-#{System.unique_integer([:positive])}-#{n}",
+            firmware_metadata: device.firmware_metadata,
+            inserted_at: now,
+            updated_at: now
+          }
+        end
+
+      {10_000, inserted} = Repo.insert_all(Device, rows, returning: [:id])
+      device_ids = [device.id | Enum.map(inserted, & &1.id)]
+      second_chunk_id = Enum.at(device_ids, 5_000)
+      last_id = List.last(device_ids)
+
+      # Queuing deltas is the last step of each chunk's transaction, so failing
+      # it the third time rolls back the third chunk and leaves the first two in
+      expect(ManagedDeployments, :trigger_delta_generation_for_deployment_group, 3, fn group ->
+        calls = Process.get(:delta_calls, 0) + 1
+        Process.put(:delta_calls, calls)
+
+        if calls == 3 do
+          raise "simulated failure"
+        else
+          call_original(ManagedDeployments, :trigger_delta_generation_for_deployment_group, [group])
+        end
+      end)
+
+      first_topic = DeviceEvents.topic(device)
+      :ok = Phoenix.PubSub.subscribe(NervesHub.PubSub, first_topic)
+      :ok = DeploymentOrchestratorEvents.subscribe(deployment_group)
+      orchestrator_topic = DeploymentOrchestratorEvents.topic(deployment_group)
+      group_id = deployment_group.id
+
+      assert_raise RuntimeError, "simulated failure", fn ->
+        BulkActions.move_many_to_deployment_group(device_ids, deployment_group, user)
+      end
+
+      assert Repo.reload(device).deployment_id == group_id
+      assert Repo.get!(Device, second_chunk_id).deployment_id == group_id
+      refute Repo.get!(Device, last_id).deployment_id
+
+      assert_receive %Broadcast{
+                       topic: ^first_topic,
+                       event: "deployment_updated",
+                       payload: %{deployment_id: ^group_id}
+                     },
+                     1_000
+
+      assert_receive %Broadcast{topic: ^orchestrator_topic, event: "bulk-devices-added"}, 1_000
+
+      # The announcement for the first chunk is in a background task, so give a
+      # second one the same time to show up before saying there wasn't one.
+      refute_receive %Broadcast{topic: ^first_topic}, 500
+      refute_received %Broadcast{topic: ^orchestrator_topic}
+    end
+
     test "many devices can be moved to a deployment group", %{
       deployment_group: deployment_group,
       device: device1,

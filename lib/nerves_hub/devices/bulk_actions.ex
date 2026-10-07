@@ -169,6 +169,12 @@ defmodule NervesHub.Devices.BulkActions do
     end)
   end
 
+  # How many devices each transaction of a move holds. One statement for a whole
+  # fleet holds a lock on every row it touches until the last is written, and
+  # anything else writing to those devices waits that long, so a move commits a
+  # chunk at a time instead.
+  @move_chunk_size 5_000
+
   @doc """
   Move devices to a deployment group. A deployment group struct or id can
   be given. Devices are fetched by their id and also filtered by the given
@@ -206,41 +212,10 @@ defmodule NervesHub.Devices.BulkActions do
       )
       |> Repo.one!()
 
-    # Use a transaction to ensure devices are updated and deltas are queued atomically
-    # This minimizes the race condition window where the orchestrator could pick up devices
-    # before their firmware_delta rows are created
-    {:ok, moved_device_ids} =
-      Repo.transact(fn ->
-        {_count, moved_device_ids} =
-          Device
-          |> join(:inner, [d], o in assoc(d, :org), as: :org)
-          |> join(:inner, [org: o], u in assoc(o, :users), as: :users)
-          |> where([users: users], users.id == ^user.id)
-          |> Repo.exclude_deleted()
-          |> where([d], d.id in ^device_ids)
-          |> where(
-            [d],
-            d.firmware_metadata["platform"] == ^deployment_group.current_release.firmware.platform
-          )
-          |> where(
-            [d],
-            d.firmware_metadata["architecture"] ==
-              ^deployment_group.current_release.firmware.architecture
-          )
-          |> select([d], d.id)
-          |> Repo.update_all([set: [deployment_id: deployment_id]], timeout: to_timeout(minute: 2))
-
-        # Queue delta generation for any new device firmware combinations immediately
-        # after the device updates within the same transaction
-        _ = ManagedDeployments.trigger_delta_generation_for_deployment_group(deployment_group)
-
-        {:ok, moved_device_ids}
-      end)
-
-    :ok = notify_deployment_assigned(moved_device_ids, deployment_id)
-
-    # let the orchestrator know that some devices have been added to the deployment group
-    DeploymentOrchestratorEvents.bulk_devices_added(deployment_group)
+    moved_device_ids =
+      device_ids
+      |> Enum.chunk_every(@move_chunk_size)
+      |> move_chunks(deployment_group, user)
 
     devices_updated_count = length(moved_device_ids)
 
@@ -294,6 +269,74 @@ defmodule NervesHub.Devices.BulkActions do
     )
   end
 
+  # Each chunk is its own transaction: its devices are moved and their deltas
+  # queued together, so the orchestrator never sees a moved device without the
+  # delta it should wait for. Queuing looks at the whole group each time, which
+  # on 190,000 devices took 52ms, so a 190,000-device move spends at most about
+  # 2s on it across its 38 chunks.
+  #
+  # The devices only hear about it once every chunk is in. If a chunk fails, the
+  # ones before it stay moved, so their devices and the orchestrator are still
+  # told, and the failure is raised for the caller to report.
+  defp move_chunks(chunks, deployment_group, user) do
+    {moved, failure} =
+      Enum.reduce_while(chunks, {[], nil}, fn chunk, {moved, nil} ->
+        try do
+          {:cont, {[move_chunk(chunk, deployment_group, user) | moved], nil}}
+        rescue
+          error -> {:halt, {moved, {error, __STACKTRACE__}}}
+        end
+      end)
+
+    moved = moved |> Enum.reverse() |> List.flatten()
+
+    :ok = announce_moved(moved, deployment_group)
+
+    case failure do
+      nil -> moved
+      {error, stacktrace} -> reraise error, stacktrace
+    end
+  end
+
+  defp move_chunk(chunk, deployment_group, user) do
+    {:ok, moved} =
+      Repo.transact(fn ->
+        {_count, moved} =
+          Device
+          |> join(:inner, [d], o in assoc(d, :org), as: :org)
+          |> join(:inner, [org: o], u in assoc(o, :users), as: :users)
+          |> where([users: users], users.id == ^user.id)
+          |> Repo.exclude_deleted()
+          |> where([d], d.id in ^chunk)
+          |> where(
+            [d],
+            d.firmware_metadata["platform"] == ^deployment_group.current_release.firmware.platform
+          )
+          |> where(
+            [d],
+            d.firmware_metadata["architecture"] ==
+              ^deployment_group.current_release.firmware.architecture
+          )
+          |> select([d], d.id)
+          |> Repo.update_all([set: [deployment_id: deployment_group.id]], timeout: to_timeout(minute: 2))
+
+        _ = ManagedDeployments.trigger_delta_generation_for_deployment_group(deployment_group)
+
+        {:ok, moved}
+      end)
+
+    moved
+  end
+
+  defp announce_moved([], _deployment_group), do: :ok
+
+  defp announce_moved(moved_device_ids, deployment_group) do
+    :ok = notify_deployment_assigned(moved_device_ids, deployment_group.id)
+
+    # let the orchestrator know that some devices have been added to the deployment group
+    DeploymentOrchestratorEvents.bulk_devices_added(deployment_group)
+  end
+
   # How many moved devices hear about their new group at a time, and how long
   # to wait between them. A device that hears `deployment_updated` looks up its
   # group's archive, so telling a whole fleet at once is that many queries at
@@ -314,8 +357,6 @@ defmodule NervesHub.Devices.BulkActions do
   # channels. A device that misses it reads its group again when it reconnects,
   # so it's sent off the caller's process rather than holding it up for the
   # seconds a large move takes to announce.
-  defp notify_deployment_assigned([], _deployment_id), do: :ok
-
   defp notify_deployment_assigned(device_ids, deployment_id) do
     {:ok, _pid} =
       Task.Supervisor.start_child(Tasks, fn ->
