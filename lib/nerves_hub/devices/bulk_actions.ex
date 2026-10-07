@@ -210,51 +210,20 @@ defmodule NervesHub.Devices.BulkActions do
     %{updated: devices_updated_count, ignored: length(device_ids) - devices_updated_count}
   end
 
+  # The devices page's "select all matching" and CSV import. Unlike a list of
+  # ids, these also move devices that haven't reported their firmware yet, so
+  # a device can be put in a group before it first connects.
   def move_many_to_deployment_group(%Ecto.Query{} = devices_query, deployment_id, user) do
-    deployment_group =
-      DeploymentGroup
-      |> from(as: :deployment_group)
-      |> join(:inner, [deployment_group: dg], o in assoc(dg, :org), as: :org)
-      |> join(:inner, [org: o], u in assoc(o, :users), as: :users)
-      |> ManagedDeployments.join_current_release()
-      |> join(:inner, [current_release: cr], f in assoc(cr, :firmware), as: :firmware)
-      |> where([deployment_group: dg], dg.id == ^deployment_id)
-      |> where([users: users], users.id == ^user.id)
-      |> preload([firmware: f, current_release: cr],
-        current_release: {cr, firmware: f}
-      )
-      |> Repo.one!()
+    deployment_group = get_deployment_group_for_move!(deployment_id, user)
 
-    devices_query
-    |> where(
-      [d],
-      d.firmware_metadata["platform"] == ^deployment_group.current_release.firmware.platform or
-        is_nil(d.firmware_metadata)
-    )
-    |> where(
-      [d],
-      d.firmware_metadata["architecture"] ==
-        ^deployment_group.current_release.firmware.architecture or is_nil(d.firmware_metadata)
-    )
-    |> stream_processing(
-      fn device ->
-        device
-        |> Device.update_deployment_group(deployment_group)
-        |> Repo.update()
-        |> case do
-          {:ok, device} ->
-            DeviceEvents.updated(device)
-            :ok
+    # Devices on other firmware are left out before counting, so they aren't
+    # reported as errors: the selection or CSV named them, but they never fit.
+    %{updated: updated, ignored: ignored} =
+      devices_query
+      |> where_runs_group_firmware(deployment_group, true)
+      |> move_query_in_chunks(deployment_group, user, include_unreported: true)
 
-          _ ->
-            :error
-        end
-      end,
-      before_commit: fn ->
-        _ = ManagedDeployments.trigger_delta_generation_for_deployment_group(deployment_group)
-        DeploymentOrchestratorEvents.bulk_devices_added(deployment_group)
-      end
-    )
+    %{ok: updated, error: ignored}
   end
 
   # Each chunk is its own transaction: its devices are moved and their deltas
@@ -267,11 +236,11 @@ defmodule NervesHub.Devices.BulkActions do
   # ones before it stay moved, so their devices and the orchestrator are still
   # told, and the failure is raised for the caller to report.
   # Returns the moved ids and how many ids the chunks held between them.
-  defp move_chunks(chunks, deployment_group, user) do
+  defp move_chunks(chunks, deployment_group, user, opts \\ []) do
     {moved, selected, failure} =
       Enum.reduce_while(chunks, {[], 0, nil}, fn chunk, {moved, selected, nil} ->
         try do
-          {:cont, {[move_chunk(chunk, deployment_group, user) | moved], selected + length(chunk), nil}}
+          {:cont, {[move_chunk(chunk, deployment_group, user, opts) | moved], selected + length(chunk), nil}}
         rescue
           error -> {:halt, {moved, selected, {error, __STACKTRACE__}}}
         end
@@ -287,7 +256,7 @@ defmodule NervesHub.Devices.BulkActions do
     end
   end
 
-  defp move_chunk(chunk, deployment_group, user) do
+  defp move_chunk(chunk, deployment_group, user, opts) do
     {:ok, moved} =
       Repo.transact(fn ->
         {_count, moved} =
@@ -297,15 +266,7 @@ defmodule NervesHub.Devices.BulkActions do
           |> where([users: users], users.id == ^user.id)
           |> Repo.exclude_deleted()
           |> where([d], d.id in ^chunk)
-          |> where(
-            [d],
-            d.firmware_metadata["platform"] == ^deployment_group.current_release.firmware.platform
-          )
-          |> where(
-            [d],
-            d.firmware_metadata["architecture"] ==
-              ^deployment_group.current_release.firmware.architecture
-          )
+          |> where_runs_group_firmware(deployment_group, opts[:include_unreported])
           |> select([d], d.id)
           |> Repo.update_all([set: [deployment_id: deployment_group.id]], timeout: to_timeout(minute: 2))
 
@@ -315,6 +276,25 @@ defmodule NervesHub.Devices.BulkActions do
       end)
 
     moved
+  end
+
+  defp where_runs_group_firmware(query, deployment_group, include_unreported) do
+    %{platform: platform, architecture: architecture} = deployment_group.current_release.firmware
+
+    if include_unreported do
+      where(
+        query,
+        [d],
+        (d.firmware_metadata["platform"] == ^platform and d.firmware_metadata["architecture"] == ^architecture) or
+          is_nil(d.firmware_metadata)
+      )
+    else
+      where(
+        query,
+        [d],
+        d.firmware_metadata["platform"] == ^platform and d.firmware_metadata["architecture"] == ^architecture
+      )
+    end
   end
 
   defp announce_moved([], _deployment_group), do: :ok
@@ -347,10 +327,14 @@ defmodule NervesHub.Devices.BulkActions do
   def move_matched_to_deployment_group(%Ecto.Query{} = devices_query, %DeploymentGroup{id: deployment_id}, user) do
     deployment_group = get_deployment_group_for_move!(deployment_id, user)
 
+    move_query_in_chunks(devices_query, deployment_group, user)
+  end
+
+  defp move_query_in_chunks(devices_query, deployment_group, user, opts \\ []) do
     {moved_device_ids, selected} =
       devices_query
       |> device_id_pages(@move_chunk_size)
-      |> move_chunks(deployment_group, user)
+      |> move_chunks(deployment_group, user, opts)
 
     devices_updated_count = length(moved_device_ids)
 
@@ -359,7 +343,9 @@ defmodule NervesHub.Devices.BulkActions do
 
   # The query's ids in order, a page at a time, each page starting after the
   # last id of the one before. Paging by id rather than by offset means a page
-  # never skips or repeats a device as earlier pages are moved.
+  # never skips or repeats a device as earlier pages are moved. Distinct, since
+  # a query with joins, like the devices page's filters, can return a device
+  # more than once.
   defp device_id_pages(devices_query, page_size) do
     Stream.unfold(0, fn
       :done ->
@@ -370,6 +356,8 @@ defmodule NervesHub.Devices.BulkActions do
           devices_query
           |> exclude(:select)
           |> exclude(:order_by)
+          |> exclude(:distinct)
+          |> distinct(true)
           |> where([d], d.id > ^after_id)
           |> order_by([d], asc: d.id)
           |> limit(^page_size)

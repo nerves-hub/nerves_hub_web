@@ -25,6 +25,7 @@ defmodule NervesHub.DevicesTest do
   alias NervesHub.Devices.Health
   alias NervesHub.Devices.InflightUpdate
   alias NervesHub.Devices.NetworkIdentities
+  alias NervesHub.Devices.PinnedDevice
   alias NervesHub.Devices.PubSub
   alias NervesHub.Devices.SharedSecretAuth
   alias NervesHub.Devices.UpdatePayload
@@ -2093,7 +2094,7 @@ defmodule NervesHub.DevicesTest do
         handler_id,
         [:nerves_hub, :repo, :query],
         fn _event, _measurements, %{query: query, result: {:ok, %{num_rows: rows}}}, _config ->
-          if self() == test_pid and String.starts_with?(query, ~s|SELECT d0."id" FROM "devices"|) and
+          if self() == test_pid and String.starts_with?(query, ~s|SELECT DISTINCT d0."id" FROM "devices"|) and
                rows > :counters.get(ids_read, 1),
              do: :counters.put(ids_read, 1, rows)
         end,
@@ -2178,6 +2179,96 @@ defmodule NervesHub.DevicesTest do
       assert count == 2
 
       assert Repo.aggregate(where(Device, [d], d.deployment_id == ^deployment_group.id), :count) == 2
+    end
+
+    test "given a query, moves a chunk of devices to a transaction", %{
+      deployment_group: deployment_group,
+      device: device,
+      org: org,
+      product: product,
+      user: user
+    } do
+      # One more than a chunk, so the move takes two
+      now = NaiveDateTime.utc_now(:second)
+
+      rows =
+        for n <- 1..5_000 do
+          %{
+            org_id: org.id,
+            product_id: product.id,
+            identifier: "query-chunk-#{System.unique_integer([:positive])}-#{n}",
+            firmware_metadata: device.firmware_metadata,
+            inserted_at: now,
+            updated_at: now
+          }
+        end
+
+      {5_000, inserted} = Repo.insert_all(Device, rows, returning: [:id])
+      device_ids = [device.id | Enum.map(inserted, & &1.id)]
+
+      transactions = :counters.new(1, [])
+      handler_id = "query-move-transactions-#{System.unique_integer([:positive])}"
+      test_pid = self()
+
+      :telemetry.attach(
+        handler_id,
+        [:nerves_hub, :repo, :query],
+        fn _event, _measurements, %{query: query}, _config ->
+          if self() == test_pid and String.starts_with?(query, ~s|UPDATE "devices"|),
+            do: :counters.add(transactions, 1, 1)
+        end,
+        nil
+      )
+
+      on_exit(fn -> :telemetry.detach(handler_id) end)
+
+      assert %{ok: 5_001, error: 0} =
+               Device
+               |> where([d], d.id in ^device_ids)
+               |> BulkActions.move_many_to_deployment_group(deployment_group, user)
+
+      assert :counters.get(transactions, 1) == 2
+      assert Repo.aggregate(where(Device, [d], d.deployment_id == ^deployment_group.id), :count) == 5_001
+    end
+
+    test "given a query, moves devices that haven't reported firmware yet", %{
+      deployment_group: deployment_group,
+      org: org,
+      product: product,
+      firmware: firmware,
+      user: user
+    } do
+      unreported = Fixtures.device_fixture(org, product, firmware, %{firmware_metadata: nil})
+
+      assert %{ok: 1, error: 0} =
+               Device
+               |> where([d], d.id == ^unreported.id)
+               |> BulkActions.move_many_to_deployment_group(deployment_group, user)
+
+      assert Repo.reload(unreported).deployment_id == deployment_group.id
+    end
+
+    test "given the devices page's query, counts a device the filters join twice once", %{
+      deployment_group: deployment_group,
+      device: device,
+      product: product,
+      user: user
+    } do
+      # Pinned twice, so the page's join to pinned devices returns it twice
+      Repo.insert_all(PinnedDevice, [
+        %{user_id: user.id, device_id: device.id, inserted_at: NaiveDateTime.utc_now(:second)},
+        %{user_id: user.id, device_id: device.id, inserted_at: NaiveDateTime.utc_now(:second)}
+      ])
+
+      query =
+        product
+        |> Devices.filter_query(user, %{sort: {:asc, :identifier}, filters: %{}})
+        |> where([d], d.id == ^device.id)
+
+      assert query |> Repo.all() |> length() == 2
+
+      assert %{ok: 1, error: 0} = BulkActions.move_many_to_deployment_group(query, deployment_group, user)
+      assert Repo.reload(device).deployment_id == deployment_group.id
     end
 
     test "broadcasts bulk-devices-added when a group (bulk) of devices are added to a deployment group", %{
