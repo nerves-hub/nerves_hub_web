@@ -198,21 +198,9 @@ defmodule NervesHub.Devices.BulkActions do
   end
 
   def move_many_to_deployment_group(device_ids, deployment_id, user) when is_list(device_ids) do
-    deployment_group =
-      DeploymentGroup
-      |> from(as: :deployment_group)
-      |> join(:inner, [deployment_group: dg], o in assoc(dg, :org), as: :org)
-      |> join(:inner, [org: o], u in assoc(o, :users), as: :users)
-      |> ManagedDeployments.join_current_release()
-      |> join(:inner, [current_release: cr], f in assoc(cr, :firmware), as: :firmware)
-      |> where([deployment_group: dg], dg.id == ^deployment_id)
-      |> where([users: users], users.id == ^user.id)
-      |> preload([firmware: f, current_release: cr],
-        current_release: {cr, firmware: f}
-      )
-      |> Repo.one!()
+    deployment_group = get_deployment_group_for_move!(deployment_id, user)
 
-    moved_device_ids =
+    {moved_device_ids, _selected} =
       device_ids
       |> Enum.chunk_every(@move_chunk_size)
       |> move_chunks(deployment_group, user)
@@ -278,13 +266,14 @@ defmodule NervesHub.Devices.BulkActions do
   # The devices only hear about it once every chunk is in. If a chunk fails, the
   # ones before it stay moved, so their devices and the orchestrator are still
   # told, and the failure is raised for the caller to report.
+  # Returns the moved ids and how many ids the chunks held between them.
   defp move_chunks(chunks, deployment_group, user) do
-    {moved, failure} =
-      Enum.reduce_while(chunks, {[], nil}, fn chunk, {moved, nil} ->
+    {moved, selected, failure} =
+      Enum.reduce_while(chunks, {[], 0, nil}, fn chunk, {moved, selected, nil} ->
         try do
-          {:cont, {[move_chunk(chunk, deployment_group, user) | moved], nil}}
+          {:cont, {[move_chunk(chunk, deployment_group, user) | moved], selected + length(chunk), nil}}
         rescue
-          error -> {:halt, {moved, {error, __STACKTRACE__}}}
+          error -> {:halt, {moved, selected, {error, __STACKTRACE__}}}
         end
       end)
 
@@ -293,7 +282,7 @@ defmodule NervesHub.Devices.BulkActions do
     :ok = announce_moved(moved, deployment_group)
 
     case failure do
-      nil -> moved
+      nil -> {moved, selected}
       {error, stacktrace} -> reraise error, stacktrace
     end
   end
@@ -373,6 +362,79 @@ defmodule NervesHub.Devices.BulkActions do
       end)
 
     :ok
+  end
+
+  @doc """
+  Move the devices a query selects into a deployment group, such as the query
+  from `ManagedDeployments.matched_devices_query/2`.
+
+  Works like `move_many_to_deployment_group/3` given ids, 5,000 devices to a
+  transaction, but reads the ids from the query a chunk
+  at a time instead of being handed every one. A move of a whole fleet then
+  holds one chunk of ids at a time, rather than loading them all to send them
+  straight back.
+
+  `ignored` counts devices the query selected that weren't moved, for instance
+  because something else moved them first.
+
+  move_matched_to_deployment_group(query, deployment_group, user)
+  > %{updated: 3, ignored: 0}
+  """
+  @spec move_matched_to_deployment_group(Ecto.Query.t(), DeploymentGroup.t(), User.t()) ::
+          %{updated: non_neg_integer(), ignored: non_neg_integer()}
+  def move_matched_to_deployment_group(%Ecto.Query{} = devices_query, %DeploymentGroup{id: deployment_id}, user) do
+    deployment_group = get_deployment_group_for_move!(deployment_id, user)
+
+    {moved_device_ids, selected} =
+      devices_query
+      |> device_id_pages(@move_chunk_size)
+      |> move_chunks(deployment_group, user)
+
+    devices_updated_count = length(moved_device_ids)
+
+    %{updated: devices_updated_count, ignored: selected - devices_updated_count}
+  end
+
+  # The query's ids in order, a page at a time, each page starting after the
+  # last id of the one before. Paging by id rather than by offset means a page
+  # never skips or repeats a device as earlier pages are moved.
+  defp device_id_pages(devices_query, page_size) do
+    Stream.unfold(0, fn
+      :done ->
+        nil
+
+      after_id ->
+        page =
+          devices_query
+          |> exclude(:select)
+          |> exclude(:order_by)
+          |> where([d], d.id > ^after_id)
+          |> order_by([d], asc: d.id)
+          |> limit(^page_size)
+          |> select([d], d.id)
+          |> Repo.all()
+
+        case page do
+          [] -> nil
+          page when length(page) < page_size -> {page, :done}
+          page -> {page, List.last(page)}
+        end
+    end)
+  end
+
+  defp get_deployment_group_for_move!(deployment_id, user) do
+    DeploymentGroup
+    |> from(as: :deployment_group)
+    |> join(:inner, [deployment_group: dg], o in assoc(dg, :org), as: :org)
+    |> join(:inner, [org: o], u in assoc(o, :users), as: :users)
+    |> ManagedDeployments.join_current_release()
+    |> join(:inner, [current_release: cr], f in assoc(cr, :firmware), as: :firmware)
+    |> where([deployment_group: dg], dg.id == ^deployment_id)
+    |> where([users: users], users.id == ^user.id)
+    |> preload([firmware: f, current_release: cr],
+      current_release: {cr, firmware: f}
+    )
+    |> Repo.one!()
   end
 
   @spec move_many_to_deployment_group_by_identifiers(

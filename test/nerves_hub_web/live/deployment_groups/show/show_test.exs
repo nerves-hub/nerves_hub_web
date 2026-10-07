@@ -122,7 +122,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.ShowTest do
 
     stub(Logging, :log_to_sentry, fn _, _ -> :ok end)
 
-    expect(BulkActions, :move_many_to_deployment_group, fn _, _, _ ->
+    expect(BulkActions, :move_matched_to_deployment_group, fn _, _, _ ->
       raise "simulated async exit"
     end)
 
@@ -145,7 +145,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.ShowTest do
   } do
     Fixtures.device_fixture(org, product, firmware, %{tags: ["beta"]})
 
-    expect(BulkActions, :move_many_to_deployment_group, fn _, _, _ ->
+    expect(BulkActions, :move_matched_to_deployment_group, fn _, _, _ ->
       %{updated: 1, ignored: 0}
     end)
 
@@ -170,7 +170,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.ShowTest do
 
     stub(Logging, :log_to_sentry, fn _, _, _ -> :ok end)
 
-    expect(BulkActions, :move_many_to_deployment_group, fn _, _, _ ->
+    expect(BulkActions, :move_matched_to_deployment_group, fn _, _, _ ->
       %{updated: 0, ignored: 1}
     end)
 
@@ -242,9 +242,9 @@ defmodule NervesHubWeb.Live.DeploymentGroups.ShowTest do
     Fixtures.device_fixture(org, product, firmware, %{tags: ["foo"], deployment_id: deployment_group.id})
     test_pid = self()
 
-    stub(ManagedDeployments, :matched_device_ids, fn group, opts ->
+    stub(ManagedDeployments, :matched_devices_query, fn group, opts ->
       send(test_pid, {:matching_in, self()})
-      call_original(ManagedDeployments, :matched_device_ids, [group, opts])
+      call_original(ManagedDeployments, :matched_devices_query, [group, opts])
     end)
 
     conn =

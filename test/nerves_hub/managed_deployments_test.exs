@@ -1415,6 +1415,99 @@ defmodule NervesHub.ManagedDeploymentsTest do
     end
   end
 
+  describe "matched_devices_query/2" do
+    test "selects the same devices as matched_device_ids/2", %{
+      org: org,
+      product: product,
+      firmware: firmware,
+      user: user
+    } do
+      {:ok, deployment_group} =
+        ManagedDeployments.create_deployment_group(
+          %{name: "Query match", conditions: %{"version" => "", "tags" => ["beta"], "tag_operator" => "or"}},
+          product,
+          firmware,
+          user
+        )
+
+      matching = Fixtures.device_fixture(org, product, firmware, %{tags: ["beta"]})
+      _other_tags = Fixtures.device_fixture(org, product, firmware, %{tags: ["prod"]})
+      _other_firmware = Fixtures.device_fixture(org, product, %{firmware | platform: "foo"}, %{tags: ["beta"]})
+      kept = Fixtures.device_fixture(org, product, firmware, %{tags: ["beta"], deployment_id: deployment_group.id})
+
+      for in_deployment <- [true, false] do
+        ids =
+          deployment_group
+          |> ManagedDeployments.matched_devices_query(in_deployment: in_deployment)
+          |> select([d], d.id)
+          |> Repo.all()
+
+        assert Enum.sort(ids) ==
+                 Enum.sort(ManagedDeployments.matched_device_ids(deployment_group, in_deployment: in_deployment))
+      end
+
+      assert deployment_group
+             |> ManagedDeployments.matched_devices_query(in_deployment: false)
+             |> select([d], d.id)
+             |> Repo.all() ==
+               [matching.id]
+
+      assert deployment_group
+             |> ManagedDeployments.matched_devices_query(in_deployment: true)
+             |> select([d], d.id)
+             |> Repo.all() ==
+               [kept.id]
+    end
+  end
+
+  describe "remove_unmatched_devices_from_deployment_group/2 given a query" do
+    test "keeps the devices the query selects, without loading their ids", %{
+      org: org,
+      product: product,
+      firmware: firmware,
+      user: user
+    } do
+      {:ok, deployment_group} =
+        ManagedDeployments.create_deployment_group(
+          %{name: "Query remove", conditions: %{"version" => "", "tags" => ["beta"]}},
+          product,
+          firmware,
+          user
+        )
+
+      kept = Fixtures.device_fixture(org, product, firmware, %{tags: ["beta"], deployment_id: deployment_group.id})
+      removed = Fixtures.device_fixture(org, product, firmware, %{tags: ["prod"], deployment_id: deployment_group.id})
+
+      test_pid = self()
+      handler_id = "query-remove-#{System.unique_integer([:positive])}"
+
+      :telemetry.attach(
+        handler_id,
+        [:nerves_hub, :repo, :query],
+        fn _event, _measurements, %{query: query}, _config ->
+          if self() == test_pid, do: send(test_pid, {:query, query})
+        end,
+        nil
+      )
+
+      on_exit(fn -> :telemetry.detach(handler_id) end)
+
+      matched = ManagedDeployments.matched_devices_query(deployment_group, in_deployment: true)
+
+      assert {:ok, %{updated: 1}} =
+               Deployments.remove_unmatched_devices_from_deployment_group(matched, deployment_group)
+
+      assert Repo.reload(kept).deployment_id == deployment_group.id
+      refute Repo.reload(removed).deployment_id
+
+      # The kept devices are compared against in the UPDATE itself, so no query
+      # only reads their ids
+      queries = collect_queries([])
+      assert Enum.any?(queries, &String.starts_with?(&1, ~s|UPDATE "devices"|))
+      refute Enum.any?(queries, &String.starts_with?(&1, ~s|SELECT d0."id" FROM "devices"|))
+    end
+  end
+
   describe "matched_device_ids/2" do
     test "takes platform and architecture into account", %{
       org: org,
@@ -1702,5 +1795,13 @@ defmodule NervesHub.ManagedDeploymentsTest do
   defp delta_status(deployment_group) do
     {:ok, deployment_group} = ManagedDeployments.get_deployment_group(deployment_group)
     deployment_group.current_release.delta_status
+  end
+
+  defp collect_queries(acc) do
+    receive do
+      {:query, query} -> collect_queries([query | acc])
+    after
+      0 -> Enum.reverse(acc)
+    end
   end
 end

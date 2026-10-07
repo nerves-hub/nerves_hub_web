@@ -152,9 +152,9 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
     %{assigns: %{current_scope: scope, deployment_group: deployment_group}} = socket
 
     move_devices = fn ->
-      devices = ManagedDeployments.matched_device_ids(deployment_group, in_deployment: false)
+      devices = ManagedDeployments.matched_devices_query(deployment_group, in_deployment: false)
 
-      BulkActions.move_many_to_deployment_group(devices, deployment_group, scope.user)
+      BulkActions.move_matched_to_deployment_group(devices, deployment_group, scope.user)
       |> then(fn %{updated: updated_count, ignored: ignored_count} ->
         if ignored_count > 0 do
           {:error, updated_count, ignored_count}
@@ -176,12 +176,11 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
     %{assigns: %{deployment_group: deployment_group}} = socket
 
     remove_devices = fn ->
-      matched_device_ids =
-        ManagedDeployments.matched_device_ids(deployment_group, in_deployment: true)
+      matched_devices = ManagedDeployments.matched_devices_query(deployment_group, in_deployment: true)
 
       {:ok, %{updated: updated}} =
         Deployments.remove_unmatched_devices_from_deployment_group(
-          matched_device_ids,
+          matched_devices,
           deployment_group
         )
 

@@ -185,11 +185,12 @@ defmodule NervesHub.Devices.Deployments do
   end
 
   @doc """
-  Removes unmatched devices from deployment group. The given device ids are
-  assumed to be ids of devices that "match" a deployment group's conditions,
-  e.g. devices from ManagedDeployments.matched_device_ids/2. Devices are
-  fetched by their id and also filtered by the deployment group's id and
-  product id.
+  Removes unmatched devices from deployment group. The devices to keep are
+  given as ids, or as a query for them, e.g. one from
+  ManagedDeployments.matched_devices_query/2. A query is preferred for a large
+  group: Postgres compares against it directly, so the ids to keep are never
+  loaded and sent back. Devices are also filtered by the deployment group's id
+  and product id.
 
   `Repo.update_all()` is used to update the rows, and the return is how many
   were removed. A single statement removes every device it selects, so there
@@ -199,15 +200,17 @@ defmodule NervesHub.Devices.Deployments do
   remove_unmatched_devices_from_deployment_group([1, 2, 3], deployment_group)
   > {:ok, %{updated: 2}}
   """
-  @spec remove_unmatched_devices_from_deployment_group([non_neg_integer()], DeploymentGroup.t()) ::
-          {:ok, %{updated: non_neg_integer()}}
-  def remove_unmatched_devices_from_deployment_group(matched_device_ids, deployment_group) do
+  @spec remove_unmatched_devices_from_deployment_group(
+          [non_neg_integer()] | Ecto.Query.t(),
+          DeploymentGroup.t()
+        ) :: {:ok, %{updated: non_neg_integer()}}
+  def remove_unmatched_devices_from_deployment_group(matched_devices, deployment_group) do
     {devices_updated_count, removed_device_ids} =
       Device
       |> Repo.exclude_deleted()
       |> where([d], d.deployment_id == ^deployment_group.id)
       |> where([d], d.product_id == ^deployment_group.product_id)
-      |> where([d], d.id not in ^matched_device_ids)
+      |> where_not_kept(matched_devices)
       |> select([d], d.id)
       |> Repo.update_all([set: [deployment_id: nil]], timeout: to_timeout(minute: 2))
 
@@ -216,6 +219,14 @@ defmodule NervesHub.Devices.Deployments do
     :ok = Enum.each(removed_device_ids, &DeviceEvents.deployment_cleared(%Device{id: &1}))
 
     {:ok, %{updated: devices_updated_count}}
+  end
+
+  defp where_not_kept(query, %Ecto.Query{} = kept) do
+    where(query, [d], d.id not in subquery(select(kept, [k], k.id)))
+  end
+
+  defp where_not_kept(query, kept_ids) when is_list(kept_ids) do
+    where(query, [d], d.id not in ^kept_ids)
   end
 
   defp version_match?(_vsn, ""), do: true

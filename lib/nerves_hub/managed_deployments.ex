@@ -1284,6 +1284,23 @@ defmodule NervesHub.ManagedDeployments do
     do_matched_devices(deployment_group, query, :collect_ids)
   end
 
+  @doc """
+  The devices matching a deployment group's conditions, as a query.
+
+  The same devices as `matched_device_ids/2`, for a caller that acts on them in
+  the database, such as moving them into the group or keeping them in it, so
+  their ids never have to be loaded. For a large fleet that is hundreds of
+  thousands of ids each way.
+  """
+  @spec matched_devices_query(DeploymentGroup.t(), in_deployment: boolean()) :: Ecto.Query.t()
+  def matched_devices_query(deployment_group, in_deployment: in_deployment) do
+    deployment_group = Repo.preload(deployment_group, current_release: [:firmware])
+
+    deployment_group
+    |> matched_devices_base_query(in_deployment)
+    |> where_matching_conditions(deployment_group.conditions)
+  end
+
   defp matched_devices_base_query(deployment_group, in_deployment) do
     base_query =
       Device
@@ -1305,10 +1322,7 @@ defmodule NervesHub.ManagedDeployments do
   # Tags and version are both checked in the database, so only a count or the
   # ids leave it, however many devices the product has.
   defp do_matched_devices(%DeploymentGroup{conditions: conditions}, query, work_type) do
-    query =
-      query
-      |> where_matching_tags(conditions.tags, conditions.tag_operator)
-      |> where_matching_version(conditions.version)
+    query = where_matching_conditions(query, conditions)
 
     case work_type do
       :count ->
@@ -1319,6 +1333,12 @@ defmodule NervesHub.ManagedDeployments do
         |> select([d], d.id)
         |> Repo.all()
     end
+  end
+
+  defp where_matching_conditions(query, conditions) do
+    query
+    |> where_matching_tags(conditions.tags, conditions.tag_operator)
+    |> where_matching_version(conditions.version)
   end
 
   defp where_matching_version(query, ""), do: query

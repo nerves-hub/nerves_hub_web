@@ -2061,6 +2061,57 @@ defmodule NervesHub.DevicesTest do
       refute_received %Broadcast{topic: ^orchestrator_topic}
     end
 
+    test "moving the devices a query selects reads their ids a chunk at a time", %{
+      deployment_group: deployment_group,
+      device: device,
+      org: org,
+      product: product,
+      user: user
+    } do
+      now = NaiveDateTime.utc_now(:second)
+
+      rows =
+        for n <- 1..5_000 do
+          %{
+            org_id: org.id,
+            product_id: product.id,
+            identifier: "paged-#{System.unique_integer([:positive])}-#{n}",
+            firmware_metadata: device.firmware_metadata,
+            inserted_at: now,
+            updated_at: now
+          }
+        end
+
+      {5_000, inserted} = Repo.insert_all(Device, rows, returning: [:id])
+      device_ids = [device.id | Enum.map(inserted, & &1.id)]
+
+      ids_read = :counters.new(1, [])
+      handler_id = "paged-move-#{System.unique_integer([:positive])}"
+      test_pid = self()
+
+      # The most ids any one SELECT of device ids hands back
+      :telemetry.attach(
+        handler_id,
+        [:nerves_hub, :repo, :query],
+        fn _event, _measurements, %{query: query, result: {:ok, %{num_rows: rows}}}, _config ->
+          if self() == test_pid and String.starts_with?(query, ~s|SELECT d0."id" FROM "devices"|) and
+               rows > :counters.get(ids_read, 1),
+             do: :counters.put(ids_read, 1, rows)
+        end,
+        nil
+      )
+
+      on_exit(fn -> :telemetry.detach(handler_id) end)
+
+      query = where(Device, [d], d.id in ^device_ids)
+
+      assert %{updated: 5_001, ignored: 0} =
+               BulkActions.move_matched_to_deployment_group(query, deployment_group, user)
+
+      assert :counters.get(ids_read, 1) == 5_000
+      assert Repo.aggregate(where(Device, [d], d.deployment_id == ^deployment_group.id), :count) == 5_001
+    end
+
     test "many devices can be moved to a deployment group", %{
       deployment_group: deployment_group,
       device: device1,
