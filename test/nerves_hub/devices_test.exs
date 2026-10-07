@@ -1946,7 +1946,6 @@ defmodule NervesHub.DevicesTest do
       device: device,
       org: org,
       product: product,
-      firmware: firmware,
       user: user
     } do
       # One more than a chunk, so the move takes two. Inserted in one statement,
@@ -2132,15 +2131,30 @@ defmodule NervesHub.DevicesTest do
       device: device,
       org: org,
       product: product,
-      firmware: firmware,
       user: user
     } do
-      # One more than a batch, so one device is in a second batch
-      devices = [device | for(_ <- 1..1_000, do: Fixtures.device_fixture(org, product, firmware))]
+      # One more than a batch, so one device is in a second batch. Inserted in
+      # one statement, since a fixture each would take minutes.
+      now = NaiveDateTime.utc_now(:second)
+
+      rows =
+        for n <- 1..2_500 do
+          %{
+            org_id: org.id,
+            product_id: product.id,
+            identifier: "batched-move-#{System.unique_integer([:positive])}-#{n}",
+            firmware_metadata: device.firmware_metadata,
+            inserted_at: now,
+            updated_at: now
+          }
+        end
+
+      {2_500, inserted} = Repo.insert_all(Device, rows, returning: [:id])
+      devices = [device | Enum.map(inserted, &%Device{id: &1.id})]
 
       heard = listen_for_group_change(devices, deployment_group.id)
 
-      %{updated: 1_001, ignored: 0} =
+      %{updated: 2_501, ignored: 0} =
         BulkActions.move_many_to_deployment_group(Enum.map(devices, & &1.id), deployment_group, user)
 
       assert_told_in_batches(heard, length(devices))
@@ -3938,7 +3952,7 @@ defmodule NervesHub.DevicesTest do
   end
 
   # Every device is told once, and the times they heard split into a group of
-  # 1,000 and the rest, with the pause between batches between them. The
+  # 2,500 and the rest, with the pause between batches between them. The
   # batches follow the order the database returns ids in, so this can't say
   # which device is in which, only that the split is there.
   defp assert_told_in_batches(ref, count) do
@@ -3951,7 +3965,7 @@ defmodule NervesHub.DevicesTest do
 
     refute_receive {:heard, ^ref, _}, 100
 
-    {first_batch, rest} = Enum.split(times, 1_000)
+    {first_batch, rest} = Enum.split(times, 2_500)
     assert List.first(rest) - List.last(first_batch) >= 50
   end
 end

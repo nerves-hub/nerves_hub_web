@@ -1471,7 +1471,7 @@ defmodule NervesHub.ManagedDeploymentsTest do
       now = NaiveDateTime.utc_now(:second)
 
       rows =
-        for n <- 1..1_000 do
+        for n <- 1..2_500 do
           %{
             org_id: org.id,
             product_id: product.id,
@@ -1484,20 +1484,21 @@ defmodule NervesHub.ManagedDeploymentsTest do
           }
         end
 
-      {1_000, inserted} = Repo.insert_all(Device, rows, returning: [:id])
+      {2_500, inserted} = Repo.insert_all(Device, rows, returning: [:id])
       devices = [template | Enum.map(inserted, &%Device{id: &1.id})]
 
       heard = listen_for_group_change(devices, nil)
 
       matched = ManagedDeployments.matched_devices_query(deployment_group, in_deployment: true)
 
-      {elapsed_us, {:ok, %{updated: 1_001}}} =
-        :timer.tc(fn -> Deployments.remove_unmatched_devices_from_deployment_group(matched, deployment_group) end)
+      {:ok, %{updated: 2_501}} = Deployments.remove_unmatched_devices_from_deployment_group(matched, deployment_group)
+      returned_at = System.monotonic_time(:millisecond)
 
-      # The caller isn't held up for the announcement
-      assert elapsed_us < 100_000
+      times = assert_told_in_batches(heard, length(devices))
 
-      assert_told_in_batches(heard, length(devices))
+      # The caller isn't held up for the announcement: it has its answer before
+      # the second batch is told
+      assert returned_at < List.last(times)
     end
   end
 
@@ -1865,7 +1866,7 @@ defmodule NervesHub.ManagedDeploymentsTest do
   end
 
   # Every device is told once, and the times they heard split into a group of
-  # 1,000 and the rest, with the pause between batches between them. The
+  # 2,500 and the rest, with the pause between batches between them. The
   # batches follow the order the database returns ids in, so this can't say
   # which device is in which, only that the split is there.
   defp assert_told_in_batches(ref, count) do
@@ -1878,8 +1879,10 @@ defmodule NervesHub.ManagedDeploymentsTest do
 
     refute_receive {:heard, ^ref, _}, 100
 
-    {first_batch, rest} = Enum.split(times, 1_000)
+    {first_batch, rest} = Enum.split(times, 2_500)
     assert List.first(rest) - List.last(first_batch) >= 50
+
+    times
   end
 
   defp matched_ids(deployment_group, opts) do

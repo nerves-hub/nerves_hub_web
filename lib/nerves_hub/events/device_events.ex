@@ -32,17 +32,17 @@ defmodule NervesHub.DeviceEvents do
   # How many devices hear about a change of group at a time, and how long to
   # wait between them. A device that hears `deployment_updated` looks up its
   # group's archive, so telling a whole fleet at once is that many queries at
-  # once from the device nodes. These keep it to about 10,000 a second.
+  # once from the device nodes. These keep it to about 25,000 a second.
   #
   # The pauses come between batches, not after the last, so announcing a change
   # takes at least (batches - 1) x 100ms, plus the time to send each batch:
   #
-  #   10,000 devices    10 batches   0.9s
-  #   190,000 devices  190 batches   18.9s
-  #   250,000 devices  250 batches   24.9s
+  #   10,000 devices     4 batches   0.3s
+  #   190,000 devices   76 batches   7.5s
+  #   250,000 devices  100 batches   9.9s
   #
   # A device keeps its old group until its batch is sent.
-  @group_change_batch_size 1_000
+  @group_change_batch_size 2_500
   @group_change_batch_pause to_timeout(millisecond: 100)
 
   @doc """
