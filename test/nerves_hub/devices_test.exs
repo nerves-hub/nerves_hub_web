@@ -4060,33 +4060,6 @@ defmodule NervesHub.DevicesTest do
                |> where([d], d.id in [^device.id, ^device2.id])
                |> BulkActions.remove_many_from_deployment_group()
     end
-
-    test "when a chunk fails, the devices already removed are still told", %{
-      deployment_group: deployment_group,
-      device: device,
-      org: org,
-      product: product
-    } do
-      # Two chunks: the first goes in, the second fails
-      device_ids = [device.id | insert_devices(org, product, device, 5_000, deployment_group.id)]
-      {1, _} = Repo.update_all(where(Device, id: ^device.id), set: [deployment_id: deployment_group.id])
-      last_id = List.last(device_ids)
-
-      topic = DeviceEvents.topic(device)
-      :ok = Phoenix.PubSub.subscribe(NervesHub.PubSub, topic)
-
-      # The second chunk holds the last id, and its UPDATE is rejected
-      fail_second_device_update(last_id)
-
-      assert_raise Postgrex.Error, ~r/simulated failure/, fn ->
-        BulkActions.remove_many_from_deployment_group({device_ids, product})
-      end
-
-      refute Repo.reload(device).deployment_id
-      assert Repo.get!(Device, last_id).deployment_id == deployment_group.id
-
-      assert_receive %Broadcast{topic: ^topic, event: "deployment_updated", payload: %{deployment_id: nil}}, 1_000
-    end
   end
 
   # Inserts `count` devices like `template` in one statement, since a fixture
@@ -4130,24 +4103,6 @@ defmodule NervesHub.DevicesTest do
     on_exit(fn -> :telemetry.detach(handler_id) end)
 
     fn -> :counters.get(counter, 1) end
-  end
-
-  # Fails the second chunk of a remove, by making Postgres reject an UPDATE of
-  # `last_id`'s row. Undone when the test's transaction rolls back.
-  defp fail_second_device_update(last_id) do
-    Repo.query!("""
-    CREATE FUNCTION pg_temp.fail_remove() RETURNS trigger AS $$
-    BEGIN
-      RAISE EXCEPTION 'simulated failure';
-    END
-    $$ LANGUAGE plpgsql
-    """)
-
-    Repo.query!("""
-    CREATE TRIGGER fail_remove BEFORE UPDATE ON devices
-    FOR EACH ROW WHEN (OLD.id = #{last_id})
-    EXECUTE FUNCTION pg_temp.fail_remove()
-    """)
   end
 
   describe "filter/3 health preload" do

@@ -213,10 +213,12 @@ defmodule NervesHub.Devices.Deployments do
   loaded and sent back. Devices are also filtered by the deployment group's id
   and product id.
 
-  `Repo.update_all()` is used to update the rows, and the return is how many
-  were removed. A single statement removes every device it selects, so there
-  is no partial result to report. The removed devices are then told in
-  batches, from a background task, so this returns before they've all heard.
+  Devices are removed 5,000 to a statement, each committed on its own, so a
+  large group's rows aren't all locked until the last is written. The return
+  is how many were removed. Once every chunk is in, the removed devices are
+  told in batches, from a background task, so this returns before they've all
+  heard. If a chunk fails, the ones before it stay removed, their devices are
+  still told, and the failure is raised for the caller to report.
 
   # devices 1, 2 and 3 match; the group's other two devices are removed
   remove_unmatched_devices_from_deployment_group([1, 2, 3], deployment_group)
@@ -227,20 +229,74 @@ defmodule NervesHub.Devices.Deployments do
           DeploymentGroup.t()
         ) :: {:ok, %{updated: non_neg_integer()}}
   def remove_unmatched_devices_from_deployment_group(matched_devices, deployment_group) do
-    {devices_updated_count, removed_device_ids} =
+    unmatched =
       Device
       |> Repo.exclude_deleted()
       |> where([d], d.deployment_id == ^deployment_group.id)
       |> where([d], d.product_id == ^deployment_group.product_id)
       |> where_not_kept(matched_devices)
-      |> select([d], d.id)
-      |> Repo.update_all([set: [deployment_id: nil]], timeout: to_timeout(minute: 2))
+
+    {removed, failure} =
+      unmatched
+      |> unmatched_id_pages()
+      |> Enum.reduce_while({[], nil}, fn page, {removed, nil} ->
+        try do
+          {:cont, {[remove_chunk(page, deployment_group.id) | removed], nil}}
+        rescue
+          error -> {:halt, {removed, {error, __STACKTRACE__}}}
+        end
+      end)
+
+    removed_device_ids = removed |> Enum.reverse() |> List.flatten()
 
     # Only the removed devices have anything to hear about. The ones kept are
     # still where they were.
     :ok = DeviceEvents.deployment_changed_for_many(removed_device_ids, nil)
 
-    {:ok, %{updated: devices_updated_count}}
+    case failure do
+      nil -> {:ok, %{updated: length(removed_device_ids)}}
+      {error, stacktrace} -> reraise error, stacktrace
+    end
+  end
+
+  @remove_chunk_size 5_000
+
+  # The unmatched devices' ids, a page at a time, each page starting after the
+  # last id of the one before, so a page never scans again over the rows
+  # earlier pages cleared.
+  defp unmatched_id_pages(unmatched) do
+    Stream.unfold(0, fn
+      :done ->
+        nil
+
+      after_id ->
+        page =
+          unmatched
+          |> where([d], d.id > ^after_id)
+          |> order_by([d], asc: d.id)
+          |> limit(@remove_chunk_size)
+          |> select([d], d.id)
+          |> Repo.all(timeout: to_timeout(minute: 2))
+
+        case page do
+          [] -> nil
+          page when length(page) < @remove_chunk_size -> {page, :done}
+          page -> {page, List.last(page)}
+        end
+    end)
+  end
+
+  # The group is checked again on the row being updated, so a device moved
+  # elsewhere since its page was read keeps its new group.
+  defp remove_chunk(ids, deployment_id) do
+    {_count, removed} =
+      Device
+      |> where([d], d.id in ^ids)
+      |> where([d], d.deployment_id == ^deployment_id)
+      |> select([d], d.id)
+      |> Repo.update_all([set: [deployment_id: nil]], timeout: to_timeout(minute: 2))
+
+    removed
   end
 
   defp where_not_kept(query, %Ecto.Query{} = kept) do

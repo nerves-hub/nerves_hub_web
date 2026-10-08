@@ -1502,6 +1502,71 @@ defmodule NervesHub.ManagedDeploymentsTest do
     end
   end
 
+  describe "remove_unmatched_devices_from_deployment_group/2 chunking" do
+    test "removes a chunk of devices to a statement, and keeps the ones that match", %{
+      org: org,
+      product: product,
+      firmware: firmware,
+      user: user
+    } do
+      {:ok, deployment_group} =
+        ManagedDeployments.create_deployment_group(
+          %{name: "Chunked remove", conditions: %{"version" => "", "tags" => ["keep"]}},
+          product,
+          firmware,
+          user
+        )
+
+      kept = Fixtures.device_fixture(org, product, firmware, %{tags: ["keep"], deployment_id: deployment_group.id})
+
+      # One more than a chunk that doesn't match, so the remove takes two
+      template = Fixtures.device_fixture(org, product, firmware, %{tags: ["drop"], deployment_id: deployment_group.id})
+      now = NaiveDateTime.utc_now(:second)
+
+      rows =
+        for n <- 1..5_000 do
+          %{
+            org_id: org.id,
+            product_id: product.id,
+            deployment_id: deployment_group.id,
+            tags: ["drop"],
+            identifier: "chunked-remove-#{System.unique_integer([:positive])}-#{n}",
+            firmware_metadata: template.firmware_metadata,
+            inserted_at: now,
+            updated_at: now
+          }
+        end
+
+      {5_000, _} = Repo.insert_all(Device, rows)
+
+      test_pid = self()
+      updates = :counters.new(1, [])
+      handler_id = "chunked-remove-#{System.unique_integer([:positive])}"
+
+      :telemetry.attach(
+        handler_id,
+        [:nerves_hub, :repo, :query],
+        fn _event, _measurements, %{query: query}, _config ->
+          if self() == test_pid and String.starts_with?(query, ~s|UPDATE "devices"|),
+            do: :counters.add(updates, 1, 1)
+        end,
+        nil
+      )
+
+      on_exit(fn -> :telemetry.detach(handler_id) end)
+
+      matched = ManagedDeployments.matched_devices_query(deployment_group, in_deployment: true)
+
+      assert {:ok, %{updated: 5_001}} =
+               Deployments.remove_unmatched_devices_from_deployment_group(matched, deployment_group)
+
+      assert :counters.get(updates, 1) == 2
+      assert Repo.reload(kept).deployment_id == deployment_group.id
+      refute Repo.reload(template).deployment_id
+      assert Repo.aggregate(where(Device, [d], d.deployment_id == ^deployment_group.id), :count) == 1
+    end
+  end
+
   describe "remove_unmatched_devices_from_deployment_group/2 given a query" do
     test "keeps the devices the query selects, without loading their ids", %{
       org: org,
@@ -1542,11 +1607,14 @@ defmodule NervesHub.ManagedDeploymentsTest do
       assert Repo.reload(kept).deployment_id == deployment_group.id
       refute Repo.reload(removed).deployment_id
 
-      # The kept devices are compared against in the UPDATE itself, so no query
-      # only reads their ids
+      # The ids read are the ones to remove. The kept devices are compared
+      # against in that query itself, so their ids are never loaded.
       queries = collect_queries([])
+      id_reads = Enum.filter(queries, &String.starts_with?(&1, ~s|SELECT d0."id" FROM "devices"|))
+
       assert Enum.any?(queries, &String.starts_with?(&1, ~s|UPDATE "devices"|))
-      refute Enum.any?(queries, &String.starts_with?(&1, ~s|SELECT d0."id" FROM "devices"|))
+      assert id_reads != []
+      assert Enum.all?(id_reads, &(&1 =~ ~r/NOT \(d0\."id" = ANY\(SELECT|NOT \(d0\."id" IN \(SELECT/))
     end
   end
 
