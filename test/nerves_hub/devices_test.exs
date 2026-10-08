@@ -2021,14 +2021,14 @@ defmodule NervesHub.DevicesTest do
 
       # Queuing deltas is the last step of each chunk's transaction, so failing
       # it the third time rolls back the third chunk and leaves the first two in
-      expect(ManagedDeployments, :trigger_delta_generation_for_deployment_group, 3, fn group ->
+      expect(ManagedDeployments, :trigger_delta_generation_for_deployment_group, 3, fn group, moved ->
         calls = Process.get(:delta_calls, 0) + 1
         Process.put(:delta_calls, calls)
 
         if calls == 3 do
           raise "simulated failure"
         else
-          call_original(ManagedDeployments, :trigger_delta_generation_for_deployment_group, [group])
+          call_original(ManagedDeployments, :trigger_delta_generation_for_deployment_group, [group, moved])
         end
       end)
 
@@ -2348,6 +2348,93 @@ defmodule NervesHub.DevicesTest do
         worker: FirmwareDeltaBuilder,
         args: %{"source_id" => device_firmware.id, "target_id" => target_firmware.id}
       )
+    end
+
+    test "a move only looks up the firmware pairs of the devices it moved", %{
+      deployment_group: deployment_group,
+      org: org,
+      org_key: org_key,
+      product: product,
+      device: device,
+      user: user,
+      tmp_dir: tmp_dir
+    } do
+      already_in_firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+      moving_firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+      target_firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+
+      {:ok, deployment_group} =
+        ManagedDeployments.update_deployment_group(deployment_group, %{delta_updatable: true}, user)
+
+      {:ok, {_release, deployment_group}} =
+        ManagedDeployments.create_deployment_release(deployment_group, target_firmware, nil, user, %{})
+
+      # Already in the group, on firmware with no delta queued. A move that
+      # looked at the whole group would queue one for it.
+      _ =
+        org
+        |> Fixtures.device_fixture(product, already_in_firmware)
+        |> Ecto.Changeset.change(deployment_id: deployment_group.id)
+        |> Repo.update!()
+
+      {:ok, device} = Devices.update_firmware_metadata(device, %{"uuid" => moving_firmware.uuid}, :unknown, false)
+
+      %{updated: 1, ignored: 0} = BulkActions.move_many_to_deployment_group([device.id], deployment_group, user)
+
+      assert_enqueued(
+        worker: FirmwareDeltaBuilder,
+        args: %{"source_id" => moving_firmware.id, "target_id" => target_firmware.id}
+      )
+
+      refute_enqueued(
+        worker: FirmwareDeltaBuilder,
+        args: %{"source_id" => already_in_firmware.id, "target_id" => target_firmware.id}
+      )
+    end
+
+    test "a move leaves a queued delta alone and retries a failed one", %{
+      deployment_group: deployment_group,
+      org_key: org_key,
+      product: product,
+      device: device,
+      device2: device2,
+      user: user,
+      tmp_dir: tmp_dir
+    } do
+      queued_firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+      failed_firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+      target_firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+
+      {:ok, deployment_group} =
+        ManagedDeployments.update_deployment_group(deployment_group, %{delta_updatable: true}, user)
+
+      {:ok, {_release, deployment_group}} =
+        ManagedDeployments.create_deployment_release(deployment_group, target_firmware, nil, user, %{})
+
+      {:ok, queued} = Firmwares.start_firmware_delta(queued_firmware.id, target_firmware.id, false)
+      {:ok, failed} = Firmwares.start_firmware_delta(failed_firmware.id, target_firmware.id, false)
+      {:ok, _} = failed |> Ecto.Changeset.change(status: :failed) |> Repo.update()
+
+      {:ok, device} = Devices.update_firmware_metadata(device, %{"uuid" => queued_firmware.uuid}, :unknown, false)
+      {:ok, device2} = Devices.update_firmware_metadata(device2, %{"uuid" => failed_firmware.uuid}, :unknown, false)
+
+      %{updated: 2, ignored: 0} =
+        BulkActions.move_many_to_deployment_group([device.id, device2.id], deployment_group, user)
+
+      refute_enqueued(
+        worker: FirmwareDeltaBuilder,
+        args: %{"source_id" => queued_firmware.id, "target_id" => target_firmware.id}
+      )
+
+      assert Repo.reload(queued).status == :processing
+
+      assert_enqueued(
+        worker: FirmwareDeltaBuilder,
+        args: %{"source_id" => failed_firmware.id, "target_id" => target_firmware.id}
+      )
+
+      assert {:ok, %{status: :processing}} =
+               Firmwares.get_firmware_delta_by_source_and_target(failed_firmware.id, target_firmware.id)
     end
   end
 

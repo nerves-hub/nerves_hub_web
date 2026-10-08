@@ -636,17 +636,38 @@ defmodule NervesHub.ManagedDeployments do
 
   defp maybe_trigger_delta_generation(_deployment_group, _changeset), do: {:ok, :no_deltas_started}
 
-  @spec trigger_delta_generation_for_deployment_group(DeploymentGroup.t()) ::
+  @doc """
+  Queue a delta for each firmware pair the deployment group's devices need, or
+  only the pairs of `device_ids` when given, such as the devices a move just
+  added.
+
+  The target firmware is read once per target, and the deltas already queued
+  or built are read in one query, so only pairs with no delta yet cost more
+  than that.
+  """
+  @spec trigger_delta_generation_for_deployment_group(DeploymentGroup.t(), [pos_integer()] | :all) ::
           {:ok, :deltas_started | :deltas_already_generated | :some_deltas_started | :no_delta_support}
           | {:error, :deltas_not_enabled | :delta_generation_failed}
-  def trigger_delta_generation_for_deployment_group(%{delta_updatable: false}) do
+  def trigger_delta_generation_for_deployment_group(deployment_group, device_ids \\ :all)
+
+  def trigger_delta_generation_for_deployment_group(%{delta_updatable: false}, _device_ids) do
     {:error, :deltas_not_enabled}
   end
 
-  def trigger_delta_generation_for_deployment_group(deployment_group) do
-    Deployments.get_device_firmware_for_delta_generation_by_deployment_group(deployment_group.id)
-    |> Enum.map(fn {source_id, target_id} ->
-      Firmwares.attempt_firmware_delta(source_id, target_id, false)
+  def trigger_delta_generation_for_deployment_group(_deployment_group, []), do: {:ok, :no_delta_support}
+
+  def trigger_delta_generation_for_deployment_group(deployment_group, device_ids) do
+    pairs = Deployments.get_device_firmware_for_delta_generation_by_deployment_group(deployment_group.id, device_ids)
+    delta_capable_targets = delta_capable_targets(pairs)
+    existing = existing_delta_pairs(pairs)
+
+    pairs
+    |> Enum.map(fn {source_id, target_id} = pair ->
+      cond do
+        target_id not in delta_capable_targets -> {:ok, :no_delta_support}
+        MapSet.member?(existing, pair) -> {:ok, :delta_already_exists}
+        true -> Firmwares.attempt_firmware_delta(source_id, target_id, false)
+      end
     end)
     |> then(fn results ->
       cond do
@@ -657,6 +678,34 @@ defmodule NervesHub.ManagedDeployments do
         true -> {:ok, :some_deltas_started}
       end
     end)
+  end
+
+  defp delta_capable_targets([]), do: []
+
+  defp delta_capable_targets(pairs) do
+    target_ids = pairs |> Enum.map(&elem(&1, 1)) |> Enum.uniq()
+
+    Firmware
+    |> where([f], f.id in ^target_ids)
+    |> Repo.all()
+    |> Enum.filter(&Firmwares.delta_capable_format?/1)
+    |> Enum.map(& &1.id)
+  end
+
+  # The pairs that already have a delta queued or built, the statuses
+  # `Firmwares.attempt_firmware_delta/3` leaves alone. A failed one is left in,
+  # for it to start again.
+  defp existing_delta_pairs([]), do: MapSet.new()
+
+  defp existing_delta_pairs(pairs) do
+    {source_ids, target_ids} = pairs |> Enum.unzip() |> then(fn {s, t} -> {Enum.uniq(s), Enum.uniq(t)} end)
+
+    FirmwareDelta
+    |> where([fd], fd.source_id in ^source_ids and fd.target_id in ^target_ids)
+    |> where([fd], fd.status in [:processing, :completed])
+    |> select([fd], {fd.source_id, fd.target_id})
+    |> Repo.all()
+    |> MapSet.new()
   end
 
   @spec new_deployment_group() :: Changeset.t()

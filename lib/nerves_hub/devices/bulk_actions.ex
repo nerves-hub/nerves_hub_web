@@ -270,7 +270,7 @@ defmodule NervesHub.Devices.BulkActions do
           |> select([d], d.id)
           |> Repo.update_all([set: [deployment_id: deployment_group.id]], timeout: to_timeout(minute: 2))
 
-        _ = ManagedDeployments.trigger_delta_generation_for_deployment_group(deployment_group)
+        _ = ManagedDeployments.trigger_delta_generation_for_deployment_group(deployment_group, moved)
 
         {:ok, moved}
       end)
