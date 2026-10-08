@@ -1867,6 +1867,100 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
 
       assert Repo.reload(devices) |> Enum.all?(fn device -> is_nil(device.updates_blocked_until) end)
     end
+
+    test "a remove from deployment groups that fails shows an error", %{conn: conn, fixture: fixture} do
+      %{org: org, product: product, firmware: firmware, deployment_group: deployment_group} = fixture
+
+      Repo.delete_all(Device)
+
+      Enum.each(1..26, fn _ ->
+        Fixtures.device_fixture(org, product, firmware, %{deployment_id: deployment_group.id})
+      end)
+
+      stub(Sentry, :capture_message, fn _, _ -> {:ok, ""} end)
+      expect(BulkActions, :remove_many_from_deployment_group, fn _ -> raise "simulated chunk failure" end)
+
+      conn
+      |> select_all_devices(org, product)
+      |> click_button("#remove-devices-from-deployment-group", "")
+      |> assert_has("div",
+        text: "There was an issue removing devices from their deployment group. Some devices may have been removed.",
+        timeout: 3_000
+      )
+      |> assert_has("h1", text: "Devices")
+    end
+
+    # Every other select-all action, with how to start it from the page
+    for {action, arity, start} <- [
+          {:tag_devices, 3, :tags},
+          {:add_tags_to_devices, 3, :add_tags},
+          {:remove_tags_from_devices, 3, :remove_tags},
+          {:move_many, 3, :product},
+          {:enable_updates_for_devices, 2, "Enable"},
+          {:disable_updates_for_devices, 2, "Disable"},
+          {:clear_penalty_box_for_devices, 2, "Clear penalty box"}
+        ] do
+      test "#{action} that fails shows an error", %{conn: conn, fixture: fixture} do
+        %{org: org, product: product, firmware: firmware, user: user} = fixture
+
+        Repo.delete_all(Device)
+
+        Enum.each(1..26, fn _ -> Fixtures.device_fixture(org, product, firmware) end)
+
+        # Made before the page loads, so it's in the product dropdown
+        other_product = Fixtures.product_fixture(user, org)
+
+        stub(Sentry, :capture_message, fn _, _ -> {:ok, ""} end)
+        expect(BulkActions, unquote(action), failing_bulk_action(unquote(arity)))
+
+        conn
+        |> select_all_devices(org, product)
+        |> start_bulk_action(unquote(start), other_product)
+        |> assert_has("div",
+          text: "There was an issue updating the selected devices. No devices were changed.",
+          timeout: 3_000
+        )
+        |> assert_has("h1", text: "Devices")
+      end
+    end
+  end
+
+  defp failing_bulk_action(2), do: fn _, _ -> raise "simulated failure" end
+  defp failing_bulk_action(3), do: fn _, _, _ -> raise "simulated failure" end
+
+  defp select_all_devices(conn, org, product) do
+    conn
+    |> visit(~p"/org/#{org}/#{product}/devices")
+    |> assert_has("#device-count", text: "26", timeout: 1_000)
+    |> check("Select all devices", exact: false)
+    |> click_button("Select all")
+    |> assert_has("h4", "All devices selected")
+  end
+
+  defp start_bulk_action(session, button, _other_product) when is_binary(button), do: click_button(session, button)
+
+  defp start_bulk_action(session, :product, other_product) do
+    within(session, "form#product-move", fn session ->
+      session
+      |> select("Move device(s) to product:", option: other_product.name, exact_option: false)
+      |> submit()
+    end)
+  end
+
+  defp start_bulk_action(session, tag_operation, _other_product) do
+    option =
+      case tag_operation do
+        :tags -> "Set tags (replaces existing tags)"
+        :add_tags -> "Add tags"
+        :remove_tags -> "Remove tags"
+      end
+
+    within(session, "form#bulk-tag-input", fn session ->
+      session
+      |> select("Update tags", option: option)
+      |> fill_in("Tags", with: "beta")
+      |> submit()
+    end)
   end
 
   describe "pagination" do

@@ -3986,6 +3986,168 @@ defmodule NervesHub.DevicesTest do
 
       assert count == 0
     end
+
+    test "given a query, removes a chunk of devices to a transaction", %{
+      deployment_group: deployment_group,
+      device: device,
+      org: org,
+      product: product
+    } do
+      # One more than a chunk, so the remove takes two
+      device_ids = [device.id | insert_devices(org, product, device, 5_000, deployment_group.id)]
+      {1, _} = Repo.update_all(where(Device, id: ^device.id), set: [deployment_id: deployment_group.id])
+
+      updates = count_device_updates()
+
+      assert %{ok: 5_001, error: 0} =
+               Device
+               |> where([d], d.id in ^device_ids)
+               |> BulkActions.remove_many_from_deployment_group()
+
+      assert updates.() == 2
+      refute Repo.exists?(where(Device, [d], d.deployment_id == ^deployment_group.id))
+    end
+
+    test "given ids, removes a chunk of devices to a transaction", %{
+      deployment_group: deployment_group,
+      device: device,
+      org: org,
+      product: product
+    } do
+      device_ids = [device.id | insert_devices(org, product, device, 5_000, deployment_group.id)]
+      {1, _} = Repo.update_all(where(Device, id: ^device.id), set: [deployment_id: deployment_group.id])
+
+      updates = count_device_updates()
+
+      assert %{ok: 5_001} = BulkActions.remove_many_from_deployment_group({device_ids, product})
+
+      assert updates.() == 2
+      refute Repo.exists?(where(Device, [d], d.deployment_id == ^deployment_group.id))
+    end
+
+    test "tells removed devices in batches, and doesn't tell devices that weren't in a group", %{
+      deployment_group: deployment_group,
+      device: device,
+      device2: device2,
+      org: org,
+      product: product
+    } do
+      # One more than a batch in the group, and device2 outside it
+      in_group = [device | Enum.map(insert_devices(org, product, device, 2_500, deployment_group.id), &%Device{id: &1})]
+      {1, _} = Repo.update_all(where(Device, id: ^device.id), set: [deployment_id: deployment_group.id])
+
+      heard = listen_for_group_change(in_group, nil)
+      outside_topic = DeviceEvents.topic(device2)
+      :ok = Phoenix.PubSub.subscribe(NervesHub.PubSub, outside_topic)
+
+      ids = [device2.id | Enum.map(in_group, & &1.id)]
+      assert %{ok: 2_501} = BulkActions.remove_many_from_deployment_group({ids, product})
+
+      assert_told_in_batches(heard, length(in_group))
+      refute_received %Broadcast{topic: ^outside_topic}
+    end
+
+    test "given a query, counts only devices that were in a group", %{
+      device: device,
+      device2: device2,
+      deployment_group: deployment_group
+    } do
+      Repo.update!(Changeset.change(device, deployment_id: deployment_group.id))
+      # device2 has no deployment group, so there's nothing to remove it from
+
+      assert %{ok: 1, error: 0} =
+               Device
+               |> where([d], d.id in [^device.id, ^device2.id])
+               |> BulkActions.remove_many_from_deployment_group()
+    end
+
+    test "when a chunk fails, the devices already removed are still told", %{
+      deployment_group: deployment_group,
+      device: device,
+      org: org,
+      product: product
+    } do
+      # Two chunks: the first goes in, the second fails
+      device_ids = [device.id | insert_devices(org, product, device, 5_000, deployment_group.id)]
+      {1, _} = Repo.update_all(where(Device, id: ^device.id), set: [deployment_id: deployment_group.id])
+      last_id = List.last(device_ids)
+
+      topic = DeviceEvents.topic(device)
+      :ok = Phoenix.PubSub.subscribe(NervesHub.PubSub, topic)
+
+      # The second chunk holds the last id, and its UPDATE is rejected
+      fail_second_device_update(last_id)
+
+      assert_raise Postgrex.Error, ~r/simulated failure/, fn ->
+        BulkActions.remove_many_from_deployment_group({device_ids, product})
+      end
+
+      refute Repo.reload(device).deployment_id
+      assert Repo.get!(Device, last_id).deployment_id == deployment_group.id
+
+      assert_receive %Broadcast{topic: ^topic, event: "deployment_updated", payload: %{deployment_id: nil}}, 1_000
+    end
+  end
+
+  # Inserts `count` devices like `template` in one statement, since a fixture
+  # each would take minutes, and returns their ids
+  defp insert_devices(org, product, template, count, deployment_id) do
+    now = NaiveDateTime.utc_now(:second)
+
+    rows =
+      for n <- 1..count do
+        %{
+          org_id: org.id,
+          product_id: product.id,
+          deployment_id: deployment_id,
+          identifier: "inserted-#{System.unique_integer([:positive])}-#{n}",
+          firmware_metadata: template.firmware_metadata,
+          inserted_at: now,
+          updated_at: now
+        }
+      end
+
+    {^count, inserted} = Repo.insert_all(Device, rows, returning: [:id])
+    Enum.map(inserted, & &1.id)
+  end
+
+  # Counts the UPDATEs to devices this test process runs from here on
+  defp count_device_updates() do
+    counter = :counters.new(1, [])
+    handler_id = "device-updates-#{System.unique_integer([:positive])}"
+    test_pid = self()
+
+    :telemetry.attach(
+      handler_id,
+      [:nerves_hub, :repo, :query],
+      fn _event, _measurements, %{query: query}, _config ->
+        if self() == test_pid and String.starts_with?(query, ~s|UPDATE "devices"|),
+          do: :counters.add(counter, 1, 1)
+      end,
+      nil
+    )
+
+    on_exit(fn -> :telemetry.detach(handler_id) end)
+
+    fn -> :counters.get(counter, 1) end
+  end
+
+  # Fails the second chunk of a remove, by making Postgres reject an UPDATE of
+  # `last_id`'s row. Undone when the test's transaction rolls back.
+  defp fail_second_device_update(last_id) do
+    Repo.query!("""
+    CREATE FUNCTION pg_temp.fail_remove() RETURNS trigger AS $$
+    BEGIN
+      RAISE EXCEPTION 'simulated failure';
+    END
+    $$ LANGUAGE plpgsql
+    """)
+
+    Repo.query!("""
+    CREATE TRIGGER fail_remove BEFORE UPDATE ON devices
+    FOR EACH ROW WHEN (OLD.id = #{last_id})
+    EXECUTE FUNCTION pg_temp.fail_remove()
+    """)
   end
 
   describe "filter/3 health preload" do

@@ -58,6 +58,16 @@ defmodule NervesHubWeb.Live.Devices.Index do
 
   @tag_bulk_actions [:tag_devices, :add_tags_to_devices, :remove_tags_from_devices]
 
+  # The select-all bulk actions besides the deployment group move and remove,
+  # which have their own exit handlers
+  @bulk_actions @tag_bulk_actions ++
+                  [
+                    :move_many,
+                    :enable_updates_for_devices,
+                    :disable_updates_for_devices,
+                    :clear_penalty_box_for_devices
+                  ]
+
   def mount(_params, _session, %{assigns: %{current_scope: scope}} = socket) do
     product = Products.load_shared_secret_auth(scope.product)
 
@@ -1028,6 +1038,39 @@ defmodule NervesHubWeb.Live.Devices.Index do
           "#{number_to_delimited(successful_count, precision: 0)} devices were successfully moved to the selected product, and #{number_to_delimited(unsuccessful_count, precision: 0)} devices had errors and couldn't be moved"
         )
     end
+    |> assign_display_devices()
+    |> noreply()
+  end
+
+  # A remove commits a chunk at a time, so when one fails some devices may
+  # already be out of their group. Refreshing the list shows which.
+  def handle_async(:remove_many_from_deployment_group, {:exit, reason}, socket) do
+    bulk_action_failed(
+      socket,
+      :remove_many_from_deployment_group,
+      reason,
+      "There was an issue removing devices from their deployment group. Some devices may have been removed."
+    )
+  end
+
+  # The other bulk actions run in one transaction, so a failure leaves every
+  # device as it was
+  def handle_async(bulk_action, {:exit, reason}, socket) when bulk_action in @bulk_actions do
+    bulk_action_failed(
+      socket,
+      bulk_action,
+      reason,
+      "There was an issue updating the selected devices. No devices were changed."
+    )
+  end
+
+  defp bulk_action_failed(socket, bulk_action, reason, flash) do
+    message = "Live.Devices.Index.handle_async:#{bulk_action} failed due to exit: #{inspect(reason)}"
+
+    _ = Sentry.capture_message(message, result: :none)
+
+    socket
+    |> put_flash(:error, flash)
     |> assign_display_devices()
     |> noreply()
   end

@@ -132,48 +132,83 @@ defmodule NervesHub.Devices.BulkActions do
     stream_processing(devices_query, {Devices, :remove_tags, [user, tags]})
   end
 
+  # How many devices each transaction of a move or remove holds. One statement
+  # for a whole fleet holds a lock on every row it touches until the last is
+  # written, and anything else writing to those devices waits that long, so
+  # these commit a chunk at a time instead.
+  @move_chunk_size 5_000
+
   @doc """
   Remove multiple devices from their deployment groups.
 
-  Returns `{:ok, count}` with the number of devices updated.
+  Given ids, only the product's devices are removed. Given a query, the
+  devices it selects. Either way the devices are cleared 5,000 to a
+  transaction, like a move, and only those that were in a group are counted
+  and told, in batches. If a chunk fails, the ones before it stay removed and
+  their devices are still told, and the failure is raised for the caller to
+  report.
+
+  Devices not in a group are left out before counting, as they have nothing
+  to be removed from. `error` counts the rest that weren't removed, for
+  instance because something else removed them first.
   """
   @spec remove_many_from_deployment_group({[non_neg_integer()], Product.t()} | Ecto.Query.t()) ::
           %{ok: non_neg_integer(), error: non_neg_integer()} | %{ok: non_neg_integer()}
   def remove_many_from_deployment_group({device_ids, product} = args) when is_tuple(args) do
-    {count, _} =
-      Device
-      |> Repo.exclude_deleted()
-      |> where([d], d.id in ^device_ids)
-      |> where([d], d.product_id == ^product.id)
-      |> where([d], not is_nil(d.deployment_id))
-      |> Repo.update_all(set: [deployment_id: nil])
+    {removed, _selected} =
+      device_ids
+      |> Enum.chunk_every(@move_chunk_size)
+      |> remove_chunks(product.id)
 
-    Enum.each(device_ids, &DeviceEvents.updated(%Device{id: &1}))
-
-    %{ok: count}
+    %{ok: length(removed)}
   end
 
   def remove_many_from_deployment_group(%Ecto.Query{} = devices_query) do
-    stream_processing(devices_query, fn device ->
-      device
-      |> Device.clear_deployment_group()
-      |> Repo.update()
-      |> case do
-        {:ok, device} = res ->
-          DeviceEvents.deployment_cleared(device)
-          res
+    {removed, selected} =
+      devices_query
+      |> where([d], not is_nil(d.deployment_id))
+      |> device_id_pages(@move_chunk_size)
+      |> remove_chunks(nil)
 
-        res ->
-          res
-      end
-    end)
+    %{ok: length(removed), error: selected - length(removed)}
   end
 
-  # How many devices each transaction of a move holds. One statement for a whole
-  # fleet holds a lock on every row it touches until the last is written, and
-  # anything else writing to those devices waits that long, so a move commits a
-  # chunk at a time instead.
-  @move_chunk_size 5_000
+  # As `move_chunks/4`, for clearing devices' groups
+  defp remove_chunks(chunks, product_id) do
+    {removed, selected, failure} =
+      Enum.reduce_while(chunks, {[], 0, nil}, fn chunk, {removed, selected, nil} ->
+        try do
+          {:cont, {[remove_chunk(chunk, product_id) | removed], selected + length(chunk), nil}}
+        rescue
+          error -> {:halt, {removed, selected, {error, __STACKTRACE__}}}
+        end
+      end)
+
+    removed = removed |> Enum.reverse() |> List.flatten()
+
+    :ok = DeviceEvents.deployment_changed_for_many(removed, nil)
+
+    case failure do
+      nil -> {removed, selected}
+      {error, stacktrace} -> reraise error, stacktrace
+    end
+  end
+
+  defp remove_chunk(chunk, product_id) do
+    {_count, removed} =
+      Device
+      |> Repo.exclude_deleted()
+      |> where([d], d.id in ^chunk)
+      |> where([d], not is_nil(d.deployment_id))
+      |> where_product(product_id)
+      |> select([d], d.id)
+      |> Repo.update_all([set: [deployment_id: nil]], timeout: to_timeout(minute: 2))
+
+    removed
+  end
+
+  defp where_product(query, nil), do: query
+  defp where_product(query, product_id), do: where(query, [d], d.product_id == ^product_id)
 
   @doc """
   Move devices to a deployment group. A deployment group struct or id can
@@ -515,21 +550,13 @@ defmodule NervesHub.Devices.BulkActions do
     stream_processing(devices_query, {Updates, :clear_penalty_box, [user]})
   end
 
-  defp stream_processing(devices_query, fun, opts \\ []) do
+  defp stream_processing(devices_query, {module, fun_name, args}) do
     stream = Repo.stream(devices_query)
 
     Repo.transact(
       fn ->
         stream
-        |> Stream.map(fn device ->
-          case fun do
-            {module, fun_name, args} ->
-              apply(module, fun_name, [device | args])
-
-            fun ->
-              fun.(device)
-          end
-        end)
+        |> Stream.map(&apply(module, fun_name, [&1 | args]))
         |> Enum.reduce(%{ok: 0, error: 0}, fn
           :ok, acc -> %{acc | ok: acc.ok + 1}
           {:ok, _updated}, acc -> %{acc | ok: acc.ok + 1}
@@ -537,10 +564,7 @@ defmodule NervesHub.Devices.BulkActions do
           {:error, _changeset}, acc -> %{acc | error: acc.error + 1}
           {:error, _name, _changeset, _}, acc -> %{acc | error: acc.error + 1}
         end)
-        |> then(fn res ->
-          if opts[:before_commit], do: opts[:before_commit].()
-          {:ok, res}
-        end)
+        |> then(&{:ok, &1})
       end,
       timeout: 60_000
     )
