@@ -215,7 +215,8 @@ defmodule NervesHub.Devices.Deployments do
 
   `Repo.update_all()` is used to update the rows, and the return is how many
   were removed. A single statement removes every device it selects, so there
-  is no partial result to report.
+  is no partial result to report. The removed devices are then told in
+  batches, from a background task, so this returns before they've all heard.
 
   # devices 1, 2 and 3 match; the group's other two devices are removed
   remove_unmatched_devices_from_deployment_group([1, 2, 3], deployment_group)

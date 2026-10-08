@@ -142,15 +142,15 @@ defmodule NervesHub.Devices.BulkActions do
   Remove multiple devices from their deployment groups.
 
   Given ids, only the product's devices are removed. Given a query, the
-  devices it selects. Either way the devices are cleared 5,000 to a
-  transaction, like a move, and only those that were in a group are counted
-  and told, in batches. If a chunk fails, the ones before it stay removed and
-  their devices are still told, and the failure is raised for the caller to
-  report.
+  devices it selects. Either way only devices that are in a group are
+  touched: they're cleared 5,000 to a transaction, like a move, and told in
+  batches. If a chunk fails, the ones before it stay removed and their
+  devices are still told, and the failure is raised for the caller to report.
 
-  Devices not in a group are left out before counting, as they have nothing
-  to be removed from. `error` counts the rest that weren't removed, for
-  instance because something else removed them first.
+  Given ids, returns how many were removed. Given a query, also returns as
+  `error` how many it selected that weren't removed, for instance because
+  something else removed them first. A device with no group isn't counted
+  either way.
   """
   @spec remove_many_from_deployment_group({[non_neg_integer()], Product.t()} | Ecto.Query.t()) ::
           %{ok: non_neg_integer(), error: non_neg_integer()} | %{ok: non_neg_integer()}
@@ -212,14 +212,22 @@ defmodule NervesHub.Devices.BulkActions do
 
   @doc """
   Move devices to a deployment group. A deployment group struct or id can
-  be given. Devices are fetched by their id and also filtered by the given
-  deployment group firmware's architecture and platform.
+  be given. Only devices running the group's firmware platform and
+  architecture are moved.
 
-  `Repo.update_all()` is used to update the rows. The return informs how
-  many rows were updated and how many were ignored because of a problem.
+  Devices are moved 5,000 to a transaction, with their deltas queued in the
+  same one, and told about it in batches once every chunk is in. If a chunk
+  fails, the ones before it stay moved, their devices are still told, and the
+  failure is raised for the caller to report.
 
-  move_many_to_deployment_group([1, 2, 3], deployment_group)
-  > {:ok, %{updated: 3, ignored: 0}}
+  Given ids, returns how many were moved and how many weren't, for instance
+  because they run other firmware:
+
+  move_many_to_deployment_group([1, 2, 3], deployment_group, user)
+  > %{updated: 3, ignored: 0}
+
+  Given a query, returns the same counts as `ok` and `error`, and also moves
+  devices that haven't reported their firmware yet.
   """
   @spec move_many_to_deployment_group(
           [non_neg_integer()] | Ecto.Query.t(),
@@ -263,9 +271,9 @@ defmodule NervesHub.Devices.BulkActions do
 
   # Each chunk is its own transaction: its devices are moved and their deltas
   # queued together, so the orchestrator never sees a moved device without the
-  # delta it should wait for. Queuing looks at the whole group each time, which
-  # on 190,000 devices took 52ms, so a 190,000-device move spends at most about
-  # 2s on it across its 38 chunks.
+  # delta it should wait for. Queuing looks only at the chunk's own devices. On
+  # a 190,000-device move, finding their firmware pairs took at most 19ms a
+  # chunk and 0.5s in all.
   #
   # The devices only hear about it once every chunk is in. If a chunk fails, the
   # ones before it stay moved, so their devices and the orchestrator are still
@@ -346,10 +354,9 @@ defmodule NervesHub.Devices.BulkActions do
   from `ManagedDeployments.matched_devices_query/2`.
 
   Works like `move_many_to_deployment_group/3` given ids, 5,000 devices to a
-  transaction, but reads the ids from the query a chunk
-  at a time instead of being handed every one. A move of a whole fleet then
-  holds one chunk of ids at a time, rather than loading them all to send them
-  straight back.
+  transaction, but reads the ids from the query a chunk at a time instead of
+  being handed every one. A move of a whole fleet then holds one chunk of ids
+  at a time, rather than loading them all to send them straight back.
 
   `ignored` counts devices the query selected that weren't moved, for instance
   because something else moved them first.
@@ -378,9 +385,9 @@ defmodule NervesHub.Devices.BulkActions do
 
   # The query's ids in order, a page at a time, each page starting after the
   # last id of the one before. Paging by id rather than by offset means a page
-  # never skips or repeats a device as earlier pages are moved. Distinct, since
-  # a query with joins, like the devices page's filters, can return a device
-  # more than once.
+  # never skips or repeats a device as earlier pages are moved or removed.
+  # Distinct, since a query with joins, like the devices page's filters, can
+  # return a device more than once.
   defp device_id_pages(devices_query, page_size) do
     Stream.unfold(0, fn
       :done ->

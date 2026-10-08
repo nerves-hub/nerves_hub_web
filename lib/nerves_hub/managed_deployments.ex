@@ -693,8 +693,9 @@ defmodule NervesHub.ManagedDeployments do
   end
 
   # The pairs that already have a delta queued or built, the statuses
-  # `Firmwares.attempt_firmware_delta/3` leaves alone. A failed one is left in,
-  # for it to start again.
+  # `Firmwares.attempt_firmware_delta/3` leaves alone. A failed or timed-out
+  # one isn't returned, so it goes through `attempt_firmware_delta/3` and is
+  # started again.
   defp existing_delta_pairs([]), do: MapSet.new()
 
   defp existing_delta_pairs(pairs) do

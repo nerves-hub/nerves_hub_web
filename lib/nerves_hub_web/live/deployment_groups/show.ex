@@ -273,7 +273,8 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
   end
 
   @impl Phoenix.LiveView
-  # Only the summary tab shows these, and it counts them itself.
+  # Only the summary tab shows the inflight updates and their counts. It looks
+  # them up itself, so this only asks it to.
   def handle_info(:update_inflight_updates, %{assigns: %{tab: :summary}} = socket) do
     Process.send_after(self(), :update_inflight_updates, 5000)
 

@@ -2055,8 +2055,8 @@ defmodule NervesHub.DevicesTest do
 
       assert_receive %Broadcast{topic: ^orchestrator_topic, event: "bulk-devices-added"}, 1_000
 
-      # The announcement for the first chunk is in a background task, so give a
-      # second one the same time to show up before saying there wasn't one.
+      # The devices are told from a background task, so give a second message
+      # time to show up before saying there wasn't one.
       refute_receive %Broadcast{topic: ^first_topic}, 500
       refute_received %Broadcast{topic: ^orchestrator_topic}
     end

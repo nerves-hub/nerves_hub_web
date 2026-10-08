@@ -37,7 +37,8 @@ defmodule NervesHub.DeviceEvents do
   # once from the device nodes. These keep it to about 25,000 a second.
   #
   # The pauses come between batches, not after the last, so announcing a change
-  # takes at least (batches - 1) x 100ms, plus the time to send each batch:
+  # takes at least (batches - 1) x 100ms, plus the time to check and send each
+  # batch (about 3ms to check one):
   #
   #   10,000 devices     4 batches   0.3s
   #   190,000 devices   76 batches   7.5s
@@ -56,11 +57,11 @@ defmodule NervesHub.DeviceEvents do
   so it's sent from a task rather than holding the caller up for the seconds a
   large change takes to announce.
 
-  Each batch is checked against the database just before it's sent, and a
-  device that has moved on since, or been deleted, is left out. The channel
-  takes the group from the message rather than reading it, so a batch sent
-  late, after a second move, would otherwise put the device back in the group
-  it left.
+  Just before each batch is sent, its devices' rows are read again, and only
+  those still in `deployment_id`, and not deleted, are told. The channel takes
+  the group from the message rather than reading it, so a batch sent late,
+  after a second move, would otherwise put the device back in the group it
+  left.
   """
   @spec deployment_changed_for_many([pos_integer()], pos_integer() | nil) :: :ok
   def deployment_changed_for_many([], _deployment_id), do: :ok
