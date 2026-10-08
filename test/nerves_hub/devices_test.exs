@@ -2436,6 +2436,46 @@ defmodule NervesHub.DevicesTest do
       assert {:ok, %{status: :processing}} =
                Firmwares.get_firmware_delta_by_source_and_target(failed_firmware.id, target_firmware.id)
     end
+
+    test "a move starts no delta when the target firmware's format can't take one", %{
+      deployment_group: deployment_group,
+      org_key: org_key,
+      product: product,
+      device: device,
+      user: user,
+      tmp_dir: tmp_dir
+    } do
+      device_firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+      target_firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+
+      # A format whose update tool can't patch, so nothing is attempted. Starting
+      # one anyway would show the group's deltas as failed.
+      {1, _} = Repo.update_all(where(Firmware, id: ^target_firmware.id), set: [tool: "rauc"])
+
+      {:ok, deployment_group} =
+        ManagedDeployments.update_deployment_group(deployment_group, %{delta_updatable: true}, user)
+
+      {:ok, {_release, deployment_group}} =
+        ManagedDeployments.create_deployment_release(deployment_group, target_firmware, nil, user, %{})
+
+      {:ok, device} = Devices.update_firmware_metadata(device, %{"uuid" => device_firmware.uuid}, :unknown, false)
+
+      # The format is read once for the chunk's targets, so a pair aimed at one
+      # that can't take a delta is settled there, without going on to try it
+      reject(Firmwares, :attempt_firmware_delta, 3)
+
+      %{updated: 1, ignored: 0} = BulkActions.move_many_to_deployment_group([device.id], deployment_group, user)
+
+      assert Repo.reload(device).deployment_id == deployment_group.id
+
+      refute_enqueued(
+        worker: FirmwareDeltaBuilder,
+        args: %{"source_id" => device_firmware.id, "target_id" => target_firmware.id}
+      )
+
+      assert {:error, :not_found} =
+               Firmwares.get_firmware_delta_by_source_and_target(device_firmware.id, target_firmware.id)
+    end
   end
 
   describe "move/3 and network identities" do
