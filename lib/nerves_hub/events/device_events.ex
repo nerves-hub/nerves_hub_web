@@ -3,6 +3,8 @@ defmodule NervesHub.DeviceEvents do
   Encapsulation of events to be sent to devices or the device channel
   """
 
+  import Ecto.Query
+
   alias NervesHub.AuditLogs.DeviceTemplates
   alias NervesHub.Devices
   alias NervesHub.Devices.Device
@@ -53,6 +55,12 @@ defmodule NervesHub.DeviceEvents do
   channels. A device that misses it reads its group again when it reconnects,
   so it's sent from a task rather than holding the caller up for the seconds a
   large change takes to announce.
+
+  Each batch is checked against the database just before it's sent, and a
+  device that has moved on since, or been deleted, is left out. The channel
+  takes the group from the message rather than reading it, so a batch sent
+  late, after a second move, would otherwise put the device back in the group
+  it left.
   """
   @spec deployment_changed_for_many([pos_integer()], pos_integer() | nil) :: :ok
   def deployment_changed_for_many([], _deployment_id), do: :ok
@@ -68,12 +76,26 @@ defmodule NervesHub.DeviceEvents do
             Process.sleep(@group_change_batch_pause)
 
           batch ->
-            Enum.each(batch, &deployment_assigned(%Device{id: &1, deployment_id: deployment_id}))
+            batch
+            |> still_in_group(deployment_id)
+            |> Enum.each(&deployment_assigned(%Device{id: &1, deployment_id: deployment_id}))
         end)
       end)
 
     :ok
   end
+
+  defp still_in_group(device_ids, deployment_id) do
+    Device
+    |> Repo.exclude_deleted()
+    |> where([d], d.id in ^device_ids)
+    |> where_deployment(deployment_id)
+    |> select([d], d.id)
+    |> Repo.all()
+  end
+
+  defp where_deployment(query, nil), do: where(query, [d], is_nil(d.deployment_id))
+  defp where_deployment(query, deployment_id), do: where(query, [d], d.deployment_id == ^deployment_id)
 
   def moved_product(device) do
     :ok =
