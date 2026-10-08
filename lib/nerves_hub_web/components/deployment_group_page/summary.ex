@@ -705,7 +705,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
                   <div id="remove-devices-from-deployment-group" class="relative z-20" phx-hook="ToolTip" data-placement="top">
                     <.icon name="info" class="stroke-base-400" />
                     <div class="tooltip-content absolute top-0 left-0 z-20 hidden w-max rounded border border-base-700 bg-surface-muted px-2 py-1.5 text-xs">
-                      This action will remove {@matched_devices.unmatched_device_count} {if @matched_devices.matched_devices_outside_deployment_group_count == 1, do: "device", else: "devices"} from {@deployment_group.name}
+                      This action will remove {@matched_devices.unmatched_device_count} {if @matched_devices.unmatched_device_count == 1, do: "device", else: "devices"} from {@deployment_group.name}
                       <div class="tooltip-arrow absolute size-2 origin-center rotate-45 border-base-700 bg-surface-muted"></div>
                     </div>
                   </div>

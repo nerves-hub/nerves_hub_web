@@ -1408,6 +1408,26 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
                "Sorry, you don't have the required role" |> Phoenix.HTML.html_escape() |> Phoenix.HTML.safe_to_string()
     end
 
+    test "users with the :view role cannot move devices into a deployment group", %{conn: conn, fixture: fixture} do
+      %{org: org, product: product, user: user, device: device} = fixture
+
+      scope = Scope.for_user(user) |> Scope.put_org(org)
+
+      org_user = Accounts.get_org_user!(scope, user)
+      Accounts.change_org_user_role(org_user, :view)
+
+      reject(BulkActions, :move_many_to_deployment_group, 3)
+
+      {:ok, view, _html} = live(conn, ~p"/org/#{org}/#{product}/devices")
+
+      render_async(view, 300)
+
+      assert render_click(view, "move-devices-deployment-group", %{}) =~
+               "Sorry, you don't have the required role" |> Phoenix.HTML.html_escape() |> Phoenix.HTML.safe_to_string()
+
+      refute Repo.reload(device).deployment_id
+    end
+
     test "users with the :view role cannot move devices to another product", %{conn: conn, fixture: fixture} do
       %{org: org, product: product, user: user} = fixture
 

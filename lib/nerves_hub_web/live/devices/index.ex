@@ -449,7 +449,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
     end
   end
 
-  @decorate requires_permission(:"device:update")
+  @decorate requires_permission(:"deployment_group:update")
   def handle_event("move-devices-deployment-group", _, socket) do
     %{
       assigns: %{

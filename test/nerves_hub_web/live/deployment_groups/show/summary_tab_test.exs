@@ -426,6 +426,27 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show.SummaryTabTest do
     |> assert_has("span", text: "100% of devices in this deployment group match conditions", timeout: 1_000)
   end
 
+  test "the remove tooltip counts the devices it will remove", %{
+    conn: conn,
+    org: org,
+    product: product,
+    fixture: %{firmware: firmware},
+    deployment_group: deployment_group
+  } do
+    # One to remove, and two that match outside the group, so the tooltip
+    # would say "devices" if it took its wording from the wrong count
+    _ = Fixtures.device_fixture(org, product, firmware, %{deployment_id: deployment_group.id, tags: ["foo"]})
+    _ = Fixtures.device_fixture(org, product, firmware, %{tags: ["beta"]})
+    _ = Fixtures.device_fixture(org, product, firmware, %{tags: ["beta"]})
+
+    conn
+    |> visit("/org/#{org.name}/#{product.name}/deployment_groups/#{deployment_group.name}")
+    |> assert_has("span", text: "match outside of deployment group", exact: false, timeout: 1_000)
+    |> assert_has("#remove-devices-from-deployment-group .tooltip-content",
+      text: "This action will remove 1 device from #{deployment_group.name}"
+    )
+  end
+
   test "removing device from deployment that doesn't match conditions", %{
     conn: conn,
     org: org,

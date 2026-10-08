@@ -384,6 +384,56 @@ defmodule NervesHub.ManagedDeployments.OrchestratorTest do
     :sys.get_state(pid)
   end
 
+  test "a connected device moved in bulk is offered the update without waiting for the two-minute run", %{
+    deployment_group: deployment_group,
+    org_key: org_key,
+    product: product,
+    device: device1,
+    device2: device2,
+    user: user,
+    tmp_dir: tmp_dir
+  } do
+    firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+
+    {:ok, deployment_group} =
+      ManagedDeployments.update_deployment_group(deployment_group, %{concurrent_updates: 2}, user)
+
+    {:ok, {_release, deployment_group}} =
+      ManagedDeployments.create_deployment_release(deployment_group, firmware, nil, user, %{})
+
+    # Already connected, and outside the group, as they are when someone moves them
+    for device <- [device1, device2] do
+      {:ok, connection} = Connections.device_connecting(device.org_id, device.product_id, device.id)
+      :ok = Connections.device_connected(connection.id)
+      Phoenix.PubSub.subscribe(NervesHub.PubSub, "device:#{device.id}")
+    end
+
+    # Rate limited, as in production. Its first run, at startup, finds the
+    # group empty and starts the 3s hold, so the move's trigger is queued
+    # behind it.
+    {:ok, pid} =
+      start_supervised(%{
+        id: "Orchestrator##{deployment_group.id}",
+        start: {Orchestrator, :start_link, [deployment_group, true]},
+        restart: :temporary
+      })
+
+    :sys.get_state(pid)
+
+    %{updated: 2, ignored: 0} =
+      BulkActions.move_many_to_deployment_group([device1.id, device2.id], deployment_group, user)
+
+    topic1 = "device:#{device1.id}"
+    topic2 = "device:#{device2.id}"
+
+    # Within the 3s hold, well short of the two-minute run
+    assert_receive %Broadcast{topic: ^topic1, event: "update"}, 5_000
+    assert_receive %Broadcast{topic: ^topic2, event: "update"}, 5_000
+
+    # allows for db connections to finish and close
+    :sys.get_state(pid)
+  end
+
   test "the orchestrator is 'triggered' when a device is reenabled to accept updates", %{
     user: user,
     deployment_group: deployment_group,
