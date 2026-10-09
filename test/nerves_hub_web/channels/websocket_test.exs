@@ -461,6 +461,46 @@ defmodule NervesHubWeb.WebsocketTest do
       close_socket_cleanly(socket)
     end
 
+    test "rejects a deactivated device key/secret", %{user: user, tmp_dir: tmp_dir} do
+      {device, _firmware} = device_fixture(tmp_dir, user)
+      assert {:ok, auth} = Devices.create_shared_secret_auth(device)
+      assert {:ok, _} = Devices.deactivate_shared_secret_auth(device, auth.key, user)
+
+      opts = [
+        mint_opts: [protocols: [:http1]],
+        uri: "ws://127.0.0.1:#{@web_port}/device-socket/websocket",
+        headers: Utils.nh1_key_secret_headers(auth, device.identifier)
+      ]
+
+      {:ok, socket} = SocketClient.start_link(with_serializer(opts))
+      SocketClient.wait_connect(socket)
+
+      refute SocketClient.connected?(socket)
+    end
+
+    test "closes an open connection when its key is deactivated", %{user: user, tmp_dir: tmp_dir} do
+      {device, _firmware} = device_fixture(tmp_dir, user)
+      assert {:ok, auth} = Devices.create_shared_secret_auth(device)
+
+      opts = [
+        mint_opts: [protocols: [:http1]],
+        uri: "ws://127.0.0.1:#{@web_port}/device-socket/websocket",
+        headers: Utils.nh1_key_secret_headers(auth, device.identifier)
+      ]
+
+      subscribe_for_updates(device)
+
+      {:ok, socket} = SocketClient.start_link(with_serializer(opts))
+      SocketClient.join_and_wait(socket, shared_secret_params(device))
+
+      assert_connection_change()
+      assert_online_and_available(device)
+
+      assert {:ok, _} = Devices.deactivate_shared_secret_auth(device, auth.key, user)
+
+      assert_receive %{event: "connection:change", payload: %{status: "offline"}}
+    end
+
     test "records the address a trusted balancer announced", %{user: user, tmp_dir: tmp_dir} do
       {device, _firmware} = device_fixture(tmp_dir, user)
       assert {:ok, auth} = Devices.create_shared_secret_auth(device)

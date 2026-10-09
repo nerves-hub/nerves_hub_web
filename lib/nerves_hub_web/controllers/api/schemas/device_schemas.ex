@@ -1,4 +1,5 @@
 defmodule NervesHubWeb.API.Schemas.DeviceSchemas do
+  alias NervesHubWeb.API.Schemas.DeviceSharedSecretSchemas.DeviceSharedSecretWithSecret
   alias OpenApiSpex.Schema
 
   require OpenApiSpex
@@ -142,6 +143,29 @@ defmodule NervesHubWeb.API.Schemas.DeviceSchemas do
     })
   end
 
+  defmodule DeviceCreateResponse do
+    OpenApiSpex.schema(%{
+      description: "Response schema for a created Device",
+      type: :object,
+      properties: %{
+        data: %Schema{
+          allOf: [
+            Device,
+            %Schema{
+              type: :object,
+              properties: %{
+                shared_secret: %Schema{
+                  allOf: [DeviceSharedSecretWithSecret],
+                  description: "Only present when the device was created with `shared_secret: true`"
+                }
+              }
+            }
+          ]
+        }
+      }
+    })
+  end
+
   defmodule DeviceListResponse do
     OpenApiSpex.schema(%{
       description: "Response schema for multiple Devices",
@@ -262,6 +286,11 @@ defmodule NervesHubWeb.API.Schemas.DeviceSchemas do
             updates_enabled: %Schema{type: :boolean}
           },
           required: [:identifier]
+        },
+        shared_secret: %Schema{
+          type: :boolean,
+          description:
+            "Also create the device's own shared secret, in the same transaction. The key and secret are returned as `data.shared_secret`, the only time the secret is returned."
         }
       },
       required: [:device],

@@ -1486,6 +1486,105 @@ defmodule NervesHub.DevicesTest do
     assert auth.product_shared_secret_auth_id == product_ssa_id
   end
 
+  describe "issue_shared_secret_auth/2" do
+    test "creates a key and audits it", %{device: device, user: user} do
+      assert {:ok, auth} = Devices.issue_shared_secret_auth(device, user)
+
+      assert Devices.list_shared_secret_auths(device) == [auth]
+      assert [audit_log] = AuditLogs.logs_for(device)
+      assert audit_log.actor_id == user.id
+
+      assert audit_log.description ==
+               "User #{user.name} created shared secret #{auth.key} for device #{device.identifier}"
+    end
+  end
+
+  describe "create_device_with_shared_secret_auth/2" do
+    test "creates the device and its shared secret together, and audits it", %{
+      org: org,
+      product: product,
+      user: user
+    } do
+      assert {:ok, {device, auth}} =
+               Devices.create_device_with_shared_secret_auth(
+                 %{identifier: "provisioned-device", org_id: org.id, product_id: product.id},
+                 user
+               )
+
+      assert auth.device_id == device.id
+      assert Devices.list_shared_secret_auths(device) == [auth]
+      assert [%{actor_id: actor_id}] = AuditLogs.logs_for(device)
+      assert actor_id == user.id
+    end
+
+    test "creates no secret when the device cannot be created", %{org: org, product: product, user: user} do
+      params = %{identifier: "provisioned-device", org_id: org.id, product_id: product.id}
+
+      assert {:ok, _} = Devices.create_device_with_shared_secret_auth(params, user)
+      assert {:error, %Changeset{}} = Devices.create_device_with_shared_secret_auth(params, user)
+
+      assert Repo.aggregate(SharedSecretAuth, :count) == 1
+    end
+  end
+
+  describe "deactivate_shared_secret_auth/3" do
+    test "stops the key from authenticating, keeps it on the device, and audits it", %{
+      device: device,
+      user: user
+    } do
+      {:ok, auth} = Devices.create_shared_secret_auth(device)
+
+      assert {:ok, %{deactivated_at: %DateTime{}}} = Devices.deactivate_shared_secret_auth(device, auth.key, user)
+      assert {:error, :not_found} = Devices.get_shared_secret_auth(auth.key)
+      assert [%{deactivated_at: %DateTime{}}] = Devices.list_shared_secret_auths(device)
+
+      assert [audit_log] = AuditLogs.logs_for(device)
+      assert audit_log.actor_id == user.id
+
+      assert audit_log.description ==
+               "User #{user.name} deactivated shared secret #{auth.key} for device #{device.identifier}"
+    end
+
+    test "disconnects the device", %{device: device, user: user} do
+      {:ok, auth} = Devices.create_shared_secret_auth(device)
+      Phoenix.PubSub.subscribe(NervesHub.PubSub, "device_socket:#{device.id}")
+
+      assert {:ok, _} = Devices.deactivate_shared_secret_auth(device, auth.key, user)
+
+      assert_receive %Broadcast{event: "disconnect"}
+    end
+
+    test "returns not found for an already deactivated key, and leaves it as it was", %{
+      device: device,
+      user: user
+    } do
+      {:ok, auth} = Devices.create_shared_secret_auth(device)
+      {:ok, deactivated} = Devices.deactivate_shared_secret_auth(device, auth.key, user)
+      Phoenix.PubSub.subscribe(NervesHub.PubSub, "device_socket:#{device.id}")
+
+      assert {:error, :not_found} = Devices.deactivate_shared_secret_auth(device, auth.key, user)
+      assert Repo.get!(SharedSecretAuth, auth.id).deactivated_at == deactivated.deactivated_at
+      assert [_] = AuditLogs.logs_for(device)
+      refute_receive %Broadcast{event: "disconnect"}
+    end
+
+    test "returns not found for another device's key, and leaves it active", %{
+      device: device,
+      org: org,
+      product: product,
+      user: user
+    } do
+      {:ok, other_device} =
+        Devices.create_device(%{identifier: "other-device", org_id: org.id, product_id: product.id})
+
+      {:ok, other_auth} = Devices.create_shared_secret_auth(other_device)
+
+      assert {:error, :not_found} = Devices.deactivate_shared_secret_auth(device, other_auth.key, user)
+      assert {:ok, _} = Devices.get_shared_secret_auth(other_auth.key)
+      assert AuditLogs.logs_for(other_device) == []
+    end
+  end
+
   describe "tracking update attempts and verifying eligibility" do
     test "records the timestamp of an attempt", %{device: device} do
       :ok = Updates.update_attempted(to_device_info(device))

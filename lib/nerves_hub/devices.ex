@@ -404,6 +404,90 @@ defmodule NervesHub.Devices do
     |> Repo.insert()
   end
 
+  @doc """
+  Lists every shared secret a device has been given, deactivated ones included,
+  oldest first.
+  """
+  @spec list_shared_secret_auths(Device.t()) :: [SharedSecretAuth.t()]
+  def list_shared_secret_auths(%Device{id: device_id}) do
+    SharedSecretAuth
+    |> where([ssa], ssa.device_id == ^device_id)
+    |> order_by([ssa], asc: ssa.id)
+    |> Repo.all()
+  end
+
+  @doc """
+  Creates a shared secret for a device on a user's behalf, and audits it.
+  """
+  @spec issue_shared_secret_auth(Device.t(), User.t()) ::
+          {:ok, SharedSecretAuth.t()} | {:error, Changeset.t()}
+  def issue_shared_secret_auth(device, user) do
+    Repo.transact(fn ->
+      with {:ok, auth} <- create_shared_secret_auth(device) do
+        DeviceTemplates.audit_shared_secret_created(user, device, auth)
+        {:ok, auth}
+      end
+    end)
+  end
+
+  @doc """
+  Deactivates one of a device's active shared secrets on a user's behalf, so
+  the device can no longer connect with it, and audits it.
+
+  A single update, so the key's ownership, that it is still active, and the
+  change itself can't be split by a concurrent request. Returns
+  `{:error, :not_found}` when the device has no active key by that value.
+
+  The device is then disconnected, since its connection may be using the key.
+  One with another active key reconnects with that.
+  """
+  @spec deactivate_shared_secret_auth(Device.t(), String.t(), User.t()) ::
+          {:ok, SharedSecretAuth.t()} | {:error, :not_found}
+  def deactivate_shared_secret_auth(%Device{id: device_id} = device, key, user) do
+    now = DateTime.truncate(DateTime.utc_now(), :second)
+
+    Repo.transact(fn ->
+      SharedSecretAuth
+      |> where([ssa], ssa.device_id == ^device_id and ssa.key == ^key and is_nil(ssa.deactivated_at))
+      |> select([ssa], ssa)
+      |> Repo.update_all(set: [deactivated_at: now, updated_at: DateTime.to_naive(now)])
+      |> case do
+        {1, [auth]} ->
+          DeviceTemplates.audit_shared_secret_deactivated(user, device, auth)
+          {:ok, auth}
+
+        {0, []} ->
+          {:error, :not_found}
+      end
+    end)
+    |> case do
+      {:ok, auth} ->
+        DeviceEvents.shared_secret_deactivated(device)
+        {:ok, auth}
+
+      error ->
+        error
+    end
+  end
+
+  @doc """
+  Creates a device together with a shared secret for it on a user's behalf, in
+  one transaction.
+
+  For provisioning, where a device must never be left registered without the
+  credentials it will connect with.
+  """
+  @spec create_device_with_shared_secret_auth(map(), User.t()) ::
+          {:ok, {Device.t(), SharedSecretAuth.t()}} | {:error, Changeset.t()}
+  def create_device_with_shared_secret_auth(params, user) do
+    Repo.transact(fn ->
+      with {:ok, device} <- create_device(params),
+           {:ok, auth} <- issue_shared_secret_auth(device, user) do
+        {:ok, {device, auth}}
+      end
+    end)
+  end
+
   @spec get_or_create_device(Products.SharedSecretAuth.t(), String.t()) ::
           {:ok, Device.t()} | {:error, Ecto.Changeset.t()}
   def get_or_create_device(%Products.SharedSecretAuth{} = auth, identifier) do
