@@ -28,6 +28,7 @@ defmodule NervesHubWeb.API.DeviceSharedSecretJSON do
     %{
       key: auth.key,
       deactivated_at: auth.deactivated_at,
+      last_used: auth.last_used,
       inserted_at: auth.inserted_at
     }
   end

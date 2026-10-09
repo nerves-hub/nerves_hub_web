@@ -458,6 +458,8 @@ defmodule NervesHubWeb.WebsocketTest do
       assert_connection_change()
       assert_online_and_available(device)
 
+      assert %{last_used: %DateTime{}} = Repo.reload(auth)
+
       close_socket_cleanly(socket)
     end
 

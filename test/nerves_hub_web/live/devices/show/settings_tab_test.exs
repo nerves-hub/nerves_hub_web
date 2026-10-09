@@ -1,11 +1,15 @@
 defmodule NervesHubWeb.Live.Devices.Show.SettingsTabTest do
   use NervesHubWeb.ConnCase.Browser, async: true
 
+  import Ecto.Query
+
+  alias NervesHub.Accounts.User
   alias NervesHub.Devices
   alias NervesHub.Devices.CACertificates
   alias NervesHub.Fixtures
   alias NervesHub.Repo
   alias NervesHubWeb.Components.Utils
+  alias Phoenix.Socket.Broadcast
 
   describe "device settings" do
     test "can change tags", %{conn: conn, org: org, product: product, device: device} do
@@ -119,6 +123,124 @@ defmodule NervesHubWeb.Live.Devices.Show.SettingsTabTest do
         |> click_link("a[download=\"\"]", "")
 
       assert result.conn.resp_body =~ "-----BEGIN CERTIFICATE-----"
+    end
+  end
+
+  describe "device shared secrets" do
+    test "lists the device's keys, when each was last used, and never the secret", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device,
+      user: user
+    } do
+      {:ok, used} = Devices.create_shared_secret_auth(device)
+      :ok = Devices.mark_last_used(used)
+      {:ok, unused} = Devices.create_shared_secret_auth(device)
+      {:ok, deactivated} = Devices.create_shared_secret_auth(device)
+      {:ok, _} = Devices.deactivate_shared_secret_auth(device, deactivated.key, user)
+
+      session =
+        conn
+        |> visit(~p"/org/#{org}/#{product}/devices/#{device}/settings")
+        |> assert_has("#shared-secrets code", text: used.key)
+        |> assert_has("#shared-secrets code", text: unused.key)
+        |> assert_has("#shared-secrets code", text: deactivated.key)
+        |> assert_has("#shared-secrets span", text: "Never used")
+        |> assert_has("#shared-secrets span", text: "Last used")
+        |> assert_has("#shared-secrets .tooltip-content", text: "Deactivated by #{user.name}")
+
+      for auth <- [used, unused, deactivated] do
+        refute session.conn.resp_body =~ auth.secret
+        refute_has(session, "#shared-secrets input[value='#{auth.secret}']")
+      end
+    end
+
+    test "creating one shows its secret once", %{conn: conn, org: org, product: product, device: device, user: user} do
+      session =
+        conn
+        |> visit(~p"/org/#{org}/#{product}/devices/#{device}/settings")
+        |> assert_has("#shared-secrets div", text: "No shared secrets have been created.")
+        |> click_button("Create shared secret")
+
+      assert [auth] = Devices.list_shared_secret_auths(device)
+
+      session
+      |> assert_has("#shared-secrets p", text: "Copy the secret now.")
+      |> assert_has("#shared-secrets code", text: auth.key)
+      |> assert_has("#shared-secret-new[value='#{auth.secret}']")
+      |> click_button("Done")
+      |> refute_has("#shared-secret-new")
+      |> assert_has("#shared-secrets code", text: auth.key)
+      |> assert_has("#shared-secrets .tooltip-content", text: "Created by #{user.name}")
+
+      conn
+      |> visit(~p"/org/#{org}/#{product}/devices/#{device}/settings")
+      |> assert_has("#shared-secrets code", text: auth.key)
+      |> refute_has("#shared-secret-new")
+    end
+
+    test "deactivating one disconnects the device", %{conn: conn, org: org, product: product, device: device} do
+      {:ok, auth} = Devices.create_shared_secret_auth(device)
+      Phoenix.PubSub.subscribe(NervesHub.PubSub, "device_socket:#{device.id}")
+
+      conn
+      |> visit(~p"/org/#{org}/#{product}/devices/#{device}/settings")
+      |> click_button("Deactivate")
+      |> assert_has("div", text: "The shared secret has been deactivated, and the device disconnected.")
+      |> assert_has("#shared-secrets .tooltip-content", text: "Deactivated by")
+      |> assert_has("#shared-secrets span", text: "Deactivated", exact: true)
+      |> refute_has("#shared-secrets button", text: "Deactivate")
+
+      assert {:error, :not_found} = Devices.get_shared_secret_auth(auth.key)
+      assert_receive %Broadcast{event: "disconnect"}
+    end
+
+    test "shows who created and deactivated a key, even after they are deleted", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device,
+      user: user
+    } do
+      other = Fixtures.user_fixture(%{name: "Former Teammate"})
+      {:ok, auth} = Devices.issue_shared_secret_auth(device, other)
+      {:ok, _} = Devices.deactivate_shared_secret_auth(device, auth.key, user)
+      {1, _} = Repo.update_all(from(u in User, where: u.id == ^other.id), set: [deleted_at: DateTime.utc_now(:second)])
+
+      conn
+      |> visit(~p"/org/#{org}/#{product}/devices/#{device}/settings")
+      |> assert_has("#shared-secrets .tooltip-content", text: "Created by Former Teammate")
+      |> assert_has("#shared-secrets .tooltip-content", text: "Deactivated by #{user.name}")
+    end
+
+    test "view-only members can see the keys, but not create or deactivate them", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device,
+      user: user
+    } do
+      {:ok, auth} = Devices.create_shared_secret_auth(device)
+      org_user = NervesHub.Accounts.get_org_user!(org, user.id)
+      {:ok, _} = NervesHub.Accounts.change_org_user_role(org_user, :view)
+
+      conn
+      |> visit(~p"/org/#{org}/#{product}/devices/#{device}/settings")
+      |> assert_has("#shared-secrets code", text: auth.key)
+      |> refute_has("#shared-secrets button", text: "Create shared secret")
+      |> refute_has("#shared-secrets button", text: "Deactivate")
+    end
+
+    test "are read-only on a deleted device", %{conn: conn, org: org, product: product, device: device} do
+      {:ok, auth} = Devices.create_shared_secret_auth(device)
+      {:ok, device} = Devices.delete_device(device)
+
+      conn
+      |> visit(~p"/org/#{org}/#{product}/devices/#{device}/settings")
+      |> assert_has("#shared-secrets code", text: auth.key)
+      |> refute_has("#shared-secrets button", text: "Create shared secret")
+      |> refute_has("#shared-secrets button", text: "Deactivate")
     end
   end
 

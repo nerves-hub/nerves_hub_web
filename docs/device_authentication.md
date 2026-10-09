@@ -88,9 +88,9 @@ given a key and secret. There are two kinds of key:
   it first connects. Onboarding is easy, but one leaked device exposes the whole
   product.
 - **Device keys** (`nhd_`) belong to one device and only authenticate as that
-  device. One leaked device exposes only itself. They are issued through the
-  API, typically by a provisioning station, and can be created along with the
-  device itself.
+  device. One leaked device exposes only itself. They are issued from the
+  device's settings or through the API, typically by a provisioning station,
+  which can create them along with the device itself.
 
 A secret is shown once, when it is created, and cannot be retrieved again.
 Deactivating a key disconnects the device and refuses the key from then on.

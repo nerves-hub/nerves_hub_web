@@ -81,14 +81,16 @@ defmodule NervesHubWeb.API.DeviceSharedSecretControllerTest do
     } do
       {:ok, active} = Devices.create_shared_secret_auth(device)
       {:ok, deactivated} = Devices.create_shared_secret_auth(device)
+      :ok = Devices.mark_last_used(deactivated)
       {:ok, _} = Devices.deactivate_shared_secret_auth(device, deactivated.key, user)
 
       data = conn |> get(secrets_path(org, product, device)) |> json_response(200) |> Map.fetch!("data")
 
       assert Enum.map(data, & &1["key"]) == [active.key, deactivated.key]
       refute Enum.any?(data, &Map.has_key?(&1, "id"))
-      assert [%{"deactivated_at" => nil}, %{"deactivated_at" => deactivated_at}] = data
+      assert [%{"deactivated_at" => nil, "last_used" => nil}, %{"deactivated_at" => deactivated_at}] = data
       assert is_binary(deactivated_at)
+      assert is_binary(List.last(data)["last_used"])
       refute Enum.any?(data, &Map.has_key?(&1, "secret"))
     end
 

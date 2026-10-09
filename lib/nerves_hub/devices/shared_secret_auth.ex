@@ -3,6 +3,7 @@ defmodule NervesHub.Devices.SharedSecretAuth do
 
   import Ecto.Changeset
 
+  alias NervesHub.Accounts.User
   alias NervesHub.Devices.Device
   alias NervesHub.Products
 
@@ -13,11 +14,14 @@ defmodule NervesHub.Devices.SharedSecretAuth do
   schema "device_shared_secret_auths" do
     belongs_to(:device, Device)
     belongs_to(:product_shared_secret_auth, Products.SharedSecretAuth)
+    belongs_to(:created_by, User)
+    belongs_to(:deactivated_by, User)
 
     field(:key, :string)
     field(:secret, :string)
 
     field(:deactivated_at, :utc_datetime)
+    field(:last_used, :utc_datetime)
 
     timestamps()
   end

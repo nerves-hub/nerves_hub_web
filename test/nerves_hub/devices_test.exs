@@ -1487,15 +1487,26 @@ defmodule NervesHub.DevicesTest do
   end
 
   describe "issue_shared_secret_auth/2" do
-    test "creates a key and audits it", %{device: device, user: user} do
+    test "creates a key, records who created it, and audits it", %{device: device, user: user} do
       assert {:ok, auth} = Devices.issue_shared_secret_auth(device, user)
 
-      assert Devices.list_shared_secret_auths(device) == [auth]
+      assert auth.created_by_id == user.id
+      assert [%{id: id, created_by: %{id: created_by_id}}] = Devices.list_shared_secret_auths(device)
+      assert {id, created_by_id} == {auth.id, user.id}
       assert [audit_log] = AuditLogs.logs_for(device)
       assert audit_log.actor_id == user.id
 
       assert audit_log.description ==
                "User #{user.name} created shared secret #{auth.key} for device #{device.identifier}"
+    end
+  end
+
+  test "a user who issued a key keeps it attributed to them, so they cannot be hard deleted", %{device: device} do
+    user = Fixtures.user_fixture()
+    {:ok, _auth} = Devices.issue_shared_secret_auth(device, user)
+
+    assert_raise Postgrex.Error, ~r/device_shared_secret_auths_created_by_id_fkey/, fn ->
+      Repo.delete_all(from(u in User, where: u.id == ^user.id))
     end
   end
 
@@ -1512,7 +1523,9 @@ defmodule NervesHub.DevicesTest do
                )
 
       assert auth.device_id == device.id
-      assert Devices.list_shared_secret_auths(device) == [auth]
+      assert auth.created_by_id == user.id
+      assert [%{id: id}] = Devices.list_shared_secret_auths(device)
+      assert id == auth.id
       assert [%{actor_id: actor_id}] = AuditLogs.logs_for(device)
       assert actor_id == user.id
     end
@@ -1536,7 +1549,8 @@ defmodule NervesHub.DevicesTest do
 
       assert {:ok, %{deactivated_at: %DateTime{}}} = Devices.deactivate_shared_secret_auth(device, auth.key, user)
       assert {:error, :not_found} = Devices.get_shared_secret_auth(auth.key)
-      assert [%{deactivated_at: %DateTime{}}] = Devices.list_shared_secret_auths(device)
+      assert [%{deactivated_at: %DateTime{}, deactivated_by: deactivated_by}] = Devices.list_shared_secret_auths(device)
+      assert deactivated_by.id == user.id
 
       assert [audit_log] = AuditLogs.logs_for(device)
       assert audit_log.actor_id == user.id

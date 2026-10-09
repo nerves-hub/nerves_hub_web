@@ -413,17 +413,37 @@ defmodule NervesHub.Devices do
     SharedSecretAuth
     |> where([ssa], ssa.device_id == ^device_id)
     |> order_by([ssa], asc: ssa.id)
+    |> preload([:created_by, :deactivated_by])
     |> Repo.all()
   end
 
   @doc """
-  Creates a shared secret for a device on a user's behalf, and audits it.
+  Records that a device has just connected with this shared secret.
+  """
+  @spec mark_last_used(SharedSecretAuth.t()) :: :ok | :error
+  def mark_last_used(%SharedSecretAuth{} = auth) do
+    changeset = Changeset.change(auth, %{last_used: DateTime.utc_now(:second)})
+
+    case Repo.update(changeset) do
+      {:ok, _auth} -> :ok
+      _ -> :error
+    end
+  end
+
+  @doc """
+  Creates a shared secret for a device on a user's behalf, recording who
+  created it, and audits it.
   """
   @spec issue_shared_secret_auth(Device.t(), User.t()) ::
           {:ok, SharedSecretAuth.t()} | {:error, Changeset.t()}
   def issue_shared_secret_auth(device, user) do
     Repo.transact(fn ->
-      with {:ok, auth} <- create_shared_secret_auth(device) do
+      changeset =
+        device
+        |> SharedSecretAuth.create_changeset()
+        |> Changeset.put_change(:created_by_id, user.id)
+
+      with {:ok, auth} <- Repo.insert(changeset) do
         DeviceTemplates.audit_shared_secret_created(user, device, auth)
         {:ok, auth}
       end
@@ -432,7 +452,8 @@ defmodule NervesHub.Devices do
 
   @doc """
   Deactivates one of a device's active shared secrets on a user's behalf, so
-  the device can no longer connect with it, and audits it.
+  the device can no longer connect with it, recording who deactivated it, and
+  audits it.
 
   A single update, so the key's ownership, that it is still active, and the
   change itself can't be split by a concurrent request. Returns
@@ -450,7 +471,7 @@ defmodule NervesHub.Devices do
       SharedSecretAuth
       |> where([ssa], ssa.device_id == ^device_id and ssa.key == ^key and is_nil(ssa.deactivated_at))
       |> select([ssa], ssa)
-      |> Repo.update_all(set: [deactivated_at: now, updated_at: DateTime.to_naive(now)])
+      |> Repo.update_all(set: [deactivated_at: now, deactivated_by_id: user.id, updated_at: DateTime.to_naive(now)])
       |> case do
         {1, [auth]} ->
           DeviceTemplates.audit_shared_secret_deactivated(user, device, auth)

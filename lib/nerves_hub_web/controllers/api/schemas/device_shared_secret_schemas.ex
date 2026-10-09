@@ -17,11 +17,18 @@ defmodule NervesHubWeb.API.Schemas.DeviceSharedSecretSchemas do
           nullable: true,
           description: "When the secret was deactivated, or null while it is active"
         },
+        last_used: %Schema{
+          type: :string,
+          format: :"date-time",
+          nullable: true,
+          description: "When the device last connected with the secret, or null if it never has"
+        },
         inserted_at: %Schema{type: :string, format: :"date-time"}
       },
       example: %{
         "key" => "nhd_[43 URL-safe characters]",
         "deactivated_at" => nil,
+        "last_used" => "2026-10-08T12:30:00Z",
         "inserted_at" => "2026-10-08T12:00:00Z"
       }
     })
@@ -37,12 +44,14 @@ defmodule NervesHubWeb.API.Schemas.DeviceSharedSecretSchemas do
         key: %Schema{type: :string, description: "The key the device sends as `x-nh-key`"},
         secret: %Schema{type: :string, description: "The secret the device signs its connection with"},
         deactivated_at: %Schema{type: :string, format: :"date-time", nullable: true},
+        last_used: %Schema{type: :string, format: :"date-time", nullable: true},
         inserted_at: %Schema{type: :string, format: :"date-time"}
       },
       example: %{
         "key" => "nhd_[43 URL-safe characters]",
         "secret" => "[43 random characters]",
         "deactivated_at" => nil,
+        "last_used" => nil,
         "inserted_at" => "2026-10-08T12:00:00Z"
       }
     })

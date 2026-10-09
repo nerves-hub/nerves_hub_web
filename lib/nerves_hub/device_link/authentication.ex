@@ -63,6 +63,7 @@ defmodule NervesHub.DeviceLink.Authentication do
          {:ok, signature} <- Map.fetch(headers, "x-nh-signature"),
          {:ok, identifier} <- Crypto.verify(auth.secret, salt, signature, verification_opts),
          {:ok, device} <- get_or_maybe_create_device(auth, identifier) do
+      _ = mark_last_used(auth)
       {:ok, device_info(device)}
     else
       {:error,
@@ -201,6 +202,9 @@ defmodule NervesHub.DeviceLink.Authentication do
 
   defp get_shared_secret_auth("nhp_" <> _ = key), do: Products.get_shared_secret_auth(key)
   defp get_shared_secret_auth(key), do: Devices.get_shared_secret_auth(key)
+
+  defp mark_last_used(%Devices.SharedSecretAuth{} = auth), do: Devices.mark_last_used(auth)
+  defp mark_last_used(_product_auth), do: :ok
 
   defp get_or_maybe_create_device(%Products.SharedSecretAuth{} = auth, identifier) do
     # TODO: Support JITP profile here to decide if enabled or what tags to use
