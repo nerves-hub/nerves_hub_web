@@ -246,8 +246,7 @@ defmodule NervesHub.Devices.Deployments do
 
     removed_device_ids = removed |> Enum.reverse() |> List.flatten()
 
-    # Only the removed devices have anything to hear about. The ones kept are
-    # still where they were.
+    # The kept devices haven't changed, so only the removed ones are told.
     :ok = DeviceEvents.deployment_changed_for_many(removed_device_ids, nil)
 
     case failure do

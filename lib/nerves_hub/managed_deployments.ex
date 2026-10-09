@@ -16,7 +16,6 @@ defmodule NervesHub.ManagedDeployments do
   alias NervesHub.ManagedDeployments.DeploymentRelease
   alias NervesHub.ManagedDeployments.DeploymentWorkflowStep
   alias NervesHub.ManagedDeployments.Orchestrator
-  alias NervesHub.ManagedDeployments.VersionRequirement
   alias NervesHub.Products.Product
   alias NervesHub.Repo
   alias Phoenix.Channel.Server, as: PhoenixChannelServer
@@ -1285,10 +1284,9 @@ defmodule NervesHub.ManagedDeployments do
   devices are in the group, how many of those match its conditions, and how many
   devices with no group would match them.
 
-  The current release is loaded once for all three. Each count is its own query,
-  rather than one with a `FILTER` per count, so each can use the index that suits
-  it. On 250,000 devices the three took 60ms, and the combined query, which can
-  use neither index, took 2.6s.
+  The current release is loaded once for all three. Versions are matched with
+  `Version.match?/2`, once per distinct version rather than once per device, so
+  only a count per version leaves the database.
   """
   @spec matched_devices_counts(DeploymentGroup.t()) :: %{
           device_count: non_neg_integer(),
@@ -1316,14 +1314,21 @@ defmodule NervesHub.ManagedDeployments do
 
   `in_deployment: true` selects the group's own devices that match, and `false`
   the devices in no group that would.
+
+  The versions that match are worked out when this is called, from the
+  versions the candidate devices run, and the query selects devices on one of
+  them. A device that reports a new matching version afterwards isn't
+  selected.
   """
   @spec matched_devices_query(DeploymentGroup.t(), in_deployment: boolean()) :: Ecto.Query.t()
   def matched_devices_query(deployment_group, in_deployment: in_deployment) do
     deployment_group = Repo.preload(deployment_group, current_release: [:firmware])
+    %{tags: tags, tag_operator: tag_operator, version: requirement} = deployment_group.conditions
 
     deployment_group
     |> matched_devices_base_query(in_deployment)
-    |> where_matching_conditions(deployment_group.conditions)
+    |> where_matching_tags(tags, tag_operator)
+    |> where_matching_version(requirement)
   end
 
   defp matched_devices_base_query(deployment_group, in_deployment) do
@@ -1344,22 +1349,53 @@ defmodule NervesHub.ManagedDeployments do
     end
   end
 
-  # Tags and version are both checked in the database, so only the count leaves
-  # it, however many devices the product has.
   defp count_matched_devices(%DeploymentGroup{conditions: conditions}, query) do
-    query
-    |> where_matching_conditions(conditions)
-    |> Repo.aggregate(:count)
-  end
+    query = where_matching_tags(query, conditions.tags, conditions.tag_operator)
 
-  defp where_matching_conditions(query, conditions) do
-    query
-    |> where_matching_tags(conditions.tags, conditions.tag_operator)
-    |> where_matching_version(conditions.version)
+    case conditions.version do
+      "" ->
+        Repo.aggregate(query, :count)
+
+      requirement ->
+        requirement = Version.parse_requirement!(requirement)
+
+        query
+        |> group_by([d], d.firmware_metadata["version"])
+        |> select([d], {d.firmware_metadata["version"], count(d.id)})
+        |> Repo.all()
+        |> Enum.reduce(0, fn {version, count}, total ->
+          if version_matches?(version, requirement), do: total + count, else: total
+        end)
+    end
   end
 
   defp where_matching_version(query, ""), do: query
-  defp where_matching_version(query, requirement), do: VersionRequirement.where_matches(query, requirement)
+
+  # Devices in a product run few distinct versions, so those are read and
+  # matched here, and the devices are filtered on the ones that match.
+  defp where_matching_version(query, requirement) do
+    requirement = Version.parse_requirement!(requirement)
+
+    versions =
+      query
+      |> select([d], d.firmware_metadata["version"])
+      |> distinct(true)
+      |> Repo.all()
+      |> Enum.filter(&version_matches?(&1, requirement))
+
+    where(query, [d], d.firmware_metadata["version"] in ^versions)
+  end
+
+  # Devices report their own versions, so one that is missing or isn't valid
+  # SemVer never matches, rather than raising.
+  defp version_matches?(version, requirement) when is_binary(version) do
+    case Version.parse(version) do
+      {:ok, version} -> Version.match?(version, requirement)
+      :error -> false
+    end
+  end
+
+  defp version_matches?(_version, _requirement), do: false
 
   # A group with no tags matches every device, whichever the operator. Without
   # this, "Allow any" would ask for an overlap with an empty array, which is never

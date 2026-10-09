@@ -1449,6 +1449,76 @@ defmodule NervesHub.ManagedDeploymentsTest do
     end
   end
 
+  describe "matching a version requirement" do
+    @versions ["0.9.0", "1.0.0", "1.0.0+build.1", "1.1.0-rc.1", "1.1.0", "1.9.9", "2.0.0-rc.1", "2.0.0", "2.1.3"]
+
+    setup %{org: org, product: product, firmware: firmware} do
+      devices =
+        Map.new(@versions, fn version ->
+          {version, Fixtures.device_fixture(org, product, %{firmware | version: version})}
+        end)
+
+      %{devices: devices}
+    end
+
+    for requirement <- ["~> 1.0", "~> 1.1.0", "~> 2.0", ">= 1.1.0 and < 2.0.0", "< 1.0.0 or > 2.0.0", "== 1.0.0"] do
+      test "selects and counts the devices Version.match?/2 does for #{requirement}", %{
+        product: product,
+        firmware: firmware,
+        user: user,
+        devices: devices
+      } do
+        deployment_group = version_group(unquote(requirement), product, firmware, user)
+
+        expected =
+          for {version, device} <- devices, Version.match?(version, unquote(requirement)) do
+            device.id
+          end
+
+        assert Enum.sort(matched_ids(deployment_group, in_deployment: false)) == Enum.sort(expected)
+
+        assert ManagedDeployments.matched_devices_counts(deployment_group).matched_outside_group ==
+                 length(expected)
+      end
+    end
+
+    test "a device with a missing or invalid version never matches", %{
+      org: org,
+      product: product,
+      firmware: firmware,
+      user: user,
+      devices: devices
+    } do
+      for version <- [nil, "not-a-version", "01.0.0"] do
+        device = Fixtures.device_fixture(org, product, firmware)
+
+        Device
+        |> where([d], d.id == ^device.id)
+        |> Repo.update_all(set: [firmware_metadata: %{device.firmware_metadata | version: version}])
+      end
+
+      deployment_group = version_group(">= 0.0.0", product, firmware, user)
+
+      assert Enum.sort(matched_ids(deployment_group, in_deployment: false)) ==
+               devices |> Map.values() |> Enum.map(& &1.id) |> Enum.sort()
+
+      assert ManagedDeployments.matched_devices_counts(deployment_group).matched_outside_group ==
+               map_size(devices)
+    end
+  end
+
+  defp version_group(requirement, product, firmware, user) do
+    {:ok, deployment_group} =
+      ManagedDeployments.create_deployment_group(
+        %{name: "Version #{requirement}", conditions: %{"version" => requirement, "tags" => []}},
+        product,
+        firmware,
+        user
+      )
+
+    deployment_group
+  end
+
   describe "remove_unmatched_devices_from_deployment_group/2 notifications" do
     test "tells removed devices in batches, not all at once", %{
       org: org,

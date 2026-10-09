@@ -278,6 +278,7 @@ defmodule NervesHub.Devices.BulkActions do
   # The devices only hear about it once every chunk is in. If a chunk fails, the
   # ones before it stay moved, so their devices and the orchestrator are still
   # told, and the failure is raised for the caller to report.
+  #
   # Returns the moved ids and how many ids the chunks held between them.
   defp move_chunks(chunks, deployment_group, user, opts \\ []) do
     {moved, selected, failure} =

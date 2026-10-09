@@ -1053,8 +1053,8 @@ defmodule NervesHubWeb.Live.Devices.Index do
     )
   end
 
-  # The other bulk actions run in one transaction, so a failure leaves every
-  # device as it was
+  # The other bulk actions run in one transaction, so a crash, such as a
+  # timeout, leaves every device as it was
   def handle_async(bulk_action, {:exit, reason}, socket) when bulk_action in @bulk_actions do
     bulk_action_failed(
       socket,
