@@ -105,14 +105,14 @@ RUN apt-get update -y && \
     apt-get upgrade -y && \
     apt-get install -y git curl build-essential autoconf pkg-config libtool mtools unzip zip help2man libconfuse-dev libarchive-dev xdelta3 dosfstools
 
-RUN git clone https://github.com/fwup-home/fwup /tmp/fwup
+# Firmware that requires a newer fwup than this one is rejected on upload, so
+# keep this at or above the fwup that Nerves systems build with. The version is
+# in the clone itself so a cached clone from before the tag can't be reused.
+RUN git clone --depth 1 --branch v1.17.1 https://github.com/fwup-home/fwup /tmp/fwup
 
 WORKDIR /tmp/fwup
 
-# Firmware that requires a newer fwup than this one is rejected on upload, so
-# keep this at or above the fwup that Nerves systems build with.
-RUN git checkout v1.17.1 && \
-    ./scripts/download_deps.sh && \
+RUN ./scripts/download_deps.sh && \
     ./scripts/build_deps.sh && \
     ./autogen.sh && \
     PKG_CONFIG_PATH=$PWD/build/host/deps/usr/lib/pkgconfig ./configure --enable-shared=no && \
