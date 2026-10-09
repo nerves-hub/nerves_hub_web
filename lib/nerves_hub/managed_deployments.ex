@@ -1281,22 +1281,6 @@ defmodule NervesHub.ManagedDeployments do
   end
 
   @doc """
-  Count the number of devices that match the deployment group's conditions. Takes into account deployment
-  groups with no tags and/or no version.
-
-  When passing `in_deployment: true`, only devices from the deployment group will be considered.
-  Passing `false` for the option will only consider devices outside of the deployment group.
-  """
-  @spec matched_devices_count(DeploymentGroup.t(), in_deployment: boolean()) :: non_neg_integer()
-  def matched_devices_count(deployment_group, in_deployment: in_deployment) do
-    deployment_group = load_current_release(deployment_group, force: true)
-
-    query = matched_devices_base_query(deployment_group, in_deployment)
-
-    count_matched_devices(deployment_group, query)
-  end
-
-  @doc """
   The counts behind a deployment group's "Device Matching Conditions": how many
   devices are in the group, how many of those match its conditions, and how many
   devices with no group would match them.
@@ -1325,10 +1309,13 @@ defmodule NervesHub.ManagedDeployments do
   @doc """
   The devices matching a deployment group's conditions, as a query.
 
-  The same devices `matched_devices_count/2` counts, for a caller that acts on
+  The same devices `matched_devices_counts/1` counts, for a caller that acts on
   them in the database, such as moving them into the group or keeping them in
   it, so their ids never have to be loaded. For a large fleet that is hundreds
   of thousands of ids.
+
+  `in_deployment: true` selects the group's own devices that match, and `false`
+  the devices in no group that would.
   """
   @spec matched_devices_query(DeploymentGroup.t(), in_deployment: boolean()) :: Ecto.Query.t()
   def matched_devices_query(deployment_group, in_deployment: in_deployment) do

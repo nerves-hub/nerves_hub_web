@@ -1253,7 +1253,7 @@ defmodule NervesHub.ManagedDeploymentsTest do
     end
   end
 
-  describe "matched_devices_count/2" do
+  describe "matched_devices_counts/1" do
     setup %{org: org, product: product, firmware: firmware, user: user} =
             context do
       {:ok, deployment_group} =
@@ -1291,7 +1291,7 @@ defmodule NervesHub.ManagedDeploymentsTest do
     test "count for deployment group with version but no tags", %{
       deployment_group: deployment_group
     } do
-      assert ManagedDeployments.matched_devices_count(deployment_group, in_deployment: true) == 1
+      assert ManagedDeployments.matched_devices_counts(deployment_group).matched_in_group == 1
     end
 
     test "counts devices for deployment group with tags but no version", %{
@@ -1307,7 +1307,7 @@ defmodule NervesHub.ManagedDeploymentsTest do
           user
         )
 
-      assert ManagedDeployments.matched_devices_count(deployment_group, in_deployment: true) == 2
+      assert ManagedDeployments.matched_devices_counts(deployment_group).matched_in_group == 2
     end
 
     test "counts devices for deployment group with tags and version", %{
@@ -1323,7 +1323,7 @@ defmodule NervesHub.ManagedDeploymentsTest do
           user
         )
 
-      assert ManagedDeployments.matched_devices_count(deployment_group, in_deployment: true) == 1
+      assert ManagedDeployments.matched_devices_counts(deployment_group).matched_in_group == 1
     end
 
     test "'Allow any' counts devices with any of the tags", %{
@@ -1341,7 +1341,7 @@ defmodule NervesHub.ManagedDeploymentsTest do
         )
 
       # ["foo"] matches via foo, both ["beta", "rpi"] match via beta
-      assert ManagedDeployments.matched_devices_count(deployment_group, in_deployment: true) == 3
+      assert ManagedDeployments.matched_devices_counts(deployment_group).matched_in_group == 3
     end
 
     test "'Require all' only counts devices that have every tag", %{
@@ -1359,7 +1359,7 @@ defmodule NervesHub.ManagedDeploymentsTest do
         )
 
       # only the two ["beta", "rpi"] devices have both tags
-      assert ManagedDeployments.matched_devices_count(deployment_group, in_deployment: true) == 2
+      assert ManagedDeployments.matched_devices_counts(deployment_group).matched_in_group == 2
     end
 
     test "accounts for devices outside of deployment group", %{
@@ -1385,7 +1385,7 @@ defmodule NervesHub.ManagedDeploymentsTest do
           user
         )
 
-      assert ManagedDeployments.matched_devices_count(deployment_group, in_deployment: false) == 1
+      assert ManagedDeployments.matched_devices_counts(deployment_group).matched_outside_group == 1
     end
 
     test "devices outside deployment group account for platform and architecture", %{
@@ -1411,7 +1411,7 @@ defmodule NervesHub.ManagedDeploymentsTest do
           user
         )
 
-      assert ManagedDeployments.matched_devices_count(deployment_group, in_deployment: false) == 1
+      assert ManagedDeployments.matched_devices_counts(deployment_group).matched_outside_group == 1
     end
   end
 

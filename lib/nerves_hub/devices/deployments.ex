@@ -206,12 +206,11 @@ defmodule NervesHub.Devices.Deployments do
   end
 
   @doc """
-  Removes unmatched devices from deployment group. The devices to keep are
-  given as ids, or as a query for them, e.g. one from
-  ManagedDeployments.matched_devices_query/2. A query is preferred for a large
-  group: Postgres compares against it directly, so the ids to keep are never
-  loaded and sent back. Devices are also filtered by the deployment group's id
-  and product id.
+  Removes the deployment group's devices that don't match its conditions.
+  `matched_devices` is a query for the devices to keep, the one from
+  `ManagedDeployments.matched_devices_query(deployment_group, in_deployment: true)`.
+  Postgres compares against it directly, so the ids to keep are never loaded.
+  Only the group's own devices, in its product, are removed.
 
   Devices are removed 5,000 to a statement, each committed on its own, so a
   large group's rows aren't all locked until the last is written. The return
@@ -220,15 +219,13 @@ defmodule NervesHub.Devices.Deployments do
   heard. If a chunk fails, the ones before it stay removed, their devices are
   still told, and the failure is raised for the caller to report.
 
-  # devices 1, 2 and 3 match; the group's other two devices are removed
-  remove_unmatched_devices_from_deployment_group([1, 2, 3], deployment_group)
+  matched = ManagedDeployments.matched_devices_query(deployment_group, in_deployment: true)
+  remove_unmatched_devices_from_deployment_group(matched, deployment_group)
   > {:ok, %{updated: 2}}
   """
-  @spec remove_unmatched_devices_from_deployment_group(
-          [non_neg_integer()] | Ecto.Query.t(),
-          DeploymentGroup.t()
-        ) :: {:ok, %{updated: non_neg_integer()}}
-  def remove_unmatched_devices_from_deployment_group(matched_devices, deployment_group) do
+  @spec remove_unmatched_devices_from_deployment_group(Ecto.Query.t(), DeploymentGroup.t()) ::
+          {:ok, %{updated: non_neg_integer()}}
+  def remove_unmatched_devices_from_deployment_group(%Ecto.Query{} = matched_devices, deployment_group) do
     unmatched =
       Device
       |> Repo.exclude_deleted()
@@ -299,12 +296,8 @@ defmodule NervesHub.Devices.Deployments do
     removed
   end
 
-  defp where_not_kept(query, %Ecto.Query{} = kept) do
+  defp where_not_kept(query, kept) do
     where(query, [d], d.id not in subquery(select(kept, [k], k.id)))
-  end
-
-  defp where_not_kept(query, kept_ids) when is_list(kept_ids) do
-    where(query, [d], d.id not in ^kept_ids)
   end
 
   defp version_match?(_vsn, ""), do: true
