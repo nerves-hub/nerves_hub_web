@@ -109,10 +109,9 @@ RUN git clone https://github.com/fwup-home/fwup /tmp/fwup
 
 WORKDIR /tmp/fwup
 
-# pin to a fwup commit which fixes the flakey zlib download
-# https://github.com/fwup-home/fwup/commit/df840f192cfbb0d6bca0df7e9873753082f139b9
-
-RUN git checkout df840f1 && \
+# Firmware that requires a newer fwup than this one is rejected on upload, so
+# keep this at or above the fwup that Nerves systems build with.
+RUN git checkout v1.17.1 && \
     ./scripts/download_deps.sh && \
     ./scripts/build_deps.sh && \
     ./autogen.sh && \

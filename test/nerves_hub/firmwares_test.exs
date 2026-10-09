@@ -560,6 +560,18 @@ defmodule NervesHub.FirmwaresTest do
                org_key
              ]) == {:error, :invalid_signature}
     end
+
+    test "says when the firmware needs a newer fwup, rather than that its signature is invalid", %{
+      org_key: org_key,
+      tmp_dir: tmp_dir
+    } do
+      {:ok, _} = Fwup.create_firmware(tmp_dir, "unsigned")
+      {:ok, _} = Fwup.require_newer_fwup(tmp_dir, "unsigned", "newer")
+      {:ok, signed_path} = Fwup.sign_firmware(tmp_dir, org_key.name, "newer", "signed")
+
+      assert {:error, {:fwup_too_old, "99.0.0", installed}} = Firmwares.verify_signature(signed_path, [org_key])
+      assert installed =~ ~r/^\d+\.\d+\.\d+$/
+    end
   end
 
   describe "firmware transfers" do
