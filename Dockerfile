@@ -2,6 +2,9 @@ ARG ELIXIR_VERSION=1.20.3
 ARG OTP_VERSION=29.0.5
 ARG DISTRO=resolute-20260724.1
 ARG NODE_VERSION=24.13.1
+# Firmware that requires a newer fwup than this one is rejected on upload, so
+# keep this at or above the fwup that Nerves systems build with.
+ARG FWUP_VERSION=1.17.1
 
 ARG BUILDER_IMAGE="hexpm/elixir:${ELIXIR_VERSION}-erlang-${OTP_VERSION}-ubuntu-${DISTRO}"
 ARG RUNNER_IMAGE="ubuntu:${DISTRO}"
@@ -105,10 +108,11 @@ RUN apt-get update -y && \
     apt-get upgrade -y && \
     apt-get install -y git curl build-essential autoconf pkg-config libtool mtools unzip zip help2man libconfuse-dev libarchive-dev xdelta3 dosfstools
 
-# Firmware that requires a newer fwup than this one is rejected on upload, so
-# keep this at or above the fwup that Nerves systems build with. The version is
-# in the clone itself so a cached clone from before the tag can't be reused.
-RUN git clone --depth 1 --branch v1.17.1 https://github.com/fwup-home/fwup /tmp/fwup
+ARG FWUP_VERSION
+
+# The version is in the clone itself, so a cached clone from before the tag
+# can't be reused.
+RUN git clone --depth 1 --branch v${FWUP_VERSION} https://github.com/fwup-home/fwup /tmp/fwup
 
 WORKDIR /tmp/fwup
 
