@@ -58,6 +58,17 @@ defmodule NervesHubWeb.API.FallbackController do
     })
   end
 
+  def call(conn, {:error, {:fwup_too_old, required, installed}}) do
+    conn
+    |> put_status(:unprocessable_entity)
+    |> put_view(ErrorJSON)
+    |> render(:"422", %{
+      reason:
+        "This firmware requires fwup #{required} or newer, and NervesHub has fwup #{installed}. " <>
+          "Please contact support to have NervesHub's fwup updated."
+    })
+  end
+
   def call(conn, {:error, :firmware_not_signed}) do
     conn
     |> put_status(:unprocessable_entity)

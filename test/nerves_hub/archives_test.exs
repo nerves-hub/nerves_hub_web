@@ -71,6 +71,33 @@ defmodule NervesHub.ArchivesTest do
       assert archive.version == "0.1.0"
       assert archive.uuid
     end
+
+    test "says when the archive needs a newer fwup", %{tmp_dir: tmp_dir} do
+      user = Fixtures.user_fixture(%{name: "user"})
+      org = Fixtures.org_fixture(user, %{name: "user"})
+      org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
+      product = Fixtures.product_fixture(user, org, %{name: "Hop"})
+
+      {:ok, _} = Support.Fwup.create_firmware(tmp_dir, "manifest")
+      {:ok, _} = Support.Fwup.require_newer_fwup(tmp_dir, "manifest", "newer")
+      {:ok, file_path} = Support.Fwup.sign_firmware(tmp_dir, org_key.name, "newer", "signed")
+
+      assert {:error, {:fwup_too_old, "99.0.0", _installed}} = Archives.create(product, file_path)
+    end
+
+    test "refuses an archive when the org has no fwup keys", %{tmp_dir: tmp_dir} do
+      user = Fixtures.user_fixture(%{name: "user"})
+      org = Fixtures.org_fixture(user, %{name: "user"})
+      org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
+      product = Fixtures.product_fixture(user, org, %{name: "Hop"})
+
+      {:ok, file_path} =
+        Support.Archives.create_signed_archive(org_key.name, "manifest", "signed-manifest", %{dir: tmp_dir})
+
+      NervesHub.Repo.delete!(org_key)
+
+      assert Archives.create(product, file_path) == {:error, :no_public_keys}
+    end
   end
 
   describe "filter/2" do

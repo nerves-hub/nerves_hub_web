@@ -231,6 +231,13 @@ defmodule NervesHubWeb.Live.Archives do
           "Archive corrupt, signature invalid, or the key used for signing hasn't been uploaded."
         )
 
+      {:error, {:fwup_too_old, required, installed}} ->
+        error_feedback(
+          socket,
+          "This archive requires fwup #{required} or newer, and NervesHub has fwup #{installed}. " <>
+            "Please contact support to have NervesHub's fwup updated."
+        )
+
       {:error, %{errors: [uuid: _]}} ->
         error_feedback(
           socket,

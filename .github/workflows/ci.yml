@@ -177,7 +177,7 @@ jobs:
         partition: [1, 2, 3]
 
     env:
-      FWUP_VERSION: "1.16.0"
+      FWUP_VERSION: "1.17.1"
       MIX_ENV: "test"
       DATABASE_URL: postgres://postgres:postgres@localhost:5432/nerves_hub_test
       CLICKHOUSE_URL: http://default:@localhost:8123/default

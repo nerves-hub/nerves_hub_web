@@ -473,6 +473,22 @@ defmodule NervesHubWeb.Live.FirmwareTest do
       |> assert_has("div", text: "Firmware corrupt, signature invalid, or missing public key")
     end
 
+    test "error if the firmware requires a newer fwup", %{conn: conn, user: user, org: org, tmp_dir: tmp_dir} do
+      product = Fixtures.product_fixture(user, org, %{name: "CoolProduct"})
+      org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
+
+      {:ok, _} = Fwup.create_firmware(tmp_dir, "unsigned", %{product: product.name})
+      {:ok, _} = Fwup.require_newer_fwup(tmp_dir, "unsigned", "newer")
+      {:ok, signed_path} = Fwup.sign_firmware(tmp_dir, org_key.name, "newer", "signed")
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/firmware")
+      |> upload("Upload Firmware", signed_path)
+      |> assert_path("/org/#{org.name}/#{product.name}/firmware")
+      |> assert_has("div", text: "This firmware requires fwup 99.0.0 or newer, and NervesHub has fwup")
+      |> assert_has("div", text: "Please contact support to have NervesHub's fwup updated.")
+    end
+
     # Previously this reported "No matching product could be found", which
     # pointed at the wrong thing: the problem is not that AnotherProduct is
     # missing, it is that this firmware was uploaded to the wrong product.
