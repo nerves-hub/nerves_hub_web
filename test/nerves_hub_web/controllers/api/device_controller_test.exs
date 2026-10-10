@@ -40,6 +40,79 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
       conn = post(conn, Routes.api_key_path(conn, :create, org.name))
       assert json_response(conn, 422)["errors"] != %{}
     end
+
+    test "with shared_secret, also returns the device's own key and secret, and audits it", %{
+      conn: conn,
+      org: org,
+      product: product,
+      user: user
+    } do
+      params = %{identifier: "api-device-with-secret", shared_secret: true}
+
+      data =
+        conn
+        |> post(Routes.api_device_path(conn, :create, org.name, product.name), params)
+        |> json_response(201)
+        |> Map.fetch!("data")
+
+      assert data["identifier"] == "api-device-with-secret"
+      assert %{"key" => "nhd_" <> _ = key, "secret" => secret} = data["shared_secret"]
+
+      assert {:ok, auth} = Devices.get_shared_secret_auth(key)
+      assert auth.secret == secret
+      assert auth.device.identifier == "api-device-with-secret"
+      assert [%{actor_id: actor_id}] = NervesHub.AuditLogs.logs_for(auth.device)
+      assert actor_id == user.id
+
+      shown =
+        conn
+        |> get(Routes.api_device_path(conn, :show, org.name, product.name, "api-device-with-secret"))
+        |> json_response(200)
+        |> Map.fetch!("data")
+
+      refute Map.has_key?(shown, "shared_secret")
+    end
+
+    test ~s(accepts shared_secret as the string "true", as form params send it), %{
+      conn: conn,
+      org: org,
+      product: product
+    } do
+      params = %{identifier: "api-device-form", shared_secret: "true"}
+
+      data =
+        conn
+        |> post(Routes.api_device_path(conn, :create, org.name, product.name), params)
+        |> json_response(201)
+        |> Map.fetch!("data")
+
+      assert %{"key" => "nhd_" <> _} = data["shared_secret"]
+    end
+
+    test "without shared_secret, creates no shared secret", %{conn: conn, org: org, product: product} do
+      data =
+        conn
+        |> post(Routes.api_device_path(conn, :create, org.name, product.name), %{identifier: "api-device-plain"})
+        |> json_response(201)
+        |> Map.fetch!("data")
+
+      refute Map.has_key?(data, "shared_secret")
+      assert Repo.aggregate(Devices.SharedSecretAuth, :count) == 0
+    end
+
+    test "with shared_secret, creates no secret when the device cannot be created", %{
+      conn: conn,
+      org: org,
+      product: product
+    } do
+      params = %{identifier: "api-device-taken", shared_secret: true}
+      path = Routes.api_device_path(conn, :create, org.name, product.name)
+
+      assert conn |> post(path, params) |> json_response(201)
+      assert conn |> post(path, params) |> json_response(422)
+
+      assert Repo.aggregate(Devices.SharedSecretAuth, :count) == 1
+    end
   end
 
   describe "bulk create devices (async processing)" do

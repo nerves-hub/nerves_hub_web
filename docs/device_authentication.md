@@ -74,3 +74,24 @@ deleted) to authenticate again.
     fingerprints in the database and allow the device to proceed.
 
 ![auth-flow](assets/nh_cert_validation.png)
+
+## Shared secrets
+
+With `DEVICE_SHARED_SECRETS_ENABLED=true`, a device can authenticate with a key
+and secret instead of a certificate. It sends the key and signs its identifier
+with the secret, which
+[NervesHubLink](https://github.com/nerves-hub/nerves_hub_link) does when it is
+given a key and secret. There are two kinds of key:
+
+- **Product keys** (`nhp_`) are shared by every device in a product. A device
+  holding one can connect as any identifier in the product, and is created when
+  it first connects. Onboarding is easy, but one leaked device exposes the whole
+  product.
+- **Device keys** (`nhd_`) belong to one device and only authenticate as that
+  device. One leaked device exposes only itself. They are issued from the
+  device's settings or through the API, typically by a provisioning station,
+  which can create them along with the device itself.
+
+A secret is shown once, when it is created, and cannot be retrieved again.
+Deactivating a key disconnects the device and refuses the key from then on.
+Issuing and deactivating device keys are recorded in the device's audit log.

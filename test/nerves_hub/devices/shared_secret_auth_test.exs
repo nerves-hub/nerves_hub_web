@@ -24,7 +24,14 @@ defmodule NervesHub.Devices.SharedSecretAuthTest do
     test "key has the nhd_ prefix format", %{device: device} do
       changeset = SharedSecretAuth.create_changeset(device)
       key = Ecto.Changeset.get_change(changeset, :key)
-      assert key =~ ~r/^nhd_[a-zA-Z0-9\-\/\+]{43}$/
+      assert key =~ ~r/^nhd_[a-zA-Z0-9\-_]{43}$/
+    end
+
+    test "keys are URL-safe, so the API can address them in a path", %{device: device} do
+      for _ <- 1..200 do
+        key = device |> SharedSecretAuth.create_changeset() |> Ecto.Changeset.get_change(:key)
+        assert key == URI.encode(key, &URI.char_unreserved?/1)
+      end
     end
 
     test "secret matches expected format", %{device: device} do

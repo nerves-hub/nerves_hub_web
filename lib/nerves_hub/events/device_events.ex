@@ -33,6 +33,11 @@ defmodule NervesHub.DeviceEvents do
       ChannelServer.broadcast(NervesHub.PubSub, "device_socket:#{device.id}", "disconnect", %{})
   end
 
+  def shared_secret_deactivated(device) do
+    :ok =
+      ChannelServer.broadcast(NervesHub.PubSub, "device_socket:#{device.id}", "disconnect", %{})
+  end
+
   def identify(device, user) do
     Repo.transact(fn ->
       DeviceTemplates.audit_request_action(user, device, "identify itself")

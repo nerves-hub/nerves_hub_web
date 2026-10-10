@@ -2,6 +2,7 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
   use NervesHubWeb, tab_component: :settings
 
   alias NervesHub.Certificate
+  alias NervesHub.DeviceLink
   alias NervesHub.Devices
   alias NervesHub.Devices.CACertificates
   alias NervesHub.Devices.Certificates
@@ -10,6 +11,7 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
   alias NervesHub.Extensions
   alias NervesHubWeb.Components.CAHelpers
   alias NervesHubWeb.Components.Utils
+  alias NervesHubWeb.CoreComponents
   alias NervesHubWeb.LayoutView.DateTimeFormat
 
   def tab_params(_params, _uri, socket) do
@@ -18,6 +20,9 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
     socket
     |> assign(:settings_form, to_form(changeset))
     |> assign(:available_tags, Devices.distinct_tags_for_product(socket.assigns.current_scope.product))
+    |> assign(:shared_secrets_enabled, DeviceLink.shared_secrets_enabled?())
+    |> assign(:shared_secrets, Devices.list_shared_secret_auths(socket.assigns.device))
+    |> assign(:new_shared_secret, nil)
     |> allow_upload(:certificate,
       accept: :any,
       auto_upload: true,
@@ -252,6 +257,77 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
         </div>
       </div>
 
+      <div :if={@shared_secrets_enabled} id="shared-secrets" class="flex w-full flex-col rounded border border-base-700 bg-surface-raised shadow-device-details-content">
+        <div class="flex h-14 items-center justify-between border-b border-base-700 px-4">
+          <div class="text-base font-medium text-base-50">Shared secrets</div>
+          <.button
+            :if={is_nil(@device.deleted_at) && authorized?(:"device:update", @current_scope)}
+            phx-click="create-shared-secret"
+            aria-label="Create a shared secret"
+          >
+            <.icon name="add" />Create shared secret
+          </.button>
+        </div>
+        <div :if={@new_shared_secret} class="flex flex-col gap-3 border-b border-base-700 p-6">
+          <p class="text-sm text-warning">
+            Copy the secret now. It is only shown once, and cannot be retrieved again.
+          </p>
+          <div class="text-sm text-base-300">Key: <code>{@new_shared_secret.key}</code></div>
+          <input type="hidden" id="shared-secret-new" value={@new_shared_secret.secret} />
+          <div class="flex gap-3">
+            <.button id="shared-secret-new-button" value="new" phx-hook="SharedSecretClipboardClick" aria-label="Copy secret">
+              Copy secret
+            </.button>
+            <.button phx-click="dismiss-shared-secret">Done</.button>
+          </div>
+        </div>
+        <div class="flex flex-col gap-1 px-4 py-2">
+          <div :if={Enum.empty?(@shared_secrets)} class="flex h-16 items-center gap-6 p-2">
+            <div>No shared secrets have been created.</div>
+          </div>
+          <div :if={Enum.any?(@shared_secrets)} class="flex items-center gap-6 px-2 pt-2 text-xs tracking-wide text-base-400">
+            <div class="grow">Key</div>
+            <div class="w-24 text-center">Created by</div>
+            <div class="w-24 text-center">Deactivated by</div>
+            <div class="w-28"></div>
+          </div>
+          <div :for={auth <- @shared_secrets} class="flex h-16 items-center gap-6 p-2">
+            <div class={["grow", auth.deactivated_at && "opacity-60"]}>
+              <div class="text-base-300"><code>{auth.key}</code></div>
+              <div class="text-xs tracking-wide text-base-400">
+                <span :if={auth.last_used}>Last used {DateTimeFormat.from_now(auth.last_used)}</span>
+                <span :if={is_nil(auth.last_used)}>Never used</span>
+              </div>
+            </div>
+            <div class="flex w-24 justify-center">
+              <.shared_secret_change id={"#{auth.key}-created"} action="Created" user={auth.created_by} at={auth.inserted_at} time_zone={@time_zone} />
+            </div>
+            <div class="flex w-24 justify-center">
+              <.shared_secret_change
+                :if={auth.deactivated_at}
+                id={"#{auth.key}-deactivated"}
+                action="Deactivated"
+                user={auth.deactivated_by}
+                at={auth.deactivated_at}
+                time_zone={@time_zone}
+              />
+            </div>
+            <div class="flex w-28 justify-end">
+              <.button
+                :if={is_nil(auth.deactivated_at) && is_nil(@device.deleted_at) && authorized?(:"device:update", @current_scope)}
+                phx-click="deactivate-shared-secret"
+                phx-value-key={auth.key}
+                data-confirm="Are you sure you want to deactivate this shared secret? The device will be disconnected, and can no longer connect with it."
+                aria-label="Deactivate shared secret"
+              >
+                Deactivate
+              </.button>
+              <span :if={auth.deactivated_at} class="rounded-sm bg-base-800 px-1.5 py-0.5 text-xs text-base-300">Deactivated</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <div :if={@device.deleted_at && authorized?(:"device:update", @current_scope)} class="flex w-full flex-col rounded border border-base-700 bg-surface-raised shadow-device-details-content">
         <div class="p-6 pb-0 text-base-300">
           The device has been disabled. Attempts to connect to NervesHub will be blocked.
@@ -338,6 +414,32 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
     <.link navigate={~p"/org/#{@org}/settings/certificates/#{@signer_ca}"} class="underline hover:text-base-300">
       {CAHelpers.label(@signer_ca)}
     </.link>
+    """
+  end
+
+  attr(:id, :string, required: true)
+  attr(:action, :string, required: true)
+  attr(:user, :any, required: true, doc: "who made the change, or nil when no user did")
+  attr(:at, :any, required: true)
+  attr(:time_zone, :string, required: true)
+
+  # Who changed a shared secret, as an avatar with the details on hover.
+  defp shared_secret_change(assigns) do
+    ~H"""
+    <div id={@id} class="relative flex items-center" phx-hook="ToolTip" data-placement="top">
+      <CoreComponents.user_avatar :if={@user} user={@user} />
+      <div
+        :if={!@user}
+        class="relative inline-flex size-8 items-center justify-center rounded-full bg-base-800 dark:bg-base-600"
+      >
+        <span class="font-medium text-base-400 dark:text-base-300">?</span>
+      </div>
+      <div class="tooltip-content absolute top-0 left-0 z-20 hidden w-max rounded border border-base-700 bg-surface-muted px-2 py-1.5 text-xs">
+        {@action}<span :if={@user}> by {@user.name}</span>
+        on <.local_datetime at={@at} time_zone={@time_zone} format={:date} zone_label={false} />
+        <div class="tooltip-arrow absolute size-2 origin-center rotate-45 border-base-700 bg-surface-muted"></div>
+      </div>
+    </div>
     """
   end
 
@@ -446,6 +548,56 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
         |> put_flash(:error, "Failed to delete certificate, please contact support.")
         |> halt()
     end
+  end
+
+  def hooked_event("create-shared-secret", _params, %{assigns: %{device: %{deleted_at: nil} = device}} = socket) do
+    authorized!(:"device:update", socket.assigns.current_scope)
+
+    case Devices.issue_shared_secret_auth(device, socket.assigns.user) do
+      {:ok, auth} ->
+        socket
+        |> assign(:new_shared_secret, auth)
+        |> assign(:shared_secrets, Devices.list_shared_secret_auths(device))
+        |> halt()
+
+      {:error, _changeset} ->
+        socket
+        |> put_flash(:error, "We couldn't create a shared secret. Please contact support if this happens again.")
+        |> halt()
+    end
+  end
+
+  def hooked_event("dismiss-shared-secret", _params, socket) do
+    socket
+    |> assign(:new_shared_secret, nil)
+    |> halt()
+  end
+
+  def hooked_event(
+        "deactivate-shared-secret",
+        %{"key" => key},
+        %{assigns: %{device: %{deleted_at: nil} = device}} = socket
+      ) do
+    authorized!(:"device:update", socket.assigns.current_scope)
+
+    socket =
+      case Devices.deactivate_shared_secret_auth(device, key, socket.assigns.user) do
+        {:ok, _auth} ->
+          put_flash(socket, :info, "The shared secret has been deactivated, and the device disconnected.")
+
+        {:error, :not_found} ->
+          put_flash(socket, :error, "That shared secret is no longer active.")
+      end
+
+    socket
+    |> assign(:shared_secrets, Devices.list_shared_secret_auths(device))
+    |> halt()
+  end
+
+  def hooked_event(event, _params, socket) when event in ["create-shared-secret", "deactivate-shared-secret"] do
+    socket
+    |> put_flash(:error, "The device is deleted and must be restored to change its shared secrets.")
+    |> halt()
   end
 
   def hooked_event("toggle-managed-updates-allowed", params, socket) do

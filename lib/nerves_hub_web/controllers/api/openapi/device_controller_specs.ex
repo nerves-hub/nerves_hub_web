@@ -98,7 +98,7 @@ defmodule NervesHubWeb.API.OpenAPI.DeviceControllerSpecs do
   }
 
   @device_creation_response %{
-    201 => response("Device Response", "application/json", DeviceSchemas.DeviceResponse)
+    201 => response("Device Response", "application/json", DeviceSchemas.DeviceCreateResponse)
   }
 
   @device_list_response %{
