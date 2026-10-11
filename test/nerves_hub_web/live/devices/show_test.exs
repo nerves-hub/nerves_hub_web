@@ -691,6 +691,139 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
     end
   end
 
+  describe "map style" do
+    setup %{device: device} do
+      Application.put_env(:nerves_hub, :mapbox_access_token, "abc")
+
+      {:ok, connection} = Connections.device_connecting(device.org_id, device.product_id, device.id)
+      :ok = Connections.device_connected(connection.id)
+
+      :ok =
+        Connections.merge_update_metadata(connection.id, %{
+          "location" => %{"latitude" => "-41.3159", "longitude" => "174.8185", "source" => "geoip"}
+        })
+    end
+
+    test "the map follows the theme until the user picks a style", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device
+    } do
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      |> assert_has("div#device-location-map")
+      |> refute_has("div#device-location-map[data-map-style]")
+      |> assert_has(~s(#map-style-menu button[aria-checked="true"]), text: "Match theme")
+    end
+
+    test "picking a style saves it and restyles the map", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device,
+      user: user
+    } do
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      |> click_button(~s(#map-style-menu button[phx-value-style="satellite"]), "Satellite")
+      |> assert_has(~s(div#device-location-map[data-map-style="satellite"]))
+      |> assert_has(~s(#map-style-menu button[aria-checked="true"]), text: "Satellite")
+
+      assert %{map_style: :satellite} = Accounts.get_user!(user.id).display_preferences
+    end
+
+    test "picking Match theme goes back to following the theme", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device,
+      user: user
+    } do
+      {:ok, _user} = Accounts.update_user_map_style(user, :outdoors)
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      |> assert_has(~s(div#device-location-map[data-map-style="outdoors"]))
+      |> click_button("#map-style-menu button", "Match theme")
+      |> refute_has("div#device-location-map[data-map-style]")
+
+      assert %{map_style: nil} = Accounts.get_user!(user.id).display_preferences
+    end
+
+    test "picking a style keeps the user's other preferences", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device,
+      user: user
+    } do
+      {:ok, user} = Accounts.update_user_default_columns(user, :device_list_columns, [:health, :tags])
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      |> click_button(~s(#map-style-menu button[phx-value-style="streets"]), "Streets")
+
+      assert %{map_style: :streets, device_list_columns: [:health, :tags]} =
+               Accounts.get_user!(user.id).display_preferences
+    end
+
+    test "the location editor uses the user's style", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device,
+      user: user
+    } do
+      {:ok, _user} = Accounts.update_user_map_style(user, :satellite_streets)
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      |> click_button("Manually update location")
+      |> assert_has(~s(div#device-location-map-with-geocoder[data-map-style="satellite_streets"]))
+      |> click_button(~s(#map-style-menu button[phx-value-style="dark"]), "Dark")
+      |> assert_has(~s(div#device-location-map-with-geocoder[data-map-style="dark"]))
+    end
+
+    test "an unknown style isn't saved", %{conn: conn, org: org, product: product, device: device, user: user} do
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      |> unwrap(fn view ->
+        view
+        |> element(~s(#map-style-menu button[phx-value-style="streets"]))
+        |> render_click(%{"style" => "watercolor"})
+      end)
+      |> assert_has("#flash-error", text: "Your map style couldn't be saved.")
+
+      assert is_nil(Accounts.get_user!(user.id).display_preferences)
+    end
+
+    test "a style that's no longer known loads as following the theme", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device,
+      user: user
+    } do
+      # As if a style had been removed after the user picked it.
+      {1, _} =
+        Repo.update_all(
+          from(u in User,
+            where: u.id == ^user.id,
+            update: [set: [display_preferences: fragment(~s|jsonb_build_object('map_style', 'watercolor')|)]]
+          ),
+          []
+        )
+
+      assert %{map_style: nil} = Accounts.get_user!(user.id).display_preferences
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      |> assert_has("div#device-location-map")
+      |> refute_has("div#device-location-map[data-map-style]")
+    end
+  end
+
   describe "arranging the details boxes" do
     setup do
       Application.put_env(:nerves_hub, :mapbox_access_token, "abc")
