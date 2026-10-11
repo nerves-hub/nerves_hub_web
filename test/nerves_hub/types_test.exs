@@ -66,4 +66,34 @@ defmodule NervesHub.TypesTest do
       assert Types.KnownAtoms.dump([:weather], nil, params) == :error
     end
   end
+
+  describe "KnownAtom" do
+    setup do
+      %{params: Types.KnownAtom.init(values: [:streets, :satellite])}
+    end
+
+    test "cast accepts a known value as an atom or a string", %{params: params} do
+      assert Types.KnownAtom.cast("satellite", params) == {:ok, :satellite}
+      assert Types.KnownAtom.cast(:streets, params) == {:ok, :streets}
+      assert Types.KnownAtom.cast(nil, params) == {:ok, nil}
+    end
+
+    test "cast rejects an unknown value", %{params: params} do
+      assert Types.KnownAtom.cast("watercolor", params) == :error
+      assert Types.KnownAtom.cast(true, params) == :error
+      assert Types.KnownAtom.cast(["streets"], params) == :error
+    end
+
+    test "load treats a value it no longer knows as nil", %{params: params} do
+      assert Types.KnownAtom.load("satellite", nil, params) == {:ok, :satellite}
+      assert Types.KnownAtom.load("watercolor", nil, params) == {:ok, nil}
+      assert Types.KnownAtom.load(nil, nil, params) == {:ok, nil}
+    end
+
+    test "dump stores a string", %{params: params} do
+      assert Types.KnownAtom.dump(:satellite, nil, params) == {:ok, "satellite"}
+      assert Types.KnownAtom.dump(nil, nil, params) == {:ok, nil}
+      assert Types.KnownAtom.dump(:watercolor, nil, params) == :error
+    end
+  end
 end
