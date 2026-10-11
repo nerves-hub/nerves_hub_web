@@ -3,6 +3,7 @@ defmodule NervesHubWeb.ApiSpec do
 
   alias NervesHubWeb.API.OpenAPI.DeviceControllerSpecs
   alias NervesHubWeb.API.OpenAPI.DeviceLogControllerSpecs
+  alias NervesHubWeb.API.OpenAPI.DeviceMetricControllerSpecs
   alias NervesHubWeb.API.OpenAPI.SupportScriptControllerSpecs
   alias NervesHubWeb.Endpoint
   alias NervesHubWeb.Plugs.ImAlive
@@ -76,6 +77,10 @@ defmodule NervesHubWeb.ApiSpec do
           description: "Log lines Devices have sent over the logging extension"
         },
         %Tag{
+          name: "Device Metrics",
+          description: "Metric history Devices have reported over the health or metrics extension"
+        },
+        %Tag{
           name: "Devices (short URL)",
           description: "Device management, including action requests eg. upgrade, reboot, reconnect"
         },
@@ -127,6 +132,7 @@ defmodule NervesHubWeb.ApiSpec do
     }
     |> DeviceControllerSpecs.add_operations()
     |> DeviceLogControllerSpecs.add_operations()
+    |> DeviceMetricControllerSpecs.add_operations()
     |> SupportScriptControllerSpecs.add_operations()
     # Discover request/response schemas from path specs
     |> OpenApiSpex.resolve_schema_modules()
