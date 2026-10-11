@@ -228,8 +228,9 @@ defmodule NervesHub.SSL do
   end
 
   defp check_known_ca(otp_cert) do
-    # Without an AKI the certificate doesn't name its signer, so there is
-    # nothing to look up
+    # A device certificate names its signer by its AKI, which is the signing
+    # CA's SKI. Its own SKI is the device's key. Without an AKI there is
+    # nothing to look up.
     with aki when is_binary(aki) <- Certificate.get_aki(otp_cert),
          {:ok, db_ca} <- CACertificates.get_ca_certificate_by_ski(aki) do
       # Mark that this CA cert was used
