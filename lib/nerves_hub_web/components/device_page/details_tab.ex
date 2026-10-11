@@ -182,7 +182,12 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
             selected_firmware={@selected_firmware}
             delta_available?={@delta_available?}
           />
-          <.location_box :if={box == :location} device={@device} enable_location_editor={!!assigns[:enable_location_editor]} />
+          <.location_box
+            :if={box == :location}
+            device={@device}
+            enable_location_editor={!!assigns[:enable_location_editor]}
+            map_style={DisplayPreferences.map_style(@user.display_preferences)}
+          />
           <.network_identities_box :if={box == :network_identities} product={@product} device={@device} />
           <.support_scripts_box
             :if={box == :support_scripts}
@@ -247,6 +252,25 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
     socket
     |> assign(:enable_location_editor, false)
     |> halt()
+  end
+
+  # Sent by the location box's map style menu. An empty style goes back to
+  # following the theme.
+  def hooked_event("set-map-style", %{"style" => style}, socket) do
+    %{user: user, current_scope: scope} = socket.assigns
+
+    case Accounts.update_user_map_style(user, style) do
+      {:ok, user} ->
+        socket
+        |> assign(:user, user)
+        |> assign(:current_scope, %{scope | user: user})
+        |> halt()
+
+      {:error, _changeset} ->
+        socket
+        |> put_flash(:error, "Your map style couldn't be saved. Please reload the page and try again.")
+        |> halt()
+    end
   end
 
   def hooked_event("update-device-location", latlng, socket) do
@@ -1003,6 +1027,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
 
   attr(:device, Device, required: true)
   attr(:enable_location_editor, :boolean, required: true)
+  attr(:map_style, :atom, required: true)
 
   defp location_box(assigns) do
     ~H"""
@@ -1010,6 +1035,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
       <DeviceLocation.render
         location={extract_location_data(@device)}
         enable_location_editor={@enable_location_editor}
+        map_style={@map_style}
       />
     </div>
     """
