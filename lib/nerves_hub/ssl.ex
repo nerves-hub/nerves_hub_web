@@ -87,10 +87,11 @@ defmodule NervesHub.SSL do
     ski = Certificate.get_ski(otp_cert)
 
     cond do
-      aki == ski ->
+      is_binary(aki) and aki == ski ->
         # If the signer CA is also the root, then AKI == SKI. We can skip
         # checking as it will be validated later on if the device needs
-        # registration
+        # registration. A root without an AKI falls through to the SKI
+        # lookup below, and a certificate with neither is not a root.
         :valid
 
       is_binary(ski) and CACertificates.known_ca_ski?(ski) ->
@@ -227,15 +228,14 @@ defmodule NervesHub.SSL do
   end
 
   defp check_known_ca(otp_cert) do
-    Certificate.get_aki(otp_cert)
-    |> CACertificates.get_ca_certificate_by_ski()
-    |> case do
-      {:ok, db_ca} ->
-        # Mark that this CA cert was used
-        CACertificates.update_ca_certificate(db_ca, %{last_used: DateTime.utc_now()})
-
-      _ ->
-        :unknown_ca
+    # Without an AKI the certificate doesn't name its signer, so there is
+    # nothing to look up
+    with aki when is_binary(aki) <- Certificate.get_aki(otp_cert),
+         {:ok, db_ca} <- CACertificates.get_ca_certificate_by_ski(aki) do
+      # Mark that this CA cert was used
+      CACertificates.update_ca_certificate(db_ca, %{last_used: DateTime.utc_now()})
+    else
+      _ -> :unknown_ca
     end
   end
 
