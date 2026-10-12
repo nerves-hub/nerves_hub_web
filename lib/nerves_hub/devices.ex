@@ -414,12 +414,17 @@ defmodule NervesHub.Devices do
   @doc """
   Lists every shared secret a device has been given, deactivated ones included,
   oldest first.
+
+  The secrets themselves are left out, as `nil`. A secret is only returned when
+  it is created, and listing them shouldn't load them into whatever holds the
+  list, such as a LiveView.
   """
   @spec list_shared_secret_auths(Device.t()) :: [SharedSecretAuth.t()]
   def list_shared_secret_auths(%Device{id: device_id}) do
     SharedSecretAuth
     |> where([ssa], ssa.device_id == ^device_id)
     |> order_by([ssa], asc: ssa.id)
+    |> select([ssa], struct(ssa, ^(SharedSecretAuth.__schema__(:fields) -- [:secret])))
     |> preload([:created_by, :deactivated_by])
     |> Repo.all()
   end

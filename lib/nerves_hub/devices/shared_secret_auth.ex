@@ -18,7 +18,7 @@ defmodule NervesHub.Devices.SharedSecretAuth do
     belongs_to(:deactivated_by, User)
 
     field(:key, :string)
-    field(:secret, :string)
+    field(:secret, :string, redact: true)
 
     field(:deactivated_at, :utc_datetime)
     field(:last_used, :utc_datetime)

@@ -32,6 +32,9 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
     |> cont()
   end
 
+  # Leaving the tab drops the key list, and a new secret not yet dismissed.
+  def cleanup(), do: [:shared_secrets, :new_shared_secret]
+
   def render(assigns) do
     device = Certificates.preload_device_certificates(assigns.device, force: true)
 
@@ -556,7 +559,7 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
     case Devices.issue_shared_secret_auth(device, socket.assigns.user) do
       {:ok, auth} ->
         socket
-        |> assign(:new_shared_secret, auth)
+        |> assign(:new_shared_secret, Map.take(auth, [:key, :secret]))
         |> assign(:shared_secrets, Devices.list_shared_secret_auths(device))
         |> halt()
 

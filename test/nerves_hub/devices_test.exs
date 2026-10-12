@@ -1500,6 +1500,19 @@ defmodule NervesHub.DevicesTest do
                "User #{user.name} created shared secret #{auth.key} for device #{device.identifier}"
     end
 
+    test "lists the device's keys without their secrets", %{device: device, user: user} do
+      {:ok, auth} = Devices.issue_shared_secret_auth(device, user)
+
+      assert [%{key: key, secret: nil, created_by: %{id: created_by_id}}] = Devices.list_shared_secret_auths(device)
+      assert {key, created_by_id} == {auth.key, user.id}
+    end
+
+    test "never shows a secret when inspected", %{device: device, user: user} do
+      {:ok, auth} = Devices.issue_shared_secret_auth(device, user)
+
+      refute inspect(auth) =~ auth.secret
+    end
+
     test "refuses when shared secrets aren't enabled, and creates nothing", %{device: device, user: user} do
       stub(NervesHub.DeviceLink, :shared_secrets_enabled?, fn -> false end)
 

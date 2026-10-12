@@ -163,7 +163,8 @@ defmodule NervesHubWeb.Live.Devices.Show.SettingsTabTest do
         |> assert_has("#shared-secrets div", text: "No shared secrets have been created.")
         |> click_button("Create shared secret")
 
-      assert [auth] = Devices.list_shared_secret_auths(device)
+      assert [%{key: key}] = Devices.list_shared_secret_auths(device)
+      assert {:ok, auth} = Devices.get_shared_secret_auth(key)
 
       session
       |> assert_has("#shared-secrets p", text: "Copy the secret now.")
