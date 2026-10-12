@@ -103,6 +103,19 @@ defmodule NervesHub.Accounts do
   end
 
   @doc """
+  Saves the style a user has picked for location maps, one of
+  `NervesHub.Accounts.User.DisplayPreferences.map_styles/0`. Nil (or an empty
+  string) goes back to following the light or dark theme.
+  """
+  @spec update_user_map_style(User.t(), atom() | String.t() | nil) ::
+          {:ok, User.t()} | {:error, Ecto.Changeset.t()}
+  def update_user_map_style(%User{} = user, map_style) do
+    user
+    |> User.display_preferences_changeset(%{map_style: map_style})
+    |> Repo.update()
+  end
+
+  @doc """
   Creates a new user, and an org if one does not exist yet
   """
   @spec create_user(map()) :: {:ok, User.t()} | {:error, Ecto.Changeset.t()}

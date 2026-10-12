@@ -133,6 +133,24 @@ defmodule NervesHub.SSLTest do
 
       assert {:valid, _state} = run_verify(intermediary_ca, {:bad_cert, :unknown_ca})
     end
+
+    test "validates a known root CA without an AKI", context do
+      root_key = X509.PrivateKey.new_ec(:secp256r1)
+
+      root_ca =
+        X509.Certificate.self_signed(root_key, "CN=Root without AKI",
+          template: :root_ca,
+          extensions: [authority_key_identifier: false]
+        )
+
+      assert is_nil(Certificate.get_aki(root_ca))
+
+      assert {:fail, :unknown_ca} = run_verify(root_ca, {:bad_cert, :unknown_ca})
+
+      {:ok, _db_ca} = CACertificates.create_ca_certificate_from_x509(context.org, root_ca)
+
+      assert {:valid, _state} = run_verify(root_ca, {:bad_cert, :unknown_ca})
+    end
   end
 
   describe "known public key" do
@@ -238,6 +256,21 @@ defmodule NervesHub.SSLTest do
 
     test "rejects cert from unknown Signer CA", context do
       assert {:fail, :unknown_ca} = run_verify(context.unknown_cert)
+    end
+
+    test "rejects a cert that names no signer", context do
+      # Neither key identifier, so it can't pass as a root (AKI == SKI)
+      cert =
+        X509.Certificate.new(
+          context.public_key,
+          "/O=#{context.org.name}/CN=#{context.device.identifier}",
+          context.ca_cert,
+          context.ca_key,
+          extensions: [authority_key_identifier: false, subject_key_identifier: false]
+        )
+
+      assert {:fail, :unknown_ca} = run_verify(cert)
+      assert {:fail, :unknown_ca} = run_verify(cert, {:bad_cert, :unknown_ca})
     end
 
     test "rejects registering expired device cert", context do
