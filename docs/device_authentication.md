@@ -97,6 +97,12 @@ retrieved again. Deactivating a device key disconnects the device and refuses
 the key from then on. Issuing and deactivating device keys are recorded in the
 device's audit log.
 
+Device keys stay with the device when it moves to another product or
+organization, as its certificates do, so whoever holds a secret can still
+connect as the device afterwards. When a device moves to an organization that
+shouldn't share credentials with the one it left, such as from a manufacturer to
+a customer, issue it a new key there and deactivate the old ones.
+
 Product keys work differently. Their secrets stay visible on the product's
 settings page to members with the `manage` or `admin` role. Deactivating one
 refuses new connections with it, but devices already connected with it stay
