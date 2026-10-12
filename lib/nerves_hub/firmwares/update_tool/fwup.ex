@@ -52,29 +52,32 @@ defmodule NervesHub.Firmwares.UpdateTool.Fwup do
   end
 
   defp find_signing_key(filepath, keys) do
-    signed_key =
-      Enum.find(keys, fn %{key: key} ->
-        case System.cmd("fwup", ["--verify", "--public-key", key, "-i", filepath], env: []) do
-          {_, 0} ->
-            true
+    Enum.reduce_while(keys, {:error, :invalid_signature}, fn %OrgKey{} = org_key, error ->
+      case verify_with_key(filepath, org_key.key) do
+        :ok -> {:halt, {:ok, org_key}}
+        :mismatch -> {:cont, error}
+        {:error, _} = fwup_too_old -> {:halt, fwup_too_old}
+      end
+    end)
+  end
 
-          # fwup returns a 1 for invalid signatures
-          {_, 1} ->
-            false
+  # fwup exits 1 both for a signature that doesn't match this key and for
+  # firmware requiring a newer fwup, and only says which in its output. The
+  # second fails the same way for every key.
+  defp verify_with_key(filepath, key) do
+    case System.cmd("fwup", ["--verify", "--public-key", key, "-i", filepath], env: [], stderr_to_stdout: true) do
+      {_, 0} ->
+        :ok
 
-          {text, code} ->
-            Logger.warning("fwup returned code #{code} with #{text}")
+      {output, code} ->
+        case Regex.run(~r/fwup version '([^']+)' required\. This is fwup version '([^']+)'/, output) do
+          [_, required, installed] ->
+            {:error, {:fwup_too_old, required, installed}}
 
-            false
+          nil ->
+            if code != 1, do: Logger.warning("fwup returned code #{code} with #{output}")
+            :mismatch
         end
-      end)
-
-    case signed_key do
-      %OrgKey{} = key ->
-        {:ok, key}
-
-      nil ->
-        {:error, :invalid_signature}
     end
   end
 

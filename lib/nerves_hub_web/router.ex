@@ -195,6 +195,12 @@ defmodule NervesHubWeb.Router do
                     post("/", DeviceCertificateController, :create)
                     delete("/:serial", DeviceCertificateController, :delete)
                   end
+
+                  scope "/shared_secrets" do
+                    get("/", DeviceSharedSecretController, :index)
+                    post("/", DeviceSharedSecretController, :create)
+                    delete("/:key", DeviceSharedSecretController, :delete)
+                  end
                 end
               end
 

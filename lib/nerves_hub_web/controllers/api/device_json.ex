@@ -1,6 +1,8 @@
 defmodule NervesHubWeb.API.DeviceJSON do
   @moduledoc false
 
+  alias NervesHubWeb.API.DeviceSharedSecretJSON
+
   @doc """
   Renders a list of devices.
   """
@@ -12,8 +14,15 @@ defmodule NervesHubWeb.API.DeviceJSON do
   end
 
   @doc """
-  Renders a devices.
+  Renders a device. When the device was created with a shared secret, the
+  secret is included, the only time it is returned.
   """
+  def show(%{device: device, shared_secret: %{} = auth}) do
+    %{
+      data: Map.put(device(device), :shared_secret, DeviceSharedSecretJSON.with_secret(auth))
+    }
+  end
+
   def show(%{device: device}) do
     %{
       data: device(device)

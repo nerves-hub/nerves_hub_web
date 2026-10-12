@@ -3,7 +3,7 @@
     <h1 class="text-xl leading-[30px] font-semibold text-base-50">Edit Certificate Authority</h1>
   </:header>
 
-  <div class="max-w-[650px] px-6 py-4">
+  <div class="h-0 max-w-[650px] flex-1 overflow-y-auto px-6 py-4">
     <.form :let={f} id="edit-ca-form" for={@form} phx-submit="update_certificate_authority">
       <div class="mb-4">
         <label for="description_input" class="mb-2 block text-sm font-medium text-base-300">Description</label>

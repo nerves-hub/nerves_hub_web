@@ -109,6 +109,31 @@ defmodule NervesHubWeb.API.DeviceCertificateControllerTest do
 
       assert json_response(conn, 422)["errors"] != %{}
     end
+
+    test "renders errors when the cert has no AKI", %{
+      conn: conn,
+      org: org,
+      device: device,
+      product: product
+    } do
+      ca_key = X509.PrivateKey.new_ec(:secp256r1)
+      ca = X509.Certificate.self_signed(ca_key, "CN=#{org.name}", template: :root_ca)
+
+      pem =
+        X509.PrivateKey.new_ec(:secp256r1)
+        |> X509.PublicKey.derive()
+        |> X509.Certificate.new("CN=#{device.identifier}", ca, ca_key, extensions: [authority_key_identifier: false])
+        |> X509.Certificate.to_pem()
+
+      conn =
+        post(
+          conn,
+          Routes.api_device_certificate_path(conn, :create, org.name, product.name, device.identifier),
+          %{"cert" => Base.encode64(pem)}
+        )
+
+      assert json_response(conn, 422)["errors"] == %{"aki" => ["can't be blank"]}
+    end
   end
 
   describe "create device certificate - error paths" do
