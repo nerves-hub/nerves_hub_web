@@ -39,14 +39,15 @@ defmodule NervesHubWeb.API.Schemas.DeviceSharedSecretSchemas do
 
     OpenApiSpex.schema(%{
       description: "A newly created device shared secret. The secret is only returned once, in this response.",
-      type: :object,
-      properties: %{
-        key: %Schema{type: :string, description: "The key the device sends as `x-nh-key`"},
-        secret: %Schema{type: :string, description: "The secret the device signs its connection with"},
-        deactivated_at: %Schema{type: :string, format: :"date-time", nullable: true},
-        last_used: %Schema{type: :string, format: :"date-time", nullable: true},
-        inserted_at: %Schema{type: :string, format: :"date-time"}
-      },
+      allOf: [
+        DeviceSharedSecret,
+        %Schema{
+          type: :object,
+          properties: %{
+            secret: %Schema{type: :string, description: "The secret the device signs its connection with"}
+          }
+        }
+      ],
       example: %{
         "key" => "nhd_[43 URL-safe characters]",
         "secret" => "[43 random characters]",

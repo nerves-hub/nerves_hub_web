@@ -162,7 +162,13 @@ defmodule NervesHubWeb.API.Schemas.DeviceSchemas do
             }
           ]
         }
-      }
+      },
+      example:
+        put_in(
+          DeviceResponse.schema().example,
+          ["data", "shared_secret"],
+          DeviceSharedSecretWithSecret.schema().example
+        )
     })
   end
 
