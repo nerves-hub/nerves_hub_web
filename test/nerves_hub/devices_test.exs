@@ -1560,6 +1560,18 @@ defmodule NervesHub.DevicesTest do
       assert Repo.aggregate(SharedSecretAuth, :count) == 1
     end
 
+    test "creates no device when its secret can't be created", %{org: org, product: product} do
+      params = %{identifier: "provisioned-device", org_id: org.id, product_id: product.id}
+      # No such user, so the secret's created_by foreign key fails after the
+      # device has been inserted.
+      missing_user = %User{id: -1, name: "Missing"}
+
+      assert {:error, %Changeset{errors: [created_by_id: _]}} =
+               Devices.create_device_with_shared_secret_auth(params, missing_user)
+
+      assert {:error, :not_found} = Devices.get_device_by(identifier: "provisioned-device")
+    end
+
     test "creates no device when shared secrets aren't enabled", %{org: org, product: product, user: user} do
       stub(NervesHub.DeviceLink, :shared_secrets_enabled?, fn -> false end)
       params = %{identifier: "provisioned-device", org_id: org.id, product_id: product.id}
