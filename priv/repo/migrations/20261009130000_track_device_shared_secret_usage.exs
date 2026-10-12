@@ -17,8 +17,10 @@ defmodule NervesHub.Repo.Migrations.TrackDeviceSharedSecretUsage do
       add(:deactivated_by_id, references(:users), null: true)
     end
 
-    # Every foreign key in this schema carries an index; `index_test.exs`
-    # enforces it.
+    # `index_test.exs` requires an index on every foreign key it doesn't list as
+    # known to be missing. `device_id` was on that list until now, but a
+    # device's settings and the API list its keys by it.
+    create(index(:device_shared_secret_auths, [:device_id]))
     create(index(:device_shared_secret_auths, [:created_by_id]))
     create(index(:device_shared_secret_auths, [:deactivated_by_id]))
   end
