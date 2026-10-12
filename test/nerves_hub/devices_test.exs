@@ -1569,6 +1569,38 @@ defmodule NervesHub.DevicesTest do
     end
   end
 
+  describe "mark_last_used/1" do
+    test "records when a key was last used, without touching updated_at", %{device: device} do
+      {:ok, auth} = Devices.create_shared_secret_auth(device)
+
+      assert :ok = Devices.mark_last_used(auth)
+
+      reloaded = Repo.reload(auth)
+      assert %DateTime{} = reloaded.last_used
+      assert reloaded.updated_at == auth.updated_at
+    end
+
+    test "leaves a recent mark alone", %{device: device} do
+      {:ok, auth} = Devices.create_shared_secret_auth(device)
+      recent = DateTime.add(DateTime.utc_now(:second), -60, :second)
+      {:ok, auth} = auth |> Changeset.change(last_used: recent) |> Repo.update()
+
+      assert :ok = Devices.mark_last_used(auth)
+
+      assert Repo.reload(auth).last_used == recent
+    end
+
+    test "replaces a mark older than 15 minutes", %{device: device} do
+      {:ok, auth} = Devices.create_shared_secret_auth(device)
+      stale = DateTime.add(DateTime.utc_now(:second), -16 * 60, :second)
+      {:ok, auth} = auth |> Changeset.change(last_used: stale) |> Repo.update()
+
+      assert :ok = Devices.mark_last_used(auth)
+
+      assert DateTime.after?(Repo.reload(auth).last_used, stale)
+    end
+  end
+
   describe "deactivate_shared_secret_auth/3" do
     test "stops the key from authenticating, keeps it on the device, and audits it", %{
       device: device,

@@ -429,17 +429,30 @@ defmodule NervesHub.Devices do
     |> Repo.all()
   end
 
+  @last_used_interval_seconds 15 * 60
+
   @doc """
   Records that a device has just connected with this shared secret.
-  """
-  @spec mark_last_used(SharedSecretAuth.t()) :: :ok | :error
-  def mark_last_used(%SharedSecretAuth{} = auth) do
-    changeset = Changeset.change(auth, %{last_used: DateTime.utc_now(:second)})
 
-    case Repo.update(changeset) do
-      {:ok, _auth} -> :ok
-      _ -> :error
+  A device connects on every reconnect, and a whole fleet can reconnect at once
+  after a deploy, so this skips the write when the key was marked in the last
+  15 minutes, judged by the `last_used` already loaded. It also leaves
+  `updated_at` alone, which marks changes to the key rather than its use.
+  """
+  @spec mark_last_used(SharedSecretAuth.t()) :: :ok
+  def mark_last_used(%SharedSecretAuth{id: id, last_used: last_used}) do
+    now = DateTime.utc_now(:second)
+    cutoff = DateTime.add(now, -@last_used_interval_seconds, :second)
+
+    if is_nil(last_used) or DateTime.before?(last_used, cutoff) do
+      _ =
+        SharedSecretAuth
+        |> where([ssa], ssa.id == ^id)
+        |> where([ssa], is_nil(ssa.last_used) or ssa.last_used < ^cutoff)
+        |> Repo.update_all(set: [last_used: now])
     end
+
+    :ok
   end
 
   @doc """
