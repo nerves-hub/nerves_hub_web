@@ -8,6 +8,7 @@ defmodule NervesHub.AuditLogs.DeviceTemplates do
   alias NervesHub.AuditLogs
   alias NervesHub.DeviceLink.DeviceInfo
   alias NervesHub.Devices.Device
+  alias NervesHub.Devices.SharedSecretAuth
   alias NervesHub.Firmwares.Firmware
   alias NervesHub.ManagedDeployments.DeploymentGroup
 
@@ -24,6 +25,20 @@ defmodule NervesHub.AuditLogs.DeviceTemplates do
   @spec audit_request_action(User.t(), Device.t(), String.t()) :: :ok
   def audit_request_action(user, device, action) do
     description = "User #{user.name} requested the device (#{device.identifier}) #{action}"
+    AuditLogs.audit!(user, device, description)
+  end
+
+  ## Shared secrets
+
+  @spec audit_shared_secret_created(User.t(), Device.t(), SharedSecretAuth.t()) :: :ok
+  def audit_shared_secret_created(user, device, auth) do
+    description = "User #{user.name} created shared secret #{auth.key} for device #{device.identifier}"
+    AuditLogs.audit!(user, device, description)
+  end
+
+  @spec audit_shared_secret_deactivated(User.t(), Device.t(), SharedSecretAuth.t()) :: :ok
+  def audit_shared_secret_deactivated(user, device, auth) do
+    description = "User #{user.name} deactivated shared secret #{auth.key} for device #{device.identifier}"
     AuditLogs.audit!(user, device, description)
   end
 

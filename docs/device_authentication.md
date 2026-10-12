@@ -74,3 +74,36 @@ deleted) to authenticate again.
     fingerprints in the database and allow the device to proceed.
 
 ![auth-flow](assets/nh_cert_validation.png)
+
+## Shared secrets
+
+With `DEVICE_SHARED_SECRETS_ENABLED=true`, a device can authenticate with a key
+and secret instead of a certificate. It sends the key and signs its identifier
+with the secret, which
+[NervesHubLink](https://github.com/nerves-hub/nerves_hub_link) does when it is
+given a key and secret. There are two kinds of key:
+
+- **Product keys** (`nhp_`) are shared by every device in a product. A device
+  holding one can connect as any identifier in the product, and is created when
+  it first connects. Onboarding is easy, but one leaked device exposes the whole
+  product.
+- **Device keys** (`nhd_`) belong to one device and only authenticate as that
+  device. One leaked device exposes only itself. They are issued from the
+  device's settings or through the API, typically by a provisioning station,
+  which can create them along with the device itself.
+
+A device key's secret is shown once, when it is created, and cannot be
+retrieved again. Deactivating a device key closes the connections made with it
+and refuses it from then on. Issuing and deactivating device keys are recorded
+in the device's audit log.
+
+Device keys stay with the device when it moves to another product or
+organization, as its certificates do, so whoever holds a secret can still
+connect as the device afterwards. When a device moves to an organization that
+shouldn't share credentials with the one it left, such as from a manufacturer to
+a customer, issue it a new key there and deactivate the old ones.
+
+Product keys work differently. Their secrets stay visible on the product's
+settings page to members with the `manage` or `admin` role. Deactivating one
+refuses new connections with it, but devices already connected with it stay
+connected until they reconnect.

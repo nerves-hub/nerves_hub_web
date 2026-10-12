@@ -11,6 +11,7 @@ defmodule NervesHub.Devices do
   alias NervesHub.AuditLogs
   alias NervesHub.AuditLogs.DeviceTemplates
   alias NervesHub.DeviceEvents
+  alias NervesHub.DeviceLink
   alias NervesHub.Devices.AdvancedQuery
   alias NervesHub.Devices.Device
   alias NervesHub.Devices.DeviceCertificate
@@ -394,6 +395,12 @@ defmodule NervesHub.Devices do
     |> Repo.fetch()
   end
 
+  @doc """
+  Creates a shared secret for a device, without auditing it.
+
+  Code acting on a user's behalf uses `issue_shared_secret_auth/2`, which
+  records who created the secret and audits it.
+  """
   @spec create_shared_secret_auth(Device.t()) ::
           {:ok, SharedSecretAuth.t()} | {:error, Changeset.t()}
   @spec create_shared_secret_auth(Device.t(), map()) ::
@@ -402,6 +409,132 @@ defmodule NervesHub.Devices do
     device
     |> SharedSecretAuth.create_changeset(attrs)
     |> Repo.insert()
+  end
+
+  @doc """
+  Lists every shared secret a device has been given, deactivated ones included,
+  oldest first.
+
+  The secrets themselves are left out, as `nil`. A secret is only returned when
+  it is created, and listing them shouldn't load them into whatever holds the
+  list, such as a LiveView.
+  """
+  @spec list_shared_secret_auths(Device.t()) :: [SharedSecretAuth.t()]
+  def list_shared_secret_auths(%Device{id: device_id}) do
+    SharedSecretAuth
+    |> where([ssa], ssa.device_id == ^device_id)
+    |> order_by([ssa], asc: ssa.id)
+    |> select([ssa], struct(ssa, ^(SharedSecretAuth.__schema__(:fields) -- [:secret])))
+    |> preload([:created_by, :deactivated_by])
+    |> Repo.all()
+  end
+
+  @last_used_interval_seconds 15 * 60
+
+  @doc """
+  Records that a device has just connected with this shared secret.
+
+  A device connects on every reconnect, and a whole fleet can reconnect at once
+  after a deploy, so this skips the write when the key was marked in the last
+  15 minutes, judged by the `last_used` already loaded. It also leaves
+  `updated_at` alone, which marks changes to the key rather than its use.
+  """
+  @spec mark_last_used(SharedSecretAuth.t()) :: :ok
+  def mark_last_used(%SharedSecretAuth{id: id, last_used: last_used}) do
+    now = DateTime.utc_now(:second)
+    cutoff = DateTime.add(now, -@last_used_interval_seconds, :second)
+
+    if is_nil(last_used) or DateTime.before?(last_used, cutoff) do
+      _ =
+        SharedSecretAuth
+        |> where([ssa], ssa.id == ^id)
+        |> where([ssa], is_nil(ssa.last_used) or ssa.last_used < ^cutoff)
+        |> Repo.update_all(set: [last_used: now])
+    end
+
+    :ok
+  end
+
+  @doc """
+  Creates a shared secret for a device on a user's behalf, recording who
+  created it, and audits it.
+
+  Returns `{:error, :shared_secrets_not_enabled}` when this platform doesn't
+  accept shared secrets, since the device could never connect with one.
+  """
+  @spec issue_shared_secret_auth(Device.t(), User.t()) ::
+          {:ok, SharedSecretAuth.t()} | {:error, Changeset.t() | :shared_secrets_not_enabled}
+  def issue_shared_secret_auth(device, user) do
+    if DeviceLink.shared_secrets_enabled?() do
+      Repo.transact(fn ->
+        with {:ok, auth} <- create_shared_secret_auth(device, %{created_by_id: user.id}) do
+          DeviceTemplates.audit_shared_secret_created(user, device, auth)
+          {:ok, auth}
+        end
+      end)
+    else
+      {:error, :shared_secrets_not_enabled}
+    end
+  end
+
+  @doc """
+  Deactivates one of a device's active shared secrets on a user's behalf, so
+  the device can no longer connect with it, recording who deactivated it, and
+  audits it.
+
+  A single update, so the key's ownership, that it is still active, and the
+  change itself can't be split by a concurrent request. Returns
+  `{:error, :not_found}` when the device has no active key by that value.
+
+  Connections authenticated with the key are then closed. The device's other
+  connections, made with a certificate or another key, stay up.
+  """
+  @spec deactivate_shared_secret_auth(Device.t(), String.t(), User.t()) ::
+          {:ok, SharedSecretAuth.t()} | {:error, :not_found}
+  def deactivate_shared_secret_auth(%Device{id: device_id} = device, key, user) do
+    now = DateTime.truncate(DateTime.utc_now(), :second)
+
+    Repo.transact(fn ->
+      SharedSecretAuth
+      |> where([ssa], ssa.device_id == ^device_id and ssa.key == ^key and is_nil(ssa.deactivated_at))
+      |> select([ssa], ssa)
+      |> Repo.update_all(set: [deactivated_at: now, deactivated_by_id: user.id, updated_at: DateTime.to_naive(now)])
+      |> case do
+        {1, [auth]} ->
+          DeviceTemplates.audit_shared_secret_deactivated(user, device, auth)
+          {:ok, auth}
+
+        {0, []} ->
+          {:error, :not_found}
+      end
+    end)
+    |> case do
+      {:ok, auth} ->
+        DeviceEvents.shared_secret_deactivated(auth)
+        {:ok, auth}
+
+      error ->
+        error
+    end
+  end
+
+  @doc """
+  Creates a device together with a shared secret for it on a user's behalf, in
+  one transaction.
+
+  For provisioning, where a device must never be left registered without the
+  credentials it will connect with. When the secret can't be issued, as
+  `issue_shared_secret_auth/2` describes, the device isn't created either.
+  """
+  @spec create_device_with_shared_secret_auth(map(), User.t()) ::
+          {:ok, {Device.t(), SharedSecretAuth.t()}} | {:error, Changeset.t() | :shared_secrets_not_enabled}
+  def create_device_with_shared_secret_auth(params, user) do
+    Repo.transact(fn ->
+      with {:ok, device} <- create_device(params),
+           {:ok, auth} <- issue_shared_secret_auth(device, user) do
+        {:ok, {device, auth}}
+      end
+    end)
   end
 
   @spec get_or_create_device(Products.SharedSecretAuth.t(), String.t()) ::

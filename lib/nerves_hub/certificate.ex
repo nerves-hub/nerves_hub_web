@@ -16,14 +16,22 @@ defmodule NervesHub.Certificate do
   defdelegate from_der(der), to: X509.Certificate
   defdelegate to_der(otp_certificate), to: X509.Certificate
 
+  @doc """
+  The key identifier from a certificate's Authority Key Identifier extension,
+  or `nil` when the certificate has none.
+
+  RFC 5280 lets a self-signed root CA leave the extension out, and some tools
+  do, LibreSSL's `openssl req -x509` among them. An extension naming the
+  authority only by issuer and serial number also gives `nil`.
+  """
+  @spec get_aki(X509.Certificate.t()) :: binary() | nil
   def get_aki(otp_certificate) do
-    otp_certificate
-    |> X509.Certificate.extensions()
-    |> Extension.find(:authority_key_identifier)
-    |> extension()
-    |> Keyword.get(:extnValue)
-    |> authority_key_identifier()
-    |> Keyword.get(:keyIdentifier)
+    with extension(extnValue: value) <- X509.Certificate.extension(otp_certificate, :authority_key_identifier),
+         authority_key_identifier(keyIdentifier: key_id) when is_binary(key_id) <- value do
+      key_id
+    else
+      _ -> nil
+    end
   end
 
   def get_ski(otp_certificate) do

@@ -85,6 +85,29 @@ defmodule NervesHubWeb.API.FirmwareControllerTest do
     end
   end
 
+  describe "create firmware requiring a newer fwup" do
+    @describetag :tmp_dir
+
+    test "says which fwup it needs", %{conn: conn, user: user, org: org, product: product, tmp_dir: tmp_dir} do
+      org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
+      {:ok, _} = Fwup.create_firmware(tmp_dir, "unsigned", %{product: product.name})
+      {:ok, _} = Fwup.require_newer_fwup(tmp_dir, "unsigned", "newer")
+      {:ok, signed_path} = Fwup.sign_firmware(tmp_dir, org_key.name, "newer", "signed")
+
+      {boundary, body} = multipart_file(File.read!(signed_path))
+
+      conn =
+        conn
+        |> put_req_header("content-type", "multipart/form-data; boundary=#{boundary}")
+        |> post(Routes.api_firmware_path(conn, :create, org.name, product.name), body)
+
+      detail = json_response(conn, 422)["errors"]["detail"]
+      assert detail =~ "This firmware requires fwup 99.0.0 or newer, and NervesHub has fwup"
+      assert detail =~ "Please contact support to have NervesHub's fwup updated."
+      assert Firmwares.get_firmwares_by_product(product.id) == []
+    end
+  end
+
   describe "create firmware addressed to the wrong product" do
     test "is rejected rather than filed under the declared product", %{
       conn: conn,

@@ -2,6 +2,7 @@ defmodule NervesHubWeb.WebsocketTest do
   # Run the entire suite against both the JSON (`~> 2.0.0`) and MessagePack
   # (`~> 3.0.0`) device serializers to assure both wire formats work end to end.
   use NervesHubWeb.ChannelCase, parameterize: [%{serializer: :json}, %{serializer: :msgpack}]
+  use Mimic
 
   import Ecto.Query
   import TrackerHelper
@@ -458,7 +459,104 @@ defmodule NervesHubWeb.WebsocketTest do
       assert_connection_change()
       assert_online_and_available(device)
 
+      assert %{last_used: %DateTime{}} = Repo.reload(auth)
+
       close_socket_cleanly(socket)
+    end
+
+    test "rejects a deactivated device key/secret", %{user: user, tmp_dir: tmp_dir} do
+      {device, _firmware} = device_fixture(tmp_dir, user)
+      assert {:ok, auth} = Devices.create_shared_secret_auth(device)
+      assert {:ok, _} = Devices.deactivate_shared_secret_auth(device, auth.key, user)
+
+      opts = [
+        mint_opts: [protocols: [:http1]],
+        uri: "ws://127.0.0.1:#{@web_port}/device-socket/websocket",
+        headers: Utils.nh1_key_secret_headers(auth, device.identifier)
+      ]
+
+      {:ok, socket} = SocketClient.start_link(with_serializer(opts))
+      SocketClient.wait_connect(socket)
+
+      refute SocketClient.connected?(socket)
+    end
+
+    test "closes an open connection when its key is deactivated", %{user: user, tmp_dir: tmp_dir} do
+      {device, _firmware} = device_fixture(tmp_dir, user)
+      assert {:ok, auth} = Devices.create_shared_secret_auth(device)
+
+      opts = [
+        mint_opts: [protocols: [:http1]],
+        uri: "ws://127.0.0.1:#{@web_port}/device-socket/websocket",
+        headers: Utils.nh1_key_secret_headers(auth, device.identifier)
+      ]
+
+      subscribe_for_updates(device)
+
+      {:ok, socket} = SocketClient.start_link(with_serializer(opts))
+      SocketClient.join_and_wait(socket, shared_secret_params(device))
+
+      assert_connection_change()
+      assert_online_and_available(device)
+
+      assert {:ok, _} = Devices.deactivate_shared_secret_auth(device, auth.key, user)
+
+      assert_receive %{event: "connection:change", payload: %{status: "offline"}}
+    end
+
+    test "leaves a connection made with another key open", %{user: user, tmp_dir: tmp_dir} do
+      {device, _firmware} = device_fixture(tmp_dir, user)
+      assert {:ok, auth} = Devices.create_shared_secret_auth(device)
+      assert {:ok, other_auth} = Devices.create_shared_secret_auth(device)
+
+      opts = [
+        mint_opts: [protocols: [:http1]],
+        uri: "ws://127.0.0.1:#{@web_port}/device-socket/websocket",
+        headers: Utils.nh1_key_secret_headers(auth, device.identifier)
+      ]
+
+      subscribe_for_updates(device)
+
+      {:ok, socket} = SocketClient.start_link(with_serializer(opts))
+      SocketClient.join_and_wait(socket, shared_secret_params(device))
+
+      assert_connection_change()
+      assert_online_and_available(device)
+
+      assert {:ok, _} = Devices.deactivate_shared_secret_auth(device, other_auth.key, user)
+
+      refute_receive %{event: "connection:change", payload: %{status: "offline"}}, 500
+      assert SocketClient.connected?(socket)
+
+      close_socket_cleanly(socket)
+    end
+
+    test "closes a connection whose key is deactivated while it authenticates", %{user: user, tmp_dir: tmp_dir} do
+      {device, _firmware} = device_fixture(tmp_dir, user)
+      assert {:ok, auth} = Devices.create_shared_secret_auth(device)
+
+      # Deactivate the key once authentication has accepted it, so the
+      # disconnect deactivating sends goes out before the connection is a
+      # socket.
+      set_mimic_global()
+
+      stub(NervesHub.DeviceLink, :authenticate, fn credentials ->
+        result = call_original(NervesHub.DeviceLink, :authenticate, [credentials])
+        {:ok, _} = Devices.deactivate_shared_secret_auth(device, auth.key, user)
+        result
+      end)
+
+      opts = [
+        mint_opts: [protocols: [:http1]],
+        uri: "ws://127.0.0.1:#{@web_port}/device-socket/websocket",
+        headers: Utils.nh1_key_secret_headers(auth, device.identifier)
+      ]
+
+      {:ok, socket} = SocketClient.start_link(with_serializer(opts))
+      SocketClient.wait_connect(socket)
+
+      eventually(refute(SocketClient.connected?(socket)))
+      eventually(refute(Repo.exists?(where(DeviceConnection, device_id: ^device.id, status: :connected))))
     end
 
     test "records the address a trusted balancer announced", %{user: user, tmp_dir: tmp_dir} do

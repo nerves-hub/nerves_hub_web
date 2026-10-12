@@ -131,6 +131,29 @@ defmodule NervesHub.Support.Fwup do
   end
 
   @doc """
+  Rewrite an unsigned firmware image to require a newer fwup than any that
+  exists, which is how firmware built with a newer fwup looks to an older one.
+  fwup refuses to create such an image itself. Sign the result with
+  `sign_firmware/4`.
+  """
+  def require_newer_fwup(dir, firmware_name, output_name) do
+    input_path = Path.join([dir, firmware_name <> ".fw"])
+    output_path = Path.join([dir, output_name <> ".fw"])
+
+    {:ok, entries} = :zip.extract(String.to_charlist(input_path), [:memory])
+
+    entries =
+      Enum.map(entries, fn
+        {~c"meta.conf", conf} -> {~c"meta.conf", ~s(require-fwup-version="99.0.0"\n) <> conf}
+        entry -> entry
+      end)
+
+    {:ok, _} = :zip.create(String.to_charlist(output_path), entries)
+
+    {:ok, output_path}
+  end
+
+  @doc """
   Create a signed firmware image, and return the path to that image.
   """
   def create_signed_firmware(key_name, firmware_name, output_name, meta_params \\ %{}) do

@@ -58,6 +58,17 @@ defmodule NervesHubWeb.API.FallbackController do
     })
   end
 
+  def call(conn, {:error, {:fwup_too_old, required, installed}}) do
+    conn
+    |> put_status(:unprocessable_entity)
+    |> put_view(ErrorJSON)
+    |> render(:"422", %{
+      reason:
+        "This firmware requires fwup #{required} or newer, and NervesHub has fwup #{installed}. " <>
+          "Please contact support to have NervesHub's fwup updated."
+    })
+  end
+
   def call(conn, {:error, :firmware_not_signed}) do
     conn
     |> put_status(:unprocessable_entity)
@@ -156,6 +167,17 @@ defmodule NervesHubWeb.API.FallbackController do
     |> render(:"501", %{
       reason:
         "This platform has no analytics database configured, so device logs are not stored. " <>
+          "Contact your Ops team for more information."
+    })
+  end
+
+  def call(conn, {:error, :shared_secrets_not_enabled}) do
+    conn
+    |> put_status(:unprocessable_entity)
+    |> put_view(ErrorJSON)
+    |> render(:"422", %{
+      reason:
+        "Device shared secrets are not enabled on this platform, so a device could not connect with one. " <>
           "Contact your Ops team for more information."
     })
   end
