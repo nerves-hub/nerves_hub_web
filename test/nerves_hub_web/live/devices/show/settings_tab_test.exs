@@ -181,14 +181,14 @@ defmodule NervesHubWeb.Live.Devices.Show.SettingsTabTest do
       |> refute_has("#shared-secret-new")
     end
 
-    test "deactivating one disconnects the device", %{conn: conn, org: org, product: product, device: device} do
+    test "deactivating one closes connections made with it", %{conn: conn, org: org, product: product, device: device} do
       {:ok, auth} = Devices.create_shared_secret_auth(device)
-      Phoenix.PubSub.subscribe(NervesHub.PubSub, "device_socket:#{device.id}")
+      Phoenix.PubSub.subscribe(NervesHub.PubSub, NervesHub.DeviceEvents.shared_secret_topic(auth.key))
 
       conn
       |> visit(~p"/org/#{org}/#{product}/devices/#{device}/settings")
       |> click_button("Deactivate")
-      |> assert_has("div", text: "The shared secret has been deactivated, and the device disconnected.")
+      |> assert_has("div", text: "The shared secret has been deactivated, and connections made with it closed.")
       |> assert_has("#shared-secrets .tooltip-content", text: "Deactivated by")
       |> assert_has("#shared-secrets span", text: "Deactivated", exact: true)
       |> refute_has("#shared-secrets button", text: "Deactivate")

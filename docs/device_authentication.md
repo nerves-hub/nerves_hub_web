@@ -93,9 +93,9 @@ given a key and secret. There are two kinds of key:
   which can create them along with the device itself.
 
 A device key's secret is shown once, when it is created, and cannot be
-retrieved again. Deactivating a device key disconnects the device and refuses
-the key from then on. Issuing and deactivating device keys are recorded in the
-device's audit log.
+retrieved again. Deactivating a device key closes the connections made with it
+and refuses it from then on. Issuing and deactivating device keys are recorded
+in the device's audit log.
 
 Device keys stay with the device when it moves to another product or
 organization, as its certificates do, so whoever holds a secret can still

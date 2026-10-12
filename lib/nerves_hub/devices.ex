@@ -486,8 +486,8 @@ defmodule NervesHub.Devices do
   change itself can't be split by a concurrent request. Returns
   `{:error, :not_found}` when the device has no active key by that value.
 
-  The device is then disconnected, since its connection may be using the key.
-  One with another active key reconnects with that.
+  Connections authenticated with the key are then closed. The device's other
+  connections, made with a certificate or another key, stay up.
   """
   @spec deactivate_shared_secret_auth(Device.t(), String.t(), User.t()) ::
           {:ok, SharedSecretAuth.t()} | {:error, :not_found}
@@ -510,7 +510,7 @@ defmodule NervesHub.Devices do
     end)
     |> case do
       {:ok, auth} ->
-        DeviceEvents.shared_secret_deactivated(device)
+        DeviceEvents.shared_secret_deactivated(auth)
         {:ok, auth}
 
       error ->

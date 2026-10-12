@@ -115,7 +115,7 @@ defmodule NervesHubWeb.API.DeviceSharedSecretControllerTest do
   end
 
   describe "delete" do
-    test "deactivates the key, disconnects the device, and audits it", %{
+    test "deactivates the key, closes connections made with it, and audits it", %{
       conn: conn,
       org: org,
       product: product,
@@ -123,7 +123,7 @@ defmodule NervesHubWeb.API.DeviceSharedSecretControllerTest do
       user: user
     } do
       {:ok, auth} = Devices.create_shared_secret_auth(device)
-      Phoenix.PubSub.subscribe(NervesHub.PubSub, "device_socket:#{device.id}")
+      Phoenix.PubSub.subscribe(NervesHub.PubSub, NervesHub.DeviceEvents.shared_secret_topic(auth.key))
 
       assert conn |> delete(secrets_path(org, product, device, auth.key)) |> response(204)
 

@@ -75,7 +75,7 @@ defmodule NervesHubWeb.API.DeviceSharedSecretController do
   operation(:delete,
     summary: "Deactivate a Device's Shared Secret",
     description:
-      "Deactivates one of the device's active keys, so the device can no longer connect with it. Returns not found for an unknown, already deactivated, or another device's key. The device is disconnected, since it may be connected with the key, and one with another active key reconnects with that. The key stays listed with its deactivation time.",
+      "Deactivates one of the device's active keys, so the device can no longer connect with it. Returns not found for an unknown, already deactivated, or another device's key. Connections made with the key are closed, and the device's other connections stay up. The key stays listed with its deactivation time.",
     parameters:
       @device_path_parameters ++
         [key: [in: :path, description: "Shared Secret Key", type: :string, example: "nhd_[43 URL-safe characters]"]],

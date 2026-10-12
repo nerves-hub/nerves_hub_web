@@ -33,9 +33,19 @@ defmodule NervesHub.DeviceEvents do
       ChannelServer.broadcast(NervesHub.PubSub, "device_socket:#{device.id}", "disconnect", %{})
   end
 
-  def shared_secret_deactivated(device) do
-    :ok =
-      ChannelServer.broadcast(NervesHub.PubSub, "device_socket:#{device.id}", "disconnect", %{})
+  @doc """
+  The topic a device connection authenticating with a shared secret key
+  subscribes to, before the key is looked up, to hear that it was deactivated.
+  """
+  @spec shared_secret_topic(String.t()) :: String.t()
+  def shared_secret_topic(key), do: "shared_secret:#{key}"
+
+  @doc """
+  Closes the connections authenticated with a device key that has just been
+  deactivated, and only those.
+  """
+  def shared_secret_deactivated(%{key: key}) do
+    :ok = ChannelServer.broadcast(NervesHub.PubSub, shared_secret_topic(key), "disconnect", %{})
   end
 
   def identify(device, user) do

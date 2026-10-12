@@ -320,7 +320,7 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
                 :if={is_nil(auth.deactivated_at) && is_nil(@device.deleted_at) && authorized?(:"device:update", @current_scope)}
                 phx-click="deactivate-shared-secret"
                 phx-value-key={auth.key}
-                data-confirm="Are you sure you want to deactivate this shared secret? The device will be disconnected, and can no longer connect with it."
+                data-confirm="Are you sure you want to deactivate this shared secret? Connections made with it will be closed, and the device can no longer connect with it."
                 aria-label="Deactivate shared secret"
               >
                 Deactivate
@@ -591,7 +591,7 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
     socket =
       case Devices.deactivate_shared_secret_auth(device, key, socket.assigns.user) do
         {:ok, _auth} ->
-          put_flash(socket, :info, "The shared secret has been deactivated, and the device disconnected.")
+          put_flash(socket, :info, "The shared secret has been deactivated, and connections made with it closed.")
 
         {:error, :not_found} ->
           put_flash(socket, :error, "That shared secret is no longer active.")

@@ -1620,13 +1620,16 @@ defmodule NervesHub.DevicesTest do
                "User #{user.name} deactivated shared secret #{auth.key} for device #{device.identifier}"
     end
 
-    test "disconnects the device", %{device: device, user: user} do
+    test "closes the connections made with the key, and no others", %{device: device, user: user} do
       {:ok, auth} = Devices.create_shared_secret_auth(device)
+      Phoenix.PubSub.subscribe(NervesHub.PubSub, DeviceEvents.shared_secret_topic(auth.key))
       Phoenix.PubSub.subscribe(NervesHub.PubSub, "device_socket:#{device.id}")
 
       assert {:ok, _} = Devices.deactivate_shared_secret_auth(device, auth.key, user)
 
-      assert_receive %Broadcast{event: "disconnect"}
+      shared_secret_topic = DeviceEvents.shared_secret_topic(auth.key)
+      assert_receive %Broadcast{event: "disconnect", topic: ^shared_secret_topic}
+      refute_receive %Broadcast{event: "disconnect"}
     end
 
     test "returns not found for an already deactivated key, and leaves it as it was", %{
@@ -1635,7 +1638,7 @@ defmodule NervesHub.DevicesTest do
     } do
       {:ok, auth} = Devices.create_shared_secret_auth(device)
       {:ok, deactivated} = Devices.deactivate_shared_secret_auth(device, auth.key, user)
-      Phoenix.PubSub.subscribe(NervesHub.PubSub, "device_socket:#{device.id}")
+      Phoenix.PubSub.subscribe(NervesHub.PubSub, DeviceEvents.shared_secret_topic(auth.key))
 
       assert {:error, :not_found} = Devices.deactivate_shared_secret_auth(device, auth.key, user)
       assert Repo.get!(SharedSecretAuth, auth.id).deactivated_at == deactivated.deactivated_at
