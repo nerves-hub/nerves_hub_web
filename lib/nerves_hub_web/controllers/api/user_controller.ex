@@ -9,6 +9,7 @@ defmodule NervesHubWeb.API.UserController do
   alias NervesHubWeb.API.Schemas.UserAuthCLISessionStatusResponse
   alias NervesHubWeb.API.Schemas.UserAuthWithNoteRequest
   alias NervesHubWeb.API.Schemas.UserResponse
+  alias NervesHubWeb.API.Schemas.UserTokenRequest
   alias NervesHubWeb.Plugs.Attack
 
   plug(Attack when action in [:check_cli_session])
@@ -26,6 +27,25 @@ defmodule NervesHubWeb.API.UserController do
 
   def me(%{assigns: %{current_scope: scope}} = conn, _params) do
     render(conn, :show, user: scope.user)
+  end
+
+  operation(:create_token,
+    summary: "Create an API token for the current user",
+    description: """
+    The token is returned once, as `token`. A client without one can get one by making this
+    request through `POST /api/auth_requests`, approved by the user in their browser.
+    """,
+    request_body: {"Token attributes", "application/json", UserTokenRequest},
+    responses: [
+      ok: {"User response, with the new token", "application/json", UserResponse},
+      unauthorized: {"Unauthorized", "application/json", ErrorSchemas.ErrorResponse}
+    ],
+    security: [%{"bearer_auth" => []}]
+  )
+
+  def create_token(%{assigns: %{current_scope: scope}} = conn, params) do
+    token = Accounts.create_user_api_token(scope.user, params["note"])
+    render(conn, :show, user: scope.user, token: token)
   end
 
   operation(:auth,

@@ -8,6 +8,13 @@ defmodule NervesHubWeb.API.Plugs.FetchCurrentUser do
     opts
   end
 
+  # A request forwarded by `NervesHubWeb.AuthRequests` once someone approved it
+  # in their browser. It runs as them, in place of a token. Only that module can
+  # set `conn.private`.
+  def call(%{private: %{nerves_hub_auth_request_user: user}} = conn, _opts) do
+    assign(conn, :current_scope, Scope.for_user(user))
+  end
+
   def call(conn, _opts) do
     with {:ok, token} <- get_req_token(conn),
          {:ok, user, user_token} <- Accounts.fetch_user_by_api_token(token),

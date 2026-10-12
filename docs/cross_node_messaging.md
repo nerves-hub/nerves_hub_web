@@ -49,6 +49,7 @@ targeted dispatch, so it is not worth paying membership replication for.
 | `product:<id>`, `firmware:<id>`, `product_notifications:<id>` | `:group` | Consumers are open LiveViews. |
 | `orchestrator:deployment:<id>` | `:group` | A single consumer — the one orchestrator for that deployment group — fed by every device node. |
 | Rate-limit throttle sync, CLI-session cache | `:group`, `"web"` cluster | Web-only state that should not exist on device nodes at all. |
+| `auth_request/<code>` — pending [auth requests](auth_requests.md) | `:group` registry, `"web"` cluster | One process per open request, found by its code from whichever web node serves the approval page. |
 | `product:<id>:extensions` | `Phoenix.PubSub` | One operator toggle must reach *every* online device in the product. Genuine dense fan-out. |
 | `deployment:<id>` | `Phoenix.PubSub` | Multi-subscriber, not a sparse per-entity topic. |
 
@@ -59,7 +60,7 @@ targeted dispatch, so it is not worth paying membership replication for.
 | State | Cluster | Participating nodes |
 | --- | --- | --- |
 | Device ↔ UI topics (device, console, extension reports, product/firmware UI, orchestrator) | default (`nil`) | All |
-| Rate-limit throttle sync, CLI-session cache | `"web"` | Web/all nodes only |
+| Rate-limit throttle sync, CLI-session cache, auth requests | `"web"` | Web/all nodes only |
 
 The **default** cluster needs no explicit `connect` — nodes join through
 automatic peer discovery on `:net_kernel` nodeup — so device-side senders and

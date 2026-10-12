@@ -73,9 +73,21 @@ defmodule NervesHubWeb.Router do
     plug(Device)
   end
 
+  # Server-sent events. Kept out of the `:api` pipeline because its `accepts`
+  # plug turns away `Accept: text/event-stream`.
+  pipeline :api_event_stream do
+    plug(PutApiSpec, module: NervesHubWeb.ApiSpec)
+  end
+
   scope "/api" do
     pipe_through(:api)
     get("/openapi", OpenApiSpec, [])
+  end
+
+  scope "/api", NervesHubWeb.API, as: :api do
+    pipe_through(:api_event_stream)
+
+    post("/auth_requests", AuthRequestController, :create)
   end
 
   scope("/api", NervesHubWeb.API, as: :api) do
@@ -109,6 +121,7 @@ defmodule NervesHubWeb.Router do
       pipe_through([:api_require_authenticated_user])
 
       get("/users/me", UserController, :me)
+      post("/users/me/tokens", UserController, :create_token)
 
       scope "/orgs" do
         get("/", OrgController, :index)
@@ -252,6 +265,10 @@ defmodule NervesHubWeb.Router do
 
     get("/auth/cli/:token", SessionController, :cli)
     post("/auth/cli/:token", SessionController, :cli_confirm)
+
+    get("/auth/approve", AuthRequestController, :new)
+    post("/auth/approve", AuthRequestController, :show)
+    post("/auth/approve/decision", AuthRequestController, :decide)
   end
 
   scope "/", NervesHubWeb do

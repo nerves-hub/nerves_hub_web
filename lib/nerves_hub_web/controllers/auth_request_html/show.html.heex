@@ -1,0 +1,69 @@
+<Layouts.auth flash={@flash}>
+  <:title>
+    Approve this request?
+  </:title>
+  <:subheader>
+    If you approve, this request runs once as you, {@current_scope.user.email}, with everything your account can do. Only approve a request you started yourself.
+  </:subheader>
+
+  <dl class="mt-6 space-y-4 text-sm/6">
+    <div>
+      <dt class="font-semibold text-base-50">Code</dt>
+      <dd class="font-mono text-base-300">{@code}</dd>
+    </div>
+
+    <div>
+      <dt class="font-semibold text-base-50">Request</dt>
+      <dd class="font-mono break-all text-base-300">{@request.method} {@request.path}</dd>
+    </div>
+
+    <div :if={@request.body}>
+      <dt class="font-semibold text-base-50">Body</dt>
+      <dd>
+        <pre class="mt-1 max-h-64 overflow-auto rounded bg-base-900 p-2 font-mono text-xs text-base-300">{format_body(@request.body)}</pre>
+      </dd>
+    </div>
+
+    <div :if={@request.note}>
+      <dt class="font-semibold text-base-50">Note, as given by the requester</dt>
+      <dd class="wrap-break-word text-base-300">{@request.note}</dd>
+    </div>
+
+    <div>
+      <dt class="font-semibold text-base-50">Requested from</dt>
+      <dd class="text-base-300">{@request.remote_ip}</dd>
+      <dd :if={@request.user_agent} class="break-all text-base-300">{@request.user_agent}</dd>
+    </div>
+
+    <div>
+      <dt class="font-semibold text-base-50">Expires</dt>
+      <dd class="text-base-300">In about {expires_in_minutes(@request.expires_at)} min</dd>
+    </div>
+  </dl>
+
+  <div class="mt-6 flex gap-3">
+    <form id="auth_request_approve" method="post" action={~p"/auth/approve/decision"} class="flex-1">
+      <input type="hidden" name="_csrf_token" value={Plug.CSRFProtection.get_csrf_token()} />
+      <input type="hidden" name="code" value={@code} />
+      <input type="hidden" name="decision" value="approve" />
+      <button
+        type="submit"
+        class="flex w-full justify-center rounded-md bg-primary px-3 py-1.5 text-sm/6 font-semibold text-primary-content shadow-sm hover:bg-primary-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
+      >
+        Approve
+      </button>
+    </form>
+
+    <form id="auth_request_deny" method="post" action={~p"/auth/approve/decision"} class="flex-1">
+      <input type="hidden" name="_csrf_token" value={Plug.CSRFProtection.get_csrf_token()} />
+      <input type="hidden" name="code" value={@code} />
+      <input type="hidden" name="decision" value="deny" />
+      <button
+        type="submit"
+        class="flex w-full justify-center rounded-md bg-base-800 px-3 py-1.5 text-sm/6 font-semibold text-base-50 shadow-sm ring-1 ring-base-600 hover:bg-base-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
+      >
+        Deny
+      </button>
+    </form>
+  </div>
+</Layouts.auth>

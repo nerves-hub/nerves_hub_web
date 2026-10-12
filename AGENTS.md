@@ -105,6 +105,9 @@ when adding or removing one.
 - `controllers/` — JSON API (`controllers/api/`) and others.
 - `plugs/`, `router.ex`, `endpoint.ex`, `device_endpoint.ex`,
   `health_check_endpoint.ex`, `auth*.ex`.
+- `auth_requests.ex` — one API request approved by a user in their browser
+  instead of authenticated by a token; how the CLI logs in. See
+  [docs/auth_requests.md](docs/auth_requests.md).
 
 ## Tooling & running locally
 

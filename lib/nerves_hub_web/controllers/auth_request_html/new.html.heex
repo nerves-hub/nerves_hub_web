@@ -1,0 +1,35 @@
+<Layouts.auth flash={@flash}>
+  <:title>
+    Approve a request
+  </:title>
+  <:subheader>
+    Enter the code shown by the CLI or device that is asking for access. You'll see what it wants to do before anything happens.
+  </:subheader>
+
+  <div :if={@error} role="alert" class="mt-4 w-full rounded-sm bg-alert-soft fill-alert p-3 text-alert-content shadow-md ring-1 ring-alert">
+    <p class="text-sm/5">{@error}</p>
+  </div>
+
+  <form id="auth_request_code" method="post" action={~p"/auth/approve"} class="mt-6 space-y-6">
+    <input type="hidden" name="_csrf_token" value={Plug.CSRFProtection.get_csrf_token()} />
+
+    <.input
+      id="code"
+      name="code"
+      value=""
+      label="Code"
+      placeholder="eg. WDJB-MJHT"
+      autocomplete="off"
+      autocapitalize="characters"
+      spellcheck="false"
+      required
+    />
+
+    <button
+      type="submit"
+      class="flex w-full justify-center rounded-md bg-primary px-3 py-1.5 text-sm/6 font-semibold text-primary-content shadow-sm hover:bg-primary-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
+    >
+      Continue
+    </button>
+  </form>
+</Layouts.auth>

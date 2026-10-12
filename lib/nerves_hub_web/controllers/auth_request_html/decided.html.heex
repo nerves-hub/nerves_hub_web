@@ -1,0 +1,27 @@
+<Layouts.auth flash={@flash}>
+  <:title :if={match?({:approved, status} when status in 200..299, @result)}>
+    Request approved
+  </:title>
+  <:title :if={match?({:approved, status} when status not in 200..299, @result)}>
+    Request approved, but it failed
+  </:title>
+  <:title :if={@result == :denied}>
+    Request denied
+  </:title>
+  <:title :if={@result == :timeout}>
+    Request approved
+  </:title>
+
+  <:subheader :if={match?({:approved, status} when status in 200..299, @result)}>
+    It ran successfully. You can close this window and go back to where you started it.
+  </:subheader>
+  <:subheader :if={match?({:approved, status} when status not in 200..299, @result)}>
+    It ran as you and was refused with status {elem(@result, 1)}. It may need access your account doesn't have. Go back to where you started it for the details.
+  </:subheader>
+  <:subheader :if={@result == :denied}>
+    It was not run. Whoever made it has been told.
+  </:subheader>
+  <:subheader :if={@result == :timeout}>
+    It is still running. Go back to where you started it to see how it went.
+  </:subheader>
+</Layouts.auth>

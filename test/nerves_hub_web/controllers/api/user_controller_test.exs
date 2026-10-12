@@ -18,6 +18,24 @@ defmodule NervesHubWeb.API.UserControllerTest do
            }
   end
 
+  describe "create_token" do
+    test "creates a token for the current user", %{conn: conn, user: user} do
+      conn = post(conn, ~p"/api/users/me/tokens", %{note: "ci"})
+
+      assert %{"token" => "nhu_" <> _ = token, "email" => email} = json_response(conn, 200)["data"]
+      assert email == user.email
+
+      assert {:ok, %{id: user_id}, %{note: "ci"}} = NervesHub.Accounts.fetch_user_by_api_token(token)
+      assert user_id == user.id
+    end
+
+    test "needs an authenticated user" do
+      assert_error_sent(401, fn ->
+        post(build_conn(), ~p"/api/users/me/tokens", %{note: "ci"})
+      end)
+    end
+  end
+
   test "authenticate existing accounts" do
     password = "1234567891011"
 

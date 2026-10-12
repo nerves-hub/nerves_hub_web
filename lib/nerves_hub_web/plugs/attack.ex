@@ -60,7 +60,12 @@ defmodule NervesHubWeb.Plugs.Attack do
 
   defp expires_at(now, period), do: (div(now, period) + 1) * period
 
-  defp client_ip(conn) do
+  @doc """
+  The address a request is bucketed by: the forwarded client address where the
+  endpoint is configured to trust it, otherwise the socket's peer.
+  """
+  @spec client_ip(Plug.Conn.t()) :: :inet.ip_address()
+  def client_ip(conn) do
     config = Application.get_env(:nerves_hub, endpoint(conn), [])
 
     if Keyword.get(config, :rate_limit_by_forwarded_ip, false) do
