@@ -92,6 +92,12 @@ given a key and secret. There are two kinds of key:
   device's settings or through the API, typically by a provisioning station,
   which can create them along with the device itself.
 
-A secret is shown once, when it is created, and cannot be retrieved again.
-Deactivating a key disconnects the device and refuses the key from then on.
-Issuing and deactivating device keys are recorded in the device's audit log.
+A device key's secret is shown once, when it is created, and cannot be
+retrieved again. Deactivating a device key disconnects the device and refuses
+the key from then on. Issuing and deactivating device keys are recorded in the
+device's audit log.
+
+Product keys work differently. Their secrets stay visible on the product's
+settings page to members with the `manage` or `admin` role. Deactivating one
+refuses new connections with it, but devices already connected with it stay
+connected until they reconnect.
