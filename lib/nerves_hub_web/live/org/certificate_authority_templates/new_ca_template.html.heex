@@ -6,12 +6,22 @@
   <div class="h-0 w-full flex-1 overflow-y-auto px-6 py-4">
     <div class="max-w-225">
       <.form :let={f} id="new-ca-form" for={@form} phx-submit="add_certificate_authority" phx-change="validate_new_certificate_authority">
-        <div :if={f.action && !Keyword.has_key?(f.errors, :serial)} class="mb-4 rounded border border-alert bg-alert-soft p-4 text-sm text-alert-content">
+        <div
+          :if={f.action && !Keyword.has_key?(f.errors, :serial) && !Keyword.has_key?(f.errors, :ski)}
+          class="mb-4 rounded border border-alert bg-alert-soft p-4 text-sm text-alert-content"
+        >
           <p>Something went wrong! Please check the errors below.</p>
         </div>
 
         <div :if={Keyword.has_key?(f.errors, :serial)} class="mb-4 rounded border border-alert bg-alert-soft p-4 text-sm text-alert-content">
           <p>A Certificate Authority with the same Serial already exists.</p>
+        </div>
+
+        <div :if={Keyword.has_key?(f.errors, :ski)} id="missing-ski-error" class="mb-4 rounded border border-alert bg-alert-soft p-4 text-sm text-alert-content">
+          <p>
+            The CA certificate has no Subject Key Identifier extension, which NervesHub uses to match device certificates to it.
+            Add one with <code>-addext "subjectKeyIdentifier=hash"</code> when creating the certificate, as in Step 1.
+          </p>
         </div>
 
         <div class="mb-6">
