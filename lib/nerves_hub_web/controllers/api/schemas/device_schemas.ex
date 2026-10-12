@@ -290,7 +290,7 @@ defmodule NervesHubWeb.API.Schemas.DeviceSchemas do
         shared_secret: %Schema{
           type: :boolean,
           description:
-            "Also create the device's own shared secret, in the same transaction. The key and secret are returned as `data.shared_secret`, the only time the secret is returned."
+            "Also create the device's own shared secret, in the same transaction. The key and secret are returned as `data.shared_secret`, the only time the secret is returned. When device shared secrets are not enabled on this platform, the request is refused and no device is created."
         }
       },
       required: [:device],

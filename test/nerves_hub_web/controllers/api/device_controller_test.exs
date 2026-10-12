@@ -113,6 +113,22 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
 
       assert Repo.aggregate(Devices.SharedSecretAuth, :count) == 1
     end
+
+    test "with shared_secret, creates nothing when shared secrets aren't enabled", %{
+      conn: conn,
+      org: org,
+      product: product
+    } do
+      stub(NervesHub.DeviceLink, :shared_secrets_enabled?, fn -> false end)
+      params = %{identifier: "api-device-disabled", shared_secret: true}
+
+      assert %{"errors" => %{"detail" => "Device shared secrets are not enabled" <> _}} =
+               conn
+               |> post(Routes.api_device_path(conn, :create, org.name, product.name), params)
+               |> json_response(422)
+
+      assert {:error, :not_found} = Devices.get_device_by(identifier: "api-device-disabled")
+    end
   end
 
   describe "bulk create devices (async processing)" do

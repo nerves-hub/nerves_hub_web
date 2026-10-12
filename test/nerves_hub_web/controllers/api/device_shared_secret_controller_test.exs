@@ -1,5 +1,6 @@
 defmodule NervesHubWeb.API.DeviceSharedSecretControllerTest do
   use NervesHubWeb.APIConnCase, async: true
+  use Mimic
 
   alias NervesHub.Accounts
   alias NervesHub.AuditLogs
@@ -57,6 +58,15 @@ defmodule NervesHubWeb.API.DeviceSharedSecretControllerTest do
 
       assert conn |> post(secrets_path(org, product, device)) |> json_response(422) ==
                %{"errors" => %{"detail" => "Device is deleted and must be restored to use."}}
+
+      assert Devices.list_shared_secret_auths(device) == []
+    end
+
+    test "is refused when shared secrets aren't enabled", %{conn: conn, org: org, product: product, device: device} do
+      stub(NervesHub.DeviceLink, :shared_secrets_enabled?, fn -> false end)
+
+      assert %{"errors" => %{"detail" => "Device shared secrets are not enabled" <> _}} =
+               conn |> post(secrets_path(org, product, device)) |> json_response(422)
 
       assert Devices.list_shared_secret_auths(device) == []
     end

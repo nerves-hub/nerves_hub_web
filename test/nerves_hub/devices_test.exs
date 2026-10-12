@@ -1499,6 +1499,14 @@ defmodule NervesHub.DevicesTest do
       assert audit_log.description ==
                "User #{user.name} created shared secret #{auth.key} for device #{device.identifier}"
     end
+
+    test "refuses when shared secrets aren't enabled, and creates nothing", %{device: device, user: user} do
+      stub(NervesHub.DeviceLink, :shared_secrets_enabled?, fn -> false end)
+
+      assert {:error, :shared_secrets_not_enabled} = Devices.issue_shared_secret_auth(device, user)
+      assert Devices.list_shared_secret_auths(device) == []
+      assert AuditLogs.logs_for(device) == []
+    end
   end
 
   test "a user who issued a key keeps it attributed to them, so they cannot be hard deleted", %{device: device} do
@@ -1537,6 +1545,14 @@ defmodule NervesHub.DevicesTest do
       assert {:error, %Changeset{}} = Devices.create_device_with_shared_secret_auth(params, user)
 
       assert Repo.aggregate(SharedSecretAuth, :count) == 1
+    end
+
+    test "creates no device when shared secrets aren't enabled", %{org: org, product: product, user: user} do
+      stub(NervesHub.DeviceLink, :shared_secrets_enabled?, fn -> false end)
+      params = %{identifier: "provisioned-device", org_id: org.id, product_id: product.id}
+
+      assert {:error, :shared_secrets_not_enabled} = Devices.create_device_with_shared_secret_auth(params, user)
+      assert {:error, :not_found} = Devices.get_device_by(identifier: "provisioned-device")
     end
   end
 

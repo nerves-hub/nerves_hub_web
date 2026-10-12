@@ -53,7 +53,7 @@ defmodule NervesHubWeb.API.DeviceSharedSecretController do
   operation(:create,
     summary: "Create a Shared Secret for a Device",
     description:
-      "Creates a new key and secret the device can connect with. The secret is returned once, in this response, and cannot be retrieved again.",
+      "Creates a new key and secret the device can connect with. The secret is returned once, in this response, and cannot be retrieved again. Returns unprocessable entity when device shared secrets are not enabled on this platform.",
     parameters: @device_path_parameters,
     responses:
       [

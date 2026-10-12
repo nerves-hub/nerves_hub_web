@@ -560,6 +560,11 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
         |> assign(:shared_secrets, Devices.list_shared_secret_auths(device))
         |> halt()
 
+      {:error, :shared_secrets_not_enabled} ->
+        socket
+        |> put_flash(:error, "Shared secrets are not enabled on this platform.")
+        |> halt()
+
       {:error, _changeset} ->
         socket
         |> put_flash(:error, "We couldn't create a shared secret. Please contact support if this happens again.")

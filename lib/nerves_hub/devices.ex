@@ -11,6 +11,7 @@ defmodule NervesHub.Devices do
   alias NervesHub.AuditLogs
   alias NervesHub.AuditLogs.DeviceTemplates
   alias NervesHub.DeviceEvents
+  alias NervesHub.DeviceLink
   alias NervesHub.Devices.AdvancedQuery
   alias NervesHub.Devices.Device
   alias NervesHub.Devices.DeviceCertificate
@@ -433,21 +434,28 @@ defmodule NervesHub.Devices do
   @doc """
   Creates a shared secret for a device on a user's behalf, recording who
   created it, and audits it.
+
+  Returns `{:error, :shared_secrets_not_enabled}` when this platform doesn't
+  accept shared secrets, since the device could never connect with one.
   """
   @spec issue_shared_secret_auth(Device.t(), User.t()) ::
-          {:ok, SharedSecretAuth.t()} | {:error, Changeset.t()}
+          {:ok, SharedSecretAuth.t()} | {:error, Changeset.t() | :shared_secrets_not_enabled}
   def issue_shared_secret_auth(device, user) do
-    Repo.transact(fn ->
-      changeset =
-        device
-        |> SharedSecretAuth.create_changeset()
-        |> Changeset.put_change(:created_by_id, user.id)
+    if DeviceLink.shared_secrets_enabled?() do
+      Repo.transact(fn ->
+        changeset =
+          device
+          |> SharedSecretAuth.create_changeset()
+          |> Changeset.put_change(:created_by_id, user.id)
 
-      with {:ok, auth} <- Repo.insert(changeset) do
-        DeviceTemplates.audit_shared_secret_created(user, device, auth)
-        {:ok, auth}
-      end
-    end)
+        with {:ok, auth} <- Repo.insert(changeset) do
+          DeviceTemplates.audit_shared_secret_created(user, device, auth)
+          {:ok, auth}
+        end
+      end)
+    else
+      {:error, :shared_secrets_not_enabled}
+    end
   end
 
   @doc """
@@ -496,10 +504,11 @@ defmodule NervesHub.Devices do
   one transaction.
 
   For provisioning, where a device must never be left registered without the
-  credentials it will connect with.
+  credentials it will connect with. When the secret can't be issued, as
+  `issue_shared_secret_auth/2` describes, the device isn't created either.
   """
   @spec create_device_with_shared_secret_auth(map(), User.t()) ::
-          {:ok, {Device.t(), SharedSecretAuth.t()}} | {:error, Changeset.t()}
+          {:ok, {Device.t(), SharedSecretAuth.t()}} | {:error, Changeset.t() | :shared_secrets_not_enabled}
   def create_device_with_shared_secret_auth(params, user) do
     Repo.transact(fn ->
       with {:ok, device} <- create_device(params),
