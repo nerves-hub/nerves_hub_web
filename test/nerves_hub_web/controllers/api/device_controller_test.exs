@@ -89,6 +89,37 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
       assert %{"key" => "nhd_" <> _} = data["shared_secret"]
     end
 
+    test ~s(accepts shared_secret as "1", as the device's boolean fields do), %{
+      conn: conn,
+      org: org,
+      product: product
+    } do
+      params = %{identifier: "api-device-one", shared_secret: "1"}
+
+      data =
+        conn
+        |> post(Routes.api_device_path(conn, :create, org.name, product.name), params)
+        |> json_response(201)
+        |> Map.fetch!("data")
+
+      assert %{"key" => "nhd_" <> _} = data["shared_secret"]
+    end
+
+    test "refuses a shared_secret that isn't a boolean, and creates no device", %{
+      conn: conn,
+      org: org,
+      product: product
+    } do
+      params = %{identifier: "api-device-on", shared_secret: "on"}
+
+      assert conn
+             |> post(Routes.api_device_path(conn, :create, org.name, product.name), params)
+             |> json_response(422) ==
+               %{"errors" => %{"detail" => ~s(shared_secret must be true or false, got "on".)}}
+
+      assert {:error, :not_found} = Devices.get_device_by(identifier: "api-device-on")
+    end
+
     test "without shared_secret, creates no shared secret", %{conn: conn, org: org, product: product} do
       data =
         conn

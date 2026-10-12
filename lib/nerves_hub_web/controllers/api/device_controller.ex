@@ -109,16 +109,23 @@ defmodule NervesHubWeb.API.DeviceController do
   end
 
   # `"shared_secret": true` creates the device's own shared secret in the same
-  # transaction, so a provisioner never leaves a device without credentials.
-  defp create_device(%{"shared_secret" => shared_secret} = params, user) when shared_secret in [true, "true"] do
-    with {:ok, {device, auth}} <- Devices.create_device_with_shared_secret_auth(params, user) do
-      {:ok, device, auth}
-    end
-  end
+  # transaction, so a provisioner never leaves a device without credentials. It
+  # is cast the way the device's own boolean fields are, and any other value is
+  # refused rather than quietly creating a device without one.
+  defp create_device(params, user) do
+    case Ecto.Type.cast(:boolean, params["shared_secret"]) do
+      {:ok, true} ->
+        with {:ok, {device, auth}} <- Devices.create_device_with_shared_secret_auth(params, user) do
+          {:ok, device, auth}
+        end
 
-  defp create_device(params, _user) do
-    with {:ok, device} <- Devices.create_device(params) do
-      {:ok, device, nil}
+      {:ok, not_requested} when not_requested in [false, nil] ->
+        with {:ok, device} <- Devices.create_device(params) do
+          {:ok, device, nil}
+        end
+
+      :error ->
+        {:error, {:shared_secret, "shared_secret must be true or false, got #{inspect(params["shared_secret"])}."}}
     end
   end
 
