@@ -58,30 +58,4 @@ defmodule NervesHub.Devices.SharedSecretAuthTest do
       assert changeset.errors == []
     end
   end
-
-  describe "deactivate_changeset/1" do
-    test "sets deactivated_at to a non-nil datetime", %{device: device} do
-      auth = %SharedSecretAuth{
-        device_id: device.id,
-        key: "nhd_somekey",
-        secret: "somesecret"
-      }
-
-      changeset = SharedSecretAuth.deactivate_changeset(auth)
-      deactivated_at = Ecto.Changeset.get_change(changeset, :deactivated_at)
-      assert deactivated_at != nil
-      assert %DateTime{} = deactivated_at
-    end
-
-    test "changeset is valid", %{device: device} do
-      auth = %SharedSecretAuth{
-        device_id: device.id,
-        key: "nhd_somekey",
-        secret: "somesecret"
-      }
-
-      changeset = SharedSecretAuth.deactivate_changeset(auth)
-      assert changeset.valid?
-    end
-  end
 end

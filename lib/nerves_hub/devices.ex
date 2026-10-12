@@ -395,6 +395,12 @@ defmodule NervesHub.Devices do
     |> Repo.fetch()
   end
 
+  @doc """
+  Creates a shared secret for a device, without auditing it.
+
+  Code acting on a user's behalf uses `issue_shared_secret_auth/2`, which
+  records who created the secret and audits it.
+  """
   @spec create_shared_secret_auth(Device.t()) ::
           {:ok, SharedSecretAuth.t()} | {:error, Changeset.t()}
   @spec create_shared_secret_auth(Device.t(), map()) ::
@@ -443,12 +449,7 @@ defmodule NervesHub.Devices do
   def issue_shared_secret_auth(device, user) do
     if DeviceLink.shared_secrets_enabled?() do
       Repo.transact(fn ->
-        changeset =
-          device
-          |> SharedSecretAuth.create_changeset()
-          |> Changeset.put_change(:created_by_id, user.id)
-
-        with {:ok, auth} <- Repo.insert(changeset) do
+        with {:ok, auth} <- create_shared_secret_auth(device, %{created_by_id: user.id}) do
           DeviceTemplates.audit_shared_secret_created(user, device, auth)
           {:ok, auth}
         end

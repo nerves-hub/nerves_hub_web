@@ -27,7 +27,7 @@ defmodule NervesHub.Devices.SharedSecretAuth do
   end
 
   def create_changeset(%Device{id: device_id}, attrs \\ %{}) do
-    cast(%__MODULE__{device_id: device_id}, attrs, [:product_shared_secret_auth_id])
+    cast(%__MODULE__{device_id: device_id}, attrs, [:product_shared_secret_auth_id, :created_by_id])
     |> put_change(:key, "#{@key_prefix}_#{generate_key()}")
     |> put_change(:secret, generate_secret())
     |> validate_required([:device_id, :key, :secret])
@@ -35,12 +35,9 @@ defmodule NervesHub.Devices.SharedSecretAuth do
     |> validate_format(:secret, ~r/^[a-zA-Z0-9\-\/\+]{43}$/)
     |> foreign_key_constraint(:device_id)
     |> foreign_key_constraint(:product_shared_secret_auth_id)
+    |> foreign_key_constraint(:created_by_id)
     |> unique_constraint(:key)
     |> unique_constraint(:secret)
-  end
-
-  def deactivate_changeset(%__MODULE__{} = auth) do
-    change(auth, %{deactivated_at: DateTime.truncate(DateTime.utc_now(), :second)})
   end
 
   # The key is URL-safe, so the API can address it in a path. Keys made before
