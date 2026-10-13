@@ -168,6 +168,20 @@ defmodule NervesHub.ManagedDeployments.WorkflowCoordinatorTest do
       assert FirmwareUpdates.count_inflight_updates_for_workflow_step(canary) > canary.concurrency
       assert Workflows.available_slots(deployment_group, canary) == 0
     end
+
+    # A group can take on a workflow while priority queue updates from before it
+    # are still running. Those devices are updating all the same.
+    test "a catch_all counts priority queue updates still running", context do
+      device = add_device(context, %{tags: []})
+
+      %{release: release, deployment_group: deployment_group} = release_with(context, @two_at_a_time)
+      catch_all = step(release, 2)
+      before = Workflows.available_slots(deployment_group, catch_all)
+
+      {:ok, _} = DeviceEvents.schedule_update(device.id, deployment_group, priority_queue: true)
+
+      assert Workflows.available_slots(deployment_group, catch_all) == before - 1
+    end
   end
 
   describe "pacing a step" do

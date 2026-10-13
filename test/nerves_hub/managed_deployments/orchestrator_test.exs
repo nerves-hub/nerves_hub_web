@@ -1535,6 +1535,122 @@ defmodule NervesHub.ManagedDeployments.OrchestratorTest do
       # Verify device1 does not have an inflight update
       refute Enum.any?(inflight_updates, &(&1.device_id == old_device1.id))
     end
+
+    test "a threshold alone does not use the priority queue while it is disabled", %{
+      deployment_group: deployment_group,
+      product: product,
+      org: org,
+      firmware: firmware,
+      user: user
+    } do
+      {:ok, deployment_group} =
+        ManagedDeployments.update_deployment_group(
+          deployment_group,
+          %{
+            priority_queue_enabled: false,
+            priority_queue_concurrent_updates: 2,
+            priority_queue_firmware_version_threshold: "1.0.0",
+            concurrent_updates: 1
+          },
+          user
+        )
+
+      deployment_group = Repo.preload(deployment_group, :org, force: true)
+
+      for {identifier, version} <- [{"old_device_1", "0.9.0"}, {"old_device_2", "0.8.0"}] do
+        connected_device_on_version(org, product, firmware, deployment_group, identifier, version)
+      end
+
+      Orchestrator.trigger_update(%{coordinator: DefaultCoordinator, deployment_group: deployment_group})
+
+      # Only the normal queue's single slot is filled
+      assert [%InflightUpdate{priority_queue: false}] = Repo.all(InflightUpdate)
+    end
+
+    test "re-triggers when a priority device is skipped while the normal queue is full", %{
+      deployment_group: deployment_group,
+      product: product,
+      org: org,
+      firmware: firmware,
+      user: user
+    } do
+      {:ok, deployment_group} =
+        ManagedDeployments.update_deployment_group(
+          deployment_group,
+          %{
+            priority_queue_enabled: true,
+            priority_queue_concurrent_updates: 1,
+            priority_queue_firmware_version_threshold: "1.0.0",
+            concurrent_updates: 1
+          },
+          user
+        )
+
+      deployment_group = Repo.preload(deployment_group, :org, force: true)
+
+      now = DateTime.utc_now()
+
+      failing =
+        connected_device_on_version(org, product, firmware, deployment_group, "failing", "0.9.0",
+          established_at: DateTime.add(now, -180, :second)
+        )
+
+      waiting =
+        connected_device_on_version(org, product, firmware, deployment_group, "waiting", "0.8.0",
+          established_at: DateTime.add(now, -120, :second)
+        )
+
+      normal =
+        connected_device_on_version(org, product, firmware, deployment_group, "normal", "1.5.0",
+          established_at: DateTime.add(now, -60, :second)
+        )
+
+      # The normal queue's only slot is taken
+      {:ok, _} = DeviceEvents.schedule_update(normal.id, deployment_group, priority_queue: false)
+      assert DefaultCoordinator.available_slots(deployment_group) == 0
+
+      # The first priority device in line is skipped for its failures
+      for _ <- 1..3, do: :ok = failing |> to_device_info() |> Updates.update_attempted()
+
+      # Starting the orchestrator runs its first pass. Skipping `failing` frees
+      # the priority slot, so it must run again and give the slot to `waiting`.
+      {:ok, _pid} =
+        start_supervised(%{
+          id: :"test_orchestrator_#{deployment_group.id}",
+          start: {Orchestrator, :start_link, [deployment_group, false]},
+          restart: :temporary
+        })
+
+      assert_eventually Repo.get_by(InflightUpdate, device_id: waiting.id, priority_queue: true)
+      refute Repo.get_by(InflightUpdate, device_id: failing.id)
+    end
+  end
+
+  defp connected_device_on_version(org, product, firmware, deployment_group, identifier, version, opts \\ []) do
+    device = Fixtures.device_fixture(org, product, firmware, %{tags: [], identifier: identifier})
+
+    {:ok, device} =
+      Devices.update_firmware_metadata(
+        device,
+        %{"version" => version, "uuid" => Ecto.UUID.generate()},
+        :validated,
+        false
+      )
+
+    device = Deployments.update_deployment_group(device, deployment_group)
+
+    {:ok, conn} = Connections.device_connecting(device.org_id, device.product_id, device.id)
+
+    conn =
+      if established_at = opts[:established_at] do
+        conn |> Ecto.Changeset.change(established_at: established_at) |> Repo.update!()
+      else
+        conn
+      end
+
+    :ok = Connections.device_connected(conn.id)
+
+    device
   end
 
   def to_device_info(device) do

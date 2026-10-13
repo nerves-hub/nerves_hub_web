@@ -62,12 +62,12 @@ defmodule NervesHub.Devices.Updates do
   - not be running the same firmware version associated with the deployment
   - not in the penalty box (based on `updates_blocked_until`)
 
-  If the deployment group has `enable_priority_updates` set to false (the default),
-  devices are ordered by their `latest_connection`: devices connected the longest will
-  be updated first.
+  If the deployment group's `queue_management` is `:FIFO` (the default), devices
+  are ordered by their `latest_connection`: devices connected the longest will be
+  updated first.
 
-  If the deployment group has `enable_priority_updates` set to true,
-  devices are ordered by most recently connected for the first time (`device.first_seen_at`)
+  If it is `:LIFO`, devices are ordered by most recently connected for the first
+  time (`device.first_seen_at`).
   """
   @spec available_for_update(DeploymentGroup.t(), non_neg_integer()) :: [Device.t()]
   def available_for_update(deployment_group, count) do
