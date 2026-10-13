@@ -37,6 +37,12 @@ defmodule NervesHubWeb.Helpers.Authorization do
 
   def authorized?(:"product:notifications:dismiss", role), do: role_check(:manage, role)
 
+  # A webhook can send any product's device events outside NervesHub, so it
+  # takes the role that can change every product.
+  def authorized?(:"webhook:create", role), do: role_check(:manage, role)
+  def authorized?(:"webhook:update", role), do: role_check(:manage, role)
+  def authorized?(:"webhook:delete", role), do: role_check(:manage, role)
+
   def authorized?(:"error_group:update", role), do: role_check(:manage, role)
 
   def authorized?(:"device:console", role), do: role_check(:manage, role)

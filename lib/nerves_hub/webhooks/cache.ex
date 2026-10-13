@@ -1,6 +1,6 @@
 defmodule NervesHub.Webhooks.Cache do
   @moduledoc """
-  Caches which of a product's webhooks are enabled and what each subscribes to,
+  Caches which webhooks hear a product's events and what each subscribes to,
   keyed by product id.
 
   Every device event asks this: each connect, disconnect, health report and
@@ -10,9 +10,11 @@ defmodule NervesHub.Webhooks.Cache do
   straight out of ETS by the calling process, so a read costs no message and
   serialises against nothing.
 
-  A change to a product's webhooks drops its entry on the spot and tells the
-  other nodes to do the same; the TTL is the backstop for a node that was not
-  there to hear it.
+  Webhooks belong to the organization, so each entry also records the
+  product's organization, and a change to any of an organization's webhooks
+  drops the entries of all its products, on the spot here and by message on
+  the other nodes. The TTL is the backstop for a node that was not there to
+  hear it.
 
   Only ids and event types are cached. URLs and secrets are read by the
   delivery worker when it sends, so a stale entry can at worst send one
@@ -29,40 +31,46 @@ defmodule NervesHub.Webhooks.Cache do
   @default_ttl_ms to_timeout(second: 30)
 
   @doc """
-  The cached value for `product_id`, or `fun.()` — stored under it and returned.
+  The cached value for `product_id`, or the value from `fun.()`, stored under
+  it and returned.
 
-  `nil` is cached like anything else: it is what a product with no webhooks
+  `fun` returns `{org_id, value}`: the product's organization, so the entry
+  can be dropped when the organization's webhooks change, and the value.
+  `org_id` is `nil` for a product that no longer exists.
+
+  `nil` is cached like any other value: it is what a product no webhook hears
   stores, and that is the case that would otherwise cost a query per event.
   """
-  @spec fetch(pos_integer(), (-> value)) :: value when value: term()
+  @spec fetch(pos_integer(), (-> {pos_integer() | nil, value})) :: value when value: term()
   def fetch(product_id, fun) do
     now = System.monotonic_time(:millisecond)
 
     case :ets.lookup(@table, product_id) do
-      [{^product_id, value, expires_at}] when expires_at > now ->
+      [{^product_id, _org_id, value, expires_at}] when expires_at > now ->
         value
 
       _miss_or_expired ->
-        value = fun.()
-        true = :ets.insert(@table, {product_id, value, now + ttl_ms()})
+        {org_id, value} = fun.()
+        true = :ets.insert(@table, {product_id, org_id, value, now + ttl_ms()})
         value
     end
   rescue
     # The table exists only once the cache has started. Without it every read
     # is a miss, which is a slower answer rather than a wrong one.
-    ArgumentError -> fun.()
+    ArgumentError -> fun.() |> elem(1)
   end
 
   @doc """
-  Forget what is cached for the product, here and on every other node.
+  Forget what is cached for every product of the organization, here and on
+  every other node.
 
   The local drop is synchronous, so an event raised by the process that just
   changed a webhook already sees the change.
   """
   @spec invalidate(pos_integer()) :: :ok
-  def invalidate(product_id) do
-    :ok = drop(product_id)
-    _ = Phoenix.PubSub.broadcast(NervesHub.PubSub, @topic, {:webhooks_changed, product_id})
+  def invalidate(org_id) do
+    :ok = drop(org_id)
+    _ = Phoenix.PubSub.broadcast(NervesHub.PubSub, @topic, {:webhooks_changed, org_id})
     :ok
   end
 
@@ -94,8 +102,8 @@ defmodule NervesHub.Webhooks.Cache do
   end
 
   @impl GenServer
-  def handle_info({:webhooks_changed, product_id}, state) do
-    :ok = drop(product_id)
+  def handle_info({:webhooks_changed, org_id}, state) do
+    :ok = drop(org_id)
 
     {:noreply, state}
   end
@@ -104,8 +112,11 @@ defmodule NervesHub.Webhooks.Cache do
   # unrecognised message is not a reason to drop either.
   def handle_info(_message, state), do: {:noreply, state}
 
-  defp drop(product_id) do
-    true = :ets.delete(@table, product_id)
+  # A scan of the table, which holds one entry per product with devices on
+  # this node: cheap enough for something that happens when a person edits a
+  # webhook.
+  defp drop(org_id) do
+    true = :ets.match_delete(@table, {:_, org_id, :_, :_})
     :ok
   rescue
     ArgumentError -> :ok

@@ -86,11 +86,11 @@ when adding or removing one.
 - `error_reports.ex` / `error_reports/` — exceptions devices report, grouped
   into issues. Split across both stores: the group in Postgres, the
   occurrences in ClickHouse. See [docs/error_reports.md](docs/error_reports.md).
-- `webhooks.ex` / `webhooks/` — product webhooks: device events POSTed to
-  endpoints a product configures (Settings → Integrations, or
-  `API.WebhookController`). Code where an event happens calls
-  `Webhooks.dispatch/3`, which costs one ETS read for a product with no
-  subscribed webhook. Deliveries are Oban jobs
+- `webhooks.ex` / `webhooks/` — webhooks: device events POSTed to endpoints
+  an organization configures, for every product or a chosen few (org
+  Integrations page, or `API.WebhookController`). Code where an event happens
+  calls `Webhooks.dispatch/3` with the product, which costs one ETS read for
+  a product no subscribed webhook hears. Deliveries are Oban jobs
   (`Workers.DeliverWebhook`), signed per Standard Webhooks, and only reach
   public addresses unless the instance allows otherwise. Event types and
   payloads are a published contract; see [docs/webhooks.md](docs/webhooks.md).

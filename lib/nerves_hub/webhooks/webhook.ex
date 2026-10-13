@@ -1,6 +1,10 @@
 defmodule NervesHub.Webhooks.Webhook do
   @moduledoc """
-  An HTTP endpoint a product sends a chosen set of device events to.
+  An HTTP endpoint an organization sends a chosen set of device events to.
+
+  A webhook hears from every product in the organization (`all_products`), or
+  only from the products it lists in `products`. Products added later are
+  covered by the first and not the second.
 
   `secret` signs every delivery (see `NervesHub.Webhooks.Signature`). It is
   generated here rather than chosen by the user, so it always has the length
@@ -15,6 +19,7 @@ defmodule NervesHub.Webhooks.Webhook do
 
   import Ecto.Changeset
 
+  alias NervesHub.Accounts.Org
   alias NervesHub.Products.Product
   alias NervesHub.Webhooks.Destination
   alias NervesHub.Webhooks.Events
@@ -24,13 +29,21 @@ defmodule NervesHub.Webhooks.Webhook do
 
   @max_url_length 2048
 
-  schema "product_webhooks" do
-    belongs_to(:product, Product)
+  schema "webhooks" do
+    belongs_to(:org, Org)
+
+    many_to_many(:products, Product,
+      join_through: "webhook_products",
+      on_replace: :delete,
+      where: [deleted_at: nil],
+      preload_order: [asc: :name]
+    )
 
     field(:url, :string)
     field(:description, :string)
     field(:secret, :string, redact: true)
     field(:events, {:array, :string}, default: [])
+    field(:all_products, :boolean, default: true)
     field(:enabled, :boolean, default: true)
     field(:disabled_reason, :string)
     field(:failing_since, :utc_datetime)
@@ -40,36 +53,48 @@ defmodule NervesHub.Webhooks.Webhook do
     timestamps()
   end
 
-  @doc """
-  A new webhook for `product`, with a freshly generated signing secret.
+  @typedoc """
+  The products a change names, as `NervesHub.Webhooks` found them in the
+  organization: those it found, and the names it did not. `nil` when the
+  change names no products, which leaves them as they are.
   """
-  @spec create_changeset(Product.t(), map()) :: Ecto.Changeset.t()
-  def create_changeset(%Product{} = product, params) do
-    %__MODULE__{product_id: product.id, secret: Signature.generate_secret()}
-    |> changeset(params)
+  @type products() :: {[Product.t()], [String.t()]} | :invalid | nil
+
+  @doc """
+  A new webhook for `org`, with a freshly generated signing secret.
+  """
+  @spec create_changeset(Org.t(), map(), products()) :: Ecto.Changeset.t()
+  def create_changeset(%Org{} = org, params, products) do
+    %__MODULE__{org_id: org.id, products: [], secret: Signature.generate_secret()}
+    |> changeset(params, products)
   end
 
   @doc """
-  The fields a person edits: where deliveries go, what they are for, and which
-  events they carry.
+  The fields a person edits: where deliveries go, what they are for, which
+  events they carry, and which products they come from.
+
+  `products` is what `params` named, already looked up in the organization
+  (see `t:products/0`), since a changeset cannot query. The webhook's
+  `products` must be loaded.
 
   Turning a webhook on clears what deliveries recorded about it, so it starts
   from a clean slate rather than looking broken because of failures that were
   the reason somebody fixed and re-enabled it.
   """
-  @spec changeset(t(), map()) :: Ecto.Changeset.t()
-  def changeset(%__MODULE__{} = webhook, params) do
+  @spec changeset(t(), map(), products()) :: Ecto.Changeset.t()
+  def changeset(%__MODULE__{} = webhook, params, products \\ nil) do
     webhook
-    |> cast(params, [:url, :description, :events, :enabled])
+    |> cast(params, [:url, :description, :events, :all_products, :enabled])
     |> update_change(:url, &String.trim/1)
     |> update_change(:description, &String.trim/1)
-    |> validate_required([:url])
+    |> validate_required([:url, :all_products])
     |> validate_length(:url, max: @max_url_length)
     |> validate_length(:description, max: 255)
     |> validate_url()
     |> validate_events()
+    |> put_product_scope(products)
     |> clear_delivery_state_on_enable()
-    |> foreign_key_constraint(:product_id)
+    |> foreign_key_constraint(:org_id)
   end
 
   @doc """
@@ -102,6 +127,35 @@ defmodule NervesHub.Webhooks.Webhook do
   defp validate_some_events(changeset) do
     if get_field(changeset, :events) == [] do
       add_error(changeset, :events, "choose at least one event")
+    else
+      changeset
+    end
+  end
+
+  # A webhook for every product keeps no list, so that limiting it later
+  # starts from an empty choice rather than a forgotten one, and names the
+  # change carries are not looked at.
+  defp put_product_scope(changeset, products) do
+    if get_field(changeset, :all_products) do
+      put_assoc(changeset, :products, [])
+    else
+      changeset
+      |> put_products(products)
+      |> require_products()
+    end
+  end
+
+  defp put_products(changeset, nil), do: changeset
+  defp put_products(changeset, :invalid), do: add_error(changeset, :products, "must be a list of product names")
+  defp put_products(changeset, {products, []}), do: put_assoc(changeset, :products, products)
+
+  defp put_products(changeset, {_products, unknown}) do
+    add_error(changeset, :products, "has no product named #{Enum.join(unknown, ", ")}")
+  end
+
+  defp require_products(changeset) do
+    if is_nil(changeset.errors[:products]) and get_field(changeset, :products) == [] do
+      add_error(changeset, :products, "choose at least one product")
     else
       changeset
     end

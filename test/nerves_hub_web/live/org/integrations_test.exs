@@ -1,15 +1,16 @@
-defmodule NervesHubWeb.Live.Product.IntegrationsTest do
+defmodule NervesHubWeb.Live.Org.IntegrationsTest do
   use NervesHubWeb.ConnCase.Browser, async: false
 
   alias NervesHub.Accounts.OrgUser
   alias NervesHub.Accounts.Scope
+  alias NervesHub.Fixtures
   alias NervesHub.Repo
   alias NervesHub.Webhooks
   alias NervesHub.Webhooks.Signature
   alias NervesHub.Webhooks.Webhook
 
-  defp webhook_fixture(%{org: org, product: product, user: user}, attrs \\ %{}) do
-    scope = %Scope{org: org, product: product, user: user}
+  defp webhook_fixture(%{org: org, user: user}, attrs \\ %{}) do
+    scope = %Scope{org: org, user: user}
 
     attrs =
       Map.merge(%{"url" => "https://hooks.example.com/nerves?token=sekrit", "events" => ["device.connected"]}, attrs)
@@ -18,31 +19,35 @@ defmodule NervesHubWeb.Live.Product.IntegrationsTest do
     webhook
   end
 
-  defp integrations_path(org, product), do: "/org/#{org.name}/#{product.name}/settings/integrations"
+  defp integrations_path(org), do: "/org/#{org.name}/settings/integrations"
 
-  test "is a tab of the product settings page", %{conn: conn, org: org, product: product} do
+  test "is in the organization's sidebar", %{conn: conn, org: org} do
     conn
-    |> visit("/org/#{org.name}/#{product.name}/settings")
+    |> visit("/org/#{org.name}/settings/keys")
     |> click_link("Integrations")
-    |> assert_path(integrations_path(org, product))
+    |> assert_path(integrations_path(org))
     |> assert_has("div", text: "Webhooks")
-    |> assert_has("p", text: "This product has no webhooks.")
-    |> click_link("Device Health")
-    |> assert_path("/org/#{org.name}/#{product.name}/settings/health")
+    |> assert_has("p", text: "This organization has no webhooks.")
   end
 
-  test "keeps the explanation short, with the rest a click away", %{conn: conn, org: org, product: product} do
+  test "is no longer a tab of the product settings", %{conn: conn, org: org, product: product} do
     conn
-    |> visit(integrations_path(org, product))
+    |> visit("/org/#{org.name}/#{product.name}/settings")
+    |> refute_has("a", text: "Integrations")
+  end
+
+  test "keeps the explanation short, with the rest a click away", %{conn: conn, org: org} do
+    conn
+    |> visit(integrations_path(org))
     |> assert_has("p", text: "as a signed JSON POST.")
     |> assert_has("#webhooks-show-more", text: "Show more")
     |> assert_has("#webhooks-more[style*='display: none']", text: "410 Gone")
     |> assert_has("#webhooks-more button", text: "Show less")
   end
 
-  test "adds a webhook", %{conn: conn, org: org, product: product} do
+  test "adds a webhook", %{conn: conn, org: org} do
     conn
-    |> visit(integrations_path(org, product))
+    |> visit(integrations_path(org))
     |> click_button("Add webhook")
     |> unwrap(fn view ->
       view
@@ -60,13 +65,95 @@ defmodule NervesHubWeb.Live.Product.IntegrationsTest do
     |> assert_has("code", text: "https://hooks.example.com/nerves")
     |> assert_has("code", text: "device.firmware_update.finished")
 
-    assert [%Webhook{events: ["device.connected", "device.firmware_update.finished"], enabled: true}] =
-             Webhooks.list_webhooks(product)
+    assert [
+             %Webhook{
+               events: ["device.connected", "device.firmware_update.finished"],
+               all_products: true,
+               enabled: true
+             }
+           ] = Webhooks.list_webhooks(org)
   end
 
-  test "says what is wrong with an invalid webhook", %{conn: conn, org: org, product: product} do
+  test "adds a webhook for some of the organization's products", context do
+    %{conn: conn, org: org, product: product, user: user} = context
+    _other = Fixtures.product_fixture(user, org, %{name: "other"})
+
     conn
-    |> visit(integrations_path(org, product))
+    |> visit(integrations_path(org))
+    |> click_button("Add webhook")
+    |> unwrap(fn view ->
+      view
+      |> form("#webhook-form", webhook: %{all_products: "false"})
+      |> render_change()
+
+      view
+      |> form("#webhook-form",
+        webhook: %{
+          url: "https://hooks.example.com/nerves",
+          all_products: "false",
+          products: ["", product.name],
+          events: ["", "device.connected"]
+        }
+      )
+      |> render_submit()
+    end)
+    |> assert_has("[role='alert']", text: "The webhook was added.")
+    |> assert_has("div", text: "Products: #{product.name}")
+
+    assert [%Webhook{all_products: false, products: [%{name: name}]}] = Webhooks.list_webhooks(org)
+    assert name == product.name
+  end
+
+  test "lists the products to choose from once the webhook is limited", context do
+    %{conn: conn, org: org, product: product} = context
+
+    conn
+    |> visit(integrations_path(org))
+    |> click_button("Add webhook")
+    |> refute_has("#webhook-form label", text: product.name)
+    |> unwrap(fn view ->
+      view
+      |> form("#webhook-form", webhook: %{all_products: "false"})
+      |> render_change()
+    end)
+    |> assert_has("#webhook-form label", text: product.name)
+  end
+
+  test "needs a product when the webhook is limited", %{conn: conn, org: org} do
+    conn
+    |> visit(integrations_path(org))
+    |> click_button("Add webhook")
+    |> unwrap(fn view ->
+      view
+      |> form("#webhook-form",
+        webhook: %{
+          url: "https://hooks.example.com/nerves",
+          all_products: "false",
+          products: [""],
+          events: ["", "device.connected"]
+        }
+      )
+      |> render_submit()
+    end)
+    |> assert_has("#webhook-form", text: "choose at least one product")
+
+    assert Webhooks.list_webhooks(org) == []
+  end
+
+  test "shows the products each webhook sends events for", context do
+    %{conn: conn, org: org, product: product} = context
+    every = webhook_fixture(context)
+    some = webhook_fixture(context, %{"products" => [product.name]})
+
+    conn
+    |> visit(integrations_path(org))
+    |> assert_has("#webhook-#{every.id} div", text: "Products: Every product")
+    |> assert_has("#webhook-#{some.id} div", text: "Products: #{product.name}")
+  end
+
+  test "says what is wrong with an invalid webhook", %{conn: conn, org: org} do
+    conn
+    |> visit(integrations_path(org))
     |> click_button("Add webhook")
     |> unwrap(fn view ->
       view
@@ -76,15 +163,15 @@ defmodule NervesHubWeb.Live.Product.IntegrationsTest do
     |> assert_has("#webhook-form", text: "must start with https:// or http://")
     |> assert_has("#webhook-form", text: "choose at least one event")
 
-    assert Webhooks.list_webhooks(product) == []
+    assert Webhooks.list_webhooks(org) == []
   end
 
   test "edits a webhook's events", context do
-    %{conn: conn, org: org, product: product} = context
+    %{conn: conn, org: org} = context
     webhook = webhook_fixture(context)
 
     conn
-    |> visit(integrations_path(org, product))
+    |> visit(integrations_path(org))
     |> within("#webhook-#{webhook.id}", &click_button(&1, "Edit"))
     |> unwrap(fn view ->
       view
@@ -97,12 +184,12 @@ defmodule NervesHubWeb.Live.Product.IntegrationsTest do
   end
 
   test "turns a webhook off and on", context do
-    %{conn: conn, org: org, product: product} = context
+    %{conn: conn, org: org} = context
     webhook = webhook_fixture(context)
 
     session =
       conn
-      |> visit(integrations_path(org, product))
+      |> visit(integrations_path(org))
       |> within("#webhook-#{webhook.id}", &click_button(&1, "Turn off"))
       |> assert_has("#webhook-#{webhook.id} span", text: "Off")
 
@@ -116,7 +203,7 @@ defmodule NervesHubWeb.Live.Product.IntegrationsTest do
   end
 
   test "shows why a webhook was turned off, and that one is failing", context do
-    %{conn: conn, org: org, product: product} = context
+    %{conn: conn, org: org} = context
     failing = webhook_fixture(context)
     :ok = Webhooks.record_failure(failing, 500, "HTTP 500")
 
@@ -124,7 +211,7 @@ defmodule NervesHubWeb.Live.Product.IntegrationsTest do
     :disabled = Webhooks.record_failure(gone, 410, "HTTP 410")
 
     conn
-    |> visit(integrations_path(org, product))
+    |> visit(integrations_path(org))
     |> assert_has("#webhook-#{failing.id} span", text: "Failing")
     |> assert_has("#webhook-#{failing.id} p", text: "HTTP 500")
     |> assert_has("#webhook-#{gone.id} span", text: "Off")
@@ -132,11 +219,11 @@ defmodule NervesHubWeb.Live.Product.IntegrationsTest do
   end
 
   test "regenerates a webhook's secret", context do
-    %{conn: conn, org: org, product: product} = context
+    %{conn: conn, org: org} = context
     webhook = webhook_fixture(context)
 
     conn
-    |> visit(integrations_path(org, product))
+    |> visit(integrations_path(org))
     |> within("#webhook-#{webhook.id}", &click_button(&1, "Regenerate"))
     |> assert_has("[role='alert']", text: "A new signing secret was generated.")
 
@@ -144,20 +231,20 @@ defmodule NervesHubWeb.Live.Product.IntegrationsTest do
   end
 
   test "removes a webhook", context do
-    %{conn: conn, org: org, product: product} = context
+    %{conn: conn, org: org} = context
     webhook = webhook_fixture(context)
 
     conn
-    |> visit(integrations_path(org, product))
+    |> visit(integrations_path(org))
     |> within("#webhook-#{webhook.id}", &click_button(&1, "Delete"))
     |> assert_has("[role='alert']", text: "The webhook to hooks.example.com was removed.")
     |> refute_has("#webhook-#{webhook.id}")
 
-    assert Webhooks.list_webhooks(product) == []
+    assert Webhooks.list_webhooks(org) == []
   end
 
   test "sends a signed test event and shows the answer", context do
-    %{conn: conn, org: org, product: product} = context
+    %{conn: conn, org: org} = context
     webhook = webhook_fixture(context)
     test_pid = self()
 
@@ -168,13 +255,15 @@ defmodule NervesHubWeb.Live.Product.IntegrationsTest do
     end)
 
     conn
-    |> visit(integrations_path(org, product))
+    |> visit(integrations_path(org))
     |> within("#webhook-#{webhook.id}", &click_button(&1, "Send test event"))
     |> unwrap(&render_async/1)
     |> assert_has("[role='alert']", text: "The test event was delivered to hooks.example.com, which answered HTTP 202.")
 
     assert_received {:delivered, headers, body}
-    assert %{"type" => "webhook.test", "data" => %{"product" => %{"name" => "Hop"}}} = Jason.decode!(body)
+    assert %{"type" => "webhook.test", "data" => %{"org" => %{"name" => org_name}} = data} = Jason.decode!(body)
+    assert org_name == org.name
+    refute Map.has_key?(data, "product")
 
     assert Signature.verify(
              webhook.secret,
@@ -186,13 +275,13 @@ defmodule NervesHubWeb.Live.Product.IntegrationsTest do
   end
 
   test "reports a test event the endpoint refused", context do
-    %{conn: conn, org: org, product: product} = context
+    %{conn: conn, org: org} = context
     webhook = webhook_fixture(context)
 
     Req.Test.stub(Webhooks, &Plug.Conn.send_resp(&1, 500, ""))
 
     conn
-    |> visit(integrations_path(org, product))
+    |> visit(integrations_path(org))
     |> within("#webhook-#{webhook.id}", &click_button(&1, "Send test event"))
     |> unwrap(&render_async/1)
     |> assert_has("[role='alert']", text: "The test event to hooks.example.com failed: HTTP 500")
@@ -202,16 +291,16 @@ defmodule NervesHubWeb.Live.Product.IntegrationsTest do
   end
 
   test "hides the add button at the limit", context do
-    %{conn: conn, org: org, product: product} = context
-    for _ <- 1..Webhooks.max_webhooks_per_product(), do: webhook_fixture(context)
+    %{conn: conn, org: org} = context
+    for _ <- 1..Webhooks.max_webhooks_per_org(), do: webhook_fixture(context)
 
     conn
-    |> visit(integrations_path(org, product))
+    |> visit(integrations_path(org))
     |> refute_has("button", text: "Add webhook")
-    |> assert_has("p", text: "This product has the most webhooks it can have")
+    |> assert_has("p", text: "This organization has the most webhooks it can have")
   end
 
-  describe "a member who cannot change the product" do
+  describe "a member who cannot manage webhooks" do
     setup context do
       webhook = webhook_fixture(context)
       Repo.update_all(OrgUser, set: [role: :view])
@@ -222,11 +311,10 @@ defmodule NervesHubWeb.Live.Product.IntegrationsTest do
     test "sees each webhook's host and events, but not its URL or secret", %{
       conn: conn,
       org: org,
-      product: product,
       webhook: webhook
     } do
       conn
-      |> visit(integrations_path(org, product))
+      |> visit(integrations_path(org))
       |> assert_has("#webhook-#{webhook.id} code", text: "hooks.example.com")
       |> assert_has("#webhook-#{webhook.id} code", text: "device.connected")
       |> refute_has("#webhook-#{webhook.id} code", text: "sekrit")
@@ -238,10 +326,9 @@ defmodule NervesHubWeb.Live.Product.IntegrationsTest do
     test "cannot change a webhook by sending the event anyway", %{
       conn: conn,
       org: org,
-      product: product,
       webhook: webhook
     } do
-      session = visit(conn, integrations_path(org, product))
+      session = visit(conn, integrations_path(org))
 
       Process.flag(:trap_exit, true)
 

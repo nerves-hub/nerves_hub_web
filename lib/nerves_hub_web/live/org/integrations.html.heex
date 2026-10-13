@@ -1,27 +1,7 @@
 <NervesHubWeb.Layouts.sidebar flash={@flash} current_scope={@current_scope} sidebar_tab={@sidebar_tab}>
   <:header>
-    <h1 class="text-xl leading-[30px] font-semibold text-base-50">Product Settings</h1>
+    <h1 class="text-xl leading-[30px] font-semibold text-base-50">Integrations</h1>
   </:header>
-
-  <%!-- Separate LiveViews rather than actions of one, so these navigate. --%>
-  <:tabbed_nav
-    path={~p"/org/#{@current_scope.org}/#{@current_scope.product}/settings"}
-    selected={@tab == :general}
-    navigate={true}
-    label="General"
-  />
-  <:tabbed_nav
-    path={~p"/org/#{@current_scope.org}/#{@current_scope.product}/settings/health"}
-    selected={@tab == :health}
-    navigate={true}
-    label="Device Health"
-  />
-  <:tabbed_nav
-    path={~p"/org/#{@current_scope.org}/#{@current_scope.product}/settings/integrations"}
-    selected={@tab == :integrations}
-    navigate={true}
-    label="Integrations"
-  />
 
   <div class="h-0 flex-1 overflow-y-auto">
     <div class="flex flex-col items-start justify-between gap-4 p-6">
@@ -29,10 +9,10 @@
         <div class="flex h-14 items-center justify-between border-b border-base-700 px-4">
           <div class="text-base font-medium text-base-50">Webhooks</div>
           <.button
-            :if={is_nil(@editing) && length(@webhooks) < Webhooks.max_webhooks_per_product()}
+            :if={is_nil(@editing) && length(@webhooks) < Webhooks.max_webhooks_per_org()}
             type="button"
             phx-click="new"
-            disabled={!authorized?(:"product:update", @current_scope)}
+            disabled={!authorized?(:"webhook:create", @current_scope)}
             aria-label="Add a webhook"
           >
             <.icon name="add" />Add webhook
@@ -42,7 +22,7 @@
         <%!-- The rest is shown on request: the form and the list are what people come here for. Hidden with an inline style rather than `hidden`, which Tailwind makes `!important` and JS.show cannot override. --%>
         <div class="flex flex-col gap-3 p-6">
           <p class="w-2/3 text-sm">
-            A webhook sends this product's device events to a URL you choose, as a signed JSON <code>POST</code>.
+            A webhook sends device events from every product in this organization, or from the ones you choose, to a URL you choose, as a signed JSON <code>POST</code>.
             <button
               id="webhooks-show-more"
               type="button"
@@ -59,7 +39,8 @@
             </p>
             <p>
               A delivery that is not answered with a 2xx status is retried for about two and a half hours. An endpoint that
-              accepts nothing for a day, or answers <code>410 Gone</code>, is turned off, and a notification says so.
+              accepts nothing for a day, or answers <code>410 Gone</code>, is turned off, and each product it was sending
+              events for gets a notification saying so.
             </p>
             <p>
               See the <.link class="underline" href="https://github.com/nerves-hub/nerves_hub_web/blob/main/docs/webhooks.md" target="_blank">webhook documentation</.link>
@@ -92,6 +73,50 @@
             <.input field={@form[:description]} label="Description" hint="Optional: what receives these events" />
           </div>
 
+          <div class="flex flex-col gap-3">
+            <div class="text-sm font-medium text-base-300">Products</div>
+            <label for="webhook-all-products-true" class="flex items-center gap-3">
+              <input
+                id="webhook-all-products-true"
+                type="radio"
+                name="webhook[all_products]"
+                value="true"
+                checked={all_products?(@form)}
+                class="border-base-700 text-base-400 checked:bg-primary focus:ring-0"
+              />
+              <span class="text-sm text-base-300">Every product, including products added later</span>
+            </label>
+            <label for="webhook-all-products-false" class="flex items-center gap-3">
+              <input
+                id="webhook-all-products-false"
+                type="radio"
+                name="webhook[all_products]"
+                value="false"
+                checked={!all_products?(@form)}
+                class="border-base-700 text-base-400 checked:bg-primary focus:ring-0"
+              />
+              <span class="text-sm text-base-300">Only these products</span>
+            </label>
+
+            <input type="hidden" name="webhook[products][]" value="" />
+            <div :if={!all_products?(@form)} class="ml-7 flex flex-col gap-1">
+              <label :for={product <- @products} for={"product-#{product.id}"} class="flex items-center gap-3 py-1">
+                <input
+                  id={"product-#{product.id}"}
+                  type="checkbox"
+                  name="webhook[products][]"
+                  value={product.name}
+                  checked={MapSet.member?(selected_products(@form), product.name)}
+                  class="rounded border-base-700 text-base-400 checked:bg-primary focus:ring-0"
+                />
+                <span class="text-sm text-base-300">{product.name}</span>
+              </label>
+              <p :if={@products == []} class="text-sm text-base-400">This organization has no products yet.</p>
+            </div>
+
+            <.error :for={message <- checkbox_errors(@form, :products)}>{message}</.error>
+          </div>
+
           <div class="flex flex-col gap-4">
             <div class="text-sm font-medium text-base-300">Events</div>
             <input type="hidden" name="webhook[events][]" value="" />
@@ -117,7 +142,7 @@
               </label>
             </div>
 
-            <.error :for={message <- events_errors(@form)}>{message}</.error>
+            <.error :for={message <- checkbox_errors(@form, :events)}>{message}</.error>
           </div>
 
           <div class="flex gap-3">
@@ -129,7 +154,7 @@
         </.form>
 
         <div :if={@webhooks == [] && is_nil(@form)} class="border-t border-base-700 p-6">
-          <p class="text-sm text-base-400">This product has no webhooks.</p>
+          <p class="text-sm text-base-400">This organization has no webhooks.</p>
         </div>
 
         <div
@@ -143,15 +168,15 @@
                 <span class="font-medium text-base-50">{webhook.description || host(webhook)}</span>
                 <.status_badge webhook={webhook} />
               </div>
-              <code :if={authorized?(:"product:update", @current_scope)} class="text-sm break-all text-base-400">
+              <code :if={authorized?(:"webhook:update", @current_scope)} class="text-sm break-all text-base-400">
                 {webhook.url}
               </code>
-              <code :if={!authorized?(:"product:update", @current_scope)} class="text-sm text-base-400">
+              <code :if={!authorized?(:"webhook:update", @current_scope)} class="text-sm text-base-400">
                 {host(webhook)}
               </code>
             </div>
 
-            <div :if={authorized?(:"product:update", @current_scope)} class="flex flex-wrap items-center gap-2">
+            <div :if={authorized?(:"webhook:update", @current_scope)} class="flex flex-wrap items-center gap-2">
               <.button
                 type="button"
                 phx-click="send-test"
@@ -204,6 +229,7 @@
                       {if webhook.enabled, do: "Turn off", else: "Turn on"}
                     </button>
                     <button
+                      :if={authorized?(:"webhook:delete", @current_scope)}
                       type="button"
                       role="menuitem"
                       phx-click={JS.push("delete", value: %{webhook_id: webhook.id}) |> hide_menu(webhook.id)}
@@ -216,6 +242,10 @@
                 </div>
               </div>
             </div>
+          </div>
+
+          <div class="text-sm text-base-400">
+            <span class="text-base-300">Products:</span> {scope_label(webhook)}
           </div>
 
           <div class="flex flex-wrap gap-2">
@@ -235,9 +265,9 @@
             <.local_datetime at={webhook.last_error_at} time_zone={@time_zone} format={:time} />: {webhook.last_error}
           </p>
 
-          <div :if={authorized?(:"product:update", @current_scope)} class="flex flex-wrap items-center gap-3 text-sm text-base-400">
+          <div :if={authorized?(:"webhook:update", @current_scope)} class="flex flex-wrap items-center gap-3 text-sm text-base-400">
             <span>Signing secret</span>
-            <%!-- Left out rather than hidden for members who cannot manage the product: anyone holding it can forge deliveries. --%>
+            <%!-- Left out rather than hidden for members who cannot manage webhooks: anyone holding it can forge deliveries. --%>
             <button
               id={"webhook-#{webhook.id}-copy-secret"}
               type="button"
@@ -261,9 +291,9 @@
           </div>
         </div>
 
-        <div :if={length(@webhooks) >= Webhooks.max_webhooks_per_product()} class="border-t border-base-700 p-6">
+        <div :if={length(@webhooks) >= Webhooks.max_webhooks_per_org()} class="border-t border-base-700 p-6">
           <p class="text-sm text-base-400">
-            This product has the most webhooks it can have ({Webhooks.max_webhooks_per_product()}). Remove one to add another.
+            This organization has the most webhooks it can have ({Webhooks.max_webhooks_per_org()}). Remove one to add another.
           </p>
         </div>
       </div>

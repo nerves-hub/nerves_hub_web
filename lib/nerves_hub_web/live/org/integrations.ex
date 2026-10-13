@@ -1,26 +1,26 @@
-defmodule NervesHubWeb.Live.Product.Integrations do
+defmodule NervesHubWeb.Live.Org.Integrations do
   @moduledoc """
-  The product settings tab for webhooks: where a product's device events are
-  sent, which ones, and how each endpoint is doing.
+  The organization's webhooks: where its products' device events are sent,
+  which events, from which products, and how each endpoint is doing.
 
-  Members who cannot change the product see each webhook's host, events and
-  state, but not its URL or signing secret. Some receivers carry credentials
-  in the URL itself, so it is treated like the secret.
+  Members who cannot manage webhooks see each webhook's host, events, products
+  and state, but not its URL or signing secret. Some receivers carry
+  credentials in the URL itself, so it is treated like the secret.
   """
   use NervesHubWeb, :live_view
 
+  alias NervesHub.Products
   alias NervesHub.Webhooks
   alias NervesHub.Webhooks.Events
   alias NervesHub.Webhooks.Webhook
+  alias Phoenix.HTML.Form
 
-  def mount(_params, _session, socket) do
-    product = socket.assigns.current_scope.product
-
+  def mount(_params, _session, %{assigns: %{current_scope: scope}} = socket) do
     socket
-    |> assign(:page_title, "#{product.name} Integrations")
-    |> sidebar_tab(:settings)
-    |> assign(:tab, :integrations)
-    |> assign(:product, product)
+    |> page_title("Integrations - #{scope.org.name}")
+    |> sidebar_tab(:integrations)
+    |> assign(:org, scope.org)
+    |> assign(:products, Products.get_products(scope))
     |> assign(:event_groups, Events.grouped())
     |> assign(:testing, MapSet.new())
     |> close_form()
@@ -29,22 +29,22 @@ defmodule NervesHubWeb.Live.Product.Integrations do
   end
 
   def handle_event("new", _params, socket) do
-    authorized!(:"product:update", socket.assigns.current_scope)
+    authorized!(:"webhook:create", socket.assigns.current_scope)
 
     socket
     |> assign(:editing, :new)
-    |> assign(:form, to_form(Webhooks.change_webhook(%Webhook{})))
+    |> assign(:form, to_form(Webhooks.change_webhook(socket.assigns.org, %Webhook{products: []})))
     |> noreply()
   end
 
   def handle_event("edit", %{"webhook_id" => id}, socket) do
-    authorized!(:"product:update", socket.assigns.current_scope)
+    authorized!(:"webhook:update", socket.assigns.current_scope)
 
-    webhook = Webhooks.get_webhook!(socket.assigns.product, id)
+    webhook = Webhooks.get_webhook!(socket.assigns.org, id)
 
     socket
     |> assign(:editing, webhook)
-    |> assign(:form, to_form(Webhooks.change_webhook(webhook)))
+    |> assign(:form, to_form(Webhooks.change_webhook(socket.assigns.org, webhook)))
     |> noreply()
   end
 
@@ -56,9 +56,8 @@ defmodule NervesHubWeb.Live.Product.Integrations do
 
   def handle_event("validate", %{"webhook" => params}, socket) do
     changeset =
-      socket.assigns.editing
-      |> form_subject()
-      |> Webhooks.change_webhook(webhook_params(params))
+      socket.assigns.org
+      |> Webhooks.change_webhook(form_subject(socket.assigns.editing), webhook_params(params))
       |> Map.put(:action, :validate)
 
     socket
@@ -67,9 +66,10 @@ defmodule NervesHubWeb.Live.Product.Integrations do
   end
 
   def handle_event("save", %{"webhook" => params}, socket) do
-    authorized!(:"product:update", socket.assigns.current_scope)
-
     %{current_scope: scope, editing: editing} = socket.assigns
+
+    authorized!(if(editing == :new, do: :"webhook:create", else: :"webhook:update"), scope)
+
     params = webhook_params(params)
 
     result =
@@ -94,15 +94,15 @@ defmodule NervesHubWeb.Live.Product.Integrations do
       {:error, :too_many_webhooks} ->
         socket
         |> close_form()
-        |> put_flash(:error, "A product can have at most #{Webhooks.max_webhooks_per_product()} webhooks.")
+        |> put_flash(:error, "An organization can have at most #{Webhooks.max_webhooks_per_org()} webhooks.")
         |> noreply()
     end
   end
 
   def handle_event("toggle", %{"webhook_id" => id}, socket) do
-    authorized!(:"product:update", socket.assigns.current_scope)
+    authorized!(:"webhook:update", socket.assigns.current_scope)
 
-    webhook = Webhooks.get_webhook!(socket.assigns.product, id)
+    webhook = Webhooks.get_webhook!(socket.assigns.org, id)
 
     case Webhooks.update_webhook(socket.assigns.current_scope, webhook, %{enabled: !webhook.enabled}) do
       {:ok, updated} ->
@@ -119,9 +119,9 @@ defmodule NervesHubWeb.Live.Product.Integrations do
   end
 
   def handle_event("regenerate-secret", %{"webhook_id" => id}, socket) do
-    authorized!(:"product:update", socket.assigns.current_scope)
+    authorized!(:"webhook:update", socket.assigns.current_scope)
 
-    webhook = Webhooks.get_webhook!(socket.assigns.product, id)
+    webhook = Webhooks.get_webhook!(socket.assigns.org, id)
     {:ok, _webhook} = Webhooks.regenerate_secret(socket.assigns.current_scope, webhook)
 
     socket
@@ -131,9 +131,9 @@ defmodule NervesHubWeb.Live.Product.Integrations do
   end
 
   def handle_event("delete", %{"webhook_id" => id}, socket) do
-    authorized!(:"product:update", socket.assigns.current_scope)
+    authorized!(:"webhook:delete", socket.assigns.current_scope)
 
-    webhook = Webhooks.get_webhook!(socket.assigns.product, id)
+    webhook = Webhooks.get_webhook!(socket.assigns.org, id)
     {:ok, _webhook} = Webhooks.delete_webhook(socket.assigns.current_scope, webhook)
 
     socket
@@ -146,9 +146,9 @@ defmodule NervesHubWeb.Live.Product.Integrations do
   # The request runs off the LiveView process: an endpoint that does not
   # answer would otherwise freeze the page for the whole timeout.
   def handle_event("send-test", %{"webhook_id" => id}, socket) do
-    authorized!(:"product:update", socket.assigns.current_scope)
+    authorized!(:"webhook:update", socket.assigns.current_scope)
 
-    webhook = Webhooks.get_webhook!(socket.assigns.product, id)
+    webhook = Webhooks.get_webhook!(socket.assigns.org, id)
     scope = socket.assigns.current_scope
 
     socket
@@ -174,7 +174,7 @@ defmodule NervesHubWeb.Live.Product.Integrations do
   end
 
   defp assign_webhooks(socket) do
-    assign(socket, :webhooks, Webhooks.list_webhooks(socket.assigns.product))
+    assign(socket, :webhooks, Webhooks.list_webhooks(socket.assigns.org))
   end
 
   defp close_form(socket) do
@@ -183,15 +183,19 @@ defmodule NervesHubWeb.Live.Product.Integrations do
     |> assign(:form, nil)
   end
 
-  defp form_subject(:new), do: %Webhook{}
+  defp form_subject(:new), do: %Webhook{products: []}
   defp form_subject(%Webhook{} = webhook), do: webhook
 
-  # The event checkboxes post a blank alongside the checked boxes, so that
-  # unticking every box still sends `events` and the changeset can say one is
-  # needed. The blank is not an event.
+  # The event and product checkboxes post a blank alongside the checked boxes,
+  # so that unticking every box still sends the field and the changeset can
+  # say one is needed. The blank is not an event or a product.
   defp webhook_params(params) do
-    Map.update(params, "events", [], fn events -> Enum.reject(List.wrap(events), &(&1 == "")) end)
+    params
+    |> Map.update("events", [], &drop_blank/1)
+    |> Map.update("products", [], &drop_blank/1)
   end
+
+  defp drop_blank(values), do: Enum.reject(List.wrap(values), &(&1 == ""))
 
   defp host(%Webhook{url: url}), do: URI.parse(url).host
 
@@ -199,15 +203,31 @@ defmodule NervesHubWeb.Live.Product.Integrations do
     form[:events].value || []
   end
 
+  defp all_products?(form) do
+    Form.normalize_value("checkbox", form[:all_products].value)
+  end
+
+  # The products the form has ticked, by name, as the changeset holds them:
+  # products, or changesets for them once put on the webhook.
+  defp selected_products(form) do
+    form.source
+    |> Ecto.Changeset.get_field(:products, [])
+    |> MapSet.new(& &1.name)
+  end
+
   # Held back until somebody has ticked a box or submitted, the way `.input`
   # holds back its own errors, so the form does not open by complaining.
-  defp events_errors(form) do
-    if Phoenix.Component.used_input?(form[:events]) do
-      Enum.map(form[:events].errors, &translate_error/1)
+  defp checkbox_errors(form, field) do
+    if Phoenix.Component.used_input?(form[field]) do
+      Enum.map(form[field].errors, &translate_error/1)
     else
       []
     end
   end
+
+  defp scope_label(%Webhook{all_products: true}), do: "Every product"
+  defp scope_label(%Webhook{products: []}), do: "No products"
+  defp scope_label(%Webhook{products: products}), do: Enum.map_join(products, ", ", & &1.name)
 
   # A webhook's Edit, Turn off and Delete sit behind a "more" menu, the way the
   # device page's update-mode menu works.

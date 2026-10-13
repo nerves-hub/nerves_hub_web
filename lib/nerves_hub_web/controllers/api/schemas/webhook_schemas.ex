@@ -8,7 +8,7 @@ defmodule NervesHubWeb.API.Schemas.WebhookSchemas do
     require OpenApiSpex
 
     OpenApiSpex.schema(%{
-      description: "A product webhook, without its signing secret",
+      description: "An organization webhook, without its signing secret",
       type: :object,
       properties: %{
         id: %Schema{type: :integer},
@@ -18,6 +18,16 @@ defmodule NervesHubWeb.API.Schemas.WebhookSchemas do
           type: :array,
           items: %Schema{type: :string, enum: Events.types()},
           description: "The event types delivered to this webhook"
+        },
+        all_products: %Schema{
+          type: :boolean,
+          description:
+            "Whether the webhook sends the events of every product in the organization, including products added later"
+        },
+        products: %Schema{
+          type: :array,
+          items: %Schema{type: :string},
+          description: "The names of the products whose events are sent, when `all_products` is false"
         },
         enabled: %Schema{type: :boolean, description: "Whether events are being sent"},
         disabled_reason: %Schema{
@@ -41,6 +51,8 @@ defmodule NervesHubWeb.API.Schemas.WebhookSchemas do
         "url" => "https://hooks.example.com/nerves-hub",
         "description" => "Fleet dashboard",
         "events" => ["device.connected", "device.disconnected"],
+        "all_products" => false,
+        "products" => ["thermostat"],
         "enabled" => true,
         "disabled_reason" => nil,
         "failing_since" => nil,
@@ -75,6 +87,8 @@ defmodule NervesHubWeb.API.Schemas.WebhookSchemas do
         "url" => "https://hooks.example.com/nerves-hub",
         "description" => "Fleet dashboard",
         "events" => ["device.connected", "device.disconnected"],
+        "all_products" => false,
+        "products" => ["thermostat"],
         "enabled" => true,
         "disabled_reason" => nil,
         "failing_since" => nil,
@@ -89,7 +103,7 @@ defmodule NervesHubWeb.API.Schemas.WebhookSchemas do
 
   defmodule WebhookListResponse do
     OpenApiSpex.schema(%{
-      description: "The product's webhooks, oldest first",
+      description: "The organization's webhooks, oldest first",
       type: :object,
       properties: %{data: %Schema{type: :array, items: Webhook}}
     })
@@ -113,7 +127,7 @@ defmodule NervesHubWeb.API.Schemas.WebhookSchemas do
 
   defmodule WebhookCreateRequest do
     OpenApiSpex.schema(%{
-      description: "POST body for adding a webhook to a product",
+      description: "POST body for adding a webhook to an organization",
       type: :object,
       properties: %{
         url: %Schema{type: :string, description: "An `https://` or `http://` URL with no username or password"},
@@ -123,13 +137,24 @@ defmodule NervesHubWeb.API.Schemas.WebhookSchemas do
           items: %Schema{type: :string, enum: Events.types()},
           description: "At least one event type"
         },
+        all_products: %Schema{
+          type: :boolean,
+          description:
+            "Send the events of every product in the organization, including products added later. Defaults to true, or to false when `products` is given."
+        },
+        products: %Schema{
+          type: :array,
+          items: %Schema{type: :string},
+          description: "The names of the products whose events to send, instead of every product's"
+        },
         enabled: %Schema{type: :boolean, default: true}
       },
       required: [:url, :events],
       example: %{
         "url" => "https://hooks.example.com/nerves-hub",
         "description" => "Fleet dashboard",
-        "events" => ["device.connected", "device.disconnected"]
+        "events" => ["device.connected", "device.disconnected"],
+        "products" => ["thermostat"]
       }
     })
   end
@@ -143,9 +168,18 @@ defmodule NervesHubWeb.API.Schemas.WebhookSchemas do
         url: %Schema{type: :string},
         description: %Schema{type: :string},
         events: %Schema{type: :array, items: %Schema{type: :string, enum: Events.types()}},
+        all_products: %Schema{
+          type: :boolean,
+          description: "Send every product's events. Given `products` without this, it is taken as false."
+        },
+        products: %Schema{
+          type: :array,
+          items: %Schema{type: :string},
+          description: "The names of the products whose events to send, replacing the current list"
+        },
         enabled: %Schema{type: :boolean}
       },
-      example: %{"events" => ["device.connected"], "enabled" => true}
+      example: %{"events" => ["device.connected"], "all_products" => true, "enabled" => true}
     })
   end
 

@@ -10,45 +10,75 @@ defmodule NervesHubWeb.API.WebhookControllerTest do
   alias NervesHub.Webhooks.Signature
   alias NervesHub.Webhooks.Webhook
 
-  defp webhooks_path(org, product), do: ~p"/api/orgs/#{org.name}/products/#{product.name}/webhooks"
-  defp webhooks_path(org, product, id), do: ~p"/api/orgs/#{org.name}/products/#{product.name}/webhooks/#{id}"
+  defp webhooks_path(org), do: ~p"/api/orgs/#{org.name}/webhooks"
+  defp webhooks_path(org, id), do: ~p"/api/orgs/#{org.name}/webhooks/#{id}"
 
-  defp webhook_fixture(%{org: org, product: product, user: user}, attrs \\ %{}) do
+  defp webhook_fixture(%{org: org, user: user}, attrs \\ %{}) do
     attrs = Map.merge(%{"url" => "https://hooks.example.com/nerves", "events" => ["device.connected"]}, attrs)
-    {:ok, webhook} = Webhooks.create_webhook(%Scope{org: org, product: product, user: user}, attrs)
+    {:ok, webhook} = Webhooks.create_webhook(%Scope{org: org, user: user}, attrs)
     webhook
   end
 
   describe "create" do
-    test "adds a webhook and returns its secret, once", %{conn: conn, org: org, product: product, user: user} do
+    test "adds a webhook and returns its secret, once", %{conn: conn, org: org, user: user} do
       body = %{
         "url" => "https://hooks.example.com/nerves",
         "description" => "Fleet dashboard",
         "events" => ["device.connected", "device.health_status_changed"]
       }
 
-      data = conn |> post(webhooks_path(org, product), body) |> json_response(201) |> Map.fetch!("data")
+      data = conn |> post(webhooks_path(org), body) |> json_response(201) |> Map.fetch!("data")
 
       assert %{
                "url" => "https://hooks.example.com/nerves",
                "description" => "Fleet dashboard",
                "events" => ["device.connected", "device.health_status_changed"],
+               "all_products" => true,
+               "products" => [],
                "enabled" => true,
                "failing_since" => nil,
                "secret" => "whsec_" <> _
              } = data
 
-      assert {:ok, webhook} = Webhooks.fetch_webhook(product, data["id"])
+      assert {:ok, webhook} = Webhooks.fetch_webhook(org, data["id"])
       assert webhook.secret == data["secret"]
 
-      assert [%{actor_id: actor_id}] = AuditLogs.logs_for(product)
+      assert [%{actor_id: actor_id}] = AuditLogs.logs_for(org)
       assert actor_id == user.id
     end
 
-    test "says what is wrong with an invalid webhook", %{conn: conn, org: org, product: product} do
+    test "limits a webhook to the products it names", %{conn: conn, org: org, product: product} do
+      body = %{
+        "url" => "https://hooks.example.com/nerves",
+        "events" => ["device.connected"],
+        "products" => [product.name]
+      }
+
+      data = conn |> post(webhooks_path(org), body) |> json_response(201) |> Map.fetch!("data")
+
+      assert %{"all_products" => false, "products" => [product_name]} = data
+      assert product_name == product.name
+    end
+
+    test "refuses a product the organization does not have", %{conn: conn, org: org, user: user} do
+      other_org = Fixtures.org_fixture(user, %{name: "elsewhere"})
+      theirs = Fixtures.product_fixture(user, other_org, %{name: "theirs"})
+
+      body = %{
+        "url" => "https://hooks.example.com/nerves",
+        "events" => ["device.connected"],
+        "products" => [theirs.name]
+      }
+
+      errors = conn |> post(webhooks_path(org), body) |> json_response(422) |> Map.fetch!("errors")
+
+      assert errors == %{"products" => ["has no product named theirs"]}
+    end
+
+    test "says what is wrong with an invalid webhook", %{conn: conn, org: org} do
       errors =
         conn
-        |> post(webhooks_path(org, product), %{"url" => "ftp://example.com", "events" => ["device.exploded"]})
+        |> post(webhooks_path(org), %{"url" => "ftp://example.com", "events" => ["device.exploded"]})
         |> json_response(422)
         |> Map.fetch!("errors")
 
@@ -58,35 +88,35 @@ defmodule NervesHubWeb.API.WebhookControllerTest do
              }
     end
 
-    test "refuses a webhook past the per-product limit", context do
-      %{conn: conn, org: org, product: product} = context
-      for _ <- 1..Webhooks.max_webhooks_per_product(), do: webhook_fixture(context)
+    test "refuses a webhook past the per-organization limit", context do
+      %{conn: conn, org: org} = context
+      for _ <- 1..Webhooks.max_webhooks_per_org(), do: webhook_fixture(context)
 
       body = %{"url" => "https://hooks.example.com/one-more", "events" => ["device.connected"]}
-      response = conn |> post(webhooks_path(org, product), body) |> json_response(422)
+      response = conn |> post(webhooks_path(org), body) |> json_response(422)
 
-      assert response["errors"]["detail"] =~ "at most 10 webhooks"
+      assert response["errors"]["detail"] =~ "at most 20 webhooks"
     end
   end
 
   describe "index and show" do
-    test "list the product's webhooks without their secrets", context do
-      %{conn: conn, org: org, product: product} = context
+    test "list the organization's webhooks without their secrets", context do
+      %{conn: conn, org: org} = context
       first = webhook_fixture(context)
       second = webhook_fixture(context, %{"events" => ["device.disconnected"]})
 
-      data = conn |> get(webhooks_path(org, product)) |> json_response(200) |> Map.fetch!("data")
+      data = conn |> get(webhooks_path(org)) |> json_response(200) |> Map.fetch!("data")
 
       assert Enum.map(data, & &1["id"]) == [first.id, second.id]
       refute Enum.any?(data, &Map.has_key?(&1, "secret"))
     end
 
     test "show one webhook, with its delivery state", context do
-      %{conn: conn, org: org, product: product} = context
+      %{conn: conn, org: org} = context
       webhook = webhook_fixture(context)
       :ok = Webhooks.record_failure(webhook, 500, "HTTP 500")
 
-      data = conn |> get(webhooks_path(org, product, webhook.id)) |> json_response(200) |> Map.fetch!("data")
+      data = conn |> get(webhooks_path(org, webhook.id)) |> json_response(200) |> Map.fetch!("data")
 
       assert %{"id" => id, "last_error" => "HTTP 500", "failing_since" => failing_since} = data
       assert id == webhook.id
@@ -94,25 +124,25 @@ defmodule NervesHubWeb.API.WebhookControllerTest do
       refute Map.has_key?(data, "secret")
     end
 
-    test "is not found for an unknown id, a malformed one, or another product's webhook", context do
-      %{conn: conn, org: org, product: product, user: user} = context
-      other_product = Fixtures.product_fixture(user, org, %{name: "other"})
-      other = webhook_fixture(%{context | product: other_product})
+    test "is not found for an unknown id, a malformed one, or another organization's webhook", context do
+      %{conn: conn, org: org, user: user} = context
+      other_org = Fixtures.org_fixture(user, %{name: "elsewhere"})
+      other = webhook_fixture(%{context | org: other_org})
 
-      assert conn |> get(webhooks_path(org, product, 123_456_789)) |> json_response(404)
-      assert conn |> get(webhooks_path(org, product, "not-a-number")) |> json_response(404)
-      assert conn |> get(webhooks_path(org, product, other.id)) |> json_response(404)
+      assert conn |> get(webhooks_path(org, 123_456_789)) |> json_response(404)
+      assert conn |> get(webhooks_path(org, "not-a-number")) |> json_response(404)
+      assert conn |> get(webhooks_path(org, other.id)) |> json_response(404)
     end
   end
 
   describe "update" do
     test "changes the events and turns the webhook off", context do
-      %{conn: conn, org: org, product: product} = context
+      %{conn: conn, org: org} = context
       webhook = webhook_fixture(context)
 
       data =
         conn
-        |> patch(webhooks_path(org, product, webhook.id), %{"events" => ["device.disconnected"], "enabled" => false})
+        |> patch(webhooks_path(org, webhook.id), %{"events" => ["device.disconnected"], "enabled" => false})
         |> json_response(200)
         |> Map.fetch!("data")
 
@@ -122,13 +152,35 @@ defmodule NervesHubWeb.API.WebhookControllerTest do
       assert secret == webhook.secret
     end
 
-    test "says what is wrong with an invalid change", context do
+    test "changes the products", context do
       %{conn: conn, org: org, product: product} = context
+      webhook = webhook_fixture(context)
+
+      data =
+        conn
+        |> patch(webhooks_path(org, webhook.id), %{"products" => [product.name]})
+        |> json_response(200)
+        |> Map.fetch!("data")
+
+      assert %{"all_products" => false, "products" => [product_name]} = data
+      assert product_name == product.name
+
+      data =
+        conn
+        |> patch(webhooks_path(org, webhook.id), %{"all_products" => true})
+        |> json_response(200)
+        |> Map.fetch!("data")
+
+      assert %{"all_products" => true, "products" => []} = data
+    end
+
+    test "says what is wrong with an invalid change", context do
+      %{conn: conn, org: org} = context
       webhook = webhook_fixture(context)
 
       errors =
         conn
-        |> put(webhooks_path(org, product, webhook.id), %{"events" => []})
+        |> put(webhooks_path(org, webhook.id), %{"events" => []})
         |> json_response(422)
         |> Map.fetch!("errors")
 
@@ -137,20 +189,20 @@ defmodule NervesHubWeb.API.WebhookControllerTest do
   end
 
   test "delete removes the webhook", context do
-    %{conn: conn, org: org, product: product} = context
+    %{conn: conn, org: org} = context
     webhook = webhook_fixture(context)
 
-    assert conn |> delete(webhooks_path(org, product, webhook.id)) |> response(204)
-    assert {:error, :not_found} = Webhooks.fetch_webhook(product, webhook.id)
+    assert conn |> delete(webhooks_path(org, webhook.id)) |> response(204)
+    assert {:error, :not_found} = Webhooks.fetch_webhook(org, webhook.id)
   end
 
   test "regenerate_secret returns a new secret", context do
-    %{conn: conn, org: org, product: product} = context
+    %{conn: conn, org: org} = context
     webhook = webhook_fixture(context)
 
     data =
       conn
-      |> post(webhooks_path(org, product, webhook.id) <> "/regenerate_secret")
+      |> post(webhooks_path(org, webhook.id) <> "/regenerate_secret")
       |> json_response(200)
       |> Map.fetch!("data")
 
@@ -161,7 +213,7 @@ defmodule NervesHubWeb.API.WebhookControllerTest do
 
   describe "send_test" do
     test "sends a signed test event and reports the answer", context do
-      %{conn: conn, org: org, product: product} = context
+      %{conn: conn, org: org} = context
       webhook = webhook_fixture(context)
       test_pid = self()
 
@@ -173,14 +225,15 @@ defmodule NervesHubWeb.API.WebhookControllerTest do
 
       data =
         conn
-        |> post(webhooks_path(org, product, webhook.id) <> "/test")
+        |> post(webhooks_path(org, webhook.id) <> "/test")
         |> json_response(200)
         |> Map.fetch!("data")
 
       assert data == %{"delivered" => true, "status" => 202, "error" => nil}
 
       assert_received {:delivered, headers, body}
-      assert %{"type" => "webhook.test"} = Jason.decode!(body)
+      assert %{"type" => "webhook.test", "data" => %{"org" => %{"name" => org_name}}} = Jason.decode!(body)
+      assert org_name == org.name
 
       assert Signature.verify(
                webhook.secret,
@@ -192,14 +245,14 @@ defmodule NervesHubWeb.API.WebhookControllerTest do
     end
 
     test "reports an endpoint that refused it", context do
-      %{conn: conn, org: org, product: product} = context
+      %{conn: conn, org: org} = context
       webhook = webhook_fixture(context)
 
       Req.Test.stub(Webhooks, &Plug.Conn.send_resp(&1, 500, ""))
 
       data =
         conn
-        |> post(webhooks_path(org, product, webhook.id) <> "/test")
+        |> post(webhooks_path(org, webhook.id) <> "/test")
         |> json_response(200)
         |> Map.fetch!("data")
 
@@ -214,30 +267,30 @@ defmodule NervesHubWeb.API.WebhookControllerTest do
     end
 
     test "cannot list, read, add or change webhooks", context do
-      %{conn2: conn2, org: org, product: product, webhook: webhook} = context
+      %{conn2: conn2, org: org, webhook: webhook} = context
 
-      assert_error_sent(401, fn -> get(conn2, webhooks_path(org, product)) end)
-      assert_error_sent(401, fn -> get(conn2, webhooks_path(org, product, webhook.id)) end)
+      assert_error_sent(401, fn -> get(conn2, webhooks_path(org)) end)
+      assert_error_sent(401, fn -> get(conn2, webhooks_path(org, webhook.id)) end)
 
       assert_error_sent(401, fn ->
-        post(conn2, webhooks_path(org, product), %{
+        post(conn2, webhooks_path(org), %{
           "url" => "https://evil.example.com",
           "events" => ["device.connected"]
         })
       end)
 
-      assert_error_sent(401, fn -> delete(conn2, webhooks_path(org, product, webhook.id)) end)
-      assert_error_sent(401, fn -> post(conn2, webhooks_path(org, product, webhook.id) <> "/regenerate_secret") end)
+      assert_error_sent(401, fn -> delete(conn2, webhooks_path(org, webhook.id)) end)
+      assert_error_sent(401, fn -> post(conn2, webhooks_path(org, webhook.id) <> "/regenerate_secret") end)
 
       assert Repo.reload!(webhook)
-      assert [_only_the_fixture] = Webhooks.list_webhooks(product)
+      assert [_only_the_fixture] = Webhooks.list_webhooks(org)
     end
   end
 
   test "the endpoints are in the OpenAPI spec", %{conn: conn} do
     paths = conn |> get("/api/openapi") |> json_response(200) |> Map.fetch!("paths")
 
-    base = "/api/orgs/{org_name}/products/{product_name}/webhooks"
+    base = "/api/orgs/{org_name}/webhooks"
 
     assert Map.keys(paths["#{base}"]) |> Enum.sort() == ["get", "post"]
     assert Map.keys(paths["#{base}/{id}"]) |> Enum.sort() == ["delete", "get", "patch", "put"]

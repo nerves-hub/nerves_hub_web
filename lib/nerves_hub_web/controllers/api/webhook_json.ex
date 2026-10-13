@@ -1,6 +1,6 @@
 defmodule NervesHubWeb.API.WebhookJSON do
   @moduledoc """
-  Renders product webhooks.
+  Renders an organization's webhooks.
 
   Webhooks are built field by field so the signing secret cannot slip in.
   `with_secret/1` is the one view that includes it, and only the actions that
@@ -33,6 +33,8 @@ defmodule NervesHubWeb.API.WebhookJSON do
       url: webhook.url,
       description: webhook.description,
       events: webhook.events,
+      all_products: webhook.all_products,
+      products: Enum.map(webhook.products, & &1.name),
       enabled: webhook.enabled,
       disabled_reason: webhook.disabled_reason,
       failing_since: webhook.failing_since,

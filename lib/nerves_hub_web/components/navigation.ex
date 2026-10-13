@@ -117,6 +117,12 @@ defmodule NervesHubWeb.Components.Navigation do
         selected={:certificates == @selected_tab}
         icon="data-[selected=false]:lucide-shield-check--light data-[selected=true]:lucide-shield-check"
       />
+      <.nav_link
+        label="Integrations"
+        path={~p"/org/#{@scope.org}/settings/integrations"}
+        selected={:integrations == @selected_tab}
+        icon="data-[selected=false]:lucide-webhook--light data-[selected=true]:lucide-webhook"
+      />
       <.nav_link label="Settings" path={~p"/org/#{@scope.org}/settings"} selected={:settings == @selected_tab} icon="data-[selected=false]:lucide-settings--light data-[selected=true]:lucide-settings" />
     </ul>
     """

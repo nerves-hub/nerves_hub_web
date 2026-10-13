@@ -1,10 +1,12 @@
 # Webhooks
 
-A product can send its device events to HTTP endpoints you run: a device
-connecting or disconnecting, health and metrics reports, and the progress and
-outcome of firmware updates. Webhooks are set up on the product's
-**Settings → Integrations** tab, or through the [API](#managing-webhooks-with-the-api),
-by members who can change the product.
+An organization can send its devices' events to HTTP endpoints you run: a
+device connecting or disconnecting, health and metrics reports, and the
+progress and outcome of firmware updates. Each webhook sends the events of
+every product in the organization, including products added later, or of the
+products you choose. Webhooks are set up on the organization's
+**Integrations** page, or through the [API](#managing-webhooks-with-the-api),
+by members with the `manage` role.
 
 This document is the contract for receivers. Event types and the shape of each
 event's `data` only grow: keys may be added, and are never renamed or removed
@@ -28,8 +30,8 @@ Each event is a `POST` with a JSON body:
 ```
 
 `timestamp` is when the event happened, not when it was sent. Every event
-carries `org` and `product`, so one endpoint can serve several products, and
-every event about a device carries `device`.
+carries `org`, every event about a device carries `product` and `device`, so
+one endpoint can serve several products.
 
 Headers follow the [Standard Webhooks](https://www.standardwebhooks.com)
 specification:
@@ -48,8 +50,8 @@ that has not been answered within 15 seconds counts as failed.
 
 ### Verifying signatures
 
-Each webhook has its own signing secret, shown (to members who can change the
-product) as **Copy** beside the webhook. It looks like `whsec_` followed by
+Each webhook has its own signing secret, shown (to members with the `manage`
+role) as **Copy** beside the webhook. It looks like `whsec_` followed by
 base64.
 
 The signature is the HMAC-SHA256, keyed with the base64-decoded part of the
@@ -83,7 +85,7 @@ Without a library, check that `webhook-timestamp` is within a few minutes of
 your clock, then compare your signature with each space-separated entry in
 `webhook-signature` using a constant-time comparison.
 
-**Send test event** on the Integrations tab sends a `webhook.test` event to
+**Send test event** on the Integrations page sends a `webhook.test` event to
 the webhook straight away and shows how your endpoint answered. It is a good
 way to check verification before subscribing to real events.
 
@@ -102,19 +104,19 @@ a later event, and in rare cases an event is delivered twice. Use
 
 ### When an endpoint keeps failing
 
-While an endpoint is failing, the Integrations tab shows it as **Failing**
+While an endpoint is failing, the Integrations page shows it as **Failing**
 with the latest error. Deliveries in the 30 seconds after a failure are not
 sent and count as failed attempts, so an endpoint that is down does not hold up
 deliveries to other endpoints.
 
-A webhook is turned off, and the product gets a notification, when its
-endpoint:
+A webhook is turned off, and each product it was sending events for gets a
+notification, when its endpoint:
 
 - has accepted no delivery for 24 hours, or
 - answers `410 Gone`, which tells NervesHub to stop.
 
 Deliveries for a webhook that is turned off are dropped, not saved for later.
-Turn it back on from the Integrations tab once the endpoint is fixed.
+Turn it back on from the Integrations page once the endpoint is fixed.
 
 ### Where a webhook can point
 
@@ -331,6 +333,10 @@ beyond `device`.
 
 ### `webhook.test`
 
+Sent only by **Send test event**, to the one webhook being tested. It is about
+the webhook rather than a device, so it carries `org` and no `product` or
+`device`.
+
 ```json
 {
   "message": "A test event sent by Jane Doe from NervesHub."
@@ -339,21 +345,28 @@ beyond `device`.
 
 ## Managing webhooks with the API
 
-A product's webhooks can also be managed through the NervesHub API, under
-`/api/orgs/{org_name}/products/{product_name}/webhooks`. Every endpoint needs
+An organization's webhooks can also be managed through the NervesHub API,
+under `/api/orgs/{org_name}/webhooks`. Every endpoint needs
 the organization `manage` role, reading included, because a webhook's URL can
 carry the receiver's credentials. The full request and response schemas are
 in the API documentation at `/api/docs`, under **Webhooks**.
 
 | Request | Does |
 | --- | --- |
-| `GET /webhooks` | Lists the product's webhooks. |
-| `POST /webhooks` | Adds one, from `url`, `events` and optionally `description` and `enabled`. |
+| `GET /webhooks` | Lists the organization's webhooks. |
+| `POST /webhooks` | Adds one, from `url`, `events` and optionally `description`, `products`, `all_products` and `enabled`. |
 | `GET /webhooks/{id}` | Gets one, with its delivery state (`failing_since`, `last_error`, `disabled_reason`). |
-| `PATCH /webhooks/{id}` | Changes `url`, `description`, `events` or `enabled`. |
+| `PATCH /webhooks/{id}` | Changes `url`, `description`, `events`, `products`, `all_products` or `enabled`. |
 | `DELETE /webhooks/{id}` | Removes it. |
 | `POST /webhooks/{id}/regenerate_secret` | Replaces the signing secret. |
 | `POST /webhooks/{id}/test` | Sends a `webhook.test` event and returns `delivered`, `status` and `error`. |
+
+Products are named, as in the rest of the API. A webhook with
+`"all_products": true` (the default) sends every product's events, including
+products added later. To send only some, pass `"products": ["thermostat",
+"doorbell"]`: naming products sets `all_products` to `false` unless the request
+says otherwise. Responses list the products in `products`, which is empty for
+a webhook sending every product's events.
 
 The signing secret is only returned by `POST /webhooks` and
 `regenerate_secret`, never when listing or getting a webhook. A caller that

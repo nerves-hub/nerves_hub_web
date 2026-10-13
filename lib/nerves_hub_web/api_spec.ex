@@ -130,7 +130,7 @@ defmodule NervesHubWeb.ApiSpec do
         },
         %Tag{
           name: "Webhooks",
-          description: "Endpoints a Product sends its Device events to"
+          description: "Endpoints an Organization sends its Products' Device events to"
         },
         %Tag{
           name: "Platform Status",

@@ -262,7 +262,7 @@ defmodule NervesHubWeb.API.FallbackController do
     |> put_status(422)
     |> put_view(ErrorJSON)
     |> render(:"422", %{
-      reason: "A product can have at most #{Webhooks.max_webhooks_per_product()} webhooks. Delete one to add another."
+      reason: "An organization can have at most #{Webhooks.max_webhooks_per_org()} webhooks. Delete one to add another."
     })
   end
 

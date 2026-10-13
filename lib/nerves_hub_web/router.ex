@@ -7,6 +7,7 @@ defmodule NervesHubWeb.Router do
 
   alias Live.Org.CertificateAuthorities
   alias Live.Org.Delete
+  alias Live.Org.Integrations
   alias Live.Org.IrohEndpoints
   alias Live.Org.Settings
   alias Live.Org.Show
@@ -18,7 +19,6 @@ defmodule NervesHubWeb.Router do
   alias Live.Product.Errors
   alias Live.Product.HealthProfiles
   alias Live.Product.Insights
-  alias Live.Product.Integrations
   alias Live.Product.Notifications
   alias Live.SupportScripts.Edit
   alias NervesHubWeb.API.Plugs.Device
@@ -139,6 +139,17 @@ defmodule NervesHubWeb.Router do
             delete("/:identifier", IrohEndpointController, :delete)
           end
 
+          scope "/webhooks" do
+            get("/", WebhookController, :index)
+            post("/", WebhookController, :create)
+            get("/:id", WebhookController, :show)
+            put("/:id", WebhookController, :update)
+            patch("/:id", WebhookController, :update)
+            delete("/:id", WebhookController, :delete)
+            post("/:id/regenerate_secret", WebhookController, :regenerate_secret)
+            post("/:id/test", WebhookController, :send_test)
+          end
+
           scope "/ca_certificates" do
             get("/", CACertificateController, :index)
             get("/verification_token", CACertificateController, :verification_token)
@@ -232,17 +243,6 @@ defmodule NervesHubWeb.Router do
                 post("/", ScriptController, :create)
                 put("/:id", ScriptController, :update)
                 delete("/:id", ScriptController, :delete)
-              end
-
-              scope "/webhooks" do
-                get("/", WebhookController, :index)
-                post("/", WebhookController, :create)
-                get("/:id", WebhookController, :show)
-                put("/:id", WebhookController, :update)
-                patch("/:id", WebhookController, :update)
-                delete("/:id", WebhookController, :delete)
-                post("/:id/regenerate_secret", WebhookController, :regenerate_secret)
-                post("/:id/test", WebhookController, :send_test)
               end
             end
           end
@@ -363,6 +363,7 @@ defmodule NervesHubWeb.Router do
       # Gated as well as hidden from the sidebar: a hidden link still leaves the
       # URL typeable, so the LiveView refuses to mount when the flag is off.
       live("/org/:org_name/settings/iroh-endpoints", IrohEndpoints)
+      live("/org/:org_name/settings/integrations", Integrations)
 
       live("/org/:org_name/settings/certificates", CertificateAuthorities, :index)
       live("/org/:org_name/settings/certificates/new", CertificateAuthorities, :new)
@@ -477,7 +478,6 @@ defmodule NervesHubWeb.Router do
 
       live("/org/:org_name/:product_name/settings", Live.Product.Settings)
       live("/org/:org_name/:product_name/settings/health", HealthProfiles)
-      live("/org/:org_name/:product_name/settings/integrations", Integrations)
     end
   end
 

@@ -315,27 +315,33 @@ defmodule NervesHub.ProductNotifications do
   end
 
   @doc """
-  A webhook was turned off because of how its endpoint answered.
+  A webhook was turned off because of how its endpoint answered. One
+  notification for each product in `product_ids`, the products whose events
+  the webhook was sending.
 
   Raised to the operator because nothing else will notice: the receiving
-  system simply stops hearing about devices. Names the endpoint by its host,
-  since some receivers carry credentials in the URL itself.
+  system simply stops hearing about devices. Webhooks belong to the
+  organization, which has no notifications of its own, so the products whose
+  events stopped carry it. Names the endpoint by its host, since some
+  receivers carry credentials in the URL itself.
   """
-  @spec create_webhook_disabled_notification!(Webhook.t(), String.t()) :: Notification.t()
-  def create_webhook_disabled_notification!(%Webhook{} = webhook, reason) do
+  @spec create_webhook_disabled_notifications!(Webhook.t(), [pos_integer()], String.t()) :: [Notification.t()]
+  def create_webhook_disabled_notifications!(%Webhook{} = webhook, product_ids, reason) do
     host = URI.parse(webhook.url).host
 
-    %Product{id: webhook.product_id}
-    |> Notification.new_changeset(%{
-      title: "A webhook was turned off.",
-      message:
-        "NervesHub stopped sending events to #{host} because #{reason}. Once the endpoint is " <>
-          "fixed, turn the webhook back on from the product's Integrations settings.",
-      level: :error,
-      metadata: %{webhook_id: webhook.id, host: host},
-      event_key: "webhook_disabled-#{webhook.id}"
-    })
-    |> insert_and_notify!()
+    for product_id <- product_ids do
+      %Product{id: product_id}
+      |> Notification.new_changeset(%{
+        title: "A webhook was turned off.",
+        message:
+          "NervesHub stopped sending events to #{host} because #{reason}. Once the endpoint is " <>
+            "fixed, turn the webhook back on from the organization's Integrations settings.",
+        level: :error,
+        metadata: %{webhook_id: webhook.id, host: host},
+        event_key: "webhook_disabled-#{webhook.id}"
+      })
+      |> insert_and_notify!()
+    end
   end
 
   @doc """
