@@ -22,25 +22,20 @@ defmodule NervesHubWeb.Integrations.Slack.Commands do
 
   Slack wants an answer within three seconds, so everything is answered
   straight away except a script, which can take up to 30 seconds to run: it
-  is acknowledged, run in a task, and its output sent through the command's
-  `response_url`.
+  is acknowledged, then run in a task by `NervesHubWeb.Integrations.Slack.ScriptRuns`, which
+  sends its output through the command's `response_url`, with a button for
+  sharing it in the channel.
   """
 
-  alias NervesHub.AuditLogs.DeviceTemplates
   alias NervesHub.DeviceEvents
   alias NervesHub.Devices.Device
   alias NervesHub.Devices.Health
-  alias NervesHub.Integrations.Slack.Client
   alias NervesHub.Integrations.Slack.Messages
   alias NervesHub.Repo
   alias NervesHub.Scripts
   alias NervesHub.Tracker
   alias NervesHubWeb.Integrations.Slack.Actions
-
-  require Logger
-
-  # Slack's limit on a section's text, less room for the code fences.
-  @max_output 2900
+  alias NervesHubWeb.Integrations.Slack.ScriptRuns
 
   @typedoc "The slash command request, as Slack sent it."
   @type request() :: %{
@@ -248,7 +243,7 @@ defmodule NervesHubWeb.Integrations.Slack.Commands do
          true <- Tracker.online?(device) || {:offline, device} do
       {:ok, _pid} =
         Task.Supervisor.start_child(NervesHub.TaskSupervisor, fn ->
-          :ok = run_and_respond(request, user, device, script)
+          :ok = ScriptRuns.run(request, user, device, script)
         end)
 
       private("Running `#{Actions.escape(script.name)}` on *#{Actions.escape(device.identifier)}*...")
@@ -265,42 +260,6 @@ defmodule NervesHubWeb.Integrations.Slack.Commands do
         private(message)
     end
   end
-
-  # Only the person who ran it sees the output, which can be anything the
-  # device holds.
-  defp run_and_respond(request, user, device, script) do
-    :ok = DeviceTemplates.audit_script_run(user, device, script.name, Actions.via(request))
-
-    message =
-      case Scripts.Runner.send(device, script) do
-        {:ok, output} ->
-          "`#{Actions.escape(script.name)}` on *#{Actions.escape(device.identifier)}*:\n```#{output |> to_string() |> truncate() |> Actions.escape()}```"
-
-        {:error, error} ->
-          "`#{Actions.escape(script.name)}` on *#{Actions.escape(device.identifier)}* did not finish: #{Actions.escape(error)}"
-      end
-
-    respond(request, private(message))
-  end
-
-  defp truncate(output) do
-    if String.length(output) > @max_output do
-      String.slice(output, 0, @max_output) <> "\n… (cut short at #{@max_output} characters)"
-    else
-      output
-    end
-  end
-
-  defp respond(%{response_url: url}, message) when is_binary(url) do
-    case Client.respond(url, message) do
-      {:ok, _} -> :ok
-      {:error, error} -> Logger.warning("Could not send a Slack command's answer: #{inspect(error)}")
-    end
-
-    :ok
-  end
-
-  defp respond(_request, _message), do: :ok
 
   defp private(text) when is_binary(text), do: %{response_type: "ephemeral", text: text}
   defp private(%{} = message), do: Map.put(message, :response_type, "ephemeral")

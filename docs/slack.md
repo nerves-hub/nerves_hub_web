@@ -68,7 +68,7 @@ A device asked to reboot from Slack is not asked again from Slack for a minute, 
 | `/nerveshub link` | Links your Slack account to your NervesHub account. |
 | `/nerveshub help` | Lists these. |
 
-What a command shows is seen only by whoever typed it. That includes a script's output, which can hold anything the device does, and is cut at 2,900 characters. A reboot or identify that was done is posted to the channel, saying who did it, and recorded in the device's audit log as the buttons' are. A script run from Slack is recorded in the audit log too.
+What a command shows is seen only by whoever typed it. That includes a script's output, which can hold anything the device does, and is cut at 2,900 characters. The output comes with a **Share in channel** button: whoever ran the script can post it to the channel, as themselves, once, within 30 minutes. A reboot or identify that was done is posted to the channel, saying who did it, and recorded in the device's audit log as the buttons' are. A script run from Slack is recorded in the audit log too.
 
 Viewing a device and running support scripts take the organization's `view` role, as they do in NervesHub. Identify and reboot take `manage`.
 
@@ -87,6 +87,8 @@ The app asks for these bot scopes when it is installed:
 | `commands` | Slash commands and message actions. |
 
 Slack only grants new scopes when the app is installed again, so the app asked for all of these from the start, `commands` included.
+
+Script output run from Slack is kept for 30 minutes, so that whoever ran it can share it, and is then deleted.
 
 For each linked Slack user, NervesHub keeps their Slack user id and name, the workspace's id and name, and the NervesHub user they linked to. Signing in with Slack asks for the `openid` and `profile` scopes, only to read who signed in; NervesHub does not keep the token.
 

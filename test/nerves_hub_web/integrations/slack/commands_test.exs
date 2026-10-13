@@ -198,8 +198,14 @@ defmodule NervesHubWeb.Integrations.Slack.CommandsTest do
       assert device_id == device.id
 
       assert_receive {:slack, "hooks.slack.com", "/commands/T0ACME/1/abc", body}, 2000
-      assert %{"response_type" => "ephemeral", "text" => text} = Jason.decode!(body)
-      assert text =~ "```/dev/root 42% &lt;!channel&gt;```"
+      assert %{"response_type" => "ephemeral", "blocks" => blocks} = Jason.decode!(body)
+      texts = for %{"type" => "section", "text" => %{"text" => text}} <- blocks, do: text
+      assert "```/dev/root 42% &lt;!channel&gt;```" in texts
+
+      assert [%{"elements" => [%{"action_id" => "script.share", "value" => result_id}]}] =
+               Enum.filter(blocks, &(&1["type"] == "actions"))
+
+      assert {:ok, _} = Ecto.UUID.cast(result_id)
 
       assert [log | _] = AuditLogs.logs_for(device)
       assert log.description =~ "ran support script disk usage on device #{device.identifier} from Slack user U0ALICE"

@@ -6,6 +6,7 @@ defmodule NervesHubWeb.Integrations.Slack.ActionsTest do
   alias NervesHub.Devices.Connections
   alias NervesHub.Fixtures
   alias NervesHub.Integrations.Slack
+  alias NervesHub.Integrations.Slack.ScriptResults
   alias NervesHub.Integrations.Slack.UserLink
   alias NervesHubWeb.Integrations.Slack.Actions
   alias Phoenix.Socket.Broadcast
@@ -242,6 +243,32 @@ defmodule NervesHubWeb.Integrations.Slack.ActionsTest do
 
       assert_receive %Broadcast{event: "identify"}, 2000
       refute_receive %Broadcast{event: "identify"}, 300
+    end
+
+    test "shares a script's output when its Share button is clicked", %{device: device, user: user} do
+      :ok = link!(user)
+
+      id =
+        ScriptResults.store(%{
+          user_id: user.id,
+          team_id: "T0ACME",
+          slack_user_id: "U0ALICE",
+          device_identifier: device.identifier,
+          script_name: "uptime",
+          output: "up 3 days"
+        })
+
+      payload = %{
+        "type" => "block_actions",
+        "team" => %{"id" => "T0ACME"},
+        "user" => %{"id" => "U0ALICE"},
+        "response_url" => @response_url,
+        "actions" => [%{"action_id" => "script.share", "value" => id}]
+      }
+
+      assert :ok = Actions.handle_interaction(payload)
+      assert_receive {:slack, "hooks.slack.com", _path, body}, 2000
+      assert %{"response_type" => "in_channel"} = Jason.decode!(body)
     end
 
     test "ignores link buttons and anything else Slack sends", %{device: device} do

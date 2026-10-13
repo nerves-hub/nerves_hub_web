@@ -41,6 +41,7 @@ defmodule NervesHubWeb.Integrations.Slack.Actions do
   alias NervesHub.Repo
   alias NervesHub.Tracker
   alias NervesHubWeb.Helpers.Authorization
+  alias NervesHubWeb.Integrations.Slack.ScriptRuns
 
   require Logger
 
@@ -80,8 +81,8 @@ defmodule NervesHubWeb.Integrations.Slack.Actions do
   def handle_interaction(%{"type" => "block_actions", "actions" => actions} = payload) when is_list(actions) do
     _ =
       if first_time?(payload) do
-        for action <- actions, click = click(payload, action), not is_nil(click) do
-          {:ok, _pid} = Task.Supervisor.start_child(NervesHub.TaskSupervisor, fn -> perform(click) end)
+        for action <- actions, job = job(payload, action), not is_nil(job) do
+          {:ok, _pid} = Task.Supervisor.start_child(NervesHub.TaskSupervisor, job)
         end
       end
 
@@ -89,6 +90,32 @@ defmodule NervesHubWeb.Integrations.Slack.Actions do
   end
 
   def handle_interaction(_payload), do: :ok
+
+  # What a click asks for, as a function to run in a task, or `nil` for a
+  # click NervesHub does nothing with (a link button, say).
+  defp job(payload, %{"action_id" => "script.share", "value" => result_id}) when is_binary(result_id) do
+    case payload do
+      %{"team" => %{"id" => team_id}, "user" => %{"id" => slack_user_id}} ->
+        share = %{
+          result_id: result_id,
+          team_id: team_id,
+          slack_user_id: slack_user_id,
+          response_url: payload["response_url"]
+        }
+
+        fn -> ScriptRuns.share(share) end
+
+      _ ->
+        nil
+    end
+  end
+
+  defp job(payload, action) do
+    case click(payload, action) do
+      nil -> nil
+      click -> fn -> perform(click) end
+    end
+  end
 
   defp click(payload, %{"action_id" => action_id, "value" => identifier})
        when is_map_key(@actions, action_id) and is_binary(identifier) do
