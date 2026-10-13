@@ -52,6 +52,24 @@ When a linked user clicks, NervesHub checks, at that moment:
 
 If any check fails, only the person who clicked is told why. If they all pass, the device is asked to reboot or identify itself, the audit log records the user with "from Slack", and a reply in the message's thread tells the channel who did what.
 
+## Slash commands
+
+`/nerveshub` works in any channel of a connected workspace, as the NervesHub user the Slack user linked, with the same checks as the buttons:
+
+| Command | Does |
+| --- | --- |
+| `/nerveshub device <identifier>` | Shows the device's connection, firmware version, health and product, with its buttons. |
+| `/nerveshub identify <identifier>` | Asks the device to identify itself. |
+| `/nerveshub reboot <identifier>` | Reboots the device. |
+| `/nerveshub script <identifier>` | Lists the support scripts for the device's product. |
+| `/nerveshub script <identifier> <name>` | Runs a support script on the device, and shows its output. |
+| `/nerveshub link` | Links your Slack account to your NervesHub account. |
+| `/nerveshub help` | Lists these. |
+
+What a command shows is seen only by whoever typed it. That includes a script's output, which can hold anything the device does, and is cut at 2,900 characters. A reboot or identify that was done is posted to the channel, saying who did it, and recorded in the device's audit log as the buttons' are. A script run from Slack is recorded in the audit log too.
+
+Viewing a device and running support scripts take the organization's `view` role, as they do in NervesHub. Identify and reboot take `manage`.
+
 ## What NervesHub keeps
 
 For each workspace, NervesHub keeps its id and name, the app's bot user, the scopes granted, and the bot token Slack issued. The bot token is encrypted with AES-256-GCM before it is stored, using `SECRETS_ENCRYPTION_KEY`, so a copy of the database alone does not reveal it.
@@ -66,7 +84,7 @@ The app asks for these bot scopes when it is installed:
 | `groups:read` | List private channels the app has been invited to. |
 | `commands` | Slash commands and message actions. |
 
-Slack only grants new scopes when the app is installed again, so the app asks for all of them now. That way a workspace connected today does not need reconnecting when commands arrive.
+Slack only grants new scopes when the app is installed again, so the app asked for all of these from the start, `commands` included.
 
 For each linked Slack user, NervesHub keeps their Slack user id and name, the workspace's id and name, and the NervesHub user they linked to. Signing in with Slack asks for the `openid` and `profile` scopes, only to read who signed in; NervesHub does not keep the token.
 
@@ -88,7 +106,16 @@ For each linked Slack user, NervesHub keeps their Slack user id and name, the wo
     "bot_user": {
       "display_name": "NervesHub",
       "always_online": true
-    }
+    },
+    "slash_commands": [
+      {
+        "command": "/nerveshub",
+        "url": "https://nerves-hub.example.com/integrations/slack/commands",
+        "description": "Check on and act on NervesHub devices",
+        "usage_hint": "device | identify | reboot | script <identifier> [script] | link | help",
+        "should_escape": false
+      }
+    ]
   },
   "oauth_config": {
     "redirect_urls": [
@@ -117,7 +144,7 @@ For each linked Slack user, NervesHub keeps their Slack user id and name, the wo
 
 Slack checks the events URL when the manifest is saved, so the instance must already be reachable at that URL with `SLACK_SIGNING_SECRET` set. If it is not yet, save the manifest without `event_subscriptions`, configure and restart the instance, then add them back.
 
-An app created before buttons arrived needs `interactivity` added to its manifest, and the `/integrations/slack/link/callback` redirect URL. Without them, clicking Identify or Reboot shows an error, and linking an account fails.
+An app created before buttons arrived needs `interactivity` added to its manifest, and the `/integrations/slack/link/callback` redirect URL. Without them, clicking Identify or Reboot shows an error, and linking an account fails. An app created before slash commands arrived needs `slash_commands` added.
 
 ## Requests from Slack
 

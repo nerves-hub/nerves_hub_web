@@ -109,42 +109,65 @@ defmodule NervesHubWeb.Integrations.Slack.Actions do
   def perform(click) do
     %{permission: permission, verb: verb} = Map.fetch!(@actions, click.action_id)
 
-    with {:user, %Accounts.User{} = user} <- {:user, Users.linked_user(click.team_id, click.slack_user_id)},
-         {:device, %Device{} = device} <- {:device, device(click.identifier)},
-         {:connected, true} <- {:connected, connected?(device.org_id, click.team_id)},
+    case authorize(click.team_id, click.slack_user_id, click.identifier, permission, "ask a device to #{verb}") do
+      {:ok, user, device} ->
+        if Tracker.online?(device) do
+          {:ok, _device} = act(click.action_id, device, user, via(click))
+          :ok = announce(click, done(click.action_id, user, device))
+          {:ok, click.action_id}
+        else
+          refuse(click, :offline, offline_message(device, verb))
+        end
+
+      {:error, reason, message} ->
+        refuse(click, reason, message)
+    end
+  end
+
+  @doc """
+  Who a Slack user is in NervesHub, and the device they named, if they may
+  do what `permission` allows to it; otherwise why not, worded for the Slack
+  user (`what` finishes "Your role in NervesHub does not let you ...").
+
+  The checks, made fresh each time: the Slack user linked a NervesHub
+  account, the device exists, its organization is connected to the
+  workspace the request came from, and the NervesHub user is a member there
+  whose role has `permission`. Shared by buttons and slash commands
+  (`NervesHubWeb.Integrations.Slack.Commands`).
+  """
+  @spec authorize(String.t(), String.t(), String.t(), atom(), String.t()) ::
+          {:ok, Accounts.User.t(), Device.t()} | {:error, atom(), String.t() | map()}
+  def authorize(team_id, slack_user_id, identifier, permission, what) do
+    with {:user, %Accounts.User{} = user} <- {:user, Users.linked_user(team_id, slack_user_id)},
+         {:device, %Device{} = device} <- {:device, device(identifier)},
+         {:connected, true} <- {:connected, connected?(device.org_id, team_id)},
          {:member, {:ok, org_user}} <- {:member, Accounts.get_org_user(device.org, user)},
-         {:allowed, true} <- {:allowed, Authorization.authorized?(permission, org_user.role)},
-         {:online, true} <- {:online, Tracker.online?(device)} do
-      {:ok, _device} = act(click.action_id, device, user, via(click))
-      :ok = announce(click, done(click.action_id, user, device))
-      {:ok, click.action_id}
+         {:allowed, true} <- {:allowed, Authorization.authorized?(permission, org_user.role)} do
+      {:ok, user, device}
     else
       {:user, nil} ->
-        refuse(click, :not_linked, link_message(click))
+        {:error, :not_linked, link_message(team_id)}
 
       {:device, nil} ->
-        refuse(click, :no_device, "#{escape(click.identifier)} is no longer in NervesHub.")
+        {:error, :no_device, "#{escape(identifier)} is not in NervesHub."}
 
       {:connected, false} ->
-        refuse(
-          click,
-          :not_connected,
-          "This Slack workspace is not connected to the organization #{escape(click.identifier)} belongs to."
-        )
+        {:error, :not_connected,
+         "This Slack workspace is not connected to the organization #{escape(identifier)} belongs to."}
 
       {:member, {:error, :not_found}} ->
-        refuse(
-          click,
-          :not_member,
-          "Your NervesHub account is not a member of the organization #{escape(click.identifier)} belongs to."
-        )
+        {:error, :not_member,
+         "Your NervesHub account is not a member of the organization #{escape(identifier)} belongs to."}
 
       {:allowed, false} ->
-        refuse(click, :not_allowed, "Your role in NervesHub does not let you ask a device to #{verb}.")
-
-      {:online, false} ->
-        refuse(click, :offline, "#{escape(click.identifier)} is offline, so NervesHub could not ask it to #{verb}.")
+        {:error, :not_allowed, "Your role in NervesHub does not let you #{what}."}
     end
+  end
+
+  @doc "What a device that is offline cannot be asked to do, worded for Slack."
+  @spec offline_message(Device.t(), String.t()) :: String.t()
+  def offline_message(device, verb) do
+    "#{escape(device.identifier)} is offline, so NervesHub could not ask it to #{verb}."
   end
 
   defp device(identifier) do
@@ -166,11 +189,19 @@ defmodule NervesHubWeb.Integrations.Slack.Actions do
   defp act("device.reboot", device, user, via), do: DeviceEvents.reboot(device, user, via: via)
   defp act("device.identify", device, user, via), do: DeviceEvents.identify(device, user, via: via)
 
-  # Which Slack user it was, by id, for the audit log: the NervesHub user is
-  # who it was done as, and the Slack user is who clicked.
-  defp via(click) do
-    name = if click.slack_username, do: "@#{click.slack_username}, ", else: ""
-    "Slack user #{click.slack_user_id} (#{name}workspace #{click.team_id})"
+  @doc """
+  Which Slack user it was, by id, for the audit log: the NervesHub user is
+  who it was done as, and the Slack user is who asked.
+  """
+  @spec via(%{
+          required(:slack_user_id) => String.t(),
+          required(:slack_username) => String.t() | nil,
+          required(:team_id) => String.t(),
+          optional(atom()) => term()
+        }) :: String.t()
+  def via(request) do
+    name = if request.slack_username, do: "@#{request.slack_username}, ", else: ""
+    "Slack user #{request.slack_user_id} (#{name}workspace #{request.team_id})"
   end
 
   defp done("device.reboot", user, device),
@@ -179,18 +210,23 @@ defmodule NervesHubWeb.Integrations.Slack.Actions do
   defp done("device.identify", user, device),
     do: ":mag: #{escape(user.name)} asked *#{escape(device.identifier)}* to identify itself, from Slack."
 
-  defp link_message(click) do
-    url = NervesHubWeb.Endpoint.url() <> "/integrations/slack/link?" <> URI.encode_query(%{team: click.team_id})
+  @doc """
+  The message that sends a Slack user who has not linked their NervesHub
+  account to do so. Shown only to them.
+  """
+  @spec link_message(String.t()) :: %{text: String.t(), blocks: [map()]}
+  def link_message(team_id) do
+    url = NervesHubWeb.Endpoint.url() <> "/integrations/slack/link?" <> URI.encode_query(%{team: team_id})
 
     %{
-      text: "Link your Slack account to NervesHub to use these buttons.",
+      text: "Link your Slack account to NervesHub to act on devices from Slack.",
       blocks: [
         %{
           type: "section",
           text: %{
             type: "mrkdwn",
             text:
-              "Link your Slack account to NervesHub to use these buttons. You sign in to NervesHub, then with Slack, and what you do with the buttons is done as you in NervesHub, with your permissions there."
+              "Link your Slack account to NervesHub to act on devices from Slack. You sign in to NervesHub, then with Slack, and what you then do from Slack is done as you in NervesHub, with your permissions there."
           }
         },
         %{
@@ -242,7 +278,9 @@ defmodule NervesHubWeb.Integrations.Slack.Actions do
 
   defp announce(click, text), do: respond_privately(click, text)
 
-  defp escape(value) do
+  @doc "Escapes Slack's mrkdwn control characters."
+  @spec escape(term()) :: String.t()
+  def escape(value) do
     String.replace(to_string(value), ["&", "<", ">"], fn
       "&" -> "&amp;"
       "<" -> "&lt;"

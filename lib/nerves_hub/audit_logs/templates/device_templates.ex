@@ -30,6 +30,12 @@ defmodule NervesHub.AuditLogs.DeviceTemplates do
     AuditLogs.audit!(user, device, description)
   end
 
+  @spec audit_script_run(User.t(), Device.t(), String.t(), String.t() | nil) :: :ok
+  def audit_script_run(user, device, script_name, via \\ nil) do
+    description = "User #{user.name} ran support script #{script_name} on device #{device.identifier}#{via(via)}"
+    AuditLogs.audit!(user, device, description)
+  end
+
   defp via(nil), do: ""
   defp via(source), do: " from #{source}"
 

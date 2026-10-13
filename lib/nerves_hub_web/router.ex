@@ -308,6 +308,7 @@ defmodule NervesHubWeb.Router do
 
     post("/events", EventsController, :create)
     post("/interactivity", InteractionsController, :create)
+    post("/commands", CommandsController, :create)
   end
 
   scope "/", NervesHubWeb do
