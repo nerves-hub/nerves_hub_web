@@ -105,8 +105,11 @@ when adding or removing one.
   which must be signed (`Integrations.Slack.VerifyRequest`). One bot token per
   workspace, encrypted at rest with `Types.Encrypted`. `Slack.Subscriptions`
   posts device events to channels, held 15 seconds and rolled up into one
-  message per kind (`Workers.PostSlackEvents`, `Slack.Messages`). Hidden
-  unless the instance has a Slack app; see [docs/slack.md](docs/slack.md).
+  message per kind (`Workers.PostSlackEvents`, `Slack.Messages`). Buttons on
+  those messages are carried out by `NervesHubWeb.Integrations.Slack.Actions` as the
+  NervesHub user the Slack user linked (`Slack.Users`), with that user's
+  permissions checked at click time. Hidden unless the instance has a Slack
+  app; see [docs/slack.md](docs/slack.md).
 - `scripts.ex` / `scripts/` — support scripts run against a device console.
 - `workers/` — Oban workers (e.g. firmware delta building, firmware deletion).
 - Cross-cutting: `audit_logs.ex`, `product_notifications.ex`, `tracker.ex`,

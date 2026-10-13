@@ -10,17 +10,21 @@ defmodule NervesHubWeb.Integrations.Slack.EventsController do
 
   alias NervesHub.Integrations.Slack
 
+  # The body only: Slack's signature covers the body, not the query string,
+  # which `params` would mix in.
+  def create(conn, _params), do: handle(conn, conn.body_params)
+
   # Sent once, when the request URL is saved in the app's settings.
-  def create(conn, %{"type" => "url_verification", "challenge" => challenge}) when is_binary(challenge) do
+  defp handle(conn, %{"type" => "url_verification", "challenge" => challenge}) when is_binary(challenge) do
     json(conn, %{challenge: challenge})
   end
 
-  def create(conn, %{"type" => "event_callback", "team_id" => team_id, "event" => event})
-      when is_binary(team_id) and is_map(event) do
+  defp handle(conn, %{"type" => "event_callback", "team_id" => team_id, "event" => event})
+       when is_binary(team_id) and is_map(event) do
     :ok = Slack.handle_event(team_id, event)
 
     send_resp(conn, 200, "")
   end
 
-  def create(conn, _params), do: send_resp(conn, 200, "")
+  defp handle(conn, _body), do: send_resp(conn, 200, "")
 end

@@ -36,6 +36,32 @@ defmodule NervesHub.Integrations.Slack.Client do
   end
 
   @doc """
+  Exchanges the code from a sign-in with Slack for the user's token
+  (`openid.connect.token`).
+  """
+  @spec openid_token(String.t(), String.t()) :: {:ok, map()} | {:error, error()}
+  def openid_token(code, redirect_uri) do
+    post("openid.connect.token",
+      form: [
+        code: code,
+        redirect_uri: redirect_uri,
+        client_id: Slack.config(:client_id),
+        client_secret: Slack.config(:client_secret)
+      ]
+    )
+  end
+
+  @doc """
+  Who signed in with Slack (`openid.connect.userInfo`): their Slack user id
+  and workspace, under `https://slack.com/user_id` and
+  `https://slack.com/team_id`, and their name.
+  """
+  @spec openid_user_info(String.t()) :: {:ok, map()} | {:error, error()}
+  def openid_user_info(token) do
+    post("openid.connect.userInfo", form: [], auth: {:bearer, token})
+  end
+
+  @doc """
   Revokes a bot token (`auth.revoke`), which removes NervesHub's app from
   the workspace.
   """
@@ -45,15 +71,46 @@ defmodule NervesHub.Integrations.Slack.Client do
   end
 
   @doc """
-  Posts a message to a channel (`chat.postMessage`). Links in it are not
-  unfurled: they point at NervesHub pages that need signing in.
+  Posts a message to a channel (`chat.postMessage`), or with `thread_ts:` as
+  a reply in a message's thread. Links in it are not unfurled: they point at
+  NervesHub pages that need signing in.
   """
-  @spec post_message(String.t(), String.t(), %{text: String.t(), blocks: [map()]}) :: {:ok, map()} | {:error, error()}
-  def post_message(token, channel_id, %{text: text, blocks: blocks}) do
-    post("chat.postMessage",
-      json: %{channel: channel_id, text: text, blocks: blocks, unfurl_links: false, unfurl_media: false},
-      auth: {:bearer, token}
-    )
+  @spec post_message(String.t(), String.t(), %{text: String.t(), blocks: [map()]}, keyword()) ::
+          {:ok, map()} | {:error, error()}
+  def post_message(token, channel_id, %{text: text, blocks: blocks}, opts \\ []) do
+    body =
+      %{channel: channel_id, text: text, unfurl_links: false, unfurl_media: false}
+      |> put_unless_empty(:blocks, blocks)
+      |> put_unless_empty(:thread_ts, opts[:thread_ts])
+
+    post("chat.postMessage", json: body, auth: {:bearer, token})
+  end
+
+  defp put_unless_empty(body, _key, value) when value in [nil, []], do: body
+  defp put_unless_empty(body, key, value), do: Map.put(body, key, value)
+
+  @doc """
+  Answers an interaction through the `response_url` Slack sent with it,
+  which needs no token. Only Slack's own URLs are posted to: the URL arrives
+  in a request, and NervesHub does not send requests wherever a request
+  tells it to.
+  """
+  @spec respond(String.t(), map()) :: {:ok, map()} | {:error, error()}
+  def respond(response_url, message) do
+    case URI.parse(response_url) do
+      %URI{scheme: "https", host: "hooks.slack.com"} ->
+        [method: :post, url: response_url, json: message, retry: false, receive_timeout: 10_000]
+        |> Keyword.merge(Slack.config(:req_options) || [])
+        |> Req.request()
+        |> case do
+          {:ok, %Req.Response{status: 200}} -> {:ok, %{}}
+          {:ok, %Req.Response{status: status}} -> {:error, "HTTP #{status}"}
+          {:error, exception} -> {:error, Exception.message(exception)}
+        end
+
+      _ ->
+        {:error, "not a Slack response URL"}
+    end
   end
 
   @doc """

@@ -38,6 +38,20 @@ Events are held for 15 seconds before they are posted, and everything held for a
 - Any other failure is retried after 10 seconds, a minute and five minutes. What still could not be posted is tried again with the channel's next event.
 - Events held for more than an hour are dropped rather than posted late.
 
+## Acting on devices from Slack
+
+A message about a single device has three buttons: **Open in NervesHub**, **Identify** and **Reboot**, which asks for confirmation first. Messages that summarize many devices have none.
+
+Identify and Reboot are done as a NervesHub user, so each person links their Slack account to their NervesHub account first. The first time someone clicks one of these buttons, Slack shows them, and only them, a link to a NervesHub page. There they sign in to NervesHub if they need to, then sign in with Slack. The Slack account linked is the one Slack says they signed in as, so nobody can link somebody else's Slack account, or get someone else to link theirs. Nothing is matched by email, because the workspace decides what email a Slack user has. Links are listed, and can be removed, under **Account Settings**.
+
+When a linked user clicks, NervesHub checks, at that moment:
+
+- the device's organization is connected to the workspace the click came from,
+- the linked NervesHub user is a member of that organization, and their role there can reboot or identify devices, as it would in NervesHub,
+- the device is online.
+
+If any check fails, only the person who clicked is told why. If they all pass, the device is asked to reboot or identify itself, the audit log records the user with "from Slack", and a reply in the message's thread tells the channel who did what.
+
 ## What NervesHub keeps
 
 For each workspace, NervesHub keeps its id and name, the app's bot user, the scopes granted, and the bot token Slack issued. The bot token is encrypted with AES-256-GCM before it is stored, using `SECRETS_ENCRYPTION_KEY`, so a copy of the database alone does not reveal it.
@@ -53,6 +67,8 @@ The app asks for these bot scopes when it is installed:
 | `commands` | Slash commands and message actions. |
 
 Slack only grants new scopes when the app is installed again, so the app asks for all of them now. That way a workspace connected today does not need reconnecting when commands arrive.
+
+For each linked Slack user, NervesHub keeps their Slack user id and name, the workspace's id and name, and the NervesHub user they linked to. Signing in with Slack asks for the `openid` and `profile` scopes, only to read who signed in; NervesHub does not keep the token.
 
 ## Setting up a Slack app for your instance
 
@@ -75,7 +91,10 @@ Slack only grants new scopes when the app is installed again, so the app asks fo
     }
   },
   "oauth_config": {
-    "redirect_urls": ["https://nerves-hub.example.com/integrations/slack/oauth/callback"],
+    "redirect_urls": [
+      "https://nerves-hub.example.com/integrations/slack/oauth/callback",
+      "https://nerves-hub.example.com/integrations/slack/link/callback"
+    ],
     "scopes": {
       "bot": ["chat:write", "chat:write.public", "channels:read", "groups:read", "commands"]
     }
@@ -85,6 +104,10 @@ Slack only grants new scopes when the app is installed again, so the app asks fo
       "request_url": "https://nerves-hub.example.com/integrations/slack/events",
       "bot_events": ["app_uninstalled", "tokens_revoked"]
     },
+    "interactivity": {
+      "is_enabled": true,
+      "request_url": "https://nerves-hub.example.com/integrations/slack/interactivity"
+    },
     "org_deploy_enabled": false,
     "socket_mode_enabled": false,
     "token_rotation_enabled": false
@@ -93,6 +116,8 @@ Slack only grants new scopes when the app is installed again, so the app asks fo
 ```
 
 Slack checks the events URL when the manifest is saved, so the instance must already be reachable at that URL with `SLACK_SIGNING_SECRET` set. If it is not yet, save the manifest without `event_subscriptions`, configure and restart the instance, then add them back.
+
+An app created before buttons arrived needs `interactivity` added to its manifest, and the `/integrations/slack/link/callback` redirect URL. Without them, clicking Identify or Reboot shows an error, and linking an account fails.
 
 ## Requests from Slack
 
