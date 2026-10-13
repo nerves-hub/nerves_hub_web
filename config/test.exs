@@ -14,6 +14,10 @@ config :logger, level: :warning
 config :nerves_hub, NervesHub.AnalyticsRepo,
   url: System.get_env("CLICKHOUSE_URL", "http://default:@localhost:8123/default_test")
 
+# Both endpoints listen for real during tests, so two checkouts running their
+# suites at once collide on the port and the second fails to boot with
+# `:eaddrinuse` — which reads as a broken application rather than a busy port.
+# Worktrees make that a normal thing to do rather than an accident.
 config :nerves_hub, NervesHub.Firmwares.Upload.File,
   local_path: System.tmp_dir(),
   public_path: "/firmware"
@@ -31,10 +35,10 @@ config :nerves_hub, NervesHub.SwooshMailer, adapter: Test
 config :nerves_hub, NervesHub.Uploads, backend: NervesHub.Uploads.File
 config :nerves_hub, NervesHub.Uploads.File, local_path: System.tmp_dir(), public_path: "/uploads"
 
-# Both endpoints listen for real during tests, so two checkouts running their
-# suites at once collide on the port and the second fails to boot with
-# `:eaddrinuse` — which reads as a broken application rather than a busy port.
-# Worktrees make that a normal thing to do rather than an accident.
+config :nerves_hub, NervesHub.Webhooks,
+  allow_private_destinations: true,
+  req_options: [plug: {Req.Test, NervesHub.Webhooks}]
+
 config :nerves_hub, NervesHubWeb.DeviceEndpoint,
   code_reloader: false,
   check_origin: false,

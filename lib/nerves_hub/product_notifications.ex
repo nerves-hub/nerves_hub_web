@@ -9,6 +9,7 @@ defmodule NervesHub.ProductNotifications do
   alias NervesHub.Products.Notification
   alias NervesHub.Products.Product
   alias NervesHub.Repo
+  alias NervesHub.Webhooks.Webhook
   alias Phoenix.Socket.Broadcast
 
   # Failure reasons arrive in a device's message payload, so they are whatever
@@ -309,6 +310,30 @@ defmodule NervesHub.ProductNotifications do
       level: :warning,
       metadata: %{identifier: device_info.device_identifier, reported: reported, max_keys: max_keys},
       event_key: "too_many_metrics-#{device_info.device_identifier}"
+    })
+    |> insert_and_notify!()
+  end
+
+  @doc """
+  A webhook was turned off because of how its endpoint answered.
+
+  Raised to the operator because nothing else will notice: the receiving
+  system simply stops hearing about devices. Names the endpoint by its host,
+  since some receivers carry credentials in the URL itself.
+  """
+  @spec create_webhook_disabled_notification!(Webhook.t(), String.t()) :: Notification.t()
+  def create_webhook_disabled_notification!(%Webhook{} = webhook, reason) do
+    host = URI.parse(webhook.url).host
+
+    %Product{id: webhook.product_id}
+    |> Notification.new_changeset(%{
+      title: "A webhook was turned off.",
+      message:
+        "NervesHub stopped sending events to #{host} because #{reason}. Once the endpoint is " <>
+          "fixed, turn the webhook back on from the product's Integrations settings.",
+      level: :error,
+      metadata: %{webhook_id: webhook.id, host: host},
+      event_key: "webhook_disabled-#{webhook.id}"
     })
     |> insert_and_notify!()
   end

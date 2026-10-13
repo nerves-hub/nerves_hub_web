@@ -118,6 +118,9 @@ config :nerves_hub, NervesHub.Uploads.File,
   local_path: Path.expand("tmp/uploads"),
   public_path: "/uploads"
 
+# So a receiver running on this machine can be pointed at.
+config :nerves_hub, NervesHub.Webhooks, allow_private_destinations: true
+
 config :nerves_hub, NervesHubWeb.DeviceSocket,
   shared_secrets: [
     enabled: true

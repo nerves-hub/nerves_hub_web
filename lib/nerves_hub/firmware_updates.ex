@@ -16,6 +16,8 @@ defmodule NervesHub.FirmwareUpdates do
   alias NervesHub.ManagedDeployments.DeploymentGroup
   alias NervesHub.ManagedDeployments.DeploymentWorkflowStep
   alias NervesHub.Repo
+  alias NervesHub.Webhooks
+  alias NervesHub.Webhooks.Payloads
 
   @spec firmware_update_successful(Device.t(), FirmwareMetadata.t() | nil) ::
           {:ok, Device.t()} | {:error, Changeset.t()}
@@ -149,10 +151,13 @@ defmodule NervesHub.FirmwareUpdates do
   end
 
   def status_update(status, device_id, info, _opts) when status in ["downloading", "updating"] do
-    do_status_update(device_id, status, info, fn %{inflight_update: ifu} ->
+    do_status_update(device_id, status, info, fn %{inflight_update: ifu} = device ->
+      # The webhook follows the row rather than the device: a stage change or
+      # once every 15 seconds, not every percent the device reports.
       if to_string(ifu.status) != status or should_persist?(ifu) do
         InflightUpdate.update_status_changeset(ifu, status, info["progress"])
         |> Repo.update!()
+        |> dispatch_progress(device)
       end
     end)
   end
@@ -161,6 +166,18 @@ defmodule NervesHub.FirmwareUpdates do
     do_status_update(device_id, status, info, fn device ->
       InflightUpdate.update_status_changeset(device.inflight_update, status, nil)
       |> Repo.update!()
+      |> dispatch_progress(device)
+    end)
+  end
+
+  defp dispatch_progress(inflight_update, device) do
+    Webhooks.dispatch(device.product_id, "device.firmware_update.progress", fn ->
+      Payloads.firmware_update_progress(
+        device,
+        to_string(inflight_update.status),
+        inflight_update.progress,
+        inflight_update.firmware_uuid
+      )
     end)
   end
 

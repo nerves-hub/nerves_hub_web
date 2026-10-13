@@ -292,6 +292,14 @@ be enabled per product once the instance allows it.
 | --- | --- | --- |
 | `DEFAULT_LIFO_DEPLOYMENT_QUEUE` | `false` | New deployment groups default to a last-in-first-out update queue, so the most recently connected devices are updated first. |
 
+## Webhooks
+
+Read in every environment. See [Webhooks](webhooks.md).
+
+| Variable | Default | Description |
+| --- | --- | --- |
+| `WEBHOOKS_ALLOW_PRIVATE_DESTINATIONS` | `false` (`true` in dev) | Whether webhooks may deliver to loopback, private, link-local and other non-public addresses. Off, a webhook can only reach public addresses: a URL with a literal private address is refused when saved, and a host name is resolved at delivery and refused if any address it resolves to is private. That is what stops a member of any organization pointing a webhook at the cloud metadata service or another internal service. Turn it on for a self-hosted instance whose receivers are on its own network, and only if every member of every organization on the instance is trusted to reach that network. |
+
 ## Branding and UI
 
 Read in every environment.

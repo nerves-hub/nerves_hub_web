@@ -18,6 +18,7 @@ defmodule NervesHubWeb.Router do
   alias Live.Product.Errors
   alias Live.Product.HealthProfiles
   alias Live.Product.Insights
+  alias Live.Product.Integrations
   alias Live.Product.Notifications
   alias Live.SupportScripts.Edit
   alias NervesHubWeb.API.Plugs.Device
@@ -231,6 +232,17 @@ defmodule NervesHubWeb.Router do
                 post("/", ScriptController, :create)
                 put("/:id", ScriptController, :update)
                 delete("/:id", ScriptController, :delete)
+              end
+
+              scope "/webhooks" do
+                get("/", WebhookController, :index)
+                post("/", WebhookController, :create)
+                get("/:id", WebhookController, :show)
+                put("/:id", WebhookController, :update)
+                patch("/:id", WebhookController, :update)
+                delete("/:id", WebhookController, :delete)
+                post("/:id/regenerate_secret", WebhookController, :regenerate_secret)
+                post("/:id/test", WebhookController, :send_test)
               end
             end
           end
@@ -465,6 +477,7 @@ defmodule NervesHubWeb.Router do
 
       live("/org/:org_name/:product_name/settings", Live.Product.Settings)
       live("/org/:org_name/:product_name/settings/health", HealthProfiles)
+      live("/org/:org_name/:product_name/settings/integrations", Integrations)
     end
   end
 

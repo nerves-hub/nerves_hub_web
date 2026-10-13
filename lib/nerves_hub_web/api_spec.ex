@@ -129,6 +129,10 @@ defmodule NervesHubWeb.ApiSpec do
           description: "Product Support Script management"
         },
         %Tag{
+          name: "Webhooks",
+          description: "Endpoints a Product sends its Device events to"
+        },
+        %Tag{
           name: "Platform Status",
           description: "Platform healthcheck"
         }

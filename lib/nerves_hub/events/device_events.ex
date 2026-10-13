@@ -14,6 +14,8 @@ defmodule NervesHub.DeviceEvents do
   alias NervesHub.FirmwareUpdates
   alias NervesHub.ManagedDeployments
   alias NervesHub.Repo
+  alias NervesHub.Webhooks
+  alias NervesHub.Webhooks.Payloads
   alias Phoenix.Channel.Server, as: ChannelServer
 
   def updated(device) do
@@ -117,6 +119,16 @@ defmodule NervesHub.DeviceEvents do
 
       broadcast(device, "update", update_payload)
 
+      # The broadcast goes out even when there is nothing to send (the device is
+      # blocked, or already running the target), and only a real update is an
+      # event worth telling anyone about.
+      if update_payload.update_available do
+        :ok =
+          Webhooks.dispatch(device.product_id, "device.firmware_update.scheduled", fn ->
+            Payloads.firmware_update_scheduled(device, target_release.firmware, initiated_by(opts), deployment_group)
+          end)
+      end
+
       # A device asking for firmware and a deployment group sending it are the
       # same delivery but not the same event, and conflating them would hide how
       # much of a fleet is driving its own updates.
@@ -197,6 +209,11 @@ defmodule NervesHub.DeviceEvents do
 
       DeviceTemplates.audit_firmware_pushed(user, device, firmware)
 
+      :ok =
+        Webhooks.dispatch(device.product_id, "device.firmware_update.scheduled", fn ->
+          Payloads.firmware_update_scheduled(device, firmware, "user", nil)
+        end)
+
       payload = %UpdatePayload{
         update_available: true,
         firmware_url: firmware_url,
@@ -217,6 +234,14 @@ defmodule NervesHub.DeviceEvents do
 
       res ->
         res
+    end
+  end
+
+  defp initiated_by(opts) do
+    cond do
+      opts[:user] -> "user"
+      opts[:initiated_by] == :device -> "device"
+      true -> "deployment_group"
     end
   end
 

@@ -51,6 +51,8 @@ defmodule NervesHub.Devices.HealthEvaluation do
   alias NervesHub.Products.HealthProfile
   alias NervesHub.Products.HealthProfileMetric
   alias NervesHub.Products.HealthProfiles
+  alias NervesHub.Webhooks
+  alias NervesHub.Webhooks.Payloads
 
   require Logger
 
@@ -117,12 +119,16 @@ defmodule NervesHub.Devices.HealthEvaluation do
       "status_reasons" => reasons
     }
 
+    previous = previous_status_for_webhook(device_info)
+
     case Health.save_device_health(device_health) do
       {:ok, saved} ->
         # A row rather than `:unchanged` means the verdict actually moved, or
         # this is the device's first — which is exactly the edge the history
         # records.
         :ok = record_transition(device_info, saved)
+
+        :ok = dispatch_status_change(device_info, previous, saved)
 
         # Broadcast either way: this says a report landed, not that the verdict
         # moved. It is what refreshes the readings, the charts and the metadata
@@ -291,6 +297,31 @@ defmodule NervesHub.Devices.HealthEvaluation do
     end
 
     :ok
+  end
+
+  # The save replaces the row and says only that it did, so the status it
+  # replaced has to be read first. Only for a product with a webhook that
+  # wants to know: every other product would pay a query per report to learn
+  # nothing. `:not_wanted` is distinct from `{:ok, nil}`, a device with no
+  # verdict yet.
+  defp previous_status_for_webhook(device_info) do
+    if Webhooks.subscribed?(device_info.product_id, "device.health_status_changed") do
+      {:ok, Health.current_status(device_info.device_id)}
+    else
+      :not_wanted
+    end
+  end
+
+  # The row is also rewritten when only the reasons move (warning on one
+  # metric, then warning on another), which is not a change of status.
+  defp dispatch_status_change(_device_info, :not_wanted, _saved), do: :ok
+  defp dispatch_status_change(_device_info, _previous, :unchanged), do: :ok
+  defp dispatch_status_change(_device_info, {:ok, status}, %DeviceHealth{status: status}), do: :ok
+
+  defp dispatch_status_change(device_info, {:ok, previous}, %DeviceHealth{} = health) do
+    Webhooks.dispatch(device_info.product_id, "device.health_status_changed", fn ->
+      Payloads.health_status_changed(device_info, previous, health)
+    end)
   end
 
   defp encode_reasons(nil), do: ""
