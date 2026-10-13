@@ -131,6 +131,7 @@ config :nerves_hub, Oban,
     firmware_delta_timeout: 1,
     truncate: 1,
     truncation: 1,
+    slack: 5,
     webhooks: 10
   ]
 

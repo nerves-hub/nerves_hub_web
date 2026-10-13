@@ -31,8 +31,8 @@ defmodule NervesHub.Webhooks do
   alias NervesHub.Accounts.Scope
   alias NervesHub.AuditLogs.OrgTemplates
   alias NervesHub.Integrations
+  alias NervesHub.Integrations.ProductScope
   alias NervesHub.ProductNotifications
-  alias NervesHub.Products.Product
   alias NervesHub.Repo
   alias NervesHub.Webhooks.Delivery
   alias NervesHub.Webhooks.Events
@@ -113,11 +113,11 @@ defmodule NervesHub.Webhooks do
   """
   @spec change_webhook(Org.t(), Webhook.t(), map()) :: Changeset.t()
   def change_webhook(%Org{} = org, %Webhook{} = webhook, attrs \\ %{}) do
-    attrs = scope_attrs(attrs)
+    attrs = ProductScope.normalize_attrs(attrs)
 
     webhook
     |> Repo.preload(:products)
-    |> Webhook.changeset(attrs, find_products(org, attrs))
+    |> Webhook.changeset(attrs, ProductScope.find_products(org, attrs))
   end
 
   @doc """
@@ -135,13 +135,14 @@ defmodule NervesHub.Webhooks do
   """
   @spec create_webhook(Scope.t(), map()) :: {:ok, Webhook.t()} | {:error, Changeset.t() | :too_many_webhooks}
   def create_webhook(%Scope{org: org, user: user}, attrs) do
-    attrs = scope_attrs(attrs)
+    attrs = ProductScope.normalize_attrs(attrs)
 
     Repo.transact(fn ->
       count = Webhook |> where(org_id: ^org.id) |> Repo.aggregate(:count)
 
       with true <- count < @max_webhooks_per_org || {:error, :too_many_webhooks},
-           {:ok, webhook} <- org |> Webhook.create_changeset(attrs, find_products(org, attrs)) |> Repo.insert() do
+           {:ok, webhook} <-
+             org |> Webhook.create_changeset(attrs, ProductScope.find_products(org, attrs)) |> Repo.insert() do
         :ok = OrgTemplates.audit_webhook_created(user, org, webhook)
         {:ok, webhook}
       end
@@ -156,13 +157,13 @@ defmodule NervesHub.Webhooks do
   """
   @spec update_webhook(Scope.t(), Webhook.t(), map()) :: {:ok, Webhook.t()} | {:error, Changeset.t()}
   def update_webhook(%Scope{org: org, user: user}, %Webhook{} = webhook, attrs) do
-    attrs = scope_attrs(attrs)
+    attrs = ProductScope.normalize_attrs(attrs)
 
     Repo.transact(fn ->
       changeset =
         webhook
         |> Repo.preload(:products)
-        |> Webhook.changeset(attrs, find_products(org, attrs))
+        |> Webhook.changeset(attrs, ProductScope.find_products(org, attrs))
 
       with {:ok, updated} <- Repo.update(changeset) do
         :ok = OrgTemplates.audit_webhook_updated(user, org, updated)
@@ -200,40 +201,6 @@ defmodule NervesHub.Webhooks do
       end
     end)
   end
-
-  # Naming products is asking for those products, so a change that lists
-  # them without saying `all_products` means `all_products: false`. Only
-  # string-keyed attributes name products: they come from a form or the API.
-  defp scope_attrs(%{"products" => _} = attrs) when not is_map_key(attrs, "all_products") do
-    Map.put(attrs, "all_products", false)
-  end
-
-  defp scope_attrs(attrs), do: attrs
-
-  # The products a change names, looked up among the organization's own, by
-  # name because the API knows products by name. Looking them up here, not
-  # anywhere a caller could pass a product in, is what keeps a webhook from
-  # hearing another organization's devices.
-  defp find_products(%Org{id: org_id}, %{"products" => names}) when is_list(names) do
-    if Enum.all?(names, &is_binary/1) do
-      names = Enum.uniq(names)
-
-      products =
-        Product
-        |> where([p], p.org_id == ^org_id and p.name in ^names)
-        |> Repo.exclude_deleted()
-        |> order_by(:name)
-        |> Repo.all()
-
-      found = MapSet.new(products, & &1.name)
-      {products, Enum.reject(names, &MapSet.member?(found, &1))}
-    else
-      :invalid
-    end
-  end
-
-  defp find_products(_org, %{"products" => _not_a_list}), do: :invalid
-  defp find_products(_org, _attrs), do: nil
 
   @doc """
   Sends a `webhook.test` event to the webhook straight away, and returns how
@@ -408,22 +375,8 @@ defmodule NervesHub.Webhooks do
 
   # The products whose events the webhook was sending, which are the ones
   # whose members need to hear that it stopped.
-  defp heard_product_ids(%Webhook{all_products: true, org_id: org_id}) do
-    Product
-    |> where(org_id: ^org_id)
-    |> Repo.exclude_deleted()
-    |> select([p], p.id)
-    |> Repo.all()
-  end
-
-  defp heard_product_ids(%Webhook{id: id}) do
-    from(wp in "webhook_products",
-      join: p in Product,
-      on: p.id == wp.product_id,
-      where: wp.webhook_id == ^id and is_nil(p.deleted_at),
-      select: p.id
-    )
-    |> Repo.all()
+  defp heard_product_ids(%Webhook{} = webhook) do
+    ProductScope.heard_product_ids(webhook.org_id, webhook.all_products, "webhook_products", :webhook_id, webhook.id)
   end
 
   defp invalidate_on_success({:ok, _webhook}, %Org{id: org_id}), do: Integrations.invalidate(org_id)

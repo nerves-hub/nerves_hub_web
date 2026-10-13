@@ -48,6 +48,11 @@ defmodule NervesHubWeb.Helpers.Authorization do
   def authorized?(:"slack_connection:create", role), do: role_check(:admin, role)
   def authorized?(:"slack_connection:delete", role), do: role_check(:admin, role)
 
+  # Which channels hear which events, like webhooks.
+  def authorized?(:"slack_subscription:create", role), do: role_check(:manage, role)
+  def authorized?(:"slack_subscription:update", role), do: role_check(:manage, role)
+  def authorized?(:"slack_subscription:delete", role), do: role_check(:manage, role)
+
   def authorized?(:"error_group:update", role), do: role_check(:manage, role)
 
   def authorized?(:"device:console", role), do: role_check(:manage, role)

@@ -5,6 +5,7 @@ defmodule NervesHubWeb.Live.Org.IntegrationsTest do
   alias NervesHub.Accounts.Scope
   alias NervesHub.Fixtures
   alias NervesHub.Integrations.Slack
+  alias NervesHub.Integrations.Slack.Subscriptions
   alias NervesHub.Repo
   alias NervesHub.Webhooks
   alias NervesHub.Webhooks.Signature
@@ -302,50 +303,197 @@ defmodule NervesHubWeb.Live.Org.IntegrationsTest do
   end
 
   describe "Slack" do
-    defp connect_slack(%{org: org, user: user}, team \\ %{"name" => "Acme Fleet", "id" => "T9TK3CUKW"}) do
-      Req.Test.stub(Slack, fn conn ->
-        case conn.path_info do
-          [_, "oauth.v2.access"] ->
-            Req.Test.json(conn, %{
-              "ok" => true,
-              "access_token" => "xoxb-a-bot-token",
-              "token_type" => "bot",
-              "bot_user_id" => "U0KRQLJ9H",
-              "app_id" => "A0KRD7HC3",
-              "team" => team
-            })
-
-          [_, "auth.revoke"] ->
-            Req.Test.json(conn, %{"ok" => true, "revoked" => true})
-        end
-      end)
-
-      {:ok, connection} =
-        Slack.connect(%Scope{org: org, user: user, role: :admin}, "a-code", "https://example.com/callback")
-
-      connection
+    setup %{org: org, user: user} do
+      %{connection: Fixtures.slack_connection_fixture(org, user)}
     end
 
-    test "lists the connected workspaces, and who connected them", context do
-      %{conn: conn, org: org, user: user} = context
-      connection = connect_slack(context)
+    defp stub_slack(answers) do
+      test_pid = self()
+
+      Req.Test.stub(Slack, fn conn ->
+        method = List.last(conn.path_info)
+        {:ok, body, conn} = Plug.Conn.read_body(conn)
+        send(test_pid, {:slack, method, body})
+        Req.Test.json(conn, Map.fetch!(answers, method))
+      end)
+    end
+
+    defp channels() do
+      %{
+        "ok" => true,
+        "channels" => [
+          %{"id" => "C0FLEET", "name" => "fleet", "is_private" => false},
+          %{"id" => "G0OPS", "name" => "ops", "is_private" => true}
+        ],
+        "response_metadata" => %{"next_cursor" => ""}
+      }
+    end
+
+    defp subscribe(%{org: org, user: user, connection: connection}, attrs \\ %{}) do
+      attrs =
+        Map.merge(
+          %{"channel_id" => "C0FLEET", "channel_name" => "fleet", "events" => ["device.health_status_changed"]},
+          attrs
+        )
+
+      {:ok, subscription} =
+        Subscriptions.create_subscription(%Scope{org: org, user: user, role: :admin}, connection, attrs)
+
+      subscription
+    end
+
+    test "lists the connected workspaces, who connected them, and their channels", context do
+      %{conn: conn, connection: connection, org: org, user: user} = context
+      subscription = subscribe(context)
 
       conn
       |> visit(integrations_path(org))
       |> assert_has("#slack button", text: "Add to Slack")
       |> assert_has("#slack-connection-#{connection.id} span", text: "Acme Fleet")
       |> assert_has("#slack-connection-#{connection.id} span", text: "Connected by #{user.name}")
+      |> assert_has("#slack-subscription-#{subscription.id} span", text: "#fleet")
+      |> assert_has("#slack-subscription-#{subscription.id} span", text: "Health status changed")
+      |> assert_has("#slack-subscription-#{subscription.id} div", text: "Products: Every product")
     end
 
-    test "says when no workspace is connected", %{conn: conn, org: org} do
+    test "says when no workspace is connected", %{conn: conn, connection: connection, org: org} do
+      Repo.delete!(connection)
+
       conn
       |> visit(integrations_path(org))
       |> assert_has("#slack p", text: "No Slack workspace is connected.")
     end
 
-    test "disconnects a workspace", context do
+    test "adds a channel from those Slack lists", context do
+      %{conn: conn, connection: connection, org: org, product: product} = context
+      stub_slack(%{"conversations.list" => channels()})
+
+      conn
+      |> visit(integrations_path(org))
+      |> within("#slack-connection-#{connection.id}", &click_button(&1, "Add channel"))
+      |> unwrap(&render_async/1)
+      |> assert_has("#slack-subscription-channel option", text: "#fleet")
+      |> assert_has("#slack-subscription-channel option", text: "ops (private)")
+      |> unwrap(fn view ->
+        view
+        |> form("#slack-subscription-form", slack_subscription: %{channel_id: "G0OPS", all_products: "false"})
+        |> render_change()
+
+        view
+        |> form("#slack-subscription-form",
+          slack_subscription: %{
+            channel_id: "G0OPS",
+            all_products: "false",
+            products: ["", product.name],
+            events: ["", "device.firmware_update.failed"]
+          }
+        )
+        |> render_submit()
+      end)
+      |> assert_has("[role='alert']", text: "NervesHub will post to #ops.")
+
+      assert [%{subscriptions: [subscription]}] = Slack.list_connections(org)
+
+      assert %{channel_id: "G0OPS", channel_name: "ops", all_products: false, events: ["device.firmware_update.failed"]} =
+               subscription
+
+      assert [%{name: name}] = subscription.products
+      assert name == product.name
+    end
+
+    test "refuses a channel Slack did not list", context do
+      %{conn: conn, connection: connection, org: org} = context
+      stub_slack(%{"conversations.list" => channels()})
+
+      conn
+      |> visit(integrations_path(org))
+      |> within("#slack-connection-#{connection.id}", &click_button(&1, "Add channel"))
+      |> unwrap(&render_async/1)
+      |> unwrap(fn view ->
+        view
+        |> element("#slack-subscription-form")
+        |> render_submit(%{
+          "slack_subscription" => %{
+            "channel_id" => "C0SOMEONE",
+            "all_products" => "true",
+            "events" => ["", "device.health_status_changed"]
+          }
+        })
+      end)
+      |> assert_has("[role='alert']", text: "Choose a channel from the list.")
+
+      assert [%{subscriptions: []}] = Slack.list_connections(org)
+    end
+
+    test "says so when Slack will not list the channels", context do
+      %{conn: conn, connection: connection, org: org} = context
+      stub_slack(%{"conversations.list" => %{"ok" => false, "error" => "missing_scope"}})
+
+      conn
+      |> visit(integrations_path(org))
+      |> within("#slack-connection-#{connection.id}", &click_button(&1, "Add channel"))
+      |> unwrap(&render_async/1)
+      |> assert_has("#slack-subscription-form", text: "Slack did not list the workspace's channels: missing_scope")
+    end
+
+    test "edits, turns off and removes a channel", context do
       %{conn: conn, org: org} = context
-      connection = connect_slack(context)
+      subscription = subscribe(context)
+
+      session =
+        conn
+        |> visit(integrations_path(org))
+        |> within("#slack-subscription-#{subscription.id}", &click_button(&1, "Edit"))
+        |> unwrap(fn view ->
+          view
+          |> form("#slack-subscription-form",
+            slack_subscription: %{all_products: "true", events: ["", "product.notification_created"]}
+          )
+          |> render_submit()
+        end)
+        |> assert_has("[role='alert']", text: "The channel was updated.")
+        |> assert_has("#slack-subscription-#{subscription.id} span", text: "Product notifications")
+        |> within("#slack-subscription-#{subscription.id}", &click_button(&1, "Turn off"))
+        |> assert_has("#slack-subscription-#{subscription.id} span", text: "Off")
+
+      refute Repo.reload!(subscription).enabled
+
+      session
+      |> within("#slack-subscription-#{subscription.id}", &click_button(&1, "Delete"))
+      |> assert_has("[role='alert']", text: "NervesHub stopped posting to #fleet.")
+      |> refute_has("#slack-subscription-#{subscription.id}")
+    end
+
+    test "sends a test message", context do
+      %{conn: conn, org: org} = context
+      subscription = subscribe(context)
+      stub_slack(%{"chat.postMessage" => %{"ok" => true}})
+
+      conn
+      |> visit(integrations_path(org))
+      |> within("#slack-subscription-#{subscription.id}", &click_button(&1, "Send test message"))
+      |> unwrap(&render_async/1)
+      |> assert_has("[role='alert']", text: "Posted a test message to #fleet.")
+
+      assert_received {:slack, "chat.postMessage", _body}
+    end
+
+    test "shows why a channel was turned off", context do
+      %{conn: conn, org: org} = context
+      subscription = subscribe(context)
+
+      subscription
+      |> Ecto.Changeset.change(enabled: false, disabled_reason: "Turned off because the channel was archived.")
+      |> Repo.update!()
+
+      conn
+      |> visit(integrations_path(org))
+      |> assert_has("#slack-subscription-#{subscription.id} p", text: "the channel was archived")
+    end
+
+    test "disconnects a workspace", context do
+      %{conn: conn, connection: connection, org: org} = context
+      stub_slack(%{"auth.revoke" => %{"ok" => true, "revoked" => true}})
 
       conn
       |> visit(integrations_path(org))
@@ -356,22 +504,45 @@ defmodule NervesHubWeb.Live.Org.IntegrationsTest do
       assert Slack.list_connections(org) == []
     end
 
-    test "is for admins to change", context do
-      %{conn: conn, org: org} = context
-      connection = connect_slack(context)
+    test "a manager chooses channels, but only an admin connects workspaces", context do
+      %{conn: conn, connection: connection, org: org} = context
       Repo.update_all(OrgUser, set: [role: :manage])
 
       session =
         conn
         |> visit(integrations_path(org))
-        |> assert_has("#slack-connection-#{connection.id} span", text: "Acme Fleet")
+        |> assert_has("#slack-connection-#{connection.id} button", text: "Add channel")
         |> refute_has("#slack button", text: "Add to Slack")
         |> refute_has("#slack-connection-#{connection.id} button", text: "Disconnect")
 
       Process.flag(:trap_exit, true)
 
       assert {{%NervesHubWeb.UnauthorizedError{}, _}, _} =
-               catch_exit(render_click(session.view, "disconnect-slack", %{"connection_id" => connection.id}))
+               session.view
+               |> with_target("#slack")
+               |> render_click("disconnect", %{"connection_id" => connection.id})
+               |> catch_exit()
+    end
+
+    test "a viewer sees the channels, but cannot change them", context do
+      %{conn: conn, connection: connection, org: org} = context
+      subscription = subscribe(context)
+      Repo.update_all(OrgUser, set: [role: :view])
+
+      session =
+        conn
+        |> visit(integrations_path(org))
+        |> assert_has("#slack-subscription-#{subscription.id} span", text: "#fleet")
+        |> refute_has("#slack-connection-#{connection.id} button", text: "Add channel")
+        |> refute_has("#slack-subscription-#{subscription.id} button", text: "Send test message")
+
+      Process.flag(:trap_exit, true)
+
+      assert {{%NervesHubWeb.UnauthorizedError{}, _}, _} =
+               session.view
+               |> with_target("#slack")
+               |> render_click("delete", %{"subscription_id" => subscription.id})
+               |> catch_exit()
     end
 
     test "is hidden when the instance has no Slack app", %{conn: conn, org: org} do
