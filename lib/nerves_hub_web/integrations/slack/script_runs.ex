@@ -110,7 +110,11 @@ defmodule NervesHubWeb.Integrations.Slack.ScriptRuns do
         refuse(url, :not_yours, "Only whoever ran the script can share its output.")
 
       _unlinked_or_relinked ->
-        refuse(url, :not_linked, "Your Slack account is no longer linked to the NervesHub account that ran the script.")
+        refuse(
+          url,
+          :not_linked,
+          "Your Slack account is no longer linked to the #{Actions.platform()} account that ran the script."
+        )
     end
   end
 

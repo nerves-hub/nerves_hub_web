@@ -31,6 +31,7 @@ defmodule NervesHubWeb.Integrations.Slack.Actions do
 
   alias NervesHub.Accounts
   alias NervesHub.Accounts.Org
+  alias NervesHub.Branding
   alias NervesHub.DeviceEvents
   alias NervesHub.Devices.Device
   alias NervesHub.Integrations.Slack.Claims
@@ -41,6 +42,7 @@ defmodule NervesHubWeb.Integrations.Slack.Actions do
   alias NervesHub.Repo
   alias NervesHub.Tracker
   alias NervesHubWeb.Helpers.Authorization
+  alias NervesHubWeb.Integrations.Slack.DeviceCards
   alias NervesHubWeb.Integrations.Slack.ScriptRuns
 
   require Logger
@@ -104,6 +106,23 @@ defmodule NervesHubWeb.Integrations.Slack.Actions do
         }
 
         fn -> ScriptRuns.share(share) end
+
+      _ ->
+        nil
+    end
+  end
+
+  defp job(payload, %{"action_id" => "device.share", "value" => identifier}) when is_binary(identifier) do
+    case payload do
+      %{"team" => %{"id" => team_id}, "user" => %{"id" => slack_user_id}} ->
+        share = %{
+          identifier: identifier,
+          team_id: team_id,
+          slack_user_id: slack_user_id,
+          response_url: payload["response_url"]
+        }
+
+        fn -> DeviceCards.share(share) end
 
       _ ->
         nil
@@ -188,7 +207,7 @@ defmodule NervesHubWeb.Integrations.Slack.Actions do
         {:error, :not_linked, link_message(team_id)}
 
       {:device, nil} ->
-        {:error, :no_device, "#{escape(identifier)} is not in NervesHub."}
+        {:error, :no_device, "#{escape(identifier)} is not in #{platform()}."}
 
       {:connected, false} ->
         {:error, :not_connected,
@@ -196,10 +215,10 @@ defmodule NervesHubWeb.Integrations.Slack.Actions do
 
       {:member, {:error, :not_found}} ->
         {:error, :not_member,
-         "Your NervesHub account is not a member of the organization #{escape(identifier)} belongs to."}
+         "Your #{platform()} account is not a member of the organization #{escape(identifier)} belongs to."}
 
       {:allowed, false} ->
-        {:error, :not_allowed, "Your role in NervesHub does not let you #{what}."}
+        {:error, :not_allowed, "Your role in #{platform()} does not let you #{what}."}
     end
   end
 
@@ -232,7 +251,7 @@ defmodule NervesHubWeb.Integrations.Slack.Actions do
         by = if holder, do: " by #{escape(holder)}", else: ""
 
         {:error, :just_rebooted,
-         "#{escape(device.identifier)} was asked to reboot#{by} less than a minute ago, so NervesHub did not ask again."}
+         "#{escape(device.identifier)} was asked to reboot#{by} less than a minute ago, so #{platform()} did not ask again."}
     end
   end
 
@@ -241,7 +260,7 @@ defmodule NervesHubWeb.Integrations.Slack.Actions do
   @doc "What a device that is offline cannot be asked to do, worded for Slack."
   @spec offline_message(Device.t(), String.t()) :: String.t()
   def offline_message(device, verb) do
-    "#{escape(device.identifier)} is offline, so NervesHub could not ask it to #{verb}."
+    "#{escape(device.identifier)} is offline, so #{platform()} could not ask it to #{verb}."
   end
 
   defp device(identifier) do
@@ -293,14 +312,14 @@ defmodule NervesHubWeb.Integrations.Slack.Actions do
     url = NervesHubWeb.Endpoint.url() <> "/integrations/slack/link?" <> URI.encode_query(%{team: team_id})
 
     %{
-      text: "Link your Slack account to NervesHub to act on devices from Slack.",
+      text: "Link your Slack account to #{platform()} to act on devices from Slack.",
       blocks: [
         %{
           type: "section",
           text: %{
             type: "mrkdwn",
             text:
-              "Link your Slack account to NervesHub to act on devices from Slack. You sign in to NervesHub, then with Slack, and what you then do from Slack is done as you in NervesHub, with your permissions there."
+              "Link your Slack account to #{platform()} to act on devices from Slack. You sign in to #{platform()}, then with Slack, and what you then do from Slack is done as you in #{platform()}, with your permissions there."
           }
         },
         %{
@@ -351,6 +370,10 @@ defmodule NervesHubWeb.Integrations.Slack.Actions do
   end
 
   defp announce(click, text), do: respond_privately(click, text)
+
+  @doc "The name people know this instance by (`NervesHub.Branding`), escaped for Slack."
+  @spec platform() :: String.t()
+  def platform(), do: escape(Branding.friendly_platform_name())
 
   @doc "Escapes Slack's mrkdwn control characters."
   @spec escape(term()) :: String.t()

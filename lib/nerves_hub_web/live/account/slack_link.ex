@@ -6,6 +6,8 @@ defmodule NervesHubWeb.Live.Account.SlackLink do
   """
   use NervesHubWeb, :live_view
 
+  alias NervesHub.Branding
+
   @impl Phoenix.LiveView
   def mount(params, _session, socket) do
     socket
@@ -23,7 +25,7 @@ defmodule NervesHubWeb.Live.Account.SlackLink do
           <h1 class="text-lg font-semibold text-base-50">Link your Slack account</h1>
           <p>
             Sign in with Slack as yourself to link your Slack account to <strong class="text-base-50">{@current_scope.user.email}</strong>.
-            What you then do with NervesHub's buttons in Slack is done as you, with your permissions in each organization.
+            What you then do with {Branding.friendly_platform_name()}'s buttons in Slack is done as you, with your permissions in each organization.
           </p>
           <p>Slack, not this page, decides which Slack account is linked: the one you sign in with.</p>
           <.form for={%{}} action={~p"/integrations/slack/link/start"} method="post">

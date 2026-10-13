@@ -18,6 +18,8 @@ defmodule NervesHub.Integrations.Slack.Messages do
   different thing.
   """
 
+  alias NervesHub.Branding
+
   @listed 10
   @max_text 300
 
@@ -45,7 +47,7 @@ defmodule NervesHub.Integrations.Slack.Messages do
   @spec test(String.t(), String.t(), [String.t()]) :: message()
   def test(org_name, user_name, labels) do
     text =
-      "NervesHub will post #{Enum.join(labels, ", ")} for #{escape(org_name)} here. This test was sent by #{escape(user_name)}."
+      "#{escape(Branding.friendly_platform_name())} will post #{Enum.join(labels, ", ")} for #{escape(org_name)} here. This test was sent by #{escape(user_name)}."
 
     %{text: text, blocks: [section(":wave: " <> text)]}
   end
@@ -319,7 +321,7 @@ defmodule NervesHub.Integrations.Slack.Messages do
         %{
           type: "button",
           action_id: "device.open",
-          text: plain("Open in NervesHub"),
+          text: plain(String.slice("Open in #{Branding.friendly_platform_name()}", 0, 75)),
           url: device_url(org_name, product_name, identifier)
         },
         %{type: "button", action_id: "device.identify", text: plain("Identify"), value: identifier},

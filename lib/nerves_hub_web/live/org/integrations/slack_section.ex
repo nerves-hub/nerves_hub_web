@@ -17,6 +17,7 @@ defmodule NervesHubWeb.Live.Org.Integrations.SlackSection do
   """
   use NervesHubWeb, :live_component
 
+  alias NervesHub.Branding
   alias NervesHub.Integrations.Slack
   alias NervesHub.Integrations.Slack.Events
   alias NervesHub.Integrations.Slack.Subscription

@@ -60,7 +60,7 @@ A device asked to reboot from Slack is not asked again from Slack for a minute, 
 
 | Command | Does |
 | --- | --- |
-| `/nerveshub device <identifier>` | Shows the device's connection, firmware version, health and product, with its buttons. |
+| `/nerveshub device <identifier>` | Shows the device's connection, firmware version, health and product, with its buttons and **Share in channel**, which posts the card to the channel, saying who shared it. |
 | `/nerveshub identify <identifier>` | Asks the device to identify itself. |
 | `/nerveshub reboot <identifier>` | Reboots the device. |
 | `/nerveshub script <identifier>` | Lists the support scripts for the device's product. |
@@ -98,7 +98,8 @@ For each linked Slack user, NervesHub keeps their Slack user id and name, the wo
 2. Paste the manifest below, with `https://nerves-hub.example.com` replaced by your instance's URL.
 3. Under **Manage Distribution**, turn on public distribution so that workspaces other than the development one can install the app.
 4. From **Basic Information**, set `SLACK_CLIENT_ID`, `SLACK_CLIENT_SECRET` and `SLACK_SIGNING_SECRET` on the instance, plus a `SECRETS_ENCRYPTION_KEY` (`openssl rand -base64 32`). See [runtime configuration](runtime_configuration.md#slack).
-5. Restart the instance. **Add to Slack** appears on each organization's Integrations page.
+5. Optionally, set `FRIENDLY_PLATFORM_NAME` to the name your users know the instance by. Slack messages and the Slack pages use it ("Open in NervesHub" by default).
+6. Restart the instance. **Add to Slack** appears on each organization's Integrations page.
 
 ```json
 {

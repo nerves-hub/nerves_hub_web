@@ -2,6 +2,7 @@ defmodule NervesHub.ProductNotifications do
   import Ecto.Query
 
   alias NervesHub.Accounts.Scope
+  alias NervesHub.Branding
   alias NervesHub.DeviceLink.DeviceInfo
   alias NervesHub.Devices.Device
   alias NervesHub.Integrations
@@ -336,7 +337,7 @@ defmodule NervesHub.ProductNotifications do
       |> Notification.new_changeset(%{
         title: "A webhook was turned off.",
         message:
-          "NervesHub stopped sending events to #{host} because #{reason}. Once the endpoint is " <>
+          "#{Branding.friendly_platform_name()} stopped sending events to #{host} because #{reason}. Once the endpoint is " <>
             "fixed, turn the webhook back on from the organization's Integrations settings.",
         level: :error,
         metadata: %{webhook_id: webhook.id, host: host},
@@ -359,7 +360,7 @@ defmodule NervesHub.ProductNotifications do
       |> Notification.new_changeset(%{
         title: "Slack notifications were turned off.",
         message:
-          "NervesHub stopped posting to ##{subscription.channel_name} because #{reason}. Once that is fixed, " <>
+          "#{Branding.friendly_platform_name()} stopped posting to ##{subscription.channel_name} because #{reason}. Once that is fixed, " <>
             "turn the channel back on from the organization's Integrations settings.",
         level: :error,
         metadata: %{slack_subscription_id: subscription.id, channel: subscription.channel_name},

@@ -318,6 +318,7 @@ Read in every environment.
 | Variable | Default | Description |
 | --- | --- | --- |
 | `WEB_TITLE_SUFFIX` | `NervesHub` | Suffix on browser page titles. |
+| `FRIENDLY_PLATFORM_NAME` | `NervesHub` | The name the instance uses for itself in what it tells people, such as Slack messages ("Open in NervesHub") and the Slack pages. |
 | `LOGO_URL` | — | Logo used in the UI. |
 | `LOGO_URL_LIGHT` | `LOGO_URL` | Logo for light mode. |
 | `LOGO_URL_DARK` | `LOGO_URL` | Logo for dark mode. Set both light and dark to serve a different image per theme. |

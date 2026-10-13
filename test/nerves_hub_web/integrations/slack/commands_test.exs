@@ -10,7 +10,9 @@ defmodule NervesHubWeb.Integrations.Slack.CommandsTest do
   alias NervesHub.Integrations.Slack.UserLink
   alias NervesHub.Repo
   alias NervesHub.Scripts.Runner
+  alias NervesHubWeb.Integrations.Slack.Actions
   alias NervesHubWeb.Integrations.Slack.Commands
+  alias NervesHubWeb.Integrations.Slack.DeviceCards
   alias Phoenix.Socket.Broadcast
 
   @moduletag :tmp_dir
@@ -93,7 +95,18 @@ defmodule NervesHubWeb.Integrations.Slack.CommandsTest do
       assert "*Connection*\nOnline" in fields
       assert "*Health*\nNot judged yet" in fields
       assert "*Product*\nthermostat" in fields
-      assert %{type: "actions", elements: [%{action_id: "device.open"}, _, %{action_id: "device.reboot"}]} = buttons
+
+      assert %{
+               type: "actions",
+               elements: [
+                 %{action_id: "device.open"},
+                 %{action_id: "device.identify"},
+                 %{action_id: "device.reboot"},
+                 %{action_id: "device.share", value: identifier}
+               ]
+             } = buttons
+
+      assert identifier == device.identifier
     end
 
     test "says when the device was last seen once it is offline", %{connection_id: id, device: device, user: user} do
@@ -115,6 +128,71 @@ defmodule NervesHubWeb.Integrations.Slack.CommandsTest do
       assert %{response_type: "ephemeral", text: "This Slack workspace is not connected" <> _} =
                command("device #{theirs.identifier}")
     end
+  end
+
+  describe "sharing a device" do
+    defp share(device, slack_user_id \\ "U0ALICE") do
+      DeviceCards.share(%{
+        identifier: device.identifier,
+        team_id: "T0ACME",
+        slack_user_id: slack_user_id,
+        response_url: @response_url
+      })
+    end
+
+    test "posts the device's card to the channel, saying who shared it", %{device: device, user: user} do
+      :ok = link!(user)
+
+      assert :ok = share(device)
+
+      assert_received {:slack, "hooks.slack.com", _path, body}
+
+      assert %{"response_type" => "in_channel", "replace_original" => false, "blocks" => [card, buttons]} =
+               Jason.decode!(body)
+
+      assert card["text"]["text"] == "#{user.name} shared *#{device.identifier}*:"
+      refute Enum.any?(buttons["elements"], &(&1["action_id"] == "device.share"))
+    end
+
+    test "checks the sharer can still see the device", %{device: device, org: org, user: user} do
+      :ok = link!(user)
+      {:ok, org_user} = Accounts.get_org_user(org, user)
+      :ok = Accounts.soft_delete_org_user(org_user)
+
+      assert {:error, :not_member} = share(device)
+      assert_received {:slack, "hooks.slack.com", _path, body}
+      assert %{"response_type" => "ephemeral"} = Jason.decode!(body)
+    end
+
+    test "a click on the button shares it", %{device: device, user: user} do
+      :ok = link!(user)
+
+      :ok =
+        Actions.handle_interaction(%{
+          "type" => "block_actions",
+          "team" => %{"id" => "T0ACME"},
+          "user" => %{"id" => "U0ALICE"},
+          "response_url" => @response_url,
+          "actions" => [%{"action_id" => "device.share", "value" => device.identifier}]
+        })
+
+      assert_receive {:slack, "hooks.slack.com", _path, body}, 2000
+      assert %{"response_type" => "in_channel"} = Jason.decode!(body)
+    end
+  end
+
+  test "names the instance as it is configured", %{device: device, user: user} do
+    on_exit(fn -> Application.put_env(:nerves_hub, :friendly_platform_name, "NervesHub") end)
+    Application.put_env(:nerves_hub, :friendly_platform_name, "NervesCloud")
+
+    assert %{text: text} = command("help")
+    assert text =~ "links your NervesCloud account"
+
+    assert %{text: "Link your Slack account to NervesCloud" <> _} = command("device #{device.identifier}")
+
+    :ok = link!(user)
+    assert %{blocks: [_card, %{elements: [open | _]}]} = command("device #{device.identifier}")
+    assert open.text.text == "Open in NervesCloud"
   end
 
   describe "reboot and identify" do

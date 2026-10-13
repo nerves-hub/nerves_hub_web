@@ -3,7 +3,8 @@ defmodule NervesHubWeb.Integrations.Slack.Commands do
   NervesHub's slash command in Slack (`/nerveshub` unless the instance's
   Slack app names it otherwise):
 
-    * `device <identifier>`: the device's state, with its buttons
+    * `device <identifier>`: the device's state, with its buttons and one
+      for sharing it in the channel (`NervesHubWeb.Integrations.Slack.DeviceCards`)
     * `identify <identifier>` and `reboot <identifier>`: as the buttons do
     * `script <identifier>`: the product's support scripts
     * `script <identifier> <script name>`: runs one, and shows its output
@@ -28,13 +29,11 @@ defmodule NervesHubWeb.Integrations.Slack.Commands do
   """
 
   alias NervesHub.DeviceEvents
-  alias NervesHub.Devices.Device
-  alias NervesHub.Devices.Health
-  alias NervesHub.Integrations.Slack.Messages
   alias NervesHub.Repo
   alias NervesHub.Scripts
   alias NervesHub.Tracker
   alias NervesHubWeb.Integrations.Slack.Actions
+  alias NervesHubWeb.Integrations.Slack.DeviceCards
   alias NervesHubWeb.Integrations.Slack.ScriptRuns
 
   @typedoc "The slash command request, as Slack sent it."
@@ -98,7 +97,7 @@ defmodule NervesHubWeb.Integrations.Slack.Commands do
             "`#{command} device <identifier>` shows a device's state.",
             "`#{command} identify <identifier>` and `#{command} reboot <identifier>` ask a device to identify itself or reboot.",
             "`#{command} script <identifier>` lists the support scripts for its product, and `#{command} script <identifier> <name>` runs one.",
-            "`#{command} link` links your NervesHub account, which everything else is done as."
+            "`#{command} link` links your #{Actions.platform()} account, which everything else is done as."
           ],
           &is_nil/1
         ),
@@ -110,52 +109,7 @@ defmodule NervesHubWeb.Integrations.Slack.Commands do
 
   ## device
 
-  defp device(request, identifier) do
-    case Actions.authorize(request.team_id, request.slack_user_id, identifier, :"device:view", "see that device") do
-      {:ok, _user, device} -> device |> Repo.preload([:product, :org, :latest_connection]) |> card() |> private()
-      {:error, _reason, message} -> private(message)
-    end
-  end
-
-  defp card(%Device{} = device) do
-    identifier = Actions.escape(device.identifier)
-    online? = Tracker.online?(device)
-
-    fields =
-      [
-        {"Connection", if(online?, do: "Online", else: offline_since(device))},
-        {"Firmware", firmware_version(device)},
-        {"Health", health(device)},
-        {"Product", Actions.escape(device.product.name)}
-      ]
-      |> Enum.map(fn {label, value} -> %{type: "mrkdwn", text: "*#{label}*\n#{value}"} end)
-
-    %{
-      text: "#{identifier}: #{if online?, do: "online", else: "offline"}",
-      blocks: [
-        %{type: "section", text: %{type: "mrkdwn", text: "*#{identifier}*"}, fields: fields},
-        Messages.device_buttons(device.org.name, device.product.name, device.identifier)
-      ]
-    }
-  end
-
-  defp offline_since(%Device{latest_connection: %{last_seen_at: %DateTime{} = last_seen}}) do
-    "Offline, last seen <!date^#{DateTime.to_unix(last_seen)}^{date_short_pretty} at {time}|#{DateTime.to_iso8601(last_seen)}>"
-  end
-
-  defp offline_since(_device), do: "Offline"
-
-  defp firmware_version(%Device{firmware_metadata: %{version: version}}) when is_binary(version),
-    do: Actions.escape(version)
-
-  defp firmware_version(_device), do: "Unknown"
-
-  defp health(device) do
-    case Health.current_status(device.id) do
-      nil -> "Not judged yet"
-      status -> to_string(status)
-    end
-  end
+  defp device(request, identifier), do: DeviceCards.show(request.team_id, request.slack_user_id, identifier)
 
   ## identify and reboot
 
