@@ -282,10 +282,9 @@ defmodule NervesHub.ManagedDeployments.Workflows do
 
   # A catch_all has no claims to count against, and by the time it is running it
   # is the only step scheduling anything, so everything updating for the
-  # deployment group is its doing. That includes priority queue updates still
-  # finishing from before the workflow was added.
+  # deployment group is its doing.
   defp inflight_for_step(deployment_group, %DeploymentWorkflowStep{type: :catch_all}) do
-    FirmwareUpdates.count_all_inflight_updates_for(deployment_group)
+    FirmwareUpdates.count_inflight_updates_for(deployment_group)
   end
 
   defp inflight_for_step(_deployment_group, step) do

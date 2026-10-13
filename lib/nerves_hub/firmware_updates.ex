@@ -324,17 +324,6 @@ defmodule NervesHub.FirmwareUpdates do
   end
 
   @doc """
-  Count every inflight update for a deployment group, in either queue.
-  """
-  @spec count_all_inflight_updates_for(DeploymentGroup.t()) :: non_neg_integer()
-  def count_all_inflight_updates_for(%DeploymentGroup{} = deployment_group) do
-    InflightUpdate
-    |> active()
-    |> where([iu], iu.deployment_id == ^deployment_group.id)
-    |> Repo.aggregate(:count)
-  end
-
-  @doc """
   Count inflight updates for the devices a workflow step has claimed.
 
   A workflow step paces its own devices, so the deployment group's concurrency is
