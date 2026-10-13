@@ -12,9 +12,9 @@ defmodule NervesHub.DeviceEvents do
   alias NervesHub.Devices.Updates
   alias NervesHub.Firmwares
   alias NervesHub.FirmwareUpdates
+  alias NervesHub.Integrations
   alias NervesHub.ManagedDeployments
   alias NervesHub.Repo
-  alias NervesHub.Webhooks
   alias NervesHub.Webhooks.Payloads
   alias Phoenix.Channel.Server, as: ChannelServer
 
@@ -124,7 +124,7 @@ defmodule NervesHub.DeviceEvents do
       # event worth telling anyone about.
       if update_payload.update_available do
         :ok =
-          Webhooks.dispatch(device.product_id, "device.firmware_update.scheduled", fn ->
+          Integrations.dispatch(device.product_id, "device.firmware_update.scheduled", fn ->
             Payloads.firmware_update_scheduled(device, target_release.firmware, initiated_by(opts), deployment_group)
           end)
       end
@@ -210,7 +210,7 @@ defmodule NervesHub.DeviceEvents do
       DeviceTemplates.audit_firmware_pushed(user, device, firmware)
 
       :ok =
-        Webhooks.dispatch(device.product_id, "device.firmware_update.scheduled", fn ->
+        Integrations.dispatch(device.product_id, "device.firmware_update.scheduled", fn ->
           Payloads.firmware_update_scheduled(device, firmware, "user", nil)
         end)
 

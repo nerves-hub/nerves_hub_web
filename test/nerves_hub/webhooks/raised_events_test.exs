@@ -4,7 +4,7 @@ defmodule NervesHub.Webhooks.RaisedEventsTest do
   `docs/webhooks.md` promises.
 
   Drives the code that raises each event and reads back the deliveries it
-  queued, rather than calling `NervesHub.Webhooks.dispatch/3` directly: what
+  queued, rather than calling `NervesHub.Integrations.dispatch/3` directly: what
   matters to a receiver is that a disconnect, say, produces the event at all.
   """
   use NervesHub.DataCase, async: false
@@ -23,8 +23,8 @@ defmodule NervesHub.Webhooks.RaisedEventsTest do
   alias NervesHub.Extensions.State
   alias NervesHub.FirmwareUpdates
   alias NervesHub.Fixtures
+  alias NervesHub.Integrations.Cache
   alias NervesHub.Webhooks
-  alias NervesHub.Webhooks.Cache
   alias NervesHub.Webhooks.Events
   alias NervesHub.Webhooks.Webhook
   alias NervesHub.Workers.DeliverWebhook

@@ -1,6 +1,6 @@
 defmodule NervesHub.Workers.DeliverWebhook do
   @moduledoc """
-  Delivers one event to one webhook. Queued by `NervesHub.Webhooks.dispatch/3`.
+  Delivers one event to one webhook. Queued by `NervesHub.Webhooks.queue_deliveries/3`.
 
   The webhook is read when the job runs, not when it was queued, so a delivery
   goes to the current URL, is signed with the current secret, and is dropped

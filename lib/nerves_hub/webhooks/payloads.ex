@@ -8,12 +8,12 @@ defmodule NervesHub.Webhooks.Payloads do
   or removing one breaks an integration this repository cannot see.
 
   Every event about a device carries `device`: its identifier and the firmware
-  it is running as far as NervesHub knows. `NervesHub.Webhooks.dispatch/3`
+  it is running as far as NervesHub knows. `NervesHub.Integrations.dispatch/3`
   adds `org` and `product`.
 
-  Each function runs only when a webhook subscribes to its event (it is the
+  Each function runs only when an integration wants its event (it is the
   function passed to `dispatch/3`), so the queries some of them make cost
-  nothing for products without webhooks.
+  nothing for products without one.
   """
 
   import Ecto.Query

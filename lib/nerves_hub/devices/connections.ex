@@ -9,10 +9,10 @@ defmodule NervesHub.Devices.Connections do
   alias NervesHub.Devices
   alias NervesHub.Devices.DeviceConnection
   alias NervesHub.Devices.DeviceConnectionHistory
+  alias NervesHub.Integrations
   alias NervesHub.Products.Product
   alias NervesHub.Repo
   alias NervesHub.Tracker
-  alias NervesHub.Webhooks
   alias NervesHub.Webhooks.Payloads
 
   @doc """
@@ -88,7 +88,7 @@ defmodule NervesHub.Devices.Connections do
         Tracker.online(device_id)
 
         :ok =
-          Webhooks.dispatch(device_connection.product_id, "device.connected", fn ->
+          Integrations.dispatch(device_connection.product_id, "device.connected", fn ->
             Payloads.device_connected(device_connection)
           end)
 
@@ -151,7 +151,7 @@ defmodule NervesHub.Devices.Connections do
         Tracker.offline(device_id)
 
         :ok =
-          Webhooks.dispatch(device_connection.product_id, "device.disconnected", fn ->
+          Integrations.dispatch(device_connection.product_id, "device.disconnected", fn ->
             Payloads.device_disconnected(device_connection)
           end)
 
@@ -400,18 +400,18 @@ defmodule NervesHub.Devices.Connections do
   # A swept connection never went through `device_disconnected/2`, so this is
   # the only place its disconnect is raised. A node that crashed or was cut off
   # leaves all of its connections to this sweep, so a batch can be large: the
-  # device lookups are one query per product with a subscribed webhook, and
-  # none for products without one.
+  # device lookups are one query per product with a subscribed integration,
+  # and none for products without one.
   defp dispatch_stale_disconnects(device_connections) do
     device_connections
     |> Enum.group_by(& &1.product_id)
-    |> Enum.filter(fn {product_id, _connections} -> Webhooks.subscribed?(product_id, "device.disconnected") end)
+    |> Enum.filter(fn {product_id, _connections} -> Integrations.subscribed?(product_id, "device.disconnected") end)
     |> Enum.each(fn {product_id, connections} ->
       devices = connections |> Enum.map(& &1.device_id) |> Payloads.devices()
 
       Enum.each(connections, fn connection ->
         :ok =
-          Webhooks.dispatch(product_id, "device.disconnected", fn ->
+          Integrations.dispatch(product_id, "device.disconnected", fn ->
             Payloads.device_disconnected(connection, devices)
           end)
       end)
