@@ -89,6 +89,10 @@ defmodule NervesHubWeb.ApiSpec do
           description: "Device Certificate management"
         },
         %Tag{
+          name: "Device Shared Secrets",
+          description: "Keys and secrets a Device can connect with instead of a certificate"
+        },
+        %Tag{
           name: "Network Identities",
           description: "Identities a Device holds on networks NervesHub does not run"
         },

@@ -213,6 +213,32 @@ defmodule NervesHubWeb.Live.Org.CertificateAuthoritiesTest do
       assert [] = CACertificates.get_ca_certificates(org)
     end
 
+    test "creates a root CA without an AKI", %{conn: conn, org: org, tmp_dir: tmp_dir} do
+      # Like the root LibreSSL's `openssl req -x509` makes from Step 1 on this page
+      ca_cert = write_root_ca(tmp_dir, extensions: [authority_key_identifier: false])
+
+      conn
+      |> upload_root_ca(org, tmp_dir)
+      |> click_button("Create Certificate")
+      |> assert_path("/org/#{org.name}/settings/certificates")
+      |> assert_has("div", text: "Certificate Authority created")
+
+      assert {:ok, %{aki: nil}} = CACertificates.get_ca_certificate_by_serial(Certificate.get_serial_number(ca_cert))
+    end
+
+    test "explains a CA without an SKI", %{conn: conn, org: org, tmp_dir: tmp_dir} do
+      write_root_ca(tmp_dir, extensions: [subject_key_identifier: false])
+
+      conn
+      |> upload_root_ca(org, tmp_dir)
+      |> click_button("Create Certificate")
+      |> assert_path("/org/#{org.name}/settings/certificates/new")
+      |> assert_has("#missing-ski-error", text: "no Subject Key Identifier extension")
+      |> refute_has("div", text: "Something went wrong!")
+
+      assert [] = CACertificates.get_ca_certificates(org)
+    end
+
     test "renders error when no cert uploaded", %{conn: conn, org: org} do
       conn
       |> visit("/org/#{org.name}/settings/certificates/new")
@@ -385,6 +411,35 @@ defmodule NervesHubWeb.Live.Org.CertificateAuthoritiesTest do
       assert {:ok, %{description: nil}} =
                CACertificates.get_ca_certificate_by_org_and_serial(other_org, other_ca.serial)
     end
+  end
+
+  # Writes a P-256 root CA and its key to `rootCA.crt` and `rootCA.key` in `dir`
+  defp write_root_ca(dir, opts) do
+    ca_key = X509.PrivateKey.new_ec(:secp256r1)
+    ca_cert = X509.Certificate.self_signed(ca_key, "CN=Root CA", Keyword.put(opts, :template, :root_ca))
+
+    File.write!(Path.join(dir, "rootCA.key"), X509.PrivateKey.to_pem(ca_key))
+    File.write!(Path.join(dir, "rootCA.crt"), X509.Certificate.to_pem(ca_cert))
+
+    ca_cert
+  end
+
+  # Opens the new CA page and uploads the root CA from `write_root_ca/2`, with a
+  # verification certificate it signed
+  defp upload_root_ca(conn, org, dir) do
+    ca_file_path = Path.join(dir, "rootCA.crt")
+
+    conn
+    |> visit("/org/#{org.name}/settings/certificates/new")
+    |> unwrap(fn view ->
+      code = CSR.generate_verification_token(org)
+
+      %{verification_cert_crt: verification_cert_crt} =
+        Fixtures.generate_certificate_authority_csr(ca_file_path, Path.join(dir, "rootCA.key"), code, dir)
+
+      upload_file(view, "rootCA.crt", ca_file_path, :cert)
+      upload_file(view, "verificationCert.crt", verification_cert_crt, :csr)
+    end)
   end
 
   defp upload_file(view, file_name, file_path, form_field) do

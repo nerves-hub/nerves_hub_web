@@ -89,13 +89,13 @@ defmodule NervesHubWeb.API.DeviceController do
 
   defp validate_advanced_query(_filters, _product_id), do: :ok
 
-  def create(%{assigns: %{current_scope: %{org: org}, product: product}} = conn, params) do
+  def create(%{assigns: %{current_scope: %{org: org, user: user}, product: product}} = conn, params) do
     params =
       params
       |> Map.put("org_id", org.id)
       |> Map.put("product_id", product.id)
 
-    with {:ok, device} <- Devices.create_device(params) do
+    with {:ok, device, shared_secret} <- create_device(params, user) do
       device = Devices.get_by_identifier_with_deployment_and_release!(device.identifier)
 
       conn
@@ -104,7 +104,28 @@ defmodule NervesHubWeb.API.DeviceController do
         "location",
         Routes.api_device_path(conn, :show, org.name, product.name, device.identifier)
       )
-      |> render(:show, device: device)
+      |> render(:show, device: device, shared_secret: shared_secret)
+    end
+  end
+
+  # `"shared_secret": true` creates the device's own shared secret in the same
+  # transaction, so a provisioner never leaves a device without credentials. It
+  # is cast the way the device's own boolean fields are, and any other value is
+  # refused rather than quietly creating a device without one.
+  defp create_device(params, user) do
+    case Ecto.Type.cast(:boolean, params["shared_secret"]) do
+      {:ok, true} ->
+        with {:ok, {device, auth}} <- Devices.create_device_with_shared_secret_auth(params, user) do
+          {:ok, device, auth}
+        end
+
+      {:ok, not_requested} when not_requested in [false, nil] ->
+        with {:ok, device} <- Devices.create_device(params) do
+          {:ok, device, nil}
+        end
+
+      :error ->
+        {:error, {:shared_secret, "shared_secret must be true or false, got #{inspect(params["shared_secret"])}."}}
     end
   end
 

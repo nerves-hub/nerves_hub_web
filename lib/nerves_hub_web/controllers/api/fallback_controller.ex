@@ -178,6 +178,17 @@ defmodule NervesHubWeb.API.FallbackController do
     })
   end
 
+  def call(conn, {:error, :shared_secrets_not_enabled}) do
+    conn
+    |> put_status(:unprocessable_entity)
+    |> put_view(ErrorJSON)
+    |> render(:"422", %{
+      reason:
+        "Device shared secrets are not enabled on this platform, so a device could not connect with one. " <>
+          "Contact your Ops team for more information."
+    })
+  end
+
   def call(conn, {:error, {_key, message}}) do
     conn
     |> put_status(:unprocessable_entity)

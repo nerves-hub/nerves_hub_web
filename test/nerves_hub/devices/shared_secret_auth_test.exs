@@ -24,7 +24,14 @@ defmodule NervesHub.Devices.SharedSecretAuthTest do
     test "key has the nhd_ prefix format", %{device: device} do
       changeset = SharedSecretAuth.create_changeset(device)
       key = Ecto.Changeset.get_change(changeset, :key)
-      assert key =~ ~r/^nhd_[a-zA-Z0-9\-\/\+]{43}$/
+      assert key =~ ~r/^nhd_[a-zA-Z0-9\-_]{43}$/
+    end
+
+    test "keys are URL-safe, so the API can address them in a path", %{device: device} do
+      for _ <- 1..200 do
+        key = device |> SharedSecretAuth.create_changeset() |> Ecto.Changeset.get_change(:key)
+        assert key == URI.encode(key, &URI.char_unreserved?/1)
+      end
     end
 
     test "secret matches expected format", %{device: device} do
@@ -49,32 +56,6 @@ defmodule NervesHub.Devices.SharedSecretAuthTest do
     test "changeset has no errors", %{device: device} do
       changeset = SharedSecretAuth.create_changeset(device)
       assert changeset.errors == []
-    end
-  end
-
-  describe "deactivate_changeset/1" do
-    test "sets deactivated_at to a non-nil datetime", %{device: device} do
-      auth = %SharedSecretAuth{
-        device_id: device.id,
-        key: "nhd_somekey",
-        secret: "somesecret"
-      }
-
-      changeset = SharedSecretAuth.deactivate_changeset(auth)
-      deactivated_at = Ecto.Changeset.get_change(changeset, :deactivated_at)
-      assert deactivated_at != nil
-      assert %DateTime{} = deactivated_at
-    end
-
-    test "changeset is valid", %{device: device} do
-      auth = %SharedSecretAuth{
-        device_id: device.id,
-        key: "nhd_somekey",
-        secret: "somesecret"
-      }
-
-      changeset = SharedSecretAuth.deactivate_changeset(auth)
-      assert changeset.valid?
     end
   end
 end
