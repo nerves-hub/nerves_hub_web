@@ -6,6 +6,7 @@ defmodule NervesHub.AuditLogs.OrgTemplates do
   alias NervesHub.Accounts.Org
   alias NervesHub.Accounts.User
   alias NervesHub.AuditLogs
+  alias NervesHub.Integrations.Slack.Workspace
   alias NervesHub.Webhooks.Webhook
 
   # Webhooks are described by their host rather than their URL. Some receivers
@@ -41,6 +42,29 @@ defmodule NervesHub.AuditLogs.OrgTemplates do
     description = "User #{user.name} regenerated the signing secret of webhook #{webhook.id}"
 
     AuditLogs.audit!(user, org, description)
+  end
+
+  @spec audit_slack_connected(User.t(), Org.t(), Workspace.t()) :: :ok
+  def audit_slack_connected(user, org, workspace) do
+    description = "User #{user.name} connected Slack workspace #{workspace.team_name} (#{workspace.team_id})"
+
+    AuditLogs.audit!(user, org, description)
+  end
+
+  @spec audit_slack_disconnected(User.t(), Org.t(), Workspace.t()) :: :ok
+  def audit_slack_disconnected(user, org, workspace) do
+    description = "User #{user.name} disconnected Slack workspace #{workspace.team_name} (#{workspace.team_id})"
+
+    AuditLogs.audit!(user, org, description)
+  end
+
+  # Slack said so, rather than a member, so the organization is the actor.
+  @spec audit_slack_removed(Org.t(), Workspace.t(), String.t()) :: :ok
+  def audit_slack_removed(org, workspace, reason) do
+    description =
+      "Slack workspace #{workspace.team_name} (#{workspace.team_id}) was disconnected because #{reason}"
+
+    AuditLogs.audit!(org, org, description)
   end
 
   defp webhook_host(%Webhook{url: url}), do: URI.parse(url).host

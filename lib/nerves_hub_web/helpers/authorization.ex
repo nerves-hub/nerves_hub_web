@@ -43,6 +43,11 @@ defmodule NervesHubWeb.Helpers.Authorization do
   def authorized?(:"webhook:update", role), do: role_check(:manage, role)
   def authorized?(:"webhook:delete", role), do: role_check(:manage, role)
 
+  # Connecting a Slack workspace lets the people in it hear about the whole
+  # organization's devices, and later act on them, so it is an admin's call.
+  def authorized?(:"slack_connection:create", role), do: role_check(:admin, role)
+  def authorized?(:"slack_connection:delete", role), do: role_check(:admin, role)
+
   def authorized?(:"error_group:update", role), do: role_check(:manage, role)
 
   def authorized?(:"device:console", role), do: role_check(:manage, role)

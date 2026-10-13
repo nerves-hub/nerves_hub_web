@@ -94,6 +94,12 @@ when adding or removing one.
   (`Workers.DeliverWebhook`), signed per Standard Webhooks, and only reach
   public addresses unless the instance allows otherwise. Event types and
   payloads are a published contract; see [docs/webhooks.md](docs/webhooks.md).
+- `integrations/slack.ex` / `integrations/slack/` — the Slack integration: workspaces an organization
+  connects by installing the instance's Slack app (`NervesHubWeb.Integrations.Slack.OAuthController`
+  runs the OAuth flow), and the events Slack sends to `/integrations/slack/`,
+  which must be signed (`Integrations.Slack.VerifyRequest`). One bot token per
+  workspace, encrypted at rest with `Types.Encrypted`. Hidden unless the
+  instance has a Slack app; see [docs/slack.md](docs/slack.md).
 - `scripts.ex` / `scripts/` — support scripts run against a device console.
 - `workers/` — Oban workers (e.g. firmware delta building, firmware deletion).
 - Cross-cutting: `audit_logs.ex`, `product_notifications.ex`, `tracker.ex`,

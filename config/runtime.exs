@@ -4,8 +4,10 @@ alias NervesHub.DeviceLink.PeerVerification
 alias NervesHub.Devices.DeviceMessages
 alias NervesHub.Firmwares.Upload
 alias NervesHub.Firmwares.Upload.S3
+alias NervesHub.Integrations.Slack
 alias NervesHub.Repo
 alias NervesHub.Telemetry.FilteredSampler
+alias NervesHub.Types.Encrypted
 alias Sentry.OpenTelemetry.Sampler
 alias Sentry.OpenTelemetry.SpanProcessor
 alias Swoosh.Adapters.SMTP
@@ -39,6 +41,31 @@ end
 # network. Left unset, the compile-time default stands: off, except in dev.
 if allow_private = System.get_env("WEBHOOKS_ALLOW_PRIVATE_DESTINATIONS") do
   config :nerves_hub, NervesHub.Webhooks, allow_private_destinations: allow_private == "true"
+end
+
+# A Slack app for this instance (docs/slack.md). The integration stays hidden
+# unless all three are set.
+if System.get_env("SLACK_CLIENT_ID") do
+  config :nerves_hub, Slack,
+    client_id: System.get_env("SLACK_CLIENT_ID"),
+    client_secret: System.get_env("SLACK_CLIENT_SECRET"),
+    signing_secret: System.get_env("SLACK_SIGNING_SECRET")
+end
+
+# Encrypts the secrets NervesHub holds on others' behalf, such as Slack bot
+# tokens (`NervesHub.Types.Encrypted`).
+if encoded_key = System.get_env("SECRETS_ENCRYPTION_KEY") do
+  case Base.decode64(encoded_key) do
+    {:ok, <<_::binary-32>> = key} ->
+      config :nerves_hub, Encrypted, key: key
+
+    _ ->
+      raise "SECRETS_ENCRYPTION_KEY must be 32 bytes, base64 encoded, such as the output of `openssl rand -base64 32`"
+  end
+else
+  if System.get_env("SLACK_CLIENT_ID") && config_env() == :prod do
+    raise "SLACK_CLIENT_ID is set, so SECRETS_ENCRYPTION_KEY must be too: Slack bot tokens are encrypted with it"
+  end
 end
 
 config :nerves_hub, :device_socket_drainer,
