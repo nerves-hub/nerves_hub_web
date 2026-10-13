@@ -33,6 +33,7 @@ defmodule NervesHubWeb.Integrations.Slack.Actions do
   alias NervesHub.Accounts.Org
   alias NervesHub.DeviceEvents
   alias NervesHub.Devices.Device
+  alias NervesHub.Integrations.Slack.Claims
   alias NervesHub.Integrations.Slack.Client
   alias NervesHub.Integrations.Slack.Connection
   alias NervesHub.Integrations.Slack.Users
@@ -47,6 +48,12 @@ defmodule NervesHubWeb.Integrations.Slack.Actions do
     "device.reboot" => %{permission: :"device:reboot", verb: "reboot"},
     "device.identify" => %{permission: :"device:identify", verb: "identify itself"}
   }
+
+  # Slack's signature on a request lasts five minutes; a little longer covers
+  # clocks that disagree.
+  @replay_window_seconds 600
+
+  @reboot_window_seconds 60
 
   @typedoc "Where a click came from, read from Slack's interaction payload."
   @type click() :: %{
@@ -71,9 +78,12 @@ defmodule NervesHubWeb.Integrations.Slack.Actions do
   """
   @spec handle_interaction(map()) :: :ok
   def handle_interaction(%{"type" => "block_actions", "actions" => actions} = payload) when is_list(actions) do
-    for action <- actions, click = click(payload, action), not is_nil(click) do
-      {:ok, _pid} = Task.Supervisor.start_child(NervesHub.TaskSupervisor, fn -> perform(click) end)
-    end
+    _ =
+      if first_time?(payload) do
+        for action <- actions, click = click(payload, action), not is_nil(click) do
+          {:ok, _pid} = Task.Supervisor.start_child(NervesHub.TaskSupervisor, fn -> perform(click) end)
+        end
+      end
 
     :ok
   end
@@ -111,12 +121,14 @@ defmodule NervesHubWeb.Integrations.Slack.Actions do
 
     case authorize(click.team_id, click.slack_user_id, click.identifier, permission, "ask a device to #{verb}") do
       {:ok, user, device} ->
-        if Tracker.online?(device) do
+        with {:online, true} <- {:online, Tracker.online?(device)},
+             :ok <- not_just_rebooted(click.action_id, device, user) do
           {:ok, _device} = act(click.action_id, device, user, via(click))
           :ok = announce(click, done(click.action_id, user, device))
           {:ok, click.action_id}
         else
-          refuse(click, :offline, offline_message(device, verb))
+          {:online, false} -> refuse(click, :offline, offline_message(device, verb))
+          {:error, :just_rebooted, message} -> refuse(click, :just_rebooted, message)
         end
 
       {:error, reason, message} ->
@@ -163,6 +175,41 @@ defmodule NervesHubWeb.Integrations.Slack.Actions do
         {:error, :not_allowed, "Your role in NervesHub does not let you #{what}."}
     end
   end
+
+  @doc """
+  Whether a Slack request is new, by Slack's `trigger_id`, which is unique to
+  each click or command. A request Slack signed can be replayed by whoever
+  captured it for as long as its signature lasts (five minutes), so one seen
+  before is not acted on again. Taking the id is what marks it seen.
+  """
+  @spec first_time?(map()) :: boolean()
+  def first_time?(%{"trigger_id" => trigger_id}) when is_binary(trigger_id) do
+    Claims.claim("request:" <> trigger_id, @replay_window_seconds) == :ok
+  end
+
+  def first_time?(_request), do: true
+
+  @doc """
+  `:ok` unless the action is a reboot and the device was asked to reboot from
+  Slack in the last minute, which a double click, two people clicking at
+  once, or a button and a command together would otherwise do twice.
+  Claims the reboot for `user` when it is `:ok`.
+  """
+  @spec not_just_rebooted(String.t(), Device.t(), Accounts.User.t()) :: :ok | {:error, :just_rebooted, String.t()}
+  def not_just_rebooted("device.reboot", device, user) do
+    case Claims.claim("reboot:#{device.id}", @reboot_window_seconds, user.name) do
+      :ok ->
+        :ok
+
+      {:held, holder, _expires_at} ->
+        by = if holder, do: " by #{escape(holder)}", else: ""
+
+        {:error, :just_rebooted,
+         "#{escape(device.identifier)} was asked to reboot#{by} less than a minute ago, so NervesHub did not ask again."}
+    end
+  end
+
+  def not_just_rebooted(_action, _device, _user), do: :ok
 
   @doc "What a device that is offline cannot be asked to do, worded for Slack."
   @spec offline_message(Device.t(), String.t()) :: String.t()

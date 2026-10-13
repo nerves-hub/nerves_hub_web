@@ -52,6 +52,8 @@ When a linked user clicks, NervesHub checks, at that moment:
 
 If any check fails, only the person who clicked is told why. If they all pass, the device is asked to reboot or identify itself, the audit log records the user with "from Slack", and a reply in the message's thread tells the channel who did what.
 
+A device asked to reboot from Slack is not asked again from Slack for a minute, so a double click, two people clicking at once, or a button and a command together reboot it once. Whoever is refused is told who rebooted it. Each request Slack sends is acted on once, so one replayed while its signature is still good does nothing.
+
 ## Slash commands
 
 `/nerveshub` works in any channel of a connected workspace, as the NervesHub user the Slack user linked, with the same checks as the buttons:

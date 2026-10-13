@@ -100,6 +100,31 @@ defmodule NervesHubWeb.Integrations.Slack.ActionsTest do
       assert text =~ "#{user.name} rebooted *#{device.identifier}* from Slack."
     end
 
+    test "does not reboot a device asked to reboot a moment ago, and says by whom", %{device: device, user: user} do
+      :ok = link!(user)
+      :ok = Phoenix.PubSub.subscribe(NervesHub.PubSub, "device:#{device.id}")
+
+      assert {:ok, "device.reboot"} = Actions.perform(click(device, "device.reboot"))
+
+      assert {:error, :just_rebooted} =
+               Actions.perform(click(device, "device.reboot", %{slack_user_id: "U0ALICE"}))
+
+      assert_receive %Broadcast{event: "reboot"}
+      refute_receive %Broadcast{event: "reboot"}, 100
+
+      assert %{"text" => text} = private_reply()
+
+      assert text ==
+               "#{device.identifier} was asked to reboot by #{user.name} less than a minute ago, so NervesHub did not ask again."
+    end
+
+    test "identifying twice in a row is fine", %{device: device, user: user} do
+      :ok = link!(user)
+
+      assert {:ok, "device.identify"} = Actions.perform(click(device, "device.identify"))
+      assert {:ok, "device.identify"} = Actions.perform(click(device, "device.identify"))
+    end
+
     test "asks the device to identify itself", %{device: device, user: user} do
       :ok = link!(user)
       :ok = Phoenix.PubSub.subscribe(NervesHub.PubSub, "device:#{device.id}")
@@ -197,6 +222,26 @@ defmodule NervesHubWeb.Integrations.Slack.ActionsTest do
 
       assert :ok = Actions.handle_interaction(payload)
       assert_receive {:slack, "slack.com", "/api/chat.postMessage", _body}, 2000
+    end
+
+    test "acts on a request once, however often it is replayed", %{device: device, user: user} do
+      :ok = link!(user)
+      :ok = Phoenix.PubSub.subscribe(NervesHub.PubSub, "device:#{device.id}")
+
+      payload = %{
+        "type" => "block_actions",
+        "trigger_id" => "1728900000.1.abc",
+        "team" => %{"id" => "T0ACME"},
+        "user" => %{"id" => "U0ALICE", "username" => "alice"},
+        "response_url" => @response_url,
+        "actions" => [%{"action_id" => "device.identify", "value" => device.identifier}]
+      }
+
+      assert :ok = Actions.handle_interaction(payload)
+      assert :ok = Actions.handle_interaction(payload)
+
+      assert_receive %Broadcast{event: "identify"}, 2000
+      refute_receive %Broadcast{event: "identify"}, 300
     end
 
     test "ignores link buttons and anything else Slack sends", %{device: device} do

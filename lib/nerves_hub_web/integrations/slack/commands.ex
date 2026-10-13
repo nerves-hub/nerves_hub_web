@@ -66,11 +66,15 @@ defmodule NervesHubWeb.Integrations.Slack.Commands do
       response_url: params["response_url"]
     }
 
-    params
-    |> Map.get("text", "")
-    |> to_string()
-    |> String.split()
-    |> run(request)
+    if Actions.first_time?(params) do
+      params
+      |> Map.get("text", "")
+      |> to_string()
+      |> String.split()
+      |> run(request)
+    else
+      private("This command was already answered.")
+    end
   end
 
   def handle(_params), do: private("Slack did not say who sent this.")
@@ -175,7 +179,8 @@ defmodule NervesHubWeb.Integrations.Slack.Commands do
              permission,
              "ask a device to #{verb}"
            ),
-         true <- Tracker.online?(device) || {:offline, device} do
+         true <- Tracker.online?(device) || {:offline, device},
+         :ok <- Actions.not_just_rebooted(action, device, user) do
       via = Actions.via(request)
       name = Actions.escape(user.name)
       identifier = Actions.escape(device.identifier)

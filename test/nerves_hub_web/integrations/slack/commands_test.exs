@@ -138,6 +138,21 @@ defmodule NervesHubWeb.Integrations.Slack.CommandsTest do
       assert_receive %Broadcast{event: "identify"}
     end
 
+    test "a reboot right after another is refused, button or command", %{device: device, user: user} do
+      :ok = link!(user)
+
+      assert %{response_type: "in_channel"} = command("reboot #{device.identifier}")
+      assert %{response_type: "ephemeral", text: text} = command("reboot #{device.identifier}")
+      assert text =~ "was asked to reboot by #{user.name} less than a minute ago"
+    end
+
+    test "a replayed command is answered once" do
+      params = %{"team_id" => "T0ACME", "user_id" => "U0ALICE", "text" => "help", "trigger_id" => "1728.1.xyz"}
+
+      assert %{text: "`/nerveshub device" <> _} = Commands.handle(params)
+      assert %{text: "This command was already answered."} = Commands.handle(params)
+    end
+
     test "a viewer cannot reboot", %{device: device, org: org} do
       viewer = Fixtures.user_fixture()
       {:ok, _} = Accounts.add_org_user(org, viewer, %{role: :view})
