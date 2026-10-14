@@ -41,6 +41,15 @@ defmodule NervesHub.GroupSupervisorTest do
     assert opts[:replicated_oplog_max_entries] == 1_024
   end
 
+  # At Group's 1 s default the heartbeats alone are about 16 KB/s per node with
+  # five peers. See the comment in GroupSupervisor.
+  test "Group heartbeats its peers every 5 s, inside a 30 s lease" do
+    assert {:ok, {_flags, [group | _]}} = GroupSupervisor.init([])
+    assert %{start: {_mod, :start_link, [opts]}} = group
+    assert opts[:replicated_anti_entropy_interval] == 5_000
+    assert opts[:replicated_peer_lease_timeout] == 30_000
+  end
+
   test "device nodes run neither web-cluster member" do
     previous = Application.fetch_env(:nerves_hub, :app)
     Application.put_env(:nerves_hub, :app, "device")
