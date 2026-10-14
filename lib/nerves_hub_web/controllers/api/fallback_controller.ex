@@ -70,6 +70,22 @@ defmodule NervesHubWeb.API.FallbackController do
     })
   end
 
+  def call(conn, {:error, :invalid_signature}) do
+    conn
+    |> put_status(:unprocessable_entity)
+    |> put_view(ErrorJSON)
+    |> render(:"422", %{
+      reason: "The signature does not match any of this organization's signing keys, or the file is corrupt."
+    })
+  end
+
+  def call(conn, {:error, :no_public_keys}) do
+    conn
+    |> put_status(:unprocessable_entity)
+    |> put_view(ErrorJSON)
+    |> render(:"422", %{reason: "This organization has no signing keys. Register one before uploading."})
+  end
+
   def call(conn, {:error, :firmware_not_signed}) do
     conn
     |> put_status(:unprocessable_entity)
