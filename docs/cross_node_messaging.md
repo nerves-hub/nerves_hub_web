@@ -221,3 +221,10 @@ replication protocol change, so check the changelog for one before upgrading.
 `NervesHub.GroupSupervisor` caps Group's replica oplog. The library prunes it by
 count only, and at the default cap it holds about 300 MiB of ETS per node once
 churn fills it, whether or not anything is still joined.
+
+It also slows Group's heartbeats. Each shard heartbeats every peer node once per
+anti-entropy interval, so idle traffic grows with the number of nodes: about
+1.4 KiB/s of payload per peer at the 1 s default, more on the wire once headers
+and ACKs are counted. `GroupSupervisor` sets 5 s, inside a 30 s peer lease, at
+the cost of a dropped replica message waiting up to 5 s for repair. A connected
+node that does not run Group is probed on the same interval.
