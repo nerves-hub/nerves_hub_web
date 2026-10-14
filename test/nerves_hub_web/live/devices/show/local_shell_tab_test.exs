@@ -5,6 +5,7 @@ defmodule NervesHubWeb.Live.Devices.Show.LocalShellTabTest do
   alias NervesHub.Devices
   alias NervesHub.Products
   alias NervesHub.Support.ConsoleStandIn
+  alias NervesHub.Support.LocalShellStandIn
 
   test "the local shell extension is enabled for the product", %{
     conn: conn,
@@ -59,13 +60,13 @@ defmodule NervesHubWeb.Live.Devices.Show.LocalShellTabTest do
     {:ok, _product} = Products.enable_extension_setting(product, "local_shell")
     {:ok, _device} = Devices.enable_extension_setting(device, "local_shell")
 
-    # Stand in for an attached device-side LocalShell extension by joining the
-    # local-shell registry group; `local_shell_active?/1` then reports available.
-    :ok = Consoles.PubSub.join_local_shell(device.id)
+    # Stand in for an attached device-side LocalShell extension, which answers
+    # the tab's locate.
+    _shell = LocalShellStandIn.start(device.id)
 
     conn
     |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}/local_shell")
-    |> assert_has("#local-shell")
+    |> assert_has("#local-shell", timeout: 1000)
     |> refute_has("div", text: "The device's local shell isn't currently available.", timeout: 500)
   end
 
@@ -79,22 +80,41 @@ defmodule NervesHubWeb.Live.Devices.Show.LocalShellTabTest do
     {:ok, _device} = Devices.enable_extension_setting(device, "local_shell")
 
     # Stand in for an attached device-side LocalShell extension.
-    :ok = Consoles.PubSub.join_local_shell(device.id)
+    _shell = LocalShellStandIn.start(device.id)
 
     session =
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}/local_shell")
-      |> assert_has("#local-shell")
+      |> assert_has("#local-shell", timeout: 1000)
 
-    # The shell detaches while the tab is open; the monitor should flip the
-    # indicator without a page reload.
-    :ok = Consoles.PubSub.leave_local_shell(device.id)
+    # The shell detaches while the tab is open. The extension tells the page,
+    # which should flip the indicator without a reload.
+    :ok = Consoles.PubSub.broadcast_local_shell_detached(device.id)
 
     session
     |> assert_has("div", text: "The device's local shell isn't currently available.", timeout: 1000)
   end
 
-  test "switching terminal tabs leaves only the active tab's liveness monitor", %{
+  test "the local shell availability updates live when the shell attaches", %{
+    conn: conn,
+    org: org,
+    product: product,
+    device: device
+  } do
+    {:ok, _product} = Products.enable_extension_setting(product, "local_shell")
+    {:ok, _device} = Devices.enable_extension_setting(device, "local_shell")
+
+    session =
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}/local_shell")
+      |> assert_has("div", text: "The device's local shell isn't currently available.", timeout: 500)
+
+    :ok = Consoles.PubSub.broadcast_local_shell_attached(device.id)
+
+    assert_has(session, "#local-shell", timeout: 1000)
+  end
+
+  test "switching to the shell tab releases the console's monitor", %{
     conn: conn,
     org: org,
     product: product,
@@ -121,27 +141,16 @@ defmodule NervesHubWeb.Live.Devices.Show.LocalShellTabTest do
     assert_received {:live_view, live_view}
 
     assert monitoring_process?(live_view, console)
-    refute monitoring?(live_view, "local_shell/#{device.id}")
 
     session
     |> click_link("System Shell")
     |> assert_has("h1", text: device.identifier)
 
-    assert monitoring?(live_view, "local_shell/#{device.id}")
     refute monitoring_process?(live_view, console)
   end
 
   defp monitoring_process?(pid, monitored) do
     {:monitors, monitors} = Process.info(pid, :monitors)
     {:process, monitored} in monitors
-  end
-
-  # See the note in NervesHub.Consoles.PubSubTest: a monitor registration is not
-  # observable through delivery, so this reaches into `Group`'s registry.
-  defp monitoring?(pid, key) do
-    NervesHub.Group
-    |> Group.registry_name()
-    |> Registry.lookup({NervesHub.Group, nil, {:exact, key}})
-    |> Enum.any?(fn {entry_pid, _} -> entry_pid == pid end)
   end
 end

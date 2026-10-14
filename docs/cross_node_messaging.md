@@ -31,7 +31,7 @@ cluster, and every node holds a row for every member.
 > is not. Membership that tracks device connections never qualifies.
 
 Sparse membership means the consumers exist only while somebody is looking —
-an open LiveView, a live console session, an attached shell. Membership that
+an open LiveView, a live console session, an open shell. Membership that
 follows device connections is the opposite: it churns with the fleet, on every
 connect and disconnect, whether or not anyone is watching.
 
@@ -61,15 +61,20 @@ first and then talk to its pid:
 
 `NervesHub.Consoles.PubSub` is the worked example.
 
+An extension cannot hand out the connection's pid, because its handlers run
+wherever `NervesHub.DeviceLink` does, which need not be the node holding the
+connection. The local shell broadcasts its input on the extensions topic
+instead, and tells the device page when it attaches or detaches.
+
 ### What lives where
 
 | Topic | Transport | Why |
 | --- | --- | --- |
 | `internal:device:<id>` — heartbeat, connection change, firmware validated, update progress, geo, logs | `:group` | Consumers are LiveViews and the events stream channel; usually none. Publishing is constant. |
 | `device:console:<id>` — finding the device's console, and input from writers without a session | `Phoenix.PubSub`, then the channel's pid | The consumer is the device's own `ConsoleChannel`, alive for the whole connection. A session finds it with one broadcast and then sends to its pid; see [Reaching one device's connection](#reaching-one-devices-connection). |
-| Console output, console page events, local shell byte streams | `:group` | Members exist only during a live session or while a page is open; the streams are chatty. |
+| Console and local shell output, the device page's terminal events | `:group` | Members exist only during a live session or while a page is open; the output streams are chatty. |
 | `device:<id>:extensions`, **device → web** (`health_check_report`) | `:group` | Members are LiveViews watching the device page. |
-| `device:<id>:extensions`, **web → device** (`health:check`, per-device `attach`/`detach`, a page's `:watching` announcement to the paced extensions) | `Phoenix.PubSub` | The consumer is the device's own `ExtensionsChannel`, alive for the whole connection. `:group` would replicate a join per connect and a leave per disconnect across the fleet, to target a handful of operator-triggered messages. |
+| `device:<id>:extensions`, **web → device** (`health:check`, per-device `attach`/`detach`, a page's `:watching` announcement to the paced extensions, local shell connect, locate and input) | `Phoenix.PubSub` | The consumer is the device's own `ExtensionsChannel`, alive for the whole connection. `:group` would replicate a join per connect and a leave per disconnect across the fleet, to target a handful of operator-triggered messages. |
 | `product:<id>`, `firmware:<id>`, `product_notifications:<id>` | `:group` | Consumers are open LiveViews. |
 | `orchestrator:deployment:<id>` | `:group` | A single consumer — the one orchestrator for that deployment group — fed by every device node. |
 | Rate-limit throttle sync, CLI-session cache | `:group`, `"web"` cluster | Web-only state that should not exist on device nodes at all. |
@@ -109,7 +114,7 @@ API:
 | Module | Covers |
 | --- | --- |
 | `NervesHub.Devices.PubSub` | `internal:device:<id>` |
-| `NervesHub.Consoles.PubSub` | Console and local-shell streams, finding a device's console, and the local shell's liveness registry |
+| `NervesHub.Consoles.PubSub` | Console and local-shell streams, and finding a device's console or attached shell |
 | `NervesHub.Extensions.PubSub` | Per-device extension traffic, both directions, and the product-wide topic |
 | `NervesHub.Products.PubSub` | `product:<id>` |
 | `NervesHub.Firmwares.PubSub` | Firmware delta build status |
@@ -152,14 +157,6 @@ one of three approaches:
 `:group` membership replicates asynchronously over Erlang distribution. Most
 surprises trace back to that.
 
-**Shell liveness is presence, not a probe.** `local_shell_active?/1` reads
-`Group.members/3` on the local node's replica. A device that just dropped can
-still read as available until its leave or DOWN propagates, and longer under a
-partition. The shell tab pairs the initial read with `Group.monitor/3` —
-monitor first, then read, so a change in the gap arrives as an event rather
-than being lost — which corrects the indicator without a page reload but does
-not remove the lag itself.
-
 **Console liveness is a probe.** The console tab locates the device's console
 channel and monitors the pid that answers. A console that does not answer
 within a second reads as unavailable, and a disconnect arrives as the
@@ -167,9 +164,17 @@ monitor's DOWN rather than through replication. When the monitored channel
 goes away the tab locates again before giving up, because a device that
 reconnected may already have a new one.
 
-`Group.monitor/2` is backed by a duplicate-key registry, so it never reports
-"already monitored" and repeated calls accumulate rows. The `Consoles.PubSub`
-monitor helpers unregister before registering; do the same for any new one.
+**Shell liveness is a probe and two events.** The shell tab broadcasts a locate
+that only an attached `LocalShell` extension answers, and a shell that does not
+answer within a second reads as unavailable. After that the extension tells the
+page when it attaches or detaches, and a `connection:change` to offline covers a
+device that drops without detaching. Nothing monitors the connection, so if a
+node dies before its devices are marked offline, the tab shows the shell until
+they are.
+
+Nothing uses `Group.monitor/2` at the moment. It is backed by a duplicate-key
+registry, so it never reports "already monitored" and repeated calls accumulate
+rows; anything that starts using it should unregister before registering.
 
 **Cold start.** A freshly started web node does not exchange rate-limit
 increments or CLI-session writes with peers until `"web"` membership
