@@ -105,6 +105,110 @@ defmodule NervesHub.Devices.Metrics do
     end
   end
 
+  @default_report_limit 100
+
+  @typedoc """
+  How to narrow a device's metric history in `reports_for_device/2`.
+
+  - `:keys` — only these metric names. Matched as given; a name the device has
+    never reported matches nothing.
+  - `:since` — reports taken at or after this time (inclusive).
+  - `:before` — reports taken strictly before this time (exclusive), so the
+    timestamp of the oldest report in a page can be passed straight back as the
+    next page's `:before` without repeating it.
+  - `:limit` — how many reports to return. Defaults to #{@default_report_limit}.
+  - `:order` — `:desc` (newest first, the default) or `:asc`.
+  """
+  @type report_opt ::
+          {:keys, [String.t()] | nil}
+          | {:since, DateTime.t() | nil}
+          | {:before, DateTime.t() | nil}
+          | {:limit, pos_integer()}
+          | {:order, :asc | :desc}
+
+  @typedoc """
+  One stored report: its readings keyed by name, when the device took them, and
+  the firmware it was running (`nil` if the device had reported none).
+  """
+  @type report :: %{
+          timestamp: DateTime.t(),
+          firmware_uuid: String.t() | nil,
+          metrics: %{String.t() => float()}
+        }
+
+  @doc """
+  A device's stored metric history as reports, newest first, narrowed by `opts`
+  (see `t:report_opt/0`).
+
+  History is a row per reading, but the readings of one report share a
+  timestamp, so they are put back together here: a report comes back in the
+  shape the device sent it. `:limit` counts reports, not readings, which is
+  what lets a caller page by timestamp without a page ever ending partway
+  through a report. With `:keys`, each report carries only those readings, and
+  a report that carried none of them is left out.
+
+  Reads ClickHouse unconditionally; a caller on a deployment without one should
+  check `:analytics_enabled` first, as the API does.
+  """
+  @spec reports_for_device(Device.t(), [report_opt()]) :: [report()]
+  def reports_for_device(%Device{} = device, opts \\ []) do
+    order = Keyword.get(opts, :order, :desc)
+    limit = Keyword.get(opts, :limit, @default_report_limit)
+
+    readings =
+      DeviceMetric
+      |> where(product_id: ^device.product_id)
+      |> where(device_id: ^device.id)
+      |> filter_keys(Keyword.get(opts, :keys))
+      |> filter_since(Keyword.get(opts, :since))
+      |> filter_before(Keyword.get(opts, :before))
+
+    # Two reads: which reports are in the page, then their readings. Limiting
+    # the readings directly would cut the last report short.
+    timestamps =
+      readings
+      |> group_by([m], m.timestamp)
+      |> select([m], m.timestamp)
+      |> order_by([m], [{^order, m.timestamp}])
+      |> limit(^limit)
+      |> AnalyticsRepo.all()
+
+    case timestamps do
+      [] ->
+        []
+
+      [first | _] ->
+        last = List.last(timestamps)
+        {oldest, newest} = if order == :asc, do: {first, last}, else: {last, first}
+
+        readings
+        |> where([m], m.timestamp >= ^oldest and m.timestamp <= ^newest)
+        |> order_by([m], [{^order, m.timestamp}, asc: m.key])
+        |> select([m], %{timestamp: m.timestamp, key: m.key, value: m.value, firmware_uuid: m.firmware_uuid})
+        |> AnalyticsRepo.all()
+        |> Enum.chunk_by(& &1.timestamp)
+        |> Enum.map(&to_report/1)
+    end
+  end
+
+  defp filter_keys(query, nil), do: query
+  defp filter_keys(query, []), do: query
+  defp filter_keys(query, keys), do: where(query, [m], m.key in ^keys)
+
+  defp filter_since(query, nil), do: query
+  defp filter_since(query, %DateTime{} = since), do: where(query, [m], m.timestamp >= ^since)
+
+  defp filter_before(query, nil), do: query
+  defp filter_before(query, %DateTime{} = before), do: where(query, [m], m.timestamp < ^before)
+
+  defp to_report([%{timestamp: timestamp, firmware_uuid: firmware_uuid} | _] = readings) do
+    %{
+      timestamp: timestamp,
+      firmware_uuid: if(firmware_uuid != "", do: firmware_uuid),
+      metrics: Map.new(readings, &{&1.key, &1.value})
+    }
+  end
+
   @doc """
   Distinct metric keys reported by devices in the product, sorted.
 
