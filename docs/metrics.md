@@ -142,3 +142,39 @@ History needs ClickHouse. A NervesHub deployment without one does not offer this
 extension at all, and reports metrics through `health` — the latest set is
 PostgreSQL either way, so the numbers, the filters and the queries all still
 work; only the charts are missing.
+
+## Reading history back
+
+History is also served over the API, for anything outside NervesHub that wants
+a device's readings, such as a dashboard of its own:
+
+```text
+GET /api/orgs/{org_name}/products/{product_name}/devices/{identifier}/metrics
+GET /api/devices/{identifier}/metrics
+```
+
+It answers in reports, the shape the device sent them in, newest first:
+
+```json
+{
+  "data": [
+    {
+      "timestamp": "2026-09-02T11:05:00Z",
+      "firmware_uuid": "8f6c3a1e-2b7d-4c55-9e0a-1d2f3b4c5a6e",
+      "metrics": {"cpu_temp": 41.9, "mem_used_percent": 38.5, "load_1min": 0.51}
+    }
+  ]
+}
+```
+
+The readings of one report share a timestamp, so they come back together and
+`limit` counts reports rather than readings: a page never ends partway through
+a report. `key` narrows each report to some metrics, and `since` (inclusive),
+`before` (exclusive) and `order` work as they do for device logs. To page back
+through history, pass the oldest timestamp received as the next `before`; to
+follow a device forward, pass the newest as `since` and skip the one report
+that repeats.
+
+A report holds only what was stored, after the trimming above. It needs the
+`view` role in the device's organization, and ClickHouse: without one there is
+no history, and the endpoint answers 501 rather than with an empty list.
