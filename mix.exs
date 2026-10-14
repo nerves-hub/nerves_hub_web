@@ -159,7 +159,7 @@ defmodule NervesHub.MixProject do
       {:floki, "~> 0.38.0"},
       {:gen_smtp, "~> 1.0"},
       {:gettext, "~> 0.26.2"},
-      {:group, "~> 0.2.0"},
+      {:group, "~> 0.3.0"},
       {:hackney, "~> 4.7"},
       {:hammer, "~> 7.5.0"},
       {:igniter, "~> 0.8", only: [:dev, :test]},
