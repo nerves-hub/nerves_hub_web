@@ -26,6 +26,19 @@ defmodule NervesHub.ErrorReports.GroupBuffer do
   Muted groups are left alone. They keep counting and they do not reopen, which
   is the entire difference between muting something and resolving it.
 
+  ## Telling people
+
+  A group this flush created raises `error_group.created`, and one it reopened
+  raises `error_group.reopened`, through `NervesHub.Integrations.dispatch/3`.
+  Both are read off the rows the upsert returns, so they cost no extra query:
+
+    * created: the row was inserted by this flush (`inserted_at` is this
+      flush's) and holds only this batch's occurrences. Another node that
+      updated the same new row in the same second sees a larger count.
+    * reopened: the conflict clause sets `regressed_at` to this batch's newest
+      occurrence only when the group was resolved, so a returned `regressed_at`
+      equal to it means this flush did the reopening.
+
   ## Losing a batch
 
   Unlike `NervesHub.Analytics.Buffer`, nothing here is dropped under pressure:
@@ -44,12 +57,32 @@ defmodule NervesHub.ErrorReports.GroupBuffer do
   import Ecto.Query
 
   alias NervesHub.ErrorReports.ErrorGroup
+  alias NervesHub.Integrations
   alias NervesHub.Repo
 
   require Logger
 
   @default_max_batch_size 500
   @default_max_delay to_timeout(second: 1)
+
+  # What `write/1` reads back from the upsert to tell new and reopened groups.
+  @returned_fields [
+    :id,
+    :product_id,
+    :fingerprint,
+    :kind,
+    :source,
+    :reason,
+    :top_frame_module,
+    :top_frame_function,
+    :top_frame_file,
+    :top_frame_line,
+    :occurrence_count,
+    :first_seen_at,
+    :last_seen_at,
+    :regressed_at,
+    :inserted_at
+  ]
 
   defmodule State do
     @moduledoc false
@@ -243,15 +276,16 @@ defmodule NervesHub.ErrorReports.GroupBuffer do
         |> Map.put(:updated_at, now)
       end
 
-    {count, _returning} =
+    {count, written} =
       Repo.insert_all(ErrorGroup, rows,
         on_conflict: on_conflict(),
-        conflict_target: [:product_id, :fingerprint]
+        conflict_target: [:product_id, :fingerprint],
+        returning: @returned_fields
       )
 
     :telemetry.execute([:nerves_hub, :error_reports, :group_buffer, :flush], %{count: count}, %{})
 
-    :ok
+    announce(written, groups, now)
   rescue
     error ->
       Logger.error("Error group buffer flush failed",
@@ -267,6 +301,55 @@ defmodule NervesHub.ErrorReports.GroupBuffer do
         )
 
       :error
+  end
+
+  # See "Telling people" in the moduledoc for how each is recognised. A
+  # failure here must not read as a failed flush, which it is not: the rows
+  # are written.
+  defp announce(written, groups, now) do
+    for group <- written, entry = Map.get(groups, {group.product_id, group.fingerprint}), not is_nil(entry) do
+      cond do
+        group.inserted_at == now and group.occurrence_count == entry.occurrence_count ->
+          dispatch(group, "error_group.created")
+
+        not is_nil(group.regressed_at) and DateTime.compare(group.regressed_at, entry.last_seen_at) == :eq ->
+          dispatch(group, "error_group.reopened")
+
+        true ->
+          :ok
+      end
+    end
+
+    :ok
+  rescue
+    error ->
+      Logger.error("Could not announce error groups", error: Exception.message(error))
+      :ok
+  end
+
+  defp dispatch(group, type) do
+    :ok =
+      Integrations.dispatch(group.product_id, type, fn ->
+        %{
+          error: %{
+            id: group.id,
+            kind: group.kind,
+            source: group.source,
+            reason: group.reason,
+            top_frame: top_frame(group),
+            occurrence_count: group.occurrence_count,
+            first_seen_at: group.first_seen_at,
+            last_seen_at: group.last_seen_at
+          }
+        }
+      end)
+  end
+
+  defp top_frame(%{top_frame_module: nil, top_frame_function: nil}), do: nil
+
+  defp top_frame(group) do
+    location = if group.top_frame_file, do: " (#{group.top_frame_file}:#{group.top_frame_line})", else: ""
+    "#{Enum.join(Enum.reject([group.top_frame_module, group.top_frame_function], &is_nil/1), ".")}#{location}"
   end
 
   # Every column that moves does so relative to what is already stored, because

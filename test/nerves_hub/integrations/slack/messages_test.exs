@@ -90,6 +90,40 @@ defmodule NervesHub.Integrations.Slack.MessagesTest do
     end
   end
 
+  describe "errors" do
+    defp error_event(reason, id) do
+      %{
+        "org" => %{"name" => "acme"},
+        "product" => %{"name" => "thermostat"},
+        "error" => %{"id" => id, "reason" => reason, "top_frame" => "MyApp.Worker.handle_info/2 (lib/worker.ex:42)"}
+      }
+    end
+
+    test "a new error names the product and the reason, and links to the error" do
+      message = Messages.build("error_group.created", [error_event("** (RuntimeError) `boom` <!here>", 7)])
+
+      assert [section, frame, link] = texts(message)
+      assert section == ":rotating_light: New error in *thermostat*: `** (RuntimeError) 'boom' &lt;!here&gt;`"
+      assert frame == "MyApp.Worker.handle_info/2 (lib/worker.ex:42)"
+      assert link == "<#{NervesHubWeb.Endpoint.url()}/org/acme/thermostat/errors/7|View the error>"
+      refute message.text =~ "<!here>"
+    end
+
+    test "a reopened error says it is back" do
+      assert [section | _] = texts(Messages.build("error_group.reopened", [error_event("boom", 7)]))
+      assert section =~ "A resolved error is back in *thermostat*"
+    end
+
+    test "several are listed, each linking to its error" do
+      message = Messages.build("error_group.created", [error_event("first", 1), error_event("second", 2)])
+
+      assert message.text == "2 new errors"
+      assert [_summary, list, _products] = texts(message)
+      assert list =~ "/errors/1|first>"
+      assert list =~ "/errors/2|second>"
+    end
+  end
+
   test "product notifications carry their title, message and a link to the product's notifications" do
     message =
       Messages.build("product.notification_created", [

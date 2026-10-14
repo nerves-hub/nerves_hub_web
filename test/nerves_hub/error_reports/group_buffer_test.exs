@@ -5,9 +5,12 @@ defmodule NervesHub.ErrorReports.GroupBufferTest do
 
   import Ecto.Query
 
+  alias NervesHub.Accounts.Scope
   alias NervesHub.ErrorReports.ErrorGroup
   alias NervesHub.ErrorReports.GroupBuffer
   alias NervesHub.Fixtures
+  alias NervesHub.Integrations.Slack.PendingEvent
+  alias NervesHub.Integrations.Slack.Subscriptions
   alias NervesHub.Repo
 
   setup do
@@ -206,6 +209,80 @@ defmodule NervesHub.ErrorReports.GroupBufferTest do
       :ok = GroupBuffer.flush(name)
 
       assert Repo.aggregate(from(g in ErrorGroup, where: g.product_id == ^product.id), :count) == 3
+    end
+  end
+
+  describe "telling people" do
+    # A Slack channel that wants both events, so what is raised can be read
+    # back as the events held for it.
+    setup %{product: product, user: user} do
+      org = Repo.preload(product, :org).org
+      connection = Fixtures.slack_connection_fixture(org, user)
+
+      {:ok, subscription} =
+        Subscriptions.create_subscription(
+          %Scope{org: org, user: user, role: :admin},
+          connection,
+          %{
+            "channel_id" => "C0ERRORS",
+            "channel_name" => "errors",
+            "events" => ["error_group.created", "error_group.reopened"]
+          }
+        )
+
+      %{subscription: subscription}
+    end
+
+    defp raised() do
+      PendingEvent
+      |> order_by(:id)
+      |> Repo.all()
+      |> Enum.map(&{&1.type, &1.data})
+    end
+
+    test "a new error is raised once, with what it is", %{product: product, buffer: buffer} do
+      GroupBuffer.record(buffer, entry(product))
+      GroupBuffer.record(buffer, entry(product, %{at: ~U[2026-08-31 10:00:01.000000Z]}))
+      :ok = GroupBuffer.flush(buffer)
+
+      assert [{"error_group.created", %{"error" => error, "product" => %{"name" => product_name}}}] = raised()
+      assert product_name == product.name
+
+      assert %{"reason" => "** (RuntimeError) boom", "top_frame" => "M.f/1 (m.ex:4)", "occurrence_count" => 2} = error
+      assert error["id"] == group(product).id
+
+      GroupBuffer.record(buffer, entry(product, %{at: ~U[2026-08-31 10:05:00.000000Z]}))
+      :ok = GroupBuffer.flush(buffer)
+
+      assert [_only_the_first] = raised()
+    end
+
+    test "a resolved error that happens again is raised as reopened", %{product: product, buffer: buffer, user: user} do
+      GroupBuffer.record(buffer, entry(product))
+      :ok = GroupBuffer.flush(buffer)
+      {:ok, _} = product |> group() |> ErrorGroup.resolve_changeset(user) |> Repo.update()
+
+      GroupBuffer.record(buffer, entry(product, %{at: ~U[2026-08-31 11:00:00.000000Z]}))
+      :ok = GroupBuffer.flush(buffer)
+
+      assert [{"error_group.created", _}, {"error_group.reopened", %{"error" => %{"occurrence_count" => 2}}}] = raised()
+
+      # Still unresolved, so another occurrence is not news.
+      GroupBuffer.record(buffer, entry(product, %{at: ~U[2026-08-31 12:00:00.000000Z]}))
+      :ok = GroupBuffer.flush(buffer)
+
+      assert [_, _] = raised()
+    end
+
+    test "a muted error that happens again is not raised", %{product: product, buffer: buffer, user: user} do
+      GroupBuffer.record(buffer, entry(product))
+      :ok = GroupBuffer.flush(buffer)
+      {:ok, _} = product |> group() |> ErrorGroup.mute_changeset(user) |> Repo.update()
+
+      GroupBuffer.record(buffer, entry(product, %{at: ~U[2026-08-31 11:00:00.000000Z]}))
+      :ok = GroupBuffer.flush(buffer)
+
+      assert [{"error_group.created", _}] = raised()
     end
   end
 end

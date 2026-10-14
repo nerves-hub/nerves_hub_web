@@ -33,6 +33,8 @@ defmodule NervesHub.Integrations.Slack.Messages do
   def build("device.health_status_changed", events), do: health(events)
   def build("device.firmware_update.failed", events), do: update_failed(events)
   def build("device.firmware_update.succeeded", events), do: update_succeeded(events)
+  def build("error_group.created", events), do: errors(events, :created)
+  def build("error_group.reopened", events), do: errors(events, :reopened)
   def build("product.notification_created", events), do: notifications(events)
 
   @doc "What `Send test message` posts."
@@ -195,6 +197,58 @@ defmodule NervesHub.Integrations.Slack.Messages do
 
   defp deployment_group(%{"deployment_group" => %{"name" => name}}), do: "deployment group #{escape(name)}"
   defp deployment_group(_event), do: nil
+
+  ## Errors
+
+  defp errors([event], kind) do
+    {icon, heading} =
+      case kind do
+        :created -> {":rotating_light:", "New error in"}
+        :reopened -> {":leftwards_arrow_with_hook:", "A resolved error is back in"}
+      end
+
+    product = product_name(event) || "a product"
+
+    %{
+      text: "#{heading} #{product}: #{escape(truncate(get_in(event, ["error", "reason"]) || ""))}",
+      blocks:
+        blocks([
+          section("#{icon} #{heading} *#{product}*: #{code(get_in(event, ["error", "reason"]))}"),
+          context([top_frame(event), "<#{error_url(event)}|View the error>"])
+        ])
+    }
+  end
+
+  defp errors(events, kind) do
+    {icon, summary} =
+      case kind do
+        :created -> {":rotating_light:", "#{length(events)} new errors"}
+        :reopened -> {":leftwards_arrow_with_hook:", "#{length(events)} resolved errors are back"}
+      end
+
+    lines =
+      Enum.map(events, &"<#{error_url(&1)}|#{escape(String.slice(get_in(&1, ["error", "reason"]) || "", 0, 80))}>")
+
+    %{
+      text: summary,
+      blocks: blocks([section("#{icon} *#{summary}*") | listed(lines)] ++ [context(product_names(events))])
+    }
+  end
+
+  defp top_frame(event) do
+    case get_in(event, ["error", "top_frame"]) do
+      nil -> nil
+      frame -> escape(truncate(frame))
+    end
+  end
+
+  # An inline code span, which a backtick in the text would end early.
+  defp code(nil), do: "an error"
+  defp code(text), do: "`#{text |> truncate() |> String.replace("`", "'") |> escape()}`"
+
+  defp error_url(event) do
+    "#{base_url()}/org/#{segment(get_in(event, ["org", "name"]) || "")}/#{segment(get_in(event, ["product", "name"]) || "")}/errors/#{get_in(event, ["error", "id"])}"
+  end
 
   ## Product notifications
 

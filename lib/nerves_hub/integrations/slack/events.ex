@@ -33,6 +33,18 @@ defmodule NervesHub.Integrations.Slack.Events do
       description: "A device finished updating."
     },
     %{
+      key: "error_group.created",
+      source: "error_group.created",
+      label: "New error",
+      description: "A device reported an error not seen before in its product."
+    },
+    %{
+      key: "error_group.reopened",
+      source: "error_group.reopened",
+      label: "Error back",
+      description: "An error that was marked resolved happened again."
+    },
+    %{
       key: "product.notification_created",
       source: "product.notification_created",
       label: "Product notifications",
