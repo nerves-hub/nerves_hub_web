@@ -103,6 +103,7 @@ defmodule NervesHubWeb.Router do
       post("/scripts/:name_or_id", ScriptController, :send)
 
       get("/logs", DeviceLogController, :index)
+      get("/metrics", DeviceMetricController, :index)
     end
 
     scope "/" do
@@ -183,6 +184,10 @@ defmodule NervesHubWeb.Router do
 
                   scope "/logs" do
                     get("/", DeviceLogController, :index)
+                  end
+
+                  scope "/metrics" do
+                    get("/", DeviceMetricController, :index)
                   end
 
                   scope "/network_identities" do

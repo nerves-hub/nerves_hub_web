@@ -134,6 +134,11 @@ when adding or removing one.
   - `mix credo --min-priority low`
   - `mix spellweaver.check` — spell check (cspell). New proper nouns / technical
     terms go in `.cspell.json`.
+- **Icons:** `lucide-<icon>[--<weight>]` classes come from
+  `assets/vendor/lucideicons.js`, which only generates a class for each SVG in
+  `deps/lucide/icons`. Lucide renames icons between releases, and a class whose
+  icon is gone renders as nothing, so `NervesHubWeb.LucideIconsTest` fails on
+  any class with no SVG behind it.
 - **Boundaries:** contexts (`lib/nerves_hub/`) hold business logic; web modules
   stay thin and call into them. Match the surrounding module's conventions,
   error handling, and naming rather than importing your own.
