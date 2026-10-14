@@ -2,6 +2,7 @@ defmodule NervesHubWeb.Components.DevicePage.LocalShellTab do
   use NervesHubWeb, tab_component: :local_shell
 
   alias NervesHub.Consoles
+  alias NervesHubWeb.Components.DevicePage.ConsoleTab
   alias Phoenix.LiveView.AsyncResult
   alias Phoenix.LiveView.JS
 
@@ -13,7 +14,7 @@ defmodule NervesHubWeb.Components.DevicePage.LocalShellTab do
     # Only one of the two terminal tabs is hooked at a time, so release the
     # other's monitor rather than leaving it waking us for a tab we are not
     # rendering.
-    :ok = Consoles.PubSub.demonitor_console(device.id)
+    socket = ConsoleTab.release_console(socket)
 
     # Monitor shell liveness before seeding so an attach/detach in the gap still
     # arrives as an event (see Consoles.PubSub.monitor_local_shell/1). The seed is

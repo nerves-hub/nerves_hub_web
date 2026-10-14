@@ -4,6 +4,7 @@ defmodule NervesHubWeb.Live.Devices.Show.LocalShellTabTest do
   alias NervesHub.Consoles
   alias NervesHub.Devices
   alias NervesHub.Products
+  alias NervesHub.Support.ConsoleStandIn
 
   test "the local shell extension is enabled for the product", %{
     conn: conn,
@@ -102,11 +103,16 @@ defmodule NervesHubWeb.Live.Devices.Show.LocalShellTabTest do
     {:ok, _product} = Products.enable_extension_setting(product, "local_shell")
     {:ok, _device} = Devices.enable_extension_setting(device, "local_shell")
 
+    # The console tab monitors the console channel it found, so there has to be
+    # one to find.
+    console = ConsoleStandIn.start(device.id)
+
     # The tabs are `patch` links, so both tabs run in the same LiveView process
     # and a monitor taken by one outlives a switch to the other.
     session =
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}/console")
+      |> assert_has("#console", timeout: 1000)
       |> unwrap(fn view ->
         send(self(), {:live_view, view.pid})
         render(view)
@@ -114,7 +120,7 @@ defmodule NervesHubWeb.Live.Devices.Show.LocalShellTabTest do
 
     assert_received {:live_view, live_view}
 
-    assert monitoring?(live_view, "console/#{device.id}")
+    assert monitoring_process?(live_view, console)
     refute monitoring?(live_view, "local_shell/#{device.id}")
 
     session
@@ -122,7 +128,12 @@ defmodule NervesHubWeb.Live.Devices.Show.LocalShellTabTest do
     |> assert_has("h1", text: device.identifier)
 
     assert monitoring?(live_view, "local_shell/#{device.id}")
-    refute monitoring?(live_view, "console/#{device.id}")
+    refute monitoring_process?(live_view, console)
+  end
+
+  defp monitoring_process?(pid, monitored) do
+    {:monitors, monitors} = Process.info(pid, :monitors)
+    {:process, monitored} in monitors
   end
 
   # See the note in NervesHub.Consoles.PubSubTest: a monitor registration is not

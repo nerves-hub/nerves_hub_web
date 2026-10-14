@@ -38,12 +38,36 @@ connect and disconnect, whether or not anyone is watching.
 Both halves of the rule matter. A rarely-published topic gains nothing from
 targeted dispatch, so it is not worth paying membership replication for.
 
+### Reaching one device's connection
+
+The consumer that lives as long as the connection is the device's own channel,
+and messages for it are the case the rule turns away. Each `:group` member costs
+about 450 bytes of ETS on every node that does not own it, so a key joined for
+every connected device puts the whole fleet on every node.
+
+When those messages are rare, a node-local `Phoenix.PubSub` subscription and a
+broadcast is enough (the extensions `attach`/`detach` row below). When a user
+action opens a stream of them, as a console session does, find the channel
+first and then talk to its pid:
+
+1. The channel subscribes to a per-device `Phoenix.PubSub` topic, which costs
+   nothing off its own node.
+2. The user side broadcasts a request carrying its own pid. Only the node
+   holding the device has a subscriber, and it costs one message per node per
+   user action.
+3. The channel replies directly with its pid. Everything after goes straight to
+   that pid, and a monitor on it is the liveness signal, which also reports a
+   disconnect or a lost node without waiting on replication.
+
+`NervesHub.Consoles.PubSub` is the worked example.
+
 ### What lives where
 
 | Topic | Transport | Why |
 | --- | --- | --- |
 | `internal:device:<id>` — heartbeat, connection change, firmware validated, update progress, geo, logs | `:group` | Consumers are LiveViews and the events stream channel; usually none. Publishing is constant. |
-| Console and local shell byte streams | `:group` | Members exist only during a live session; the streams are chatty. |
+| `device:console:<id>` — finding the device's console, and input from writers without a session | `Phoenix.PubSub`, then the channel's pid | The consumer is the device's own `ConsoleChannel`, alive for the whole connection. A session finds it with one broadcast and then sends to its pid; see [Reaching one device's connection](#reaching-one-devices-connection). |
+| Console output, console page events, local shell byte streams | `:group` | Members exist only during a live session or while a page is open; the streams are chatty. |
 | `device:<id>:extensions`, **device → web** (`health_check_report`) | `:group` | Members are LiveViews watching the device page. |
 | `device:<id>:extensions`, **web → device** (`health:check`, per-device `attach`/`detach`) | `Phoenix.PubSub` | The consumer is the device's own `ExtensionsChannel`, alive for the whole connection. `:group` would replicate a join per connect and a leave per disconnect across the fleet, to target a handful of operator-triggered messages. |
 | `product:<id>`, `firmware:<id>`, `product_notifications:<id>` | `:group` | Consumers are open LiveViews. |
@@ -85,7 +109,7 @@ API:
 | Module | Covers |
 | --- | --- |
 | `NervesHub.Devices.PubSub` | `internal:device:<id>` |
-| `NervesHub.Consoles.PubSub` | Console and local-shell streams, and their liveness registries |
+| `NervesHub.Consoles.PubSub` | Console and local-shell streams, finding a device's console, and the local shell's liveness registry |
 | `NervesHub.Extensions.PubSub` | Per-device extension traffic, both directions, and the product-wide topic |
 | `NervesHub.Products.PubSub` | `product:<id>` |
 | `NervesHub.Firmwares.PubSub` | Firmware delta build status |
@@ -97,7 +121,7 @@ before changing one.
 
 Two conventions run through all of them:
 
-- **Keys use `/` as the separator** (`internal:device/<id>`, `console/<id>`),
+- **Keys use `/` as the separator** (`internal:device/<id>`, `user:console/<id>`),
   because `/` is Group's hierarchy separator and keeps prefix queries
   available.
 - **The `%Phoenix.Socket.Broadcast{}` `topic` string is preserved** as the
@@ -128,13 +152,20 @@ one of three approaches:
 `:group` membership replicates asynchronously over Erlang distribution. Most
 surprises trace back to that.
 
-**Liveness is presence, not a probe.** `console_active?/1` and
-`local_shell_active?/1` read `Group.members/3` on the local node's replica. A
-device that just dropped can still read as available until its leave or DOWN
-propagates, and longer under a partition. The console and shell tabs pair the
-initial read with `Group.monitor/3` — monitor first, then read, so a change in
-the gap arrives as an event rather than being lost — which corrects the
-indicator without a page reload but does not remove the lag itself.
+**Shell liveness is presence, not a probe.** `local_shell_active?/1` reads
+`Group.members/3` on the local node's replica. A device that just dropped can
+still read as available until its leave or DOWN propagates, and longer under a
+partition. The shell tab pairs the initial read with `Group.monitor/3` —
+monitor first, then read, so a change in the gap arrives as an event rather
+than being lost — which corrects the indicator without a page reload but does
+not remove the lag itself.
+
+**Console liveness is a probe.** The console tab locates the device's console
+channel and monitors the pid that answers. A console that does not answer
+within a second reads as unavailable, and a disconnect arrives as the
+monitor's DOWN rather than through replication. When the monitored channel
+goes away the tab locates again before giving up, because a device that
+reconnected may already have a new one.
 
 `Group.monitor/2` is backed by a duplicate-key registry, so it never reports
 "already monitored" and repeated calls accumulate rows. The `Consoles.PubSub`
