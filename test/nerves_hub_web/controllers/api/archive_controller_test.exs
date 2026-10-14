@@ -81,6 +81,16 @@ defmodule NervesHubWeb.API.ArchiveControllerTest do
       assert json_response(conn, 422)["errors"]["detail"] =~ "signing keys"
     end
 
+    test "accepts uploads larger than the default request limit",
+         %{conn: conn, user: user, org: org, product: product} =
+           context do
+      Fixtures.org_key_fixture(org, user, context.tmp_dir)
+
+      conn = post_archive(conn, org, product, :binary.copy("x", 2_000_000))
+
+      assert json_response(conn, 422)["errors"]["detail"] =~ "signing keys"
+    end
+
     test "rejects a version that is not SemVer", %{conn: conn, user: user, org: org, product: product, tmp_dir: tmp_dir} do
       org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
       path = Fixtures.archive_file_fixture(org_key, product, %{dir: tmp_dir, version: "release-1.2"})
