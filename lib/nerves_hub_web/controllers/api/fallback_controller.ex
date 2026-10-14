@@ -160,6 +160,13 @@ defmodule NervesHubWeb.API.FallbackController do
     |> render(:"422", %{reason: reason})
   end
 
+  def call(conn, {:error, {:analytics_not_enabled, reason}}) do
+    conn
+    |> put_status(:not_implemented)
+    |> put_view(ErrorJSON)
+    |> render(:"501", %{reason: reason})
+  end
+
   def call(conn, {:error, :analytics_not_enabled}) do
     conn
     |> put_status(:not_implemented)
