@@ -25,6 +25,14 @@ defmodule NervesHub.GroupSupervisor do
 
   use Supervisor
 
+  # Group keeps every local join and leave in a per-shard replica oplog so a
+  # lagging peer can catch up from deltas. It is pruned by count alone, so the
+  # default (65,536 per shard) fills to about 300 MiB of ETS per node under
+  # ordinary churn and stays there, members or not. Our memberships are UI-sized,
+  # so a peer that falls further behind than this gets an exact snapshot of a
+  # few hundred rows instead. 1,024 per shard holds about 5 MiB.
+  @oplog_max_entries 1_024
+
   def start_link(_) do
     Supervisor.start_link(__MODULE__, [], name: __MODULE__)
   end
@@ -33,7 +41,7 @@ defmodule NervesHub.GroupSupervisor do
   def init(_) do
     children =
       [
-        {Group, name: NervesHub.Group},
+        {Group, name: NervesHub.Group, replicated_oplog_max_entries: @oplog_max_entries},
         NervesHub.GroupClusterConnection
       ] ++ web_cluster_members()
 
