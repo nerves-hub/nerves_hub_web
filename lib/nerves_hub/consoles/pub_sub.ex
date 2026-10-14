@@ -30,6 +30,13 @@ defmodule NervesHub.Consoles.PubSub do
   connecting code, `NervesHub.Scripts.Runner`) broadcast instead
   (`broadcast_to_console/3`), which costs a message per node per call.
 
+  The local shell is found the same way, with one difference. It is an
+  extension, and its handlers run wherever `NervesHub.DeviceLink` does, which is
+  not always the node holding the connection, so it has no pid of the
+  connection's to hand out. Its input is broadcast on the device's extensions
+  topic instead, a message per node per keystroke, and the device page learns
+  that it attached or detached from the extension rather than from a monitor.
+
   Data-plane messages are delivered as `%Phoenix.Socket.Broadcast{}` structs,
   identical in shape to what `Phoenix.PubSub` delivered, so existing
   `handle_info(%Broadcast{...})` / `hooked_info(%Broadcast{...})` clauses in the
@@ -46,17 +53,22 @@ defmodule NervesHub.Consoles.PubSub do
       and `{:cache, scrollback}`, and `{:locate_console, pid, ref}` with
       `{:console_located, ref, console}`, each sent to `pid`.
     * `device:console:internal/<id>` (group) — the device Show LiveView only.
-      Carries the `console_joined` notification and upload start/stop.
+      Carries the `console_joined` notification and upload start/stop, and the
+      local shell attaching and detaching.
     * `user:console/<id>` (group) — the user console channel and, as a fallback,
       `NervesHub.Scripts.Runner`. Carries the device->user output stream.
 
   Local shell (per device id):
 
-    * `local_shell/<id>` — the device-side `ExtensionsChannel`, joined only
-      while the `LocalShell` extension is attached. Its membership is the shell
-      liveness registry (`local_shell_active?/1`) and the target for both the
-      connect handshake and the user->device input stream.
-    * `user:local_shell/<id>` — the user local-shell channel. Carries the
+    * `device:<id>:extensions` — the `Phoenix.PubSub` topic the device's
+      `ExtensionsChannel` subscribes to for its whole connection (see
+      `NervesHub.Extensions.PubSub`). Carries the connect and locate requests,
+      tagged `{LocalShell, message}` so the channel hands them to the extension,
+      which answers only while attached. Also carries the user->device input,
+      which the channel pushes to the device.
+    * `device:console:internal/<id>` (group) — as for the console; also carries
+      the shell attaching and detaching.
+    * `user:local_shell/<id>` (group) — the user local-shell channel. Carries the
       device->user output stream.
 
   All groups use the default `:group` cluster: their senders run on the nodes
@@ -188,85 +200,52 @@ defmodule NervesHub.Consoles.PubSub do
   # -- Local shell ------------------------------------------------------------
 
   @doc """
-  The group key the device-side extensions channel joins while the shell is
-  attached.
+  Ask whether this device's local shell is attached.
 
-  Public because the join cannot always happen here. `Group.join/4` joins the
-  calling process, and the process that has to be joined is the one holding the
-  device's connection — which is only this one when `NervesHub.DeviceLink` runs
-  in the connection's own process. `LocalShell` therefore returns
-  `{:group_join, key}` / `{:group_leave, key}` effects and lets the connection
-  carry them out; see `NervesHub.DeviceLink.Effect`.
+  If it is, the `LocalShell` extension replies to the caller with
+  `{:local_shell_located, ref}`, where `ref` is the reference returned here.
+  Nothing replies otherwise, so the caller decides how long to wait. Like
+  `locate_console/1`, it broadcasts to every node, so call it on a user action.
   """
-  @spec local_shell_key(integer()) :: String.t()
-  def local_shell_key(device_id), do: "local_shell/#{device_id}"
-
-  @doc """
-  Join the local-shell registry from the calling process.
-
-  For a caller that is itself the device's connection. `LocalShell` does not use
-  this — it returns a `{:group_join, key}` effect, because the extension does not
-  run in the connection's process on every deployment.
-  """
-  @spec join_local_shell(integer()) :: :ok
-  def join_local_shell(device_id) do
-    :ok = Group.join(@group, local_shell_key(device_id), %{})
+  @spec locate_local_shell(integer()) :: reference()
+  def locate_local_shell(device_id) do
+    ref = make_ref()
+    :ok = Phoenix.PubSub.broadcast!(@pubsub, local_shell_topic(device_id), {LocalShell, {:locate, self(), ref}})
+    ref
   end
 
   @doc """
-  Leave the local-shell registry from the calling process.
-
-  Leaving when never attached is not an error. `detach/1` is driven by a
-  device-sent `local_shell:detached`, which `Extensions.Dispatch` delivers
-  without checking that an `attached` came first -- and it does not rescue the
-  call, so returning `Group.leave/2`'s `{:error, :not_in_group}` raw would let a
-  device take down its own extensions channel by sending `detached` twice, or
-  without ever attaching. The `{:group_leave, key}` effect tolerates it the same
-  way.
+  Ask the device-side local shell to connect `pid` (the user channel). An
+  attached shell replies to `pid` with its buffered output as `{:cache, lines}`.
   """
-  @spec leave_local_shell(integer()) :: :ok
-  def leave_local_shell(device_id) do
-    case Group.leave(@group, local_shell_key(device_id)) do
-      :ok -> :ok
-      {:error, :not_in_group} -> :ok
-    end
-  end
-
-  @doc "Is the local shell currently attached on this device?"
-  @spec local_shell_active?(integer()) :: boolean()
-  def local_shell_active?(device_id) do
-    Group.members(@group, local_shell_key(device_id)) != []
-  end
-
-  @doc """
-  Monitor local-shell liveness for this device; see `monitor_console/1` for the
-  seed-before-monitor ordering. The calling process receives `{:group, events,
-  _}` when the shell attaches or detaches.
-  """
-  @spec monitor_local_shell(integer()) :: :ok
-  def monitor_local_shell(device_id) do
-    monitor(local_shell_key(device_id))
-  end
-
-  @doc "Stop monitoring local-shell liveness for this device."
-  @spec demonitor_local_shell(integer()) :: :ok
-  def demonitor_local_shell(device_id) do
-    :ok = Group.demonitor(@group, local_shell_key(device_id))
-  end
-
-  @doc "Ask the device-side local shell to connect `pid` (the user channel)."
   @spec connect_to_local_shell(integer(), pid()) :: :ok
   def connect_to_local_shell(device_id, pid) do
     # The extensions channel routes `{module, msg}` to the matching attached
     # extension, so the tuple must carry the LocalShell module atom.
-    Group.dispatch(@group, local_shell_key(device_id), {LocalShell, {:connect, pid}})
+    Phoenix.PubSub.broadcast!(@pubsub, local_shell_topic(device_id), {LocalShell, {:connect, pid}})
   end
 
-  @doc "Send a user->device local-shell message (input, window size)."
+  @doc """
+  Send a user->device local-shell message (input, window size).
+
+  Broadcast, so it costs a message per node per call; see the moduledoc for why
+  the local shell has no pid to send to instead.
+  """
   @spec broadcast_to_local_shell(integer(), String.t(), map()) :: :ok
   def broadcast_to_local_shell(device_id, event, payload) do
-    message = %Broadcast{topic: local_shell_topic(device_id), event: event, payload: payload}
-    Group.dispatch(@group, local_shell_key(device_id), message)
+    ChannelServer.broadcast!(@pubsub, local_shell_topic(device_id), event, payload)
+  end
+
+  @doc "Tell the device Show LiveViews that the local shell has attached."
+  @spec broadcast_local_shell_attached(integer()) :: :ok
+  def broadcast_local_shell_attached(device_id) do
+    broadcast_to_console_watchers(device_id, "local_shell_attached", %{})
+  end
+
+  @doc "Tell the device Show LiveViews that the local shell has detached."
+  @spec broadcast_local_shell_detached(integer()) :: :ok
+  def broadcast_local_shell_detached(device_id) do
+    broadcast_to_console_watchers(device_id, "local_shell_detached", %{})
   end
 
   @doc "Subscribe the calling process to the device->user local-shell output stream."
@@ -280,17 +259,6 @@ defmodule NervesHub.Consoles.PubSub do
   def broadcast_to_user_local_shell(device_id, event, payload) do
     message = %Broadcast{topic: user_local_shell_topic(device_id), event: event, payload: payload}
     Group.dispatch(@group, user_local_shell_key(device_id), message)
-  end
-
-  # `Group.monitor/2` registers into a `keys: :duplicate` registry, so it never
-  # reports "already monitored" — every call leaves another row behind. Delivery
-  # is unaffected (the library dedupes subscribers by pid before sending), but
-  # the rows accumulate for the life of the caller, and the LiveView tabs that
-  # monitor re-run `tab_params/3` on every navigation within the tab.
-  # Unregistering first keeps it to exactly one.
-  defp monitor(key) do
-    :ok = Group.demonitor(@group, key)
-    :ok = Group.monitor(@group, key)
   end
 
   # -- Group keys ("/" is Group's hierarchy separator) ------------------------

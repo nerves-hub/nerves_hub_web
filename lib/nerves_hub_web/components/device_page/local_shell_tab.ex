@@ -6,6 +6,10 @@ defmodule NervesHubWeb.Components.DevicePage.LocalShellTab do
   alias Phoenix.LiveView.AsyncResult
   alias Phoenix.LiveView.JS
 
+  # How long to wait for an attached shell to answer a locate before saying
+  # there isn't one. See `NervesHubWeb.Components.DevicePage.ConsoleTab`.
+  @locate_timeout to_timeout(second: 1)
+
   def tab_params(_params, _uri, socket) do
     %{device: device, product: product} = socket.assigns
 
@@ -16,27 +20,60 @@ defmodule NervesHubWeb.Components.DevicePage.LocalShellTab do
     # rendering.
     socket = ConsoleTab.release_console(socket)
 
-    # Monitor shell liveness before seeding so an attach/detach in the gap still
-    # arrives as an event (see Consoles.PubSub.monitor_local_shell/1). The seed is
-    # a synchronous ETS-backed read, so a stale async result can't land after and
-    # clobber an event-driven update.
-    :ok = Consoles.PubSub.monitor_local_shell(device.id)
-
     socket
     |> assign(:shell_enabled?, enabled?)
-    |> assign(:local_shell_active?, AsyncResult.ok(shell_active?(device)))
+    |> seed_local_shell_active()
+    |> locate_local_shell()
     |> cont()
   end
 
-  # The device-side shell attached or detached; recompute availability so the tab
-  # reflects it live instead of the one-shot value read when the tab opened.
-  def hooked_info({:group, _events, _info}, socket) do
-    active? = shell_active?(socket.assigns.device)
+  # Coming back from another tab starts from a fresh seed, as the console tab
+  # does.
+  def cleanup(), do: [:local_shell_active?]
 
+  # The extension reports the shell attaching and detaching to the device page.
+  # Either one settles the question, so a locate still in flight is moot.
+  def hooked_info(%Broadcast{event: "local_shell_attached"}, socket) do
     socket
-    |> assign(:local_shell_active?, AsyncResult.ok(socket.assigns.local_shell_active?, active?))
+    |> assign(:local_shell_locate, nil)
+    |> put_local_shell_active(true)
     |> halt()
   end
+
+  def hooked_info(%Broadcast{event: "local_shell_detached"}, socket) do
+    socket
+    |> assign(:local_shell_locate, nil)
+    |> put_local_shell_active(false)
+    |> halt()
+  end
+
+  # A device that disconnects takes its shell with it, and no detach is sent on
+  # the way out. The device page handles the event too, so it carries on.
+  def hooked_info(%Broadcast{event: "connection:change", payload: %{status: "offline"}}, socket) do
+    socket
+    |> assign(:local_shell_locate, nil)
+    |> put_local_shell_active(false)
+    |> cont()
+  end
+
+  def hooked_info({:local_shell_located, ref}, %{assigns: %{local_shell_locate: ref}} = socket) do
+    socket
+    |> assign(:local_shell_locate, nil)
+    |> put_local_shell_active(true)
+    |> halt()
+  end
+
+  # An answer to an earlier locate, or one an event has already settled.
+  def hooked_info({:local_shell_located, _ref}, socket), do: halt(socket)
+
+  def hooked_info({:local_shell_locate_timeout, ref}, %{assigns: %{local_shell_locate: ref}} = socket) do
+    socket
+    |> assign(:local_shell_locate, nil)
+    |> put_local_shell_active(false)
+    |> halt()
+  end
+
+  def hooked_info({:local_shell_locate_timeout, _ref}, socket), do: halt(socket)
 
   def hooked_info(_event, socket), do: {:cont, socket}
 
@@ -166,7 +203,40 @@ defmodule NervesHubWeb.Components.DevicePage.LocalShellTab do
     """
   end
 
-  defp shell_active?(device) do
-    Consoles.PubSub.local_shell_active?(device.id)
+  # Only when the tab opens; see the console tab's `seed_console_active/1`.
+  defp seed_local_shell_active(%{assigns: %{local_shell_active?: _}} = socket), do: socket
+
+  defp seed_local_shell_active(socket) do
+    seed =
+      case socket.assigns do
+        %{shell_enabled?: true, device_connection: %{status: status}} when status in [:connecting, :connected] ->
+          AsyncResult.loading()
+
+        _ ->
+          AsyncResult.ok(false)
+      end
+
+    assign(socket, :local_shell_active?, seed)
+  end
+
+  # Answered by `{:local_shell_located, ref}` from an attached shell, or by our
+  # own `{:local_shell_locate_timeout, ref}` if there is none. Skipped when the
+  # shell is switched off, and on the disconnected render, which has no process
+  # to answer.
+  defp locate_local_shell(%{assigns: %{shell_enabled?: true}} = socket) do
+    if connected?(socket) do
+      ref = Consoles.PubSub.locate_local_shell(socket.assigns.device.id)
+      _ = Process.send_after(self(), {:local_shell_locate_timeout, ref}, @locate_timeout)
+
+      assign(socket, :local_shell_locate, ref)
+    else
+      socket
+    end
+  end
+
+  defp locate_local_shell(socket), do: socket
+
+  defp put_local_shell_active(socket, active?) do
+    assign(socket, :local_shell_active?, AsyncResult.ok(socket.assigns.local_shell_active?, active?))
   end
 end

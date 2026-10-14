@@ -11,11 +11,6 @@ defmodule NervesHubWeb.Components.DevicePage.ConsoleTab do
   @locate_timeout to_timeout(second: 1)
 
   def tab_params(_params, _uri, socket) do
-    # Only one of the two terminal tabs is hooked at a time, so release the
-    # other's monitor rather than leaving it waking us for a tab we are not
-    # rendering.
-    :ok = Consoles.PubSub.demonitor_local_shell(socket.assigns.device.id)
-
     socket
     |> seed_console_active()
     |> locate_console()
