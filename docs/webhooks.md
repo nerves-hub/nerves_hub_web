@@ -147,6 +147,11 @@ A webhook subscribes to any of these. `webhook.test` is only sent on request.
 | `device.firmware_validated` | A device confirmed that its firmware is good. |
 | `error_group.created` | A device reported an error not seen before in its product. |
 | `error_group.reopened` | An error that was marked resolved happened again. |
+| `deployment_group.workflow_step.started` | A deployment group's workflow began a step, or began it again after a retry. |
+| `deployment_group.workflow_step.awaiting_approval` | A workflow reached a step that waits for somebody to approve it. |
+| `deployment_group.workflow_step.completed` | A workflow step finished, or an approval step was approved. |
+| `deployment_group.workflow_step.failed` | Too many of a step's devices failed to update, and the workflow stopped. |
+| `deployment_group.workflow_step.skipped` | Somebody skipped a workflow step. |
 
 ### The device
 
@@ -366,6 +371,65 @@ devices so far. Reports from a busy fleet are counted together every second
 or so, so a new error can already count more than one. `top_frame` is `null`
 when the device sent no stack frames. `reason` is what the device said, so
 treat it as untrusted text.
+
+### Deployment workflow events
+
+A deployment group with a workflow rolls a release out a step at a time. Each
+step is announced as it moves:
+
+- `deployment_group.workflow_step.started` when the workflow reaches a step,
+  and again when somebody retries a failed one.
+- `deployment_group.workflow_step.awaiting_approval` when it reaches an
+  approval step. An approval step sends this in place of `started`.
+- `deployment_group.workflow_step.completed` when every device the step covers
+  is on the release's firmware, or when the orchestrator moves on from an
+  approval step somebody approved. The step after it starts straight away, so
+  its `started` follows.
+- `deployment_group.workflow_step.failed` when more of the step's devices
+  failed to update than it tolerates. Nothing more is updated for the release
+  until the step is retried or skipped.
+- `deployment_group.workflow_step.skipped` when somebody skips the step.
+
+The last step of every workflow, which updates the devices no earlier step
+took, starts but never completes: devices keep joining the deployment group,
+so it is never done.
+
+These are about a deployment group rather than one device, so they carry
+`org`, `product` and the workflow, and no `device`:
+
+```json
+{
+  "deployment_group": { "name": "production" },
+  "release": {
+    "number": 4,
+    "firmware": {
+      "uuid": "6bb3bf62-4d9a-5a21-9a8b-38e6e8c8f6d1",
+      "version": "1.5.0"
+    }
+  },
+  "workflow": { "steps": 3 },
+  "step": {
+    "id": 812,
+    "number": 1,
+    "name": "Canary",
+    "type": "update_devices",
+    "status": "error",
+    "started_at": "2026-10-14T09:12:03Z",
+    "finished_at": "2026-10-14T09:40:51Z"
+  },
+  "user": null,
+  "failed_devices": 3
+}
+```
+
+`workflow.steps` is how many steps the release's workflow has, the last one
+included. `step.type` is `update_devices`, `approval_required` or `catch_all`
+(the last step), and `step.status` is the step's status once it moved:
+`in_progress`, `completed`, `error` or `skipped`. `step.name` is the name the
+workflow definition gave the step, or one NervesHub made up when it gave
+none. `user` is who retried, approved or skipped the step, as `{"name": ...}`,
+and `null` when the workflow moved on its own. `failed_devices` is set only
+on `failed`.
 
 ### `webhook.test`
 

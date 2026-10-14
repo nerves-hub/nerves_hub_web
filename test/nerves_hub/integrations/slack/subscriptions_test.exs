@@ -238,6 +238,31 @@ defmodule NervesHub.Integrations.Slack.SubscriptionsTest do
       assert Repo.all(PendingEvent) == []
     end
 
+    # A workflow step completing and the next one starting arrive together,
+    # and should read that way round whichever the settings list first.
+    test "posts each kind of event in the order it first happened", context do
+      started = "deployment_group.workflow_step.started"
+      completed = "deployment_group.workflow_step.completed"
+      subscription = subscription_fixture(context, %{"events" => [started, completed]})
+
+      stub_slack(%{"chat.postMessage" => %{"ok" => true}})
+
+      for {type, number} <- [{completed, 1}, {started, 2}] do
+        :ok =
+          Integrations.dispatch(context.product.id, type, fn ->
+            %{deployment_group: %{name: "production"}, step: %{id: number, number: number, name: "Step #{number}"}}
+          end)
+      end
+
+      assert :ok = Subscriptions.post_pending_events(subscription.id)
+
+      assert_received {:slack, "chat.postMessage", first}
+      assert_received {:slack, "chat.postMessage", second}
+
+      assert Jason.decode!(first)["text"] =~ "Step 1 completed"
+      assert Jason.decode!(second)["text"] =~ "Step 2 started"
+    end
+
     test "waits as long as Slack asks", context do
       subscription = subscription_fixture(context)
       stub_slack(%{"chat.postMessage" => {429, [{"retry-after", "12"}], %{"ok" => false, "error" => "ratelimited"}}})

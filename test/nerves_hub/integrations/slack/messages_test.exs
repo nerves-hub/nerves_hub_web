@@ -160,6 +160,103 @@ defmodule NervesHub.Integrations.Slack.MessagesTest do
     end
   end
 
+  describe "deployment workflows" do
+    defp step_event(step, data \\ %{}) do
+      Map.merge(
+        %{
+          "org" => %{"name" => "acme"},
+          "product" => %{"name" => "thermostat"},
+          "deployment_group" => %{"name" => "production"},
+          "release" => %{"number" => 4, "firmware" => %{"uuid" => "u", "version" => "1.2.0"}},
+          "workflow" => %{"steps" => 3},
+          "step" => Map.merge(%{"id" => 42, "number" => 1, "name" => "Canary"}, step),
+          "user" => nil,
+          "failed_devices" => nil
+        },
+        data
+      )
+    end
+
+    defp group_url(), do: NervesHubWeb.Endpoint.url() <> "/org/acme/thermostat/deployment_groups/production"
+
+    test "a step starting names the step, where it is in the workflow, and links to the deployment group" do
+      message = Messages.build("deployment_group.workflow_step.started", [step_event(%{})])
+
+      assert message.text == "Canary (step 1 of 3) started for production"
+
+      assert [
+               ":arrow_forward: *Canary* (step 1 of 3) started for <#{group_url()}|production>",
+               "thermostat",
+               "release 4, firmware 1.2.0"
+             ] == texts(message)
+
+      assert buttons(message) == []
+    end
+
+    test "says who retried, approved or skipped a step" do
+      alice = %{"user" => %{"name" => "Alice"}}
+
+      assert Messages.build("deployment_group.workflow_step.started", [step_event(%{}, alice)]).text ==
+               "Alice retried Canary (step 1 of 3) for production"
+
+      assert Messages.build("deployment_group.workflow_step.completed", [step_event(%{"number" => 2}, alice)]).text ==
+               "Alice approved Canary (step 2 of 3) for production"
+
+      assert Messages.build("deployment_group.workflow_step.completed", [step_event(%{})]).text ==
+               "Canary (step 1 of 3) completed for production"
+
+      assert Messages.build("deployment_group.workflow_step.skipped", [step_event(%{}, alice)]).text ==
+               "Alice skipped Canary (step 1 of 3) for production"
+    end
+
+    test "a workflow waiting for approval can be approved, after a confirmation" do
+      message =
+        Messages.build("deployment_group.workflow_step.awaiting_approval", [
+          step_event(%{"number" => 2, "name" => "Sign-off"})
+        ])
+
+      assert message.text == "production is waiting for approval at Sign-off (step 2 of 3)"
+
+      assert [approve, open] = buttons(message)
+      assert %{action_id: "workflow_step.approve", value: "42", style: "primary"} = approve
+      assert approve.confirm.title.text == "Approve Sign-off?"
+      assert open.action_id == "deployment_group.open"
+      assert open.url == group_url()
+    end
+
+    test "a failed step says how many devices failed, and can be retried or skipped" do
+      message = Messages.build("deployment_group.workflow_step.failed", [step_event(%{}, %{"failed_devices" => 3})])
+
+      assert message.text ==
+               "Canary (step 1 of 3) failed for production: 3 devices could not take the update. The rollout is stopped until the step is retried or skipped."
+
+      assert [
+               %{action_id: "workflow_step.retry", value: "42"},
+               %{action_id: "workflow_step.skip", value: "42", style: "danger", confirm: %{}},
+               %{action_id: "deployment_group.open"}
+             ] = buttons(message)
+    end
+
+    test "several are each given their own section and buttons" do
+      events = for id <- 1..7, do: step_event(%{"id" => id}, %{"deployment_group" => %{"name" => "group-#{id}"}})
+      message = Messages.build("deployment_group.workflow_step.failed", events)
+
+      assert message.text == "7 workflow steps failed"
+      assert length(buttons(message)) == 15
+      assert "And 2 more on the deployment groups' pages." in texts(message)
+    end
+
+    test "escapes the names people gave steps and deployment groups" do
+      message =
+        Messages.build("deployment_group.workflow_step.started", [
+          step_event(%{"name" => "<!channel>"}, %{"deployment_group" => %{"name" => "<https://evil.example.com|x>"}})
+        ])
+
+      refute Enum.any?(texts(message), &(&1 =~ "<!channel>"))
+      refute message.text =~ "<https://evil"
+    end
+  end
+
   test "product notifications carry their title, message and a link to the product's notifications" do
     message =
       Messages.build("product.notification_created", [

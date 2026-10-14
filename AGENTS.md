@@ -73,7 +73,9 @@ when adding or removing one.
   (a device's identity on networks NervesHub doesn't run, such as iroh or
   NetBird).
 - `managed_deployments.ex` / `managed_deployments/` — deployment groups and the
-  `Distributed.Orchestrator` (one per deployment).
+  `Distributed.Orchestrator` (one per deployment). A release with a workflow
+  is walked a step at a time (`Workflows`, `WorkflowCoordinator`); each step
+  transition is announced to webhooks and Slack (`WorkflowEvents`).
 - `firmwares.ex` / `firmwares/` and `archives.ex` / `archives/` — firmware and
   archive artifacts, uploads, and firmware **delta** building.
 - `products.ex` / `products/` — products and product settings, including
@@ -109,8 +111,10 @@ when adding or removing one.
   those messages are carried out by `NervesHubWeb.Integrations.Slack.Actions` as the
   NervesHub user the Slack user linked (`Slack.Users`), with that user's
   permissions checked at click time; `NervesHubWeb.Integrations.Slack.Commands` answers
-  `/nerveshub` with the same checks (`Integrations.Slack.Actions.authorize/5`). Hidden unless the instance has a Slack
-  app; see [docs/slack.md](docs/slack.md).
+  `/nerveshub` with the same checks (`Integrations.Slack.Actions.authorize/5`), and
+  `NervesHubWeb.Integrations.Slack.WorkflowSteps` approves, retries or skips a deployment
+  workflow step (`Integrations.Slack.Actions.authorize_in/6`). Hidden unless the instance
+  has a Slack app; see [docs/slack.md](docs/slack.md).
 - `scripts.ex` / `scripts/` — support scripts run against a device console.
 - `workers/` — Oban workers (e.g. firmware delta building, firmware deletion).
 - Cross-cutting: `audit_logs.ex`, `product_notifications.ex`, `tracker.ex`,

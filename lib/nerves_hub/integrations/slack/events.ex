@@ -45,6 +45,37 @@ defmodule NervesHub.Integrations.Slack.Events do
       description: "An error that was marked resolved happened again."
     },
     %{
+      key: "deployment_group.workflow_step.started",
+      source: "deployment_group.workflow_step.started",
+      label: "Workflow step started",
+      description: "A deployment group's workflow began a step, or began it again after somebody retried it."
+    },
+    %{
+      key: "deployment_group.workflow_step.awaiting_approval",
+      source: "deployment_group.workflow_step.awaiting_approval",
+      label: "Workflow waiting for approval",
+      description:
+        "A workflow reached a step that holds the rollout until somebody approves it, with an Approve button."
+    },
+    %{
+      key: "deployment_group.workflow_step.completed",
+      source: "deployment_group.workflow_step.completed",
+      label: "Workflow step completed",
+      description: "Every device a step covers is on the release's firmware, or somebody approved an approval step."
+    },
+    %{
+      key: "deployment_group.workflow_step.failed",
+      source: "deployment_group.workflow_step.failed",
+      label: "Workflow step failed",
+      description: "Too many of a step's devices failed to update and the rollout stopped, with Retry and Skip buttons."
+    },
+    %{
+      key: "deployment_group.workflow_step.skipped",
+      source: "deployment_group.workflow_step.skipped",
+      label: "Workflow step skipped",
+      description: "Somebody skipped a step, and its devices were left to the steps after it."
+    },
+    %{
       key: "product.notification_created",
       source: "product.notification_created",
       label: "Product notifications",
@@ -54,7 +85,6 @@ defmodule NervesHub.Integrations.Slack.Events do
   ]
 
   @keys Enum.map(@events, & &1.key)
-  @order @keys |> Enum.with_index() |> Map.new()
 
   @failed_outcomes ["failed", "expired", "abandoned"]
 
@@ -96,8 +126,4 @@ defmodule NervesHub.Integrations.Slack.Events do
 
   def key(type, _data) when type in @keys, do: type
   def key(_type, _data), do: nil
-
-  @doc "The keys in the order the settings page lists them, for ordering messages."
-  @spec order(String.t()) :: non_neg_integer()
-  def order(key), do: Map.get(@order, key, map_size(@order))
 end
