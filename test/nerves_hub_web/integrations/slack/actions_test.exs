@@ -8,6 +8,7 @@ defmodule NervesHubWeb.Integrations.Slack.ActionsTest do
   alias NervesHub.Integrations.Slack
   alias NervesHub.Integrations.Slack.ScriptResults
   alias NervesHub.Integrations.Slack.UserLink
+  alias NervesHub.Integrations.Slack.Users
   alias NervesHubWeb.Integrations.Slack.Actions
   alias Phoenix.Socket.Broadcast
 
@@ -133,6 +134,7 @@ defmodule NervesHubWeb.Integrations.Slack.ActionsTest do
       assert {:ok, "device.identify"} = Actions.perform(click(device, "device.identify"))
 
       assert_receive %Broadcast{event: "identify"}
+      assert [%{link: %{last_used_at: %DateTime{}}}] = Users.list_links(user)
       assert [log | _] = AuditLogs.logs_for(device)
       assert log.description =~ "identify itself from Slack"
     end

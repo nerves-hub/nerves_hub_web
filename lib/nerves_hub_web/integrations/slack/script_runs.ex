@@ -76,7 +76,7 @@ defmodule NervesHubWeb.Integrations.Slack.ScriptRuns do
         }) :: :ok | {:error, :gone | :not_yours | :not_linked}
   def share(%{result_id: id, team_id: team_id, slack_user_id: slack_user_id, response_url: url}) do
     with {:ok, result} <- ScriptResults.take(id, team_id, slack_user_id),
-         %User{id: user_id} = user when user_id == result.user_id <- Users.linked_user(team_id, slack_user_id) do
+         %User{id: user_id} = user when user_id == result.user_id <- Users.use_link(team_id, slack_user_id) do
       name = Actions.escape(user.name)
       script = Actions.escape(result.script_name)
       identifier = Actions.escape(result.device_identifier)

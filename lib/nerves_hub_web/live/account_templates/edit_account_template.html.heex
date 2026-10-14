@@ -182,7 +182,11 @@
           >
             <div class="min-w-0 text-sm text-base-300">
               <span class="font-semibold text-base-50">{if link.slack_name, do: link.slack_name, else: link.slack_user_id}</span>
-              in {team_name || "a workspace no longer connected"}, linked <.local_datetime at={link.linked_at} time_zone={@time_zone} format={:long_date} zone_label={false} />
+              in {team_name || "a workspace no longer connected"}, linked <.local_datetime at={link.linked_at} time_zone={@time_zone} format={:long_date} zone_label={false} />.
+              <span :if={link.last_used_at}>
+                Last used <.local_datetime at={link.last_used_at} time_zone={@time_zone} format={:long_datetime} />.
+              </span>
+              <span :if={is_nil(link.last_used_at)}>Not used yet.</span>
             </div>
             <button
               class="rounded border border-base-700 bg-base-800 px-3 py-1.5 text-sm font-medium text-base-300 hover:bg-base-700"

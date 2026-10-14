@@ -196,7 +196,7 @@ defmodule NervesHubWeb.Integrations.Slack.Actions do
   @spec authorize(String.t(), String.t(), String.t(), atom(), String.t()) ::
           {:ok, Accounts.User.t(), Device.t()} | {:error, atom(), String.t() | map()}
   def authorize(team_id, slack_user_id, identifier, permission, what) do
-    with {:user, %Accounts.User{} = user} <- {:user, Users.linked_user(team_id, slack_user_id)},
+    with {:user, %Accounts.User{} = user} <- {:user, Users.use_link(team_id, slack_user_id)},
          {:device, %Device{} = device} <- {:device, device(identifier)},
          {:connected, true} <- {:connected, connected?(device.org_id, team_id)},
          {:member, {:ok, org_user}} <- {:member, Accounts.get_org_user(device.org, user)},

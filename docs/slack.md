@@ -42,7 +42,7 @@ Events are held for 15 seconds before they are posted, and everything held for a
 
 A message about a single device has three buttons: **Open in NervesHub**, **Identify** and **Reboot**, which asks for confirmation first. Messages that summarize many devices have none.
 
-Identify and Reboot are done as a NervesHub user, so each person links their Slack account to their NervesHub account first. The first time someone clicks one of these buttons, Slack shows them, and only them, a link to a NervesHub page. There they sign in to NervesHub if they need to, then sign in with Slack. The Slack account linked is the one Slack says they signed in as, so nobody can link somebody else's Slack account, or get someone else to link theirs. Nothing is matched by email, because the workspace decides what email a Slack user has. Links are listed, and can be removed, under **Account Settings**.
+Identify and Reboot are done as a NervesHub user, so each person links their Slack account to their NervesHub account first. The first time someone clicks one of these buttons, Slack shows them, and only them, a link to a NervesHub page. There they sign in to NervesHub if they need to, then sign in with Slack. The Slack account linked is the one Slack says they signed in as, so nobody can link somebody else's Slack account, or get someone else to link theirs. Nothing is matched by email, because the workspace decides what email a Slack user has. A link is made once and lasts until it is removed. Links are listed under **Account Settings**, with when each was last used, so one nobody recognises stands out, and can be removed there.
 
 When a linked user clicks, NervesHub checks, at that moment:
 

@@ -75,6 +75,26 @@ defmodule NervesHub.Integrations.Slack.Users do
     end
   end
 
+  @doc """
+  The NervesHub user a Slack user is linked to, if any, for acting as them:
+  records the link as used now, which Account Settings shows.
+  """
+  @spec use_link(String.t(), String.t()) :: User.t() | nil
+  def use_link(team_id, slack_user_id) do
+    case linked_user(team_id, slack_user_id) do
+      nil ->
+        nil
+
+      user ->
+        {_count, _} =
+          UserLink
+          |> where(team_id: ^team_id, slack_user_id: ^slack_user_id)
+          |> Repo.update_all(set: [last_used_at: DateTime.utc_now()])
+
+        user
+    end
+  end
+
   @doc "The NervesHub user a Slack user is linked to, if any."
   @spec linked_user(String.t(), String.t()) :: User.t() | nil
   def linked_user(team_id, slack_user_id) do

@@ -21,6 +21,7 @@ defmodule NervesHub.Integrations.Slack.UserLink do
     field(:slack_name, :string)
     field(:team_name, :string)
     field(:linked_at, :utc_datetime_usec)
+    field(:last_used_at, :utc_datetime_usec)
 
     timestamps()
   end
