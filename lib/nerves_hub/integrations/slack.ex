@@ -31,7 +31,7 @@ defmodule NervesHub.Integrations.Slack do
   # Requested at install, including those only later features use, so that a
   # workspace connected now does not have to be reconnected as they arrive.
   # Slack only grants new scopes by installing the app again.
-  @scopes ~w(chat:write chat:write.public channels:read groups:read commands)
+  @scopes ~w(chat:write chat:write.public channels:read groups:read commands links:read links:write)
 
   @authorize_url "https://slack.com/oauth/v2/authorize"
 

@@ -25,7 +25,7 @@ defmodule NervesHub.Integrations.SlackTest do
         "ok" => true,
         "access_token" => "xoxb-test-bot-token",
         "token_type" => "bot",
-        "scope" => "chat:write,chat:write.public,channels:read,groups:read,commands",
+        "scope" => "chat:write,chat:write.public,channels:read,groups:read,commands,links:read,links:write",
         "bot_user_id" => "U0KRQLJ9H",
         "app_id" => "A0KRD7HC3",
         "team" => %{"name" => "Acme Fleet", "id" => "T9TK3CUKW"},
@@ -69,7 +69,15 @@ defmodule NervesHub.Integrations.SlackTest do
                team_name: "Acme Fleet",
                bot_user_id: "U0KRQLJ9H",
                bot_token: "xoxb-test-bot-token",
-               scopes: ["chat:write", "chat:write.public", "channels:read", "groups:read", "commands"]
+               scopes: [
+                 "chat:write",
+                 "chat:write.public",
+                 "channels:read",
+                 "groups:read",
+                 "commands",
+                 "links:read",
+                 "links:write"
+               ]
              } = connection.workspace
 
       assert connection.org_id == org.id
@@ -214,7 +222,7 @@ defmodule NervesHub.Integrations.SlackTest do
 
     assert %{
              "client_id" => "test-client-id",
-             "scope" => "chat:write,chat:write.public,channels:read,groups:read,commands",
+             "scope" => "chat:write,chat:write.public,channels:read,groups:read,commands,links:read,links:write",
              "redirect_uri" => @redirect_uri,
              "state" => "a-state"
            } = URI.decode_query(url.query)

@@ -59,6 +59,12 @@
       </div>
     </div>
 
+    <%!-- Slack grants new scopes only on install, so a workspace connected before link previews has neither them nor the event. --%>
+    <p :if={"links:write" not in connection.workspace.scopes} class="text-sm text-base-400">
+      To preview {Branding.friendly_platform_name()} links posted in this workspace, an admin of this organization installs the app again:
+      Add to Slack, then choose {connection.workspace.team_name}.
+    </p>
+
     <p :if={connection.subscriptions == [] && !editing_connection?(@editing, connection)} class="text-sm text-base-400">
       No channel gets this organization's events yet.
     </p>

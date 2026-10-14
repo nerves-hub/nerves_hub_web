@@ -85,6 +85,14 @@ What a command shows is seen only by whoever typed it. That includes a script's 
 
 Viewing a device and running support scripts take the organization's `view` role, as they do in NervesHub. Identify and reboot take `manage`.
 
+## Link previews
+
+A link to a device's page, or a deployment group's, posted in a connected workspace is previewed under the message. A device gets the card `/nerveshub device` shows, without its buttons. A deployment group gets whether it is active, its current release and firmware, where its workflow is, and how many devices it has. Any of a page's tabs counts, and at most five links in a message are previewed. Slack also asks for a preview while a link is still being typed, and NervesHub gives the same one.
+
+Everyone in the conversation sees a preview, but Slack only says who posted the link, so the preview is checked against them, as **Share in channel** is: posting a link is sharing what it shows. Their linked NervesHub account must be a member of the organization the link points into, that organization must be connected to the workspace, and their role must let them see the page. A link they may not see gets no preview, and nobody is told why. Someone who has not linked their account is asked to, in a message only they see, and the link gets no preview until they do.
+
+Only links to this instance are previewed, and only once its domain is one of the Slack app's unfurl domains (see the manifest below). A workspace connected before link previews arrived has to install the app again for them, since Slack only grants the new scopes on install. The Integrations page says so under the workspace: an admin clicks **Add to Slack** and chooses the same workspace, which refreshes its token and scopes without connecting it twice.
+
 ## What NervesHub keeps
 
 For each workspace, NervesHub keeps its id and name, the app's bot user, the scopes granted, and the bot token Slack issued. The bot token is encrypted with AES-256-GCM before it is stored, using `SECRETS_ENCRYPTION_KEY`, so a copy of the database alone does not reveal it.
@@ -98,8 +106,10 @@ The app asks for these bot scopes when it is installed:
 | `channels:read` | List public channels to choose from. |
 | `groups:read` | List private channels the app has been invited to. |
 | `commands` | Slash commands and message actions. |
+| `links:read` | Hear about links to this instance posted in Slack. |
+| `links:write` | Preview them. |
 
-Slack only grants new scopes when the app is installed again, so the app asked for all of these from the start, `commands` included.
+Slack only grants new scopes when the app is installed again. The app asked for everything up to `commands` from the start; the `links` scopes arrived with link previews, so a workspace connected before then installs the app again to get them.
 
 Script output run from Slack is kept for 30 minutes, so that whoever ran it can share it, and is then deleted.
 
@@ -133,7 +143,8 @@ For each linked Slack user, NervesHub keeps their Slack user id and name, the wo
         "usage_hint": "device | identify | reboot | script <identifier> [script] | link | help",
         "should_escape": false
       }
-    ]
+    ],
+    "unfurl_domains": ["nerves-hub.example.com"]
   },
   "oauth_config": {
     "redirect_urls": [
@@ -141,13 +152,13 @@ For each linked Slack user, NervesHub keeps their Slack user id and name, the wo
       "https://nerves-hub.example.com/integrations/slack/link/callback"
     ],
     "scopes": {
-      "bot": ["chat:write", "chat:write.public", "channels:read", "groups:read", "commands"]
+      "bot": ["chat:write", "chat:write.public", "channels:read", "groups:read", "commands", "links:read", "links:write"]
     }
   },
   "settings": {
     "event_subscriptions": {
       "request_url": "https://nerves-hub.example.com/integrations/slack/events",
-      "bot_events": ["app_uninstalled", "tokens_revoked"]
+      "bot_events": ["app_uninstalled", "tokens_revoked", "link_shared"]
     },
     "interactivity": {
       "is_enabled": true,
@@ -162,7 +173,9 @@ For each linked Slack user, NervesHub keeps their Slack user id and name, the wo
 
 Slack checks the events URL when the manifest is saved, so the instance must already be reachable at that URL with `SLACK_SIGNING_SECRET` set. If it is not yet, save the manifest without `event_subscriptions`, configure and restart the instance, then add them back.
 
-An app created before buttons arrived needs `interactivity` added to its manifest, and the `/integrations/slack/link/callback` redirect URL. Without them, clicking Identify or Reboot shows an error, and linking an account fails. An app created before slash commands arrived needs `slash_commands` added.
+An app created before buttons arrived needs `interactivity` added to its manifest, and the `/integrations/slack/link/callback` redirect URL. Without them, clicking Identify or Reboot shows an error, and linking an account fails. An app created before slash commands arrived needs `slash_commands` added. One created before link previews needs `unfurl_domains`, the `links:read` and `links:write` scopes, and the `link_shared` event.
+
+Register the instance's own host as its unfurl domain. Subdomains of a registered domain are matched too, so registering a parent domain shared by several instances would send each instance's app the others' links. Slack sends a link to only one app per workspace, the one installed there first, when two register the same domain.
 
 ## Requests from Slack
 

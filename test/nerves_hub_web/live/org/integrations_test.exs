@@ -356,6 +356,25 @@ defmodule NervesHubWeb.Live.Org.IntegrationsTest do
       |> assert_has("#slack-subscription-#{subscription.id} div", text: "Products: Every product")
     end
 
+    test "says a workspace installed before link previews needs installing again", context do
+      %{conn: conn, connection: connection, org: org} = context
+
+      conn
+      |> visit(integrations_path(org))
+      |> refute_has("#slack-connection-#{connection.id} p", text: "installs the app again")
+
+      connection.workspace
+      |> Ecto.Changeset.change(scopes: Slack.scopes() -- ["links:read", "links:write"])
+      |> Repo.update!()
+
+      conn
+      |> visit(integrations_path(org))
+      |> assert_has("#slack-connection-#{connection.id} p",
+        text:
+          "To preview NervesHub links posted in this workspace, an admin of this organization installs the app again"
+      )
+    end
+
     test "says when no workspace is connected", %{conn: conn, connection: connection, org: org} do
       Repo.delete!(connection)
 

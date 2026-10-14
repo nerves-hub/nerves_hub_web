@@ -72,8 +72,8 @@ defmodule NervesHub.Integrations.Slack.Client do
 
   @doc """
   Posts a message to a channel (`chat.postMessage`), or with `thread_ts:` as
-  a reply in a message's thread. Links in it are not unfurled: they point at
-  NervesHub pages that need signing in.
+  a reply in a message's thread. Links in it are not unfurled: the message
+  already says what they point at.
   """
   @spec post_message(String.t(), String.t(), %{text: String.t(), blocks: [map()]}, keyword()) ::
           {:ok, map()} | {:error, error()}
@@ -88,6 +88,17 @@ defmodule NervesHub.Integrations.Slack.Client do
 
   defp put_unless_empty(body, _key, value) when value in [nil, []], do: body
   defp put_unless_empty(body, key, value), do: Map.put(body, key, value)
+
+  @doc """
+  Previews links in a message (`chat.unfurl`). `body` names the message,
+  as `channel` and `ts` or as `unfurl_id` and `source`, and carries either
+  the `unfurls`, by URL, or `user_auth_required` and the blocks asking the
+  person who posted the links to link their account.
+  """
+  @spec unfurl(String.t(), map()) :: {:ok, map()} | {:error, error()}
+  def unfurl(token, body) do
+    post("chat.unfurl", json: body, auth: {:bearer, token})
+  end
 
   @doc """
   Answers an interaction through the `response_url` Slack sent with it,
