@@ -33,6 +33,14 @@ defmodule NervesHub.GroupSupervisorTest do
            ] == child_ids(children)
   end
 
+  # Group's default oplog cap holds about 300 MiB of ETS per node once churn
+  # fills it, with no members left. See the comment in GroupSupervisor.
+  test "Group's replica oplog is capped" do
+    assert {:ok, {_flags, [group | _]}} = GroupSupervisor.init([])
+    assert %{id: {Group, NervesHub.Group}, start: {_mod, :start_link, [opts]}} = group
+    assert opts[:replicated_oplog_max_entries] == 1_024
+  end
+
   test "device nodes run neither web-cluster member" do
     previous = Application.fetch_env(:nerves_hub, :app)
     Application.put_env(:nerves_hub, :app, "device")

@@ -172,9 +172,15 @@ device that drops without detaching. Nothing monitors the connection, so if a
 node dies before its devices are marked offline, the tab shows the shell until
 they are.
 
-Nothing uses `Group.monitor/2` at the moment. It is backed by a duplicate-key
-registry, so it never reports "already monitored" and repeated calls accumulate
-rows; anything that starts using it should unregister before registering.
+Nothing uses `Group.monitor/2` at the moment. Since 0.3 a repeat call from the
+same process for the same pattern is a no-op, so a new caller does not need to
+unregister first.
+
+**Busy distribution links.** `Group.dispatch/4` never blocks the sender. When
+the distribution buffer to a node is full, the message is dropped and Group
+disconnects from that node, then retries the connection. The disconnect takes
+everything else on that link with it, `Phoenix.PubSub` and ProcessHub included.
+Group logs a warning naming the node (`busy dist link to …; disconnecting`).
 
 **Cold start.** A freshly started web node does not exchange rate-limit
 increments or CLI-session writes with peers until `"web"` membership
@@ -191,6 +197,13 @@ CLI-session writes all degrade for the duration and recover once the rollout
 completes. Worth knowing before changing a topic's transport, and worth
 mentioning in release notes when you do.
 
+**Upgrading `:group`.** A release that changes Group's replication protocol
+cannot talk to the one before it; 0.2 to 0.3 did. Nodes on different versions
+never discover each other, so every `:group` topic behaves like a transport
+change for the length of the rollout. Any other release in the cluster that
+runs Group as `NervesHub.Group` has to move to the same version in the same
+deploy, or its traffic stays cut off until it does.
+
 **Orchestrator failover.** Device nodes dispatch orchestrator events to the
 node holding that deployment group's orchestrator. When ProcessHub moves or
 restarts it, there is a window where events land nowhere. The orchestrator's
@@ -200,6 +213,11 @@ two-minute backup timer bounds this to a delayed update rather than a lost one.
 
 `:group` is pre-1.0 and now carries console I/O, health reporting, the
 rate-limit throttle and the CLI-session auth cache. It is pure Elixir with no
-transitive dependencies and the `~> 0.2.0` requirement is tight, but its
+transitive dependencies and the `~> 0.3.1` requirement is tight, but its
 releases should be tracked and upgrades reviewed rather than taken
-automatically.
+automatically. The test suite runs on a single node and cannot catch a
+replication protocol change, so check the changelog for one before upgrading.
+
+`NervesHub.GroupSupervisor` caps Group's replica oplog. The library prunes it by
+count only, and at the default cap it holds about 300 MiB of ETS per node once
+churn fills it, whether or not anything is still joined.
