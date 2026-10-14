@@ -18,6 +18,8 @@ defmodule NervesHub.Webhooks.RaisedEventsTest do
   alias NervesHub.Devices.DeviceMetric
   alias NervesHub.Devices.HealthEvaluation
   alias NervesHub.Devices.Updates
+  alias NervesHub.ErrorReports.ErrorGroup
+  alias NervesHub.ErrorReports.GroupBuffer
   alias NervesHub.Extensions.Health
   alias NervesHub.Extensions.Metrics
   alias NervesHub.Extensions.State
@@ -291,6 +293,43 @@ defmodule NervesHub.Webhooks.RaisedEventsTest do
 
       assert [data] = raised("device.firmware_validated")
       assert data["device"] == device_summary(device)
+    end
+  end
+
+  describe "error events" do
+    test "a new error, and a resolved one happening again", %{device_info: device_info, user: user} do
+      report = %{
+        "timestamp" => "2026-10-14T09:00:00.000000Z",
+        "kind" => "error",
+        "reason" => "** (RuntimeError) boom",
+        "frames" => [
+          %{"module" => "MyApp.Worker", "function" => "handle_info/2", "file" => "lib/worker.ex", "line" => 42}
+        ]
+      }
+
+      {:ok, _} = NervesHub.ErrorReports.record(device_info, report)
+      :ok = GroupBuffer.flush()
+
+      assert [%{"error" => error} = data] = raised("error_group.created")
+      refute Map.has_key?(data, "device")
+
+      assert %{
+               "reason" => "** (RuntimeError) boom",
+               "top_frame" => "MyApp.Worker.handle_info/2 (lib/worker.ex:42)",
+               "occurrence_count" => 1
+             } = error
+
+      {:ok, _} =
+        ErrorGroup
+        |> Repo.get!(error["id"])
+        |> ErrorGroup.resolve_changeset(user)
+        |> Repo.update()
+
+      {:ok, _} = NervesHub.ErrorReports.record(device_info, %{report | "timestamp" => "2026-10-14T10:00:00.000000Z"})
+      :ok = GroupBuffer.flush()
+
+      assert [%{"error" => %{"id" => id, "occurrence_count" => 2}}] = raised("error_group.reopened")
+      assert id == error["id"]
     end
   end
 end

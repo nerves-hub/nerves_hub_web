@@ -204,7 +204,7 @@ defmodule NervesHub.Integrations.Slack.Messages do
     {icon, heading} =
       case kind do
         :created -> {":rotating_light:", "New error in"}
-        :reopened -> {":leftwards_arrow_with_hook:", "A resolved error is back in"}
+        :reopened -> {":leftwards_arrow_with_hook:", "Error reopened in"}
       end
 
     product = product_name(event) || "a product"
@@ -223,7 +223,7 @@ defmodule NervesHub.Integrations.Slack.Messages do
     {icon, summary} =
       case kind do
         :created -> {":rotating_light:", "#{length(events)} new errors"}
-        :reopened -> {":leftwards_arrow_with_hook:", "#{length(events)} resolved errors are back"}
+        :reopened -> {":leftwards_arrow_with_hook:", "#{length(events)} errors reopened"}
       end
 
     lines =

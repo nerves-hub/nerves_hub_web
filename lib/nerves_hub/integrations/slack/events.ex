@@ -41,7 +41,7 @@ defmodule NervesHub.Integrations.Slack.Events do
     %{
       key: "error_group.reopened",
       source: "error_group.reopened",
-      label: "Error back",
+      label: "Error reopened",
       description: "An error that was marked resolved happened again."
     },
     %{

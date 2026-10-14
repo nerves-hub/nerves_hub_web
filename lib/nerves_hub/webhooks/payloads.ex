@@ -151,6 +151,36 @@ defmodule NervesHub.Webhooks.Payloads do
   end
 
   @doc """
+  `error_group.created` and `error_group.reopened`
+
+  About an error rather than one device, so there is no `device`. `group` is
+  the error group as `NervesHub.ErrorReports.GroupBuffer` wrote it.
+  """
+  @spec error_group(map()) :: map()
+  def error_group(group) do
+    %{
+      error: %{
+        id: group.id,
+        kind: group.kind,
+        source: group.source,
+        reason: group.reason,
+        top_frame: top_frame(group),
+        occurrence_count: group.occurrence_count,
+        first_seen_at: group.first_seen_at,
+        last_seen_at: group.last_seen_at
+      }
+    }
+  end
+
+  defp top_frame(%{top_frame_module: nil, top_frame_function: nil}), do: nil
+
+  defp top_frame(group) do
+    name = [group.top_frame_module, group.top_frame_function] |> Enum.reject(&is_nil/1) |> Enum.join(".")
+    location = if group.top_frame_file, do: " (#{group.top_frame_file}:#{group.top_frame_line})", else: ""
+    name <> location
+  end
+
+  @doc """
   Device summaries for a batch of device ids, by id, in one query.
   """
   @spec devices([pos_integer()]) :: %{optional(pos_integer()) => map()}

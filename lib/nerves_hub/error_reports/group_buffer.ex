@@ -59,6 +59,7 @@ defmodule NervesHub.ErrorReports.GroupBuffer do
   alias NervesHub.ErrorReports.ErrorGroup
   alias NervesHub.Integrations
   alias NervesHub.Repo
+  alias NervesHub.Webhooks.Payloads
 
   require Logger
 
@@ -328,28 +329,7 @@ defmodule NervesHub.ErrorReports.GroupBuffer do
   end
 
   defp dispatch(group, type) do
-    :ok =
-      Integrations.dispatch(group.product_id, type, fn ->
-        %{
-          error: %{
-            id: group.id,
-            kind: group.kind,
-            source: group.source,
-            reason: group.reason,
-            top_frame: top_frame(group),
-            occurrence_count: group.occurrence_count,
-            first_seen_at: group.first_seen_at,
-            last_seen_at: group.last_seen_at
-          }
-        }
-      end)
-  end
-
-  defp top_frame(%{top_frame_module: nil, top_frame_function: nil}), do: nil
-
-  defp top_frame(group) do
-    location = if group.top_frame_file, do: " (#{group.top_frame_file}:#{group.top_frame_line})", else: ""
-    "#{Enum.join(Enum.reject([group.top_frame_module, group.top_frame_function], &is_nil/1), ".")}#{location}"
+    :ok = Integrations.dispatch(group.product_id, type, fn -> Payloads.error_group(group) end)
   end
 
   # Every column that moves does so relative to what is already stored, because

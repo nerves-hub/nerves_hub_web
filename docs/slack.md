@@ -24,7 +24,7 @@ Under a connected workspace, **Add channel** picks a channel, the products whose
 | Update failed | A device's update fails, stops reporting progress, or ends with the device back on its old firmware. |
 | Update succeeded | A device finishes updating. |
 | New error | A device reports an error not seen before in its product. |
-| Error back | An error that was marked resolved happens again. A muted error does not come back. |
+| Error reopened | An error that was marked resolved happens again. A muted error does not reopen. |
 | Product notifications | NervesHub adds something to a product's Notifications page, such as a halted deployment workflow or a webhook it turned off. A notification that recurs is posted only the first time. |
 
 Events are held for 15 seconds before they are posted, and everything held for a channel goes out as one message per kind of event. A single event gets a message of its own. A burst, such as a fleet's health changing at once, gets one message with a count and the first ten devices, so the channel is not buried. Device names link to the device in NervesHub. Anything a device sent, such as a failure reason, is escaped, so it cannot mention `@channel` or become a link.

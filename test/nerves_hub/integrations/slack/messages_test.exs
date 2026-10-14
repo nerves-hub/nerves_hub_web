@@ -109,9 +109,9 @@ defmodule NervesHub.Integrations.Slack.MessagesTest do
       refute message.text =~ "<!here>"
     end
 
-    test "a reopened error says it is back" do
+    test "a reopened error says so" do
       assert [section | _] = texts(Messages.build("error_group.reopened", [error_event("boom", 7)]))
-      assert section =~ "A resolved error is back in *thermostat*"
+      assert section =~ "Error reopened in *thermostat*"
     end
 
     test "several are listed, each linking to its error" do
