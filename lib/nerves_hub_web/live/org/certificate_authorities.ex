@@ -159,10 +159,7 @@ defmodule NervesHubWeb.Live.Org.CertificateAuthorities do
          serial = Certificate.get_serial_number(cert),
          aki = Certificate.get_aki(cert),
          ski = Certificate.get_ski(cert),
-         {cert_not_before, cert_not_after} = cert_validity <- Certificate.get_validity(cert),
-         {_csr_not_before, _csr_not_after} = csr_validity <- Certificate.get_validity(csr),
-         :ok <- check_validity(cert_validity),
-         :ok <- check_validity(csr_validity),
+         {cert_not_before, cert_not_after} <- Certificate.get_validity(cert),
          {:ok, params} <- maybe_delete_jitp(params),
          params = %{
            serial: serial,
@@ -172,6 +169,7 @@ defmodule NervesHubWeb.Live.Org.CertificateAuthorities do
            not_after: cert_not_after,
            der: X509.Certificate.to_der(cert),
            description: params["description"],
+           check_expiration: params["check_expiration"],
            jitp: params["jitp"]
          },
          {:ok, _ca_certificate} <- CACertificates.create_ca_certificate(socket.assigns.org, params) do
@@ -189,16 +187,8 @@ defmodule NervesHubWeb.Live.Org.CertificateAuthorities do
       {:error, :not_found} ->
         {:noreply, put_flash(socket, :error, "Certificate Authority pem file is empty or invalid")}
 
-      {:error, :cert_expired} ->
-        {:noreply, put_flash(socket, :error, "Certificate is expired")}
-
-      {:error, :invalid_csr} ->
-        {:noreply,
-         put_flash(
-           socket,
-           :error,
-           "Error validating certificate signing request. Please check if the right registration code was used."
-         )}
+      {:error, {:invalid_csr, reason}} ->
+        {:noreply, put_flash(socket, :error, CSR.ownership_error_message(reason))}
 
       {:error, changeset} ->
         {:noreply, assign(socket, :form, to_form(changeset))}
@@ -232,18 +222,6 @@ defmodule NervesHubWeb.Live.Org.CertificateAuthorities do
          end) do
       [csr] -> {:ok, csr}
       [] -> {:error, :empty_csr}
-    end
-  end
-
-  def check_validity({not_before, not_after}) do
-    now = DateTime.utc_now()
-    is_before? = DateTime.compare(now, not_before) != :gt
-    is_after? = DateTime.after?(now, not_after)
-
-    if is_before? or is_after? do
-      {:error, :cert_expired}
-    else
-      :ok
     end
   end
 
