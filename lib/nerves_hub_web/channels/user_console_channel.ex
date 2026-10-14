@@ -14,9 +14,9 @@ defmodule NervesHubWeb.UserConsoleChannel do
     if device = authorized?(socket.assigns.user, identifier) do
       :ok = PubSub.subscribe_user_console(device.id)
 
-      _ = PubSub.connect_to_console(device.id, self())
+      :ok = PubSub.connect_to_console(device.id, self())
 
-      {:ok, socket |> assign(:device_id, device.id) |> assign(:device, device)}
+      {:ok, assign(socket, device_id: device.id, device: device, console: nil, console_monitor: nil)}
     else
       {:error, %{reason: "unauthorized"}}
     end
@@ -31,20 +31,22 @@ defmodule NervesHubWeb.UserConsoleChannel do
   def handle_in("file-data/start", payload, socket) do
     payload = Map.put(payload, :uploaded_by, socket.assigns.user.id)
     :ok = record(socket, :sent, "file-data/start", payload)
-    PubSub.broadcast_to_console(socket.assigns.device_id, "file-data/start", payload)
+    :ok = to_console(socket, "file-data/start", payload)
+    :ok = PubSub.broadcast_to_console_watchers(socket.assigns.device_id, "file-data/start", payload)
     {:noreply, socket}
   end
 
   def handle_in("file-data", payload, socket) do
     :ok = record(socket, :sent, "file-data", payload)
-    PubSub.broadcast_to_console(socket.assigns.device_id, "file-data", payload)
+    :ok = to_console(socket, "file-data", payload)
     {:noreply, socket}
   end
 
   def handle_in("file-data/stop", payload, socket) do
     payload = Map.put(payload, :uploaded_by, socket.assigns.user.id)
     :ok = record(socket, :sent, "file-data/stop", payload)
-    PubSub.broadcast_to_console(socket.assigns.device_id, "file-data/stop", payload)
+    :ok = to_console(socket, "file-data/stop", payload)
+    :ok = PubSub.broadcast_to_console_watchers(socket.assigns.device_id, "file-data/stop", payload)
     {:noreply, socket}
   end
 
@@ -52,13 +54,25 @@ defmodule NervesHubWeb.UserConsoleChannel do
     # Key presses are coming in here raw
     # Send them to the device
     :ok = record(socket, :sent, event, payload)
-    PubSub.broadcast_to_console(socket.assigns.device_id, event, payload)
+    :ok = to_console(socket, event, payload)
     {:noreply, socket}
   end
 
-  def handle_info({:metadata, metadata}, socket) do
+  # The device's console channel answering `connect_to_console/2`, and naming
+  # itself as where input goes from now on.
+  def handle_info({:metadata, console, metadata}, socket) do
     push(socket, "metadata", metadata)
-    {:noreply, assign(socket, :metadata, metadata)}
+
+    if ref = socket.assigns.console_monitor, do: Process.demonitor(ref, [:flush])
+
+    {:noreply, assign(socket, metadata: metadata, console: console, console_monitor: Process.monitor(console))}
+  end
+
+  # The console channel went away: the device disconnected, or its node did.
+  # Input goes back to being broadcast, which reaches the device again if it
+  # reconnects while this session is still open.
+  def handle_info({:DOWN, ref, :process, _pid, _reason}, %{assigns: %{console_monitor: ref}} = socket) do
+    {:noreply, assign(socket, console: nil, console_monitor: nil)}
   end
 
   def handle_info({:cache, lines}, socket) do
@@ -84,6 +98,10 @@ defmodule NervesHubWeb.UserConsoleChannel do
       end
 
     socket
+  end
+
+  defp to_console(socket, event, payload) do
+    PubSub.send_to_console(socket.assigns.device_id, socket.assigns.console, event, payload)
   end
 
   # Console traffic is recorded here rather than on the device-side channel.

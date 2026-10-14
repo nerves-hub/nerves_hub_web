@@ -433,7 +433,7 @@ defmodule NervesHub.DeviceLinkTest do
 
       # Stand in for the device-side console channel, which is what carries the
       # echo down to the device.
-      :ok = Consoles.PubSub.join_console(device.id)
+      :ok = Consoles.PubSub.subscribe_console(device.id)
 
       session = %Session{device_info: connected_device_info(device), device_api_version: "2.0.0"}
       params = %{"device_api_version" => "2.0.0"}
@@ -447,7 +447,7 @@ defmodule NervesHub.DeviceLinkTest do
     test "pushes a script instead of echoing when the device can run scripts", %{device: device} do
       {:ok, device} = Devices.update_device(device, %{connecting_code: ~s/dbg("boo")/})
 
-      :ok = Consoles.PubSub.join_console(device.id)
+      :ok = Consoles.PubSub.subscribe_console(device.id)
 
       session = %Session{device_info: connected_device_info(device), device_api_version: "2.1.0"}
       params = %{"device_api_version" => "2.1.0"}
