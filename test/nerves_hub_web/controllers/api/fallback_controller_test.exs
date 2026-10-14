@@ -94,6 +94,16 @@ defmodule NervesHubWeb.API.FallbackControllerTest do
       assert conn.status == 422
     end
 
+    test "returns 422 for :invalid_fwup_file", %{conn: conn} do
+      conn = FallbackController.call(conn, {:error, :invalid_fwup_file})
+      assert conn.status == 422
+    end
+
+    test "returns 422 for :invalid_metadata", %{conn: conn} do
+      conn = FallbackController.call(conn, {:error, :invalid_metadata})
+      assert conn.status == 422
+    end
+
     test "returns 422 for :firmware_not_signed", %{conn: conn} do
       conn = FallbackController.call(conn, {:error, :firmware_not_signed})
       assert conn.status == 422

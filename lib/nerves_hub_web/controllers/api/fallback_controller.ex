@@ -86,6 +86,22 @@ defmodule NervesHubWeb.API.FallbackController do
     |> render(:"422", %{reason: "This organization has no signing keys. Register one before uploading."})
   end
 
+  def call(conn, {:error, :invalid_fwup_file}) do
+    conn
+    |> put_status(:unprocessable_entity)
+    |> put_view(ErrorJSON)
+    |> render(:"422", %{reason: "The file is not a readable fwup archive."})
+  end
+
+  def call(conn, {:error, :invalid_metadata}) do
+    conn
+    |> put_status(:unprocessable_entity)
+    |> put_view(ErrorJSON)
+    |> render(:"422", %{
+      reason: "The file's metadata must include meta-product, meta-platform, meta-architecture and meta-version."
+    })
+  end
+
   def call(conn, {:error, :firmware_not_signed}) do
     conn
     |> put_status(:unprocessable_entity)

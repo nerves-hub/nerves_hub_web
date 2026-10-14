@@ -8,6 +8,8 @@ defmodule NervesHubWeb.API.ArchiveControllerTest do
 
   @moduletag :tmp_dir
 
+  @invalid_signature "The signature does not match any of this organization's signing keys, or the file is corrupt."
+
   describe "index" do
     test "lists no archives", %{conn: conn, org: org, product: product} do
       conn = get(conn, Routes.api_archive_path(conn, :index, org.name, product.name))
@@ -78,7 +80,40 @@ defmodule NervesHubWeb.API.ArchiveControllerTest do
 
       conn = post_archive(conn, org, product, File.read!(path))
 
-      assert json_response(conn, 422)["errors"]["detail"] =~ "signing keys"
+      assert json_response(conn, 422)["errors"]["detail"] == @invalid_signature
+    end
+
+    test "rejects an archive when the org has no signing keys", %{
+      conn: conn,
+      user: user,
+      org: org,
+      product: product,
+      tmp_dir: tmp_dir
+    } do
+      org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
+      path = Fixtures.archive_file_fixture(org_key, product, %{dir: tmp_dir})
+      {:ok, _} = Accounts.delete_org_key(org_key)
+
+      conn = post_archive(conn, org, product, File.read!(path))
+
+      assert json_response(conn, 422)["errors"]["detail"] ==
+               "This organization has no signing keys. Register one before uploading."
+    end
+
+    test "rejects an archive whose metadata is incomplete", %{
+      conn: conn,
+      user: user,
+      org: org,
+      product: product,
+      tmp_dir: tmp_dir
+    } do
+      org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
+      Support.Fwup.create_firmware_with_invalid_metadata(tmp_dir, "unsigned")
+      {:ok, path} = Support.Fwup.sign_firmware(tmp_dir, org_key.name, "unsigned", "signed")
+
+      conn = post_archive(conn, org, product, File.read!(path))
+
+      assert json_response(conn, 422)["errors"]["detail"] =~ "must include meta-product"
     end
 
     test "accepts uploads larger than the default request limit",
@@ -88,7 +123,7 @@ defmodule NervesHubWeb.API.ArchiveControllerTest do
 
       conn = post_archive(conn, org, product, :binary.copy("x", 2_000_000))
 
-      assert json_response(conn, 422)["errors"]["detail"] =~ "signing keys"
+      assert json_response(conn, 422)["errors"]["detail"] == @invalid_signature
     end
 
     test "rejects a version that is not SemVer", %{conn: conn, user: user, org: org, product: product, tmp_dir: tmp_dir} do
