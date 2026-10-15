@@ -5,7 +5,7 @@ defmodule NervesHub.Integrations.Slack.Subscription do
 
   Like a webhook, it hears every product in the organization
   (`all_products`) or the products it lists, and is sent the events it names
-  (`NervesHub.Integrations.Slack.Events`). `last_error` and `last_error_at` describe the
+  (`NervesHub.Integrations.ChannelEvents`). `last_error` and `last_error_at` describe the
   channel as posting last found it; `disabled_reason` is set when posting
   turned the subscription off, and cleared when a person turns it back on.
   """
@@ -13,9 +13,9 @@ defmodule NervesHub.Integrations.Slack.Subscription do
 
   import Ecto.Changeset
 
+  alias NervesHub.Integrations.ChannelEvents
   alias NervesHub.Integrations.ProductScope
   alias NervesHub.Integrations.Slack.Connection
-  alias NervesHub.Integrations.Slack.Events
   alias NervesHub.Products.Product
 
   @type t :: %__MODULE__{}
@@ -68,7 +68,7 @@ defmodule NervesHub.Integrations.Slack.Subscription do
     |> cast(params, [:events, :all_products, :enabled])
     |> validate_required([:all_products])
     |> update_change(:events, &Enum.uniq/1)
-    |> validate_subset(:events, Events.keys(), message: "contains an event that does not exist")
+    |> validate_subset(:events, ChannelEvents.keys(), message: "contains an event that does not exist")
     |> validate_some_events()
     |> ProductScope.put(products)
     |> clear_failure_on_enable()

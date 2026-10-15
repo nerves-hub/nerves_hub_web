@@ -18,8 +18,8 @@ defmodule NervesHubWeb.Live.Org.Integrations.SlackSection do
   use NervesHubWeb, :live_component
 
   alias NervesHub.Branding
+  alias NervesHub.Integrations.ChannelEvents
   alias NervesHub.Integrations.Slack
-  alias NervesHub.Integrations.Slack.Events
   alias NervesHub.Integrations.Slack.Subscription
   alias NervesHub.Integrations.Slack.Subscriptions
   alias Phoenix.HTML.Form
@@ -29,7 +29,7 @@ defmodule NervesHubWeb.Live.Org.Integrations.SlackSection do
   @impl Phoenix.LiveComponent
   def mount(socket) do
     socket
-    |> assign(:events, Events.all())
+    |> assign(:events, ChannelEvents.all())
     |> assign(:testing, MapSet.new())
     |> close_form()
     |> ok()

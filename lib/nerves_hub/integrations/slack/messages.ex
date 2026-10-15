@@ -20,6 +20,7 @@ defmodule NervesHub.Integrations.Slack.Messages do
   """
 
   alias NervesHub.Branding
+  alias NervesHub.Integrations.Links
 
   @listed 10
   @max_text 300
@@ -37,7 +38,7 @@ defmodule NervesHub.Integrations.Slack.Messages do
 
   @doc """
   The message for a batch of events of one key
-  (`NervesHub.Integrations.Slack.Events`).
+  (`NervesHub.Integrations.ChannelEvents`).
 
   `resolutions` says what happened to the workflow steps a message has
   buttons for, by step id, once they were dealt with
@@ -265,9 +266,7 @@ defmodule NervesHub.Integrations.Slack.Messages do
   defp code(nil), do: "an error"
   defp code(text), do: "`#{text |> truncate() |> String.replace("`", "'") |> escape()}`"
 
-  defp error_url(event) do
-    "#{base_url()}/org/#{segment(get_in(event, ["org", "name"]) || "")}/#{segment(get_in(event, ["product", "name"]) || "")}/errors/#{get_in(event, ["error", "id"])}"
-  end
+  defp error_url(event), do: Links.error(event)
 
   ## Deployment workflows
 
@@ -471,15 +470,7 @@ defmodule NervesHub.Integrations.Slack.Messages do
     }
   end
 
-  defp deployment_group_url(data) do
-    with org when is_binary(org) <- get_in(data, ["org", "name"]),
-         product when is_binary(product) <- get_in(data, ["product", "name"]),
-         name when is_binary(name) <- get_in(data, ["deployment_group", "name"]) do
-      "#{base_url()}/org/#{segment(org)}/#{segment(product)}/deployment_groups/#{segment(name)}"
-    else
-      _ -> nil
-    end
-  end
+  defp deployment_group_url(data), do: Links.deployment_group(data)
 
   ## Product notifications
 
@@ -616,29 +607,13 @@ defmodule NervesHub.Integrations.Slack.Messages do
     end
   end
 
-  defp device_url(event) do
-    with org when is_binary(org) <- get_in(event, ["org", "name"]),
-         product when is_binary(product) <- get_in(event, ["product", "name"]),
-         identifier when is_binary(identifier) <- get_in(event, ["device", "identifier"]) do
-      device_url(org, product, identifier)
-    else
-      _ -> nil
-    end
-  end
+  defp device_url(event), do: Links.device(event)
 
-  @doc "The device's page in NervesHub."
+  @doc "The device's page in NervesHub (`NervesHub.Integrations.Links.device/3`)."
   @spec device_url(String.t(), String.t(), String.t()) :: String.t()
-  def device_url(org_name, product_name, identifier) do
-    "#{base_url()}/org/#{segment(org_name)}/#{segment(product_name)}/devices/#{segment(identifier)}"
-  end
+  def device_url(org_name, product_name, identifier), do: Links.device(org_name, product_name, identifier)
 
-  defp notifications_url(event) do
-    "#{base_url()}/org/#{segment(get_in(event, ["org", "name"]) || "")}/#{segment(get_in(event, ["product", "name"]) || "")}/notifications"
-  end
-
-  defp base_url(), do: NervesHubWeb.Endpoint.url()
-
-  defp segment(value), do: URI.encode(value, &URI.char_unreserved?/1)
+  defp notifications_url(event), do: Links.notifications(event)
 
   # Slack's control characters in mrkdwn. Escaping them is what keeps text a
   # device sent from becoming `<!channel>` or a link.
