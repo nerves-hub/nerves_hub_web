@@ -1099,19 +1099,31 @@ defmodule NervesHub.Firmwares do
     {:ok, firmware_delta}
   end
 
-  @spec time_out_firmware_delta(FirmwareDelta.t()) ::
-          {:ok, FirmwareDelta.t()} | {:error, Ecto.Changeset.t()}
-  def time_out_firmware_delta(%FirmwareDelta{} = firmware_delta) do
-    {:ok, firmware_delta} =
-      firmware_delta
-      |> FirmwareDelta.time_out_changeset()
-      |> Repo.update()
-      |> notify_firmware_delta_target()
+  @doc """
+  Time out a delta whose build has taken too long.
 
-    {:ok, _} =
-      ManagedDeployments.recalculate_release_delta_statuses_by_firmware_id(firmware_delta.target_id)
+  Only a delta still processing is timed out. The sweep reads its deltas before
+  it writes them, and writing back the copy it read turned a delta whose build
+  finished in between into a timed-out one.
+  """
+  @spec time_out_firmware_delta(FirmwareDelta.t()) :: {:ok, FirmwareDelta.t()} | {:error, :not_processing}
+  def time_out_firmware_delta(%FirmwareDelta{id: id}) do
+    FirmwareDelta
+    |> where([fd], fd.id == ^id and fd.status == :processing)
+    |> select([fd], fd)
+    |> Repo.update_all(set: [status: :timed_out, updated_at: NaiveDateTime.utc_now(:second)])
+    |> case do
+      {1, [firmware_delta]} ->
+        {:ok, firmware_delta} = notify_firmware_delta_target({:ok, firmware_delta})
 
-    {:ok, firmware_delta}
+        {:ok, _} =
+          ManagedDeployments.recalculate_release_delta_statuses_by_firmware_id(firmware_delta.target_id)
+
+        {:ok, firmware_delta}
+
+      {0, []} ->
+        {:error, :not_processing}
+    end
   end
 
   # Pipeline adapter for the delta lifecycle functions above, which all thread an
@@ -1150,7 +1162,8 @@ defmodule NervesHub.Firmwares do
     |> where([fd], fd.inserted_at < ^cutoff)
     |> Repo.all()
     |> Enum.each(fn firmware_delta ->
-      {:ok, _firmware_delta} = time_out_firmware_delta(firmware_delta)
+      # `{:error, :not_processing}` when its build finished since the read above
+      _ = time_out_firmware_delta(firmware_delta)
     end)
 
     :ok

@@ -920,6 +920,26 @@ defmodule NervesHub.FirmwaresTest do
     end
   end
 
+  describe "time_out_firmware_delta/1" do
+    test "leaves a delta whose build finished after it was read", %{
+      firmware: source,
+      org_key: org_key,
+      product: product,
+      tmp_dir: tmp_dir
+    } do
+      target = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+      {:ok, read_by_the_sweep} = Firmwares.start_firmware_delta(source.id, target.id)
+
+      {1, _} =
+        FirmwareDelta
+        |> where([fd], fd.id == ^read_by_the_sweep.id)
+        |> Repo.update_all(set: [status: :completed])
+
+      assert {:error, :not_processing} = Firmwares.time_out_firmware_delta(read_by_the_sweep)
+      assert %FirmwareDelta{status: :completed} = Repo.reload!(read_by_the_sweep)
+    end
+  end
+
   describe "filter/2" do
     test "counts the number of devices that have the firmware installed", %{
       org: org,

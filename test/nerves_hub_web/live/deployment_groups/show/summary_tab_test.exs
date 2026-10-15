@@ -212,17 +212,17 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show.SummaryTabTest do
     |> refute_has("a", text: "Delete")
     |> refute_has("a", text: "Retry")
 
-    {:ok, delta} = Firmwares.fail_firmware_delta(delta)
-
-    conn
-    |> assert_has("div", text: "Failed", timeout: 100)
-    |> assert_has("a", text: "Delete")
-    |> assert_has("a", text: "Retry")
-
     {:ok, delta} = Firmwares.time_out_firmware_delta(delta)
 
     conn
     |> assert_has("div", text: "Timed out", timeout: 100)
+    |> assert_has("a", text: "Delete")
+    |> assert_has("a", text: "Retry")
+
+    {:ok, delta} = Firmwares.fail_firmware_delta(delta)
+
+    conn
+    |> assert_has("div", text: "Failed", timeout: 100)
     |> assert_has("a", text: "Delete")
     |> assert_has("a", text: "Retry")
 
