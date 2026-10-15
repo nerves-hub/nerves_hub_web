@@ -27,7 +27,7 @@
     <div class="flex flex-col rounded border border-base-700 bg-surface-raised">
       <div class="flex h-14 items-center justify-between border-b border-base-700 px-4">
         <div class="text-base font-medium text-base-50">Certificate Authority</div>
-        <CAHelpers.certificate_status not_after={@certificate.not_after} />
+        <CAHelpers.certificate_status not_before={@certificate.not_before} not_after={@certificate.not_after} />
       </div>
       <dl class="flex flex-col gap-3 p-4 text-sm">
         <div class="flex justify-between gap-4">

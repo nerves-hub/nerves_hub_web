@@ -172,9 +172,9 @@ defmodule NervesHubWeb.Live.Org.CertificateAuthorities do
            check_expiration: params["check_expiration"],
            jitp: params["jitp"]
          },
-         {:ok, _ca_certificate} <- CACertificates.create_ca_certificate(socket.assigns.org, params) do
+         {:ok, ca_certificate} <- CACertificates.create_ca_certificate(socket.assigns.org, params) do
       socket
-      |> put_flash(:info, "Certificate Authority created")
+      |> put_flash(:info, created_message(ca_certificate))
       |> push_patch(to: ~p"/org/#{socket.assigns.org}/settings/certificates")
       |> noreply()
     else
@@ -194,6 +194,33 @@ defmodule NervesHubWeb.Live.Org.CertificateAuthorities do
         {:noreply, assign(socket, :form, to_form(changeset))}
     end
   end
+
+  # A CA's validity isn't checked on upload, since Check expiration decides
+  # whether devices can register outside it, so say so when it doesn't cover now.
+  defp created_message(%CACertificate{} = ca_certificate) do
+    now = DateTime.utc_now()
+
+    cond do
+      # Check expiration can't be on here: the changeset refuses it for a CA
+      # that has already expired.
+      DateTime.after?(now, ca_certificate.not_after) ->
+        "Certificate Authority created. It expired on #{Calendar.strftime(ca_certificate.not_after, "%Y-%m-%d")}. " <>
+          "Devices can still register with it because Check expiration is off."
+
+      DateTime.before?(now, ca_certificate.not_before) and ca_certificate.check_expiration ->
+        "Certificate Authority created. It isn't valid until #{not_before_label(ca_certificate)}, " <>
+          "and devices can't register with it until then."
+
+      DateTime.before?(now, ca_certificate.not_before) ->
+        "Certificate Authority created. It isn't valid until #{not_before_label(ca_certificate)}. " <>
+          "Devices can still register with it because Check expiration is off."
+
+      true ->
+        "Certificate Authority created"
+    end
+  end
+
+  defp not_before_label(ca_certificate), do: Calendar.strftime(ca_certificate.not_before, "%Y-%m-%d %H:%M UTC")
 
   defp list_certificates(socket) do
     certificates = CACertificates.get_ca_certificates(socket.assigns.org)

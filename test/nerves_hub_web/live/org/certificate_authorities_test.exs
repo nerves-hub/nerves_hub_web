@@ -234,10 +234,46 @@ defmodule NervesHubWeb.Live.Org.CertificateAuthoritiesTest do
       |> upload_root_ca(org, tmp_dir)
       |> click_button("Create Certificate")
       |> assert_path("/org/#{org.name}/settings/certificates")
-      |> assert_has("div", text: "Certificate Authority created")
+      |> assert_has("div",
+        text:
+          "Certificate Authority created. It expired on 2025-01-01. " <>
+            "Devices can still register with it because Check expiration is off."
+      )
+      |> assert_has("td", text: "Expired")
 
       assert {:ok, %{not_after: ~U[2025-01-01 00:00:00Z], check_expiration: false}} =
                CACertificates.get_ca_certificate_by_serial(Certificate.get_serial_number(ca_cert))
+    end
+
+    test "creates a CA that isn't valid yet", %{conn: conn, org: org, tmp_dir: tmp_dir} do
+      starts = DateTime.utc_now() |> DateTime.shift(day: 1) |> DateTime.truncate(:second)
+      write_root_ca(tmp_dir, validity: Validity.new(starts, DateTime.shift(starts, year: 10)))
+
+      conn
+      |> upload_root_ca(org, tmp_dir)
+      |> click_button("Create Certificate")
+      |> assert_path("/org/#{org.name}/settings/certificates")
+      |> assert_has("div",
+        text:
+          "Certificate Authority created. It isn't valid until #{Calendar.strftime(starts, "%Y-%m-%d %H:%M UTC")}. " <>
+            "Devices can still register with it because Check expiration is off."
+      )
+      |> assert_has("td", text: "Not Yet Valid")
+    end
+
+    test "creates a CA not valid yet with Check expiration on", %{conn: conn, org: org, tmp_dir: tmp_dir} do
+      starts = DateTime.utc_now() |> DateTime.shift(day: 1) |> DateTime.truncate(:second)
+      write_root_ca(tmp_dir, validity: Validity.new(starts, DateTime.shift(starts, year: 10)))
+
+      conn
+      |> upload_root_ca(org, tmp_dir)
+      |> check("Check expiration")
+      |> click_button("Create Certificate")
+      |> assert_has("div",
+        text:
+          "Certificate Authority created. It isn't valid until #{Calendar.strftime(starts, "%Y-%m-%d %H:%M UTC")}, " <>
+            "and devices can't register with it until then."
+      )
     end
 
     test "refuses an expired CA with Check expiration on", %{conn: conn, org: org, tmp_dir: tmp_dir} do
@@ -261,6 +297,7 @@ defmodule NervesHubWeb.Live.Org.CertificateAuthoritiesTest do
       |> check("Check expiration")
       |> click_button("Create Certificate")
       |> assert_has("div", text: "Certificate Authority created")
+      |> refute_has("div", text: "Certificate Authority created.")
 
       assert {:ok, %{check_expiration: true}} =
                CACertificates.get_ca_certificate_by_serial(Certificate.get_serial_number(ca_cert))
