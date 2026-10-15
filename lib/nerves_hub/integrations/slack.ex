@@ -36,13 +36,34 @@ defmodule NervesHub.Integrations.Slack do
   @authorize_url "https://slack.com/oauth/v2/authorize"
 
   @doc """
-  Whether this instance has a Slack app: its client id, client secret and
-  signing secret are all set.
+  Whether this instance has a Slack app: its client id and client secret
+  are set, and a way for Slack to reach it, either a signing secret for
+  Slack's requests (`request_urls?/0`) or an app-level token for Socket Mode
+  (`socket_mode?/0`).
   """
   @spec configured?() :: boolean()
   def configured?() do
-    Enum.all?([:client_id, :client_secret, :signing_secret], &(config(&1) not in [nil, ""]))
+    set?(:client_id) and set?(:client_secret) and (set?(:signing_secret) or set?(:app_token))
   end
+
+  @doc """
+  Whether Slack sends its events, button clicks and slash commands to the
+  instance's `/integrations/slack/` URLs, which takes the signing secret
+  that proves a request came from Slack.
+  """
+  @spec request_urls?() :: boolean()
+  def request_urls?(), do: configured?() and set?(:signing_secret)
+
+  @doc """
+  Whether the instance opens connections to Slack for its events, button
+  clicks and slash commands instead (Socket Mode), which takes an app-level
+  token. For an instance Slack cannot reach, such as one behind a VPN
+  (`NervesHubWeb.Integrations.Slack.Socket`).
+  """
+  @spec socket_mode?() :: boolean()
+  def socket_mode?(), do: configured?() and set?(:app_token)
+
+  defp set?(key), do: config(key) not in [nil, ""]
 
   @doc false
   def config(key), do: Application.get_env(:nerves_hub, __MODULE__, [])[key]

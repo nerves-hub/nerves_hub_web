@@ -111,4 +111,12 @@ defmodule NervesHubWeb.Integrations.Slack.EventsControllerTest do
 
     assert conn |> send_event(%{"type" => "url_verification", "challenge" => "x"}) |> response(404)
   end
+
+  test "is not found when the instance hears from Slack over Socket Mode alone", %{conn: conn} do
+    config = Application.get_env(:nerves_hub, Slack)
+    on_exit(fn -> Application.put_env(:nerves_hub, Slack, config) end)
+    Application.put_env(:nerves_hub, Slack, Keyword.merge(config, signing_secret: nil, app_token: "xapp-1"))
+
+    assert conn |> send_event(%{"type" => "url_verification", "challenge" => "x"}) |> response(404)
+  end
 end

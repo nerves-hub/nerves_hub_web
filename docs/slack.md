@@ -175,12 +175,68 @@ For each linked Slack user, NervesHub keeps their Slack user id and name, the wo
 }
 ```
 
-Slack checks the events URL when the manifest is saved, so the instance must already be reachable at that URL with `SLACK_SIGNING_SECRET` set. If it is not yet, save the manifest without `event_subscriptions`, configure and restart the instance, then add them back.
+Slack checks the events URL when the manifest is saved, so the instance must already be reachable at that URL with `SLACK_SIGNING_SECRET` set. An instance Slack cannot reach uses Socket Mode instead (below). If it is not yet, save the manifest without `event_subscriptions`, configure and restart the instance, then add them back.
 
 An app created before buttons arrived needs `interactivity` added to its manifest, and the `/integrations/slack/link/callback` redirect URL. Without them, clicking Identify or Reboot shows an error, and linking an account fails. An app created before slash commands arrived needs `slash_commands` added. One created before link previews needs `unfurl_domains`, the `links:read` and `links:write` scopes, and the `link_shared` event.
 
 Register the instance's own host as its unfurl domain. Subdomains of a registered domain are matched too, so registering a parent domain shared by several instances would send each instance's app the others' links. Slack sends a link to only one app per workspace, the one installed there first, when two register the same domain.
 
+## An instance Slack cannot reach (Socket Mode)
+
+Slack sends events, button clicks and slash commands to the instance's URLs. An instance behind a VPN, or a firewall Slack cannot get through, never receives them. Posting notifications and editing messages still work there, since the instance calls Slack, and so do installing the app and linking accounts, since those go through the person's browser, which is on the VPN. Buttons, `/nerveshub` and link previews do not.
+
+Socket Mode turns that around: the instance opens connections to Slack, and Slack sends everything down them. To use it:
+
+1. Create the app from the manifest below instead: Socket Mode on, and no request URLs. The redirect URLs stay, because only browsers follow them.
+2. Under **Basic Information**, generate an **App-Level Token** with the `connections:write` scope, and set it as `SLACK_APP_TOKEN` alongside `SLACK_CLIENT_ID`, `SLACK_CLIENT_SECRET` and `SECRETS_ENCRYPTION_KEY`. `SLACK_SIGNING_SECRET` is not needed; without it, the instance's `/integrations/slack/` URLs answer 404.
+3. Let the instance reach `slack.com` and the WebSocket hosts Slack hands out, such as `wss-primary.slack.com`, over HTTPS.
+
+Each web node keeps two connections open, so one carries on while Slack replaces the other, which it does every few hours. Slack allows ten connections per app, so an instance can have up to five web nodes in Socket Mode. Slack does not list Socket Mode apps in its Marketplace, which a self-hosted instance's app would not be in anyway.
+
+```json
+{
+  "display_information": {
+    "name": "NervesHub",
+    "description": "Device notifications from NervesHub"
+  },
+  "features": {
+    "bot_user": {
+      "display_name": "NervesHub",
+      "always_online": true
+    },
+    "slash_commands": [
+      {
+        "command": "/nerveshub",
+        "description": "Check on and act on NervesHub devices",
+        "usage_hint": "device | identify | reboot | script <identifier> [script] | link | help",
+        "should_escape": false
+      }
+    ],
+    "unfurl_domains": ["nerves-hub.example.com"]
+  },
+  "oauth_config": {
+    "redirect_urls": [
+      "https://nerves-hub.example.com/integrations/slack/oauth/callback",
+      "https://nerves-hub.example.com/integrations/slack/link/callback"
+    ],
+    "scopes": {
+      "bot": ["chat:write", "chat:write.public", "channels:read", "groups:read", "commands", "links:read", "links:write"]
+    }
+  },
+  "settings": {
+    "event_subscriptions": {
+      "bot_events": ["app_uninstalled", "tokens_revoked", "link_shared"]
+    },
+    "interactivity": {
+      "is_enabled": true
+    },
+    "org_deploy_enabled": false,
+    "socket_mode_enabled": true,
+    "token_rotation_enabled": false
+  }
+}
+```
+
 ## Requests from Slack
 
-Slack calls the instance under `/integrations/slack/`. Every request there must carry a valid `X-Slack-Signature` for the app's signing secret, and be no more than five minutes old. Anything else is refused with a 401. When the instance has no Slack app configured, these URLs answer 404.
+Slack calls the instance under `/integrations/slack/`. Every request there must carry a valid `X-Slack-Signature` for the app's signing secret, and be no more than five minutes old. Anything else is refused with a 401. When the instance has no Slack app configured, or no signing secret because it uses Socket Mode alone, these URLs answer 404.

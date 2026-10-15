@@ -44,12 +44,14 @@ if allow_private = System.get_env("WEBHOOKS_ALLOW_PRIVATE_DESTINATIONS") do
 end
 
 # A Slack app for this instance (docs/slack.md). The integration stays hidden
-# unless all three are set.
+# unless the client id and secret are set, with a signing secret for Slack's
+# requests, an app token for Socket Mode, or both.
 if System.get_env("SLACK_CLIENT_ID") do
   config :nerves_hub, Slack,
     client_id: System.get_env("SLACK_CLIENT_ID"),
     client_secret: System.get_env("SLACK_CLIENT_SECRET"),
-    signing_secret: System.get_env("SLACK_SIGNING_SECRET")
+    signing_secret: System.get_env("SLACK_SIGNING_SECRET"),
+    app_token: System.get_env("SLACK_APP_TOKEN")
 end
 
 # Encrypts the secrets NervesHub holds on others' behalf, such as Slack bot

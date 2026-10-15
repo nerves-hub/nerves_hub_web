@@ -5,13 +5,12 @@ defmodule NervesHubWeb.Integrations.Slack.EventsController do
 
   Slack expects an answer within three seconds and retries otherwise, so
   every event is answered with a 200, including the ones NervesHub ignores.
-  Links posted to this instance (`link_shared`) are previewed by
-  `NervesHubWeb.Integrations.Slack.Unfurls`, in the background.
+  What is done with each is `NervesHubWeb.Integrations.Slack.EventCallbacks`,
+  shared with Socket Mode.
   """
   use NervesHubWeb, :controller
 
-  alias NervesHub.Integrations.Slack
-  alias NervesHubWeb.Integrations.Slack.Unfurls
+  alias NervesHubWeb.Integrations.Slack.EventCallbacks
 
   # The body only: Slack's signature covers the body, not the query string,
   # which `params` would mix in.
@@ -22,21 +21,8 @@ defmodule NervesHubWeb.Integrations.Slack.EventsController do
     json(conn, %{challenge: challenge})
   end
 
-  # Previewing a link looks things up and calls Slack back, which can take
-  # longer than Slack waits for an answer.
-  defp handle(conn, %{"type" => "event_callback", "team_id" => team_id, "event" => %{"type" => "link_shared"} = event})
-       when is_binary(team_id) do
-    {:ok, _pid} = Task.Supervisor.start_child(NervesHub.TaskSupervisor, fn -> Unfurls.unfurl(team_id, event) end)
-
+  defp handle(conn, body) do
+    :ok = EventCallbacks.handle(body)
     send_resp(conn, 200, "")
   end
-
-  defp handle(conn, %{"type" => "event_callback", "team_id" => team_id, "event" => event})
-       when is_binary(team_id) and is_map(event) do
-    :ok = Slack.handle_event(team_id, event)
-
-    send_resp(conn, 200, "")
-  end
-
-  defp handle(conn, _body), do: send_resp(conn, 200, "")
 end
