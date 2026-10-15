@@ -86,6 +86,15 @@ defmodule NervesHub.Integrations.Slack.Client do
     post("chat.postMessage", json: body, auth: {:bearer, token})
   end
 
+  @doc """
+  Replaces a message the app posted (`chat.update`), by its channel and `ts`.
+  """
+  @spec update_message(String.t(), String.t(), String.t(), %{text: String.t(), blocks: [map()]}) ::
+          {:ok, map()} | {:error, error()}
+  def update_message(token, channel_id, ts, %{text: text, blocks: blocks}) do
+    post("chat.update", json: %{channel: channel_id, ts: ts, text: text, blocks: blocks}, auth: {:bearer, token})
+  end
+
   defp put_unless_empty(body, _key, value) when value in [nil, []], do: body
   defp put_unless_empty(body, key, value), do: Map.put(body, key, value)
 
