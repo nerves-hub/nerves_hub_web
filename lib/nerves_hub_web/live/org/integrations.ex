@@ -2,7 +2,8 @@ defmodule NervesHubWeb.Live.Org.Integrations do
   @moduledoc """
   The organization's integrations: its Slack workspaces and channels, when
   the instance has a Slack app (`NervesHubWeb.Live.Org.Integrations.SlackSection`),
-  its Microsoft Teams channels (`NervesHubWeb.Live.Org.Integrations.TeamsSection`),
+  its Microsoft Teams and Discord channels
+  (`NervesHubWeb.Live.Org.Integrations.ChatWebhookSection`),
   and its webhooks, which say where its products' device events are sent,
   which events, from which products, and how each endpoint is doing.
 
@@ -33,7 +34,7 @@ defmodule NervesHubWeb.Live.Org.Integrations do
     |> ok()
   end
 
-  # From the Slack and Teams sections, whose own flash would not be shown.
+  # From the Slack, Teams and Discord sections, whose own flash would not be shown.
   def handle_info({:put_flash, kind, message}, socket) do
     socket
     |> put_flash(kind, message)

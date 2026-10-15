@@ -1,13 +1,15 @@
-defmodule NervesHub.Integrations.Teams.Channel do
+defmodule NervesHub.Integrations.ChatWebhooks.ChatWebhook do
   @moduledoc """
-  A Microsoft Teams channel an organization's device events are posted to,
-  through a Workflows webhook somebody made in that channel.
+  A chat channel an organization's device events are posted to, through the
+  incoming webhook its chat service gave: a Microsoft Teams Workflows
+  webhook or a Discord channel webhook (`provider`).
 
-  Teams gives NervesHub nothing to read the channel's name from, so `name`
-  is whatever the person adding it calls it. The webhook's URL carries the
-  signature that lets anyone holding it post to the channel, so it is stored
-  encrypted (`NervesHub.Types.Encrypted`) and never shown again; `url_host`
-  is kept in the clear to say where it points.
+  The chat service gives NervesHub nothing to read the channel's name from,
+  so `name` is whatever the person adding it calls it. The webhook's URL is
+  all it takes to post to the channel, so it is stored encrypted
+  (`NervesHub.Types.Encrypted`) and never shown again; `url_host` is kept in
+  the clear to say where it points. Which URLs are accepted is the
+  provider's call (`NervesHub.Integrations.ChatWebhooks.Provider`).
 
   Like a Slack channel, it hears every product in the organization
   (`all_products`) or the products it lists, and is sent the events it names
@@ -21,33 +23,25 @@ defmodule NervesHub.Integrations.Teams.Channel do
 
   alias NervesHub.Accounts.Org
   alias NervesHub.Integrations.ChannelEvents
+  alias NervesHub.Integrations.ChatWebhooks
   alias NervesHub.Integrations.ProductScope
-  alias NervesHub.Integrations.Teams
   alias NervesHub.Products.Product
   alias NervesHub.Types.Encrypted
-  alias NervesHub.Webhooks.Destination
 
   @type t :: %__MODULE__{}
 
-  # Where Teams' Workflows webhooks live: Power Automate's trigger URLs, on
-  # its older host and its newer one. Anything else is somebody else's
-  # endpoint, which a webhook is for.
-  @default_hosts [".logic.azure.com", ".api.powerplatform.com"]
-
-  # Office 365 connector URLs, which Microsoft retired in May 2026.
-  @connector_hosts ["webhook.office.com", "outlook.office.com"]
-
-  schema "teams_channels" do
+  schema "chat_webhooks" do
     belongs_to(:org, Org)
 
     many_to_many(:products, Product,
-      join_through: "teams_channel_products",
-      join_keys: [channel_id: :id, product_id: :id],
+      join_through: "chat_webhook_products",
+      join_keys: [chat_webhook_id: :id, product_id: :id],
       on_replace: :delete,
       where: [deleted_at: nil],
       preload_order: [asc: :name]
     )
 
+    field(:provider, Ecto.Enum, values: [:teams, :discord])
     field(:name, :string)
     field(:url, Encrypted, redact: true)
     field(:url_host, :string)
@@ -62,14 +56,14 @@ defmodule NervesHub.Integrations.Teams.Channel do
   end
 
   @doc """
-  A new channel for the organization, from the webhook URL Teams gave and a
-  name to know it by.
+  A new channel of the organization's, on `provider`, from the webhook URL
+  the chat service gave and a name to know it by.
   """
-  @spec create_changeset(Org.t(), map(), ProductScope.found()) :: Ecto.Changeset.t()
-  def create_changeset(%Org{} = org, params, products) do
-    %__MODULE__{org_id: org.id, products: []}
+  @spec create_changeset(Org.t(), ChatWebhooks.provider(), map(), ProductScope.found()) :: Ecto.Changeset.t()
+  def create_changeset(%Org{} = org, provider, params, products) do
+    %__MODULE__{org_id: org.id, provider: provider, products: []}
     |> cast(params, [:url])
-    |> validate_required([:url], message: "paste the URL Teams gave the workflow")
+    |> validate_required([:url], message: "paste the URL #{ChatWebhooks.provider(provider).label()} gave")
     |> changeset(params, products)
   end
 
@@ -81,8 +75,8 @@ defmodule NervesHub.Integrations.Teams.Channel do
   loaded.
   """
   @spec changeset(t() | Ecto.Changeset.t(), map(), ProductScope.found()) :: Ecto.Changeset.t()
-  def changeset(channel, params, products \\ nil) do
-    channel
+  def changeset(chat_webhook, params, products \\ nil) do
+    chat_webhook
     |> cast(params, [:name, :events, :all_products, :enabled])
     |> replace_url(params)
     |> validate_required([:name, :all_products])
@@ -97,15 +91,25 @@ defmodule NervesHub.Integrations.Teams.Channel do
 
   # A URL given is checked here, for a new channel as for an edited one.
   # Leaving it empty when editing keeps the one saved, which the form never
-  # shows.
+  # shows. A new URL for a channel posting turned off is the fix for what
+  # turned it off, so it is turned back on; one a person turned off stays off.
   defp replace_url(changeset, %{"url" => url}) when is_binary(url) and url != "" do
     changeset
     |> cast(%{"url" => url}, [:url])
     |> put_url()
+    |> turn_back_on()
     |> clear_failure()
   end
 
   defp replace_url(changeset, _params), do: changeset
+
+  defp turn_back_on(changeset) do
+    if changeset.valid? and not is_nil(get_field(changeset, :disabled_reason)) do
+      put_change(changeset, :enabled, true)
+    else
+      changeset
+    end
+  end
 
   defp put_url(changeset) do
     case get_change(changeset, :url) do
@@ -115,54 +119,11 @@ defmodule NervesHub.Integrations.Teams.Channel do
       url ->
         url = String.trim(url)
 
-        case check_url(url) do
+        case ChatWebhooks.provider(get_field(changeset, :provider)).check_url(url) do
           :ok -> changeset |> put_change(:url, url) |> put_change(:url_host, URI.parse(url).host)
           {:error, message} -> add_error(changeset, :url, message)
         end
     end
-  end
-
-  @doc """
-  Whether `url` is a Teams Workflows webhook NervesHub may post to, with a
-  message for the form when it is not.
-
-  The hosts accepted are Power Automate's (`config :nerves_hub,
-  NervesHub.Integrations.Teams, hosts:` overrides them, for a sovereign cloud such as
-  GCC High), and the address must be one a webhook could be sent to
-  (`NervesHub.Webhooks.Destination`).
-  """
-  @spec check_url(String.t()) :: :ok | {:error, String.t()}
-  def check_url(url) do
-    case URI.new(url) do
-      {:ok, %URI{scheme: "https", host: host}} when is_binary(host) and host != "" ->
-        with :ok <- Destination.validate_url(url), do: check_host(String.downcase(host))
-
-      {:ok, %URI{}} ->
-        {:error, "must start with https://"}
-
-      {:error, _invalid_part} ->
-        {:error, "is not a valid URL"}
-    end
-  end
-
-  defp check_host(host) do
-    cond do
-      Enum.any?(@connector_hosts, &String.ends_with?(host, &1)) ->
-        {:error,
-         "is an Office 365 connector URL, which Microsoft retired in 2026. Add a Workflows webhook to the channel instead."}
-
-      Enum.any?(hosts(), &String.ends_with?(host, &1)) ->
-        :ok
-
-      true ->
-        {:error, "must be the URL Teams gives a Workflows webhook"}
-    end
-  end
-
-  defp hosts() do
-    :nerves_hub
-    |> Application.get_env(Teams, [])
-    |> Keyword.get(:hosts, @default_hosts)
   end
 
   defp validate_some_events(changeset) do
