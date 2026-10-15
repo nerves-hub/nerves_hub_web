@@ -2,8 +2,8 @@ defmodule NervesHub.Integrations do
   @moduledoc """
   Where device events leave NervesHub: to an organization's webhooks
   (`NervesHub.Webhooks`), Slack channels
-  (`NervesHub.Integrations.Slack.Subscriptions`) and Microsoft Teams channels
-  (`NervesHub.Integrations.Teams`).
+  (`NervesHub.Integrations.Slack.Subscriptions`), and Microsoft Teams and
+  Discord channels (`NervesHub.Integrations.ChatWebhooks`).
 
   ## Raising events
 
@@ -35,9 +35,10 @@ defmodule NervesHub.Integrations do
   alias NervesHub.Accounts.Org
   alias NervesHub.Integrations.Cache
   alias NervesHub.Integrations.ChannelEvents
+  alias NervesHub.Integrations.ChatWebhooks
+  alias NervesHub.Integrations.ChatWebhooks.ChatWebhook
   alias NervesHub.Integrations.Slack.Subscription
   alias NervesHub.Integrations.Slack.Subscriptions
-  alias NervesHub.Integrations.Teams
   alias NervesHub.Products.Product
   alias NervesHub.Repo
   alias NervesHub.Webhooks
@@ -71,7 +72,7 @@ defmodule NervesHub.Integrations do
 
   defp deliver(:webhook, webhook_ids, type, data), do: Webhooks.queue_deliveries(webhook_ids, type, data)
   defp deliver(:slack, subscription_ids, type, data), do: Subscriptions.queue_events(subscription_ids, type, data)
-  defp deliver(:teams, channel_ids, type, data), do: Teams.queue_events(channel_ids, type, data)
+  defp deliver(:chat_webhook, channel_ids, type, data), do: ChatWebhooks.queue_events(channel_ids, type, data)
 
   @doc """
   Whether any enabled integration that hears the product wants `type`.
@@ -137,7 +138,7 @@ defmodule NervesHub.Integrations do
       where: w.enabled and (w.all_products or not is_nil(wp.webhook_id)),
       select: %{kind: "webhook", id: w.id, org_id: w.org_id, events: w.events},
       union_all: ^slack_hearing(product_id),
-      union_all: ^teams_hearing(product_id)
+      union_all: ^chat_webhooks_hearing(product_id)
     )
   end
 
@@ -151,12 +152,12 @@ defmodule NervesHub.Integrations do
     )
   end
 
-  defp teams_hearing(product_id) do
-    from(t in Teams.Channel,
-      left_join: tp in "teams_channel_products",
-      on: tp.channel_id == t.id and tp.product_id == ^product_id,
-      where: t.enabled and (t.all_products or not is_nil(tp.channel_id)),
-      select: %{kind: "teams", id: t.id, org_id: t.org_id, events: t.events}
+  defp chat_webhooks_hearing(product_id) do
+    from(w in ChatWebhook,
+      left_join: wp in "chat_webhook_products",
+      on: wp.chat_webhook_id == w.id and wp.product_id == ^product_id,
+      where: w.enabled and (w.all_products or not is_nil(wp.chat_webhook_id)),
+      select: %{kind: "chat_webhook", id: w.id, org_id: w.org_id, events: w.events}
     )
   end
 
@@ -171,13 +172,13 @@ defmodule NervesHub.Integrations do
      }}
   end
 
-  # A Slack or Teams channel names its events by
+  # A Slack, Teams or Discord channel names its events by
   # `NervesHub.Integrations.ChannelEvents` key, which is not always the type
   # raised: both "update failed" and "update succeeded" come from
   # `device.firmware_update.finished`.
   defp listener("webhook", id, events), do: {:webhook, id, events}
   defp listener("slack", id, events), do: {:slack, id, ChannelEvents.sources(events)}
-  defp listener("teams", id, events), do: {:teams, id, ChannelEvents.sources(events)}
+  defp listener("chat_webhook", id, events), do: {:chat_webhook, id, ChannelEvents.sources(events)}
 
   # Event data includes text devices sent: failure reasons, alarm descriptions,
   # metadata. Invalid UTF-8 would fail to encode, and a NUL is valid JSON that
