@@ -50,9 +50,13 @@ defmodule NervesHub.DeviceEvents do
     :ok = ChannelServer.broadcast(NervesHub.PubSub, shared_secret_topic(key), "disconnect", %{})
   end
 
-  def identify(device, user) do
+  @doc """
+  Asks the device to identify itself, as `user`. `via:` names where the
+  request came from, for the audit log, when it was not the dashboard or API.
+  """
+  def identify(device, user, opts \\ []) do
     Repo.transact(fn ->
-      DeviceTemplates.audit_request_action(user, device, "identify itself")
+      DeviceTemplates.audit_request_action(user, device, "identify itself", opts[:via])
 
       broadcast(device, "identify", %{})
 
@@ -60,9 +64,13 @@ defmodule NervesHub.DeviceEvents do
     end)
   end
 
-  def reboot(device, user) do
+  @doc """
+  Asks the device to reboot, as `user`. `via:` names where the request came
+  from, for the audit log, when it was not the dashboard or API.
+  """
+  def reboot(device, user, opts \\ []) do
     Repo.transact(fn ->
-      DeviceTemplates.audit_reboot(user, device)
+      DeviceTemplates.audit_reboot(user, device, opts[:via])
 
       broadcast(device, "reboot", %{})
 

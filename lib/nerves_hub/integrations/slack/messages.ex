@@ -12,6 +12,11 @@ defmodule NervesHub.Integrations.Slack.Messages do
 
   Whatever a device or a person typed is escaped, so that it cannot mention
   `@channel` or turn into a link.
+
+  A message about one device carries buttons: Open in NervesHub, and
+  Identify and Reboot, which `NervesHubWeb.Integrations.Slack.Actions` carries out as the
+  person who clicked. A summary of many devices has none: acting on a list
+  from one click is a different thing.
   """
 
   @listed 10
@@ -63,7 +68,8 @@ defmodule NervesHub.Integrations.Slack.Messages do
               section(
                 "#{status_icon(status)} *#{device_link(event)}* is now *#{status}*#{was(event["previous_status"])}"
               ),
-              context([product_name(event), reasons(event)])
+              context([product_name(event), reasons(event)]),
+              device_actions(event)
             ])
         }
 
@@ -133,7 +139,8 @@ defmodule NervesHub.Integrations.Slack.Messages do
       blocks:
         blocks([
           section(":x: Update to *#{target(event)}* #{failure(event)} on *#{device_link(event)}*#{reason(event)}"),
-          context([product_name(event), deployment_group(event), from(event)])
+          context([product_name(event), deployment_group(event), from(event)]),
+          device_actions(event)
         ])
     }
   end
@@ -280,12 +287,50 @@ defmodule NervesHub.Integrations.Slack.Messages do
 
     text =
       case shown do
-        [event] -> get_in(event, ["notification", "title"]) || "A product notification"
+        [event] -> escape(get_in(event, ["notification", "title"]) || "A product notification")
         _ -> "#{length(events)} product notifications"
       end
 
     %{text: text, blocks: blocks(blocks)}
   end
+
+  ## Buttons
+
+  # The identifier is all a button carries. Whoever clicks it, and whether
+  # they may, is worked out when the click arrives.
+  defp device_actions(event) do
+    case device_url(event) do
+      nil ->
+        nil
+
+      url ->
+        identifier = get_in(event, ["device", "identifier"])
+
+        %{
+          type: "actions",
+          elements: [
+            %{type: "button", action_id: "device.open", text: plain("Open in NervesHub"), url: url},
+            %{type: "button", action_id: "device.identify", text: plain("Identify"), value: identifier},
+            %{
+              type: "button",
+              action_id: "device.reboot",
+              text: plain("Reboot"),
+              value: identifier,
+              style: "danger",
+              confirm: %{
+                title: plain(String.slice("Reboot #{identifier}?", 0, 100)),
+                text: %{type: "mrkdwn", text: "The device restarts straight away."},
+                confirm: plain("Reboot"),
+                deny: plain("Cancel"),
+                style: "danger"
+              }
+            }
+          ]
+        }
+    end
+  end
+
+  defp plain(text), do: %{type: "plain_text", text: text}
 
   ## Shared
 
@@ -334,12 +379,19 @@ defmodule NervesHub.Integrations.Slack.Messages do
   end
 
   defp device_link(event) do
+    case device_url(event) do
+      nil -> device_label(event)
+      url -> "<#{url}|#{escape(get_in(event, ["device", "identifier"]))}>"
+    end
+  end
+
+  defp device_url(event) do
     with org when is_binary(org) <- get_in(event, ["org", "name"]),
          product when is_binary(product) <- get_in(event, ["product", "name"]),
          identifier when is_binary(identifier) <- get_in(event, ["device", "identifier"]) do
-      "<#{base_url()}/org/#{segment(org)}/#{segment(product)}/devices/#{segment(identifier)}|#{escape(identifier)}>"
+      "#{base_url()}/org/#{segment(org)}/#{segment(product)}/devices/#{segment(identifier)}"
     else
-      _ -> device_label(event)
+      _ -> nil
     end
   end
 

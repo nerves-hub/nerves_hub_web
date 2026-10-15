@@ -5,6 +5,7 @@ defmodule NervesHubWeb.Router do
   import Oban.Web.Router
   import Phoenix.LiveDashboard.Router
 
+  alias Live.Account.SlackLink
   alias Live.Org.CertificateAuthorities
   alias Live.Org.Delete
   alias Live.Org.Integrations
@@ -294,6 +295,9 @@ defmodule NervesHubWeb.Router do
     # Where Slack sends someone back after they install the app. Slack has
     # one redirect URL for every install, so it names no organization.
     get("/integrations/slack/oauth/callback", OAuthController, :callback)
+    # Sign in with Slack, which links a person's Slack account.
+    post("/integrations/slack/link/start", OAuthController, :start_link)
+    get("/integrations/slack/link/callback", OAuthController, :link_callback)
     post("/org/:org_name/settings/integrations/slack/install", OAuthController, :install)
   end
 
@@ -303,6 +307,7 @@ defmodule NervesHubWeb.Router do
     pipe_through(:slack)
 
     post("/events", EventsController, :create)
+    post("/interactivity", InteractionsController, :create)
   end
 
   scope "/", NervesHubWeb do
@@ -376,6 +381,9 @@ defmodule NervesHubWeb.Router do
       ] do
       live("/account", Live.Account, :edit)
       live("/account/delete", Live.Account, :delete)
+      # Where a Slack user confirms which NervesHub account they are. Under
+      # /integrations with the rest of Slack, but a page for a signed in person.
+      live("/integrations/slack/link", SlackLink)
 
       live("/orgs", Index)
       live("/orgs/new", New)

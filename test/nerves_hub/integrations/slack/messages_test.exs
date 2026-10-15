@@ -18,7 +18,12 @@ defmodule NervesHub.Integrations.Slack.MessagesTest do
     Enum.flat_map(blocks, fn
       %{type: "section", text: %{text: text}} -> [text]
       %{type: "context", elements: elements} -> Enum.map(elements, & &1.text)
+      %{type: "actions"} -> []
     end)
+  end
+
+  defp buttons(%{blocks: blocks}) do
+    for %{type: "actions", elements: elements} <- blocks, button <- elements, do: button
   end
 
   describe "health status changes" do
@@ -87,6 +92,37 @@ defmodule NervesHub.Integrations.Slack.MessagesTest do
 
       assert %{text: "4 devices updated: 3 to 2.0, 1 to 1.9"} =
                Messages.build("device.firmware_update.succeeded", events)
+    end
+  end
+
+  describe "buttons" do
+    test "a message about one device can open it, identify it, or reboot it after a confirmation" do
+      message =
+        Messages.build("device.health_status_changed", [
+          device_event("nh-1", %{"status" => "warning", "previous_status" => "healthy"})
+        ])
+
+      assert [open, identify, reboot] = buttons(message)
+      assert open.url == "#{NervesHubWeb.Endpoint.url()}/org/acme/thermostat/devices/nh-1"
+      assert %{action_id: "device.identify", value: "nh-1"} = identify
+
+      assert %{action_id: "device.reboot", value: "nh-1", style: "danger", confirm: %{title: %{text: "Reboot nh-1?"}}} =
+               reboot
+    end
+
+    test "a summary of many devices has none" do
+      events = for n <- 1..2, do: device_event("nh-#{n}", %{"status" => "warning", "previous_status" => "healthy"})
+
+      assert buttons(Messages.build("device.health_status_changed", events)) == []
+    end
+
+    test "a success has none" do
+      message =
+        Messages.build("device.firmware_update.succeeded", [
+          device_event("nh-1", %{"outcome" => "succeeded", "target_firmware" => %{"version" => "2.0"}})
+        ])
+
+      assert buttons(message) == []
     end
   end
 
