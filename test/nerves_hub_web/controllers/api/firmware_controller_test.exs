@@ -59,6 +59,35 @@ defmodule NervesHubWeb.API.FirmwareControllerTest do
       assert json_response(conn, 200)["data"]["uuid"] == uuid
     end
 
+    test "returns the firmware's metadata", %{conn: conn, user: user, org: org, product: product} do
+      org_key = Fixtures.org_key_fixture(org, user)
+
+      {:ok, signed_firmware_path} =
+        Fwup.create_signed_firmware(org_key.name, "unsigned", "signed", %{
+          product: product.name,
+          misc: "e=mc^2",
+          vcs_identifier: "4f104e8"
+        })
+
+      {boundary, body} = multipart_file(File.read!(signed_firmware_path))
+
+      conn =
+        conn
+        |> put_req_header("content-type", "multipart/form-data; boundary=#{boundary}")
+        |> post(Routes.api_firmware_path(conn, :create, org.name, product.name), body)
+
+      uuid = json_response(conn, 201)["data"]["uuid"]
+
+      conn = get(conn, Routes.api_firmware_path(conn, :show, org.name, product.name, uuid))
+      data = json_response(conn, 200)["data"]
+
+      assert data["misc"] == "e=mc^2"
+      assert data["vcs_identifier"] == "4f104e8"
+      assert data["size"] == File.stat!(signed_firmware_path).size
+      assert data["description"]
+      assert data["inserted_at"]
+    end
+
     test "prevents too large of firmware", context do
       prev_size = Application.get_env(:nerves_hub, Upload)[:max_size]
       Application.put_env(:nerves_hub, Upload, max_size: 10)

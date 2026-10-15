@@ -239,6 +239,13 @@ defmodule NervesHubWeb.Router do
                 get("/:uuid/download", FirmwareController, :download)
               end
 
+              scope "/archives" do
+                get("/", ArchiveController, :index)
+                get("/:uuid", ArchiveController, :show)
+                post("/", ArchiveController, :create)
+                get("/:uuid/download", ArchiveController, :download)
+              end
+
               scope "/deployments" do
                 get("/", DeploymentGroupController, :index)
                 post("/", DeploymentGroupController, :create)

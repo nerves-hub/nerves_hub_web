@@ -19,11 +19,13 @@ defmodule NervesHub.Support.Fwup do
               author: "me",
               block_cache_size_mb: nil,
               description: "D",
+              misc: nil,
               platform: "platform",
               product: "nerves-hub",
               resource_contents: "Hello, world!",
               resource_contents_path: nil,
               resource_name: nil,
+              vcs_identifier: nil,
               version: "1.0.0"
   end
 
@@ -201,6 +203,12 @@ defmodule NervesHub.Support.Fwup do
         do: "block-cache-size-mb = #{meta_params.block_cache_size_mb}\n",
         else: ""
 
+    optional_meta_lines =
+      Enum.map_join([misc: meta_params.misc, "vcs-identifier": meta_params.vcs_identifier], fn
+        {_key, nil} -> ""
+        {key, value} -> "meta-#{key} = \"#{value}\"\n"
+      end)
+
     """
     meta-product = "#{meta_params.product}"
     meta-description = "#{meta_params.description} "
@@ -208,6 +216,7 @@ defmodule NervesHub.Support.Fwup do
     meta-platform = "#{meta_params.platform}"
     meta-architecture = "#{meta_params.architecture}"
     meta-author = "#{meta_params.author}"
+    #{optional_meta_lines}
     #{block_cache_line}
     file-resource #{uuid}.txt {
       host-path = "#{data_file_path}"
