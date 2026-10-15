@@ -61,6 +61,10 @@ defmodule NervesHubWeb.ApiSpec do
       ],
       tags: [
         %Tag{
+          name: "Archives",
+          description: "Archive uploading and downloading"
+        },
+        %Tag{
           name: "Auth",
           description: "User authentication and API token creation"
         },
