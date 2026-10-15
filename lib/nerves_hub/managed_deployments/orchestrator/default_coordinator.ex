@@ -17,7 +17,8 @@ defmodule NervesHub.ManagedDeployments.Orchestrator.DefaultCoordinator do
     # Process priority queue first, if enabled
     skipped_priority_updates = maybe_do_priority_update(deployment_group)
 
-    # Process normal queue
+    # Process normal queue. A skipped priority device frees a priority slot, so it
+    # warrants another pass even when the normal queue is full.
     slots = available_slots(deployment_group)
 
     if slots > 0 do
@@ -26,7 +27,7 @@ defmodule NervesHub.ManagedDeployments.Orchestrator.DefaultCoordinator do
 
       length(available) != updated_count or skipped_priority_updates > 0
     else
-      false
+      skipped_priority_updates > 0
     end
   end
 

@@ -318,6 +318,33 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show.SummaryTabTest do
     end)
   end
 
+  test "shows priority queue settings only when it is enabled", %{
+    conn: conn,
+    org: org,
+    product: product,
+    user: user,
+    deployment_group: deployment_group
+  } do
+    refute_has(conn, "span", text: "Priority queue enabled:")
+
+    {:ok, _} =
+      ManagedDeployments.update_deployment_group(
+        deployment_group,
+        %{
+          priority_queue_enabled: true,
+          priority_queue_concurrent_updates: 3,
+          priority_queue_firmware_version_threshold: "0.9.0"
+        },
+        user
+      )
+
+    conn
+    |> visit("/org/#{org.name}/#{product.name}/deployment_groups/#{deployment_group.name}")
+    |> assert_has("span", text: "Priority queue enabled:")
+    |> assert_has("span", text: "3")
+    |> assert_has("span", text: "0.9.0")
+  end
+
   test "shows the deployment group with device count", %{
     conn: conn,
     org: org,
