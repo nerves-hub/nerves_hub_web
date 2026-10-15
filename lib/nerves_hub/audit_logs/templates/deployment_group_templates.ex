@@ -69,6 +69,29 @@ defmodule NervesHub.AuditLogs.DeploymentGroupTemplates do
   end
 
   @doc """
+  Somebody approved, skipped or retried a workflow step. `via` names where
+  they did it when it was not the deployment group's page, such as a Slack
+  user.
+  """
+  @spec audit_workflow_step_action(
+          User.t(),
+          DeploymentGroup.t(),
+          DeploymentWorkflowStep.t(),
+          :approved | :skipped | :retried,
+          String.t() | nil
+        ) :: :ok
+  def audit_workflow_step_action(user, deployment_group, step, action, via \\ nil)
+      when action in [:approved, :skipped, :retried] do
+    description =
+      "User #{user.name} #{action} workflow step #{step.number} (#{DeploymentWorkflowStep.label(step)}) for deployment group #{deployment_group.name}#{via(via)}"
+
+    AuditLogs.audit!(user, deployment_group, description)
+  end
+
+  defp via(nil), do: ""
+  defp via(source), do: " from #{source}"
+
+  @doc """
   A workflow reached a step that waits for someone to approve it.
   """
   def audit_workflow_awaiting_approval(deployment_group, step) do

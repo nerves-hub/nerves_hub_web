@@ -7,6 +7,7 @@ defmodule NervesHubWeb.API.FallbackController do
   use NervesHubWeb, :api_controller
 
   alias NervesHub.Firmwares.UpdateTool
+  alias NervesHub.Webhooks
   alias NervesHubWeb.API.ChangesetJSON
   alias NervesHubWeb.API.ErrorJSON
   alias NervesHubWeb.Helpers.FirmwareDeletion
@@ -254,6 +255,15 @@ defmodule NervesHubWeb.API.FallbackController do
     |> put_status(422)
     |> put_view(ErrorJSON)
     |> render(:"422", %{reason: "That is not a service this NervesHub knows about."})
+  end
+
+  def call(conn, {:error, :too_many_webhooks}) do
+    conn
+    |> put_status(422)
+    |> put_view(ErrorJSON)
+    |> render(:"422", %{
+      reason: "An organization can have at most #{Webhooks.max_webhooks_per_org()} webhooks. Delete one to add another."
+    })
   end
 
   def call(conn, {:error, :authentication_failed}) do

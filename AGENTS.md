@@ -73,7 +73,9 @@ when adding or removing one.
   (a device's identity on networks NervesHub doesn't run, such as iroh or
   NetBird).
 - `managed_deployments.ex` / `managed_deployments/` — deployment groups and the
-  `Distributed.Orchestrator` (one per deployment).
+  `Distributed.Orchestrator` (one per deployment). A release with a workflow
+  is walked a step at a time (`Workflows`, `WorkflowCoordinator`); each step
+  transition is announced to webhooks and Slack (`WorkflowEvents`).
 - `firmwares.ex` / `firmwares/` and `archives.ex` / `archives/` — firmware and
   archive artifacts, uploads, and firmware **delta** building.
 - `products.ex` / `products/` — products and product settings, including
@@ -86,6 +88,35 @@ when adding or removing one.
 - `error_reports.ex` / `error_reports/` — exceptions devices report, grouped
   into issues. Split across both stores: the group in Postgres, the
   occurrences in ClickHouse. See [docs/error_reports.md](docs/error_reports.md).
+- `webhooks.ex` / `webhooks/` — webhooks: device events POSTed to endpoints
+  an organization configures, for every product or a chosen few (org
+  Integrations page, or `API.WebhookController`). Events arrive through
+  `Integrations.dispatch/3`. Deliveries are Oban jobs
+  (`Workers.DeliverWebhook`), signed per Standard Webhooks, and only reach
+  public addresses unless the instance allows otherwise. Event types and
+  payloads are a published contract; see [docs/webhooks.md](docs/webhooks.md).
+- `integrations.ex` / `integrations/` — where device events leave NervesHub.
+  Code where an event happens calls `Integrations.dispatch/3` with the
+  product, which costs one ETS read (`Integrations.Cache`) for a product
+  nothing hears, and otherwise hands the event to the webhooks and Slack
+  channels that want it. `ProductScope` is the "every product, or these
+  products" both share.
+- `integrations/slack.ex` / `integrations/slack/` — the Slack integration: workspaces an organization
+  connects by installing the instance's Slack app (`NervesHubWeb.Integrations.Slack.OAuthController`
+  runs the OAuth flow), and the events Slack sends to `/integrations/slack/`,
+  which must be signed (`Integrations.Slack.VerifyRequest`). One bot token per
+  workspace, encrypted at rest with `Types.Encrypted`. `Slack.Subscriptions`
+  posts device events to channels, held 15 seconds and rolled up into one
+  message per kind (`Workers.PostSlackEvents`, `Slack.Messages`). Buttons on
+  those messages are carried out by `NervesHubWeb.Integrations.Slack.Actions` as the
+  NervesHub user the Slack user linked (`Slack.Users`), with that user's
+  permissions checked at click time; `NervesHubWeb.Integrations.Slack.Commands` answers
+  `/nerveshub` with the same checks (`Integrations.Slack.Actions.authorize/5`), and
+  `NervesHubWeb.Integrations.Slack.WorkflowSteps` approves, retries or skips a deployment
+  workflow step (`Integrations.Slack.Actions.authorize_in/6`). `NervesHubWeb.Integrations.Slack.Unfurls`
+  previews device and deployment group links posted in Slack, checked
+  against whoever posted them. Hidden unless the instance has a Slack app;
+  see [docs/slack.md](docs/slack.md).
 - `scripts.ex` / `scripts/` — support scripts run against a device console.
 - `workers/` — Oban workers (e.g. firmware delta building, firmware deletion).
 - Cross-cutting: `audit_logs.ex`, `product_notifications.ex`, `tracker.ex`,

@@ -159,10 +159,7 @@ defmodule NervesHubWeb.Live.Org.CertificateAuthorities do
          serial = Certificate.get_serial_number(cert),
          aki = Certificate.get_aki(cert),
          ski = Certificate.get_ski(cert),
-         {cert_not_before, cert_not_after} = cert_validity <- Certificate.get_validity(cert),
-         {_csr_not_before, _csr_not_after} = csr_validity <- Certificate.get_validity(csr),
-         :ok <- check_validity(cert_validity),
-         :ok <- check_validity(csr_validity),
+         {cert_not_before, cert_not_after} <- Certificate.get_validity(cert),
          {:ok, params} <- maybe_delete_jitp(params),
          params = %{
            serial: serial,
@@ -172,11 +169,12 @@ defmodule NervesHubWeb.Live.Org.CertificateAuthorities do
            not_after: cert_not_after,
            der: X509.Certificate.to_der(cert),
            description: params["description"],
+           check_expiration: params["check_expiration"],
            jitp: params["jitp"]
          },
-         {:ok, _ca_certificate} <- CACertificates.create_ca_certificate(socket.assigns.org, params) do
+         {:ok, ca_certificate} <- CACertificates.create_ca_certificate(socket.assigns.org, params) do
       socket
-      |> put_flash(:info, "Certificate Authority created")
+      |> put_flash(:info, created_message(ca_certificate))
       |> push_patch(to: ~p"/org/#{socket.assigns.org}/settings/certificates")
       |> noreply()
     else
@@ -189,21 +187,40 @@ defmodule NervesHubWeb.Live.Org.CertificateAuthorities do
       {:error, :not_found} ->
         {:noreply, put_flash(socket, :error, "Certificate Authority pem file is empty or invalid")}
 
-      {:error, :cert_expired} ->
-        {:noreply, put_flash(socket, :error, "Certificate is expired")}
-
-      {:error, :invalid_csr} ->
-        {:noreply,
-         put_flash(
-           socket,
-           :error,
-           "Error validating certificate signing request. Please check if the right registration code was used."
-         )}
+      {:error, {:invalid_csr, reason}} ->
+        {:noreply, put_flash(socket, :error, CSR.ownership_error_message(reason))}
 
       {:error, changeset} ->
         {:noreply, assign(socket, :form, to_form(changeset))}
     end
   end
+
+  # A CA's validity isn't checked on upload, since Check expiration decides
+  # whether devices can register outside it, so say so when it doesn't cover now.
+  defp created_message(%CACertificate{} = ca_certificate) do
+    now = DateTime.utc_now()
+
+    cond do
+      # Check expiration can't be on here: the changeset refuses it for a CA
+      # that has already expired.
+      DateTime.after?(now, ca_certificate.not_after) ->
+        "Certificate Authority created. It expired on #{Calendar.strftime(ca_certificate.not_after, "%Y-%m-%d")}. " <>
+          "Devices can still register with it because Check expiration is off."
+
+      DateTime.before?(now, ca_certificate.not_before) and ca_certificate.check_expiration ->
+        "Certificate Authority created. It isn't valid until #{not_before_label(ca_certificate)}, " <>
+          "and devices can't register with it until then."
+
+      DateTime.before?(now, ca_certificate.not_before) ->
+        "Certificate Authority created. It isn't valid until #{not_before_label(ca_certificate)}. " <>
+          "Devices can still register with it because Check expiration is off."
+
+      true ->
+        "Certificate Authority created"
+    end
+  end
+
+  defp not_before_label(ca_certificate), do: Calendar.strftime(ca_certificate.not_before, "%Y-%m-%d %H:%M UTC")
 
   defp list_certificates(socket) do
     certificates = CACertificates.get_ca_certificates(socket.assigns.org)
@@ -232,18 +249,6 @@ defmodule NervesHubWeb.Live.Org.CertificateAuthorities do
          end) do
       [csr] -> {:ok, csr}
       [] -> {:error, :empty_csr}
-    end
-  end
-
-  def check_validity({not_before, not_after}) do
-    now = DateTime.utc_now()
-    is_before? = DateTime.compare(now, not_before) != :gt
-    is_after? = DateTime.after?(now, not_after)
-
-    if is_before? or is_after? do
-      {:error, :cert_expired}
-    else
-      :ok
     end
   end
 

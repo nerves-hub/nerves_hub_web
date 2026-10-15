@@ -12,8 +12,10 @@ defmodule NervesHub.DeviceEvents do
   alias NervesHub.Devices.Updates
   alias NervesHub.Firmwares
   alias NervesHub.FirmwareUpdates
+  alias NervesHub.Integrations
   alias NervesHub.ManagedDeployments
   alias NervesHub.Repo
+  alias NervesHub.Webhooks.Payloads
   alias Phoenix.Channel.Server, as: ChannelServer
 
   def updated(device) do
@@ -48,9 +50,13 @@ defmodule NervesHub.DeviceEvents do
     :ok = ChannelServer.broadcast(NervesHub.PubSub, shared_secret_topic(key), "disconnect", %{})
   end
 
-  def identify(device, user) do
+  @doc """
+  Asks the device to identify itself, as `user`. `via:` names where the
+  request came from, for the audit log, when it was not the dashboard or API.
+  """
+  def identify(device, user, opts \\ []) do
     Repo.transact(fn ->
-      DeviceTemplates.audit_request_action(user, device, "identify itself")
+      DeviceTemplates.audit_request_action(user, device, "identify itself", opts[:via])
 
       broadcast(device, "identify", %{})
 
@@ -58,9 +64,13 @@ defmodule NervesHub.DeviceEvents do
     end)
   end
 
-  def reboot(device, user) do
+  @doc """
+  Asks the device to reboot, as `user`. `via:` names where the request came
+  from, for the audit log, when it was not the dashboard or API.
+  """
+  def reboot(device, user, opts \\ []) do
     Repo.transact(fn ->
-      DeviceTemplates.audit_reboot(user, device)
+      DeviceTemplates.audit_reboot(user, device, opts[:via])
 
       broadcast(device, "reboot", %{})
 
@@ -116,6 +126,16 @@ defmodule NervesHub.DeviceEvents do
       end
 
       broadcast(device, "update", update_payload)
+
+      # The broadcast goes out even when there is nothing to send (the device is
+      # blocked, or already running the target), and only a real update is an
+      # event worth telling anyone about.
+      if update_payload.update_available do
+        :ok =
+          Integrations.dispatch(device.product_id, "device.firmware_update.scheduled", fn ->
+            Payloads.firmware_update_scheduled(device, target_release.firmware, initiated_by(opts), deployment_group)
+          end)
+      end
 
       # A device asking for firmware and a deployment group sending it are the
       # same delivery but not the same event, and conflating them would hide how
@@ -197,6 +217,11 @@ defmodule NervesHub.DeviceEvents do
 
       DeviceTemplates.audit_firmware_pushed(user, device, firmware)
 
+      :ok =
+        Integrations.dispatch(device.product_id, "device.firmware_update.scheduled", fn ->
+          Payloads.firmware_update_scheduled(device, firmware, "user", nil)
+        end)
+
       payload = %UpdatePayload{
         update_available: true,
         firmware_url: firmware_url,
@@ -217,6 +242,14 @@ defmodule NervesHub.DeviceEvents do
 
       res ->
         res
+    end
+  end
+
+  defp initiated_by(opts) do
+    cond do
+      opts[:user] -> "user"
+      opts[:initiated_by] == :device -> "device"
+      true -> "deployment_group"
     end
   end
 

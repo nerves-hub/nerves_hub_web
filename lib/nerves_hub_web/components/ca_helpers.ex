@@ -30,16 +30,24 @@ defmodule NervesHubWeb.Components.CAHelpers do
     """
   end
 
+  attr(:not_before, DateTime, required: true)
+  attr(:not_after, DateTime, required: true)
+
   def certificate_status(assigns) do
+    now = DateTime.utc_now()
+
     status =
       cond do
-        DateTime.after?(DateTime.utc_now(), assigns.not_after) ->
+        DateTime.after?(now, assigns.not_after) ->
           "Expired"
+
+        DateTime.before?(now, assigns.not_before) ->
+          "Not Yet Valid"
 
         # Expires within the next three months. The shift was negative, which
         # put the cutoff three months in the past - a window the `Expired`
         # clause above has already taken, so this never matched.
-        DateTime.after?(DateTime.shift(DateTime.utc_now(), month: 3), assigns.not_after) ->
+        DateTime.after?(DateTime.shift(now, month: 3), assigns.not_after) ->
           "Expiring Soon"
 
         true ->
@@ -61,6 +69,7 @@ defmodule NervesHubWeb.Components.CAHelpers do
   # The `-content` colours are the ones defined for both themes; a bare
   # `text-alert` stays red-500 on the light theme, which is too hot.
   defp certificate_status_class("Expired"), do: "text-alert-content"
+  defp certificate_status_class("Not Yet Valid"), do: "text-warning-content"
   defp certificate_status_class("Expiring Soon"), do: "text-warning-content"
   defp certificate_status_class("Current"), do: "text-base-400"
 end

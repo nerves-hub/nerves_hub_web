@@ -1,0 +1,277 @@
+<div id={@id} class="flex w-full flex-col rounded border border-base-700 bg-surface-raised">
+  <div class="flex h-14 items-center justify-between border-b border-base-700 px-4">
+    <div class="text-base font-medium text-base-50">Slack</div>
+    <%!-- A form rather than a link: starting an install is a change, so it carries the CSRF token. --%>
+    <.form
+      :if={authorized?(:"slack_connection:create", @current_scope)}
+      for={%{}}
+      action={~p"/org/#{@org}/settings/integrations/slack/install"}
+      method="post"
+    >
+      <.button type="submit" aria-label="Add a Slack workspace">
+        <.icon name="add" />Add to Slack
+      </.button>
+    </.form>
+  </div>
+
+  <div class="flex flex-col gap-3 p-6">
+    <p class="w-2/3 text-sm">
+      Post this organization's device notifications to Slack channels. Connecting a workspace installs {Branding.friendly_platform_name()}'s Slack
+      app there, which takes an admin of this organization. Choosing channels and what they hear takes the manage role.
+    </p>
+  </div>
+
+  <div :if={@connections == []} class="border-t border-base-700 p-6">
+    <p class="text-sm text-base-400">No Slack workspace is connected.</p>
+  </div>
+
+  <div :for={connection <- @connections} id={"slack-connection-#{connection.id}"} class="flex flex-col gap-4 border-t border-base-700 p-6">
+    <div class="flex flex-wrap items-center justify-between gap-3">
+      <div class="flex min-w-0 flex-col gap-1">
+        <span class="font-medium text-base-50">{connection.workspace.team_name}</span>
+        <span class="text-sm text-base-400">
+          Connected by {if connection.connected_by, do: connection.connected_by.name, else: "a former member"} on
+          <.local_datetime at={connection.inserted_at} time_zone={@time_zone} format={:long_date} zone_label={false} />
+        </span>
+      </div>
+
+      <div class="flex flex-wrap items-center gap-2">
+        <.button
+          :if={is_nil(@editing) && authorized?(:"slack_subscription:create", @current_scope)}
+          type="button"
+          phx-click="new-channel"
+          phx-value-connection_id={connection.id}
+          phx-target={@myself}
+          aria-label={"Add a channel in #{connection.workspace.team_name}"}
+        >
+          <.icon name="add" />Add channel
+        </.button>
+        <.button
+          :if={authorized?(:"slack_connection:delete", @current_scope)}
+          type="button"
+          phx-click="disconnect"
+          phx-value-connection_id={connection.id}
+          phx-target={@myself}
+          data-confirm={"Disconnect the #{connection.workspace.team_name} Slack workspace? Its channels stop hearing from this organization."}
+        >
+          Disconnect
+        </.button>
+      </div>
+    </div>
+
+    <%!-- Slack grants new scopes only on install, so a workspace connected before link previews has neither them nor the event. --%>
+    <p :if={"links:write" not in connection.workspace.scopes} class="text-sm text-base-400">
+      To preview {Branding.friendly_platform_name()} links posted in this workspace, an admin of this organization installs the app again:
+      Add to Slack, then choose {connection.workspace.team_name}.
+    </p>
+
+    <p :if={connection.subscriptions == [] && !editing_connection?(@editing, connection)} class="text-sm text-base-400">
+      No channel gets this organization's events yet.
+    </p>
+
+    <div
+      :for={subscription <- connection.subscriptions}
+      id={"slack-subscription-#{subscription.id}"}
+      class="flex flex-col gap-2 rounded border border-base-700 p-4"
+    >
+      <div class="flex flex-wrap items-start justify-between gap-3">
+        <div class="flex items-center gap-2">
+          <span class="font-medium text-base-50">#{subscription.channel_name}</span>
+          <.status_badge subscription={subscription} />
+        </div>
+
+        <div :if={authorized?(:"slack_subscription:update", @current_scope)} class="flex items-center gap-2">
+          <.button
+            type="button"
+            phx-click="send-test"
+            phx-value-subscription_id={subscription.id}
+            phx-target={@myself}
+            disabled={MapSet.member?(@testing, subscription.id)}
+            aria-label={"Send a test message to ##{subscription.channel_name}"}
+          >
+            {if MapSet.member?(@testing, subscription.id), do: "Sending...", else: "Send test message"}
+          </.button>
+          <div class="relative">
+            <button
+              type="button"
+              id={"slack-subscription-#{subscription.id}-menu-toggle"}
+              phx-click={toggle_menu(subscription.id)}
+              aria-haspopup="menu"
+              title="More actions"
+              class="flex items-center rounded p-1.5 hover:cursor-pointer hover:bg-base-700"
+            >
+              <span class="lucide-ellipsis--light size-4 text-base-400"></span>
+              <span class="sr-only">More actions</span>
+            </button>
+
+            <div
+              id={"slack-subscription-#{subscription.id}-menu"}
+              class="hidden"
+              phx-click-away={hide_menu(subscription.id)}
+              phx-window-keydown={hide_menu(subscription.id)}
+              phx-key="escape"
+            >
+              <div
+                role="menu"
+                class="absolute top-9 right-0 z-30 flex w-40 flex-col rounded-md border border-base-700 bg-surface-overlay p-1 shadow-lg"
+              >
+                <button
+                  type="button"
+                  role="menuitem"
+                  phx-click={JS.push("edit-channel", value: %{subscription_id: subscription.id}, target: @myself) |> hide_menu(subscription.id)}
+                  class="flex items-center gap-2 rounded px-2 py-1.5 text-left text-sm text-base-300 hover:cursor-pointer hover:bg-primary/20"
+                >
+                  <span class="lucide-pencil--light size-4 text-base-400"></span> Edit
+                </button>
+                <button
+                  type="button"
+                  role="menuitem"
+                  phx-click={JS.push("toggle", value: %{subscription_id: subscription.id}, target: @myself) |> hide_menu(subscription.id)}
+                  class="flex items-center gap-2 rounded px-2 py-1.5 text-left text-sm text-base-300 hover:cursor-pointer hover:bg-primary/20"
+                >
+                  <span :if={subscription.enabled} class="lucide-power-off--light size-4 text-base-400"></span>
+                  <span :if={!subscription.enabled} class="lucide-power--light size-4 text-success"></span>
+                  {if subscription.enabled, do: "Turn off", else: "Turn on"}
+                </button>
+                <button
+                  :if={authorized?(:"slack_subscription:delete", @current_scope)}
+                  type="button"
+                  role="menuitem"
+                  phx-click={JS.push("delete", value: %{subscription_id: subscription.id}, target: @myself) |> hide_menu(subscription.id)}
+                  data-confirm={"Stop posting to ##{subscription.channel_name}? Events held for it are dropped."}
+                  class="flex items-center gap-2 rounded px-2 py-1.5 text-left text-sm text-alert hover:cursor-pointer hover:bg-alert-soft"
+                >
+                  <span class="lucide-trash--light size-4"></span> Delete
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="text-sm text-base-400">
+        <span class="text-base-300">Products:</span> {scope_label(subscription)}
+      </div>
+
+      <div class="flex flex-wrap gap-2">
+        <span :for={key <- subscription.events} class="rounded border border-base-700 bg-base-800 px-2 py-0.5 text-xs text-base-300">
+          {Events.label(key)}
+        </span>
+      </div>
+
+      <p :if={subscription.disabled_reason} class="text-sm text-alert">{subscription.disabled_reason}</p>
+
+      <p :if={subscription.enabled && subscription.last_error} class="text-sm text-alert">
+        Posting failed at <.local_datetime at={subscription.last_error_at} time_zone={@time_zone} format={:time} />: {subscription.last_error}
+      </p>
+    </div>
+
+    <.form
+      :if={@form && editing_connection?(@editing, connection)}
+      for={@form}
+      id="slack-subscription-form"
+      phx-change="validate"
+      phx-submit="save"
+      phx-target={@myself}
+      class="flex flex-col gap-6 rounded border border-base-700 p-4"
+    >
+      <div class="text-sm font-medium text-base-50">
+        {case @editing do
+          {:new, _} -> "New channel"
+          subscription -> "Edit ##{subscription.channel_name}"
+        end}
+      </div>
+
+      <div :if={match?({:new, _}, @editing)} class="flex w-2/3 flex-col gap-2">
+        <div :if={@channels.loading} class="text-sm text-base-400">Loading channels from Slack...</div>
+        <div :if={@channels.failed} class="text-sm text-alert">
+          Slack did not list the workspace's channels: {error_message(@channels.failed)}
+        </div>
+        <.input
+          :if={@channels.ok?}
+          type="select"
+          name="slack_subscription[channel_id]"
+          id="slack-subscription-channel"
+          label="Channel"
+          value={@selected_channel}
+          prompt="Choose a channel"
+          options={channel_options(@channels.result)}
+        />
+        <p class="text-xs text-base-500">
+          Every public channel is listed. To post to a private channel, invite the {Branding.friendly_platform_name()} app to it first.
+        </p>
+      </div>
+
+      <div class="flex flex-col gap-3">
+        <div class="text-sm font-medium text-base-300">Products</div>
+        <label for="slack-all-products-true" class="flex items-center gap-3">
+          <input
+            id="slack-all-products-true"
+            type="radio"
+            name="slack_subscription[all_products]"
+            value="true"
+            checked={all_products?(@form)}
+            class="border-base-700 text-base-400 checked:bg-primary focus:ring-0"
+          />
+          <span class="text-sm text-base-300">Every product, including products added later</span>
+        </label>
+        <label for="slack-all-products-false" class="flex items-center gap-3">
+          <input
+            id="slack-all-products-false"
+            type="radio"
+            name="slack_subscription[all_products]"
+            value="false"
+            checked={!all_products?(@form)}
+            class="border-base-700 text-base-400 checked:bg-primary focus:ring-0"
+          />
+          <span class="text-sm text-base-300">Only these products</span>
+        </label>
+
+        <input type="hidden" name="slack_subscription[products][]" value="" />
+        <div :if={!all_products?(@form)} class="ml-7 flex flex-col gap-1">
+          <label :for={product <- @products} for={"slack-product-#{product.id}"} class="flex items-center gap-3 py-1">
+            <input
+              id={"slack-product-#{product.id}"}
+              type="checkbox"
+              name="slack_subscription[products][]"
+              value={product.name}
+              checked={MapSet.member?(selected_products(@form), product.name)}
+              class="rounded border-base-700 text-base-400 checked:bg-primary focus:ring-0"
+            />
+            <span class="text-sm text-base-300">{product.name}</span>
+          </label>
+        </div>
+
+        <.error :for={message <- checkbox_errors(@form, :products)}>{message}</.error>
+      </div>
+
+      <div class="flex flex-col gap-2">
+        <div class="text-sm font-medium text-base-300">Events</div>
+        <input type="hidden" name="slack_subscription[events][]" value="" />
+        <label :for={event <- @events} for={"slack-event-#{event.key}"} class="flex items-start gap-3 py-1">
+          <input
+            id={"slack-event-#{event.key}"}
+            type="checkbox"
+            name="slack_subscription[events][]"
+            value={event.key}
+            checked={event.key in selected_events(@form)}
+            class="mt-0.5 rounded border-base-700 text-base-400 checked:bg-primary focus:ring-0"
+          />
+          <div class="flex flex-col">
+            <span class="text-sm font-medium text-base-300">{event.label}</span>
+            <span class="text-xs text-base-400">{event.description}</span>
+          </div>
+        </label>
+
+        <.error :for={message <- checkbox_errors(@form, :events)}>{message}</.error>
+      </div>
+
+      <div class="flex gap-3">
+        <.button style="primary" type="submit" phx-disable-with="Saving...">
+          {if match?({:new, _}, @editing), do: "Add channel", else: "Save channel"}
+        </.button>
+        <.button type="button" phx-click="cancel" phx-target={@myself}>Cancel</.button>
+      </div>
+    </.form>
+  </div>
+</div>

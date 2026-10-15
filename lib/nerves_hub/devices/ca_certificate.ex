@@ -53,8 +53,29 @@ defmodule NervesHub.Devices.CACertificate do
     |> cast(params, [:aki, :ski] ++ @required_params ++ @optional_params)
     |> validate_required(@required_params)
     |> validate_required(:ski, message: @missing_ski_message)
+    |> validate_not_expired_when_checked()
     |> unique_constraint(:serial, name: :ca_certificates_serial_index)
     |> cast_assoc(:jitp)
+  end
+
+  # With check_expiration on, NervesHub.SSL refuses to register a device
+  # certificate signed by the CA once the CA has expired, so registering an
+  # already-expired CA that way would leave it unable to register any device.
+  # Only checked on create: turning it on later, to stop an expired CA
+  # registering devices, is what the setting is for.
+  defp validate_not_expired_when_checked(changeset) do
+    not_after = get_field(changeset, :not_after)
+
+    if get_field(changeset, :check_expiration) && not_after && DateTime.before?(not_after, DateTime.utc_now()) do
+      add_error(
+        changeset,
+        :check_expiration,
+        "can't be on for a CA certificate that expired on #{Calendar.strftime(not_after, "%Y-%m-%d")}, " <>
+          "because no device could register with it. Leave it off to register an expired CA"
+      )
+    else
+      changeset
+    end
   end
 
   def update_changeset(%CACertificate{} = ca_certificate, params) do
