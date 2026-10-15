@@ -58,7 +58,17 @@ defmodule NervesHubWeb.Integrations.Slack.DeviceCards do
     end
   end
 
-  defp card(%Device{} = device, opts) do
+  @doc """
+  The device's card: its connection, firmware, health and product, with its
+  buttons. `opts`:
+
+    * `shared_by:` the `User` sharing it, which the heading names
+    * `shareable: true` adds Share in channel
+    * `buttons: false` leaves the buttons out, for a link preview
+      (`NervesHubWeb.Integrations.Slack.Unfurls`)
+  """
+  @spec card(Device.t(), keyword()) :: %{text: String.t(), blocks: [map()]}
+  def card(%Device{} = device, opts \\ []) do
     device = Repo.preload(device, [:product, :org, :latest_connection])
     identifier = Actions.escape(device.identifier)
     online? = Tracker.online?(device)
@@ -99,9 +109,11 @@ defmodule NervesHubWeb.Integrations.Slack.DeviceCards do
         buttons
       end
 
+    section = %{type: "section", text: %{type: "mrkdwn", text: heading}, fields: fields}
+
     %{
       text: "#{identifier}: #{if online?, do: "online", else: "offline"}",
-      blocks: [%{type: "section", text: %{type: "mrkdwn", text: heading}, fields: fields}, buttons]
+      blocks: if(Keyword.get(opts, :buttons, true), do: [section, buttons], else: [section])
     }
   end
 

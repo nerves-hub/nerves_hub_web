@@ -239,15 +239,16 @@ defmodule NervesHubWeb.Integrations.Slack.Actions do
   The checks `authorize/5` makes of the organization, for a NervesHub user a
   Slack user linked and something of the organization's other than a
   device: the organization is connected to the workspace the request came
-  from, and the user is a member whose role has `permission`. `subject`
-  finishes "the organization ... belongs to", already escaped.
+  from, and the user is a member whose role has `permission`, or any role
+  when `permission` is `nil`, as seeing a deployment group's page takes.
+  `subject` finishes "the organization ... belongs to", already escaped.
   """
-  @spec authorize_in(String.t(), Accounts.User.t(), Org.t(), atom(), String.t(), String.t()) ::
+  @spec authorize_in(String.t(), Accounts.User.t(), Org.t(), atom() | nil, String.t(), String.t()) ::
           :ok | {:error, atom(), String.t()}
   def authorize_in(team_id, %Accounts.User{} = user, %Org{} = org, permission, what, subject) do
     with {:connected, true} <- {:connected, connected?(org.id, team_id)},
          {:member, {:ok, org_user}} <- {:member, Accounts.get_org_user(org, user)},
-         {:allowed, true} <- {:allowed, Authorization.authorized?(permission, org_user.role)} do
+         {:allowed, true} <- {:allowed, is_nil(permission) or Authorization.authorized?(permission, org_user.role)} do
       :ok
     else
       {:connected, false} ->
@@ -344,21 +345,22 @@ defmodule NervesHubWeb.Integrations.Slack.Actions do
 
   @doc """
   The message that sends a Slack user who has not linked their NervesHub
-  account to do so. Shown only to them.
+  account to do so. Shown only to them. `purpose` finishes "Link your Slack
+  account to NervesHub ...".
   """
-  @spec link_message(String.t()) :: %{text: String.t(), blocks: [map()]}
-  def link_message(team_id) do
+  @spec link_message(String.t(), String.t()) :: %{text: String.t(), blocks: [map()]}
+  def link_message(team_id, purpose \\ "to act on devices from Slack") do
     url = NervesHubWeb.Endpoint.url() <> "/integrations/slack/link?" <> URI.encode_query(%{team: team_id})
 
     %{
-      text: "Link your Slack account to #{platform()} to act on devices from Slack.",
+      text: "Link your Slack account to #{platform()} #{purpose}.",
       blocks: [
         %{
           type: "section",
           text: %{
             type: "mrkdwn",
             text:
-              "Link your Slack account to #{platform()} to act on devices from Slack. You sign in to #{platform()}, then with Slack, and what you then do from Slack is done as you in #{platform()}, with your permissions there."
+              "Link your Slack account to #{platform()} #{purpose}. You sign in to #{platform()}, then with Slack, and what you then do from Slack is done as you in #{platform()}, with your permissions there."
           }
         },
         %{

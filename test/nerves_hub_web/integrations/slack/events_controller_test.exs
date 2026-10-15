@@ -69,6 +69,35 @@ defmodule NervesHubWeb.Integrations.Slack.EventsControllerTest do
     assert Slack.list_connections(org) == []
   end
 
+  test "previews a NervesHub link in the background", %{conn: conn} do
+    user = Fixtures.user_fixture()
+    _slack = Fixtures.slack_connection_fixture(Fixtures.org_fixture(user), user, %{team_id: "T0ACME"})
+    test_pid = self()
+
+    Req.Test.stub(Slack, fn conn ->
+      {:ok, body, conn} = Plug.Conn.read_body(conn)
+      send(test_pid, {:slack, conn.request_path, Jason.decode!(body)})
+      Req.Test.json(conn, %{"ok" => true})
+    end)
+
+    payload = %{
+      "type" => "event_callback",
+      "team_id" => "T0ACME",
+      "event" => %{
+        "type" => "link_shared",
+        "channel" => "C0FLEET",
+        "message_ts" => "1728900000.000100",
+        "user" => "U0NOTLINKED",
+        "links" => [%{"url" => NervesHubWeb.Endpoint.url() <> "/org/acme/thermostat/devices/nh-1"}]
+      }
+    }
+
+    assert conn |> send_event(payload) |> response(200)
+
+    # The poster has not linked their account, so they are asked to.
+    assert_receive {:slack, "/api/chat.unfurl", %{"user_auth_required" => true}}, 2000
+  end
+
   test "answers events it does not handle", %{conn: conn} do
     payload = %{"type" => "event_callback", "team_id" => "T0", "event" => %{"type" => "app_mention"}}
 
