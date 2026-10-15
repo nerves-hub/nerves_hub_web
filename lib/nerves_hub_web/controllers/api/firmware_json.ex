@@ -17,7 +17,12 @@ defmodule NervesHubWeb.API.FirmwareJSON do
       platform: firmware.platform,
       version: firmware.version,
       product: firmware.product.name,
-      tool: firmware.tool
+      tool: firmware.tool,
+      description: firmware.description,
+      misc: firmware.misc,
+      vcs_identifier: firmware.vcs_identifier,
+      size: firmware.size,
+      inserted_at: firmware.inserted_at
     }
   end
 end
