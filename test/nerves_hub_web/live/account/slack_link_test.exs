@@ -91,10 +91,25 @@ defmodule NervesHubWeb.Live.Account.SlackLinkTest do
     |> visit("/account")
     |> assert_has("#slack-link-#{link.id}", text: "Alice Smith")
     |> assert_has("#slack-link-#{link.id}", text: "Acme Fleet")
+    |> assert_has("#slack-link-#{link.id}", text: "Not used yet.")
     |> within("#slack-link-#{link.id}", &click_button(&1, "Unlink"))
     |> assert_has("[role='alert']", text: "The Slack account was unlinked.")
     |> refute_has("#slack-links")
 
     assert Users.list_links(user) == []
+  end
+
+  test "the account page says when each link was last used", %{conn: conn, user: user} do
+    {conn, %{"state" => state}} = start_sign_in(conn)
+    _ = get(conn, "/integrations/slack/link/callback?" <> URI.encode_query(%{code: "a-code", state: state}))
+    _ = Users.use_link("T0ACME", "U0ALICE")
+
+    [%{link: link}] = Users.list_links(user)
+
+    build_conn()
+    |> Plug.Test.init_test_session(%{"user_token" => NervesHub.Accounts.create_user_session_token(user)})
+    |> visit("/account")
+    |> assert_has("#slack-link-#{link.id}", text: "Last used")
+    |> refute_has("#slack-link-#{link.id}", text: "Not used yet.")
   end
 end

@@ -108,7 +108,8 @@ when adding or removing one.
   message per kind (`Workers.PostSlackEvents`, `Slack.Messages`). Buttons on
   those messages are carried out by `NervesHubWeb.Integrations.Slack.Actions` as the
   NervesHub user the Slack user linked (`Slack.Users`), with that user's
-  permissions checked at click time. Hidden unless the instance has a Slack
+  permissions checked at click time; `NervesHubWeb.Integrations.Slack.Commands` answers
+  `/nerveshub` with the same checks (`Integrations.Slack.Actions.authorize/5`). Hidden unless the instance has a Slack
   app; see [docs/slack.md](docs/slack.md).
 - `scripts.ex` / `scripts/` — support scripts run against a device console.
 - `workers/` — Oban workers (e.g. firmware delta building, firmware deletion).

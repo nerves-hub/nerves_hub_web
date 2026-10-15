@@ -16,7 +16,7 @@
 
   <div class="flex flex-col gap-3 p-6">
     <p class="w-2/3 text-sm">
-      Post this organization's device notifications to Slack channels. Connecting a workspace installs NervesHub's Slack
+      Post this organization's device notifications to Slack channels. Connecting a workspace installs {Branding.friendly_platform_name()}'s Slack
       app there, which takes an admin of this organization. Choosing channels and what they hear takes the manage role.
     </p>
   </div>
@@ -192,7 +192,7 @@
           options={channel_options(@channels.result)}
         />
         <p class="text-xs text-base-500">
-          Every public channel is listed. To post to a private channel, invite the NervesHub app to it first.
+          Every public channel is listed. To post to a private channel, invite the {Branding.friendly_platform_name()} app to it first.
         </p>
       </div>
 

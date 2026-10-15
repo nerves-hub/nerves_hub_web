@@ -75,6 +75,19 @@ defmodule NervesHub.Integrations.Slack.UsersTest do
     assert is_nil(Users.linked_user("T0OTHER", "U0ALICE"))
   end
 
+  test "using a link records when, and looking it up does not", %{user: user} do
+    stub_sign_in("U0ALICE")
+    {:ok, %UserLink{last_used_at: nil}} = Users.link(user, "a-code", @redirect_uri)
+
+    assert Users.linked_user("T0ACME", "U0ALICE").id == user.id
+    assert [%{link: %UserLink{last_used_at: nil}}] = Users.list_links(user)
+
+    assert Users.use_link("T0ACME", "U0ALICE").id == user.id
+    assert [%{link: %UserLink{last_used_at: %DateTime{}}}] = Users.list_links(user)
+
+    assert is_nil(Users.use_link("T0ACME", "U0BOB"))
+  end
+
   test "signing in again moves the Slack user to whoever signed in", %{user: user} do
     stub_sign_in("U0ALICE")
     {:ok, _} = Users.link(user, "a-code", @redirect_uri)

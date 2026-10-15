@@ -6,7 +6,9 @@ defmodule NervesHubWeb.Integrations.Slack.ActionsTest do
   alias NervesHub.Devices.Connections
   alias NervesHub.Fixtures
   alias NervesHub.Integrations.Slack
+  alias NervesHub.Integrations.Slack.ScriptResults
   alias NervesHub.Integrations.Slack.UserLink
+  alias NervesHub.Integrations.Slack.Users
   alias NervesHubWeb.Integrations.Slack.Actions
   alias Phoenix.Socket.Broadcast
 
@@ -100,6 +102,31 @@ defmodule NervesHubWeb.Integrations.Slack.ActionsTest do
       assert text =~ "#{user.name} rebooted *#{device.identifier}* from Slack."
     end
 
+    test "does not reboot a device asked to reboot a moment ago, and says by whom", %{device: device, user: user} do
+      :ok = link!(user)
+      :ok = Phoenix.PubSub.subscribe(NervesHub.PubSub, "device:#{device.id}")
+
+      assert {:ok, "device.reboot"} = Actions.perform(click(device, "device.reboot"))
+
+      assert {:error, :just_rebooted} =
+               Actions.perform(click(device, "device.reboot", %{slack_user_id: "U0ALICE"}))
+
+      assert_receive %Broadcast{event: "reboot"}
+      refute_receive %Broadcast{event: "reboot"}, 100
+
+      assert %{"text" => text} = private_reply()
+
+      assert text ==
+               "#{device.identifier} was asked to reboot by #{user.name} less than a minute ago, so NervesHub did not ask again."
+    end
+
+    test "identifying twice in a row is fine", %{device: device, user: user} do
+      :ok = link!(user)
+
+      assert {:ok, "device.identify"} = Actions.perform(click(device, "device.identify"))
+      assert {:ok, "device.identify"} = Actions.perform(click(device, "device.identify"))
+    end
+
     test "asks the device to identify itself", %{device: device, user: user} do
       :ok = link!(user)
       :ok = Phoenix.PubSub.subscribe(NervesHub.PubSub, "device:#{device.id}")
@@ -107,6 +134,7 @@ defmodule NervesHubWeb.Integrations.Slack.ActionsTest do
       assert {:ok, "device.identify"} = Actions.perform(click(device, "device.identify"))
 
       assert_receive %Broadcast{event: "identify"}
+      assert [%{link: %{last_used_at: %DateTime{}}}] = Users.list_links(user)
       assert [log | _] = AuditLogs.logs_for(device)
       assert log.description =~ "identify itself from Slack"
     end
@@ -197,6 +225,52 @@ defmodule NervesHubWeb.Integrations.Slack.ActionsTest do
 
       assert :ok = Actions.handle_interaction(payload)
       assert_receive {:slack, "slack.com", "/api/chat.postMessage", _body}, 2000
+    end
+
+    test "acts on a request once, however often it is replayed", %{device: device, user: user} do
+      :ok = link!(user)
+      :ok = Phoenix.PubSub.subscribe(NervesHub.PubSub, "device:#{device.id}")
+
+      payload = %{
+        "type" => "block_actions",
+        "trigger_id" => "1728900000.1.abc",
+        "team" => %{"id" => "T0ACME"},
+        "user" => %{"id" => "U0ALICE", "username" => "alice"},
+        "response_url" => @response_url,
+        "actions" => [%{"action_id" => "device.identify", "value" => device.identifier}]
+      }
+
+      assert :ok = Actions.handle_interaction(payload)
+      assert :ok = Actions.handle_interaction(payload)
+
+      assert_receive %Broadcast{event: "identify"}, 2000
+      refute_receive %Broadcast{event: "identify"}, 300
+    end
+
+    test "shares a script's output when its Share button is clicked", %{device: device, user: user} do
+      :ok = link!(user)
+
+      id =
+        ScriptResults.store(%{
+          user_id: user.id,
+          team_id: "T0ACME",
+          slack_user_id: "U0ALICE",
+          device_identifier: device.identifier,
+          script_name: "uptime",
+          output: "up 3 days"
+        })
+
+      payload = %{
+        "type" => "block_actions",
+        "team" => %{"id" => "T0ACME"},
+        "user" => %{"id" => "U0ALICE"},
+        "response_url" => @response_url,
+        "actions" => [%{"action_id" => "script.share", "value" => id}]
+      }
+
+      assert :ok = Actions.handle_interaction(payload)
+      assert_receive {:slack, "hooks.slack.com", _path, body}, 2000
+      assert %{"response_type" => "in_channel"} = Jason.decode!(body)
     end
 
     test "ignores link buttons and anything else Slack sends", %{device: device} do

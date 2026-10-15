@@ -42,7 +42,7 @@ Events are held for 15 seconds before they are posted, and everything held for a
 
 A message about a single device has three buttons: **Open in NervesHub**, **Identify** and **Reboot**, which asks for confirmation first. Messages that summarize many devices have none.
 
-Identify and Reboot are done as a NervesHub user, so each person links their Slack account to their NervesHub account first. The first time someone clicks one of these buttons, Slack shows them, and only them, a link to a NervesHub page. There they sign in to NervesHub if they need to, then sign in with Slack. The Slack account linked is the one Slack says they signed in as, so nobody can link somebody else's Slack account, or get someone else to link theirs. Nothing is matched by email, because the workspace decides what email a Slack user has. Links are listed, and can be removed, under **Account Settings**.
+Identify and Reboot are done as a NervesHub user, so each person links their Slack account to their NervesHub account first. The first time someone clicks one of these buttons, Slack shows them, and only them, a link to a NervesHub page. There they sign in to NervesHub if they need to, then sign in with Slack. The Slack account linked is the one Slack says they signed in as, so nobody can link somebody else's Slack account, or get someone else to link theirs. Nothing is matched by email, because the workspace decides what email a Slack user has. A link is made once and lasts until it is removed. Links are listed under **Account Settings**, with when each was last used, so one nobody recognises stands out, and can be removed there.
 
 When a linked user clicks, NervesHub checks, at that moment:
 
@@ -51,6 +51,26 @@ When a linked user clicks, NervesHub checks, at that moment:
 - the device is online.
 
 If any check fails, only the person who clicked is told why. If they all pass, the device is asked to reboot or identify itself, the audit log records the user with "from Slack", and a reply in the message's thread tells the channel who did what.
+
+A device asked to reboot from Slack is not asked again from Slack for a minute, so a double click, two people clicking at once, or a button and a command together reboot it once. Whoever is refused is told who rebooted it. Each request Slack sends is acted on once, so one replayed while its signature is still good does nothing.
+
+## Slash commands
+
+`/nerveshub` works in any channel of a connected workspace, as the NervesHub user the Slack user linked, with the same checks as the buttons:
+
+| Command | Does |
+| --- | --- |
+| `/nerveshub device <identifier>` | Shows the device's connection, firmware version, health and product, with its buttons and **Share in channel**, which posts the card to the channel, saying who shared it. |
+| `/nerveshub identify <identifier>` | Asks the device to identify itself. |
+| `/nerveshub reboot <identifier>` | Reboots the device. |
+| `/nerveshub script <identifier>` | Lists the support scripts for the device's product. |
+| `/nerveshub script <identifier> <name>` | Runs a support script on the device, and shows its output. |
+| `/nerveshub link` | Links your Slack account to your NervesHub account. |
+| `/nerveshub help` | Lists these. |
+
+What a command shows is seen only by whoever typed it. That includes a script's output, which can hold anything the device does, and is cut at 2,900 characters. The output comes with a **Share in channel** button: whoever ran the script can post it to the channel, as themselves, once, within 30 minutes. A reboot or identify that was done is posted to the channel, saying who did it, and recorded in the device's audit log as the buttons' are. A script run from Slack is recorded in the audit log too.
+
+Viewing a device and running support scripts take the organization's `view` role, as they do in NervesHub. Identify and reboot take `manage`.
 
 ## What NervesHub keeps
 
@@ -66,7 +86,9 @@ The app asks for these bot scopes when it is installed:
 | `groups:read` | List private channels the app has been invited to. |
 | `commands` | Slash commands and message actions. |
 
-Slack only grants new scopes when the app is installed again, so the app asks for all of them now. That way a workspace connected today does not need reconnecting when commands arrive.
+Slack only grants new scopes when the app is installed again, so the app asked for all of these from the start, `commands` included.
+
+Script output run from Slack is kept for 30 minutes, so that whoever ran it can share it, and is then deleted.
 
 For each linked Slack user, NervesHub keeps their Slack user id and name, the workspace's id and name, and the NervesHub user they linked to. Signing in with Slack asks for the `openid` and `profile` scopes, only to read who signed in; NervesHub does not keep the token.
 
@@ -76,7 +98,8 @@ For each linked Slack user, NervesHub keeps their Slack user id and name, the wo
 2. Paste the manifest below, with `https://nerves-hub.example.com` replaced by your instance's URL.
 3. Under **Manage Distribution**, turn on public distribution so that workspaces other than the development one can install the app.
 4. From **Basic Information**, set `SLACK_CLIENT_ID`, `SLACK_CLIENT_SECRET` and `SLACK_SIGNING_SECRET` on the instance, plus a `SECRETS_ENCRYPTION_KEY` (`openssl rand -base64 32`). See [runtime configuration](runtime_configuration.md#slack).
-5. Restart the instance. **Add to Slack** appears on each organization's Integrations page.
+5. Optionally, set `FRIENDLY_PLATFORM_NAME` to the name your users know the instance by. Slack messages and the Slack pages use it ("Open in NervesHub" by default).
+6. Restart the instance. **Add to Slack** appears on each organization's Integrations page.
 
 ```json
 {
@@ -88,7 +111,16 @@ For each linked Slack user, NervesHub keeps their Slack user id and name, the wo
     "bot_user": {
       "display_name": "NervesHub",
       "always_online": true
-    }
+    },
+    "slash_commands": [
+      {
+        "command": "/nerveshub",
+        "url": "https://nerves-hub.example.com/integrations/slack/commands",
+        "description": "Check on and act on NervesHub devices",
+        "usage_hint": "device | identify | reboot | script <identifier> [script] | link | help",
+        "should_escape": false
+      }
+    ]
   },
   "oauth_config": {
     "redirect_urls": [
@@ -117,7 +149,7 @@ For each linked Slack user, NervesHub keeps their Slack user id and name, the wo
 
 Slack checks the events URL when the manifest is saved, so the instance must already be reachable at that URL with `SLACK_SIGNING_SECRET` set. If it is not yet, save the manifest without `event_subscriptions`, configure and restart the instance, then add them back.
 
-An app created before buttons arrived needs `interactivity` added to its manifest, and the `/integrations/slack/link/callback` redirect URL. Without them, clicking Identify or Reboot shows an error, and linking an account fails.
+An app created before buttons arrived needs `interactivity` added to its manifest, and the `/integrations/slack/link/callback` redirect URL. Without them, clicking Identify or Reboot shows an error, and linking an account fails. An app created before slash commands arrived needs `slash_commands` added.
 
 ## Requests from Slack
 

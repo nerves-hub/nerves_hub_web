@@ -31,8 +31,10 @@ defmodule NervesHubWeb.Integrations.Slack.Actions do
 
   alias NervesHub.Accounts
   alias NervesHub.Accounts.Org
+  alias NervesHub.Branding
   alias NervesHub.DeviceEvents
   alias NervesHub.Devices.Device
+  alias NervesHub.Integrations.Slack.Claims
   alias NervesHub.Integrations.Slack.Client
   alias NervesHub.Integrations.Slack.Connection
   alias NervesHub.Integrations.Slack.Users
@@ -40,6 +42,8 @@ defmodule NervesHubWeb.Integrations.Slack.Actions do
   alias NervesHub.Repo
   alias NervesHub.Tracker
   alias NervesHubWeb.Helpers.Authorization
+  alias NervesHubWeb.Integrations.Slack.DeviceCards
+  alias NervesHubWeb.Integrations.Slack.ScriptRuns
 
   require Logger
 
@@ -47,6 +51,12 @@ defmodule NervesHubWeb.Integrations.Slack.Actions do
     "device.reboot" => %{permission: :"device:reboot", verb: "reboot"},
     "device.identify" => %{permission: :"device:identify", verb: "identify itself"}
   }
+
+  # Slack's signature on a request lasts five minutes; a little longer covers
+  # clocks that disagree.
+  @replay_window_seconds 600
+
+  @reboot_window_seconds 60
 
   @typedoc "Where a click came from, read from Slack's interaction payload."
   @type click() :: %{
@@ -71,14 +81,60 @@ defmodule NervesHubWeb.Integrations.Slack.Actions do
   """
   @spec handle_interaction(map()) :: :ok
   def handle_interaction(%{"type" => "block_actions", "actions" => actions} = payload) when is_list(actions) do
-    for action <- actions, click = click(payload, action), not is_nil(click) do
-      {:ok, _pid} = Task.Supervisor.start_child(NervesHub.TaskSupervisor, fn -> perform(click) end)
-    end
+    _ =
+      if first_time?(payload) do
+        for action <- actions, job = job(payload, action), not is_nil(job) do
+          {:ok, _pid} = Task.Supervisor.start_child(NervesHub.TaskSupervisor, job)
+        end
+      end
 
     :ok
   end
 
   def handle_interaction(_payload), do: :ok
+
+  # What a click asks for, as a function to run in a task, or `nil` for a
+  # click NervesHub does nothing with (a link button, say).
+  defp job(payload, %{"action_id" => "script.share", "value" => result_id}) when is_binary(result_id) do
+    case payload do
+      %{"team" => %{"id" => team_id}, "user" => %{"id" => slack_user_id}} ->
+        share = %{
+          result_id: result_id,
+          team_id: team_id,
+          slack_user_id: slack_user_id,
+          response_url: payload["response_url"]
+        }
+
+        fn -> ScriptRuns.share(share) end
+
+      _ ->
+        nil
+    end
+  end
+
+  defp job(payload, %{"action_id" => "device.share", "value" => identifier}) when is_binary(identifier) do
+    case payload do
+      %{"team" => %{"id" => team_id}, "user" => %{"id" => slack_user_id}} ->
+        share = %{
+          identifier: identifier,
+          team_id: team_id,
+          slack_user_id: slack_user_id,
+          response_url: payload["response_url"]
+        }
+
+        fn -> DeviceCards.share(share) end
+
+      _ ->
+        nil
+    end
+  end
+
+  defp job(payload, action) do
+    case click(payload, action) do
+      nil -> nil
+      click -> fn -> perform(click) end
+    end
+  end
 
   defp click(payload, %{"action_id" => action_id, "value" => identifier})
        when is_map_key(@actions, action_id) and is_binary(identifier) do
@@ -109,42 +165,102 @@ defmodule NervesHubWeb.Integrations.Slack.Actions do
   def perform(click) do
     %{permission: permission, verb: verb} = Map.fetch!(@actions, click.action_id)
 
-    with {:user, %Accounts.User{} = user} <- {:user, Users.linked_user(click.team_id, click.slack_user_id)},
-         {:device, %Device{} = device} <- {:device, device(click.identifier)},
-         {:connected, true} <- {:connected, connected?(device.org_id, click.team_id)},
+    case authorize(click.team_id, click.slack_user_id, click.identifier, permission, "ask a device to #{verb}") do
+      {:ok, user, device} ->
+        with {:online, true} <- {:online, Tracker.online?(device)},
+             :ok <- not_just_rebooted(click.action_id, device, user) do
+          {:ok, _device} = act(click.action_id, device, user, via(click))
+          :ok = announce(click, done(click.action_id, user, device))
+          {:ok, click.action_id}
+        else
+          {:online, false} -> refuse(click, :offline, offline_message(device, verb))
+          {:error, :just_rebooted, message} -> refuse(click, :just_rebooted, message)
+        end
+
+      {:error, reason, message} ->
+        refuse(click, reason, message)
+    end
+  end
+
+  @doc """
+  Who a Slack user is in NervesHub, and the device they named, if they may
+  do what `permission` allows to it; otherwise why not, worded for the Slack
+  user (`what` finishes "Your role in NervesHub does not let you ...").
+
+  The checks, made fresh each time: the Slack user linked a NervesHub
+  account, the device exists, its organization is connected to the
+  workspace the request came from, and the NervesHub user is a member there
+  whose role has `permission`. Shared by buttons and slash commands
+  (`NervesHubWeb.Integrations.Slack.Commands`).
+  """
+  @spec authorize(String.t(), String.t(), String.t(), atom(), String.t()) ::
+          {:ok, Accounts.User.t(), Device.t()} | {:error, atom(), String.t() | map()}
+  def authorize(team_id, slack_user_id, identifier, permission, what) do
+    with {:user, %Accounts.User{} = user} <- {:user, Users.use_link(team_id, slack_user_id)},
+         {:device, %Device{} = device} <- {:device, device(identifier)},
+         {:connected, true} <- {:connected, connected?(device.org_id, team_id)},
          {:member, {:ok, org_user}} <- {:member, Accounts.get_org_user(device.org, user)},
-         {:allowed, true} <- {:allowed, Authorization.authorized?(permission, org_user.role)},
-         {:online, true} <- {:online, Tracker.online?(device)} do
-      {:ok, _device} = act(click.action_id, device, user, via(click))
-      :ok = announce(click, done(click.action_id, user, device))
-      {:ok, click.action_id}
+         {:allowed, true} <- {:allowed, Authorization.authorized?(permission, org_user.role)} do
+      {:ok, user, device}
     else
       {:user, nil} ->
-        refuse(click, :not_linked, link_message(click))
+        {:error, :not_linked, link_message(team_id)}
 
       {:device, nil} ->
-        refuse(click, :no_device, "#{escape(click.identifier)} is no longer in NervesHub.")
+        {:error, :no_device, "#{escape(identifier)} is not in #{platform()}."}
 
       {:connected, false} ->
-        refuse(
-          click,
-          :not_connected,
-          "This Slack workspace is not connected to the organization #{escape(click.identifier)} belongs to."
-        )
+        {:error, :not_connected,
+         "This Slack workspace is not connected to the organization #{escape(identifier)} belongs to."}
 
       {:member, {:error, :not_found}} ->
-        refuse(
-          click,
-          :not_member,
-          "Your NervesHub account is not a member of the organization #{escape(click.identifier)} belongs to."
-        )
+        {:error, :not_member,
+         "Your #{platform()} account is not a member of the organization #{escape(identifier)} belongs to."}
 
       {:allowed, false} ->
-        refuse(click, :not_allowed, "Your role in NervesHub does not let you ask a device to #{verb}.")
-
-      {:online, false} ->
-        refuse(click, :offline, "#{escape(click.identifier)} is offline, so NervesHub could not ask it to #{verb}.")
+        {:error, :not_allowed, "Your role in #{platform()} does not let you #{what}."}
     end
+  end
+
+  @doc """
+  Whether a Slack request is new, by Slack's `trigger_id`, which is unique to
+  each click or command. A request Slack signed can be replayed by whoever
+  captured it for as long as its signature lasts (five minutes), so one seen
+  before is not acted on again. Taking the id is what marks it seen.
+  """
+  @spec first_time?(map()) :: boolean()
+  def first_time?(%{"trigger_id" => trigger_id}) when is_binary(trigger_id) do
+    Claims.claim("request:" <> trigger_id, @replay_window_seconds) == :ok
+  end
+
+  def first_time?(_request), do: true
+
+  @doc """
+  `:ok` unless the action is a reboot and the device was asked to reboot from
+  Slack in the last minute, which a double click, two people clicking at
+  once, or a button and a command together would otherwise do twice.
+  Claims the reboot for `user` when it is `:ok`.
+  """
+  @spec not_just_rebooted(String.t(), Device.t(), Accounts.User.t()) :: :ok | {:error, :just_rebooted, String.t()}
+  def not_just_rebooted("device.reboot", device, user) do
+    case Claims.claim("reboot:#{device.id}", @reboot_window_seconds, user.name) do
+      :ok ->
+        :ok
+
+      {:held, holder, _expires_at} ->
+        by = if holder, do: " by #{escape(holder)}", else: ""
+
+        {:error, :just_rebooted,
+         "#{escape(device.identifier)} was asked to reboot#{by} less than a minute ago, so #{platform()} did not ask again."}
+    end
+  end
+
+  def not_just_rebooted(_action, _device, _user), do: :ok
+
+  @doc "What a device that is offline cannot be asked to do, worded for Slack."
+  @spec offline_message(Device.t(), String.t()) :: String.t()
+  def offline_message(device, verb) do
+    "#{escape(device.identifier)} is offline, so #{platform()} could not ask it to #{verb}."
   end
 
   defp device(identifier) do
@@ -166,11 +282,19 @@ defmodule NervesHubWeb.Integrations.Slack.Actions do
   defp act("device.reboot", device, user, via), do: DeviceEvents.reboot(device, user, via: via)
   defp act("device.identify", device, user, via), do: DeviceEvents.identify(device, user, via: via)
 
-  # Which Slack user it was, by id, for the audit log: the NervesHub user is
-  # who it was done as, and the Slack user is who clicked.
-  defp via(click) do
-    name = if click.slack_username, do: "@#{click.slack_username}, ", else: ""
-    "Slack user #{click.slack_user_id} (#{name}workspace #{click.team_id})"
+  @doc """
+  Which Slack user it was, by id, for the audit log: the NervesHub user is
+  who it was done as, and the Slack user is who asked.
+  """
+  @spec via(%{
+          required(:slack_user_id) => String.t(),
+          required(:slack_username) => String.t() | nil,
+          required(:team_id) => String.t(),
+          optional(atom()) => term()
+        }) :: String.t()
+  def via(request) do
+    name = if request.slack_username, do: "@#{request.slack_username}, ", else: ""
+    "Slack user #{request.slack_user_id} (#{name}workspace #{request.team_id})"
   end
 
   defp done("device.reboot", user, device),
@@ -179,18 +303,23 @@ defmodule NervesHubWeb.Integrations.Slack.Actions do
   defp done("device.identify", user, device),
     do: ":mag: #{escape(user.name)} asked *#{escape(device.identifier)}* to identify itself, from Slack."
 
-  defp link_message(click) do
-    url = NervesHubWeb.Endpoint.url() <> "/integrations/slack/link?" <> URI.encode_query(%{team: click.team_id})
+  @doc """
+  The message that sends a Slack user who has not linked their NervesHub
+  account to do so. Shown only to them.
+  """
+  @spec link_message(String.t()) :: %{text: String.t(), blocks: [map()]}
+  def link_message(team_id) do
+    url = NervesHubWeb.Endpoint.url() <> "/integrations/slack/link?" <> URI.encode_query(%{team: team_id})
 
     %{
-      text: "Link your Slack account to NervesHub to use these buttons.",
+      text: "Link your Slack account to #{platform()} to act on devices from Slack.",
       blocks: [
         %{
           type: "section",
           text: %{
             type: "mrkdwn",
             text:
-              "Link your Slack account to NervesHub to use these buttons. You sign in to NervesHub, then with Slack, and what you do with the buttons is done as you in NervesHub, with your permissions there."
+              "Link your Slack account to #{platform()} to act on devices from Slack. You sign in to #{platform()}, then with Slack, and what you then do from Slack is done as you in #{platform()}, with your permissions there."
           }
         },
         %{
@@ -242,7 +371,13 @@ defmodule NervesHubWeb.Integrations.Slack.Actions do
 
   defp announce(click, text), do: respond_privately(click, text)
 
-  defp escape(value) do
+  @doc "The name people know this instance by (`NervesHub.Branding`), escaped for Slack."
+  @spec platform() :: String.t()
+  def platform(), do: escape(Branding.friendly_platform_name())
+
+  @doc "Escapes Slack's mrkdwn control characters."
+  @spec escape(term()) :: String.t()
+  def escape(value) do
     String.replace(to_string(value), ["&", "<", ">"], fn
       "&" -> "&amp;"
       "<" -> "&lt;"

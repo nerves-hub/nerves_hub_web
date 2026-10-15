@@ -15,6 +15,7 @@ defmodule NervesHubWeb.Integrations.Slack.OAuthController do
 
   alias NervesHub.Accounts
   alias NervesHub.Accounts.Scope
+  alias NervesHub.Branding
   alias NervesHub.Integrations.Slack
   alias NervesHub.Integrations.Slack.Users
   alias NervesHubWeb.Helpers.Authorization
@@ -64,7 +65,7 @@ defmodule NervesHubWeb.Integrations.Slack.OAuthController do
         conn
         |> put_flash(
           :error,
-          "NervesHub connects to one Slack workspace at a time. Install it in a workspace rather than across your Enterprise Grid organization."
+          "#{Branding.friendly_platform_name()} connects to one Slack workspace at a time. Install it in a workspace rather than across your Enterprise Grid organization."
         )
         |> redirect(to: integrations_path(scope))
 
@@ -155,7 +156,10 @@ defmodule NervesHubWeb.Integrations.Slack.OAuthController do
   defp team(_team), do: nil
 
   defp error_message(%Ecto.Changeset{}), do: "its answer could not be saved"
-  defp error_message({:rate_limited, seconds}), do: "Slack asked NervesHub to wait #{seconds} seconds"
+
+  defp error_message({:rate_limited, seconds}),
+    do: "Slack asked #{Branding.friendly_platform_name()} to wait #{seconds} seconds"
+
   defp error_message(reason) when is_binary(reason), do: reason
 
   defp integrations_path(%Scope{org: org}), do: ~p"/org/#{org}/settings/integrations"
