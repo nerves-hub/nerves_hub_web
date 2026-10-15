@@ -65,6 +65,8 @@ defmodule NervesHub.Extensions.Metrics do
   alias NervesHub.Extensions.PubSub
   alias NervesHub.Extensions.State
   alias NervesHub.RateLimit.Metrics, as: RateLimit
+  alias NervesHub.Webhooks
+  alias NervesHub.Webhooks.Payloads
 
   require Logger
 
@@ -130,6 +132,8 @@ defmodule NervesHub.Extensions.Metrics do
       # them back. One judgement per message, however many batched reports
       # it carried.
       _ = HealthEvaluation.evaluate_and_save(state.device_info, in_hand_samples(reports))
+
+      :ok = dispatch_webhook(state.device_info, reports)
     end
 
     {state, []}
@@ -210,6 +214,30 @@ defmodule NervesHub.Extensions.Metrics do
         {key, value} <- metrics,
         is_number(value),
         do: {key, timestamp, value}
+  end
+
+  # Checked before building, rather than leaving it to `dispatch/3`, because a
+  # batch whose every report was skipped is not worth an event.
+  defp dispatch_webhook(device_info, reports) do
+    with true <- Webhooks.subscribed?(device_info.product_id, "device.metrics_reported"),
+         [_ | _] = stored <- stored_reports(reports) do
+      Webhooks.dispatch(device_info.product_id, "device.metrics_reported", fn ->
+        Payloads.metrics_reported(device_info, stored)
+      end)
+    else
+      _nothing_to_send -> :ok
+    end
+  end
+
+  # The batch as a webhook carries it: the reports `record/2` stored, each with
+  # the readings it kept.
+  defp stored_reports(reports) do
+    for %{"metrics" => metrics} = report <- reports,
+        is_map(metrics),
+        {:ok, timestamp} <- [timestamp(report)],
+        readings <- [Store.storable(metrics)],
+        readings != %{},
+        do: %{timestamp: timestamp, metrics: readings}
   end
 
   # A reading is only worth what its timestamp is worth. A device whose clock

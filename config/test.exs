@@ -31,6 +31,10 @@ config :nerves_hub, NervesHub.SwooshMailer, adapter: Test
 config :nerves_hub, NervesHub.Uploads, backend: NervesHub.Uploads.File
 config :nerves_hub, NervesHub.Uploads.File, local_path: System.tmp_dir(), public_path: "/uploads"
 
+config :nerves_hub, NervesHub.Webhooks,
+  allow_private_destinations: true,
+  req_options: [plug: {Req.Test, NervesHub.Webhooks}]
+
 # Both endpoints listen for real during tests, so two checkouts running their
 # suites at once collide on the port and the second fails to boot with
 # `:eaddrinuse` — which reads as a broken application rather than a busy port.

@@ -35,6 +35,12 @@ if key = System.get_env("SESSION_COOKIE_KEY") do
   config :nerves_hub, session_cookie_key: key
 end
 
+# Self-hosted instances often deliver webhooks to receivers on their own
+# network. Left unset, the compile-time default stands: off, except in dev.
+if allow_private = System.get_env("WEBHOOKS_ALLOW_PRIVATE_DESTINATIONS") do
+  config :nerves_hub, NervesHub.Webhooks, allow_private_destinations: allow_private == "true"
+end
+
 config :nerves_hub, :device_socket_drainer,
   batch_size: String.to_integer(System.get_env("DEVICE_SOCKET_DRAINER_BATCH_SIZE", "1000")),
   batch_interval: String.to_integer(System.get_env("DEVICE_SOCKET_DRAINER_BATCH_INTERVAL", "4000")),
