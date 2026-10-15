@@ -114,7 +114,9 @@ when adding or removing one.
   permissions checked at click time; `NervesHubWeb.Integrations.Slack.Commands` answers
   `/nerveshub` with the same checks (`Integrations.Slack.Actions.authorize/5`), and
   `NervesHubWeb.Integrations.Slack.WorkflowSteps` approves, retries or skips a deployment
-  workflow step (`Integrations.Slack.Actions.authorize_in/6`). `NervesHubWeb.Integrations.Slack.Unfurls`
+  workflow step (`Integrations.Slack.Actions.authorize_in/6`), and
+  `Slack.WorkflowMessages` edits the messages with those buttons once the
+  step is dealt with, by any route. `NervesHubWeb.Integrations.Slack.Unfurls`
   previews device and deployment group links posted in Slack, checked
   against whoever posted them. Hidden unless the instance has a Slack app;
   see [docs/slack.md](docs/slack.md).

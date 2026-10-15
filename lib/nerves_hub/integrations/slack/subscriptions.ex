@@ -35,6 +35,7 @@ defmodule NervesHub.Integrations.Slack.Subscriptions do
   alias NervesHub.Integrations.Slack.Messages
   alias NervesHub.Integrations.Slack.PendingEvent
   alias NervesHub.Integrations.Slack.Subscription
+  alias NervesHub.Integrations.Slack.WorkflowMessages
   alias NervesHub.ProductNotifications
   alias NervesHub.Repo
   alias NervesHub.Workers.PostSlackEvents
@@ -276,10 +277,12 @@ defmodule NervesHub.Integrations.Slack.Subscriptions do
     |> Enum.group_by(& &1.type)
     |> Enum.sort_by(fn {_key, [first | _]} -> first.id end)
     |> Enum.reduce_while(:ok, fn {key, group}, :ok ->
-      message = Messages.build(key, Enum.map(group, & &1.data))
+      events = Enum.map(group, & &1.data)
+      message = Messages.build(key, events)
 
       case Client.post_message(subscription.connection.workspace.bot_token, subscription.channel_id, message) do
-        {:ok, _} ->
+        {:ok, answer} ->
+          :ok = WorkflowMessages.record(subscription, key, events, answer)
           :ok = delete_events(group)
           {:cont, :ok}
 

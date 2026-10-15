@@ -20,15 +20,19 @@ defmodule NervesHubWeb.Integrations.Slack.WorkflowSteps do
   Postgres (`NervesHub.Integrations.Slack.Claims`), so a double click, or two people
   clicking at once, approve or retry it once.
 
-  What was done is audited with the Slack user who did it and posted in the
-  message's thread. The orchestrator is then nudged to carry on, as the
-  deployment group's page does.
+  What was done is audited with the Slack user who did it, and the
+  orchestrator is nudged to carry on, as the deployment group's page does.
+  The message clicked on is then edited to say who did what
+  (`NervesHub.Integrations.Slack.WorkflowMessages`), as every message with
+  buttons for the step is. A message posted before messages were kept up to
+  date is not edited, so what was done is posted in its thread instead.
   """
 
   alias NervesHub.Accounts.User
   alias NervesHub.AuditLogs.DeploymentGroupTemplates
   alias NervesHub.Integrations.Slack.Claims
   alias NervesHub.Integrations.Slack.Users
+  alias NervesHub.Integrations.Slack.WorkflowMessages
   alias NervesHub.ManagedDeployments
   alias NervesHub.ManagedDeployments.DeploymentGroup
   alias NervesHub.ManagedDeployments.DeploymentRelease
@@ -108,7 +112,11 @@ defmodule NervesHubWeb.Integrations.Slack.WorkflowSteps do
       # for the next pass. The orchestrator is what moves the workflow on.
       :ok = ManagedDeployments.broadcast(deployment_group, "deployments/update")
 
-      :ok = Actions.announce(click, done(action, user, step, deployment_group))
+      _ =
+        if not WorkflowMessages.recorded?(click.channel_id, click.message_ts) do
+          :ok = Actions.announce(click, done(action, user, step, deployment_group))
+        end
+
       {:ok, action}
     else
       {:user, nil} ->
