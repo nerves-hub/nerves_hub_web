@@ -2,7 +2,7 @@
 
 ## v2.5.0
 
-NervesHub can now manage more than Nerves devices. Alongside fwup it accepts ESP-IDF application images, AtomVM packbeams and RAUC bundles, each behind its own setting. Deployment groups gain workflows for staged rollouts, required releases, and a mode where the device decides when to update. Devices can report metrics, alarms and errors through new extensions, and the device list has a query language for finding them.
+NervesHub can now manage more than Nerves devices. Alongside fwup it accepts ESP-IDF application images, AtomVM packbeams and RAUC bundles, each behind its own setting. Deployment groups gain workflows for staged rollouts, required releases, and a mode where the device decides when to update. Devices can report metrics, alarms and errors through new extensions, and the device list has a query language for finding them. Organizations can send device and workflow events to webhooks and Slack, and act on devices from Slack.
 
 More fleet-scale data now lives in ClickHouse, and device nodes use a good deal less memory.
 
@@ -11,7 +11,7 @@ More fleet-scale data now lives in ClickHouse, and device nodes use a good deal 
 - **Elixir 1.20 and OTP 29.** Building from source needs Elixir 1.20 and OTP 29. The Docker image moves to Ubuntu 26.04 (`resolute`) and builds fwup 1.17.1. (#2716, #3111)
 - **Some migrations drop data.** Device health history, the PostgreSQL device metrics table and the old `device_connections` table are dropped, not migrated. Metric history now lives in ClickHouse and starts empty. Once these migrations have run, rolling back to 2.4.0 isn't supported. (#2765, #2996, #3006)
 - **One migration locks `devices`.** Dropping the old device metrics table takes an exclusive lock on `devices`. The migration gives up after 5 seconds instead of stalling every other query, so on a busy database it can fail. If it does, deploy again at a quieter time. (#2996)
-- **Rolling deploys.** Until every node runs 2.5.0, device consoles, local shells and live device page updates may not reach a device connected to a node on the other version. (#2851, #3132, #3133, #3135)
+- **Rolling deploys.** Until every node runs 2.5.0, messages between nodes on different versions can be lost. That covers device consoles and local shells, live device updates in the UI, health reports and orchestrator events. It recovers when the rollout completes. Any other application in the cluster that runs `group` needs 0.3.1 in the same deploy. (#2851, #3132, #3133, #3135, #3141)
 - **ClickHouse is still optional**, but connection history, metric history, error reports, Product Insights and the Data History tab all need it. Without `CLICKHOUSE_URL`, devices keep reporting metrics through the health extension.
 - **Firmware versions must be valid SemVer.** Firmware and archive uploads with any other version are rejected. Existing rows are left alone, and `mix nerves_hub.versions.report_invalid` lists them. (#2858)
 - **New products require unique firmware versions** per platform and architecture. Existing products keep the old behavior, and the setting can be changed on any product. (#2864)
@@ -31,6 +31,7 @@ More fleet-scale data now lives in ClickHouse, and device nodes use a good deal 
 - **UI**: A light theme, Tailwind 4, a CMD-K command palette, product notifications, and dates in the viewer's timezone
 - **API**: A complete OpenAPI spec with new docs, plus endpoints for logs, metrics, shared secrets, scripts and firmware downloads
 - **Device Connections**: Lower memory use on device nodes, TLS 1.3 session resumption, PROXY protocol v2, and a MessagePack serializer
+- **Integrations**: Webhooks for device and workflow events, and a Slack app with notifications, device actions, slash commands and link previews
 
 ### Added
 
@@ -56,6 +57,13 @@ More fleet-scale data now lives in ClickHouse, and device nodes use a good deal 
 - Notify a product when a device can't start an extension (#3012)
 - Configurable health profiles (#2992)
 - Product Notifications (#2543), with a count in the sidebar (#2748)
+- Webhooks for device events (#3117) and deployment workflow steps (#3138), set up on a new Integrations page or through the API. See [docs/webhooks.md](docs/webhooks.md)
+- Connect Slack workspaces to an organization (#3119). This needs a Slack app and `SECRETS_ENCRYPTION_KEY`; see [docs/slack.md](docs/slack.md)
+- Post device notifications to Slack channels (#3120)
+- Reboot and identify devices from Slack (#3122)
+- Answer `/nerveshub` slash commands in Slack (#3123)
+- Approve a waiting deployment workflow, or retry or skip a failed step, from Slack (#3138)
+- Preview device and deployment group links posted in Slack (#3142)
 - Optionally hard-delete soft deleted devices with `CLEAN_UP_SOFT_DELETED_DEVICES` (#2543)
 - Product Insights (#2772), including flapping connections (#2785), links into the device list (#2790), 24 hour and 4 week ranges (#2798) in the viewer's timezone (#2799), and a firmware version chart (#3021)
 - Track device firmware history (#2665)
@@ -113,6 +121,7 @@ More fleet-scale data now lives in ClickHouse, and device nodes use a good deal 
 - Health and Metrics no longer hold a `:group` key per device (#3133)
 - Find the local shell on demand instead of keeping it in `:group` (#3135)
 - Use the `:group` library for targeted device-to-UI messages (#2851)
+- Upgrade `group` to 0.3.1 and cap its replica oplog (#3141), and heartbeat its peers every 5 seconds instead of every second (#3145)
 - Move device metrics to ClickHouse (#2996)
 - Split device health into status, alarms and connection metadata (#3006)
 - Only track the most recent device connection in PostgreSQL (#2569), and drop the old `device_connections` table (#2765) and connection columns on `devices` (#2778)
@@ -202,6 +211,7 @@ More fleet-scale data now lives in ClickHouse, and device nodes use a good deal 
 - Count org admins when removing a user from any users page (#3084)
 - Show the sign-in failure page when a Google name fails validation (#3085)
 - Register CA certificates that have no Authority Key Identifier (#3115)
+- Accept expired and not-yet-valid CA certificates when registering a CA, and say why ownership verification failed (#3146)
 - Fix a concurrency issue with the CLI session cache (#2779)
 - Fix deployment group activity pagination (#2848)
 - Fix the deployment group filter being reset (#2623, #2624)
@@ -245,7 +255,7 @@ More fleet-scale data now lives in ClickHouse, and device nodes use a good deal 
 - **finch**: 0.21.0 -> 0.24.0
 - **floki**: 0.38.0 -> 0.38.4
 - **flop**: 0.26.3 -> 0.29.0
-- **group**: 0.2.1 (new)
+- **group**: 0.3.1 (new)
 - **hackney**: 1.25.0 -> 4.8.5
 - **hammer**: 7.1.0 -> 7.5.0
 - **hlclock**: 1.0.0 -> 1.1.1
