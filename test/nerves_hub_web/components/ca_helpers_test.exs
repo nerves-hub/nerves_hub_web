@@ -6,8 +6,8 @@ defmodule NervesHubWeb.Components.CAHelpersTest do
   alias NervesHub.Devices.CACertificate
   alias NervesHubWeb.Components.CAHelpers
 
-  defp status(not_after) do
-    render_component(&CAHelpers.certificate_status/1, not_after: not_after)
+  defp status(not_after, not_before \\ DateTime.shift(DateTime.utc_now(), year: -1)) do
+    render_component(&CAHelpers.certificate_status/1, not_before: not_before, not_after: not_after)
   end
 
   describe "certificate_status/1" do
@@ -30,6 +30,14 @@ defmodule NervesHubWeb.Components.CAHelpersTest do
 
       assert html =~ "Expired"
       assert html =~ "text-alert-content"
+    end
+
+    test "a CA before its not_before is not yet valid" do
+      now = DateTime.utc_now()
+      html = status(DateTime.shift(now, year: 1), DateTime.shift(now, day: 1))
+
+      assert html =~ "Not Yet Valid"
+      assert html =~ "text-warning-content"
     end
   end
 

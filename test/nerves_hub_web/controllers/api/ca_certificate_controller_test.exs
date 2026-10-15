@@ -4,6 +4,7 @@ defmodule NervesHubWeb.API.CACertificateControllerTest do
   alias NervesHub.Certificate
   alias NervesHub.Devices.CACertificates
   alias X509.Certificate.Extension
+  alias X509.Certificate.Validity
 
   describe "index" do
     test "lists all ca certificates", %{conn: conn, org: org} do
@@ -76,6 +77,17 @@ defmodule NervesHubWeb.API.CACertificateControllerTest do
 
       assert {:ok, %{aki: nil, ski: ski}} = CACertificates.get_ca_certificate_by_serial(serial)
       assert ski == Certificate.get_ski(ca_cert)
+    end
+
+    test "accepts a CA that has expired", %{conn: conn, org: org} do
+      ca_key = X509.PrivateKey.new_ec(:secp256r1)
+      validity = Validity.new(~U[2020-01-01 00:00:00Z], ~U[2025-01-01 00:00:00Z])
+      ca_cert = X509.Certificate.self_signed(ca_key, "CN=#{org.name}", template: :root_ca, validity: validity)
+
+      conn = post(conn, ~p"/api/orgs/#{org.name}/ca_certificates", create_params(conn, org, ca_cert, ca_key))
+
+      serial = Certificate.get_serial_number(ca_cert)
+      assert %{"data" => %{"serial" => ^serial}} = json_response(conn, 201)
     end
 
     test "renders errors when the CA has no SKI", %{conn: conn, org: org} do
@@ -171,7 +183,11 @@ defmodule NervesHubWeb.API.CACertificateControllerTest do
       conn = post(conn, ~p"/api/orgs/#{org.name}/ca_certificates", params)
 
       assert %{"errors" => resp_data} = json_response(conn, 422)
-      assert resp_data["detail"] == "CA Certificate ownership verification failed"
+
+      assert resp_data["detail"] ==
+               "CA Certificate ownership verification failed. " <>
+                 "The verification certificate has no urn:nerveshub:verify: Subject Alternative Name. " <>
+                 "Put the registration code in the CSR's SAN, and keep it when signing (openssl's -copy_extensions copy)."
     end
 
     test "renders errors when data is invalid", %{conn: conn, org: org} do

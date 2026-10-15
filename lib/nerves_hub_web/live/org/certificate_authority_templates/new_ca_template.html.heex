@@ -46,9 +46,11 @@
 
         <div class="mb-6">
           <h3 class="mb-2 text-base font-semibold text-base-50">Step 3</h3>
-          <p class="mb-2 text-sm text-base-400">Create a CSR with the generated registration code in the <strong>Subject Alternative Name (SAN)</strong> field</p>
+          <p class="mb-2 text-sm text-base-400">
+            Create a CSR with the generated registration code in the <strong>Subject Alternative Name (SAN)</strong> field. The code is valid for one hour.
+          </p>
           <pre class="overflow-x-auto rounded border border-base-700 bg-base-900 p-3"><code class="text-xs text-base-300" phx-hook="HighlightCode" id="step-3">$ openssl req -new -key verificationCert.key -out verificationCert.csr \
-      -subj "/CN=certificate-verification"
+      -subj "/CN=certificate-verification" \
       -addext "subjectAltName=URI:urn:nerveshub:verify:{@registration_code}"</code></pre>
         </div>
 

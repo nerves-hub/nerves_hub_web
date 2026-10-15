@@ -1,9 +1,11 @@
 defmodule NervesHub.Devices.CACertificatesTest do
   use NervesHub.DataCase, async: true
 
+  alias NervesHub.Certificate
   alias NervesHub.Devices
   alias NervesHub.Devices.CACertificates
   alias NervesHub.Fixtures
+  alias X509.Certificate.Validity
 
   setup do
     user = Fixtures.user_fixture()
@@ -198,5 +200,48 @@ defmodule NervesHub.Devices.CACertificatesTest do
 
       assert CACertificates.by_ski(org, [other_ca.db_cert.ski]) == %{}
     end
+  end
+
+  describe "create_ca_certificate/2 with check_expiration" do
+    test "registers an expired CA when it is off", %{org: org} do
+      assert {:ok, %{check_expiration: false}} =
+               CACertificates.create_ca_certificate(org, ca_params(expired_ca(), %{check_expiration: false}))
+    end
+
+    test "refuses an expired CA when it is on", %{org: org} do
+      assert {:error, changeset} =
+               CACertificates.create_ca_certificate(org, ca_params(expired_ca(), %{check_expiration: true}))
+
+      assert %{check_expiration: [message]} = errors_on(changeset)
+      assert message =~ "expired on 2025-01-01"
+    end
+
+    test "can still be turned on for an expired CA later", %{org: org} do
+      {:ok, ca} = CACertificates.create_ca_certificate(org, ca_params(expired_ca()))
+
+      assert {:ok, %{check_expiration: true}} = CACertificates.update_ca_certificate(ca, %{check_expiration: true})
+    end
+  end
+
+  defp expired_ca() do
+    validity = Validity.new(~U[2020-01-01 00:00:00Z], ~U[2025-01-01 00:00:00Z])
+
+    X509.PrivateKey.new_ec(:secp256r1)
+    |> X509.Certificate.self_signed("CN=Expired Root CA", template: :root_ca, validity: validity)
+  end
+
+  defp ca_params(ca_cert, params \\ %{}) do
+    {not_before, not_after} = Certificate.get_validity(ca_cert)
+
+    Map.merge(
+      %{
+        serial: Certificate.get_serial_number(ca_cert),
+        ski: Certificate.get_ski(ca_cert),
+        not_before: not_before,
+        not_after: not_after,
+        der: X509.Certificate.to_der(ca_cert)
+      },
+      params
+    )
   end
 end
