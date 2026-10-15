@@ -25,6 +25,7 @@ defmodule NervesHub.ManagedDeployments.WorkflowEvents do
 
   alias NervesHub.Accounts.User
   alias NervesHub.Integrations
+  alias NervesHub.Integrations.Slack.WorkflowMessages
   alias NervesHub.ManagedDeployments.DeploymentRelease
   alias NervesHub.ManagedDeployments.DeploymentWorkflowStep
   alias NervesHub.Repo
@@ -57,6 +58,36 @@ defmodule NervesHub.ManagedDeployments.WorkflowEvents do
   end
 
   defp type(event), do: "deployment_group.workflow_step." <> event
+
+  @doc """
+  Says that `user` approved, retried or skipped a step (`change`), on the
+  Slack messages that had buttons for it
+  (`NervesHub.Integrations.Slack.WorkflowMessages`).
+  """
+  @spec resolved(DeploymentWorkflowStep.t(), String.t(), User.t()) :: :ok
+  def resolved(%DeploymentWorkflowStep{id: id}, change, %User{name: name})
+      when change in ~w(approved retried skipped) do
+    WorkflowMessages.resolve([id], %{"change" => change, "by" => name})
+  end
+
+  @doc """
+  Says that `release` replaced the deployment group's previous release, on
+  the Slack messages that had buttons for the previous release's steps: they
+  can no longer be approved, retried or skipped.
+  """
+  @spec release_replaced(pos_integer() | nil, DeploymentRelease.t()) :: :ok
+  def release_replaced(nil, _release), do: :ok
+  def release_replaced(previous_id, %DeploymentRelease{id: previous_id}), do: :ok
+
+  def release_replaced(previous_id, %DeploymentRelease{number: number}) do
+    step_ids =
+      DeploymentWorkflowStep
+      |> where([s], s.deployment_release_id == ^previous_id)
+      |> select([s], s.id)
+      |> Repo.all()
+
+    WorkflowMessages.resolve(step_ids, %{"change" => "replaced", "release" => number})
+  end
 
   # What every event says about where the step is, read in one query. A
   # release whose deployment group has gone has nobody left to tell.

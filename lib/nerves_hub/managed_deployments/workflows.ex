@@ -376,6 +376,7 @@ defmodule NervesHub.ManagedDeployments.Workflows do
     step = transition(step, approved_at: now(), approved_by_id: user.id)
 
     :ok = resolve_halt_notification(step)
+    :ok = WorkflowEvents.resolved(step, "approved", user)
 
     step
   end
@@ -432,6 +433,7 @@ defmodule NervesHub.ManagedDeployments.Workflows do
 
       :ok = resolve_halt_notification(step)
       :ok = WorkflowEvents.announce(step, "skipped", user: user)
+      :ok = WorkflowEvents.resolved(step, "skipped", user)
 
       {:ok, step}
     else
@@ -469,6 +471,7 @@ defmodule NervesHub.ManagedDeployments.Workflows do
       step = transition(step, status: :in_progress, finished_at: nil, started_at: now())
 
       :ok = WorkflowEvents.announce(step, "started", user: user)
+      :ok = WorkflowEvents.resolved(step, "retried", user)
 
       {:ok, step}
     else

@@ -16,6 +16,7 @@ defmodule NervesHub.ManagedDeployments do
   alias NervesHub.ManagedDeployments.DeploymentRelease
   alias NervesHub.ManagedDeployments.DeploymentWorkflowStep
   alias NervesHub.ManagedDeployments.Orchestrator
+  alias NervesHub.ManagedDeployments.WorkflowEvents
   alias NervesHub.Products.Product
   alias NervesHub.Repo
   alias Phoenix.Channel.Server, as: PhoenixChannelServer
@@ -315,7 +316,10 @@ defmodule NervesHub.ManagedDeployments do
       deployment_group = lock_current_release(deployment_group)
       dr_changeset = DeploymentRelease.new_changeset(deployment_group, firmware, archive, params, user)
 
+      previous_release_id = deployment_group.current_deployment_release_id
+
       with {:ok, release} <- Repo.insert(dr_changeset),
+           :ok <- WorkflowEvents.release_replaced(previous_release_id, release),
            {:ok, deployment_group} = recalculate_current_release(deployment_group),
            deployment_group = load_current_release(deployment_group, force: true),
            :ok <- maybe_audit_new_deployment_release(user, deployment_group, opts),
