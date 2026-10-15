@@ -65,7 +65,9 @@ A workflow waiting for approval has an **Approve** button, and a workflow step t
 
 The checks are the device buttons' (above): the deployment group's organization is connected to the workspace, and the linked user's role there can change deployment groups, which takes `manage`. A message can be clicked long after it was posted, so NervesHub also checks that the step still belongs to the deployment group's current release and is still waiting for approval, or still failed. If it was approved or skipped since, the person who clicked is told by whom.
 
-A step is acted on from Slack at most once every 30 seconds, so a double click, or two people clicking at once, approve or retry it once. What was done is recorded in the deployment group's audit log with "from Slack", and a reply in the message's thread tells the channel who did it.
+A step is acted on from Slack at most once every 30 seconds, so a double click, or two people clicking at once, approve or retry it once. What was done is recorded in the deployment group's audit log with "from Slack".
+
+Once a step is approved, retried or skipped, from Slack, the deployment group's page or the API, every message with buttons for it is edited: the step's buttons give way to who did what, such as "Approved by Alice". The other steps on a message keep theirs. When a deployment group gets a new release, the messages for its previous release's steps say that release was replaced, since those steps can no longer be acted on. A message is kept up to date for 30 days; after that, its buttons stay, and clicking one still checks the step first. Messages posted before NervesHub kept them up to date are not edited; clicking one of those still posts who did what in its thread.
 
 ## Slash commands
 
@@ -112,6 +114,8 @@ The app asks for these bot scopes when it is installed:
 Slack only grants new scopes when the app is installed again. The app asked for everything up to `commands` from the start; the `links` scopes arrived with link previews, so a workspace connected before then installs the app again to get them.
 
 Script output run from Slack is kept for 30 minutes, so that whoever ran it can share it, and is then deleted.
+
+For each message with buttons for workflow steps, NervesHub keeps its channel and timestamp, the events it was built from, and what was done to each step, so that it can edit the message. That is deleted once every step on it was dealt with, Slack says the message is gone, or 30 days have passed.
 
 For each linked Slack user, NervesHub keeps their Slack user id and name, the workspace's id and name, and the NervesHub user they linked to. Signing in with Slack asks for the `openid` and `profile` scopes, only to read who signed in; NervesHub does not keep the token.
 
