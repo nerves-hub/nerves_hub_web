@@ -90,9 +90,18 @@ defmodule NervesHub.Webhooks.Delivery.Adapter do
     end
   end
 
+  # A 1xx is an interim response, such as 103 Early Hints or a 100 Continue
+  # nobody asked for, and the real one follows on the same request. Mint
+  # reports each as a status and its headers, so both are passed over. 101
+  # is the exception: Mint ends the request on it.
+  defp collect({:status, ref, status}, ref, response) when status in 100..199 and status != 101,
+    do: Map.put(response, :interim, true)
+
   # The response is complete enough at its headers: the status is all a
   # delivery is judged on, and `Location` is in them for a redirect.
-  defp collect({:status, ref, status}, ref, response), do: %{response | status: status}
+  defp collect({:status, ref, status}, ref, response), do: Map.merge(response, %{status: status, interim: false})
+
+  defp collect({:headers, ref, _headers}, ref, %{interim: true} = response), do: %{response | interim: false}
 
   defp collect({:headers, ref, headers}, ref, response),
     do: Map.merge(response, %{headers: response.headers ++ headers, done: true})
