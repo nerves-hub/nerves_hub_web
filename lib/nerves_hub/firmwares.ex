@@ -994,6 +994,24 @@ defmodule NervesHub.Firmwares do
     end
   end
 
+  @doc """
+  Build a failed or timed-out delta again.
+
+  Starting it replaces the failed delta in the same transaction. Deleted first
+  on its own, the delta's release was left with nothing failed and nothing
+  building, which reads as ready, and the orchestrator sent full firmware to the
+  devices waiting for the delta.
+  """
+  @spec retry_firmware_delta(FirmwareDelta.t()) ::
+          {:ok, :started}
+          | {:ok, :no_delta_support}
+          | {:ok, :delta_already_exists}
+          | {:error, :failed_to_insert_delta}
+          | {:error, :failed_to_insert_job}
+  def retry_firmware_delta(%FirmwareDelta{source_id: source_id, target_id: target_id}) do
+    attempt_firmware_delta(source_id, target_id)
+  end
+
   defp do_attempt_firmware_delta(source_id, target_id, recalculate_deployment_statuses) do
     Repo.transact(fn ->
       with {:error, :not_found} <-
