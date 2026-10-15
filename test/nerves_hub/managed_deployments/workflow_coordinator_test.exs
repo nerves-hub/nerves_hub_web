@@ -486,7 +486,7 @@ defmodule NervesHub.ManagedDeployments.WorkflowCoordinatorTest do
       refute WorkflowCoordinator.schedule_updates(deployment_group)
       assert step(release, 1).status == :in_progress
 
-      _ = Workflows.approve_step(step(release, 1), context.user)
+      {:ok, _} = Workflows.approve_step(step(release, 1), context.user)
 
       assert WorkflowCoordinator.schedule_updates(deployment_group)
       assert step(release, 1).status == :completed
@@ -697,7 +697,7 @@ defmodule NervesHub.ManagedDeployments.WorkflowCoordinatorTest do
 
       assert [_notification] = product_notifications(product)
 
-      _ = Workflows.approve_step(step(release, 1), context.user)
+      {:ok, _} = Workflows.approve_step(step(release, 1), context.user)
 
       assert product_notifications(product) == []
     end
@@ -757,7 +757,7 @@ defmodule NervesHub.ManagedDeployments.WorkflowCoordinatorTest do
 
       assert length(product_notifications(product)) == 2
 
-      _ = Workflows.approve_step(approval, context.user)
+      {:ok, _} = Workflows.approve_step(approval, context.user)
 
       assert [remaining] = product_notifications(product)
       assert remaining.event_key =~ "-#{catch_all.id}"

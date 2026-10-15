@@ -366,9 +366,11 @@ defmodule NervesHub.ManagedDeployments.WorkflowMatchingTest do
       %{release: release, deployment_group: deployment_group} = release_with(context, definition)
       [approval | _] = steps(release)
 
+      {:ok, approval} = Workflows.start_step(approval)
+
       refute Workflows.step_complete?(deployment_group, approval)
 
-      approved = Workflows.approve_step(approval, user)
+      {:ok, approved} = Workflows.approve_step(approval, user)
 
       assert approved.approved_by_id == user.id
       assert Workflows.step_complete?(deployment_group, approved)

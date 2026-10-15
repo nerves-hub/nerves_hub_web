@@ -127,7 +127,7 @@ defmodule NervesHubWeb.Integrations.Slack.UnfurlsTest do
       {:ok, {release, _}} =
         ManagedDeployments.create_deployment_release(deployment_group, next, nil, user, %{}, broadcast: false)
 
-      _ = release.id |> Workflows.release_steps() |> hd() |> Workflows.start_step()
+      {:ok, _} = release.id |> Workflows.release_steps() |> hd() |> Workflows.start_step()
 
       link = url("/org/acme/thermostat/deployment_groups/production")
       assert :unfurled = Unfurls.unfurl("T0ACME", shared([link]))

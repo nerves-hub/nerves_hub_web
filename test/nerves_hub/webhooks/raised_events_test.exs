@@ -425,7 +425,7 @@ defmodule NervesHub.Webhooks.RaisedEventsTest do
 
       assert [_canary_only] = raised("deployment_group.workflow_step.started")
 
-      _ = Workflows.approve_step(release_step(release, 2), context.user)
+      {:ok, _} = Workflows.approve_step(release_step(release, 2), context.user)
       _ = WorkflowCoordinator.schedule_updates(deployment_group)
       _ = WorkflowCoordinator.schedule_updates(deployment_group)
 

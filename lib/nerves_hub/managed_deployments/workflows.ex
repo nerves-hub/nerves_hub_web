@@ -341,29 +341,49 @@ defmodule NervesHub.ManagedDeployments.Workflows do
 
   An approval step is announced as waiting for approval rather than as
   started, since waiting is all it does.
+
+  `{:error, :not_waiting}` when the step has moved since it was read, as when
+  somebody skipped it.
   """
-  @spec start_step(DeploymentWorkflowStep.t()) :: DeploymentWorkflowStep.t()
+  @spec start_step(DeploymentWorkflowStep.t()) :: {:ok, DeploymentWorkflowStep.t()} | {:error, :not_waiting}
   def start_step(step) do
-    step = transition(step, status: :in_progress, started_at: now())
+    change_step(fn ->
+      with {:ok, step} <- lock_step(step, &(&1.status == :waiting), :not_waiting) do
+        step = update_step!(step, status: :in_progress, started_at: now())
 
-    event = if step.type == :approval_required, do: "awaiting_approval", else: "started"
-    :ok = WorkflowEvents.announce(step, event)
+        event = if step.type == :approval_required, do: "awaiting_approval", else: "started"
+        :ok = WorkflowEvents.announce(step, event)
 
-    step
+        {:ok, step}
+      end
+    end)
   end
 
   @doc """
   Mark an in-progress step as finished.
+
+  `{:error, :not_in_progress}` when the step has moved since it was read.
   """
-  @spec complete_step(DeploymentWorkflowStep.t()) :: DeploymentWorkflowStep.t()
+  @spec complete_step(DeploymentWorkflowStep.t()) :: {:ok, DeploymentWorkflowStep.t()} | {:error, :not_in_progress}
   def complete_step(step) do
-    step = transition(step, status: :completed, finished_at: now())
+    change_step(fn ->
+      with {:ok, step} <- lock_step(step, &(&1.status == :in_progress), :not_in_progress) do
+        step = update_step!(step, status: :completed, finished_at: now())
 
-    # An approval step completes because somebody approved it.
-    :ok = WorkflowEvents.announce(step, "completed", user: step.approved_by_id)
+        # An approval step completes because somebody approved it.
+        :ok = WorkflowEvents.announce(step, "completed", user: step.approved_by_id)
 
-    step
+        {:ok, step}
+      end
+    end)
   end
+
+  @doc """
+  Whether a step is waiting for somebody to approve it.
+  """
+  @spec approvable?(DeploymentWorkflowStep.t()) :: boolean()
+  def approvable?(%DeploymentWorkflowStep{type: :approval_required, status: :in_progress, approved_at: nil}), do: true
+  def approvable?(%DeploymentWorkflowStep{}), do: false
 
   @doc """
   Record a user's approval of an `approval_required` step.
@@ -371,14 +391,19 @@ defmodule NervesHub.ManagedDeployments.Workflows do
   Approving only unblocks the step; the coordinator completes it on its next
   pass, which keeps every status change in one place.
   """
-  @spec approve_step(DeploymentWorkflowStep.t(), User.t()) :: DeploymentWorkflowStep.t()
+  @spec approve_step(DeploymentWorkflowStep.t(), User.t()) ::
+          {:ok, DeploymentWorkflowStep.t()} | {:error, :not_approvable}
   def approve_step(step, user) do
-    step = transition(step, approved_at: now(), approved_by_id: user.id)
+    change_step(fn ->
+      with {:ok, step} <- lock_step(step, &approvable?/1, :not_approvable) do
+        step = update_step!(step, approved_at: now(), approved_by_id: user.id)
 
-    :ok = resolve_halt_notification(step)
-    :ok = WorkflowEvents.resolved(step, "approved", user)
+        :ok = resolve_halt_notification(step)
+        :ok = WorkflowEvents.resolved(step, "approved", user)
 
-    step
+        {:ok, step}
+      end
+    end)
   end
 
   @doc """
@@ -390,14 +415,22 @@ defmodule NervesHub.ManagedDeployments.Workflows do
 
   `failed_devices`, how many of the step's devices could not take the update,
   is passed on in the announcement.
+
+  `{:error, :not_in_progress}` when the step has moved since it was read, as
+  when somebody skipped it during the pass that found it failing.
   """
-  @spec fail_step(DeploymentWorkflowStep.t(), keyword()) :: DeploymentWorkflowStep.t()
+  @spec fail_step(DeploymentWorkflowStep.t(), keyword()) ::
+          {:ok, DeploymentWorkflowStep.t()} | {:error, :not_in_progress}
   def fail_step(step, opts \\ []) do
-    step = transition(step, status: :error, finished_at: now())
+    change_step(fn ->
+      with {:ok, step} <- lock_step(step, &(&1.status == :in_progress), :not_in_progress) do
+        step = update_step!(step, status: :error, finished_at: now())
 
-    :ok = WorkflowEvents.announce(step, "failed", failed_devices: opts[:failed_devices])
+        :ok = WorkflowEvents.announce(step, "failed", failed_devices: opts[:failed_devices])
 
-    step
+        {:ok, step}
+      end
+    end)
   end
 
   @doc """
@@ -426,19 +459,19 @@ defmodule NervesHub.ManagedDeployments.Workflows do
   """
   @spec skip_step(DeploymentWorkflowStep.t(), User.t()) :: {:ok, DeploymentWorkflowStep.t()} | {:error, :not_skippable}
   def skip_step(step, user) do
-    if skippable?(step) do
-      _ = release_claimed_devices(step)
+    change_step(fn ->
+      with {:ok, step} <- lock_step(step, &skippable?/1, :not_skippable) do
+        _ = release_claimed_devices(step)
 
-      step = transition(step, status: :skipped, skipped_at: now(), skipped_by_id: user.id)
+        step = update_step!(step, status: :skipped, skipped_at: now(), skipped_by_id: user.id)
 
-      :ok = resolve_halt_notification(step)
-      :ok = WorkflowEvents.announce(step, "skipped", user: user)
-      :ok = WorkflowEvents.resolved(step, "skipped", user)
+        :ok = resolve_halt_notification(step)
+        :ok = WorkflowEvents.announce(step, "skipped", user: user)
+        :ok = WorkflowEvents.resolved(step, "skipped", user)
 
-      {:ok, step}
-    else
-      {:error, :not_skippable}
-    end
+        {:ok, step}
+      end
+    end)
   end
 
   @doc """
@@ -452,31 +485,31 @@ defmodule NervesHub.ManagedDeployments.Workflows do
   @spec retry_step(DeploymentGroup.t(), DeploymentWorkflowStep.t(), User.t()) ::
           {:ok, DeploymentWorkflowStep.t()} | {:error, :not_retryable}
   def retry_step(deployment_group, step, user) do
-    if retryable?(step) do
-      {released, _} =
-        deployment_group
-        |> step_devices_query(step)
-        |> exclude(:order_by)
-        |> Repo.update_all(set: [updates_blocked_until: nil, update_attempts: []])
+    change_step(fn ->
+      with {:ok, step} <- lock_step(step, &retryable?/1, :not_retryable) do
+        {released, _} =
+          deployment_group
+          |> step_devices_query(step)
+          |> exclude(:order_by)
+          |> Repo.update_all(set: [updates_blocked_until: nil, update_attempts: []])
 
-      :ok = resolve_halt_notification(step, deployment_group)
+        :ok = resolve_halt_notification(step, deployment_group)
 
-      Logger.info("Workflow step retried",
-        deployment_id: deployment_group.id,
-        step_number: step.number,
-        user_id: user.id,
-        devices_released: released
-      )
+        Logger.info("Workflow step retried",
+          deployment_id: deployment_group.id,
+          step_number: step.number,
+          user_id: user.id,
+          devices_released: released
+        )
 
-      step = transition(step, status: :in_progress, finished_at: nil, started_at: now())
+        step = update_step!(step, status: :in_progress, finished_at: nil, started_at: now())
 
-      :ok = WorkflowEvents.announce(step, "started", user: user)
-      :ok = WorkflowEvents.resolved(step, "retried", user)
+        :ok = WorkflowEvents.announce(step, "started", user: user)
+        :ok = WorkflowEvents.resolved(step, "retried", user)
 
-      {:ok, step}
-    else
-      {:error, :not_retryable}
-    end
+        {:ok, step}
+      end
+    end)
   end
 
   # A workflow that has stopped raises a notification, since nothing else would
@@ -676,12 +709,37 @@ defmodule NervesHub.ManagedDeployments.Workflows do
   defp maybe_limit(query, :unlimited), do: query
   defp maybe_limit(query, count), do: limit(query, ^count)
 
-  defp transition(step, changes) do
-    step = Repo.update!(Changeset.change(step, Map.new(changes)))
+  # A step's change commits with everything that goes with it: the devices it
+  # releases, the notification it resolves and what it announces. The page is
+  # told once it has, so it never reads back the step as it was.
+  defp change_step(fun) do
+    with {:ok, step} <- Repo.transact(fun) do
+      :ok = broadcast(step, "step/updated", %{id: step.id, number: step.number, status: step.status})
+      {:ok, step}
+    end
+  end
 
-    :ok = broadcast(step, "step/updated", %{id: step.id, number: step.number, status: step.status})
+  # The step as it stands, locked until the change commits, if it can still make
+  # the change. The orchestrator works from steps read at the start of its pass,
+  # and a step can be clicked on the dashboard and in Slack at once, so the copy
+  # a caller holds may be out of date. Writing it back would undo whatever moved
+  # the step since: a skip turned back into a failure, or a step retried twice.
+  defp lock_step(step, allowed?, reason) do
+    DeploymentWorkflowStep
+    |> where([s], s.id == ^step.id)
+    |> lock("FOR UPDATE")
+    |> Repo.one()
+    |> case do
+      %DeploymentWorkflowStep{} = current ->
+        if allowed?.(current), do: {:ok, current}, else: {:error, reason}
 
-    step
+      nil ->
+        {:error, reason}
+    end
+  end
+
+  defp update_step!(step, changes) do
+    Repo.update!(Changeset.change(step, Map.new(changes)))
   end
 
   defp now(), do: NaiveDateTime.utc_now() |> NaiveDateTime.truncate(:second)

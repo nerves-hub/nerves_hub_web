@@ -207,7 +207,12 @@ defmodule NervesHubWeb.Integrations.Slack.WorkflowSteps do
 
   # The step as read before the claim. Anything that moved it since, such as
   # the dashboard, is caught by `Workflows` checking again.
-  defp act(:approve, _deployment_group, step, user), do: {:ok, Workflows.approve_step(step, user)}
+  defp act(:approve, _deployment_group, step, user) do
+    case Workflows.approve_step(step, user) do
+      {:ok, step} -> {:ok, step}
+      {:error, :not_approvable} -> {:error, :already_done, "#{step_label(step)} is no longer waiting for approval."}
+    end
+  end
 
   defp act(:retry, deployment_group, step, user) do
     case Workflows.retry_step(deployment_group, step, user) do

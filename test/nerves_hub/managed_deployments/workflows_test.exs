@@ -192,17 +192,57 @@ defmodule NervesHub.ManagedDeployments.WorkflowsTest do
 
       [step | _] = Repo.preload(release, :steps).steps
 
-      started = Workflows.start_step(step)
+      {:ok, started} = Workflows.start_step(step)
 
       assert started.status == :in_progress
       assert started.started_at
       assert_receive %Broadcast{event: "step/updated", payload: %{number: 1, status: :in_progress}}
 
-      completed = Workflows.complete_step(started)
+      {:ok, completed} = Workflows.complete_step(started)
 
       assert completed.status == :completed
       assert completed.finished_at
       assert_receive %Broadcast{event: "step/updated", payload: %{number: 1, status: :completed}}
+    end
+  end
+
+  # The orchestrator works from steps it read at the start of its pass, and a
+  # step can be clicked on the dashboard and in Slack at once.
+  describe "a step changed since it was read" do
+    test "is not failed when somebody skipped it during the pass", context do
+      %{release: release, deployment_group: deployment_group} = with_workflow(context)
+      [step | _] = Workflows.release_steps(release.id)
+
+      {:ok, read_by_the_pass} = Workflows.start_step(step)
+      {:ok, _skipped} = Workflows.skip_step(read_by_the_pass, context.user)
+
+      assert {:error, :not_in_progress} = Workflows.fail_step(read_by_the_pass)
+      assert {:error, :not_in_progress} = Workflows.complete_step(read_by_the_pass)
+
+      assert [%{status: :skipped} | _] = Workflows.release_steps(release.id)
+      assert {:error, :not_retryable} = Workflows.retry_step(deployment_group, read_by_the_pass, context.user)
+    end
+
+    test "is retried once when retried from two places", context do
+      %{release: release, deployment_group: deployment_group} = with_workflow(context)
+      [step | _] = Workflows.release_steps(release.id)
+
+      {:ok, started} = Workflows.start_step(step)
+      {:ok, failed} = Workflows.fail_step(started)
+
+      assert {:ok, _} = Workflows.retry_step(deployment_group, failed, context.user)
+      assert {:error, :not_retryable} = Workflows.retry_step(deployment_group, failed, context.user)
+    end
+
+    test "is approved once when approved from two places", context do
+      definition = %{"version" => 1, "steps" => [%{"name" => "Sign-off", "type" => "approval_required"}]}
+      %{release: release} = with_workflow(context, definition)
+      [step | _] = Workflows.release_steps(release.id)
+
+      {:ok, waiting} = Workflows.start_step(step)
+
+      assert {:ok, _} = Workflows.approve_step(waiting, context.user)
+      assert {:error, :not_approvable} = Workflows.approve_step(waiting, context.user)
     end
   end
 end

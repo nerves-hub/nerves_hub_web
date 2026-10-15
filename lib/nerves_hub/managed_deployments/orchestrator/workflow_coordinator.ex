@@ -93,16 +93,19 @@ defmodule NervesHub.ManagedDeployments.Orchestrator.WorkflowCoordinator do
     if Workflows.step_failed?(deployment_group, step) do
       failed_count = Workflows.failed_device_count(deployment_group, step)
 
-      _ = Workflows.fail_step(step, failed_devices: failed_count)
+      # Not failed when somebody moved the step during this pass, such as by
+      # skipping it. The next pass reads it as it now stands.
+      _ =
+        with {:ok, step} <- Workflows.fail_step(step, failed_devices: failed_count) do
+          Logger.warning("Workflow step failed",
+            deployment_id: deployment_group.id,
+            step_number: step.number,
+            failed_devices: failed_count,
+            tolerance: Workflows.failure_limit(step, Workflows.claimed_device_count(deployment_group, step))
+          )
 
-      Logger.warning("Workflow step failed",
-        deployment_id: deployment_group.id,
-        step_number: step.number,
-        failed_devices: failed_count,
-        tolerance: Workflows.failure_limit(step, Workflows.claimed_device_count(deployment_group, step))
-      )
-
-      announce_halt(deployment_group, step, {:failed, failed_count})
+          announce_halt(deployment_group, step, {:failed, failed_count})
+        end
 
       false
     else
@@ -170,13 +173,16 @@ defmodule NervesHub.ManagedDeployments.Orchestrator.WorkflowCoordinator do
   # periodic trigger.
   defp complete_if_done(deployment_group, step, run_again?) do
     if Workflows.step_complete?(deployment_group, step) do
-      _ = Workflows.complete_step(step)
-
-      Logger.info("Workflow step completed",
-        deployment_id: deployment_group.id,
-        step_number: step.number,
-        step_type: step.type
-      )
+      # Run again either way: to start the next step, or to read this one as it
+      # now stands if somebody moved it during this pass.
+      _ =
+        with {:ok, step} <- Workflows.complete_step(step) do
+          Logger.info("Workflow step completed",
+            deployment_id: deployment_group.id,
+            step_number: step.number,
+            step_type: step.type
+          )
+        end
 
       true
     else
@@ -191,8 +197,15 @@ defmodule NervesHub.ManagedDeployments.Orchestrator.WorkflowCoordinator do
       steps
       |> Enum.find(&(&1.status == :waiting))
       |> case do
-        nil -> nil
-        step -> Workflows.start_step(step)
+        nil ->
+          nil
+
+        step ->
+          # Skipped since this pass read it, it is left for the next pass.
+          case Workflows.start_step(step) do
+            {:ok, step} -> step
+            {:error, :not_waiting} -> nil
+          end
       end
     end
   end

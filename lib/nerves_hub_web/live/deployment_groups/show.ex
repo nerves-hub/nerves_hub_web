@@ -96,25 +96,23 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
 
     %{deployment_group: deployment_group, user: user, awaiting_approval: step} = socket.assigns
 
-    case step do
-      nil ->
-        # Somebody else approved it between the page rendering and the click.
-        socket |> assign(:awaiting_approval, nil) |> noreply()
+    with %{} <- step,
+         {:ok, step} <- Workflows.approve_step(step, user) do
+      DeploymentGroupTemplates.audit_workflow_step_action(user, deployment_group, step, :approved)
 
-      step ->
-        step = Workflows.approve_step(step, user)
+      # Approving only clears the block. The orchestrator is what completes the
+      # step and starts the next one, so nudge it rather than leaving the page
+      # looking unchanged until its next periodic run.
+      :ok = ManagedDeployments.broadcast(deployment_group, "deployments/update")
 
-        DeploymentGroupTemplates.audit_workflow_step_action(user, deployment_group, step, :approved)
-
-        # Approving only clears the block. The orchestrator is what completes the
-        # step and starts the next one, so nudge it rather than leaving the page
-        # looking unchanged until its next periodic run.
-        :ok = ManagedDeployments.broadcast(deployment_group, "deployments/update")
-
-        socket
-        |> assign(:awaiting_approval, nil)
-        |> put_flash(:info, "Step approved. The deployment will carry on with the next step.")
-        |> noreply()
+      socket
+      |> assign(:awaiting_approval, nil)
+      |> put_flash(:info, "Step approved. The deployment will carry on with the next step.")
+      |> noreply()
+    else
+      # Somebody else approved or skipped it between the page rendering and the
+      # click.
+      _ -> socket |> assign(:awaiting_approval, nil) |> noreply()
     end
   end
 
