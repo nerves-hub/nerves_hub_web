@@ -268,10 +268,13 @@ defmodule NervesHub.Integrations.Slack.Subscriptions do
 
   defp post_batch([], _subscription), do: :ok
 
+  # One message per kind of event, posted in the order each kind first
+  # happened: a workflow step completing and the next one starting arrive
+  # together, and should read that way round.
   defp post_batch(events, subscription) do
     events
     |> Enum.group_by(& &1.type)
-    |> Enum.sort_by(fn {key, _events} -> Events.order(key) end)
+    |> Enum.sort_by(fn {_key, [first | _]} -> first.id end)
     |> Enum.reduce_while(:ok, fn {key, group}, :ok ->
       message = Messages.build(key, Enum.map(group, & &1.data))
 

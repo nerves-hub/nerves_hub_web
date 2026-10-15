@@ -15,7 +15,8 @@ defmodule NervesHub.Integrations.Slack.Messages do
 
   A message about one device carries buttons (`device_buttons/3`). A
   summary of many devices has none: acting on a list from one click is a
-  different thing.
+  different thing. A workflow waiting for approval carries Approve, and a
+  failed workflow step Retry and Skip.
   """
 
   alias NervesHub.Branding
@@ -41,6 +42,7 @@ defmodule NervesHub.Integrations.Slack.Messages do
   def build("device.firmware_update.succeeded", events), do: update_succeeded(events)
   def build("error_group.created", events), do: errors(events, :created)
   def build("error_group.reopened", events), do: errors(events, :reopened)
+  def build("deployment_group.workflow_step." <> event, events), do: workflow(events, event)
   def build("product.notification_created", events), do: notifications(events)
 
   @doc "What `Send test message` posts."
@@ -258,6 +260,202 @@ defmodule NervesHub.Integrations.Slack.Messages do
     "#{base_url()}/org/#{segment(get_in(event, ["org", "name"]) || "")}/#{segment(get_in(event, ["product", "name"]) || "")}/errors/#{get_in(event, ["error", "id"])}"
   end
 
+  ## Deployment workflows
+
+  # Each is its own section, with its own buttons, rather than a count: a
+  # few deployment groups moving at once is still few enough to read, and
+  # each one waiting on somebody needs its own Approve or Retry.
+  @steps_listed 5
+
+  defp workflow(events, event) do
+    shown = Enum.take(events, @steps_listed)
+    more = length(events) - length(shown)
+
+    blocks =
+      Enum.flat_map(shown, fn data ->
+        [
+          section(step_heading(event, data, :mrkdwn)),
+          context([product_name(data), release(data)]),
+          step_actions(event, data)
+        ]
+      end)
+
+    blocks =
+      if more > 0 do
+        blocks ++ [context(["And #{more} more on the deployment groups' pages."])]
+      else
+        blocks
+      end
+
+    text =
+      case shown do
+        [data] -> step_heading(event, data, :plain)
+        _ -> "#{length(events)} workflow steps #{plural_verb(event)}"
+      end
+
+    %{text: text, blocks: blocks(blocks)}
+  end
+
+  # `:mrkdwn` links the deployment group, stresses the step and leads with an
+  # icon; `:plain` is the same sentence for notifications, which show no
+  # formatting.
+  defp step_heading(event, data, :mrkdwn) do
+    {icon, sentence} = step_sentence(event, step_name(data, :mrkdwn), deployment_group_name(data, :mrkdwn), data)
+    "#{icon} #{sentence}"
+  end
+
+  defp step_heading(event, data, :plain) do
+    {_icon, sentence} = step_sentence(event, step_name(data, :plain), deployment_group_name(data, :plain), data)
+    sentence
+  end
+
+  defp step_sentence(event, step, group, data) do
+    case {event, get_in(data, ["user", "name"])} do
+      {"started", nil} ->
+        {":arrow_forward:", "#{step} started for #{group}"}
+
+      {"started", by} ->
+        {":repeat:", "#{escape(by)} retried #{step} for #{group}"}
+
+      {"awaiting_approval", _} ->
+        {":raised_hand:", "#{group} is waiting for approval at #{step}"}
+
+      {"completed", nil} ->
+        {":white_check_mark:", "#{step} completed for #{group}"}
+
+      {"completed", by} ->
+        {":white_check_mark:", "#{escape(by)} approved #{step} for #{group}"}
+
+      {"skipped", nil} ->
+        {":fast_forward:", "#{step} was skipped for #{group}"}
+
+      {"skipped", by} ->
+        {":fast_forward:", "#{escape(by)} skipped #{step} for #{group}"}
+
+      {"failed", _} ->
+        {":x:",
+         "#{step} failed for #{group}#{failed_devices(data)}. The rollout is stopped until the step is retried or skipped."}
+    end
+  end
+
+  defp plural_verb("awaiting_approval"), do: "waiting for approval"
+  defp plural_verb(event), do: event
+
+  defp step_name(data, format) do
+    name = escape(get_in(data, ["step", "name"]) || "a step")
+    of = step_position(data)
+    if format == :mrkdwn, do: "*#{name}*#{of}", else: "#{name}#{of}"
+  end
+
+  defp step_position(data) do
+    case {get_in(data, ["step", "number"]), get_in(data, ["workflow", "steps"])} do
+      {number, steps} when is_integer(number) and is_integer(steps) -> " (step #{number} of #{steps})"
+      _ -> ""
+    end
+  end
+
+  defp deployment_group_name(data, format) do
+    case {get_in(data, ["deployment_group", "name"]), format, deployment_group_url(data)} do
+      {nil, _format, _url} -> "a deployment group"
+      {name, :mrkdwn, url} when is_binary(url) -> "<#{url}|#{escape(name)}>"
+      {name, _format, _url} -> escape(name)
+    end
+  end
+
+  defp failed_devices(%{"failed_devices" => 1}), do: ": 1 device could not take the update"
+
+  defp failed_devices(%{"failed_devices" => count}) when is_integer(count),
+    do: ": #{count} devices could not take the update"
+
+  defp failed_devices(_data), do: ""
+
+  defp release(data) do
+    number = get_in(data, ["release", "number"])
+
+    case get_in(data, ["release", "firmware", "version"]) do
+      version when is_binary(version) -> "release #{number}, firmware #{escape(version)}"
+      _ -> number && "release #{number}"
+    end
+  end
+
+  # Approve on a workflow waiting for approval, Retry and Skip on a step that
+  # failed. Like the device buttons, a button carries only the step's id, and
+  # `NervesHubWeb.Integrations.Slack.WorkflowSteps` works out the rest when it is clicked.
+  defp step_actions(event, data) when event in ["awaiting_approval", "failed"] do
+    with id when is_integer(id) <- get_in(data, ["step", "id"]),
+         url when is_binary(url) <- deployment_group_url(data) do
+      name = get_in(data, ["step", "name"]) || "this step"
+
+      buttons =
+        case event do
+          "awaiting_approval" ->
+            [
+              step_button("workflow_step.approve", "Approve", id, "primary", %{
+                title: "Approve #{name}?",
+                text: "The rollout carries on with the next step.",
+                confirm: "Approve"
+              })
+            ]
+
+          "failed" ->
+            [
+              step_button("workflow_step.retry", "Retry", id, "primary", %{
+                title: "Retry #{name}?",
+                text: "Its failed devices are let out of the penalty box and offered the update again.",
+                confirm: "Retry"
+              }),
+              step_button("workflow_step.skip", "Skip", id, "danger", %{
+                title: "Skip #{name}?",
+                text: "Its devices are left to the steps after it, and the rollout carries on.",
+                confirm: "Skip"
+              })
+            ]
+        end
+
+      %{type: "actions", elements: buttons ++ [open_button("deployment_group.open", url)]}
+    else
+      _ -> nil
+    end
+  end
+
+  defp step_actions(_event, _data), do: nil
+
+  defp step_button(action_id, label, step_id, style, confirm) do
+    %{
+      type: "button",
+      action_id: action_id,
+      text: plain(label),
+      value: Integer.to_string(step_id),
+      style: style,
+      confirm: %{
+        title: plain(String.slice(confirm.title, 0, 100)),
+        text: %{type: "mrkdwn", text: confirm.text},
+        confirm: plain(confirm.confirm),
+        deny: plain("Cancel"),
+        style: style
+      }
+    }
+  end
+
+  defp open_button(action_id, url) do
+    %{
+      type: "button",
+      action_id: action_id,
+      text: plain(String.slice("Open in #{Branding.friendly_platform_name()}", 0, 75)),
+      url: url
+    }
+  end
+
+  defp deployment_group_url(data) do
+    with org when is_binary(org) <- get_in(data, ["org", "name"]),
+         product when is_binary(product) <- get_in(data, ["product", "name"]),
+         name when is_binary(name) <- get_in(data, ["deployment_group", "name"]) do
+      "#{base_url()}/org/#{segment(org)}/#{segment(product)}/deployment_groups/#{segment(name)}"
+    else
+      _ -> nil
+    end
+  end
+
   ## Product notifications
 
   @notifications_listed 5
@@ -318,12 +516,7 @@ defmodule NervesHub.Integrations.Slack.Messages do
     %{
       type: "actions",
       elements: [
-        %{
-          type: "button",
-          action_id: "device.open",
-          text: plain(String.slice("Open in #{Branding.friendly_platform_name()}", 0, 75)),
-          url: device_url(org_name, product_name, identifier)
-        },
+        open_button("device.open", device_url(org_name, product_name, identifier)),
         %{type: "button", action_id: "device.identify", text: plain("Identify"), value: identifier},
         %{
           type: "button",

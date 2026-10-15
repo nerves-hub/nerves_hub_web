@@ -2,7 +2,10 @@ defmodule NervesHubWeb.Integrations.Slack.Actions do
   @moduledoc """
   What a person can do to a device from Slack: the Reboot and Identify
   buttons on NervesHub's messages about a single device
-  (`NervesHub.Integrations.Slack.Messages`).
+  (`NervesHub.Integrations.Slack.Messages`). Clicks on the other buttons are passed on:
+  sharing to `NervesHubWeb.Integrations.Slack.DeviceCards` and `NervesHubWeb.Integrations.Slack.ScriptRuns`,
+  and a deployment workflow's Approve, Retry and Skip to
+  `NervesHubWeb.Integrations.Slack.WorkflowSteps`.
 
   A click is done as the NervesHub user the Slack user linked
   (`NervesHub.Integrations.Slack.Users`), and only if, at that moment:
@@ -44,6 +47,7 @@ defmodule NervesHubWeb.Integrations.Slack.Actions do
   alias NervesHubWeb.Helpers.Authorization
   alias NervesHubWeb.Integrations.Slack.DeviceCards
   alias NervesHubWeb.Integrations.Slack.ScriptRuns
+  alias NervesHubWeb.Integrations.Slack.WorkflowSteps
 
   require Logger
 
@@ -129,6 +133,13 @@ defmodule NervesHubWeb.Integrations.Slack.Actions do
     end
   end
 
+  defp job(payload, %{"action_id" => "workflow_step." <> _} = action) do
+    case WorkflowSteps.click(payload, action) do
+      nil -> nil
+      click -> fn -> WorkflowSteps.perform(click) end
+    end
+  end
+
   defp job(payload, action) do
     case click(payload, action) do
       nil -> nil
@@ -138,25 +149,42 @@ defmodule NervesHubWeb.Integrations.Slack.Actions do
 
   defp click(payload, %{"action_id" => action_id, "value" => identifier})
        when is_map_key(@actions, action_id) and is_binary(identifier) do
-    case payload do
-      %{"team" => %{"id" => team_id}, "user" => %{"id" => slack_user_id} = slack_user} ->
-        %{
-          action_id: action_id,
-          identifier: identifier,
-          team_id: team_id,
-          slack_user_id: slack_user_id,
-          slack_username: slack_user["username"] || slack_user["name"],
-          response_url: payload["response_url"],
-          channel_id: get_in(payload, ["container", "channel_id"]) || get_in(payload, ["channel", "id"]),
-          message_ts: get_in(payload, ["container", "message_ts"]) || get_in(payload, ["message", "ts"])
-        }
-
-      _ ->
-        nil
+    case clicked_by(payload) do
+      nil -> nil
+      clicked_by -> Map.merge(clicked_by, %{action_id: action_id, identifier: identifier})
     end
   end
 
   defp click(_payload, _action), do: nil
+
+  @doc """
+  Who clicked, and the message they clicked on, from Slack's interaction
+  payload: what every button needs whatever it does. `nil` when Slack did
+  not say who.
+  """
+  @spec clicked_by(map()) ::
+          %{
+            team_id: String.t(),
+            slack_user_id: String.t(),
+            slack_username: String.t() | nil,
+            response_url: String.t() | nil,
+            channel_id: String.t() | nil,
+            message_ts: String.t() | nil
+          }
+          | nil
+  def clicked_by(%{"team" => %{"id" => team_id}, "user" => %{"id" => slack_user_id} = slack_user} = payload)
+      when is_binary(team_id) and is_binary(slack_user_id) do
+    %{
+      team_id: team_id,
+      slack_user_id: slack_user_id,
+      slack_username: slack_user["username"] || slack_user["name"],
+      response_url: payload["response_url"],
+      channel_id: get_in(payload, ["container", "channel_id"]) || get_in(payload, ["channel", "id"]),
+      message_ts: get_in(payload, ["container", "message_ts"]) || get_in(payload, ["message", "ts"])
+    }
+  end
+
+  def clicked_by(_payload), do: nil
 
   @doc """
   Carries out a click, or says why not. Returns what happened, for tests.
@@ -198,24 +226,35 @@ defmodule NervesHubWeb.Integrations.Slack.Actions do
   def authorize(team_id, slack_user_id, identifier, permission, what) do
     with {:user, %Accounts.User{} = user} <- {:user, Users.use_link(team_id, slack_user_id)},
          {:device, %Device{} = device} <- {:device, device(identifier)},
-         {:connected, true} <- {:connected, connected?(device.org_id, team_id)},
-         {:member, {:ok, org_user}} <- {:member, Accounts.get_org_user(device.org, user)},
-         {:allowed, true} <- {:allowed, Authorization.authorized?(permission, org_user.role)} do
+         :ok <- authorize_in(team_id, user, device.org, permission, what, escape(identifier)) do
       {:ok, user, device}
     else
-      {:user, nil} ->
-        {:error, :not_linked, link_message(team_id)}
+      {:user, nil} -> {:error, :not_linked, link_message(team_id)}
+      {:device, nil} -> {:error, :no_device, "#{escape(identifier)} is not in #{platform()}."}
+      {:error, _reason, _message} = error -> error
+    end
+  end
 
-      {:device, nil} ->
-        {:error, :no_device, "#{escape(identifier)} is not in #{platform()}."}
-
+  @doc """
+  The checks `authorize/5` makes of the organization, for a NervesHub user a
+  Slack user linked and something of the organization's other than a
+  device: the organization is connected to the workspace the request came
+  from, and the user is a member whose role has `permission`. `subject`
+  finishes "the organization ... belongs to", already escaped.
+  """
+  @spec authorize_in(String.t(), Accounts.User.t(), Org.t(), atom(), String.t(), String.t()) ::
+          :ok | {:error, atom(), String.t()}
+  def authorize_in(team_id, %Accounts.User{} = user, %Org{} = org, permission, what, subject) do
+    with {:connected, true} <- {:connected, connected?(org.id, team_id)},
+         {:member, {:ok, org_user}} <- {:member, Accounts.get_org_user(org, user)},
+         {:allowed, true} <- {:allowed, Authorization.authorized?(permission, org_user.role)} do
+      :ok
+    else
       {:connected, false} ->
-        {:error, :not_connected,
-         "This Slack workspace is not connected to the organization #{escape(identifier)} belongs to."}
+        {:error, :not_connected, "This Slack workspace is not connected to the organization #{subject} belongs to."}
 
       {:member, {:error, :not_found}} ->
-        {:error, :not_member,
-         "Your #{platform()} account is not a member of the organization #{escape(identifier)} belongs to."}
+        {:error, :not_member, "Your #{platform()} account is not a member of the organization #{subject} belongs to."}
 
       {:allowed, false} ->
         {:error, :not_allowed, "Your role in #{platform()} does not let you #{what}."}
@@ -338,7 +377,12 @@ defmodule NervesHubWeb.Integrations.Slack.Actions do
     }
   end
 
-  defp refuse(click, reason, message) do
+  @doc """
+  Tells only the person who clicked why it was not done, and returns
+  `{:error, reason}`.
+  """
+  @spec refuse(%{optional(atom()) => term()}, atom(), String.t() | map()) :: {:error, atom()}
+  def refuse(click, reason, message) do
     :ok = respond_privately(click, message)
     {:error, reason}
   end
@@ -357,8 +401,12 @@ defmodule NervesHubWeb.Integrations.Slack.Actions do
 
   defp respond_privately(_click, _message), do: :ok
 
-  # In the message's thread, for the channel to see who did what.
-  defp announce(%{channel_id: channel_id, message_ts: ts} = click, text) when is_binary(channel_id) and is_binary(ts) do
+  @doc """
+  Posts what was done in the clicked message's thread, for the channel to
+  see who did what, or, if that fails, tells the person who clicked.
+  """
+  @spec announce(%{optional(atom()) => term()}, String.t()) :: :ok
+  def announce(%{channel_id: channel_id, message_ts: ts} = click, text) when is_binary(channel_id) and is_binary(ts) do
     with %Workspace{bot_token: token} <- Repo.get_by(Workspace, team_id: click.team_id),
          {:ok, _} <- Client.post_message(token, channel_id, %{text: text, blocks: []}, thread_ts: ts) do
       :ok
@@ -369,7 +417,7 @@ defmodule NervesHubWeb.Integrations.Slack.Actions do
     end
   end
 
-  defp announce(click, text), do: respond_privately(click, text)
+  def announce(click, text), do: respond_privately(click, text)
 
   @doc "The name people know this instance by (`NervesHub.Branding`), escaped for Slack."
   @spec platform() :: String.t()

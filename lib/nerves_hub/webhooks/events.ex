@@ -90,6 +90,37 @@ defmodule NervesHub.Webhooks.Events do
       group: "Errors",
       label: "Error reopened",
       description: "An error that was marked resolved happened again. Muted errors do not reopen."
+    },
+    %{
+      type: "deployment_group.workflow_step.started",
+      group: "Deployment workflows",
+      label: "Step started",
+      description: "A deployment group's workflow began a step, or began it again after somebody retried it."
+    },
+    %{
+      type: "deployment_group.workflow_step.awaiting_approval",
+      group: "Deployment workflows",
+      label: "Waiting for approval",
+      description: "A workflow reached a step that holds the rollout until somebody approves it."
+    },
+    %{
+      type: "deployment_group.workflow_step.completed",
+      group: "Deployment workflows",
+      label: "Step completed",
+      description: "Every device a step covers is on the release's firmware, or somebody approved an approval step."
+    },
+    %{
+      type: "deployment_group.workflow_step.failed",
+      group: "Deployment workflows",
+      label: "Step failed",
+      description:
+        "More of a step's devices failed to update than it tolerates. The rollout stops there until the step is retried or skipped."
+    },
+    %{
+      type: "deployment_group.workflow_step.skipped",
+      group: "Deployment workflows",
+      label: "Step skipped",
+      description: "Somebody skipped a step. Its devices are left to the steps after it."
     }
   ]
 

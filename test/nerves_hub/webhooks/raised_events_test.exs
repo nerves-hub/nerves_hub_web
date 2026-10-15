@@ -23,9 +23,13 @@ defmodule NervesHub.Webhooks.RaisedEventsTest do
   alias NervesHub.Extensions.Health
   alias NervesHub.Extensions.Metrics
   alias NervesHub.Extensions.State
+  alias NervesHub.Firmwares
   alias NervesHub.FirmwareUpdates
   alias NervesHub.Fixtures
   alias NervesHub.Integrations.Cache
+  alias NervesHub.ManagedDeployments
+  alias NervesHub.ManagedDeployments.Orchestrator.WorkflowCoordinator
+  alias NervesHub.ManagedDeployments.Workflows
   alias NervesHub.Webhooks
   alias NervesHub.Webhooks.Events
   alias NervesHub.Webhooks.Webhook
@@ -64,9 +68,9 @@ defmodule NervesHub.Webhooks.RaisedEventsTest do
     }
   end
 
-  # The events queued so far, as receivers will get them.
+  # The events queued so far, as receivers will get them, oldest first.
   defp raised(type) do
-    for job <- all_enqueued(worker: DeliverWebhook),
+    for job <- [worker: DeliverWebhook] |> all_enqueued() |> Enum.sort_by(& &1.id),
         %{"type" => ^type, "data" => data} <- [Jason.decode!(job.args["body"])],
         do: data
   end
@@ -330,6 +334,138 @@ defmodule NervesHub.Webhooks.RaisedEventsTest do
 
       assert [%{"error" => %{"id" => id, "occurrence_count" => 2}}] = raised("error_group.reopened")
       assert id == error["id"]
+    end
+  end
+
+  describe "deployment workflow events" do
+    @workflow %{
+      "version" => 1,
+      "steps" => [
+        %{
+          "name" => "Canary",
+          "matching_conditions" => %{"tags" => ["canary"]},
+          "failure_tolerance" => %{"devices" => 1}
+        },
+        %{"name" => "Sign-off", "type" => "approval_required"}
+      ]
+    }
+
+    # A deployment group whose current release walks @workflow, with one
+    # online canary in it.
+    defp workflow_release(context) do
+      %{firmware: firmware, org: org, org_key: org_key, product: product, tmp_dir: tmp_dir, user: user} = context
+
+      deployment_group = Fixtures.deployment_group_fixture(firmware, %{user: user, is_active: true})
+
+      {:ok, deployment_group} =
+        ManagedDeployments.update_deployment_group(deployment_group, %{workflow_definition: @workflow}, user)
+
+      canary = Fixtures.device_fixture(org, product, firmware, %{tags: ["canary"], deployment_id: deployment_group.id})
+      {:ok, connection} = Connections.device_connecting(org.id, product.id, canary.id)
+      :ok = Connections.device_connected(connection.id)
+
+      next_firmware = Fixtures.firmware_fixture(org_key, product, %{version: "0.0.2", dir: tmp_dir})
+
+      {:ok, {release, _}} =
+        ManagedDeployments.create_deployment_release(deployment_group, next_firmware, nil, user, %{}, broadcast: false)
+
+      {:ok, deployment_group} = ManagedDeployments.get_deployment_group(deployment_group.id)
+
+      %{canary: canary, deployment_group: deployment_group, next_firmware: next_firmware, release: release}
+    end
+
+    defp release_step(release, number), do: release.id |> Workflows.release_steps() |> Enum.at(number - 1)
+
+    test "a workflow walked to the end announces each step", context do
+      %{canary: canary, deployment_group: deployment_group, next_firmware: next_firmware, release: release} =
+        workflow_release(context)
+
+      _ = WorkflowCoordinator.schedule_updates(deployment_group)
+
+      assert [started] = raised("deployment_group.workflow_step.started")
+
+      canary_step = release_step(release, 1)
+
+      assert %{
+               "org" => %{"name" => org_name},
+               "product" => %{"name" => product_name},
+               "deployment_group" => %{"name" => group_name},
+               "release" => %{"number" => release_number, "firmware" => %{"uuid" => uuid, "version" => "0.0.2"}},
+               "workflow" => %{"steps" => 3},
+               "step" => %{
+                 "id" => step_id,
+                 "number" => 1,
+                 "name" => "Canary",
+                 "type" => "update_devices",
+                 "status" => "in_progress",
+                 "started_at" => started_at,
+                 "finished_at" => nil
+               },
+               "user" => nil,
+               "failed_devices" => nil
+             } = started
+
+      assert {org_name, product_name, group_name} == {context.org.name, context.product.name, deployment_group.name}
+      assert {release_number, uuid, step_id} == {release.number, next_firmware.uuid, canary_step.id}
+      assert {:ok, _, 0} = DateTime.from_iso8601(started_at)
+
+      {:ok, metadata} = Firmwares.metadata_from_firmware(next_firmware)
+      {:ok, _} = Devices.update_firmware_metadata(canary, metadata, :validated, false)
+
+      _ = WorkflowCoordinator.schedule_updates(deployment_group)
+      _ = WorkflowCoordinator.schedule_updates(deployment_group)
+
+      assert [%{"step" => %{"number" => 1, "status" => "completed"}, "user" => nil}] =
+               raised("deployment_group.workflow_step.completed")
+
+      # An approval step only waits, so it is announced as waiting rather than
+      # as started.
+      assert [%{"step" => %{"number" => 2, "name" => "Sign-off", "type" => "approval_required"}}] =
+               raised("deployment_group.workflow_step.awaiting_approval")
+
+      assert [_canary_only] = raised("deployment_group.workflow_step.started")
+
+      _ = Workflows.approve_step(release_step(release, 2), context.user)
+      _ = WorkflowCoordinator.schedule_updates(deployment_group)
+      _ = WorkflowCoordinator.schedule_updates(deployment_group)
+
+      user_name = context.user.name
+
+      assert [_canary, %{"step" => %{"number" => 2}, "user" => %{"name" => ^user_name}}] =
+               raised("deployment_group.workflow_step.completed")
+
+      assert [_canary, %{"step" => %{"number" => 3, "name" => "Remaining devices", "type" => "catch_all"}}] =
+               raised("deployment_group.workflow_step.started")
+    end
+
+    test "a failed step says how many devices failed, and retrying and skipping say who", context do
+      %{canary: canary, deployment_group: deployment_group, release: release} = workflow_release(context)
+
+      _ = WorkflowCoordinator.schedule_updates(deployment_group)
+
+      canary
+      |> Ecto.Changeset.change(%{
+        updates_blocked_until: DateTime.add(DateTime.utc_now(:second), 3600),
+        update_attempts: [DateTime.utc_now(:second)]
+      })
+      |> Repo.update!()
+
+      _ = WorkflowCoordinator.schedule_updates(deployment_group)
+
+      assert [%{"step" => %{"number" => 1, "status" => "error"}, "failed_devices" => 1}] =
+               raised("deployment_group.workflow_step.failed")
+
+      user_name = context.user.name
+
+      {:ok, _} = Workflows.retry_step(deployment_group, release_step(release, 1), context.user)
+
+      assert [%{"user" => nil}, %{"step" => %{"number" => 1}, "user" => %{"name" => ^user_name}}] =
+               raised("deployment_group.workflow_step.started")
+
+      {:ok, _} = Workflows.skip_step(release_step(release, 1), context.user)
+
+      assert [%{"step" => %{"number" => 1, "status" => "skipped"}, "user" => %{"name" => ^user_name}}] =
+               raised("deployment_group.workflow_step.skipped")
     end
   end
 end

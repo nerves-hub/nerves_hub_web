@@ -24,6 +24,7 @@ defmodule NervesHub.Webhooks.Payloads do
   alias NervesHub.Devices.DeviceHealth
   alias NervesHub.Firmwares.Firmware
   alias NervesHub.ManagedDeployments.DeploymentGroup
+  alias NervesHub.ManagedDeployments.DeploymentWorkflowStep
   alias NervesHub.Repo
 
   @doc "`device.connected`"
@@ -171,6 +172,44 @@ defmodule NervesHub.Webhooks.Payloads do
       }
     }
   end
+
+  @doc """
+  `deployment_group.workflow_step.started`, `.awaiting_approval`,
+  `.completed`, `.failed` and `.skipped`
+
+  About a deployment group's workflow rather than one device, so there is no
+  `device`. `release` is what `NervesHub.ManagedDeployments.WorkflowEvents`
+  read of the step's release. `user` is who skipped, retried or approved the
+  step, and `nil` when the workflow moved on its own; `failed_devices` is
+  set only for a failed step.
+  """
+  @spec workflow_step(DeploymentWorkflowStep.t(), map(), keyword()) :: map()
+  def workflow_step(%DeploymentWorkflowStep{} = step, release, opts) do
+    step_count =
+      DeploymentWorkflowStep
+      |> where([s], s.deployment_release_id == ^step.deployment_release_id)
+      |> Repo.aggregate(:count)
+
+    %{
+      deployment_group: release.deployment_group,
+      release: %{number: release.number, firmware: release.firmware},
+      workflow: %{steps: step_count},
+      step: %{
+        id: step.id,
+        number: step.number,
+        name: DeploymentWorkflowStep.label(step),
+        type: Atom.to_string(step.type),
+        status: Atom.to_string(step.status),
+        started_at: utc(step.started_at),
+        finished_at: utc(step.finished_at)
+      },
+      user: opts[:user] && %{name: opts[:user].name},
+      failed_devices: opts[:failed_devices]
+    }
+  end
+
+  defp utc(nil), do: nil
+  defp utc(%NaiveDateTime{} = at), do: DateTime.from_naive!(at, "Etc/UTC")
 
   defp top_frame(%{top_frame_module: nil, top_frame_function: nil}), do: nil
 

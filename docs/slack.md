@@ -25,9 +25,14 @@ Under a connected workspace, **Add channel** picks a channel, the products whose
 | Update succeeded | A device finishes updating. |
 | New error | A device reports an error not seen before in its product. |
 | Error reopened | An error that was marked resolved happens again. A muted error does not reopen. |
-| Product notifications | NervesHub adds something to a product's Notifications page, such as a halted deployment workflow or a webhook it turned off. A notification that recurs is posted only the first time. |
+| Workflow step started | A deployment group's workflow begins a step, or begins it again after somebody retries it. |
+| Workflow waiting for approval | A workflow reaches a step that holds the rollout until somebody approves it. |
+| Workflow step completed | Every device a step covers is on the release's firmware, or somebody approved an approval step. |
+| Workflow step failed | Too many of a step's devices fail to update, and the rollout stops there. |
+| Workflow step skipped | Somebody skips a step. |
+| Product notifications | NervesHub adds something to a product's Notifications page, such as a halted deployment workflow or a webhook it turned off. A notification that recurs is posted only the first time. A channel that also gets "Workflow waiting for approval" or "Workflow step failed" hears about a halted workflow from both. |
 
-Events are held for 15 seconds before they are posted, and everything held for a channel goes out as one message per kind of event. A single event gets a message of its own. A burst, such as a fleet's health changing at once, gets one message with a count and the first ten devices, so the channel is not buried. Device names link to the device in NervesHub. Anything a device sent, such as a failure reason, is escaped, so it cannot mention `@channel` or become a link.
+Events are held for 15 seconds before they are posted, and everything held for a channel goes out as one message per kind of event, in the order each kind first happened. A single event gets a message of its own. A burst, such as a fleet's health changing at once, gets one message with a count and the first ten devices, so the channel is not buried. Device names link to the device in NervesHub. Anything a device sent, such as a failure reason, is escaped, so it cannot mention `@channel` or become a link.
 
 **Send test message** posts a message to the channel straight away, saying what it will get.
 
@@ -53,6 +58,14 @@ When a linked user clicks, NervesHub checks, at that moment:
 If any check fails, only the person who clicked is told why. If they all pass, the device is asked to reboot or identify itself, the audit log records the user with "from Slack", and a reply in the message's thread tells the channel who did what.
 
 A device asked to reboot from Slack is not asked again from Slack for a minute, so a double click, two people clicking at once, or a button and a command together reboot it once. Whoever is refused is told who rebooted it. Each request Slack sends is acted on once, so one replayed while its signature is still good does nothing.
+
+## Acting on deployment workflows from Slack
+
+A workflow waiting for approval has an **Approve** button, and a workflow step that failed has **Retry** and **Skip**. Each asks for confirmation, then does what the same button on the deployment group's page does, as the linked NervesHub user. Both kinds of message also have **Open in NervesHub**, which opens the deployment group.
+
+The checks are the device buttons' (above): the deployment group's organization is connected to the workspace, and the linked user's role there can change deployment groups, which takes `manage`. A message can be clicked long after it was posted, so NervesHub also checks that the step still belongs to the deployment group's current release and is still waiting for approval, or still failed. If it was approved or skipped since, the person who clicked is told by whom.
+
+A step is acted on from Slack at most once every 30 seconds, so a double click, or two people clicking at once, approve or retry it once. What was done is recorded in the deployment group's audit log with "from Slack", and a reply in the message's thread tells the channel who did it.
 
 ## Slash commands
 

@@ -5,7 +5,6 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
   alias LiveFlow.Handle
   alias LiveFlow.Node
   alias LiveFlow.State
-  alias NervesHub.AuditLogs
   alias NervesHub.AuditLogs.DeploymentGroupTemplates
   alias NervesHub.Devices.BulkActions
   alias NervesHub.Devices.Deployments
@@ -13,7 +12,6 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
   alias NervesHub.FirmwareUpdates
   alias NervesHub.Helpers.Logging
   alias NervesHub.ManagedDeployments
-  alias NervesHub.ManagedDeployments.DeploymentWorkflowStep
   alias NervesHub.ManagedDeployments.Workflows
   alias NervesHub.Products
   alias NervesHubWeb.Components.DeploymentGroupPage.Activity, as: ActivityTab
@@ -106,11 +104,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
       step ->
         step = Workflows.approve_step(step, user)
 
-        AuditLogs.audit!(
-          user,
-          deployment_group,
-          "User #{user.name} approved workflow step #{step.number} (#{DeploymentWorkflowStep.label(step)}) for deployment group #{deployment_group.name}"
-        )
+        DeploymentGroupTemplates.audit_workflow_step_action(user, deployment_group, step, :approved)
 
         # Approving only clears the block. The orchestrator is what completes the
         # step and starts the next one, so nudge it rather than leaving the page
@@ -515,11 +509,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
 
     case Workflows.skip_step(step, user) do
       {:ok, skipped} ->
-        AuditLogs.audit!(
-          user,
-          deployment_group,
-          "User #{user.name} skipped workflow step #{skipped.number} (#{DeploymentWorkflowStep.label(skipped)}) for deployment group #{deployment_group.name}"
-        )
+        DeploymentGroupTemplates.audit_workflow_step_action(user, deployment_group, skipped, :skipped)
 
         # Skipping only clears the way; the orchestrator is what moves the
         # workflow on to the next step.
@@ -537,11 +527,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
 
     case Workflows.retry_step(deployment_group, step, user) do
       {:ok, retried} ->
-        AuditLogs.audit!(
-          user,
-          deployment_group,
-          "User #{user.name} retried workflow step #{retried.number} (#{DeploymentWorkflowStep.label(retried)}) for deployment group #{deployment_group.name}"
-        )
+        DeploymentGroupTemplates.audit_workflow_step_action(user, deployment_group, retried, :retried)
 
         :ok = ManagedDeployments.broadcast(deployment_group, "deployments/update")
 
