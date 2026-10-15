@@ -145,8 +145,9 @@ defmodule NervesHubWeb.API.CACertificateController do
       {:error, :not_found} ->
         {:error, {:certificate_decoding_error, "Error decoding certificate"}}
 
-      {:error, :invalid_csr} ->
-        {:error, {:invalid_csr, "CA Certificate ownership verification failed"}}
+      {:error, {:invalid_csr, reason}} ->
+        {:error,
+         {:invalid_csr, "CA Certificate ownership verification failed. " <> CSR.ownership_error_message(reason)}}
 
       e ->
         e

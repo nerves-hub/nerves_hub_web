@@ -64,7 +64,9 @@ defmodule NervesHub.Extensions.Metrics do
   alias NervesHub.Extensions.Jitter
   alias NervesHub.Extensions.PubSub
   alias NervesHub.Extensions.State
+  alias NervesHub.Integrations
   alias NervesHub.RateLimit.Metrics, as: RateLimit
+  alias NervesHub.Webhooks.Payloads
 
   require Logger
 
@@ -104,14 +106,12 @@ defmodule NervesHub.Extensions.Metrics do
   def attach(state) do
     mode = current_mode(state)
 
-    {State.assign(state, :mode, mode),
-     [{:group_join, PubSub.watch_key(device_id(state), :metrics)}, {:tick, :check}, timer(mode)]}
+    {State.assign(state, :mode, mode), [{:tick, :check}, timer(mode)]}
   end
 
   @impl NervesHub.Extensions
   def detach(state) do
-    {State.assign(state, :mode, nil),
-     [{:cancel_timer, :check}, {:group_leave, PubSub.watch_key(device_id(state), :metrics)}]}
+    {State.assign(state, :mode, nil), [{:cancel_timer, :check}]}
   end
 
   @impl NervesHub.Extensions
@@ -132,6 +132,8 @@ defmodule NervesHub.Extensions.Metrics do
       # them back. One judgement per message, however many batched reports
       # it carried.
       _ = HealthEvaluation.evaluate_and_save(state.device_info, in_hand_samples(reports))
+
+      :ok = dispatch_event(state.device_info, reports)
     end
 
     {state, []}
@@ -212,6 +214,30 @@ defmodule NervesHub.Extensions.Metrics do
         {key, value} <- metrics,
         is_number(value),
         do: {key, timestamp, value}
+  end
+
+  # Checked before building, rather than leaving it to `dispatch/3`, because a
+  # batch whose every report was skipped is not worth an event.
+  defp dispatch_event(device_info, reports) do
+    with true <- Integrations.subscribed?(device_info.product_id, "device.metrics_reported"),
+         [_ | _] = stored <- stored_reports(reports) do
+      Integrations.dispatch(device_info.product_id, "device.metrics_reported", fn ->
+        Payloads.metrics_reported(device_info, stored)
+      end)
+    else
+      _nothing_to_send -> :ok
+    end
+  end
+
+  # The batch as the event carries it: the reports `record/2` stored, each with
+  # the readings it kept.
+  defp stored_reports(reports) do
+    for %{"metrics" => metrics} = report <- reports,
+        is_map(metrics),
+        {:ok, timestamp} <- [timestamp(report)],
+        readings <- [Store.storable(metrics)],
+        readings != %{},
+        do: %{timestamp: timestamp, metrics: readings}
   end
 
   # A reading is only worth what its timestamp is worth. A device whose clock

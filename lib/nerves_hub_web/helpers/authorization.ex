@@ -37,6 +37,26 @@ defmodule NervesHubWeb.Helpers.Authorization do
 
   def authorized?(:"product:notifications:dismiss", role), do: role_check(:manage, role)
 
+  # A webhook can send any product's device events outside NervesHub, so it
+  # takes the role that can change every product.
+  def authorized?(:"webhook:create", role), do: role_check(:manage, role)
+  def authorized?(:"webhook:update", role), do: role_check(:manage, role)
+  def authorized?(:"webhook:delete", role), do: role_check(:manage, role)
+
+  # Connecting a Slack workspace lets the people in it hear about the whole
+  # organization's devices, and later act on them, so it is an admin's call.
+  def authorized?(:"slack_connection:create", role), do: role_check(:admin, role)
+  def authorized?(:"slack_connection:delete", role), do: role_check(:admin, role)
+
+  # Which channels hear which events, like webhooks.
+  def authorized?(:"slack_subscription:create", role), do: role_check(:manage, role)
+  def authorized?(:"slack_subscription:update", role), do: role_check(:manage, role)
+  def authorized?(:"slack_subscription:delete", role), do: role_check(:manage, role)
+
+  def authorized?(:"teams_channel:create", role), do: role_check(:manage, role)
+  def authorized?(:"teams_channel:update", role), do: role_check(:manage, role)
+  def authorized?(:"teams_channel:delete", role), do: role_check(:manage, role)
+
   def authorized?(:"error_group:update", role), do: role_check(:manage, role)
 
   def authorized?(:"device:console", role), do: role_check(:manage, role)

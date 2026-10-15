@@ -4,12 +4,17 @@ alias NervesHub.DeviceLink.Dispatcher
 alias NervesHub.DeviceLink.Dispatcher.Remote
 alias NervesHub.DeviceLink.PeerVerification
 alias NervesHub.Firmwares.Upload.S3
+alias NervesHub.Integrations.Slack
+alias NervesHub.Integrations.Teams
+alias NervesHub.Types.Encrypted
 alias Swoosh.Adapters.Test
 
 config :bcrypt_elixir, log_rounds: 4
 
 # Print only warnings and errors during test
 config :logger, level: :warning
+
+config :nerves_hub, Encrypted, key: Base.decode64!("dGVzdC1rZXktdGVzdC1rZXktdGVzdC1rZXktdGVzdC0=")
 
 config :nerves_hub, NervesHub.AnalyticsRepo,
   url: System.get_env("CLICKHOUSE_URL", "http://default:@localhost:8123/default_test")
@@ -30,6 +35,10 @@ config :nerves_hub, NervesHub.Repo,
 config :nerves_hub, NervesHub.SwooshMailer, adapter: Test
 config :nerves_hub, NervesHub.Uploads, backend: NervesHub.Uploads.File
 config :nerves_hub, NervesHub.Uploads.File, local_path: System.tmp_dir(), public_path: "/uploads"
+
+config :nerves_hub, NervesHub.Webhooks,
+  allow_private_destinations: true,
+  req_options: [plug: {Req.Test, NervesHub.Webhooks}]
 
 # Both endpoints listen for real during tests, so two checkouts running their
 # suites at once collide on the port and the second fails to boot with
@@ -76,6 +85,15 @@ config :nerves_hub, NervesHubWeb.Endpoint,
 
 config :nerves_hub, Oban, testing: :manual
 config :nerves_hub, S3, bucket: "mybucket"
+
+config :nerves_hub, Slack,
+  client_id: "test-client-id",
+  client_secret: "test-client-secret",
+  signing_secret: "test-signing-secret",
+  req_options: [plug: {Req.Test, Slack}]
+
+config :nerves_hub, Teams, req_options: [plug: {Req.Test, Teams}]
+
 # Short enough that analytics writes land within an `assert_eventually`.
 config :nerves_hub, :analytics_buffer, max_delay: to_timeout(millisecond: 50)
 config :nerves_hub, :firmware_download_options, plug: {Req.Test, NervesHub}

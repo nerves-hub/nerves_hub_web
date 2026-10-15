@@ -21,6 +21,7 @@ defmodule NervesHub.Application do
   alias NervesHub.RateLimit.LogLines
   alias NervesHub.RateLimit.Metrics, as: MetricsLimit
   alias NervesHub.Telemetry.Customizations
+  alias NervesHubWeb.Integrations.Slack.Socket
   alias PlugAttack.Storage.Ets, as: PlugAttackEts
 
   require Logger
@@ -55,6 +56,8 @@ defmodule NervesHub.Application do
           # Reads the profile every metric report needs; see the module for why
           # this cache is not the state health evaluation does without.
           Cache,
+          # Answers "does anyone want this event?" on every device event.
+          NervesHub.Integrations.Cache,
           # Ahead of the group tree: `RateLimitPubSub` applies peer throttle
           # increments into this storage the moment it joins its group.
           {PlugAttackEts, name: PlugAttackStorage, clean_period: 60_000},
@@ -71,6 +74,7 @@ defmodule NervesHub.Application do
         analytics_buffers() ++
         device_link_handlers() ++
         deployments_orchestrator(deploy_env()) ++
+        slack_sockets(deploy_env()) ++
         endpoints(deploy_env())
 
     opts = [strategy: :one_for_one, name: NervesHub.Supervisor]
@@ -226,6 +230,17 @@ defmodule NervesHub.Application do
           ProcessHub.child_spec(%ProcessHub{hub_id: :deployment_orchestrators}),
           OrchestratorRegistration
         ]
+    end
+  end
+
+  # Socket Mode connections to Slack, for an instance Slack cannot reach. On
+  # web nodes, which run what Slack's events, clicks and commands lead to.
+  defp slack_sockets("test"), do: []
+
+  defp slack_sockets(_) do
+    case Application.get_env(:nerves_hub, :app) do
+      "device" -> []
+      _ -> Socket.child_specs()
     end
   end
 

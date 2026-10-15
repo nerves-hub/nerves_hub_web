@@ -372,6 +372,7 @@ defmodule NervesHub.Firmwares do
              Changeset.t()
              | :no_public_keys
              | :invalid_signature
+             | {:fwup_too_old, required :: String.t(), installed :: String.t()}
              | {:product_mismatch, declared :: String.t(), expected :: String.t()}
              | any}
   def create_firmware(org, filepath, opts \\ []) do
@@ -594,6 +595,7 @@ defmodule NervesHub.Firmwares do
           {:ok, OrgKey.t()}
           | {:error, :invalid_signature}
           | {:error, :no_public_keys}
+          | {:error, {:fwup_too_old, required :: String.t(), installed :: String.t()}}
   defdelegate verify_signature(filepath, keys), to: Fwup
 
   @doc """

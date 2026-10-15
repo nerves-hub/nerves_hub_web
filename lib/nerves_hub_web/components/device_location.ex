@@ -1,10 +1,12 @@
 defmodule NervesHubWeb.Components.DeviceLocation do
   use NervesHubWeb, :component
 
+  alias NervesHub.Accounts.User.DisplayPreferences
   alias Phoenix.LiveView.JS
 
   attr(:location, :any)
   attr(:enable_location_editor, :boolean)
+  attr(:map_style, :atom, default: nil, doc: "the user's map style, or nil to follow the theme")
 
   # Only rendered when a Mapbox token is configured and the Geo extension is
   # enabled for the product and device. The details tab checks that.
@@ -22,11 +24,12 @@ defmodule NervesHubWeb.Components.DeviceLocation do
   def render(%{enable_location_editor: true} = assigns) do
     ~H"""
     <div class="flex h-[450px] w-full flex-col gap-4 p-4">
-      <div class="flex items-end justify-between">
+      <div class="flex items-end justify-between gap-2">
         <div class="leading-6 font-medium text-base-50">Location</div>
-        <div class="text-xs font-normal text-base-400">
+        <div class="ml-auto text-xs font-normal text-base-400">
           Please select the devices location.
         </div>
+        <.map_style_menu map_style={@map_style} />
       </div>
 
       <div
@@ -35,6 +38,7 @@ defmodule NervesHubWeb.Components.DeviceLocation do
         phx-hook="DeviceLocationMapWithGeocoder"
         phx-update="ignore"
         data-access-token={@mapbox_access_token}
+        data-map-style={@map_style}
       >
       </div>
 
@@ -117,6 +121,7 @@ defmodule NervesHubWeb.Components.DeviceLocation do
       source: location["source"],
       zoom: if(String.downcase(location["source"]) == "gps", do: 15, else: 13),
       mapbox_access_token: assigns.mapbox_access_token,
+      map_style: assigns.map_style,
       target: assigns[:target]
     }
 
@@ -135,6 +140,7 @@ defmodule NervesHubWeb.Components.DeviceLocation do
         <div class="ml-auto text-xs font-normal text-base-400">
           {@source_information}
         </div>
+        <.map_style_menu map_style={@map_style} />
         <div class="relative flex justify-end">
           <button
             class="rounded-sm border border-base-600 bg-base-800 p-0.5 hover:bg-base-700 active:bg-primary disabled:bg-base-800"
@@ -202,9 +208,86 @@ defmodule NervesHubWeb.Components.DeviceLocation do
         data-center-lat={@lat}
         data-zoom={@zoom}
         data-source={@source}
+        data-map-style={@map_style}
       >
       </div>
     </div>
     """
   end
+
+  attr(:map_style, :atom, required: true)
+
+  # Picking a style saves it to the user's display preferences. The map hook
+  # sees the new `data-map-style` when the page re-renders and restyles the map
+  # in place, keeping its position and marker.
+  defp map_style_menu(assigns) do
+    assigns = assign(assigns, :options, [nil | DisplayPreferences.map_styles()])
+
+    ~H"""
+    <div class="relative flex justify-end">
+      <button
+        type="button"
+        class="rounded-sm border border-base-600 bg-base-800 p-0.5 hover:bg-base-700 active:bg-primary"
+        id="map-style-button"
+        title="Map style"
+        aria-label="Map style"
+        aria-haspopup="true"
+        phx-click={
+          JS.toggle(
+            to: "#map-style-menu",
+            in: {"ease-out duration-100", "opacity-0 scale-95", "opacity-100 scale-100"},
+            out: {"ease-out duration-75", "opacity-100 scale-100", "opacity-0 scale-95"}
+          )
+        }
+        phx-click-away={
+          JS.hide(
+            to: "#map-style-menu",
+            transition: {"ease-out duration-75", "opacity-100 scale-100", "opacity-0 scale-95"}
+          )
+        }
+        phx-window-keydown={
+          JS.hide(
+            to: "#map-style-menu",
+            transition: {"ease-out duration-75", "opacity-100 scale-100", "opacity-0 scale-95"}
+          )
+        }
+        phx-key="Escape"
+      >
+        <span class="lucide-layers--light block size-3 text-base-400" />
+      </button>
+
+      <div
+        id="map-style-menu"
+        class="absolute right-0 z-10 mt-6 w-48 origin-top-right rounded border border-base-700 bg-surface-overlay py-1 shadow-lg ring-1 ring-black/5 focus:outline-none"
+        role="menu"
+        style="display: none;"
+        aria-orientation="vertical"
+        aria-labelledby="map-style-button"
+        tabindex="-1"
+      >
+        <button
+          :for={option <- @options}
+          type="button"
+          phx-click="set-map-style"
+          phx-value-style={to_string(option)}
+          class="flex w-full items-center justify-between gap-2 px-4 py-2 text-left text-xs text-base-300 hover:bg-base-700"
+          role="menuitemradio"
+          aria-checked={to_string(option == @map_style)}
+          tabindex="-1"
+        >
+          {map_style_label(option)}
+          <span :if={option == @map_style} class="lucide-check--light size-3.5 text-primary" />
+        </button>
+      </div>
+    </div>
+    """
+  end
+
+  defp map_style_label(nil), do: "Match theme"
+  defp map_style_label(:streets), do: "Streets"
+  defp map_style_label(:outdoors), do: "Outdoors"
+  defp map_style_label(:light), do: "Light"
+  defp map_style_label(:dark), do: "Dark"
+  defp map_style_label(:satellite), do: "Satellite"
+  defp map_style_label(:satellite_streets), do: "Satellite with streets"
 end

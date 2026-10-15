@@ -8,6 +8,7 @@ defmodule NervesHub.AuditLogs.DeviceTemplates do
   alias NervesHub.AuditLogs
   alias NervesHub.DeviceLink.DeviceInfo
   alias NervesHub.Devices.Device
+  alias NervesHub.Devices.SharedSecretAuth
   alias NervesHub.Firmwares.Firmware
   alias NervesHub.ManagedDeployments.DeploymentGroup
 
@@ -15,15 +16,40 @@ defmodule NervesHub.AuditLogs.DeviceTemplates do
 
   ## General
 
-  @spec audit_reboot(User.t(), Device.t()) :: :ok
-  def audit_reboot(user, device) do
-    description = "User #{user.name} rebooted device #{device.identifier}"
+  # `via` names where a request came from when it was not the dashboard or
+  # the API, such as Slack.
+  @spec audit_reboot(User.t(), Device.t(), String.t() | nil) :: :ok
+  def audit_reboot(user, device, via \\ nil) do
+    description = "User #{user.name} rebooted device #{device.identifier}#{via(via)}"
     AuditLogs.audit!(user, device, description)
   end
 
-  @spec audit_request_action(User.t(), Device.t(), String.t()) :: :ok
-  def audit_request_action(user, device, action) do
-    description = "User #{user.name} requested the device (#{device.identifier}) #{action}"
+  @spec audit_request_action(User.t(), Device.t(), String.t(), String.t() | nil) :: :ok
+  def audit_request_action(user, device, action, via \\ nil) do
+    description = "User #{user.name} requested the device (#{device.identifier}) #{action}#{via(via)}"
+    AuditLogs.audit!(user, device, description)
+  end
+
+  @spec audit_script_run(User.t(), Device.t(), String.t(), String.t() | nil) :: :ok
+  def audit_script_run(user, device, script_name, via \\ nil) do
+    description = "User #{user.name} ran support script #{script_name} on device #{device.identifier}#{via(via)}"
+    AuditLogs.audit!(user, device, description)
+  end
+
+  defp via(nil), do: ""
+  defp via(source), do: " from #{source}"
+
+  ## Shared secrets
+
+  @spec audit_shared_secret_created(User.t(), Device.t(), SharedSecretAuth.t()) :: :ok
+  def audit_shared_secret_created(user, device, auth) do
+    description = "User #{user.name} created shared secret #{auth.key} for device #{device.identifier}"
+    AuditLogs.audit!(user, device, description)
+  end
+
+  @spec audit_shared_secret_deactivated(User.t(), Device.t(), SharedSecretAuth.t()) :: :ok
+  def audit_shared_secret_deactivated(user, device, auth) do
+    description = "User #{user.name} deactivated shared secret #{auth.key} for device #{device.identifier}"
     AuditLogs.audit!(user, device, description)
   end
 

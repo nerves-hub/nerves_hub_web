@@ -1,0 +1,321 @@
+<NervesHubWeb.Layouts.sidebar flash={@flash} current_scope={@current_scope} sidebar_tab={@sidebar_tab}>
+  <:header>
+    <h1 class="text-xl leading-[30px] font-semibold text-base-50">Integrations</h1>
+  </:header>
+
+  <div class="h-0 flex-1 overflow-y-auto">
+    <div class="flex flex-col items-start justify-between gap-4 p-6">
+      <.live_component
+        :if={@slack_configured?}
+        module={NervesHubWeb.Live.Org.Integrations.SlackSection}
+        id="slack"
+        current_scope={@current_scope}
+        org={@org}
+        products={@products}
+        time_zone={@time_zone}
+      />
+
+      <.live_component
+        module={NervesHubWeb.Live.Org.Integrations.TeamsSection}
+        id="teams"
+        current_scope={@current_scope}
+        org={@org}
+        products={@products}
+        time_zone={@time_zone}
+      />
+
+      <div class="flex w-full flex-col rounded border border-base-700 bg-surface-raised">
+        <div class="flex h-14 items-center justify-between border-b border-base-700 px-4">
+          <div class="text-base font-medium text-base-50">Webhooks</div>
+          <.button
+            :if={is_nil(@editing) && length(@webhooks) < Webhooks.max_webhooks_per_org()}
+            type="button"
+            phx-click="new"
+            disabled={!authorized?(:"webhook:create", @current_scope)}
+            aria-label="Add a webhook"
+          >
+            <.icon name="add" />Add webhook
+          </.button>
+        </div>
+
+        <%!-- The rest is shown on request: the form and the list are what people come here for. Hidden with an inline style rather than `hidden`, which Tailwind makes `!important` and JS.show cannot override. --%>
+        <div class="flex flex-col gap-3 p-6">
+          <p class="w-2/3 text-sm">
+            A webhook sends device events from every product in this organization, or from the ones you choose, to a URL you choose, as a signed JSON <code>POST</code>.
+            <button
+              id="webhooks-show-more"
+              type="button"
+              phx-click={JS.show(to: "#webhooks-more", display: "flex") |> JS.hide()}
+              class="cursor-pointer text-base-400 underline hover:text-base-200"
+            >
+              Show more
+            </button>
+          </p>
+          <div id="webhooks-more" style="display: none" class="flex w-2/3 flex-col gap-3 text-sm">
+            <p>
+              Every request is signed with the webhook's secret, following the <.link class="underline" href="https://www.standardwebhooks.com" target="_blank">Standard Webhooks</.link>
+              specification, so your receiver can check that it came from NervesHub using one of that specification's libraries.
+            </p>
+            <p>
+              A delivery that is not answered with a 2xx status is retried for about two and a half hours. An endpoint that
+              accepts nothing for a day, or answers <code>410 Gone</code>, is turned off, and each product it was sending
+              events for gets a notification saying so.
+            </p>
+            <p>
+              See the <.link class="underline" href="https://github.com/nerves-hub/nerves_hub_web/blob/main/docs/webhooks.md" target="_blank">webhook documentation</.link>
+              for each event's payload and how to verify signatures.
+            </p>
+            <button
+              type="button"
+              phx-click={JS.hide(to: "#webhooks-more") |> JS.show(to: "#webhooks-show-more", display: "inline")}
+              class="cursor-pointer self-start text-base-400 underline hover:text-base-200"
+            >
+              Show less
+            </button>
+          </div>
+        </div>
+
+        <.form
+          :if={@form}
+          for={@form}
+          id="webhook-form"
+          phx-change="validate"
+          phx-submit="save"
+          class="flex flex-col gap-6 border-t border-base-700 p-6"
+        >
+          <div class="text-sm font-medium text-base-50">
+            {if @editing == :new, do: "New webhook", else: "Edit webhook"}
+          </div>
+
+          <div class="flex w-2/3 flex-col gap-6">
+            <.input field={@form[:url]} type="url" label="URL" placeholder="https://example.com/nerves-hub/events" />
+            <.input field={@form[:description]} label="Description" hint="Optional: what receives these events" />
+          </div>
+
+          <div class="flex flex-col gap-3">
+            <div class="text-sm font-medium text-base-300">Products</div>
+            <label for="webhook-all-products-true" class="flex items-center gap-3">
+              <input
+                id="webhook-all-products-true"
+                type="radio"
+                name="webhook[all_products]"
+                value="true"
+                checked={all_products?(@form)}
+                class="border-base-700 text-base-400 checked:bg-primary focus:ring-0"
+              />
+              <span class="text-sm text-base-300">Every product, including products added later</span>
+            </label>
+            <label for="webhook-all-products-false" class="flex items-center gap-3">
+              <input
+                id="webhook-all-products-false"
+                type="radio"
+                name="webhook[all_products]"
+                value="false"
+                checked={!all_products?(@form)}
+                class="border-base-700 text-base-400 checked:bg-primary focus:ring-0"
+              />
+              <span class="text-sm text-base-300">Only these products</span>
+            </label>
+
+            <input type="hidden" name="webhook[products][]" value="" />
+            <div :if={!all_products?(@form)} class="ml-7 flex flex-col gap-1">
+              <label :for={product <- @products} for={"product-#{product.id}"} class="flex items-center gap-3 py-1">
+                <input
+                  id={"product-#{product.id}"}
+                  type="checkbox"
+                  name="webhook[products][]"
+                  value={product.name}
+                  checked={MapSet.member?(selected_products(@form), product.name)}
+                  class="rounded border-base-700 text-base-400 checked:bg-primary focus:ring-0"
+                />
+                <span class="text-sm text-base-300">{product.name}</span>
+              </label>
+              <p :if={@products == []} class="text-sm text-base-400">This organization has no products yet.</p>
+            </div>
+
+            <.error :for={message <- checkbox_errors(@form, :products)}>{message}</.error>
+          </div>
+
+          <div class="flex flex-col gap-4">
+            <div class="text-sm font-medium text-base-300">Events</div>
+            <input type="hidden" name="webhook[events][]" value="" />
+
+            <div :for={{group, events} <- @event_groups} class="flex flex-col gap-2">
+              <div class="text-xs font-semibold tracking-wide text-base-400 uppercase">{group}</div>
+              <label :for={event <- events} for={"event-#{event.type}"} class="flex items-start gap-3 py-1">
+                <input
+                  id={"event-#{event.type}"}
+                  type="checkbox"
+                  name="webhook[events][]"
+                  value={event.type}
+                  checked={event.type in selected_events(@form)}
+                  class="mt-0.5 rounded border-base-700 text-base-400 checked:bg-primary focus:ring-0"
+                />
+                <div class="flex flex-col">
+                  <div class="flex items-center gap-2">
+                    <span class="text-sm font-medium text-base-300">{event.label}</span>
+                    <code class="text-xs text-base-500">{event.type}</code>
+                  </div>
+                  <span class="text-xs text-base-400">{event.description}</span>
+                </div>
+              </label>
+            </div>
+
+            <.error :for={message <- checkbox_errors(@form, :events)}>{message}</.error>
+          </div>
+
+          <div class="flex gap-3">
+            <.button style="primary" type="submit" phx-disable-with="Saving...">
+              {if @editing == :new, do: "Add webhook", else: "Save webhook"}
+            </.button>
+            <.button type="button" phx-click="cancel">Cancel</.button>
+          </div>
+        </.form>
+
+        <div :if={@webhooks == [] && is_nil(@form)} class="border-t border-base-700 p-6">
+          <p class="text-sm text-base-400">This organization has no webhooks.</p>
+        </div>
+
+        <div
+          :for={webhook <- @webhooks}
+          id={"webhook-#{webhook.id}"}
+          class="flex flex-col gap-3 border-t border-base-700 p-6"
+        >
+          <div class="flex flex-wrap items-start justify-between gap-3">
+            <div class="flex min-w-0 flex-col gap-1">
+              <div class="flex items-center gap-2">
+                <span class="font-medium text-base-50">{webhook.description || host(webhook)}</span>
+                <.status_badge webhook={webhook} />
+              </div>
+              <code :if={authorized?(:"webhook:update", @current_scope)} class="text-sm break-all text-base-400">
+                {webhook.url}
+              </code>
+              <code :if={!authorized?(:"webhook:update", @current_scope)} class="text-sm text-base-400">
+                {host(webhook)}
+              </code>
+            </div>
+
+            <div :if={authorized?(:"webhook:update", @current_scope)} class="flex flex-wrap items-center gap-2">
+              <.button
+                type="button"
+                phx-click="send-test"
+                phx-value-webhook_id={webhook.id}
+                disabled={MapSet.member?(@testing, webhook.id)}
+                aria-label="Send a test event"
+              >
+                {if MapSet.member?(@testing, webhook.id), do: "Sending...", else: "Send test event"}
+              </.button>
+              <div class="relative">
+                <button
+                  type="button"
+                  id={"webhook-#{webhook.id}-menu-toggle"}
+                  phx-click={toggle_menu(webhook.id)}
+                  aria-haspopup="menu"
+                  title="More actions"
+                  class="flex items-center rounded p-1.5 hover:cursor-pointer hover:bg-base-700"
+                >
+                  <span class="lucide-ellipsis--light size-4 text-base-400"></span>
+                  <span class="sr-only">More actions</span>
+                </button>
+
+                <div
+                  id={"webhook-#{webhook.id}-menu"}
+                  class="hidden"
+                  phx-click-away={hide_menu(webhook.id)}
+                  phx-window-keydown={hide_menu(webhook.id)}
+                  phx-key="escape"
+                >
+                  <div
+                    role="menu"
+                    class="absolute top-9 right-0 z-30 flex w-40 flex-col rounded-md border border-base-700 bg-surface-overlay p-1 shadow-lg"
+                  >
+                    <button
+                      type="button"
+                      role="menuitem"
+                      phx-click={JS.push("edit", value: %{webhook_id: webhook.id}) |> hide_menu(webhook.id)}
+                      class="flex items-center gap-2 rounded px-2 py-1.5 text-left text-sm text-base-300 hover:cursor-pointer hover:bg-primary/20"
+                    >
+                      <span class="lucide-pencil--light size-4 text-base-400"></span> Edit
+                    </button>
+                    <button
+                      type="button"
+                      role="menuitem"
+                      phx-click={JS.push("toggle", value: %{webhook_id: webhook.id}) |> hide_menu(webhook.id)}
+                      class="flex items-center gap-2 rounded px-2 py-1.5 text-left text-sm text-base-300 hover:cursor-pointer hover:bg-primary/20"
+                    >
+                      <span :if={webhook.enabled} class="lucide-power-off--light size-4 text-base-400"></span>
+                      <span :if={!webhook.enabled} class="lucide-power--light size-4 text-success"></span>
+                      {if webhook.enabled, do: "Turn off", else: "Turn on"}
+                    </button>
+                    <button
+                      :if={authorized?(:"webhook:delete", @current_scope)}
+                      type="button"
+                      role="menuitem"
+                      phx-click={JS.push("delete", value: %{webhook_id: webhook.id}) |> hide_menu(webhook.id)}
+                      data-confirm={"Remove the webhook to #{host(webhook)}? Deliveries still queued for it are dropped."}
+                      class="flex items-center gap-2 rounded px-2 py-1.5 text-left text-sm text-alert hover:cursor-pointer hover:bg-alert-soft"
+                    >
+                      <span class="lucide-trash--light size-4"></span> Delete
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="text-sm text-base-400">
+            <span class="text-base-300">Products:</span> {scope_label(webhook)}
+          </div>
+
+          <div class="flex flex-wrap gap-2">
+            <code
+              :for={type <- webhook.events}
+              title={Events.label(type)}
+              class="rounded border border-base-700 bg-base-800 px-2 py-0.5 text-xs text-base-300"
+            >
+              {type}
+            </code>
+          </div>
+
+          <p :if={webhook.disabled_reason} class="text-sm text-alert">{webhook.disabled_reason}</p>
+
+          <p :if={webhook.enabled && webhook.failing_since} class="text-sm text-alert">
+            Failing since <.local_datetime at={webhook.failing_since} time_zone={@time_zone} />. Last error, at
+            <.local_datetime at={webhook.last_error_at} time_zone={@time_zone} format={:time} />: {webhook.last_error}
+          </p>
+
+          <div :if={authorized?(:"webhook:update", @current_scope)} class="flex flex-wrap items-center gap-3 text-sm text-base-400">
+            <span>Signing secret</span>
+            <%!-- Left out rather than hidden for members who cannot manage webhooks: anyone holding it can forge deliveries. --%>
+            <button
+              id={"webhook-#{webhook.id}-copy-secret"}
+              type="button"
+              phx-hook="CopyToClipboard"
+              data-copy-value={webhook.secret}
+              aria-label="Copy signing secret"
+              class="inline-flex cursor-pointer items-center gap-1.5 rounded border border-base-600 px-2 py-0.5 hover:text-base-200"
+            >
+              <span data-icon="copy" class="lucide-copy--light size-4"></span>
+              <span data-icon="check" class="lucide-check--light hidden size-4 text-success"></span> Copy
+            </button>
+            <button
+              type="button"
+              phx-click="regenerate-secret"
+              phx-value-webhook_id={webhook.id}
+              data-confirm="Generate a new signing secret? The current one stops working straight away, so your receiver needs the new one before it can verify deliveries again."
+              class="cursor-pointer underline hover:text-base-200"
+            >
+              Regenerate
+            </button>
+          </div>
+        </div>
+
+        <div :if={length(@webhooks) >= Webhooks.max_webhooks_per_org()} class="border-t border-base-700 p-6">
+          <p class="text-sm text-base-400">
+            This organization has the most webhooks it can have ({Webhooks.max_webhooks_per_org()}). Remove one to add another.
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+</NervesHubWeb.Layouts.sidebar>

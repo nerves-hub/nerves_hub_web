@@ -7,7 +7,7 @@
     </.button>
   </:header>
 
-  <div class="listing">
+  <div class="listing h-0 flex-1 overflow-y-auto">
     <table>
       <thead>
         <tr>
@@ -52,7 +52,7 @@
               <div><.local_datetime at={cert.not_after} time_zone={@time_zone} format={:long_date} zone_label={false} /></div>
             </td>
             <td>
-              <CAHelpers.certificate_status not_after={cert.not_after} />
+              <CAHelpers.certificate_status not_before={cert.not_before} not_after={cert.not_after} />
             </td>
           </tr>
         <% end %>

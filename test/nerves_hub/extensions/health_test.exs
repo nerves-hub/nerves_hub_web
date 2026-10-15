@@ -26,12 +26,14 @@ defmodule NervesHub.Extensions.HealthTest do
   end
 
   describe "attaching" do
-    test "asks straight away and settles into the platform interval", %{device_id: device_id, state: state} do
+    test "asks straight away and settles into the platform interval", %{state: state} do
       {state, effects} = Health.attach(state)
 
       assert State.get(state, :mode) == :idle
-      assert {:group_join, "device:health/#{device_id}"} in effects
       assert {:tick, :check} in effects
+      # A page announces itself on the device's extensions topic, so attaching
+      # takes no membership that every node would have to hold.
+      refute Enum.any?(effects, &match?({:group_join, _}, &1))
       assert {:start_timer, :check, first_ms, @idle_ms} = timer(effects)
 
       # Offset so a fleet attaching together does not answer together.
@@ -47,14 +49,13 @@ defmodule NervesHub.Extensions.HealthTest do
       assert {:start_timer, :check, @watched_ms} = timer(effects)
     end
 
-    test "detaching gives up the timer and the group", %{device_id: device_id, state: state} do
+    test "detaching gives up the timer", %{state: state} do
       {state, _effects} = Health.attach(state)
 
       {state, effects} = Health.detach(state)
 
       assert State.get(state, :mode) == nil
-      assert {:cancel_timer, :check} in effects
-      assert {:group_leave, "device:health/#{device_id}"} in effects
+      assert effects == [{:cancel_timer, :check}]
     end
   end
 

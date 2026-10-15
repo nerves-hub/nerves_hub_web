@@ -51,16 +51,26 @@ defmodule NervesHubWeb.ConsoleChannel do
     # additionally, this topic isn't needed or used, so we can unsubscribe from it
     socket.endpoint.unsubscribe("console")
 
-    PubSub.join_console(device_id(socket))
+    :ok = PubSub.subscribe_console(device_id(socket))
 
     PubSub.broadcast_console_joined(device_id(socket))
 
     {:noreply, socket}
   end
 
+  # A page asking whether this device has a console. Replying with our pid lets
+  # it monitor us for as long as it shows one.
+  def handle_info({:locate_console, from, ref}, socket) do
+    send(from, {:console_located, ref, self()})
+
+    {:noreply, socket}
+  end
+
+  # A user console opening. Our pid is where it sends input from now on, rather
+  # than broadcasting every keystroke to every node.
   def handle_info({:connect, pid}, socket) do
     metadata = %{version: socket.assigns.version}
-    send(pid, {:metadata, metadata})
+    send(pid, {:metadata, self(), metadata})
 
     send(pid, {:cache, Scrollback.text(socket.assigns.scrollback)})
 

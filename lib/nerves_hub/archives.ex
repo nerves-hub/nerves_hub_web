@@ -7,14 +7,13 @@ defmodule NervesHub.Archives do
 
   alias NervesHub.Archives.Archive
   alias NervesHub.Firmwares.Firmware
+  alias NervesHub.Firmwares.UpdateTool
   alias NervesHub.Fwup
   alias NervesHub.ManagedDeployments.DeploymentGroup
   alias NervesHub.ManagedDeployments.DeploymentRelease
   alias NervesHub.Products.Product
   alias NervesHub.Repo
   alias NervesHub.Workers.DeleteArchive
-
-  require Logger
 
   @spec get_by_id(Product.t(), pos_integer()) :: Archive.t() | nil
   def get_by_id(_product, archive_id) when archive_id in [nil, ""], do: nil
@@ -108,12 +107,14 @@ defmodule NervesHub.Archives do
   @spec create(Product.t(), String.t()) ::
           {:ok, Archive.t()}
           | {:error, :invalid_signature}
+          | {:error, :no_public_keys}
+          | {:error, {:fwup_too_old, required :: String.t(), installed :: String.t()}}
           | {:error, any()}
           | {:error, {any(), :not_found}}
   def create(product, file_path) do
     product = Repo.preload(product, org: [:org_keys])
 
-    with {:ok, org_key} <- validate_signature(product.org, file_path),
+    with {:ok, org_key} <- UpdateTool.Fwup.verify_signature(file_path, product.org.org_keys),
          {:ok, metadata} <- Fwup.metadata(file_path),
          {:ok, archive} <-
            product
@@ -151,32 +152,5 @@ defmodule NervesHub.Archives do
 
   defp archive_path(archive) do
     "/archives/#{archive.uuid}.fw"
-  end
-
-  defp validate_signature(org, file_path) do
-    signed_key =
-      Enum.find(org.org_keys, fn %{key: key} ->
-        case System.cmd("fwup", ["--verify", "--public-key", key, "-i", file_path], env: []) do
-          {_, 0} ->
-            true
-
-          # fwup returns a 1 for invalid signatures
-          {_, 1} ->
-            false
-
-          {text, code} ->
-            Logger.warning("fwup returned code #{code} with #{text}")
-
-            false
-        end
-      end)
-
-    case signed_key do
-      key when is_map(key) ->
-        {:ok, key}
-
-      nil ->
-        {:error, :invalid_signature}
-    end
   end
 end

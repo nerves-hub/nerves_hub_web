@@ -2,6 +2,7 @@ defmodule NervesHubWeb.DeviceSocket do
   use Phoenix.Socket
   use OpenTelemetryDecorator
 
+  alias NervesHub.DeviceEvents
   alias NervesHub.DeviceLink.Client, as: DeviceLink
   alias NervesHub.ProductNotifications
   alias NervesHubWeb.Helpers.ClientIP
@@ -115,7 +116,23 @@ defmodule NervesHubWeb.DeviceSocket do
   @decorate with_span("Channels.DeviceSocket.connect:shared_secrets")
   defp do_connect(_params, socket, %{x_headers: x_headers} = connect_info)
        when is_list(x_headers) and x_headers != [] do
-    authenticate(socket, {:shared_secret, Map.new(x_headers)}, connect_info)
+    headers = Map.new(x_headers)
+
+    # Deactivating a key broadcasts a disconnect to its topic once it commits,
+    # so subscribing before the key is looked up leaves no gap: either the lookup
+    # sees the deactivation, or this process hears the disconnect. It hears it
+    # as the socket too, since Bandit runs the socket in this same process.
+    topic = DeviceEvents.shared_secret_topic(headers["x-nh-key"])
+    :ok = socket.endpoint.subscribe(topic)
+
+    case authenticate(socket, {:shared_secret, headers}, connect_info) do
+      {:ok, _socket} = ok ->
+        ok
+
+      error ->
+        :ok = socket.endpoint.unsubscribe(topic)
+        error
+    end
   end
 
   defp do_connect(_params, _socket, _connect_info) do

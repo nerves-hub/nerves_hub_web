@@ -210,15 +210,17 @@ defmodule NervesHub.DeviceLinkTest do
       inflight_update = Repo.reload!(inflight_update)
       refute inflight_update.progress == 30
 
+      # update to some reasonable time before 15s
       {1, _} =
-        Repo.update_all(InflightUpdate, set: [updated_at: NaiveDateTime.utc_now() |> NaiveDateTime.add(-14, :second)])
+        Repo.update_all(InflightUpdate, set: [updated_at: NaiveDateTime.utc_now() |> NaiveDateTime.add(-10, :second)])
 
       :ok = DeviceLink.status_update(to_device_info(device), %{"status" => "downloading", "progress" => 30})
       inflight_update = Repo.reload!(inflight_update)
       refute inflight_update.progress == 30
 
+      # update to some reasonable time after 15s
       {1, _} =
-        Repo.update_all(InflightUpdate, set: [updated_at: NaiveDateTime.utc_now() |> NaiveDateTime.add(-16, :second)])
+        Repo.update_all(InflightUpdate, set: [updated_at: NaiveDateTime.utc_now() |> NaiveDateTime.add(-20, :second)])
 
       :ok = DeviceLink.status_update(to_device_info(device), %{"status" => "downloading", "progress" => 30})
       inflight_update = Repo.reload!(inflight_update)
@@ -256,7 +258,7 @@ defmodule NervesHub.DeviceLinkTest do
       {1, _} =
         Repo.update_all(InflightUpdate, set: [updated_at: NaiveDateTime.utc_now() |> NaiveDateTime.add(-20, :second)])
 
-      :ok = DeviceLink.status_update(to_device_info(device), %{"status" => "downloading", "progress" => 30})
+      :ok = DeviceLink.status_update(to_device_info(device), %{"status" => "updating", "progress" => 30})
       inflight_update = Repo.reload!(inflight_update)
       assert inflight_update.progress == 30
     end
@@ -431,7 +433,7 @@ defmodule NervesHub.DeviceLinkTest do
 
       # Stand in for the device-side console channel, which is what carries the
       # echo down to the device.
-      :ok = Consoles.PubSub.join_console(device.id)
+      :ok = Consoles.PubSub.subscribe_console(device.id)
 
       session = %Session{device_info: connected_device_info(device), device_api_version: "2.0.0"}
       params = %{"device_api_version" => "2.0.0"}
@@ -445,7 +447,7 @@ defmodule NervesHub.DeviceLinkTest do
     test "pushes a script instead of echoing when the device can run scripts", %{device: device} do
       {:ok, device} = Devices.update_device(device, %{connecting_code: ~s/dbg("boo")/})
 
-      :ok = Consoles.PubSub.join_console(device.id)
+      :ok = Consoles.PubSub.subscribe_console(device.id)
 
       session = %Session{device_info: connected_device_info(device), device_api_version: "2.1.0"}
       params = %{"device_api_version" => "2.1.0"}

@@ -2,9 +2,12 @@ defmodule NervesHubWeb.UserLocalShellChannelTest do
   use NervesHubWeb.ChannelCase
 
   alias NervesHub.Accounts
+  alias NervesHub.Extensions
+  alias NervesHub.Extensions.LocalShell
   alias NervesHub.Fixtures
   alias NervesHubWeb.APISocket
   alias NervesHubWeb.UserLocalShellChannel
+  alias Phoenix.Socket.Broadcast
 
   describe "API Token : join/3" do
     test "authorized users can join the device channel", %{tmp_dir: tmp_dir} do
@@ -57,19 +60,40 @@ defmodule NervesHubWeb.UserLocalShellChannelTest do
           "user:local_shell:identifier-#{device.identifier}"
         )
 
+      # Standing in for the device's extensions channel.
+      :ok = Extensions.PubSub.subscribe_device(device.id)
+
       %{channel: channel}
     end
 
-    # These events are forwarded to the device; the test process has no subscription
-    # on that side, so the only testable property here is that the channel doesn't crash.
-    test "input event does not crash the channel", %{channel: channel} do
+    test "input reaches the device's extensions channel", %{channel: channel} do
       push(channel, "input", %{"data" => "\r"})
-      refute_receive {:error, _}, 100
+
+      assert_receive %Broadcast{event: "local_shell:shell_input", payload: %{"data" => "\r"}}, 500
     end
 
-    test "window_size event does not crash the channel", %{channel: channel} do
+    test "window size reaches the device's extensions channel", %{channel: channel} do
       push(channel, "window_size", %{"cols" => 80, "rows" => 24})
-      refute_receive {:error, _}, 100
+
+      assert_receive %Broadcast{event: "local_shell:window_size", payload: %{"cols" => 80, "rows" => 24}}, 500
+    end
+  end
+
+  describe "connecting" do
+    test "joining asks the device's local shell to connect", %{tmp_dir: tmp_dir} do
+      user = Fixtures.user_fixture()
+      device = device_fixture(user, %{identifier: "shell-connect-device"}, tmp_dir)
+      user_token = Accounts.create_user_api_token(user, "test-token")
+      {:ok, socket} = connect(APISocket, %{"token" => user_token})
+
+      :ok = Extensions.PubSub.subscribe_device(device.id)
+
+      {:ok, _reply, channel} =
+        subscribe_and_join(socket, UserLocalShellChannel, "user:local_shell:identifier-#{device.identifier}")
+
+      # Tagged with the module, so the extensions channel hands it to the shell.
+      assert_receive {LocalShell, {:connect, pid}}, 500
+      assert pid == channel.channel_pid
     end
   end
 

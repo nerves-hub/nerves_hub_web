@@ -13,7 +13,7 @@ defmodule NervesHubWeb.UserLocalShellChannel do
     if device = authorized?(socket.assigns.user, identifier) do
       :ok = Consoles.PubSub.subscribe_user_local_shell(device.id)
 
-      _ = Consoles.PubSub.connect_to_local_shell(device.id, self())
+      :ok = Consoles.PubSub.connect_to_local_shell(device.id, self())
 
       {:ok, assign(socket, :device_id, device.id)}
     else
@@ -24,12 +24,12 @@ defmodule NervesHubWeb.UserLocalShellChannel do
   def handle_in("input", payload, socket) do
     # Key presses are coming in here raw
     # Send them to the device
-    Consoles.PubSub.broadcast_to_local_shell(socket.assigns.device_id, "local_shell:shell_input", payload)
+    :ok = Consoles.PubSub.broadcast_to_local_shell(socket.assigns.device_id, "local_shell:shell_input", payload)
     {:noreply, socket}
   end
 
   def handle_in("window_size", payload, socket) do
-    Consoles.PubSub.broadcast_to_local_shell(socket.assigns.device_id, "local_shell:window_size", payload)
+    :ok = Consoles.PubSub.broadcast_to_local_shell(socket.assigns.device_id, "local_shell:window_size", payload)
     {:noreply, socket}
   end
 

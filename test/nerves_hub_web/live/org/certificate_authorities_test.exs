@@ -7,6 +7,9 @@ defmodule NervesHubWeb.Live.Org.CertificateAuthoritiesTest do
   alias NervesHub.Devices.CACertificates
   alias NervesHub.Fixtures
   alias NervesHubWeb.Components.Utils
+  alias X509.Certificate.Validity
+
+  @expired Validity.new(~U[2020-01-01 00:00:00Z], ~U[2025-01-01 00:00:00Z])
 
   describe "index" do
     test "lists all device(ca) certificates", %{conn: conn, org: org} do
@@ -206,9 +209,109 @@ defmodule NervesHubWeb.Live.Org.CertificateAuthoritiesTest do
       end)
       |> click_button("Create Certificate")
       |> assert_path("/org/#{org.name}/settings/certificates/new")
+      |> assert_has("div", text: "The registration code in the verification certificate is not valid.")
+
+      assert [] = CACertificates.get_ca_certificates(org)
+    end
+
+    test "creates a root CA without an AKI", %{conn: conn, org: org, tmp_dir: tmp_dir} do
+      # Like the root LibreSSL's `openssl req -x509` makes from Step 1 on this page
+      ca_cert = write_root_ca(tmp_dir, extensions: [authority_key_identifier: false])
+
+      conn
+      |> upload_root_ca(org, tmp_dir)
+      |> click_button("Create Certificate")
+      |> assert_path("/org/#{org.name}/settings/certificates")
+      |> assert_has("div", text: "Certificate Authority created")
+
+      assert {:ok, %{aki: nil}} = CACertificates.get_ca_certificate_by_serial(Certificate.get_serial_number(ca_cert))
+    end
+
+    test "creates a CA that has expired", %{conn: conn, org: org, tmp_dir: tmp_dir} do
+      ca_cert = write_root_ca(tmp_dir, validity: @expired)
+
+      conn
+      |> upload_root_ca(org, tmp_dir)
+      |> click_button("Create Certificate")
+      |> assert_path("/org/#{org.name}/settings/certificates")
       |> assert_has("div",
-        text: "Error validating certificate signing request. Please check if the right registration code was used."
+        text:
+          "Certificate Authority created. It expired on 2025-01-01. " <>
+            "Devices can still register with it because Check expiration is off."
       )
+      |> assert_has("td", text: "Expired")
+
+      assert {:ok, %{not_after: ~U[2025-01-01 00:00:00Z], check_expiration: false}} =
+               CACertificates.get_ca_certificate_by_serial(Certificate.get_serial_number(ca_cert))
+    end
+
+    test "creates a CA that isn't valid yet", %{conn: conn, org: org, tmp_dir: tmp_dir} do
+      starts = DateTime.utc_now() |> DateTime.shift(day: 1) |> DateTime.truncate(:second)
+      write_root_ca(tmp_dir, validity: Validity.new(starts, DateTime.shift(starts, year: 10)))
+
+      conn
+      |> upload_root_ca(org, tmp_dir)
+      |> click_button("Create Certificate")
+      |> assert_path("/org/#{org.name}/settings/certificates")
+      |> assert_has("div",
+        text:
+          "Certificate Authority created. It isn't valid until #{Calendar.strftime(starts, "%Y-%m-%d %H:%M UTC")}. " <>
+            "Devices can still register with it because Check expiration is off."
+      )
+      |> assert_has("td", text: "Not Yet Valid")
+    end
+
+    test "creates a CA not valid yet with Check expiration on", %{conn: conn, org: org, tmp_dir: tmp_dir} do
+      starts = DateTime.utc_now() |> DateTime.shift(day: 1) |> DateTime.truncate(:second)
+      write_root_ca(tmp_dir, validity: Validity.new(starts, DateTime.shift(starts, year: 10)))
+
+      conn
+      |> upload_root_ca(org, tmp_dir)
+      |> check("Check expiration")
+      |> click_button("Create Certificate")
+      |> assert_has("div",
+        text:
+          "Certificate Authority created. It isn't valid until #{Calendar.strftime(starts, "%Y-%m-%d %H:%M UTC")}, " <>
+            "and devices can't register with it until then."
+      )
+    end
+
+    test "refuses an expired CA with Check expiration on", %{conn: conn, org: org, tmp_dir: tmp_dir} do
+      write_root_ca(tmp_dir, validity: @expired)
+
+      conn
+      |> upload_root_ca(org, tmp_dir)
+      |> check("Check expiration")
+      |> click_button("Create Certificate")
+      |> assert_path("/org/#{org.name}/settings/certificates/new")
+      |> assert_has("span", text: "can't be on for a CA certificate that expired on 2025-01-01")
+
+      assert [] = CACertificates.get_ca_certificates(org)
+    end
+
+    test "saves Check expiration", %{conn: conn, org: org, tmp_dir: tmp_dir} do
+      ca_cert = write_root_ca(tmp_dir, [])
+
+      conn
+      |> upload_root_ca(org, tmp_dir)
+      |> check("Check expiration")
+      |> click_button("Create Certificate")
+      |> assert_has("div", text: "Certificate Authority created")
+      |> refute_has("div", text: "Certificate Authority created.")
+
+      assert {:ok, %{check_expiration: true}} =
+               CACertificates.get_ca_certificate_by_serial(Certificate.get_serial_number(ca_cert))
+    end
+
+    test "explains a CA without an SKI", %{conn: conn, org: org, tmp_dir: tmp_dir} do
+      write_root_ca(tmp_dir, extensions: [subject_key_identifier: false])
+
+      conn
+      |> upload_root_ca(org, tmp_dir)
+      |> click_button("Create Certificate")
+      |> assert_path("/org/#{org.name}/settings/certificates/new")
+      |> assert_has("#missing-ski-error", text: "no Subject Key Identifier extension")
+      |> refute_has("div", text: "Something went wrong!")
 
       assert [] = CACertificates.get_ca_certificates(org)
     end
@@ -385,6 +488,35 @@ defmodule NervesHubWeb.Live.Org.CertificateAuthoritiesTest do
       assert {:ok, %{description: nil}} =
                CACertificates.get_ca_certificate_by_org_and_serial(other_org, other_ca.serial)
     end
+  end
+
+  # Writes a P-256 root CA and its key to `rootCA.crt` and `rootCA.key` in `dir`
+  defp write_root_ca(dir, opts) do
+    ca_key = X509.PrivateKey.new_ec(:secp256r1)
+    ca_cert = X509.Certificate.self_signed(ca_key, "CN=Root CA", Keyword.put(opts, :template, :root_ca))
+
+    File.write!(Path.join(dir, "rootCA.key"), X509.PrivateKey.to_pem(ca_key))
+    File.write!(Path.join(dir, "rootCA.crt"), X509.Certificate.to_pem(ca_cert))
+
+    ca_cert
+  end
+
+  # Opens the new CA page and uploads the root CA from `write_root_ca/2`, with a
+  # verification certificate it signed
+  defp upload_root_ca(conn, org, dir) do
+    ca_file_path = Path.join(dir, "rootCA.crt")
+
+    conn
+    |> visit("/org/#{org.name}/settings/certificates/new")
+    |> unwrap(fn view ->
+      code = CSR.generate_verification_token(org)
+
+      %{verification_cert_crt: verification_cert_crt} =
+        Fixtures.generate_certificate_authority_csr(ca_file_path, Path.join(dir, "rootCA.key"), code, dir)
+
+      upload_file(view, "rootCA.crt", ca_file_path, :cert)
+      upload_file(view, "verificationCert.crt", verification_cert_crt, :csr)
+    end)
   end
 
   defp upload_file(view, file_name, file_path, form_field) do

@@ -15,6 +15,7 @@ defmodule NervesHub.Fixtures do
   alias NervesHub.Devices.InflightUpdate
   alias NervesHub.Devices.NetworkIdentity
   alias NervesHub.Firmwares
+  alias NervesHub.Integrations.Slack
   alias NervesHub.ManagedDeployments
   alias NervesHub.Products
   alias NervesHub.Products.Product
@@ -186,6 +187,36 @@ defmodule NervesHub.Fixtures do
 
     {:ok, db_cert} = CACertificates.create_ca_certificate(org, params)
     %{cert: ca, key: ca_key, db_cert: db_cert}
+  end
+
+  @doc """
+  An organization connected to a Slack workspace, without going through
+  Slack's OAuth flow. Workspaces are shared by team id, as in
+  `NervesHub.Integrations.Slack.connect/3`.
+  """
+  def slack_connection_fixture(org, user, params \\ %{}) do
+    params =
+      Map.merge(
+        %{
+          team_id: "T#{counter()}",
+          team_name: "Acme Fleet",
+          app_id: "A0KRD7HC3",
+          bot_user_id: "U0KRQLJ9H",
+          bot_token: "xoxb-test-bot-token",
+          scopes: Slack.scopes()
+        },
+        Map.new(params)
+      )
+
+    workspace =
+      %Slack.Workspace{}
+      |> Slack.Workspace.changeset(params)
+      |> Repo.insert!(on_conflict: {:replace, [:team_name]}, conflict_target: :team_id, returning: true)
+
+    org
+    |> Slack.Connection.create_changeset(workspace, user)
+    |> Repo.insert!()
+    |> Repo.preload([:workspace, :connected_by])
   end
 
   def user_fixture(params \\ %{}) do

@@ -51,6 +51,17 @@ defmodule NervesHub.Devices.Health do
     Ecto.StaleEntryError -> {:ok, :unchanged}
   end
 
+  @doc """
+  The device's stored health status, or `nil` before its first verdict.
+  """
+  @spec current_status(pos_integer()) :: :unknown | :healthy | :warning | :unhealthy | nil
+  def current_status(device_id) do
+    DeviceHealth
+    |> where(device_id: ^device_id)
+    |> select([h], h.status)
+    |> Repo.one()
+  end
+
   # `IS DISTINCT FROM` rather than `!=` because either side can be NULL:
   # `status_reasons` is null whenever no level is engaged, which is the
   # common case, and `NULL != NULL` is null, not true.

@@ -159,7 +159,7 @@ defmodule NervesHub.MixProject do
       {:floki, "~> 0.38.0"},
       {:gen_smtp, "~> 1.0"},
       {:gettext, "~> 0.26.2"},
-      {:group, "~> 0.2.0"},
+      {:group, "~> 0.3.1"},
       {:hackney, "~> 4.7"},
       {:hammer, "~> 7.5.0"},
       {:igniter, "~> 0.8", only: [:dev, :test]},
@@ -173,9 +173,10 @@ defmodule NervesHub.MixProject do
       {:logfmt_ex, "~> 0.4"},
       {
         :lucide,
-        github: "lucide-icons/lucide", tag: "1.50.0", sparse: "icons", app: false, compile: false, depth: 1
+        github: "lucide-icons/lucide", tag: "1.55.0", sparse: "icons", app: false, compile: false, depth: 1
       },
       {:mimic, "~> 2.0", only: [:test, :dev]},
+      {:mint_web_socket, "~> 1.0"},
       {:mix_unused, "~> 0.4.1", only: [:dev]},
       {:mjml_eex, "~> 0.13.0"},
       {:msgpax, "~> 2.0"},
