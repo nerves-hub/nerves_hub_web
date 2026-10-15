@@ -1,6 +1,7 @@
 import Config
 
 alias NervesHub.DeviceLink.PeerVerification
+alias NervesHub.Types.Encrypted
 alias OpenApiSpex.Plug.NoneCache
 alias Swoosh.Adapters.Local
 
@@ -103,6 +104,10 @@ if System.get_env("ANALYTICS_ENABLED", "true") == "true" do
 else
   config :nerves_hub, analytics_enabled: false
 end
+
+# Encrypts the secrets NervesHub holds for others (Slack bot tokens) in the
+# dev database. Not a secret: production sets its own.
+config :nerves_hub, Encrypted, key: Base.decode64!("ZGV2LWtleS1kZXYta2V5LWRldi1rZXktZGV2LWtleS0=")
 
 config :nerves_hub, NervesHub.Firmwares.Upload.File,
   enabled: true,

@@ -5,6 +5,58 @@
 
   <div class="h-0 flex-1 overflow-y-auto">
     <div class="flex flex-col items-start justify-between gap-4 p-6">
+      <div :if={@slack_configured?} id="slack" class="flex w-full flex-col rounded border border-base-700 bg-surface-raised">
+        <div class="flex h-14 items-center justify-between border-b border-base-700 px-4">
+          <div class="text-base font-medium text-base-50">Slack</div>
+          <%!-- A form rather than a link: starting an install is a change, so it carries the CSRF token. --%>
+          <.form
+            :if={authorized?(:"slack_connection:create", @current_scope)}
+            for={%{}}
+            action={~p"/org/#{@org}/settings/integrations/slack/install"}
+            method="post"
+          >
+            <.button type="submit" aria-label="Add a Slack workspace">
+              <.icon name="add" />Add to Slack
+            </.button>
+          </.form>
+        </div>
+
+        <div class="flex flex-col gap-3 p-6">
+          <p class="w-2/3 text-sm">
+            Connect a Slack workspace to send this organization's device notifications to its channels. Connecting installs
+            NervesHub's Slack app in the workspace, which takes an admin of this organization.
+          </p>
+        </div>
+
+        <div :if={@slack_connections == []} class="border-t border-base-700 p-6">
+          <p class="text-sm text-base-400">No Slack workspace is connected.</p>
+        </div>
+
+        <div
+          :for={connection <- @slack_connections}
+          id={"slack-connection-#{connection.id}"}
+          class="flex flex-wrap items-center justify-between gap-3 border-t border-base-700 p-6"
+        >
+          <div class="flex min-w-0 flex-col gap-1">
+            <span class="font-medium text-base-50">{connection.workspace.team_name}</span>
+            <span class="text-sm text-base-400">
+              Connected by {if connection.connected_by, do: connection.connected_by.name, else: "a former member"} on
+              <.local_datetime at={connection.inserted_at} time_zone={@time_zone} format={:long_date} zone_label={false} />
+            </span>
+          </div>
+
+          <.button
+            :if={authorized?(:"slack_connection:delete", @current_scope)}
+            type="button"
+            phx-click="disconnect-slack"
+            phx-value-connection_id={connection.id}
+            data-confirm={"Disconnect the #{connection.workspace.team_name} Slack workspace? Its channels stop hearing from this organization."}
+          >
+            Disconnect
+          </.button>
+        </div>
+      </div>
+
       <div class="flex w-full flex-col rounded border border-base-700 bg-surface-raised">
         <div class="flex h-14 items-center justify-between border-b border-base-700 px-4">
           <div class="text-base font-medium text-base-50">Webhooks</div>

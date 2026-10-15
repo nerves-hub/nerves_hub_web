@@ -26,6 +26,8 @@ defmodule NervesHubWeb.Router do
   alias NervesHubWeb.API.Plugs.Product
   alias NervesHubWeb.API.Plugs.RequireAuthenticatedUser
   alias NervesHubWeb.API.UI
+  alias NervesHubWeb.Integrations.Slack
+  alias NervesHubWeb.Integrations.Slack.VerifyRequest
   alias NervesHubWeb.Mounts.CurrentPath
   alias NervesHubWeb.Mounts.EnrichSentryContext
   alias NervesHubWeb.Mounts.SetUsersTimezone
@@ -72,6 +74,13 @@ defmodule NervesHubWeb.Router do
 
   pipeline :api_device do
     plug(Device)
+  end
+
+  # Requests from Slack: signed rather than authenticated, and without a
+  # session or CSRF token.
+  pipeline :slack do
+    plug(:accepts, ["json"])
+    plug(VerifyRequest)
   end
 
   scope "/api" do
@@ -275,6 +284,25 @@ defmodule NervesHubWeb.Router do
 
     get("/auth/cli/:token", SessionController, :cli)
     post("/auth/cli/:token", SessionController, :cli_confirm)
+  end
+
+  # Installing the Slack app in a workspace, and linking a person's Slack
+  # account: both for somebody signed in.
+  scope "/", Slack, as: :slack do
+    pipe_through([:browser, :require_authenticated_user])
+
+    # Where Slack sends someone back after they install the app. Slack has
+    # one redirect URL for every install, so it names no organization.
+    get("/integrations/slack/oauth/callback", OAuthController, :callback)
+    post("/org/:org_name/settings/integrations/slack/install", OAuthController, :install)
+  end
+
+  # The URLs Slack calls, grouped under /integrations with those of any other
+  # chat service that comes later.
+  scope "/integrations/slack", Slack, as: :slack do
+    pipe_through(:slack)
+
+    post("/events", EventsController, :create)
   end
 
   scope "/", NervesHubWeb do

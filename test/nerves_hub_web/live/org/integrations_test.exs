@@ -4,6 +4,7 @@ defmodule NervesHubWeb.Live.Org.IntegrationsTest do
   alias NervesHub.Accounts.OrgUser
   alias NervesHub.Accounts.Scope
   alias NervesHub.Fixtures
+  alias NervesHub.Integrations.Slack
   alias NervesHub.Repo
   alias NervesHub.Webhooks
   alias NervesHub.Webhooks.Signature
@@ -298,6 +299,91 @@ defmodule NervesHubWeb.Live.Org.IntegrationsTest do
     |> visit(integrations_path(org))
     |> refute_has("button", text: "Add webhook")
     |> assert_has("p", text: "This organization has the most webhooks it can have")
+  end
+
+  describe "Slack" do
+    defp connect_slack(%{org: org, user: user}, team \\ %{"name" => "Acme Fleet", "id" => "T9TK3CUKW"}) do
+      Req.Test.stub(Slack, fn conn ->
+        case conn.path_info do
+          [_, "oauth.v2.access"] ->
+            Req.Test.json(conn, %{
+              "ok" => true,
+              "access_token" => "xoxb-a-bot-token",
+              "token_type" => "bot",
+              "bot_user_id" => "U0KRQLJ9H",
+              "app_id" => "A0KRD7HC3",
+              "team" => team
+            })
+
+          [_, "auth.revoke"] ->
+            Req.Test.json(conn, %{"ok" => true, "revoked" => true})
+        end
+      end)
+
+      {:ok, connection} =
+        Slack.connect(%Scope{org: org, user: user, role: :admin}, "a-code", "https://example.com/callback")
+
+      connection
+    end
+
+    test "lists the connected workspaces, and who connected them", context do
+      %{conn: conn, org: org, user: user} = context
+      connection = connect_slack(context)
+
+      conn
+      |> visit(integrations_path(org))
+      |> assert_has("#slack button", text: "Add to Slack")
+      |> assert_has("#slack-connection-#{connection.id} span", text: "Acme Fleet")
+      |> assert_has("#slack-connection-#{connection.id} span", text: "Connected by #{user.name}")
+    end
+
+    test "says when no workspace is connected", %{conn: conn, org: org} do
+      conn
+      |> visit(integrations_path(org))
+      |> assert_has("#slack p", text: "No Slack workspace is connected.")
+    end
+
+    test "disconnects a workspace", context do
+      %{conn: conn, org: org} = context
+      connection = connect_slack(context)
+
+      conn
+      |> visit(integrations_path(org))
+      |> within("#slack-connection-#{connection.id}", &click_button(&1, "Disconnect"))
+      |> assert_has("[role='alert']", text: "Disconnected the Acme Fleet Slack workspace.")
+      |> refute_has("#slack-connection-#{connection.id}")
+
+      assert Slack.list_connections(org) == []
+    end
+
+    test "is for admins to change", context do
+      %{conn: conn, org: org} = context
+      connection = connect_slack(context)
+      Repo.update_all(OrgUser, set: [role: :manage])
+
+      session =
+        conn
+        |> visit(integrations_path(org))
+        |> assert_has("#slack-connection-#{connection.id} span", text: "Acme Fleet")
+        |> refute_has("#slack button", text: "Add to Slack")
+        |> refute_has("#slack-connection-#{connection.id} button", text: "Disconnect")
+
+      Process.flag(:trap_exit, true)
+
+      assert {{%NervesHubWeb.UnauthorizedError{}, _}, _} =
+               catch_exit(render_click(session.view, "disconnect-slack", %{"connection_id" => connection.id}))
+    end
+
+    test "is hidden when the instance has no Slack app", %{conn: conn, org: org} do
+      config = Application.get_env(:nerves_hub, Slack)
+      on_exit(fn -> Application.put_env(:nerves_hub, Slack, config) end)
+      Application.put_env(:nerves_hub, Slack, Keyword.put(config, :client_id, nil))
+
+      conn
+      |> visit(integrations_path(org))
+      |> refute_has("#slack")
+      |> assert_has("div", text: "Webhooks")
+    end
   end
 
   describe "a member who cannot manage webhooks" do
