@@ -48,10 +48,10 @@ defmodule NervesHub.Devices.HealthEvaluation do
   alias NervesHub.Devices.Metrics
   alias NervesHub.Extensions.PubSub, as: ExtensionsPubSub
   alias NervesHub.Helpers.Logging
+  alias NervesHub.Integrations
   alias NervesHub.Products.HealthProfile
   alias NervesHub.Products.HealthProfileMetric
   alias NervesHub.Products.HealthProfiles
-  alias NervesHub.Webhooks
   alias NervesHub.Webhooks.Payloads
 
   require Logger
@@ -119,7 +119,7 @@ defmodule NervesHub.Devices.HealthEvaluation do
       "status_reasons" => reasons
     }
 
-    previous = previous_status_for_webhook(device_info)
+    previous = previous_status_if_wanted(device_info)
 
     case Health.save_device_health(device_health) do
       {:ok, saved} ->
@@ -300,12 +300,12 @@ defmodule NervesHub.Devices.HealthEvaluation do
   end
 
   # The save replaces the row and says only that it did, so the status it
-  # replaced has to be read first. Only for a product with a webhook that
-  # wants to know: every other product would pay a query per report to learn
-  # nothing. `:not_wanted` is distinct from `{:ok, nil}`, a device with no
+  # replaced has to be read first. Only for a product with an integration
+  # that wants to know: every other product would pay a query per report to
+  # learn nothing. `:not_wanted` is distinct from `{:ok, nil}`, a device with no
   # verdict yet.
-  defp previous_status_for_webhook(device_info) do
-    if Webhooks.subscribed?(device_info.product_id, "device.health_status_changed") do
+  defp previous_status_if_wanted(device_info) do
+    if Integrations.subscribed?(device_info.product_id, "device.health_status_changed") do
       {:ok, Health.current_status(device_info.device_id)}
     else
       :not_wanted
@@ -319,7 +319,7 @@ defmodule NervesHub.Devices.HealthEvaluation do
   defp dispatch_status_change(_device_info, {:ok, status}, %DeviceHealth{status: status}), do: :ok
 
   defp dispatch_status_change(device_info, {:ok, previous}, %DeviceHealth{} = health) do
-    Webhooks.dispatch(device_info.product_id, "device.health_status_changed", fn ->
+    Integrations.dispatch(device_info.product_id, "device.health_status_changed", fn ->
       Payloads.health_status_changed(device_info, previous, health)
     end)
   end

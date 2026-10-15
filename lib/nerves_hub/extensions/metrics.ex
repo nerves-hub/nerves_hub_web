@@ -64,8 +64,8 @@ defmodule NervesHub.Extensions.Metrics do
   alias NervesHub.Extensions.Jitter
   alias NervesHub.Extensions.PubSub
   alias NervesHub.Extensions.State
+  alias NervesHub.Integrations
   alias NervesHub.RateLimit.Metrics, as: RateLimit
-  alias NervesHub.Webhooks
   alias NervesHub.Webhooks.Payloads
 
   require Logger
@@ -133,7 +133,7 @@ defmodule NervesHub.Extensions.Metrics do
       # it carried.
       _ = HealthEvaluation.evaluate_and_save(state.device_info, in_hand_samples(reports))
 
-      :ok = dispatch_webhook(state.device_info, reports)
+      :ok = dispatch_event(state.device_info, reports)
     end
 
     {state, []}
@@ -218,10 +218,10 @@ defmodule NervesHub.Extensions.Metrics do
 
   # Checked before building, rather than leaving it to `dispatch/3`, because a
   # batch whose every report was skipped is not worth an event.
-  defp dispatch_webhook(device_info, reports) do
-    with true <- Webhooks.subscribed?(device_info.product_id, "device.metrics_reported"),
+  defp dispatch_event(device_info, reports) do
+    with true <- Integrations.subscribed?(device_info.product_id, "device.metrics_reported"),
          [_ | _] = stored <- stored_reports(reports) do
-      Webhooks.dispatch(device_info.product_id, "device.metrics_reported", fn ->
+      Integrations.dispatch(device_info.product_id, "device.metrics_reported", fn ->
         Payloads.metrics_reported(device_info, stored)
       end)
     else
@@ -229,7 +229,7 @@ defmodule NervesHub.Extensions.Metrics do
     end
   end
 
-  # The batch as a webhook carries it: the reports `record/2` stored, each with
+  # The batch as the event carries it: the reports `record/2` stored, each with
   # the readings it kept.
   defp stored_reports(reports) do
     for %{"metrics" => metrics} = report <- reports,

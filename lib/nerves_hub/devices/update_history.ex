@@ -52,8 +52,8 @@ defmodule NervesHub.Devices.UpdateHistory do
   alias NervesHub.AnalyticsRepo
   alias NervesHub.Devices.Device
   alias NervesHub.Devices.DeviceUpdateHistory
+  alias NervesHub.Integrations
   alias NervesHub.Repo
-  alias NervesHub.Webhooks
   alias NervesHub.Webhooks.Payloads
 
   @typedoc """
@@ -125,10 +125,10 @@ defmodule NervesHub.Devices.UpdateHistory do
     * `:reason` — what the device said, where it said anything.
     * `:timestamp` — when the attempt ended, defaulting to now.
 
-  Raises the `device.firmware_update.finished` webhook event.
+  Raises the `device.firmware_update.finished` event (`NervesHub.Integrations`).
 
   Runs in the caller's transaction when there is one, so a rolled back outcome
-  takes its counter movement, and its webhook, with it.
+  takes its counter movement, and its event, with it.
   """
   @spec record(device(), status(), keyword()) :: :ok
   def record(device, status, opts \\ []) when status in @statuses do
@@ -161,9 +161,9 @@ defmodule NervesHub.Devices.UpdateHistory do
       )
     end
 
-    # Every outcome passes through here, which makes this the one place a
-    # webhook can hear about all of them.
-    Webhooks.dispatch(device.product_id, "device.firmware_update.finished", fn ->
+    # Every outcome passes through here, which makes this the one place an
+    # integration can hear about all of them.
+    Integrations.dispatch(device.product_id, "device.firmware_update.finished", fn ->
       Payloads.firmware_update_finished(
         device,
         status,

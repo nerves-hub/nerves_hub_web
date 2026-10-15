@@ -88,18 +88,25 @@ when adding or removing one.
   occurrences in ClickHouse. See [docs/error_reports.md](docs/error_reports.md).
 - `webhooks.ex` / `webhooks/` — webhooks: device events POSTed to endpoints
   an organization configures, for every product or a chosen few (org
-  Integrations page, or `API.WebhookController`). Code where an event happens
-  calls `Webhooks.dispatch/3` with the product, which costs one ETS read for
-  a product no subscribed webhook hears. Deliveries are Oban jobs
+  Integrations page, or `API.WebhookController`). Events arrive through
+  `Integrations.dispatch/3`. Deliveries are Oban jobs
   (`Workers.DeliverWebhook`), signed per Standard Webhooks, and only reach
   public addresses unless the instance allows otherwise. Event types and
   payloads are a published contract; see [docs/webhooks.md](docs/webhooks.md).
+- `integrations.ex` / `integrations/` — where device events leave NervesHub.
+  Code where an event happens calls `Integrations.dispatch/3` with the
+  product, which costs one ETS read (`Integrations.Cache`) for a product
+  nothing hears, and otherwise hands the event to the webhooks and Slack
+  channels that want it. `ProductScope` is the "every product, or these
+  products" both share.
 - `integrations/slack.ex` / `integrations/slack/` — the Slack integration: workspaces an organization
   connects by installing the instance's Slack app (`NervesHubWeb.Integrations.Slack.OAuthController`
   runs the OAuth flow), and the events Slack sends to `/integrations/slack/`,
   which must be signed (`Integrations.Slack.VerifyRequest`). One bot token per
-  workspace, encrypted at rest with `Types.Encrypted`. Hidden unless the
-  instance has a Slack app; see [docs/slack.md](docs/slack.md).
+  workspace, encrypted at rest with `Types.Encrypted`. `Slack.Subscriptions`
+  posts device events to channels, held 15 seconds and rolled up into one
+  message per kind (`Workers.PostSlackEvents`, `Slack.Messages`). Hidden
+  unless the instance has a Slack app; see [docs/slack.md](docs/slack.md).
 - `scripts.ex` / `scripts/` — support scripts run against a device console.
 - `workers/` — Oban workers (e.g. firmware delta building, firmware deletion).
 - Cross-cutting: `audit_logs.ex`, `product_notifications.ex`, `tracker.ex`,

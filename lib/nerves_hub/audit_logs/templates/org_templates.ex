@@ -6,6 +6,8 @@ defmodule NervesHub.AuditLogs.OrgTemplates do
   alias NervesHub.Accounts.Org
   alias NervesHub.Accounts.User
   alias NervesHub.AuditLogs
+  alias NervesHub.Integrations.Slack.Events
+  alias NervesHub.Integrations.Slack.Subscription
   alias NervesHub.Integrations.Slack.Workspace
   alias NervesHub.Webhooks.Webhook
 
@@ -67,11 +69,38 @@ defmodule NervesHub.AuditLogs.OrgTemplates do
     AuditLogs.audit!(org, org, description)
   end
 
+  @spec audit_slack_subscription_created(User.t(), Org.t(), Subscription.t()) :: :ok
+  def audit_slack_subscription_created(user, org, subscription) do
+    description =
+      "User #{user.name} started posting #{slack_events(subscription)} from #{products(subscription)} to Slack channel ##{subscription.channel_name} (#{subscription.channel_id})"
+
+    AuditLogs.audit!(user, org, description)
+  end
+
+  @spec audit_slack_subscription_updated(User.t(), Org.t(), Subscription.t()) :: :ok
+  def audit_slack_subscription_updated(user, org, subscription) do
+    state = if subscription.enabled, do: "on", else: "off"
+
+    description =
+      "User #{user.name} updated Slack channel ##{subscription.channel_name} (#{state}) to get #{slack_events(subscription)} from #{products(subscription)}"
+
+    AuditLogs.audit!(user, org, description)
+  end
+
+  @spec audit_slack_subscription_deleted(User.t(), Org.t(), Subscription.t()) :: :ok
+  def audit_slack_subscription_deleted(user, org, subscription) do
+    description = "User #{user.name} stopped posting to Slack channel ##{subscription.channel_name}"
+
+    AuditLogs.audit!(user, org, description)
+  end
+
+  defp slack_events(%Subscription{events: events}), do: Enum.map_join(events, ", ", &Events.label/1)
+
   defp webhook_host(%Webhook{url: url}), do: URI.parse(url).host
 
-  defp products(%Webhook{all_products: true}), do: "every product"
+  defp products(%{all_products: true}), do: "every product"
 
-  defp products(%Webhook{products: products}) do
+  defp products(%{products: products}) do
     "#{if length(products) == 1, do: "product", else: "products"} #{Enum.map_join(products, ", ", & &1.name)}"
   end
 end

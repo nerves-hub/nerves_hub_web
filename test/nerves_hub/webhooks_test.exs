@@ -4,6 +4,7 @@ defmodule NervesHub.WebhooksTest do
   alias NervesHub.Accounts.Scope
   alias NervesHub.AuditLogs
   alias NervesHub.Fixtures
+  alias NervesHub.Integrations
   alias NervesHub.Products.Notification
   alias NervesHub.Webhooks
   alias NervesHub.Webhooks.Webhook
@@ -88,10 +89,10 @@ defmodule NervesHub.WebhooksTest do
       assert %Webhook{all_products: false, products: [%{id: other_id}]} = webhook
       assert other_id == other.id
 
-      :ok = Webhooks.dispatch(product.id, "device.connected", fn -> %{} end)
+      :ok = Integrations.dispatch(product.id, "device.connected", fn -> %{} end)
       refute_enqueued(worker: DeliverWebhook)
 
-      :ok = Webhooks.dispatch(other.id, "device.connected", fn -> %{} end)
+      :ok = Integrations.dispatch(other.id, "device.connected", fn -> %{} end)
       assert_enqueued(worker: DeliverWebhook, args: %{webhook_id: webhook.id})
 
       assert [log] = AuditLogs.logs_for(org)
@@ -107,7 +108,7 @@ defmodule NervesHub.WebhooksTest do
       webhook = webhook_fixture(scope)
       later = Fixtures.product_fixture(user, org, %{name: "later"})
 
-      :ok = Webhooks.dispatch(later.id, "device.connected", fn -> %{} end)
+      :ok = Integrations.dispatch(later.id, "device.connected", fn -> %{} end)
 
       assert_enqueued(worker: DeliverWebhook, args: %{webhook_id: webhook.id})
     end
@@ -125,7 +126,7 @@ defmodule NervesHub.WebhooksTest do
 
       assert %{products: ["has no product named theirs"]} = errors_on(changeset)
 
-      :ok = Webhooks.dispatch(theirs.id, "device.connected", fn -> %{} end)
+      :ok = Integrations.dispatch(theirs.id, "device.connected", fn -> %{} end)
       refute_enqueued(worker: DeliverWebhook)
     end
 
@@ -178,12 +179,12 @@ defmodule NervesHub.WebhooksTest do
       webhook = webhook_fixture(scope, %{"products" => [other.name]})
 
       # Caches that no webhook hears `product`.
-      :ok = Webhooks.dispatch(product.id, "device.connected", fn -> %{} end)
+      :ok = Integrations.dispatch(product.id, "device.connected", fn -> %{} end)
       refute_enqueued(worker: DeliverWebhook)
 
       {:ok, _} = Webhooks.update_webhook(scope, webhook, %{"products" => [other.name, product.name]})
 
-      :ok = Webhooks.dispatch(product.id, "device.connected", fn -> %{} end)
+      :ok = Integrations.dispatch(product.id, "device.connected", fn -> %{} end)
       assert_enqueued(worker: DeliverWebhook, args: %{webhook_id: webhook.id})
     end
 
@@ -225,13 +226,13 @@ defmodule NervesHub.WebhooksTest do
     end
   end
 
-  describe "dispatch/3" do
+  describe "Integrations.dispatch/3" do
     test "queues nothing, and builds nothing, when no webhook subscribes", %{product: product, scope: scope} do
-      Webhooks.dispatch(product.id, "device.connected", fn -> flunk("built data with no subscriber") end)
+      Integrations.dispatch(product.id, "device.connected", fn -> flunk("built data with no subscriber") end)
 
       webhook_fixture(scope, %{"events" => ["device.disconnected"]})
 
-      Webhooks.dispatch(product.id, "device.connected", fn -> flunk("built data with no subscriber") end)
+      Integrations.dispatch(product.id, "device.connected", fn -> flunk("built data with no subscriber") end)
 
       refute_enqueued(worker: DeliverWebhook)
     end
@@ -245,7 +246,7 @@ defmodule NervesHub.WebhooksTest do
       second = webhook_fixture(scope, %{"events" => ["device.connected", "device.disconnected"]})
       _other = webhook_fixture(scope, %{"events" => ["device.disconnected"]})
 
-      :ok = Webhooks.dispatch(product.id, "device.connected", fn -> %{device: %{identifier: "abc123"}} end)
+      :ok = Integrations.dispatch(product.id, "device.connected", fn -> %{device: %{identifier: "abc123"}} end)
 
       jobs = all_enqueued(worker: DeliverWebhook)
       assert jobs |> Enum.map(& &1.args["webhook_id"]) |> Enum.sort() == Enum.sort([first.id, second.id])
@@ -271,11 +272,11 @@ defmodule NervesHub.WebhooksTest do
     end
 
     test "sees a webhook as soon as it is created, despite the cache", %{product: product, scope: scope} do
-      :ok = Webhooks.dispatch(product.id, "device.connected", fn -> %{} end)
+      :ok = Integrations.dispatch(product.id, "device.connected", fn -> %{} end)
       refute_enqueued(worker: DeliverWebhook)
 
       webhook = webhook_fixture(scope)
-      :ok = Webhooks.dispatch(product.id, "device.connected", fn -> %{} end)
+      :ok = Integrations.dispatch(product.id, "device.connected", fn -> %{} end)
 
       assert_enqueued(worker: DeliverWebhook, args: %{webhook_id: webhook.id})
     end
@@ -284,7 +285,7 @@ defmodule NervesHub.WebhooksTest do
       webhook = webhook_fixture(scope)
       {:ok, _} = Webhooks.update_webhook(scope, webhook, %{"enabled" => false})
 
-      :ok = Webhooks.dispatch(product.id, "device.connected", fn -> %{} end)
+      :ok = Integrations.dispatch(product.id, "device.connected", fn -> %{} end)
 
       refute_enqueued(worker: DeliverWebhook)
     end
@@ -293,7 +294,7 @@ defmodule NervesHub.WebhooksTest do
       webhook_fixture(scope)
 
       :ok =
-        Webhooks.dispatch(product.id, "device.connected", fn ->
+        Integrations.dispatch(product.id, "device.connected", fn ->
           %{reason: "bad\0byte " <> <<0xFF>>, nested: %{<<0xFE>> => ["ok", <<0>>]}}
         end)
 
@@ -306,13 +307,13 @@ defmodule NervesHub.WebhooksTest do
     test "drops an event too large to queue", %{product: product, scope: scope} do
       webhook_fixture(scope)
 
-      :ok = Webhooks.dispatch(product.id, "device.connected", fn -> %{blob: String.duplicate("a", 300_000)} end)
+      :ok = Integrations.dispatch(product.id, "device.connected", fn -> %{blob: String.duplicate("a", 300_000)} end)
 
       refute_enqueued(worker: DeliverWebhook)
     end
 
     test "ignores events with no product" do
-      assert :ok = Webhooks.dispatch(nil, "device.connected", fn -> flunk("built data with no product") end)
+      assert :ok = Integrations.dispatch(nil, "device.connected", fn -> flunk("built data with no product") end)
     end
   end
 
@@ -371,7 +372,7 @@ defmodule NervesHub.WebhooksTest do
       assert [%Notification{title: "A webhook was turned off.", product_id: product_id}] = Repo.all(Notification)
       assert product_id == product.id
 
-      :ok = Webhooks.dispatch(product.id, "device.connected", fn -> %{} end)
+      :ok = Integrations.dispatch(product.id, "device.connected", fn -> %{} end)
       refute_enqueued(worker: DeliverWebhook)
     end
 

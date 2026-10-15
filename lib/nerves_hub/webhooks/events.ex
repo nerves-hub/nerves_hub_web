@@ -78,6 +78,18 @@ defmodule NervesHub.Webhooks.Events do
       group: "Firmware",
       label: "Firmware validated",
       description: "A device confirmed that the firmware it is running is good."
+    },
+    %{
+      type: "error_group.created",
+      group: "Errors",
+      label: "New error",
+      description: "A device reported an error not seen before in its product."
+    },
+    %{
+      type: "error_group.reopened",
+      group: "Errors",
+      label: "Error reopened",
+      description: "An error that was marked resolved happened again. Muted errors do not reopen."
     }
   ]
 

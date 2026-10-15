@@ -145,6 +145,8 @@ A webhook subscribes to any of these. `webhook.test` is only sent on request.
 | `device.firmware_update.progress` | A device reported how its update is going. |
 | `device.firmware_update.finished` | A device's update attempt ended. |
 | `device.firmware_validated` | A device confirmed that its firmware is good. |
+| `error_group.created` | A device reported an error not seen before in its product. |
+| `error_group.reopened` | An error that was marked resolved happened again. |
 
 ### The device
 
@@ -330,6 +332,40 @@ not known, and a firmware's `version` is `null` once it has been deleted.
 The device marked the firmware it is running as good, typically after
 restarting into a new update and passing its own checks. There is nothing
 beyond `device`.
+
+### `error_group.created` and `error_group.reopened`
+
+Devices that use the error reports extension report errors, which NervesHub
+groups into issues ([Device Error Reports](error_reports.md)).
+`error_group.created` is sent when a device reports an error not seen before
+in its product. `error_group.reopened` is sent when an error that was marked
+resolved happens again. A muted error keeps counting but does not reopen, so
+it sends neither.
+
+These are about an error rather than one device, so they carry `org`,
+`product` and `error`, and no `device`:
+
+```json
+{
+  "error": {
+    "id": 4182,
+    "kind": "error",
+    "source": "logger",
+    "reason": "** (RuntimeError) connection refused",
+    "top_frame": "MyApp.Worker.handle_info/2 (lib/my_app/worker.ex:42)",
+    "occurrence_count": 3,
+    "first_seen_at": "2026-10-14T09:12:03.512000Z",
+    "last_seen_at": "2026-10-14T09:12:04.007000Z"
+  }
+}
+```
+
+`id` is the error's id in NervesHub, the same for every event about it.
+`occurrence_count` is how many times it has happened across the product's
+devices so far. Reports from a busy fleet are counted together every second
+or so, so a new error can already count more than one. `top_frame` is `null`
+when the device sent no stack frames. `reason` is what the device said, so
+treat it as untrusted text.
 
 ### `webhook.test`
 

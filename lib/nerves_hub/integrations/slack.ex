@@ -20,6 +20,7 @@ defmodule NervesHub.Integrations.Slack do
   alias NervesHub.Accounts.Org
   alias NervesHub.Accounts.Scope
   alias NervesHub.AuditLogs.OrgTemplates
+  alias NervesHub.Integrations
   alias NervesHub.Integrations.Slack.Client
   alias NervesHub.Integrations.Slack.Connection
   alias NervesHub.Integrations.Slack.Workspace
@@ -68,13 +69,16 @@ defmodule NervesHub.Integrations.Slack do
     @authorize_url <> "?" <> query
   end
 
-  @doc "The organization's workspace connections, oldest first."
+  @doc """
+  The organization's workspace connections, oldest first, with the channels
+  each sends events to.
+  """
   @spec list_connections(Org.t()) :: [Connection.t()]
   def list_connections(%Org{id: org_id}) do
     Connection
     |> where(org_id: ^org_id)
     |> order_by(asc: :inserted_at, asc: :id)
-    |> preload([:workspace, :connected_by])
+    |> preload([:workspace, :connected_by, subscriptions: :products])
     |> Repo.all()
   end
 
@@ -183,6 +187,9 @@ defmodule NervesHub.Integrations.Slack do
         end
       end)
 
+    # The connection's channel subscriptions went with it.
+    :ok = Integrations.invalidate(org.id)
+
     if orphaned, do: revoke(orphaned)
 
     :ok
@@ -228,7 +235,7 @@ defmodule NervesHub.Integrations.Slack do
   def handle_event(_team_id, _event), do: :ok
 
   defp remove_workspace(team_id, reason) do
-    {:ok, :ok} =
+    {:ok, org_ids} =
       Repo.transact(fn ->
         Workspace
         |> where(team_id: ^team_id)
@@ -236,7 +243,7 @@ defmodule NervesHub.Integrations.Slack do
         |> Repo.one()
         |> case do
           nil ->
-            {:ok, :ok}
+            {:ok, []}
 
           workspace ->
             for connection <- workspace.connections do
@@ -244,10 +251,11 @@ defmodule NervesHub.Integrations.Slack do
             end
 
             _ = Repo.delete!(workspace)
-            {:ok, :ok}
+            {:ok, Enum.map(workspace.connections, & &1.org_id)}
         end
       end)
 
-    :ok
+    # Their channel subscriptions went with the workspace.
+    Enum.each(org_ids, &Integrations.invalidate/1)
   end
 end

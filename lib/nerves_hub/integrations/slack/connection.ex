@@ -9,6 +9,7 @@ defmodule NervesHub.Integrations.Slack.Connection do
 
   alias NervesHub.Accounts.Org
   alias NervesHub.Accounts.User
+  alias NervesHub.Integrations.Slack.Subscription
   alias NervesHub.Integrations.Slack.Workspace
 
   @type t :: %__MODULE__{}
@@ -17,6 +18,8 @@ defmodule NervesHub.Integrations.Slack.Connection do
     belongs_to(:org, Org)
     belongs_to(:workspace, Workspace)
     belongs_to(:connected_by, User)
+
+    has_many(:subscriptions, Subscription, preload_order: [asc: :inserted_at, asc: :id])
 
     timestamps()
   end

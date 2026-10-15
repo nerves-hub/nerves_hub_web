@@ -11,20 +11,10 @@ defmodule NervesHub.Webhooks do
 
   ## Raising events
 
-  Code where something happens to a device calls `dispatch/3` with the product,
-  the event type and a function that builds the event's `data`. When none of
-  the enabled webhooks that hear the product subscribe to the type, which is
-  nearly every call, that is one ETS read (`NervesHub.Webhooks.Cache`) and
-  nothing else: the function is not run, and nothing touches the database.
-  Otherwise the event is encoded once and one
-  `NervesHub.Workers.DeliverWebhook` job is inserted per subscribed webhook.
-
-  Events are raised on whichever node the device is connected to. Device nodes
-  run no Oban queues but can insert jobs, so deliveries go out from web nodes,
-  off the device's connection.
-
-  Called inside a transaction, the jobs are part of it: an outcome that rolls
-  back takes its webhook with it.
+  Events reach webhooks through `NervesHub.Integrations.dispatch/3`, which
+  finds the webhooks that hear the product and want the type, and hands the
+  event to `queue_deliveries/3`. That encodes it once and inserts one
+  `NervesHub.Workers.DeliverWebhook` job per webhook.
 
   ## Delivery
 
@@ -40,10 +30,10 @@ defmodule NervesHub.Webhooks do
   alias NervesHub.Accounts.Org
   alias NervesHub.Accounts.Scope
   alias NervesHub.AuditLogs.OrgTemplates
+  alias NervesHub.Integrations
+  alias NervesHub.Integrations.ProductScope
   alias NervesHub.ProductNotifications
-  alias NervesHub.Products.Product
   alias NervesHub.Repo
-  alias NervesHub.Webhooks.Cache
   alias NervesHub.Webhooks.Delivery
   alias NervesHub.Webhooks.Events
   alias NervesHub.Webhooks.Webhook
@@ -123,11 +113,11 @@ defmodule NervesHub.Webhooks do
   """
   @spec change_webhook(Org.t(), Webhook.t(), map()) :: Changeset.t()
   def change_webhook(%Org{} = org, %Webhook{} = webhook, attrs \\ %{}) do
-    attrs = scope_attrs(attrs)
+    attrs = ProductScope.normalize_attrs(attrs)
 
     webhook
     |> Repo.preload(:products)
-    |> Webhook.changeset(attrs, find_products(org, attrs))
+    |> Webhook.changeset(attrs, ProductScope.find_products(org, attrs))
   end
 
   @doc """
@@ -145,13 +135,14 @@ defmodule NervesHub.Webhooks do
   """
   @spec create_webhook(Scope.t(), map()) :: {:ok, Webhook.t()} | {:error, Changeset.t() | :too_many_webhooks}
   def create_webhook(%Scope{org: org, user: user}, attrs) do
-    attrs = scope_attrs(attrs)
+    attrs = ProductScope.normalize_attrs(attrs)
 
     Repo.transact(fn ->
       count = Webhook |> where(org_id: ^org.id) |> Repo.aggregate(:count)
 
       with true <- count < @max_webhooks_per_org || {:error, :too_many_webhooks},
-           {:ok, webhook} <- org |> Webhook.create_changeset(attrs, find_products(org, attrs)) |> Repo.insert() do
+           {:ok, webhook} <-
+             org |> Webhook.create_changeset(attrs, ProductScope.find_products(org, attrs)) |> Repo.insert() do
         :ok = OrgTemplates.audit_webhook_created(user, org, webhook)
         {:ok, webhook}
       end
@@ -166,13 +157,13 @@ defmodule NervesHub.Webhooks do
   """
   @spec update_webhook(Scope.t(), Webhook.t(), map()) :: {:ok, Webhook.t()} | {:error, Changeset.t()}
   def update_webhook(%Scope{org: org, user: user}, %Webhook{} = webhook, attrs) do
-    attrs = scope_attrs(attrs)
+    attrs = ProductScope.normalize_attrs(attrs)
 
     Repo.transact(fn ->
       changeset =
         webhook
         |> Repo.preload(:products)
-        |> Webhook.changeset(attrs, find_products(org, attrs))
+        |> Webhook.changeset(attrs, ProductScope.find_products(org, attrs))
 
       with {:ok, updated} <- Repo.update(changeset) do
         :ok = OrgTemplates.audit_webhook_updated(user, org, updated)
@@ -211,40 +202,6 @@ defmodule NervesHub.Webhooks do
     end)
   end
 
-  # Naming products is asking for those products, so a change that lists
-  # them without saying `all_products` means `all_products: false`. Only
-  # string-keyed attributes name products: they come from a form or the API.
-  defp scope_attrs(%{"products" => _} = attrs) when not is_map_key(attrs, "all_products") do
-    Map.put(attrs, "all_products", false)
-  end
-
-  defp scope_attrs(attrs), do: attrs
-
-  # The products a change names, looked up among the organization's own, by
-  # name because the API knows products by name. Looking them up here, not
-  # anywhere a caller could pass a product in, is what keeps a webhook from
-  # hearing another organization's devices.
-  defp find_products(%Org{id: org_id}, %{"products" => names}) when is_list(names) do
-    if Enum.all?(names, &is_binary/1) do
-      names = Enum.uniq(names)
-
-      products =
-        Product
-        |> where([p], p.org_id == ^org_id and p.name in ^names)
-        |> Repo.exclude_deleted()
-        |> order_by(:name)
-        |> Repo.all()
-
-      found = MapSet.new(products, & &1.name)
-      {products, Enum.reject(names, &MapSet.member?(found, &1))}
-    else
-      :invalid
-    end
-  end
-
-  defp find_products(_org, %{"products" => _not_a_list}), do: :invalid
-  defp find_products(_org, _attrs), do: nil
-
   @doc """
   Sends a `webhook.test` event to the webhook straight away, and returns how
   it went.
@@ -266,110 +223,29 @@ defmodule NervesHub.Webhooks do
   end
 
   @doc """
-  Queues `type` for delivery to every enabled webhook that hears the product
-  and subscribes to the type.
+  Queues an event, already cleaned by `NervesHub.Integrations.dispatch/3`, for
+  delivery to each of `webhook_ids`.
 
-  `build_data` returns the event's `data`, without the `org` and `product`
-  this adds, and is only called when there is somebody to send it to. Strings
-  in it are made safe to store and encode, since much of what an event carries
-  is whatever a device chose to send.
+  The event is encoded once, and gets one id that every delivery and retry of
+  it shares. An event too large to queue is dropped.
   """
-  @spec dispatch(pos_integer(), String.t(), (-> map())) :: :ok
-  def dispatch(product_id, type, build_data) when is_function(build_data, 0) do
-    case subscribers(product_id, type) do
-      {_names, []} ->
+  @spec queue_deliveries([pos_integer()], String.t(), map()) :: :ok
+  def queue_deliveries(webhook_ids, type, data) do
+    case encode(type, data) do
+      body when byte_size(body) > @max_body_bytes ->
+        Logger.warning("Dropped a #{type} webhook event: #{byte_size(body)} bytes encoded")
         :ok
 
-      {names, webhook_ids} ->
-        body = encode(type, Map.merge(build_data.(), names))
-        enqueue(product_id, type, webhook_ids, body)
+      body ->
+        event_id = new_event_id()
+
+        _jobs =
+          webhook_ids
+          |> Enum.map(&DeliverWebhook.new(%{webhook_id: &1, event_id: event_id, type: type, body: body}))
+          |> Oban.insert_all()
+
+        :ok
     end
-  end
-
-  @doc """
-  Whether any enabled webhook that hears the product subscribes to `type`.
-
-  For callers that would have to do work just to find out which devices an
-  event is about, such as the stale connection sweep. Everyone else can call
-  `dispatch/3`, which checks the same thing.
-  """
-  @spec subscribed?(pos_integer(), String.t()) :: boolean()
-  def subscribed?(product_id, type) do
-    match?({_names, [_ | _]}, subscribers(product_id, type))
-  end
-
-  # A connection's `product_id` is nullable (it is cleared when the product
-  # goes), and a connection without one has no product's webhooks to tell.
-  defp subscribers(nil, _type), do: {%{}, []}
-
-  defp subscribers(product_id, type) do
-    case Cache.fetch(product_id, fn -> load_subscriptions(product_id) end) do
-      nil ->
-        {%{}, []}
-
-      %{names: names, webhooks: webhooks} ->
-        {names, for({id, events} <- webhooks, type in events, do: id)}
-    end
-  end
-
-  # What dispatching needs to know about a product, in one query: the
-  # product's organization (the cache drops entries by it), the enabled
-  # webhooks that hear the product and their events, and the names every event
-  # carries. The value is `nil` when no webhook hears the product, which is
-  # what the cache holds for nearly every product.
-  #
-  # The webhooks are left-joined so that a product no webhook hears still
-  # comes back, with its organization, as a single row without one.
-  defp load_subscriptions(product_id) do
-    from(p in Product,
-      join: o in Org,
-      on: o.id == p.org_id,
-      left_join: w in subquery(hearing(product_id)),
-      on: w.org_id == o.id,
-      where: p.id == ^product_id and is_nil(p.deleted_at) and is_nil(o.deleted_at),
-      select: {o.id, o.name, p.name, w.id, w.events}
-    )
-    |> Repo.all()
-    |> subscriptions()
-  end
-
-  # The enabled webhooks that hear the product, of any organization: the join
-  # above keeps the product's own. A webhook lists a product at most once (a
-  # unique index), so this is one row per webhook.
-  defp hearing(product_id) do
-    from(w in Webhook,
-      left_join: wp in "webhook_products",
-      on: wp.webhook_id == w.id and wp.product_id == ^product_id,
-      where: w.enabled and (w.all_products or not is_nil(wp.webhook_id)),
-      select: %{id: w.id, org_id: w.org_id, events: w.events}
-    )
-  end
-
-  defp subscriptions([]), do: {nil, nil}
-  defp subscriptions([{org_id, _org_name, _product_name, nil, _events}]), do: {org_id, nil}
-
-  defp subscriptions([{org_id, org_name, product_name, _id, _events} | _] = rows) do
-    {org_id,
-     %{
-       names: %{org: %{name: org_name}, product: %{name: product_name}},
-       webhooks: for({_, _, _, id, events} <- rows, do: {id, events})
-     }}
-  end
-
-  defp enqueue(product_id, type, _webhook_ids, body) when byte_size(body) > @max_body_bytes do
-    Logger.warning("Dropped a #{type} webhook event for product #{product_id}: #{byte_size(body)} bytes encoded")
-    :ok
-  end
-
-  defp enqueue(_product_id, type, webhook_ids, body) do
-    event_id = new_event_id()
-
-    _jobs =
-      webhook_ids
-      |> Enum.map(&DeliverWebhook.new(%{webhook_id: &1, event_id: event_id, type: type, body: body}))
-      |> Oban.insert_all()
-
-    :ok
   end
 
   # The specification asks only that ids are unique and contain no full stop.
@@ -380,25 +256,9 @@ defmodule NervesHub.Webhooks do
     Jason.encode!(%{
       type: type,
       timestamp: DateTime.utc_now(),
-      data: scrub(data)
+      data: data
     })
   end
-
-  # Event data includes text devices sent: failure reasons, alarm descriptions,
-  # metadata. Invalid UTF-8 would fail to encode, and a NUL is valid JSON that
-  # PostgreSQL refuses to store in the job's arguments. Either would take the
-  # event, and anything else in the transaction raising it, down with it.
-  defp scrub(%_{} = struct), do: struct
-  defp scrub(map) when is_map(map), do: Map.new(map, fn {key, value} -> {scrub(key), scrub(value)} end)
-  defp scrub(list) when is_list(list), do: Enum.map(list, &scrub/1)
-
-  defp scrub(binary) when is_binary(binary) do
-    binary
-    |> String.replace_invalid()
-    |> String.replace(<<0>>, "")
-  end
-
-  defp scrub(other), do: other
 
   @doc """
   The webhook, if deliveries to it should still go out: it exists, it is on,
@@ -506,7 +366,7 @@ defmodule NervesHub.Webhooks do
     # the same moment find it already off.
     _ =
       if count == 1 do
-        :ok = Cache.invalidate(org_id)
+        :ok = Integrations.invalidate(org_id)
         ProductNotifications.create_webhook_disabled_notifications!(webhook, heard_product_ids(webhook), reason)
       end
 
@@ -515,24 +375,10 @@ defmodule NervesHub.Webhooks do
 
   # The products whose events the webhook was sending, which are the ones
   # whose members need to hear that it stopped.
-  defp heard_product_ids(%Webhook{all_products: true, org_id: org_id}) do
-    Product
-    |> where(org_id: ^org_id)
-    |> Repo.exclude_deleted()
-    |> select([p], p.id)
-    |> Repo.all()
+  defp heard_product_ids(%Webhook{} = webhook) do
+    ProductScope.heard_product_ids(webhook.org_id, webhook.all_products, "webhook_products", :webhook_id, webhook.id)
   end
 
-  defp heard_product_ids(%Webhook{id: id}) do
-    from(wp in "webhook_products",
-      join: p in Product,
-      on: p.id == wp.product_id,
-      where: wp.webhook_id == ^id and is_nil(p.deleted_at),
-      select: p.id
-    )
-    |> Repo.all()
-  end
-
-  defp invalidate_on_success({:ok, _webhook}, %Org{id: org_id}), do: Cache.invalidate(org_id)
+  defp invalidate_on_success({:ok, _webhook}, %Org{id: org_id}), do: Integrations.invalidate(org_id)
   defp invalidate_on_success(_error, _org), do: :ok
 end

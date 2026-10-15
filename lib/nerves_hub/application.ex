@@ -56,7 +56,7 @@ defmodule NervesHub.Application do
           # this cache is not the state health evaluation does without.
           Cache,
           # Answers "does anyone want this event?" on every device event.
-          NervesHub.Webhooks.Cache,
+          NervesHub.Integrations.Cache,
           # Ahead of the group tree: `RateLimitPubSub` applies peer throttle
           # increments into this storage the moment it joins its group.
           {PlugAttackEts, name: PlugAttackStorage, clean_period: 60_000},

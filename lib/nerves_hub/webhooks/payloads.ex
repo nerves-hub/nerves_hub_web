@@ -8,12 +8,12 @@ defmodule NervesHub.Webhooks.Payloads do
   or removing one breaks an integration this repository cannot see.
 
   Every event about a device carries `device`: its identifier and the firmware
-  it is running as far as NervesHub knows. `NervesHub.Webhooks.dispatch/3`
+  it is running as far as NervesHub knows. `NervesHub.Integrations.dispatch/3`
   adds `org` and `product`.
 
-  Each function runs only when a webhook subscribes to its event (it is the
+  Each function runs only when an integration wants its event (it is the
   function passed to `dispatch/3`), so the queries some of them make cost
-  nothing for products without webhooks.
+  nothing for products without one.
   """
 
   import Ecto.Query
@@ -148,6 +148,36 @@ defmodule NervesHub.Webhooks.Payloads do
   @spec firmware_validated(DeviceInfo.t()) :: map()
   def firmware_validated(%DeviceInfo{} = device_info) do
     %{device: device(device_info)}
+  end
+
+  @doc """
+  `error_group.created` and `error_group.reopened`
+
+  About an error rather than one device, so there is no `device`. `group` is
+  the error group as `NervesHub.ErrorReports.GroupBuffer` wrote it.
+  """
+  @spec error_group(map()) :: map()
+  def error_group(group) do
+    %{
+      error: %{
+        id: group.id,
+        kind: group.kind,
+        source: group.source,
+        reason: group.reason,
+        top_frame: top_frame(group),
+        occurrence_count: group.occurrence_count,
+        first_seen_at: group.first_seen_at,
+        last_seen_at: group.last_seen_at
+      }
+    }
+  end
+
+  defp top_frame(%{top_frame_module: nil, top_frame_function: nil}), do: nil
+
+  defp top_frame(group) do
+    name = [group.top_frame_module, group.top_frame_function] |> Enum.reject(&is_nil/1) |> Enum.join(".")
+    location = if group.top_frame_file, do: " (#{group.top_frame_file}:#{group.top_frame_line})", else: ""
+    name <> location
   end
 
   @doc """

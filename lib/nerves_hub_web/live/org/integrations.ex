@@ -1,9 +1,9 @@
 defmodule NervesHubWeb.Live.Org.Integrations do
   @moduledoc """
-  The organization's integrations: the Slack workspaces it is connected to,
-  when the instance has a Slack app, and its webhooks, which say where its
-  products' device events are sent, which events, from which products, and
-  how each endpoint is doing.
+  The organization's integrations: its Slack workspaces and channels, when
+  the instance has a Slack app (`NervesHubWeb.Live.Org.Integrations.SlackSection`),
+  and its webhooks, which say where its products' device events are sent,
+  which events, from which products, and how each endpoint is doing.
 
   Members who cannot manage webhooks see each webhook's host, events, products
   and state, but not its URL or signing secret. Some receivers carry
@@ -29,19 +29,13 @@ defmodule NervesHubWeb.Live.Org.Integrations do
     |> assign(:slack_configured?, Slack.configured?())
     |> close_form()
     |> assign_webhooks()
-    |> assign_slack_connections()
     |> ok()
   end
 
-  def handle_event("disconnect-slack", %{"connection_id" => id}, socket) do
-    authorized!(:"slack_connection:delete", socket.assigns.current_scope)
-
-    connection = Slack.get_connection!(socket.assigns.org, id)
-    :ok = Slack.disconnect(socket.assigns.current_scope, connection)
-
+  # From the Slack section, whose own flash would not be shown.
+  def handle_info({:put_flash, kind, message}, socket) do
     socket
-    |> assign_slack_connections()
-    |> put_flash(:info, "Disconnected the #{connection.workspace.team_name} Slack workspace.")
+    |> put_flash(kind, message)
     |> noreply()
   end
 
@@ -188,14 +182,6 @@ defmodule NervesHubWeb.Live.Org.Integrations do
         put_flash(socket, :error, "The test event could not be sent.")
     end
     |> noreply()
-  end
-
-  defp assign_slack_connections(%{assigns: %{slack_configured?: false}} = socket) do
-    assign(socket, :slack_connections, [])
-  end
-
-  defp assign_slack_connections(socket) do
-    assign(socket, :slack_connections, Slack.list_connections(socket.assigns.org))
   end
 
   defp assign_webhooks(socket) do

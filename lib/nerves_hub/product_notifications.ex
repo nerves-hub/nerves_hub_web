@@ -4,6 +4,8 @@ defmodule NervesHub.ProductNotifications do
   alias NervesHub.Accounts.Scope
   alias NervesHub.DeviceLink.DeviceInfo
   alias NervesHub.Devices.Device
+  alias NervesHub.Integrations
+  alias NervesHub.Integrations.Slack.Subscription
   alias NervesHub.ManagedDeployments.DeploymentWorkflowStep
   alias NervesHub.Products
   alias NervesHub.Products.Notification
@@ -345,6 +347,29 @@ defmodule NervesHub.ProductNotifications do
   end
 
   @doc """
+  A Slack channel subscription was turned off because the channel could not
+  be posted to. One notification for each product in `product_ids`, the
+  products whose events the channel was getting.
+  """
+  @spec create_slack_subscription_disabled_notifications!(Subscription.t(), [pos_integer()], String.t()) ::
+          [Notification.t()]
+  def create_slack_subscription_disabled_notifications!(%Subscription{} = subscription, product_ids, reason) do
+    for product_id <- product_ids do
+      %Product{id: product_id}
+      |> Notification.new_changeset(%{
+        title: "Slack notifications were turned off.",
+        message:
+          "NervesHub stopped posting to ##{subscription.channel_name} because #{reason}. Once that is fixed, " <>
+            "turn the channel back on from the organization's Integrations settings.",
+        level: :error,
+        metadata: %{slack_subscription_id: subscription.id, channel: subscription.channel_name},
+        event_key: "slack_subscription_disabled-#{subscription.id}"
+      })
+      |> insert_and_notify!()
+    end
+  end
+
+  @doc """
   Take back the notice that a workflow had stopped.
 
   Raised when a workflow stops and cleared when it starts again, so the list
@@ -419,8 +444,28 @@ defmodule NervesHub.ProductNotifications do
     notification =
       Repo.insert!(changeset,
         on_conflict: conflict_query,
-        conflict_target: [:product_id, :event_key]
+        conflict_target: [:product_id, :event_key],
+        # Only the count, which tells a new notification from a recurrence.
+        # Reading back the rest would hand callers string-keyed metadata.
+        returning: [:occurrence_count]
       )
+
+    # Only a new notification is news. The same one occurring again only
+    # bumps its count, and would otherwise post the same thing to Slack each
+    # time.
+    if notification.occurrence_count == 1 do
+      :ok =
+        Integrations.dispatch(notification.product_id, "product.notification_created", fn ->
+          %{
+            notification: %{
+              id: notification.id,
+              title: notification.title,
+              message: notification.message,
+              level: to_string(notification.level)
+            }
+          }
+        end)
+    end
 
     _ =
       Group.dispatch(NervesHub.Group, key(notification.product_id), %Broadcast{

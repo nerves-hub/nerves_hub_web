@@ -1,7 +1,7 @@
-defmodule NervesHub.Webhooks.Cache do
+defmodule NervesHub.Integrations.Cache do
   @moduledoc """
-  Caches which webhooks hear a product's events and what each subscribes to,
-  keyed by product id.
+  Caches who hears a product's events (`NervesHub.Integrations`) and which
+  events each wants, keyed by product id.
 
   Every device event asks this: each connect, disconnect, health report and
   metrics batch, on whichever node holds the device's connection. Nearly every
@@ -10,16 +10,16 @@ defmodule NervesHub.Webhooks.Cache do
   straight out of ETS by the calling process, so a read costs no message and
   serialises against nothing.
 
-  Webhooks belong to the organization, so each entry also records the
-  product's organization, and a change to any of an organization's webhooks
-  drops the entries of all its products, on the spot here and by message on
-  the other nodes. The TTL is the backstop for a node that was not there to
-  hear it.
+  Integrations belong to the organization, so each entry also records the
+  product's organization, and a change to any of an organization's
+  integrations drops the entries of all its products, on the spot here and by
+  message on the other nodes. The TTL is the backstop for a node that was not
+  there to hear it.
 
-  Only ids and event types are cached. URLs and secrets are read by the
-  delivery worker when it sends, so a stale entry can at worst send one
-  delivery for an event the webhook has just stopped subscribing to, and the
-  worker drops deliveries for webhooks that have been disabled or deleted.
+  Only ids and event types are cached. Where an event goes (a URL, a
+  channel) and how it is signed are read when it is sent, so a stale entry can
+  at worst send one event that has just stopped being wanted, and deliveries
+  for anything since disabled or deleted are dropped.
 
   Modelled on `NervesHub.Products.HealthProfiles.Cache`.
   """
@@ -27,7 +27,7 @@ defmodule NervesHub.Webhooks.Cache do
   use GenServer
 
   @table __MODULE__
-  @topic "webhooks:changed"
+  @topic "integrations:changed"
   @default_ttl_ms to_timeout(second: 30)
 
   @doc """
@@ -38,7 +38,7 @@ defmodule NervesHub.Webhooks.Cache do
   can be dropped when the organization's webhooks change, and the value.
   `org_id` is `nil` for a product that no longer exists.
 
-  `nil` is cached like any other value: it is what a product no webhook hears
+  `nil` is cached like any other value: it is what a product nobody hears
   stores, and that is the case that would otherwise cost a query per event.
   """
   @spec fetch(pos_integer(), (-> {pos_integer() | nil, value})) :: value when value: term()
@@ -70,7 +70,7 @@ defmodule NervesHub.Webhooks.Cache do
   @spec invalidate(pos_integer()) :: :ok
   def invalidate(org_id) do
     :ok = drop(org_id)
-    _ = Phoenix.PubSub.broadcast(NervesHub.PubSub, @topic, {:webhooks_changed, org_id})
+    _ = Phoenix.PubSub.broadcast(NervesHub.PubSub, @topic, {:integrations_changed, org_id})
     :ok
   end
 
@@ -102,7 +102,7 @@ defmodule NervesHub.Webhooks.Cache do
   end
 
   @impl GenServer
-  def handle_info({:webhooks_changed, org_id}, state) do
+  def handle_info({:integrations_changed, org_id}, state) do
     :ok = drop(org_id)
 
     {:noreply, state}
@@ -122,5 +122,5 @@ defmodule NervesHub.Webhooks.Cache do
     ArgumentError -> :ok
   end
 
-  defp ttl_ms(), do: Application.get_env(:nerves_hub, :webhooks_cache_ttl_ms, @default_ttl_ms)
+  defp ttl_ms(), do: Application.get_env(:nerves_hub, :integrations_cache_ttl_ms, @default_ttl_ms)
 end

@@ -26,13 +26,13 @@ defmodule NervesHub.Devices.Updates do
   alias NervesHub.Firmwares.Firmware
   alias NervesHub.Firmwares.FirmwareDelta
   alias NervesHub.FirmwareUpdates
+  alias NervesHub.Integrations
   alias NervesHub.ManagedDeployments
   alias NervesHub.ManagedDeployments.DeploymentGroup
   alias NervesHub.ManagedDeployments.DeploymentWorkflowStep
   alias NervesHub.ManagedDeployments.Workflows
   alias NervesHub.Products.Product
   alias NervesHub.Repo
-  alias NervesHub.Webhooks
   alias NervesHub.Webhooks.Payloads
 
   require Logger
@@ -46,7 +46,7 @@ defmodule NervesHub.Devices.Updates do
            {:ok, _device_firmware} <- Repo.update(device_firmware_changeset),
            :ok <- DeviceTemplates.audit_firmware_validated(device_info),
            :ok <-
-             Webhooks.dispatch(device_info.product_id, "device.firmware_validated", fn ->
+             Integrations.dispatch(device_info.product_id, "device.firmware_validated", fn ->
                Payloads.firmware_validated(device_info)
              end) do
         {:ok, device}
