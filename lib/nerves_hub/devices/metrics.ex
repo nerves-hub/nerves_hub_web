@@ -404,6 +404,25 @@ defmodule NervesHub.Devices.Metrics do
     {:ok, length(readings)}
   end
 
+  @doc """
+  The readings `record/3` keeps from `metrics`, as `%{name => float}`.
+
+  Records nothing and raises none of the notifications `record/3` raises for
+  what it drops: this is for passing a report on (to a webhook) as it was
+  stored.
+  """
+  @spec storable(term()) :: %{optional(String.t()) => float()}
+  def storable(metrics) when is_map(metrics) do
+    metrics
+    |> Enum.flat_map(&normalize/1)
+    |> Enum.filter(fn {key, _value} -> byte_size(key) <= @max_key_bytes end)
+    |> Enum.sort_by(&elem(&1, 0))
+    |> Enum.take(max_keys_per_report())
+    |> Map.new()
+  end
+
+  def storable(_not_a_map), do: %{}
+
   # Both PostgreSQL columns are `:utc_datetime_usec`, and the rows are written
   # with `insert_all`/`insert!`, which dump straight to the database rather than
   # casting -- so a `DateTime` carrying anything less than microsecond precision

@@ -93,7 +93,7 @@ defmodule NervesHub.ManagedDeployments.Orchestrator.WorkflowCoordinator do
     if Workflows.step_failed?(deployment_group, step) do
       failed_count = Workflows.failed_device_count(deployment_group, step)
 
-      _ = Workflows.fail_step(step)
+      _ = Workflows.fail_step(step, failed_devices: failed_count)
 
       Logger.warning("Workflow step failed",
         deployment_id: deployment_group.id,

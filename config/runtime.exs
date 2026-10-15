@@ -4,8 +4,10 @@ alias NervesHub.DeviceLink.PeerVerification
 alias NervesHub.Devices.DeviceMessages
 alias NervesHub.Firmwares.Upload
 alias NervesHub.Firmwares.Upload.S3
+alias NervesHub.Integrations.Slack
 alias NervesHub.Repo
 alias NervesHub.Telemetry.FilteredSampler
+alias NervesHub.Types.Encrypted
 alias Sentry.OpenTelemetry.Sampler
 alias Sentry.OpenTelemetry.SpanProcessor
 alias Swoosh.Adapters.SMTP
@@ -35,6 +37,37 @@ if key = System.get_env("SESSION_COOKIE_KEY") do
   config :nerves_hub, session_cookie_key: key
 end
 
+# Self-hosted instances often deliver webhooks to receivers on their own
+# network. Left unset, the compile-time default stands: off, except in dev.
+if allow_private = System.get_env("WEBHOOKS_ALLOW_PRIVATE_DESTINATIONS") do
+  config :nerves_hub, NervesHub.Webhooks, allow_private_destinations: allow_private == "true"
+end
+
+# A Slack app for this instance (docs/slack.md). The integration stays hidden
+# unless all three are set.
+if System.get_env("SLACK_CLIENT_ID") do
+  config :nerves_hub, Slack,
+    client_id: System.get_env("SLACK_CLIENT_ID"),
+    client_secret: System.get_env("SLACK_CLIENT_SECRET"),
+    signing_secret: System.get_env("SLACK_SIGNING_SECRET")
+end
+
+# Encrypts the secrets NervesHub holds on others' behalf, such as Slack bot
+# tokens (`NervesHub.Types.Encrypted`).
+if encoded_key = System.get_env("SECRETS_ENCRYPTION_KEY") do
+  case Base.decode64(encoded_key) do
+    {:ok, <<_::binary-32>> = key} ->
+      config :nerves_hub, Encrypted, key: key
+
+    _ ->
+      raise "SECRETS_ENCRYPTION_KEY must be 32 bytes, base64 encoded, such as the output of `openssl rand -base64 32`"
+  end
+else
+  if System.get_env("SLACK_CLIENT_ID") && config_env() == :prod do
+    raise "SLACK_CLIENT_ID is set, so SECRETS_ENCRYPTION_KEY must be too: Slack bot tokens are encrypted with it"
+  end
+end
+
 config :nerves_hub, :device_socket_drainer,
   batch_size: String.to_integer(System.get_env("DEVICE_SOCKET_DRAINER_BATCH_SIZE", "1000")),
   batch_interval: String.to_integer(System.get_env("DEVICE_SOCKET_DRAINER_BATCH_INTERVAL", "4000")),
@@ -51,6 +84,7 @@ config :nerves_hub,
   deploy_env: System.get_env("DEPLOY_ENV", to_string(config_env())),
   log_include_mfa: System.get_env("LOG_INCLUDE_MFA", "false") == "true",
   web_title_suffix: System.get_env("WEB_TITLE_SUFFIX", "NervesHub"),
+  friendly_platform_name: System.get_env("FRIENDLY_PLATFORM_NAME", "NervesHub"),
   esp_idf_firmware_enabled: System.get_env("ESP_IDF_FIRMWARE_ENABLED", "false") == "true",
   atomvm_firmware_enabled: System.get_env("ATOMVM_FIRMWARE_ENABLED", "false") == "true",
   rauc_firmware_enabled: System.get_env("RAUC_FIRMWARE_ENABLED", "false") == "true",

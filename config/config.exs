@@ -58,6 +58,11 @@ config :nerves_hub, NervesHub.Repo,
   queue_interval: 5_000,
   migration_lock: :pg_advisory_lock
 
+# Webhooks deliver only to public addresses unless this is set; see
+# `NervesHub.Webhooks.Destination`. `WEBHOOKS_ALLOW_PRIVATE_DESTINATIONS`
+# overrides it at runtime.
+config :nerves_hub, NervesHub.Webhooks, allow_private_destinations: false
+
 config :nerves_hub, NervesHubWeb.DeviceEndpoint,
   # Deliberately trusts no forwarding header, unlike the web endpoint: TLS
   # terminates here, so nothing in front of us can reach into the stream to set
@@ -125,7 +130,9 @@ config :nerves_hub, Oban,
     firmware_delta_builder: 2,
     firmware_delta_timeout: 1,
     truncate: 1,
-    truncation: 1
+    truncation: 1,
+    slack: 5,
+    webhooks: 10
   ]
 
 # How much of a metric report NervesHub will store. Metric names are

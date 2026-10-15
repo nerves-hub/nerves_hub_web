@@ -36,7 +36,9 @@ defmodule NervesHub.ManagedDeployments.Workflows do
   the required release and on to the current one.
 
   Every transition broadcasts `step/updated` on `deployment_release:<id>` so an
-  open deployment group page can move the step along without polling.
+  open deployment group page can move the step along without polling, and
+  each one an organization's integrations hear of is announced to them
+  (`NervesHub.ManagedDeployments.WorkflowEvents`).
   """
 
   import Ecto.Query
@@ -49,6 +51,7 @@ defmodule NervesHub.ManagedDeployments.Workflows do
   alias NervesHub.ManagedDeployments.DeploymentGroup
   alias NervesHub.ManagedDeployments.DeploymentRelease
   alias NervesHub.ManagedDeployments.DeploymentWorkflowStep
+  alias NervesHub.ManagedDeployments.WorkflowEvents
   alias NervesHub.ProductNotifications
   alias NervesHub.Repo
   alias Phoenix.Channel.Server, as: PhoenixChannelServer
@@ -335,10 +338,18 @@ defmodule NervesHub.ManagedDeployments.Workflows do
 
   @doc """
   Mark a waiting step as in progress.
+
+  An approval step is announced as waiting for approval rather than as
+  started, since waiting is all it does.
   """
   @spec start_step(DeploymentWorkflowStep.t()) :: DeploymentWorkflowStep.t()
   def start_step(step) do
-    transition(step, status: :in_progress, started_at: now())
+    step = transition(step, status: :in_progress, started_at: now())
+
+    event = if step.type == :approval_required, do: "awaiting_approval", else: "started"
+    :ok = WorkflowEvents.announce(step, event)
+
+    step
   end
 
   @doc """
@@ -346,7 +357,12 @@ defmodule NervesHub.ManagedDeployments.Workflows do
   """
   @spec complete_step(DeploymentWorkflowStep.t()) :: DeploymentWorkflowStep.t()
   def complete_step(step) do
-    transition(step, status: :completed, finished_at: now())
+    step = transition(step, status: :completed, finished_at: now())
+
+    # An approval step completes because somebody approved it.
+    :ok = WorkflowEvents.announce(step, "completed", user: step.approved_by_id)
+
+    step
   end
 
   @doc """
@@ -370,10 +386,17 @@ defmodule NervesHub.ManagedDeployments.Workflows do
   Nothing further is scheduled until somebody retries or skips it. That is the
   point of a staged rollout: the stage that went wrong should not hand on to the
   next one.
+
+  `failed_devices`, how many of the step's devices could not take the update,
+  is passed on in the announcement.
   """
-  @spec fail_step(DeploymentWorkflowStep.t()) :: DeploymentWorkflowStep.t()
-  def fail_step(step) do
-    transition(step, status: :error, finished_at: now())
+  @spec fail_step(DeploymentWorkflowStep.t(), keyword()) :: DeploymentWorkflowStep.t()
+  def fail_step(step, opts \\ []) do
+    step = transition(step, status: :error, finished_at: now())
+
+    :ok = WorkflowEvents.announce(step, "failed", failed_devices: opts[:failed_devices])
+
+    step
   end
 
   @doc """
@@ -408,6 +431,7 @@ defmodule NervesHub.ManagedDeployments.Workflows do
       step = transition(step, status: :skipped, skipped_at: now(), skipped_by_id: user.id)
 
       :ok = resolve_halt_notification(step)
+      :ok = WorkflowEvents.announce(step, "skipped", user: user)
 
       {:ok, step}
     else
@@ -442,7 +466,11 @@ defmodule NervesHub.ManagedDeployments.Workflows do
         devices_released: released
       )
 
-      {:ok, transition(step, status: :in_progress, finished_at: nil, started_at: now())}
+      step = transition(step, status: :in_progress, finished_at: nil, started_at: now())
+
+      :ok = WorkflowEvents.announce(step, "started", user: user)
+
+      {:ok, step}
     else
       {:error, :not_retryable}
     end

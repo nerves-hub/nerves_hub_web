@@ -164,6 +164,41 @@
           </div>
         </div>
       </div>
+      <div
+        :if={@slack_links != []}
+        id="slack-links"
+        class="rounded border border-base-700 bg-surface-raised p-6 shadow-device-details-content"
+      >
+        <h2 class="mb-2 text-lg font-semibold text-base-50">Slack accounts</h2>
+        <p class="mb-4 text-sm text-base-400">
+          What these Slack users do with {NervesHub.Branding.friendly_platform_name()}'s buttons in Slack is done as you.
+        </p>
+
+        <div class="space-y-3">
+          <div
+            :for={%{link: link, team_name: team_name} <- @slack_links}
+            id={"slack-link-#{link.id}"}
+            class="flex items-center justify-between gap-4 rounded border border-base-700 bg-linear-to-r from-base-800/50 to-base-800 p-4"
+          >
+            <div class="min-w-0 text-sm text-base-300">
+              <span class="font-semibold text-base-50">{if link.slack_name, do: link.slack_name, else: link.slack_user_id}</span>
+              in {team_name || "a workspace no longer connected"}, linked <.local_datetime at={link.linked_at} time_zone={@time_zone} format={:long_date} zone_label={false} />.
+              <span :if={link.last_used_at}>
+                Last used <.local_datetime at={link.last_used_at} time_zone={@time_zone} format={:long_datetime} />.
+              </span>
+              <span :if={is_nil(link.last_used_at)}>Not used yet.</span>
+            </div>
+            <button
+              class="rounded border border-base-700 bg-base-800 px-3 py-1.5 text-sm font-medium text-base-300 hover:bg-base-700"
+              phx-click="unlink-slack"
+              phx-value-link_id={link.id}
+              data-confirm="Unlink this Slack account? Its buttons in Slack will ask to be linked again."
+            >
+              Unlink
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
 
     <CoreComponents.modal id="new-access-token" on_cancel={Phoenix.LiveView.JS.add_class("hidden")}>

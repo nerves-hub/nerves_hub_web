@@ -33,6 +33,8 @@ defmodule NervesHub.Extensions.Health do
   alias NervesHub.Extensions.Jitter
   alias NervesHub.Extensions.PubSub
   alias NervesHub.Extensions.State
+  alias NervesHub.Integrations
+  alias NervesHub.Webhooks.Payloads
 
   require Logger
 
@@ -100,6 +102,11 @@ defmodule NervesHub.Extensions.Health do
     in_hand = for {key, value} <- metrics, is_number(value), do: {key, now, value}
 
     _ = HealthEvaluation.evaluate_and_save(device_info, in_hand)
+
+    :ok =
+      Integrations.dispatch(device_info.product_id, "device.health_reported", fn ->
+        Payloads.health_reported(device_info, Metrics.storable(metrics), device_report)
+      end)
 
     {state, []}
   end

@@ -292,6 +292,25 @@ be enabled per product once the instance allows it.
 | --- | --- | --- |
 | `DEFAULT_LIFO_DEPLOYMENT_QUEUE` | `false` | New deployment groups default to a last-in-first-out update queue, so the most recently connected devices are updated first. |
 
+## Webhooks
+
+Read in every environment. See [Webhooks](webhooks.md).
+
+| Variable | Default | Description |
+| --- | --- | --- |
+| `WEBHOOKS_ALLOW_PRIVATE_DESTINATIONS` | `false` (`true` in dev) | Whether webhooks may deliver to loopback, private, link-local and other non-public addresses. Off, a webhook can only reach public addresses: a URL with a literal private address is refused when saved, and a host name is resolved at delivery and refused if any address it resolves to is private. That is what stops a member of any organization pointing a webhook at the cloud metadata service or another internal service. Turn it on for a self-hosted instance whose receivers are on its own network, and only if every member of every organization on the instance is trusted to reach that network. |
+
+## Slack
+
+Read in every environment. See [Slack](slack.md) for creating the Slack app these come from. The integration is hidden unless all three Slack variables are set.
+
+| Variable | Default | Description |
+| --- | --- | --- |
+| `SLACK_CLIENT_ID` | — | The Slack app's client ID, from its **Basic Information** page. |
+| `SLACK_CLIENT_SECRET` | — | The Slack app's client secret, used to exchange an install's code for its bot token. |
+| `SLACK_SIGNING_SECRET` | — | The Slack app's signing secret. Requests to `/integrations/slack/` without a valid signature are refused. |
+| `SECRETS_ENCRYPTION_KEY` | — (a fixed key in dev and test) | 32 random bytes, base64 encoded (`openssl rand -base64 32`). Encrypts secrets NervesHub holds for others, such as Slack bot tokens, before they are stored. Required in prod when `SLACK_CLIENT_ID` is set. Changing it makes the stored secrets unreadable, so connected workspaces would have to be connected again. |
+
 ## Branding and UI
 
 Read in every environment.
@@ -299,6 +318,7 @@ Read in every environment.
 | Variable | Default | Description |
 | --- | --- | --- |
 | `WEB_TITLE_SUFFIX` | `NervesHub` | Suffix on browser page titles. |
+| `FRIENDLY_PLATFORM_NAME` | `NervesHub` | The name the instance uses for itself in what it tells people, such as Slack messages ("Open in NervesHub") and the Slack pages. |
 | `LOGO_URL` | — | Logo used in the UI. |
 | `LOGO_URL_LIGHT` | `LOGO_URL` | Logo for light mode. |
 | `LOGO_URL_DARK` | `LOGO_URL` | Logo for dark mode. Set both light and dark to serve a different image per theme. |
