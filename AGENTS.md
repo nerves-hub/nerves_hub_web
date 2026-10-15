@@ -115,7 +115,10 @@ when adding or removing one.
   `NervesHubWeb.Integrations.Slack.WorkflowSteps` approves, retries or skips a deployment
   workflow step (`Integrations.Slack.Actions.authorize_in/6`), and
   `Slack.WorkflowMessages` edits the messages with those buttons once the
-  step is dealt with, by any route. `NervesHubWeb.Integrations.Slack.Unfurls`
+  step is dealt with, by any route. An instance Slack cannot reach sets
+  `SLACK_APP_TOKEN` and gets the same events, clicks and commands over
+  Socket Mode (`NervesHubWeb.Integrations.Slack.Socket`, two connections
+  per web node) instead of at `/integrations/slack/`. `NervesHubWeb.Integrations.Slack.Unfurls`
   previews device and deployment group links posted in Slack, checked
   against whoever posted them. Hidden unless the instance has a Slack app;
   see [docs/slack.md](docs/slack.md).

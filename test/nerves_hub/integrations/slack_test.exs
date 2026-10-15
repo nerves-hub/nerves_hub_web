@@ -8,6 +8,7 @@ defmodule NervesHub.Integrations.SlackTest do
   alias NervesHub.Integrations.Slack
   alias NervesHub.Integrations.Slack.Connection
   alias NervesHub.Integrations.Slack.Workspace
+  alias NervesHubWeb.Integrations.Slack.Socket
 
   @redirect_uri "https://nerves-hub.example.com/integrations/slack/oauth/callback"
 
@@ -228,13 +229,37 @@ defmodule NervesHub.Integrations.SlackTest do
            } = URI.decode_query(url.query)
   end
 
-  test "configured?/0 needs the client id, client secret and signing secret" do
-    assert Slack.configured?()
+  describe "how the instance hears from Slack" do
+    setup do
+      config = Application.get_env(:nerves_hub, Slack)
+      on_exit(fn -> Application.put_env(:nerves_hub, Slack, config) end)
+      %{config: config}
+    end
 
-    config = Application.get_env(:nerves_hub, Slack)
-    on_exit(fn -> Application.put_env(:nerves_hub, Slack, config) end)
+    test "with a signing secret, through its request URLs", %{config: config} do
+      assert Slack.configured?()
+      assert Slack.request_urls?()
+      refute Slack.socket_mode?()
+      assert Socket.child_specs() == []
 
-    Application.put_env(:nerves_hub, Slack, Keyword.put(config, :signing_secret, nil))
-    refute Slack.configured?()
+      Application.put_env(:nerves_hub, Slack, Keyword.put(config, :signing_secret, nil))
+      refute Slack.configured?()
+    end
+
+    test "with an app token, over Socket Mode, two connections a node", %{config: config} do
+      Application.put_env(:nerves_hub, Slack, Keyword.merge(config, signing_secret: nil, app_token: "xapp-1"))
+
+      assert Slack.configured?()
+      refute Slack.request_urls?()
+      assert Slack.socket_mode?()
+      assert [_, _] = Socket.child_specs()
+    end
+
+    test "not without the client id and secret, which installing takes", %{config: config} do
+      Application.put_env(:nerves_hub, Slack, Keyword.merge(config, client_secret: nil, app_token: "xapp-1"))
+
+      refute Slack.configured?()
+      refute Slack.socket_mode?()
+    end
   end
 end

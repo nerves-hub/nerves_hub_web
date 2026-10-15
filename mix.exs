@@ -176,6 +176,7 @@ defmodule NervesHub.MixProject do
         github: "lucide-icons/lucide", tag: "1.55.0", sparse: "icons", app: false, compile: false, depth: 1
       },
       {:mimic, "~> 2.0", only: [:test, :dev]},
+      {:mint_web_socket, "~> 1.0"},
       {:mix_unused, "~> 0.4.1", only: [:dev]},
       {:mjml_eex, "~> 0.13.0"},
       {:msgpax, "~> 2.0"},

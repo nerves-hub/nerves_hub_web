@@ -6,8 +6,9 @@ defmodule NervesHubWeb.Integrations.Slack.VerifyRequest do
   otherwise have consumed by now; `NervesHubWeb.Plugs.CacheRawBody` keeps a
   copy of it for paths under `/integrations/`.
 
-  Answers 404 when the instance has no Slack app, as if the routes did not
-  exist.
+  Answers 404 when the instance has no Slack app, or one that only takes
+  Slack's requests over Socket Mode (no signing secret), as if the routes did
+  not exist.
   """
   @behaviour Plug
 
@@ -21,7 +22,7 @@ defmodule NervesHubWeb.Integrations.Slack.VerifyRequest do
 
   @impl Plug
   def call(conn, _opts) do
-    with true <- Slack.configured?() || :not_configured,
+    with true <- Slack.request_urls?() || :not_configured,
          [timestamp] <- get_req_header(conn, "x-slack-request-timestamp"),
          [signature] <- get_req_header(conn, "x-slack-signature"),
          body when is_binary(body) <- conn.assigns[:raw_body],
