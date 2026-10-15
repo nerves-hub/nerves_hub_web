@@ -104,14 +104,12 @@ defmodule NervesHub.Extensions.Metrics do
   def attach(state) do
     mode = current_mode(state)
 
-    {State.assign(state, :mode, mode),
-     [{:group_join, PubSub.watch_key(device_id(state), :metrics)}, {:tick, :check}, timer(mode)]}
+    {State.assign(state, :mode, mode), [{:tick, :check}, timer(mode)]}
   end
 
   @impl NervesHub.Extensions
   def detach(state) do
-    {State.assign(state, :mode, nil),
-     [{:cancel_timer, :check}, {:group_leave, PubSub.watch_key(device_id(state), :metrics)}]}
+    {State.assign(state, :mode, nil), [{:cancel_timer, :check}]}
   end
 
   @impl NervesHub.Extensions

@@ -31,21 +31,50 @@ cluster, and every node holds a row for every member.
 > is not. Membership that tracks device connections never qualifies.
 
 Sparse membership means the consumers exist only while somebody is looking —
-an open LiveView, a live console session, an attached shell. Membership that
+an open LiveView, a live console session, an open shell. Membership that
 follows device connections is the opposite: it churns with the fleet, on every
 connect and disconnect, whether or not anyone is watching.
 
 Both halves of the rule matter. A rarely-published topic gains nothing from
 targeted dispatch, so it is not worth paying membership replication for.
 
+### Reaching one device's connection
+
+The consumer that lives as long as the connection is the device's own channel,
+and messages for it are the case the rule turns away. Each `:group` member costs
+about 450 bytes of ETS on every node that does not own it, so a key joined for
+every connected device puts the whole fleet on every node.
+
+When those messages are rare, a node-local `Phoenix.PubSub` subscription and a
+broadcast is enough (the extensions `attach`/`detach` row below). When a user
+action opens a stream of them, as a console session does, find the channel
+first and then talk to its pid:
+
+1. The channel subscribes to a per-device `Phoenix.PubSub` topic, which costs
+   nothing off its own node.
+2. The user side broadcasts a request carrying its own pid. Only the node
+   holding the device has a subscriber, and it costs one message per node per
+   user action.
+3. The channel replies directly with its pid. Everything after goes straight to
+   that pid, and a monitor on it is the liveness signal, which also reports a
+   disconnect or a lost node without waiting on replication.
+
+`NervesHub.Consoles.PubSub` is the worked example.
+
+An extension cannot hand out the connection's pid, because its handlers run
+wherever `NervesHub.DeviceLink` does, which need not be the node holding the
+connection. The local shell broadcasts its input on the extensions topic
+instead, and tells the device page when it attaches or detaches.
+
 ### What lives where
 
 | Topic | Transport | Why |
 | --- | --- | --- |
 | `internal:device:<id>` — heartbeat, connection change, firmware validated, update progress, geo, logs | `:group` | Consumers are LiveViews and the events stream channel; usually none. Publishing is constant. |
-| Console and local shell byte streams | `:group` | Members exist only during a live session; the streams are chatty. |
+| `device:console:<id>` — finding the device's console, and input from writers without a session | `Phoenix.PubSub`, then the channel's pid | The consumer is the device's own `ConsoleChannel`, alive for the whole connection. A session finds it with one broadcast and then sends to its pid; see [Reaching one device's connection](#reaching-one-devices-connection). |
+| Console and local shell output, the device page's terminal events | `:group` | Members exist only during a live session or while a page is open; the output streams are chatty. |
 | `device:<id>:extensions`, **device → web** (`health_check_report`) | `:group` | Members are LiveViews watching the device page. |
-| `device:<id>:extensions`, **web → device** (`health:check`, per-device `attach`/`detach`) | `Phoenix.PubSub` | The consumer is the device's own `ExtensionsChannel`, alive for the whole connection. `:group` would replicate a join per connect and a leave per disconnect across the fleet, to target a handful of operator-triggered messages. |
+| `device:<id>:extensions`, **web → device** (`health:check`, per-device `attach`/`detach`, a page's `:watching` announcement to the paced extensions, local shell connect, locate and input) | `Phoenix.PubSub` | The consumer is the device's own `ExtensionsChannel`, alive for the whole connection. `:group` would replicate a join per connect and a leave per disconnect across the fleet, to target a handful of operator-triggered messages. |
 | `product:<id>`, `firmware:<id>`, `product_notifications:<id>` | `:group` | Consumers are open LiveViews. |
 | `orchestrator:deployment:<id>` | `:group` | A single consumer — the one orchestrator for that deployment group — fed by every device node. |
 | Rate-limit throttle sync, CLI-session cache | `:group`, `"web"` cluster | Web-only state that should not exist on device nodes at all. |
@@ -85,7 +114,7 @@ API:
 | Module | Covers |
 | --- | --- |
 | `NervesHub.Devices.PubSub` | `internal:device:<id>` |
-| `NervesHub.Consoles.PubSub` | Console and local-shell streams, and their liveness registries |
+| `NervesHub.Consoles.PubSub` | Console and local-shell streams, and finding a device's console or attached shell |
 | `NervesHub.Extensions.PubSub` | Per-device extension traffic, both directions, and the product-wide topic |
 | `NervesHub.Products.PubSub` | `product:<id>` |
 | `NervesHub.Firmwares.PubSub` | Firmware delta build status |
@@ -97,7 +126,7 @@ before changing one.
 
 Two conventions run through all of them:
 
-- **Keys use `/` as the separator** (`internal:device/<id>`, `console/<id>`),
+- **Keys use `/` as the separator** (`internal:device/<id>`, `user:console/<id>`),
   because `/` is Group's hierarchy separator and keeps prefix queries
   available.
 - **The `%Phoenix.Socket.Broadcast{}` `topic` string is preserved** as the
@@ -128,17 +157,30 @@ one of three approaches:
 `:group` membership replicates asynchronously over Erlang distribution. Most
 surprises trace back to that.
 
-**Liveness is presence, not a probe.** `console_active?/1` and
-`local_shell_active?/1` read `Group.members/3` on the local node's replica. A
-device that just dropped can still read as available until its leave or DOWN
-propagates, and longer under a partition. The console and shell tabs pair the
-initial read with `Group.monitor/3` — monitor first, then read, so a change in
-the gap arrives as an event rather than being lost — which corrects the
-indicator without a page reload but does not remove the lag itself.
+**Console liveness is a probe.** The console tab locates the device's console
+channel and monitors the pid that answers. A console that does not answer
+within a second reads as unavailable, and a disconnect arrives as the
+monitor's DOWN rather than through replication. When the monitored channel
+goes away the tab locates again before giving up, because a device that
+reconnected may already have a new one.
 
-`Group.monitor/2` is backed by a duplicate-key registry, so it never reports
-"already monitored" and repeated calls accumulate rows. The `Consoles.PubSub`
-monitor helpers unregister before registering; do the same for any new one.
+**Shell liveness is a probe and two events.** The shell tab broadcasts a locate
+that only an attached `LocalShell` extension answers, and a shell that does not
+answer within a second reads as unavailable. After that the extension tells the
+page when it attaches or detaches, and a `connection:change` to offline covers a
+device that drops without detaching. Nothing monitors the connection, so if a
+node dies before its devices are marked offline, the tab shows the shell until
+they are.
+
+Nothing uses `Group.monitor/2` at the moment. Since 0.3 a repeat call from the
+same process for the same pattern is a no-op, so a new caller does not need to
+unregister first.
+
+**Busy distribution links.** `Group.dispatch/4` never blocks the sender. When
+the distribution buffer to a node is full, the message is dropped and Group
+disconnects from that node, then retries the connection. The disconnect takes
+everything else on that link with it, `Phoenix.PubSub` and ProcessHub included.
+Group logs a warning naming the node (`busy dist link to …; disconnecting`).
 
 **Cold start.** A freshly started web node does not exchange rate-limit
 increments or CLI-session writes with peers until `"web"` membership
@@ -155,6 +197,13 @@ CLI-session writes all degrade for the duration and recover once the rollout
 completes. Worth knowing before changing a topic's transport, and worth
 mentioning in release notes when you do.
 
+**Upgrading `:group`.** A release that changes Group's replication protocol
+cannot talk to the one before it; 0.2 to 0.3 did. Nodes on different versions
+never discover each other, so every `:group` topic behaves like a transport
+change for the length of the rollout. Any other release in the cluster that
+runs Group as `NervesHub.Group` has to move to the same version in the same
+deploy, or its traffic stays cut off until it does.
+
 **Orchestrator failover.** Device nodes dispatch orchestrator events to the
 node holding that deployment group's orchestrator. When ProcessHub moves or
 restarts it, there is a window where events land nowhere. The orchestrator's
@@ -164,6 +213,18 @@ two-minute backup timer bounds this to a delayed update rather than a lost one.
 
 `:group` is pre-1.0 and now carries console I/O, health reporting, the
 rate-limit throttle and the CLI-session auth cache. It is pure Elixir with no
-transitive dependencies and the `~> 0.2.0` requirement is tight, but its
+transitive dependencies and the `~> 0.3.1` requirement is tight, but its
 releases should be tracked and upgrades reviewed rather than taken
-automatically.
+automatically. The test suite runs on a single node and cannot catch a
+replication protocol change, so check the changelog for one before upgrading.
+
+`NervesHub.GroupSupervisor` caps Group's replica oplog. The library prunes it by
+count only, and at the default cap it holds about 300 MiB of ETS per node once
+churn fills it, whether or not anything is still joined.
+
+It also slows Group's heartbeats. Each shard heartbeats every peer node once per
+anti-entropy interval, so idle traffic grows with the number of nodes: about
+1.4 KiB/s of payload per peer at the 1 s default, more on the wire once headers
+and ACKs are counted. `GroupSupervisor` sets 5 s, inside a 30 s peer lease, at
+the cost of a dropped replica message waiting up to 5 s for repair. A connected
+node that does not run Group is probed on the same interval.

@@ -136,7 +136,9 @@ defmodule NervesHubWeb.ExtensionsChannelTest do
     push(extensions_channel, "local_shell:detached")
 
     refute_receive {:DOWN, ^ref, :process, _, _}, 200
-    refute Consoles.PubSub.local_shell_active?(device.id)
+
+    locate = Consoles.PubSub.locate_local_shell(device.id)
+    refute_receive {:local_shell_located, ^locate}, 200
 
     close_cleanly(extensions_channel)
   end
