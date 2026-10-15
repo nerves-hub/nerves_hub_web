@@ -4,7 +4,7 @@ defmodule NervesHub.Integrations.Slack.Subscriptions do
 
   A subscription belongs to one of the organization's workspace connections
   (`NervesHub.Integrations.Slack.Connection`), hears every product or the products it
-  lists, and names the events it wants (`NervesHub.Integrations.Slack.Events`).
+  lists, and names the events it wants (`NervesHub.Integrations.ChannelEvents`).
 
   ## How events reach a channel
 
@@ -28,10 +28,10 @@ defmodule NervesHub.Integrations.Slack.Subscriptions do
   alias NervesHub.Accounts.Scope
   alias NervesHub.AuditLogs.OrgTemplates
   alias NervesHub.Integrations
+  alias NervesHub.Integrations.ChannelEvents
   alias NervesHub.Integrations.ProductScope
   alias NervesHub.Integrations.Slack.Client
   alias NervesHub.Integrations.Slack.Connection
-  alias NervesHub.Integrations.Slack.Events
   alias NervesHub.Integrations.Slack.Messages
   alias NervesHub.Integrations.Slack.PendingEvent
   alias NervesHub.Integrations.Slack.Subscription
@@ -175,7 +175,7 @@ defmodule NervesHub.Integrations.Slack.Subscriptions do
   @spec send_test_message(Scope.t(), Subscription.t()) :: :ok | {:error, Client.error()}
   def send_test_message(%Scope{org: org, user: user}, %Subscription{} = subscription) do
     subscription = Repo.preload(subscription, connection: :workspace)
-    labels = Enum.map(subscription.events, &Events.label/1)
+    labels = Enum.map(subscription.events, &ChannelEvents.label/1)
 
     case Client.post_message(
            subscription.connection.workspace.bot_token,
@@ -198,7 +198,7 @@ defmodule NervesHub.Integrations.Slack.Subscriptions do
   """
   @spec queue_events([pos_integer()], String.t(), map()) :: :ok
   def queue_events(subscription_ids, type, data) do
-    case Events.key(type, data) do
+    case ChannelEvents.key(type, data) do
       nil -> :ok
       key -> queue_events(subscription_ids, key, data, wanting(subscription_ids, key))
     end

@@ -98,9 +98,10 @@ when adding or removing one.
 - `integrations.ex` / `integrations/` — where device events leave NervesHub.
   Code where an event happens calls `Integrations.dispatch/3` with the
   product, which costs one ETS read (`Integrations.Cache`) for a product
-  nothing hears, and otherwise hands the event to the webhooks and Slack
-  channels that want it. `ProductScope` is the "every product, or these
-  products" both share.
+  nothing hears, and otherwise hands the event to the webhooks, Slack
+  channels and Teams channels that want it. `ProductScope` is the "every
+  product, or these products" they share, and `ChannelEvents` the events a
+  chat channel can be sent.
 - `integrations/slack.ex` / `integrations/slack/` — the Slack integration: workspaces an organization
   connects by installing the instance's Slack app (`NervesHubWeb.Integrations.Slack.OAuthController`
   runs the OAuth flow), and the events Slack sends to `/integrations/slack/`,
@@ -117,6 +118,13 @@ when adding or removing one.
   previews device and deployment group links posted in Slack, checked
   against whoever posted them. Hidden unless the instance has a Slack app;
   see [docs/slack.md](docs/slack.md).
+- `integrations/teams.ex` / `integrations/teams/` — Microsoft Teams channels,
+  each posted to through a Workflows webhook made in the channel (Teams
+  retired its incoming webhooks in 2026). The webhook URL is the only
+  credential, so it is encrypted and never shown again. Events are held and
+  rolled up as Slack's are (`Workers.PostTeamsEvents`), into Adaptive Cards
+  (`Teams.Cards`); the cards cannot act or be edited. See
+  [docs/teams.md](docs/teams.md).
 - `scripts.ex` / `scripts/` — support scripts run against a device console.
 - `workers/` — Oban workers (e.g. firmware delta building, firmware deletion).
 - Cross-cutting: `audit_logs.ex`, `product_notifications.ex`, `tracker.ex`,

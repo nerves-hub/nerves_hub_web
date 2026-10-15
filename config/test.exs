@@ -5,6 +5,7 @@ alias NervesHub.DeviceLink.Dispatcher.Remote
 alias NervesHub.DeviceLink.PeerVerification
 alias NervesHub.Firmwares.Upload.S3
 alias NervesHub.Integrations.Slack
+alias NervesHub.Integrations.Teams
 alias NervesHub.Types.Encrypted
 alias Swoosh.Adapters.Test
 
@@ -90,6 +91,8 @@ config :nerves_hub, Slack,
   client_secret: "test-client-secret",
   signing_secret: "test-signing-secret",
   req_options: [plug: {Req.Test, Slack}]
+
+config :nerves_hub, Teams, req_options: [plug: {Req.Test, Teams}]
 
 # Short enough that analytics writes land within an `assert_eventually`.
 config :nerves_hub, :analytics_buffer, max_delay: to_timeout(millisecond: 50)

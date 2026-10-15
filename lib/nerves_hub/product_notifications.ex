@@ -7,6 +7,7 @@ defmodule NervesHub.ProductNotifications do
   alias NervesHub.Devices.Device
   alias NervesHub.Integrations
   alias NervesHub.Integrations.Slack.Subscription
+  alias NervesHub.Integrations.Teams.Channel
   alias NervesHub.ManagedDeployments.DeploymentWorkflowStep
   alias NervesHub.Products
   alias NervesHub.Products.Notification
@@ -365,6 +366,26 @@ defmodule NervesHub.ProductNotifications do
         level: :error,
         metadata: %{slack_subscription_id: subscription.id, channel: subscription.channel_name},
         event_key: "slack_subscription_disabled-#{subscription.id}"
+      })
+      |> insert_and_notify!()
+    end
+  end
+
+  @doc """
+  NervesHub stopped posting to a Teams channel because Teams refused its
+  Workflows webhook, one notification per product the channel heard.
+  """
+  def create_teams_channel_disabled_notifications!(%Channel{} = channel, product_ids, reason) do
+    for product_id <- product_ids do
+      %Product{id: product_id}
+      |> Notification.new_changeset(%{
+        title: "Teams notifications were turned off.",
+        message:
+          "#{Branding.friendly_platform_name()} stopped posting to the Teams channel #{channel.name} because #{reason}. Once the workflow is fixed, " <>
+            "turn the channel back on from the organization's Integrations settings, or give it the workflow's new URL.",
+        level: :error,
+        metadata: %{teams_channel_id: channel.id, channel: channel.name},
+        event_key: "teams_channel_disabled-#{channel.id}"
       })
       |> insert_and_notify!()
     end

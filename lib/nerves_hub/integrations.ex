@@ -1,7 +1,9 @@
 defmodule NervesHub.Integrations do
   @moduledoc """
   Where device events leave NervesHub: to an organization's webhooks
-  (`NervesHub.Webhooks`) and Slack channels (`NervesHub.Integrations.Slack.Subscriptions`).
+  (`NervesHub.Webhooks`), Slack channels
+  (`NervesHub.Integrations.Slack.Subscriptions`) and Microsoft Teams channels
+  (`NervesHub.Integrations.Teams`).
 
   ## Raising events
 
@@ -32,9 +34,10 @@ defmodule NervesHub.Integrations do
 
   alias NervesHub.Accounts.Org
   alias NervesHub.Integrations.Cache
-  alias NervesHub.Integrations.Slack
+  alias NervesHub.Integrations.ChannelEvents
   alias NervesHub.Integrations.Slack.Subscription
   alias NervesHub.Integrations.Slack.Subscriptions
+  alias NervesHub.Integrations.Teams
   alias NervesHub.Products.Product
   alias NervesHub.Repo
   alias NervesHub.Webhooks
@@ -68,6 +71,7 @@ defmodule NervesHub.Integrations do
 
   defp deliver(:webhook, webhook_ids, type, data), do: Webhooks.queue_deliveries(webhook_ids, type, data)
   defp deliver(:slack, subscription_ids, type, data), do: Subscriptions.queue_events(subscription_ids, type, data)
+  defp deliver(:teams, channel_ids, type, data), do: Teams.queue_events(channel_ids, type, data)
 
   @doc """
   Whether any enabled integration that hears the product wants `type`.
@@ -127,21 +131,32 @@ defmodule NervesHub.Integrations do
   # join above keeps the product's own. An integration lists a product at most
   # once (a unique index), so this is one row per integration.
   defp hearing(product_id) do
-    slack =
-      from(s in Subscription,
-        join: c in assoc(s, :connection),
-        left_join: sp in "slack_subscription_products",
-        on: sp.subscription_id == s.id and sp.product_id == ^product_id,
-        where: s.enabled and (s.all_products or not is_nil(sp.subscription_id)),
-        select: %{kind: "slack", id: s.id, org_id: c.org_id, events: s.events}
-      )
-
     from(w in Webhook,
       left_join: wp in "webhook_products",
       on: wp.webhook_id == w.id and wp.product_id == ^product_id,
       where: w.enabled and (w.all_products or not is_nil(wp.webhook_id)),
       select: %{kind: "webhook", id: w.id, org_id: w.org_id, events: w.events},
-      union_all: ^slack
+      union_all: ^slack_hearing(product_id),
+      union_all: ^teams_hearing(product_id)
+    )
+  end
+
+  defp slack_hearing(product_id) do
+    from(s in Subscription,
+      join: c in assoc(s, :connection),
+      left_join: sp in "slack_subscription_products",
+      on: sp.subscription_id == s.id and sp.product_id == ^product_id,
+      where: s.enabled and (s.all_products or not is_nil(sp.subscription_id)),
+      select: %{kind: "slack", id: s.id, org_id: c.org_id, events: s.events}
+    )
+  end
+
+  defp teams_hearing(product_id) do
+    from(t in Teams.Channel,
+      left_join: tp in "teams_channel_products",
+      on: tp.channel_id == t.id and tp.product_id == ^product_id,
+      where: t.enabled and (t.all_products or not is_nil(tp.channel_id)),
+      select: %{kind: "teams", id: t.id, org_id: t.org_id, events: t.events}
     )
   end
 
@@ -156,11 +171,13 @@ defmodule NervesHub.Integrations do
      }}
   end
 
-  # A Slack subscription names its events by `NervesHub.Integrations.Slack.Events` key,
-  # which is not always the type raised: both "update failed" and "update
-  # succeeded" come from `device.firmware_update.finished`.
+  # A Slack or Teams channel names its events by
+  # `NervesHub.Integrations.ChannelEvents` key, which is not always the type
+  # raised: both "update failed" and "update succeeded" come from
+  # `device.firmware_update.finished`.
   defp listener("webhook", id, events), do: {:webhook, id, events}
-  defp listener("slack", id, events), do: {:slack, id, Slack.Events.sources(events)}
+  defp listener("slack", id, events), do: {:slack, id, ChannelEvents.sources(events)}
+  defp listener("teams", id, events), do: {:teams, id, ChannelEvents.sources(events)}
 
   # Event data includes text devices sent: failure reasons, alarm descriptions,
   # metadata. Invalid UTF-8 would fail to encode, and a NUL is valid JSON that
