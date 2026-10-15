@@ -845,6 +845,31 @@ defmodule NervesHub.ManagedDeployments.WorkflowCoordinatorTest do
       assert [_notification] = product_notifications(context.product)
     end
 
+    # Raised as the step starts, not on a later look at how recently it did. A
+    # pass that took more than a moment between the two, or an orchestrator
+    # restarted between them, left the halt unsaid.
+    test "an approval step's halt is raised as it starts", context do
+      definition = %{
+        "version" => 1,
+        "steps" => [%{"name" => "Sign-off", "type" => "approval_required"}]
+      }
+
+      %{deployment_group: deployment_group, release: release} = release_with(context, definition)
+
+      :telemetry_test.attach_event_handlers(self(), [[:nerves_hub, :deployments, :workflow, :halted]])
+
+      {:ok, _} = Workflows.start_step(deployment_group, step(release, 1))
+
+      assert_receive {[:nerves_hub, :deployments, :workflow, :halted], _ref, %{count: 1}, %{reason: :awaiting_approval}}
+      assert Enum.any?(AuditLogs.logs_for(deployment_group), &(&1.description =~ "is waiting for approval"))
+      assert [%{title: "A deployment workflow is waiting for approval." <> _}] = product_notifications(context.product)
+
+      # Nothing more to say on the passes that find it still waiting.
+      for _ <- 1..3, do: WorkflowCoordinator.schedule_updates(deployment_group)
+
+      assert [%{occurrence_count: 1}] = product_notifications(context.product)
+    end
+
     # The orchestrator runs every few seconds while a workflow is stopped; saying
     # so once per pass would bury everything else.
     test "a workflow that stays stopped is not announced over and over", context do

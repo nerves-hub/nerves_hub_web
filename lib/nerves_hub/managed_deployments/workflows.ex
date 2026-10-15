@@ -341,23 +341,36 @@ defmodule NervesHub.ManagedDeployments.Workflows do
   Mark a waiting step as in progress.
 
   An approval step is announced as waiting for approval rather than as
-  started, since waiting is all it does.
+  started, since waiting is all it does. Waiting halts the workflow, so its
+  halt is raised as it starts.
 
   `{:error, :not_waiting}` when the step has moved since it was read, as when
   somebody skipped it.
   """
-  @spec start_step(DeploymentWorkflowStep.t()) :: {:ok, DeploymentWorkflowStep.t()} | {:error, :not_waiting}
-  def start_step(step) do
-    change_step(fn ->
+  @spec start_step(DeploymentGroup.t(), DeploymentWorkflowStep.t()) ::
+          {:ok, DeploymentWorkflowStep.t()} | {:error, :not_waiting}
+  def start_step(deployment_group, step) do
+    start = fn ->
       with {:ok, step} <- lock_step(step, &(&1.status == :waiting), :not_waiting) do
         step = update_step!(step, status: :in_progress, started_at: now())
 
-        event = if step.type == :approval_required, do: "awaiting_approval", else: "started"
-        :ok = WorkflowEvents.announce(step, event)
+        :ok =
+          if step.type == :approval_required do
+            :ok = WorkflowEvents.announce(step, "awaiting_approval")
+            raise_halt(deployment_group, step, :awaiting_approval)
+          else
+            WorkflowEvents.announce(step, "started")
+          end
 
         {:ok, step}
       end
-    end)
+    end
+
+    with {:ok, step} <- change_step(start) do
+      if step.type == :approval_required, do: :ok = measure_halt(deployment_group, step, :awaiting_approval)
+
+      {:ok, step}
+    end
   end
 
   @doc """
@@ -544,10 +557,18 @@ defmodule NervesHub.ManagedDeployments.Workflows do
   # So the halt is recorded against the deployment group and raised to whoever
   # looks after the product, in the transaction that halts it. Raised after it,
   # a failure in between left the workflow halted with nothing said, and nothing
-  # says it later: a pass that finds a failed step stops there.
+  # says it later: a pass that finds a failed step stops there, and one that
+  # finds a step waiting for approval has nothing new to say.
   defp raise_halt(deployment_group, step, {:failed, failed_devices} = reason) do
     :ok = DeploymentGroupTemplates.audit_workflow_step_failed(deployment_group, step, failed_devices)
     _ = ProductNotifications.create_workflow_halted_notification!(deployment_group, step, reason)
+
+    :ok
+  end
+
+  defp raise_halt(deployment_group, step, :awaiting_approval) do
+    :ok = DeploymentGroupTemplates.audit_workflow_awaiting_approval(deployment_group, step)
+    _ = ProductNotifications.create_workflow_halted_notification!(deployment_group, step, :awaiting_approval)
 
     :ok
   end

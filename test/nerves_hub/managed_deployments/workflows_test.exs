@@ -186,13 +186,13 @@ defmodule NervesHub.ManagedDeployments.WorkflowsTest do
 
   describe "start_step/1 and complete_step/1" do
     test "a step moves through in_progress to completed, broadcasting each time", context do
-      %{release: release} = with_workflow(context)
+      %{release: release, deployment_group: deployment_group} = with_workflow(context)
 
       Phoenix.PubSub.subscribe(NervesHub.PubSub, "deployment_release:#{release.id}")
 
       [step | _] = Repo.preload(release, :steps).steps
 
-      {:ok, started} = Workflows.start_step(step)
+      {:ok, started} = Workflows.start_step(deployment_group, step)
 
       assert started.status == :in_progress
       assert started.started_at
@@ -213,7 +213,7 @@ defmodule NervesHub.ManagedDeployments.WorkflowsTest do
       %{release: release, deployment_group: deployment_group} = with_workflow(context)
       [step | _] = Workflows.release_steps(release.id)
 
-      {:ok, read_by_the_pass} = Workflows.start_step(step)
+      {:ok, read_by_the_pass} = Workflows.start_step(deployment_group, step)
       {:ok, _skipped} = Workflows.skip_step(read_by_the_pass, context.user)
 
       assert {:error, :not_in_progress} = Workflows.fail_step(deployment_group, read_by_the_pass, 1)
@@ -227,7 +227,7 @@ defmodule NervesHub.ManagedDeployments.WorkflowsTest do
       %{release: release, deployment_group: deployment_group} = with_workflow(context)
       [step | _] = Workflows.release_steps(release.id)
 
-      {:ok, started} = Workflows.start_step(step)
+      {:ok, started} = Workflows.start_step(deployment_group, step)
       {:ok, failed} = Workflows.fail_step(deployment_group, started, 1)
 
       assert {:ok, _} = Workflows.retry_step(deployment_group, failed, context.user)
@@ -236,10 +236,10 @@ defmodule NervesHub.ManagedDeployments.WorkflowsTest do
 
     test "is approved once when approved from two places", context do
       definition = %{"version" => 1, "steps" => [%{"name" => "Sign-off", "type" => "approval_required"}]}
-      %{release: release} = with_workflow(context, definition)
+      %{release: release, deployment_group: deployment_group} = with_workflow(context, definition)
       [step | _] = Workflows.release_steps(release.id)
 
-      {:ok, waiting} = Workflows.start_step(step)
+      {:ok, waiting} = Workflows.start_step(deployment_group, step)
 
       assert {:ok, _} = Workflows.approve_step(waiting, context.user)
       assert {:error, :not_approvable} = Workflows.approve_step(waiting, context.user)
