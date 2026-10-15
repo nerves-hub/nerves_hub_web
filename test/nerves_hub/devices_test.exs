@@ -371,6 +371,32 @@ defmodule NervesHub.DevicesTest do
     assert {:error, _} = Devices.get_device_by_org(org, device.id)
   end
 
+  test "delete_device takes a connected device out of its deployment group and disconnects it", %{
+    device: device,
+    deployment_group: deployment_group
+  } do
+    Fixtures.device_connection_fixture(device)
+
+    # On other firmware than the deployment group's release, so it has an update to take
+    {:ok, device} =
+      Devices.update_firmware_metadata(device, %{"uuid" => Ecto.UUID.generate()}, :validated, false)
+
+    {:ok, device} = Devices.update_device(device, %{deployment_id: deployment_group.id})
+
+    device_id = device.id
+    assert [%Device{id: ^device_id}] = Updates.available_for_update(deployment_group, 10)
+
+    Phoenix.PubSub.subscribe(NervesHub.PubSub, "device_socket:#{device.id}")
+
+    assert {:ok, deleted} = Devices.delete_device(device)
+
+    assert deleted.deleted_at
+    refute deleted.deployment_id
+    refute Repo.reload(deleted).deployment_id
+    assert_receive %Broadcast{event: "disconnect"}
+    assert Updates.available_for_update(deployment_group, 10) == []
+  end
+
   test "destroy_device", %{device: device} do
     {:ok, _} =
       Health.save_device_health(%{
