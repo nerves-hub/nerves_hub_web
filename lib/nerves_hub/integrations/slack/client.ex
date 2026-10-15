@@ -62,6 +62,20 @@ defmodule NervesHub.Integrations.Slack.Client do
   end
 
   @doc """
+  Asks for a Socket Mode connection (`apps.connections.open`), with the
+  app-level token. Answers with the URL of the WebSocket to open, which is
+  good for one connection.
+  """
+  @spec open_socket(String.t()) :: {:ok, String.t()} | {:error, error()}
+  def open_socket(app_token) do
+    case post("apps.connections.open", form: [], auth: {:bearer, app_token}) do
+      {:ok, %{"url" => url}} when is_binary(url) -> {:ok, url}
+      {:ok, _body} -> {:error, "Slack did not give a URL to connect to"}
+      {:error, _} = error -> error
+    end
+  end
+
+  @doc """
   Revokes a bot token (`auth.revoke`), which removes NervesHub's app from
   the workspace.
   """
