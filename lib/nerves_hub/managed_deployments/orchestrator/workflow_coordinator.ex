@@ -73,7 +73,7 @@ defmodule NervesHub.ManagedDeployments.Orchestrator.WorkflowCoordinator do
         step_number: step.number
       )
 
-      announce_halt(deployment_group, step, :awaiting_approval)
+      announce_awaiting_approval(deployment_group, step)
     end
 
     complete_if_done(deployment_group, step, false)
@@ -96,15 +96,13 @@ defmodule NervesHub.ManagedDeployments.Orchestrator.WorkflowCoordinator do
       # Not failed when somebody moved the step during this pass, such as by
       # skipping it. The next pass reads it as it now stands.
       _ =
-        with {:ok, step} <- Workflows.fail_step(step, failed_devices: failed_count) do
+        with {:ok, step} <- Workflows.fail_step(deployment_group, step, failed_count) do
           Logger.warning("Workflow step failed",
             deployment_id: deployment_group.id,
             step_number: step.number,
             failed_devices: failed_count,
             tolerance: Workflows.failure_limit(step, Workflows.claimed_device_count(deployment_group, step))
           )
-
-          announce_halt(deployment_group, step, {:failed, failed_count})
         end
 
       false
@@ -116,8 +114,9 @@ defmodule NervesHub.ManagedDeployments.Orchestrator.WorkflowCoordinator do
   # A halted workflow is quiet: devices go on connecting, the deployment group
   # still says it is active, and the only sign is a diagram nobody is looking at.
   # So it is said four ways — measured, logged, recorded against the deployment
-  # group, and raised to whoever looks after the product.
-  defp announce_halt(deployment_group, step, reason) do
+  # group, and raised to whoever looks after the product. A failed step's halt
+  # is raised by `Workflows.fail_step/3`, with the failure.
+  defp announce_awaiting_approval(deployment_group, step) do
     :telemetry.execute(
       [:nerves_hub, :deployments, :workflow, :halted],
       %{count: 1},
@@ -125,25 +124,16 @@ defmodule NervesHub.ManagedDeployments.Orchestrator.WorkflowCoordinator do
         deployment_id: deployment_group.id,
         step_number: step.number,
         step_type: step.type,
-        reason: halt_reason(reason)
+        reason: :awaiting_approval
       }
     )
 
-    case reason do
-      {:failed, failed_count} ->
-        DeploymentGroupTemplates.audit_workflow_step_failed(deployment_group, step, failed_count)
+    DeploymentGroupTemplates.audit_workflow_awaiting_approval(deployment_group, step)
 
-      :awaiting_approval ->
-        DeploymentGroupTemplates.audit_workflow_awaiting_approval(deployment_group, step)
-    end
-
-    _ = ProductNotifications.create_workflow_halted_notification!(deployment_group, step, reason)
+    _ = ProductNotifications.create_workflow_halted_notification!(deployment_group, step, :awaiting_approval)
 
     :ok
   end
-
-  defp halt_reason({:failed, _count}), do: :failed
-  defp halt_reason(reason), do: reason
 
   # `start_step/1` stamps `started_at` as it goes, so a step reached on this pass
   # is one whose start is not yet a moment old.

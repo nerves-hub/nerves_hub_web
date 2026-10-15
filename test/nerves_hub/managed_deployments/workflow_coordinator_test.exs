@@ -5,6 +5,7 @@ defmodule NervesHub.ManagedDeployments.WorkflowCoordinatorTest do
   """
 
   use NervesHub.DataCase, async: false
+  use Mimic
 
   import Ecto.Query
 
@@ -22,6 +23,7 @@ defmodule NervesHub.ManagedDeployments.WorkflowCoordinatorTest do
   alias NervesHub.ManagedDeployments.Orchestrator.DefaultCoordinator
   alias NervesHub.ManagedDeployments.Orchestrator.WorkflowCoordinator
   alias NervesHub.ManagedDeployments.Workflows
+  alias NervesHub.ProductNotifications
   alias NervesHub.Products.Notification
   alias NervesHub.Repo
   alias Phoenix.Socket.Broadcast
@@ -811,6 +813,36 @@ defmodule NervesHub.ManagedDeployments.WorkflowCoordinatorTest do
       assert [notification] = product_notifications(context.product)
       assert notification.level == :info
       assert notification.title =~ "waiting for approval"
+    end
+
+    # Raised after the step had failed, a failure in between left the workflow
+    # stopped with nothing said, and every later pass stopped at the failed step
+    # before saying anything.
+    test "a step is not failed unless its halt is raised with it", context do
+      canary_device = add_device(context, %{tags: ["canary"]})
+
+      %{deployment_group: deployment_group, release: release} = release_with(context, @canary_then_rest)
+
+      _ = WorkflowCoordinator.schedule_updates(deployment_group)
+      _ = fail_device(canary_device)
+
+      stub(ProductNotifications, :create_workflow_halted_notification!, fn _, _, _ -> raise "unavailable" end)
+
+      assert_raise RuntimeError, fn -> WorkflowCoordinator.schedule_updates(deployment_group) end
+      assert step(release, 1).status == :in_progress
+
+      stub(ProductNotifications, :create_workflow_halted_notification!, fn deployment_group, step, reason ->
+        Mimic.call_original(ProductNotifications, :create_workflow_halted_notification!, [
+          deployment_group,
+          step,
+          reason
+        ])
+      end)
+
+      _ = WorkflowCoordinator.schedule_updates(deployment_group)
+
+      assert step(release, 1).status == :error
+      assert [_notification] = product_notifications(context.product)
     end
 
     # The orchestrator runs every few seconds while a workflow is stopped; saying

@@ -45,6 +45,7 @@ defmodule NervesHub.ManagedDeployments.Workflows do
 
   alias Ecto.Changeset
   alias NervesHub.Accounts.User
+  alias NervesHub.AuditLogs.DeploymentGroupTemplates
   alias NervesHub.Devices.Device
   alias NervesHub.FirmwareUpdates
   alias NervesHub.ManagedDeployments
@@ -414,23 +415,29 @@ defmodule NervesHub.ManagedDeployments.Workflows do
   next one.
 
   `failed_devices`, how many of the step's devices could not take the update,
-  is passed on in the announcement.
+  is passed on in the announcement, and in the halt raised with it.
 
   `{:error, :not_in_progress}` when the step has moved since it was read, as
   when somebody skipped it during the pass that found it failing.
   """
-  @spec fail_step(DeploymentWorkflowStep.t(), keyword()) ::
+  @spec fail_step(DeploymentGroup.t(), DeploymentWorkflowStep.t(), non_neg_integer()) ::
           {:ok, DeploymentWorkflowStep.t()} | {:error, :not_in_progress}
-  def fail_step(step, opts \\ []) do
-    change_step(fn ->
+  def fail_step(deployment_group, step, failed_devices) do
+    fail = fn ->
       with {:ok, step} <- lock_step(step, &(&1.status == :in_progress), :not_in_progress) do
         step = update_step!(step, status: :error, finished_at: now())
 
-        :ok = WorkflowEvents.announce(step, "failed", failed_devices: opts[:failed_devices])
+        :ok = WorkflowEvents.announce(step, "failed", failed_devices: failed_devices)
+        :ok = raise_halt(deployment_group, step, {:failed, failed_devices})
 
         {:ok, step}
       end
-    end)
+    end
+
+    with {:ok, step} <- change_step(fail) do
+      :ok = measure_halt(deployment_group, step, :failed)
+      {:ok, step}
+    end
   end
 
   @doc """
@@ -530,6 +537,27 @@ defmodule NervesHub.ManagedDeployments.Workflows do
 
   defp resolve_halt_notification(step, {product_id, deployment_group_id}) do
     ProductNotifications.resolve_workflow_halted_notification!(product_id, deployment_group_id, step.id)
+  end
+
+  # A halted workflow is quiet: devices go on connecting, the deployment group
+  # still says it is active, and the only sign is a diagram nobody is looking at.
+  # So the halt is recorded against the deployment group and raised to whoever
+  # looks after the product, in the transaction that halts it. Raised after it,
+  # a failure in between left the workflow halted with nothing said, and nothing
+  # says it later: a pass that finds a failed step stops there.
+  defp raise_halt(deployment_group, step, {:failed, failed_devices} = reason) do
+    :ok = DeploymentGroupTemplates.audit_workflow_step_failed(deployment_group, step, failed_devices)
+    _ = ProductNotifications.create_workflow_halted_notification!(deployment_group, step, reason)
+
+    :ok
+  end
+
+  defp measure_halt(deployment_group, step, reason) do
+    :telemetry.execute(
+      [:nerves_hub, :deployments, :workflow, :halted],
+      %{count: 1},
+      %{deployment_id: deployment_group.id, step_number: step.number, step_type: step.type, reason: reason}
+    )
   end
 
   defp deployment_group_ids(step) do

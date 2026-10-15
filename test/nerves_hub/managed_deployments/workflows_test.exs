@@ -216,7 +216,7 @@ defmodule NervesHub.ManagedDeployments.WorkflowsTest do
       {:ok, read_by_the_pass} = Workflows.start_step(step)
       {:ok, _skipped} = Workflows.skip_step(read_by_the_pass, context.user)
 
-      assert {:error, :not_in_progress} = Workflows.fail_step(read_by_the_pass)
+      assert {:error, :not_in_progress} = Workflows.fail_step(deployment_group, read_by_the_pass, 1)
       assert {:error, :not_in_progress} = Workflows.complete_step(read_by_the_pass)
 
       assert [%{status: :skipped} | _] = Workflows.release_steps(release.id)
@@ -228,7 +228,7 @@ defmodule NervesHub.ManagedDeployments.WorkflowsTest do
       [step | _] = Workflows.release_steps(release.id)
 
       {:ok, started} = Workflows.start_step(step)
-      {:ok, failed} = Workflows.fail_step(started)
+      {:ok, failed} = Workflows.fail_step(deployment_group, started, 1)
 
       assert {:ok, _} = Workflows.retry_step(deployment_group, failed, context.user)
       assert {:error, :not_retryable} = Workflows.retry_step(deployment_group, failed, context.user)

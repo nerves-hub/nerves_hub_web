@@ -55,7 +55,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show.WorkflowDiagramTest do
       [canary | _] = Workflows.release_steps(deployment_group.current_deployment_release_id)
 
       {:ok, started} = Workflows.start_step(canary)
-      {:ok, _} = Workflows.fail_step(started)
+      {:ok, _} = Workflows.fail_step(deployment_group, started, 1)
 
       :ok
     end
