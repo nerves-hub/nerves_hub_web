@@ -120,7 +120,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show.WorkflowApprovalTest do
     [step, _catch_all] = Workflows.release_steps(release.id)
 
     {:ok, started} = Workflows.start_step(deployment_group, step)
-    {:ok, _} = Workflows.approve_step(started, user)
+    {:ok, _} = Workflows.approve_step(deployment_group, started, user)
 
     conn
     |> visit_group(org, product, deployment_group)

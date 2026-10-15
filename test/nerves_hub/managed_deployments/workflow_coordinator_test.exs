@@ -488,7 +488,7 @@ defmodule NervesHub.ManagedDeployments.WorkflowCoordinatorTest do
       refute WorkflowCoordinator.schedule_updates(deployment_group)
       assert step(release, 1).status == :in_progress
 
-      {:ok, _} = Workflows.approve_step(step(release, 1), context.user)
+      {:ok, _} = Workflows.approve_step(deployment_group, step(release, 1), context.user)
 
       assert WorkflowCoordinator.schedule_updates(deployment_group)
       assert step(release, 1).status == :completed
@@ -534,7 +534,7 @@ defmodule NervesHub.ManagedDeployments.WorkflowCoordinatorTest do
       assert canary.status == :in_progress
       refute Workflows.step_complete?(deployment_group, canary)
 
-      {:ok, _} = Workflows.skip_step(canary, context.user)
+      {:ok, _} = Workflows.skip_step(deployment_group, canary, context.user)
 
       _ = WorkflowCoordinator.schedule_updates(deployment_group)
 
@@ -699,7 +699,7 @@ defmodule NervesHub.ManagedDeployments.WorkflowCoordinatorTest do
 
       assert [_notification] = product_notifications(product)
 
-      {:ok, _} = Workflows.approve_step(step(release, 1), context.user)
+      {:ok, _} = Workflows.approve_step(deployment_group, step(release, 1), context.user)
 
       assert product_notifications(product) == []
     end
@@ -716,7 +716,7 @@ defmodule NervesHub.ManagedDeployments.WorkflowCoordinatorTest do
 
       assert [_notification] = product_notifications(product)
 
-      {:ok, _} = Workflows.skip_step(step(release, 1), context.user)
+      {:ok, _} = Workflows.skip_step(deployment_group, step(release, 1), context.user)
 
       assert product_notifications(product) == []
     end
@@ -759,7 +759,7 @@ defmodule NervesHub.ManagedDeployments.WorkflowCoordinatorTest do
 
       assert length(product_notifications(product)) == 2
 
-      {:ok, _} = Workflows.approve_step(approval, context.user)
+      {:ok, _} = Workflows.approve_step(deployment_group, approval, context.user)
 
       assert [remaining] = product_notifications(product)
       assert remaining.event_key =~ "-#{catch_all.id}"
@@ -936,7 +936,7 @@ defmodule NervesHub.ManagedDeployments.WorkflowCoordinatorTest do
       assert catch_all.status == :in_progress
 
       refute Workflows.skippable?(catch_all)
-      assert {:error, :not_skippable} = Workflows.skip_step(catch_all, context.user)
+      assert {:error, :not_skippable} = Workflows.skip_step(deployment_group, catch_all, context.user)
     end
 
     test "a failed step can be skipped, and the workflow moves on", context do
@@ -950,7 +950,7 @@ defmodule NervesHub.ManagedDeployments.WorkflowCoordinatorTest do
 
       assert step(release, 1).status == :error
 
-      assert {:ok, _} = Workflows.skip_step(step(release, 1), context.user)
+      assert {:ok, _} = Workflows.skip_step(deployment_group, step(release, 1), context.user)
 
       _ = WorkflowCoordinator.schedule_updates(deployment_group)
 

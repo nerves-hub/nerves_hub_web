@@ -126,7 +126,7 @@ defmodule NervesHubWeb.Integrations.Slack.WorkflowStepsTest do
   # Takes the workflow past Sign-off to Canary, then fails Canary.
   defp fail_canary(%{canary: canary, deployment_group: deployment_group, release: release, user: user}) do
     _ = WorkflowCoordinator.schedule_updates(deployment_group)
-    {:ok, _} = Workflows.approve_step(step(release, 1), user)
+    {:ok, _} = Workflows.approve_step(deployment_group, step(release, 1), user)
     _ = WorkflowCoordinator.schedule_updates(deployment_group)
     _ = WorkflowCoordinator.schedule_updates(deployment_group)
 

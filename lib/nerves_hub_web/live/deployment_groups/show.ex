@@ -97,9 +97,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
     %{deployment_group: deployment_group, user: user, awaiting_approval: step} = socket.assigns
 
     with %{} <- step,
-         {:ok, step} <- Workflows.approve_step(step, user) do
-      DeploymentGroupTemplates.audit_workflow_step_action(user, deployment_group, step, :approved)
-
+         {:ok, _step} <- Workflows.approve_step(deployment_group, step, user) do
       # Approving only clears the block. The orchestrator is what completes the
       # step and starts the next one, so nudge it rather than leaving the page
       # looking unchanged until its next periodic run.
@@ -505,10 +503,8 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
   defp apply_step_action(socket, :skip, step) do
     %{deployment_group: deployment_group, user: user} = socket.assigns
 
-    case Workflows.skip_step(step, user) do
-      {:ok, skipped} ->
-        DeploymentGroupTemplates.audit_workflow_step_action(user, deployment_group, skipped, :skipped)
-
+    case Workflows.skip_step(deployment_group, step, user) do
+      {:ok, _skipped} ->
         # Skipping only clears the way; the orchestrator is what moves the
         # workflow on to the next step.
         :ok = ManagedDeployments.broadcast(deployment_group, "deployments/update")
@@ -524,9 +520,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
     %{deployment_group: deployment_group, user: user} = socket.assigns
 
     case Workflows.retry_step(deployment_group, step, user) do
-      {:ok, retried} ->
-        DeploymentGroupTemplates.audit_workflow_step_action(user, deployment_group, retried, :retried)
-
+      {:ok, _retried} ->
         :ok = ManagedDeployments.broadcast(deployment_group, "deployments/update")
 
         put_flash(socket, :info, "Step restarted. Its devices will be offered the update again.")

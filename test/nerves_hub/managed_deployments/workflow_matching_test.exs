@@ -370,7 +370,7 @@ defmodule NervesHub.ManagedDeployments.WorkflowMatchingTest do
 
       refute Workflows.step_complete?(deployment_group, approval)
 
-      {:ok, approved} = Workflows.approve_step(approval, user)
+      {:ok, approved} = Workflows.approve_step(deployment_group, approval, user)
 
       assert approved.approved_by_id == user.id
       assert Workflows.step_complete?(deployment_group, approved)
@@ -389,7 +389,7 @@ defmodule NervesHub.ManagedDeployments.WorkflowMatchingTest do
       # While the canary step holds it, the catch_all does not cover it.
       assert covered_device_ids(deployment_group, catch_all) == []
 
-      {:ok, skipped} = Workflows.skip_step(canary_step, context.user)
+      {:ok, skipped} = Workflows.skip_step(deployment_group, canary_step, context.user)
 
       assert skipped.status == :skipped
       assert claimed_device_ids(canary_step) == []

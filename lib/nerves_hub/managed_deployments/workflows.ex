@@ -50,7 +50,6 @@ defmodule NervesHub.ManagedDeployments.Workflows do
   alias NervesHub.FirmwareUpdates
   alias NervesHub.ManagedDeployments
   alias NervesHub.ManagedDeployments.DeploymentGroup
-  alias NervesHub.ManagedDeployments.DeploymentRelease
   alias NervesHub.ManagedDeployments.DeploymentWorkflowStep
   alias NervesHub.ManagedDeployments.WorkflowEvents
   alias NervesHub.ProductNotifications
@@ -404,16 +403,21 @@ defmodule NervesHub.ManagedDeployments.Workflows do
 
   Approving only unblocks the step; the coordinator completes it on its next
   pass, which keeps every status change in one place.
+
+  The approval is audited as the user's, with `:via` in `opts` naming where
+  they gave it when that was not the deployment group's page, such as Slack.
+  Skipping and retrying take the same option.
   """
-  @spec approve_step(DeploymentWorkflowStep.t(), User.t()) ::
+  @spec approve_step(DeploymentGroup.t(), DeploymentWorkflowStep.t(), User.t(), keyword()) ::
           {:ok, DeploymentWorkflowStep.t()} | {:error, :not_approvable}
-  def approve_step(step, user) do
+  def approve_step(deployment_group, step, user, opts \\ []) do
     change_step(fn ->
       with {:ok, step} <- lock_step(step, &approvable?/1, :not_approvable) do
         step = update_step!(step, approved_at: now(), approved_by_id: user.id)
 
-        :ok = resolve_halt_notification(step)
+        :ok = resolve_halt_notification(step, deployment_group)
         :ok = WorkflowEvents.resolved(step, "approved", user)
+        :ok = DeploymentGroupTemplates.audit_workflow_step_action(user, deployment_group, step, :approved, opts[:via])
 
         {:ok, step}
       end
@@ -477,17 +481,19 @@ defmodule NervesHub.ManagedDeployments.Workflows do
   `catch_all` — picks them up rather than leaving them stranded on old firmware.
   This is the way out of a stage held open by a device that will not come back.
   """
-  @spec skip_step(DeploymentWorkflowStep.t(), User.t()) :: {:ok, DeploymentWorkflowStep.t()} | {:error, :not_skippable}
-  def skip_step(step, user) do
+  @spec skip_step(DeploymentGroup.t(), DeploymentWorkflowStep.t(), User.t(), keyword()) ::
+          {:ok, DeploymentWorkflowStep.t()} | {:error, :not_skippable}
+  def skip_step(deployment_group, step, user, opts \\ []) do
     change_step(fn ->
       with {:ok, step} <- lock_step(step, &skippable?/1, :not_skippable) do
         _ = release_claimed_devices(step)
 
         step = update_step!(step, status: :skipped, skipped_at: now(), skipped_by_id: user.id)
 
-        :ok = resolve_halt_notification(step)
+        :ok = resolve_halt_notification(step, deployment_group)
         :ok = WorkflowEvents.announce(step, "skipped", user: user)
         :ok = WorkflowEvents.resolved(step, "skipped", user)
+        :ok = DeploymentGroupTemplates.audit_workflow_step_action(user, deployment_group, step, :skipped, opts[:via])
 
         {:ok, step}
       end
@@ -502,9 +508,9 @@ defmodule NervesHub.ManagedDeployments.Workflows do
   immediately on the same evidence. The step goes back to running and is
   scheduled again on the orchestrator's next pass.
   """
-  @spec retry_step(DeploymentGroup.t(), DeploymentWorkflowStep.t(), User.t()) ::
+  @spec retry_step(DeploymentGroup.t(), DeploymentWorkflowStep.t(), User.t(), keyword()) ::
           {:ok, DeploymentWorkflowStep.t()} | {:error, :not_retryable}
-  def retry_step(deployment_group, step, user) do
+  def retry_step(deployment_group, step, user, opts \\ []) do
     change_step(fn ->
       with {:ok, step} <- lock_step(step, &retryable?/1, :not_retryable) do
         {released, _} =
@@ -526,6 +532,7 @@ defmodule NervesHub.ManagedDeployments.Workflows do
 
         :ok = WorkflowEvents.announce(step, "started", user: user)
         :ok = WorkflowEvents.resolved(step, "retried", user)
+        :ok = DeploymentGroupTemplates.audit_workflow_step_action(user, deployment_group, step, :retried, opts[:via])
 
         {:ok, step}
       end
@@ -535,21 +542,12 @@ defmodule NervesHub.ManagedDeployments.Workflows do
   # A workflow that has stopped raises a notification, since nothing else would
   # say so. Starting again takes it back: the list is what needs attention now,
   # not everything that ever did.
-  defp resolve_halt_notification(step, deployment_group \\ nil)
-
-  defp resolve_halt_notification(step, nil) do
-    case deployment_group_ids(step) do
-      nil -> :ok
-      {product_id, deployment_group_id} -> resolve_halt_notification(step, {product_id, deployment_group_id})
-    end
-  end
-
   defp resolve_halt_notification(step, %DeploymentGroup{} = deployment_group) do
-    resolve_halt_notification(step, {deployment_group.product_id, deployment_group.id})
-  end
-
-  defp resolve_halt_notification(step, {product_id, deployment_group_id}) do
-    ProductNotifications.resolve_workflow_halted_notification!(product_id, deployment_group_id, step.id)
+    ProductNotifications.resolve_workflow_halted_notification!(
+      deployment_group.product_id,
+      deployment_group.id,
+      step.id
+    )
   end
 
   # A halted workflow is quiet: devices go on connecting, the deployment group
@@ -579,14 +577,6 @@ defmodule NervesHub.ManagedDeployments.Workflows do
       %{count: 1},
       %{deployment_id: deployment_group.id, step_number: step.number, step_type: step.type, reason: reason}
     )
-  end
-
-  defp deployment_group_ids(step) do
-    DeploymentRelease
-    |> where([r], r.id == ^step.deployment_release_id)
-    |> join(:inner, [r], dg in assoc(r, :deployment_group), as: :deployment_group)
-    |> select([deployment_group: dg], {dg.product_id, dg.id})
-    |> Repo.one()
   end
 
   defp release_claimed_devices(step) do

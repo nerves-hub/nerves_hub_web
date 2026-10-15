@@ -1,6 +1,9 @@
 defmodule NervesHub.ManagedDeployments.WorkflowsTest do
   use NervesHub.DataCase, async: false
+  use Mimic
 
+  alias NervesHub.AuditLogs
+  alias NervesHub.AuditLogs.DeploymentGroupTemplates
   alias NervesHub.Devices.Connections
   alias NervesHub.Devices.Updates
   alias NervesHub.Fixtures
@@ -214,7 +217,7 @@ defmodule NervesHub.ManagedDeployments.WorkflowsTest do
       [step | _] = Workflows.release_steps(release.id)
 
       {:ok, read_by_the_pass} = Workflows.start_step(deployment_group, step)
-      {:ok, _skipped} = Workflows.skip_step(read_by_the_pass, context.user)
+      {:ok, _skipped} = Workflows.skip_step(deployment_group, read_by_the_pass, context.user)
 
       assert {:error, :not_in_progress} = Workflows.fail_step(deployment_group, read_by_the_pass, 1)
       assert {:error, :not_in_progress} = Workflows.complete_step(read_by_the_pass)
@@ -241,8 +244,39 @@ defmodule NervesHub.ManagedDeployments.WorkflowsTest do
 
       {:ok, waiting} = Workflows.start_step(deployment_group, step)
 
-      assert {:ok, _} = Workflows.approve_step(waiting, context.user)
-      assert {:error, :not_approvable} = Workflows.approve_step(waiting, context.user)
+      assert {:ok, _} = Workflows.approve_step(deployment_group, waiting, context.user)
+      assert {:error, :not_approvable} = Workflows.approve_step(deployment_group, waiting, context.user)
+    end
+  end
+
+  describe "a step somebody changes" do
+    test "is audited as theirs", context do
+      %{user: user} = context
+      %{release: release, deployment_group: deployment_group} = with_workflow(context)
+      [step | _] = Workflows.release_steps(release.id)
+
+      {:ok, started} = Workflows.start_step(deployment_group, step)
+      {:ok, _skipped} = Workflows.skip_step(deployment_group, started, user, via: "Slack user U0ALICE")
+
+      assert Enum.any?(
+               AuditLogs.logs_for(deployment_group),
+               &(&1.description =~ "User #{user.name} skipped workflow step 1" and
+                   &1.description =~ "from Slack user U0ALICE")
+             )
+    end
+
+    # Audited after the change committed, a failure in between left a rollout
+    # decision with nobody's name on it.
+    test "is not changed when the audit cannot be written", context do
+      %{release: release, deployment_group: deployment_group} = with_workflow(context)
+      [step | _] = Workflows.release_steps(release.id)
+
+      {:ok, started} = Workflows.start_step(deployment_group, step)
+
+      stub(DeploymentGroupTemplates, :audit_workflow_step_action, fn _, _, _, _, _ -> raise "unavailable" end)
+
+      assert_raise RuntimeError, fn -> Workflows.skip_step(deployment_group, started, context.user) end
+      assert [%{status: :in_progress} | _] = Workflows.release_steps(release.id)
     end
   end
 end

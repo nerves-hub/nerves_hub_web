@@ -425,7 +425,7 @@ defmodule NervesHub.Webhooks.RaisedEventsTest do
 
       assert [_canary_only] = raised("deployment_group.workflow_step.started")
 
-      {:ok, _} = Workflows.approve_step(release_step(release, 2), context.user)
+      {:ok, _} = Workflows.approve_step(deployment_group, release_step(release, 2), context.user)
       _ = WorkflowCoordinator.schedule_updates(deployment_group)
       _ = WorkflowCoordinator.schedule_updates(deployment_group)
 
@@ -462,7 +462,7 @@ defmodule NervesHub.Webhooks.RaisedEventsTest do
       assert [%{"user" => nil}, %{"step" => %{"number" => 1}, "user" => %{"name" => ^user_name}}] =
                raised("deployment_group.workflow_step.started")
 
-      {:ok, _} = Workflows.skip_step(release_step(release, 1), context.user)
+      {:ok, _} = Workflows.skip_step(deployment_group, release_step(release, 1), context.user)
 
       assert [%{"step" => %{"number" => 1, "status" => "skipped"}, "user" => %{"name" => ^user_name}}] =
                raised("deployment_group.workflow_step.skipped")
