@@ -97,7 +97,8 @@ defmodule NervesHubWeb.PasswordResetControllerTest do
     test "with invalid token", %{conn: conn, user: user} do
       params = %{"user" => %{"email" => user.email, "password" => "new password"}}
 
-      bad_token = Ecto.UUID.bingenerate()
+      # a well-formed token that was never stored
+      {bad_token, _user_token} = UserToken.build_hashed_token(user, "reset_password", nil)
 
       reset_conn = put(conn, Routes.password_reset_path(conn, :update, bad_token), params)
       assert redirected_to(reset_conn) == Routes.session_path(reset_conn, :new)
