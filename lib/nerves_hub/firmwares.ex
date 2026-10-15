@@ -928,8 +928,11 @@ defmodule NervesHub.Firmwares do
         partials_checksums
       )
 
-    with {:ok, firmware_delta} <- Repo.update(changeset),
-         :ok <- firmware_upload_config().upload_file(delta_file_metadata.filepath, upload_metadata),
+    # Uploaded before it is marked complete. A completed delta is offered to
+    # devices straight away, and the builder takes one as done, so a delta
+    # marked complete whose upload then crashed stayed complete with no file.
+    with :ok <- firmware_upload_config().upload_file(delta_file_metadata.filepath, upload_metadata),
+         {:ok, firmware_delta} <- Repo.update(changeset),
          {:ok, _firmware_delta} <- notify_firmware_delta_target({:ok, firmware_delta}) do
       {:ok, _} = ManagedDeployments.recalculate_release_delta_statuses_by_firmware_id(firmware_delta.target_id)
 

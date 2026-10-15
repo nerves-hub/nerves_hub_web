@@ -776,6 +776,48 @@ defmodule NervesHub.FirmwaresTest do
                Firmwares.get_firmware_delta_by_source_and_target(source.id, target.id)
     end
 
+    test "a delta is not complete until its file is uploaded", %{
+      firmware: source,
+      org_key: org_key,
+      product: product,
+      tmp_dir: tmp_dir
+    } do
+      target = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+      test_pid = self()
+
+      expect(UpdateToolDefault, :create_firmware_delta_file, fn _s, _t, _wd ->
+        {:ok,
+         %{
+           filepath: "test/fixtures/fwup/dummy_100kb.txt",
+           size: 5,
+           source_size: 10,
+           target_size: 15,
+           tool: "fwup",
+           tool_metadata: %{}
+         }}
+      end)
+
+      # An upload that crashes rather than returning an error, as a timed-out
+      # chunk or a node shutting down does.
+      expect(UploadFile, :upload_file, fn _p, _m ->
+        {:ok, delta} = Firmwares.get_firmware_delta_by_source_and_target(source.id, target.id)
+        send(test_pid, {:status_while_uploading, delta.status})
+        raise "upload timed out"
+      end)
+
+      assert {:ok, firmware_delta} = Firmwares.start_firmware_delta(source.id, target.id)
+
+      assert_raise RuntimeError, fn ->
+        Firmwares.generate_firmware_delta(firmware_delta, source, target)
+      end
+
+      assert_received {:status_while_uploading, :processing}
+
+      # Still processing, so the builder's retry builds it again.
+      assert {:ok, %FirmwareDelta{status: :processing}} =
+               Firmwares.get_firmware_delta_by_source_and_target(source.id, target.id)
+    end
+
     test "update tool errors are handled", %{
       firmware: source,
       org_key: org_key,
