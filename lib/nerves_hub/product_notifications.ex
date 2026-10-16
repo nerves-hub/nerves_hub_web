@@ -6,8 +6,9 @@ defmodule NervesHub.ProductNotifications do
   alias NervesHub.DeviceLink.DeviceInfo
   alias NervesHub.Devices.Device
   alias NervesHub.Integrations
+  alias NervesHub.Integrations.ChatWebhooks
+  alias NervesHub.Integrations.ChatWebhooks.ChatWebhook
   alias NervesHub.Integrations.Slack.Subscription
-  alias NervesHub.Integrations.Teams.Channel
   alias NervesHub.ManagedDeployments.DeploymentWorkflowStep
   alias NervesHub.Products
   alias NervesHub.Products.Notification
@@ -372,20 +373,23 @@ defmodule NervesHub.ProductNotifications do
   end
 
   @doc """
-  NervesHub stopped posting to a Teams channel because Teams refused its
-  Workflows webhook, one notification per product the channel heard.
+  NervesHub stopped posting to a Teams or Discord channel because the chat
+  service refused its webhook, one notification per product the channel
+  heard.
   """
-  def create_teams_channel_disabled_notifications!(%Channel{} = channel, product_ids, reason) do
+  def create_chat_webhook_disabled_notifications!(%ChatWebhook{} = channel, product_ids, reason) do
+    service = ChatWebhooks.provider(channel.provider).label()
+
     for product_id <- product_ids do
       %Product{id: product_id}
       |> Notification.new_changeset(%{
-        title: "Teams notifications were turned off.",
+        title: "#{service} notifications were turned off.",
         message:
-          "#{Branding.friendly_platform_name()} stopped posting to the Teams channel #{channel.name} because #{reason}. Once the workflow is fixed, " <>
-            "turn the channel back on from the organization's Integrations settings, or give it the workflow's new URL.",
+          "#{Branding.friendly_platform_name()} stopped posting to the #{service} channel #{channel.name} because #{reason}. Once the webhook is fixed, " <>
+            "turn the channel back on from the organization's Integrations settings, or give it the webhook's new URL.",
         level: :error,
-        metadata: %{teams_channel_id: channel.id, channel: channel.name},
-        event_key: "teams_channel_disabled-#{channel.id}"
+        metadata: %{chat_webhook_id: channel.id, channel: channel.name},
+        event_key: "chat_webhook_disabled-#{channel.id}"
       })
       |> insert_and_notify!()
     end
