@@ -107,3 +107,12 @@ Product keys work differently. Their secrets stay visible on the product's
 settings page to members with the `manage` or `admin` role. Deactivating one
 refuses new connections with it, but devices already connected with it stay
 connected until they reconnect.
+
+## Deleted devices
+
+Deleting a device closes the connection it has open and takes it out of its
+deployment group. It cannot connect again while it is deleted: certificate
+authentication rejects it as described above, its device keys stop
+authenticating, and a product key cannot create a new device under its
+identifier. A restored device is matched to a deployment group again the next
+time it connects.

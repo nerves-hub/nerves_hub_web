@@ -559,6 +559,39 @@ defmodule NervesHubWeb.WebsocketTest do
       eventually(refute(Repo.exists?(where(DeviceConnection, device_id: ^device.id, status: :connected))))
     end
 
+    test "closes the connection of a device that is deleted, and refuses it afterwards", %{
+      user: user,
+      tmp_dir: tmp_dir
+    } do
+      {device, _firmware} = device_fixture(tmp_dir, user)
+      assert {:ok, auth} = Devices.create_shared_secret_auth(device)
+
+      opts = [
+        mint_opts: [protocols: [:http1]],
+        uri: "ws://127.0.0.1:#{@web_port}/device-socket/websocket",
+        headers: Utils.nh1_key_secret_headers(auth, device.identifier)
+      ]
+
+      subscribe_for_updates(device)
+
+      {:ok, socket} = SocketClient.start_link(with_serializer(opts))
+      SocketClient.join_and_wait(socket, shared_secret_params(device))
+
+      assert_connection_change()
+      assert_online_and_available(device)
+
+      assert {:ok, _device} = Devices.delete_device(device)
+
+      assert_receive %{event: "connection:change", payload: %{status: "offline"}}
+
+      # Same key and signature, still inside its max age, so only the deletion
+      # can be what refuses it.
+      {:ok, socket} = SocketClient.start_link(with_serializer(opts))
+      SocketClient.wait_connect(socket)
+
+      refute SocketClient.connected?(socket)
+    end
+
     test "records the address a trusted balancer announced", %{user: user, tmp_dir: tmp_dir} do
       {device, _firmware} = device_fixture(tmp_dir, user)
       assert {:ok, auth} = Devices.create_shared_secret_auth(device)

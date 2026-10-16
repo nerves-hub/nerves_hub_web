@@ -381,7 +381,7 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
               class="flex gap-2 rounded border border-alert bg-base-800 px-3 py-1.5 hover:bg-alert-soft"
               type="button"
               phx-click="delete-device"
-              data-confirm="Are you sure you want to delete this device? This will also delete any certificates associated with the device."
+              data-confirm="Are you sure you want to delete this device? It will be disconnected and removed from its deployment group, and any certificates associated with it will be deleted."
             >
               <svg class="size-5 stroke-alert" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <path
