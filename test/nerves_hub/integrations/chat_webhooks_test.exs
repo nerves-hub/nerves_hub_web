@@ -270,6 +270,26 @@ defmodule NervesHub.Integrations.ChatWebhooksTest do
     end
   end
 
+  describe "queue_stranded/0" do
+    test "queues a job for events none is coming for, unless one is waiting or running", context do
+      channel = channel_fixture(context)
+      health_change(context.product.id, "nh-1")
+      {1, _} = Repo.update_all(PendingEvent, set: [inserted_at: DateTime.add(DateTime.utc_now(), -1, :minute)])
+
+      assert ChatWebhooks.queue_stranded() == 0
+
+      {1, _} = Repo.update_all(Oban.Job, set: [state: "executing"])
+      assert ChatWebhooks.queue_stranded() == 0
+
+      # The job ran before the event was there to see, or gave up.
+      {1, _} = Repo.update_all(Oban.Job, set: [state: "completed"])
+      assert ChatWebhooks.queue_stranded() == 1
+
+      assert [job] = all_enqueued(worker: PostChatWebhookEvents)
+      assert job.args == %{"chat_webhook_id" => channel.id}
+    end
+  end
+
   describe "the worker" do
     test "snoozes while Power Automate asks it to wait, and cancels a refused webhook", context do
       channel = channel_fixture(context)
