@@ -26,13 +26,11 @@ defmodule NervesHub.ManagedDeployments.Orchestrator.WorkflowCoordinator do
 
   use NervesHub.ManagedDeployments.Orchestrator.Coordinator
 
-  alias NervesHub.AuditLogs.DeploymentGroupTemplates
   alias NervesHub.Devices.Updates
   alias NervesHub.ManagedDeployments
   alias NervesHub.ManagedDeployments.DeploymentWorkflowStep
   alias NervesHub.ManagedDeployments.Orchestrator.Coordinator
   alias NervesHub.ManagedDeployments.Workflows
-  alias NervesHub.ProductNotifications
 
   require Logger
 
@@ -48,7 +46,7 @@ defmodule NervesHub.ManagedDeployments.Orchestrator.WorkflowCoordinator do
     if Enum.any?(steps, &(&1.status == :error)) do
       false
     else
-      case active_step(steps) do
+      case active_step(deployment_group, steps) do
         nil ->
           false
 
@@ -65,17 +63,6 @@ defmodule NervesHub.ManagedDeployments.Orchestrator.WorkflowCoordinator do
   # on the pass after somebody approves it, and the orchestrator's periodic
   # trigger is what brings us back to notice.
   defp run_step(deployment_group, %DeploymentWorkflowStep{type: :approval_required} = step) do
-    # Only on the pass that reaches the step; afterwards it is already running and
-    # there is nothing new to say.
-    if step.status == :in_progress and is_nil(step.approved_at) and just_started?(step) do
-      Logger.info("Workflow waiting for approval",
-        deployment_id: deployment_group.id,
-        step_number: step.number
-      )
-
-      announce_halt(deployment_group, step, :awaiting_approval)
-    end
-
     complete_if_done(deployment_group, step, false)
   end
 
@@ -93,61 +80,22 @@ defmodule NervesHub.ManagedDeployments.Orchestrator.WorkflowCoordinator do
     if Workflows.step_failed?(deployment_group, step) do
       failed_count = Workflows.failed_device_count(deployment_group, step)
 
-      _ = Workflows.fail_step(step, failed_devices: failed_count)
-
-      Logger.warning("Workflow step failed",
-        deployment_id: deployment_group.id,
-        step_number: step.number,
-        failed_devices: failed_count,
-        tolerance: Workflows.failure_limit(step, Workflows.claimed_device_count(deployment_group, step))
-      )
-
-      announce_halt(deployment_group, step, {:failed, failed_count})
+      # Not failed when somebody moved the step during this pass, such as by
+      # skipping it. The next pass reads it as it now stands.
+      _ =
+        with {:ok, step} <- Workflows.fail_step(deployment_group, step, failed_count) do
+          Logger.warning("Workflow step failed",
+            deployment_id: deployment_group.id,
+            step_number: step.number,
+            failed_devices: failed_count,
+            tolerance: Workflows.failure_limit(step, Workflows.claimed_device_count(deployment_group, step))
+          )
+        end
 
       false
     else
       complete_if_done(deployment_group, step, schedule_step_devices(deployment_group, step))
     end
-  end
-
-  # A halted workflow is quiet: devices go on connecting, the deployment group
-  # still says it is active, and the only sign is a diagram nobody is looking at.
-  # So it is said four ways — measured, logged, recorded against the deployment
-  # group, and raised to whoever looks after the product.
-  defp announce_halt(deployment_group, step, reason) do
-    :telemetry.execute(
-      [:nerves_hub, :deployments, :workflow, :halted],
-      %{count: 1},
-      %{
-        deployment_id: deployment_group.id,
-        step_number: step.number,
-        step_type: step.type,
-        reason: halt_reason(reason)
-      }
-    )
-
-    case reason do
-      {:failed, failed_count} ->
-        DeploymentGroupTemplates.audit_workflow_step_failed(deployment_group, step, failed_count)
-
-      :awaiting_approval ->
-        DeploymentGroupTemplates.audit_workflow_awaiting_approval(deployment_group, step)
-    end
-
-    _ = ProductNotifications.create_workflow_halted_notification!(deployment_group, step, reason)
-
-    :ok
-  end
-
-  defp halt_reason({:failed, _count}), do: :failed
-  defp halt_reason(reason), do: reason
-
-  # `start_step/1` stamps `started_at` as it goes, so a step reached on this pass
-  # is one whose start is not yet a moment old.
-  defp just_started?(%DeploymentWorkflowStep{started_at: nil}), do: false
-
-  defp just_started?(%DeploymentWorkflowStep{started_at: started_at}) do
-    NaiveDateTime.diff(NaiveDateTime.utc_now(), started_at, :second) <= 1
   end
 
   defp schedule_step_devices(deployment_group, step) do
@@ -170,13 +118,16 @@ defmodule NervesHub.ManagedDeployments.Orchestrator.WorkflowCoordinator do
   # periodic trigger.
   defp complete_if_done(deployment_group, step, run_again?) do
     if Workflows.step_complete?(deployment_group, step) do
-      _ = Workflows.complete_step(step)
-
-      Logger.info("Workflow step completed",
-        deployment_id: deployment_group.id,
-        step_number: step.number,
-        step_type: step.type
-      )
+      # Run again either way: to start the next step, or to read this one as it
+      # now stands if somebody moved it during this pass.
+      _ =
+        with {:ok, step} <- Workflows.complete_step(step) do
+          Logger.info("Workflow step completed",
+            deployment_id: deployment_group.id,
+            step_number: step.number,
+            step_type: step.type
+          )
+        end
 
       true
     else
@@ -186,14 +137,33 @@ defmodule NervesHub.ManagedDeployments.Orchestrator.WorkflowCoordinator do
 
   # The step in progress, or the next one waiting to start. Steps arrive ordered
   # by number.
-  defp active_step(steps) do
+  defp active_step(deployment_group, steps) do
     with nil <- Enum.find(steps, &(&1.status == :in_progress)) do
       steps
       |> Enum.find(&(&1.status == :waiting))
       |> case do
         nil -> nil
-        step -> Workflows.start_step(step)
+        step -> start_step(deployment_group, step)
       end
+    end
+  end
+
+  # Skipped since this pass read it, a step is left for the next pass.
+  defp start_step(deployment_group, step) do
+    case Workflows.start_step(deployment_group, step) do
+      {:ok, %DeploymentWorkflowStep{type: :approval_required} = step} ->
+        Logger.info("Workflow waiting for approval",
+          deployment_id: deployment_group.id,
+          step_number: step.number
+        )
+
+        step
+
+      {:ok, step} ->
+        step
+
+      {:error, :not_waiting} ->
+        nil
     end
   end
 end
