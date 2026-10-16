@@ -4,6 +4,7 @@ defmodule NervesHub.Devices.UpdatesTest do
 
   import ExUnit.CaptureLog
 
+  alias NervesHub.AuditLogs
   alias NervesHub.DeploymentOrchestratorEvents
   alias NervesHub.DeviceLink.DeviceInfo
   alias NervesHub.Devices
@@ -78,6 +79,9 @@ defmodule NervesHub.Devices.UpdatesTest do
 
       assert log =~ "could not be put in the penalty box"
       refute Repo.reload(device).updates_blocked_until
+
+      # Nor is a penalty that was never recorded audited as one.
+      refute Enum.any?(AuditLogs.logs_for(device), &(&1.description =~ "automatically blocked"))
     end
   end
 
