@@ -776,6 +776,48 @@ defmodule NervesHub.FirmwaresTest do
                Firmwares.get_firmware_delta_by_source_and_target(source.id, target.id)
     end
 
+    test "a delta is not complete until its file is uploaded", %{
+      firmware: source,
+      org_key: org_key,
+      product: product,
+      tmp_dir: tmp_dir
+    } do
+      target = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+      test_pid = self()
+
+      expect(UpdateToolDefault, :create_firmware_delta_file, fn _s, _t, _wd ->
+        {:ok,
+         %{
+           filepath: "test/fixtures/fwup/dummy_100kb.txt",
+           size: 5,
+           source_size: 10,
+           target_size: 15,
+           tool: "fwup",
+           tool_metadata: %{}
+         }}
+      end)
+
+      # An upload that crashes rather than returning an error, as a timed-out
+      # chunk or a node shutting down does.
+      expect(UploadFile, :upload_file, fn _p, _m ->
+        {:ok, delta} = Firmwares.get_firmware_delta_by_source_and_target(source.id, target.id)
+        send(test_pid, {:status_while_uploading, delta.status})
+        raise "upload timed out"
+      end)
+
+      assert {:ok, firmware_delta} = Firmwares.start_firmware_delta(source.id, target.id)
+
+      assert_raise RuntimeError, fn ->
+        Firmwares.generate_firmware_delta(firmware_delta, source, target)
+      end
+
+      assert_received {:status_while_uploading, :processing}
+
+      # Still processing, so the builder's retry builds it again.
+      assert {:ok, %FirmwareDelta{status: :processing}} =
+               Firmwares.get_firmware_delta_by_source_and_target(source.id, target.id)
+    end
+
     test "update tool errors are handled", %{
       firmware: source,
       org_key: org_key,
@@ -875,6 +917,26 @@ defmodule NervesHub.FirmwaresTest do
              ] =
                get_deltas_by_source_firmware(source)
                |> Enum.sort_by(& &1.id)
+    end
+  end
+
+  describe "time_out_firmware_delta/1" do
+    test "leaves a delta whose build finished after it was read", %{
+      firmware: source,
+      org_key: org_key,
+      product: product,
+      tmp_dir: tmp_dir
+    } do
+      target = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+      {:ok, read_by_the_sweep} = Firmwares.start_firmware_delta(source.id, target.id)
+
+      {1, _} =
+        FirmwareDelta
+        |> where([fd], fd.id == ^read_by_the_sweep.id)
+        |> Repo.update_all(set: [status: :completed])
+
+      assert {:error, :not_processing} = Firmwares.time_out_firmware_delta(read_by_the_sweep)
+      assert %FirmwareDelta{status: :completed} = Repo.reload!(read_by_the_sweep)
     end
   end
 

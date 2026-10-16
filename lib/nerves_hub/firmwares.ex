@@ -928,8 +928,11 @@ defmodule NervesHub.Firmwares do
         partials_checksums
       )
 
-    with {:ok, firmware_delta} <- Repo.update(changeset),
-         :ok <- firmware_upload_config().upload_file(delta_file_metadata.filepath, upload_metadata),
+    # Uploaded before it is marked complete. A completed delta is offered to
+    # devices straight away, and the builder takes one as done, so a delta
+    # marked complete whose upload then crashed stayed complete with no file.
+    with :ok <- firmware_upload_config().upload_file(delta_file_metadata.filepath, upload_metadata),
+         {:ok, firmware_delta} <- Repo.update(changeset),
          {:ok, _firmware_delta} <- notify_firmware_delta_target({:ok, firmware_delta}) do
       {:ok, _} = ManagedDeployments.recalculate_release_delta_statuses_by_firmware_id(firmware_delta.target_id)
 
@@ -989,6 +992,24 @@ defmodule NervesHub.Firmwares do
     else
       {:ok, :no_delta_support}
     end
+  end
+
+  @doc """
+  Build a failed or timed-out delta again.
+
+  Starting it replaces the failed delta in the same transaction. Deleted first
+  on its own, the delta's release was left with nothing failed and nothing
+  building, which reads as ready, and the orchestrator sent full firmware to the
+  devices waiting for the delta.
+  """
+  @spec retry_firmware_delta(FirmwareDelta.t()) ::
+          {:ok, :started}
+          | {:ok, :no_delta_support}
+          | {:ok, :delta_already_exists}
+          | {:error, :failed_to_insert_delta}
+          | {:error, :failed_to_insert_job}
+  def retry_firmware_delta(%FirmwareDelta{source_id: source_id, target_id: target_id}) do
+    attempt_firmware_delta(source_id, target_id)
   end
 
   defp do_attempt_firmware_delta(source_id, target_id, recalculate_deployment_statuses) do
@@ -1078,19 +1099,31 @@ defmodule NervesHub.Firmwares do
     {:ok, firmware_delta}
   end
 
-  @spec time_out_firmware_delta(FirmwareDelta.t()) ::
-          {:ok, FirmwareDelta.t()} | {:error, Ecto.Changeset.t()}
-  def time_out_firmware_delta(%FirmwareDelta{} = firmware_delta) do
-    {:ok, firmware_delta} =
-      firmware_delta
-      |> FirmwareDelta.time_out_changeset()
-      |> Repo.update()
-      |> notify_firmware_delta_target()
+  @doc """
+  Time out a delta whose build has taken too long.
 
-    {:ok, _} =
-      ManagedDeployments.recalculate_release_delta_statuses_by_firmware_id(firmware_delta.target_id)
+  Only a delta still processing is timed out. The sweep reads its deltas before
+  it writes them, and writing back the copy it read turned a delta whose build
+  finished in between into a timed-out one.
+  """
+  @spec time_out_firmware_delta(FirmwareDelta.t()) :: {:ok, FirmwareDelta.t()} | {:error, :not_processing}
+  def time_out_firmware_delta(%FirmwareDelta{id: id}) do
+    FirmwareDelta
+    |> where([fd], fd.id == ^id and fd.status == :processing)
+    |> select([fd], fd)
+    |> Repo.update_all(set: [status: :timed_out, updated_at: NaiveDateTime.utc_now(:second)])
+    |> case do
+      {1, [firmware_delta]} ->
+        {:ok, firmware_delta} = notify_firmware_delta_target({:ok, firmware_delta})
 
-    {:ok, firmware_delta}
+        {:ok, _} =
+          ManagedDeployments.recalculate_release_delta_statuses_by_firmware_id(firmware_delta.target_id)
+
+        {:ok, firmware_delta}
+
+      {0, []} ->
+        {:error, :not_processing}
+    end
   end
 
   # Pipeline adapter for the delta lifecycle functions above, which all thread an
@@ -1129,7 +1162,8 @@ defmodule NervesHub.Firmwares do
     |> where([fd], fd.inserted_at < ^cutoff)
     |> Repo.all()
     |> Enum.each(fn firmware_delta ->
-      {:ok, _firmware_delta} = time_out_firmware_delta(firmware_delta)
+      # `{:error, :not_processing}` when its build finished since the read above
+      _ = time_out_firmware_delta(firmware_delta)
     end)
 
     :ok
