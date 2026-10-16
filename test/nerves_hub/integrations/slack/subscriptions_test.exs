@@ -331,6 +331,49 @@ defmodule NervesHub.Integrations.Slack.SubscriptionsTest do
     end
   end
 
+  describe "queue_stranded/0" do
+    # What the event's own job leaves behind when it ran before the event was
+    # there to see, or gave up: events held past their time, and no job.
+    defp strand_events() do
+      {_count, _} = Repo.update_all(Oban.Job, set: [state: "completed"])
+      {_count, _} = Repo.update_all(PendingEvent, set: [inserted_at: DateTime.add(DateTime.utc_now(), -1, :minute)])
+      :ok
+    end
+
+    test "queues a job for events none is coming for", context do
+      subscription = subscription_fixture(context)
+      health_change(context.product.id, "nh-1")
+      :ok = strand_events()
+
+      assert Subscriptions.queue_stranded() == 1
+
+      assert [job] = all_enqueued(worker: PostSlackEvents)
+      assert job.args == %{"subscription_id" => subscription.id}
+    end
+
+    test "leaves a subscription whose job is waiting or running", context do
+      _subscription = subscription_fixture(context)
+      health_change(context.product.id, "nh-1")
+      {1, _} = Repo.update_all(PendingEvent, set: [inserted_at: DateTime.add(DateTime.utc_now(), -1, :minute)])
+
+      assert Subscriptions.queue_stranded() == 0
+
+      # Two jobs at once would post the same events twice.
+      {1, _} = Repo.update_all(Oban.Job, set: [state: "executing"])
+
+      assert Subscriptions.queue_stranded() == 0
+      assert all_enqueued(worker: PostSlackEvents) == []
+    end
+
+    test "leaves events still within their hold", context do
+      _subscription = subscription_fixture(context)
+      health_change(context.product.id, "nh-1")
+      {1, _} = Repo.update_all(Oban.Job, set: [state: "completed"])
+
+      assert Subscriptions.queue_stranded() == 0
+    end
+  end
+
   describe "the worker" do
     test "snoozes while Slack asks it to wait, and cancels a turned off subscription", context do
       subscription = subscription_fixture(context)
