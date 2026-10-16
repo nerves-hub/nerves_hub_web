@@ -28,5 +28,5 @@ A channel webhook only posts: there are no buttons that act, as there are in Sla
 
 - If Discord refuses the webhook (it was deleted, or its URL no longer works), NervesHub turns the channel off. Each product it was getting events for gets a notification saying why. Make a new webhook and paste its URL into the channel, which turns it back on.
 - If Discord asks NervesHub to slow down, it waits as long as Discord says.
-- Any other failure is retried after 10 seconds, a minute and five minutes. What still could not be posted is tried again with the channel's next event.
+- Any other failure is retried after 10 seconds, a minute and five minutes. What still could not be posted is tried again a minute or so later, the same way.
 - Events held for more than an hour are dropped rather than posted late.
