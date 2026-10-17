@@ -214,7 +214,6 @@ defmodule NervesHub.MixProject do
       {:timex, "~> 3.1"},
       {:ueberauth_google, "~> 0.12"},
       {:unzip, "~> 0.12"},
-      {:uuidv7, "~> 1.0"},
       {:x509, "~> 0.5.1 or ~> 0.6"},
       {:flop, "~> 0.29.0"}
     ]

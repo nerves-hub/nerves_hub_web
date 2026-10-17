@@ -11,7 +11,7 @@ defmodule NervesHub.Devices.DeviceFirmware do
   @validation_statuses [:validated, :not_validated, :unknown]
 
   @type t :: %__MODULE__{}
-  @primary_key {:id, UUIDv7, autogenerate: true}
+  @primary_key {:id, Ecto.UUID, autogenerate: [version: 7]}
   schema "device_firmwares" do
     belongs_to(:device, Device)
 

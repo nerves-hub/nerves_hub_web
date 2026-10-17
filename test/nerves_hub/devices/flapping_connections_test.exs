@@ -36,7 +36,7 @@ defmodule NervesHub.Devices.FlappingConnectionsTest do
       established_at = DateTime.add(base, -offset, :second)
 
       connection = %DeviceConnection{
-        id: UUIDv7.generate(),
+        id: Ecto.UUID.generate(version: 7),
         org_id: device.org_id,
         product_id: device.product_id,
         device_id: device.id,

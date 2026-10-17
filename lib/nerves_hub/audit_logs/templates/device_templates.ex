@@ -244,7 +244,7 @@ defmodule NervesHub.AuditLogs.DeviceTemplates do
     )
   end
 
-  @spec audit_device_archive_update_triggered(Device.t(), Archive.t(), UUIDv7.t()) :: :ok
+  @spec audit_device_archive_update_triggered(Device.t(), Archive.t(), Ecto.UUID.t()) :: :ok
   def audit_device_archive_update_triggered(device, archive, reference_id) do
     description =
       "Archive update triggered for #{device.identifier}. Sending archive #{archive.uuid}."

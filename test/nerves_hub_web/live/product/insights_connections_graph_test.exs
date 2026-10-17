@@ -24,7 +24,7 @@ defmodule NervesHubWeb.Live.Product.InsightsConnectionsGraphTest do
 
   defp insert_history(device, established_at, disconnected_at) do
     connection = %DeviceConnection{
-      id: UUIDv7.generate(),
+      id: Ecto.UUID.generate(version: 7),
       org_id: device.org_id,
       product_id: device.product_id,
       device_id: device.id,

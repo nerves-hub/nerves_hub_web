@@ -126,7 +126,7 @@ defmodule NervesHub.Devices.ConnectionHistoryTest do
   describe "clean_stale_connections_from_analytics/0" do
     # an open connection is one whose latest history row has no disconnected_at
     defp insert_open_connection(device, last_seen_at) do
-      ref = UUIDv7.generate()
+      ref = Ecto.UUID.generate(version: 7)
 
       connection = %DeviceConnection{
         id: ref,
@@ -191,7 +191,7 @@ defmodule NervesHub.Devices.ConnectionHistoryTest do
     end
 
     test "ignores connections that are already disconnected", %{device: device} do
-      ref = UUIDv7.generate()
+      ref = Ecto.UUID.generate(version: 7)
       now = DateTime.utc_now()
 
       connection = %DeviceConnection{
@@ -233,7 +233,7 @@ defmodule NervesHub.Devices.ConnectionHistoryTest do
       last_seen_at = disconnected_at || DateTime.utc_now()
 
       connection = %DeviceConnection{
-        id: UUIDv7.generate(),
+        id: Ecto.UUID.generate(version: 7),
         org_id: device.org_id,
         product_id: device.product_id,
         device_id: device.id,
