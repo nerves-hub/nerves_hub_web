@@ -1062,7 +1062,7 @@ defmodule NervesHub.ManagedDeployments.OrchestratorTest do
 
       # Give device1 enough failed update attempts to meet the failure threshold
       # The default device_failure_threshold is 3, so we'll add 3 attempts
-      # This will cause it to fail can_device_update? and be skipped
+      # This will cause Updates.enforce_failure_limits/2 to penalty box it, so it is skipped
       :ok = to_device_info(old_device1) |> Updates.update_attempted()
       :ok = to_device_info(old_device1) |> Updates.update_attempted()
       :ok = to_device_info(old_device1) |> Updates.update_attempted()
