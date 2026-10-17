@@ -5,6 +5,7 @@ defmodule NervesHubWeb.Components.UtilsTest do
 
   describe "humanize_size/1" do
     test "uses binary units" do
+      assert Utils.humanize_size(2_473_901_162_496) == "2.25 TB"
       assert Utils.humanize_size(1_167_772_160) == "1.09 GB"
       assert Utils.humanize_size(167_772_160) == "160.0 MB"
       assert Utils.humanize_size(772_160) == "754.06 KB"

@@ -105,7 +105,7 @@ defmodule NervesHubWeb.Components.Utils do
   """
   def humanize_size(bytes) do
     cond do
-      bytes > @tib -> "#{Float.round(bytes / @gib, @precision)} TB"
+      bytes > @tib -> "#{Float.round(bytes / @tib, @precision)} TB"
       bytes > @gib -> "#{Float.round(bytes / @gib, @precision)} GB"
       bytes > @mib -> "#{Float.round(bytes / @mib, @precision)} MB"
       bytes > @kib -> "#{Float.round(bytes / @kib, @precision)} KB"
