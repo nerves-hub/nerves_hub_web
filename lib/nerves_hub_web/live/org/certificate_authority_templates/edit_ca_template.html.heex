@@ -54,6 +54,7 @@
                 JITP Tags <span class="ml-2 text-xs text-base-500">(Tags are used by deployments to target a device)</span>
               </label>
               {text_input(fp, :tags,
+                value: Utils.tags_to_string(input_value(fp, :tags)),
                 class: "w-full px-3 py-2 text-sm bg-base-900 border border-base-700 rounded text-base-50 focus:outline-none focus:ring-2 focus:ring-focus-ring",
                 id: "tag_input"
               )}
