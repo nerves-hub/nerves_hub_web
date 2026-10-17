@@ -10,6 +10,7 @@ defmodule NervesHub.AuditLogs.DeviceTemplates do
   alias NervesHub.Devices.Device
   alias NervesHub.Devices.SharedSecretAuth
   alias NervesHub.Firmwares.Firmware
+  alias NervesHub.Helpers.RelativeTime
   alias NervesHub.ManagedDeployments.DeploymentGroup
 
   @reason_max_length 200
@@ -140,7 +141,7 @@ defmodule NervesHub.AuditLogs.DeviceTemplates do
     reason = truncate_reason(reason)
 
     description = """
-    During an update request from \"#{deployment_group.name}\", device #{device.identifier} requested firmware upgrades be rescheduled #{Timex.from_now(blocked_until)} time #{reason && "because \"#{reason}\""}.
+    During an update request from \"#{deployment_group.name}\", device #{device.identifier} requested firmware upgrades be rescheduled #{RelativeTime.from_now(blocked_until)} time #{reason && "because \"#{reason}\""}.
     """
 
     AuditLogs.audit!(deployment_group, device, description)
@@ -150,7 +151,7 @@ defmodule NervesHub.AuditLogs.DeviceTemplates do
     reason = truncate_reason(reason)
 
     description = """
-    During a manual firmware update request, device #{device.identifier} requested firmware upgrades be rescheduled #{Timex.from_now(blocked_until)} time #{reason && "because \"#{reason}\""}.
+    During a manual firmware update request, device #{device.identifier} requested firmware upgrades be rescheduled #{RelativeTime.from_now(blocked_until)} time #{reason && "because \"#{reason}\""}.
     The update will not be automatically retried.
     """
 

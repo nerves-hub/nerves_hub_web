@@ -15,6 +15,10 @@ alias Ueberauth.Strategy.Google
 # Used by spellweaver
 config :bun, :version, "1.2.18"
 
+# Timestamps render in the viewer's time zone, which needs a real time zone
+# database rather than Elixir's UTC-only default.
+config :elixir, :time_zone_database, Tzdata.TimeZoneDatabase
+
 # Configure esbuild (the version is required)
 config :esbuild,
   version: "0.25.2",

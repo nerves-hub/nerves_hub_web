@@ -36,7 +36,7 @@
             <div class="pb-0.5 text-sm text-base-400">{entry.message}</div>
             <div class="flex gap-2">
               <div class="text-xs tracking-wide text-base-400">
-                Last occurrence: {Timex.from_now(entry.last_occurred_at)}
+                Last occurrence: {RelativeTime.from_now(entry.last_occurred_at)}
               </div>
 
               <div class="flex items-center">

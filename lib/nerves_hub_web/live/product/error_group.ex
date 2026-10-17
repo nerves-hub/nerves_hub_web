@@ -13,6 +13,7 @@ defmodule NervesHubWeb.Live.Product.ErrorGroup do
   alias NervesHub.AuditLogs.ProductTemplates
   alias NervesHub.ErrorReports
   alias NervesHub.ErrorReports.ErrorReport
+  alias NervesHub.Helpers.RelativeTime
 
   @periods %{"seven_days" => 7, "fourteen_days" => 14, "four_weeks" => 28}
 
