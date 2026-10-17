@@ -156,7 +156,6 @@ defmodule NervesHub.MixProject do
       {:igniter, "~> 0.8", only: [:dev, :test]},
       {:process_hub, "~> 0.7.0"},
       {:jason, "~> 1.2", override: true},
-      {:joken, "~> 2.6"},
       {:lazy_html, ">= 0.0.0", only: :test},
       {:libcluster_postgres, "~> 0.2.0"},
       {:live_flow, "~> 0.2.3"},
