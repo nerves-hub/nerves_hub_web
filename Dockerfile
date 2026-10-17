@@ -140,7 +140,7 @@ RUN git clone https://github.com/jemalloc/jemalloc /tmp/jemalloc
 
 WORKDIR /tmp/jemalloc
 
-RUN git checkout 5.3.1 && \
+RUN git checkout 5.4.0 && \
     autoconf && \
     ./configure && \
     make && \
