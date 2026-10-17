@@ -6,6 +6,7 @@ defmodule NervesHub.Devices.UpdatesTest do
 
   alias NervesHub.AuditLogs
   alias NervesHub.DeploymentOrchestratorEvents
+  alias NervesHub.DeviceEvents
   alias NervesHub.DeviceLink.DeviceInfo
   alias NervesHub.Devices
   alias NervesHub.Devices.PubSub
@@ -59,10 +60,17 @@ defmodule NervesHub.Devices.UpdatesTest do
     } do
       {:ok, device} = Devices.update_device(device, %{update_attempts: attempts_days_apart(3)})
 
+      # Only now, so the broadcast from the update above is not the one seen
+      topic = DeviceEvents.topic(device)
+      :ok = Phoenix.PubSub.subscribe(NervesHub.PubSub, topic)
+
       assert {:error, :updates_blocked, device} = Updates.enforce_failure_limits(device, deployment_group)
 
       assert Updates.device_in_penalty_box?(device)
       assert Repo.reload(device).update_attempts == []
+
+      assert Enum.any?(AuditLogs.logs_for(device), &(&1.description =~ "automatically blocked"))
+      assert_receive %Broadcast{topic: ^topic, event: "updated"}, 500
     end
 
     test "doesn't let a device update when its penalty can't be recorded", %{
