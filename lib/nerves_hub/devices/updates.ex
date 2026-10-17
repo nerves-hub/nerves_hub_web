@@ -15,6 +15,7 @@ defmodule NervesHub.Devices.Updates do
   alias NervesHub.Accounts.User
   alias NervesHub.AuditLogs.DeviceTemplates
   alias NervesHub.DeploymentOrchestratorEvents
+  alias NervesHub.DeviceEvents
   alias NervesHub.DeviceLink.DeviceInfo
   alias NervesHub.Devices
   alias NervesHub.Devices.Device
@@ -470,32 +471,48 @@ defmodule NervesHub.Devices.Updates do
     # make something other than the current release's.
     target_release = ManagedDeployments.target_release(deployment_group, device)
 
-    :ok = DeviceTemplates.audit_firmware_upgrade_blocked(deployment_group, device, target_release.firmware)
-    _ = FirmwareUpdates.clear_inflight_update(device)
-
     device = Repo.preload(device, [:org, :product, :current_device_firmware])
 
-    Logger.info("Device #{device.identifier} put in penalty box until #{blocked_until}", %{
-      identifier: device.identifier,
-      org: device.org.name,
-      product: device.product.name,
-      platform: deployment_group.platform,
-      # A device that has not reported its firmware since device firmwares were
-      # introduced has none on record
-      current_firmware_version: get_in(device.current_device_firmware.firmware_metadata.version),
-      upgrading_firmware_version: target_release.firmware.version,
-      reason: reason
-    })
+    # The penalty, its audit and the cleared inflight update go together or not
+    # at all. A Multi checks its changeset before it opens a transaction, so a
+    # penalty that cannot be recorded does not abort the one
+    # `DeviceEvents.schedule_update/3` has open.
+    Multi.new()
+    |> Multi.update(:device, Device.changeset(device, %{updates_blocked_until: blocked_until, update_attempts: []}))
+    |> Multi.run(:audit, fn _repo, %{device: device} ->
+      {:ok, DeviceTemplates.audit_firmware_upgrade_blocked(deployment_group, device, target_release.firmware)}
+    end)
+    |> Multi.run(:inflight_update, fn _repo, %{device: device} ->
+      {:ok, FirmwareUpdates.clear_inflight_update(device)}
+    end)
+    |> Repo.transact()
+    |> case do
+      {:ok, %{device: device}} ->
+        Logger.info("Device #{device.identifier} put in penalty box until #{blocked_until}", %{
+          identifier: device.identifier,
+          org: device.org.name,
+          product: device.product.name,
+          platform: deployment_group.platform,
+          # A device that has not reported its firmware since device firmwares were
+          # introduced has none on record
+          current_firmware_version: get_in(device.current_device_firmware.firmware_metadata.version),
+          upgrading_firmware_version: target_release.firmware.version,
+          reason: reason
+        })
 
-    case Devices.update_device(device, %{updates_blocked_until: blocked_until, update_attempts: []}) do
-      {:ok, device} ->
+        DeviceEvents.updated(device)
+
         {:error, :updates_blocked, device}
 
-      {:error, changeset} ->
+      {:error, :device, changeset, _changes} ->
         Logger.warning("Device #{device.identifier} could not be put in the penalty box", %{
           identifier: device.identifier,
           errors: inspect(changeset.errors)
         })
+
+        # Refused all the same, as a device with updates off is, so whatever
+        # was inflight goes.
+        _ = FirmwareUpdates.clear_inflight_update(device)
 
         {:error, :updates_blocked, device}
     end
