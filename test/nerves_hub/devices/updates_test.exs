@@ -2,7 +2,11 @@ defmodule NervesHub.Devices.UpdatesTest do
   use NervesHub.DataCase, async: true
   use Mimic
 
+  import ExUnit.CaptureLog
+
+  alias NervesHub.AuditLogs
   alias NervesHub.DeploymentOrchestratorEvents
+  alias NervesHub.DeviceEvents
   alias NervesHub.DeviceLink.DeviceInfo
   alias NervesHub.Devices
   alias NervesHub.Devices.PubSub
@@ -42,6 +46,50 @@ defmodule NervesHub.Devices.UpdatesTest do
 
       assert {:error, :updates_blocked, ^device} =
                Updates.verify_update_eligibility(device, deployment_group)
+    end
+  end
+
+  describe "enforce_failure_limits/2" do
+    test "lets a device under its limits through", %{device: device, deployment_group: deployment_group} do
+      assert {:ok, ^device} = Updates.enforce_failure_limits(device, deployment_group)
+    end
+
+    test "penalty boxes a device that has met its failure threshold and clears its attempts", %{
+      device: device,
+      deployment_group: deployment_group
+    } do
+      {:ok, device} = Devices.update_device(device, %{update_attempts: attempts_days_apart(3)})
+
+      # Only now, so the broadcast from the update above is not the one seen
+      topic = DeviceEvents.topic(device)
+      :ok = Phoenix.PubSub.subscribe(NervesHub.PubSub, topic)
+
+      assert {:error, :updates_blocked, device} = Updates.enforce_failure_limits(device, deployment_group)
+
+      assert Updates.device_in_penalty_box?(device)
+      assert Repo.reload(device).update_attempts == []
+
+      assert Enum.any?(AuditLogs.logs_for(device), &(&1.description =~ "automatically blocked"))
+      assert_receive %Broadcast{topic: ^topic, event: "updated"}, 500
+    end
+
+    test "doesn't let a device update when its penalty can't be recorded", %{
+      device: device,
+      deployment_group: deployment_group
+    } do
+      {:ok, device} = Devices.update_device(device, %{update_attempts: attempts_days_apart(3)})
+      {:ok, device} = Devices.delete_device(device)
+
+      log =
+        capture_log(fn ->
+          assert {:error, :updates_blocked, _device} = Updates.enforce_failure_limits(device, deployment_group)
+        end)
+
+      assert log =~ "could not be put in the penalty box"
+      refute Repo.reload(device).updates_blocked_until
+
+      # Nor is a penalty that was never recorded audited as one.
+      refute Enum.any?(AuditLogs.logs_for(device), &(&1.description =~ "automatically blocked"))
     end
   end
 
@@ -191,6 +239,13 @@ defmodule NervesHub.Devices.UpdatesTest do
   end
 
   # ---- helpers ----
+
+  # Far enough apart that only the failure threshold is met, never the rate
+  defp attempts_days_apart(count) do
+    now = DateTime.utc_now(:second)
+
+    for days <- 1..count, do: DateTime.add(now, -days * 86_400, :second)
+  end
 
   defp set_different_firmware_uuid(device) do
     firmware_metadata = %{

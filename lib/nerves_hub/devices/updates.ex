@@ -15,6 +15,7 @@ defmodule NervesHub.Devices.Updates do
   alias NervesHub.Accounts.User
   alias NervesHub.AuditLogs.DeviceTemplates
   alias NervesHub.DeploymentOrchestratorEvents
+  alias NervesHub.DeviceEvents
   alias NervesHub.DeviceLink.DeviceInfo
   alias NervesHub.Devices
   alias NervesHub.Devices.Device
@@ -428,15 +429,32 @@ defmodule NervesHub.Devices.Updates do
 
         {:error, :updates_blocked, device}
 
-      failure_rate_met?(device, deployment_group) ->
-        {:ok, device} = put_device_in_penalty_box(device, deployment_group, :exceeded_failure_rate)
+      true ->
+        enforce_failure_limits(device, deployment_group)
+    end
+  end
 
-        {:error, :updates_blocked, device}
+  @doc """
+  Put the device in the penalty box if it has failed to update too often, by the
+  deployment group's failure rate or its failure threshold.
+
+  The penalty clears the device's update attempts, so once it ends the device has
+  a full set of tries again. This is the one place a device is penalized for its
+  failures, whether the orchestrator is about to send it an update or
+  `verify_update_eligibility/3` is about to hand one out.
+
+  A device over its limits is never updated, even when recording the penalty
+  fails; the failure is logged instead.
+  """
+  @spec enforce_failure_limits(Device.t(), DeploymentGroup.t()) ::
+          {:ok, Device.t()} | {:error, :updates_blocked, Device.t()}
+  def enforce_failure_limits(device, deployment_group) do
+    cond do
+      failure_rate_met?(device, deployment_group) ->
+        put_device_in_penalty_box(device, deployment_group, :exceeded_failure_rate)
 
       failure_threshold_met?(device, deployment_group) ->
-        {:ok, device} = put_device_in_penalty_box(device, deployment_group, :exceeded_failure_threshold)
-
-        {:error, :updates_blocked, device}
+        put_device_in_penalty_box(device, deployment_group, :exceeded_failure_threshold)
 
       true ->
         {:ok, device}
@@ -453,22 +471,51 @@ defmodule NervesHub.Devices.Updates do
     # make something other than the current release's.
     target_release = ManagedDeployments.target_release(deployment_group, device)
 
-    :ok = DeviceTemplates.audit_firmware_upgrade_blocked(deployment_group, device, target_release.firmware)
-    _ = FirmwareUpdates.clear_inflight_update(device)
-
     device = Repo.preload(device, [:org, :product, :current_device_firmware])
 
-    Logger.info("Device #{device.identifier} put in penalty box until #{blocked_until}", %{
-      identifier: device.identifier,
-      org: device.org.name,
-      product: device.product.name,
-      platform: deployment_group.platform,
-      current_firmware_version: device.current_device_firmware.firmware_metadata.version,
-      upgrading_firmware_version: target_release.firmware.version,
-      reason: reason
-    })
+    # The penalty, its audit and the cleared inflight update go together or not
+    # at all. A Multi checks its changeset before it opens a transaction, so a
+    # penalty that cannot be recorded does not abort the one
+    # `DeviceEvents.schedule_update/3` has open.
+    Multi.new()
+    |> Multi.update(:device, Device.changeset(device, %{updates_blocked_until: blocked_until, update_attempts: []}))
+    |> Multi.run(:audit, fn _repo, %{device: device} ->
+      {:ok, DeviceTemplates.audit_firmware_upgrade_blocked(deployment_group, device, target_release.firmware)}
+    end)
+    |> Multi.run(:inflight_update, fn _repo, %{device: device} ->
+      {:ok, FirmwareUpdates.clear_inflight_update(device)}
+    end)
+    |> Repo.transact()
+    |> case do
+      {:ok, %{device: device}} ->
+        Logger.info("Device #{device.identifier} put in penalty box until #{blocked_until}", %{
+          identifier: device.identifier,
+          org: device.org.name,
+          product: device.product.name,
+          platform: deployment_group.platform,
+          # A device that has not reported its firmware since device firmwares were
+          # introduced has none on record
+          current_firmware_version: get_in(device.current_device_firmware.firmware_metadata.version),
+          upgrading_firmware_version: target_release.firmware.version,
+          reason: reason
+        })
 
-    Devices.update_device(device, %{updates_blocked_until: blocked_until, update_attempts: []})
+        DeviceEvents.updated(device)
+
+        {:error, :updates_blocked, device}
+
+      {:error, :device, changeset, _changes} ->
+        Logger.warning("Device #{device.identifier} could not be put in the penalty box", %{
+          identifier: device.identifier,
+          errors: inspect(changeset.errors)
+        })
+
+        # Refused all the same, as a device with updates off is, so whatever
+        # was inflight goes.
+        _ = FirmwareUpdates.clear_inflight_update(device)
+
+        {:error, :updates_blocked, device}
+    end
   end
 
   @spec update_attempted(DeviceInfo.t(), DateTime.t()) :: :ok | {:error, Changeset.t()}
@@ -700,18 +747,5 @@ defmodule NervesHub.Devices.Updates do
     description = "User #{user.name} removed device #{device.identifier} from the penalty box"
     params = %{updates_blocked_until: nil, update_attempts: []}
     Devices.update_device_with_audit(device, params, user, description)
-  end
-
-  def update_blocked_until(device, deployment) do
-    blocked_until =
-      DateTime.utc_now()
-      |> DateTime.truncate(:second)
-      |> DateTime.add(deployment.penalty_timeout_minutes * 60, :second)
-
-    target_release = ManagedDeployments.target_release(deployment, device)
-
-    DeviceTemplates.audit_firmware_upgrade_blocked(deployment, device, target_release.firmware)
-
-    Devices.update_device(device, %{updates_blocked_until: blocked_until})
   end
 end
