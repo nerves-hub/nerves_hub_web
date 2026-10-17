@@ -355,7 +355,7 @@ Read in every environment.
 | Variable | Default | Description |
 | --- | --- | --- |
 | `SENTRY_DSN_URL` | — | Sentry DSN. Without it, nothing is sent. |
-| `SENTRY_ENABLE_LOGGING` | `false` | Forward logs to Sentry, not just exceptions. |
+| `SENTRY_ENABLE_LOGGING` | `false` | Forward logs at `info` and above to Sentry, not just exceptions. |
 | `SENTRY_ENABLE_TRACING` | `false` | Send traces to Sentry via OpenTelemetry. |
 | `SENTRY_TRACING_RATE` | `0.05` | Fraction of transactions sampled. Oban's own polling queries are sampled at 1% regardless. |
 | `OTLP_ENDPOINT` | — | Send traces to an OTLP collector over HTTP instead. Only used when `SENTRY_ENABLE_TRACING` is off; with neither set, trace export is disabled entirely. |

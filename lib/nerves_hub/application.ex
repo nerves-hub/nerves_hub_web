@@ -82,12 +82,9 @@ defmodule NervesHub.Application do
   end
 
   defp setup_logging() do
-    # Sentrys duplicate log handler checking (in their lib) runs before our application
-    # has started, so instead, lets just remove the handler if it exists
-    _ =
-      if Application.get_env(:sentry, :enable_logs, false) do
-        :logger.remove_handler(:sentry_log_handler)
-      end
+    # Sentry attaches its own :sentry_log_handler when it starts with `:logs`
+    # set, before ours exists for its duplicate check to find, so remove it here.
+    _ = :logger.remove_handler(:sentry_log_handler)
 
     :ok =
       :logger.add_handler(:sentry_handler, Sentry.LoggerHandler, %{
