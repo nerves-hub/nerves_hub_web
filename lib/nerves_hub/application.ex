@@ -82,9 +82,8 @@ defmodule NervesHub.Application do
   end
 
   defp setup_logging() do
-    # Sentry attaches its own :sentry_log_handler when it starts, before ours
-    # exists for its duplicate check to find, so remove it here. Sentry 14
-    # attaches it whenever `:logs` is set, not only when logging is on.
+    # Sentry attaches its own :sentry_log_handler when it starts with `:logs`
+    # set, before ours exists for its duplicate check to find, so remove it here.
     _ = :logger.remove_handler(:sentry_log_handler)
 
     :ok =
