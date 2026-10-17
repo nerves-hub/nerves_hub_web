@@ -3,6 +3,14 @@ defmodule NervesHubWeb.Components.UtilsTest do
 
   alias NervesHubWeb.Components.Utils
 
+  describe "humanize_size/1" do
+    test "uses binary units" do
+      assert Utils.humanize_size(1_167_772_160) == "1.09 GB"
+      assert Utils.humanize_size(167_772_160) == "160.0 MB"
+      assert Utils.humanize_size(772_160) == "754.06 KB"
+    end
+  end
+
   describe "format_serial/1 with integer" do
     test "integer serial number is formatted in hex" do
       n = 112_346_101_875_805_641_052_401_911_002_393_715_100

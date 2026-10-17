@@ -54,12 +54,9 @@ defmodule NervesHub.MixProject do
           SortedMap,
           Settings,
           # Emails and views
-          NervesHub.EmailView,
           NervesHubWeb.DeviceHTML,
-          NervesHubWeb.HomeView,
           NervesHubWeb.OAuthHTML,
           NervesHubWeb.PasswordResetHTML,
-          NervesHubWeb.ProductView,
           # Tools
           ~r/Mix.Tasks\..*/,
           Tasks,
@@ -192,7 +189,6 @@ defmodule NervesHub.MixProject do
       {:phoenix_live_reload, "~> 1.2", only: :dev},
       {:phoenix_live_view, "~> 1.1"},
       {:phoenix_pubsub, "~> 2.0"},
-      {:phoenix_view, "~> 2.0"},
       {:phoenix_test, "~> 0.8", only: :test},
       {:plug, "~> 1.7"},
       {:plug_attack, "~> 0.4.2"},

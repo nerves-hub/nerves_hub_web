@@ -147,7 +147,7 @@
               <div class="text-xs text-base-500">
                 Last used:
                 <%= if !is_nil(access_token.last_used) do %>
-                  {DateTimeFormat.from_now(access_token.last_used)}
+                  {DateTimes.from_now(access_token.last_used)}
                 <% else %>
                   <span class="text-base-400">Never</span>
                 <% end %>

@@ -1,14 +1,14 @@
 defmodule NervesHubWeb do
   @moduledoc """
   The entrypoint for defining your web interface, such
-  as controllers, views, channels and so on.
+  as controllers, LiveViews, channels and so on.
 
   This can be used in your application as:
 
       use NervesHubWeb, :controller
-      use NervesHubWeb, :view
+      use NervesHubWeb, :live_view
 
-  The definitions below will be executed for every view,
+  The definitions below will be executed for every LiveView,
   controller, etc, so keep them short and clean, focused
   on imports, uses and aliases.
 
@@ -223,31 +223,6 @@ defmodule NervesHubWeb do
     end
   end
 
-  def view() do
-    quote do
-      use Phoenix.View,
-        root: "lib/nerves_hub_web/templates",
-        namespace: NervesHubWeb
-
-      import Phoenix.Component
-
-      import Phoenix.Controller,
-        only: [get_flash: 1, get_flash: 2, view_module: 1, view_template: 1]
-
-      alias NervesHubWeb.Components.Navigation
-      alias NervesHubWeb.DeviceLive
-      alias NervesHubWeb.Endpoint
-
-      # Import convenience functions from controllers
-
-      # Include shared imports and aliases for views
-      unquote(view_helpers())
-
-      # Routes generation with the ~p sigil
-      unquote(verified_routes())
-    end
-  end
-
   def component() do
     quote do
       use Phoenix.Component
@@ -432,9 +407,6 @@ defmodule NervesHubWeb do
 
       # Import LiveView helpers (live_render, live_component, live_patch, etc)
       import Phoenix.LiveView.Helpers
-
-      # Import basic rendering functionality (render, render_layout, etc)
-      import Phoenix.View
 
       alias NervesHubWeb.Router.Helpers, as: Routes
     end

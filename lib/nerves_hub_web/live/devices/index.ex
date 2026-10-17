@@ -21,12 +21,12 @@ defmodule NervesHubWeb.Live.Devices.Index do
   alias NervesHubWeb.Components.AdvancedSearch
   alias NervesHubWeb.Components.BulkActionsSidebar
   alias NervesHubWeb.Components.CAHelpers
+  alias NervesHubWeb.Components.DateTimes
   alias NervesHubWeb.Components.DeviceUpdateStatus
   alias NervesHubWeb.Components.FilterSidebar
   alias NervesHubWeb.Components.HealthStatus
   alias NervesHubWeb.Components.ListSettingsSidebar
   alias NervesHubWeb.Components.Sorting
-  alias NervesHubWeb.LayoutView.DateTimeFormat
   alias Phoenix.LiveView.AsyncResult
   alias Phoenix.LiveView.JS
   alias Phoenix.Socket.Broadcast
@@ -1116,7 +1116,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
   defp connection_established_at_formatted(latest_connection) do
     latest_connection
     |> Map.get(:established_at)
-    |> DateTimeFormat.from_now()
+    |> DateTimes.from_now()
   end
 
   defp pagination_changes(params) do
