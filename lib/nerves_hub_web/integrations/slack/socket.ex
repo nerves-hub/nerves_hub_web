@@ -76,6 +76,7 @@ defmodule NervesHubWeb.Integrations.Slack.Socket do
       websocket: nil,
       upgrade_status: nil,
       upgrade_headers: nil,
+      early_data: [],
       backoff: 0
     }
 
@@ -119,7 +120,7 @@ defmodule NervesHubWeb.Integrations.Slack.Socket do
   defp connect(state) do
     with {:ok, url} <- Client.open_socket(state.app_token),
          {:ok, conn, ref} <- open(URI.parse(url)) do
-      %{state | conn: conn, ref: ref, websocket: nil, upgrade_status: nil, upgrade_headers: nil}
+      %{state | conn: conn, ref: ref, websocket: nil, upgrade_status: nil, upgrade_headers: nil, early_data: []}
     else
       {:error, reason} -> reconnect(state, "Slack did not open a connection: #{inspect(reason)}")
       {:error, conn, reason} -> reconnect(%{state | conn: conn}, "the connection failed: #{inspect(reason)}")
@@ -153,6 +154,7 @@ defmodule NervesHubWeb.Integrations.Slack.Socket do
         websocket: nil,
         upgrade_status: nil,
         upgrade_headers: nil,
+        early_data: [],
         backoff: next_backoff(state.backoff)
     }
   end
@@ -165,11 +167,23 @@ defmodule NervesHubWeb.Integrations.Slack.Socket do
   defp response({:status, ref, status}, %{ref: ref} = state), do: %{state | upgrade_status: status}
   defp response({:headers, ref, headers}, %{ref: ref} = state), do: %{state | upgrade_headers: headers}
 
+  # Frames sent straight after the upgrade, such as Slack's hello, can arrive in
+  # the same packet as it. Mint hands those over as the 101's body, before
+  # `:done`, so they are held until the WebSocket exists to decode them.
+  defp response({:data, ref, data}, %{ref: ref, websocket: nil} = state) do
+    %{state | early_data: [state.early_data | data]}
+  end
+
   defp response({:done, ref}, %{ref: ref, websocket: nil, upgrade_status: status, upgrade_headers: headers} = state)
        when is_integer(status) and is_list(headers) do
     case Mint.WebSocket.new(state.conn, ref, status, headers) do
-      {:ok, conn, websocket} -> %{state | conn: conn, websocket: websocket}
-      {:error, conn, reason} -> reconnect(%{state | conn: conn}, "Slack refused the WebSocket: #{inspect(reason)}")
+      {:ok, conn, websocket} ->
+        early_data = IO.iodata_to_binary(state.early_data)
+        state = %{state | conn: conn, websocket: websocket, early_data: []}
+        if early_data == "", do: state, else: response({:data, ref, early_data}, state)
+
+      {:error, conn, reason} ->
+        reconnect(%{state | conn: conn}, "Slack refused the WebSocket: #{inspect(reason)}")
     end
   end
 
