@@ -740,6 +740,11 @@ if config_env() == :prod do
   end
 end
 
+# Sentry 13 sends structured logs when `enable_logs` is set; 14 removes that
+# option and sends them when `:logs` has a `:level` instead. 13 rejects a nil
+# level, so it is only set when logging is on. Drop `enable_logs` once we're on 14.
+sentry_logging? = System.get_env("SENTRY_ENABLE_LOGGING", "false") == "true"
+
 config :opentelemetry, :resource, service: %{name: nerves_hub_app}
 
 config :sentry,
@@ -747,14 +752,12 @@ config :sentry,
   environment_name: System.get_env("DEPLOY_ENV", to_string(config_env())),
   before_send: {NervesHubWeb.SentryEventFilter, :filter_non_500},
   release: "nerves_hub@#{Application.spec(:nerves_hub, :vsn)}",
-  enable_logs: System.get_env("SENTRY_ENABLE_LOGGING", "false") == "true",
+  enable_logs: sentry_logging?,
   before_send_log: fn log_event ->
     updated_attributes = Map.put(log_event.attributes, :nerves_hub_app, nerves_hub_app)
     %{log_event | attributes: updated_attributes}
   end,
-  logs: [
-    metadata: :all
-  ],
+  logs: [metadata: :all] ++ if(sentry_logging?, do: [level: :info], else: []),
   tags: %{
     app: nerves_hub_app
   },
