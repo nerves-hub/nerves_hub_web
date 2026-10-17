@@ -42,7 +42,6 @@ defmodule NervesHub.MixProject do
         plt_file: {:no_warn, "priv/plts/dialyzer.plt"}
       ],
       test_coverage: [
-        tool: ExCoveralls,
         ignore_modules: [
           # API support
           NervesHubWeb.ApiSpec,
@@ -105,9 +104,7 @@ defmodule NervesHub.MixProject do
 
   def cli() do
     [
-      docs: :docs,
-      coveralls: :test,
-      "coveralls.html": :test
+      docs: :docs
     ]
   end
 
@@ -137,11 +134,8 @@ defmodule NervesHub.MixProject do
       {:briefly, "~> 0.5.0"},
       {:castore, "~> 1.0"},
       {:circular_buffer, "~> 1.1.0"},
-      {:comeonin, "~> 5.3"},
       {:confuse, "~> 0.4.0"},
-      {:contex, "~> 0.5.0"},
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
-      {:crontab, "~> 1.1"},
       {:decimal, "~> 3.0", override: true},
       {:decorator, "~> 1.2"},
       {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false},
@@ -154,16 +148,13 @@ defmodule NervesHub.MixProject do
       {:ex_aws, "~> 2.0"},
       {:ex_aws_s3, "~> 2.0"},
       {:ex_json_schema, "~> 0.11.3"},
-      {:excoveralls, "~> 0.18", only: :test},
       {:finch, "~> 0.24.0"},
-      {:floki, "~> 0.38.0"},
       {:gen_smtp, "~> 1.0"},
       {:gettext, "~> 0.26.2"},
       {:group, "~> 0.3.1"},
       {:hackney, "~> 4.7"},
       {:hammer, "~> 7.5.0"},
       {:igniter, "~> 0.8", only: [:dev, :test]},
-      {:hlclock, "~> 1.0"},
       {:process_hub, "~> 0.7.0"},
       {:jason, "~> 1.2", override: true},
       {:joken, "~> 2.6"},
