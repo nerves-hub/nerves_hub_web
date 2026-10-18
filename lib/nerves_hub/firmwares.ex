@@ -512,6 +512,7 @@ defmodule NervesHub.Firmwares do
            {:ok, firmware} <- soft_delete_firmware(firmware, user) do
         _ =
           [firmware.upload_metadata | delta_upload_metadata]
+          |> Enum.filter(&uploaded_file?/1)
           |> Enum.map(&DeleteFirmware.new/1)
           |> Oban.insert_all()
 
@@ -572,16 +573,27 @@ defmodule NervesHub.Firmwares do
   @spec delete_firmware_delta(FirmwareDelta.t()) ::
           {:ok, FirmwareDelta.t()} | {:error, Ecto.Changeset.t() | Oban.Job.changeset()}
   def delete_firmware_delta(%FirmwareDelta{} = delta) do
-    delete_delta_job = DeleteFirmware.new(delta.upload_metadata)
-
     Repo.transact(fn ->
       with {:ok, firmware} <- Repo.delete(delta),
            {:ok, _} = ManagedDeployments.recalculate_release_delta_statuses_by_firmware_id(delta.target_id),
-           {:ok, _} <- Oban.insert(delete_delta_job) do
+           :ok <- queue_file_deletion(delta.upload_metadata) do
         {:ok, firmware}
       end
     end)
   end
+
+  defp queue_file_deletion(upload_metadata) do
+    if uploaded_file?(upload_metadata) do
+      with {:ok, _job} <- Oban.insert(DeleteFirmware.new(upload_metadata)), do: :ok
+    else
+      :ok
+    end
+  end
+
+  # A delta starts with empty upload metadata and only gets a file once it is
+  # built, so one that failed, timed out or is still processing has nothing to
+  # delete.
+  defp uploaded_file?(upload_metadata), do: upload_metadata != %{}
 
   @doc """
   Verify an fwup archive against a set of org keys.

@@ -341,6 +341,40 @@ defmodule NervesHub.FirmwaresTest do
     )
   end
 
+  test "deleting a delta that was never built queues no file removal", %{
+    org_key: org_key,
+    product: product,
+    tmp_dir: tmp_dir
+  } do
+    source = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+    target = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir, version: "1.0.1"})
+
+    {:ok, delta} = Firmwares.start_firmware_delta(source.id, target.id)
+    {:ok, delta} = Firmwares.fail_firmware_delta(delta)
+
+    assert {:ok, _} = Firmwares.delete_firmware_delta(delta)
+
+    assert {:error, :not_found} = Firmwares.get_firmware_delta(delta.id)
+    assert all_enqueued(worker: DeleteFirmware) == []
+  end
+
+  test "deleting firmware skips its deltas that were never built", %{
+    user: user,
+    org_key: org_key,
+    product: product,
+    tmp_dir: tmp_dir
+  } do
+    firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+    other = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir, version: "1.0.1"})
+
+    {:ok, _delta} = Firmwares.start_firmware_delta(firmware.id, other.id)
+
+    assert {:ok, _} = Firmwares.delete_firmware(firmware, user)
+
+    assert [%{args: %{"local_path" => local_path}}] = all_enqueued(worker: DeleteFirmware)
+    assert local_path == firmware.upload_metadata[:local_path]
+  end
+
   test "firmware stores size", %{
     org: org,
     org_key: org_key,
