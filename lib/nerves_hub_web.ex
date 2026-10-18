@@ -91,7 +91,10 @@ defmodule NervesHubWeb do
       import NervesHubWeb.Components.Breadcrumb
       import NervesHubWeb.Components.DateTimes
       import NervesHubWeb.Components.Icons
-      import NervesHubWeb.CoreComponents, only: [button: 1, input: 1, tag_input: 1, core_label: 1, error: 1, logo: 1]
+
+      import NervesHubWeb.CoreComponents,
+        only: [button: 1, input: 1, tag_input: 1, core_label: 1, error: 1, field_errors: 1, logo: 1]
+
       import NervesHubWeb.Helpers.Authorization
       # HTML escaping functionality
       import Phoenix.HTML
@@ -397,11 +400,8 @@ defmodule NervesHubWeb do
 
   defp view_helpers() do
     quote do
-      use PhoenixHTMLHelpers
       use Gettext, backend: NervesHubWeb.Gettext
 
-      import NervesHubWeb.ErrorHelpers
-      # Use all HTML functionality (forms, tags, etc)
       import Phoenix.HTML
       import Phoenix.HTML.Form
 

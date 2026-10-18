@@ -745,6 +745,21 @@ defmodule NervesHubWeb.CoreComponents do
   end
 
   @doc """
+  Renders a field's errors as plain text, one `<span>` each, for forms that
+  style their own inputs rather than using `input/1`.
+
+  Unlike `input/1`, it shows the errors whether or not the field has been
+  touched, as the form helpers it replaces did.
+  """
+  attr(:field, FormField, required: true)
+
+  def field_errors(assigns) do
+    ~H"""
+    <span :for={msg <- @field.errors} class="help-block">{translate_error(msg)}</span>
+    """
+  end
+
+  @doc """
   Renders a header with title.
   """
   attr(:class, :string, default: nil)
