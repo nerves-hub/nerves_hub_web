@@ -331,17 +331,10 @@ defmodule NervesHubWeb.API.FallbackController do
     put_status(conn, status)
   end
 
-  defp status_from_changeset_errors(errors) do
-    [{error, _} | _] = errors
+  defp status_from_changeset_errors([{error, _} | _]) when error in [:deployment_groups, :firmwares, :devices],
+    do: :conflict
 
-    if conflict_error?(error) do
-      :conflict
-    else
-      :unprocessable_entity
-    end
-  end
-
-  defp conflict_error?(error) do
-    error in [:deployment_groups, :firmwares, :devices]
-  end
+  # An invalid changeset can have no errors of its own when they are all on a
+  # nested changeset, such as the JITP cast onto a CA certificate.
+  defp status_from_changeset_errors(_errors), do: :unprocessable_entity
 end
