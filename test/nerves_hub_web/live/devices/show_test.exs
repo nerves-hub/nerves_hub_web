@@ -1794,6 +1794,43 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       assert Repo.reload(device).update_mode == :automatic
     end
 
+    test "refuses to skip the queue while the device is already updating", %{
+      conn: conn,
+      user: user,
+      org: org,
+      org_key: org_key,
+      product: product,
+      device: device,
+      deployment_group: deployment_group,
+      tmp_dir: tmp_dir
+    } do
+      device = Deployments.update_deployment_group(device, deployment_group)
+      {:ok, connection} = Connections.device_connecting(device.org_id, device.product_id, device.id)
+      :ok = Connections.device_connected(connection.id)
+      device = Devices.set_as_provisioned!(device)
+
+      new_firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+
+      {:ok, {_release, deployment_group}} =
+        ManagedDeployments.create_deployment_release(deployment_group, new_firmware, nil, user, %{})
+
+      {:ok, _deployment_group} =
+        ManagedDeployments.update_deployment_group(deployment_group, %{is_active: true}, user)
+
+      device.id
+      |> InflightUpdate.manual_requested_changeset(new_firmware)
+      |> Repo.insert!()
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      |> click_button("Skip the queue")
+      |> assert_has("div",
+        text: "The device is already updating. Wait for that update to finish before sending another."
+      )
+
+      refute_receive %Broadcast{event: "update"}, 200
+    end
+
     test "allows a device to be sent the available update immediately, using the available Org `firmware_proxy_url` setting",
          %{
            conn: conn,
@@ -2102,6 +2139,38 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       assert String.ends_with?(firmware_url, ".delta.fw")
 
       assert Repo.reload(device).update_mode == :off
+    end
+
+    test "is refused while the device is already updating", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device,
+      fixture: %{firmware: firmware}
+    } do
+      Ecto.Changeset.change(%DeviceConnection{}, %{
+        device_id: device.id,
+        established_at: DateTime.utc_now(),
+        last_seen_at: DateTime.utc_now(),
+        status: :connected
+      })
+      |> Repo.insert!()
+
+      device.id
+      |> InflightUpdate.manual_requested_changeset(firmware)
+      |> Repo.insert!()
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      |> select("Firmware", option: firmware.version, exact_option: false)
+      |> click_button("Send full update")
+      |> assert_has("div",
+        text: "The device is already updating. Wait for that update to finish before sending another."
+      )
+
+      refute_receive %Broadcast{event: "update"}, 200
+
+      assert Repo.reload(device).update_mode == :automatic
     end
   end
 

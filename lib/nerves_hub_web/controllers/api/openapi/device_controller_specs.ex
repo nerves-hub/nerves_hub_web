@@ -119,6 +119,10 @@ defmodule NervesHubWeb.API.OpenAPI.DeviceControllerSpecs do
     422 => response("Device is deleted and must be restored first", "application/json", ErrorSchemas.ErrorResponse)
   }
 
+  @already_updating_error %{
+    409 => response("Device is already updating", "application/json", ErrorSchemas.ErrorResponse)
+  }
+
   @path_structures %{
     short: %{
       path_prefix: "/api/devices/{identifier}",
@@ -397,7 +401,11 @@ defmodule NervesHubWeb.API.OpenAPI.DeviceControllerSpecs do
         opts.tags,
         path_structure: path_structure,
         request_body: request_body,
-        response: Map.merge(@no_content_response, Map.merge(@not_found_error, @validation_error))
+        response:
+          @no_content_response
+          |> Map.merge(@not_found_error)
+          |> Map.merge(@validation_error)
+          |> Map.merge(@already_updating_error)
       )
 
     add_to_paths(openapi, "#{opts.path_prefix}/upgrade", %OpenApiSpex.PathItem{

@@ -1144,6 +1144,23 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
       assert response(conn, 204)
     end
 
+    test "conflict, when the device is already updating", %{conn: conn, user: user, org: org, tmp_dir: tmp_dir} do
+      product = Fixtures.product_fixture(user, org)
+      org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
+      firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+      device = Fixtures.device_fixture(org, product, firmware)
+
+      path = Routes.api_device_path(conn, :upgrade, device.identifier)
+
+      assert response(post(conn, path, %{uuid: firmware.uuid}), 204)
+
+      assert json_response(post(conn, path, %{uuid: firmware.uuid}), 409) == %{
+               "errors" => %{
+                 "detail" => "The device is already updating. Wait for that update to finish before sending another."
+               }
+             }
+    end
+
     test "auth failure, with short url", %{conn2: conn, user: user, org: org, tmp_dir: tmp_dir} do
       product = Fixtures.product_fixture(user, org)
       org_key = Fixtures.org_key_fixture(org, user, tmp_dir)

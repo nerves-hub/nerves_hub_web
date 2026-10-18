@@ -985,6 +985,24 @@ defmodule NervesHub.DevicesTest do
       refute_receive %Broadcast{topic: ^topic, event: "update"}, 200
     end
 
+    # Skipping the queue, or the orchestrator scheduling a device that got an
+    # update some other way in the meantime, used to crash on the inflight row's
+    # unique index.
+    test "schedule_update is refused while the device is already updating", %{
+      device: device,
+      deployment_group: deployment_group,
+      user: user
+    } do
+      topic = "device:#{device.id}"
+
+      assert :ok = DeviceEvents.device_requested_update(device)
+      Phoenix.PubSub.subscribe(NervesHub.PubSub, topic)
+
+      assert {:error, :already_updating} = DeviceEvents.schedule_update(device.id, deployment_group, user: user)
+      assert {:error, :already_updating} = DeviceEvents.schedule_update(device.id, deployment_group)
+      refute_receive %Broadcast{topic: ^topic, event: "update"}, 200
+    end
+
     # The row survives the reboot, so the device is not given a second update
     # while it is on its way back up.
     test "device_requested_update is refused while the device is rebooting", %{device: device} do

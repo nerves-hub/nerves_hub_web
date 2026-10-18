@@ -231,9 +231,9 @@ defmodule NervesHubWeb.API.DeviceController do
           []
         end
 
-      {:ok, _device} = DeviceEvents.manual_update(device, firmware, scope.user, opts)
-
-      send_resp(conn, :no_content, "")
+      with {:ok, _device} <- DeviceEvents.manual_update(device, firmware, scope.user, opts) do
+        send_resp(conn, :no_content, "")
+      end
     end
   end
 
