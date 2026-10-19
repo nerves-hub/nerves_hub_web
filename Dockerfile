@@ -1,6 +1,6 @@
-ARG ELIXIR_VERSION=1.20.3
-ARG OTP_VERSION=29.0.5
-ARG DISTRO=resolute-20260724.1
+ARG ELIXIR_VERSION=1.20.4
+ARG OTP_VERSION=29.1.2
+ARG DISTRO=resolute-20261006
 ARG NODE_VERSION=24.13.1
 # Firmware that requires a newer fwup than this one is rejected on upload, so
 # keep this at or above the fwup that Nerves systems build with.
