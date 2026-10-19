@@ -11,6 +11,7 @@ defmodule NervesHub.DeviceLinkTest do
   alias NervesHub.Devices.Connections
   alias NervesHub.Devices.DeviceConnection
   alias NervesHub.Devices.InflightUpdate
+  alias NervesHub.FirmwareUpdates
   alias NervesHub.Fixtures
   alias NervesHub.Repo
   alias Phoenix.Socket.Broadcast
@@ -372,6 +373,32 @@ defmodule NervesHub.DeviceLinkTest do
 
       :ok =
         DeviceLink.status_update(to_device_info(device), %{"status" => "started", "downloader_network_interface" => nil})
+    end
+  end
+
+  describe "join/2" do
+    test "keeps the old firmware on record when the update that installed the new one cannot be recorded", %{
+      device: device,
+      org_key: org_key,
+      product: product,
+      tmp_dir: tmp_dir
+    } do
+      previous_uuid = device.firmware_metadata.uuid
+      new_firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+      {:ok, _inflight_update} = Fixtures.inflight_update(device, new_firmware)
+
+      stub(FirmwareUpdates, :firmware_update_successful, fn _device, _previous_metadata ->
+        {:error, :unavailable}
+      end)
+
+      params = %{"nerves_fw_uuid" => new_firmware.uuid, "device_api_version" => "2.2.0"}
+
+      assert {:error, {:error, :unavailable}} = DeviceLink.join(connected_device_info(device), params)
+
+      # Had the new firmware been kept, the next join would see nothing new and
+      # end this update as abandoned rather than finish it.
+      assert Repo.reload!(device).firmware_metadata.uuid == previous_uuid
+      assert Repo.get_by(InflightUpdate, device_id: device.id)
     end
   end
 
