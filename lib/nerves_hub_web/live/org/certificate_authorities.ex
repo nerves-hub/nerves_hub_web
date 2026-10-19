@@ -8,8 +8,8 @@ defmodule NervesHubWeb.Live.Org.CertificateAuthorities do
   alias NervesHub.Devices.CACertificates
   alias NervesHub.Products
   alias NervesHubWeb.Components.CAHelpers
+  alias NervesHubWeb.Components.DateTimes
   alias NervesHubWeb.Components.Utils
-  alias NervesHubWeb.LayoutView.DateTimeFormat
 
   embed_templates("certificate_authority_templates/*")
 

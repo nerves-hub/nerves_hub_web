@@ -211,7 +211,7 @@ defmodule NervesHub.DevicesTest do
       {:ok, device} =
         Devices.update_firmware_metadata(
           device,
-          %{metadata | uuid: UUIDv7.autogenerate()},
+          %{metadata | uuid: Ecto.UUID.generate(version: 7)},
           :unknown,
           false
         )
@@ -233,7 +233,7 @@ defmodule NervesHub.DevicesTest do
       {:ok, device} =
         Devices.update_firmware_metadata(
           device,
-          %{metadata | uuid: UUIDv7.autogenerate()},
+          %{metadata | uuid: Ecto.UUID.generate(version: 7)},
           :unknown,
           false
         )
@@ -2546,7 +2546,7 @@ defmodule NervesHub.DevicesTest do
             device,
             Map.from_struct(%{
               device.firmware_metadata
-              | uuid: UUIDv7.autogenerate()
+              | uuid: Ecto.UUID.generate(version: 7)
             }),
             :unknown,
             false
@@ -2610,7 +2610,7 @@ defmodule NervesHub.DevicesTest do
             device,
             Map.from_struct(%{
               device.firmware_metadata
-              | uuid: UUIDv7.autogenerate()
+              | uuid: Ecto.UUID.generate(version: 7)
             }),
             :unknown,
             false
@@ -2666,7 +2666,7 @@ defmodule NervesHub.DevicesTest do
             device,
             Map.from_struct(%{
               device.firmware_metadata
-              | uuid: UUIDv7.autogenerate()
+              | uuid: Ecto.UUID.generate(version: 7)
             }),
             :unknown,
             false
@@ -2716,7 +2716,7 @@ defmodule NervesHub.DevicesTest do
             device,
             Map.from_struct(%{
               device.firmware_metadata
-              | uuid: UUIDv7.autogenerate()
+              | uuid: Ecto.UUID.generate(version: 7)
             }),
             :unknown,
             false
@@ -2774,7 +2774,7 @@ defmodule NervesHub.DevicesTest do
             device,
             Map.from_struct(%{
               device.firmware_metadata
-              | uuid: UUIDv7.autogenerate()
+              | uuid: Ecto.UUID.generate(version: 7)
             }),
             :unknown,
             false
@@ -2824,7 +2824,7 @@ defmodule NervesHub.DevicesTest do
             device,
             Map.from_struct(%{
               device.firmware_metadata
-              | uuid: UUIDv7.autogenerate()
+              | uuid: Ecto.UUID.generate(version: 7)
             }),
             :unknown,
             false
@@ -2892,7 +2892,7 @@ defmodule NervesHub.DevicesTest do
             device,
             Map.from_struct(%{
               device.firmware_metadata
-              | uuid: UUIDv7.autogenerate()
+              | uuid: Ecto.UUID.generate(version: 7)
             }),
             :unknown,
             false
@@ -3219,7 +3219,7 @@ defmodule NervesHub.DevicesTest do
       {:ok, device} =
         Devices.update_firmware_metadata(
           device,
-          %{"uuid" => UUIDv7.autogenerate()},
+          %{"uuid" => Ecto.UUID.generate(version: 7)},
           :unknown,
           false
         )

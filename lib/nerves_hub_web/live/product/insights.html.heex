@@ -15,7 +15,7 @@
           <span class="lucide-clock--light size-4 shrink"></span>
           <span class="font-normal">Updated</span>
           <time class="font-normal" id="health-last-updated" phx-hook="UpdatingTimeAgo" datetime={String.replace(DateTime.to_string(DateTime.truncate(@updated_at, :second)), " ", "T")}>
-            {Timex.from_now(@updated_at)}
+            {RelativeTime.from_now(@updated_at)}
           </time>
         </div>
         <div class="text-xs tracking-wide text-base-300">Auto refresh</div>
@@ -433,7 +433,7 @@
                   {Number.Delimit.number_to_delimited(entry.occurrence_count, precision: 0)} {if entry.occurrence_count == 1, do: "occurrence", else: "occurrences"}
                 </div>
               </div>
-              <span class="shrink-0 text-xs text-content-muted">{Timex.from_now(entry.last_occurred_at)}</span>
+              <span class="shrink-0 text-xs text-content-muted">{RelativeTime.from_now(entry.last_occurred_at)}</span>
             </div>
           </div>
         </div>

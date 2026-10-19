@@ -93,7 +93,7 @@
               {Map.get(@device_counts, group.id, "—")}
             </td>
             <td class="py-3 pr-6 text-base-300">
-              <div>{Timex.from_now(group.last_seen_at)}</div>
+              <div>{RelativeTime.from_now(group.last_seen_at)}</div>
               <div :if={group.last_seen_firmware_uuid not in [nil, ""]} class="truncate pt-0.5 font-mono text-xs text-base-500" title={group.last_seen_firmware_uuid}>
                 {group.last_seen_firmware_uuid}
               </div>

@@ -99,4 +99,16 @@ defmodule NervesHubWeb.Components.DateTimesTest do
       assert DateTimes.to_local_string(nil, "Pacific/Auckland") == nil
     end
   end
+
+  describe "from_now/1" do
+    test "describes a DateTime or NaiveDateTime relative to now" do
+      assert DateTimes.from_now(DateTime.add(DateTime.utc_now(), -3, :hour)) == "3 hours ago"
+      assert DateTimes.from_now(NaiveDateTime.add(NaiveDateTime.utc_now(), -2, :day)) == "2 days ago"
+    end
+
+    test "passes anything else through" do
+      assert DateTimes.from_now(nil) == nil
+      assert DateTimes.from_now("never") == "never"
+    end
+  end
 end
