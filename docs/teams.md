@@ -43,5 +43,5 @@ A Workflows webhook only posts. Its cards cannot carry buttons that act, so ther
 
 - If Teams refuses the webhook (the workflow was deleted or turned off, or its URL no longer works), NervesHub turns the channel off. Each product it was getting events for gets a notification saying why. Fix the workflow, then turn the channel back on, or edit it and paste the workflow's new URL.
 - If Power Automate asks NervesHub to slow down, it waits as long as it is told.
-- Any other failure is retried after 10 seconds, a minute and five minutes. What still could not be posted is tried again with the channel's next event.
+- Any other failure is retried after 10 seconds, a minute and five minutes. What still could not be posted is tried again a minute or so later, the same way.
 - Events held for more than an hour are dropped rather than posted late.
