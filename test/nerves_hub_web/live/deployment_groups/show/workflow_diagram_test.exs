@@ -54,9 +54,8 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show.WorkflowDiagramTest do
     setup %{deployment_group: deployment_group} do
       [canary | _] = Workflows.release_steps(deployment_group.current_deployment_release_id)
 
-      canary
-      |> Workflows.start_step()
-      |> Workflows.fail_step()
+      {:ok, started} = Workflows.start_step(deployment_group, canary)
+      {:ok, _} = Workflows.fail_step(deployment_group, started, 1)
 
       :ok
     end
@@ -157,7 +156,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show.WorkflowDiagramTest do
       {:ok, view, _html} = live(conn, "/org/#{org.name}/#{product.name}/deployment_groups/#{deployment_group.name}")
 
       [canary | _] = Workflows.release_steps(deployment_group.current_deployment_release_id)
-      _ = Workflows.start_step(canary)
+      {:ok, _} = Workflows.start_step(deployment_group, canary)
 
       _ =
         view
