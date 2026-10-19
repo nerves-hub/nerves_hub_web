@@ -6,6 +6,7 @@ alias NervesHub.Workers.CleanUpSoftDeletedDevices
 alias NervesHub.Workers.DeleteExpiredCLISessionRecords
 alias NervesHub.Workers.ExpireInflightUpdates
 alias NervesHub.Workers.FirmwareDeltaTimeout
+alias NervesHub.Workers.QueueStrandedChatEvents
 alias NervesHub.Workers.ScheduleOrgAuditLogTruncation
 alias NervesHubWeb.API.ErrorJSON
 alias Phoenix.LiveView.Engine
@@ -118,7 +119,8 @@ config :nerves_hub, Oban,
       {"*/1 * * * *", CleanStaleDeviceConnections},
       {"* * * * *", FirmwareDeltaTimeout},
       {"*/5 * * * *", ExpireInflightUpdates},
-      {"*/15 * * * *", CleanUpSoftDeletedDevices}
+      {"*/15 * * * *", CleanUpSoftDeletedDevices},
+      {"* * * * *", QueueStrandedChatEvents}
     ]
   ],
   queues: [

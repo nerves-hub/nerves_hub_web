@@ -24,6 +24,9 @@ defmodule NervesHub.Integrations.ChatWebhooks do
   keeps a fleet changing at once from burying the channel, and the chat
   service from throttling it.
 
+  An event can be left with no job coming for it, and
+  `NervesHub.Workers.QueueStrandedChatEvents` queues one (`queue_stranded/0`).
+
   A webhook its chat service refuses (deleted or turned off) turns the
   channel off, and each product it heard gets a notification saying so.
   """
@@ -56,6 +59,10 @@ defmodule NervesHub.Integrations.ChatWebhooks do
 
   # How long events are held before posting, so a burst becomes one card.
   @batch_seconds 15
+
+  # Held this long, an event should have been posted: the job that posts it
+  # runs 15 seconds after the first event it holds.
+  @stranded_seconds @batch_seconds * 2
 
   # The most events one job posts. A larger backlog is posted by the jobs
   # that follow, so one channel's flood cannot hold a worker for long.
@@ -215,6 +222,37 @@ defmodule NervesHub.Integrations.ChatWebhooks do
     |> where([c], c.id in ^channel_ids and c.enabled and ^key in c.events)
     |> select([c], c.id)
     |> Repo.all()
+  end
+
+  @doc """
+  Queues a `NervesHub.Workers.PostChatWebhookEvents` job for each channel
+  holding events that no job is coming for, and returns how many it queued.
+  For `NervesHub.Workers.QueueStrandedChatEvents`.
+
+  How events come to be left without one, and why a channel with a job in
+  hand gets no other, is as for Slack
+  (`NervesHub.Integrations.Slack.Subscriptions.queue_stranded/0`).
+  """
+  @spec queue_stranded() :: non_neg_integer()
+  def queue_stranded() do
+    cutoff = DateTime.add(DateTime.utc_now(), -@stranded_seconds)
+
+    queued =
+      PendingEvent
+      |> where([e], e.inserted_at < ^cutoff)
+      |> distinct(true)
+      |> select([e], e.chat_webhook_id)
+      |> Repo.all()
+      |> Enum.count(fn id ->
+        {:ok, job} = Oban.insert(PostChatWebhookEvents.new(%{chat_webhook_id: id}, unique: [states: :incomplete]))
+        not job.conflict?
+      end)
+
+    if queued > 0 do
+      Logger.info("Queued jobs for #{queued} chat webhooks holding events that none was coming for")
+    end
+
+    queued
   end
 
   @doc """
