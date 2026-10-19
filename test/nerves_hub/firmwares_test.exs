@@ -971,6 +971,46 @@ defmodule NervesHub.FirmwaresTest do
       {:ok, :delta_already_exists} = Firmwares.attempt_firmware_delta(source.id, target.id)
     end
 
+    # What a device's assignment finds when another device, joining the same
+    # deployment group at the same moment, started the delta between its look
+    # and its insert.
+    test "losing the race to start a delta leaves the caller's transaction intact", %{
+      firmware: source,
+      org_key: org_key,
+      product: product,
+      tmp_dir: tmp_dir
+    } do
+      target = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+      {:ok, %FirmwareDelta{id: started_id}} = Firmwares.start_firmware_delta(source.id, target.id)
+
+      assert {:ok, :committed} =
+               Repo.transact(fn ->
+                 assert {:error, :already_exists} = Firmwares.start_firmware_delta(source.id, target.id)
+                 {:ok, :committed}
+               end)
+
+      assert {:ok, %FirmwareDelta{id: ^started_id, status: :processing}} =
+               Firmwares.get_firmware_delta_by_source_and_target(source.id, target.id)
+    end
+
+    test "it replaces a delta that failed", %{
+      firmware: source,
+      org_key: org_key,
+      product: product,
+      tmp_dir: tmp_dir
+    } do
+      target = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+      {:ok, failed} = Firmwares.start_firmware_delta(source.id, target.id)
+      {:ok, _} = Firmwares.fail_firmware_delta(failed)
+
+      assert {:ok, :started} = Firmwares.attempt_firmware_delta(source.id, target.id)
+
+      assert {:ok, %FirmwareDelta{status: :processing} = started} =
+               Firmwares.get_firmware_delta_by_source_and_target(source.id, target.id)
+
+      refute started.id == failed.id
+    end
+
     # Nothing to record when nothing was attempted. A started-then-failed delta
     # reads in the UI as "Deltas failed to generate", and -- worse -- leaves the
     # deployment group in `:deltas_failed`, where the orchestrator refuses to

@@ -1001,7 +1001,7 @@ defmodule NervesHub.Firmwares do
         ) ::
           {:ok, :started}
           | {:ok, :no_delta_support}
-          | {:error, :delta_already_exists}
+          | {:ok, :delta_already_exists}
           | {:error, :failed_to_insert_delta}
           | {:error, :failed_to_insert_job}
   def attempt_firmware_delta(source_id, target_id, recalculate_deployment_statuses \\ true) do
@@ -1047,15 +1047,8 @@ defmodule NervesHub.Firmwares do
         {:ok, %FirmwareDelta{}} ->
           {:ok, :delta_already_exists}
 
-        {:delta_insert,
-         {:error,
-          [
-            {:unique_firmware_delta,
-             {"has already been taken", [constraint: :unique, constraint_name: "source_id_target_id_unique_index"]}}
-          ]}} ->
-          # a race condition exists where multiple devices connect, are added to a deployment group, and
-          # try to create a delta, only for one to 'start' but all others fail.
-          # This should be regarded as an `:ok` response.
+        # Started by another caller since the look above.
+        {:delta_insert, {:error, :already_exists}} ->
           {:ok, :delta_already_exists}
 
         {:delta_insert, {:error, changeset}} ->
@@ -1079,22 +1072,36 @@ defmodule NervesHub.Firmwares do
     end)
   end
 
-  @spec start_firmware_delta(non_neg_integer(), non_neg_integer()) ::
-          {:ok, FirmwareDelta.t()} | {:error, Ecto.Changeset.t()}
+  @doc """
+  Start building a delta, replacing one that failed or timed out.
+
+  Returns `{:error, :already_exists}` when another caller started it first.
+  Devices added to a deployment group together race to start the same delta,
+  usually inside the transaction that adds them, so losing the race must not
+  abort that transaction. The losing insert waits for the winner to commit and
+  then does nothing, where a unique violation would have aborted it.
+  """
+  @spec start_firmware_delta(non_neg_integer(), non_neg_integer(), boolean()) ::
+          {:ok, FirmwareDelta.t()} | {:error, :already_exists} | {:error, Ecto.Changeset.t()}
   def start_firmware_delta(source_id, target_id, recalculate_deployment_statuses \\ true) do
-    _ =
-      get_firmware_delta_by_source_and_target(source_id, target_id, [:failed, :timed_out])
-      |> case do
-        {:ok, firmware_delta} -> {:ok, _} = Repo.delete(firmware_delta)
-        {:error, _} -> :ok
-      end
+    # Both racing callers can find the same failed delta, so this must not
+    # raise when the other has already deleted it.
+    {_deleted, _} =
+      FirmwareDelta
+      |> where([fd], fd.source_id == ^source_id and fd.target_id == ^target_id)
+      |> where([fd], fd.status in [:failed, :timed_out])
+      |> Repo.delete_all()
 
     %FirmwareDelta{}
     |> FirmwareDelta.start_changeset(source_id, target_id)
-    |> Repo.insert()
-    |> notify_firmware_delta_target()
+    |> Repo.insert(on_conflict: :nothing, conflict_target: [:source_id, :target_id])
     |> case do
+      {:ok, %FirmwareDelta{id: nil}} ->
+        {:error, :already_exists}
+
       {:ok, firmware_delta} ->
+        :ok = PubSub.broadcast_delta_status(firmware_delta)
+
         _ =
           if recalculate_deployment_statuses do
             {:ok, _} = ManagedDeployments.recalculate_release_delta_statuses_by_firmware_id(target_id)
@@ -1102,8 +1109,8 @@ defmodule NervesHub.Firmwares do
 
         {:ok, firmware_delta}
 
-      passthrough ->
-        passthrough
+      {:error, _changeset} = error ->
+        error
     end
   end
 

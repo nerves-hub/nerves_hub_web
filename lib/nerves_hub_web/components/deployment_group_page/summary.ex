@@ -1,8 +1,7 @@
 defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
   use NervesHubWeb, :live_component
 
-  import NervesHubWeb.LayoutView,
-    only: [humanize_size: 1]
+  import NervesHubWeb.Components.Utils, only: [humanize_size: 1]
 
   alias NervesHub.Devices.BulkActions
   alias NervesHub.Devices.Deployments

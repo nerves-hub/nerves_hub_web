@@ -1,14 +1,14 @@
 defmodule NervesHubWeb do
   @moduledoc """
   The entrypoint for defining your web interface, such
-  as controllers, views, channels and so on.
+  as controllers, LiveViews, channels and so on.
 
   This can be used in your application as:
 
       use NervesHubWeb, :controller
-      use NervesHubWeb, :view
+      use NervesHubWeb, :live_view
 
-  The definitions below will be executed for every view,
+  The definitions below will be executed for every LiveView,
   controller, etc, so keep them short and clean, focused
   on imports, uses and aliases.
 
@@ -91,7 +91,10 @@ defmodule NervesHubWeb do
       import NervesHubWeb.Components.Breadcrumb
       import NervesHubWeb.Components.DateTimes
       import NervesHubWeb.Components.Icons
-      import NervesHubWeb.CoreComponents, only: [button: 1, input: 1, tag_input: 1, core_label: 1, error: 1, logo: 1]
+
+      import NervesHubWeb.CoreComponents,
+        only: [button: 1, input: 1, tag_input: 1, core_label: 1, error: 1, field_errors: 1, logo: 1]
+
       import NervesHubWeb.Helpers.Authorization
       # HTML escaping functionality
       import Phoenix.HTML
@@ -217,31 +220,6 @@ defmodule NervesHubWeb do
 
       # Shortcut for generating JS commands
       alias Phoenix.LiveView.JS
-
-      # Routes generation with the ~p sigil
-      unquote(verified_routes())
-    end
-  end
-
-  def view() do
-    quote do
-      use Phoenix.View,
-        root: "lib/nerves_hub_web/templates",
-        namespace: NervesHubWeb
-
-      import Phoenix.Component
-
-      import Phoenix.Controller,
-        only: [get_flash: 1, get_flash: 2, view_module: 1, view_template: 1]
-
-      alias NervesHubWeb.Components.Navigation
-      alias NervesHubWeb.DeviceLive
-      alias NervesHubWeb.Endpoint
-
-      # Import convenience functions from controllers
-
-      # Include shared imports and aliases for views
-      unquote(view_helpers())
 
       # Routes generation with the ~p sigil
       unquote(verified_routes())
@@ -422,19 +400,13 @@ defmodule NervesHubWeb do
 
   defp view_helpers() do
     quote do
-      use PhoenixHTMLHelpers
       use Gettext, backend: NervesHubWeb.Gettext
 
-      import NervesHubWeb.ErrorHelpers
-      # Use all HTML functionality (forms, tags, etc)
       import Phoenix.HTML
       import Phoenix.HTML.Form
 
       # Import LiveView helpers (live_render, live_component, live_patch, etc)
       import Phoenix.LiveView.Helpers
-
-      # Import basic rendering functionality (render, render_layout, etc)
-      import Phoenix.View
 
       alias NervesHubWeb.Router.Helpers, as: Routes
     end

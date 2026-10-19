@@ -747,12 +747,13 @@ config :sentry,
   environment_name: System.get_env("DEPLOY_ENV", to_string(config_env())),
   before_send: {NervesHubWeb.SentryEventFilter, :filter_non_500},
   release: "nerves_hub@#{Application.spec(:nerves_hub, :vsn)}",
-  enable_logs: System.get_env("SENTRY_ENABLE_LOGGING", "false") == "true",
   before_send_log: fn log_event ->
     updated_attributes = Map.put(log_event.attributes, :nerves_hub_app, nerves_hub_app)
     %{log_event | attributes: updated_attributes}
   end,
   logs: [
+    # Structured logs are sent only when a level is set; nil leaves them off.
+    level: if(System.get_env("SENTRY_ENABLE_LOGGING", "false") == "true", do: :info),
     metadata: :all
   ],
   tags: %{

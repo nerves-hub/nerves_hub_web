@@ -206,8 +206,8 @@ defmodule NervesHubWeb.WebsocketTest do
 
       key = X509.PrivateKey.new_ec(:secp256r1)
 
-      not_before = DateTime.utc_now() |> Timex.shift(days: -2)
-      not_after = DateTime.utc_now() |> Timex.shift(days: -1)
+      not_before = DateTime.add(DateTime.utc_now(), -2, :day)
+      not_after = DateTime.add(DateTime.utc_now(), -1, :day)
 
       cert =
         key
@@ -265,8 +265,8 @@ defmodule NervesHubWeb.WebsocketTest do
       org = Fixtures.org_fixture(user, %{name: "custom_ca_test"})
       {device, _firmware} = device_fixture(tmp_dir, user, %{identifier: @valid_serial}, org)
 
-      not_before = DateTime.utc_now() |> Timex.shift(days: -3)
-      not_after = DateTime.utc_now() |> Timex.shift(days: -1)
+      not_before = DateTime.add(DateTime.utc_now(), -3, :day)
+      not_after = DateTime.add(DateTime.utc_now(), -1, :day)
       validity = Validity.new(not_before, not_after)
 
       ca_key = X509.PrivateKey.new_ec(:secp256r1)
@@ -557,6 +557,39 @@ defmodule NervesHubWeb.WebsocketTest do
 
       eventually(refute(SocketClient.connected?(socket)))
       eventually(refute(Repo.exists?(where(DeviceConnection, device_id: ^device.id, status: :connected))))
+    end
+
+    test "closes the connection of a device that is deleted, and refuses it afterwards", %{
+      user: user,
+      tmp_dir: tmp_dir
+    } do
+      {device, _firmware} = device_fixture(tmp_dir, user)
+      assert {:ok, auth} = Devices.create_shared_secret_auth(device)
+
+      opts = [
+        mint_opts: [protocols: [:http1]],
+        uri: "ws://127.0.0.1:#{@web_port}/device-socket/websocket",
+        headers: Utils.nh1_key_secret_headers(auth, device.identifier)
+      ]
+
+      subscribe_for_updates(device)
+
+      {:ok, socket} = SocketClient.start_link(with_serializer(opts))
+      SocketClient.join_and_wait(socket, shared_secret_params(device))
+
+      assert_connection_change()
+      assert_online_and_available(device)
+
+      assert {:ok, _device} = Devices.delete_device(device)
+
+      assert_receive %{event: "connection:change", payload: %{status: "offline"}}
+
+      # Same key and signature, still inside its max age, so only the deletion
+      # can be what refuses it.
+      {:ok, socket} = SocketClient.start_link(with_serializer(opts))
+      SocketClient.wait_connect(socket)
+
+      refute SocketClient.connected?(socket)
     end
 
     test "records the address a trusted balancer announced", %{user: user, tmp_dir: tmp_dir} do
@@ -1344,8 +1377,8 @@ defmodule NervesHubWeb.WebsocketTest do
       org = Fixtures.org_fixture(user, %{name: "custom_ca_test"})
       {device, _firmware} = device_fixture(tmp_dir, user, %{identifier: @valid_serial}, org)
 
-      not_before = DateTime.utc_now() |> Timex.shift(days: -1)
-      not_after = DateTime.utc_now() |> Timex.shift(seconds: -1)
+      not_before = DateTime.add(DateTime.utc_now(), -1, :day)
+      not_after = DateTime.add(DateTime.utc_now(), -1)
 
       template =
         Template.new(:root_ca,

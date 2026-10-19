@@ -231,7 +231,7 @@ defmodule NervesHubWeb.Live.Org.Integrations do
   # holds back its own errors, so the form does not open by complaining.
   defp checkbox_errors(form, field) do
     if Phoenix.Component.used_input?(form[field]) do
-      Enum.map(form[field].errors, &translate_error/1)
+      Enum.map(form[field].errors, &NervesHubWeb.CoreComponents.translate_error/1)
     else
       []
     end

@@ -31,6 +31,21 @@ defmodule NervesHub.DeviceEvents do
   end
 
   def moved_product(device) do
+    disconnect(device)
+  end
+
+  @doc """
+  Closes the connection of a device that has just been deleted.
+
+  It is refused when it tries again: certificate authentication rejects a
+  deleted device, a device key stops authenticating with it, and a product key
+  cannot create a new device under its identifier.
+  """
+  def deleted(device) do
+    disconnect(device)
+  end
+
+  defp disconnect(device) do
     :ok =
       ChannelServer.broadcast(NervesHub.PubSub, "device_socket:#{device.id}", "disconnect", %{})
   end

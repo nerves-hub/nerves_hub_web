@@ -14,6 +14,7 @@ defmodule NervesHubWeb.Components.DeviceNetworkIdentities do
   use NervesHubWeb, :component
 
   alias NervesHub.Devices.NetworkIdentity
+  alias NervesHub.Helpers.RelativeTime
 
   attr(:identities, :list, default: [])
   attr(:enabled_device, :any, default: true)
@@ -91,7 +92,7 @@ defmodule NervesHubWeb.Components.DeviceNetworkIdentities do
               phx-hook="UpdatingTimeAgo"
               datetime={String.replace(DateTime.to_string(DateTime.truncate(identity.last_reported_at, :second)), " ", "T")}
             >
-              {Timex.from_now(identity.last_reported_at)}
+              {RelativeTime.from_now(identity.last_reported_at)}
             </time>
           </div>
         </div>

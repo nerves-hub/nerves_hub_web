@@ -33,17 +33,20 @@
           <label for="email_input" class="mb-2 block text-sm font-medium text-base-300">
             Please type <span class="rounded bg-base-800 px-2 py-0.5 font-mono text-base-50">{@user.email}</span> to confirm.
           </label>
-          {text_input(f, :confirm_email,
-            class: "w-full px-3 py-2 bg-base-900 border border-base-600 rounded text-base-50 placeholder-base-500 focus:outline-none focus:ring-2 focus:ring-alert focus:border-transparent",
-            id: "email_input",
-            placeholder: "Type your email to confirm"
-          )}
+          <input
+            type="text"
+            id="email_input"
+            name={f[:confirm_email].name}
+            value={f[:confirm_email].value}
+            class="w-full rounded border border-base-600 bg-base-900 px-3 py-2 text-base-50 placeholder-base-500 focus:border-transparent focus:ring-2 focus:ring-alert focus:outline-none"
+            placeholder="Type your email to confirm"
+          />
         </div>
 
         <div class="flex justify-end">
-          {submit("I understand the consequences, delete this account",
-            class: "px-4 py-2 bg-danger hover:bg-danger-hover text-danger-content text-sm font-medium rounded transition-colors cursor-pointer"
-          )}
+          <button type="submit" class="cursor-pointer rounded bg-danger px-4 py-2 text-sm font-medium text-danger-content transition-colors hover:bg-danger-hover">
+            I understand the consequences, delete this account
+          </button>
         </div>
       </.form>
     </div>
