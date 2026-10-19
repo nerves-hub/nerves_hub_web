@@ -764,6 +764,32 @@ defmodule NervesHub.ManagedDeployments.WorkflowCoordinatorTest do
       assert [remaining] = product_notifications(product)
       assert remaining.event_key =~ "-#{catch_all.id}"
     end
+
+    # The notifications page reads the list back when told. Told before the
+    # change committed, it read the notice that had just been taken back.
+    test "the notifications page is told once it has been taken back", context do
+      %{product: product} = context
+      %{deployment_group: deployment_group, release: release} = release_with(context, @needs_approval)
+
+      _ = WorkflowCoordinator.schedule_updates(deployment_group)
+      :ok = ProductNotifications.subscribe(product.id)
+
+      stub(AuditLogs.DeploymentGroupTemplates, :audit_workflow_step_action, fn user, dg, step, action, via ->
+        refute_received %Broadcast{event: "resolved"}
+
+        Mimic.call_original(AuditLogs.DeploymentGroupTemplates, :audit_workflow_step_action, [
+          user,
+          dg,
+          step,
+          action,
+          via
+        ])
+      end)
+
+      {:ok, _} = Workflows.approve_step(deployment_group, step(release, 1), context.user)
+
+      assert_received %Broadcast{event: "resolved"}
+    end
   end
 
   describe "announcing that a workflow has stopped" do
@@ -792,6 +818,26 @@ defmodule NervesHub.ManagedDeployments.WorkflowCoordinatorTest do
       assert notification.level == :error
       assert notification.title =~ "stopped after devices failed"
       assert notification.message =~ deployment_group.name
+    end
+
+    # Told before the halt committed, the notifications page read the list back
+    # without the notice it was told about.
+    test "the notifications page is told once the halt is raised", context do
+      %{deployment_group: deployment_group} = release_with(context, @needs_approval)
+
+      :ok = ProductNotifications.subscribe(context.product.id)
+
+      stub(ProductNotifications, :create_workflow_halted_notification!, fn dg, step, reason, opts ->
+        notification =
+          Mimic.call_original(ProductNotifications, :create_workflow_halted_notification!, [dg, step, reason, opts])
+
+        refute_received %Broadcast{event: "created"}
+        notification
+      end)
+
+      _ = WorkflowCoordinator.schedule_updates(deployment_group)
+
+      assert_received %Broadcast{event: "created"}
     end
 
     test "reaching an approval step is announced too", context do
@@ -826,16 +872,17 @@ defmodule NervesHub.ManagedDeployments.WorkflowCoordinatorTest do
       _ = WorkflowCoordinator.schedule_updates(deployment_group)
       _ = fail_device(canary_device)
 
-      stub(ProductNotifications, :create_workflow_halted_notification!, fn _, _, _ -> raise "unavailable" end)
+      stub(ProductNotifications, :create_workflow_halted_notification!, fn _, _, _, _ -> raise "unavailable" end)
 
       assert_raise RuntimeError, fn -> WorkflowCoordinator.schedule_updates(deployment_group) end
       assert step(release, 1).status == :in_progress
 
-      stub(ProductNotifications, :create_workflow_halted_notification!, fn deployment_group, step, reason ->
+      stub(ProductNotifications, :create_workflow_halted_notification!, fn deployment_group, step, reason, opts ->
         Mimic.call_original(ProductNotifications, :create_workflow_halted_notification!, [
           deployment_group,
           step,
-          reason
+          reason,
+          opts
         ])
       end)
 

@@ -353,15 +353,16 @@ defmodule NervesHub.ManagedDeployments.Workflows do
       with {:ok, step} <- lock_step(step, &(&1.status == :waiting), :not_waiting) do
         step = update_step!(step, status: :in_progress, started_at: now())
 
-        :ok =
+        notice =
           if step.type == :approval_required do
             :ok = WorkflowEvents.announce(step, "awaiting_approval")
             raise_halt(deployment_group, step, :awaiting_approval)
           else
-            WorkflowEvents.announce(step, "started")
+            :ok = WorkflowEvents.announce(step, "started")
+            nil
           end
 
-        {:ok, step}
+        {:ok, {step, notice}}
       end
     end
 
@@ -386,7 +387,7 @@ defmodule NervesHub.ManagedDeployments.Workflows do
         # An approval step completes because somebody approved it.
         :ok = WorkflowEvents.announce(step, "completed", user: step.approved_by_id)
 
-        {:ok, step}
+        {:ok, {step, nil}}
       end
     end)
   end
@@ -415,11 +416,11 @@ defmodule NervesHub.ManagedDeployments.Workflows do
       with {:ok, step} <- lock_step(step, &approvable?/1, :not_approvable) do
         step = update_step!(step, approved_at: now(), approved_by_id: user.id)
 
-        :ok = resolve_halt_notification(step, deployment_group)
+        notice = resolve_halt_notification(step, deployment_group)
         :ok = WorkflowEvents.resolved(step, "approved", user)
         :ok = DeploymentGroupTemplates.audit_workflow_step_action(user, deployment_group, step, :approved, opts[:via])
 
-        {:ok, step}
+        {:ok, {step, notice}}
       end
     end)
   end
@@ -445,9 +446,9 @@ defmodule NervesHub.ManagedDeployments.Workflows do
         step = update_step!(step, status: :error, finished_at: now())
 
         :ok = WorkflowEvents.announce(step, "failed", failed_devices: failed_devices)
-        :ok = raise_halt(deployment_group, step, {:failed, failed_devices})
+        notice = raise_halt(deployment_group, step, {:failed, failed_devices})
 
-        {:ok, step}
+        {:ok, {step, notice}}
       end
     end
 
@@ -490,12 +491,12 @@ defmodule NervesHub.ManagedDeployments.Workflows do
 
         step = update_step!(step, status: :skipped, skipped_at: now(), skipped_by_id: user.id)
 
-        :ok = resolve_halt_notification(step, deployment_group)
+        notice = resolve_halt_notification(step, deployment_group)
         :ok = WorkflowEvents.announce(step, "skipped", user: user)
         :ok = WorkflowEvents.resolved(step, "skipped", user)
         :ok = DeploymentGroupTemplates.audit_workflow_step_action(user, deployment_group, step, :skipped, opts[:via])
 
-        {:ok, step}
+        {:ok, {step, notice}}
       end
     end)
   end
@@ -519,7 +520,7 @@ defmodule NervesHub.ManagedDeployments.Workflows do
           |> exclude(:order_by)
           |> Repo.update_all(set: [updates_blocked_until: nil, update_attempts: []])
 
-        :ok = resolve_halt_notification(step, deployment_group)
+        notice = resolve_halt_notification(step, deployment_group)
 
         Logger.info("Workflow step retried",
           deployment_id: deployment_group.id,
@@ -534,7 +535,7 @@ defmodule NervesHub.ManagedDeployments.Workflows do
         :ok = WorkflowEvents.resolved(step, "retried", user)
         :ok = DeploymentGroupTemplates.audit_workflow_step_action(user, deployment_group, step, :retried, opts[:via])
 
-        {:ok, step}
+        {:ok, {step, notice}}
       end
     end)
   end
@@ -543,11 +544,15 @@ defmodule NervesHub.ManagedDeployments.Workflows do
   # say so. Starting again takes it back: the list is what needs attention now,
   # not everything that ever did.
   defp resolve_halt_notification(step, %DeploymentGroup{} = deployment_group) do
-    ProductNotifications.resolve_workflow_halted_notification!(
-      deployment_group.product_id,
-      deployment_group.id,
-      step.id
-    )
+    {:ok, resolved} =
+      ProductNotifications.resolve_workflow_halted_notification!(
+        deployment_group.product_id,
+        deployment_group.id,
+        step.id,
+        broadcast: false
+      )
+
+    if resolved == :resolved, do: {deployment_group.product_id, "resolved"}
   end
 
   # A halted workflow is quiet: devices go on connecting, the deployment group
@@ -559,16 +564,20 @@ defmodule NervesHub.ManagedDeployments.Workflows do
   # finds a step waiting for approval has nothing new to say.
   defp raise_halt(deployment_group, step, {:failed, failed_devices} = reason) do
     :ok = DeploymentGroupTemplates.audit_workflow_step_failed(deployment_group, step, failed_devices)
-    _ = ProductNotifications.create_workflow_halted_notification!(deployment_group, step, reason)
+    _ = ProductNotifications.create_workflow_halted_notification!(deployment_group, step, reason, broadcast: false)
 
-    :ok
+    {deployment_group.product_id, "created"}
   end
 
   defp raise_halt(deployment_group, step, :awaiting_approval) do
     :ok = DeploymentGroupTemplates.audit_workflow_awaiting_approval(deployment_group, step)
-    _ = ProductNotifications.create_workflow_halted_notification!(deployment_group, step, :awaiting_approval)
 
-    :ok
+    _ =
+      ProductNotifications.create_workflow_halted_notification!(deployment_group, step, :awaiting_approval,
+        broadcast: false
+      )
+
+    {deployment_group.product_id, "created"}
   end
 
   defp measure_halt(deployment_group, step, reason) do
@@ -749,14 +758,19 @@ defmodule NervesHub.ManagedDeployments.Workflows do
   defp maybe_limit(query, count), do: limit(query, ^count)
 
   # A step's change commits with everything that goes with it: the devices it
-  # releases, the notification it resolves and what it announces. The page is
-  # told once it has, so it never reads back the step as it was.
+  # releases, the notification it raises or resolves and what it announces.
+  # `fun` returns the step and that notification's change, if any. The pages
+  # are told once it has committed, so they never read back what it replaced.
   defp change_step(fun) do
-    with {:ok, step} <- Repo.transact(fun) do
+    with {:ok, {step, notice}} <- Repo.transact(fun) do
       :ok = broadcast(step, "step/updated", %{id: step.id, number: step.number, status: step.status})
+      :ok = broadcast_notice(notice)
       {:ok, step}
     end
   end
+
+  defp broadcast_notice(nil), do: :ok
+  defp broadcast_notice({product_id, event}), do: ProductNotifications.broadcast(product_id, event)
 
   # The step as it stands, locked until the change commits, if it can still make
   # the change. The orchestrator works from steps read at the start of its pass,
