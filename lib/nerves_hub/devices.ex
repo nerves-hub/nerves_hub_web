@@ -574,6 +574,16 @@ defmodule NervesHub.Devices do
     |> Repo.update!()
   end
 
+  @doc """
+  Soft delete a device, which `restore_device/1` can undo.
+
+  The device leaves its deployment group in the same transaction, and a
+  connection it has open is closed once that commits. Left in the group and
+  connected, it would still be picked by the orchestrator, which cannot penalty
+  box a deleted device and so would pick it again on every run. A restored device
+  is matched to a deployment group again when it next connects, as any device
+  without one is.
+  """
   def delete_device(%Device{} = device) do
     device_certificates_query = from(dc in DeviceCertificate, where: dc.device_id == ^device.id)
     pinned_devices_query = from(p in PinnedDevice, where: p.device_id == ^device.id)
@@ -583,7 +593,10 @@ defmodule NervesHub.Devices do
     # the same hardware collides with the identity of the device just deleted.
     network_identities_query = from(ei in NetworkIdentity, where: ei.device_id == ^device.id)
 
-    changeset = Repo.soft_delete_changeset(device)
+    changeset =
+      device
+      |> Device.clear_deployment_group()
+      |> Repo.soft_delete_changeset()
 
     Multi.new()
     |> Multi.delete_all(:device_certificates, device_certificates_query)
@@ -592,8 +605,12 @@ defmodule NervesHub.Devices do
     |> Multi.update(:device, changeset)
     |> Repo.transact()
     |> case do
-      {:ok, %{device: device}} -> {:ok, device}
-      error -> error
+      {:ok, %{device: device}} ->
+        DeviceEvents.deleted(device)
+        {:ok, %{device | deployment_group: nil}}
+
+      error ->
+        error
     end
   end
 

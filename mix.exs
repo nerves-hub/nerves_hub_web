@@ -173,7 +173,7 @@ defmodule NervesHub.MixProject do
       {:logfmt_ex, "~> 0.4"},
       {
         :lucide,
-        github: "lucide-icons/lucide", tag: "1.55.0", sparse: "icons", app: false, compile: false, depth: 1
+        github: "lucide-icons/lucide", tag: "1.56.0", sparse: "icons", app: false, compile: false, depth: 1
       },
       {:mimic, "~> 2.0", only: [:test, :dev]},
       {:mint_web_socket, "~> 1.0"},
@@ -210,7 +210,7 @@ defmodule NervesHub.MixProject do
       {:postgrex, "~> 0.14"},
       {:quokka, "~> 2.13.1", only: [:dev, :test]},
       {:req, "~> 0.5"},
-      {:sentry, "~> 13.0"},
+      {:sentry, "~> 14.0"},
       {:slipstream, "~> 1.0", only: [:test, :dev]},
       {:slugify, "~> 1.3"},
       {:spellweaver, "~> 0.1", only: [:test, :dev], runtime: false},
