@@ -136,12 +136,14 @@ RUN apt-get update -y && \
     apt-get install -y git autoconf cmake make gcc-14 g++-14 && \
     update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-14 14 --slave /usr/bin/g++ g++ /usr/bin/g++-14
 
-RUN git clone https://github.com/jemalloc/jemalloc /tmp/jemalloc
+# The version is part of the clone, so bumping it changes this layer. A clone
+# in a layer of its own is cached by its command alone and goes stale, and the
+# checkout after it then cannot find a newer tag.
+RUN git clone --depth 1 --branch 5.4.0 https://github.com/jemalloc/jemalloc /tmp/jemalloc
 
 WORKDIR /tmp/jemalloc
 
-RUN git checkout 5.3.1 && \
-    autoconf && \
+RUN autoconf && \
     ./configure && \
     make && \
     make install
