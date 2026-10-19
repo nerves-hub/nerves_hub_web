@@ -884,6 +884,10 @@ defmodule NervesHub.Firmwares do
         {:ok, _delta} ->
           :ok
 
+        # Nothing left to mark failed
+        {:error, :delta_deleted} = error ->
+          error
+
         {:error, err} ->
           _ = fail_firmware_delta(firmware_delta)
           {:error, err}
@@ -932,7 +936,7 @@ defmodule NervesHub.Firmwares do
     # devices straight away, and the builder takes one as done, so a delta
     # marked complete whose upload then crashed stayed complete with no file.
     with :ok <- firmware_upload_config().upload_file(delta_file_metadata.filepath, upload_metadata),
-         {:ok, firmware_delta} <- Repo.update(changeset),
+         {:ok, firmware_delta} <- complete_delta(changeset),
          {:ok, _firmware_delta} <- notify_firmware_delta_target({:ok, firmware_delta}) do
       {:ok, _} = ManagedDeployments.recalculate_release_delta_statuses_by_firmware_id(firmware_delta.target_id)
 
@@ -942,12 +946,30 @@ defmodule NervesHub.Firmwares do
 
       {:ok, firmware_delta}
     else
+      # Its firmware was deleted during the upload, taking the row. That delete
+      # queued no file removal, because the row did not point at the file yet.
+      {:error, :delta_deleted} = error ->
+        Logger.info("Firmware delta was deleted while uploading, removing its file.")
+
+        {:ok, _} = Oban.insert(DeleteFirmware.new(upload_metadata))
+
+        :ok = tool.cleanup_firmware_delta_files(delta_file_metadata.filepath)
+
+        error
+
       {:error, error} ->
         Logger.error("Failed when finalizing firmware delta: #{inspect(error)}")
 
         :ok = tool.cleanup_firmware_delta_files(delta_file_metadata.filepath)
 
         {:error, error}
+    end
+  end
+
+  defp complete_delta(changeset) do
+    case Repo.update(changeset, stale_error_field: :id) do
+      {:error, %Ecto.Changeset{errors: [id: {_, [stale: true]}]}} -> {:error, :delta_deleted}
+      result -> result
     end
   end
 
