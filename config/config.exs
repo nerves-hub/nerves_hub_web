@@ -136,7 +136,7 @@ config :nerves_hub, Oban,
     truncate: 1,
     truncation: 1,
     slack: 5,
-    teams: 5,
+    chat_webhooks: 5,
     webhooks: 10
   ]
 
