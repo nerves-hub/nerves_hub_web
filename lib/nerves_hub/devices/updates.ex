@@ -371,7 +371,7 @@ defmodule NervesHub.Devices.Updates do
   @spec failure_rate_met?(Device.t(), DeploymentGroup.t()) :: boolean()
   def failure_rate_met?(%Device{} = device, %DeploymentGroup{} = deployment_group) do
     seconds_ago =
-      Timex.shift(DateTime.utc_now(), seconds: -deployment_group.device_failure_rate_seconds)
+      DateTime.add(DateTime.utc_now(), -deployment_group.device_failure_rate_seconds)
 
     attempts =
       Enum.filter(device.update_attempts, fn attempt ->

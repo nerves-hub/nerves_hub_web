@@ -31,6 +31,7 @@ defmodule NervesHub.DevicesTest do
   alias NervesHub.Devices.Updates
   alias NervesHub.Firmwares
   alias NervesHub.Firmwares.Firmware
+  alias NervesHub.Firmwares.FirmwareDelta
   alias NervesHub.FirmwareUpdates
   alias NervesHub.Fixtures
   alias NervesHub.ManagedDeployments
@@ -211,7 +212,7 @@ defmodule NervesHub.DevicesTest do
       {:ok, device} =
         Devices.update_firmware_metadata(
           device,
-          %{metadata | uuid: UUIDv7.autogenerate()},
+          %{metadata | uuid: Ecto.UUID.generate(version: 7)},
           :unknown,
           false
         )
@@ -233,7 +234,7 @@ defmodule NervesHub.DevicesTest do
       {:ok, device} =
         Devices.update_firmware_metadata(
           device,
-          %{metadata | uuid: UUIDv7.autogenerate()},
+          %{metadata | uuid: Ecto.UUID.generate(version: 7)},
           :unknown,
           false
         )
@@ -982,6 +983,24 @@ defmodule NervesHub.DevicesTest do
       assert_receive %Broadcast{topic: ^topic, event: "update"}, 1_000
 
       assert {:error, :already_updating} = DeviceEvents.device_requested_update(device)
+      refute_receive %Broadcast{topic: ^topic, event: "update"}, 200
+    end
+
+    # Skipping the queue, or the orchestrator scheduling a device that got an
+    # update some other way in the meantime, used to crash on the inflight row's
+    # unique index.
+    test "schedule_update is refused while the device is already updating", %{
+      device: device,
+      deployment_group: deployment_group,
+      user: user
+    } do
+      topic = "device:#{device.id}"
+
+      assert :ok = DeviceEvents.device_requested_update(device)
+      Phoenix.PubSub.subscribe(NervesHub.PubSub, topic)
+
+      assert {:error, :already_updating} = DeviceEvents.schedule_update(device.id, deployment_group, user: user)
+      assert {:error, :already_updating} = DeviceEvents.schedule_update(device.id, deployment_group)
       refute_receive %Broadcast{topic: ^topic, event: "update"}, 200
     end
 
@@ -2153,6 +2172,47 @@ defmodule NervesHub.DevicesTest do
         args: %{"source_id" => device_firmware.id, "target_id" => target_firmware.id}
       )
     end
+
+    # Devices joining together each start the group's missing deltas in their
+    # own transaction. Each insert locks its row until commit, so two joins
+    # taking the same rows in different orders deadlock. Starting them in one
+    # order, whatever order the devices are found in, is what prevents it.
+    test "starts the group's deltas in one order", %{
+      org: org,
+      org_key: org_key,
+      product: product,
+      user: user,
+      tmp_dir: tmp_dir
+    } do
+      target = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+
+      deployment_group =
+        Fixtures.deployment_group_fixture(target, %{is_active: true, delta_updatable: true, user: user})
+
+      # Already in the group, on firmware with no delta started yet
+      sources =
+        for _ <- 1..6 do
+          source = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+          _ = Fixtures.device_fixture(org, product, source, %{deployment_id: deployment_group.id})
+          source
+        end
+
+      # A handful of rows gets a sorting plan, which returns them in order by
+      # chance. A larger group gets a hashing one, which does not; force that.
+      _ = Repo.query!("SET LOCAL enable_sort = off")
+
+      _ =
+        Fixtures.device_fixture(org, product, List.first(sources))
+        |> Deployments.update_deployment_group(deployment_group)
+
+      started =
+        FirmwareDelta
+        |> order_by(:id)
+        |> select([fd], {fd.source_id, fd.target_id})
+        |> Repo.all()
+
+      assert started == Enum.sort(for source <- sources, do: {source.id, target.id})
+    end
   end
 
   describe "move_many_to_deployment_group/3" do
@@ -2546,7 +2606,7 @@ defmodule NervesHub.DevicesTest do
             device,
             Map.from_struct(%{
               device.firmware_metadata
-              | uuid: UUIDv7.autogenerate()
+              | uuid: Ecto.UUID.generate(version: 7)
             }),
             :unknown,
             false
@@ -2610,7 +2670,7 @@ defmodule NervesHub.DevicesTest do
             device,
             Map.from_struct(%{
               device.firmware_metadata
-              | uuid: UUIDv7.autogenerate()
+              | uuid: Ecto.UUID.generate(version: 7)
             }),
             :unknown,
             false
@@ -2666,7 +2726,7 @@ defmodule NervesHub.DevicesTest do
             device,
             Map.from_struct(%{
               device.firmware_metadata
-              | uuid: UUIDv7.autogenerate()
+              | uuid: Ecto.UUID.generate(version: 7)
             }),
             :unknown,
             false
@@ -2716,7 +2776,7 @@ defmodule NervesHub.DevicesTest do
             device,
             Map.from_struct(%{
               device.firmware_metadata
-              | uuid: UUIDv7.autogenerate()
+              | uuid: Ecto.UUID.generate(version: 7)
             }),
             :unknown,
             false
@@ -2774,7 +2834,7 @@ defmodule NervesHub.DevicesTest do
             device,
             Map.from_struct(%{
               device.firmware_metadata
-              | uuid: UUIDv7.autogenerate()
+              | uuid: Ecto.UUID.generate(version: 7)
             }),
             :unknown,
             false
@@ -2824,7 +2884,7 @@ defmodule NervesHub.DevicesTest do
             device,
             Map.from_struct(%{
               device.firmware_metadata
-              | uuid: UUIDv7.autogenerate()
+              | uuid: Ecto.UUID.generate(version: 7)
             }),
             :unknown,
             false
@@ -2892,7 +2952,7 @@ defmodule NervesHub.DevicesTest do
             device,
             Map.from_struct(%{
               device.firmware_metadata
-              | uuid: UUIDv7.autogenerate()
+              | uuid: Ecto.UUID.generate(version: 7)
             }),
             :unknown,
             false
@@ -3219,7 +3279,7 @@ defmodule NervesHub.DevicesTest do
       {:ok, device} =
         Devices.update_firmware_metadata(
           device,
-          %{"uuid" => UUIDv7.autogenerate()},
+          %{"uuid" => Ecto.UUID.generate(version: 7)},
           :unknown,
           false
         )

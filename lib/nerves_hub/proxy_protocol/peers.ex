@@ -3,10 +3,11 @@ defmodule NervesHub.ProxyProtocol.Peers do
   The address each PROXY header gave, by socket, from the moment a connection is
   accepted until a while after its socket closes.
 
-  `NervesHub.ProxyProtocol.TCP` reads the header in the TLS connection's process
-  and is asked for the address from others, so it cannot live in a process
-  dictionary. Nor can it go when the socket does: the handler serving a
-  connection can still ask once the client has gone. Bandit does, for a client
+  `NervesHub.ProxyProtocol.TCP` reads the header in whichever process first asks
+  for the address or reads from the socket, and is asked for the address from
+  others, so it cannot live in a process dictionary. Nor can it go when the
+  socket does: the handler serving a connection can still ask once the client
+  has gone. Bandit does, for a client
   that hangs up straight after sending a request, and fails the connection if
   there is no answer. So this process monitors every socket it is told about,
   and forgets its address a minute after the socket closes, however it closed.

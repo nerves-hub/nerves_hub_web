@@ -268,6 +268,15 @@ defmodule NervesHubWeb.API.FallbackController do
     })
   end
 
+  def call(conn, {:error, :already_updating}) do
+    conn
+    |> put_status(:conflict)
+    |> put_view(ErrorJSON)
+    |> render(:"409", %{
+      reason: "The device is already updating. Wait for that update to finish before sending another."
+    })
+  end
+
   def call(conn, {:error, :invalid_member}) do
     conn
     |> put_status(422)

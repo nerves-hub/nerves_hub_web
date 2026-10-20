@@ -16,8 +16,10 @@
       />
 
       <.live_component
-        module={NervesHubWeb.Live.Org.Integrations.TeamsSection}
-        id="teams"
+        :for={provider <- [:teams, :discord]}
+        module={NervesHubWeb.Live.Org.Integrations.ChatWebhookSection}
+        id={Atom.to_string(provider)}
+        provider={provider}
         current_scope={@current_scope}
         org={@org}
         products={@products}

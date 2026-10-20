@@ -2,6 +2,7 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
   use NervesHubWeb, tab_component: :health
 
   alias NervesHub.Devices.Metrics
+  alias NervesHub.Helpers.RelativeTime
   alias NervesHub.Products
   alias NervesHub.Products.HealthProfiles
   alias NervesHubWeb.Components.DeviceHealth.MetricLabels
@@ -273,7 +274,7 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
             <div :if={@latest_metrics["timestamp"]} class="mr-auto pb-0.5 text-xs tracking-wide text-base-500">
               <span>Last updated: </span>
               <time id="health-last-updated" phx-hook="UpdatingTimeAgo" datetime={String.replace(DateTime.to_string(DateTime.truncate(@latest_metrics["timestamp"], :second)), " ", "T")}>
-                {Timex.from_now(@latest_metrics["timestamp"])}
+                {RelativeTime.from_now(@latest_metrics["timestamp"])}
               </time>
             </div>
           </div>

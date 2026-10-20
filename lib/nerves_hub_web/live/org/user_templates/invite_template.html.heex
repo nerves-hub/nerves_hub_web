@@ -15,23 +15,24 @@
 
       <div class="mb-4">
         <label for="email_input" class="mb-2 block text-sm font-medium text-base-300">Email</label>
-        {email_input(f, :email,
-          class: "w-full px-3 py-2 text-sm bg-base-900 border border-base-700 rounded text-base-50 focus:outline-none focus:ring-2 focus:ring-focus-ring",
-          id: "email_input",
-          value: assigns[:email]
-        )}
-        <div class="mt-1 text-sm text-alert-content">{error_tag(f, :email)}</div>
-        <div class="mt-1 text-sm text-alert-content">{error_tag(f, :org_users)}</div>
+        <input
+          type="email"
+          id="email_input"
+          name={f[:email].name}
+          value={assigns[:email]}
+          class="w-full rounded border border-base-700 bg-base-900 px-3 py-2 text-sm text-base-50 focus:ring-2 focus:ring-focus-ring focus:outline-none"
+        />
+        <div class="mt-1 text-sm text-alert-content"><.field_errors field={f[:email]} /></div>
+        <div class="mt-1 text-sm text-alert-content"><.field_errors field={f[:org_users]} /></div>
       </div>
 
       <div class="mb-6">
         <label for="role_input" class="mb-2 block text-sm font-medium text-base-300">
           Role <span class="ml-2 text-xs text-base-500">(Defines the type of access this user has in this org)</span>
         </label>
-        {select(f, :role, Utils.role_options(),
-          selected: :view,
-          class: "w-full px-3 py-2 text-sm bg-base-900 border border-base-700 rounded text-base-50 focus:outline-none focus:ring-2 focus:ring-focus-ring"
-        )}
+        <select id={f[:role].id} name={f[:role].name} class="w-full rounded border border-base-700 bg-base-900 px-3 py-2 text-sm text-base-50 focus:ring-2 focus:ring-focus-ring focus:outline-none">
+          {Phoenix.HTML.Form.options_for_select(Utils.role_options(), f.params["role"] || :view)}
+        </select>
       </div>
 
       <div class="flex gap-3">
