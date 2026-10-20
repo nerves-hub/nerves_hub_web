@@ -7,9 +7,10 @@ defmodule NervesHub.AuditLogs.OrgTemplates do
   alias NervesHub.Accounts.User
   alias NervesHub.AuditLogs
   alias NervesHub.Integrations.ChannelEvents
+  alias NervesHub.Integrations.ChatWebhooks
+  alias NervesHub.Integrations.ChatWebhooks.ChatWebhook
   alias NervesHub.Integrations.Slack.Subscription
   alias NervesHub.Integrations.Slack.Workspace
-  alias NervesHub.Integrations.Teams.Channel
   alias NervesHub.Webhooks.Webhook
 
   # Webhooks are described by their host rather than their URL. Some receivers
@@ -95,38 +96,40 @@ defmodule NervesHub.AuditLogs.OrgTemplates do
     AuditLogs.audit!(user, org, description)
   end
 
-  @spec audit_teams_channel_created(User.t(), Org.t(), Channel.t()) :: :ok
-  def audit_teams_channel_created(user, org, channel) do
+  @spec audit_chat_webhook_created(User.t(), Org.t(), ChatWebhook.t()) :: :ok
+  def audit_chat_webhook_created(user, org, channel) do
     description =
-      "User #{user.name} started posting #{channel_events(channel)} from #{products(channel)} to Teams channel #{channel.name} (a Workflows webhook on #{channel.url_host})"
+      "User #{user.name} started posting #{channel_events(channel)} from #{products(channel)} to #{service(channel)} channel #{channel.name} (a webhook on #{channel.url_host})"
 
     AuditLogs.audit!(user, org, description)
   end
 
   @doc """
-  `url_changed?` says the channel was pointed at another Workflows webhook,
-  whose URL is not recorded: it is what lets anyone post to the channel.
+  `url_changed?` says the channel was pointed at another webhook, whose URL
+  is not recorded: it is what lets anyone post to the channel.
   """
-  @spec audit_teams_channel_updated(User.t(), Org.t(), Channel.t(), boolean()) :: :ok
-  def audit_teams_channel_updated(user, org, channel, url_changed?) do
+  @spec audit_chat_webhook_updated(User.t(), Org.t(), ChatWebhook.t(), boolean()) :: :ok
+  def audit_chat_webhook_updated(user, org, channel, url_changed?) do
     state = if channel.enabled, do: "on", else: "off"
-    url = if url_changed?, do: ", with a new Workflows webhook on #{channel.url_host},", else: ""
+    url = if url_changed?, do: ", with a new webhook on #{channel.url_host},", else: ""
 
     description =
-      "User #{user.name} updated Teams channel #{channel.name} (#{state})#{url} to get #{channel_events(channel)} from #{products(channel)}"
+      "User #{user.name} updated #{service(channel)} channel #{channel.name} (#{state})#{url} to get #{channel_events(channel)} from #{products(channel)}"
 
     AuditLogs.audit!(user, org, description)
   end
 
-  @spec audit_teams_channel_deleted(User.t(), Org.t(), Channel.t()) :: :ok
-  def audit_teams_channel_deleted(user, org, channel) do
-    description = "User #{user.name} stopped posting to Teams channel #{channel.name}"
+  @spec audit_chat_webhook_deleted(User.t(), Org.t(), ChatWebhook.t()) :: :ok
+  def audit_chat_webhook_deleted(user, org, channel) do
+    description = "User #{user.name} stopped posting to #{service(channel)} channel #{channel.name}"
 
     AuditLogs.audit!(user, org, description)
   end
+
+  defp service(%ChatWebhook{provider: provider}), do: ChatWebhooks.provider(provider).label()
 
   defp slack_events(%Subscription{events: events}), do: Enum.map_join(events, ", ", &ChannelEvents.label/1)
-  defp channel_events(%Channel{events: events}), do: Enum.map_join(events, ", ", &ChannelEvents.label/1)
+  defp channel_events(%ChatWebhook{events: events}), do: Enum.map_join(events, ", ", &ChannelEvents.label/1)
 
   defp webhook_host(%Webhook{url: url}), do: URI.parse(url).host
 

@@ -4,8 +4,8 @@ defmodule NervesHubWeb.Live.Account do
   alias NervesHub.Accounts
   alias NervesHub.Accounts.UserToken
   alias NervesHub.Integrations.Slack.Users, as: SlackUsers
+  alias NervesHubWeb.Components.DateTimes
   alias NervesHubWeb.CoreComponents
-  alias NervesHubWeb.LayoutView.DateTimeFormat
 
   embed_templates("account_templates/*")
 

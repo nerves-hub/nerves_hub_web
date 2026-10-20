@@ -16,6 +16,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
   alias NervesHub.Devices.Updates
   alias NervesHub.Extensions
   alias NervesHub.Firmwares
+  alias NervesHub.Helpers.RelativeTime
   alias NervesHub.ManagedDeployments
   alias NervesHub.Products
   alias NervesHub.Products.HealthProfiles
@@ -801,7 +802,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
         <div class="text-xs tracking-wide text-base-500">
           <span>Last updated: </span>
           <time id="health-last-updated" phx-hook="UpdatingTimeAgo" datetime={String.replace(DateTime.to_string(DateTime.truncate(@latest_metrics["timestamp"], :second)), " ", "T")}>
-            {Timex.from_now(@latest_metrics["timestamp"])}
+            {RelativeTime.from_now(@latest_metrics["timestamp"])}
           </time>
         </div>
       </div>
@@ -1190,7 +1191,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
               phx-hook="UpdatingTimeAgo"
               datetime={String.replace(DateTime.to_string(DateTime.truncate(@device.latest_connection.disconnected_at, :second)), " ", "T")}
             >
-              {Timex.from_now(@device.latest_connection.disconnected_at)}
+              {RelativeTime.from_now(@device.latest_connection.disconnected_at)}
             </time>
           </span>
         </div>
@@ -1203,7 +1204,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
               phx-hook="UpdatingTimeAgo"
               datetime={String.replace(DateTime.to_string(DateTime.truncate(@device.latest_connection.established_at, :second)), " ", "T")}
             >
-              {Timex.from_now(@device.latest_connection.established_at)}
+              {RelativeTime.from_now(@device.latest_connection.established_at)}
             </time>
           </span>
         </div>

@@ -88,8 +88,8 @@ defmodule NervesHub.DeviceSSLTransport do
     if NervesHub.RateLimit.increment() do
       :telemetry.execute([:nerves_hub, :rate_limit, :accepted], %{count: 1})
 
-      # Behind the PROXY protocol the header is read as part of this, once
-      # `:ssl` first reads from the socket.
+      # Behind the PROXY protocol the header has already come off, when
+      # Thousand Island asked who connected just before calling this.
       socket
       |> :ssl.handshake(tls_handshake_timeout())
       |> handshake_result()

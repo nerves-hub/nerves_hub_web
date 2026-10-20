@@ -91,14 +91,19 @@ defmodule NervesHubWeb.Layouts do
     end
   end
 
+  # An HS256 JWT carrying just `claims`, which is all Featurebase asks for.
   defp generate_token(claims) do
-    key = Application.get_env(:nerves_hub, :featurebase_signing_token)
-    signer = Joken.Signer.create("HS256", key)
+    case Application.get_env(:nerves_hub, :featurebase_signing_token) do
+      key when is_binary(key) and key != "" ->
+        signing_input = base64url(JSON.encode!(%{alg: "HS256", typ: "JWT"})) <> "." <> base64url(JSON.encode!(claims))
+        signature = base64url(:crypto.mac(:hmac, :sha256, key, signing_input))
 
-    Joken.generate_and_sign(%{}, claims, signer)
-    |> case do
-      {:ok, token, _claims} -> {:ok, token}
-      _ -> :error
+        {:ok, signing_input <> "." <> signature}
+
+      _ ->
+        :error
     end
   end
+
+  defp base64url(data), do: Base.url_encode64(data, padding: false)
 end

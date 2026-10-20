@@ -7,7 +7,7 @@ defmodule NervesHub.Products.Notification do
 
   @type t :: %__MODULE__{}
 
-  @primary_key {:id, UUIDv7, autogenerate: true}
+  @primary_key {:id, Ecto.UUID, autogenerate: [version: 7]}
   schema "product_notifications" do
     belongs_to(:product, Product)
 

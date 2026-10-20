@@ -17,6 +17,7 @@ defmodule NervesHubWeb.Live.Product.Errors do
   alias NervesHub.AuditLogs.ProductTemplates
   alias NervesHub.ErrorReports
   alias NervesHub.ErrorReports.ErrorGroup
+  alias NervesHub.Helpers.RelativeTime
 
   @statuses ~w(unresolved resolved muted)
   @sorts ~w(last_seen first_seen count)

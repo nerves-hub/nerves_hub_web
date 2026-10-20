@@ -4,8 +4,8 @@ alias NervesHub.DeviceLink.Dispatcher
 alias NervesHub.DeviceLink.Dispatcher.Remote
 alias NervesHub.DeviceLink.PeerVerification
 alias NervesHub.Firmwares.Upload.S3
+alias NervesHub.Integrations.ChatWebhooks
 alias NervesHub.Integrations.Slack
-alias NervesHub.Integrations.Teams
 alias NervesHub.Types.Encrypted
 alias Swoosh.Adapters.Test
 
@@ -14,6 +14,7 @@ config :bcrypt_elixir, log_rounds: 4
 # Print only warnings and errors during test
 config :logger, level: :warning
 
+config :nerves_hub, ChatWebhooks, req_options: [plug: {Req.Test, ChatWebhooks}]
 config :nerves_hub, Encrypted, key: Base.decode64!("dGVzdC1rZXktdGVzdC1rZXktdGVzdC1rZXktdGVzdC0=")
 
 config :nerves_hub, NervesHub.AnalyticsRepo,
@@ -91,8 +92,6 @@ config :nerves_hub, Slack,
   client_secret: "test-client-secret",
   signing_secret: "test-signing-secret",
   req_options: [plug: {Req.Test, Slack}]
-
-config :nerves_hub, Teams, req_options: [plug: {Req.Test, Teams}]
 
 # Short enough that analytics writes land within an `assert_eventually`.
 config :nerves_hub, :analytics_buffer, max_delay: to_timeout(millisecond: 50)

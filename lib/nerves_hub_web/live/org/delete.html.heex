@@ -15,10 +15,13 @@
         <label for="org_name_input" class="mb-2 block text-sm font-medium text-base-300">
           Please type <strong>{@org.name}</strong> to confirm.
         </label>
-        {text_input(f, :confirm_name,
-          class: "w-full px-3 py-2 text-sm bg-base-900 border border-base-700 rounded text-base-50 focus:outline-none focus:ring-2 focus:ring-alert",
-          id: "org_name_input"
-        )}
+        <input
+          type="text"
+          id="org_name_input"
+          name={f[:confirm_name].name}
+          value={f[:confirm_name].value}
+          class="w-full rounded border border-base-700 bg-base-900 px-3 py-2 text-sm text-base-50 focus:ring-2 focus:ring-alert focus:outline-none"
+        />
       </div>
 
       <div class="flex gap-3">

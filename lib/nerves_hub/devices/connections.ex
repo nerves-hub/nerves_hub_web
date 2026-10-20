@@ -100,7 +100,7 @@ defmodule NervesHub.Devices.Connections do
   @doc """
   Updates the `last_seen_at`field for a device connection with current timestamp
   """
-  @spec device_heartbeat(UUIDv7.t()) :: :ok | :error
+  @spec device_heartbeat(Ecto.UUID.t()) :: :ok | :error
   def device_heartbeat(id) do
     DeviceConnection
     |> where([dc], dc.id == ^id)
@@ -129,7 +129,7 @@ defmodule NervesHub.Devices.Connections do
   Updates `status` and relevant timestamps for a device connection record,
   and stores the reason for disconnection if provided.
   """
-  @spec device_disconnected(UUIDv7.t(), String.t() | nil) :: :ok | {:error, any()}
+  @spec device_disconnected(Ecto.UUID.t(), String.t() | nil) :: :ok | {:error, any()}
   def device_disconnected(ref_id, reason \\ nil) do
     now = DateTime.utc_now()
 
@@ -204,7 +204,7 @@ defmodule NervesHub.Devices.Connections do
   @doc """
   Updates the connection `metadata` by merging in new metadata.
   """
-  @spec merge_update_metadata(UUIDv7.t(), map()) :: :ok | {:error, any()}
+  @spec merge_update_metadata(Ecto.UUID.t(), map()) :: :ok | {:error, any()}
   def merge_update_metadata(ref_id, new_metadata) do
     DeviceConnection
     |> where(id: ^ref_id)
