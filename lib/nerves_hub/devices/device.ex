@@ -52,7 +52,7 @@ defmodule NervesHub.Devices.Device do
     belongs_to(:org, Org)
     belongs_to(:product, Product)
     belongs_to(:deployment_group, DeploymentGroup, foreign_key: :deployment_id)
-    belongs_to(:current_device_firmware, DeviceFirmware, type: UUIDv7)
+    belongs_to(:current_device_firmware, DeviceFirmware, type: Ecto.UUID)
 
     # One row per device, so the association finds it directly. It used to be a
     # `belongs_to` through `latest_health_id`, which only existed to pick the

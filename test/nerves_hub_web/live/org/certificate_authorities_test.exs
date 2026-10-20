@@ -431,6 +431,26 @@ defmodule NervesHubWeb.Live.Org.CertificateAuthoritiesTest do
                CACertificates.get_ca_certificate_by_serial(serial)
     end
 
+    test "keeps a JITP's tags apart when saved unchanged", %{conn: conn, user: user, org: org} do
+      %{db_cert: db_cert} = Fixtures.ca_certificate_fixture(org)
+      product = Fixtures.product_fixture(user, org)
+
+      {:ok, _} =
+        db_cert
+        |> NervesHub.Repo.preload(:jitp)
+        |> CACertificates.update_ca_certificate(%{
+          jitp: %{tags: ["prod", "eu"], description: "a jitp description", product_id: product.id}
+        })
+
+      conn
+      |> visit("/org/#{org.name}/settings/certificates/#{db_cert.serial}/edit")
+      |> assert_has("#tag_input[value='prod, eu']")
+      |> click_button("Update Certificate")
+      |> assert_has("div", text: "Certificate Authority updated")
+
+      assert {:ok, %{jitp: %{tags: ["prod", "eu"]}}} = CACertificates.get_ca_certificate_by_serial(db_cert.serial)
+    end
+
     test "update fails when description is blank", %{conn: conn, user: user, org: org} do
       %{db_cert: %{serial: serial}} = Fixtures.ca_certificate_fixture(org)
       product = Fixtures.product_fixture(user, org)

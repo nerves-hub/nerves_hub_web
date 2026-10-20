@@ -40,7 +40,7 @@
             </td>
             <td class="text-base-400">
               <%= if !is_nil(cert.last_used) do %>
-                {DateTimeFormat.from_now(cert.last_used)}
+                {DateTimes.from_now(cert.last_used)}
               <% else %>
                 <span class="text-base-400">Never</span>
               <% end %>

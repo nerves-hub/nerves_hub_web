@@ -17,6 +17,9 @@ defmodule NervesHub.Integrations.Slack.Subscriptions do
   burying the channel, and keeps NervesHub inside Slack's limit of about one
   message a second per channel.
 
+  An event can be left with no job coming for it, and
+  `NervesHub.Workers.QueueStrandedChatEvents` queues one (`queue_stranded/0`).
+
   A channel that cannot be posted to (archived, deleted, or the app was
   removed from it) turns its subscription off, and each product it heard gets
   a notification saying so.
@@ -46,6 +49,10 @@ defmodule NervesHub.Integrations.Slack.Subscriptions do
 
   # How long events are held before posting, so a burst becomes one message.
   @batch_seconds 15
+
+  # Held this long, an event should have been posted: the job that posts it
+  # runs 15 seconds after the first event it holds.
+  @stranded_seconds @batch_seconds * 2
 
   # The most events one job posts. A larger backlog is posted by the jobs
   # that follow, so one channel's flood cannot hold a worker for long.
@@ -228,6 +235,43 @@ defmodule NervesHub.Integrations.Slack.Subscriptions do
     |> where([s], s.id in ^subscription_ids and s.enabled and ^key in s.events)
     |> select([s], s.id)
     |> Repo.all()
+  end
+
+  @doc """
+  Queues a `NervesHub.Workers.PostSlackEvents` job for each subscription
+  holding events that no job is coming for, and returns how many it queued.
+  For `NervesHub.Workers.QueueStrandedChatEvents`.
+
+  Events can be left that way. Queued inside a transaction, an event can find
+  the subscription's job still waiting and queue nothing, and that job can
+  run before the transaction commits, too soon to see the event. A job that
+  gave up after its retries leaves what it could not post behind. Either way
+  nothing would come until the channel's next event, which, for a quiet
+  channel, can be after the events are an hour old and dropped.
+
+  A subscription with a job waiting, running or retrying gets no other: two
+  at once would post the same events twice.
+  """
+  @spec queue_stranded() :: non_neg_integer()
+  def queue_stranded() do
+    cutoff = DateTime.add(DateTime.utc_now(), -@stranded_seconds)
+
+    queued =
+      PendingEvent
+      |> where([e], e.inserted_at < ^cutoff)
+      |> distinct(true)
+      |> select([e], e.subscription_id)
+      |> Repo.all()
+      |> Enum.count(fn id ->
+        {:ok, job} = Oban.insert(PostSlackEvents.new(%{subscription_id: id}, unique: [states: :incomplete]))
+        not job.conflict?
+      end)
+
+    if queued > 0 do
+      Logger.info("Queued jobs for #{queued} Slack subscriptions holding events that none was coming for")
+    end
+
+    queued
   end
 
   @doc """

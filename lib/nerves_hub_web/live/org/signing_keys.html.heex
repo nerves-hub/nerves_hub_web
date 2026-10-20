@@ -42,9 +42,14 @@
       <% end %>
     </div>
 
-    <%= link to: "https://docs.nerves-hub.org/nerves-hub/setup/firmware-signing-keys", class: "inline-flex items-center gap-2 mt-4 text-sm text-primary hover:text-primary-hover", target: "_blank", rel: "noopener noreferrer" do %>
+    <.link
+      href="https://docs.nerves-hub.org/nerves-hub/setup/firmware-signing-keys"
+      class="mt-4 inline-flex items-center gap-2 text-sm text-primary hover:text-primary-hover"
+      target="_blank"
+      rel="noopener noreferrer"
+    >
       <span>How to generate a signing key -&gt;</span>
-    <% end %>
+    </.link>
   </div>
 </NervesHubWeb.Layouts.sidebar>
 <NervesHubWeb.Layouts.sidebar :if={@live_action == :new} flash={@flash} current_scope={@current_scope} sidebar_tab={@sidebar_tab}>
@@ -61,17 +66,22 @@
       <% end %>
 
       <div class="mb-4">
-        {label(f, :name, for: "name_input", class: "block text-sm font-medium text-base-300 mb-2")}
-        {text_input(f, :name, class: "w-full px-3 py-2 text-sm bg-base-900 border border-base-700 rounded text-base-50 focus:outline-none focus:ring-2 focus:ring-focus-ring", id: "name_input")}
-        <div class="mt-1 text-sm text-alert-content">{error_tag(f, :name)}</div>
+        <label for="name_input" class="mb-2 block text-sm font-medium text-base-300">Name</label>
+        <input
+          type="text"
+          id="name_input"
+          name={f[:name].name}
+          value={f[:name].value}
+          class="w-full rounded border border-base-700 bg-base-900 px-3 py-2 text-sm text-base-50 focus:ring-2 focus:ring-focus-ring focus:outline-none"
+        />
+        <div class="mt-1 text-sm text-alert-content"><.field_errors field={f[:name]} /></div>
       </div>
 
       <div class="mb-4">
-        {label(f, :scheme, for: "scheme_input", class: "block text-sm font-medium text-base-300 mb-2")}
-        {select(f, :scheme, scheme_options(),
-          class: "w-full px-3 py-2 text-sm bg-base-900 border border-base-700 rounded text-base-50 focus:outline-none focus:ring-2 focus:ring-focus-ring",
-          id: "scheme_input"
-        )}
+        <label for="scheme_input" class="mb-2 block text-sm font-medium text-base-300">Scheme</label>
+        <select id="scheme_input" name={f[:scheme].name} class="w-full rounded border border-base-700 bg-base-900 px-3 py-2 text-sm text-base-50 focus:ring-2 focus:ring-focus-ring focus:outline-none">
+          {Phoenix.HTML.Form.options_for_select(scheme_options(), f[:scheme].value)}
+        </select>
         <p class="mt-1 text-xs text-base-500">
           <strong>fwup (Ed25519)</strong>
           signs <code>.fw</code>
@@ -80,18 +90,19 @@
           images — the PEM public half of an <code>espsecure.py</code>
           signing key.
         </p>
-        <div class="mt-1 text-sm text-alert-content">{error_tag(f, :scheme)}</div>
+        <div class="mt-1 text-sm text-alert-content"><.field_errors field={f[:scheme]} /></div>
       </div>
 
       <div class="mb-6">
-        {label(f, :key, for: "key_input", class: "block text-sm font-medium text-base-300 mb-2")}
-        {textarea(f, :key,
-          rows: 8,
-          class: "w-full px-3 py-2 text-sm font-mono bg-base-900 border border-base-700 rounded text-base-50 focus:outline-none focus:ring-2 focus:ring-focus-ring",
-          id: "key_input"
-        )}
+        <label for="key_input" class="mb-2 block text-sm font-medium text-base-300">Key</label>
+        <textarea
+          id="key_input"
+          name={f[:key].name}
+          rows="8"
+          class="w-full rounded border border-base-700 bg-base-900 px-3 py-2 font-mono text-sm text-base-50 focus:ring-2 focus:ring-focus-ring focus:outline-none"
+        ><%= Phoenix.HTML.Form.normalize_value("textarea", f[:key].value) %></textarea>
         <p class="mt-1 text-xs text-base-500">Paste the public key. An RSA key is a multi-line PEM block, including its BEGIN and END lines.</p>
-        <div class="mt-1 text-sm text-alert-content">{error_tag(f, :key)}</div>
+        <div class="mt-1 text-sm text-alert-content"><.field_errors field={f[:key]} /></div>
       </div>
 
       <div class="flex gap-3">

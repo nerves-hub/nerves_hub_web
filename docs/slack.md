@@ -40,7 +40,7 @@ Events are held for 15 seconds before they are posted, and everything held for a
 
 - If the channel is archived or deleted, or the app was removed from it, NervesHub turns the channel off. Each product it was getting events for gets a notification saying why. Fix the cause, then turn the channel back on from the Integrations page.
 - If Slack asks NervesHub to slow down, it waits as long as Slack says.
-- Any other failure is retried after 10 seconds, a minute and five minutes. What still could not be posted is tried again with the channel's next event.
+- Any other failure is retried after 10 seconds, a minute and five minutes. What still could not be posted is tried again a minute or so later, the same way.
 - Events held for more than an hour are dropped rather than posted late.
 
 ## Acting on devices from Slack

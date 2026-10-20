@@ -53,9 +53,9 @@ defmodule NervesHubWeb.Helpers.Authorization do
   def authorized?(:"slack_subscription:update", role), do: role_check(:manage, role)
   def authorized?(:"slack_subscription:delete", role), do: role_check(:manage, role)
 
-  def authorized?(:"teams_channel:create", role), do: role_check(:manage, role)
-  def authorized?(:"teams_channel:update", role), do: role_check(:manage, role)
-  def authorized?(:"teams_channel:delete", role), do: role_check(:manage, role)
+  def authorized?(:"chat_webhook:create", role), do: role_check(:manage, role)
+  def authorized?(:"chat_webhook:update", role), do: role_check(:manage, role)
+  def authorized?(:"chat_webhook:delete", role), do: role_check(:manage, role)
 
   def authorized?(:"error_group:update", role), do: role_check(:manage, role)
 

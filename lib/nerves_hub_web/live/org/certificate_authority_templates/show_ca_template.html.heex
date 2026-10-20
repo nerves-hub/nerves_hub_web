@@ -43,7 +43,7 @@
         <div class="flex justify-between gap-4">
           <dt class="text-base-400">Last used</dt>
           <dd class="text-base-300">
-            {if @certificate.last_used, do: DateTimeFormat.from_now(@certificate.last_used), else: "Never"}
+            {if @certificate.last_used, do: DateTimes.from_now(@certificate.last_used), else: "Never"}
           </dd>
         </div>
         <div class="flex justify-between gap-4">

@@ -36,14 +36,14 @@
       </div>
       <div>
         <div class="text-xs text-base-400">First seen</div>
-        <div class="text-base-200">{Timex.from_now(@group.first_seen_at)}</div>
+        <div class="text-base-200">{RelativeTime.from_now(@group.first_seen_at)}</div>
         <div :if={@group.first_seen_firmware_uuid not in [nil, ""]} class="truncate font-mono text-xs text-base-500" title={@group.first_seen_firmware_uuid}>
           {@group.first_seen_firmware_uuid}
         </div>
       </div>
       <div>
         <div class="text-xs text-base-400">Last seen</div>
-        <div class="text-base-200">{Timex.from_now(@group.last_seen_at)}</div>
+        <div class="text-base-200">{RelativeTime.from_now(@group.last_seen_at)}</div>
         <div :if={@group.last_seen_firmware_uuid not in [nil, ""]} class="truncate font-mono text-xs text-base-500" title={@group.last_seen_firmware_uuid}>
           {@group.last_seen_firmware_uuid}
         </div>
@@ -59,18 +59,18 @@
       <div :if={@group.resolved_at}>
         <div class="text-xs text-base-400">Resolved</div>
         <div class="text-base-200">
-          {Timex.from_now(@group.resolved_at)}<span :if={@group.resolved_by}> by {@group.resolved_by.name}</span>
+          {RelativeTime.from_now(@group.resolved_at)}<span :if={@group.resolved_by}> by {@group.resolved_by.name}</span>
         </div>
       </div>
       <div :if={@group.muted_at}>
         <div class="text-xs text-base-400">Muted</div>
         <div class="text-base-200">
-          {Timex.from_now(@group.muted_at)}<span :if={@group.muted_by}> by {@group.muted_by.name}</span>
+          {RelativeTime.from_now(@group.muted_at)}<span :if={@group.muted_by}> by {@group.muted_by.name}</span>
         </div>
       </div>
       <div :if={@group.regressed_at}>
         <div class="text-xs text-base-400">Regressed</div>
-        <div class="text-warning">{Timex.from_now(@group.regressed_at)}</div>
+        <div class="text-warning">{RelativeTime.from_now(@group.regressed_at)}</div>
       </div>
     </div>
 
@@ -153,7 +153,7 @@
               </.link>
             </td>
             <td class="py-2 pr-6 font-mono text-base-300">{entry.occurrence_count}</td>
-            <td class="py-2 pr-5 text-base-300">{Timex.from_now(entry.last_seen_at)}</td>
+            <td class="py-2 pr-5 text-base-300">{RelativeTime.from_now(entry.last_seen_at)}</td>
           </tr>
         </tbody>
       </table>

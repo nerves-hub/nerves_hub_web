@@ -11,8 +11,9 @@ defmodule NervesHub.Workers.PostSlackEvents do
   errors, for the reason `NervesHub.Workers.DeliverWebhook` gives: Sentry
   reports every job that returns an error, and Slack being down is not a
   fault in NervesHub. A failure is retried after 10 seconds, a minute and five
-  minutes. After that the job stops, and what it could not post waits for the
-  channel's next event, or is dropped once it is an hour old.
+  minutes. After that the job stops, and what it could not post is tried again
+  by the job `NervesHub.Workers.QueueStrandedChatEvents` queues a minute or so
+  later, until it is an hour old and dropped.
   """
 
   use Oban.Worker,
