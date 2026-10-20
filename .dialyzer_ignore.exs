@@ -18,7 +18,5 @@
   # so it drops the `{:ok, conn, websocket}` result of `Mint.WebSocket.new/4`
   # and says the pattern can never match. Any caller gets it; the upgrade
   # succeeds, as the Socket Mode tests show.
-  {"lib/nerves_hub_web/integrations/slack/socket.ex", :pattern_match},
-  {"lib/nerves_hub_web/components/layouts.ex", :call},
-  {"lib/nerves_hub_web/components/layouts.ex", :no_return}
+  {"lib/nerves_hub_web/integrations/slack/socket.ex", :pattern_match}
 ]

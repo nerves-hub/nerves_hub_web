@@ -5,6 +5,7 @@ defmodule NervesHub.ManagedDeployments.WorkflowCoordinatorTest do
   """
 
   use NervesHub.DataCase, async: false
+  use Mimic
 
   import Ecto.Query
 
@@ -22,6 +23,7 @@ defmodule NervesHub.ManagedDeployments.WorkflowCoordinatorTest do
   alias NervesHub.ManagedDeployments.Orchestrator.DefaultCoordinator
   alias NervesHub.ManagedDeployments.Orchestrator.WorkflowCoordinator
   alias NervesHub.ManagedDeployments.Workflows
+  alias NervesHub.ProductNotifications
   alias NervesHub.Products.Notification
   alias NervesHub.Repo
   alias Phoenix.Socket.Broadcast
@@ -486,7 +488,7 @@ defmodule NervesHub.ManagedDeployments.WorkflowCoordinatorTest do
       refute WorkflowCoordinator.schedule_updates(deployment_group)
       assert step(release, 1).status == :in_progress
 
-      _ = Workflows.approve_step(step(release, 1), context.user)
+      {:ok, _} = Workflows.approve_step(deployment_group, step(release, 1), context.user)
 
       assert WorkflowCoordinator.schedule_updates(deployment_group)
       assert step(release, 1).status == :completed
@@ -532,7 +534,7 @@ defmodule NervesHub.ManagedDeployments.WorkflowCoordinatorTest do
       assert canary.status == :in_progress
       refute Workflows.step_complete?(deployment_group, canary)
 
-      {:ok, _} = Workflows.skip_step(canary, context.user)
+      {:ok, _} = Workflows.skip_step(deployment_group, canary, context.user)
 
       _ = WorkflowCoordinator.schedule_updates(deployment_group)
 
@@ -697,7 +699,7 @@ defmodule NervesHub.ManagedDeployments.WorkflowCoordinatorTest do
 
       assert [_notification] = product_notifications(product)
 
-      _ = Workflows.approve_step(step(release, 1), context.user)
+      {:ok, _} = Workflows.approve_step(deployment_group, step(release, 1), context.user)
 
       assert product_notifications(product) == []
     end
@@ -714,7 +716,7 @@ defmodule NervesHub.ManagedDeployments.WorkflowCoordinatorTest do
 
       assert [_notification] = product_notifications(product)
 
-      {:ok, _} = Workflows.skip_step(step(release, 1), context.user)
+      {:ok, _} = Workflows.skip_step(deployment_group, step(release, 1), context.user)
 
       assert product_notifications(product) == []
     end
@@ -757,10 +759,36 @@ defmodule NervesHub.ManagedDeployments.WorkflowCoordinatorTest do
 
       assert length(product_notifications(product)) == 2
 
-      _ = Workflows.approve_step(approval, context.user)
+      {:ok, _} = Workflows.approve_step(deployment_group, approval, context.user)
 
       assert [remaining] = product_notifications(product)
       assert remaining.event_key =~ "-#{catch_all.id}"
+    end
+
+    # The notifications page reads the list back when told. Told before the
+    # change committed, it read the notice that had just been taken back.
+    test "the notifications page is told once it has been taken back", context do
+      %{product: product} = context
+      %{deployment_group: deployment_group, release: release} = release_with(context, @needs_approval)
+
+      _ = WorkflowCoordinator.schedule_updates(deployment_group)
+      :ok = ProductNotifications.subscribe(product.id)
+
+      stub(AuditLogs.DeploymentGroupTemplates, :audit_workflow_step_action, fn user, dg, step, action, via ->
+        refute_received %Broadcast{event: "resolved"}
+
+        Mimic.call_original(AuditLogs.DeploymentGroupTemplates, :audit_workflow_step_action, [
+          user,
+          dg,
+          step,
+          action,
+          via
+        ])
+      end)
+
+      {:ok, _} = Workflows.approve_step(deployment_group, step(release, 1), context.user)
+
+      assert_received %Broadcast{event: "resolved"}
     end
   end
 
@@ -792,6 +820,26 @@ defmodule NervesHub.ManagedDeployments.WorkflowCoordinatorTest do
       assert notification.message =~ deployment_group.name
     end
 
+    # Told before the halt committed, the notifications page read the list back
+    # without the notice it was told about.
+    test "the notifications page is told once the halt is raised", context do
+      %{deployment_group: deployment_group} = release_with(context, @needs_approval)
+
+      :ok = ProductNotifications.subscribe(context.product.id)
+
+      stub(ProductNotifications, :create_workflow_halted_notification!, fn dg, step, reason, opts ->
+        notification =
+          Mimic.call_original(ProductNotifications, :create_workflow_halted_notification!, [dg, step, reason, opts])
+
+        refute_received %Broadcast{event: "created"}
+        notification
+      end)
+
+      _ = WorkflowCoordinator.schedule_updates(deployment_group)
+
+      assert_received %Broadcast{event: "created"}
+    end
+
     test "reaching an approval step is announced too", context do
       definition = %{
         "version" => 1,
@@ -811,6 +859,62 @@ defmodule NervesHub.ManagedDeployments.WorkflowCoordinatorTest do
       assert [notification] = product_notifications(context.product)
       assert notification.level == :info
       assert notification.title =~ "waiting for approval"
+    end
+
+    # Raised after the step had failed, a failure in between left the workflow
+    # stopped with nothing said, and every later pass stopped at the failed step
+    # before saying anything.
+    test "a step is not failed unless its halt is raised with it", context do
+      canary_device = add_device(context, %{tags: ["canary"]})
+
+      %{deployment_group: deployment_group, release: release} = release_with(context, @canary_then_rest)
+
+      _ = WorkflowCoordinator.schedule_updates(deployment_group)
+      _ = fail_device(canary_device)
+
+      stub(ProductNotifications, :create_workflow_halted_notification!, fn _, _, _, _ -> raise "unavailable" end)
+
+      assert_raise RuntimeError, fn -> WorkflowCoordinator.schedule_updates(deployment_group) end
+      assert step(release, 1).status == :in_progress
+
+      stub(ProductNotifications, :create_workflow_halted_notification!, fn deployment_group, step, reason, opts ->
+        Mimic.call_original(ProductNotifications, :create_workflow_halted_notification!, [
+          deployment_group,
+          step,
+          reason,
+          opts
+        ])
+      end)
+
+      _ = WorkflowCoordinator.schedule_updates(deployment_group)
+
+      assert step(release, 1).status == :error
+      assert [_notification] = product_notifications(context.product)
+    end
+
+    # Raised as the step starts, not on a later look at how recently it did. A
+    # pass that took more than a moment between the two, or an orchestrator
+    # restarted between them, left the halt unsaid.
+    test "an approval step's halt is raised as it starts", context do
+      definition = %{
+        "version" => 1,
+        "steps" => [%{"name" => "Sign-off", "type" => "approval_required"}]
+      }
+
+      %{deployment_group: deployment_group, release: release} = release_with(context, definition)
+
+      :telemetry_test.attach_event_handlers(self(), [[:nerves_hub, :deployments, :workflow, :halted]])
+
+      {:ok, _} = Workflows.start_step(deployment_group, step(release, 1))
+
+      assert_receive {[:nerves_hub, :deployments, :workflow, :halted], _ref, %{count: 1}, %{reason: :awaiting_approval}}
+      assert Enum.any?(AuditLogs.logs_for(deployment_group), &(&1.description =~ "is waiting for approval"))
+      assert [%{title: "A deployment workflow is waiting for approval." <> _}] = product_notifications(context.product)
+
+      # Nothing more to say on the passes that find it still waiting.
+      for _ <- 1..3, do: WorkflowCoordinator.schedule_updates(deployment_group)
+
+      assert [%{occurrence_count: 1}] = product_notifications(context.product)
     end
 
     # The orchestrator runs every few seconds while a workflow is stopped; saying
@@ -879,7 +983,7 @@ defmodule NervesHub.ManagedDeployments.WorkflowCoordinatorTest do
       assert catch_all.status == :in_progress
 
       refute Workflows.skippable?(catch_all)
-      assert {:error, :not_skippable} = Workflows.skip_step(catch_all, context.user)
+      assert {:error, :not_skippable} = Workflows.skip_step(deployment_group, catch_all, context.user)
     end
 
     test "a failed step can be skipped, and the workflow moves on", context do
@@ -893,7 +997,7 @@ defmodule NervesHub.ManagedDeployments.WorkflowCoordinatorTest do
 
       assert step(release, 1).status == :error
 
-      assert {:ok, _} = Workflows.skip_step(step(release, 1), context.user)
+      assert {:ok, _} = Workflows.skip_step(deployment_group, step(release, 1), context.user)
 
       _ = WorkflowCoordinator.schedule_updates(deployment_group)
 

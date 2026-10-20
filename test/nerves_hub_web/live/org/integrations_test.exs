@@ -4,9 +4,9 @@ defmodule NervesHubWeb.Live.Org.IntegrationsTest do
   alias NervesHub.Accounts.OrgUser
   alias NervesHub.Accounts.Scope
   alias NervesHub.Fixtures
+  alias NervesHub.Integrations.ChatWebhooks
   alias NervesHub.Integrations.Slack
   alias NervesHub.Integrations.Slack.Subscriptions
-  alias NervesHub.Integrations.Teams
   alias NervesHub.Repo
   alias NervesHub.Webhooks
   alias NervesHub.Webhooks.Signature
@@ -587,7 +587,7 @@ defmodule NervesHubWeb.Live.Org.IntegrationsTest do
           attrs
         )
 
-      {:ok, channel} = Teams.create_channel(%Scope{org: org, user: user, role: :admin}, attrs)
+      {:ok, channel} = ChatWebhooks.create_channel(%Scope{org: org, user: user, role: :admin}, :teams, attrs)
       channel
     end
 
@@ -613,7 +613,7 @@ defmodule NervesHubWeb.Live.Org.IntegrationsTest do
     test "says when no channel gets the organization's events", %{conn: conn, org: org} do
       conn
       |> visit(integrations_path(org))
-      |> assert_has("#teams p", text: "No Teams channel gets this organization's events yet.")
+      |> assert_has("#teams p", text: "No Microsoft Teams channel gets this organization's events yet.")
     end
 
     test "adds a channel from a Workflows webhook's URL", %{conn: conn, org: org} do
@@ -630,7 +630,7 @@ defmodule NervesHubWeb.Live.Org.IntegrationsTest do
       |> refute_has("#teams-channel-form")
 
       assert [%{name: "Fleet alerts", url: @teams_url, events: ["device.firmware_update.failed"]}] =
-               Teams.list_channels(org)
+               ChatWebhooks.list_channels(org, :teams)
     end
 
     test "says what is wrong with a URL that is not a Workflows webhook's", %{conn: conn, org: org} do
@@ -650,7 +650,7 @@ defmodule NervesHubWeb.Live.Org.IntegrationsTest do
       end)
       |> assert_has("#teams-channel-form p", text: "is an Office 365 connector URL")
 
-      assert Teams.list_channels(org) == []
+      assert ChatWebhooks.list_channels(org, :teams) == []
     end
 
     test "editing leaves the URL out of the page, and keeps it unless a new one is given", context do
@@ -693,6 +693,29 @@ defmodule NervesHubWeb.Live.Org.IntegrationsTest do
                |> with_target("#teams")
                |> render_click("delete", %{"channel_id" => channel.id})
                |> catch_exit()
+    end
+  end
+
+  describe "Discord" do
+    test "adds a channel from a Discord webhook's URL", %{conn: conn, org: org} do
+      url = "https://discord.com/api/webhooks/123456789012345678/AbC-dEf_GhI"
+
+      conn
+      |> visit(integrations_path(org))
+      |> assert_has("#discord div", text: "Discord")
+      |> within("#discord", &click_button(&1, "Add channel"))
+      |> unwrap(fn view ->
+        view
+        |> form("#discord-channel-form",
+          discord_channel: %{name: "#fleet", url: url, events: ["", "device.firmware_update.failed"]}
+        )
+        |> render_submit()
+      end)
+      |> refute_has("#discord-channel-form")
+      |> assert_has("#discord span", text: "Webhook on discord.com")
+
+      assert [%{name: "#fleet", provider: :discord, url: ^url}] = ChatWebhooks.list_channels(org, :discord)
+      assert ChatWebhooks.list_channels(org, :teams) == []
     end
   end
 

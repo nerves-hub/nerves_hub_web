@@ -206,8 +206,8 @@ defmodule NervesHubWeb.WebsocketTest do
 
       key = X509.PrivateKey.new_ec(:secp256r1)
 
-      not_before = DateTime.utc_now() |> Timex.shift(days: -2)
-      not_after = DateTime.utc_now() |> Timex.shift(days: -1)
+      not_before = DateTime.add(DateTime.utc_now(), -2, :day)
+      not_after = DateTime.add(DateTime.utc_now(), -1, :day)
 
       cert =
         key
@@ -265,8 +265,8 @@ defmodule NervesHubWeb.WebsocketTest do
       org = Fixtures.org_fixture(user, %{name: "custom_ca_test"})
       {device, _firmware} = device_fixture(tmp_dir, user, %{identifier: @valid_serial}, org)
 
-      not_before = DateTime.utc_now() |> Timex.shift(days: -3)
-      not_after = DateTime.utc_now() |> Timex.shift(days: -1)
+      not_before = DateTime.add(DateTime.utc_now(), -3, :day)
+      not_after = DateTime.add(DateTime.utc_now(), -1, :day)
       validity = Validity.new(not_before, not_after)
 
       ca_key = X509.PrivateKey.new_ec(:secp256r1)
@@ -1377,8 +1377,8 @@ defmodule NervesHubWeb.WebsocketTest do
       org = Fixtures.org_fixture(user, %{name: "custom_ca_test"})
       {device, _firmware} = device_fixture(tmp_dir, user, %{identifier: @valid_serial}, org)
 
-      not_before = DateTime.utc_now() |> Timex.shift(days: -1)
-      not_after = DateTime.utc_now() |> Timex.shift(seconds: -1)
+      not_before = DateTime.add(DateTime.utc_now(), -1, :day)
+      not_after = DateTime.add(DateTime.utc_now(), -1)
 
       template =
         Template.new(:root_ca,

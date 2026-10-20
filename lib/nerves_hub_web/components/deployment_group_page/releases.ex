@@ -571,10 +571,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Releases do
 
     delta = Enum.find(deltas, &(to_string(&1.id) == id))
 
-    # Deleting it first is what the summary tab does: a delta that failed is kept
-    # around to be seen, and generation starts from nothing.
-    {:ok, _} = Firmwares.delete_firmware_delta(delta)
-    {:ok, _} = Firmwares.attempt_firmware_delta(delta.source_id, delta.target_id)
+    {:ok, _} = Firmwares.retry_firmware_delta(delta)
 
     socket
     |> refresh_deltas()
