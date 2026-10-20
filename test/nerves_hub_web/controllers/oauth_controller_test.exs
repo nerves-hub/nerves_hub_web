@@ -95,6 +95,17 @@ defmodule NervesHubWeb.OAuthControllerTest do
     end
   end
 
+  describe "unknown provider" do
+    test "is not found" do
+      assert build_conn() |> get(~p"/auth/login") |> html_response(404)
+      assert build_conn() |> get("/auth/.env") |> html_response(404)
+    end
+
+    test "has no callback" do
+      assert build_conn() |> get(~p"/auth/login/callback") |> html_response(404)
+    end
+  end
+
   describe "google auth disabled" do
     setup do
       Application.put_env(:nerves_hub, :enable_google_auth, false)
