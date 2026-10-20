@@ -16,17 +16,22 @@ defmodule NervesHub.ProxyProtocol.TCP do
       runs in Thousand Island's acceptor, where one client that never sends a
       header would hold up every connection queued behind it.
 
-    * The first read consumes the header: `:ssl` switching the socket to active,
-      or a `recv/3`. That happens in the TLS connection's own process once
-      `NervesHub.DeviceSSLTransport.handshake/1` has asked for a handshake, so
-      the rate limit still runs before any of it.
+    * `peername/1` consumes the header and answers with the address from it. It
+      is how `:ssl.peername/1`, and so Thousand Island, learns who connected.
+      Thousand Island asks once, from the connection's handler process, just
+      before the handshake, and keeps the answer for the life of the
+      connection, so the header has to come off then: asking only after the
+      handshake would leave the balancer's address in its place. The rate limit
+      in `NervesHub.DeviceSSLTransport.handshake/1` therefore runs after the
+      header and before any TLS work. For a header naming no client -- the
+      balancer's own health check -- the answer is the socket's address, taken
+      while the header is read. Either way it no longer depends on the socket,
+      which may have closed by the time anything asks again.
 
-    * `peername/1` answers with the address from the header. It is how
-      `:ssl.peername/1`, and so Thousand Island, learns who connected. For a
-      header naming no client -- the balancer's own health check -- it is the
-      socket's address, taken while the header is read. Either way the answer
-      no longer depends on the socket, which may have closed by the time
-      Thousand Island asks.
+    * Otherwise, the first read consumes the header: `:ssl` switching the
+      socket to active, or a `recv/3`. Nothing reads before `peername/1` under
+      Thousand Island, but `:ssl` still finds the stream positioned at the
+      ClientHello whichever comes first.
 
   The addresses are kept in `NervesHub.ProxyProtocol.Peers`.
   """
@@ -71,10 +76,14 @@ defmodule NervesHub.ProxyProtocol.TCP do
     with :ok <- take_header(socket), do: :gen_tcp.recv(socket, length, timeout)
   end
 
+  # A header that times out or can't be read fails this, and Thousand Island
+  # closes the connection.
   def peername(socket) do
-    case Peers.get(socket) do
-      nil -> :inet.peername(socket)
-      peer -> {:ok, peer}
+    with :ok <- take_header(socket) do
+      case Peers.get(socket) do
+        nil -> :inet.peername(socket)
+        peer -> {:ok, peer}
+      end
     end
   end
 
