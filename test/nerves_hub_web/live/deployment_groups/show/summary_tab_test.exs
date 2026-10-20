@@ -258,7 +258,8 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show.SummaryTabTest do
     {:ok, delta} = Firmwares.start_firmware_delta(source_firmware.id, target_firmware.id)
     {:ok, delta} = Firmwares.fail_firmware_delta(delta)
 
-    expect(Oban, :insert, fn _ -> {:ok, %Oban.Job{}} end)
+    # A failed delta has no file, so there is nothing to queue for deletion
+    reject(&Oban.insert/1)
 
     conn
     |> assert_has("a", text: "Delete", timeout: 100)
