@@ -11,6 +11,7 @@ defmodule NervesHub.DeviceEventsTest do
   use NervesHub.DataCase, async: true
 
   alias NervesHub.DeviceEvents
+  alias NervesHub.FirmwareUpdates
   alias NervesHub.Fixtures
   alias Phoenix.Socket.Broadcast
 
@@ -89,6 +90,24 @@ defmodule NervesHub.DeviceEventsTest do
 
       refute payload.size == new_firmware.size
       refute payload.checksum == new_firmware.checksum
+    end
+
+    # Sending firmware twice, or to a device a deployment group is already
+    # updating, used to crash on the inflight row's unique index.
+    test "is refused while the device is already updating", context do
+      %{device: device, org_key: org_key, product: product, tmp_dir: tmp_dir, user: user} = context
+
+      new_firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+
+      {:ok, device} = DeviceEvents.manual_update(device, new_firmware, user)
+      assert_receive %Broadcast{event: "update"}
+
+      assert {:error, :already_updating} = DeviceEvents.manual_update(device, new_firmware, user)
+      refute_receive %Broadcast{event: "update"}, 200
+
+      # the first request is the one still recorded
+      assert %{firmware_uuid: firmware_uuid} = FirmwareUpdates.inflight_update_for(device)
+      assert firmware_uuid == new_firmware.uuid
     end
   end
 end
