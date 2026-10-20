@@ -105,6 +105,21 @@ defmodule NervesHubWeb.API.CACertificateControllerTest do
       assert message =~ "Subject Key Identifier"
     end
 
+    test "renders errors when only the JITP is invalid", %{conn: conn, org: org} do
+      ca_key = X509.PrivateKey.new_ec(:secp256r1)
+      ca_cert = X509.Certificate.self_signed(ca_key, "CN=#{org.name}", template: :root_ca)
+
+      params =
+        conn
+        |> create_params(org, ca_cert, ca_key)
+        |> Map.put(:jitp, %{description: "Jitter"})
+
+      conn = post(conn, ~p"/api/orgs/#{org.name}/ca_certificates", params)
+
+      assert %{"jitp" => %{"tags" => ["can't be blank"], "product_id" => ["can't be blank"]}} =
+               json_response(conn, 422)["errors"]
+    end
+
     test "supports valid JITP", %{conn: conn, org: org, product: %{id: pid, name: product_name}} do
       ca_key = X509.PrivateKey.new_ec(:secp256r1)
       ca_cert = X509.Certificate.self_signed(ca_key, "CN=#{org.name}", template: :root_ca)
