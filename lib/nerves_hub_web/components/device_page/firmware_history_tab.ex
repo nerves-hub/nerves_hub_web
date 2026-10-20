@@ -2,6 +2,7 @@ defmodule NervesHubWeb.Components.DevicePage.FirmwareHistoryTab do
   use NervesHubWeb, tab_component: :firmware_history
 
   alias NervesHub.Devices.DeviceFirmwares
+  alias NervesHub.Helpers.RelativeTime
   alias NervesHubWeb.Components.Pager
 
   def tab_params(params, _uri, socket) do
@@ -71,7 +72,7 @@ defmodule NervesHubWeb.Components.DevicePage.FirmwareHistoryTab do
                 </div>
                 <div class="flex gap-2">
                   <div class="text-xs tracking-wide text-base-400">
-                    {Timex.from_now(entry.inserted_at)}
+                    {RelativeTime.from_now(entry.inserted_at)}
                   </div>
                   <div class="flex items-center">
                     <svg class="size-0.5" viewBox="0 0 2 2" fill="none" xmlns="http://www.w3.org/2000/svg">

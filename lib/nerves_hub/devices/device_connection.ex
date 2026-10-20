@@ -8,7 +8,7 @@ defmodule NervesHub.Devices.DeviceConnection do
   alias NervesHub.Products.Product
 
   @type t :: %__MODULE__{}
-  @primary_key {:id, UUIDv7, autogenerate: true}
+  @primary_key {:id, Ecto.UUID, autogenerate: [version: 7]}
 
   schema "latest_device_connections" do
     belongs_to(:org, Org)
