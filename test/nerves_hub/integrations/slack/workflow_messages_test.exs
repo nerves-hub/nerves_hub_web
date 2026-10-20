@@ -213,15 +213,19 @@ defmodule NervesHub.Integrations.Slack.WorkflowMessagesTest do
 
     defp resolution(step), do: Repo.one!(WorkflowMessage).resolutions[Integer.to_string(step.id)]
 
-    test "approving a step, from anywhere, says so on its messages", %{sign_off: sign_off, user: user} do
-      _ = Workflows.approve_step(sign_off, user)
+    test "approving a step, from anywhere, says so on its messages", %{
+      deployment_group: deployment_group,
+      sign_off: sign_off,
+      user: user
+    } do
+      {:ok, _} = Workflows.approve_step(deployment_group, sign_off, user)
 
       assert %{"change" => "approved", "by" => "Alice"} = resolution(sign_off)
       assert [_job] = all_enqueued(worker: UpdateSlackWorkflowMessage)
     end
 
-    test "skipping one says so too", %{sign_off: sign_off, user: user} do
-      {:ok, _} = Workflows.skip_step(sign_off, user)
+    test "skipping one says so too", %{deployment_group: deployment_group, sign_off: sign_off, user: user} do
+      {:ok, _} = Workflows.skip_step(deployment_group, sign_off, user)
       assert %{"change" => "skipped", "by" => "Alice"} = resolution(sign_off)
     end
 

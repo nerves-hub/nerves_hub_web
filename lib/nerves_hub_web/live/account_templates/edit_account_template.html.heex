@@ -14,32 +14,40 @@
           <div class="flex flex-col gap-4">
             <div>
               <label for="name_input" class="mb-2 block text-sm font-medium text-base-300">Name</label>
-              {text_input(f, :name,
-                class: "w-full px-3 py-2 bg-base-900 border border-base-600 rounded text-base-50 placeholder-base-500 focus:outline-none focus:ring-2 focus:ring-focus-ring focus:border-transparent",
-                id: "name_input"
-              )}
-              <div class="mt-1 text-sm text-alert-content">{error_tag(f, :name)}</div>
+              <input
+                type="text"
+                id="name_input"
+                name={f[:name].name}
+                value={f[:name].value}
+                class="w-full rounded border border-base-600 bg-base-900 px-3 py-2 text-base-50 placeholder-base-500 focus:border-transparent focus:ring-2 focus:ring-focus-ring focus:outline-none"
+              />
+              <div class="mt-1 text-sm text-alert-content"><.field_errors field={f[:name]} /></div>
             </div>
 
             <div>
               <label for="email_input" class="mb-2 block text-sm font-medium text-base-300">Email</label>
-              {email_input(f, :email,
-                class: "w-full px-3 py-2 bg-base-900 border border-base-600 rounded text-base-50 placeholder-base-500 focus:outline-none focus:ring-2 focus:ring-focus-ring focus:border-transparent",
-                id: "email_input"
-              )}
-              <div class="mt-1 text-sm text-alert-content">{error_tag(f, :email)}</div>
+              <input
+                type="email"
+                id="email_input"
+                name={f[:email].name}
+                value={f[:email].value}
+                class="w-full rounded border border-base-600 bg-base-900 px-3 py-2 text-base-50 placeholder-base-500 focus:border-transparent focus:ring-2 focus:ring-focus-ring focus:outline-none"
+              />
+              <div class="mt-1 text-sm text-alert-content"><.field_errors field={f[:email]} /></div>
             </div>
 
             <div>
               <label for="details_current_password_input" class="mb-2 block text-sm font-medium text-base-300">
                 Password <span class="text-xs text-base-500">(required for updating your email address)</span>
               </label>
-              {password_input(f, :current_password,
-                class: "w-full px-3 py-2 bg-base-900 border border-base-600 rounded text-base-50 placeholder-base-500 focus:outline-none focus:ring-2 focus:ring-focus-ring focus:border-transparent",
-                id: "details_current_password_input",
-                placeholder: "Enter current password"
-              )}
-              <div class="mt-1 text-sm text-alert-content">{error_tag(f, :current_password)}</div>
+              <input
+                type="password"
+                id="details_current_password_input"
+                name={f[:current_password].name}
+                class="w-full rounded border border-base-600 bg-base-900 px-3 py-2 text-base-50 placeholder-base-500 focus:border-transparent focus:ring-2 focus:ring-focus-ring focus:outline-none"
+                placeholder="Enter current password"
+              />
+              <div class="mt-1 text-sm text-alert-content"><.field_errors field={f[:current_password]} /></div>
             </div>
 
             <div class="flex justify-end pt-2">
@@ -61,32 +69,38 @@
           <div class="flex flex-col gap-4">
             <div>
               <label for="current_password_input" class="mb-2 block text-sm font-medium text-base-300">Old Password</label>
-              {password_input(f, :current_password,
-                class: "w-full px-3 py-2 bg-base-900 border border-base-600 rounded text-base-50 placeholder-base-500 focus:outline-none focus:ring-2 focus:ring-focus-ring focus:border-transparent",
-                id: "current_password_input",
-                placeholder: "Enter current password"
-              )}
-              <div class="mt-1 text-sm text-alert-content">{error_tag(f, :current_password)}</div>
+              <input
+                type="password"
+                id="current_password_input"
+                name={f[:current_password].name}
+                class="w-full rounded border border-base-600 bg-base-900 px-3 py-2 text-base-50 placeholder-base-500 focus:border-transparent focus:ring-2 focus:ring-focus-ring focus:outline-none"
+                placeholder="Enter current password"
+              />
+              <div class="mt-1 text-sm text-alert-content"><.field_errors field={f[:current_password]} /></div>
             </div>
 
             <div>
               <label for="password_input" class="mb-2 block text-sm font-medium text-base-300">New Password</label>
-              {password_input(f, :password,
-                class: "w-full px-3 py-2 bg-base-900 border border-base-600 rounded text-base-50 placeholder-base-500 focus:outline-none focus:ring-2 focus:ring-focus-ring focus:border-transparent",
-                id: "password_input",
-                placeholder: "Enter new password"
-              )}
-              <div class="mt-1 text-sm text-alert-content">{error_tag(f, :password)}</div>
+              <input
+                type="password"
+                id="password_input"
+                name={f[:password].name}
+                class="w-full rounded border border-base-600 bg-base-900 px-3 py-2 text-base-50 placeholder-base-500 focus:border-transparent focus:ring-2 focus:ring-focus-ring focus:outline-none"
+                placeholder="Enter new password"
+              />
+              <div class="mt-1 text-sm text-alert-content"><.field_errors field={f[:password]} /></div>
             </div>
 
             <div>
               <label for="password_confirmation_input" class="mb-2 block text-sm font-medium text-base-300">Confirm New Password</label>
-              {password_input(f, :password_confirmation,
-                class: "w-full px-3 py-2 bg-base-900 border border-base-600 rounded text-base-50 placeholder-base-500 focus:outline-none focus:ring-2 focus:ring-focus-ring focus:border-transparent",
-                id: "password_confirmation_input",
-                placeholder: "Confirm new password"
-              )}
-              <div class="mt-1 text-sm text-alert-content">{error_tag(f, :password_confirmation)}</div>
+              <input
+                type="password"
+                id="password_confirmation_input"
+                name={f[:password_confirmation].name}
+                class="w-full rounded border border-base-600 bg-base-900 px-3 py-2 text-base-50 placeholder-base-500 focus:border-transparent focus:ring-2 focus:ring-focus-ring focus:outline-none"
+                placeholder="Confirm new password"
+              />
+              <div class="mt-1 text-sm text-alert-content"><.field_errors field={f[:password_confirmation]} /></div>
             </div>
 
             <div class="flex justify-end pt-2">
@@ -147,7 +161,7 @@
               <div class="text-xs text-base-500">
                 Last used:
                 <%= if !is_nil(access_token.last_used) do %>
-                  {DateTimeFormat.from_now(access_token.last_used)}
+                  {DateTimes.from_now(access_token.last_used)}
                 <% else %>
                   <span class="text-base-400">Never</span>
                 <% end %>

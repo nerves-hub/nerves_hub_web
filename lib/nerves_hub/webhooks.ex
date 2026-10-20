@@ -249,8 +249,8 @@ defmodule NervesHub.Webhooks do
   end
 
   # The specification asks only that ids are unique and contain no full stop.
-  # UUIDv7s sort by time, which makes them easier to read in a receiver's logs.
-  defp new_event_id(), do: "msg_" <> UUIDv7.generate()
+  # Version 7 UUIDs sort by time, which makes them easier to read in a receiver's logs.
+  defp new_event_id(), do: "msg_" <> Ecto.UUID.generate(version: 7)
 
   defp encode(type, data) do
     Jason.encode!(%{

@@ -1,6 +1,7 @@
 defmodule NervesHubWeb.Live.DeploymentGroups.Show.ReleasesTabTest do
   use NervesHubWeb.ConnCase.Browser, async: true
   use Mimic
+  use Oban.Testing, repo: NervesHub.Repo
 
   import Ecto.Query, only: [where: 3]
 
@@ -10,6 +11,8 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show.ReleasesTabTest do
   alias NervesHub.Fixtures
   alias NervesHub.ManagedDeployments
   alias NervesHub.Repo
+  alias NervesHub.Workers.DeleteFirmware
+  alias Phoenix.Socket.Broadcast
 
   setup context do
     %{
@@ -366,6 +369,9 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show.ReleasesTabTest do
     # A device on the older firmware is what makes the release need a delta
     _ = Fixtures.device_fixture(org, product, firmware, %{deployment_id: deployment_group.id})
     _ = Fixtures.firmware_delta_fixture(firmware, next_firmware, %{status: :failed})
+    {:ok, _} = ManagedDeployments.recalculate_release_delta_statuses(deployment_group)
+
+    :ok = Phoenix.PubSub.subscribe(NervesHub.PubSub, "deployment:#{deployment_group.id}")
 
     conn
     |> visit(~p"/org/#{org}/#{product}/deployment_groups/#{deployment_group}/releases")
@@ -379,6 +385,12 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show.ReleasesTabTest do
     |> assert_has("div", text: "Processing")
 
     assert [%{status: :processing}] = ManagedDeployments.release_deltas(Repo.reload(release))
+
+    # Straight from failed to preparing. A moment reading as ready is enough for
+    # the orchestrator to send full firmware to the devices waiting on the delta.
+    assert_received %Broadcast{event: "release/delta_status", payload: %{from: :failed, to: :preparing}}
+    refute_received %Broadcast{event: "release/delta_status", payload: %{to: :ready}}
+    refute_enqueued(worker: DeleteFirmware)
   end
 
   test "counts a second failure that leaves the release's status where it was", %{

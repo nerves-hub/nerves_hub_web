@@ -51,6 +51,10 @@ defmodule NervesHub.Devices.Deployments do
     |> where([firmware: f, target_release: tr], f.id != tr.firmware_id)
     |> select([firmware: f, target_release: tr], {f.id, tr.firmware_id})
     |> distinct(true)
+    # Devices joining together start these deltas in concurrent transactions.
+    # Taken in different orders, their inserts lock each other's rows and
+    # deadlock, so every caller takes them in this one.
+    |> order_by([firmware: f, target_release: tr], [f.id, tr.firmware_id])
     |> Repo.all()
   end
 

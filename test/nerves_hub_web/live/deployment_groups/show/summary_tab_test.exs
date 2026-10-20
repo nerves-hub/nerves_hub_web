@@ -212,17 +212,17 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show.SummaryTabTest do
     |> refute_has("a", text: "Delete")
     |> refute_has("a", text: "Retry")
 
-    {:ok, delta} = Firmwares.fail_firmware_delta(delta)
-
-    conn
-    |> assert_has("div", text: "Failed", timeout: 100)
-    |> assert_has("a", text: "Delete")
-    |> assert_has("a", text: "Retry")
-
     {:ok, delta} = Firmwares.time_out_firmware_delta(delta)
 
     conn
     |> assert_has("div", text: "Timed out", timeout: 100)
+    |> assert_has("a", text: "Delete")
+    |> assert_has("a", text: "Retry")
+
+    {:ok, delta} = Firmwares.fail_firmware_delta(delta)
+
+    conn
+    |> assert_has("div", text: "Failed", timeout: 100)
     |> assert_has("a", text: "Delete")
     |> assert_has("a", text: "Retry")
 
@@ -276,17 +276,14 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show.SummaryTabTest do
     {:ok, delta} = Firmwares.start_firmware_delta(source_firmware.id, target_firmware.id)
     {:ok, delta} = Firmwares.fail_firmware_delta(delta)
 
-    expect(Firmwares, :attempt_firmware_delta, fn ^source_id, ^target_id ->
-      {:ok, :started}
-    end)
-
-    expect(Oban, :insert, fn _ -> {:ok, %Oban.Job{}} end)
-
     conn
     |> assert_has("a", text: "Retry", timeout: 100)
     |> click_link("Retry")
 
     refute Repo.reload(delta)
+
+    assert {:ok, %{status: :processing}} =
+             Firmwares.get_firmware_delta_by_source_and_target(source_id, target_id)
   end
 
   test "devices counter is a link to devices list page", %{

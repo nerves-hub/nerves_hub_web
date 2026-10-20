@@ -249,7 +249,7 @@ defmodule NervesHub.Devices.HealthEvaluationTest do
 
       for offset <- 1..count do
         connection = %DeviceConnection{
-          id: UUIDv7.generate(),
+          id: Ecto.UUID.generate(version: 7),
           org_id: device.org_id,
           product_id: device.product_id,
           device_id: device.id,
