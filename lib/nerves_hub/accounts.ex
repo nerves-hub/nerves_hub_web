@@ -857,12 +857,25 @@ defmodule NervesHub.Accounts do
     end
   end
 
+  @doc """
+  Signs in a Google account, creating its user on first sign-in.
+
+  A user is found by their Google account id, which stays the same when the
+  account's email address changes, so the stored email follows Google's.
+  A user who has never signed in with Google is found by email instead.
+
+  A user already linked to a different Google account is never matched by
+  email, so an address that has passed to a new Google account doesn't sign
+  in as the user who held it before.
+  """
   @spec update_or_create_user_from_ueberauth(Ueberauth.Auth.t()) ::
           {:ok, User.t()} | {:error, Ecto.Changeset.t()}
-  def update_or_create_user_from_ueberauth(%Ueberauth.Auth{info: info} = auth) do
+  def update_or_create_user_from_ueberauth(%Ueberauth.Auth{uid: google_id, info: info} = auth) do
     User
-    |> where(email: ^info.email)
+    |> where([u], u.google_id == ^google_id or (u.email == ^info.email and is_nil(u.google_id)))
     |> Repo.exclude_deleted()
+    |> order_by([u], asc: is_nil(u.google_id))
+    |> limit(1)
     |> Repo.one()
     |> case do
       nil ->
