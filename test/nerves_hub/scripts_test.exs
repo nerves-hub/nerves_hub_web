@@ -46,6 +46,13 @@ defmodule NervesHub.ScriptsTest do
       assert "has already been taken" in errors_on(changeset).name
     end
 
+    test "refuses a name that differs from another script's only in case", %{product: product, user: user} do
+      {:ok, _script} = Scripts.create(product, user, %{name: "MOTD", text: "NervesMOTD.print()"})
+
+      assert {:error, changeset} = Scripts.create(product, user, %{name: "motd", text: "IO.puts(:hi)"})
+      assert "has already been taken" in errors_on(changeset).name
+    end
+
     test "allows a name a script in another product has", %{org: org, product: product, user: user} do
       other_product = Fixtures.product_fixture(user, org)
       {:ok, _script} = Scripts.create(other_product, user, %{name: "MOTD", text: "NervesMOTD.print()"})
@@ -97,6 +104,15 @@ defmodule NervesHub.ScriptsTest do
 
       assert {:error, changeset} = Scripts.update(script, user, %{name: "MOTD"})
       assert "has already been taken" in errors_on(changeset).name
+    end
+  end
+
+  describe "get_by_product_and_name_with_id_fallback/2" do
+    test "finds a script by its name in any case", %{product: product, user: user} do
+      {:ok, script} = Scripts.create(product, user, %{name: "MOTD", text: "NervesMOTD.print()"})
+
+      assert {:ok, %{id: id}} = Scripts.get_by_product_and_name_with_id_fallback(product, "motd")
+      assert id == script.id
     end
   end
 
