@@ -11,6 +11,7 @@ defmodule NervesHub.DeviceLink.PeerVerificationTest do
 
   alias NervesHub.DeviceLink.Dispatcher
   alias NervesHub.DeviceLink.PeerVerification
+  alias NervesHub.Fixtures
   alias NervesHub.SSL
 
   setup do
@@ -107,6 +108,34 @@ defmodule NervesHub.DeviceLink.PeerVerificationTest do
     end
   end
 
+  # Which event a certificate arrives as is up to :ssl, so this takes a real
+  # handshake. A certificate that signed itself, sent on its own, arrives as
+  # {:bad_cert, :selfsigned_peer}, not as an unknown CA.
+  describe "a self-signed certificate sent on its own" do
+    test "is asked about as {:bad_cert, :selfsigned_peer}, and the answer admits it" do
+      test = self()
+      %{cert: cert, key: key} = Fixtures.self_signed_device_certificate("peer-verification-device")
+
+      stub(fn :verify_peer, [der, event] ->
+        send(test, {:asked, der, event})
+        :valid
+      end)
+
+      assert {:ok, _socket} = handshake(cert, key)
+
+      assert_receive {:asked, der, {:bad_cert, :selfsigned_peer}}
+      assert X509.Certificate.from_der!(der) == cert
+    end
+
+    test "is refused when the platform refuses it" do
+      %{cert: cert, key: key} = Fixtures.self_signed_device_certificate("peer-verification-device")
+
+      stub(fn :verify_peer, _args -> {:fail, :unknown_device_certificate} end)
+
+      assert {:error, _reason} = handshake(cert, key)
+    end
+  end
+
   describe "when the platform cannot be reached" do
     test "the handshake is refused rather than allowed through" do
       stub(fn :verify_peer, _args -> raise "no handler nodes available" end)
@@ -142,6 +171,54 @@ defmodule NervesHub.DeviceLink.PeerVerificationTest do
 
       assert_received {:unavailable, %{kind: :exit, reason: :noconnection}}
     end
+  end
+
+  # One TLS handshake from a client presenting `cert`, against a listener that
+  # verifies clients with PeerVerification as the device endpoint does. Returns
+  # how the handshake ended on the listener's side.
+  defp handshake(cert, key) do
+    ssl_dir = Path.join(Fixtures.path(), "ssl")
+
+    {:ok, listen} =
+      :ssl.listen(0,
+        versions: [:"tlsv1.2"],
+        verify: :verify_peer,
+        verify_fun: {&PeerVerification.verify_fun/3, nil},
+        fail_if_no_peer_cert: true,
+        certfile: ssl_dir |> Path.join("device.nerves-hub.org.pem") |> to_charlist(),
+        keyfile: ssl_dir |> Path.join("device.nerves-hub.org-key.pem") |> to_charlist(),
+        cacertfile: ssl_dir |> Path.join("ca.pem") |> to_charlist()
+      )
+
+    {:ok, {_address, port}} = :ssl.sockname(listen)
+
+    server =
+      Task.async(fn ->
+        {:ok, socket} = :ssl.transport_accept(listen, 5_000)
+        :ssl.handshake(socket, 5_000)
+      end)
+
+    client =
+      :ssl.connect(
+        ~c"127.0.0.1",
+        port,
+        [
+          versions: [:"tlsv1.2"],
+          verify: :verify_peer,
+          cacertfile: ssl_dir |> Path.join("ca.pem") |> to_charlist(),
+          server_name_indication: ~c"device.nerves-hub.org",
+          cert: X509.Certificate.to_der(cert),
+          key: {:ECPrivateKey, X509.PrivateKey.to_der(key)}
+        ],
+        5_000
+      )
+
+    result = Task.await(server)
+
+    with {:ok, socket} <- client, do: :ssl.close(socket)
+    :ssl.close(listen)
+
+    result
   end
 
   # A dispatcher that answers from `fun`, installed the way the real one is.
