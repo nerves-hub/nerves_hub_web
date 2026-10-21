@@ -15,4 +15,14 @@ defmodule NervesHub.Devices.CACertificate.JITPTest do
     changeset = JITP.changeset(jitp, %{"tags" => ["a", "b"], "description" => "desc", "product_id" => 1})
     assert changeset.valid?
   end
+
+  test "changeset/2 needs only a product" do
+    # What the form sends when the description and tags are left empty
+    changeset = JITP.changeset(%JITP{}, %{"tags" => "", "description" => "", "product_id" => 1})
+    assert changeset.valid?
+
+    changeset = JITP.changeset(%JITP{}, %{"tags" => "prod", "description" => "desc"})
+    refute changeset.valid?
+    assert errors_on(changeset) == %{product_id: ["can't be blank"]}
+  end
 end

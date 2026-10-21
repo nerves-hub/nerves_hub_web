@@ -3,6 +3,7 @@ defmodule NervesHubWeb.API.CACertificateControllerTest do
 
   alias NervesHub.Certificate
   alias NervesHub.Devices.CACertificates
+  alias NervesHub.Fixtures
   alias X509.Certificate.Extension
   alias X509.Certificate.Validity
 
@@ -116,8 +117,23 @@ defmodule NervesHubWeb.API.CACertificateControllerTest do
 
       conn = post(conn, ~p"/api/orgs/#{org.name}/ca_certificates", params)
 
-      assert %{"jitp" => %{"tags" => ["can't be blank"], "product_id" => ["can't be blank"]}} =
-               json_response(conn, 422)["errors"]
+      assert %{"jitp" => %{"product_id" => ["can't be blank"]} = jitp_errors} = json_response(conn, 422)["errors"]
+      assert map_size(jitp_errors) == 1, "only the product is required, got #{inspect(jitp_errors)}"
+    end
+
+    test "supports a JITP with only a product", %{conn: conn, org: org, product: %{id: pid, name: product_name}} do
+      ca_key = X509.PrivateKey.new_ec(:secp256r1)
+      ca_cert = X509.Certificate.self_signed(ca_key, "CN=#{org.name}", template: :root_ca)
+
+      params =
+        conn
+        |> create_params(org, ca_cert, ca_key)
+        |> Map.put(:jitp, %{product_id: pid})
+
+      conn = post(conn, ~p"/api/orgs/#{org.name}/ca_certificates", params)
+
+      assert %{"product_name" => ^product_name, "tags" => nil, "description" => nil} =
+               json_response(conn, 201)["data"]["jitp"]
     end
 
     test "supports valid JITP", %{conn: conn, org: org, product: %{id: pid, name: product_name}} do
@@ -168,6 +184,71 @@ defmodule NervesHubWeb.API.CACertificateControllerTest do
 
       assert %{"description" => "Jitter", "tags" => ["howdy"], "product_name" => ^product_name} =
                resp_data["jitp"]
+    end
+
+    test "supports a JITP that names its product", %{conn: conn, org: org, product: %{id: pid, name: product_name}} do
+      ca_key = X509.PrivateKey.new_ec(:secp256r1)
+      ca_cert = X509.Certificate.self_signed(ca_key, "CN=#{org.name}", template: :root_ca)
+
+      params =
+        conn
+        |> create_params(org, ca_cert, ca_key)
+        |> Map.put(:jitp, %{product_name: product_name, tags: ["howdy"], description: "Jitter"})
+
+      conn = post(conn, ~p"/api/orgs/#{org.name}/ca_certificates", params)
+
+      assert %{"serial" => serial, "jitp" => %{"product_name" => ^product_name}} = json_response(conn, 201)["data"]
+      assert {:ok, %{jitp: %{product_id: ^pid}}} = CACertificates.get_ca_certificate_by_serial(serial)
+    end
+
+    test "refuses a JITP product name the organization doesn't have", %{conn: conn, org: org, user: user} do
+      # Product names are only unique within an organization.
+      other_org = Fixtures.org_fixture(user, %{name: "other-org"})
+      _ = Fixtures.product_fixture(user, other_org, %{name: "elsewhere"})
+
+      for name <- ["missing", "elsewhere"] do
+        ca_key = X509.PrivateKey.new_ec(:secp256r1)
+        ca_cert = X509.Certificate.self_signed(ca_key, "CN=#{org.name}", template: :root_ca)
+
+        params =
+          conn
+          |> create_params(org, ca_cert, ca_key)
+          |> Map.put(:jitp, %{product_name: name})
+
+        conn = post(conn, ~p"/api/orgs/#{org.name}/ca_certificates", params)
+
+        assert json_response(conn, 422)["errors"]["detail"] =~ ~s(JITP product "#{name}" does not exist)
+      end
+    end
+
+    test "refuses a JITP that gives both a product name and a product id", %{conn: conn, org: org, product: product} do
+      ca_key = X509.PrivateKey.new_ec(:secp256r1)
+      ca_cert = X509.Certificate.self_signed(ca_key, "CN=#{org.name}", template: :root_ca)
+
+      params =
+        conn
+        |> create_params(org, ca_cert, ca_key)
+        |> Map.put(:jitp, %{product_name: product.name, product_id: product.id, tags: ["howdy"], description: "Jitter"})
+
+      conn = post(conn, ~p"/api/orgs/#{org.name}/ca_certificates", params)
+
+      assert json_response(conn, 422)["errors"]["detail"] =~ "product_name or product_id, not both"
+    end
+
+    test "refuses a JITP product name that isn't a string", %{conn: conn, org: org} do
+      for name <- [nil, 5] do
+        ca_key = X509.PrivateKey.new_ec(:secp256r1)
+        ca_cert = X509.Certificate.self_signed(ca_key, "CN=#{org.name}", template: :root_ca)
+
+        params =
+          conn
+          |> create_params(org, ca_cert, ca_key)
+          |> Map.put(:jitp, %{product_name: name, tags: ["howdy"], description: "Jitter"})
+
+        conn = post(conn, ~p"/api/orgs/#{org.name}/ca_certificates", params)
+
+        assert json_response(conn, 422)["errors"]["detail"] =~ "product_name must be a string"
+      end
     end
 
     test "renders errors when the verification fails", %{conn: conn, org: org} do

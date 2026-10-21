@@ -5,6 +5,7 @@ defmodule NervesHubWeb.API.CACertificateController do
   alias NervesHub.Certificate
   alias NervesHub.Devices.CACertificate.CSR
   alias NervesHub.Devices.CACertificates
+  alias NervesHub.Products
   alias NervesHubWeb.API.OpenAPI.SchemaHelpers
   alias NervesHubWeb.API.Schemas.CACertificateSchemas
   alias NervesHubWeb.API.Schemas.ErrorSchemas
@@ -126,6 +127,7 @@ defmodule NervesHubWeb.API.CACertificateController do
          {:ok, verification_cert_pem} <- Base.decode64(verification_cert64),
          {:ok, verification_cert} <- X509.Certificate.from_pem(verification_cert_pem),
          :ok <- CSR.validate_cert_ownership(org, cert, verification_cert),
+         {:ok, jitp} <- jitp_params(org, params["jitp"]),
          params = %{
            serial: serial,
            aki: aki,
@@ -134,7 +136,7 @@ defmodule NervesHubWeb.API.CACertificateController do
            not_after: not_after,
            der: X509.Certificate.to_der(cert),
            description: Map.get(params, "description"),
-           jitp: params["jitp"]
+           jitp: jitp
          },
          {:ok, ca_cert} <- CACertificates.create_ca_certificate(org, params) do
       conn
@@ -157,6 +159,29 @@ defmodule NervesHubWeb.API.CACertificateController do
   def create(_conn, _params) do
     {:error, {:cert_or_verification_cert_missing, "The CA certificate or verification certificate is missing"}}
   end
+
+  # A JITP profile can name its product, as the rest of the API does, rather
+  # than give its id, which the API never returns. The name is looked up in the
+  # organization the CA is registered to.
+  defp jitp_params(_org, %{"product_name" => _, "product_id" => _}) do
+    {:error, {:jitp_product_conflict, "A JITP can give product_name or product_id, not both"}}
+  end
+
+  defp jitp_params(org, %{"product_name" => name} = jitp) when is_binary(name) do
+    case Products.get_product_by_org_id_and_name(org.id, name) do
+      {:ok, product} ->
+        {:ok, jitp |> Map.delete("product_name") |> Map.put("product_id", product.id)}
+
+      {:error, :not_found} ->
+        {:error, {:jitp_product_not_found, "JITP product #{inspect(name)} does not exist in #{org.name}"}}
+    end
+  end
+
+  defp jitp_params(_org, %{"product_name" => _}) do
+    {:error, {:jitp_product_name_invalid, "A JITP's product_name must be a string"}}
+  end
+
+  defp jitp_params(_org, jitp), do: {:ok, jitp}
 
   operation(:delete,
     summary: "Delete an Organization's CA Certificate",

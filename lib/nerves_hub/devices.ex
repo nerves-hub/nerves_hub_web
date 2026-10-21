@@ -136,7 +136,9 @@ defmodule NervesHub.Devices do
 
     flop = %Flop{page: pagination[:page], page_size: pagination[:page_size]}
 
+    # Named for the alarm filters, as in `common_filter_query/1`.
     Device
+    |> from(as: :device)
     |> where([d], d.org_id == ^org_id)
     |> where([d], d.product_id == ^product_id)
     |> join(:left, [d], o in assoc(d, :org))

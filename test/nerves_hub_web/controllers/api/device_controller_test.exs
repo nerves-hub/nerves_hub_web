@@ -488,6 +488,20 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
       assert index_identifiers(conn, org, product, ~s|update_status is "updating"|) == []
     end
 
+    test "filters on alarms, in the query and as filters", %{conn: conn, org: org, product: product, hot: hot} do
+      # The alarm filters correlate an EXISTS against `device_alarms` back to
+      # the listed device by its `:device` binding.
+      Fixtures.device_alarms_fixture(hot, %{"CableDown" => "no link on the cable"})
+
+      assert index_identifiers(conn, org, product, ~s|alarm_status = "with"|) == ["aq-hot"]
+      assert index_identifiers(conn, org, product, ~s|alarm_status = "without"|) == ["aq-cool"]
+
+      for filters <- [%{alarm_status: "with"}, %{alarm: "CableDown"}] do
+        conn = get(conn, Routes.api_device_path(conn, :index, org.name, product.name, %{filters: filters}))
+        assert [%{"identifier" => "aq-hot"}] = json_response(conn, 200)["data"]
+      end
+    end
+
     test "treats non-query input as a free-text search", %{conn: conn, org: org, product: product} do
       assert index_identifiers(conn, org, product, "aq-ho") == ["aq-hot"]
     end

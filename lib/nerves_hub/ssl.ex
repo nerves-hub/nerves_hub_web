@@ -30,7 +30,7 @@ defmodule NervesHub.SSL do
           | :device_not_registered
           | pkix_path_validation_reason()
   @type event ::
-          {:bad_cert, reason()}
+          {:bad_cert, reason() | :selfsigned_peer}
           | {:extension, Extension.t()}
           | :valid
           | :valid_peer
@@ -111,12 +111,21 @@ defmodule NervesHub.SSL do
     end
   end
 
+  # A certificate that signed itself, sent on its own, such as one made by
+  # `nh device certificates generate --self-signed`. Its signer is itself, so
+  # there is no CA to register it through: it is accepted only if it was
+  # uploaded for the device. Registering it would let a CA's own certificate,
+  # sent by whoever holds the CA's key, become a device named after the CA.
+  def decide(otp_cert, {:bad_cert, :selfsigned_peer}) do
+    do_verify(otp_cert, register: false)
+  end
+
   def decide(_certificate, {:extension, _}) do
     :valid
   end
 
-  defp do_verify(otp_cert) do
-    case verify_cert(otp_cert) do
+  defp do_verify(otp_cert, opts \\ []) do
+    case verify_cert(otp_cert, Keyword.get(opts, :register, true)) do
       {:ok, _db_cert} ->
         :telemetry.execute([:nerves_hub, :ssl, :success], %{count: 1})
 
@@ -136,7 +145,7 @@ defmodule NervesHub.SSL do
     end
   end
 
-  defp verify_cert(otp_cert) do
+  defp verify_cert(otp_cert, register?) do
     # TODO: Maybe check for cert expiration
     #
     # We have always been ignoring expiration if we already have
@@ -149,8 +158,11 @@ defmodule NervesHub.SSL do
       {:ok, _db_cert} ->
         :ignore_deleted_device
 
-      _ ->
+      _ when register? ->
         maybe_register(otp_cert)
+
+      _ ->
+        :unknown_device_certificate
     end
   end
 
