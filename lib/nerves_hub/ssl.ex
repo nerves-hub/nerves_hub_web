@@ -11,6 +11,9 @@ defmodule NervesHub.SSL do
   alias NervesHub.Devices.Device
   alias X509.Certificate.Extension
 
+  # What :public_key's path validation, and the checks :ssl adds to it, say is
+  # wrong with a certificate. The list is open: OTP's own type, included last,
+  # ends in atom(), and decide/2 passes on a reason it has no answer for as it is.
   @type pkix_path_validation_reason ::
           :cert_expired
           | :invalid_issuer
@@ -19,6 +22,8 @@ defmodule NervesHub.SSL do
           | :missing_basic_constraint
           | :invalid_key_usage
           | {:revoked, any()}
+          | {:invalid_ext_keyusage | :ca_invalid_ext_keyusage, [:public_key.oid()]}
+          | :public_key.bad_cert_reason()
   @type reason ::
           :unknown_ca
           | :unknown_server_error
@@ -122,6 +127,15 @@ defmodule NervesHub.SSL do
 
   def decide(_certificate, {:extension, _}) do
     :valid
+  end
+
+  # Anything else :ssl found wrong with a certificate in the chain: a signature
+  # that does not verify, an intermediate CA without basicConstraints, an
+  # extended key usage that leaves out clientAuth, and so on. Each is refused
+  # with the reason :ssl gave. Raising instead would reach
+  # NervesHub.DeviceLink.PeerVerification as the platform being unavailable.
+  def decide(otp_cert, {:bad_cert, reason}) do
+    verify_failed(reason, otp_cert)
   end
 
   defp do_verify(otp_cert, opts \\ []) do
