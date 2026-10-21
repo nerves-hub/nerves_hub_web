@@ -41,9 +41,9 @@ deleted) to authenticate again.
 1. Compute a SHA-1 hash on the device certificate in DER form. This is
    called the certificate fingerprint.
 2. Look up the certificate fingerprint in the DB
-    a. If it exists and certificate has not expired, allow the device
-    b. If it exists and the certificate has expired, allow the device if
-       expired device certs are enabled
+    a. If it exists, allow the device. Its expiration is not checked: a
+       certificate on file is allowed after it expires, whether a CA signed it
+       or it signed itself
 3. The certificate fingerprint is unknown. This is a new device certificate.
    If it is self-signed, reject the device: a self-signed certificate is only
    accepted when step 2 finds it.

@@ -571,15 +571,18 @@ defmodule NervesHub.Fixtures do
   identifier as the common name, a client certificate that is not a CA, and an
   AKI equal to its SKI. Nothing is stored; `device_certificate_fixture/2`
   uploads it.
+
+  Pass `validity:` (an `X509.Certificate.Validity`) to make one that has
+  expired or is not yet valid.
   """
-  def self_signed_device_certificate(identifier) do
+  def self_signed_device_certificate(identifier, opts \\ []) do
     key = X509.PrivateKey.new_ec(:secp256r1)
 
     cert =
       X509.Certificate.self_signed(key, "/O=tester/CN=#{identifier}",
         template: %Template{
           serial: {:random, 16},
-          validity: Validity.days_from_now(365, 60 * 60),
+          validity: Keyword.get_lazy(opts, :validity, fn -> Validity.days_from_now(365, 60 * 60) end),
           hash: :sha256,
           extensions: [
             basic_constraints: Extension.basic_constraints(false),
