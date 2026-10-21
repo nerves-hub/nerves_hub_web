@@ -166,7 +166,7 @@ defmodule NervesHubWeb.API.Schemas.CACertificateSchemas do
             description: %Schema{type: :string},
             product_name: %Schema{
               type: :string,
-              description: "The product new devices join, in this organization. Takes the place of product_id."
+              description: "The product new devices join, in this organization. Give this or product_id, not both."
             },
             product_id: %Schema{type: :integer},
             tags: %Schema{type: :array, items: %Schema{type: :string}}

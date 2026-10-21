@@ -163,6 +163,10 @@ defmodule NervesHubWeb.API.CACertificateController do
   # A JITP profile can name its product, as the rest of the API does, rather
   # than give its id, which the API never returns. The name is looked up in the
   # organization the CA is registered to.
+  defp jitp_params(_org, %{"product_name" => _, "product_id" => _}) do
+    {:error, {:jitp_product_conflict, "A JITP can give product_name or product_id, not both"}}
+  end
+
   defp jitp_params(org, %{"product_name" => name} = jitp) when is_binary(name) do
     case Products.get_product_by_org_id_and_name(org.id, name) do
       {:ok, product} ->
