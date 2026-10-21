@@ -188,6 +188,20 @@ defmodule NervesHubWeb.Live.SupportScriptsTest do
       |> assert_has("td", text: "MOTD")
     end
 
+    test "refuses a name another script in the product has", %{conn: conn, org: org, product: product, user: user} do
+      {:ok, _script} = Scripts.create(product, user, %{name: "MOTD", text: "NervesMOTD.print()"})
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/scripts/new")
+      |> fill_in("Name", with: "MOTD")
+      |> fill_in("Script code", with: "IO.puts(:hi)")
+      |> click_button("Save changes")
+      |> assert_path("/org/#{org.name}/#{product.name}/scripts/new")
+      |> assert_has("p", text: "has already been taken")
+
+      assert [%{text: "NervesMOTD.print()"}] = Scripts.all_by_product(product)
+    end
+
     test "shows Elixir syntax errors as the script is entered", %{
       conn: conn,
       org: org,
