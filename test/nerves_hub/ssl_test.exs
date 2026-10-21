@@ -389,6 +389,60 @@ defmodule NervesHub.SSLTest do
     end
   end
 
+  # :ssl reports a certificate that signed itself, sent on its own, as
+  # {:bad_cert, :selfsigned_peer} rather than as an unknown CA.
+  describe "self-signed certificate" do
+    setup context do
+      %{cert: cert} = Fixtures.self_signed_device_certificate(context.device.identifier)
+      %{self_signed: cert}
+    end
+
+    test "verifies once uploaded for the device", context do
+      %{db_cert: db_cert} = Fixtures.device_certificate_fixture(context.device, context.self_signed)
+
+      assert is_nil(db_cert.last_used)
+      assert {:valid, _state} = run_verify(context.self_signed, {:bad_cert, :selfsigned_peer})
+      refute is_nil(Fixtures.reload(db_cert).last_used)
+    end
+
+    test "rejects one that was not uploaded, and does not register it", context do
+      assert {:fail, :unknown_device_certificate} =
+               run_verify(context.self_signed, {:bad_cert, :selfsigned_peer})
+
+      assert {:error, :not_found} = Certificates.get_device_certificate_by_x509(context.self_signed)
+    end
+
+    test "rejects an uploaded one when its device is deleted", context do
+      Fixtures.device_certificate_fixture(context.device, context.self_signed)
+      assert {:ok, _device} = Repo.soft_delete(context.device)
+
+      assert {:fail, :ignore_deleted_device} =
+               run_verify(context.self_signed, {:bad_cert, :selfsigned_peer})
+    end
+
+    test "never makes a registered CA's own certificate a device", context do
+      # Whoever holds a CA's key can send the CA's certificate as their own. Were
+      # it registered like a device certificate, JITP would create a device named
+      # after the CA and pin the CA's certificate to it.
+      jitp =
+        %JITP{product_id: context.product.id, tags: ["jitp"], description: "jitp"}
+        |> NervesHub.Repo.insert!()
+
+      context.ca_db_cert
+      |> Ecto.Changeset.change(%{jitp_id: jitp.id})
+      |> NervesHub.Repo.update!()
+
+      [ca_cn] = X509.Certificate.subject(context.ca_cert, "CN")
+      scope = Scope.for_user(context.user) |> Scope.put_org(context.org)
+
+      assert {:fail, :unknown_device_certificate} =
+               run_verify(context.ca_cert, {:bad_cert, :selfsigned_peer})
+
+      assert Devices.get_by_identifier(scope, ca_cn) == {:error, :not_found}
+      assert {:error, :not_found} = Certificates.get_device_certificate_by_x509(context.ca_cert)
+    end
+  end
+
   test "refuse a certificate with same serial but different validity", context do
     %{db_cert: _} = Fixtures.device_certificate_fixture(context.device, context.cert)
     serial = X509.Certificate.serial(context.cert)
