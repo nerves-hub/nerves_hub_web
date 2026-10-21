@@ -9,6 +9,7 @@ defmodule NervesHub.DeviceLink.PeerVerificationTest do
 
   use ExUnit.Case, async: false
 
+  alias NervesHub.Certificate
   alias NervesHub.DeviceLink.Dispatcher
   alias NervesHub.DeviceLink.PeerVerification
   alias NervesHub.Fixtures
@@ -121,7 +122,7 @@ defmodule NervesHub.DeviceLink.PeerVerificationTest do
         :valid
       end)
 
-      assert {:ok, _socket} = handshake(cert, key)
+      assert {:ok, _socket} = handshake([cert], key)
 
       assert_receive {:asked, der, {:bad_cert, :selfsigned_peer}}
       assert X509.Certificate.from_der!(der) == cert
@@ -132,7 +133,7 @@ defmodule NervesHub.DeviceLink.PeerVerificationTest do
 
       stub(fn :verify_peer, _args -> {:fail, :unknown_device_certificate} end)
 
-      assert {:error, _reason} = handshake(cert, key)
+      assert {:error, _reason} = handshake([cert], key)
     end
   end
 
@@ -173,10 +174,55 @@ defmodule NervesHub.DeviceLink.PeerVerificationTest do
     end
   end
 
-  # One TLS handshake from a client presenting `cert`, against a listener that
-  # verifies clients with PeerVerification as the device endpoint does. Returns
-  # how the handshake ended on the listener's side.
-  defp handshake(cert, key) do
+  # Over a real handshake, since which event a problem arrives as is up to :ssl.
+  # A device that sends the wrong CA certificate with its own, one with its
+  # issuer's name but not the key that signed it, is asked about as
+  # {:bad_cert, :invalid_signature}. The platform answers, not a stub: a
+  # platform with no answer for an event raises, which this module can only
+  # report as the platform being unavailable. It answers twice, and neither
+  # answer needs the database: the CA is a root, let through on its own key
+  # identifiers, and the device certificate is refused before anything is
+  # looked up.
+  describe "a chain :ssl finds something wrong with" do
+    test "is refused for what is wrong with it, not as the platform being unavailable" do
+      ref = make_ref()
+      test = self()
+      handler = "peer-verification-#{inspect(ref)}"
+
+      :telemetry.attach(
+        handler,
+        [:nerves_hub, :ssl, :fail],
+        fn _event, _measure, meta, _config -> send(test, {:fail, meta}) end,
+        nil
+      )
+
+      on_exit(fn -> :telemetry.detach(handler) end)
+
+      ca_key = X509.PrivateKey.new_ec(:secp256r1)
+      ca = X509.Certificate.self_signed(ca_key, "/CN=Peer Verification Test CA", template: :root_ca)
+
+      wrong_ca =
+        X509.PrivateKey.new_ec(:secp256r1)
+        |> X509.Certificate.self_signed("/CN=Peer Verification Test CA", template: :root_ca)
+
+      device_key = X509.PrivateKey.new_ec(:secp256r1)
+
+      cert =
+        device_key
+        |> X509.PublicKey.derive()
+        |> X509.Certificate.new("/CN=peer-verification-device", ca, ca_key)
+
+      serial = Certificate.get_serial_number(cert)
+
+      assert {:error, {:tls_alert, {:bad_certificate, _}}} = handshake([cert, wrong_ca], device_key)
+      assert_receive {:fail, %{reason: :invalid_signature, cert_serial: ^serial}}
+    end
+  end
+
+  # One TLS handshake from a device presenting `chain`, its own certificate
+  # first, against a listener that verifies clients with PeerVerification as the
+  # device endpoint does. Returns how the handshake ended on the listener's side.
+  defp handshake(chain, key) do
     ssl_dir = Path.join(Fixtures.path(), "ssl")
 
     {:ok, listen} =
@@ -207,7 +253,7 @@ defmodule NervesHub.DeviceLink.PeerVerificationTest do
           verify: :verify_peer,
           cacertfile: ssl_dir |> Path.join("ca.pem") |> to_charlist(),
           server_name_indication: ~c"device.nerves-hub.org",
-          cert: X509.Certificate.to_der(cert),
+          cert: Enum.map(chain, &X509.Certificate.to_der/1),
           key: {:ECPrivateKey, X509.PrivateKey.to_der(key)}
         ],
         5_000

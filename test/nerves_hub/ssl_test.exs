@@ -8,6 +8,7 @@ defmodule NervesHub.SSLTest do
   alias NervesHub.Devices.CACertificates
   alias NervesHub.Devices.Certificates
   alias NervesHub.Fixtures
+  alias X509.Certificate.Extension
   alias X509.Certificate.Validity
 
   require X509.ASN1
@@ -455,6 +456,82 @@ defmodule NervesHub.SSLTest do
       )
 
     assert {:fail, :registration_failed} = run_verify(new_cert_known_key)
+  end
+
+  # :ssl can find more wrong with a chain than an unknown CA, an expiry or a
+  # certificate that signed itself. Each test pairs an event with the
+  # certificate :ssl sends it for in a real handshake.
+  describe "another problem :ssl found with the chain" do
+    setup do
+      ref = make_ref()
+      test = self()
+      handler = "ssl-fail-#{inspect(ref)}"
+
+      :telemetry.attach(
+        handler,
+        [:nerves_hub, :ssl, :fail],
+        fn _event, _measure, meta, _config -> send(test, {:ssl_fail, meta}) end,
+        nil
+      )
+
+      on_exit(fn -> :telemetry.detach(handler) end)
+    end
+
+    # The device sent a CA certificate with its issuer's name, but not the key
+    # that signed it.
+    test "rejects a certificate whose signature does not verify, and reports why", %{cert: cert} do
+      serial = Certificate.get_serial_number(cert)
+
+      assert {:fail, :invalid_signature} = run_verify(cert, {:bad_cert, :invalid_signature})
+      assert_receive {:ssl_fail, %{reason: :invalid_signature, cert_serial: ^serial}}
+    end
+
+    # A certificate for serverAuth alone, sent with its CA. :ssl names the
+    # extended key usages it found.
+    test "rejects a certificate without clientAuth, with the reason :ssl gave", context do
+      cert =
+        X509.Certificate.new(context.public_key, "/CN=#{context.device.identifier}", context.ca_cert, context.ca_key,
+          extensions: [ext_key_usage: Extension.ext_key_usage([:serverAuth])]
+        )
+
+      reason = {:ca_invalid_ext_keyusage, [X509.ASN1.oid(:"id-kp-serverAuth")]}
+
+      assert {:fail, ^reason} = run_verify(cert, {:bad_cert, reason})
+      assert_receive {:ssl_fail, %{reason: ^reason}}
+    end
+
+    # :ssl asks about each certificate in the chain, so the one rejected need not
+    # be the device's.
+    test "rejects a CA certificate without basicConstraints, and reports it", context do
+      intermediate =
+        X509.PrivateKey.new_ec(:secp256r1)
+        |> X509.PublicKey.derive()
+        |> X509.Certificate.new("/CN=Intermediate without basicConstraints", context.ca_cert, context.ca_key,
+          template: :ca,
+          extensions: [basic_constraints: false]
+        )
+
+      serial = Certificate.get_serial_number(intermediate)
+
+      assert {:fail, :missing_basic_constraint} =
+               run_verify(intermediate, {:bad_cert, :missing_basic_constraint})
+
+      assert_receive {:ssl_fail,
+                      %{
+                        reason: :missing_basic_constraint,
+                        cert_serial: ^serial,
+                        cert_subject: "Intermediate without basicConstraints"
+                      }}
+    end
+
+    # It is the chain that is wrong, so what NervesHub knows about the
+    # certificate makes no difference.
+    test "rejects a certificate on file all the same", %{cert: cert, device: device} do
+      %{db_cert: db_cert} = Fixtures.device_certificate_fixture(device, cert)
+
+      assert {:fail, :invalid_signature} = run_verify(cert, {:bad_cert, :invalid_signature})
+      assert is_nil(Fixtures.reload(db_cert).last_used)
+    end
   end
 
   defp run_verify(otp_cert, event \\ :valid_peer) do
