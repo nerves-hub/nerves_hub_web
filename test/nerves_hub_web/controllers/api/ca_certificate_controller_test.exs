@@ -3,6 +3,7 @@ defmodule NervesHubWeb.API.CACertificateControllerTest do
 
   alias NervesHub.Certificate
   alias NervesHub.Devices.CACertificates
+  alias NervesHub.Fixtures
   alias X509.Certificate.Extension
   alias X509.Certificate.Validity
 
@@ -168,6 +169,41 @@ defmodule NervesHubWeb.API.CACertificateControllerTest do
 
       assert %{"description" => "Jitter", "tags" => ["howdy"], "product_name" => ^product_name} =
                resp_data["jitp"]
+    end
+
+    test "supports a JITP that names its product", %{conn: conn, org: org, product: %{id: pid, name: product_name}} do
+      ca_key = X509.PrivateKey.new_ec(:secp256r1)
+      ca_cert = X509.Certificate.self_signed(ca_key, "CN=#{org.name}", template: :root_ca)
+
+      params =
+        conn
+        |> create_params(org, ca_cert, ca_key)
+        |> Map.put(:jitp, %{product_name: product_name, tags: ["howdy"], description: "Jitter"})
+
+      conn = post(conn, ~p"/api/orgs/#{org.name}/ca_certificates", params)
+
+      assert %{"serial" => serial, "jitp" => %{"product_name" => ^product_name}} = json_response(conn, 201)["data"]
+      assert {:ok, %{jitp: %{product_id: ^pid}}} = CACertificates.get_ca_certificate_by_serial(serial)
+    end
+
+    test "refuses a JITP product name the organization doesn't have", %{conn: conn, org: org, user: user} do
+      # Product names are only unique within an organization.
+      other_org = Fixtures.org_fixture(user, %{name: "other-org"})
+      _ = Fixtures.product_fixture(user, other_org, %{name: "elsewhere"})
+
+      for name <- ["missing", "elsewhere"] do
+        ca_key = X509.PrivateKey.new_ec(:secp256r1)
+        ca_cert = X509.Certificate.self_signed(ca_key, "CN=#{org.name}", template: :root_ca)
+
+        params =
+          conn
+          |> create_params(org, ca_cert, ca_key)
+          |> Map.put(:jitp, %{product_name: name})
+
+        conn = post(conn, ~p"/api/orgs/#{org.name}/ca_certificates", params)
+
+        assert json_response(conn, 422)["errors"]["detail"] =~ ~s(JITP product "#{name}" does not exist)
+      end
     end
 
     test "renders errors when the verification fails", %{conn: conn, org: org} do

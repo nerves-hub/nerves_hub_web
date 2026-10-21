@@ -164,6 +164,10 @@ defmodule NervesHubWeb.API.Schemas.CACertificateSchemas do
           type: :object,
           properties: %{
             description: %Schema{type: :string},
+            product_name: %Schema{
+              type: :string,
+              description: "The product new devices join, in this organization. Takes the place of product_id."
+            },
             product_id: %Schema{type: :integer},
             tags: %Schema{type: :array, items: %Schema{type: :string}}
           }
@@ -177,7 +181,7 @@ defmodule NervesHubWeb.API.Schemas.CACertificateSchemas do
         "jitp" => %{
           "description" => "Production",
           "tags" => ["prod"],
-          "product_id" => 33_438
+          "product_name" => "ExampleProduct"
         }
       }
     })
