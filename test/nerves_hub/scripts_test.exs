@@ -38,6 +38,20 @@ defmodule NervesHub.ScriptsTest do
       assert script.created_by_id == user.id
       assert script.tags == ["red", "green"]
     end
+
+    test "refuses a name another script in the product already has", %{product: product, user: user} do
+      {:ok, _script} = Scripts.create(product, user, %{name: "MOTD", text: "NervesMOTD.print()"})
+
+      assert {:error, changeset} = Scripts.create(product, user, %{name: "MOTD", text: "IO.puts(:hi)"})
+      assert "has already been taken" in errors_on(changeset).name
+    end
+
+    test "allows a name a script in another product has", %{org: org, product: product, user: user} do
+      other_product = Fixtures.product_fixture(user, org)
+      {:ok, _script} = Scripts.create(other_product, user, %{name: "MOTD", text: "NervesMOTD.print()"})
+
+      assert {:ok, _script} = Scripts.create(product, user, %{name: "MOTD", text: "NervesMOTD.print()"})
+    end
   end
 
   describe "updating a script" do
@@ -75,6 +89,14 @@ defmodule NervesHub.ScriptsTest do
 
       assert script.text == "Nerves.Runtime.reboot()"
       assert script.last_updated_by_id == user2.id
+    end
+
+    test "refuses renaming to a name another script in the product has", %{product: product, user: user} do
+      {:ok, _motd} = Scripts.create(product, user, %{name: "MOTD", text: "NervesMOTD.print()"})
+      {:ok, script} = Scripts.create(product, user, %{name: "Reboot", text: "Nerves.Runtime.reboot()"})
+
+      assert {:error, changeset} = Scripts.update(script, user, %{name: "MOTD"})
+      assert "has already been taken" in errors_on(changeset).name
     end
   end
 
