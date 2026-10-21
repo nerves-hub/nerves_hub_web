@@ -183,6 +183,85 @@ defmodule NervesHubWeb.WebsocketTest do
       close_socket_cleanly(socket)
     end
 
+    test "an uploaded self-signed certificate can connect", %{user: user, tmp_dir: tmp_dir} do
+      {device, _firmware} = device_fixture(tmp_dir, user, %{identifier: @valid_serial})
+
+      # What `nh device certificates generate --self-signed --upload` leaves
+      # behind: a certificate that signed itself, on file for the device.
+      %{cert: cert, key: key} = Fixtures.self_signed_device_certificate(device.identifier)
+      _ = Fixtures.device_certificate_fixture(device, cert)
+
+      config = [
+        uri: "wss://127.0.0.1:#{@device_port}/socket/websocket",
+        json_parser: Jason,
+        reconnect_after_msec: [500],
+        rejoin_after_msec: [500],
+        mint_opts: [
+          protocols: [:http1],
+          transport_opts: [
+            verify: :verify_peer,
+            versions: [:"tlsv1.2"],
+            cert: X509.Certificate.to_der(cert),
+            key: {:ECPrivateKey, X509.PrivateKey.to_der(key)},
+            cacertfile: Path.expand("test/fixtures/ssl/ca.pem") |> to_charlist(),
+            server_name_indication: ~c"device.nerves-hub.org"
+          ]
+        ]
+      ]
+
+      subscribe_for_updates(device)
+
+      {:ok, socket} = SocketClient.start_link(with_serializer(config))
+      SocketClient.join_and_wait(socket)
+
+      assert_connection_change()
+      assert_online_and_available(device)
+
+      close_socket_cleanly(socket)
+    end
+
+    test "an uploaded self-signed certificate can connect after it expires", %{user: user, tmp_dir: tmp_dir} do
+      {device, _firmware} = device_fixture(tmp_dir, user, %{identifier: @valid_serial})
+
+      # A certificate on file is never checked for expiration, so one that
+      # signed itself is allowed after it expires, as a CA-signed one is.
+      not_before = DateTime.add(DateTime.utc_now(), -2, :day)
+      not_after = DateTime.add(DateTime.utc_now(), -1, :day)
+
+      %{cert: cert, key: key} =
+        Fixtures.self_signed_device_certificate(device.identifier, validity: Validity.new(not_before, not_after))
+
+      _ = Fixtures.device_certificate_fixture(device, cert)
+
+      config = [
+        uri: "wss://127.0.0.1:#{@device_port}/socket/websocket",
+        json_parser: Jason,
+        reconnect_after_msec: [500],
+        rejoin_after_msec: [500],
+        mint_opts: [
+          protocols: [:http1],
+          transport_opts: [
+            verify: :verify_peer,
+            versions: [:"tlsv1.2"],
+            cert: X509.Certificate.to_der(cert),
+            key: {:ECPrivateKey, X509.PrivateKey.to_der(key)},
+            cacertfile: Path.expand("test/fixtures/ssl/ca.pem") |> to_charlist(),
+            server_name_indication: ~c"device.nerves-hub.org"
+          ]
+        ]
+      ]
+
+      subscribe_for_updates(device)
+
+      {:ok, socket} = SocketClient.start_link(with_serializer(config))
+      SocketClient.join_and_wait(socket)
+
+      assert_connection_change()
+      assert_online_and_available(device)
+
+      close_socket_cleanly(socket)
+    end
+
     test "authentication rejected to channel using incorrect client ssl certificate" do
       {:ok, socket} = SocketClient.start_link(with_serializer(@bad_socket_config))
       SocketClient.wait_connect(socket)
