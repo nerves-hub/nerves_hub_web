@@ -116,8 +116,23 @@ defmodule NervesHubWeb.API.CACertificateControllerTest do
 
       conn = post(conn, ~p"/api/orgs/#{org.name}/ca_certificates", params)
 
-      assert %{"jitp" => %{"tags" => ["can't be blank"], "product_id" => ["can't be blank"]}} =
-               json_response(conn, 422)["errors"]
+      assert %{"jitp" => %{"product_id" => ["can't be blank"]} = jitp_errors} = json_response(conn, 422)["errors"]
+      assert map_size(jitp_errors) == 1, "only the product is required, got #{inspect(jitp_errors)}"
+    end
+
+    test "supports a JITP with only a product", %{conn: conn, org: org, product: %{id: pid, name: product_name}} do
+      ca_key = X509.PrivateKey.new_ec(:secp256r1)
+      ca_cert = X509.Certificate.self_signed(ca_key, "CN=#{org.name}", template: :root_ca)
+
+      params =
+        conn
+        |> create_params(org, ca_cert, ca_key)
+        |> Map.put(:jitp, %{product_id: pid})
+
+      conn = post(conn, ~p"/api/orgs/#{org.name}/ca_certificates", params)
+
+      assert %{"product_name" => ^product_name, "tags" => nil, "description" => nil} =
+               json_response(conn, 201)["data"]["jitp"]
     end
 
     test "supports valid JITP", %{conn: conn, org: org, product: %{id: pid, name: product_name}} do
