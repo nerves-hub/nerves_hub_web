@@ -177,6 +177,10 @@ defmodule NervesHubWeb.API.CACertificateController do
     end
   end
 
+  defp jitp_params(_org, %{"product_name" => _}) do
+    {:error, {:jitp_product_name_invalid, "A JITP's product_name must be a string"}}
+  end
+
   defp jitp_params(_org, jitp), do: {:ok, jitp}
 
   operation(:delete,
