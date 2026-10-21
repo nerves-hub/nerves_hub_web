@@ -109,6 +109,34 @@ defmodule NervesHub.SSLTest do
       assert device.tags == ["hello", "jitp"]
     end
 
+    test "jitp with only a product", _ do
+      user = Fixtures.user_fixture()
+      org = Fixtures.org_fixture(user, %{name: "jitp_product_only"})
+      product = Fixtures.product_fixture(user, org)
+      ca = Fixtures.ca_certificate_fixture(org)
+      identifier = "jitp_product_only_device"
+
+      otp_cert =
+        X509.PrivateKey.new_ec(:secp256r1)
+        |> X509.PublicKey.derive()
+        |> X509.Certificate.new("/O=#{org.name}/CN=#{identifier}", ca.cert, ca.key)
+
+      # Turned on as the CA page does it when the description and tags are left empty
+      {:ok, _ca} =
+        ca.db_cert
+        |> NervesHub.Repo.preload(:jitp)
+        |> CACertificates.update_ca_certificate(%{jitp: %{product_id: product.id, tags: "", description: ""}})
+
+      assert {:valid, _state} = run_verify(otp_cert, {:bad_cert, :unknown_ca})
+
+      scope = Scope.for_user(user) |> Scope.put_org(org)
+
+      assert {:ok, device} = Devices.get_by_identifier(scope, identifier)
+      assert device.product_id == product.id
+      assert is_nil(device.description)
+      assert is_nil(device.tags)
+    end
+
     test "rejects a deleted device", context do
       assert {:ok, device} = Repo.soft_delete(context.device)
       assert device.deleted_at
