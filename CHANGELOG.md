@@ -1,5 +1,332 @@
 # Changelog
 
+## v2.5.0
+
+NervesHub can now manage more than Nerves devices. Alongside fwup it accepts ESP-IDF application images, AtomVM packbeams and RAUC bundles, each behind its own setting. Deployment groups gain workflows for staged rollouts, required releases, and a mode where the device decides when to update. Devices can report metrics, alarms and errors through new extensions, and the device list has a query language for finding them. Organizations can send device and workflow events to webhooks, Slack, Microsoft Teams and Discord, and act on devices from Slack.
+
+More fleet-scale data now lives in ClickHouse, and device nodes use a good deal less memory.
+
+### Upgrading
+
+- **Elixir 1.20 and OTP 29.** Building from source needs Elixir 1.20 and OTP 29. The Docker image uses Elixir 1.20.4 and OTP 29.1.2, which fix CVEs in `public_key`, `ssl` and `inets`. It also moves to Ubuntu 26.04 (`resolute`) and builds fwup 1.17.1. (#2716, #3111, #3166)
+- **Some migrations drop data.** Device health history, the PostgreSQL device metrics table and the old `device_connections` table are dropped, not migrated. Metric history now lives in ClickHouse and starts empty. Once these migrations have run, rolling back to 2.4.0 isn't supported. (#2765, #2996, #3006)
+- **One migration locks `devices`.** Dropping the old device metrics table takes an exclusive lock on `devices`. The migration gives up after 5 seconds instead of stalling every other query, so on a busy database it can fail. If it does, deploy again at a quieter time. (#2996)
+- **Rolling deploys.** Until every node runs 2.5.0, messages between nodes on different versions can be lost. That covers device consoles and local shells, live device updates in the UI, health reports and orchestrator events. It recovers when the rollout completes. Any other application in the cluster that runs `group` needs 0.3.1 in the same deploy. (#2851, #3132, #3133, #3135, #3141)
+- **ClickHouse is still optional**, but connection history, metric history, error reports, Product Insights and the Data History tab all need it. Without `CLICKHOUSE_URL`, devices keep reporting metrics through the health extension.
+- **Support script names are unique per product**, ignoring case. The migration renames newer duplicates by appending their id, as in `Reboot (412)`, and the oldest keeps its name. Anything that runs a renamed script by name needs its new name. (#3189)
+- **Firmware versions must be valid SemVer.** Firmware and archive uploads with any other version are rejected. Existing rows are left alone, and `mix nerves_hub.versions.report_invalid` lists them. (#2858)
+- **New products require unique firmware versions** per platform and architecture. Existing products keep the old behavior, and the setting can be changed on any product. (#2864)
+- **Invitations must be accepted.** Inviting someone who already has an account no longer adds them to the org straight away. Everyone gets an invitation to accept or decline, including users added through the API. (#2718, #3027)
+- **`updates_enabled` is deprecated.** Devices now have an `update_mode` of `automatic`, `device_managed` or `off`. The API still returns `updates_enabled`, derived from `update_mode`, for this release. (#2978)
+- **HTTP/1.1 requests need a `Host` header.** Bandit 1.13 answers 400 without one. HTTP/1.0 health checks are unaffected. (#3169)
+- **Removed settings.** `DASHBOARD_ENABLED`, `DEPLOYMENT_CALCULATOR_INTERVAL_SECONDS`, `DEVICE_DEPLOYMENT_CHANGE_JITTER_SECONDS`, `DEVICE_CONNECTION_MAX_AGE_DAYS` and `DEVICE_CONNECTION_DELETE_LIMIT` were parsed but never used, and are no longer read. Every variable that is read is now documented in [docs/runtime_configuration.md](docs/runtime_configuration.md). (#2955)
+
+### Themes
+
+- **More Firmware Formats**: ESP-IDF application images (with delta updates), AtomVM packbeams and RAUC bundles, each off by default
+- **Deployment Workflows**: Staged rollouts with approvals, required releases, connecting code per release, and group locks
+- **Device-Managed Updates**: A device can choose when to take the firmware its deployment group offers
+- **New Extensions**: Metrics, alarms, error reports and network identities, plus batched log lines and extension version negotiation
+- **Finding Devices**: An advanced query syntax, customizable columns, bulk tagging, bulk import, and bulk actions across every matching device
+- **Insights and History**: Product Insights, firmware update history, a device Data History tab, and configurable health profiles
+- **ClickHouse**: Metrics, connection history, device messages, alarm history and error reports moved off PostgreSQL
+- **UI**: A light theme, Tailwind 4, a CMD-K command palette, product notifications, and dates in the viewer's timezone
+- **API**: A complete OpenAPI spec with new docs, plus endpoints for logs, metrics, shared secrets, scripts, archives and firmware downloads
+- **Device Connections**: Lower memory use on device nodes, TLS 1.3 session resumption, PROXY protocol v2, and a MessagePack serializer
+- **Integrations**: Webhooks for device and workflow events, a Slack app with notifications, device actions, slash commands and link previews, and notifications to Microsoft Teams and Discord
+
+### Added
+
+- Support for multiple firmware update tools (#2903, #2904)
+- ESP-IDF application image support, off by default (#2905), with delta updates (#2940)
+- AtomVM packbeam support, off by default (#2941, #2969)
+- RAUC bundle support, off by default (#2946, #2957, #2958, #2959)
+- Deployment workflows for staged firmware rollouts (#2988, #3009, #3011)
+- Required releases for deployment groups (#3047)
+- Connecting code on deployment releases (#3048), and show a group's connecting code in a modal (#3059)
+- Device-managed firmware updates (#2978)
+- Lock a deployment group to prevent devices being reassigned (#2850)
+- Deployment group notes (#2822), and an optional description and notes on releases (#2556)
+- Bulk actions for deployment groups and manual firmware updates (#2509)
+- Import devices into a deployment group by CSV (#2995)
+- Runtime setting to make deployment queues LIFO by default (#2632)
+- Metrics extension, with metric history stored in ClickHouse (#2996)
+- Alarms extension, sent by the device as alarms change (#3072)
+- Error reports as an opt-in device extension (#2982)
+- Network identities: record the iroh, NetBird and other network identities a device, user or org holds, with a page to manage them (#2896, #2897, #2899, #2900)
+- Let a device send a batch of log lines in one message (#2962)
+- Tell a device which extension versions it can have (#2963)
+- Notify a product when a device can't start an extension (#3012)
+- Configurable health profiles (#2992)
+- Product Notifications (#2543), with a count in the sidebar (#2748)
+- Webhooks for device events (#3117) and deployment workflow steps (#3138), set up on a new Integrations page or through the API. See [docs/webhooks.md](docs/webhooks.md)
+- Connect Slack workspaces to an organization (#3119). This needs a Slack app and `SECRETS_ENCRYPTION_KEY`; see [docs/slack.md](docs/slack.md)
+- Post device notifications to Slack channels (#3120)
+- Reboot and identify devices from Slack (#3122)
+- Answer `/nerveshub` slash commands in Slack (#3123)
+- Approve a waiting deployment workflow, or retry or skip a failed step, from Slack (#3138)
+- Preview device and deployment group links posted in Slack (#3142)
+- Edit Slack workflow messages once their step is dealt with (#3149)
+- Receive Slack events over Socket Mode, for instances Slack can't reach (#3150)
+- Post device notifications to Microsoft Teams (#3148) and Discord (#3152) channels
+- Optionally hard-delete soft deleted devices with `CLEAN_UP_SOFT_DELETED_DEVICES` (#2543)
+- Product Insights (#2772), including flapping connections (#2785), links into the device list (#2790), 24 hour and 4 week ranges (#2798) in the viewer's timezone (#2799), and a firmware version chart (#3021)
+- Track device firmware history (#2665)
+- Capture firmware update history and surface devices failing to update (#3058)
+- Record device messages and show them on a Data History tab (#2925, #2961)
+- A query syntax for advanced device filtering (#2792, #2793, #2829, #2830, #2837, #2989, #2990)
+- Filter devices by firmware version (#3020) and firmware validation status (#3018)
+- Advanced query strings on the device index API (#2993)
+- Customize the columns in the device list (#2763)
+- Bulk actions on all listed devices, including every match for a filter (#2625)
+- Bulk import devices (#2619)
+- Add and remove tags in bulk from the device list (#3032)
+- Tag autocomplete for devices, deployments and support scripts (#2784)
+- Device CSV export follows the current filters (#2949)
+- Store firmware checksums, plus checksums for each 1MB partial (#2571)
+- Per-product setting requiring unique firmware versions (#2864)
+- Track which CA signed each device certificate (#3024)
+- Record the address devices connect from (#2926)
+- Redirect devices pointed at the management host to the device websocket host (#2924)
+- A MessagePack serializer for device connections (#2759)
+- Issue TLS 1.3 session tickets to devices, including behind a PROXY protocol v2 balancer (#3100)
+- Configure device websocket compression from the environment (#3015)
+- A light theme (#2599, #2605, #2608, #2609, #2761)
+- CMD-K command palette for logged-in users (#2872)
+- Render dates and times in the viewer's timezone (#3023)
+- Drag the device details boxes around (#3069)
+- Pick the device location map's style (#3114)
+- Set your own logo URL (#2487)
+- A copy button for the device identifier (#2921)
+- A drop overlay when dragging firmware onto the firmware list (#3030)
+- Allow users to remove themselves from an org (#2681)
+- "Updated by" and "Updated at" for support scripts (#2979), and record the language a script is written in (#3014)
+- A browser-based login flow for the CLI (#2720)
+- Login redirects to related NervesHub URLs (#2807)
+- API: list a user's organizations (#2546)
+- API: download firmware (#2610, #2613)
+- API: show, create, update and delete support scripts (#2723)
+- API: fetch device logs (#2939) and metric history (#3113)
+- API: manage per-device shared secrets (#3108)
+- API: upload and fetch archives (#3139)
+- API: return a firmware's `misc` and `vcs_identifier` metadata (#3140)
+- API: name a JITP profile's product with `product_name` (#3186)
+- API: sorting, pagination and filtering on the device index (#2718)
+- API token auth for the user console and local shell channels (#2741)
+- Stoplight for the API docs, now at `/api/docs` (#2736, #2745)
+- Verify a self-signed database certificate (#2568)
+- Verify a ClickHouse behind a private CA (#3033)
+- Configurable session cookie name (#3034)
+- Serve presigned downloads from a configurable hostname (#3035)
+- Rate limit the API by a forwarded client IP behind a proxy (#2927)
+- A health check endpoint on device nodes (#2680)
+- `POD_ID` support in the release `env.sh` (#2670)
+- Support for the Featurebase in-app messenger (#2679)
+
+### Changed
+
+- Find the device console on demand instead of keeping it in `:group` (#3132)
+- Health and Metrics no longer hold a `:group` key per device (#3133)
+- Find the local shell on demand instead of keeping it in `:group` (#3135)
+- Use the `:group` library for targeted device-to-UI messages (#2851)
+- Upgrade `group` to 0.3.1 and cap its replica oplog (#3141), and heartbeat its peers every 5 seconds instead of every second (#3145)
+- Make support script names unique per product, ignoring case (#3189)
+- Make a JITP profile's description and tags optional (#3185)
+- Move device metrics to ClickHouse (#2996)
+- Split device health into status, alarms and connection metadata (#3006)
+- Only track the most recent device connection in PostgreSQL (#2569), and drop the old `device_connections` table (#2765) and connection columns on `devices` (#2778)
+- Batch writes to ClickHouse (#2932)
+- Version connection history rows at microsecond resolution, strictly increasing (#2901, #2933)
+- Clean up stale connections in ClickHouse separately (#2783)
+- Allow `AnalyticsRepo` settings to be configured at runtime (#2617)
+- Skip ClickHouse migrations when analytics is disabled (#2606)
+- Retire firmware instead of deleting it (#3029)
+- Order firmware by SemVer precedence (#2857, #2859, #2860, #2862)
+- Validate firmware and archive versions are valid SemVer (#2858)
+- Reject firmware that needs a newer fwup with a clear message (#3111)
+- Send the firmware size and checksums when pushing an update to a device (#2930)
+- Send a device only the signing keys its update tool can use (#3010)
+- Generate a delta when adding a device (#2513)
+- Give each release its own delta status (#3057)
+- Refuse a release that matches the current release (#3050)
+- Remove duplication between deployment groups and releases (#2547)
+- Exclude devices with updates disabled from deployment progress (#2696)
+- Full integration of all firmware update statuses (#2709)
+- Enhance `InflightUpdate` with more information (#2689)
+- Record each deployment release in the audit log once (#3053)
+- Require users to accept organization invitations (#3027)
+- Combine adding and inviting org members in the API (#2718)
+- Return 404 for missing records in the web UI (#3019)
+- Send emails from a background job (#3017)
+- Stagger the health and geo timers across the fleet (#2966), and let the device channel own the health check pace (#2980)
+- Improve device connection performance (#2558, #2564, #2578, #2594)
+- Faster device counts (#2967), and nicer online/offline counts (#2694)
+- Simplify and speed up device health queries (#2581)
+- Device list loads filter data once (#2936), re-subscribes only changed devices (#2935), and skips health payloads it doesn't render (#2934)
+- Stream the device export over HTTP (#2631)
+- Reduce what `DeviceSocket` and its channel store (#2634)
+- Cut device node memory: zlib contexts and allocator retention (#2943), VM allocator tweaks (#2653), and drop `MALLOC_CONF` (#2981)
+- Remove Memento in favor of ETS and PubSub (#2740)
+- Set Oban `peer` to false on device nodes (#2638), and simplify the Oban queues (#2662)
+- Move SSL config to the web endpoint, with the health check ahead of SSL enforcement (#2738)
+- Write firmware uploads directly to the temp dir (#2791), and use Briefly for LiveView uploads (#2584)
+- Unify CA certificate ownership checks across the UI and API (#2734)
+- Improved org and product selector (#2533, #2541)
+- Update Tailwind to v4 (#2540), use color variables (#2542), and tidy classes with `canonical_tailwind` (#2561)
+- A revamp of the device metrics page (#2614)
+- Improve device health metadata display (#2895)
+- Rework how support scripts are selected and run from the device page (#2794)
+- Simplify the filter and settings sidebars (#2797)
+- Sticky device list headers (#2773)
+- Show extension display names instead of raw keys (#3071)
+- Hide the device map when geo is disabled (#3068)
+- Show memory used when a device reports no percentage (#3097)
+- Richer deployment group API responses (#2548)
+- A full pass over the OpenAPI specs, which are now valid (#2727, #2733, #2735, #2739, #2744, #3013)
+- Sentry OTEL tracing configuration (#2534, #2535)
+- Remove the old, unused dashboard (#2585), and other unused web code and assets (#2597, #2731, #2747)
+- Context cleanup: dead code, deduplication, and Repo access moved out of the web layer (#2873, #2874, #2876, #2877, #2878, #2879, #2880, #2881, #2882, #2883, #2884)
+- Extract a transport-independent `DeviceLink` contract (#2893)
+- Document every runtime environment variable (#2955)
+- Add `AGENTS.md` (#2853) and Tidewave dev tooling (#2889)
+- Upgrade hackney to 4.7 to fix four security advisories (#3045), Bandit to 1.13.1 for two more (#3169), and fix 9 of 12 npm Dependabot alerts (#3046)
+- Bump Sentry to 14, keeping `SENTRY_ENABLE_LOGGING` working (#3165)
+- Bump jemalloc to 5.4.0, which fixes a segfault when a thread exits (#3167)
+- Remove 11 Hex dependencies, replacing Timex, phoenix_view, phoenix_html_helpers, uuidv7 and Joken with code of our own or Ecto's (#3168)
+- Bump Elixir to 1.20.4 and Erlang to 29.1.2 (#2716, #3166)
+
+### Fixed
+
+- Hide device shared secrets from view-only members (#3052)
+- Stop former members reaching a deleted org's devices (#3082)
+- Scope the certificate authority edit page to its org (#3025)
+- Fix cases where a logged in user could cause atom exhaustion (#2655)
+- Redact the password hash (#2828)
+- Reject firmware uploaded to the wrong product (#2907)
+- Reject web addresses in user names during registration (#2919)
+- Copy signing keys again when a device moves to another org (#3083)
+- Fix several paths where memory grows and is never released (#2942)
+- Fix runaway duplicate PubSub subscriptions and a memory leak (#2588)
+- Stop caching a derived key for every shared-secret connect (#3095)
+- Time out the device TLS handshake when PROXY protocol is off (#3096)
+- Fix the device events stream never forwarding update progress (#2902)
+- Use the same key names and types in all `firmware_update_progress` messages (#2801)
+- Don't crash device join when `firmware_metadata` is nil (#2700)
+- Don't crash the device page before a device reports its firmware (#3051)
+- Fix four deletions that crashed on foreign keys (#3031)
+- Stop long audit log descriptions from crashing their callers (#2923)
+- Exclude soft deleted devices from product and org device counts (#2948)
+- Don't mistake an unloaded `deployment_group` for a real one (#2987)
+- Ignore deleted firmware when matching a device's firmware by UUID (#3101)
+- Save the first connect code when adding a device (#3081)
+- Return a 422 when an API device move fails (#3092)
+- Fix the device audit log download (#3080)
+- Count org admins when removing a user from any users page (#3084)
+- Show the sign-in failure page when a Google name fails validation (#3085)
+- Register CA certificates that have no Authority Key Identifier (#3115)
+- Accept expired and not-yet-valid CA certificates when registering a CA, and say why ownership verification failed (#3146)
+- Accept a self-signed device certificate that was uploaded for the device (#3184)
+- Report why a device's certificate chain was refused, instead of logging the platform as unavailable (#3187)
+- Take a deleted device out of its deployment group and disconnect it (#3153)
+- Refuse to send an update to a device that is already updating, instead of crashing (#3173)
+- Give devices fresh update attempts after an orchestrator penalty (#3154), and record the penalty and its audit together (#3156)
+- Rerun the orchestrator when the normal queue is full and the priority queue has open slots (#3124)
+- Check a workflow step before changing it, and change it atomically (#3159)
+- Fix two partial writes when a device joins (#3155), and a deadlock when several devices join a deployment group at once (#3178)
+- Keep firmware delta state consistent through builds, retries and timeouts (#3157), and don't queue file deletion for deltas that were never built (#3171)
+- Fix the API device list's alarm filters (#3183)
+- Return 422 when a changeset's only errors are nested (#3172)
+- Return 404 for `/auth` paths that name no OAuth provider (#3170)
+- Keep firmware metadata values that contain an equals sign (#3140)
+- Show sizes over a TiB correctly, and keep JITP tags separate on the CA edit page (#3168)
+- Fix a concurrency issue with the CLI session cache (#2779)
+- Fix deployment group activity pagination (#2848)
+- Fix the deployment group filter being reset (#2623, #2624)
+- Fix network interface error handling (#2595, #2844)
+- Fix the release creation function signature (#2538), the archive association on release creation (#2554), and the deployment group preload in the device API (#2553)
+- Fix getting the user from the current scope (#2555)
+- Fall back to the full firmware URL (#2572)
+- Ignore extension events and messages when the extension isn't attached (#2583, #2661)
+- Fix an error when a live socket reconnects (#2582)
+- Don't crash telemetry on timeouts (#2563)
+- Fix the device heartbeats function signature (#2652)
+- Add missing foreign key indexes, and a test to catch new ones (#2559, #2560, #2562, #2565, #2567)
+- `Mix` isn't available when running a release (#2737)
+- Let the Option key compose characters in the device console (#3028)
+- Make support script output panels unique per script (#2691)
+- Fix duplicate HTML IDs (#2663)
+- Fix device list overflow (#2773), and vertical overflow on the CA pages (#3116)
+- Stop a removed list column from breaking user loading (#3073)
+- Fix how the location setting menu button is hidden (#2986)
+- Show the trash icon on the Remove metric button, and test for missing icons (#3118)
+- Fix the Sentry source code path config (#2922, #2937)
+- Docker build fixes (#2758)
+
+### Dependencies
+
+- **bandit**: 1.10.3 -> 1.13.1
+- **canonical_tailwind**: 0.3.5 (new)
+- **castore**: 1.0.17 -> 1.0.22
+- **ch**: 0.7.1 -> 0.9.2
+- **circular_buffer**: 1.0.0 -> 1.1.0
+- **confuse**: 0.3.1 -> 0.4.0
+- **contex**: 0.5.0 (removed)
+- **credo**: 1.7.16 -> 1.7.19
+- **crontab**: 1.2.0 (removed)
+- **decimal**: 2.3.0 -> 3.2.0
+- **dialyxir**: 1.4.7 -> 1.4.8
+- **ecto**: 3.13.5 -> 3.14.2
+- **ecto_ch**: 0.8.6 -> 0.11.1
+- **ecto_sql**: 3.13.4 -> 3.14.0
+- **ex_aws**: 2.6.1 -> 2.7.0
+- **ex_json_schema**: 0.11.5 (new)
+- **excoveralls**: 0.18.5 (removed)
+- **finch**: 0.21.0 -> 0.24.0
+- **floki**: 0.38.0 (removed)
+- **flop**: 0.26.3 -> 0.29.0
+- **group**: 0.3.1 (new)
+- **hackney**: 1.25.0 -> 4.8.5
+- **hammer**: 7.1.0 -> 7.5.0
+- **hlclock**: 1.0.0 (removed)
+- **igniter**: 0.8.4 (new)
+- **jason**: 1.4.4 -> 1.4.5
+- **lazy_html**: 0.1.10 -> 0.1.13
+- **live_flow**: 0.2.3 (new)
+- **lucide**: 0.577.0 -> 1.58.0
+- **mimic**: 2.3.0 -> 2.4.2
+- **mint_web_socket**: 1.0.5 -> 1.0.6
+- **mjml_eex**: 0.12.0 -> 0.13.0
+- **msgpax**: 2.4.0 (new)
+- **oban**: 2.20.3 -> 2.24.2
+- **oban_met**: 1.0.6 -> 1.3.2
+- **oban_web**: 2.11.8 -> 2.13.1
+- **open_api_spex**: 3.22.2 -> 3.22.4
+- **opentelemetry_exporter**: 1.10.0 -> 1.11.0
+- **ordered_collections**: 0.3.3 (new)
+- **phoenix**: 1.8.5 -> 1.8.15
+- **phoenix_html_helpers**: 1.0.1 (removed)
+- **phoenix_live_dashboard**: 0.8.7 -> 0.9.1
+- **phoenix_live_reload**: 1.6.2 -> 1.7.0
+- **phoenix_live_view**: 1.1.26 -> 1.2.12
+- **phoenix_pubsub**: 2.2.0 -> 2.4.1
+- **phoenix_test**: 0.9.1 -> 0.12.1
+- **phoenix_view**: 2.0.4 (removed)
+- **plug**: 1.19.1 -> 1.20.3
+- **plug_attack**: 0.4.3 (new)
+- **postgrex**: 0.22.0 -> 0.22.4
+- **process_hub**: 0.5.0-beta -> 0.7.0
+- **quokka**: 2.11.2 -> 2.13.1
+- **req**: 0.5.17 -> 0.7.5
+- **sentry**: 12.0.2 -> 14.0.0
+- **spellweaver**: 0.1.5 -> 0.1.8
+- **swoosh**: 1.22.1 -> 1.29.0
+- **tailwind**: 0.4.1 -> 0.5.1
+- **telemetry_metrics**: 1.1.0 -> 1.2.0
+- **tidewave**: 0.9.1 (new)
+- **timex**: 3.7.13 (removed)
+- **tzdata**: 1.1.3 -> 1.2.2
+- **uuidv7**: 1.0.0 (removed)
+
 ## v2.4.0
 
 This release comes with the discovery of CVE-2026-28806. During routine development we noticed lacking authorization checks for device bulk actions. Investigating it we found that it did allow a user to take actions on devices outside of their organization by manipulating the client-side of the application. As part of this we also discovered an API endpoint that exposed an equivalent privilege escalation and ability to escape the scope.
