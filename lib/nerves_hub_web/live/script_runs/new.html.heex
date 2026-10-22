@@ -6,15 +6,15 @@
   </:top_bar>
 
   <:header>
-    <h1 class="text-base-50 text-xl leading-[30px] font-semibold">Run a Script</h1>
+    <h1 class="text-xl leading-[30px] font-semibold text-base-50">Run a Script</h1>
   </:header>
 
   <div class="h-0 flex-1 overflow-y-auto">
     <div class="flex flex-col items-start justify-between gap-4 p-6">
       <.form id="new-script-run-form" for={@form} class="flex w-full flex-col gap-4" phx-change="validate" phx-submit="create-run">
-        <div class="bg-surface-raised border-base-700 flex w-full flex-col rounded border">
-          <div class="border-base-700 flex h-14 items-center justify-between border-b px-4">
-            <div class="text-base-50 text-base font-medium">General settings</div>
+        <div class="flex w-full flex-col rounded border border-base-700 bg-surface-raised">
+          <div class="flex h-14 items-center justify-between border-b border-base-700 px-4">
+            <div class="text-base font-medium text-base-50">General settings</div>
           </div>
           <div class="flex gap-6 p-6">
             <div class="flex w-1/2 flex-col gap-6">
@@ -49,16 +49,16 @@
 
             <div class="flex w-1/2 flex-col gap-2">
               <.input field={@form[:text]} label="Script code" type="textarea" rows="10" phx-debounce="2000" />
-              <div class="text-base-400 text-xs tracking-wide">
+              <div class="text-xs tracking-wide text-base-400">
                 {syntax_hint(@form[:language].value)}
               </div>
             </div>
           </div>
         </div>
 
-        <div class="bg-surface-raised border-base-700 flex w-full flex-col rounded border">
-          <div class="border-base-700 flex h-14 items-center justify-between border-b px-4">
-            <div class="text-base-50 text-base font-medium">Target devices</div>
+        <div class="flex w-full flex-col rounded border border-base-700 bg-surface-raised">
+          <div class="flex h-14 items-center justify-between border-b border-base-700 px-4">
+            <div class="text-base font-medium text-base-50">Target devices</div>
           </div>
           <div class="flex gap-6 p-6">
             <div class="flex w-1/2 flex-col gap-6">
@@ -91,7 +91,7 @@
                   <.core_label>Device identifiers</.core_label>
 
                   <div class="flex items-center gap-4">
-                    <label :for={{source, label} <- [{"typed", "Type them"}, {"csv", "Upload a CSV"}]} class="text-base-300 flex items-center gap-2 text-sm">
+                    <label :for={{source, label} <- [{"typed", "Type them"}, {"csv", "Upload a CSV"}]} class="flex items-center gap-2 text-sm text-base-300">
                       <input
                         type="radio"
                         name="identifier_source"
@@ -99,7 +99,7 @@
                         checked={to_string(@identifier_source) == source}
                         phx-click="identifier-source"
                         phx-value-identifier_source={source}
-                        class="border-base-700 checked:bg-primary text-base-400 focus:ring-0"
+                        class="border-base-700 text-base-400 checked:bg-primary focus:ring-0"
                       />
                       {label}
                     </label>
@@ -123,18 +123,18 @@
                     <div :if={@csv_identifiers == []} class="flex flex-col gap-2">
                       <label
                         for={@uploads.identifiers_csv.ref}
-                        class="bg-base-800 border-base-700 hover:bg-base-700 text-base-300 flex w-fit cursor-pointer items-center gap-1.5 rounded border px-3 py-1.5 text-sm"
+                        class="flex w-fit cursor-pointer items-center gap-1.5 rounded border border-base-700 bg-base-800 px-3 py-1.5 text-sm text-base-300 hover:bg-base-700"
                       >
                         <.icon name="add" class="stroke-base-400" /> Choose a CSV file
                       </label>
                       <.live_file_input upload={@uploads.identifiers_csv} class="hidden" />
-                      <div class="text-base-400 text-xs">
+                      <div class="text-xs text-base-400">
                         A single column, named <span class="font-mono">identifier</span>.
                       </div>
                     </div>
 
-                    <div :if={@csv_identifiers != []} class="bg-base-800 border-base-700 flex items-center justify-between gap-2 rounded border px-3 py-2">
-                      <span class="text-base-300 text-sm">
+                    <div :if={@csv_identifiers != []} class="flex items-center justify-between gap-2 rounded border border-base-700 bg-base-800 px-3 py-2">
+                      <span class="text-sm text-base-300">
                         {@csv_filename} — {length(@csv_identifiers)} {identifiers(length(@csv_identifiers))}
                       </span>
                       <.button type="button" style="secondary" phx-click="remove-csv" aria-label="Remove the uploaded CSV">
@@ -155,7 +155,7 @@
                 />
               </.inputs_for>
 
-              <div :if={is_nil(@filter_type)} class="text-base-400 text-sm">
+              <div :if={is_nil(@filter_type)} class="text-sm text-base-400">
                 Pick a filter to choose which devices this runs on.
               </div>
 
@@ -164,7 +164,7 @@
               <.error :for={message <- filter_errors(@form)}>{message}</.error>
             </div>
           </div>
-          <div class="border-base-700 flex h-14 items-center justify-between border-t px-4">
+          <div class="flex h-14 items-center justify-between border-t border-base-700 px-4">
             <.button style="primary" type="submit">
               <.icon name="save" /> Run script
             </.button>

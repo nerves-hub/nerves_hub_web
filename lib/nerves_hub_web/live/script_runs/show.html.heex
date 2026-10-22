@@ -6,7 +6,7 @@
   </:top_bar>
 
   <:header>
-    <h1 class="text-base-50 text-xl leading-[30px] font-semibold">{@script_run.name}</h1>
+    <h1 class="text-xl leading-[30px] font-semibold text-base-50">{@script_run.name}</h1>
     <span class="tag mr-auto">{@script_run.status}</span>
     <%!-- A rerun is a new run, so it is only offered once this one has nothing left
           to do. Pushed to the far end of the header by the status's `mr-auto`. --%>
@@ -31,13 +31,13 @@
   <div class="h-0 flex-1 overflow-y-auto">
     <div class="flex flex-col gap-4 p-6">
       <div class="flex gap-4">
-        <div class="bg-surface-raised border-base-700 flex w-1/2 flex-col gap-3 rounded border p-4">
-          <div class="text-base-50 leading-6 font-medium">Details</div>
+        <div class="flex w-1/2 flex-col gap-3 rounded border border-base-700 bg-surface-raised p-4">
+          <div class="leading-6 font-medium text-base-50">Details</div>
 
           <%!-- The one editable thing on a run: the operator's own notes, which
                 often only make sense once the results are in. --%>
           <div class="flex items-start gap-4">
-            <span class="text-base-500 w-40 shrink-0 text-sm">Description:</span>
+            <span class="w-40 shrink-0 text-sm text-base-500">Description:</span>
 
             <form
               :if={@editing_description?}
@@ -49,7 +49,7 @@
                 name="description"
                 id="script_run_description"
                 rows="3"
-                class="bg-surface-muted border-base-600 text-base-300 block w-full rounded border px-3 py-1 text-sm font-normal"
+                class="block w-full rounded border border-base-600 bg-surface-muted px-3 py-1 text-sm font-normal text-base-300"
                 placeholder="Why this was run, and what to make of the results..."
                 phx-mounted={JS.focus()}
               >{@script_run.description}</textarea>
@@ -66,9 +66,9 @@
                     indentation too if it were wrapped onto its own line. --%>
               <span
                 :if={present?(@script_run.description)}
-                class="text-base-300 flex-1 text-sm whitespace-pre-wrap"
+                class="flex-1 text-sm whitespace-pre-wrap text-base-300"
               >{@script_run.description}</span>
-              <span :if={!present?(@script_run.description)} class="text-base-500 flex-1 text-sm">None</span>
+              <span :if={!present?(@script_run.description)} class="flex-1 text-sm text-base-500">None</span>
 
               <button
                 :if={authorized?(:"script_runner:update", @current_scope)}
@@ -78,35 +78,35 @@
                 aria-label="Edit the description"
                 phx-click="edit-description"
               >
-                <span class="lucide-pencil--light text-base-400 size-4 shrink-0"></span>
+                <span class="lucide-pencil--light size-4 shrink-0 text-base-400"></span>
               </button>
             </div>
           </div>
 
-          <div class="border-base-700 border-b"></div>
+          <div class="border-b border-base-700"></div>
 
           <div class="flex items-center gap-4">
-            <span class="text-base-500 w-40 shrink-0 text-sm">Targeted by:</span>
-            <span class="text-base-300 text-sm">{ScriptRunner.filter_type_label(@script_run.filter_type)}</span>
+            <span class="w-40 shrink-0 text-sm text-base-500">Targeted by:</span>
+            <span class="text-sm text-base-300">{ScriptRunner.filter_type_label(@script_run.filter_type)}</span>
           </div>
 
           <%!-- Each filter type stores different values, so each is shown on its
                 own terms rather than as a dump of the embed. --%>
           <div :if={@script_run.filter_type == :tags} class="flex items-center gap-4">
-            <span class="text-base-500 w-40 shrink-0 text-sm">Tags:</span>
+            <span class="w-40 shrink-0 text-sm text-base-500">Tags:</span>
             <span class="flex flex-wrap gap-1">
               <span :for={tag <- @script_run.filter.tags} class="tag">{tag}</span>
             </span>
           </div>
 
           <div :if={@script_run.filter_type == :tags} class="flex items-center gap-4">
-            <span class="text-base-500 w-40 shrink-0 text-sm">Tag matching:</span>
-            <span class="text-base-300 text-sm">{ScriptRunner.tag_operator_label(@script_run.filter.tag_operator)}</span>
+            <span class="w-40 shrink-0 text-sm text-base-500">Tag matching:</span>
+            <span class="text-sm text-base-300">{ScriptRunner.tag_operator_label(@script_run.filter.tag_operator)}</span>
           </div>
 
           <div :if={@script_run.filter_type == :identifiers} class="flex items-center gap-4">
-            <span class="text-base-500 w-40 shrink-0 text-sm">Identifiers:</span>
-            <span class="text-base-300 text-sm">
+            <span class="w-40 shrink-0 text-sm text-base-500">Identifiers:</span>
+            <span class="text-sm text-base-300">
               {length(@script_run.filter.identifiers)} named
             </span>
           </div>
@@ -115,7 +115,7 @@
                 deleted since the run does not resolve, so the count is shown when
                 none of them do. --%>
           <div :if={@script_run.filter_type == :deployment_groups} class="flex items-start gap-4">
-            <span class="text-base-500 w-40 shrink-0 text-sm">Deployment groups:</span>
+            <span class="w-40 shrink-0 text-sm text-base-500">Deployment groups:</span>
             <span :if={Enum.any?(@targeted_deployment_groups)} class="flex flex-wrap gap-1">
               <.link
                 :for={group <- @targeted_deployment_groups}
@@ -124,56 +124,56 @@
                 class="tag gap-1"
               >
                 {group.name}
-                <.icon name="open" class="stroke-base-400 size-4" />
+                <.icon name="open" class="size-4 stroke-base-400" />
               </.link>
             </span>
-            <span :if={Enum.empty?(@targeted_deployment_groups)} class="text-base-300 text-sm">
+            <span :if={Enum.empty?(@targeted_deployment_groups)} class="text-sm text-base-300">
               {length(@script_run.filter.deployment_group_ids)} selected
             </span>
           </div>
 
-          <div class="border-base-700 border-b"></div>
+          <div class="border-b border-base-700"></div>
 
           <div class="flex items-center gap-4">
-            <span class="text-base-500 w-40 shrink-0 text-sm">Language:</span>
-            <span class="text-base-300 text-sm">{Script.language_label(@script_run.language)}</span>
+            <span class="w-40 shrink-0 text-sm text-base-500">Language:</span>
+            <span class="text-sm text-base-300">{Script.language_label(@script_run.language)}</span>
           </div>
 
           <div class="flex items-center gap-4">
-            <span class="text-base-500 w-40 shrink-0 text-sm">Devices:</span>
-            <span class="text-base-300 text-sm">{@script_run.device_count} {devices(@script_run.device_count)}</span>
+            <span class="w-40 shrink-0 text-sm text-base-500">Devices:</span>
+            <span class="text-sm text-base-300">{@script_run.device_count} {devices(@script_run.device_count)}</span>
           </div>
 
           <div class="flex items-center gap-4">
-            <span class="text-base-500 w-40 shrink-0 text-sm">Started:</span>
-            <span class="text-base-300 text-sm">
+            <span class="w-40 shrink-0 text-sm text-base-500">Started:</span>
+            <span class="text-sm text-base-300">
               <.local_datetime :if={@script_run.started_at} at={@script_run.started_at} time_zone={@time_zone} />
               <span :if={is_nil(@script_run.started_at)} class="text-base-500">Not yet</span>
             </span>
           </div>
 
           <div class="flex items-center gap-4">
-            <span class="text-base-500 w-40 shrink-0 text-sm">Finished:</span>
-            <span class="text-base-300 text-sm">
+            <span class="w-40 shrink-0 text-sm text-base-500">Finished:</span>
+            <span class="text-sm text-base-300">
               <.local_datetime :if={@script_run.finished_at} at={@script_run.finished_at} time_zone={@time_zone} />
               <span :if={is_nil(@script_run.finished_at)} class="text-base-500">Still running</span>
             </span>
           </div>
         </div>
 
-        <div class="bg-surface-raised border-base-700 flex w-1/2 flex-col gap-3 rounded border p-4">
-          <div class="text-base-50 leading-6 font-medium">Script code</div>
-          <pre class="bg-base-800/50 text-base-300 overflow-x-auto rounded p-4 font-mono text-sm">{@script_run.text}</pre>
+        <div class="flex w-1/2 flex-col gap-3 rounded border border-base-700 bg-surface-raised p-4">
+          <div class="leading-6 font-medium text-base-50">Script code</div>
+          <pre class="overflow-x-auto rounded bg-base-800/50 p-4 font-mono text-sm text-base-300">{@script_run.text}</pre>
         </div>
       </div>
 
-      <div id="run-progress" class="bg-surface-raised border-base-700 flex flex-col gap-3 rounded border p-4">
+      <div id="run-progress" class="flex flex-col gap-3 rounded border border-base-700 bg-surface-raised p-4">
         <div class="flex items-center gap-2">
-          <div class="text-base-50 leading-6 font-medium">Progress</div>
+          <div class="leading-6 font-medium text-base-50">Progress</div>
           <%!-- What has an outcome, over every device. `:pending` and `:running`
                 are the only statuses not counted in the numerator, so this reaches
                 the total exactly when the run is done. --%>
-          <div class="text-base-400 text-sm">
+          <div class="text-sm text-base-400">
             {finished_count(@status_counts)} / {total_count(@status_counts)}
           </div>
         </div>
@@ -181,8 +181,8 @@
           <%!-- Only the statuses this run actually has, so a finished run is not a
                 list of zeroes. --%>
           <div :for={status <- statuses()} :if={status_count(@status_counts, status) > 0} class="flex items-center gap-2">
-            <span class="text-base-500 text-sm">{status}:</span>
-            <span class="text-base-300 text-sm">{status_count(@status_counts, status)}</span>
+            <span class="text-sm text-base-500">{status}:</span>
+            <span class="text-sm text-base-300">{status_count(@status_counts, status)}</span>
           </div>
         </div>
       </div>
@@ -192,12 +192,12 @@
           so the count and the filters stay reachable while the device rows scroll
           past. Opaque and raised above the rows, which would otherwise show through
           it. --%>
-    <div class="bg-surface border-base-700 sticky top-0 z-10 flex h-14 items-center justify-between border-y px-6">
+    <div class="sticky top-0 z-10 flex h-14 items-center justify-between border-y border-base-700 bg-surface px-6">
       <div id="devices-heading" class="flex items-center gap-2">
-        <div class="text-base-50 text-base font-medium">Devices</div>
+        <div class="text-base font-medium text-base-50">Devices</div>
         <%!-- The filtered total rather than the run's own `device_count`, so it
               agrees with the rows below it. --%>
-        <div class="bg-base-800 text-base-300 rounded-sm px-1.5 py-0.5 text-xs">
+        <div class="rounded-sm bg-base-800 px-1.5 py-0.5 text-xs text-base-300">
           {@pager_meta.total_count}
         </div>
       </div>
@@ -220,7 +220,7 @@
             name="status"
             id="device_result_status"
             title="Filter by status"
-            class="bg-surface-muted border-base-600 text-base-400 block h-9 rounded border py-1 pr-8 pl-3 text-sm font-normal"
+            class="block h-9 rounded border border-base-600 bg-surface-muted py-1 pr-8 pl-3 text-sm font-normal text-base-400"
           >
             <option value="">Filter by status</option>
             <option :for={status <- statuses()} value={status} selected={to_string(status) == @current_filters[:status]}>
@@ -231,7 +231,7 @@
           <div class="grid grid-cols-1">
             <input
               type="text"
-              class="bg-surface-muted border-base-600 text-base-400 col-start-1 row-start-1 block h-9 w-64 gap-2 rounded border px-3 py-1 text-sm font-normal"
+              class="col-start-1 row-start-1 block h-9 w-64 gap-2 rounded border border-base-600 bg-surface-muted px-3 py-1 text-sm font-normal text-base-400"
               name="identifier"
               id="device_result_search"
               placeholder="Search by identifier..."
@@ -273,13 +273,13 @@
           <%!-- Each result is two rows: the result itself, and its output when the
                 row is open. --%>
           <%= for result <- @device_results do %>
-            <tr class="border-base-800 cursor-pointer border-b" phx-click="toggle-output" phx-value-id={result.id}>
+            <tr class="cursor-pointer border-b border-base-800" phx-click="toggle-output" phx-value-id={result.id}>
               <td class="h-[52px]">
                 <div class="flex items-center gap-2">
                   <%!-- Which way the row will move when it is clicked: down to reveal
                         the output, up to put it away. --%>
                   <span class={[
-                    "text-base-400 size-5 shrink-0",
+                    "size-5 shrink-0 text-base-400",
                     if(@expanded_device_id == result.id, do: "lucide-chevron-up--light", else: "lucide-chevron-down--light")
                   ]}></span>
                   {result.device.identifier}
@@ -294,10 +294,10 @@
               </td>
             </tr>
 
-            <tr :if={@expanded_device_id == result.id} class="border-base-800 border-b">
+            <tr :if={@expanded_device_id == result.id} class="border-b border-base-800">
               <td colspan="3" class="py-3">
-                <pre :if={result.output} class="bg-base-800/50 text-base-300 overflow-x-auto rounded p-4 font-mono text-sm whitespace-pre-wrap">{result.output}</pre>
-                <span :if={is_nil(result.output)} class="text-base-500 text-sm">
+                <pre :if={result.output} class="overflow-x-auto rounded bg-base-800/50 p-4 font-mono text-sm whitespace-pre-wrap text-base-300">{result.output}</pre>
+                <span :if={is_nil(result.output)} class="text-sm text-base-500">
                   Nothing was recorded for this device.
                 </span>
               </td>
@@ -308,11 +308,11 @@
     </div>
 
     <div :if={Enum.empty?(@device_results) && @currently_filtering} class="flex items-center justify-center py-16">
-      <span class="text-base-50 text-xl font-medium">No devices match the current filters.</span>
+      <span class="text-xl font-medium text-base-50">No devices match the current filters.</span>
     </div>
 
     <div :if={Enum.empty?(@device_results) && !@currently_filtering} class="flex items-center justify-center py-16">
-      <span class="text-content-muted text-xl font-medium">This run has no devices.</span>
+      <span class="text-xl font-medium text-content-muted">This run has no devices.</span>
     </div>
   </div>
 
@@ -328,55 +328,55 @@
     close_button_class="top-2 right-3"
   >
     <div class="flex flex-col gap-4">
-      <div class="text-base-50 text-base font-medium">Rerun “{@script_run.name}”?</div>
+      <div class="text-base font-medium text-base-50">Rerun “{@script_run.name}”?</div>
 
-      <div class="text-base-300 text-sm">
+      <div class="text-sm text-base-300">
         This creates an entirely new script run with the same settings as this one. This run is left as it is.
       </div>
 
-      <div class="border-base-700 flex flex-col gap-3 rounded border p-4">
+      <div class="flex flex-col gap-3 rounded border border-base-700 p-4">
         <div class="flex items-center gap-4">
-          <span class="text-base-500 w-40 shrink-0 text-sm">Targeted by:</span>
-          <span class="text-base-300 text-sm">{ScriptRunner.filter_type_label(@rerun_preview.filter_type)}</span>
+          <span class="w-40 shrink-0 text-sm text-base-500">Targeted by:</span>
+          <span class="text-sm text-base-300">{ScriptRunner.filter_type_label(@rerun_preview.filter_type)}</span>
         </div>
 
         <div :if={@rerun_preview.filter_type == :tags} class="flex items-start gap-4">
-          <span class="text-base-500 w-40 shrink-0 text-sm">Tags:</span>
+          <span class="w-40 shrink-0 text-sm text-base-500">Tags:</span>
           <span class="flex flex-wrap gap-1">
             <span :for={tag <- @rerun_preview.filter.tags} class="tag">{tag}</span>
           </span>
         </div>
 
         <div :if={@rerun_preview.filter_type == :tags} class="flex items-center gap-4">
-          <span class="text-base-500 w-40 shrink-0 text-sm">Tag matching:</span>
-          <span class="text-base-300 text-sm">{ScriptRunner.tag_operator_label(@rerun_preview.filter.tag_operator)}</span>
+          <span class="w-40 shrink-0 text-sm text-base-500">Tag matching:</span>
+          <span class="text-sm text-base-300">{ScriptRunner.tag_operator_label(@rerun_preview.filter.tag_operator)}</span>
         </div>
 
         <div :if={@rerun_preview.filter_type == :identifiers} class="flex items-center gap-4">
-          <span class="text-base-500 w-40 shrink-0 text-sm">Identifiers:</span>
-          <span class="text-base-300 text-sm">{length(@rerun_preview.filter.identifiers)} named</span>
+          <span class="w-40 shrink-0 text-sm text-base-500">Identifiers:</span>
+          <span class="text-sm text-base-300">{length(@rerun_preview.filter.identifiers)} named</span>
         </div>
 
         <%!-- Named with their own counts, so the difference in the total can be
               read back to the group it came from. --%>
         <div :if={@rerun_preview.filter_type == :deployment_groups} class="flex flex-col gap-2">
-          <span class="text-base-500 text-sm">Deployment groups:</span>
+          <span class="text-sm text-base-500">Deployment groups:</span>
           <div :for={group <- @rerun_preview.deployment_groups} class="flex items-center gap-4 pl-4">
-            <span :if={!group.missing?} class="text-base-300 w-56 shrink-0 text-sm">{group.name}</span>
-            <span :if={group.missing?} class="text-base-500 w-56 shrink-0 text-sm">
+            <span :if={!group.missing?} class="w-56 shrink-0 text-sm text-base-300">{group.name}</span>
+            <span :if={group.missing?} class="w-56 shrink-0 text-sm text-base-500">
               Deployment group no longer exists
             </span>
-            <span :if={!group.missing?} class="text-base-300 text-sm">
+            <span :if={!group.missing?} class="text-sm text-base-300">
               {group.device_count} {devices(group.device_count)}
             </span>
           </div>
         </div>
 
-        <div class="border-base-700 border-b"></div>
+        <div class="border-b border-base-700"></div>
 
         <div class="flex items-center gap-4">
-          <span class="text-base-500 w-40 shrink-0 text-sm">This run targeted:</span>
-          <span class="text-base-300 text-sm">
+          <span class="w-40 shrink-0 text-sm text-base-500">This run targeted:</span>
+          <span class="text-sm text-base-300">
             {@rerun_preview.previous_device_count} {devices(@rerun_preview.previous_device_count)}
           </span>
         </div>
@@ -384,16 +384,16 @@
         <%!-- The filter is re-resolved rather than copied, so a fleet that has moved
               since the original run gives a different number here. --%>
         <div class="flex items-center gap-4">
-          <span class="text-base-500 w-40 shrink-0 text-sm">A rerun would target:</span>
-          <span class="text-base-300 text-sm">
+          <span class="w-40 shrink-0 text-sm text-base-500">A rerun would target:</span>
+          <span class="text-sm text-base-300">
             {@rerun_preview.new_device_count} {devices(@rerun_preview.new_device_count)}
             <span class="text-base-500">{target_difference(@rerun_preview)}</span>
           </span>
         </div>
 
         <div :if={Enum.any?(@rerun_preview.unmatched_identifiers)} class="flex items-center gap-4">
-          <span class="text-base-500 w-40 shrink-0 text-sm">Matching no device:</span>
-          <span class="text-base-300 text-sm">
+          <span class="w-40 shrink-0 text-sm text-base-500">Matching no device:</span>
+          <span class="text-sm text-base-300">
             {length(@rerun_preview.unmatched_identifiers)} of the named {identifiers(length(@rerun_preview.filter.identifiers))}
           </span>
         </div>
@@ -406,7 +406,7 @@
         <.button phx-click={JS.exec("data-cancel", to: "#rerun-modal")}>Cancel</.button>
       </div>
 
-      <div :if={@rerun_preview.new_device_count == 0} class="text-base-500 text-sm">
+      <div :if={@rerun_preview.new_device_count == 0} class="text-sm text-base-500">
         Nothing matches the filter any more, so there is nothing to run.
       </div>
     </div>
