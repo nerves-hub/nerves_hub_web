@@ -2,21 +2,23 @@
 
 ## v2.5.0
 
-NervesHub can now manage more than Nerves devices. Alongside fwup it accepts ESP-IDF application images, AtomVM packbeams and RAUC bundles, each behind its own setting. Deployment groups gain workflows for staged rollouts, required releases, and a mode where the device decides when to update. Devices can report metrics, alarms and errors through new extensions, and the device list has a query language for finding them. Organizations can send device and workflow events to webhooks and Slack, and act on devices from Slack.
+NervesHub can now manage more than Nerves devices. Alongside fwup it accepts ESP-IDF application images, AtomVM packbeams and RAUC bundles, each behind its own setting. Deployment groups gain workflows for staged rollouts, required releases, and a mode where the device decides when to update. Devices can report metrics, alarms and errors through new extensions, and the device list has a query language for finding them. Organizations can send device and workflow events to webhooks, Slack, Microsoft Teams and Discord, and act on devices from Slack.
 
 More fleet-scale data now lives in ClickHouse, and device nodes use a good deal less memory.
 
 ### Upgrading
 
-- **Elixir 1.20 and OTP 29.** Building from source needs Elixir 1.20 and OTP 29. The Docker image moves to Ubuntu 26.04 (`resolute`) and builds fwup 1.17.1. (#2716, #3111)
+- **Elixir 1.20 and OTP 29.** Building from source needs Elixir 1.20 and OTP 29. The Docker image uses Elixir 1.20.4 and OTP 29.1.2, which fix CVEs in `public_key`, `ssl` and `inets`. It also moves to Ubuntu 26.04 (`resolute`) and builds fwup 1.17.1. (#2716, #3111, #3166)
 - **Some migrations drop data.** Device health history, the PostgreSQL device metrics table and the old `device_connections` table are dropped, not migrated. Metric history now lives in ClickHouse and starts empty. Once these migrations have run, rolling back to 2.4.0 isn't supported. (#2765, #2996, #3006)
 - **One migration locks `devices`.** Dropping the old device metrics table takes an exclusive lock on `devices`. The migration gives up after 5 seconds instead of stalling every other query, so on a busy database it can fail. If it does, deploy again at a quieter time. (#2996)
 - **Rolling deploys.** Until every node runs 2.5.0, messages between nodes on different versions can be lost. That covers device consoles and local shells, live device updates in the UI, health reports and orchestrator events. It recovers when the rollout completes. Any other application in the cluster that runs `group` needs 0.3.1 in the same deploy. (#2851, #3132, #3133, #3135, #3141)
 - **ClickHouse is still optional**, but connection history, metric history, error reports, Product Insights and the Data History tab all need it. Without `CLICKHOUSE_URL`, devices keep reporting metrics through the health extension.
+- **Support script names are unique per product**, ignoring case. The migration renames newer duplicates by appending their id, as in `Reboot (412)`, and the oldest keeps its name. Anything that runs a renamed script by name needs its new name. (#3189)
 - **Firmware versions must be valid SemVer.** Firmware and archive uploads with any other version are rejected. Existing rows are left alone, and `mix nerves_hub.versions.report_invalid` lists them. (#2858)
 - **New products require unique firmware versions** per platform and architecture. Existing products keep the old behavior, and the setting can be changed on any product. (#2864)
 - **Invitations must be accepted.** Inviting someone who already has an account no longer adds them to the org straight away. Everyone gets an invitation to accept or decline, including users added through the API. (#2718, #3027)
 - **`updates_enabled` is deprecated.** Devices now have an `update_mode` of `automatic`, `device_managed` or `off`. The API still returns `updates_enabled`, derived from `update_mode`, for this release. (#2978)
+- **HTTP/1.1 requests need a `Host` header.** Bandit 1.13 answers 400 without one. HTTP/1.0 health checks are unaffected. (#3169)
 - **Removed settings.** `DASHBOARD_ENABLED`, `DEPLOYMENT_CALCULATOR_INTERVAL_SECONDS`, `DEVICE_DEPLOYMENT_CHANGE_JITTER_SECONDS`, `DEVICE_CONNECTION_MAX_AGE_DAYS` and `DEVICE_CONNECTION_DELETE_LIMIT` were parsed but never used, and are no longer read. Every variable that is read is now documented in [docs/runtime_configuration.md](docs/runtime_configuration.md). (#2955)
 
 ### Themes
@@ -29,9 +31,9 @@ More fleet-scale data now lives in ClickHouse, and device nodes use a good deal 
 - **Insights and History**: Product Insights, firmware update history, a device Data History tab, and configurable health profiles
 - **ClickHouse**: Metrics, connection history, device messages, alarm history and error reports moved off PostgreSQL
 - **UI**: A light theme, Tailwind 4, a CMD-K command palette, product notifications, and dates in the viewer's timezone
-- **API**: A complete OpenAPI spec with new docs, plus endpoints for logs, metrics, shared secrets, scripts and firmware downloads
+- **API**: A complete OpenAPI spec with new docs, plus endpoints for logs, metrics, shared secrets, scripts, archives and firmware downloads
 - **Device Connections**: Lower memory use on device nodes, TLS 1.3 session resumption, PROXY protocol v2, and a MessagePack serializer
-- **Integrations**: Webhooks for device and workflow events, and a Slack app with notifications, device actions, slash commands and link previews
+- **Integrations**: Webhooks for device and workflow events, a Slack app with notifications, device actions, slash commands and link previews, and notifications to Microsoft Teams and Discord
 
 ### Added
 
@@ -64,6 +66,9 @@ More fleet-scale data now lives in ClickHouse, and device nodes use a good deal 
 - Answer `/nerveshub` slash commands in Slack (#3123)
 - Approve a waiting deployment workflow, or retry or skip a failed step, from Slack (#3138)
 - Preview device and deployment group links posted in Slack (#3142)
+- Edit Slack workflow messages once their step is dealt with (#3149)
+- Receive Slack events over Socket Mode, for instances Slack can't reach (#3150)
+- Post device notifications to Microsoft Teams (#3148) and Discord (#3152) channels
 - Optionally hard-delete soft deleted devices with `CLEAN_UP_SOFT_DELETED_DEVICES` (#2543)
 - Product Insights (#2772), including flapping connections (#2785), links into the device list (#2790), 24 hour and 4 week ranges (#2798) in the viewer's timezone (#2799), and a firmware version chart (#3021)
 - Track device firmware history (#2665)
@@ -103,6 +108,9 @@ More fleet-scale data now lives in ClickHouse, and device nodes use a good deal 
 - API: show, create, update and delete support scripts (#2723)
 - API: fetch device logs (#2939) and metric history (#3113)
 - API: manage per-device shared secrets (#3108)
+- API: upload and fetch archives (#3139)
+- API: return a firmware's `misc` and `vcs_identifier` metadata (#3140)
+- API: name a JITP profile's product with `product_name` (#3186)
 - API: sorting, pagination and filtering on the device index (#2718)
 - API token auth for the user console and local shell channels (#2741)
 - Stoplight for the API docs, now at `/api/docs` (#2736, #2745)
@@ -122,6 +130,8 @@ More fleet-scale data now lives in ClickHouse, and device nodes use a good deal 
 - Find the local shell on demand instead of keeping it in `:group` (#3135)
 - Use the `:group` library for targeted device-to-UI messages (#2851)
 - Upgrade `group` to 0.3.1 and cap its replica oplog (#3141), and heartbeat its peers every 5 seconds instead of every second (#3145)
+- Make support script names unique per product, ignoring case (#3189)
+- Make a JITP profile's description and tags optional (#3185)
 - Move device metrics to ClickHouse (#2996)
 - Split device health into status, alarms and connection metadata (#3006)
 - Only track the most recent device connection in PostgreSQL (#2569), and drop the old `device_connections` table (#2765) and connection columns on `devices` (#2778)
@@ -179,8 +189,11 @@ More fleet-scale data now lives in ClickHouse, and device nodes use a good deal 
 - Extract a transport-independent `DeviceLink` contract (#2893)
 - Document every runtime environment variable (#2955)
 - Add `AGENTS.md` (#2853) and Tidewave dev tooling (#2889)
-- Upgrade hackney to 4.7 to fix four security advisories (#3045), and fix 9 of 12 npm Dependabot alerts (#3046)
-- Bump Elixir to 1.20 and Erlang to 29 (#2716)
+- Upgrade hackney to 4.7 to fix four security advisories (#3045), Bandit to 1.13.1 for two more (#3169), and fix 9 of 12 npm Dependabot alerts (#3046)
+- Bump Sentry to 14, keeping `SENTRY_ENABLE_LOGGING` working (#3165)
+- Bump jemalloc to 5.4.0, which fixes a segfault when a thread exits (#3167)
+- Remove 11 Hex dependencies, replacing Timex, phoenix_view, phoenix_html_helpers, uuidv7 and Joken with code of our own or Ecto's (#3168)
+- Bump Elixir to 1.20.4 and Erlang to 29.1.2 (#2716, #3166)
 
 ### Fixed
 
@@ -212,6 +225,20 @@ More fleet-scale data now lives in ClickHouse, and device nodes use a good deal 
 - Show the sign-in failure page when a Google name fails validation (#3085)
 - Register CA certificates that have no Authority Key Identifier (#3115)
 - Accept expired and not-yet-valid CA certificates when registering a CA, and say why ownership verification failed (#3146)
+- Accept a self-signed device certificate that was uploaded for the device (#3184)
+- Report why a device's certificate chain was refused, instead of logging the platform as unavailable (#3187)
+- Take a deleted device out of its deployment group and disconnect it (#3153)
+- Refuse to send an update to a device that is already updating, instead of crashing (#3173)
+- Give devices fresh update attempts after an orchestrator penalty (#3154), and record the penalty and its audit together (#3156)
+- Rerun the orchestrator when the normal queue is full and the priority queue has open slots (#3124)
+- Check a workflow step before changing it, and change it atomically (#3159)
+- Fix two partial writes when a device joins (#3155), and a deadlock when several devices join a deployment group at once (#3178)
+- Keep firmware delta state consistent through builds, retries and timeouts (#3157), and don't queue file deletion for deltas that were never built (#3171)
+- Fix the API device list's alarm filters (#3183)
+- Return 422 when a changeset's only errors are nested (#3172)
+- Return 404 for `/auth` paths that name no OAuth provider (#3170)
+- Keep firmware metadata values that contain an equals sign (#3140)
+- Show sizes over a TiB correctly, and keep JITP tags separate on the CA edit page (#3168)
 - Fix a concurrency issue with the CLI session cache (#2779)
 - Fix deployment group activity pagination (#2848)
 - Fix the deployment group filter being reset (#2623, #2624)
@@ -237,14 +264,15 @@ More fleet-scale data now lives in ClickHouse, and device nodes use a good deal 
 
 ### Dependencies
 
-- **bandit**: 1.10.3 -> 1.12.5
-- **canonical_tailwind**: 0.3.4 (new)
-- **castore**: 1.0.17 -> 1.0.21
+- **bandit**: 1.10.3 -> 1.13.1
+- **canonical_tailwind**: 0.3.5 (new)
+- **castore**: 1.0.17 -> 1.0.22
 - **ch**: 0.7.1 -> 0.9.2
 - **circular_buffer**: 1.0.0 -> 1.1.0
 - **confuse**: 0.3.1 -> 0.4.0
+- **contex**: 0.5.0 (removed)
 - **credo**: 1.7.16 -> 1.7.19
-- **crontab**: 1.2.0 -> 1.2.1
+- **crontab**: 1.2.0 (removed)
 - **decimal**: 2.3.0 -> 3.2.0
 - **dialyxir**: 1.4.7 -> 1.4.8
 - **ecto**: 3.13.5 -> 3.14.2
@@ -252,46 +280,52 @@ More fleet-scale data now lives in ClickHouse, and device nodes use a good deal 
 - **ecto_sql**: 3.13.4 -> 3.14.0
 - **ex_aws**: 2.6.1 -> 2.7.0
 - **ex_json_schema**: 0.11.5 (new)
+- **excoveralls**: 0.18.5 (removed)
 - **finch**: 0.21.0 -> 0.24.0
-- **floki**: 0.38.0 -> 0.38.4
+- **floki**: 0.38.0 (removed)
 - **flop**: 0.26.3 -> 0.29.0
 - **group**: 0.3.1 (new)
 - **hackney**: 1.25.0 -> 4.8.5
 - **hammer**: 7.1.0 -> 7.5.0
-- **hlclock**: 1.0.0 -> 1.1.1
+- **hlclock**: 1.0.0 (removed)
 - **igniter**: 0.8.4 (new)
 - **jason**: 1.4.4 -> 1.4.5
-- **joken**: 2.7.0 (new)
 - **lazy_html**: 0.1.10 -> 0.1.13
 - **live_flow**: 0.2.3 (new)
-- **lucide**: 0.577.0 -> 1.55.0
+- **lucide**: 0.577.0 -> 1.58.0
 - **mimic**: 2.3.0 -> 2.4.2
+- **mint_web_socket**: 1.0.5 -> 1.0.6
 - **mjml_eex**: 0.12.0 -> 0.13.0
 - **msgpax**: 2.4.0 (new)
-- **oban**: 2.20.3 -> 2.24.1
+- **oban**: 2.20.3 -> 2.24.2
 - **oban_met**: 1.0.6 -> 1.3.2
 - **oban_web**: 2.11.8 -> 2.13.1
 - **open_api_spex**: 3.22.2 -> 3.22.4
 - **opentelemetry_exporter**: 1.10.0 -> 1.11.0
 - **ordered_collections**: 0.3.3 (new)
 - **phoenix**: 1.8.5 -> 1.8.15
+- **phoenix_html_helpers**: 1.0.1 (removed)
 - **phoenix_live_dashboard**: 0.8.7 -> 0.9.1
 - **phoenix_live_reload**: 1.6.2 -> 1.7.0
 - **phoenix_live_view**: 1.1.26 -> 1.2.12
 - **phoenix_pubsub**: 2.2.0 -> 2.4.1
 - **phoenix_test**: 0.9.1 -> 0.12.1
+- **phoenix_view**: 2.0.4 (removed)
 - **plug**: 1.19.1 -> 1.20.3
 - **plug_attack**: 0.4.3 (new)
 - **postgrex**: 0.22.0 -> 0.22.4
 - **process_hub**: 0.5.0-beta -> 0.7.0
 - **quokka**: 2.11.2 -> 2.13.1
 - **req**: 0.5.17 -> 0.7.5
-- **sentry**: 12.0.2 -> 13.5.1
+- **sentry**: 12.0.2 -> 14.0.0
 - **spellweaver**: 0.1.5 -> 0.1.8
 - **swoosh**: 1.22.1 -> 1.29.0
 - **tailwind**: 0.4.1 -> 0.5.1
 - **telemetry_metrics**: 1.1.0 -> 1.2.0
 - **tidewave**: 0.9.1 (new)
+- **timex**: 3.7.13 (removed)
+- **tzdata**: 1.1.3 -> 1.2.2
+- **uuidv7**: 1.0.0 (removed)
 
 ## v2.4.0
 
