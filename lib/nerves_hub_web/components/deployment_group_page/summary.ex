@@ -1,8 +1,7 @@
 defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
   use NervesHubWeb, :live_component
 
-  import NervesHubWeb.LayoutView,
-    only: [humanize_size: 1]
+  import NervesHubWeb.Components.Utils, only: [humanize_size: 1]
 
   alias NervesHub.Devices.BulkActions
   alias NervesHub.Devices.Deployments
@@ -147,8 +146,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
   def handle_event("retry_delta", %{"id" => id}, socket) do
     delta = Enum.find(socket.assigns.deltas, &(&1.id == String.to_integer(id)))
 
-    {:ok, _} = Firmwares.delete_firmware_delta(delta)
-    {:ok, _} = Firmwares.attempt_firmware_delta(delta.source_id, delta.target_id)
+    {:ok, _} = Firmwares.retry_firmware_delta(delta)
 
     socket = put_flash(socket, :info, "Retrying delta generation")
     {:noreply, socket}

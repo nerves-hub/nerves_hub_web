@@ -20,6 +20,7 @@ defmodule NervesHub.Integrations.Slack.Messages do
   """
 
   alias NervesHub.Branding
+  alias NervesHub.Integrations.Links
 
   @listed 10
   @max_text 300
@@ -35,15 +36,24 @@ defmodule NervesHub.Integrations.Slack.Messages do
 
   @level_icons %{"error" => ":red_circle:", "warning" => ":warning:", "info" => ":information_source:"}
 
-  @doc "The message for a batch of events of one key (`NervesHub.Integrations.Slack.Events`)."
-  @spec build(String.t(), [map(), ...]) :: message()
-  def build("device.health_status_changed", events), do: health(events)
-  def build("device.firmware_update.failed", events), do: update_failed(events)
-  def build("device.firmware_update.succeeded", events), do: update_succeeded(events)
-  def build("error_group.created", events), do: errors(events, :created)
-  def build("error_group.reopened", events), do: errors(events, :reopened)
-  def build("deployment_group.workflow_step." <> event, events), do: workflow(events, event)
-  def build("product.notification_created", events), do: notifications(events)
+  @doc """
+  The message for a batch of events of one key
+  (`NervesHub.Integrations.ChannelEvents`).
+
+  `resolutions` says what happened to the workflow steps a message has
+  buttons for, by step id, once they were dealt with
+  (`NervesHub.Integrations.Slack.WorkflowMessage`): each such step's buttons
+  give way to a line saying so.
+  """
+  @spec build(String.t(), [map(), ...], %{optional(String.t()) => map()}) :: message()
+  def build(key, events, resolutions \\ %{})
+  def build("device.health_status_changed", events, _resolutions), do: health(events)
+  def build("device.firmware_update.failed", events, _resolutions), do: update_failed(events)
+  def build("device.firmware_update.succeeded", events, _resolutions), do: update_succeeded(events)
+  def build("error_group.created", events, _resolutions), do: errors(events, :created)
+  def build("error_group.reopened", events, _resolutions), do: errors(events, :reopened)
+  def build("deployment_group.workflow_step." <> event, events, resolutions), do: workflow(events, event, resolutions)
+  def build("product.notification_created", events, _resolutions), do: notifications(events)
 
   @doc "What `Send test message` posts."
   @spec test(String.t(), String.t(), [String.t()]) :: message()
@@ -256,9 +266,7 @@ defmodule NervesHub.Integrations.Slack.Messages do
   defp code(nil), do: "an error"
   defp code(text), do: "`#{text |> truncate() |> String.replace("`", "'") |> escape()}`"
 
-  defp error_url(event) do
-    "#{base_url()}/org/#{segment(get_in(event, ["org", "name"]) || "")}/#{segment(get_in(event, ["product", "name"]) || "")}/errors/#{get_in(event, ["error", "id"])}"
-  end
+  defp error_url(event), do: Links.error(event)
 
   ## Deployment workflows
 
@@ -267,7 +275,7 @@ defmodule NervesHub.Integrations.Slack.Messages do
   # each one waiting on somebody needs its own Approve or Retry.
   @steps_listed 5
 
-  defp workflow(events, event) do
+  defp workflow(events, event, resolutions) do
     shown = Enum.take(events, @steps_listed)
     more = length(events) - length(shown)
 
@@ -276,7 +284,7 @@ defmodule NervesHub.Integrations.Slack.Messages do
         [
           section(step_heading(event, data, :mrkdwn)),
           context([product_name(data), release(data)]),
-          step_actions(event, data)
+          step_actions(event, data, resolutions)
         ]
       end)
 
@@ -381,7 +389,25 @@ defmodule NervesHub.Integrations.Slack.Messages do
   # Approve on a workflow waiting for approval, Retry and Skip on a step that
   # failed. Like the device buttons, a button carries only the step's id, and
   # `NervesHubWeb.Integrations.Slack.WorkflowSteps` works out the rest when it is clicked.
-  defp step_actions(event, data) when event in ["awaiting_approval", "failed"] do
+  defp step_actions(event, data, resolutions) when event in ["awaiting_approval", "failed"] do
+    case Map.get(resolutions, to_string(get_in(data, ["step", "id"]))) do
+      nil -> step_buttons(event, data)
+      resolution -> context([resolved(resolution)])
+    end
+  end
+
+  defp step_actions(_event, _data, _resolutions), do: nil
+
+  defp resolved(%{"change" => "approved", "by" => by}), do: ":white_check_mark: Approved by #{escape(by)}"
+  defp resolved(%{"change" => "retried", "by" => by}), do: ":repeat: Retried by #{escape(by)}"
+  defp resolved(%{"change" => "skipped", "by" => by}), do: ":fast_forward: Skipped by #{escape(by)}"
+
+  defp resolved(%{"change" => "replaced", "release" => release}),
+    do: ":leftwards_arrow_with_hook: Release #{release} replaced this one, so there is nothing more to do here"
+
+  defp resolved(_resolution), do: "Dealt with in #{Branding.friendly_platform_name()}"
+
+  defp step_buttons(event, data) do
     with id when is_integer(id) <- get_in(data, ["step", "id"]),
          url when is_binary(url) <- deployment_group_url(data) do
       name = get_in(data, ["step", "name"]) || "this step"
@@ -418,8 +444,6 @@ defmodule NervesHub.Integrations.Slack.Messages do
     end
   end
 
-  defp step_actions(_event, _data), do: nil
-
   defp step_button(action_id, label, step_id, style, confirm) do
     %{
       type: "button",
@@ -446,15 +470,7 @@ defmodule NervesHub.Integrations.Slack.Messages do
     }
   end
 
-  defp deployment_group_url(data) do
-    with org when is_binary(org) <- get_in(data, ["org", "name"]),
-         product when is_binary(product) <- get_in(data, ["product", "name"]),
-         name when is_binary(name) <- get_in(data, ["deployment_group", "name"]) do
-      "#{base_url()}/org/#{segment(org)}/#{segment(product)}/deployment_groups/#{segment(name)}"
-    else
-      _ -> nil
-    end
-  end
+  defp deployment_group_url(data), do: Links.deployment_group(data)
 
   ## Product notifications
 
@@ -591,29 +607,13 @@ defmodule NervesHub.Integrations.Slack.Messages do
     end
   end
 
-  defp device_url(event) do
-    with org when is_binary(org) <- get_in(event, ["org", "name"]),
-         product when is_binary(product) <- get_in(event, ["product", "name"]),
-         identifier when is_binary(identifier) <- get_in(event, ["device", "identifier"]) do
-      device_url(org, product, identifier)
-    else
-      _ -> nil
-    end
-  end
+  defp device_url(event), do: Links.device(event)
 
-  @doc "The device's page in NervesHub."
+  @doc "The device's page in NervesHub (`NervesHub.Integrations.Links.device/3`)."
   @spec device_url(String.t(), String.t(), String.t()) :: String.t()
-  def device_url(org_name, product_name, identifier) do
-    "#{base_url()}/org/#{segment(org_name)}/#{segment(product_name)}/devices/#{segment(identifier)}"
-  end
+  def device_url(org_name, product_name, identifier), do: Links.device(org_name, product_name, identifier)
 
-  defp notifications_url(event) do
-    "#{base_url()}/org/#{segment(get_in(event, ["org", "name"]) || "")}/#{segment(get_in(event, ["product", "name"]) || "")}/notifications"
-  end
-
-  defp base_url(), do: NervesHubWeb.Endpoint.url()
-
-  defp segment(value), do: URI.encode(value, &URI.char_unreserved?/1)
+  defp notifications_url(event), do: Links.notifications(event)
 
   # Slack's control characters in mrkdwn. Escaping them is what keeps text a
   # device sent from becoming `<!channel>` or a link.

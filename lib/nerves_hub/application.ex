@@ -21,6 +21,7 @@ defmodule NervesHub.Application do
   alias NervesHub.RateLimit.LogLines
   alias NervesHub.RateLimit.Metrics, as: MetricsLimit
   alias NervesHub.Telemetry.Customizations
+  alias NervesHubWeb.Integrations.Slack.Socket
   alias PlugAttack.Storage.Ets, as: PlugAttackEts
 
   require Logger
@@ -73,6 +74,7 @@ defmodule NervesHub.Application do
         analytics_buffers() ++
         device_link_handlers() ++
         deployments_orchestrator(deploy_env()) ++
+        slack_sockets(deploy_env()) ++
         endpoints(deploy_env())
 
     opts = [strategy: :one_for_one, name: NervesHub.Supervisor]
@@ -80,12 +82,9 @@ defmodule NervesHub.Application do
   end
 
   defp setup_logging() do
-    # Sentrys duplicate log handler checking (in their lib) runs before our application
-    # has started, so instead, lets just remove the handler if it exists
-    _ =
-      if Application.get_env(:sentry, :enable_logs, false) do
-        :logger.remove_handler(:sentry_log_handler)
-      end
+    # Sentry attaches its own :sentry_log_handler when it starts with `:logs`
+    # set, before ours exists for its duplicate check to find, so remove it here.
+    _ = :logger.remove_handler(:sentry_log_handler)
 
     :ok =
       :logger.add_handler(:sentry_handler, Sentry.LoggerHandler, %{
@@ -228,6 +227,17 @@ defmodule NervesHub.Application do
           ProcessHub.child_spec(%ProcessHub{hub_id: :deployment_orchestrators}),
           OrchestratorRegistration
         ]
+    end
+  end
+
+  # Socket Mode connections to Slack, for an instance Slack cannot reach. On
+  # web nodes, which run what Slack's events, clicks and commands lead to.
+  defp slack_sockets("test"), do: []
+
+  defp slack_sockets(_) do
+    case Application.get_env(:nerves_hub, :app) do
+      "device" -> []
+      _ -> Socket.child_specs()
     end
   end
 

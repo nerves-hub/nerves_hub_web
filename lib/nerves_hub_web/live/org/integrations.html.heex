@@ -15,6 +15,17 @@
         time_zone={@time_zone}
       />
 
+      <.live_component
+        :for={provider <- [:teams, :discord]}
+        module={NervesHubWeb.Live.Org.Integrations.ChatWebhookSection}
+        id={Atom.to_string(provider)}
+        provider={provider}
+        current_scope={@current_scope}
+        org={@org}
+        products={@products}
+        time_zone={@time_zone}
+      />
+
       <div class="flex w-full flex-col rounded border border-base-700 bg-surface-raised">
         <div class="flex h-14 items-center justify-between border-b border-base-700 px-4">
           <div class="text-base font-medium text-base-50">Webhooks</div>

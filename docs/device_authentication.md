@@ -5,7 +5,7 @@ This document describes how NervesHub authenticates devices.
 ## Background
 
 NervesHub requires devices to present an X.509 certificate when they connect.
-This certificate, called the device certificate, must be signed by another
+This certificate, called the device certificate, is normally signed by another
 certificate, called the signer certificate. The signer certificate is also
 called a Certificate Authority or CA certificate, but don't think of it as
 coming from an Internet Certificate Authority like Let's Encrypt, etc. The
@@ -21,6 +21,13 @@ prove that it has the private key side of the password, NervesHub will let it
 in. The signing certificate comes in when NervesHub does not already have a
 device's certificate on file.
 
+A device certificate can also sign itself, which is what
+`nh device certificates generate --self-signed` makes. A self-signed
+certificate has no signer certificate to check it against, so NervesHub only
+accepts one that is already on file: uploaded from the device's settings or
+through the API. It refuses any other, and never registers one when a device
+first connects with it.
+
 ## Authentication steps
 
 Devices connect to NervesHub over TLS. NervesHub requests a certificate from the
@@ -34,10 +41,12 @@ deleted) to authenticate again.
 1. Compute a SHA-1 hash on the device certificate in DER form. This is
    called the certificate fingerprint.
 2. Look up the certificate fingerprint in the DB
-    a. If it exists and certificate has not expired, allow the device
-    b. If it exists and the certificate has expired, allow the device if
-       expired device certs are enabled
-3. The certificate fingerprint is unknown. This is a new device certificate
+    a. If it exists, allow the device. Its expiration is not checked: a
+       certificate on file is allowed after it expires, whether a CA signed it
+       or it signed itself
+3. The certificate fingerprint is unknown. This is a new device certificate.
+   If it is self-signed, reject the device: a self-signed certificate is only
+   accepted when step 2 finds it.
 4. Compute a SHA-1 hash of the public key in DER form. This is called the
    public key fingerprint.
 5. Look the public key fingerprint up in the DB
@@ -107,3 +116,12 @@ Product keys work differently. Their secrets stay visible on the product's
 settings page to members with the `manage` or `admin` role. Deactivating one
 refuses new connections with it, but devices already connected with it stay
 connected until they reconnect.
+
+## Deleted devices
+
+Deleting a device closes the connection it has open and takes it out of its
+deployment group. It cannot connect again while it is deleted: certificate
+authentication rejects it as described above, its device keys stop
+authenticating, and a product key cannot create a new device under its
+identifier. A restored device is matched to a deployment group again the next
+time it connects.

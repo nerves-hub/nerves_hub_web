@@ -1,7 +1,9 @@
 defmodule NervesHub.Integrations do
   @moduledoc """
   Where device events leave NervesHub: to an organization's webhooks
-  (`NervesHub.Webhooks`) and Slack channels (`NervesHub.Integrations.Slack.Subscriptions`).
+  (`NervesHub.Webhooks`), Slack channels
+  (`NervesHub.Integrations.Slack.Subscriptions`), and Microsoft Teams and
+  Discord channels (`NervesHub.Integrations.ChatWebhooks`).
 
   ## Raising events
 
@@ -32,7 +34,9 @@ defmodule NervesHub.Integrations do
 
   alias NervesHub.Accounts.Org
   alias NervesHub.Integrations.Cache
-  alias NervesHub.Integrations.Slack
+  alias NervesHub.Integrations.ChannelEvents
+  alias NervesHub.Integrations.ChatWebhooks
+  alias NervesHub.Integrations.ChatWebhooks.ChatWebhook
   alias NervesHub.Integrations.Slack.Subscription
   alias NervesHub.Integrations.Slack.Subscriptions
   alias NervesHub.Products.Product
@@ -68,6 +72,7 @@ defmodule NervesHub.Integrations do
 
   defp deliver(:webhook, webhook_ids, type, data), do: Webhooks.queue_deliveries(webhook_ids, type, data)
   defp deliver(:slack, subscription_ids, type, data), do: Subscriptions.queue_events(subscription_ids, type, data)
+  defp deliver(:chat_webhook, channel_ids, type, data), do: ChatWebhooks.queue_events(channel_ids, type, data)
 
   @doc """
   Whether any enabled integration that hears the product wants `type`.
@@ -127,21 +132,32 @@ defmodule NervesHub.Integrations do
   # join above keeps the product's own. An integration lists a product at most
   # once (a unique index), so this is one row per integration.
   defp hearing(product_id) do
-    slack =
-      from(s in Subscription,
-        join: c in assoc(s, :connection),
-        left_join: sp in "slack_subscription_products",
-        on: sp.subscription_id == s.id and sp.product_id == ^product_id,
-        where: s.enabled and (s.all_products or not is_nil(sp.subscription_id)),
-        select: %{kind: "slack", id: s.id, org_id: c.org_id, events: s.events}
-      )
-
     from(w in Webhook,
       left_join: wp in "webhook_products",
       on: wp.webhook_id == w.id and wp.product_id == ^product_id,
       where: w.enabled and (w.all_products or not is_nil(wp.webhook_id)),
       select: %{kind: "webhook", id: w.id, org_id: w.org_id, events: w.events},
-      union_all: ^slack
+      union_all: ^slack_hearing(product_id),
+      union_all: ^chat_webhooks_hearing(product_id)
+    )
+  end
+
+  defp slack_hearing(product_id) do
+    from(s in Subscription,
+      join: c in assoc(s, :connection),
+      left_join: sp in "slack_subscription_products",
+      on: sp.subscription_id == s.id and sp.product_id == ^product_id,
+      where: s.enabled and (s.all_products or not is_nil(sp.subscription_id)),
+      select: %{kind: "slack", id: s.id, org_id: c.org_id, events: s.events}
+    )
+  end
+
+  defp chat_webhooks_hearing(product_id) do
+    from(w in ChatWebhook,
+      left_join: wp in "chat_webhook_products",
+      on: wp.chat_webhook_id == w.id and wp.product_id == ^product_id,
+      where: w.enabled and (w.all_products or not is_nil(wp.chat_webhook_id)),
+      select: %{kind: "chat_webhook", id: w.id, org_id: w.org_id, events: w.events}
     )
   end
 
@@ -156,11 +172,13 @@ defmodule NervesHub.Integrations do
      }}
   end
 
-  # A Slack subscription names its events by `NervesHub.Integrations.Slack.Events` key,
-  # which is not always the type raised: both "update failed" and "update
-  # succeeded" come from `device.firmware_update.finished`.
+  # A Slack, Teams or Discord channel names its events by
+  # `NervesHub.Integrations.ChannelEvents` key, which is not always the type
+  # raised: both "update failed" and "update succeeded" come from
+  # `device.firmware_update.finished`.
   defp listener("webhook", id, events), do: {:webhook, id, events}
-  defp listener("slack", id, events), do: {:slack, id, Slack.Events.sources(events)}
+  defp listener("slack", id, events), do: {:slack, id, ChannelEvents.sources(events)}
+  defp listener("chat_webhook", id, events), do: {:chat_webhook, id, ChannelEvents.sources(events)}
 
   # Event data includes text devices sent: failure reasons, alarm descriptions,
   # metadata. Invalid UTF-8 would fail to encode, and a NUL is valid JSON that

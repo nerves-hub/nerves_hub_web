@@ -42,7 +42,6 @@ defmodule NervesHub.MixProject do
         plt_file: {:no_warn, "priv/plts/dialyzer.plt"}
       ],
       test_coverage: [
-        tool: ExCoveralls,
         ignore_modules: [
           # API support
           NervesHubWeb.ApiSpec,
@@ -55,12 +54,9 @@ defmodule NervesHub.MixProject do
           SortedMap,
           Settings,
           # Emails and views
-          NervesHub.EmailView,
           NervesHubWeb.DeviceHTML,
-          NervesHubWeb.HomeView,
           NervesHubWeb.OAuthHTML,
           NervesHubWeb.PasswordResetHTML,
-          NervesHubWeb.ProductView,
           # Tools
           ~r/Mix.Tasks\..*/,
           Tasks,
@@ -96,7 +92,6 @@ defmodule NervesHub.MixProject do
         :logger,
         :os_mon,
         :runtime_tools,
-        :timex,
         :crypto,
         :public_key
       ]
@@ -105,9 +100,7 @@ defmodule NervesHub.MixProject do
 
   def cli() do
     [
-      docs: :docs,
-      coveralls: :test,
-      "coveralls.html": :test
+      docs: :docs
     ]
   end
 
@@ -137,11 +130,8 @@ defmodule NervesHub.MixProject do
       {:briefly, "~> 0.5.0"},
       {:castore, "~> 1.0"},
       {:circular_buffer, "~> 1.1.0"},
-      {:comeonin, "~> 5.3"},
       {:confuse, "~> 0.4.0"},
-      {:contex, "~> 0.5.0"},
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
-      {:crontab, "~> 1.1"},
       {:decimal, "~> 3.0", override: true},
       {:decorator, "~> 1.2"},
       {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false},
@@ -154,28 +144,25 @@ defmodule NervesHub.MixProject do
       {:ex_aws, "~> 2.0"},
       {:ex_aws_s3, "~> 2.0"},
       {:ex_json_schema, "~> 0.11.3"},
-      {:excoveralls, "~> 0.18", only: :test},
       {:finch, "~> 0.24.0"},
-      {:floki, "~> 0.38.0"},
       {:gen_smtp, "~> 1.0"},
       {:gettext, "~> 0.26.2"},
       {:group, "~> 0.3.1"},
       {:hackney, "~> 4.7"},
       {:hammer, "~> 7.5.0"},
       {:igniter, "~> 0.8", only: [:dev, :test]},
-      {:hlclock, "~> 1.0"},
       {:process_hub, "~> 0.7.0"},
       {:jason, "~> 1.2", override: true},
-      {:joken, "~> 2.6"},
       {:lazy_html, ">= 0.0.0", only: :test},
       {:libcluster_postgres, "~> 0.2.0"},
       {:live_flow, "~> 0.2.3"},
       {:logfmt_ex, "~> 0.4"},
       {
         :lucide,
-        github: "lucide-icons/lucide", tag: "1.55.0", sparse: "icons", app: false, compile: false, depth: 1
+        github: "lucide-icons/lucide", tag: "1.58.0", sparse: "icons", app: false, compile: false, depth: 1
       },
       {:mimic, "~> 2.0", only: [:test, :dev]},
+      {:mint_web_socket, "~> 1.0"},
       {:mix_unused, "~> 0.4.1", only: [:dev]},
       {:mjml_eex, "~> 0.13.0"},
       {:msgpax, "~> 2.0"},
@@ -197,19 +184,17 @@ defmodule NervesHub.MixProject do
       {:phoenix, "~> 1.8.4"},
       {:phoenix_ecto, "~> 4.0"},
       {:phoenix_html, "~> 4.0"},
-      {:phoenix_html_helpers, "~> 1.0"},
       {:phoenix_live_dashboard, "~> 0.8"},
       {:phoenix_live_reload, "~> 1.2", only: :dev},
       {:phoenix_live_view, "~> 1.1"},
       {:phoenix_pubsub, "~> 2.0"},
-      {:phoenix_view, "~> 2.0"},
       {:phoenix_test, "~> 0.8", only: :test},
       {:plug, "~> 1.7"},
       {:plug_attack, "~> 0.4.2"},
       {:postgrex, "~> 0.14"},
       {:quokka, "~> 2.13.1", only: [:dev, :test]},
       {:req, "~> 0.5"},
-      {:sentry, "~> 13.0"},
+      {:sentry, "~> 14.0"},
       {:slipstream, "~> 1.0", only: [:test, :dev]},
       {:slugify, "~> 1.3"},
       {:spellweaver, "~> 0.1", only: [:test, :dev], runtime: false},
@@ -219,10 +204,9 @@ defmodule NervesHub.MixProject do
       {:telemetry_metrics, "~> 1.0"},
       {:telemetry_metrics_statsd, "~> 0.7.0"},
       {:telemetry_poller, "~> 1.0"},
-      {:timex, "~> 3.1"},
+      {:tzdata, "~> 1.1"},
       {:ueberauth_google, "~> 0.12"},
       {:unzip, "~> 0.12"},
-      {:uuidv7, "~> 1.0"},
       {:x509, "~> 0.5.1 or ~> 0.6"},
       {:flop, "~> 0.29.0"}
     ]

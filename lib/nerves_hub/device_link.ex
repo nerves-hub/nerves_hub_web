@@ -27,6 +27,7 @@ defmodule NervesHub.DeviceLink do
   alias NervesHub.FirmwareUpdates
   alias NervesHub.ManagedDeployments
   alias NervesHub.ProductNotifications
+  alias NervesHub.Repo
   alias Phoenix.Channel.Server, as: ChannelServer
   alias Phoenix.Socket.Broadcast
 
@@ -910,17 +911,22 @@ defmodule NervesHub.DeviceLink do
       if same_firmware?(previous_metadata, metadata) do
         Devices.update_firmware_metadata(device, nil, validation_status, auto_revert_detected?)
       else
-        with {:ok, device} <-
-               Devices.update_firmware_metadata(
-                 device,
-                 metadata,
-                 validation_status,
-                 auto_revert_detected?
-               ) do
-          FirmwareUpdates.firmware_update_successful(device, previous_metadata)
-        end
+        record_new_firmware(device, metadata, previous_metadata, validation_status, auto_revert_detected?)
       end
     end
+  end
+
+  # The new firmware and the update that installed it are recorded together or
+  # not at all. Recorded apart, a failure between the two left the new firmware
+  # on record with its update still inflight, and the next join, seeing nothing
+  # new, ended that update as abandoned.
+  defp record_new_firmware(device, metadata, previous_metadata, validation_status, auto_revert_detected?) do
+    Repo.transact(fn ->
+      with {:ok, device} <-
+             Devices.update_firmware_metadata(device, metadata, validation_status, auto_revert_detected?) do
+        FirmwareUpdates.firmware_update_successful(device, previous_metadata)
+      end
+    end)
   end
 
   # A device with no resolvable firmware, or one we have nothing on record for,

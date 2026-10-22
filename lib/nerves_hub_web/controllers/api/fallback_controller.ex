@@ -70,6 +70,38 @@ defmodule NervesHubWeb.API.FallbackController do
     })
   end
 
+  def call(conn, {:error, :invalid_signature}) do
+    conn
+    |> put_status(:unprocessable_entity)
+    |> put_view(ErrorJSON)
+    |> render(:"422", %{
+      reason: "The signature does not match any of this organization's signing keys, or the file is corrupt."
+    })
+  end
+
+  def call(conn, {:error, :no_public_keys}) do
+    conn
+    |> put_status(:unprocessable_entity)
+    |> put_view(ErrorJSON)
+    |> render(:"422", %{reason: "This organization has no signing keys. Register one before uploading."})
+  end
+
+  def call(conn, {:error, :invalid_fwup_file}) do
+    conn
+    |> put_status(:unprocessable_entity)
+    |> put_view(ErrorJSON)
+    |> render(:"422", %{reason: "The file is not a readable fwup archive."})
+  end
+
+  def call(conn, {:error, :invalid_metadata}) do
+    conn
+    |> put_status(:unprocessable_entity)
+    |> put_view(ErrorJSON)
+    |> render(:"422", %{
+      reason: "The file's metadata must include meta-product, meta-platform, meta-architecture and meta-version."
+    })
+  end
+
   def call(conn, {:error, :firmware_not_signed}) do
     conn
     |> put_status(:unprocessable_entity)
@@ -236,6 +268,15 @@ defmodule NervesHubWeb.API.FallbackController do
     })
   end
 
+  def call(conn, {:error, :already_updating}) do
+    conn
+    |> put_status(:conflict)
+    |> put_view(ErrorJSON)
+    |> render(:"409", %{
+      reason: "The device is already updating. Wait for that update to finish before sending another."
+    })
+  end
+
   def call(conn, {:error, :invalid_member}) do
     conn
     |> put_status(422)
@@ -299,17 +340,10 @@ defmodule NervesHubWeb.API.FallbackController do
     put_status(conn, status)
   end
 
-  defp status_from_changeset_errors(errors) do
-    [{error, _} | _] = errors
+  defp status_from_changeset_errors([{error, _} | _]) when error in [:deployment_groups, :firmwares, :devices],
+    do: :conflict
 
-    if conflict_error?(error) do
-      :conflict
-    else
-      :unprocessable_entity
-    end
-  end
-
-  defp conflict_error?(error) do
-    error in [:deployment_groups, :firmwares, :devices]
-  end
+  # An invalid changeset can have no errors of its own when they are all on a
+  # nested changeset, such as the JITP cast onto a CA certificate.
+  defp status_from_changeset_errors(_errors), do: :unprocessable_entity
 end

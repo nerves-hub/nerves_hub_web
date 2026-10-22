@@ -341,6 +341,40 @@ defmodule NervesHub.FirmwaresTest do
     )
   end
 
+  test "deleting a delta that was never built queues no file removal", %{
+    org_key: org_key,
+    product: product,
+    tmp_dir: tmp_dir
+  } do
+    source = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+    target = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir, version: "1.0.1"})
+
+    {:ok, delta} = Firmwares.start_firmware_delta(source.id, target.id)
+    {:ok, delta} = Firmwares.fail_firmware_delta(delta)
+
+    assert {:ok, _} = Firmwares.delete_firmware_delta(delta)
+
+    assert {:error, :not_found} = Firmwares.get_firmware_delta(delta.id)
+    assert all_enqueued(worker: DeleteFirmware) == []
+  end
+
+  test "deleting firmware skips its deltas that were never built", %{
+    user: user,
+    org_key: org_key,
+    product: product,
+    tmp_dir: tmp_dir
+  } do
+    firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+    other = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir, version: "1.0.1"})
+
+    {:ok, _delta} = Firmwares.start_firmware_delta(firmware.id, other.id)
+
+    assert {:ok, _} = Firmwares.delete_firmware(firmware, user)
+
+    assert [%{args: %{"local_path" => local_path}}] = all_enqueued(worker: DeleteFirmware)
+    assert local_path == firmware.upload_metadata[:local_path]
+  end
+
   test "firmware stores size", %{
     org: org,
     org_key: org_key,
@@ -776,6 +810,48 @@ defmodule NervesHub.FirmwaresTest do
                Firmwares.get_firmware_delta_by_source_and_target(source.id, target.id)
     end
 
+    test "a delta is not complete until its file is uploaded", %{
+      firmware: source,
+      org_key: org_key,
+      product: product,
+      tmp_dir: tmp_dir
+    } do
+      target = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+      test_pid = self()
+
+      expect(UpdateToolDefault, :create_firmware_delta_file, fn _s, _t, _wd ->
+        {:ok,
+         %{
+           filepath: "test/fixtures/fwup/dummy_100kb.txt",
+           size: 5,
+           source_size: 10,
+           target_size: 15,
+           tool: "fwup",
+           tool_metadata: %{}
+         }}
+      end)
+
+      # An upload that crashes rather than returning an error, as a timed-out
+      # chunk or a node shutting down does.
+      expect(UploadFile, :upload_file, fn _p, _m ->
+        {:ok, delta} = Firmwares.get_firmware_delta_by_source_and_target(source.id, target.id)
+        send(test_pid, {:status_while_uploading, delta.status})
+        raise "upload timed out"
+      end)
+
+      assert {:ok, firmware_delta} = Firmwares.start_firmware_delta(source.id, target.id)
+
+      assert_raise RuntimeError, fn ->
+        Firmwares.generate_firmware_delta(firmware_delta, source, target)
+      end
+
+      assert_received {:status_while_uploading, :processing}
+
+      # Still processing, so the builder's retry builds it again.
+      assert {:ok, %FirmwareDelta{status: :processing}} =
+               Firmwares.get_firmware_delta_by_source_and_target(source.id, target.id)
+    end
+
     test "update tool errors are handled", %{
       firmware: source,
       org_key: org_key,
@@ -878,6 +954,26 @@ defmodule NervesHub.FirmwaresTest do
     end
   end
 
+  describe "time_out_firmware_delta/1" do
+    test "leaves a delta whose build finished after it was read", %{
+      firmware: source,
+      org_key: org_key,
+      product: product,
+      tmp_dir: tmp_dir
+    } do
+      target = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+      {:ok, read_by_the_sweep} = Firmwares.start_firmware_delta(source.id, target.id)
+
+      {1, _} =
+        FirmwareDelta
+        |> where([fd], fd.id == ^read_by_the_sweep.id)
+        |> Repo.update_all(set: [status: :completed])
+
+      assert {:error, :not_processing} = Firmwares.time_out_firmware_delta(read_by_the_sweep)
+      assert %FirmwareDelta{status: :completed} = Repo.reload!(read_by_the_sweep)
+    end
+  end
+
   describe "filter/2" do
     test "counts the number of devices that have the firmware installed", %{
       org: org,
@@ -907,6 +1003,46 @@ defmodule NervesHub.FirmwaresTest do
       %FirmwareDelta{} = Fixtures.firmware_delta_fixture(source, target)
 
       {:ok, :delta_already_exists} = Firmwares.attempt_firmware_delta(source.id, target.id)
+    end
+
+    # What a device's assignment finds when another device, joining the same
+    # deployment group at the same moment, started the delta between its look
+    # and its insert.
+    test "losing the race to start a delta leaves the caller's transaction intact", %{
+      firmware: source,
+      org_key: org_key,
+      product: product,
+      tmp_dir: tmp_dir
+    } do
+      target = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+      {:ok, %FirmwareDelta{id: started_id}} = Firmwares.start_firmware_delta(source.id, target.id)
+
+      assert {:ok, :committed} =
+               Repo.transact(fn ->
+                 assert {:error, :already_exists} = Firmwares.start_firmware_delta(source.id, target.id)
+                 {:ok, :committed}
+               end)
+
+      assert {:ok, %FirmwareDelta{id: ^started_id, status: :processing}} =
+               Firmwares.get_firmware_delta_by_source_and_target(source.id, target.id)
+    end
+
+    test "it replaces a delta that failed", %{
+      firmware: source,
+      org_key: org_key,
+      product: product,
+      tmp_dir: tmp_dir
+    } do
+      target = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+      {:ok, failed} = Firmwares.start_firmware_delta(source.id, target.id)
+      {:ok, _} = Firmwares.fail_firmware_delta(failed)
+
+      assert {:ok, :started} = Firmwares.attempt_firmware_delta(source.id, target.id)
+
+      assert {:ok, %FirmwareDelta{status: :processing} = started} =
+               Firmwares.get_firmware_delta_by_source_and_target(source.id, target.id)
+
+      refute started.id == failed.id
     end
 
     # Nothing to record when nothing was attempted. A started-then-failed delta

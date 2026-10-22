@@ -20,15 +20,18 @@ defmodule NervesHubWeb.Integrations.Slack.WorkflowSteps do
   Postgres (`NervesHub.Integrations.Slack.Claims`), so a double click, or two people
   clicking at once, approve or retry it once.
 
-  What was done is audited with the Slack user who did it and posted in the
-  message's thread. The orchestrator is then nudged to carry on, as the
-  deployment group's page does.
+  What was done is audited with the Slack user who did it, and the
+  orchestrator is nudged to carry on, as the deployment group's page does.
+  The message clicked on is then edited to say who did what
+  (`NervesHub.Integrations.Slack.WorkflowMessages`), as every message with
+  buttons for the step is. A message posted before messages were kept up to
+  date is not edited, so what was done is posted in its thread instead.
   """
 
   alias NervesHub.Accounts.User
-  alias NervesHub.AuditLogs.DeploymentGroupTemplates
   alias NervesHub.Integrations.Slack.Claims
   alias NervesHub.Integrations.Slack.Users
+  alias NervesHub.Integrations.Slack.WorkflowMessages
   alias NervesHub.ManagedDeployments
   alias NervesHub.ManagedDeployments.DeploymentGroup
   alias NervesHub.ManagedDeployments.DeploymentRelease
@@ -94,21 +97,16 @@ defmodule NervesHubWeb.Integrations.Slack.WorkflowSteps do
          :ok <- current(step, deployment_group),
          :ok <- still_possible(action, step),
          :ok <- claim(step, user),
-         {:ok, step} <- act(action, deployment_group, step, user) do
-      :ok =
-        DeploymentGroupTemplates.audit_workflow_step_action(
-          user,
-          deployment_group,
-          step,
-          done_action(action),
-          Actions.via(click)
-        )
-
+         {:ok, step} <- act(action, deployment_group, step, user, via: Actions.via(click)) do
       # Approving or skipping only clears the way, and a retried step waits
       # for the next pass. The orchestrator is what moves the workflow on.
       :ok = ManagedDeployments.broadcast(deployment_group, "deployments/update")
 
-      :ok = Actions.announce(click, done(action, user, step, deployment_group))
+      _ =
+        if not WorkflowMessages.recorded?(click.channel_id, click.message_ts) do
+          :ok = Actions.announce(click, done(action, user, step, deployment_group))
+        end
+
       {:ok, action}
     else
       {:user, nil} ->
@@ -199,17 +197,22 @@ defmodule NervesHubWeb.Integrations.Slack.WorkflowSteps do
 
   # The step as read before the claim. Anything that moved it since, such as
   # the dashboard, is caught by `Workflows` checking again.
-  defp act(:approve, _deployment_group, step, user), do: {:ok, Workflows.approve_step(step, user)}
+  defp act(:approve, deployment_group, step, user, opts) do
+    case Workflows.approve_step(deployment_group, step, user, opts) do
+      {:ok, step} -> {:ok, step}
+      {:error, :not_approvable} -> {:error, :already_done, "#{step_label(step)} is no longer waiting for approval."}
+    end
+  end
 
-  defp act(:retry, deployment_group, step, user) do
-    case Workflows.retry_step(deployment_group, step, user) do
+  defp act(:retry, deployment_group, step, user, opts) do
+    case Workflows.retry_step(deployment_group, step, user, opts) do
       {:ok, step} -> {:ok, step}
       {:error, :not_retryable} -> {:error, :not_retryable, "#{step_label(step)} can no longer be retried."}
     end
   end
 
-  defp act(:skip, _deployment_group, step, user) do
-    case Workflows.skip_step(step, user) do
+  defp act(:skip, deployment_group, step, user, opts) do
+    case Workflows.skip_step(deployment_group, step, user, opts) do
       {:ok, step} -> {:ok, step}
       {:error, :not_skippable} -> {:error, :not_skippable, "#{step_label(step)} can no longer be skipped."}
     end
@@ -233,10 +236,6 @@ defmodule NervesHubWeb.Integrations.Slack.WorkflowSteps do
   defp verb(:approve), do: "approve"
   defp verb(:retry), do: "retry"
   defp verb(:skip), do: "skip"
-
-  defp done_action(:approve), do: :approved
-  defp done_action(:retry), do: :retried
-  defp done_action(:skip), do: :skipped
 
   defp done(action, user, step, deployment_group) do
     name = Actions.escape(user.name)

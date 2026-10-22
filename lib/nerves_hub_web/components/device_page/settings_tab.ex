@@ -10,9 +10,9 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
   alias NervesHub.Devices.Updates
   alias NervesHub.Extensions
   alias NervesHubWeb.Components.CAHelpers
+  alias NervesHubWeb.Components.DateTimes
   alias NervesHubWeb.Components.Utils
   alias NervesHubWeb.CoreComponents
-  alias NervesHubWeb.LayoutView.DateTimeFormat
 
   def tab_params(_params, _uri, socket) do
     changeset = Ecto.Changeset.change(socket.assigns.device)
@@ -204,7 +204,7 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
                 <div class="text-xs tracking-wide text-base-400">
                   <span>Last used:</span>
                   <%= if !is_nil(certificate.last_used) do %>
-                    <span>{DateTimeFormat.from_now(certificate.last_used)}</span>
+                    <span>{DateTimes.from_now(certificate.last_used)}</span>
                   <% else %>
                     <span>Never</span>
                   <% end %>
@@ -298,7 +298,7 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
             <div class={["grow", auth.deactivated_at && "opacity-60"]}>
               <div class="text-base-300"><code>{auth.key}</code></div>
               <div class="text-xs tracking-wide text-base-400">
-                <span :if={auth.last_used}>Last used {DateTimeFormat.from_now(auth.last_used)}</span>
+                <span :if={auth.last_used}>Last used {DateTimes.from_now(auth.last_used)}</span>
                 <span :if={is_nil(auth.last_used)}>Never used</span>
               </div>
             </div>
@@ -381,7 +381,7 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
               class="flex gap-2 rounded border border-alert bg-base-800 px-3 py-1.5 hover:bg-alert-soft"
               type="button"
               phx-click="delete-device"
-              data-confirm="Are you sure you want to delete this device? This will also delete any certificates associated with the device."
+              data-confirm="Are you sure you want to delete this device? It will be disconnected and removed from its deployment group, and any certificates associated with it will be deleted."
             >
               <svg class="size-5 stroke-alert" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <path

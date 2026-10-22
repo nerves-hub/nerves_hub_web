@@ -237,6 +237,22 @@ defmodule NervesHub.Integrations.Slack.MessagesTest do
              ] = buttons(message)
     end
 
+    test "a step dealt with has a line saying so in place of its buttons" do
+      events = [step_event(%{}), step_event(%{"id" => 43, "name" => "Second"})]
+
+      message =
+        Messages.build("deployment_group.workflow_step.awaiting_approval", events, %{
+          "42" => %{"change" => "replaced", "release" => 5}
+        })
+
+      assert ":leftwards_arrow_with_hook: Release 5 replaced this one, so there is nothing more to do here" in texts(
+               message
+             )
+
+      assert [%{action_id: "workflow_step.approve", value: "43"}, %{action_id: "deployment_group.open"}] =
+               buttons(message)
+    end
+
     test "several are each given their own section and buttons" do
       events = for id <- 1..7, do: step_event(%{"id" => id}, %{"deployment_group" => %{"name" => "group-#{id}"}})
       message = Messages.build("deployment_group.workflow_step.failed", events)

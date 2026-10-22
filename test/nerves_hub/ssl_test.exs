@@ -8,6 +8,7 @@ defmodule NervesHub.SSLTest do
   alias NervesHub.Devices.CACertificates
   alias NervesHub.Devices.Certificates
   alias NervesHub.Fixtures
+  alias X509.Certificate.Extension
   alias X509.Certificate.Validity
 
   require X509.ASN1
@@ -107,6 +108,34 @@ defmodule NervesHub.SSLTest do
       assert device.description == "jitp"
       assert device.product_id == product.id
       assert device.tags == ["hello", "jitp"]
+    end
+
+    test "jitp with only a product", _ do
+      user = Fixtures.user_fixture()
+      org = Fixtures.org_fixture(user, %{name: "jitp_product_only"})
+      product = Fixtures.product_fixture(user, org)
+      ca = Fixtures.ca_certificate_fixture(org)
+      identifier = "jitp_product_only_device"
+
+      otp_cert =
+        X509.PrivateKey.new_ec(:secp256r1)
+        |> X509.PublicKey.derive()
+        |> X509.Certificate.new("/O=#{org.name}/CN=#{identifier}", ca.cert, ca.key)
+
+      # Turned on as the CA page does it when the description and tags are left empty
+      {:ok, _ca} =
+        ca.db_cert
+        |> NervesHub.Repo.preload(:jitp)
+        |> CACertificates.update_ca_certificate(%{jitp: %{product_id: product.id, tags: "", description: ""}})
+
+      assert {:valid, _state} = run_verify(otp_cert, {:bad_cert, :unknown_ca})
+
+      scope = Scope.for_user(user) |> Scope.put_org(org)
+
+      assert {:ok, device} = Devices.get_by_identifier(scope, identifier)
+      assert device.product_id == product.id
+      assert is_nil(device.description)
+      assert is_nil(device.tags)
     end
 
     test "rejects a deleted device", context do
@@ -361,6 +390,60 @@ defmodule NervesHub.SSLTest do
     end
   end
 
+  # :ssl reports a certificate that signed itself, sent on its own, as
+  # {:bad_cert, :selfsigned_peer} rather than as an unknown CA.
+  describe "self-signed certificate" do
+    setup context do
+      %{cert: cert} = Fixtures.self_signed_device_certificate(context.device.identifier)
+      %{self_signed: cert}
+    end
+
+    test "verifies once uploaded for the device", context do
+      %{db_cert: db_cert} = Fixtures.device_certificate_fixture(context.device, context.self_signed)
+
+      assert is_nil(db_cert.last_used)
+      assert {:valid, _state} = run_verify(context.self_signed, {:bad_cert, :selfsigned_peer})
+      refute is_nil(Fixtures.reload(db_cert).last_used)
+    end
+
+    test "rejects one that was not uploaded, and does not register it", context do
+      assert {:fail, :unknown_device_certificate} =
+               run_verify(context.self_signed, {:bad_cert, :selfsigned_peer})
+
+      assert {:error, :not_found} = Certificates.get_device_certificate_by_x509(context.self_signed)
+    end
+
+    test "rejects an uploaded one when its device is deleted", context do
+      Fixtures.device_certificate_fixture(context.device, context.self_signed)
+      assert {:ok, _device} = Repo.soft_delete(context.device)
+
+      assert {:fail, :ignore_deleted_device} =
+               run_verify(context.self_signed, {:bad_cert, :selfsigned_peer})
+    end
+
+    test "never makes a registered CA's own certificate a device", context do
+      # Whoever holds a CA's key can send the CA's certificate as their own. Were
+      # it registered like a device certificate, JITP would create a device named
+      # after the CA and pin the CA's certificate to it.
+      jitp =
+        %JITP{product_id: context.product.id, tags: ["jitp"], description: "jitp"}
+        |> NervesHub.Repo.insert!()
+
+      context.ca_db_cert
+      |> Ecto.Changeset.change(%{jitp_id: jitp.id})
+      |> NervesHub.Repo.update!()
+
+      [ca_cn] = X509.Certificate.subject(context.ca_cert, "CN")
+      scope = Scope.for_user(context.user) |> Scope.put_org(context.org)
+
+      assert {:fail, :unknown_device_certificate} =
+               run_verify(context.ca_cert, {:bad_cert, :selfsigned_peer})
+
+      assert Devices.get_by_identifier(scope, ca_cn) == {:error, :not_found}
+      assert {:error, :not_found} = Certificates.get_device_certificate_by_x509(context.ca_cert)
+    end
+  end
+
   test "refuse a certificate with same serial but different validity", context do
     %{db_cert: _} = Fixtures.device_certificate_fixture(context.device, context.cert)
     serial = X509.Certificate.serial(context.cert)
@@ -373,6 +456,82 @@ defmodule NervesHub.SSLTest do
       )
 
     assert {:fail, :registration_failed} = run_verify(new_cert_known_key)
+  end
+
+  # :ssl can find more wrong with a chain than an unknown CA, an expiry or a
+  # certificate that signed itself. Each test pairs an event with the
+  # certificate :ssl sends it for in a real handshake.
+  describe "another problem :ssl found with the chain" do
+    setup do
+      ref = make_ref()
+      test = self()
+      handler = "ssl-fail-#{inspect(ref)}"
+
+      :telemetry.attach(
+        handler,
+        [:nerves_hub, :ssl, :fail],
+        fn _event, _measure, meta, _config -> send(test, {:ssl_fail, meta}) end,
+        nil
+      )
+
+      on_exit(fn -> :telemetry.detach(handler) end)
+    end
+
+    # The device sent a CA certificate with its issuer's name, but not the key
+    # that signed it.
+    test "rejects a certificate whose signature does not verify, and reports why", %{cert: cert} do
+      serial = Certificate.get_serial_number(cert)
+
+      assert {:fail, :invalid_signature} = run_verify(cert, {:bad_cert, :invalid_signature})
+      assert_receive {:ssl_fail, %{reason: :invalid_signature, cert_serial: ^serial}}
+    end
+
+    # A certificate for serverAuth alone, sent with its CA. :ssl names the
+    # extended key usages it found.
+    test "rejects a certificate without clientAuth, with the reason :ssl gave", context do
+      cert =
+        X509.Certificate.new(context.public_key, "/CN=#{context.device.identifier}", context.ca_cert, context.ca_key,
+          extensions: [ext_key_usage: Extension.ext_key_usage([:serverAuth])]
+        )
+
+      reason = {:ca_invalid_ext_keyusage, [X509.ASN1.oid(:"id-kp-serverAuth")]}
+
+      assert {:fail, ^reason} = run_verify(cert, {:bad_cert, reason})
+      assert_receive {:ssl_fail, %{reason: ^reason}}
+    end
+
+    # :ssl asks about each certificate in the chain, so the one rejected need not
+    # be the device's.
+    test "rejects a CA certificate without basicConstraints, and reports it", context do
+      intermediate =
+        X509.PrivateKey.new_ec(:secp256r1)
+        |> X509.PublicKey.derive()
+        |> X509.Certificate.new("/CN=Intermediate without basicConstraints", context.ca_cert, context.ca_key,
+          template: :ca,
+          extensions: [basic_constraints: false]
+        )
+
+      serial = Certificate.get_serial_number(intermediate)
+
+      assert {:fail, :missing_basic_constraint} =
+               run_verify(intermediate, {:bad_cert, :missing_basic_constraint})
+
+      assert_receive {:ssl_fail,
+                      %{
+                        reason: :missing_basic_constraint,
+                        cert_serial: ^serial,
+                        cert_subject: "Intermediate without basicConstraints"
+                      }}
+    end
+
+    # It is the chain that is wrong, so what NervesHub knows about the
+    # certificate makes no difference.
+    test "rejects a certificate on file all the same", %{cert: cert, device: device} do
+      %{db_cert: db_cert} = Fixtures.device_certificate_fixture(device, cert)
+
+      assert {:fail, :invalid_signature} = run_verify(cert, {:bad_cert, :invalid_signature})
+      assert is_nil(Fixtures.reload(db_cert).last_used)
+    end
   end
 
   defp run_verify(otp_cert, event \\ :valid_peer) do

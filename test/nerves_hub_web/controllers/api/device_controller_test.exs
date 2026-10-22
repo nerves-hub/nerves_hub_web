@@ -488,6 +488,20 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
       assert index_identifiers(conn, org, product, ~s|update_status is "updating"|) == []
     end
 
+    test "filters on alarms, in the query and as filters", %{conn: conn, org: org, product: product, hot: hot} do
+      # The alarm filters correlate an EXISTS against `device_alarms` back to
+      # the listed device by its `:device` binding.
+      Fixtures.device_alarms_fixture(hot, %{"CableDown" => "no link on the cable"})
+
+      assert index_identifiers(conn, org, product, ~s|alarm_status = "with"|) == ["aq-hot"]
+      assert index_identifiers(conn, org, product, ~s|alarm_status = "without"|) == ["aq-cool"]
+
+      for filters <- [%{alarm_status: "with"}, %{alarm: "CableDown"}] do
+        conn = get(conn, Routes.api_device_path(conn, :index, org.name, product.name, %{filters: filters}))
+        assert [%{"identifier" => "aq-hot"}] = json_response(conn, 200)["data"]
+      end
+    end
+
     test "treats non-query input as a free-text search", %{conn: conn, org: org, product: product} do
       assert index_identifiers(conn, org, product, "aq-ho") == ["aq-hot"]
     end
@@ -1142,6 +1156,23 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
         })
 
       assert response(conn, 204)
+    end
+
+    test "conflict, when the device is already updating", %{conn: conn, user: user, org: org, tmp_dir: tmp_dir} do
+      product = Fixtures.product_fixture(user, org)
+      org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
+      firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+      device = Fixtures.device_fixture(org, product, firmware)
+
+      path = Routes.api_device_path(conn, :upgrade, device.identifier)
+
+      assert response(post(conn, path, %{uuid: firmware.uuid}), 204)
+
+      assert json_response(post(conn, path, %{uuid: firmware.uuid}), 409) == %{
+               "errors" => %{
+                 "detail" => "The device is already updating. Wait for that update to finish before sending another."
+               }
+             }
     end
 
     test "auth failure, with short url", %{conn2: conn, user: user, org: org, tmp_dir: tmp_dir} do

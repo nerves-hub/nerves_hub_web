@@ -1,6 +1,8 @@
-defmodule NervesHub.Integrations.Slack.Events do
+defmodule NervesHub.Integrations.ChannelEvents do
   @moduledoc """
-  The events a Slack channel can be sent.
+  The events a chat channel can be sent: a Slack channel
+  (`NervesHub.Integrations.Slack.Subscriptions`) or a Microsoft Teams channel
+  (`NervesHub.Integrations.Teams`).
 
   Fewer than a webhook can subscribe to: a channel is read by people, so it
   gets the events a person acts on, not telemetry. Each is built from an
@@ -54,8 +56,7 @@ defmodule NervesHub.Integrations.Slack.Events do
       key: "deployment_group.workflow_step.awaiting_approval",
       source: "deployment_group.workflow_step.awaiting_approval",
       label: "Workflow waiting for approval",
-      description:
-        "A workflow reached a step that holds the rollout until somebody approves it, with an Approve button."
+      description: "A workflow reached a step that holds the rollout until somebody approves it."
     },
     %{
       key: "deployment_group.workflow_step.completed",
@@ -67,7 +68,7 @@ defmodule NervesHub.Integrations.Slack.Events do
       key: "deployment_group.workflow_step.failed",
       source: "deployment_group.workflow_step.failed",
       label: "Workflow step failed",
-      description: "Too many of a step's devices failed to update and the rollout stopped, with Retry and Skip buttons."
+      description: "Too many of a step's devices failed to update, and the rollout stopped there."
     },
     %{
       key: "deployment_group.workflow_step.skipped",

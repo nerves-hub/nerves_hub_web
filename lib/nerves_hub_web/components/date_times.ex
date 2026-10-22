@@ -10,6 +10,7 @@ defmodule NervesHubWeb.Components.DateTimes do
 
   use Phoenix.Component
 
+  alias NervesHub.Helpers.RelativeTime
   alias NervesHubWeb.Helpers.Timezone
 
   # Zone-abbreviation suffixes are appended separately rather than via `%Z`, so a
@@ -96,6 +97,17 @@ defmodule NervesHubWeb.Components.DateTimes do
     |> DateTime.now!()
     |> Map.fetch!(:zone_abbr)
   end
+
+  @doc """
+  Describes a timestamp relative to now, such as "3 hours ago".
+
+  Anything that is not a `DateTime` or `NaiveDateTime`, such as `nil` for a
+  certificate never used, comes back unchanged.
+  """
+  @spec from_now(term()) :: term()
+  def from_now(%DateTime{} = at), do: RelativeTime.from_now(at)
+  def from_now(%NaiveDateTime{} = at), do: RelativeTime.from_now(at)
+  def from_now(at), do: at
 
   @doc """
   Formats `at` in `time_zone` as a plain string.

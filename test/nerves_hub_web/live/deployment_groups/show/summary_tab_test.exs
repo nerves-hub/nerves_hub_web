@@ -212,17 +212,17 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show.SummaryTabTest do
     |> refute_has("a", text: "Delete")
     |> refute_has("a", text: "Retry")
 
-    {:ok, delta} = Firmwares.fail_firmware_delta(delta)
-
-    conn
-    |> assert_has("div", text: "Failed", timeout: 100)
-    |> assert_has("a", text: "Delete")
-    |> assert_has("a", text: "Retry")
-
     {:ok, delta} = Firmwares.time_out_firmware_delta(delta)
 
     conn
     |> assert_has("div", text: "Timed out", timeout: 100)
+    |> assert_has("a", text: "Delete")
+    |> assert_has("a", text: "Retry")
+
+    {:ok, delta} = Firmwares.fail_firmware_delta(delta)
+
+    conn
+    |> assert_has("div", text: "Failed", timeout: 100)
     |> assert_has("a", text: "Delete")
     |> assert_has("a", text: "Retry")
 
@@ -258,7 +258,8 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show.SummaryTabTest do
     {:ok, delta} = Firmwares.start_firmware_delta(source_firmware.id, target_firmware.id)
     {:ok, delta} = Firmwares.fail_firmware_delta(delta)
 
-    expect(Oban, :insert, fn _ -> {:ok, %Oban.Job{}} end)
+    # A failed delta has no file, so there is nothing to queue for deletion
+    reject(&Oban.insert/1)
 
     conn
     |> assert_has("a", text: "Delete", timeout: 100)
@@ -276,17 +277,14 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show.SummaryTabTest do
     {:ok, delta} = Firmwares.start_firmware_delta(source_firmware.id, target_firmware.id)
     {:ok, delta} = Firmwares.fail_firmware_delta(delta)
 
-    expect(Firmwares, :attempt_firmware_delta, fn ^source_id, ^target_id ->
-      {:ok, :started}
-    end)
-
-    expect(Oban, :insert, fn _ -> {:ok, %Oban.Job{}} end)
-
     conn
     |> assert_has("a", text: "Retry", timeout: 100)
     |> click_link("Retry")
 
     refute Repo.reload(delta)
+
+    assert {:ok, %{status: :processing}} =
+             Firmwares.get_firmware_delta_by_source_and_target(source_id, target_id)
   end
 
   test "devices counter is a link to devices list page", %{
@@ -316,6 +314,33 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show.SummaryTabTest do
 
       conn
     end)
+  end
+
+  test "shows priority queue settings only when it is enabled", %{
+    conn: conn,
+    org: org,
+    product: product,
+    user: user,
+    deployment_group: deployment_group
+  } do
+    refute_has(conn, "span", text: "Priority queue enabled:")
+
+    {:ok, _} =
+      ManagedDeployments.update_deployment_group(
+        deployment_group,
+        %{
+          priority_queue_enabled: true,
+          priority_queue_concurrent_updates: 3,
+          priority_queue_firmware_version_threshold: "0.9.0"
+        },
+        user
+      )
+
+    conn
+    |> visit("/org/#{org.name}/#{product.name}/deployment_groups/#{deployment_group.name}")
+    |> assert_has("span", text: "Priority queue enabled:")
+    |> assert_has("span", text: "3")
+    |> assert_has("span", text: "0.9.0")
   end
 
   test "shows the deployment group with device count", %{

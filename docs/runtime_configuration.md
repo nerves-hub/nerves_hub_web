@@ -302,13 +302,14 @@ Read in every environment. See [Webhooks](webhooks.md).
 
 ## Slack
 
-Read in every environment. See [Slack](slack.md) for creating the Slack app these come from. The integration is hidden unless all three Slack variables are set.
+Read in every environment. See [Slack](slack.md) for creating the Slack app these come from. The integration is hidden unless `SLACK_CLIENT_ID` and `SLACK_CLIENT_SECRET` are set, along with `SLACK_SIGNING_SECRET`, `SLACK_APP_TOKEN`, or both.
 
 | Variable | Default | Description |
 | --- | --- | --- |
 | `SLACK_CLIENT_ID` | — | The Slack app's client ID, from its **Basic Information** page. |
 | `SLACK_CLIENT_SECRET` | — | The Slack app's client secret, used to exchange an install's code for its bot token. |
-| `SLACK_SIGNING_SECRET` | — | The Slack app's signing secret. Requests to `/integrations/slack/` without a valid signature are refused. |
+| `SLACK_SIGNING_SECRET` | — | The Slack app's signing secret. Requests to `/integrations/slack/` without a valid signature are refused, and without it those URLs answer 404. |
+| `SLACK_APP_TOKEN` | — | An app-level token (`xapp-…`, with the `connections:write` scope), for an instance Slack cannot reach. When set, each web node opens two Socket Mode connections to Slack and gets Slack's events, button clicks and slash commands over them, instead of at `/integrations/slack/`. See [Slack](slack.md#an-instance-slack-cannot-reach-socket-mode). |
 | `SECRETS_ENCRYPTION_KEY` | — (a fixed key in dev and test) | 32 random bytes, base64 encoded (`openssl rand -base64 32`). Encrypts secrets NervesHub holds for others, such as Slack bot tokens, before they are stored. Required in prod when `SLACK_CLIENT_ID` is set. Changing it makes the stored secrets unreadable, so connected workspaces would have to be connected again. |
 
 ## Branding and UI
@@ -354,7 +355,7 @@ Read in every environment.
 | Variable | Default | Description |
 | --- | --- | --- |
 | `SENTRY_DSN_URL` | — | Sentry DSN. Without it, nothing is sent. |
-| `SENTRY_ENABLE_LOGGING` | `false` | Forward logs to Sentry, not just exceptions. |
+| `SENTRY_ENABLE_LOGGING` | `false` | Forward logs at `info` and above to Sentry, not just exceptions. |
 | `SENTRY_ENABLE_TRACING` | `false` | Send traces to Sentry via OpenTelemetry. |
 | `SENTRY_TRACING_RATE` | `0.05` | Fraction of transactions sampled. Oban's own polling queries are sampled at 1% regardless. |
 | `OTLP_ENDPOINT` | — | Send traces to an OTLP collector over HTTP instead. Only used when `SENTRY_ENABLE_TRACING` is off; with neither set, trace export is disabled entirely. |

@@ -11,7 +11,8 @@ defmodule NervesHub.Devices.CACertificate.JITP do
     # so devices can be created
     belongs_to(:product, Product)
 
-    # Will be copied to the device when it's created
+    # Will be copied to the device when it's created. Optional: a device
+    # can start out with no tags and no description.
     field(:tags, Tag)
     field(:description, :string)
     timestamps()
@@ -24,6 +25,6 @@ defmodule NervesHub.Devices.CACertificate.JITP do
   def changeset(jitp, params) do
     jitp
     |> cast(params, [:tags, :description, :product_id])
-    |> validate_required([:tags, :description, :product_id])
+    |> validate_required([:product_id])
   end
 end

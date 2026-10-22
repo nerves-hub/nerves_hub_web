@@ -11,6 +11,7 @@ defmodule NervesHubWeb.Integrations.Slack.WorkflowStepsTest do
   alias NervesHub.ManagedDeployments
   alias NervesHub.ManagedDeployments.Orchestrator.WorkflowCoordinator
   alias NervesHub.ManagedDeployments.Workflows
+  alias NervesHub.Workers.UpdateSlackWorkflowMessage
   alias NervesHubWeb.Integrations.Slack.Actions
   alias NervesHubWeb.Integrations.Slack.WorkflowSteps
   alias Phoenix.Socket.Broadcast
@@ -125,7 +126,7 @@ defmodule NervesHubWeb.Integrations.Slack.WorkflowStepsTest do
   # Takes the workflow past Sign-off to Canary, then fails Canary.
   defp fail_canary(%{canary: canary, deployment_group: deployment_group, release: release, user: user}) do
     _ = WorkflowCoordinator.schedule_updates(deployment_group)
-    _ = Workflows.approve_step(step(release, 1), user)
+    {:ok, _} = Workflows.approve_step(deployment_group, step(release, 1), user)
     _ = WorkflowCoordinator.schedule_updates(deployment_group)
     _ = WorkflowCoordinator.schedule_updates(deployment_group)
 
@@ -169,6 +170,35 @@ defmodule NervesHubWeb.Integrations.Slack.WorkflowStepsTest do
 
       assert thread_reply() ==
                ":white_check_mark: #{user.name} approved *Sign-off* for *#{deployment_group.name}* from Slack. The rollout carries on."
+    end
+
+    test "a message being kept up to date is edited, not replied to in its thread", %{release: release, user: user} do
+      :ok = link!(user)
+      sign_off = step(release, 1)
+
+      subscription =
+        Repo.insert!(%Slack.Subscription{
+          connection_id: Repo.one!(Slack.Connection).id,
+          channel_id: "C0FLEET",
+          channel_name: "fleet",
+          events: ["deployment_group.workflow_step.awaiting_approval"]
+        })
+
+      message =
+        Repo.insert!(%Slack.WorkflowMessage{
+          subscription_id: subscription.id,
+          channel_id: "C0FLEET",
+          ts: "1728900000.000100",
+          type: "deployment_group.workflow_step.awaiting_approval",
+          events: [%{"step" => %{"id" => sign_off.id, "name" => "Sign-off"}}],
+          step_ids: [sign_off.id]
+        })
+
+      assert {:ok, :approve} = WorkflowSteps.perform(click(:approve, sign_off))
+
+      refute_received {:slack, "slack.com", "/api/chat.postMessage", _body}
+      assert %{"change" => "approved"} = Repo.reload!(message).resolutions[Integer.to_string(sign_off.id)]
+      assert [_job] = all_enqueued(worker: UpdateSlackWorkflowMessage, args: %{workflow_message_id: message.id})
     end
 
     test "a step already approved is not approved again, and says by whom", %{release: release, user: user} do

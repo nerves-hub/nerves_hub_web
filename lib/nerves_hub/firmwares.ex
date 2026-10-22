@@ -512,6 +512,7 @@ defmodule NervesHub.Firmwares do
            {:ok, firmware} <- soft_delete_firmware(firmware, user) do
         _ =
           [firmware.upload_metadata | delta_upload_metadata]
+          |> Enum.filter(&uploaded_file?/1)
           |> Enum.map(&DeleteFirmware.new/1)
           |> Oban.insert_all()
 
@@ -572,16 +573,27 @@ defmodule NervesHub.Firmwares do
   @spec delete_firmware_delta(FirmwareDelta.t()) ::
           {:ok, FirmwareDelta.t()} | {:error, Ecto.Changeset.t() | Oban.Job.changeset()}
   def delete_firmware_delta(%FirmwareDelta{} = delta) do
-    delete_delta_job = DeleteFirmware.new(delta.upload_metadata)
-
     Repo.transact(fn ->
       with {:ok, firmware} <- Repo.delete(delta),
            {:ok, _} = ManagedDeployments.recalculate_release_delta_statuses_by_firmware_id(delta.target_id),
-           {:ok, _} <- Oban.insert(delete_delta_job) do
+           :ok <- queue_file_deletion(delta.upload_metadata) do
         {:ok, firmware}
       end
     end)
   end
+
+  defp queue_file_deletion(upload_metadata) do
+    if uploaded_file?(upload_metadata) do
+      with {:ok, _job} <- Oban.insert(DeleteFirmware.new(upload_metadata)), do: :ok
+    else
+      :ok
+    end
+  end
+
+  # A delta starts with empty upload metadata and only gets a file once it is
+  # built, so one that failed, timed out or is still processing has nothing to
+  # delete.
+  defp uploaded_file?(upload_metadata), do: upload_metadata != %{}
 
   @doc """
   Verify an fwup archive against a set of org keys.
@@ -884,6 +896,10 @@ defmodule NervesHub.Firmwares do
         {:ok, _delta} ->
           :ok
 
+        # Nothing left to mark failed
+        {:error, :delta_deleted} = error ->
+          error
+
         {:error, err} ->
           _ = fail_firmware_delta(firmware_delta)
           {:error, err}
@@ -928,8 +944,11 @@ defmodule NervesHub.Firmwares do
         partials_checksums
       )
 
-    with {:ok, firmware_delta} <- Repo.update(changeset),
-         :ok <- firmware_upload_config().upload_file(delta_file_metadata.filepath, upload_metadata),
+    # Uploaded before it is marked complete. A completed delta is offered to
+    # devices straight away, and the builder takes one as done, so a delta
+    # marked complete whose upload then crashed stayed complete with no file.
+    with :ok <- firmware_upload_config().upload_file(delta_file_metadata.filepath, upload_metadata),
+         {:ok, firmware_delta} <- complete_delta(changeset),
          {:ok, _firmware_delta} <- notify_firmware_delta_target({:ok, firmware_delta}) do
       {:ok, _} = ManagedDeployments.recalculate_release_delta_statuses_by_firmware_id(firmware_delta.target_id)
 
@@ -939,12 +958,30 @@ defmodule NervesHub.Firmwares do
 
       {:ok, firmware_delta}
     else
+      # Its firmware was deleted during the upload, taking the row. That delete
+      # queued no file removal, because the row did not point at the file yet.
+      {:error, :delta_deleted} = error ->
+        Logger.info("Firmware delta was deleted while uploading, removing its file.")
+
+        {:ok, _} = Oban.insert(DeleteFirmware.new(upload_metadata))
+
+        :ok = tool.cleanup_firmware_delta_files(delta_file_metadata.filepath)
+
+        error
+
       {:error, error} ->
         Logger.error("Failed when finalizing firmware delta: #{inspect(error)}")
 
         :ok = tool.cleanup_firmware_delta_files(delta_file_metadata.filepath)
 
         {:error, error}
+    end
+  end
+
+  defp complete_delta(changeset) do
+    case Repo.update(changeset, stale_error_field: :id) do
+      {:error, %Ecto.Changeset{errors: [id: {_, [stale: true]}]}} -> {:error, :delta_deleted}
+      result -> result
     end
   end
 
@@ -976,7 +1013,7 @@ defmodule NervesHub.Firmwares do
         ) ::
           {:ok, :started}
           | {:ok, :no_delta_support}
-          | {:error, :delta_already_exists}
+          | {:ok, :delta_already_exists}
           | {:error, :failed_to_insert_delta}
           | {:error, :failed_to_insert_job}
   def attempt_firmware_delta(source_id, target_id, recalculate_deployment_statuses \\ true) do
@@ -989,6 +1026,24 @@ defmodule NervesHub.Firmwares do
     else
       {:ok, :no_delta_support}
     end
+  end
+
+  @doc """
+  Build a failed or timed-out delta again.
+
+  Starting it replaces the failed delta in the same transaction. Deleted first
+  on its own, the delta's release was left with nothing failed and nothing
+  building, which reads as ready, and the orchestrator sent full firmware to the
+  devices waiting for the delta.
+  """
+  @spec retry_firmware_delta(FirmwareDelta.t()) ::
+          {:ok, :started}
+          | {:ok, :no_delta_support}
+          | {:ok, :delta_already_exists}
+          | {:error, :failed_to_insert_delta}
+          | {:error, :failed_to_insert_job}
+  def retry_firmware_delta(%FirmwareDelta{source_id: source_id, target_id: target_id}) do
+    attempt_firmware_delta(source_id, target_id)
   end
 
   defp do_attempt_firmware_delta(source_id, target_id, recalculate_deployment_statuses) do
@@ -1004,15 +1059,8 @@ defmodule NervesHub.Firmwares do
         {:ok, %FirmwareDelta{}} ->
           {:ok, :delta_already_exists}
 
-        {:delta_insert,
-         {:error,
-          [
-            {:unique_firmware_delta,
-             {"has already been taken", [constraint: :unique, constraint_name: "source_id_target_id_unique_index"]}}
-          ]}} ->
-          # a race condition exists where multiple devices connect, are added to a deployment group, and
-          # try to create a delta, only for one to 'start' but all others fail.
-          # This should be regarded as an `:ok` response.
+        # Started by another caller since the look above.
+        {:delta_insert, {:error, :already_exists}} ->
           {:ok, :delta_already_exists}
 
         {:delta_insert, {:error, changeset}} ->
@@ -1036,22 +1084,36 @@ defmodule NervesHub.Firmwares do
     end)
   end
 
-  @spec start_firmware_delta(non_neg_integer(), non_neg_integer()) ::
-          {:ok, FirmwareDelta.t()} | {:error, Ecto.Changeset.t()}
+  @doc """
+  Start building a delta, replacing one that failed or timed out.
+
+  Returns `{:error, :already_exists}` when another caller started it first.
+  Devices added to a deployment group together race to start the same delta,
+  usually inside the transaction that adds them, so losing the race must not
+  abort that transaction. The losing insert waits for the winner to commit and
+  then does nothing, where a unique violation would have aborted it.
+  """
+  @spec start_firmware_delta(non_neg_integer(), non_neg_integer(), boolean()) ::
+          {:ok, FirmwareDelta.t()} | {:error, :already_exists} | {:error, Ecto.Changeset.t()}
   def start_firmware_delta(source_id, target_id, recalculate_deployment_statuses \\ true) do
-    _ =
-      get_firmware_delta_by_source_and_target(source_id, target_id, [:failed, :timed_out])
-      |> case do
-        {:ok, firmware_delta} -> {:ok, _} = Repo.delete(firmware_delta)
-        {:error, _} -> :ok
-      end
+    # Both racing callers can find the same failed delta, so this must not
+    # raise when the other has already deleted it.
+    {_deleted, _} =
+      FirmwareDelta
+      |> where([fd], fd.source_id == ^source_id and fd.target_id == ^target_id)
+      |> where([fd], fd.status in [:failed, :timed_out])
+      |> Repo.delete_all()
 
     %FirmwareDelta{}
     |> FirmwareDelta.start_changeset(source_id, target_id)
-    |> Repo.insert()
-    |> notify_firmware_delta_target()
+    |> Repo.insert(on_conflict: :nothing, conflict_target: [:source_id, :target_id])
     |> case do
+      {:ok, %FirmwareDelta{id: nil}} ->
+        {:error, :already_exists}
+
       {:ok, firmware_delta} ->
+        :ok = PubSub.broadcast_delta_status(firmware_delta)
+
         _ =
           if recalculate_deployment_statuses do
             {:ok, _} = ManagedDeployments.recalculate_release_delta_statuses_by_firmware_id(target_id)
@@ -1059,8 +1121,8 @@ defmodule NervesHub.Firmwares do
 
         {:ok, firmware_delta}
 
-      passthrough ->
-        passthrough
+      {:error, _changeset} = error ->
+        error
     end
   end
 
@@ -1078,19 +1140,31 @@ defmodule NervesHub.Firmwares do
     {:ok, firmware_delta}
   end
 
-  @spec time_out_firmware_delta(FirmwareDelta.t()) ::
-          {:ok, FirmwareDelta.t()} | {:error, Ecto.Changeset.t()}
-  def time_out_firmware_delta(%FirmwareDelta{} = firmware_delta) do
-    {:ok, firmware_delta} =
-      firmware_delta
-      |> FirmwareDelta.time_out_changeset()
-      |> Repo.update()
-      |> notify_firmware_delta_target()
+  @doc """
+  Time out a delta whose build has taken too long.
 
-    {:ok, _} =
-      ManagedDeployments.recalculate_release_delta_statuses_by_firmware_id(firmware_delta.target_id)
+  Only a delta still processing is timed out. The sweep reads its deltas before
+  it writes them, and writing back the copy it read turned a delta whose build
+  finished in between into a timed-out one.
+  """
+  @spec time_out_firmware_delta(FirmwareDelta.t()) :: {:ok, FirmwareDelta.t()} | {:error, :not_processing}
+  def time_out_firmware_delta(%FirmwareDelta{id: id}) do
+    FirmwareDelta
+    |> where([fd], fd.id == ^id and fd.status == :processing)
+    |> select([fd], fd)
+    |> Repo.update_all(set: [status: :timed_out, updated_at: NaiveDateTime.utc_now(:second)])
+    |> case do
+      {1, [firmware_delta]} ->
+        {:ok, firmware_delta} = notify_firmware_delta_target({:ok, firmware_delta})
 
-    {:ok, firmware_delta}
+        {:ok, _} =
+          ManagedDeployments.recalculate_release_delta_statuses_by_firmware_id(firmware_delta.target_id)
+
+        {:ok, firmware_delta}
+
+      {0, []} ->
+        {:error, :not_processing}
+    end
   end
 
   # Pipeline adapter for the delta lifecycle functions above, which all thread an
@@ -1129,7 +1203,8 @@ defmodule NervesHub.Firmwares do
     |> where([fd], fd.inserted_at < ^cutoff)
     |> Repo.all()
     |> Enum.each(fn firmware_delta ->
-      {:ok, _firmware_delta} = time_out_firmware_delta(firmware_delta)
+      # `{:error, :not_processing}` when its build finished since the read above
+      _ = time_out_firmware_delta(firmware_delta)
     end)
 
     :ok

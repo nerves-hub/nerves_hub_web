@@ -98,9 +98,10 @@ when adding or removing one.
 - `integrations.ex` / `integrations/` — where device events leave NervesHub.
   Code where an event happens calls `Integrations.dispatch/3` with the
   product, which costs one ETS read (`Integrations.Cache`) for a product
-  nothing hears, and otherwise hands the event to the webhooks and Slack
-  channels that want it. `ProductScope` is the "every product, or these
-  products" both share.
+  nothing hears, and otherwise hands the event to the webhooks, Slack
+  channels, and Teams and Discord channels that want it. `ProductScope` is the "every
+  product, or these products" they share, and `ChannelEvents` the events a
+  chat channel can be sent.
 - `integrations/slack.ex` / `integrations/slack/` — the Slack integration: workspaces an organization
   connects by installing the instance's Slack app (`NervesHubWeb.Integrations.Slack.OAuthController`
   runs the OAuth flow), and the events Slack sends to `/integrations/slack/`,
@@ -113,10 +114,25 @@ when adding or removing one.
   permissions checked at click time; `NervesHubWeb.Integrations.Slack.Commands` answers
   `/nerveshub` with the same checks (`Integrations.Slack.Actions.authorize/5`), and
   `NervesHubWeb.Integrations.Slack.WorkflowSteps` approves, retries or skips a deployment
-  workflow step (`Integrations.Slack.Actions.authorize_in/6`). `NervesHubWeb.Integrations.Slack.Unfurls`
+  workflow step (`Integrations.Slack.Actions.authorize_in/6`), and
+  `Slack.WorkflowMessages` edits the messages with those buttons once the
+  step is dealt with, by any route. An instance Slack cannot reach sets
+  `SLACK_APP_TOKEN` and gets the same events, clicks and commands over
+  Socket Mode (`NervesHubWeb.Integrations.Slack.Socket`, two connections
+  per web node) instead of at `/integrations/slack/`. `NervesHubWeb.Integrations.Slack.Unfurls`
   previews device and deployment group links posted in Slack, checked
   against whoever posted them. Hidden unless the instance has a Slack app;
   see [docs/slack.md](docs/slack.md).
+- `integrations/chat_webhooks.ex` / `integrations/chat_webhooks/` — chat
+  channels posted to through the incoming webhook their service gave: a
+  Microsoft Teams Workflows webhook or a Discord channel webhook
+  (`ChatWebhook`, one table, `provider` saying which). The webhook URL is the
+  only credential, so it is encrypted and never shown again. Events are held
+  and rolled up as Slack's are (`Workers.PostChatWebhookEvents`). Each
+  service is a `ChatWebhooks.Provider`: `integrations/teams.ex` (URL checks,
+  Adaptive Cards in `Teams.Cards`) and `integrations/discord.ex` (URL checks,
+  embeds in `Discord.Embeds`). See [docs/teams.md](docs/teams.md) and
+  [docs/discord.md](docs/discord.md).
 - `scripts.ex` / `scripts/` — support scripts run against a device console.
 - `workers/` — Oban workers (e.g. firmware delta building, firmware deletion).
 - Cross-cutting: `audit_logs.ex`, `product_notifications.ex`, `tracker.ex`,

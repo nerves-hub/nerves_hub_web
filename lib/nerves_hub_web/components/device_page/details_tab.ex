@@ -16,6 +16,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
   alias NervesHub.Devices.Updates
   alias NervesHub.Extensions
   alias NervesHub.Firmwares
+  alias NervesHub.Helpers.RelativeTime
   alias NervesHub.ManagedDeployments
   alias NervesHub.Products
   alias NervesHub.Products.HealthProfiles
@@ -329,17 +330,8 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
         |> put_flash(:info, "Pushing available firmware update.")
         |> halt()
 
-      :error ->
-        Logger.error(
-          "An inflight update could not be created or found for the device #{device.identifier} (#{device.id})"
-        )
-
-        socket
-        |> put_flash(
-          :info,
-          "There was an error sending the update to the device. Please contact support."
-        )
-        |> halt()
+      {:error, :already_updating} ->
+        already_updating_error(socket)
     end
   end
 
@@ -394,12 +386,16 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
             []
           end
 
-        {:ok, device} = DeviceEvents.manual_update(device, firmware, user, opts)
+        case DeviceEvents.manual_update(device, firmware, user, opts) do
+          {:ok, device} ->
+            socket
+            |> assign(:device, device)
+            |> put_flash(:info, "Firmware update request requested.")
+            |> halt()
 
-        socket
-        |> assign(:device, device)
-        |> put_flash(:info, "Firmware update request requested.")
-        |> halt()
+          {:error, :already_updating} ->
+            already_updating_error(socket)
+        end
     end
   end
 
@@ -433,12 +429,16 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
             []
           end
 
-        {:ok, device} = DeviceEvents.manual_update(device, firmware, user, opts ++ [delta: true])
+        case DeviceEvents.manual_update(device, firmware, user, opts ++ [delta: true]) do
+          {:ok, device} ->
+            socket
+            |> assign(:device, device)
+            |> put_flash(:info, "Sending firmware update request.")
+            |> halt()
 
-        socket
-        |> assign(:device, device)
-        |> put_flash(:info, "Sending firmware update request.")
-        |> halt()
+          {:error, :already_updating} ->
+            already_updating_error(socket)
+        end
     end
   end
 
@@ -802,7 +802,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
         <div class="text-xs tracking-wide text-base-500">
           <span>Last updated: </span>
           <time id="health-last-updated" phx-hook="UpdatingTimeAgo" datetime={String.replace(DateTime.to_string(DateTime.truncate(@latest_metrics["timestamp"], :second)), " ", "T")}>
-            {Timex.from_now(@latest_metrics["timestamp"])}
+            {RelativeTime.from_now(@latest_metrics["timestamp"])}
           </time>
         </div>
       </div>
@@ -1191,7 +1191,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
               phx-hook="UpdatingTimeAgo"
               datetime={String.replace(DateTime.to_string(DateTime.truncate(@device.latest_connection.disconnected_at, :second)), " ", "T")}
             >
-              {Timex.from_now(@device.latest_connection.disconnected_at)}
+              {RelativeTime.from_now(@device.latest_connection.disconnected_at)}
             </time>
           </span>
         </div>
@@ -1204,7 +1204,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
               phx-hook="UpdatingTimeAgo"
               datetime={String.replace(DateTime.to_string(DateTime.truncate(@device.latest_connection.established_at, :second)), " ", "T")}
             >
-              {Timex.from_now(@device.latest_connection.established_at)}
+              {RelativeTime.from_now(@device.latest_connection.established_at)}
             </time>
           </span>
         </div>
@@ -1397,6 +1397,12 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
   defp unavailable_firmware_error(socket) do
     socket
     |> put_flash(:error, "That firmware is no longer available and cannot be sent to a device.")
+    |> halt()
+  end
+
+  defp already_updating_error(socket) do
+    socket
+    |> put_flash(:error, "The device is already updating. Wait for that update to finish before sending another.")
     |> halt()
   end
 

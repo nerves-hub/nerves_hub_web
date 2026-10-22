@@ -1,6 +1,5 @@
 defmodule NervesHubWeb.Live.Devices.Show.HealthTabTest do
   use NervesHubWeb.ConnCase.Browser, async: true
-  use PhoenixHTMLHelpers
 
   import Phoenix.HTML
 

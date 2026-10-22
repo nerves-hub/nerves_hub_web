@@ -4,6 +4,7 @@ defmodule NervesHubWeb.Live.Org.IntegrationsTest do
   alias NervesHub.Accounts.OrgUser
   alias NervesHub.Accounts.Scope
   alias NervesHub.Fixtures
+  alias NervesHub.Integrations.ChatWebhooks
   alias NervesHub.Integrations.Slack
   alias NervesHub.Integrations.Slack.Subscriptions
   alias NervesHub.Repo
@@ -573,6 +574,148 @@ defmodule NervesHubWeb.Live.Org.IntegrationsTest do
       |> visit(integrations_path(org))
       |> refute_has("#slack")
       |> assert_has("div", text: "Webhooks")
+    end
+  end
+
+  describe "Microsoft Teams" do
+    @teams_url "https://prod-07.westeurope.logic.azure.com:443/workflows/1f2e/triggers/manual/paths/invoke?api-version=2016-06-01&sv=1.0&sig=c2VrcmV0LXNpZw"
+
+    defp teams_channel(%{org: org, user: user}, attrs \\ %{}) do
+      attrs =
+        Map.merge(
+          %{"name" => "Fleet alerts", "url" => @teams_url, "events" => ["device.health_status_changed"]},
+          attrs
+        )
+
+      {:ok, channel} = ChatWebhooks.create_channel(%Scope{org: org, user: user, role: :admin}, :teams, attrs)
+      channel
+    end
+
+    test "lists the channels, where their webhooks are, and what they get, but never a URL", context do
+      %{conn: conn, org: org} = context
+      channel = teams_channel(context)
+
+      conn
+      |> visit(integrations_path(org))
+      |> assert_has("#teams-channel-#{channel.id} span", text: "Fleet alerts")
+      |> assert_has("#teams-channel-#{channel.id} span",
+        text: "Workflows webhook on prod-07.westeurope.logic.azure.com"
+      )
+      |> assert_has("#teams-channel-#{channel.id} span", text: "Health status changed")
+      |> assert_has("#teams-channel-#{channel.id} div", text: "Products: Every product")
+      |> unwrap(fn view ->
+        html = render(view)
+        refute html =~ "c2VrcmV0LXNpZw"
+        html
+      end)
+    end
+
+    test "says when no channel gets the organization's events", %{conn: conn, org: org} do
+      conn
+      |> visit(integrations_path(org))
+      |> assert_has("#teams p", text: "No Microsoft Teams channel gets this organization's events yet.")
+    end
+
+    test "adds a channel from a Workflows webhook's URL", %{conn: conn, org: org} do
+      conn
+      |> visit(integrations_path(org))
+      |> within("#teams", &click_button(&1, "Add channel"))
+      |> unwrap(fn view ->
+        view
+        |> form("#teams-channel-form",
+          teams_channel: %{name: "Fleet alerts", url: @teams_url, events: ["", "device.firmware_update.failed"]}
+        )
+        |> render_submit()
+      end)
+      |> refute_has("#teams-channel-form")
+
+      assert [%{name: "Fleet alerts", url: @teams_url, events: ["device.firmware_update.failed"]}] =
+               ChatWebhooks.list_channels(org, :teams)
+    end
+
+    test "says what is wrong with a URL that is not a Workflows webhook's", %{conn: conn, org: org} do
+      conn
+      |> visit(integrations_path(org))
+      |> within("#teams", &click_button(&1, "Add channel"))
+      |> unwrap(fn view ->
+        view
+        |> form("#teams-channel-form",
+          teams_channel: %{
+            name: "Old",
+            url: "https://acme.webhook.office.com/webhookb2/abc",
+            events: ["", "device.firmware_update.failed"]
+          }
+        )
+        |> render_submit()
+      end)
+      |> assert_has("#teams-channel-form p", text: "is an Office 365 connector URL")
+
+      assert ChatWebhooks.list_channels(org, :teams) == []
+    end
+
+    test "editing leaves the URL out of the page, and keeps it unless a new one is given", context do
+      %{conn: conn, org: org} = context
+      channel = teams_channel(context)
+
+      conn
+      |> visit(integrations_path(org))
+      |> unwrap(fn view ->
+        view |> with_target("#teams") |> render_click("edit-channel", %{"channel_id" => channel.id})
+      end)
+      |> assert_has("#teams-channel-form label", text: "New Workflows webhook URL")
+      |> unwrap(fn view ->
+        refute render(view) =~ "c2VrcmV0LXNpZw"
+
+        view
+        |> form("#teams-channel-form", teams_channel: %{name: "Renamed", url: ""})
+        |> render_submit()
+      end)
+
+      assert %{name: "Renamed", url: @teams_url} = Repo.reload!(channel)
+    end
+
+    test "a viewer sees the channels, but cannot change them", context do
+      %{conn: conn, org: org} = context
+      channel = teams_channel(context)
+      Repo.update_all(OrgUser, set: [role: :view])
+
+      session =
+        conn
+        |> visit(integrations_path(org))
+        |> assert_has("#teams-channel-#{channel.id} span", text: "Fleet alerts")
+        |> assert_has("#teams button[disabled]", text: "Add channel")
+        |> refute_has("#teams-channel-#{channel.id} button", text: "Send test message")
+
+      Process.flag(:trap_exit, true)
+
+      assert {{%NervesHubWeb.UnauthorizedError{}, _}, _} =
+               session.view
+               |> with_target("#teams")
+               |> render_click("delete", %{"channel_id" => channel.id})
+               |> catch_exit()
+    end
+  end
+
+  describe "Discord" do
+    test "adds a channel from a Discord webhook's URL", %{conn: conn, org: org} do
+      url = "https://discord.com/api/webhooks/123456789012345678/AbC-dEf_GhI"
+
+      conn
+      |> visit(integrations_path(org))
+      |> assert_has("#discord div", text: "Discord")
+      |> within("#discord", &click_button(&1, "Add channel"))
+      |> unwrap(fn view ->
+        view
+        |> form("#discord-channel-form",
+          discord_channel: %{name: "#fleet", url: url, events: ["", "device.firmware_update.failed"]}
+        )
+        |> render_submit()
+      end)
+      |> refute_has("#discord-channel-form")
+      |> assert_has("#discord span", text: "Webhook on discord.com")
+
+      assert [%{name: "#fleet", provider: :discord, url: ^url}] = ChatWebhooks.list_channels(org, :discord)
+      assert ChatWebhooks.list_channels(org, :teams) == []
     end
   end
 

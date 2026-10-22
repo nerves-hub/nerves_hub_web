@@ -4,6 +4,7 @@ alias NervesHub.DeviceLink.Dispatcher
 alias NervesHub.DeviceLink.Dispatcher.Remote
 alias NervesHub.DeviceLink.PeerVerification
 alias NervesHub.Firmwares.Upload.S3
+alias NervesHub.Integrations.ChatWebhooks
 alias NervesHub.Integrations.Slack
 alias NervesHub.Types.Encrypted
 alias Swoosh.Adapters.Test
@@ -13,6 +14,7 @@ config :bcrypt_elixir, log_rounds: 4
 # Print only warnings and errors during test
 config :logger, level: :warning
 
+config :nerves_hub, ChatWebhooks, req_options: [plug: {Req.Test, ChatWebhooks}]
 config :nerves_hub, Encrypted, key: Base.decode64!("dGVzdC1rZXktdGVzdC1rZXktdGVzdC1rZXktdGVzdC0=")
 
 config :nerves_hub, NervesHub.AnalyticsRepo,

@@ -44,12 +44,14 @@ if allow_private = System.get_env("WEBHOOKS_ALLOW_PRIVATE_DESTINATIONS") do
 end
 
 # A Slack app for this instance (docs/slack.md). The integration stays hidden
-# unless all three are set.
+# unless the client id and secret are set, with a signing secret for Slack's
+# requests, an app token for Socket Mode, or both.
 if System.get_env("SLACK_CLIENT_ID") do
   config :nerves_hub, Slack,
     client_id: System.get_env("SLACK_CLIENT_ID"),
     client_secret: System.get_env("SLACK_CLIENT_SECRET"),
-    signing_secret: System.get_env("SLACK_SIGNING_SECRET")
+    signing_secret: System.get_env("SLACK_SIGNING_SECRET"),
+    app_token: System.get_env("SLACK_APP_TOKEN")
 end
 
 # Encrypts the secrets NervesHub holds on others' behalf, such as Slack bot
@@ -745,12 +747,13 @@ config :sentry,
   environment_name: System.get_env("DEPLOY_ENV", to_string(config_env())),
   before_send: {NervesHubWeb.SentryEventFilter, :filter_non_500},
   release: "nerves_hub@#{Application.spec(:nerves_hub, :vsn)}",
-  enable_logs: System.get_env("SENTRY_ENABLE_LOGGING", "false") == "true",
   before_send_log: fn log_event ->
     updated_attributes = Map.put(log_event.attributes, :nerves_hub_app, nerves_hub_app)
     %{log_event | attributes: updated_attributes}
   end,
   logs: [
+    # Structured logs are sent only when a level is set; nil leaves them off.
+    level: if(System.get_env("SENTRY_ENABLE_LOGGING", "false") == "true", do: :info),
     metadata: :all
   ],
   tags: %{

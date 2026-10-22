@@ -431,7 +431,27 @@ defmodule NervesHubWeb.Live.Org.CertificateAuthoritiesTest do
                CACertificates.get_ca_certificate_by_serial(serial)
     end
 
-    test "update fails when description is blank", %{conn: conn, user: user, org: org} do
+    test "keeps a JITP's tags apart when saved unchanged", %{conn: conn, user: user, org: org} do
+      %{db_cert: db_cert} = Fixtures.ca_certificate_fixture(org)
+      product = Fixtures.product_fixture(user, org)
+
+      {:ok, _} =
+        db_cert
+        |> NervesHub.Repo.preload(:jitp)
+        |> CACertificates.update_ca_certificate(%{
+          jitp: %{tags: ["prod", "eu"], description: "a jitp description", product_id: product.id}
+        })
+
+      conn
+      |> visit("/org/#{org.name}/settings/certificates/#{db_cert.serial}/edit")
+      |> assert_has("#tag_input[value='prod, eu']")
+      |> click_button("Update Certificate")
+      |> assert_has("div", text: "Certificate Authority updated")
+
+      assert {:ok, %{jitp: %{tags: ["prod", "eu"]}}} = CACertificates.get_ca_certificate_by_serial(db_cert.serial)
+    end
+
+    test "JITP can be turned on with only a product", %{conn: conn, user: user, org: org} do
       %{db_cert: %{serial: serial}} = Fixtures.ca_certificate_fixture(org)
       product = Fixtures.product_fixture(user, org)
 
@@ -440,8 +460,27 @@ defmodule NervesHubWeb.Live.Org.CertificateAuthoritiesTest do
       |> assert_has("h1", text: "Edit Certificate Authority")
       |> check("Enable Just In Time Provisioning")
       |> fill_in("JITP Description", with: "", exact: false)
-      |> fill_in("JITP Tags", with: "prod", exact: false)
+      |> fill_in("JITP Tags", with: "", exact: false)
       |> select("JITP Product", option: product.name, exact: false)
+      |> click_button("Update Certificate")
+      |> assert_path("/org/#{org.name}/settings/certificates/#{serial}")
+      |> assert_has("div", text: "Certificate Authority updated")
+
+      assert {:ok, %{jitp: %{product_id: product_id, tags: nil, description: nil}}} =
+               CACertificates.get_ca_certificate_by_serial(serial)
+
+      assert product_id == product.id
+    end
+
+    test "update fails when the JITP has no product", %{conn: conn, org: org} do
+      %{db_cert: %{serial: serial}} = Fixtures.ca_certificate_fixture(org)
+
+      conn
+      |> visit("/org/#{org.name}/settings/certificates/#{serial}/edit")
+      |> assert_has("h1", text: "Edit Certificate Authority")
+      |> check("Enable Just In Time Provisioning")
+      |> fill_in("JITP Description", with: "a jitp description", exact: false)
+      |> fill_in("JITP Tags", with: "prod", exact: false)
       |> click_button("Update Certificate")
       |> assert_path("/org/#{org.name}/settings/certificates/#{serial}/edit")
       |> assert_has("div", text: "Error updating certificate")
