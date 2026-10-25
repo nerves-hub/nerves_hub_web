@@ -176,6 +176,67 @@ defmodule NervesHub.AccountsTest do
     assert [] = Accounts.fetch_firmware_signing_keys(device.id, :x509_certificate)
   end
 
+  describe "update_or_create_user_from_ueberauth/1" do
+    setup do
+      %{auth: Fixtures.ueberauth_google_success_fixture()}
+    end
+
+    test "creates a user on the first sign-in", %{auth: auth} do
+      assert {:ok, %User{} = user} = Accounts.update_or_create_user_from_ueberauth(auth)
+      assert user.email == "jane@person.com"
+      assert user.google_id == auth.uid
+    end
+
+    test "follows the Google account when its email address changes", %{auth: auth} do
+      {:ok, user} = Accounts.update_or_create_user_from_ueberauth(auth)
+
+      renamed = put_in(auth.info.email, "jane@person.example")
+
+      assert {:ok, %User{} = signed_in} = Accounts.update_or_create_user_from_ueberauth(renamed)
+      assert signed_in.id == user.id
+      assert signed_in.email == "jane@person.example"
+    end
+
+    test "links a user who hasn't signed in with Google before by email", %{auth: auth} do
+      user = Fixtures.user_fixture(%{email: auth.info.email})
+
+      assert {:ok, %User{} = signed_in} = Accounts.update_or_create_user_from_ueberauth(auth)
+      assert signed_in.id == user.id
+      assert signed_in.google_id == auth.uid
+    end
+
+    test "doesn't sign in as a user linked to a different Google account", %{auth: auth} do
+      {:ok, user} = Accounts.update_or_create_user_from_ueberauth(auth)
+
+      other_account = put_in(auth.uid, "100000000000000000001")
+
+      assert {:error, %Changeset{} = changeset} = Accounts.update_or_create_user_from_ueberauth(other_account)
+      assert "has already been taken" in errors_on(changeset).email
+      assert Repo.reload(user).google_id == auth.uid
+    end
+
+    test "refuses an email address change to one another user holds", %{auth: auth} do
+      {:ok, _user} = Accounts.update_or_create_user_from_ueberauth(auth)
+      other = Fixtures.user_fixture()
+
+      renamed = put_in(auth.info.email, other.email)
+
+      assert {:error, %Changeset{} = changeset} = Accounts.update_or_create_user_from_ueberauth(renamed)
+      assert "has already been taken" in errors_on(changeset).email
+    end
+
+    test "creates a new user for a Google account whose user was deleted", %{auth: auth} do
+      {:ok, user} = Accounts.update_or_create_user_from_ueberauth(auth)
+      {:ok, _} = user |> Changeset.change(deleted_at: DateTime.utc_now(:second)) |> Repo.update()
+
+      auth = put_in(auth.info.email, "jane@person.example")
+
+      assert {:ok, %User{} = signed_in} = Accounts.update_or_create_user_from_ueberauth(auth)
+      refute signed_in.id == user.id
+      assert signed_in.google_id == auth.uid
+    end
+  end
+
   describe "authenticate" do
     setup do
       user_params = %{
