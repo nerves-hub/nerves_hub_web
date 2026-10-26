@@ -22,7 +22,6 @@ defmodule NervesHubWeb.DeviceChannelTest do
   alias NervesHubWeb.DeviceChannel
   alias NervesHubWeb.DeviceSocket
   alias NervesHubWeb.ExtensionsChannel
-  alias Phoenix.Socket.Broadcast
 
   describe "firmware_validation_status" do
     test "if the param is missing, then status is marked as :unknown", %{tmp_dir: tmp_dir} do
@@ -429,18 +428,23 @@ defmodule NervesHubWeb.DeviceChannelTest do
   end
 
   test "if archive is sent when an archive updates an audit log is created", %{tmp_dir: tmp_dir} do
-    %{device: device, certificate: certificate, params: params} = archive_setup(tmp_dir)
+    %{
+      device: device,
+      certificate: certificate,
+      params: params,
+      deployment_group: deployment_group,
+      archive: archive
+    } = archive_setup(tmp_dir)
 
     {:ok, socket} =
       connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
 
     {:ok, %{}, device_channel} = subscribe_and_join(socket, DeviceChannel, "device:#{device.id}", params)
 
-    Phoenix.PubSub.broadcast(
-      NervesHub.PubSub,
-      "device:#{device.id}",
-      %Broadcast{event: "archives/updated"}
-    )
+    # Sent on the deployment group's topic, as the platform does. A raw
+    # %Broadcast{} on the channel's own topic is fastlaned to the transport and
+    # never reaches the channel.
+    ManagedDeployments.broadcast(deployment_group, "archives/updated", %{archive_id: archive.id})
 
     _ = :sys.get_state(device_channel.channel_pid)
 
@@ -1029,6 +1033,13 @@ defmodule NervesHubWeb.DeviceChannelTest do
           into: %{"device_api_version" => "2.0.1"},
           do: {"nerves_fw_#{k}", v}
 
-    %{device: device, certificate: certificate, params: params, archive_uuid: archive_uuid}
+    %{
+      device: device,
+      certificate: certificate,
+      params: params,
+      archive: archive,
+      archive_uuid: archive_uuid,
+      deployment_group: deployment_group
+    }
   end
 end
