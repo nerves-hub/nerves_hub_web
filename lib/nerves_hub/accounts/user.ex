@@ -88,6 +88,7 @@ defmodule NervesHub.Accounts.User do
     |> validate_name(opts)
     |> validate_email(opts)
     |> validate_required([:google_id])
+    |> unique_constraint(:google_id)
     |> put_change(:google_last_synced_at, now)
     |> maybe_add_confirmed_at()
   end
