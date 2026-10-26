@@ -11,6 +11,7 @@ More fleet-scale data now lives in ClickHouse, and device nodes use a good deal 
 - **Elixir 1.20 and OTP 29.** Building from source needs Elixir 1.20 and OTP 29. The Docker image uses Elixir 1.20.4 and OTP 29.1.2, which fix CVEs in `public_key`, `ssl` and `inets`. It also moves to Ubuntu 26.04 (`resolute`) and builds fwup 1.17.1. (#2716, #3111, #3166)
 - **Some migrations drop data.** Device health history, the PostgreSQL device metrics table and the old `device_connections` table are dropped, not migrated. Metric history now lives in ClickHouse and starts empty. Once these migrations have run, rolling back to 2.4.0 isn't supported. (#2765, #2996, #3006)
 - **One migration locks `devices`.** Dropping the old device metrics table takes an exclusive lock on `devices`. The migration gives up after 5 seconds instead of stalling every other query, so on a busy database it can fail. If it does, deploy again at a quieter time. (#2996)
+- **Duplicate Google account ids block a migration.** A unique index on `users.google_id` can't be built while two active users share one, which happened when a Google account's email changed. Find them before upgrading with `SELECT google_id, array_agg(id) FROM users WHERE google_id IS NOT NULL AND deleted_at IS NULL GROUP BY google_id HAVING count(*) > 1`. For each, keep the user that should sign in with that Google account, and delete the others or set their `google_id` to `NULL`. (#3190)
 - **Rolling deploys.** Until every node runs 2.5.0, messages between nodes on different versions can be lost. That covers device consoles and local shells, live device updates in the UI, health reports and orchestrator events. It recovers when the rollout completes. Any other application in the cluster that runs `group` needs 0.3.1 in the same deploy. (#2851, #3132, #3133, #3135, #3141)
 - **ClickHouse is still optional**, but connection history, metric history, error reports, Product Insights and the Data History tab all need it. Without `CLICKHOUSE_URL`, devices keep reporting metrics through the health extension.
 - **Support script names are unique per product**, ignoring case. The migration renames newer duplicates by appending their id, as in `Reboot (412)`, and the oldest keeps its name. Anything that runs a renamed script by name needs its new name. (#3189)
@@ -18,7 +19,7 @@ More fleet-scale data now lives in ClickHouse, and device nodes use a good deal 
 - **New products require unique firmware versions** per platform and architecture. Existing products keep the old behavior, and the setting can be changed on any product. (#2864)
 - **Invitations must be accepted.** Inviting someone who already has an account no longer adds them to the org straight away. Everyone gets an invitation to accept or decline, including users added through the API. (#2718, #3027)
 - **`updates_enabled` is deprecated.** Devices now have an `update_mode` of `automatic`, `device_managed` or `off`. The API still returns `updates_enabled`, derived from `update_mode`, for this release. (#2978)
-- **HTTP/1.1 requests need a `Host` header.** Bandit 1.13 answers 400 without one. HTTP/1.0 health checks are unaffected. (#3169)
+- **Stricter HTTP parsing.** Bandit 1.13 answers 400 to an HTTP/1.1 request with no `Host` header, and 1.14 to a malformed request line. HTTP/1.0 health checks are unaffected. (#3169, #3195)
 - **Removed settings.** `DASHBOARD_ENABLED`, `DEPLOYMENT_CALCULATOR_INTERVAL_SECONDS`, `DEVICE_DEPLOYMENT_CHANGE_JITTER_SECONDS`, `DEVICE_CONNECTION_MAX_AGE_DAYS` and `DEVICE_CONNECTION_DELETE_LIMIT` were parsed but never used, and are no longer read. Every variable that is read is now documented in [docs/runtime_configuration.md](docs/runtime_configuration.md). (#2955)
 
 ### Themes
@@ -155,6 +156,7 @@ More fleet-scale data now lives in ClickHouse, and device nodes use a good deal 
 - Enhance `InflightUpdate` with more information (#2689)
 - Record each deployment release in the audit log once (#3053)
 - Require users to accept organization invitations (#3027)
+- Sign in Google users by their Google account id, so a user whose Google email changes keeps the same account (#3190)
 - Combine adding and inviting org members in the API (#2718)
 - Return 404 for missing records in the web UI (#3019)
 - Send emails from a background job (#3017)
@@ -189,7 +191,7 @@ More fleet-scale data now lives in ClickHouse, and device nodes use a good deal 
 - Extract a transport-independent `DeviceLink` contract (#2893)
 - Document every runtime environment variable (#2955)
 - Add `AGENTS.md` (#2853) and Tidewave dev tooling (#2889)
-- Upgrade hackney to 4.7 to fix four security advisories (#3045), Bandit to 1.13.1 for two more (#3169), and fix 9 of 12 npm Dependabot alerts (#3046)
+- Upgrade hackney to 4.7 to fix four security advisories (#3045), Bandit to 1.14 for several more (#3169, #3195), and fix 9 of 12 npm Dependabot alerts (#3046)
 - Bump Sentry to 14, keeping `SENTRY_ENABLE_LOGGING` working (#3165)
 - Bump jemalloc to 5.4.0, which fixes a segfault when a thread exits (#3167)
 - Remove 11 Hex dependencies, replacing Timex, phoenix_view, phoenix_html_helpers, uuidv7 and Joken with code of our own or Ecto's (#3168)
@@ -264,7 +266,7 @@ More fleet-scale data now lives in ClickHouse, and device nodes use a good deal 
 
 ### Dependencies
 
-- **bandit**: 1.10.3 -> 1.13.1
+- **bandit**: 1.10.3 -> 1.14.0
 - **canonical_tailwind**: 0.3.5 (new)
 - **castore**: 1.0.17 -> 1.0.22
 - **ch**: 0.7.1 -> 0.9.2
@@ -278,21 +280,23 @@ More fleet-scale data now lives in ClickHouse, and device nodes use a good deal 
 - **ecto**: 3.13.5 -> 3.14.2
 - **ecto_ch**: 0.8.6 -> 0.11.1
 - **ecto_sql**: 3.13.4 -> 3.14.0
+- **esbuild**: 0.10.0 -> 0.10.1
 - **ex_aws**: 2.6.1 -> 2.7.0
 - **ex_json_schema**: 0.11.5 (new)
 - **excoveralls**: 0.18.5 (removed)
 - **finch**: 0.21.0 -> 0.24.0
 - **floki**: 0.38.0 (removed)
-- **flop**: 0.26.3 -> 0.29.0
+- **flop**: 0.26.3 -> 0.29.1
+- **gettext**: 0.26.2 -> 1.0.2
 - **group**: 0.3.1 (new)
 - **hackney**: 1.25.0 -> 4.8.5
 - **hammer**: 7.1.0 -> 7.5.0
 - **hlclock**: 1.0.0 (removed)
-- **igniter**: 0.8.4 (new)
+- **igniter**: 0.8.5 (new)
 - **jason**: 1.4.4 -> 1.4.5
 - **lazy_html**: 0.1.10 -> 0.1.13
 - **live_flow**: 0.2.3 (new)
-- **lucide**: 0.577.0 -> 1.58.0
+- **lucide**: 0.577.0 -> 1.61.0
 - **mimic**: 2.3.0 -> 2.4.2
 - **mint_web_socket**: 1.0.5 -> 1.0.6
 - **mjml_eex**: 0.12.0 -> 0.13.0
@@ -303,13 +307,13 @@ More fleet-scale data now lives in ClickHouse, and device nodes use a good deal 
 - **open_api_spex**: 3.22.2 -> 3.22.4
 - **opentelemetry_exporter**: 1.10.0 -> 1.11.0
 - **ordered_collections**: 0.3.3 (new)
-- **phoenix**: 1.8.5 -> 1.8.15
+- **phoenix**: 1.8.5 -> 1.8.16
 - **phoenix_html_helpers**: 1.0.1 (removed)
 - **phoenix_live_dashboard**: 0.8.7 -> 0.9.1
 - **phoenix_live_reload**: 1.6.2 -> 1.7.0
-- **phoenix_live_view**: 1.1.26 -> 1.2.12
+- **phoenix_live_view**: 1.1.26 -> 1.2.13
 - **phoenix_pubsub**: 2.2.0 -> 2.4.1
-- **phoenix_test**: 0.9.1 -> 0.12.1
+- **phoenix_test**: 0.9.1 -> 0.13.1
 - **phoenix_view**: 2.0.4 (removed)
 - **plug**: 1.19.1 -> 1.20.3
 - **plug_attack**: 0.4.3 (new)
