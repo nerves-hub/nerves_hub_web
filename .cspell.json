@@ -160,6 +160,9 @@
     "xapp",
     "xdelta",
     "xtensa",
-    "xtermjs"
+    "xtermjs",
+    "OTPTBS",
+    "PEMFILE",
+    "rdns"
   ]
 }
