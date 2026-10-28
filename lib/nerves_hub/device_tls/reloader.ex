@@ -164,7 +164,7 @@ defmodule NervesHub.DeviceTLS.Reloader do
   # Spread over a tenth of the interval, so a fleet of nodes started together
   # does not keep fetching together.
   defp schedule(state) do
-    if state.timer, do: Process.cancel_timer(state.timer)
+    _ = if state.timer, do: Process.cancel_timer(state.timer)
     jitter = :rand.uniform(max(div(state.interval, 10), 1))
     %{state | timer: Process.send_after(self(), :poll, state.interval + jitter)}
   end

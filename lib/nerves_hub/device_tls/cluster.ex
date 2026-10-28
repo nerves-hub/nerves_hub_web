@@ -39,6 +39,8 @@ defmodule NervesHub.DeviceTLS.Cluster do
 
   @behaviour NervesHub.DeviceTLS.Source
 
+  alias NervesHub.DeviceTLS.Source
+
   @scope :nerves_hub_device_tls
   @version 1
   @timeout 10_000
@@ -46,14 +48,14 @@ defmodule NervesHub.DeviceTLS.Cluster do
   @doc "Starts the contract's `:pg` scope on this node."
   def child_spec(_opts), do: %{id: @scope, start: {:pg, :start_link, [@scope]}}
 
-  @impl NervesHub.DeviceTLS.Source
+  @impl Source
   def init(_opts) do
     # init runs in the reloader, so this is the reloader joining.
     :ok = :pg.join(@scope, :consumers, self())
     {:ok, nil}
   end
 
-  @impl NervesHub.DeviceTLS.Source
+  @impl Source
   def fetch(installed_sha1, state) do
     case :pg.get_members(@scope, :providers) do
       [] ->
@@ -83,12 +85,12 @@ defmodule NervesHub.DeviceTLS.Cluster do
     end
   end
 
-  @impl NervesHub.DeviceTLS.Source
+  @impl Source
   def installed(_result, state), do: state
 
   # A provider's nudge, in a version this node speaks; other versions' nudges
   # are ignored.
-  @impl NervesHub.DeviceTLS.Source
+  @impl Source
   def changed?({:nerves_hub_device_tls, @version, :changed, _sha1}), do: true
   def changed?(_message), do: false
 
