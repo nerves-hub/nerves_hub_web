@@ -155,7 +155,7 @@ defmodule NervesHub.MixProject do
       {:jason, "~> 1.2", override: true},
       {:lazy_html, ">= 0.0.0", only: :test},
       {:libcluster_postgres, "~> 0.2.0"},
-      {:live_flow, "~> 0.2.3"},
+      {:live_flow, "~> 0.3.2"},
       {:logfmt_ex, "~> 0.4"},
       {
         :lucide,
