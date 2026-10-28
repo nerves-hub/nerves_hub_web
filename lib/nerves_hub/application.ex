@@ -10,6 +10,7 @@ defmodule NervesHub.Application do
   alias NervesHub.Devices.DeviceMetric
   alias NervesHub.Devices.DeviceUpdateHistory
   alias NervesHub.Devices.LogLine
+  alias NervesHub.DeviceTLS.Reloader
   alias NervesHub.ErrorReports.ErrorReport
   alias NervesHub.ErrorReports.GroupBuffer
   alias NervesHub.ManagedDeployments.OrchestratorRegistration
@@ -75,6 +76,7 @@ defmodule NervesHub.Application do
         device_link_handlers() ++
         deployments_orchestrator(deploy_env()) ++
         slack_sockets(deploy_env()) ++
+        device_tls_children() ++
         endpoints(deploy_env())
 
     opts = [strategy: :one_for_one, name: NervesHub.Supervisor]
@@ -238,6 +240,22 @@ defmodule NervesHub.Application do
     case Application.get_env(:nerves_hub, :app) do
       "device" -> []
       _ -> Socket.child_specs()
+    end
+  end
+
+  # Only when the device endpoint's keypair comes from a TLS provider in the
+  # cluster. Ahead of the endpoint, which cannot listen until the reloader has
+  # one in place.
+  defp device_tls_children() do
+    case Application.get_env(:nerves_hub, Reloader) do
+      nil ->
+        []
+
+      opts ->
+        [
+          NervesHub.DeviceTLS.Cluster,
+          {Reloader, opts}
+        ]
     end
   end
 
