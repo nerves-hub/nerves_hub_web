@@ -59,10 +59,15 @@ defmodule NervesHub.DeviceTLS do
 
   `host` may be `nil` to skip the name check, for a listener that is reached by
   address.
+
+  Never raises, whatever it is given: the PEM comes from another application,
+  and a raise here would take the reloader, and then the node, down with it.
   """
   @spec check(String.t(), String.t(), String.t() | nil, DateTime.t()) ::
           {:ok, summary()} | {:error, String.t()}
-  def check(key_pem, chain_pem, host, now \\ DateTime.utc_now()) do
+  def check(key_pem, chain_pem, host, now \\ DateTime.utc_now())
+
+  def check(key_pem, chain_pem, host, now) when is_binary(key_pem) and is_binary(chain_pem) do
     with {:ok, key} <- decode_key(key_pem),
          {:ok, [leaf | _] = chain} <- decode_chain(chain_pem),
          :ok <- check_key_matches(key, leaf),
@@ -71,7 +76,13 @@ defmodule NervesHub.DeviceTLS do
          :ok <- check_host(leaf, host) do
       {:ok, %{sha1: sha1(leaf), subject: subject(leaf), not_after: not_after}}
     end
+  rescue
+    # :public_key raises on a PEM block whose contents are not the DER it
+    # claims to be.
+    _ -> {:error, "the key or chain could not be decoded"}
   end
+
+  def check(_key_pem, _chain_pem, _host, _now), do: {:error, "the key or chain is not a binary"}
 
   @doc """
   Replaces `path` with the key and chain, then has `:ssl` read it afresh.

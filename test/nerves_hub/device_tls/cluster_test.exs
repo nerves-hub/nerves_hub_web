@@ -216,6 +216,37 @@ defmodule NervesHub.DeviceTLS.ClusterTest do
     assert DeviceTLS.installed_sha1(context.certfile) == good.sha1
   end
 
+  test "a provider handing out something that is not a keypair cannot take the node down",
+       context do
+    good = context.issue.()
+    provider = start_provider()
+    :ok = Provider.provide(provider, good)
+    {:ok, reloader} = start_reloader(context.certfile)
+
+    garbage = fn type -> "-----BEGIN #{type}-----\n#{Base.encode64("not DER")}\n-----END #{type}-----\n" end
+
+    for {bad, expected} <- [
+          {%{key_pem: nil, chain_pem: nil, sha1: "nil"}, "not a binary"},
+          {%{key_pem: garbage.("EC PRIVATE KEY"), chain_pem: good.chain_pem, sha1: "key"}, "could not be decoded"},
+          {%{key_pem: good.key_pem, chain_pem: garbage.("CERTIFICATE"), sha1: "chain"}, "private key does not match"}
+        ] do
+      log =
+        capture_log(fn ->
+          :ok = Provider.provide(provider, bad)
+          assert {:error, _} = Reloader.poll()
+        end)
+
+      assert log =~ expected
+    end
+
+    assert Process.alive?(reloader), """
+    The reloader crashed on a provider's reply. Under the application's
+    supervisor, a few of those in a row stop the node and every device on it.
+    """
+
+    assert DeviceTLS.installed_sha1(context.certfile) == good.sha1
+  end
+
   test "a provider speaking another version is refused, by name", context do
     :ok = Provider.provide(start_provider(versions: [2]), context.issue.())
 

@@ -62,28 +62,34 @@ defmodule NervesHub.DeviceTLS.Cluster do
         {:error, "no TLS provider is in the cluster", state}
 
       providers ->
-        case call(
-               Enum.random(providers),
-               {:nerves_hub_device_tls, @version, :fetch, installed_sha1}
-             ) do
-          {:ok, %{key_pem: key_pem, chain_pem: chain_pem}} ->
-            {:ok, %{key_pem: key_pem, chain_pem: chain_pem}, state}
-
-          :unchanged ->
-            {:unchanged, state}
-
-          {:error, {:unsupported_version, versions}} ->
-            {:error, "the TLS provider speaks contract versions #{inspect(versions)}, and this node speaks #{@version}",
-             state}
-
-          {:error, reason} ->
-            {:error, "the TLS provider has none to give: #{format(reason)}", state}
-
-          other ->
-            {:error, "the TLS provider replied with #{inspect(other)}", state}
-        end
+        providers
+        |> Enum.random()
+        |> call({:nerves_hub_device_tls, @version, :fetch, installed_sha1})
+        |> from_reply(state)
     end
   end
+
+  defp from_reply({:ok, %{key_pem: key_pem, chain_pem: chain_pem}}, state)
+       when is_binary(key_pem) and is_binary(chain_pem) do
+    {:ok, %{key_pem: key_pem, chain_pem: chain_pem}, state}
+  end
+
+  # Not inspected: one of the two may well be the private key.
+  defp from_reply({:ok, %{key_pem: _, chain_pem: _}}, state) do
+    {:error, "the TLS provider replied with a key or chain that is not a binary", state}
+  end
+
+  defp from_reply(:unchanged, state), do: {:unchanged, state}
+
+  defp from_reply({:error, {:unsupported_version, versions}}, state) do
+    {:error, "the TLS provider speaks contract versions #{inspect(versions)}, and this node speaks #{@version}", state}
+  end
+
+  defp from_reply({:error, reason}, state) do
+    {:error, "the TLS provider has none to give: #{format(reason)}", state}
+  end
+
+  defp from_reply(other, state), do: {:error, "the TLS provider replied with #{inspect(other)}", state}
 
   @impl Source
   def installed(_result, state), do: state
