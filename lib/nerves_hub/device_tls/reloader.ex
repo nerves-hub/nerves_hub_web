@@ -21,7 +21,10 @@ defmodule NervesHub.DeviceTLS.Reloader do
   one -- fetches straight away rather than at the next interval.
 
   A fetch or check that fails leaves the installed keypair alone, and is tried
-  again at the next interval. Only a keypair that passes every check is ever
+  again after `:retry_after`, then twice that, and so on up to the interval.
+  The usual failure is a node that has only just booted and not yet joined the
+  cluster, which would otherwise serve its seed keypair -- possibly an expired
+  one -- for a whole interval. Only a keypair that passes every check is ever
   installed.
   """
 
@@ -40,6 +43,9 @@ defmodule NervesHub.DeviceTLS.Reloader do
     * `:interval` -- milliseconds between fetches
     * `:boot_timeout` -- milliseconds to wait for the first keypair, when
       `:certfile` has none
+    * `:retry_after` -- milliseconds before the first retry of a failed fetch,
+      doubling with each further failure up to `:interval`; 5 seconds by
+      default
   """
   def start_link(opts) do
     GenServer.start_link(__MODULE__, opts, name: Keyword.get(opts, :name, __MODULE__))
@@ -59,6 +65,8 @@ defmodule NervesHub.DeviceTLS.Reloader do
       certfile: Keyword.fetch!(opts, :certfile),
       host: Keyword.get(opts, :host),
       interval: Keyword.fetch!(opts, :interval),
+      retry_after: Keyword.get(opts, :retry_after, 5_000),
+      retry: nil,
       timer: nil
     }
 
@@ -72,8 +80,8 @@ defmodule NervesHub.DeviceTLS.Reloader do
 
   defp first_install(state, deadline) do
     case refresh(state) do
-      {{:installed, _sha1}, state} ->
-        {:ok, schedule(state)}
+      {{:installed, _sha1} = result, state} ->
+        {:ok, schedule(state, result)}
 
       {result, state} ->
         if System.monotonic_time(:millisecond) < deadline do
@@ -87,14 +95,14 @@ defmodule NervesHub.DeviceTLS.Reloader do
 
   @impl GenServer
   def handle_continue(:poll, state) do
-    {_result, state} = refresh(state)
-    {:noreply, schedule(state)}
+    {result, state} = refresh(state)
+    {:noreply, schedule(state, result)}
   end
 
   @impl GenServer
   def handle_info(:poll, state) do
-    {_result, state} = refresh(state)
-    {:noreply, schedule(state)}
+    {result, state} = refresh(state)
+    {:noreply, schedule(state, result)}
   end
 
   def handle_info(message, state) do
@@ -108,7 +116,7 @@ defmodule NervesHub.DeviceTLS.Reloader do
   @impl GenServer
   def handle_call(:poll, _from, state) do
     {result, state} = refresh(state)
-    {:reply, result, schedule(state)}
+    {:reply, result, schedule(state, result)}
   end
 
   defp refresh(state) do
@@ -161,11 +169,26 @@ defmodule NervesHub.DeviceTLS.Reloader do
   defp format_reason(reason) when is_binary(reason), do: reason
   defp format_reason(reason), do: inspect(reason)
 
+  # After a failure, soon: the next fetch may well succeed, and until it does
+  # the listener could be serving an expired seed.
+  defp schedule(state, {:error, _reason}) do
+    retry =
+      if state.retry,
+        do: min(state.retry * 2, state.interval),
+        else: min(state.retry_after, state.interval)
+
+    arm(%{state | retry: retry}, retry)
+  end
+
   # Spread over a tenth of the interval, so a fleet of nodes started together
   # does not keep fetching together.
-  defp schedule(state) do
-    _ = if state.timer, do: Process.cancel_timer(state.timer)
+  defp schedule(state, _result) do
     jitter = :rand.uniform(max(div(state.interval, 10), 1))
-    %{state | timer: Process.send_after(self(), :poll, state.interval + jitter)}
+    arm(%{state | retry: nil}, state.interval + jitter)
+  end
+
+  defp arm(state, delay) do
+    _ = if state.timer, do: Process.cancel_timer(state.timer)
+    %{state | timer: Process.send_after(self(), :poll, delay)}
   end
 end

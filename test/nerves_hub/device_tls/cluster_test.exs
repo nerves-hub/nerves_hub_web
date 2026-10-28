@@ -34,7 +34,7 @@ defmodule NervesHub.DeviceTLS.ClusterTest do
     @impl GenServer
     def init(opts) do
       :ok = :pg.join(:nerves_hub_device_tls, :providers, self())
-      {:ok, %{pair: nil, versions: Keyword.get(opts, :versions, [1])}}
+      {:ok, %{pair: Keyword.get(opts, :pair), versions: Keyword.get(opts, :versions, [1])}}
     end
 
     @impl GenServer
@@ -163,6 +163,30 @@ defmodule NervesHub.DeviceTLS.ClusterTest do
       provider's :changed message could have done it.
       """
     end)
+  end
+
+  test "a failed fetch is retried within seconds, not at the next interval", context do
+    seed = context.issue.()
+    :ok = DeviceTLS.install(context.certfile, seed.key_pem, seed.chain_pem)
+
+    # As a node boots: the listener starts on its seed, and the first fetch
+    # finds no provider because the node has not joined the cluster yet.
+    log =
+      capture_log(fn ->
+        {:ok, _} = start_reloader(context.certfile, retry_after: 50)
+        Process.sleep(100)
+
+        # A provider that was already there, so it sends no :changed.
+        renewed = context.issue.()
+        start_provider(pair: renewed)
+
+        assert eventually(fn -> DeviceTLS.installed_sha1(context.certfile) == renewed.sha1 end), """
+        The renewal was not installed. The interval is an hour and the provider
+        sent no :changed, so only a retry of the failed fetch could have done it.
+        """
+      end)
+
+    assert log =~ "no TLS provider is in the cluster"
   end
 
   test "asks for nothing it already has", context do
