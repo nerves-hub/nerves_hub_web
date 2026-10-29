@@ -83,7 +83,7 @@ defmodule NervesHub.Logger do
         org_id: metadata[:org_id],
         product_id: metadata[:product_id],
         shared_key: metadata[:shared_key],
-        identifier: metadata[:device_identifier]
+        identifier: metadata[:identifier]
       }
       |> Map.reject(fn {_key, val} -> is_nil(val) end)
 
