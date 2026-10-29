@@ -69,6 +69,12 @@ defmodule NervesHub.DeviceSSLTransport do
 
   @impl ThousandIsland.Transport
   def listen(port, user_options) do
+    # Every handshake pauses after the ClientHello; see `handshake/1`. Asked
+    # for here, on the listener, because `:ssl.handshake/2` then answers in the
+    # documented shape. Asking per handshake through `:ssl.handshake/3` gets a
+    # reply its own spec says is impossible, with the extensions still raw.
+    user_options = [{:handshake, :hello} | user_options]
+
     if proxy_protocol() do
       # The header has to come off before TLS reads anything, so `:ssl` is given
       # a TCP transport that does that itself. The listener stays `:ssl`'s own
@@ -98,12 +104,14 @@ defmodule NervesHub.DeviceSSLTransport do
       # host the client asked for. OTP logs the alert itself, but names neither
       # the client nor the host, and a client turning down a certificate that
       # does not cover the name it dialled looks like any other failure.
-      case :ssl.handshake(socket, [handshake: :hello], tls_handshake_timeout()) do
-        {:ok, extensions} when is_map(extensions) ->
-          continue_handshake(socket, extensions, peer, deadline)
-
+      case :ssl.handshake(socket, tls_handshake_timeout()) do
         {:ok, socket, extensions} ->
           continue_handshake(socket, extensions, peer, deadline)
+
+        # Only if the listener was opened without the pause, which `listen/2`
+        # does not do; the handshake has then simply completed.
+        {:ok, ssl_socket} ->
+          {:ok, ssl_socket}
 
         {:error, _reason} = error ->
           handshake_failed(error, peer, nil)
@@ -141,7 +149,8 @@ defmodule NervesHub.DeviceSSLTransport do
 
   defp handshake_failed(error, _peer, _sni), do: error
 
-  defp sni(%{sni: {:sni, hostname}}), do: to_string(hostname)
+  # The hostname as a charlist, or `:undefined` when the client sent none.
+  defp sni(%{sni: hostname}) when is_list(hostname), do: to_string(hostname)
   defp sni(_extensions), do: nil
 
   # Behind the PROXY protocol, `:ssl` asks `NervesHub.ProxyProtocol.TCP`, which
