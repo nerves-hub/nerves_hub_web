@@ -151,6 +151,26 @@ defmodule NervesHub.LoggerTest do
 
       assert log =~ "Device auth failed"
     end
+
+    test "names the device whose identifier is already taken" do
+      # What `NervesHub.DeviceLink.Authentication` sends when a shared secret is
+      # valid but the device it would create already exists.
+      metadata = %{
+        auth: :shared_secrets,
+        reason: :duplicate_device_identifier,
+        org_id: 1,
+        product_id: 2,
+        identifier: "dev-taken"
+      }
+
+      log =
+        capture_log([metadata: [:reason, :identifier]], fn ->
+          NHLogger.log_event([:nerves_hub, :devices, :invalid_auth], %{count: 1}, metadata, :ok)
+        end)
+
+      assert log =~ "reason=:duplicate_device_identifier"
+      assert log =~ "identifier=dev-taken"
+    end
   end
 
   describe "log_event [:nerves_hub, :devices, :connect]" do
