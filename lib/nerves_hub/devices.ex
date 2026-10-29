@@ -646,18 +646,32 @@ defmodule NervesHub.Devices do
     Device
     |> where([d], d.deleted_at < ^twelve_days_ago)
     |> Repo.all()
-    |> Enum.each(fn device ->
-      Repo.transact(fn ->
-        case destroy_device(device) do
-          {:ok, device} ->
-            _ = ProductNotifications.create_soft_deleted_device_removed!(device)
-            {:ok, device}
+    |> Enum.each(&clean_up_soft_deleted_device/1)
+  end
 
-          error ->
-            {:error, "Error removing soft-deleted device: #{inspect(error)}"}
-        end
-      end)
+  # A device that cannot be removed is reported and left for the next run, so
+  # it doesn't stop the devices after it from being removed.
+  defp clean_up_soft_deleted_device(device) do
+    Repo.transact(fn ->
+      case destroy_device(device) do
+        {:ok, device} ->
+          _ = ProductNotifications.create_soft_deleted_device_removed!(device)
+          {:ok, device}
+
+        error ->
+          {:error, "Error removing soft-deleted device: #{inspect(error)}"}
+      end
     end)
+  rescue
+    exception ->
+      _ =
+        Sentry.capture_exception(exception,
+          stacktrace: __STACKTRACE__,
+          tags: %{device_id: device.id, product_id: device.product_id},
+          result: :none
+        )
+
+      {:error, exception}
   end
 
   @spec update_firmware_metadata(
