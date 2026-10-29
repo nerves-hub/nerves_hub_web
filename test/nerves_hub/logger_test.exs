@@ -225,6 +225,42 @@ defmodule NervesHub.LoggerTest do
     end
   end
 
+  describe "log_event [:nerves_hub, :devices, :handshake_failed]" do
+    test "names the client and the host it asked for" do
+      metadata = %{
+        alert: :handshake_failure,
+        description: ~c"TLS server: In state certify received CLIENT ALERT: Fatal - Handshake Failure\n",
+        peer: {:ok, {{203, 0, 113, 7}, 51_234}},
+        sni: "devices.example.com"
+      }
+
+      log =
+        capture_log([metadata: [:event, :alert, :remote_ip, :sni, :reason]], fn ->
+          NHLogger.log_event([:nerves_hub, :devices, :handshake_failed], %{count: 1}, metadata, :ok)
+        end)
+
+      assert log =~ "Device TLS handshake failed"
+      assert log =~ "event=nerves_hub.devices.handshake_failed"
+      assert log =~ "alert=handshake_failure"
+      assert log =~ "remote_ip=203.0.113.7"
+      assert log =~ "sni=devices.example.com"
+      assert log =~ "reason=TLS server: In state certify received CLIENT ALERT"
+    end
+
+    test "leaves out a host or an address it does not have" do
+      metadata = %{alert: :unknown_ca, description: ~c"alert", peer: {:error, :enotconn}, sni: nil}
+
+      log =
+        capture_log([metadata: [:remote_ip, :sni]], fn ->
+          NHLogger.log_event([:nerves_hub, :devices, :handshake_failed], %{count: 1}, metadata, :ok)
+        end)
+
+      assert log =~ "Device TLS handshake failed"
+      refute log =~ "remote_ip="
+      refute log =~ "sni="
+    end
+  end
+
   describe "log_event [:nerves_hub, :devices, :update, :automatic]" do
     test "logs Device received update" do
       metadata = [ref_id: "ref-4", identifier: "dev-upd", firmware_uuid: "fw-new"]

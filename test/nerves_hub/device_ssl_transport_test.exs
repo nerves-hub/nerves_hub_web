@@ -200,6 +200,52 @@ defmodule NervesHub.DeviceSSLTransportTest do
     end
   end
 
+  describe "a handshake that fails" do
+    setup :attach_handshake_failed
+
+    test "reports who connected and the host they asked for" do
+      {:ok, port: port, server: _server} = start_server(proxy_protocol: :v2)
+      header = header(@proxy, @tcp_over_ipv4, ipv4_block({203, 0, 113, 7}, 51_234))
+
+      # The server's certificate is for device.nerves-hub.org, so a client
+      # verifying it against another name turns it down, as a device configured
+      # with a host the certificate does not cover would. Which alert says so
+      # depends on the client's OTP: 28 and earlier send handshake_failure, 29
+      # bad_certificate.
+      assert {:error, {:tls_alert, {alert, _}}} =
+               verify_server(port, header, ~c"devices.example.com", ["ca.pem", "server-root-ca.pem"])
+
+      assert_receive {:handshake_failed, metadata}
+      assert metadata.alert == alert
+      assert metadata.peer == {:ok, {{203, 0, 113, 7}, 51_234}}
+
+      # The host the client asked for is what tells a device dialling a name the
+      # certificate does not cover apart from any other failure.
+      assert metadata.sni == "devices.example.com"
+    end
+
+    test "reports no host when the client sent none" do
+      {:ok, port: port, server: _server} = start_server(proxy_protocol: nil)
+
+      # Trusting something else entirely, so the certificate is refused whatever
+      # name it was checked against.
+      assert {:error, {:tls_alert, {:unknown_ca, _}}} = verify_server(port, "", :disable, ["device-root-ca.pem"])
+
+      assert_receive {:handshake_failed, %{alert: :unknown_ca, sni: nil} = metadata}
+      assert {:ok, {{127, 0, 0, 1}, _port}} = metadata.peer
+    end
+
+    test "says nothing about a client that hangs up first" do
+      {:ok, port: port, server: _server} = start_server(proxy_protocol: nil, tls_handshake_timeout: 100)
+
+      # What a TCP health check does: connect, then hang up without a word.
+      :ok = port |> stall("") |> :gen_tcp.close()
+      assert port |> stall("") |> hang_up() == :closed
+
+      refute_receive {:handshake_failed, _}, 200
+    end
+  end
+
   # A client that opens a connection and never sends a ClientHello. Left alone,
   # it would hold a handler process, an `:ssl` connection and a port for as long
   # as it stayed quiet.
@@ -293,6 +339,41 @@ defmodule NervesHub.DeviceSSLTransportTest do
          {:ok, reported} <- :ssl.recv(ssl_socket, 0, 2_000) do
       {:ok, to_string(reported)}
     end
+  end
+
+  # Opens a clear socket, writes `preamble`, then negotiates TLS as a client that
+  # verifies the server's certificate for `sni` against the CA `fixtures`, and
+  # returns how the handshake ended.
+  defp verify_server(port, preamble, sni, fixtures) do
+    {:ok, socket} = :gen_tcp.connect({127, 0, 0, 1}, port, [:binary, active: false])
+
+    if preamble != "", do: :ok = :gen_tcp.send(socket, preamble)
+
+    cacerts =
+      for fixture <- fixtures,
+          {:Certificate, der, _} <- @fixtures |> Path.join(fixture) |> File.read!() |> :public_key.pem_decode(),
+          do: der
+
+    :ssl.connect(
+      socket,
+      [verify: :verify_peer, versions: [:"tlsv1.2"], cacerts: cacerts, server_name_indication: sni],
+      2_000
+    )
+  end
+
+  defp attach_handshake_failed(_context) do
+    test = self()
+    handler = make_ref()
+
+    :ok =
+      :telemetry.attach(
+        handler,
+        [:nerves_hub, :devices, :handshake_failed],
+        fn _event, _measurements, metadata, _config -> send(test, {:handshake_failed, metadata}) end,
+        nil
+      )
+
+    on_exit(fn -> :telemetry.detach(handler) end)
   end
 
   # As `connect/3`, but as a device over TLS 1.3, keeping the session tickets the
