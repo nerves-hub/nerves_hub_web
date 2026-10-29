@@ -16,6 +16,18 @@ const PADDING = 0.04
 
 const RESIZE_DEBOUNCE = 150
 
+// LiveFlow's own default when no `max_zoom` is given.
+const DEFAULT_MAX_ZOOM = 4
+
+// LiveFlow hands its hook every option as one JSON `data-config` attribute.
+function maxZoom(container) {
+  try {
+    return JSON.parse(container.dataset.config || "{}").maxZoom || DEFAULT_MAX_ZOOM
+  } catch {
+    return DEFAULT_MAX_ZOOM
+  }
+}
+
 function fit(container) {
   const viewport = container.querySelector(".lf-viewport")
   const nodes = container.querySelectorAll(".lf-node[data-node-id]")
@@ -49,7 +61,7 @@ function fit(container) {
   const zoom = Math.min(
     (rect.width * (1 - PADDING * 2)) / graphWidth,
     (rect.height * (1 - PADDING * 2)) / graphHeight,
-    parseFloat(container.dataset.maxZoom) || 4
+    maxZoom(container)
   )
 
   window.dispatchEvent(
