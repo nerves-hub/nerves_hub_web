@@ -659,20 +659,36 @@ defmodule NervesHub.Devices do
           {:ok, device}
 
         error ->
-          {:error, "Error removing soft-deleted device: #{inspect(error)}"}
+          {:error, error}
       end
     end)
+    |> case do
+      {:ok, device} ->
+        {:ok, device}
+
+      {:error, error} ->
+        _ =
+          Sentry.capture_message("Error removing soft-deleted device",
+            extra: %{error: inspect(error)},
+            tags: soft_deleted_device_tags(device),
+            result: :none
+          )
+
+        {:error, error}
+    end
   rescue
     exception ->
       _ =
         Sentry.capture_exception(exception,
           stacktrace: __STACKTRACE__,
-          tags: %{device_id: device.id, product_id: device.product_id},
+          tags: soft_deleted_device_tags(device),
           result: :none
         )
 
       {:error, exception}
   end
+
+  defp soft_deleted_device_tags(device), do: %{device_id: device.id, product_id: device.product_id}
 
   @spec update_firmware_metadata(
           device :: Device.t(),
