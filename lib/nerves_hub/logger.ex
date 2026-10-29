@@ -33,6 +33,7 @@ defmodule NervesHub.Logger do
         [:nerves_hub, :devices, :connecting_code_failure],
         [:nerves_hub, :devices, :disconnect],
         [:nerves_hub, :devices, :duplicate_connection],
+        [:nerves_hub, :devices, :handshake_failed],
         [:nerves_hub, :devices, :network_interface_mismatch],
         [:nerves_hub, :devices, :wrong_websocket_host],
         [:nerves_hub, :devices, :update_mode_revert_failed],
@@ -245,6 +246,24 @@ defmodule NervesHub.Logger do
     )
   end
 
+  # A TLS handshake on the device endpoint ended in an alert, sent by either side.
+  # OTP logs the alert as well, but without the client's address or the host it
+  # asked for, which are what tell a device dialling a name the certificate does
+  # not cover apart from a scanner. `sni` is absent when the client sent none.
+  def log_event([:nerves_hub, :devices, :handshake_failed], _, metadata, _) do
+    extra =
+      %{
+        event: "nerves_hub.devices.handshake_failed",
+        alert: metadata[:alert],
+        remote_ip: peer_ip(metadata[:peer]),
+        sni: metadata[:sni],
+        reason: metadata[:description] |> to_string() |> String.trim()
+      }
+      |> Map.reject(fn {_key, val} -> is_nil(val) end)
+
+    Logger.info("Device TLS handshake failed", extra)
+  end
+
   def log_event([:nerves_hub, :ssl, :fail], _, metadata, _) do
     Logger.info("SSL certificate verification failed",
       event: "nerves_hub.ssl.fail",
@@ -320,4 +339,7 @@ defmodule NervesHub.Logger do
         |> to_string()
     end
   end
+
+  defp peer_ip({:ok, {ip, _port}}), do: ip |> :inet_parse.ntoa() |> to_string()
+  defp peer_ip(_peer), do: nil
 end

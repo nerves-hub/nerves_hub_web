@@ -88,11 +88,26 @@ defmodule NervesHub.DeviceSSLTransport do
     if NervesHub.RateLimit.increment() do
       :telemetry.execute([:nerves_hub, :rate_limit, :accepted], %{count: 1})
 
-      # Behind the PROXY protocol the header has already come off, when
-      # Thousand Island asked who connected just before calling this.
-      socket
-      |> :ssl.handshake(tls_handshake_timeout())
-      |> handshake_result()
+      # Asked up front because a failed handshake closes the socket, and with it
+      # the only way to ask. Behind the PROXY protocol the header has already
+      # come off, when Thousand Island asked the same just before calling this.
+      peer = peername(socket)
+      deadline = System.monotonic_time(:millisecond) + tls_handshake_timeout()
+
+      # Paused after the ClientHello, so that a failed handshake can say which
+      # host the client asked for. OTP logs the alert itself, but names neither
+      # the client nor the host, and a client turning down a certificate that
+      # does not cover the name it dialled looks like any other failure.
+      case :ssl.handshake(socket, [handshake: :hello], tls_handshake_timeout()) do
+        {:ok, extensions} when is_map(extensions) ->
+          continue_handshake(socket, extensions, peer, deadline)
+
+        {:ok, socket, extensions} ->
+          continue_handshake(socket, extensions, peer, deadline)
+
+        {:error, _reason} = error ->
+          handshake_failed(error, peer, nil)
+      end
     else
       :telemetry.execute([:nerves_hub, :rate_limit, :rejected], %{count: 1})
 
@@ -100,11 +115,34 @@ defmodule NervesHub.DeviceSSLTransport do
     end
   end
 
-  # Both shapes are `:ssl`'s own: the third element carries protocol extensions
-  # and is only present for the handshakes that negotiate any.
-  defp handshake_result({:ok, ssl_socket}), do: {:ok, ssl_socket}
-  defp handshake_result({:ok, ssl_socket, _protocol_extensions}), do: {:ok, ssl_socket}
-  defp handshake_result({:error, reason}), do: {:error, reason}
+  # One timeout covers both halves, as it did when the handshake was one call.
+  defp continue_handshake(socket, extensions, peer, deadline) do
+    remaining = max(deadline - System.monotonic_time(:millisecond), 0)
+
+    case :ssl.handshake_continue(socket, [], remaining) do
+      {:ok, ssl_socket} -> {:ok, ssl_socket}
+      {:error, _reason} = error -> handshake_failed(error, peer, sni(extensions))
+    end
+  end
+
+  # Only alerts are reported. A connection closed or timed out before one is
+  # mostly a load balancer's TCP health check, which connects and hangs up
+  # every few seconds on every machine.
+  defp handshake_failed({:error, {:tls_alert, {alert, description}}} = error, peer, sni) do
+    :telemetry.execute([:nerves_hub, :devices, :handshake_failed], %{count: 1}, %{
+      alert: alert,
+      description: description,
+      peer: peer,
+      sni: sni
+    })
+
+    error
+  end
+
+  defp handshake_failed(error, _peer, _sni), do: error
+
+  defp sni(%{sni: {:sni, hostname}}), do: to_string(hostname)
+  defp sni(_extensions), do: nil
 
   # Behind the PROXY protocol, `:ssl` asks `NervesHub.ProxyProtocol.TCP`, which
   # answers with the address from the header.
