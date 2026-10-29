@@ -28,14 +28,6 @@ defmodule NervesHub.Products.Notification do
     |> cast(params, [:title, :message, :metadata, :level, :event_key])
     |> put_change(:product_id, product.id)
     |> put_change(:last_occurred_at, DateTime.utc_now() |> DateTime.truncate(:second))
-    |> update_change(:event_key, &String.trim/1)
     |> validate_required([:product_id, :title, :message, :metadata, :level, :event_key])
-    |> validate_change(:event_key, fn _, value ->
-      if String.contains?(value, " ") do
-        [event_key: "cannot contain spaces"]
-      else
-        []
-      end
-    end)
   end
 end

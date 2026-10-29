@@ -151,6 +151,26 @@ defmodule NervesHub.LoggerTest do
 
       assert log =~ "Device auth failed"
     end
+
+    test "names the device whose identifier is already taken" do
+      # What `NervesHub.DeviceLink.Authentication` sends when a shared secret is
+      # valid but the device it would create already exists.
+      metadata = %{
+        auth: :shared_secrets,
+        reason: :duplicate_device_identifier,
+        org_id: 1,
+        product_id: 2,
+        identifier: "dev-taken"
+      }
+
+      log =
+        capture_log([metadata: [:reason, :identifier]], fn ->
+          NHLogger.log_event([:nerves_hub, :devices, :invalid_auth], %{count: 1}, metadata, :ok)
+        end)
+
+      assert log =~ "reason=:duplicate_device_identifier"
+      assert log =~ "identifier=dev-taken"
+    end
   end
 
   describe "log_event [:nerves_hub, :devices, :connect]" do
@@ -202,6 +222,42 @@ defmodule NervesHub.LoggerTest do
         end)
 
       assert log =~ "duplicate connection"
+    end
+  end
+
+  describe "log_event [:nerves_hub, :devices, :handshake_failed]" do
+    test "names the client and the host it asked for" do
+      metadata = %{
+        alert: :handshake_failure,
+        description: ~c"TLS server: In state certify received CLIENT ALERT: Fatal - Handshake Failure\n",
+        peer: {:ok, {{203, 0, 113, 7}, 51_234}},
+        sni: "devices.example.com"
+      }
+
+      log =
+        capture_log([metadata: [:event, :alert, :remote_ip, :sni, :reason]], fn ->
+          NHLogger.log_event([:nerves_hub, :devices, :handshake_failed], %{count: 1}, metadata, :ok)
+        end)
+
+      assert log =~ "Device TLS handshake failed"
+      assert log =~ "event=nerves_hub.devices.handshake_failed"
+      assert log =~ "alert=handshake_failure"
+      assert log =~ "remote_ip=203.0.113.7"
+      assert log =~ "sni=devices.example.com"
+      assert log =~ "reason=TLS server: In state certify received CLIENT ALERT"
+    end
+
+    test "leaves out a host or an address it does not have" do
+      metadata = %{alert: :unknown_ca, description: ~c"alert", peer: {:error, :enotconn}, sni: nil}
+
+      log =
+        capture_log([metadata: [:remote_ip, :sni]], fn ->
+          NHLogger.log_event([:nerves_hub, :devices, :handshake_failed], %{count: 1}, metadata, :ok)
+        end)
+
+      assert log =~ "Device TLS handshake failed"
+      refute log =~ "remote_ip="
+      refute log =~ "sni="
     end
   end
 
