@@ -80,7 +80,10 @@ when adding or removing one.
   archive artifacts, uploads, and firmware **delta** building.
 - `products.ex` / `products/` — products and product settings, including
   health profiles (the per-product thresholds behind device health status,
-  evaluated in `devices/health_evaluation.ex`).
+  evaluated in `devices/health_evaluation.ex`) and the device-managed updates
+  grant new devices start with (applied in `Devices.create_device/1`). Changes
+  to a setting on every device in a product, from product settings, live in
+  `devices/bulk_actions.ex`.
 - `extensions.ex` / `extensions/` — the device **extension framework**
   (`health`, `metrics`, `alarms`, `geo`, `local_shell`, `logging`,
   `network_identity`, `error_reports`); extensions attach per-device and

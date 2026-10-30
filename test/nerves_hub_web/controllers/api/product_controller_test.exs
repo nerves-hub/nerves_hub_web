@@ -81,7 +81,8 @@ defmodule NervesHubWeb.API.ProductControllerTest do
                "require_unique_firmware_version" => true,
                "allowed_update_tools" => ["fwup"],
                "allow_unsigned_esp_idf_firmware" => false,
-               "allow_unsigned_atomvm_firmware" => false
+               "allow_unsigned_atomvm_firmware" => false,
+               "default_managed_updates_allowed" => false
              }
     end
   end
@@ -116,6 +117,16 @@ defmodule NervesHubWeb.API.ProductControllerTest do
 
       assert json_response(conn, 200)["data"]["require_unique_firmware_version"] == false
       refute Repo.reload(product).require_unique_firmware_version
+    end
+
+    test "sets the grant new devices start with", %{conn: conn, org: org, product: product} do
+      conn =
+        put(conn, Routes.api_product_path(conn, :update, org.name, product.name), %{
+          default_managed_updates_allowed: true
+        })
+
+      assert json_response(conn, 200)["data"]["default_managed_updates_allowed"] == true
+      assert Repo.reload(product).default_managed_updates_allowed
     end
 
     test "rejects an unknown update tool", %{conn: conn, org: org, product: product} do

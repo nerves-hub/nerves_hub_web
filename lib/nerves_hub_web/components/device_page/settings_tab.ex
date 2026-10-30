@@ -629,6 +629,8 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
   end
 
   def hooked_event("update-extension", %{"extension" => extension} = params, socket) do
+    authorized!(:"device:update", socket.assigns.current_scope)
+
     value = params["value"]
     available = Extensions.list() |> Enum.map(&to_string/1)
 

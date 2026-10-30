@@ -59,6 +59,12 @@ defmodule NervesHub.Products.Product do
     # setting changes that.
     field(:allow_unsigned_esp_idf_firmware, :boolean, default: false)
     field(:allow_unsigned_atomvm_firmware, :boolean, default: false)
+
+    # The `managed_updates_allowed` grant a device created in this product starts
+    # with. A default only: it gates nothing, and changing it moves no existing
+    # device.
+    field(:default_managed_updates_allowed, :boolean, default: false)
+
     embeds_one(:extensions, ProductExtensionsSetting, on_replace: :update)
 
     field(:device_count, :integer, virtual: true)
@@ -84,7 +90,8 @@ defmodule NervesHub.Products.Product do
           :require_unique_firmware_version,
           :allowed_update_tools,
           :allow_unsigned_esp_idf_firmware,
-          :allow_unsigned_atomvm_firmware
+          :allow_unsigned_atomvm_firmware,
+          :default_managed_updates_allowed
         ]
     )
     |> cast_embed(:extensions)
