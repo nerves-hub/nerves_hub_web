@@ -269,6 +269,170 @@ defmodule NervesHubWeb.Live.Product.SettingsTest do
         text: "Failed to update the Health extension. Please contact support if this problem persists."
       )
     end
+
+    test "disables an extension on every device in the product", %{
+      conn: conn,
+      org: org,
+      product: product,
+      firmware: firmware,
+      device: device
+    } do
+      second = Fixtures.device_fixture(org, product, firmware)
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/settings")
+      |> click_button("#disable-extension-geo-on-devices", "Disable on all devices")
+      |> unwrap(&render_async/1)
+      |> assert_has("div", text: "Disabled the Geo extension on 2 device(s).")
+      |> refute_has("div", text: "Updating devices, please wait...")
+
+      refute Repo.reload(device).extensions.geo
+      refute Repo.reload(second).extensions.geo
+      assert Repo.reload(device).extensions.health
+    end
+
+    test "enables an extension on every device in the product", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device
+    } do
+      {:ok, _} = NervesHub.Devices.disable_extension_setting(device, "geo")
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/settings")
+      |> click_button("#enable-extension-geo-on-devices", "Enable on all devices")
+      |> unwrap(&render_async/1)
+      |> assert_has("div", text: "Enabled the Geo extension on 1 device(s).")
+
+      assert Repo.reload(device).extensions.geo
+    end
+
+    test "an unknown extension is refused", %{conn: conn, org: org, product: product} do
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/settings")
+      |> unwrap(fn view ->
+        render_click(view, "set-extension-for-devices", %{"extension" => "teleport", "enabled" => "true"})
+        render_async(view)
+      end)
+      |> assert_has("div", text: "That extension isn't one this platform supports.")
+    end
+
+    test "view-only members cannot change extensions, for the product or its devices", %{
+      conn: conn,
+      org: org,
+      user: user,
+      product: product,
+      device: device
+    } do
+      {:ok, _} = Accounts.change_org_user_role(Accounts.get_org_user!(org, user.id), :view)
+
+      session =
+        conn
+        |> visit("/org/#{org.name}/#{product.name}/settings")
+        |> assert_has("#disable-extension-geo-on-devices[disabled]")
+
+      Process.flag(:trap_exit, true)
+
+      assert {{%NervesHubWeb.UnauthorizedError{}, _}, _} =
+               catch_exit(render_click(session.view, "update-extension", %{"extension" => "geo", "value" => "off"}))
+
+      session = visit(conn, "/org/#{org.name}/#{product.name}/settings")
+
+      assert {{%NervesHubWeb.UnauthorizedError{}, _}, _} =
+               catch_exit(
+                 render_click(session.view, "set-extension-for-devices", %{"extension" => "geo", "enabled" => "false"})
+               )
+
+      assert Repo.reload(product).extensions.geo
+      assert Repo.reload(device).extensions.geo
+    end
+  end
+
+  describe "device-managed updates" do
+    test "new devices can be let choose their update mode", %{conn: conn, org: org, product: product} do
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/settings")
+      |> assert_has("div", text: "Let new devices choose their update mode")
+      |> unwrap(fn view ->
+        render_click(view, "update-default-managed-updates-allowed", %{"value" => "on"})
+      end)
+      |> assert_has("div", text: "New devices may choose their own update mode.")
+      |> assert_has("#default-managed-updates-allowed[checked]")
+
+      assert Repo.reload(product).default_managed_updates_allowed
+    end
+
+    test "new devices can be stopped choosing their update mode", %{conn: conn, org: org, product: product} do
+      {:ok, _} = Products.update_product(product, %{default_managed_updates_allowed: true})
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/settings")
+      |> unwrap(fn view ->
+        render_click(view, "update-default-managed-updates-allowed", %{})
+      end)
+      |> assert_has("div", text: "New devices may not choose their own update mode.")
+
+      refute Repo.reload(product).default_managed_updates_allowed
+    end
+
+    test "every device in the product can be allowed, and disallowed", %{
+      conn: conn,
+      org: org,
+      product: product,
+      firmware: firmware,
+      device: device
+    } do
+      second = Fixtures.device_fixture(org, product, firmware)
+
+      session =
+        conn
+        |> visit("/org/#{org.name}/#{product.name}/settings")
+        |> click_button("Allow on all devices")
+        |> unwrap(&render_async/1)
+        |> assert_has("div", text: "Allowed device-managed updates on 2 device(s).")
+        |> refute_has("div", text: "Updating devices, please wait...")
+
+      assert Repo.reload(device).managed_updates_allowed
+      assert Repo.reload(second).managed_updates_allowed
+
+      session
+      |> click_button("Disallow on all devices")
+      |> unwrap(&render_async/1)
+      |> assert_has("div", text: "Disallowed device-managed updates on 2 device(s).")
+
+      refute Repo.reload(device).managed_updates_allowed
+      refute Repo.reload(second).managed_updates_allowed
+    end
+
+    test "view-only members cannot change the default or the devices", %{
+      conn: conn,
+      org: org,
+      user: user,
+      product: product,
+      device: device
+    } do
+      {:ok, _} = Accounts.change_org_user_role(Accounts.get_org_user!(org, user.id), :view)
+
+      session =
+        conn
+        |> visit("/org/#{org.name}/#{product.name}/settings")
+        |> assert_has("#default-managed-updates-allowed[disabled]")
+        |> assert_has("#allow-managed-updates-on-devices[disabled]")
+
+      Process.flag(:trap_exit, true)
+
+      assert {{%NervesHubWeb.UnauthorizedError{}, _}, _} =
+               catch_exit(render_click(session.view, "update-default-managed-updates-allowed", %{"value" => "on"}))
+
+      session = visit(conn, "/org/#{org.name}/#{product.name}/settings")
+
+      assert {{%NervesHubWeb.UnauthorizedError{}, _}, _} =
+               catch_exit(render_click(session.view, "set-managed-updates-allowed-for-devices", %{"enabled" => "true"}))
+
+      refute Repo.reload(product).default_managed_updates_allowed
+      refute Repo.reload(device).managed_updates_allowed
+    end
   end
 
   describe "shared secrets" do

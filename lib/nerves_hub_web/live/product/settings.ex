@@ -1,7 +1,10 @@
 defmodule NervesHubWeb.Live.Product.Settings do
   use NervesHubWeb, :live_view
 
+  import Number.Delimit, only: [number_to_delimited: 2]
+
   alias NervesHub.DeviceLink
+  alias NervesHub.Devices.BulkActions
   alias NervesHub.Extensions
   alias NervesHub.Firmwares.UpdateTool
   alias NervesHub.Products
@@ -189,7 +192,49 @@ defmodule NervesHubWeb.Live.Product.Settings do
     end
   end
 
+  def handle_event("update-default-managed-updates-allowed", params, socket) do
+    authorized!(:"product:update", socket.assigns.current_scope)
+
+    allow = params["value"] == "on"
+
+    update_setting(socket, %{default_managed_updates_allowed: allow}, fn ->
+      "New devices #{(allow && "may") || "may not"} choose their own update mode."
+    end)
+  end
+
+  # The device page gates the same grant on this permission, so changing it for
+  # every device at once asks for no less.
+  def handle_event("set-managed-updates-allowed-for-devices", %{"enabled" => enabled}, socket) do
+    authorized!(:"device:toggle-updates", socket.assigns.current_scope)
+
+    %{product: product, current_scope: %{user: user}} = socket.assigns
+    enabled = enabled == "true"
+
+    socket
+    |> start_async({:set_managed_updates_allowed, enabled}, fn ->
+      BulkActions.set_managed_updates_allowed_for_product(product, enabled, user)
+    end)
+    |> put_flash(:notice, "Updating devices, please wait...")
+    |> noreply()
+  end
+
+  def handle_event("set-extension-for-devices", %{"extension" => extension, "enabled" => enabled}, socket) do
+    authorized!(:"device:update", socket.assigns.current_scope)
+
+    %{product: product, current_scope: %{user: user}} = socket.assigns
+    enabled = enabled == "true"
+
+    socket
+    |> start_async({:set_extension, extension, enabled}, fn ->
+      BulkActions.set_extension_for_product(product, extension, enabled, user)
+    end)
+    |> put_flash(:notice, "Updating devices, please wait...")
+    |> noreply()
+  end
+
   def handle_event("update-extension", %{"extension" => extension} = params, socket) do
+    authorized!(:"product:update", socket.assigns.current_scope)
+
     value = params["value"]
     available = Extensions.list() |> Enum.map(&to_string/1)
 
@@ -220,6 +265,59 @@ defmodule NervesHubWeb.Live.Product.Settings do
       end
 
     {:noreply, socket}
+  end
+
+  # Each result clears the "please wait" notice: the notice, success and error
+  # toasts share one spot, so a notice left up overlaps the result.
+  def handle_async({:set_managed_updates_allowed, enabled}, {:ok, results}, socket) do
+    socket
+    |> clear_flash(:notice)
+    |> put_flash(
+      :info,
+      "#{(enabled && "Allowed") || "Disallowed"} device-managed updates on #{number_to_delimited(results.ok, precision: 0)} device(s)."
+    )
+    |> put_failed_flash(results.error)
+    |> noreply()
+  end
+
+  def handle_async({:set_extension, extension, enabled}, {:ok, {:ok, count}}, socket) do
+    socket
+    |> clear_flash(:notice)
+    |> put_flash(
+      :info,
+      "#{(enabled && "Enabled") || "Disabled"} the #{Extensions.display_name(extension)} extension on #{number_to_delimited(count, precision: 0)} device(s)."
+    )
+    |> noreply()
+  end
+
+  def handle_async({:set_extension, _extension, _enabled}, {:ok, {:error, :unknown_extension}}, socket) do
+    socket
+    |> clear_flash(:notice)
+    |> put_flash(:error, "That extension isn't one this platform supports.")
+    |> noreply()
+  end
+
+  def handle_async(name, {:exit, reason}, socket) do
+    _ =
+      Sentry.capture_message(
+        "Live.Product.Settings.handle_async:#{inspect(name)} failed due to exit: #{inspect(reason)}",
+        result: :none
+      )
+
+    socket
+    |> clear_flash(:notice)
+    |> put_flash(:error, "Updating the devices failed. Please contact support if this problem persists.")
+    |> noreply()
+  end
+
+  defp put_failed_flash(socket, 0), do: socket
+
+  defp put_failed_flash(socket, count) do
+    put_flash(
+      socket,
+      :error,
+      "#{number_to_delimited(count, precision: 0)} device(s) could not be changed. Please contact support if this problem persists."
+    )
   end
 
   # Only formats this instance has enabled, so a product cannot be set to accept
