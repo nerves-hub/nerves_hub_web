@@ -562,12 +562,32 @@ defmodule NervesHub.Devices do
     end
   end
 
+  @doc """
+  Create a device.
+
+  The device starts with its product's `default_managed_updates_allowed` as its
+  `managed_updates_allowed` grant, unless `params` sets the grant itself.
+  """
   @spec create_device(map) :: {:ok, Device.t()} | {:error, Changeset.t()}
   def create_device(params) do
     %Device{}
     |> Device.changeset(params)
+    |> put_product_defaults()
     |> Repo.insert()
     |> Repo.maybe_preload(:product)
+  end
+
+  # `cast/4` keeps the params with string keys whichever the caller used, so this
+  # one check covers both. It has to look at the params rather than the changes:
+  # an explicit `false` matches the schema default and so records no change.
+  defp put_product_defaults(%Changeset{params: params} = changeset) do
+    with false <- Map.has_key?(params, "managed_updates_allowed"),
+         product_id when not is_nil(product_id) <- Changeset.get_field(changeset, :product_id),
+         {:ok, product} <- Products.get_product(product_id) do
+      Changeset.put_change(changeset, :managed_updates_allowed, product.default_managed_updates_allowed)
+    else
+      _ -> changeset
+    end
   end
 
   def set_as_provisioned!(device) do

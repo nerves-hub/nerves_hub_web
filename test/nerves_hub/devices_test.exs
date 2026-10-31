@@ -101,6 +101,53 @@ defmodule NervesHub.DevicesTest do
     end
   end
 
+  describe "create_device/1 and the product's default managed updates grant" do
+    test "a new device starts without the grant by default", %{org: org, product: product} do
+      {:ok, device} = Devices.create_device(%{org_id: org.id, product_id: product.id, identifier: "no-grant"})
+
+      refute device.managed_updates_allowed
+    end
+
+    test "a new device takes the grant from its product", %{org: org, product: product} do
+      {:ok, product} = Products.update_product(product, %{default_managed_updates_allowed: true})
+
+      {:ok, device} = Devices.create_device(%{org_id: org.id, product_id: product.id, identifier: "granted"})
+
+      assert device.managed_updates_allowed
+    end
+
+    test "a grant given explicitly wins over the product's", %{org: org, product: product} do
+      {:ok, product} = Products.update_product(product, %{default_managed_updates_allowed: true})
+
+      # `false` is the schema default, so it records no change; the explicit
+      # value has to be noticed in the params, with either kind of key.
+      {:ok, atom_keyed} =
+        Devices.create_device(%{
+          org_id: org.id,
+          product_id: product.id,
+          identifier: "atom-keyed",
+          managed_updates_allowed: false
+        })
+
+      {:ok, string_keyed} =
+        Devices.create_device(%{
+          "org_id" => org.id,
+          "product_id" => product.id,
+          "identifier" => "string-keyed",
+          "managed_updates_allowed" => false
+        })
+
+      refute atom_keyed.managed_updates_allowed
+      refute string_keyed.managed_updates_allowed
+    end
+
+    test "changing the product's default moves no existing device", %{device: device, product: product} do
+      {:ok, _product} = Products.update_product(product, %{default_managed_updates_allowed: true})
+
+      refute Repo.reload(device).managed_updates_allowed
+    end
+  end
+
   describe "bulk_create/4" do
     test "all valid entries, with format :microchip_trust_and_go", %{org: org, product: product} do
       Repo.delete_all(Device)
@@ -140,6 +187,18 @@ defmodule NervesHub.DevicesTest do
       assert {5, 2} == BulkActions.bulk_create(org.id, product.id, json_import_data, "microchip_trust_and_go")
 
       assert Repo.aggregate(Device, :count) == 5
+    end
+
+    test "imported devices take the product's default grant", %{org: org, product: product} do
+      Repo.delete_all(Device)
+
+      {:ok, product} = Products.update_product(product, %{default_managed_updates_allowed: true})
+
+      json_import_data = File.read!("test/fixtures/devices_bulk_create/microchip_trust_and_go_manifest.json")
+
+      assert {5, 0} == BulkActions.bulk_create(org.id, product.id, json_import_data, "microchip_trust_and_go")
+
+      assert Repo.all(Device) |> Enum.all?(& &1.managed_updates_allowed)
     end
   end
 
@@ -1062,7 +1121,7 @@ defmodule NervesHub.DevicesTest do
 
       devices = for _ <- 1..3, do: Fixtures.device_fixture(org, product, firmware)
 
-      %{devices: devices, bulk_user: user}
+      %{devices: devices, bulk_user: user, bulk_product: product}
     end
 
     test "set_update_mode_for_devices/3 accepts a list", %{devices: devices, bulk_user: user} do
@@ -1103,6 +1162,139 @@ defmodule NervesHub.DevicesTest do
         assert [audit_log] = AuditLogs.logs_for(device)
         assert audit_log.description =~ "allowed device-managed updates"
       end
+    end
+
+    test "set_managed_updates_allowed_for_product/3 changes every device in the product, audited per device", %{
+      devices: devices,
+      bulk_product: product,
+      bulk_user: user,
+      device: other_products_device
+    } do
+      assert %{ok: 3, error: 0} = BulkActions.set_managed_updates_allowed_for_product(product, true, user)
+
+      for device <- devices do
+        assert Repo.reload(device).managed_updates_allowed
+        assert [audit_log] = AuditLogs.logs_for(device)
+        assert audit_log.description =~ "allowed device-managed updates"
+      end
+
+      refute Repo.reload(other_products_device).managed_updates_allowed
+
+      assert %{ok: 3, error: 0} = BulkActions.set_managed_updates_allowed_for_product(product, false, user)
+
+      refute Enum.any?(devices, &Repo.reload(&1).managed_updates_allowed)
+    end
+
+    test "set_managed_updates_allowed_for_product/3 counts only devices that change, and skips deleted ones", %{
+      devices: [already_granted, ungranted, deleted],
+      bulk_product: product,
+      bulk_user: user
+    } do
+      {:ok, _} = Updates.set_managed_updates_allowed(already_granted, true, user)
+      {:ok, _} = Devices.delete_device(deleted)
+
+      assert %{ok: 1, error: 0} = BulkActions.set_managed_updates_allowed_for_product(product, true, user)
+
+      assert Repo.reload(ungranted).managed_updates_allowed
+      refute Repo.reload(deleted).managed_updates_allowed
+    end
+
+    test "set_managed_updates_allowed_for_product/3 tells each device's connection", %{
+      devices: devices,
+      bulk_product: product,
+      bulk_user: user
+    } do
+      for device <- devices, do: Phoenix.PubSub.subscribe(NervesHub.PubSub, "device:#{device.id}")
+
+      %{ok: 3} = BulkActions.set_managed_updates_allowed_for_product(product, true, user)
+
+      for device <- devices do
+        topic = "device:#{device.id}"
+        assert_receive %Broadcast{topic: ^topic, event: "updated"}
+      end
+    end
+
+    test "set_extension_for_product/4 changes one extension on every device in the product", %{
+      devices: devices,
+      bulk_product: product,
+      bulk_user: user,
+      device: other_products_device
+    } do
+      assert {:ok, 3} = BulkActions.set_extension_for_product(product, "geo", false, user)
+
+      for device <- devices do
+        extensions = Repo.reload(device).extensions
+        refute extensions.geo
+        assert extensions.health
+        assert extensions.logging
+      end
+
+      assert Repo.reload(other_products_device).extensions.geo
+
+      assert {:ok, 3} = BulkActions.set_extension_for_product(product, :geo, true, user)
+
+      assert Enum.all?(devices, &Repo.reload(&1).extensions.geo)
+    end
+
+    test "set_extension_for_product/4 counts only devices that change, and skips deleted ones", %{
+      devices: [already_off, on, deleted],
+      bulk_product: product,
+      bulk_user: user
+    } do
+      {:ok, _} = Devices.disable_extension_setting(already_off, "geo")
+      {:ok, _} = Devices.delete_device(deleted)
+
+      assert {:ok, 1} = BulkActions.set_extension_for_product(product, "geo", false, user)
+
+      refute Repo.reload(on).extensions.geo
+      assert Repo.reload(deleted).extensions.geo
+    end
+
+    test "set_extension_for_product/4 is audited once, against the product", %{
+      devices: devices,
+      bulk_product: product,
+      bulk_user: user
+    } do
+      {:ok, 3} = BulkActions.set_extension_for_product(product, "geo", false, user)
+      # Nothing left to change, so nothing to audit.
+      {:ok, 0} = BulkActions.set_extension_for_product(product, "geo", false, user)
+
+      assert [audit_log] = Enum.filter(AuditLogs.logs_for(product), &(&1.description =~ "extension"))
+      assert audit_log.description =~ "disabled the geo extension on 3 device(s)"
+
+      for device <- devices, do: assert(AuditLogs.logs_for(device) == [])
+    end
+
+    test "set_extension_for_product/4 is announced only while the product allows the extension", %{
+      bulk_product: product,
+      bulk_user: user
+    } do
+      {:ok, _} = Products.disable_extension_setting(product, "geo")
+      :ok = NervesHub.Extensions.PubSub.subscribe_product(product.id)
+
+      # The product-wide fan-out skips the process that sends it, as a device's
+      # own change does, so the change is made from another one.
+      set_extension = fn enabled ->
+        Task.await(Task.async(fn -> BulkActions.set_extension_for_product(product, "geo", enabled, user) end))
+      end
+
+      {:ok, 3} = set_extension.(false)
+      refute_receive %Broadcast{event: "detach"}
+
+      {:ok, _} = Products.enable_extension_setting(product, "geo")
+
+      {:ok, 3} = set_extension.(true)
+      assert_receive %Broadcast{event: "attach", payload: %{"extensions" => ["geo"]}}
+
+      {:ok, 0} = set_extension.(true)
+      refute_receive %Broadcast{event: "attach"}
+    end
+
+    test "set_extension_for_product/4 refuses an extension the platform doesn't have", %{
+      bulk_product: product,
+      bulk_user: user
+    } do
+      assert {:error, :unknown_extension} = BulkActions.set_extension_for_product(product, "teleport", true, user)
     end
   end
 

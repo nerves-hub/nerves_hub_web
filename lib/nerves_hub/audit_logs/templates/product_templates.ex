@@ -54,6 +54,14 @@ defmodule NervesHub.AuditLogs.ProductTemplates do
     AuditLogs.audit!(user, product, description)
   end
 
+  @spec audit_extension_set_for_devices(User.t(), Product.t(), String.t(), boolean(), non_neg_integer()) :: :ok
+  def audit_extension_set_for_devices(user, product, extension, enabled, count) do
+    description =
+      "User #{user.name} #{(enabled && "enabled") || "disabled"} the #{extension} extension on #{count} device(s) in product #{product.name}"
+
+    AuditLogs.audit!(user, product, description)
+  end
+
   @spec audit_error_group_reopened(User.t(), Product.t(), ErrorGroup.t()) :: :ok
   def audit_error_group_reopened(user, product, group) do
     description =

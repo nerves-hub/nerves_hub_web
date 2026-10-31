@@ -245,6 +245,28 @@ defmodule NervesHubWeb.Live.Devices.Show.SettingsTabTest do
     end
   end
 
+  describe "device extensions" do
+    test "view-only members cannot change them", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device,
+      user: user
+    } do
+      org_user = NervesHub.Accounts.get_org_user!(org, user.id)
+      {:ok, _} = NervesHub.Accounts.change_org_user_role(org_user, :view)
+
+      session = visit(conn, ~p"/org/#{org}/#{product}/devices/#{device}/settings")
+
+      Process.flag(:trap_exit, true)
+
+      assert {{%NervesHubWeb.UnauthorizedError{}, _}, _} =
+               catch_exit(render_click(session.view, "update-extension", %{"extension" => "geo", "value" => "off"}))
+
+      assert Repo.reload(device).extensions.geo
+    end
+  end
+
   test "deleting device", %{
     conn: conn,
     org: org,
