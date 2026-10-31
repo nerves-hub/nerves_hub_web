@@ -13,6 +13,7 @@ defmodule NervesHub.DeviceLink.Authentication do
   whole rather than pre-checking anything.
   """
 
+  alias NervesHub.Accounts
   alias NervesHub.DeviceLink.DeviceInfo
   alias NervesHub.Devices
   alias NervesHub.Devices.Certificates
@@ -37,14 +38,26 @@ defmodule NervesHub.DeviceLink.Authentication do
   Failures are deliberately flattened to `:invalid_auth` — the detail is
   recorded as telemetry here, where it is known, rather than being handed back
   to the caller.
+
+  `server_name` is the hostname the device asked for in its TLS handshake, if it
+  asked for one. A device is refused on a hostname that only other orgs have claimed.
+  That comes before the device is marked provisioned, as it hasn't connected.
   """
-  @spec authenticate(credentials()) :: {:ok, DeviceInfo.t()} | {:error, :invalid_auth}
-  def authenticate({:ssl_cert, ssl_cert}) do
+  @spec authenticate(credentials(), server_name :: String.t() | nil) ::
+          {:ok, DeviceInfo.t()} | {:error, :invalid_auth}
+  def authenticate(credentials, server_name \\ nil) do
+    with {:ok, device} <- identify(credentials),
+         :ok <- check_hostname(device, server_name) do
+      {:ok, device_info(device)}
+    end
+  end
+
+  defp identify({:ssl_cert, ssl_cert}) do
     X509.Certificate.from_der!(ssl_cert)
     |> Certificates.get_device_by_x509()
     |> case do
       {:ok, device} ->
-        {:ok, device_info(device)}
+        {:ok, device}
 
       error ->
         :telemetry.execute([:nerves_hub, :devices, :invalid_auth], %{count: 1}, %{
@@ -56,7 +69,7 @@ defmodule NervesHub.DeviceLink.Authentication do
     end
   end
 
-  def authenticate({:shared_secret, headers}) do
+  defp identify({:shared_secret, headers}) do
     with :ok <- check_shared_secret_enabled(),
          {:ok, key, salt, verification_opts} <- decode_from_headers(headers),
          {:ok, auth} <- get_shared_secret_auth(key),
@@ -64,7 +77,7 @@ defmodule NervesHub.DeviceLink.Authentication do
          {:ok, identifier} <- Crypto.verify(auth.secret, salt, signature, verification_opts),
          {:ok, device} <- get_or_maybe_create_device(auth, identifier) do
       _ = mark_last_used(auth)
-      {:ok, device_info(device)}
+      {:ok, device}
     else
       {:error,
        %Ecto.Changeset{
@@ -128,6 +141,24 @@ defmodule NervesHub.DeviceLink.Authentication do
   end
 
   # ---------------------------------------------------------------- internals
+
+  defp check_hostname(_device, nil), do: :ok
+
+  defp check_hostname(device, server_name) do
+    if Accounts.device_hostname_allowed?(device.org_id, server_name) do
+      :ok
+    else
+      :telemetry.execute([:nerves_hub, :devices, :invalid_auth], %{count: 1}, %{
+        reason: :wrong_hostname,
+        server_name: server_name,
+        org_id: device.org_id,
+        product_id: device.product_id,
+        identifier: device.identifier
+      })
+
+      {:error, :invalid_auth}
+    end
+  end
 
   defp device_info(device) do
     if device.status == :registered do

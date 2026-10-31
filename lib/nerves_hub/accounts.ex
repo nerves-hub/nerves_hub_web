@@ -571,6 +571,38 @@ defmodule NervesHub.Accounts do
     |> Repo.update()
   end
 
+  @doc """
+  Sets the hostnames an org's devices connect to.
+
+  Whoever calls this decides which org gets a hostname, so it's for a server admin
+  and not for an org's own users.
+  """
+  @spec set_org_device_hostnames(Org.t(), [String.t()]) ::
+          {:ok, Org.t()} | {:error, Changeset.t()}
+  def set_org_device_hostnames(%Org{} = org, hostnames) do
+    org
+    |> Org.device_hostnames_changeset(hostnames)
+    |> Repo.update()
+  end
+
+  @doc """
+  Whether a device of this org may connect on this hostname. Claimed by no org is
+  anyone's, which is what keeps the platform's own hostnames working for every org.
+  """
+  @spec device_hostname_allowed?(Org.id(), String.t()) :: boolean()
+  def device_hostname_allowed?(org_id, hostname) do
+    hostnames = [Org.normalize_hostname(hostname)]
+
+    claimed_by =
+      Org
+      |> where([o], is_nil(o.deleted_at))
+      |> where([o], fragment("? @> ?", o.device_hostnames, type(^hostnames, {:array, :string})))
+      |> select([o], o.id)
+      |> Repo.all()
+
+    claimed_by == [] or org_id in claimed_by
+  end
+
   @spec create_org_key(map) ::
           {:ok, OrgKey.t()}
           | {:error, Changeset.t()}
