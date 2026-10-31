@@ -824,7 +824,10 @@ defmodule NervesHub.Devices do
     }
 
     Multi.new()
-    |> Multi.run(:move, fn _, _ -> update_device(device, attrs) end)
+    # No "updated" broadcast: sent from inside the transaction, the device's
+    # connection would re-read the row before the move committed. The
+    # disconnect below is what tells it, and it reads the moved row on rejoin.
+    |> Multi.run(:move, fn _, _ -> update_device(device, attrs, broadcast: false) end)
     |> Multi.delete_all(:pinned_devices, &unpin_unauthorized_users_query/1)
     # The device's identities on other networks name an organisation of their
     # own, and that is what those networks resolve a key to. Left behind, this

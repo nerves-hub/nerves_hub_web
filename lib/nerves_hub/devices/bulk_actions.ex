@@ -259,36 +259,47 @@ defmodule NervesHub.Devices.BulkActions do
       )
       |> Repo.one!()
 
-    devices_query
-    |> where(
-      [d],
-      d.firmware_metadata["platform"] == ^deployment_group.current_release.firmware.platform or
-        is_nil(d.firmware_metadata)
-    )
-    |> where(
-      [d],
-      d.firmware_metadata["architecture"] ==
-        ^deployment_group.current_release.firmware.architecture or is_nil(d.firmware_metadata)
-    )
-    |> stream_processing(
-      fn device ->
-        device
-        |> Device.update_deployment_group(deployment_group)
-        |> Repo.update()
-        |> case do
-          {:ok, device} ->
-            DeviceEvents.updated(device)
-            :ok
+    # One transaction, unlike the other query-based bulk actions, for the reason
+    # the list form gives: the devices and their firmware_delta rows become
+    # visible together. So the events wait for the commit, and are sent from the
+    # ids collected on the way through.
+    {:ok, {result, moved_ids}} =
+      Repo.transact(
+        fn ->
+          devices_query
+          |> where(
+            [d],
+            d.firmware_metadata["platform"] == ^deployment_group.current_release.firmware.platform or
+              is_nil(d.firmware_metadata)
+          )
+          |> where(
+            [d],
+            d.firmware_metadata["architecture"] ==
+              ^deployment_group.current_release.firmware.architecture or is_nil(d.firmware_metadata)
+          )
+          |> Repo.stream()
+          |> Enum.reduce({%{ok: 0, error: 0}, []}, fn device, {acc, moved_ids} ->
+            device
+            |> Device.update_deployment_group(deployment_group)
+            |> Repo.update()
+            |> case do
+              {:ok, device} -> {%{acc | ok: acc.ok + 1}, [device.id | moved_ids]}
+              _ -> {%{acc | error: acc.error + 1}, moved_ids}
+            end
+          end)
+          |> then(fn res ->
+            _ = ManagedDeployments.trigger_delta_generation_for_deployment_group(deployment_group)
+            {:ok, res}
+          end)
+        end,
+        timeout: 60_000
+      )
 
-          _ ->
-            :error
-        end
-      end,
-      before_commit: fn ->
-        _ = ManagedDeployments.trigger_delta_generation_for_deployment_group(deployment_group)
-        DeploymentOrchestratorEvents.bulk_devices_added(deployment_group)
-      end
-    )
+    Enum.each(moved_ids, &DeviceEvents.updated(%Device{id: &1}))
+
+    DeploymentOrchestratorEvents.bulk_devices_added(deployment_group)
+
+    result
   end
 
   @spec move_many_to_deployment_group_by_identifiers(
@@ -419,37 +430,39 @@ defmodule NervesHub.Devices.BulkActions do
     stream_processing(devices_query, {Updates, :clear_penalty_box, [user]})
   end
 
-  defp stream_processing(devices_query, fun, opts \\ []) do
-    stream = Repo.stream(devices_query)
+  # Applies `fun` to every device the query matches, each device committed on
+  # its own rather than the lot inside one transaction.
+  #
+  # The per-device functions tell the device's connection and the orchestrator
+  # about a change once their transaction commits, and both re-read the device
+  # when told. Inside an outer transaction that commit is only a join, so they
+  # would be told before the change was visible, read the old row, and act on it
+  # until the device next reconnected. Committing each device also means one
+  # that cannot be changed is counted as an error instead of aborting the rest.
+  #
+  # The ids are read up front, so the devices visited are the ones that matched
+  # when the action started, whatever the action does to the query's filters.
+  defp stream_processing(devices_query, fun) do
+    devices_query
+    |> exclude(:preload)
+    |> exclude(:order_by)
+    |> select([d], d.id)
+    |> Repo.all()
+    |> Stream.chunk_every(500)
+    |> Stream.flat_map(fn ids -> Repo.all(from(d in Device, where: d.id in ^ids)) end)
+    |> Stream.map(fn device ->
+      case fun do
+        {module, fun_name, args} ->
+          apply(module, fun_name, [device | args])
 
-    Repo.transact(
-      fn ->
-        stream
-        |> Stream.map(fn device ->
-          case fun do
-            {module, fun_name, args} ->
-              apply(module, fun_name, [device | args])
-
-            fun ->
-              fun.(device)
-          end
-        end)
-        |> Enum.reduce(%{ok: 0, error: 0}, fn
-          :ok, acc -> %{acc | ok: acc.ok + 1}
-          {:ok, _updated}, acc -> %{acc | ok: acc.ok + 1}
-          :error, acc -> %{acc | error: acc.error + 1}
-          {:error, _changeset}, acc -> %{acc | error: acc.error + 1}
-          {:error, _name, _changeset, _}, acc -> %{acc | error: acc.error + 1}
-        end)
-        |> then(fn res ->
-          if opts[:before_commit], do: opts[:before_commit].()
-          {:ok, res}
-        end)
-      end,
-      timeout: 60_000
-    )
-    |> case do
-      {:ok, res} -> res
-    end
+        fun ->
+          fun.(device)
+      end
+    end)
+    |> Enum.reduce(%{ok: 0, error: 0}, fn
+      {:ok, _updated}, acc -> %{acc | ok: acc.ok + 1}
+      {:error, _changeset}, acc -> %{acc | error: acc.error + 1}
+      {:error, _name, _changeset, _}, acc -> %{acc | error: acc.error + 1}
+    end)
   end
 end
