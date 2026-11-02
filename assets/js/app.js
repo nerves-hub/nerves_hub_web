@@ -21,6 +21,7 @@ import DonutChart from "./hooks/donutChart.js"
 import Flash from "./hooks/flash.js"
 import HighlightCode from "./hooks/highlightCode.js"
 import { LiveFlowHook } from "live_flow"
+import LoadMoreOnVisible from "./hooks/loadMoreOnVisible.js"
 import LocalShell from "./hooks/localShell.js"
 import PageVisible from "./hooks/pageVisible.js"
 import ScriptAutocomplete from "./hooks/scriptAutocomplete.js"
@@ -78,6 +79,7 @@ let liveSocket = new LiveSocket("/live", Socket, {
     Flash,
     HighlightCode,
     LiveFlow: LiveFlowHook,
+    LoadMoreOnVisible,
     LocalShell,
     PageVisible,
     SharedSecretClipboardClick,
