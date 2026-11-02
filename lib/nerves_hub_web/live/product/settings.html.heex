@@ -46,30 +46,121 @@
             <p class="w-2/3 text-sm">
               Extensions most be allowed at the product level. They can also be configured at the device level for more granular control when needed.
             </p>
+            <p class="w-2/3 text-sm">
+              Enabling or disabling an extension on all devices changes each device's own setting. It takes effect only while the extension is allowed here.
+            </p>
           </div>
 
-          <div :for={{key, description} <- @available_extensions} class="flex h-16 items-center gap-6 p-2">
-            <div class="flex h-8 items-center rounded-full border border-base-700 bg-base-800 px-2 py-1">
+          <%!-- The buttons wrap below the description when the row is too narrow for both. --%>
+          <div :for={{key, description} <- @available_extensions} class="flex min-h-16 flex-wrap items-center gap-x-6 gap-y-3 p-2">
+            <div class="flex min-w-0 flex-1 basis-72 items-center gap-6">
+              <div class="flex h-8 shrink-0 items-center rounded-full border border-base-700 bg-base-800 px-2 py-1">
+                <input
+                  id={"extension-#{key}"}
+                  name={key}
+                  type="checkbox"
+                  class="rounded border-base-700 text-base-400 checked:bg-primary focus:ring-0"
+                  phx-click="update-extension"
+                  phx-value-extension={key}
+                  checked={@product.extensions[key]}
+                  disabled={!authorized?(:"product:update", @current_scope)}
+                />
+              </div>
+              <div class="flex min-w-0 flex-col">
+                <div class="flex gap-2">
+                  <div class="font-medium text-base-300">
+                    {Extensions.display_name(key)}
+                  </div>
+                </div>
+                <div class="text-xs text-base-400">
+                  {description}
+                </div>
+              </div>
+            </div>
+            <div class="flex flex-wrap gap-2">
+              <.button
+                id={"enable-extension-#{key}-on-devices"}
+                phx-click="set-extension-for-devices"
+                phx-value-extension={key}
+                phx-value-enabled="true"
+                data-confirm={"Enable the #{Extensions.display_name(key)} extension on every device in this product?"}
+                disabled={!authorized?(:"device:update", @current_scope)}
+              >
+                Enable on all devices
+              </.button>
+              <.button
+                id={"disable-extension-#{key}-on-devices"}
+                phx-click="set-extension-for-devices"
+                phx-value-extension={key}
+                phx-value-enabled="false"
+                data-confirm={"Disable the #{Extensions.display_name(key)} extension on every device in this product?"}
+                disabled={!authorized?(:"device:update", @current_scope)}
+              >
+                Disable on all devices
+              </.button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="flex w-full flex-col rounded border border-base-700 bg-surface-raised">
+        <div class="flex h-14 items-center justify-between border-b border-base-700 px-4">
+          <div class="text-base font-medium text-base-50">Device-managed updates</div>
+        </div>
+
+        <div class="flex flex-col gap-3 p-6">
+          <div class="flex flex-col gap-3">
+            <p class="w-2/3 text-sm">
+              A device that may choose its own update mode can move itself between automatic and device managed. A device-managed device decides when to take the firmware its deployment group names, rather than having it pushed.
+            </p>
+          </div>
+
+          <div class="flex min-h-16 items-center gap-6 p-2">
+            <div class="flex h-8 shrink-0 items-center rounded-full border border-base-700 bg-base-800 px-2 py-1">
               <input
-                id={"extension-#{key}"}
-                name={key}
+                id="default-managed-updates-allowed"
+                name="default-managed-updates-allowed"
                 type="checkbox"
                 class="rounded border-base-700 text-base-400 checked:bg-primary focus:ring-0"
-                phx-click="update-extension"
-                phx-value-extension={key}
-                checked={@product.extensions[key]}
+                phx-click="update-default-managed-updates-allowed"
+                checked={@product.default_managed_updates_allowed}
                 disabled={!authorized?(:"product:update", @current_scope)}
               />
             </div>
             <div class="flex flex-col">
-              <div class="flex gap-2">
-                <div class="font-medium text-base-300">
-                  {Extensions.display_name(key)}
-                </div>
-              </div>
+              <div class="font-medium text-base-300">Let new devices choose their update mode</div>
               <div class="text-xs text-base-400">
-                {description}
+                Devices added to this product from now on start with this setting. Existing devices keep their own.
               </div>
+            </div>
+          </div>
+
+          <div class="flex min-h-16 flex-wrap items-center gap-x-6 gap-y-3 p-2">
+            <div class="flex min-w-0 flex-1 basis-72 flex-col">
+              <div class="font-medium text-base-300">Existing devices</div>
+              <div class="text-xs text-base-400">
+                Change the setting on every device already in this product. Disallowing does not move a device that is already device managed.
+              </div>
+            </div>
+            <div class="flex flex-wrap gap-2">
+              <.button
+                id="allow-managed-updates-on-devices"
+                phx-click="set-managed-updates-allowed-for-devices"
+                phx-value-enabled="true"
+                data-confirm="Let every device in this product choose its own update mode?"
+                disabled={!authorized?(:"device:toggle-updates", @current_scope)}
+              >
+                Allow on all devices
+              </.button>
+              <.button
+                id="disallow-managed-updates-on-devices"
+                phx-click="set-managed-updates-allowed-for-devices"
+                phx-value-enabled="false"
+                data-confirm="Stop every device in this product choosing its own update mode?"
+                disabled={!authorized?(:"device:toggle-updates", @current_scope)}
+              >
+                Disallow on all devices
+              </.button>
             </div>
           </div>
         </div>
