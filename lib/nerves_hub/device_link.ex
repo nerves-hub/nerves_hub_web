@@ -503,8 +503,9 @@ defmodule NervesHub.DeviceLink do
   See `NervesHub.DeviceLink.Authentication`. Failures are flattened to
   `:invalid_auth`; the detail is recorded as telemetry where it is known.
   """
-  @spec authenticate(Authentication.credentials()) :: {:ok, DeviceInfo.t()} | {:error, :invalid_auth}
-  defdelegate authenticate(credentials), to: Authentication
+  @spec authenticate(Authentication.credentials(), server_name :: String.t() | nil) ::
+          {:ok, DeviceInfo.t()} | {:error, :invalid_auth}
+  defdelegate authenticate(credentials, server_name \\ nil), to: Authentication
 
   @doc "Whether devices may authenticate with an HMAC shared secret."
   @spec shared_secrets_enabled?() :: boolean()

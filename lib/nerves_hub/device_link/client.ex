@@ -26,7 +26,7 @@ defmodule NervesHub.DeviceLink.Client do
   def verify_peer(der, event), do: Dispatcher.call(:verify_peer, [der, event])
 
   @spec authenticate(Authentication.credentials()) :: {:ok, DeviceInfo.t()} | {:error, :invalid_auth}
-  def authenticate(credentials), do: Dispatcher.call(:authenticate, [credentials])
+  def authenticate(credentials, server_name \\ nil), do: Dispatcher.call(:authenticate, [credentials, server_name])
 
   @spec connect(DeviceInfo.t(), ip_address :: String.t() | nil) ::
           {:ok, DeviceInfo.t()} | {:error, Ecto.Changeset.t()}

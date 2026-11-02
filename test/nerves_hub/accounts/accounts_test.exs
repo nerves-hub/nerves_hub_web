@@ -591,4 +591,32 @@ defmodule NervesHub.AccountsTest do
 
     firmware_transfer
   end
+
+  describe "set_org_device_hostnames/2" do
+    setup %{user: user} do
+      %{org: Fixtures.org_fixture(user, %{name: "hostname_org"})}
+    end
+
+    test "normalizes them, and drops repeats", %{org: org} do
+      assert {:ok, %{device_hostnames: ["link.example.com", "b.example.com"]}} =
+               Accounts.set_org_device_hostnames(org, [
+                 " Link.Example.com. ",
+                 "link.example.com",
+                 "b.example.com"
+               ])
+    end
+
+    for bad <- ["localhost", "*.example.com", "a b.example.com", "https://link.example.com"] do
+      test "refuses #{inspect(bad)}", %{org: org} do
+        assert {:error, changeset} = Accounts.set_org_device_hostnames(org, [unquote(bad)])
+        assert %{device_hostnames: [_]} = errors_on(changeset)
+      end
+    end
+
+    test "can't be reached through an org's own settings", %{org: org} do
+      {:ok, org} = Accounts.update_org(org, %{device_hostnames: ["link.example.com"]})
+
+      assert org.device_hostnames == []
+    end
+  end
 end
