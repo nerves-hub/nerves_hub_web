@@ -6,10 +6,10 @@ defmodule NervesHub.Repo.Migrations.ReconcileSchemaWithProduction do
   some `NOT NULL` constraints along the way, so a database built from migrations
   didn't match it.
 
-  The `test_orchestrator_*` indexes are renamed by hand on production before this
-  runs, and the hardly used `test_faster_*` ones are dropped by hand, so here they
-  only need creating. If the renames haven't happened, production ends up with a
-  copy of each index under its new name.
+  The busy `test_` indexes are renamed by hand on production before this runs, and
+  the hardly used `test_faster_*` ones are dropped by hand, so here they only need
+  creating. If the renames haven't happened, production ends up with a copy of each
+  index under its new name.
 
   Every step checks what is already there, because the two starting points need
   opposite things: production has the indexes and lacks the constraints, and a
@@ -25,11 +25,6 @@ defmodule NervesHub.Repo.Migrations.ReconcileSchemaWithProduction do
 
   @disable_ddl_transaction true
   @disable_migration_lock true
-
-  @renamed_indexes [
-    {"products_pkey_test", "products_live_id_index"},
-    {"product_shared_secret_auth_test_index", "product_shared_secret_auth_active_key_index"}
-  ]
 
   @index_definitions [
     "UNIQUE INDEX CONCURRENTLY IF NOT EXISTS products_live_id_index ON products (id) WHERE deleted_at IS NULL",
@@ -56,10 +51,6 @@ defmodule NervesHub.Repo.Migrations.ReconcileSchemaWithProduction do
   ]
 
   def up() do
-    for {from, to} <- @renamed_indexes do
-      execute("ALTER INDEX IF EXISTS #{from} RENAME TO #{to}")
-    end
-
     for definition <- @index_definitions do
       execute("CREATE #{definition}")
     end
