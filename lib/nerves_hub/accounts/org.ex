@@ -14,6 +14,9 @@ defmodule NervesHub.Accounts.Org do
 
   @params [:name]
 
+  # Labels, at least two, without a trailing dot or a wildcard.
+  @hostname_format ~r/\A(?!-)[a-z0-9-]{1,63}(?<!-)(\.(?!-)[a-z0-9-]{1,63}(?<!-))+\z/
+
   @type id :: pos_integer() | nil
   @type t :: %__MODULE__{id: id()}
 
@@ -31,6 +34,11 @@ defmodule NervesHub.Accounts.Org do
     field(:deleted_at, :utc_datetime)
     field(:audit_log_days_to_keep, :integer)
 
+    # Hostnames this org's devices connect to. Several orgs can share one, and only
+    # they can connect to it. Not in any changeset an org's own users can reach, or
+    # one org could claim another's.
+    field(:device_hostnames, {:array, :string}, default: [])
+
     embeds_one :settings, __MODULE__.Settings do
       field(:firmware_proxy_url, :string)
     end
@@ -47,6 +55,24 @@ defmodule NervesHub.Accounts.Org do
     |> validate_required(@params)
     |> unique_constraint(:name)
     |> validate_format(:name, ~r/^[A-Za-z0-9-_]+$/)
+  end
+
+  def device_hostnames_changeset(%Org{} = org, hostnames) do
+    org
+    |> cast(%{device_hostnames: Enum.map(hostnames, &normalize_hostname/1)}, [:device_hostnames])
+    |> update_change(:device_hostnames, &Enum.uniq/1)
+    |> validate_change(:device_hostnames, fn :device_hostnames, hostnames ->
+      for hostname <- hostnames,
+          byte_size(hostname) > 253 or not Regex.match?(@hostname_format, hostname) do
+        {:device_hostnames, "#{inspect(hostname)} must be a full hostname, with no wildcard"}
+      end
+    end)
+  end
+
+  @doc "DNS names aren't case sensitive, and a client may send a trailing dot."
+  @spec normalize_hostname(String.t()) :: String.t()
+  def normalize_hostname(hostname) do
+    hostname |> String.trim() |> String.trim_trailing(".") |> String.downcase()
   end
 
   def add_user(struct, params) do

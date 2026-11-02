@@ -114,6 +114,54 @@ defmodule NervesHub.Devices.LogLines do
   defp filter_before(query, %DateTime{} = before), do: where(query, [l], l.timestamp < ^before)
 
   @doc """
+  Whether `log_line` is one `for_device/2` would return for the same filters.
+
+  For a line that has just arrived, where there is no query to ask: the Logs tab
+  streams new lines to someone who has narrowed what they are looking at, and a
+  line they did not ask for should not appear. Takes the filters `for_device/2`
+  does; `:limit` and `:order` say how many lines to return, not which, and are
+  ignored.
+
+  Case is folded for ASCII only, because that is all `positionCaseInsensitive`
+  does in the query. Folding more here would show a line live that is gone the
+  next time the page is loaded.
+
+  ## Examples
+
+      iex> matches?(%LogLine{level: "error", message: "Sensor bus gone"}, levels: ["error"], search: "sensor")
+      true
+
+  """
+  @spec matches?(LogLine.t(), [filter_opt()]) :: boolean()
+  def matches?(%LogLine{} = log_line, opts \\ []) do
+    level_matches?(log_line, Keyword.get(opts, :levels)) and
+      search_matches?(log_line, Keyword.get(opts, :search)) and
+      since_matches?(log_line, Keyword.get(opts, :since)) and
+      before_matches?(log_line, Keyword.get(opts, :before))
+  end
+
+  defp level_matches?(_log_line, levels) when levels in [nil, []], do: true
+  defp level_matches?(log_line, levels), do: log_line.level in levels
+
+  defp search_matches?(_log_line, search) when search in [nil, ""], do: true
+
+  defp search_matches?(log_line, search) do
+    String.contains?(ascii_downcase(log_line.message), ascii_downcase(search))
+  end
+
+  defp since_matches?(_log_line, nil), do: true
+  defp since_matches?(log_line, %DateTime{} = since), do: DateTime.compare(log_line.timestamp, since) != :lt
+
+  defp before_matches?(_log_line, nil), do: true
+  defp before_matches?(log_line, %DateTime{} = before), do: DateTime.before?(log_line.timestamp, before)
+
+  # `String.downcase/1` folds every script, which ClickHouse's
+  # `positionCaseInsensitive` does not.
+  defp ascii_downcase(string) do
+    for <<char <- string>>, into: "", do: <<if(char in ?A..?Z, do: char + 32, else: char)>>
+  end
+
+  @doc """
   Creates a log line for a device.
 
   ## Examples

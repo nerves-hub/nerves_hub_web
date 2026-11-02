@@ -215,6 +215,96 @@ defmodule NervesHub.Devices.LogLinesTest do
     end
   end
 
+  describe "matches?/2" do
+    test "matches everything when nothing is asked for", %{device: device} do
+      assert LogLines.matches?(log(device, message: "anything"))
+      assert LogLines.matches?(log(device, message: "anything"), levels: [], search: "", since: nil, before: nil)
+    end
+
+    test "matches on level", %{device: device} do
+      line = log(device, level: "error", message: "broken")
+
+      assert LogLines.matches?(line, levels: ["error"])
+      assert LogLines.matches?(line, levels: ["info", "error"])
+      refute LogLines.matches?(line, levels: ["info"])
+    end
+
+    test "searches the message, ignoring ASCII case", %{device: device} do
+      line = log(device, message: "Failed to reach the Sensor bus")
+
+      assert LogLines.matches?(line, search: "sensor bus")
+      assert LogLines.matches?(line, search: "SENSOR BUS")
+      refute LogLines.matches?(line, search: "wifi")
+    end
+
+    test "searches for wildcards literally", %{device: device} do
+      line = log(device, message: "battery at 100% charge")
+
+      assert LogLines.matches?(line, search: "100%")
+      refute LogLines.matches?(log(device, message: "polling"), search: "%")
+    end
+
+    test "does not fold case beyond ASCII, as the query does", %{device: device} do
+      line = log(device, message: "ÉCHEC du réseau")
+
+      assert LogLines.matches?(line, search: "ÉCHEC")
+      refute LogLines.matches?(line, search: "échec")
+    end
+
+    test "since is inclusive and before is exclusive", %{device: device} do
+      at = DateTime.utc_now()
+      line = log(device, message: "on the boundary", timestamp: at)
+
+      assert LogLines.matches?(line, since: at)
+      refute LogLines.matches?(line, since: DateTime.add(at, 1, :second))
+      refute LogLines.matches?(line, before: at)
+      assert LogLines.matches?(line, before: DateTime.add(at, 1, :second))
+    end
+
+    test "ignores limit and order, which say how many and not which", %{device: device} do
+      assert LogLines.matches?(log(device, message: "anything"), limit: 0, order: :asc)
+    end
+
+    # The two have to agree: the tab uses the query for what is there when it
+    # opens and this for each line that arrives after, and a line the second
+    # lets in that the first would not have shown is gone on the next refresh.
+    test "agrees with for_device/2", %{device: device} do
+      now = DateTime.utc_now()
+
+      lines = [
+        log(device, level: "error", message: "Sensor bus gone", timestamp: DateTime.add(now, -10)),
+        log(device, level: "info", message: "SENSOR BUS back", timestamp: DateTime.add(now, -20)),
+        log(device, level: "error", message: "ÉCHEC on the bus", timestamp: DateTime.add(now, -30)),
+        log(device, level: "warning", message: "échec réseau", timestamp: DateTime.add(now, -40)),
+        log(device, level: "debug", message: "battery at 100% charge", timestamp: DateTime.add(now, -50)),
+        log(device, level: "info", message: "polling temperature", timestamp: DateTime.add(now, -3600))
+      ]
+
+      :ok = Buffer.flush(LogLine)
+
+      filters = [
+        [],
+        [levels: ["error"]],
+        [levels: ["error", "info"], search: "bus"],
+        [search: "sensor"],
+        [search: "échec"],
+        [search: "ÉCHEC"],
+        [search: "%"],
+        [search: "nothing logged this"],
+        [since: DateTime.add(now, -25)],
+        [before: DateTime.add(now, -25)],
+        [since: DateTime.add(now, -45), before: DateTime.add(now, -15), levels: ["error", "warning"]]
+      ]
+
+      for opts <- filters do
+        expected = lines |> Enum.filter(&LogLines.matches?(&1, opts)) |> messages() |> Enum.sort()
+        actual = device |> LogLines.for_device([limit: 100] ++ opts) |> messages() |> Enum.sort()
+
+        assert actual == expected, "for_device/2 and matches?/2 disagree for #{inspect(opts)}"
+      end
+    end
+  end
+
   defp messages(log_lines), do: Enum.map(log_lines, & &1.message)
 
   defp log(device, attrs) do
