@@ -2,6 +2,8 @@ import Config
 
 alias NervesHub.DeviceLink.PeerVerification
 alias NervesHub.Devices.DeviceMessages
+alias NervesHub.DeviceTLS.Cluster
+alias NervesHub.DeviceTLS.Reloader
 alias NervesHub.Firmwares.Upload
 alias NervesHub.Firmwares.Upload.S3
 alias NervesHub.Integrations.Slack
@@ -306,6 +308,8 @@ if config_env() == :prod do
 
     https_port = String.to_integer(System.get_env("DEVICE_PORT", "443"))
 
+    # Each of these is nil when it is not given, so that a TLS provider can
+    # stand in for both.
     keyfile =
       if System.get_env("DEVICE_SSL_KEY") do
         ssl_key = System.fetch_env!("DEVICE_SSL_KEY") |> Base.decode64!()
@@ -314,12 +318,7 @@ if config_env() == :prod do
         "/app/tmp/ssl_key.crt"
       else
         ssl_keyfile = System.get_env("DEVICE_SSL_KEYFILE", "/etc/ssl/#{host}-key.pem")
-
-        if File.exists?(ssl_keyfile) do
-          ssl_keyfile
-        else
-          raise "Could not find keyfile"
-        end
+        if File.exists?(ssl_keyfile), do: ssl_keyfile
       end
 
     certfile =
@@ -330,12 +329,50 @@ if config_env() == :prod do
         "/app/tmp/ssl_cert.crt"
       else
         ssl_certfile = System.get_env("DEVICE_SSL_CERTFILE", "/etc/ssl/#{host}.pem")
+        if File.exists?(ssl_certfile), do: ssl_certfile
+      end
 
-        if File.exists?(ssl_certfile) do
-          ssl_certfile
-        else
+    # DEVICE_TLS_FROM_CLUSTER=true takes the keypair from a TLS provider in the
+    # cluster, and NervesHub.DeviceTLS.Reloader installs each renewal into the
+    # running listener -- a renewal never needs a restart, which would drop
+    # every device on the node. See NervesHub.DeviceTLS.Cluster for what a
+    # provider has to answer.
+    #
+    # The listener then reads key and chain from one file, which the reloader
+    # replaces whole. DEVICE_SSL_KEY and DEVICE_SSL_CERT become optional: given,
+    # they seed that file so the listener can start without waiting for a
+    # provider; without them, it waits for one before it starts listening.
+    tls_files =
+      cond do
+        System.get_env("DEVICE_TLS_FROM_CLUSTER", "false") == "true" ->
+          pemfile = System.get_env("DEVICE_TLS_PEMFILE", "/app/tmp/device_tls.pem")
+
+          if keyfile && certfile && not File.exists?(pemfile) do
+            File.mkdir_p!(Path.dirname(pemfile))
+            File.write!(pemfile, [File.read!(keyfile), "\n", File.read!(certfile)])
+            File.chmod!(pemfile, 0o600)
+          end
+
+          config :nerves_hub, Reloader,
+            source: {Cluster, []},
+            certfile: pemfile,
+            host: host,
+            interval: to_timeout(second: String.to_integer(System.get_env("DEVICE_TLS_POLL_INTERVAL", "300"))),
+            boot_timeout: to_timeout(second: String.to_integer(System.get_env("DEVICE_TLS_BOOT_TIMEOUT", "120")))
+
+          # The same file as both: :ssl takes the key from the one and the chain
+          # from the other. Plug.SSL, which Bandit checks these with, refuses to
+          # start without a keyfile, even though :ssl would manage without.
+          [keyfile: pemfile, certfile: pemfile]
+
+        is_nil(keyfile) ->
+          raise "Could not find keyfile"
+
+        is_nil(certfile) ->
           raise "Could not find certfile"
-        end
+
+        true ->
+          [keyfile: keyfile, certfile: certfile]
       end
 
     cacertfile =
@@ -349,15 +386,14 @@ if config_env() == :prod do
         CAStore.file_path()
       end
 
-    transport_options = [
-      verify: :verify_peer,
-      verify_fun: {&PeerVerification.verify_fun/3, nil},
-      fail_if_no_peer_cert: false,
-      keyfile: keyfile,
-      certfile: certfile,
-      cacertfile: cacertfile,
-      hibernate_after: 15_000
-    ]
+    transport_options =
+      [
+        verify: :verify_peer,
+        verify_fun: {&PeerVerification.verify_fun/3, nil},
+        fail_if_no_peer_cert: false,
+        cacertfile: cacertfile,
+        hibernate_after: 15_000
+      ] ++ tls_files
 
     # TLS 1.3 session tickets, so a reconnecting device can resume rather than
     # repeat the full handshake. A resumed handshake never reaches verify_fun, so

@@ -6,6 +6,7 @@ defmodule NervesHubWeb.DeviceSocket do
   alias NervesHub.DeviceLink.Client, as: DeviceLink
   alias NervesHub.ProductNotifications
   alias NervesHubWeb.Helpers.ClientIP
+  alias NervesHubWeb.Helpers.ServerName
   alias Phoenix.Socket.Transport
 
   channel("console", NervesHubWeb.ConsoleChannel)
@@ -158,7 +159,7 @@ defmodule NervesHubWeb.DeviceSocket do
   # finished joining the cluster. Refusing is correct; raising is not, because it
   # answers the device with a 500 and buries the reason in a rendered error page.
   defp authenticate(socket, credentials, connect_info) do
-    case DeviceLink.authenticate(credentials) do
+    case DeviceLink.authenticate(credentials, ServerName.recorded()) do
       {:ok, device_info} -> socket_and_assigns(socket, device_info, ip_address(socket, connect_info))
       {:error, reason} -> {:error, reason}
     end

@@ -78,10 +78,14 @@ is how a device's own address survives the hop.
 | `DEVICE_HOST` | `WEB_HOST`, then `HOST` | Hostname devices connect to, e.g. `device.mynerveshub.com`. Boot raises if none of the three is set. |
 | `DEVICE_PORT` | `443` | Port the device HTTPS listener binds to. |
 | `DEVICE_SSL_KEY` | — | Base64-encoded private key. Written to `/app/tmp/ssl_key.crt` at boot. |
-| `DEVICE_SSL_KEYFILE` | `/etc/ssl/$DEVICE_HOST-key.pem` | Path to the private key, used when `DEVICE_SSL_KEY` is unset. Boot raises if the file does not exist. |
+| `DEVICE_SSL_KEYFILE` | `/etc/ssl/$DEVICE_HOST-key.pem` | Path to the private key, used when `DEVICE_SSL_KEY` is unset. Boot raises if the file does not exist, unless `DEVICE_TLS_FROM_CLUSTER` is true. |
 | `DEVICE_SSL_CERT` | — | Base64-encoded certificate. Written to `/app/tmp/ssl_cert.crt` at boot. |
-| `DEVICE_SSL_CERTFILE` | `/etc/ssl/$DEVICE_HOST.pem` | Path to the certificate, used when `DEVICE_SSL_CERT` is unset. Boot raises if the file does not exist. |
+| `DEVICE_SSL_CERTFILE` | `/etc/ssl/$DEVICE_HOST.pem` | Path to the certificate, used when `DEVICE_SSL_CERT` is unset. Boot raises if the file does not exist, unless `DEVICE_TLS_FROM_CLUSTER` is true. |
 | `DEVICE_SSL_CACERTFILE` | the `castore` CA bundle | Path to a CA bundle. Boot raises if the file does not exist. |
+| `DEVICE_TLS_FROM_CLUSTER` | `false` | Take the endpoint's key and certificate from a TLS provider in the cluster, and install each renewal without a restart. See [Renewing the certificate without a restart](#renewing-the-certificate-without-a-restart). |
+| `DEVICE_TLS_PEMFILE` | `/app/tmp/device_tls.pem` | The one file the listener reads its key and chain from when `DEVICE_TLS_FROM_CLUSTER` is true. Seeded from the `DEVICE_SSL_*` keypair at boot when it does not exist yet. |
+| `DEVICE_TLS_POLL_INTERVAL` | `300` | Seconds between asking the provider for the keypair. A provider can also announce a new one, which is fetched straight away. |
+| `DEVICE_TLS_BOOT_TIMEOUT` | `120` | Seconds to wait at boot for a provider's first keypair when there is none to start with. Boot fails once it passes. |
 | `DEVICE_ENABLE_TLS_13` | `false` | When false, the endpoint enforces TLS 1.2. Turn it on only if every device runs OTP >= 25.1 — older OTP 25 releases can break negotiating 1.3 or 1.2. See [erlang/otp#6492](https://github.com/erlang/otp/issues/6492#issuecomment-1323874205). When true, the endpoint also issues TLS 1.3 session tickets that carry the device's certificate, so a reconnecting device can resume instead of repeating the full handshake. A resumed handshake skips `verify_fun`; the certificate is still checked against the database when the socket connects. |
 | `DEVICE_TLS_SESSION_TICKET_SEED` | — | Session ticket key shared by every device endpoint node, so any node can resume a ticket another issued, including across deploys. At least 64 bytes; generate one with `mix phx.gen.secret`. Unset, each node makes its own and a device only resumes on the node that issued its ticket. **Whoever holds it can mint a ticket for any device's certificate and connect as that device without its key**, so keep it with the most sensitive secrets. Changing it voids every ticket, and devices fall back to a full handshake. Only read when `DEVICE_ENABLE_TLS_13` is true. |
 | `DEVICE_SHARED_SECRETS_ENABLED` | `false` | Allow devices to authenticate with a shared secret instead of a certificate. Easier onboarding, weaker authentication. |
@@ -90,6 +94,37 @@ is how a device's own address survives the hop.
 | `DEVICE_ENDPOINT_REDIRECT` | `https://docs.nerves-hub.org/` | Where a plain browser request to the device endpoint is redirected. |
 | `DEVICE_CONNECT_RATE_LIMIT` | `100` | Maximum device connections accepted per second. Read in every environment. |
 | `DEVICE_PROXY_PROTOCOL` | — | Set to `v2` when a load balancer passes TLS through to this endpoint and announces the device with a PROXY protocol v2 header, which is read underneath `:ssl` before the TLS handshake, so session tickets work behind the balancer too. Only `v2` is supported; version 1 cannot be read without risking a read into the handshake that follows it, and any other value raises at boot. Turning it on is a flag day: a balancer sending the header to a listener that is not expecting it looks like a malformed ClientHello, and a listener expecting one that never arrives waits until it times out. On Fly.io keep it in `fly.toml` `[env]` beside the `proxy_proto` handler so each machine picks up the pair together — `fly secrets set` without `--stage` restarts the fleet before the handler exists. |
+
+### Renewing the certificate without a restart
+
+Restarting a device node to pick up a renewed certificate disconnects every
+device on it. With `DEVICE_TLS_FROM_CLUSTER=true` it does not have to: the
+listener reads its key and chain from `DEVICE_TLS_PEMFILE`, and
+`NervesHub.DeviceTLS.Reloader` replaces that file and clears `:ssl`'s PEM cache
+whenever there is a new keypair. New handshakes get the new certificate, and
+connected devices keep the one they negotiated until they next reconnect.
+
+The keypair comes from a TLS provider: a separate application that joins the
+same cluster and knows where certificates come from, whether that is an ACME
+client, a certificate manager's agent or a secrets store. Every keypair is
+checked before it is installed -- that the key matches, the chain is in order,
+the certificate is in date and covers `DEVICE_HOST` -- and one that fails is
+logged and left out, keeping the one already installed.
+
+Both sides join the `:pg` scope `:nerves_hub_device_tls`:
+
+| Message | From | To | Reply |
+| --- | --- | --- | --- |
+| `{:nerves_hub_device_tls, 1, :fetch, installed_sha1}` | each device node, by `GenServer.call` | a member of `:providers` | `{:ok, %{key_pem: binary, chain_pem: binary}}`, `:unchanged`, or `{:error, reason}` |
+| `{:nerves_hub_device_tls, 1, :changed, sha1}` | a provider | every member of `:consumers` | none; the node fetches |
+
+`installed_sha1` is the lowercase hex SHA-1 of the DER of the leaf the node
+serves, or `nil`. A provider that does not speak version `1` replies
+`{:error, {:unsupported_version, versions}}`. See `NervesHub.DeviceTLS.Cluster`
+for the details.
+
+The keypair crosses Erlang distribution, which is no wider than the cluster's
+trust already is: anything holding the cookie can run code on a device node.
 
 ### Websocket compression
 

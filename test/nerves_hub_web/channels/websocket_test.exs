@@ -7,6 +7,7 @@ defmodule NervesHubWeb.WebsocketTest do
   import Ecto.Query
   import TrackerHelper
 
+  alias NervesHub.Accounts
   alias NervesHub.AuditLogs
   alias NervesHub.AuditLogs.AuditLog
   alias NervesHub.DeviceEvents
@@ -258,6 +259,55 @@ defmodule NervesHubWeb.WebsocketTest do
 
       assert_connection_change()
       assert_online_and_available(device)
+
+      close_socket_cleanly(socket)
+    end
+
+    test "a device is refused on a hostname only another org has claimed", %{user: user, tmp_dir: tmp_dir} do
+      {device, _firmware} = device_fixture(tmp_dir, user, %{identifier: @valid_serial})
+      Fixtures.device_certificate_fixture(device)
+
+      other_org = Fixtures.org_fixture(user, %{name: "other_org"})
+      {:ok, _} = Accounts.set_org_device_hostnames(other_org, ["device.nerves-hub.org"])
+
+      {:ok, socket} = SocketClient.start_link(with_serializer(@socket_config))
+      SocketClient.wait_connect(socket)
+
+      refute SocketClient.connected?(socket)
+    end
+
+    test "a device connects on a hostname its org shares with another", %{user: user, tmp_dir: tmp_dir} do
+      {device, _firmware} = device_fixture(tmp_dir, user, %{identifier: @valid_serial})
+      Fixtures.device_certificate_fixture(device)
+
+      other_org = Fixtures.org_fixture(user, %{name: "other_org"})
+      {:ok, _} = Accounts.set_org_device_hostnames(other_org, ["device.nerves-hub.org"])
+      {:ok, _} = Accounts.set_org_device_hostnames(device.org, ["device.nerves-hub.org"])
+
+      subscribe_for_updates(device)
+
+      {:ok, socket} = SocketClient.start_link(with_serializer(@socket_config))
+      SocketClient.join_and_wait(socket)
+
+      close_socket_cleanly(socket)
+    end
+
+    test "a device that asks for no hostname isn't held to one", %{user: user, tmp_dir: tmp_dir} do
+      {device, _firmware} = device_fixture(tmp_dir, user, %{identifier: @valid_serial})
+      Fixtures.device_certificate_fixture(device)
+
+      other_org = Fixtures.org_fixture(user, %{name: "other_org"})
+      {:ok, _} = Accounts.set_org_device_hostnames(other_org, ["device.nerves-hub.org"])
+
+      config =
+        update_in(@socket_config, [:mint_opts, :transport_opts], fn opts ->
+          Keyword.merge(opts, verify: :verify_none, server_name_indication: :disable)
+        end)
+
+      subscribe_for_updates(device)
+
+      {:ok, socket} = SocketClient.start_link(with_serializer(config))
+      SocketClient.join_and_wait(socket)
 
       close_socket_cleanly(socket)
     end
@@ -619,8 +669,8 @@ defmodule NervesHubWeb.WebsocketTest do
       # socket.
       set_mimic_global()
 
-      stub(NervesHub.DeviceLink, :authenticate, fn credentials ->
-        result = call_original(NervesHub.DeviceLink, :authenticate, [credentials])
+      stub(NervesHub.DeviceLink, :authenticate, fn credentials, server_name ->
+        result = call_original(NervesHub.DeviceLink, :authenticate, [credentials, server_name])
         {:ok, _} = Devices.deactivate_shared_secret_auth(device, auth.key, user)
         result
       end)

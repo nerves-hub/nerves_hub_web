@@ -155,11 +155,11 @@ defmodule NervesHub.MixProject do
       {:jason, "~> 1.2", override: true},
       {:lazy_html, ">= 0.0.0", only: :test},
       {:libcluster_postgres, "~> 0.2.0"},
-      {:live_flow, "~> 0.2.3"},
+      {:live_flow, "~> 0.3.2"},
       {:logfmt_ex, "~> 0.4"},
       {
         :lucide,
-        github: "lucide-icons/lucide", tag: "1.61.0", sparse: "icons", app: false, compile: false, depth: 1
+        github: "lucide-icons/lucide", tag: "1.65.0", sparse: "icons", app: false, compile: false, depth: 1
       },
       {:mimic, "~> 2.0", only: [:test, :dev]},
       {:mint_web_socket, "~> 1.0"},

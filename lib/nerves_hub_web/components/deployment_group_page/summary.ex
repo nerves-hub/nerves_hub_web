@@ -268,8 +268,8 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
                 # so a two-step workflow in a wide panel is not blown up to fill
                 # the same room.
                 max_zoom: 1.5,
-                pan_on_drag: "false",
-                zoom_on_scroll: "false"
+                pan_on_drag: false,
+                zoom_on_scroll: false
               }
             }
             node_types={@flow_nodes}
