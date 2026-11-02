@@ -4,8 +4,12 @@ defmodule NervesHub.Repo.Migrations.ReconcileSchemaWithProduction do
 
   Production picked up indexes by hand while queries were being tuned, and lost
   some `NOT NULL` constraints along the way, so a database built from migrations
-  didn't match it. Four of those indexes serve live queries under `test_` names,
-  and the rest of them were hardly used.
+  didn't match it.
+
+  The `test_orchestrator_*` indexes are renamed by hand on production before this
+  runs, and the hardly used `test_faster_*` ones are dropped by hand, so here they
+  only need creating. If the renames haven't happened, production ends up with a
+  copy of each index under its new name.
 
   Every step checks what is already there, because the two starting points need
   opposite things: production has the indexes and lacks the constraints, and a
@@ -24,9 +28,7 @@ defmodule NervesHub.Repo.Migrations.ReconcileSchemaWithProduction do
 
   @renamed_indexes [
     {"products_pkey_test", "products_live_id_index"},
-    {"product_shared_secret_auth_test_index", "product_shared_secret_auth_active_key_index"},
-    {"test_orchestrator_blah", "devices_deployment_updates_enabled_blocked_until_index"},
-    {"test_orchestrator_firmware", "devices_firmware_uuid_path_index"}
+    {"product_shared_secret_auth_test_index", "product_shared_secret_auth_active_key_index"}
   ]
 
   @index_definitions [
@@ -39,9 +41,6 @@ defmodule NervesHub.Repo.Migrations.ReconcileSchemaWithProduction do
   # `devices_deployment_id_index` is covered by the deployment index above, and
   # production has already done without it.
   @dropped_indexes [
-    "test_faster_available_devices_query_index",
-    "test_faster_available_devices_query_index_two",
-    "test_faster_available_devices_query_on_deployments_index",
     "devices_deployment_id_index"
   ]
 
