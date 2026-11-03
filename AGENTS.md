@@ -27,7 +27,10 @@ A production cluster is **asymmetric**, and this shapes a lot of the code:
 Key runtime pieces:
 
 - **Phoenix endpoints** — `NervesHubWeb.Endpoint` (dashboard/API), plus a
-  device socket endpoint and a health-check endpoint.
+  device socket endpoint and a health-check endpoint. With `MAINTENANCE_MODE` set,
+  a node starts `NervesHubWeb.MaintenanceEndpoint` and nothing else: no database,
+  no cluster, no other endpoints (see
+  [docs/runtime_configuration.md](docs/runtime_configuration.md)).
 - **Two data stores:**
   - **PostgreSQL** via `NervesHub.Repo` — core domain data (accounts, devices,
     firmware, deployments, …). Migrations in `priv/repo/`.
