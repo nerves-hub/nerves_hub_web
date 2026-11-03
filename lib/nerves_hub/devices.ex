@@ -562,12 +562,32 @@ defmodule NervesHub.Devices do
     end
   end
 
+  @doc """
+  Create a device.
+
+  The device starts with its product's `default_managed_updates_allowed` as its
+  `managed_updates_allowed` grant, unless `params` sets the grant itself.
+  """
   @spec create_device(map) :: {:ok, Device.t()} | {:error, Changeset.t()}
   def create_device(params) do
     %Device{}
     |> Device.changeset(params)
+    |> put_product_defaults()
     |> Repo.insert()
     |> Repo.maybe_preload(:product)
+  end
+
+  # `cast/4` keeps the params with string keys whichever the caller used, so this
+  # one check covers both. It has to look at the params rather than the changes:
+  # an explicit `false` matches the schema default and so records no change.
+  defp put_product_defaults(%Changeset{params: params} = changeset) do
+    with false <- Map.has_key?(params, "managed_updates_allowed"),
+         product_id when not is_nil(product_id) <- Changeset.get_field(changeset, :product_id),
+         {:ok, product} <- Products.get_product(product_id) do
+      Changeset.put_change(changeset, :managed_updates_allowed, product.default_managed_updates_allowed)
+    else
+      _ -> changeset
+    end
   end
 
   def set_as_provisioned!(device) do
@@ -824,7 +844,10 @@ defmodule NervesHub.Devices do
     }
 
     Multi.new()
-    |> Multi.run(:move, fn _, _ -> update_device(device, attrs) end)
+    # No "updated" broadcast: sent from inside the transaction, the device's
+    # connection would re-read the row before the move committed. The
+    # disconnect below is what tells it, and it reads the moved row on rejoin.
+    |> Multi.run(:move, fn _, _ -> update_device(device, attrs, broadcast: false) end)
     |> Multi.delete_all(:pinned_devices, &unpin_unauthorized_users_query/1)
     # The device's identities on other networks name an organisation of their
     # own, and that is what those networks resolve a key to. Left behind, this

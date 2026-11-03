@@ -2,6 +2,7 @@ defmodule NervesHub.Devices.BulkActions do
   import Ecto.Query
 
   alias NervesHub.Accounts.User
+  alias NervesHub.AuditLogs.ProductTemplates
   alias NervesHub.Certificate
   alias NervesHub.DeploymentOrchestratorEvents
   alias NervesHub.DeviceEvents
@@ -10,6 +11,7 @@ defmodule NervesHub.Devices.BulkActions do
   alias NervesHub.Devices.Certificates
   alias NervesHub.Devices.Device
   alias NervesHub.Devices.Updates
+  alias NervesHub.Extensions
   alias NervesHub.ManagedDeployments
   alias NervesHub.ManagedDeployments.DeploymentGroup
   alias NervesHub.ProductNotifications
@@ -57,7 +59,8 @@ defmodule NervesHub.Devices.BulkActions do
           org_id: product.org_id,
           product_id: product.id,
           identifier: details.device_identifier,
-          tags: tags
+          tags: tags,
+          managed_updates_allowed: product.default_managed_updates_allowed
         })
 
       Repo.transact(fn ->
@@ -259,36 +262,47 @@ defmodule NervesHub.Devices.BulkActions do
       )
       |> Repo.one!()
 
-    devices_query
-    |> where(
-      [d],
-      d.firmware_metadata["platform"] == ^deployment_group.current_release.firmware.platform or
-        is_nil(d.firmware_metadata)
-    )
-    |> where(
-      [d],
-      d.firmware_metadata["architecture"] ==
-        ^deployment_group.current_release.firmware.architecture or is_nil(d.firmware_metadata)
-    )
-    |> stream_processing(
-      fn device ->
-        device
-        |> Device.update_deployment_group(deployment_group)
-        |> Repo.update()
-        |> case do
-          {:ok, device} ->
-            DeviceEvents.updated(device)
-            :ok
+    # One transaction, unlike the other query-based bulk actions, for the reason
+    # the list form gives: the devices and their firmware_delta rows become
+    # visible together. So the events wait for the commit, and are sent from the
+    # ids collected on the way through.
+    {:ok, {result, moved_ids}} =
+      Repo.transact(
+        fn ->
+          devices_query
+          |> where(
+            [d],
+            d.firmware_metadata["platform"] == ^deployment_group.current_release.firmware.platform or
+              is_nil(d.firmware_metadata)
+          )
+          |> where(
+            [d],
+            d.firmware_metadata["architecture"] ==
+              ^deployment_group.current_release.firmware.architecture or is_nil(d.firmware_metadata)
+          )
+          |> Repo.stream()
+          |> Enum.reduce({%{ok: 0, error: 0}, []}, fn device, {acc, moved_ids} ->
+            device
+            |> Device.update_deployment_group(deployment_group)
+            |> Repo.update()
+            |> case do
+              {:ok, device} -> {%{acc | ok: acc.ok + 1}, [device.id | moved_ids]}
+              _ -> {%{acc | error: acc.error + 1}, moved_ids}
+            end
+          end)
+          |> then(fn res ->
+            _ = ManagedDeployments.trigger_delta_generation_for_deployment_group(deployment_group)
+            {:ok, res}
+          end)
+        end,
+        timeout: 60_000
+      )
 
-          _ ->
-            :error
-        end
-      end,
-      before_commit: fn ->
-        _ = ManagedDeployments.trigger_delta_generation_for_deployment_group(deployment_group)
-        DeploymentOrchestratorEvents.bulk_devices_added(deployment_group)
-      end
-    )
+    Enum.each(moved_ids, &DeviceEvents.updated(%Device{id: &1}))
+
+    DeploymentOrchestratorEvents.bulk_devices_added(deployment_group)
+
+    result
   end
 
   @spec move_many_to_deployment_group_by_identifiers(
@@ -403,6 +417,100 @@ defmodule NervesHub.Devices.BulkActions do
     stream_processing(devices_query, {Updates, :set_managed_updates_allowed, [enabled, user]})
   end
 
+  @doc """
+  Allow or forbid every device in a product putting itself into `:device_managed`.
+
+  Only devices whose grant differs are touched, so the counts are of devices that
+  changed. Each goes through `Updates.set_managed_updates_allowed/3`, which
+  audits the change against the device and tells its connection.
+
+  Each device commits on its own, a chunk of devices loaded at a time, rather
+  than inside one transaction as `set_managed_updates_allowed_for_devices/3`
+  does with a query. A connection re-reads its device when told it changed, and
+  told before the change commits it reads the old grant and keeps showing it
+  until it reconnects.
+  """
+  @spec set_managed_updates_allowed_for_product(Product.t(), boolean(), User.t()) ::
+          %{ok: non_neg_integer(), error: non_neg_integer()}
+  def set_managed_updates_allowed_for_product(%Product{} = product, enabled, user) when is_boolean(enabled) do
+    Device
+    |> where([d], d.product_id == ^product.id)
+    |> where([d], d.managed_updates_allowed != ^enabled)
+    |> Repo.exclude_deleted()
+    |> select([d], d.id)
+    |> Repo.all()
+    |> Stream.chunk_every(500)
+    |> Stream.flat_map(fn ids -> Repo.all(from(d in Device, where: d.id in ^ids)) end)
+    |> Enum.reduce(%{ok: 0, error: 0}, fn device, acc ->
+      case Updates.set_managed_updates_allowed(device, enabled, user) do
+        {:ok, _device} -> %{acc | ok: acc.ok + 1}
+        _error -> %{acc | error: acc.error + 1}
+      end
+    end)
+  end
+
+  @doc """
+  Turn one extension on or off for every device in a product.
+
+  This is the device-level setting, so it takes effect only while the product
+  allows the extension too. With the product's own setting off it is recorded,
+  and applies once the product turns the extension on. Devices that already
+  have the requested setting are left alone and not counted.
+
+  It is one statement rather than a device at a time: a device's extension
+  setting is not audited and carries no session state, so there is nothing per
+  device to keep in step. The change is audited once against the product, and
+  connected devices hear of it through the product-wide fan-out the product's
+  own extension setting uses.
+  """
+  @spec set_extension_for_product(Product.t(), Extensions.extension() | String.t(), boolean(), User.t()) ::
+          {:ok, non_neg_integer()} | {:error, :unknown_extension}
+  def set_extension_for_product(%Product{} = product, extension, enabled, user) when is_boolean(enabled) do
+    key = to_string(extension)
+
+    case Enum.find(Extensions.list(), &(to_string(&1) == key)) do
+      nil ->
+        {:error, :unknown_extension}
+
+      extension ->
+        now = NaiveDateTime.truncate(NaiveDateTime.utc_now(), :second)
+
+        {:ok, count} =
+          Repo.transact(fn ->
+            {count, _} =
+              Device
+              |> where([d], d.product_id == ^product.id)
+              |> Repo.exclude_deleted()
+              # A device with no value for the key has the embed's default, which is on.
+              |> where(
+                [d],
+                fragment("coalesce((?->>?::text)::boolean, true) <> ?::boolean", d.extensions, ^key, ^enabled)
+              )
+              |> update([d],
+                set: [
+                  extensions: fragment("? || jsonb_build_object(?::text, ?::boolean)", d.extensions, ^key, ^enabled),
+                  updated_at: ^now
+                ]
+              )
+              |> Repo.update_all([])
+
+            if count > 0, do: ProductTemplates.audit_extension_set_for_devices(user, product, key, enabled, count)
+
+            {:ok, count}
+          end)
+
+        # Read now rather than trusted from the caller, whose copy may predate a
+        # change to the product's setting.
+        %Product{extensions: product_settings} = Repo.reload!(product)
+
+        if count > 0 and product_settings[extension] == true do
+          Extensions.broadcast_extension_event(product, if(enabled, do: "attach", else: "detach"), key)
+        end
+
+        {:ok, count}
+    end
+  end
+
   @spec clear_penalty_box_for_devices([Device.t()] | Ecto.Query.t(), User.t()) ::
           %{ok: [Device.t()], error: [{Ecto.Multi.name(), any()}]}
           | %{ok: non_neg_integer(), error: non_neg_integer()}
@@ -419,37 +527,39 @@ defmodule NervesHub.Devices.BulkActions do
     stream_processing(devices_query, {Updates, :clear_penalty_box, [user]})
   end
 
-  defp stream_processing(devices_query, fun, opts \\ []) do
-    stream = Repo.stream(devices_query)
+  # Applies `fun` to every device the query matches, each device committed on
+  # its own rather than the lot inside one transaction.
+  #
+  # The per-device functions tell the device's connection and the orchestrator
+  # about a change once their transaction commits, and both re-read the device
+  # when told. Inside an outer transaction that commit is only a join, so they
+  # would be told before the change was visible, read the old row, and act on it
+  # until the device next reconnected. Committing each device also means one
+  # that cannot be changed is counted as an error instead of aborting the rest.
+  #
+  # The ids are read up front, so the devices visited are the ones that matched
+  # when the action started, whatever the action does to the query's filters.
+  defp stream_processing(devices_query, fun) do
+    devices_query
+    |> exclude(:preload)
+    |> exclude(:order_by)
+    |> select([d], d.id)
+    |> Repo.all()
+    |> Stream.chunk_every(500)
+    |> Stream.flat_map(fn ids -> Repo.all(from(d in Device, where: d.id in ^ids)) end)
+    |> Stream.map(fn device ->
+      case fun do
+        {module, fun_name, args} ->
+          apply(module, fun_name, [device | args])
 
-    Repo.transact(
-      fn ->
-        stream
-        |> Stream.map(fn device ->
-          case fun do
-            {module, fun_name, args} ->
-              apply(module, fun_name, [device | args])
-
-            fun ->
-              fun.(device)
-          end
-        end)
-        |> Enum.reduce(%{ok: 0, error: 0}, fn
-          :ok, acc -> %{acc | ok: acc.ok + 1}
-          {:ok, _updated}, acc -> %{acc | ok: acc.ok + 1}
-          :error, acc -> %{acc | error: acc.error + 1}
-          {:error, _changeset}, acc -> %{acc | error: acc.error + 1}
-          {:error, _name, _changeset, _}, acc -> %{acc | error: acc.error + 1}
-        end)
-        |> then(fn res ->
-          if opts[:before_commit], do: opts[:before_commit].()
-          {:ok, res}
-        end)
-      end,
-      timeout: 60_000
-    )
-    |> case do
-      {:ok, res} -> res
-    end
+        fun ->
+          fun.(device)
+      end
+    end)
+    |> Enum.reduce(%{ok: 0, error: 0}, fn
+      {:ok, _updated}, acc -> %{acc | ok: acc.ok + 1}
+      {:error, _changeset}, acc -> %{acc | error: acc.error + 1}
+      {:error, _name, _changeset, _}, acc -> %{acc | error: acc.error + 1}
+    end)
   end
 end
