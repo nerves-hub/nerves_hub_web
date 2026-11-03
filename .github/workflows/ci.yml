@@ -296,3 +296,6 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+          # A cached layer would keep the packages from whenever it was built,
+          # because `apt-get upgrade` only runs when its layer does.
+          no-cache-filters: app

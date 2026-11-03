@@ -1,5 +1,20 @@
 # Changelog
 
+## Unreleased
+
+### Upgrading
+
+- **The Docker image no longer runs as root.** It runs as uid 65532 and can only write to `/app/tmp` and the system temp directory. Run it as root again with `--user 0` or your orchestrator's equivalent if you need time to make the changes below.
+  - A node that serves devices on the default `DEVICE_PORT` of 443 fails to boot with `:eacces` unless the container runtime allows unprivileged low ports, as Docker does. Elsewhere, set `DEVICE_PORT` to 1024 or above and map 443 to it.
+  - A `FIRMWARE_UPLOAD_PATH` volume written by an older image is owned by root. Run `chown -R 65532:65532` on it before upgrading.
+- **`SECRET_KEY_BASE` must be set.** The image used to set it to `nokey`, so a web node that was missing the variable booted and signed sessions with a known key. It now refuses to boot, and so does a one-off `bin/nerves_hub eval` on a node running the `all` or `web` role.
+- **Fewer tools in the image.** `unzip` and all setuid binaries, such as `su` and `mount`, are gone. Anything you run inside the container that relies on them needs another route.
+
+### Security
+
+- fwup in the Docker image is built with libarchive 3.8.11. fwup 1.17.1 pins 3.8.9, and 3.8.10 and 3.8.11 are security releases.
+- Each image build starts from the newest Ubuntu 26.04 snapshot and installs current packages. A cached layer could previously keep packages from an earlier build.
+
 ## v2.5.0
 
 NervesHub can now manage more than Nerves devices. Alongside fwup it accepts ESP-IDF application images, AtomVM packbeams and RAUC bundles, each behind its own setting. Deployment groups gain workflows for staged rollouts, required releases, and a mode where the device decides when to update. Devices can report metrics, alarms and errors through new extensions, and the device list has a query language for finding them. Organizations can send device and workflow events to webhooks, Slack, Microsoft Teams and Discord, and act on devices from Slack.

@@ -279,6 +279,17 @@ moment a consumer changed.
 - **Dependency Review** — read-only review of a PR's dependency changes;
   `pull_request` only, so it works for outside contributors.
 
+`.github/workflows/image-scan.yml` runs Trivy over the published image every day
+and fails on a fixable critical or high finding. It doesn't block pull requests.
+
+## Container image
+
+The runtime image runs as uid 65532, not root. The app can only write to
+`/app/tmp` and the system temp directory, so anything new that writes to disk has
+to use one of those. It can't bind a port below 1024 unless the container runtime
+allows it (see `DEVICE_PORT` in
+[docs/runtime_configuration.md](docs/runtime_configuration.md)).
+
 ## Working here as an agent
 
 - Read the actual code and trace call paths before changing anything; confirm
