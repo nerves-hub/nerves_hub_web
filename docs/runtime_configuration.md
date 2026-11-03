@@ -116,7 +116,7 @@ is how a device's own address survives the hop.
 | Variable | Default | Description |
 | --- | --- | --- |
 | `DEVICE_HOST` | `WEB_HOST`, then `HOST` | Hostname devices connect to, e.g. `device.mynerveshub.com`. Boot raises if none of the three is set. |
-| `DEVICE_PORT` | `443` | Port the device HTTPS listener binds to. |
+| `DEVICE_PORT` | `443` | Port the device HTTPS listener binds to. The Docker image runs as a non-root user, so the default only works where the container runtime sets `net.ipv4.ip_unprivileged_port_start` to allow it, as Docker does. Elsewhere the node fails to boot, so set a port of 1024 or above and map 443 to it. |
 | `DEVICE_SSL_KEY` | — | Base64-encoded private key. Written to `/app/tmp/ssl_key.crt` at boot. |
 | `DEVICE_SSL_KEYFILE` | `/etc/ssl/$DEVICE_HOST-key.pem` | Path to the private key, used when `DEVICE_SSL_KEY` is unset. Boot raises if the file does not exist, unless `DEVICE_TLS_FROM_CLUSTER` is true. |
 | `DEVICE_SSL_CERT` | — | Base64-encoded certificate. Written to `/app/tmp/ssl_cert.crt` at boot. |
@@ -259,7 +259,7 @@ environment.
 
 | Variable | Default | Description |
 | --- | --- | --- |
-| `FIRMWARE_UPLOAD_PATH` | — | Directory firmware and archives are written to. Must be on storage that persists across restarts, and shared between nodes if you run more than one. |
+| `FIRMWARE_UPLOAD_PATH` | — | Directory firmware and archives are written to. Must be on storage that persists across restarts, and shared between nodes if you run more than one. The Docker image runs as uid 65532, which has to be able to write here, so a volume written by an older image needs `chown -R 65532:65532`. |
 
 ### S3 backend
 
