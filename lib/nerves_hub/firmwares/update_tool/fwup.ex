@@ -239,8 +239,8 @@ defmodule NervesHub.Firmwares.UpdateTool.Fwup do
          :ok <- File.mkdir_p(output_work_dir),
          {:ok, %{size: source_size}} <- File.stat(source_path),
          {:ok, %{size: target_size}} <- File.stat(target_path),
-         {:ok, _} <- :zip.extract(to_charlist(source_path), cwd: to_charlist(source_work_dir)),
-         {:ok, _} <- :zip.extract(to_charlist(target_path), cwd: to_charlist(target_work_dir)),
+         {:ok, _} <- extract_archive(source_path, source_work_dir),
+         {:ok, _} <- extract_archive(target_path, target_work_dir),
          {:ok, source_meta_conf} <- File.read(Path.join(source_work_dir, "meta.conf")),
          {:ok, target_meta_conf} <- File.read(Path.join(target_work_dir, "meta.conf")),
          {:ok, tool_metadata} <- get_tool_metadata(Path.join(target_work_dir, "meta.conf")),
@@ -303,6 +303,21 @@ defmodule NervesHub.Firmwares.UpdateTool.Fwup do
         {false, :changes_in_delta} -> {:error, :no_changes_in_delta}
         {false, :delta_smaller} -> {:error, :delta_larger_than_target}
       end
+    end
+  end
+
+  # `:zip` reports a failed file operation along with the arguments it was
+  # called with, so a failed write carries the chunk of data being written.
+  # Inspecting that runs out of room long before the reason at the end, leaving
+  # logs and Sentry without the one part that says what went wrong (usually a
+  # full disk). Keep the file, relative to the work dir, and the reason.
+  defp extract_archive(archive_path, cwd) do
+    case :zip.extract(to_charlist(archive_path), cwd: to_charlist(cwd)) do
+      {:error, {path, {{:file, _operation, _args}, reason}}} ->
+        {:error, {:extract_failed, path |> to_string() |> Path.relative_to(Path.dirname(cwd)), reason}}
+
+      result ->
+        result
     end
   end
 
