@@ -42,6 +42,46 @@ orchestrators. `NERVES_HUB_APP` picks which supervision tree a node starts.
 | `NERVES_HUB_APP` | `all` | One of `all`, `web`, `device`. Any other value raises at boot. `all` runs both roles in one node, which is the usual choice for a self-hosted instance. |
 | `DEPLOY_ENV` | the Mix env | Free-form name for the deployment. Used as the Sentry environment name. |
 
+## Maintenance mode
+
+For taking the whole platform offline on purpose. Set `MAINTENANCE_MODE=true` on
+every node and restart them. Leave the rest of the environment as it is: it is
+still read at boot, it just isn't connected to anything. Unset the variable and
+restart to come back.
+
+A node in this mode starts only `NervesHubWeb.MaintenanceEndpoint`. It doesn't
+connect to PostgreSQL or ClickHouse, run migrations or background jobs, join the
+cluster, or start the deployment orchestrators.
+
+| Variable | Default | Description |
+| --- | --- | --- |
+| `MAINTENANCE_MODE` | `false` | Serve only the maintenance page. |
+| `STATUS_PAGE_URL` | — | Where the page and the API's error send people for progress. Without it, the link is left out. Anything not starting `https://` or `http://` raises at boot. |
+
+What each role listens on:
+
+| `NERVES_HUB_APP` | Port | Serves |
+| --- | --- | --- |
+| `all`, `web` | `HTTP_PORT`, then `PORT`, then `4000` | The maintenance page. |
+| `device` | `DEVICE_HOST_STATUS_PORT`, default `4040` | The same responses, on the port its health checks already use. |
+
+The device endpoint doesn't listen in any role, since its TLS handshake needs
+the database. Devices find it closed and keep retrying, and those connecting to
+the web host get a 503.
+
+What comes back, on every path and method:
+
+- `/status/alive` and the other health check paths return 200, without checking
+  the database. A load balancer would otherwise stop sending traffic to the node,
+  and nobody would see the page. Any alert or readiness check that relies on these
+  paths to detect a lost database can't while this is set.
+- `/api/*`, and any request whose `Accept` header mentions JSON, gets a 503 with
+  the API's error shape.
+- Everything else gets a 503 with the maintenance page, which needs nothing but
+  the node itself. It uses `FRIENDLY_PLATFORM_NAME` and `WEB_TITLE_SUFFIX`.
+
+Every 503 carries `Retry-After: 300`.
+
 ## Web endpoint
 
 Prod only. Configures `NervesHubWeb.Endpoint`, and is only read when
