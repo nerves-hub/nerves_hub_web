@@ -28,6 +28,25 @@ defmodule NervesHub.Application do
   require Logger
 
   def start(_type, _args) do
+    if Application.get_env(:nerves_hub, :maintenance_mode) do
+      start_maintenance_mode()
+    else
+      start_platform()
+    end
+  end
+
+  # The whole platform is down on purpose, usually because what it depends on is
+  # being worked on. So nothing here may reach for Postgres, ClickHouse or the rest
+  # of the cluster, or a node would crash at boot instead of showing the page.
+  defp start_maintenance_mode() do
+    _ = setup_logging()
+
+    Logger.warning("MAINTENANCE_MODE is set: serving only the maintenance page")
+
+    Supervisor.start_link([NervesHubWeb.MaintenanceEndpoint], strategy: :one_for_one, name: NervesHub.Supervisor)
+  end
+
+  defp start_platform() do
     case System.cmd("fwup", ["--version"], env: []) do
       {_, 0} ->
         Logger.debug("fwup was found")

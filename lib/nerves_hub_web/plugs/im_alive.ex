@@ -1,6 +1,9 @@
 defmodule NervesHubWeb.Plugs.ImAlive do
   @moduledoc """
   A simple plug to respond to health checks.
+
+  Reports on the database too, unless given `check_database: false` for a node
+  that has none connected.
   """
 
   @behaviour Plug
@@ -20,10 +23,14 @@ defmodule NervesHubWeb.Plugs.ImAlive do
 
   def init(config), do: config
 
-  def call(%{request_path: path} = conn, _) when path in @status_paths do
-    case SQL.query(NervesHub.Repo, "SELECT true", []) do
-      {:ok, _} -> send_result(conn, 200, "Hello, Friend!")
-      _result -> send_result(conn, 500, "Sorry, Friend :(")
+  def call(%{request_path: path} = conn, opts) when path in @status_paths do
+    if Keyword.get(opts, :check_database, true) do
+      case SQL.query(NervesHub.Repo, "SELECT true", []) do
+        {:ok, _} -> send_result(conn, 200, "Hello, Friend!")
+        _result -> send_result(conn, 500, "Sorry, Friend :(")
+      end
+    else
+      send_result(conn, 200, "Hello, Friend!")
     end
   end
 

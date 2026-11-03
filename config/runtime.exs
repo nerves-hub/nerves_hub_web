@@ -25,6 +25,40 @@ if !Enum.member?(["all", "web", "device"], nerves_hub_app) do
   """
 end
 
+# MAINTENANCE_MODE=true starts only NervesHubWeb.MaintenanceEndpoint, in place of
+# everything else NervesHub.Application would start. It listens where load
+# balancers and health checks already expect this role to answer. The device
+# endpoint stays closed: its TLS handshake looks devices up in the database.
+maintenance_mode = System.get_env("MAINTENANCE_MODE", "false") == "true"
+
+if maintenance_mode do
+  maintenance_port =
+    if nerves_hub_app == "device" do
+      System.get_env("DEVICE_HOST_STATUS_PORT", "4040")
+    else
+      System.get_env("HTTP_PORT") || System.get_env("PORT") || "4000"
+    end
+
+  config :nerves_hub, NervesHubWeb.MaintenanceEndpoint,
+    adapter: Bandit.PhoenixAdapter,
+    http: [port: String.to_integer(maintenance_port)],
+    server: true
+end
+
+status_page_url = System.get_env("STATUS_PAGE_URL")
+
+if status_page_url not in [nil, ""] and not String.starts_with?(status_page_url, ["https://", "http://"]) do
+  raise """
+  STATUS_PAGE_URL was set to #{inspect(status_page_url)}, and it has to start with
+  "https://" or "http://". Without one, the maintenance page's link would be read
+  as a path on this host, and lead straight back to the maintenance page.
+  """
+end
+
+config :nerves_hub,
+  maintenance_mode: maintenance_mode,
+  status_page_url: if(status_page_url != "", do: status_page_url)
+
 # Shared-session SSO, read at BOOT so it works in dev without
 # recompiling. SESSION_COOKIE_DOMAIN scopes the session cookie to a parent domain
 # (e.g. ".example.ngrok.io") so apps on a sibling subdomain can read it;
