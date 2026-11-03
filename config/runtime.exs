@@ -10,6 +10,7 @@ alias NervesHub.Integrations.Slack
 alias NervesHub.Repo
 alias NervesHub.Telemetry.FilteredSampler
 alias NervesHub.Types.Encrypted
+alias NervesHub.Workers.SentryFilter
 alias Sentry.OpenTelemetry.Sampler
 alias Sentry.OpenTelemetry.SpanProcessor
 alias Swoosh.Adapters.SMTP
@@ -799,6 +800,8 @@ config :sentry,
     oban: [
       # Capture errors:
       capture_errors: true,
+      # Report some workers' errors on their final attempt only
+      should_report_error_callback: &SentryFilter.report_error?/2,
       # Monitor cron jobs:
       cron: [enabled: true]
     ]
