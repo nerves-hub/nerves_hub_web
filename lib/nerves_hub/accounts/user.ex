@@ -6,6 +6,7 @@ defmodule NervesHub.Accounts.User do
 
   alias __MODULE__
   alias Ecto.Changeset
+  alias NervesHub.Accounts.EmailAddress
   alias NervesHub.Accounts.OrgUser
   alias NervesHub.Accounts.User.DisplayPreferences
   alias NervesHub.Accounts.UserToken
@@ -58,8 +59,8 @@ defmodule NervesHub.Accounts.User do
     |> password_validations()
     |> update_change(:name, &trim/1)
     |> validate_format(:name, ~r/^[a-zA-Z\'\- ]+$/, message: "has invalid character(s)")
+    |> validate_email(opts)
     |> validate_required(@required_params)
-    |> unique_constraint(:email)
   end
 
   def registration_changeset(user, attrs, opts \\ []) do
@@ -139,6 +140,7 @@ defmodule NervesHub.Accounts.User do
     changeset
     |> validate_required([:email])
     |> validate_format(:email, ~r/^[^\s]+@[^\s]+$/, message: "must have the @ sign and no spaces")
+    |> EmailAddress.validate(:email)
     |> validate_length(:email, max: 160)
     |> unique_constraint(:email)
   end
