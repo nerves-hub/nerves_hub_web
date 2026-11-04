@@ -229,23 +229,21 @@ defmodule NervesHub.DeviceLink do
 
   defp do_device_message(session, "rebooting", _payload), do: {session, []}
 
-  defp do_device_message(session, "scripts/run", %{
-         "ref" => "connecting_code",
-         "result" => result,
-         "return" => return,
-         "output" => output
-       })
-       when result == "error" or return == "nil" do
-    :telemetry.execute([:nerves_hub, :devices, :connecting_code_failure], %{
-      output: output,
-      identifier: session.device_info.device_identifier
-    })
+  # How the connecting code pushed after the device joined went.
+  defp do_device_message(session, "scripts/run", %{"ref" => "connecting_code"} = payload) do
+    case connecting_code_outcome(payload) do
+      :ok ->
+        :telemetry.execute([:nerves_hub, :devices, :connecting_code_success], %{count: 1})
 
-    {session, []}
-  end
+      {:error, reason} ->
+        :telemetry.execute([:nerves_hub, :devices, :connecting_code_failure], %{count: 1}, %{
+          identifier: session.device_info.device_identifier,
+          output: payload["output"]
+        })
 
-  defp do_device_message(session, "scripts/run", %{"ref" => "connecting_code"}) do
-    :telemetry.execute([:nerves_hub, :devices, :connecting_code_success], %{count: 1})
+        :ok = notify_connecting_code_failure(session.device_info, reason)
+    end
+
     {session, []}
   end
 
@@ -312,7 +310,7 @@ defmodule NervesHub.DeviceLink do
 
     effects =
       session.device_info
-      |> fetch_connecting_code()
+      |> connecting_code_text()
       |> connecting_code_effects(session)
 
     {session, effects ++ current_update_mode_effects(session)}
@@ -419,11 +417,17 @@ defmodule NervesHub.DeviceLink do
   defp deployment_topic(%{deployment_id: nil}), do: nil
   defp deployment_topic(%{deployment_id: id}), do: "deployment:#{id}"
 
+  # The connecting code as one script, the way the device is sent it.
+  defp connecting_code_text(device_info) do
+    case fetch_connecting_code(device_info) do
+      nil -> nil
+      connecting_code -> Enum.join(connecting_code, "\n")
+    end
+  end
+
   defp connecting_code_effects(nil, _session), do: []
 
-  defp connecting_code_effects(connecting_code, session) when is_list(connecting_code) do
-    connecting_code = Enum.join(connecting_code, "\n")
-
+  defp connecting_code_effects(connecting_code, session) do
     if safe_to_run_scripts?(session) do
       # connecting code first in the case it attempts to change things before the other messages
       [{:push, "scripts/run", %{"text" => connecting_code, "ref" => "connecting_code"}}]
@@ -433,6 +437,58 @@ defmodule NervesHub.DeviceLink do
       :ok = Consoles.PubSub.broadcast_to_console(session.device_info.device_id, "dn", %{"data" => text})
 
       []
+    end
+  end
+
+  # Clients report a failure in different ways. nerves_hub_link answers a
+  # timeout or a crashed task with `"result" => "error"`, and so does the Linux
+  # agent for a non-zero exit. But nerves_hub_link runs the code with
+  # `Code.eval_string/1` and catches whatever it raises, throws or exits with,
+  # answering with a `nil` return and the exception's banner appended to the
+  # output. A `nil` return on its own is fine (code that ends in an `if` with no
+  # `else` returns one), so the banner is what tells the two apart.
+  #
+  # nerves_hub_link releases before `"result"` existed never report a failure.
+  defp connecting_code_outcome(%{"result" => "error"} = payload) do
+    {:error, connecting_code_failure_reason(payload)}
+  end
+
+  defp connecting_code_outcome(%{"return" => "nil", "output" => output}) when is_binary(output) do
+    # Exits from a `GenServer.call` carry a nested `** (EXIT)`, but indented, so
+    # splitting on an unindented one finds only the banner.
+    case String.split(output, "\n** (") do
+      [_no_exception] -> :ok
+      parts -> {:error, "** (" <> List.last(parts)}
+    end
+  end
+
+  defp connecting_code_outcome(_payload), do: :ok
+
+  # What the device printed, after the return value when there is one worth
+  # reading, such as the Linux agent's "exited with status 1".
+  defp connecting_code_failure_reason(payload) do
+    [payload["return"], payload["output"]]
+    |> Enum.filter(&is_binary/1)
+    |> Enum.map(&String.trim/1)
+    |> Enum.reject(&(&1 in ["", "nil"]))
+    |> case do
+      [] -> nil
+      parts -> Enum.join(parts, ": ")
+    end
+  end
+
+  # The device answers with how its code went, not with the code, so the code
+  # is read again to key the notification on. That is what it was sent, unless
+  # someone edited it in the seconds since; code that has been removed in that
+  # time leaves nothing to fix, and nothing to notify about.
+  defp notify_connecting_code_failure(device_info, reason) do
+    case connecting_code_text(device_info) do
+      nil ->
+        :ok
+
+      connecting_code ->
+        _ = ProductNotifications.create_connecting_code_failure_notification!(device_info, connecting_code, reason)
+        :ok
     end
   end
 
