@@ -12,11 +12,11 @@
 
 ### Added
 
-- Nodes can find each other over DNS (`CLUSTER_STRATEGY=dns`), such as a Kubernetes headless Service, instead of Postgres `LISTEN/NOTIFY`. Postgres stays the default, and both can run at once while a cluster moves over. See Clustering in `docs/runtime_configuration.md`.
+- Nodes can find each other over DNS (`CLUSTER_STRATEGY=dns`), such as a Kubernetes headless Service, instead of Postgres `LISTEN/NOTIFY`. Postgres stays the default, and both can run at once while a cluster moves over. See Clustering in `docs/runtime_configuration.md`. (#3228)
 
 ### Dependencies
 
-- **libcluster**: 3.5.0 -> 3.6.0
+- **libcluster**: 3.5.0 -> 3.6.0 (#3228)
 
 ### Security
 
