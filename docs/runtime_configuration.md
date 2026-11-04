@@ -219,6 +219,133 @@ environment.
 | `DATABASE_INET6` | `false` | Connect over IPv6. |
 | `DATABASE_AUTO_MIGRATOR` | `true` | Run pending Postgres migrations on boot. |
 
+## Clustering
+
+Every node joins one Erlang cluster: web and device nodes, and any other
+application that works alongside NervesHub. A single node needs none of this.
+Each node needs a name, the cluster's shared cookie, and a way to find the other
+nodes.
+
+### Node names and the cookie
+
+The release's start script ([`rel/env.sh.eex`](../rel/env.sh.eex)) reads these,
+not `config/runtime.exs`. A node is named `$APP_NAME@<address>`. Without
+`APP_NAME` and an address, it starts without distribution and joins no cluster.
+
+| Variable | Default | Description |
+| --- | --- | --- |
+| `APP_NAME` | — | The node's basename, shared by the nodes of one deployment, such as `nerves-hub-web` for web nodes and `nerves-hub-device` for device nodes. |
+| `PRIVATE_IP` | — | The address other nodes reach this one at. |
+| `POD_IP` | — | Used when `PRIVATE_IP` is unset. On Kubernetes, set it from the downward API (`status.podIP`). |
+| `RELEASE_COOKIE` | random, fixed when the release is built | The shared secret that lets nodes connect. Every node built from the same image shares the default. Set it when something built separately, such as another application, joins the cluster. |
+
+Anything holding the cookie can run code on every node, and Erlang distribution
+traffic isn't encrypted. Keep it on a private network, or one with an encrypted
+overlay.
+
+### Finding the other nodes
+
+| Variable | Default | Description |
+| --- | --- | --- |
+| `CLUSTER_STRATEGY` | `postgres` | `postgres`, `dns`, or `postgres,dns` to run both. Any other value raises at boot. |
+| `DNS_CLUSTER_QUERY` | — | Names to look up, comma separated, when `CLUSTER_STRATEGY` includes `dns`. An entry is a name, such as `nerves-hub.internal`, or `basename@name` for nodes whose basename differs from this node's. Boot raises if `dns` is chosen without it, if it is set without `dns`, or if an entry is malformed. |
+
+Neither strategy disconnects a node because discovery stopped seeing it. A node
+leaves the cluster when it stops or when Erlang distribution loses it. A node
+that is shutting down still needs the cluster: it hands its deployment
+orchestrators to another node, and keeps serving devices while it drains their
+connections.
+
+#### Postgres
+
+The default, and the one to start with. Every 5 seconds, each node announces its
+name with `NOTIFY` on the channel `nerves_hub_clustering`, using the
+[database](#database) settings, and connects to every name it hears. Nodes with
+different basenames find each other without being told about them, and another
+application joins by listening on the same channel.
+
+Each node holds two extra database connections for this. `LISTEN` doesn't work
+through a connection pooler in transaction mode, such as PgBouncer, so
+`DATABASE_URL` must reach Postgres directly. If it can't, use DNS.
+
+#### DNS
+
+Every 5 seconds, each node looks up the names in `DNS_CLUSTER_QUERY` and
+connects to `basename@address` for each IPv4 and IPv6 address it gets back. The
+basename comes from the entry, or is this node's own. This suits a platform that
+keeps a name resolving to every node:
+
+- **Kubernetes**: a headless Service for each deployment.
+- **Fly.io**: `<app>.internal`, which resolves to every running Machine in the
+  app.
+
+Names are looked up exactly as written, without the search domains in
+`/etc/resolv.conf`, so on Kubernetes use the Service's full name.
+
+On Kubernetes, give each deployment a headless Service of its own. Keep it
+separate from the Service that routes traffic, which shouldn't send requests to
+pods that aren't ready:
+
+```yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: nerves-hub-web-cluster
+  namespace: nerves-hub
+spec:
+  clusterIP: None
+  # Starting and terminating pods stay in DNS, so a node is found before it is
+  # ready and kept while it shuts down.
+  publishNotReadyAddresses: true
+  selector:
+    app: nerves-hub-web
+  ports:
+    - name: epmd
+      port: 4369
+```
+
+and set, on the pods:
+
+```yaml
+env:
+  - name: APP_NAME
+    value: nerves-hub-web
+  - name: POD_IP
+    valueFrom:
+      fieldRef:
+        fieldPath: status.podIP
+  - name: CLUSTER_STRATEGY
+    value: dns
+  - name: DNS_CLUSTER_QUERY
+    value: nerves-hub-web-cluster.nerves-hub.svc.cluster.local
+```
+
+When deployments have different basenames, list each one on every node, with
+its basename:
+
+```
+DNS_CLUSTER_QUERY=nerves-hub-web@nerves-hub-web-cluster.nerves-hub.svc.cluster.local,nerves-hub-device@nerves-hub-device-cluster.nerves-hub.svc.cluster.local
+```
+
+A hidden node (one started with `-hidden`) is only connected to the nodes it
+finds itself, not to the nodes they're connected to. So list every deployment it
+needs to reach.
+
+#### Moving from Postgres to DNS
+
+Run both while the cluster moves over, so that no node loses sight of the rest:
+
+1. Create the DNS names, then deploy every node with `CLUSTER_STRATEGY=postgres,dns`
+   and `DNS_CLUSTER_QUERY`. Nodes still on Postgres alone find the new ones over
+   Postgres.
+2. Check that every node lists the others: `Node.list()` (and
+   `Node.list(:hidden)` for hidden nodes) from a remote console.
+3. Deploy with `CLUSTER_STRATEGY=dns`. Nodes from step 1 and step 3 find each
+   other over DNS.
+
+Every application in the cluster has to finish step 1 before any of them takes
+step 3. A node that only uses Postgres can't find one that only uses DNS.
+
 ## Analytics (ClickHouse)
 
 Prod only. Analytics — device connection history, metric history, error

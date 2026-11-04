@@ -41,6 +41,9 @@ Key runtime pieces:
 - **Background jobs** — Oban (`lib/nerves_hub/workers/`).
 - **Deployment orchestration** — one singleton `Orchestrator` process per
   deployment group, owned by ProcessHub (`NervesHub.ManagedDeployments.Distributed`).
+- **Node discovery** — libcluster topologies from `NervesHub.Clustering`:
+  Postgres `LISTEN/NOTIFY` by default, or DNS (`CLUSTER_STRATEGY`). See
+  [Clustering](docs/runtime_configuration.md#clustering).
 - **Presence/liveness** — `NervesHub.Tracker` + Phoenix Presence.
 - **Cross-node messaging** — two transports. `Phoenix.PubSub` for dense
   fan-out, and the `group` library for per-entity topics whose consumers are
@@ -141,7 +144,7 @@ when adding or removing one.
   [docs/discord.md](docs/discord.md).
 - `scripts.ex` / `scripts/` — support scripts run against a device console.
 - `workers/` — Oban workers (e.g. firmware delta building, firmware deletion).
-- Cross-cutting: `audit_logs.ex`, `product_notifications.ex`, `tracker.ex`,
+- Cross-cutting: `audit_logs.ex`, `clustering.ex`, `product_notifications.ex`, `tracker.ex`,
   `rate_limit.ex`, `cli_session_cache.ex`, `device_link.ex`, `repo.ex`,
   `analytics_repo.ex`, `application.ex`.
 
