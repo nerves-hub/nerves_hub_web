@@ -416,6 +416,15 @@ defmodule NervesHub.AccountsTest do
       assert Repo.reload(invite).accepted
     end
 
+    test "an address the mailer can't send to can't be invited", %{user: user} do
+      org = Fixtures.org_fixture(user)
+
+      assert {:error, changeset} =
+               Accounts.invite(%{"email" => "jane..doe@example.com", "role" => "view"}, org, user)
+
+      assert errors_on(changeset).email == ["is not a valid email address"]
+    end
+
     test "an invite can only be accepted by the user it was sent to", %{user: user} do
       org = Fixtures.org_fixture(user)
       someone_else = Fixtures.user_fixture()
