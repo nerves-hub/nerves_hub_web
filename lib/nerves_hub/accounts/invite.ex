@@ -4,6 +4,7 @@ defmodule NervesHub.Accounts.Invite do
   import Ecto.Changeset
 
   alias __MODULE__
+  alias NervesHub.Accounts.EmailAddress
   alias NervesHub.Accounts.Org
   alias NervesHub.Accounts.OrgUser
   alias NervesHub.Accounts.User
@@ -27,5 +28,6 @@ defmodule NervesHub.Accounts.Invite do
     invite
     |> cast(params, [:email, :token, :org_id, :accepted, :declined_at, :role, :invited_by_id])
     |> validate_required([:email, :token, :org_id, :role, :invited_by_id])
+    |> EmailAddress.validate(:email)
   end
 end

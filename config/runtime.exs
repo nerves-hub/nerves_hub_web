@@ -549,7 +549,7 @@ if config_env() == :prod do
 end
 
 ##
-# Database and Libcluster connection settings
+# Database connection settings, which Postgres clustering connects with too
 #
 
 database_ssl_opts =
@@ -599,6 +599,76 @@ if config_env() == :prod do
   config :nerves_hub,
     database_auto_migrator: System.get_env("DATABASE_AUTO_MIGRATOR", "true") == "true"
 end
+
+##
+# Clustering
+#
+# How nodes find each other. NervesHub.Clustering turns this into libcluster
+# topologies; "Clustering" in docs/runtime_configuration.md covers the choice.
+# Read in every environment, so dev can try DNS discovery too.
+#
+
+cluster_strategies =
+  "CLUSTER_STRATEGY"
+  |> System.get_env("")
+  |> String.split(",", trim: true)
+  |> Enum.map(&String.trim/1)
+  |> Enum.reject(&(&1 == ""))
+  |> Enum.uniq()
+  |> case do
+    [] -> ["postgres"]
+    strategies -> strategies
+  end
+
+if cluster_strategies -- ["postgres", "dns"] != [] do
+  raise """
+  CLUSTER_STRATEGY was set to #{inspect(System.get_env("CLUSTER_STRATEGY"))}, and the
+  supported values are "postgres", "dns", or "postgres,dns" to run both at once.
+  """
+end
+
+# Comma separated. Each entry is a name to look up, which connects to nodes with
+# this node's basename, or basename@name for nodes with another basename.
+dns_cluster_queries =
+  "DNS_CLUSTER_QUERY"
+  |> System.get_env("")
+  |> String.split(",", trim: true)
+  |> Enum.map(&String.trim/1)
+  |> Enum.reject(&(&1 == ""))
+  |> Enum.map(fn entry ->
+    case String.split(entry, "@") do
+      [hostname] ->
+        {nil, hostname}
+
+      [basename, hostname] when basename != "" and hostname != "" ->
+        {basename, hostname}
+
+      _ ->
+        raise """
+        DNS_CLUSTER_QUERY has the entry #{inspect(entry)}, which should be a name to
+        look up, such as "nerves-hub.internal", or basename@name for nodes whose
+        basename differs from this one's, such as "nerves-hub-device@nerves-hub-device.internal".
+        """
+    end
+  end)
+
+if "dns" in cluster_strategies and dns_cluster_queries == [] do
+  raise """
+  CLUSTER_STRATEGY includes "dns", so DNS_CLUSTER_QUERY has to say which names to
+  look up for the other nodes.
+  """
+end
+
+if "dns" not in cluster_strategies and dns_cluster_queries != [] do
+  raise """
+  DNS_CLUSTER_QUERY is set, but CLUSTER_STRATEGY doesn't include "dns", so it would
+  be ignored. Set CLUSTER_STRATEGY=dns, or postgres,dns to run both at once.
+  """
+end
+
+config :nerves_hub, NervesHub.Clustering,
+  strategies: Enum.map(cluster_strategies, &String.to_atom/1),
+  dns_queries: dns_cluster_queries
 
 if config_env() == :prod do
   if clickhouse_url = System.get_env("CLICKHOUSE_URL") do
