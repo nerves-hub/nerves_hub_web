@@ -10,6 +10,14 @@
 - **`SECRET_KEY_BASE` must be set.** The image used to set it to `nokey`, so a web node that was missing the variable booted and signed sessions with a known key. It now refuses to boot, and so does a one-off `bin/nerves_hub eval` on a node running the `all` or `web` role. (#3224)
 - **Fewer tools in the image.** `unzip` and all setuid binaries, such as `su` and `mount`, are gone. Anything you run inside the container that relies on them needs another route. (#3224)
 
+### Added
+
+- Nodes can find each other over DNS (`CLUSTER_STRATEGY=dns`), such as a Kubernetes headless Service, instead of Postgres `LISTEN/NOTIFY`. Postgres stays the default, and both can run at once while a cluster moves over. See Clustering in `docs/runtime_configuration.md`.
+
+### Dependencies
+
+- **libcluster**: 3.5.0 -> 3.6.0
+
 ### Security
 
 - fwup in the Docker image is built with libarchive 3.8.11. fwup 1.17.1 pins 3.8.9, and 3.8.10 and 3.8.11 are security releases. (#3224)

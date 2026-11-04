@@ -82,7 +82,7 @@ defmodule NervesHub.Application do
           # increments into this storage the moment it joins its group.
           {PlugAttackEts, name: PlugAttackStorage, clean_period: 60_000},
           NervesHub.GroupSupervisor,
-          {Cluster.Supervisor, [libcluster_topology()]},
+          {Cluster.Supervisor, [NervesHub.Clustering.topologies()]},
           {Task.Supervisor, name: NervesHub.TaskSupervisor},
           {Oban, oban_opts()},
           NervesHubWeb.Presence,
@@ -153,21 +153,6 @@ defmodule NervesHub.Application do
   def config_change(changed, _new, removed) do
     NervesHubWeb.Endpoint.config_change(changed, removed)
     :ok
-  end
-
-  defp libcluster_topology() do
-    repo_config =
-      NervesHub.Repo.config()
-      |> Keyword.take([:hostname, :username, :password, :database, :port, :ssl])
-      |> Keyword.put(:parameters, [])
-      |> Keyword.put(:channel_name, "nerves_hub_clustering")
-
-    [
-      app: [
-        strategy: LibclusterPostgres.Strategy,
-        config: repo_config
-      ]
-    ]
   end
 
   defp oban_opts() do
