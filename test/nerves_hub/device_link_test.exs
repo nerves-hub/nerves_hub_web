@@ -2,6 +2,8 @@ defmodule NervesHub.DeviceLinkTest do
   use NervesHub.DataCase, async: true
   use Mimic
 
+  import ExUnit.CaptureLog
+
   alias NervesHub.AuditLogs.AuditLog
   alias NervesHub.Consoles
   alias NervesHub.DeviceLink
@@ -14,6 +16,7 @@ defmodule NervesHub.DeviceLinkTest do
   alias NervesHub.FirmwareUpdates
   alias NervesHub.Fixtures
   alias NervesHub.ManagedDeployments
+  alias NervesHub.ProductNotifications
   alias NervesHub.Products.Notification
   alias NervesHub.Repo
   alias Phoenix.Socket.Broadcast
@@ -560,6 +563,33 @@ defmodule NervesHub.DeviceLinkTest do
       assert_receive {:telemetry, [:nerves_hub, :devices, :connecting_code_failure], _}
       assert [notification] = Repo.all(Notification)
       assert notification.metadata["reason"] == "** (RuntimeError) boom"
+    end
+
+    # Releases from before `"result"` existed send the same answer without it.
+    test "code that raised on an older nerves_hub_link is a failure", %{session: session} do
+      payload = %{"ref" => "connecting_code", "return" => "nil", "output" => "\n** (RuntimeError) boom"}
+
+      _ = DeviceLink.device_message(session, "scripts/run", payload)
+
+      assert_receive {:telemetry, [:nerves_hub, :devices, :connecting_code_failure], _}
+      assert [notification] = Repo.all(Notification)
+      assert notification.metadata["reason"] == "** (RuntimeError) boom"
+    end
+
+    test "a notification that cannot be written does not raise", %{session: session} do
+      stub(ProductNotifications, :create_connecting_code_failure_notification!, fn _device_info, _code, _reason ->
+        raise DBConnection.ConnectionError, "connection not available"
+      end)
+
+      payload = %{"ref" => "connecting_code", "result" => "error", "return" => "", "output" => "boom"}
+
+      log =
+        capture_log(fn ->
+          assert {_session, []} = DeviceLink.device_message(session, "scripts/run", payload)
+        end)
+
+      assert log =~ "Could not record the connecting code failure"
+      assert log =~ "connection not available"
     end
 
     test "code that returned nil without raising succeeded", %{session: session} do

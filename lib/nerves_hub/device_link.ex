@@ -25,6 +25,7 @@ defmodule NervesHub.DeviceLink do
   alias NervesHub.Firmwares.UpdateTool
   alias NervesHub.Firmwares.UpdateTool.Fwup
   alias NervesHub.FirmwareUpdates
+  alias NervesHub.Helpers.Logging
   alias NervesHub.ManagedDeployments
   alias NervesHub.ProductNotifications
   alias NervesHub.Repo
@@ -448,7 +449,10 @@ defmodule NervesHub.DeviceLink do
   # output. A `nil` return on its own is fine (code that ends in an `if` with no
   # `else` returns one), so the banner is what tells the two apart.
   #
-  # nerves_hub_link releases before `"result"` existed never report a failure.
+  # nerves_hub_link releases from before `"result"` existed answer code that
+  # raised the same way, without the key, so the banner catches it for them too.
+  # They had no timeout, though: code that hangs on one is never answered, so it
+  # is never reported.
   defp connecting_code_outcome(%{"result" => "error"} = payload) do
     {:error, connecting_code_failure_reason(payload)}
   end
@@ -481,6 +485,10 @@ defmodule NervesHub.DeviceLink do
   # is read again to key the notification on. That is what it was sent, unless
   # someone edited it in the seconds since; code that has been removed in that
   # time leaves nothing to fix, and nothing to notify about.
+  #
+  # A notification that cannot be written is logged and dropped. Raising would
+  # take the device's connection down with it, and the device would reconnect,
+  # be sent the same code, and fail the same way.
   defp notify_connecting_code_failure(device_info, reason) do
     case connecting_code_text(device_info) do
       nil ->
@@ -490,6 +498,13 @@ defmodule NervesHub.DeviceLink do
         _ = ProductNotifications.create_connecting_code_failure_notification!(device_info, connecting_code, reason)
         :ok
     end
+  rescue
+    error ->
+      Logger.warning(
+        "Could not record the connecting code failure of #{device_info.device_identifier} - #{inspect(error)}"
+      )
+
+      Logging.log_to_sentry(device_info, error)
   end
 
   defp safe_to_run_scripts?(session), do: Version.match?(session.device_api_version, ">= 2.1.0")
