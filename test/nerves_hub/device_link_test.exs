@@ -2,6 +2,8 @@ defmodule NervesHub.DeviceLinkTest do
   use NervesHub.DataCase, async: true
   use Mimic
 
+  import ExUnit.CaptureLog
+
   alias NervesHub.AuditLogs.AuditLog
   alias NervesHub.Consoles
   alias NervesHub.DeviceLink
@@ -13,6 +15,9 @@ defmodule NervesHub.DeviceLinkTest do
   alias NervesHub.Devices.InflightUpdate
   alias NervesHub.FirmwareUpdates
   alias NervesHub.Fixtures
+  alias NervesHub.ManagedDeployments
+  alias NervesHub.ProductNotifications
+  alias NervesHub.Products.Notification
   alias NervesHub.Repo
   alias Phoenix.Socket.Broadcast
 
@@ -483,6 +488,150 @@ defmodule NervesHub.DeviceLinkTest do
 
       assert [{:push, "scripts/run", %{"text" => ~s/dbg("boo")/}}] = effects
       refute_receive %Broadcast{event: "dn"}, 200
+    end
+  end
+
+  describe "device_message/3 answering the connecting code" do
+    setup %{device: device} do
+      {:ok, device} = Devices.update_device(device, %{connecting_code: ~s/raise "boom"/})
+
+      test_pid = self()
+      handler_id = {__MODULE__, make_ref()}
+
+      :ok =
+        :telemetry.attach_many(
+          handler_id,
+          [
+            [:nerves_hub, :devices, :connecting_code_failure],
+            [:nerves_hub, :devices, :connecting_code_success]
+          ],
+          fn event, _measurements, metadata, _config -> send(test_pid, {:telemetry, event, metadata}) end,
+          nil
+        )
+
+      on_exit(fn -> :telemetry.detach(handler_id) end)
+
+      %{device: device, session: %Session{device_info: to_device_info(device), device_api_version: "2.1.0"}}
+    end
+
+    test "a script nerves_hub_link could not run raises a notification", %{device: device, session: session} do
+      payload = %{
+        "ref" => "connecting_code",
+        "result" => "error",
+        "reason" => "timeout",
+        "output" => "Error running script: timeout exceeded",
+        "return" => ""
+      }
+
+      assert {_session, []} = DeviceLink.device_message(session, "scripts/run", payload)
+
+      identifier = device.identifier
+
+      assert_receive {:telemetry, [:nerves_hub, :devices, :connecting_code_failure],
+                      %{identifier: ^identifier, output: "Error running script: timeout exceeded"}}
+
+      assert [notification] = Repo.all(Notification)
+      assert notification.product_id == device.product_id
+      assert notification.metadata["reason"] == "Error running script: timeout exceeded"
+    end
+
+    test "a non-zero exit from the Linux agent raises a notification with the status", %{session: session} do
+      payload = %{
+        "ref" => "connecting_code",
+        "result" => "error",
+        "return" => "exited with status 127",
+        "output" => "sh: frobnicate: not found\n"
+      }
+
+      _ = DeviceLink.device_message(session, "scripts/run", payload)
+
+      assert [notification] = Repo.all(Notification)
+      assert notification.metadata["reason"] == "exited with status 127: sh: frobnicate: not found"
+    end
+
+    # nerves_hub_link catches the exception and reports the run as completed.
+    test "code that raised is a failure, reported by its exception", %{session: session} do
+      payload = %{
+        "ref" => "connecting_code",
+        "result" => "completed",
+        "return" => "nil",
+        "output" => "starting\n\n** (RuntimeError) boom"
+      }
+
+      _ = DeviceLink.device_message(session, "scripts/run", payload)
+
+      assert_receive {:telemetry, [:nerves_hub, :devices, :connecting_code_failure], _}
+      assert [notification] = Repo.all(Notification)
+      assert notification.metadata["reason"] == "** (RuntimeError) boom"
+    end
+
+    # Releases from before `"result"` existed send the same answer without it.
+    test "code that raised on an older nerves_hub_link is a failure", %{session: session} do
+      payload = %{"ref" => "connecting_code", "return" => "nil", "output" => "\n** (RuntimeError) boom"}
+
+      _ = DeviceLink.device_message(session, "scripts/run", payload)
+
+      assert_receive {:telemetry, [:nerves_hub, :devices, :connecting_code_failure], _}
+      assert [notification] = Repo.all(Notification)
+      assert notification.metadata["reason"] == "** (RuntimeError) boom"
+    end
+
+    test "a notification that cannot be written does not raise", %{session: session} do
+      stub(ProductNotifications, :create_connecting_code_failure_notification!, fn _device_info, _code, _reason ->
+        raise DBConnection.ConnectionError, "connection not available"
+      end)
+
+      payload = %{"ref" => "connecting_code", "result" => "error", "return" => "", "output" => "boom"}
+
+      log =
+        capture_log(fn ->
+          assert {_session, []} = DeviceLink.device_message(session, "scripts/run", payload)
+        end)
+
+      assert log =~ "Could not record the connecting code failure"
+      assert log =~ "connection not available"
+    end
+
+    test "code that returned nil without raising succeeded", %{session: session} do
+      payload = %{"ref" => "connecting_code", "result" => "completed", "return" => "nil", "output" => "hello\n"}
+
+      _ = DeviceLink.device_message(session, "scripts/run", payload)
+
+      assert_receive {:telemetry, [:nerves_hub, :devices, :connecting_code_success], _}
+      assert Repo.all(Notification) == []
+    end
+
+    test "code that has been removed since it was sent raises no notification", %{device: device, session: session} do
+      {:ok, _device} = Devices.update_device(device, %{connecting_code: nil})
+
+      payload = %{"ref" => "connecting_code", "result" => "error", "return" => "", "output" => "boom"}
+      _ = DeviceLink.device_message(session, "scripts/run", payload)
+
+      assert_receive {:telemetry, [:nerves_hub, :devices, :connecting_code_failure], _}
+      assert Repo.all(Notification) == []
+    end
+
+    test "devices failing on their deployment group's code share one notification", %{
+      user: user,
+      org: org,
+      product: product,
+      firmware: firmware,
+      deployment_group: deployment_group
+    } do
+      {:ok, deployment_group} =
+        ManagedDeployments.update_deployment_group(deployment_group, %{connecting_code: ~s/raise "group"/}, user)
+
+      payload = %{"ref" => "connecting_code", "result" => "error", "return" => "", "output" => "boom"}
+
+      for _ <- 1..2 do
+        device = Fixtures.device_fixture(org, product, firmware, %{deployment_id: deployment_group.id})
+        session = %Session{device_info: to_device_info(device), device_api_version: "2.1.0"}
+
+        _ = DeviceLink.device_message(session, "scripts/run", payload)
+      end
+
+      assert [notification] = Repo.all(Notification)
+      assert notification.occurrence_count == 2
     end
   end
 
