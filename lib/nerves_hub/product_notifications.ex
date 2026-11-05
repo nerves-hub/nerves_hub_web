@@ -297,6 +297,41 @@ defmodule NervesHub.ProductNotifications do
   end
 
   @doc """
+  A device could not run the connecting code it was sent when it connected.
+
+  Raised because nothing else shows it. The device stays connected and nothing
+  on its page changes, so before this the only trace was a log line.
+
+  Connecting code is usually set on a deployment group, so code that is wrong
+  fails on every device in the group, every time one connects. That is why this
+  is deduplicated on `connecting_code`, the code as the device was sent it,
+  rather than on the device. A whole group failing on the same code makes one
+  notification, named for the first device to fail, with every later failure in
+  its count. Code that is changed and fails again makes a new notification
+  carrying the new reason. The conflict clause in `insert_and_notify!/1` would
+  keep the old one.
+  """
+  @spec create_connecting_code_failure_notification!(DeviceInfo.t(), String.t(), String.t() | nil) ::
+          Notification.t()
+  def create_connecting_code_failure_notification!(%DeviceInfo{} = device_info, connecting_code, reason) do
+    reason = truncate_reason(reason)
+
+    %Product{id: device_info.product_id}
+    |> Notification.new_changeset(%{
+      title: "A device could not run its connecting code.",
+      message:
+        "The device with the identifier '#{device_info.device_identifier}' could not run the " <>
+          "connecting code it was sent when it connected#{reason_clause(reason)}. A device's connecting " <>
+          "code combines its own, its deployment group's and its release's. Every device sent the " <>
+          "same code adds to this notification's count.",
+      level: :warning,
+      metadata: %{identifier: device_info.device_identifier, reason: reason},
+      event_key: "connecting_code_failure-#{:erlang.phash2(connecting_code)}"
+    })
+    |> insert_and_notify!()
+  end
+
+  @doc """
   A device reported more metrics in one report than will be stored.
 
   The report is kept, trimmed to the first `max_keys` names in sorted order --
