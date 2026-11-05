@@ -1,6 +1,8 @@
 # Changelog
 
-## Unreleased
+## v2.5.1
+
+Device nodes can renew their TLS certificate without a restart, nodes can find each other over DNS, and `MAINTENANCE_MODE` takes the whole platform offline behind a maintenance page. A device whose connecting code fails now raises a product notification. The Docker image no longer runs as root and no longer sets a default `SECRET_KEY_BASE`. Read Upgrading before deploying, because either change can stop a node booting.
 
 ### Upgrading
 
@@ -9,19 +11,61 @@
   - A `FIRMWARE_UPLOAD_PATH` volume written by an older image is owned by root. Run `chown -R 65532:65532` on it before upgrading.
 - **`SECRET_KEY_BASE` must be set.** The image used to set it to `nokey`, so a web node that was missing the variable booted and signed sessions with a known key. It now refuses to boot, and so does a one-off `bin/nerves_hub eval` on a node running the `all` or `web` role. (#3224)
 - **Fewer tools in the image.** `unzip` and all setuid binaries, such as `su` and `mount`, are gone. Anything you run inside the container that relies on them needs another route. (#3224)
+- **One migration runs outside a transaction.** It builds four indexes concurrently, two of them on `devices`, which doesn't block writes but can take a while on a large table. If it stops partway, for example because the node was killed during boot, it can be run again. First drop any index it was building with `DROP INDEX CONCURRENTLY`: a concurrent build that fails leaves an invalid index behind, and the migration's `IF NOT EXISTS` would skip it. (#3218)
+- **Upgrade the nodes behind `Dispatcher.Remote` first.** Device authentication now takes the hostname from the TLS handshake as a second argument. An application that calls NervesHub nodes through `NervesHub.DeviceLink.Dispatcher.Remote` passes it once that application is on 2.5.1, and a node still on 2.5.0 can't answer the call. Upgrade the NervesHub nodes before it. (#3216)
 
 ### Added
 
+- Maintenance mode: `MAINTENANCE_MODE=true` takes the whole platform offline. A node in this mode serves only a maintenance page and its health checks, and connects to no database. `STATUS_PAGE_URL` adds a link to your status page. See Maintenance mode in `docs/runtime_configuration.md`. (#3223)
 - Nodes can find each other over DNS (`CLUSTER_STRATEGY=dns`), such as a Kubernetes headless Service, instead of Postgres `LISTEN/NOTIFY`. Postgres stays the default, and both can run at once while a cluster moves over. See Clustering in `docs/runtime_configuration.md`. (#3228)
+- Device nodes can take their TLS key and certificate from a provider application in the cluster, and install each renewal without a restart or dropping connected devices (`DEVICE_TLS_FROM_CLUSTER`, off by default). See Renewing the certificate without a restart in `docs/runtime_configuration.md`. (#3205)
+- Orgs can claim the hostnames their devices connect to, and a device asking for a hostname that only other orgs have claimed is refused. There's no admin page yet, so a server admin sets them from a console with `NervesHub.Accounts.set_org_device_hostnames/2`. Claim a hostname before devices start using it, because an unclaimed one is open to every org. (#3216)
+- Search the device Logs tab, filter it by level and time, and scroll back past the newest lines, up to 1000 (#3199)
+- A product setting, also in the product API, that gives new devices the device-managed updates grant (#3214)
+- Allow or disallow device-managed updates, or turn an extension on or off, for every device in a product from product settings (#3214)
+- Raise a product notification when a device's connecting code fails. Devices sent the same code share one notification, which names the first device to fail and what it printed, and reaches Slack, Teams, Discord and webhooks like any other product notification. (#3229)
+- Log the client address and requested hostname when a device TLS handshake ends in an alert. `LOGGER_EXCLUSIONS=nerves_hub.devices.handshake_failed` turns it off. (#3208)
 
-### Dependencies
+### Changed
 
-- **libcluster**: 3.5.0 -> 3.6.0 (#3228)
+- A `nil` return from connecting code is no longer a failure by itself. Code fails when the client reports an error, or when the output shows that the code raised. Before, a client that sends `result` had every `nil` return counted as a failure, including code ending in an `if` with no `else`. Code that raised on an older nerves_hub_link release, which doesn't send `result`, counted as a success. (#3229)
+- Report firmware delta build failures to Sentry on the final attempt only (#3225)
+- Add four indexes that production databases had picked up by hand, and drop `devices_deployment_id_index`, which one of them covers (#3218)
+
+### Fixed
+
+- Log connecting code failures with the device identifier and output, which were left out (#3229)
+- Name the device in the log line for a `duplicate_device_identifier` auth failure (#3206)
+- Remove soft-deleted devices whose identifier contains a space, and keep going past a device that can't be removed (#3207)
+- Bulk actions on every matching device tell each device about its change only after it commits, and one device failing no longer stops the rest (#3215)
+- Reject email addresses the mailer can't send to on sign-up, email changes and org invites, and cancel emails to stored ones instead of failing every attempt (#3227)
+- Keep the cause when unpacking an archive fails during a firmware delta build (#3225)
+- Wrap a long `misc` value on the firmware page instead of letting it run off the edge (#3231)
 
 ### Security
 
+- Check permissions on the extension toggles in product settings and on the device settings tab. A view-only member could change them by sending the event. (#3214)
 - fwup in the Docker image is built with libarchive 3.8.11. fwup 1.17.1 pins 3.8.9, and 3.8.10 and 3.8.11 are security releases. (#3224)
 - Each image build starts from the newest Ubuntu 26.04 snapshot and installs current packages. A cached layer could previously keep packages from an earlier build. (#3224)
+- Update `phoenix_html` to 4.4.0 for [EEF-CVE-2026-117645](https://osv.dev/vulnerability/EEF-CVE-2026-117645) and `ssl_verify_fun` to 1.1.9 for [EEF-CVE-2026-117666](https://osv.dev/vulnerability/EEF-CVE-2026-117666). Neither flaw is reachable in NervesHub. (#3217, #3219)
+- Update `ecto` to 3.14.3 for [EEF-CVE-2026-118391](https://osv.dev/vulnerability/EEF-CVE-2026-118391). NervesHub doesn't build the queries it affects. (#3230)
+
+### Dependencies
+
+- **bandit**: 1.14.0 -> 1.14.1 (#3203)
+- **ecto**: 3.14.2 -> 3.14.3 (#3230)
+- **hackney**: 4.8.5 -> 4.9.1 (#3209)
+- **hammer**: 7.5.0 -> 7.5.1 (#3211)
+- **libcluster**: 3.5.0 -> 3.6.0 (#3228)
+- **live_flow**: 0.2.3 -> 0.3.2 (#3203)
+- **lucide**: 1.61.0 -> 1.65.0 (#3221)
+- **phoenix_html**: 4.3.0 -> 4.4.0 (#3217)
+- **phoenix_test**: 0.13.1 -> 0.14.0 (#3222)
+- **sentry**: 14.0.0 -> 14.0.1 (#3219)
+- **slipstream**: 1.2.2 -> 1.3.0 (#3210)
+- **swoosh**: 1.29.0 -> 1.29.3 (#3220)
+- **tailwind**: 0.5.1 -> 0.5.2 (#3202)
+- **tidewave**: 0.9.1 -> 0.9.2 (#3212)
 
 ## v2.5.0
 
