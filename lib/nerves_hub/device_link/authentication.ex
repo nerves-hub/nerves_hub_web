@@ -39,6 +39,9 @@ defmodule NervesHub.DeviceLink.Authentication do
   recorded as telemetry here, where it is known, rather than being handed back
   to the caller.
 
+  A device that has been deleted is refused, and so is one whose product has
+  been, on its own or along with its org.
+
   `server_name` is the hostname the device asked for in its TLS handshake, if it
   asked for one. A device is refused on a hostname that only other orgs have claimed.
   That comes before the device is marked provisioned, as it hasn't connected.
@@ -47,6 +50,7 @@ defmodule NervesHub.DeviceLink.Authentication do
           {:ok, DeviceInfo.t()} | {:error, :invalid_auth}
   def authenticate(credentials, server_name \\ nil) do
     with {:ok, device} <- identify(credentials),
+         :ok <- check_not_deleted(device),
          :ok <- check_hostname(device, server_name) do
       {:ok, device_info(device)}
     end
@@ -141,6 +145,22 @@ defmodule NervesHub.DeviceLink.Authentication do
   end
 
   # ---------------------------------------------------------------- internals
+
+  # Deleting an org deletes its products, so the product covers both. A product
+  # key stops working with its product, but a certificate or a device's own key
+  # belongs to the device, which deleting its product or org leaves in place.
+  defp check_not_deleted(%Device{deleted_at: nil, product: %{deleted_at: nil}}), do: :ok
+
+  defp check_not_deleted(device) do
+    :telemetry.execute([:nerves_hub, :devices, :invalid_auth], %{count: 1}, %{
+      reason: :deleted,
+      org_id: device.org_id,
+      product_id: device.product_id,
+      identifier: device.identifier
+    })
+
+    {:error, :invalid_auth}
+  end
 
   defp check_hostname(_device, nil), do: :ok
 
