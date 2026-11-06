@@ -67,7 +67,7 @@ defmodule NervesHubWeb.Components.CommandPalette do
           <div class="mx-auto max-w-2xl overflow-hidden rounded-md border border-line-default bg-surface-overlay shadow-overlay ring-1 ring-line-default/10">
             <form id="command-palette-form" phx-change="search" phx-target={@myself} phx-debounce="150" autocomplete="off">
               <div class="flex items-center gap-3 border-b border-line-default px-4">
-                <span class="lucide-search size-5 shrink-0 text-content-muted"></span>
+                <span class="lucide-search size-5 text-content-muted"></span>
                 <label for="command-palette-input" class="sr-only">Search devices, deployment groups, firmware</label>
                 <input
                   type="text"

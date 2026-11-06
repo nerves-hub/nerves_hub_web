@@ -54,7 +54,7 @@ defmodule NervesHubWeb.Components.Icons do
       |> assign(:default_size, !sized?(assigns.class) && "size-4")
 
     ~H"""
-    <span class={[@glyph, @default_size, "shrink-0", @class]} aria-hidden="true" {@rest}></span>
+    <span class={[@glyph, @default_size, @class]} aria-hidden="true" {@rest}></span>
     """
   end
 

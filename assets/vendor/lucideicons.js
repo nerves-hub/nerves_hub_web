@@ -56,6 +56,9 @@ module.exports = plugin(function ({ matchComponents, theme }) {
           "background-color": "currentColor",
           "vertical-align": "middle",
           display: "inline-block",
+          // An empty span has no minimum width, so in a crowded flex row it
+          // would shrink and squash the glyph. An SVG of a set size never did.
+          "flex-shrink": "0",
           // "width": size,
           // "height": size
         }

@@ -724,12 +724,9 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
             <div class="flex items-center justify-between border-t border-line-default pt-3">
               <span class="text-sm text-content-faint">Import devices by identifier</span>
               <form id="import-devices-csv-form" phx-change="validate-csv" phx-target={@myself}>
-                <label
-                  for={@uploads.device_csv.ref}
-                  class="flex cursor-pointer items-center gap-1.5 rounded border border-line-default bg-base-800 px-3 py-1.5 text-sm text-content-body hover:bg-base-700"
-                >
-                  <.icon name="add" class="text-content-muted" /> Import from CSV
-                </label>
+                <.button type="label" for={@uploads.device_csv.ref} class="w-41">
+                  <.icon name="add" /> Import from CSV
+                </.button>
                 <.live_file_input upload={@uploads.device_csv} class="hidden" />
               </form>
             </div>

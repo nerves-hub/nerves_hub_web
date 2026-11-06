@@ -25,11 +25,10 @@
     </label>
 
     <form id="firmware-form" phx-change="validate-firmware" class={[Enum.any?(@uploads.firmware.entries) && "hidden"]}>
-      <div class="flex gap-2 rounded border border-line-strong bg-base-800 px-3 py-1.5 hover:cursor-pointer">
-        <.icon name="add" class="text-content-muted" />
-        <label for={@uploads.firmware.ref} class="text-sm font-medium text-content-body hover:cursor-pointer">Upload Firmware</label>
-        <.live_file_input upload={@uploads.firmware} class="hidden" />
-      </div>
+      <.button type="label" for={@uploads.firmware.ref}>
+        <.icon name="add" /> Upload Firmware
+      </.button>
+      <.live_file_input upload={@uploads.firmware} class="hidden" />
     </form>
   </:header>
 

@@ -201,6 +201,9 @@ when adding or removing one.
   (`NervesHubWeb.Components.Icons`, which names the ones used across pages).
   The glyph is a mask filled with `currentColor`, so a `text-*` class colours
   it, never `stroke-*` or `fill-*`. Inline SVG is for logos and illustrations.
+  A `<.button>` holding only an icon sets `square`, or it comes out shorter
+  than the text buttons beside it. A file picker is `<.button type="label">`
+  with `for` set to the upload's ref.
 - **Boundaries:** contexts (`lib/nerves_hub/`) hold business logic; web modules
   stay thin and call into them. Match the surrounding module's conventions,
   error handling, and naming rather than importing your own.

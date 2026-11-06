@@ -131,13 +131,11 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
                 </.button>
               </div>
 
-              <div class="flex w-fit shrink gap-2 rounded border border-line-strong bg-base-800 px-3 py-1.5 hover:cursor-pointer">
-                <.icon name="add" class="text-content-muted" />
-                <label for={@uploads.workflow_definition.ref} class="text-sm font-medium text-content-body hover:cursor-pointer">
-                  {if is_nil(@deployment_group.workflow_definition), do: "Upload Workflow Definition", else: "Upload New Workflow Definition"}
-                </label>
-                <.live_file_input upload={@uploads.workflow_definition} class="hidden" />
-              </div>
+              <.button type="label" for={@uploads.workflow_definition.ref} class="w-fit">
+                <.icon name="add" />
+                {if is_nil(@deployment_group.workflow_definition), do: "Upload Workflow Definition", else: "Upload New Workflow Definition"}
+              </.button>
+              <.live_file_input upload={@uploads.workflow_definition} class="hidden" />
             </div>
           </div>
         </div>

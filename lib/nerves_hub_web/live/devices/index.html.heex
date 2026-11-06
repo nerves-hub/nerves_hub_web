@@ -3,10 +3,10 @@
     <div></div>
     <div class="mr-6 flex gap-2">
       <.button type="link" navigate={~p"/org/#{@current_scope.org}/#{@current_scope.product}/devices/new"} aria-label="Add new device">
-        <span class="lucide-plus size-5 text-content-body" /> Add Device
+        <.icon name="add" /> Add Device
       </.button>
-      <.button :if={has_results?(@devices, @currently_filtering)} type="link" aria-label="Export devices" href={~p"/org/#{@org}/#{@product}/devices/export?#{@params}"} download>
-        <span class="lucide-download size-5 text-content-body" />
+      <.button :if={has_results?(@devices, @currently_filtering)} type="link" square aria-label="Export devices" href={~p"/org/#{@org}/#{@product}/devices/export?#{@params}"} download>
+        <span class="lucide-download size-4" aria-hidden="true"></span>
       </.button>
     </div>
   </:top_bar>
@@ -31,11 +31,18 @@
         schema_json={@advanced_query_schema_json}
       />
 
-      <.button :if={has_results?(@devices, @currently_filtering) || @soft_deleted_devices_exist} id="sidebar-filter-button" type="button" phx-click={FilterSidebar.show_filter_sidebar()}>
+      <.button
+        :if={has_results?(@devices, @currently_filtering) || @soft_deleted_devices_exist}
+        id="sidebar-filter-button"
+        type="button"
+        square
+        aria-label="Filter devices"
+        phx-click={FilterSidebar.show_filter_sidebar()}
+      >
         <.icon name="filter" />
       </.button>
-      <.button type="button" phx-click={ListSettingsSidebar.show_settings_sidebar()}>
-        <span class="lucide-settings size-5 text-content-body" />
+      <.button type="button" square aria-label="List settings" phx-click={ListSettingsSidebar.show_settings_sidebar()}>
+        <.icon name="settings" />
       </.button>
     </div>
   </:header>
@@ -181,7 +188,7 @@
                     />
                     <label for="toggle-all" class="peer-disabled:opacity-40 peer-disabled:hover:bg-base-800">
                       <span class="hidden">Select all devices</span>
-                      <span :if={Enum.any?(@selected_devices)} class="lucide-minus--bold size-3 shrink-0 text-primary-content" aria-hidden="true"></span>
+                      <span :if={Enum.any?(@selected_devices)} class="lucide-minus--bold size-3 text-primary-content" aria-hidden="true"></span>
                     </label>
                   </th>
                   <th phx-click="sort" phx-value-sort="identifier" class="cursor-pointer">
@@ -227,7 +234,7 @@
                       disabled={not authorized?(:"device:update", @current_scope)}
                     />
                     <label for={"checkbox-device-#{device.id}"} class="relative z-20 peer-disabled:opacity-40 peer-disabled:hover:bg-base-800">
-                      <span :if={device.id in @selected_devices} class="lucide-check--bold size-3 shrink-0 text-primary-content" aria-hidden="true"></span>
+                      <span :if={device.id in @selected_devices} class="lucide-check--bold size-3 text-primary-content" aria-hidden="true"></span>
                     </label>
                   </td>
                   <td>

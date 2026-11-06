@@ -394,7 +394,11 @@ defmodule NervesHubWeb.CoreComponents do
   end
 
   @doc """
-  Renders a button, or a link that looks like one with `type="link"`.
+  Renders a button, a link that looks like one with `type="link"`, or a
+  `<label>` that looks like one with `type="label"`.
+
+  A label is for a file picker: pass `for` the upload's ref, and the hidden
+  `live_file_input` opens wherever the button is clicked.
 
   ## Styles
 
@@ -410,49 +414,68 @@ defmodule NervesHubWeb.CoreComponents do
   `md` (the default) for page and form actions, and `sm` for a compact action
   inside a row, card or toolbar.
 
+  A button that holds only an icon sets `square`. It is then as wide as it is
+  tall, and the height of a text button of the same size, which a 16px icon
+  alone would fall short of. Give it an `aria-label`.
+
   ## Examples
 
       <.button>Send!</.button>
       <.button style="primary" type="submit">Save</.button>
       <.button type="link" navigate={~p"/orgs"}>Back</.button>
       <.button style="danger" size="sm" phx-click="remove">Remove</.button>
+      <.button square aria-label="Pin device" phx-click="pin"><.icon name="unpinned" /></.button>
+      <.button type="label" for={@uploads.csv.ref}><.icon name="add" /> Import</.button>
   """
   attr(:style, :string, default: "secondary", values: ~w(primary secondary danger danger-solid))
   attr(:size, :string, default: "md", values: ~w(sm md))
+  attr(:square, :boolean, default: false)
   attr(:type, :string, default: "button")
   attr(:class, :any, default: nil)
-  attr(:rest, :global, include: ~w(disabled form name value href navigate download patch method replace))
+  attr(:rest, :global, include: ~w(disabled form name value href navigate download patch method replace for))
 
   slot(:inner_block, required: true)
 
   def button(%{type: "link"} = assigns) do
     ~H"""
-    <.link class={button_classes(@style, @size, @class)} {@rest}>
+    <.link class={button_classes(@style, @size, @square, @class)} {@rest}>
       {render_slot(@inner_block)}
     </.link>
     """
   end
 
+  def button(%{type: "label"} = assigns) do
+    ~H"""
+    <label class={button_classes(@style, @size, @square, @class)} {@rest}>
+      {render_slot(@inner_block)}
+    </label>
+    """
+  end
+
   def button(assigns) do
     ~H"""
-    <button type={@type} class={button_classes(@style, @size, @class)} {@rest}>
+    <button type={@type} class={button_classes(@style, @size, @square, @class)} {@rest}>
       {render_slot(@inner_block)}
     </button>
     """
   end
 
-  defp button_classes(style, size, class) do
+  defp button_classes(style, size, square, class) do
     [
       "flex items-center justify-center rounded border font-medium hover:cursor-pointer disabled:cursor-not-allowed phx-submit-loading:opacity-75",
       "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring",
-      button_size(size),
+      button_size(size, square),
       button_style(style),
       class
     ]
   end
 
-  defp button_size("md"), do: "gap-2 px-3 py-1.5 text-sm"
-  defp button_size("sm"), do: "gap-1.5 px-2 py-1 text-xs"
+  # A text button's height is its line height plus padding and border: 20 + 12
+  # + 2 for md, 16 + 8 + 2 for sm. A square button is fixed at that height.
+  defp button_size("md", false), do: "gap-2 px-3 py-1.5 text-sm"
+  defp button_size("md", true), do: "size-8.5 shrink-0 text-sm"
+  defp button_size("sm", false), do: "gap-1.5 px-2 py-1 text-xs"
+  defp button_size("sm", true), do: "size-6.5 shrink-0 text-xs"
 
   defp button_style("primary") do
     [

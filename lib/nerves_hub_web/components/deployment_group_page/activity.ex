@@ -39,11 +39,14 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Activity do
           <div class="flex h-14 items-center justify-between border-b border-line-default px-4">
             <div class="text-card-title text-content-strong">Latest activity</div>
 
-            <div class="rounded border border-line-strong bg-base-800 p-1.5">
-              <.link href={~p"/org/#{@current_scope.org}/#{@current_scope.product}/deployment_groups/#{@deployment_group}/audit_logs/download"}>
-                <span class="lucide-download size-4 text-content-muted" aria-hidden="true"></span>
-              </.link>
-            </div>
+            <.button
+              type="link"
+              square
+              aria-label="Download activity"
+              href={~p"/org/#{@current_scope.org}/#{@current_scope.product}/deployment_groups/#{@deployment_group}/audit_logs/download"}
+            >
+              <span class="lucide-download size-4" aria-hidden="true"></span>
+            </.button>
           </div>
           <div :if={Enum.empty?(@activity)} class="flex flex-col gap-1 px-4 py-2">
             <div class="flex items-center justify-center p-14">

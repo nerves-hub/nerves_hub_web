@@ -16,11 +16,10 @@
     </div>
 
     <form id="archive-form" phx-change="validate-firmware" class={[Enum.any?(@uploads.archive.entries) && "hidden"]}>
-      <div class="flex gap-2 rounded border border-line-strong bg-base-800 px-3 py-1.5 hover:cursor-pointer">
-        <.icon name="add" class="text-content-muted" />
-        <label for={@uploads.archive.ref} class="text-sm font-medium text-content-body hover:cursor-pointer">Upload Archive</label>
-        <.live_file_input upload={@uploads.archive} class="hidden" />
-      </div>
+      <.button type="label" for={@uploads.archive.ref}>
+        <.icon name="add" /> Upload Archive
+      </.button>
+      <.live_file_input upload={@uploads.archive} class="hidden" />
     </form>
   </:header>
 

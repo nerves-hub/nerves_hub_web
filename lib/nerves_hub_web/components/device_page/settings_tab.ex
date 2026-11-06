@@ -144,11 +144,10 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
           <div class="text-card-title text-content-strong">Certificates</div>
           <div>
             <form id="upload-certificate" phx-change="validate-cert" phx-drop-target={@uploads.certificate.ref}>
-              <div class="flex gap-2 rounded border border-line-strong bg-base-800 px-3 py-1.5 hover:cursor-pointer">
-                <.icon name="save" class="text-content-muted" />
-                <label for={@uploads.certificate.ref} class="text-sm font-medium text-content-body hover:cursor-pointer">Upload certificate</label>
-                <.live_file_input upload={@uploads.certificate} class="hidden" />
-              </div>
+              <.button type="label" for={@uploads.certificate.ref}>
+                <.icon name="save" /> Upload certificate
+              </.button>
+              <.live_file_input upload={@uploads.certificate} class="hidden" />
             </form>
           </div>
         </div>
@@ -189,10 +188,18 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
               </div>
             </div>
             <div class="flex gap-2">
-              <.button type="link" href={~p"/org/#{@org}/#{@product}/devices/#{@device}/certificate/#{certificate}/download"} download>
-                <.icon name="save" class="text-content-muted" />
+              <.button type="link" href={~p"/org/#{@org}/#{@product}/devices/#{@device}/certificate/#{certificate}/download"} download square aria-label="Download certificate">
+                <.icon name="save" />
               </.button>
-              <.button style="danger" type="button" phx-click="delete-certificate" phx-value-serial={certificate.serial} data-confirm="Are you sure you want to delete this certificate?">
+              <.button
+                style="danger"
+                type="button"
+                square
+                aria-label="Delete certificate"
+                phx-click="delete-certificate"
+                phx-value-serial={certificate.serial}
+                data-confirm="Are you sure you want to delete this certificate?"
+              >
                 <span class="lucide-trash size-4 text-alert" aria-hidden="true"></span>
               </.button>
             </div>
@@ -296,7 +303,7 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
 
       <div :if={!@device.deleted_at && authorized?(:"device:update", @current_scope)} class="flex w-full flex-col rounded-md border border-line-default bg-surface-raised shadow-card">
         <div class="flex items-center gap-6 border-t border-line-default p-4">
-          <div>
+          <div class="shrink-0">
             <.button
               style="danger"
               type="button"

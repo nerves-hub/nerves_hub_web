@@ -20,10 +20,10 @@
           </:content>
         </.tooltip>
       </div>
-      <.button :if={@pinned?} aria-label="Unpin device" style="primary" phx-click="unpin">
+      <.button :if={@pinned?} square aria-label="Unpin device" style="primary" phx-click="unpin">
         <.icon name="pinned" />
       </.button>
-      <.button :if={!@pinned?} aria-label="Pin device" style="secondary" phx-click="pin">
+      <.button :if={!@pinned?} square aria-label="Pin device" style="secondary" phx-click="pin">
         <.icon name="unpinned" />
       </.button>
       <.button aria-label="Reboot device" style="secondary" phx-click="reboot" data-confirm="Are you sure you want to reboot the device?" disabled={disconnected?(@device_connection)}>
