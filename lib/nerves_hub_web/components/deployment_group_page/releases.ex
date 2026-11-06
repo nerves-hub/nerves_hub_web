@@ -78,7 +78,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Releases do
       <div class="w-full">
         <div class="flex flex-col rounded-md border border-line-default bg-surface-raised">
           <div class="flex h-14 items-center justify-between border-b border-line-default px-4">
-            <div class="text-base font-medium text-content-strong">Release History</div>
+            <div class="text-card-title text-content-strong">Release History</div>
 
             <.button style="secondary" type="submit" phx-click={CoreComponents.show_modal("new-release")}>
               <svg class="size-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="none">
@@ -141,7 +141,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Releases do
                         on_cancel={Phoenix.LiveView.JS.patch(~p"/org/#{@current_scope.org}/#{@current_scope.product}/deployment_groups/#{@deployment_group}/releases")}
                       >
                         <div class="p-4">
-                          <h2 class="pb-5 text-lg font-semibold text-content-body">Release notes</h2>
+                          <h2 class="pb-5 text-section-title text-content-strong">Release notes</h2>
                           <div class="bg-base-800/50 p-5 whitespace-break-spaces">{release.notes}</div>
                         </div>
                       </CoreComponents.modal>
@@ -212,7 +212,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Releases do
                         </span>
                         <CoreComponents.modal :if={release.connecting_code} id={"release-connecting-code-#{release.id}"}>
                           <div class="flex flex-col gap-5 p-4">
-                            <h2 class="text-lg font-semibold text-content-body">Connecting code</h2>
+                            <h2 class="text-section-title text-content-strong">Connecting code</h2>
                             <p class="text-sm text-content-muted">
                               {connecting_code_mode_summary(release.connecting_code_mode)}. Devices running this release run it when they connect.
                             </p>
@@ -247,7 +247,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Releases do
       <CoreComponents.modal id="new-release" on_cancel={Phoenix.LiveView.JS.patch(~p"/org/#{@current_scope.org}/#{@current_scope.product}/deployment_groups/#{@deployment_group}/releases")}>
         <.form :let={f} id="release-form" for={@form} phx-change="validate-release" phx-submit="update-release" phx-target={@myself}>
           <div class="flex h-14 items-center justify-between border-b border-line-default px-4">
-            <div class="text-base font-medium text-content-strong">Release settings</div>
+            <div class="text-card-title text-content-strong">Release settings</div>
           </div>
 
           <div class="flex flex-col gap-6 p-4">
@@ -315,7 +315,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Releases do
 
       <CoreComponents.modal id="release-deltas">
         <div :if={@deltas_release} class="flex flex-col gap-5 p-4">
-          <h2 class="text-lg font-semibold text-content-body">Deltas for release {@deltas_release.number}</h2>
+          <h2 class="text-section-title text-content-strong">Deltas for release {@deltas_release.number}</h2>
           <p class="text-sm text-content-muted">
             What this release's devices download instead of the whole firmware, from what each of them is running now.
           </p>
@@ -381,7 +381,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Releases do
       <CoreComponents.modal id="edit-release">
         <div :if={@editing_release}>
           <div class="flex h-14 items-center justify-between border-b border-line-default px-4">
-            <div class="text-base font-medium text-content-strong">Edit release {@editing_release.number}</div>
+            <div class="text-card-title text-content-strong">Edit release {@editing_release.number}</div>
           </div>
 
           <div class="flex flex-col gap-3 border-b border-line-default p-4">

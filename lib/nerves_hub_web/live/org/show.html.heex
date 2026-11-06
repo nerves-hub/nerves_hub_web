@@ -1,6 +1,6 @@
 <NervesHubWeb.Layouts.sidebar flash={@flash} current_scope={@current_scope} sidebar_tab={@sidebar_tab}>
   <:header>
-    <h1 class="text-xl leading-[30px] font-semibold text-content-strong">Products</h1>
+    <h1 class="text-page-title text-content-strong">Products</h1>
     <div class="mr-auto"></div>
     <.button type="link" navigate={~p"/org/#{@org}/new"} aria-label="Create new product">
       <.icon name="add" /> Create New
@@ -10,7 +10,7 @@
   <div class="grid grid-cols-2 gap-4 p-4">
     <div :if={@products == []}>
       <div class="m-4">
-        <h2 class="text-xl leading-[30px] font-semibold text-content-strong">{@org.name} doesn't have any products yet</h2>
+        <h2 class="text-page-title text-content-strong">{@org.name} doesn't have any products yet</h2>
         <p class="text-sm text-content-muted">Create a new product to get started.</p>
       </div>
     </div>

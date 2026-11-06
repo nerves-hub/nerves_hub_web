@@ -12,8 +12,8 @@
   </:top_bar>
 
   <:header>
-    <h1 :if={!@devices.ok?} class="text-xl leading-[30px] font-semibold text-content-strong">Loading...</h1>
-    <h1 :if={@devices.ok?} id="devices-header" class="hidden text-xl leading-[30px] font-semibold text-content-strong" phx-mounted={fade_in("#devices-header")}>
+    <h1 :if={!@devices.ok?} class="text-page-title text-content-strong">Loading...</h1>
+    <h1 :if={@devices.ok?} id="devices-header" class="hidden text-page-title text-content-strong" phx-mounted={fade_in("#devices-header")}>
       All Devices
     </h1>
 
@@ -117,16 +117,16 @@
         <% Enum.empty?(devices) -> %>
           <div class="flex h-full items-center justify-center pb-16">
             <div class="w-full max-w-2xl px-6">
-              <h2 class="mb-4 text-xl font-semibold text-content-strong">{@product.name} doesn't have any devices yet.</h2>
+              <h2 class="mb-4 text-page-title text-content-strong">{@product.name} doesn't have any devices yet.</h2>
               <p class="mb-6 text-sm text-content-muted">Get started by adding <code class="text-content-body">nerves_hub_link</code> to your Nerves project.</p>
               <% active_secret = Enum.find(@product.shared_secret_auths, &is_nil(&1.deactivated_at)) %>
               <%!-- The secret lets a device connect and register itself, so only members who could manage it are shown it. --%>
               <%= if active_secret && authorized?(:"product:update", @current_scope) do %>
                 <div class="rounded-md border border-line-default bg-surface-raised p-4">
-                  <h3 class="mb-3 text-sm font-semibold text-content-body">1. Add the dependency to your <code>mix.exs</code></h3>
+                  <h3 class="mb-3 text-group-title text-content-strong">1. Add the dependency to your <code>mix.exs</code></h3>
                   <pre class="mb-4 overflow-x-auto rounded bg-base-950 p-3 font-mono text-sm text-success-content"><code>&#123;:nerves_hub_link, "~&gt; 2.0"&#125;</code></pre>
 
-                  <h3 class="mb-3 text-sm font-semibold text-content-body">2. Add this to your <code>config/config.exs</code></h3>
+                  <h3 class="mb-3 text-group-title text-content-strong">2. Add this to your <code>config/config.exs</code></h3>
                   <pre class="overflow-x-auto rounded bg-base-950 p-3 font-mono text-sm text-success-content"><code>config :nerves_hub_link,
   host: "{onboarding_nhl_host()}",
   remote_iex: true,
@@ -148,7 +148,7 @@
               <% end %>
 
               <div class="mt-6 rounded-md border border-line-subtle bg-surface-muted p-4">
-                <h3 class="mb-2 text-sm font-semibold text-content-body">Production authentication</h3>
+                <h3 class="mb-2 text-group-title text-content-strong">Production authentication</h3>
                 <p class="text-xs text-content-muted">
                   For production applications, we recommend mTLS authentication using a local certificate or dedicated secure hardware.
                 </p>

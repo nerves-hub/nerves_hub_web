@@ -158,7 +158,7 @@ defmodule NervesHubWeb.Components.DevicePage.LocalShellTab do
                     data-connection-status={Map.get(@device_connection || %{}, :status) || "unknown"}
                     class="data-[connection-status=connected]:bg-status-online data-[connection-status=connecting]:animate-pulse data-[connection-status=connecting]:bg-status-connecting data-[connection-status=disconnected]:bg-status-offline data-[connection-status=unknown]:bg-status-offline"
                   />
-                  <h1 class="font-mono text-xl leading-[30px] font-semibold text-content-strong">
+                  <h1 class="font-mono text-page-title text-content-strong">
                     System Shell : {@device.identifier}
                   </h1>
                 </div>

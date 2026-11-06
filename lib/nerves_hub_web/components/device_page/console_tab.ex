@@ -206,7 +206,7 @@ defmodule NervesHubWeb.Components.DevicePage.ConsoleTab do
                   <% else %>
                     <.status_dot class="bg-status-offline" />
                   <% end %>
-                  <h1 class="font-mono text-xl leading-[30px] font-semibold text-content-strong">
+                  <h1 class="font-mono text-page-title text-content-strong">
                     {@device.identifier}
                   </h1>
                 </div>

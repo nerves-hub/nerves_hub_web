@@ -2,7 +2,7 @@
   <%= if @onboarding do %>
     <div class="flex min-h-[60vh] items-center justify-center">
       <div class="w-full max-w-md">
-        <h1 class="mb-2 text-2xl font-semibold text-content-strong">Get Started</h1>
+        <h1 class="mb-2 text-page-title text-content-strong">Get Started</h1>
         <p class="mb-6 text-sm text-content-muted">
           Create your first organization and product to start managing devices.
         </p>
@@ -55,7 +55,7 @@
         total_count={length(@pinned_devices)}
       />
       <div class="flex h-[88px] items-center justify-between py-6">
-        <h1 class="text-xl leading-[30px] font-semibold text-content-strong">Organizations</h1>
+        <h1 class="text-page-title text-content-strong">Organizations</h1>
         <.button type="link" navigate={~p"/orgs/new"}>
           <svg xmlns="http://www.w3.org/2000/svg" class="size-4 stroke-current" viewBox="0 0 16 16" fill="none" stroke-width="1.5">
             <path d="M8 3.33334V12.6667M3.33334 8H12.6667" stroke-linecap="round" stroke-linejoin="round" />
@@ -76,7 +76,7 @@
                 <div class="flex size-8 items-center justify-center rounded bg-base-800 text-sm font-semibold text-content-faint uppercase">
                   {org.name |> String.split(" ") |> Enum.map(&String.first/1) |> Enum.join()}
                 </div>
-                <h3 class="text-base font-medium text-content-strong">{org.name}</h3>
+                <h3 class="text-card-title text-content-strong">{org.name}</h3>
               </.link>
             </div>
             <div class="flex items-center gap-6 text-sm">

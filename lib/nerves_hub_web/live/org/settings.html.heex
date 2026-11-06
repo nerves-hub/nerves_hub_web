@@ -1,6 +1,6 @@
 <NervesHubWeb.Layouts.sidebar flash={@flash} current_scope={@current_scope} sidebar_tab={@sidebar_tab}>
   <:header>
-    <h1 class="text-xl leading-[30px] font-semibold text-content-strong">Organization Settings</h1>
+    <h1 class="text-page-title text-content-strong">Organization Settings</h1>
   </:header>
 
   <div class="max-w-[650px] px-6 py-4">
@@ -27,7 +27,7 @@
     </.form>
 
     <div class="mt-8 border-t border-line-default pt-6">
-      <h3 class="mb-3 text-base font-semibold text-content-strong">Danger Zone</h3>
+      <h3 class="mb-3 text-card-title text-content-strong">Danger Zone</h3>
       <p class="mb-4 text-sm text-content-muted">Once you delete an organization, there is no going back. Please be certain.</p>
       <.button style="danger" type="link" patch={~p"/org/#{@org}/settings/delete"}>
         Delete Organization

@@ -11,11 +11,11 @@ defmodule NervesHubWeb.Components.BulkActionsSidebar do
       ]}>
         <div class="h-0 flex-1 overflow-y-auto">
           <div class="flex h-14 items-center border-b border-line-default px-4 py-3">
-            <h4 :if={length(@selected_devices) == 1 and not @select_all_matching} class="text-base font-semibold">1 device selected</h4>
-            <h4 :if={length(@selected_devices) > 1 and not @select_all_matching} class="text-base font-semibold">
+            <h4 :if={length(@selected_devices) == 1 and not @select_all_matching} class="text-card-title">1 device selected</h4>
+            <h4 :if={length(@selected_devices) > 1 and not @select_all_matching} class="text-card-title">
               {length(@selected_devices) |> Number.Delimit.number_to_delimited(precision: 0)} devices selected
             </h4>
-            <h4 :if={@select_all_matching} class="text-base font-semibold">All devices selected</h4>
+            <h4 :if={@select_all_matching} class="text-card-title">All devices selected</h4>
 
             <button class="ml-auto cursor-pointer p-1.5" type="button" phx-click="deselect-all">
               <svg xmlns="http://www.w3.org/2000/svg" class="size-5" viewBox="0 0 20 20" fill="none">

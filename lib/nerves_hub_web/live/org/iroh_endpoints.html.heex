@@ -1,6 +1,6 @@
 <NervesHubWeb.Layouts.sidebar flash={@flash} current_scope={@current_scope} sidebar_tab={@sidebar_tab}>
   <:header>
-    <h1 class="text-xl leading-[30px] font-semibold text-content-strong">Iroh Endpoints</h1>
+    <h1 class="text-page-title text-content-strong">Iroh Endpoints</h1>
     <div class="mr-auto"></div>
     <.button
       :if={authorized?(:"network_identity:create", @current_scope)}

@@ -20,7 +20,7 @@
   <:big_header>
     <div class="flex items-center gap-3">
       <.status_dot data-is-active={(@deployment_group.is_active && "true") || "false"} class="data-[is-active=false]:bg-base-500 data-[is-active=true]:bg-success" />
-      <h1 class="text-xl leading-[30px] font-semibold text-content-strong">
+      <h1 class="text-page-title text-content-strong">
         {@deployment_group.name}
       </h1>
       <div

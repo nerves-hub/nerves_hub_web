@@ -631,7 +631,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
             </div>
             <CoreComponents.modal :if={connecting_code?(@deployment_group)} id="connecting-code">
               <div class="p-4">
-                <h2 class="pb-5 text-lg font-semibold text-content-body">Code sent on device connection</h2>
+                <h2 class="pb-5 text-section-title text-content-strong">Code sent on device connection</h2>
                 <pre class="overflow-x-auto bg-base-800/50 p-5 font-mono text-sm text-content-body">{@deployment_group.connecting_code}</pre>
               </div>
             </CoreComponents.modal>

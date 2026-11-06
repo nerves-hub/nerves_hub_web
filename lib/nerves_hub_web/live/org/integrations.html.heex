@@ -1,6 +1,6 @@
 <NervesHubWeb.Layouts.sidebar flash={@flash} current_scope={@current_scope} sidebar_tab={@sidebar_tab}>
   <:header>
-    <h1 class="text-xl leading-[30px] font-semibold text-content-strong">Integrations</h1>
+    <h1 class="text-page-title text-content-strong">Integrations</h1>
   </:header>
 
   <div class="h-0 flex-1 overflow-y-auto">
@@ -28,7 +28,7 @@
 
       <div class="flex w-full flex-col rounded-md border border-line-default bg-surface-raised">
         <div class="flex h-14 items-center justify-between border-b border-line-default px-4">
-          <div class="text-base font-medium text-content-strong">Webhooks</div>
+          <div class="text-card-title text-content-strong">Webhooks</div>
           <.button
             :if={is_nil(@editing) && length(@webhooks) < Webhooks.max_webhooks_per_org()}
             type="button"

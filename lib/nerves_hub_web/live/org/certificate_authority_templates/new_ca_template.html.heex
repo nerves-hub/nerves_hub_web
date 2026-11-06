@@ -1,6 +1,6 @@
 <NervesHubWeb.Layouts.sidebar flash={@flash} current_scope={@current_scope} sidebar_tab={@sidebar_tab}>
   <:header>
-    <h1 class="text-xl/7.5 font-semibold text-content-strong">New Certificate Authority</h1>
+    <h1 class="text-page-title text-content-strong">New Certificate Authority</h1>
   </:header>
 
   <div class="h-0 w-full flex-1 overflow-y-auto px-6 py-4">
@@ -25,7 +25,7 @@
         </div>
 
         <div class="mb-6">
-          <h3 class="mb-2 text-base font-semibold text-content-strong">Step 1</h3>
+          <h3 class="mb-2 text-card-title text-content-strong">Step 1</h3>
           <p class="text-sm text-content-muted">Generate a CA Certificate pair (you can skip this if you already have one)</p>
           <p class="mb-2 text-sm text-content-muted italic">Save the generated `rootCA.key` and `rootCA.crt` files for later use.</p>
           <pre class="overflow-x-auto rounded border border-line-default bg-base-900 p-3"><code class="text-xs text-content-body" phx-hook="HighlightCode" id="step-1">$ openssl genrsa -out rootCA.key 4096
@@ -39,13 +39,13 @@
         </div>
 
         <div class="mb-6">
-          <h3 class="mb-2 text-base font-semibold text-content-strong">Step 2</h3>
+          <h3 class="mb-2 text-card-title text-content-strong">Step 2</h3>
           <p class="mb-2 text-sm text-content-muted">Generate a key pair for the private key verification certificate</p>
           <pre class="overflow-x-auto rounded border border-line-default bg-base-900 p-3"><code class="text-xs text-content-body" phx-hook="HighlightCode" id="step-2">$ openssl genrsa -out verificationCert.key 4096</code></pre>
         </div>
 
         <div class="mb-6">
-          <h3 class="mb-2 text-base font-semibold text-content-strong">Step 3</h3>
+          <h3 class="mb-2 text-card-title text-content-strong">Step 3</h3>
           <p class="mb-2 text-sm text-content-muted">
             Create a CSR with the generated registration code in the <strong>Subject Alternative Name (SAN)</strong> field. The code is valid for one hour.
           </p>
@@ -55,7 +55,7 @@
         </div>
 
         <div class="mb-6">
-          <h3 class="mb-2 text-base font-semibold text-content-strong">Step 4</h3>
+          <h3 class="mb-2 text-card-title text-content-strong">Step 4</h3>
           <p class="mb-2 text-sm text-content-muted">Use the CSR that was signed with the CA private key to create a private key verification certificate</p>
           <pre class="overflow-x-auto rounded border border-line-default bg-base-900 p-3"><code class="text-xs text-content-body" phx-hook="HighlightCode" id="step-4">$ openssl x509 -req -in verificationCert.csr \
       -CA rootCA.crt -CAkey rootCA.key -CAcreateserial \

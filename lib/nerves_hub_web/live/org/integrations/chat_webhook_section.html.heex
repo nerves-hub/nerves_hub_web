@@ -1,6 +1,6 @@
 <div id={@id} class="flex w-full flex-col rounded-md border border-line-default bg-surface-raised">
   <div class="flex h-14 items-center justify-between border-b border-line-default px-4">
-    <div class="text-base font-medium text-content-strong">{service_name(@provider)}</div>
+    <div class="text-card-title text-content-strong">{service_name(@provider)}</div>
     <.button
       :if={is_nil(@editing) && length(@channels) < ChatWebhooks.max_channels_per_org()}
       type="button"

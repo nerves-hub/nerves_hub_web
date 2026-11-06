@@ -57,7 +57,7 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
       <.form id="settings-form" for={@settings_form} class="w-full" phx-change="validate-device-settings" phx-submit="update-device-settings">
         <div class="flex w-full flex-col rounded-md border border-line-default bg-surface-raised shadow-card">
           <div class="flex h-14 items-center justify-between border-b border-line-default px-4">
-            <div class="text-base font-medium text-content-strong">General settings</div>
+            <div class="text-card-title text-content-strong">General settings</div>
             <%= if authorized?(:"device:update", @current_scope) do %>
               <.button style="primary" type="submit">
                 <.icon name="save" /> Save changes
@@ -81,7 +81,7 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
 
       <div class="flex w-full flex-col rounded-md border border-line-default bg-surface-raised shadow-card">
         <div class="flex h-14 items-center justify-between border-b border-line-default px-4">
-          <div class="text-base font-medium text-content-strong">Firmware updates</div>
+          <div class="text-card-title text-content-strong">Firmware updates</div>
         </div>
         <div class="flex flex-col gap-1 px-4 py-2">
           <div class="flex h-16 items-center gap-6 p-2">
@@ -107,7 +107,7 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
 
       <div class="flex w-full flex-col rounded-md border border-line-default bg-surface-raised shadow-card">
         <div class="flex h-14 items-center justify-between border-b border-line-default px-4">
-          <div class="text-base font-medium text-content-strong">Extensions</div>
+          <div class="text-card-title text-content-strong">Extensions</div>
         </div>
         <div class="flex flex-col gap-1 px-4 py-2">
           <div :for={{key, description} <- available_extensions()} class="flex h-16 items-center gap-6 p-2">
@@ -141,7 +141,7 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
 
       <div class="flex w-full flex-col rounded-md border border-line-default bg-surface-raised shadow-card">
         <div class="flex h-14 items-center justify-between border-b border-line-default px-4">
-          <div class="text-base font-medium text-content-strong">Certificates</div>
+          <div class="text-card-title text-content-strong">Certificates</div>
           <div>
             <form id="upload-certificate" phx-change="validate-cert" phx-drop-target={@uploads.certificate.ref}>
               <div class="flex gap-2 rounded border border-line-strong bg-base-800 px-3 py-1.5 hover:cursor-pointer">
@@ -234,7 +234,7 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
 
       <div :if={@shared_secrets_enabled} id="shared-secrets" class="flex w-full flex-col rounded-md border border-line-default bg-surface-raised shadow-card">
         <div class="flex h-14 items-center justify-between border-b border-line-default px-4">
-          <div class="text-base font-medium text-content-strong">Shared secrets</div>
+          <div class="text-card-title text-content-strong">Shared secrets</div>
           <.button
             :if={is_nil(@device.deleted_at) && authorized?(:"device:update", @current_scope)}
             phx-click="create-shared-secret"

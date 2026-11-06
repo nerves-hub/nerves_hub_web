@@ -112,6 +112,22 @@
   --color-content-body: var(--color-zinc-300); /* default body text */
   --color-content-muted: var(--color-zinc-400); /* secondary / labels */
   --color-content-faint: var(--color-zinc-500); /* placeholder / disabled */
+
+  /* Headings. Each sets size, line height and weight, so a heading needs
+     only one of these plus a text colour (usually text-content-strong).
+     Pick by role, not by tag: an empty state's h2 is a page title. */
+  --text-page-title: 1.25rem; /* 20px: page h1s and empty-state titles */
+  --text-page-title--line-height: 1.875rem;
+  --text-page-title--font-weight: 600;
+  --text-section-title: 1.125rem; /* 18px: a section of a page */
+  --text-section-title--line-height: 1.75rem;
+  --text-section-title--font-weight: 600;
+  --text-card-title: 1rem; /* 16px: card and sidebar headers */
+  --text-card-title--line-height: 1.5rem;
+  --text-card-title--font-weight: 500;
+  --text-group-title: 0.875rem; /* 14px: a group inside a card */
+  --text-group-title--line-height: 1.25rem;
+  --text-group-title--font-weight: 600;
 }
 
 /*
@@ -536,19 +552,7 @@ body {
   text-align: left;
 }
 
-.title {
-  font-style: normal;
-  font-weight: 600;
-  line-height: 24px;
-  padding-top: 24px;
-  padding-bottom: 24px;
-}
 
-.subtitle {
-  font-size: 16px;
-  font-style: normal;
-  font-weight: 600;
-}
 
 .pager-button {
   @apply rounded px-3 py-1.5;

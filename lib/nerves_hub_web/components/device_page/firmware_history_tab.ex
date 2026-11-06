@@ -42,7 +42,7 @@ defmodule NervesHubWeb.Components.DevicePage.FirmwareHistoryTab do
       <div class="w-full p-6">
         <div class="flex w-full flex-col rounded-md border border-line-default bg-surface-raised shadow-card">
           <div class="flex h-14 items-center justify-between border-b border-line-default px-4">
-            <div class="text-base font-medium text-content-strong">Reported Installed Firmwares</div>
+            <div class="text-card-title text-content-strong">Reported Installed Firmwares</div>
           </div>
           <div :if={Enum.empty?(@device_firmwares)} class="flex flex-col gap-1 px-4 py-2">
             <div class="flex items-center justify-center p-14">

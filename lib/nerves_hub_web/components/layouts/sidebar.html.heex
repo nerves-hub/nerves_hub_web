@@ -59,7 +59,7 @@
                 <div class="org-avatar">
                   {org.name |> String.split(" ") |> Enum.map(&String.first/1) |> Enum.join()}
                 </div>
-                <h3 class="subtitle underline-base underline-color-indigo-500 group-hover:underline-expanded">{org.name}</h3>
+                <h3 class="underline-base text-card-title text-content-strong underline-color-indigo-500 group-hover:underline-expanded">{org.name}</h3>
               </.link>
               <div class="flex flex-col gap-1.5">
                 <div :for={product <- org.products}>

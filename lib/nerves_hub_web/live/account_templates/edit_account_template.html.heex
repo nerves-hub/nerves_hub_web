@@ -1,7 +1,7 @@
 <NervesHubWeb.Layouts.no_sidebar flash={@flash} current_scope={@current_scope}>
   <div class="w-[800px] pb-10">
     <div class="flex h-[88px] items-center justify-between py-6">
-      <h1 class="text-xl leading-[30px] font-semibold text-content-strong">Personal Info</h1>
+      <h1 class="text-page-title text-content-strong">Personal Info</h1>
       <.button type="link" style="danger" navigate={~p"/account/delete"}>
         Delete Account
       </.button>
@@ -9,7 +9,7 @@
 
     <div class="flex flex-col gap-6">
       <div class="rounded-md border border-line-default bg-surface-raised p-4 shadow-card">
-        <h2 class="mb-4 text-lg font-semibold text-content-strong">Account Details</h2>
+        <h2 class="mb-4 text-section-title text-content-strong">Account Details</h2>
         <.form :let={f} id="details-form" for={@form} phx-submit="update-details">
           <div class="flex flex-col gap-4">
             <div>
@@ -64,7 +64,7 @@
       </div>
 
       <div class="rounded-md border border-line-default bg-surface-raised p-4 shadow-card">
-        <h2 class="mb-4 text-lg font-semibold text-content-strong">Change Password</h2>
+        <h2 class="mb-4 text-section-title text-content-strong">Change Password</h2>
         <.form :let={f} id="password-form" for={@password_changeset} phx-submit="update-password">
           <div class="flex flex-col gap-4">
             <div>
@@ -118,7 +118,7 @@
 
       <div class="rounded-md border border-line-default bg-surface-raised p-4 shadow-card">
         <div class="flex justify-between">
-          <h2 class="mb-4 text-lg font-semibold text-content-strong">Access tokens</h2>
+          <h2 class="mb-4 text-section-title text-content-strong">Access tokens</h2>
           <div>
             <.button
               type="button"
@@ -133,7 +133,7 @@
 
         <div :if={@new_token} class="flex items-start gap-4 rounded-md border border-primary bg-linear-to-r from-base-800/50 to-base-800 p-4">
           <div class="flex min-w-0 gap-4">
-            <h3 class="text-sm font-semibold text-content-strong">
+            <h3 class="text-group-title text-content-strong">
               New Token:
             </h3>
             <div class="text-sm text-content-body">
@@ -150,11 +150,11 @@
           <div :for={access_token <- @access_tokens} class="flex items-start gap-4 rounded-md border border-line-default bg-linear-to-r from-base-800/50 to-base-800 p-4">
             <span class="mt-1 lucide-key-round--light size-6"></span>
             <div class="min-w-0 flex-1">
-              <h3 :if={access_token.note != ""} class="mb-2 text-sm font-semibold text-content-strong">
+              <h3 :if={access_token.note != ""} class="mb-2 text-group-title text-content-strong">
                 {access_token.note}
               </h3>
 
-              <h3 :if={access_token.note == ""} class="mb-2 text-sm text-content-strong italic">
+              <h3 :if={access_token.note == ""} class="mb-2 text-group-title font-normal text-content-strong italic">
                 Unnamed
               </h3>
 
@@ -178,7 +178,7 @@
         id="slack-links"
         class="rounded-md border border-line-default bg-surface-raised p-4 shadow-card"
       >
-        <h2 class="mb-2 text-lg font-semibold text-content-strong">Slack accounts</h2>
+        <h2 class="mb-2 text-section-title text-content-strong">Slack accounts</h2>
         <p class="mb-4 text-sm text-content-muted">
           What these Slack users do with {NervesHub.Branding.friendly_platform_name()}'s buttons in Slack is done as you.
         </p>
@@ -208,7 +208,7 @@
     <CoreComponents.modal id="new-access-token" on_cancel={Phoenix.LiveView.JS.add_class("hidden")}>
       <.form id="access-token-form" for={@access_token_form} phx-submit="generate-access-token">
         <div class="flex h-14 items-center justify-between border-b border-line-default px-4">
-          <div class="text-base font-medium text-content-strong">New access token</div>
+          <div class="text-card-title text-content-strong">New access token</div>
         </div>
 
         <div class="flex flex-col gap-6 p-4">

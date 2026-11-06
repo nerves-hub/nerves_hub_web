@@ -28,7 +28,7 @@ defmodule NervesHubWeb.Components.ListSettingsSidebar do
       >
         <div class="h-0 flex-1 overflow-y-auto">
           <div class="flex h-14 items-center border-b border-line-default px-4 py-3">
-            <h4 class="text-base font-semibold">Settings</h4>
+            <h4 class="text-card-title">Settings</h4>
 
             <button class="ml-auto cursor-pointer p-1.5" type="button" phx-click={hide_settings_sidebar()}>
               <span class="lucide-x--light size-5 text-content-body" />

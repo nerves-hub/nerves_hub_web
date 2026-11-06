@@ -13,7 +13,7 @@ defmodule NervesHubWeb.Components.PinnedDevices do
     ~H"""
     <div>
       <div class="mt-12 flex h-[88px] items-center justify-between py-6">
-        <h1 class="text-xl leading-[30px] font-semibold text-content-strong">My Pinned Devices</h1>
+        <h1 class="text-page-title text-content-strong">My Pinned Devices</h1>
       </div>
       <div class="rounded-md border border-line-default bg-surface-raised">
         <div class="flex flex-col">

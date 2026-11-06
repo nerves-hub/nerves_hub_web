@@ -1,6 +1,6 @@
 <NervesHubWeb.Layouts.sidebar flash={@flash} current_scope={@current_scope} sidebar_tab={@sidebar_tab}>
   <:header>
-    <h1 class="text-xl leading-[30px] font-semibold text-content-strong">Errors</h1>
+    <h1 class="text-page-title text-content-strong">Errors</h1>
     <.badge :if={@extension_enabled?} id="error-count" class="mr-auto">
       {@status_counts.unresolved} unresolved
     </.badge>

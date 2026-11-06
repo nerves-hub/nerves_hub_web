@@ -105,7 +105,7 @@ defmodule NervesHubWeb.Components.DeviceNetworkIdentities do
 
   defp frame(assigns) do
     ~H"""
-    <div class="flex h-14 items-center px-4 leading-6 font-medium text-content-strong">
+    <div class="flex h-14 items-center px-4 text-card-title text-content-strong">
       Network Identities
     </div>
     {render_slot(@inner_block)}

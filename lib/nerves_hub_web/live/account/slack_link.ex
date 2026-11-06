@@ -22,7 +22,7 @@ defmodule NervesHubWeb.Live.Account.SlackLink do
     <NervesHubWeb.Layouts.no_sidebar flash={@flash} current_scope={@current_scope}>
       <div class="mx-auto flex w-full max-w-xl flex-col gap-6 p-6">
         <div id="slack-link" class="flex flex-col gap-4 rounded-md border border-line-default bg-surface-raised p-4 text-sm text-content-body">
-          <h1 class="text-lg font-semibold text-content-strong">Link your Slack account</h1>
+          <h1 class="text-section-title text-content-strong">Link your Slack account</h1>
           <p>
             Sign in with Slack as yourself to link your Slack account to <strong class="text-content-strong">{@current_scope.user.email}</strong>.
             What you then do with {Branding.friendly_platform_name()}'s buttons in Slack is done as you, with your permissions in each organization.

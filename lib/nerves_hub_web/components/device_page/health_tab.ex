@@ -270,7 +270,7 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
       <div :if={Enum.any?(Map.keys(@latest_metrics))} class="flex w-full flex-col rounded-md border border-line-default bg-surface-raised shadow-card">
         <div class="flex h-14 items-center justify-between border-b border-line-default px-4">
           <div class="flex items-end gap-3">
-            <div class="text-base font-medium text-content-strong">Health over time</div>
+            <div class="text-card-title text-content-strong">Health over time</div>
             <div :if={@latest_metrics["timestamp"]} class="mr-auto pb-0.5 text-xs tracking-wide text-content-faint">
               <span>Last updated: </span>
               <time id="health-last-updated" phx-hook="UpdatingTimeAgo" datetime={String.replace(DateTime.to_string(DateTime.truncate(@latest_metrics["timestamp"], :second)), " ", "T")}>
@@ -366,7 +366,7 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
       <div :if={Enum.empty?(Map.keys(@latest_metrics))} class="flex size-full flex-col rounded-md border border-line-default bg-surface-raised shadow-card">
         <div class="flex h-14 shrink-0 items-center justify-between border-b border-line-default px-4">
           <div class="flex items-end gap-3">
-            <div class="text-base font-medium text-content-strong">Health over time</div>
+            <div class="text-card-title text-content-strong">Health over time</div>
           </div>
           <.segmented_control label="Metrics time frame">
             <:segment

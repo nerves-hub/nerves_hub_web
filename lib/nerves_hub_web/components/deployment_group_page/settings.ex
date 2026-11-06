@@ -31,7 +31,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
       <.form id="deployment-form" for={@form} class="flex w-full flex-col gap-4" phx-change="validate-deployment-group" phx-submit="update-deployment-group" phx-target={@myself}>
         <div class="flex w-2/3 flex-col rounded-md border border-line-default bg-surface-raised">
           <div class="flex h-14 items-center justify-between border-b border-line-default px-4">
-            <div class="text-base font-medium text-content-strong">General settings</div>
+            <div class="text-card-title text-content-strong">General settings</div>
           </div>
 
           <div class="flex gap-6 p-4">
@@ -63,7 +63,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
 
         <div class="flex w-2/3 flex-col rounded-md border border-line-default bg-surface-raised">
           <div class="flex h-14 items-center justify-between border-b border-line-default px-4">
-            <div class="text-base font-medium text-content-strong">Device matching conditions</div>
+            <div class="text-card-title text-content-strong">Device matching conditions</div>
           </div>
 
           <div class="flex flex-col gap-6 p-4">
@@ -99,7 +99,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
 
         <div class="flex w-2/3 flex-col rounded-md border border-line-default bg-surface-raised">
           <div class="flex h-14 items-center justify-between border-b border-line-default px-4">
-            <div class="text-base font-medium text-content-strong">Deployment Workflows</div>
+            <div class="text-card-title text-content-strong">Deployment Workflows</div>
           </div>
 
           <div class="flex flex-col gap-6 p-4">
@@ -152,7 +152,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
 
         <div class="flex w-2/3 flex-col rounded-md border border-line-default bg-surface-raised">
           <div class="flex h-14 items-center justify-between border-b border-line-default px-4">
-            <div class="text-base font-medium text-content-strong">Device queue settings</div>
+            <div class="text-card-title text-content-strong">Device queue settings</div>
           </div>
 
           <div class="flex flex-col gap-6 p-4">
@@ -170,7 +170,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
 
         <div class="flex w-2/3 flex-col rounded-md border border-line-default bg-surface-raised">
           <div class="flex h-14 items-center justify-between border-b border-line-default px-4">
-            <div class="text-base font-medium text-content-strong">Rolling updates</div>
+            <div class="text-card-title text-content-strong">Rolling updates</div>
           </div>
 
           <div class="flex flex-col gap-6 p-4">
@@ -193,7 +193,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
 
         <div class="flex w-2/3 flex-col rounded-md border border-line-default bg-surface-raised">
           <div class="flex h-14 items-center justify-between border-b border-line-default px-4">
-            <div class="text-base font-medium text-content-strong">Priority queue</div>
+            <div class="text-card-title text-content-strong">Priority queue</div>
           </div>
 
           <div class="flex flex-col gap-6 p-4">
@@ -238,7 +238,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
 
         <div class="flex w-2/3 flex-col rounded-md border border-line-default bg-surface-raised">
           <div class="flex h-14 items-center justify-between border-b border-line-default px-4">
-            <div class="text-base font-medium text-content-strong">Device penalty box logic</div>
+            <div class="text-card-title text-content-strong">Device penalty box logic</div>
           </div>
           <div class="flex flex-col gap-8 border-t border-line-default p-4">
             <div>
@@ -303,7 +303,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
 
         <div class="flex w-2/3 flex-col rounded-md border border-line-default bg-surface-raised">
           <div class="flex h-14 items-center justify-between border-b border-line-default px-4">
-            <div class="text-base font-medium text-content-strong">First Connect Code</div>
+            <div class="text-card-title text-content-strong">First Connect Code</div>
           </div>
 
           <div class="flex flex-col gap-6 p-4">

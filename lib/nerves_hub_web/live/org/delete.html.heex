@@ -1,11 +1,11 @@
 <NervesHubWeb.Layouts.sidebar flash={@flash} current_scope={@current_scope} sidebar_tab={@sidebar_tab}>
   <:header>
-    <h1 class="text-xl leading-[30px] font-semibold text-content-strong">Delete Organization</h1>
+    <h1 class="text-page-title text-content-strong">Delete Organization</h1>
   </:header>
 
   <div class="max-w-[650px] px-6 py-4">
     <div class="mb-6 rounded-md border border-alert bg-alert-soft p-4">
-      <h3 class="mb-2 text-base font-semibold text-alert-content">Are you absolutely sure?</h3>
+      <h3 class="mb-2 text-card-title text-alert-content">Are you absolutely sure?</h3>
       <p class="mb-2 text-sm text-alert-content">Unexpected bad things will happen if you don't read this!</p>
       <p class="text-sm text-alert-content">This action cannot be undone. This will permanently delete the <strong>{@org.name}</strong> organization.</p>
     </div>

@@ -42,7 +42,7 @@ defmodule NervesHubWeb.Components.DevicePage.ActivityTab do
       <div class="w-full p-6">
         <div class="flex w-full flex-col rounded-md border border-line-default bg-surface-raised shadow-card">
           <div class="flex h-14 items-center justify-between border-b border-line-default px-4">
-            <div class="text-base font-medium text-content-strong">Latest activity</div>
+            <div class="text-card-title text-content-strong">Latest activity</div>
 
             <div class="rounded border border-line-strong bg-base-800 p-1.5">
               <.link href={~p"/org/#{@org}/#{@product}/devices/#{@device}/audit_logs/download"}>

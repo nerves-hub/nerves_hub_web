@@ -6,7 +6,7 @@
   </:top_bar>
 
   <:header>
-    <h1 class="text-xl leading-[30px] font-semibold text-content-strong">{CAHelpers.label(@certificate)}</h1>
+    <h1 class="text-page-title text-content-strong">{CAHelpers.label(@certificate)}</h1>
     <div class="mr-auto"></div>
     <.button :if={authorized?(:"certificate_authority:update", @current_scope)} type="link" navigate={~p"/org/#{@org}/settings/certificates/#{@certificate}/edit"}>
       Edit
@@ -26,7 +26,7 @@
   <div class="h-0 max-w-[650px] flex-1 flex-col gap-6 overflow-y-auto px-6 py-4">
     <div class="flex flex-col rounded-md border border-line-default bg-surface-raised">
       <div class="flex h-14 items-center justify-between border-b border-line-default px-4">
-        <div class="text-base font-medium text-content-strong">Certificate Authority</div>
+        <div class="text-card-title text-content-strong">Certificate Authority</div>
         <CAHelpers.certificate_status not_before={@certificate.not_before} not_after={@certificate.not_after} />
       </div>
       <dl class="flex flex-col gap-3 p-4 text-sm">
@@ -75,7 +75,7 @@
 
     <div id="ca-devices" class="flex flex-col rounded-md border border-line-default bg-surface-raised">
       <div class="flex h-14 items-center gap-2 border-b border-line-default px-4">
-        <div class="text-base font-medium text-content-strong">Devices</div>
+        <div class="text-card-title text-content-strong">Devices</div>
         <.badge>
           {Number.Delimit.number_to_delimited(@device_count, precision: 0)}
         </.badge>
