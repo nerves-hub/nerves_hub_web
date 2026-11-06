@@ -153,9 +153,15 @@
   --row-height: 52px;
   --nav-item-height: 44px;
 
-  --shadow-filter-slider: -16px 0px 32px -4px #141417, 0px 4px 4px -4px #141417;
-  --shadow-device-details-content:
-    0 16px 32px -4px #141417, 0 14px 4px -4px #141417;
+  /* Elevation, in three steps (see the shadow-* utilities below). Dark
+     shadows are black at a high alpha: one in the canvas colour (#141417)
+     can't be seen against the canvas. */
+  --shadow-card: 0 1px 2px rgb(0 0 0 / 0.3), 0 2px 6px rgb(0 0 0 / 0.3);
+  --shadow-overlay:
+    0 4px 8px -2px rgb(0 0 0 / 0.4), 0 12px 32px -4px rgb(0 0 0 / 0.55);
+  --shadow-control: 0 1px 2px rgb(0 0 0 / 0.4);
+  --shadow-filter-slider:
+    -16px 0 32px -4px rgb(0 0 0 / 0.5), 0 4px 4px -4px rgb(0 0 0 / 0.5);
 }
 
 /* Light mode overrides — invert the neutral ramp, re-point surfaces, and swap
@@ -219,9 +225,12 @@
      the light sidebar the same contrast (1.12–1.27:1) zinc-700 gives dark. */
   --veil: #bdbdc3;
 
-  --shadow-filter-slider: -16px 0px 32px -4px #ebebe8, 0px 4px 4px -4px #ebebe8;
-  --shadow-device-details-content:
-    0 1px 2px rgb(24 24 27 / 0.04), 0 2px 6px rgb(24 24 27 / 0.06);
+  --shadow-card: 0 1px 2px rgb(24 24 27 / 0.04), 0 2px 6px rgb(24 24 27 / 0.06);
+  --shadow-overlay:
+    0 4px 8px -2px rgb(24 24 27 / 0.06), 0 12px 32px -4px rgb(24 24 27 / 0.12);
+  --shadow-control: 0 1px 2px rgb(24 24 27 / 0.12);
+  --shadow-filter-slider:
+    -16px 0 32px -4px rgb(24 24 27 / 0.08), 0 4px 4px -4px rgb(24 24 27 / 0.08);
 }
 
 @custom-variant dark (&:where([data-theme=dark], [data-theme=dark] *));
@@ -246,11 +255,37 @@
   .phx-drop-target-active &
 );
 
+/* Elevation: shadow-card for resting surfaces, shadow-overlay for anything
+   that floats over the page (menus, popovers, tooltips, dialogs), and
+   shadow-control for a control raised within a group, such as a selected
+   segment or a switch knob. Inline alerts and inputs stay flat.
+
+   Each sets --tw-shadow and repeats Tailwind's box-shadow stack, so a ring-*
+   on the same element still draws. */
+@utility shadow-card {
+  --tw-shadow: var(--shadow-card);
+  box-shadow:
+    var(--tw-inset-shadow, 0 0 #0000), var(--tw-inset-ring-shadow, 0 0 #0000),
+    var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000),
+    var(--tw-shadow);
+}
+@utility shadow-overlay {
+  --tw-shadow: var(--shadow-overlay);
+  box-shadow:
+    var(--tw-inset-shadow, 0 0 #0000), var(--tw-inset-ring-shadow, 0 0 #0000),
+    var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000),
+    var(--tw-shadow);
+}
+@utility shadow-control {
+  --tw-shadow: var(--shadow-control);
+  box-shadow:
+    var(--tw-inset-shadow, 0 0 #0000), var(--tw-inset-ring-shadow, 0 0 #0000),
+    var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000),
+    var(--tw-shadow);
+}
+/* The filter panel's shadow casts left, away from the screen edge it slides in from. */
 @utility shadow-filter-slider {
   box-shadow: var(--shadow-filter-slider);
-}
-@utility shadow-device-details-content {
-  box-shadow: var(--shadow-device-details-content);
 }
 @utility w-sidebar {
   width: var(--sidebar-width);

@@ -647,7 +647,7 @@ export default {
     }
 
     this.suggestionsEl.innerHTML = `
-      <div class="bg-surface-muted border-line-default absolute left-0 right-0 z-40 mt-1 max-h-48 overflow-auto rounded border shadow-lg">
+      <div class="bg-surface-muted border-line-default absolute left-0 right-0 z-40 mt-1 max-h-48 overflow-auto rounded border shadow-overlay">
         ${this.activeSuggestions
           .map(
             (suggestion, index) => `

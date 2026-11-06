@@ -776,7 +776,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
 
   defp health_box(assigns) do
     ~H"""
-    <div :if={!@product.extensions.health || !@device.extensions.health} class="flex flex-col rounded border border-line-default bg-surface-raised shadow-device-details-content">
+    <div :if={!@product.extensions.health || !@device.extensions.health} class="flex flex-col rounded border border-line-default bg-surface-raised shadow-card">
       <div class="flex h-14 items-center justify-between pr-3 pl-4">
         <div class="leading-6 font-medium text-content-strong">Health and Alerting</div>
       </div>
@@ -792,7 +792,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
 
     <div
       :if={Enum.any?(@latest_metrics) && @product.extensions.health && @device.extensions.health}
-      class="flex flex-col rounded border border-line-default bg-surface-raised shadow-device-details-content"
+      class="flex flex-col rounded border border-line-default bg-surface-raised shadow-card"
     >
       <div class="flex h-14 items-center justify-between pr-3 pl-4">
         <div class="flex items-center gap-2">
@@ -834,7 +834,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
 
     <div
       :if={Enum.empty?(@latest_metrics) && @product.extensions.health && @device.extensions.health}
-      class="flex flex-col rounded border border-line-default bg-surface-raised shadow-device-details-content"
+      class="flex flex-col rounded border border-line-default bg-surface-raised shadow-card"
     >
       <div class="flex h-14 items-center justify-between pr-3 pl-4">
         <div class="leading-6 font-medium text-content-strong">Health</div>
@@ -858,7 +858,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
 
   defp alarms_box(assigns) do
     ~H"""
-    <div :if={@alarms && alarms_reported?(@product, @device)} class="flex flex-col rounded border border-line-default bg-surface-raised shadow-device-details-content">
+    <div :if={@alarms && alarms_reported?(@product, @device)} class="flex flex-col rounded border border-line-default bg-surface-raised shadow-card">
       <div class="flex h-14 items-center justify-between pr-3 pl-4">
         <div class="leading-6 font-medium text-content-strong">Alarms</div>
       </div>
@@ -879,7 +879,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
       </div>
     </div>
 
-    <div :if={!@alarms && alarms_reported?(@product, @device)} class="flex flex-col rounded border border-line-default bg-surface-raised shadow-device-details-content">
+    <div :if={!@alarms && alarms_reported?(@product, @device)} class="flex flex-col rounded border border-line-default bg-surface-raised shadow-card">
       <div class="flex h-14 items-center justify-between pr-3 pl-4">
         <div class="leading-6 font-medium text-content-strong">No Alarms Received</div>
       </div>
@@ -905,7 +905,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
 
   defp deployment_box(assigns) do
     ~H"""
-    <div class="flex flex-col rounded border border-line-default bg-surface-raised shadow-device-details-content">
+    <div class="flex flex-col rounded border border-line-default bg-surface-raised shadow-card">
       <div class="flex h-14 items-center pr-3 pl-4 leading-6 font-medium text-content-strong">
         Deployment Groups
       </div>
@@ -1029,7 +1029,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
 
   defp location_box(assigns) do
     ~H"""
-    <div class="flex flex-col items-start rounded border border-line-default bg-surface-raised shadow-device-details-content">
+    <div class="flex flex-col items-start rounded border border-line-default bg-surface-raised shadow-card">
       <DeviceLocation.render
         location={extract_location_data(@device)}
         enable_location_editor={@enable_location_editor}
@@ -1044,7 +1044,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
 
   defp network_identities_box(assigns) do
     ~H"""
-    <div class="flex flex-col rounded border border-line-default bg-surface-raised shadow-device-details-content">
+    <div class="flex flex-col rounded border border-line-default bg-surface-raised shadow-card">
       <DeviceNetworkIdentities.render
         enabled_product={@product.extensions.network_identity}
         enabled_device={@device.extensions.network_identity}
@@ -1063,7 +1063,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
 
   defp support_scripts_box(assigns) do
     ~H"""
-    <div class="flex flex-col rounded border border-line-default bg-surface-raised shadow-device-details-content">
+    <div class="flex flex-col rounded border border-line-default bg-surface-raised shadow-card">
       <div class="flex h-14 items-center pr-3 pl-4 leading-6 font-medium text-content-strong">
         Support Scripts
       </div>
@@ -1113,7 +1113,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
               phx-update="ignore"
               role="listbox"
               hidden
-              class="absolute z-10 mt-1 max-h-56 w-full overflow-y-auto rounded border border-line-strong bg-base-900 py-1 shadow-lg"
+              class="absolute z-10 mt-1 max-h-56 w-full overflow-y-auto rounded border border-line-strong bg-base-900 py-1 shadow-overlay"
             >
             </ul>
           </div>
@@ -1171,7 +1171,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
 
   defp general_info(assigns) do
     ~H"""
-    <div class="flex flex-col rounded border border-line-default bg-surface-raised pb-4 shadow-device-details-content">
+    <div class="flex flex-col rounded border border-line-default bg-surface-raised pb-4 shadow-card">
       <div class="flex h-14 items-center pr-3 pl-4 leading-6 font-medium text-content-strong">
         General Info
       </div>
@@ -1313,7 +1313,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
                   data-tag-suggestions
                   role="listbox"
                   hidden
-                  class="absolute z-10 mt-1 max-h-56 w-40 overflow-y-auto rounded border border-line-strong bg-base-900 py-1 shadow-lg"
+                  class="absolute z-10 mt-1 max-h-56 w-40 overflow-y-auto rounded border border-line-strong bg-base-900 py-1 shadow-overlay"
                 >
                 </ul>
               </div>
@@ -1333,7 +1333,11 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
                   <span class="shrink-0 bg-base-700 px-2 py-0.5 tracking-wide text-content-body">{key |> String.replace("_", " ") |> String.capitalize()}</span>
                   <span class="min-w-0 truncate bg-base-800 px-2 py-0.5 font-mono text-base-200">{value}</span>
                 </div>
-                <div :if={long_value?(value)} role="tooltip" class="tooltip-content absolute top-0 left-0 z-20 hidden max-w-md rounded border border-line-default bg-surface-overlay px-2 py-1.5 shadow-lg">
+                <div
+                  :if={long_value?(value)}
+                  role="tooltip"
+                  class="tooltip-content absolute top-0 left-0 z-20 hidden max-w-md rounded border border-line-default bg-surface-overlay px-2 py-1.5 shadow-overlay"
+                >
                   <span class="font-mono text-xs break-all text-base-200">{value}</span>
                   <div class="tooltip-arrow absolute size-2 origin-center rotate-45 border-line-default bg-surface-overlay"></div>
                 </div>

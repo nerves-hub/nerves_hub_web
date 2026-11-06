@@ -55,7 +55,7 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
       class="tab-content flex flex-col items-start justify-between gap-4 p-6 opacity-0 transition-all duration-500 phx-click-loading:opacity-50"
     >
       <.form id="settings-form" for={@settings_form} class="w-full" phx-change="validate-device-settings" phx-submit="update-device-settings">
-        <div class="flex w-full flex-col rounded border border-line-default bg-surface-raised shadow-device-details-content">
+        <div class="flex w-full flex-col rounded border border-line-default bg-surface-raised shadow-card">
           <div class="flex h-14 items-center justify-between border-b border-line-default px-4">
             <div class="text-base font-medium text-content-strong">General settings</div>
             <%= if authorized?(:"device:update", @current_scope) do %>
@@ -79,7 +79,7 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
         </div>
       </.form>
 
-      <div class="flex w-full flex-col rounded border border-line-default bg-surface-raised shadow-device-details-content">
+      <div class="flex w-full flex-col rounded border border-line-default bg-surface-raised shadow-card">
         <div class="flex h-14 items-center justify-between border-b border-line-default px-4">
           <div class="text-base font-medium text-content-strong">Firmware updates</div>
         </div>
@@ -105,7 +105,7 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
         </div>
       </div>
 
-      <div class="flex w-full flex-col rounded border border-line-default bg-surface-raised shadow-device-details-content">
+      <div class="flex w-full flex-col rounded border border-line-default bg-surface-raised shadow-card">
         <div class="flex h-14 items-center justify-between border-b border-line-default px-4">
           <div class="text-base font-medium text-content-strong">Extensions</div>
         </div>
@@ -139,7 +139,7 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
         </div>
       </div>
 
-      <div class="flex w-full flex-col rounded border border-line-default bg-surface-raised shadow-device-details-content">
+      <div class="flex w-full flex-col rounded border border-line-default bg-surface-raised shadow-card">
         <div class="flex h-14 items-center justify-between border-b border-line-default px-4">
           <div class="text-base font-medium text-content-strong">Certificates</div>
           <div>
@@ -238,7 +238,7 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
         </div>
       </div>
 
-      <div :if={@shared_secrets_enabled} id="shared-secrets" class="flex w-full flex-col rounded border border-line-default bg-surface-raised shadow-device-details-content">
+      <div :if={@shared_secrets_enabled} id="shared-secrets" class="flex w-full flex-col rounded border border-line-default bg-surface-raised shadow-card">
         <div class="flex h-14 items-center justify-between border-b border-line-default px-4">
           <div class="text-base font-medium text-content-strong">Shared secrets</div>
           <.button
@@ -309,7 +309,7 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
         </div>
       </div>
 
-      <div :if={@device.deleted_at && authorized?(:"device:update", @current_scope)} class="flex w-full flex-col rounded border border-line-default bg-surface-raised shadow-device-details-content">
+      <div :if={@device.deleted_at && authorized?(:"device:update", @current_scope)} class="flex w-full flex-col rounded border border-line-default bg-surface-raised shadow-card">
         <div class="p-6 pb-0 text-content-body">
           The device has been disabled. Attempts to connect to NervesHub will be blocked.
         </div>
@@ -352,7 +352,7 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
         </div>
       </div>
 
-      <div :if={!@device.deleted_at && authorized?(:"device:update", @current_scope)} class="flex w-full flex-col rounded border border-line-default bg-surface-raised shadow-device-details-content">
+      <div :if={!@device.deleted_at && authorized?(:"device:update", @current_scope)} class="flex w-full flex-col rounded border border-line-default bg-surface-raised shadow-card">
         <div class="flex items-center gap-6 border-t border-line-default p-6">
           <div>
             <button

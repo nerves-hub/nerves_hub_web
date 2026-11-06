@@ -40,7 +40,7 @@ defmodule NervesHubWeb.Components.DevicePage.ActivityTab do
       class="tab-content flex h-full flex-col items-start justify-between gap-4 opacity-0 transition-all duration-500 phx-click-loading:opacity-50"
     >
       <div class="w-full p-6">
-        <div class="flex w-full flex-col rounded border border-line-default bg-surface-raised shadow-device-details-content">
+        <div class="flex w-full flex-col rounded border border-line-default bg-surface-raised shadow-card">
           <div class="flex h-14 items-center justify-between border-b border-line-default px-4">
             <div class="text-base font-medium text-content-strong">Latest activity</div>
 

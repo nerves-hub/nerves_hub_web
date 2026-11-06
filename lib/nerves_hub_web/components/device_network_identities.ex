@@ -127,7 +127,7 @@ defmodule NervesHubWeb.Components.DeviceNetworkIdentities do
           <span class="shrink-0 bg-base-700 px-2 py-0.5 tracking-wide text-content-body">{@label}</span>
           <span class="min-w-0 truncate bg-base-800 px-2 py-0.5 font-mono text-base-200">{@value}</span>
         </div>
-        <div :if={long_value?(@value)} role="tooltip" class="tooltip-content absolute top-0 left-0 z-20 hidden max-w-md rounded border border-line-default bg-surface-overlay px-2 py-1.5 shadow-lg">
+        <div :if={long_value?(@value)} role="tooltip" class="tooltip-content absolute top-0 left-0 z-20 hidden max-w-md rounded border border-line-default bg-surface-overlay px-2 py-1.5 shadow-overlay">
           <span class="font-mono text-xs break-all text-base-200">{@value}</span>
           <div class="tooltip-arrow absolute size-2 origin-center rotate-45 border-line-default bg-surface-overlay"></div>
         </div>

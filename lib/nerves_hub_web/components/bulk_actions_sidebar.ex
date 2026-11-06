@@ -160,7 +160,7 @@ defmodule NervesHubWeb.Components.BulkActionsSidebar do
                     data-tag-suggestions
                     role="listbox"
                     hidden
-                    class="absolute z-10 mt-1 max-h-56 w-full overflow-y-auto rounded border border-line-strong bg-base-900 py-1 shadow-lg"
+                    class="absolute z-10 mt-1 max-h-56 w-full overflow-y-auto rounded border border-line-strong bg-base-900 py-1 shadow-overlay"
                   >
                   </ul>
                 </div>

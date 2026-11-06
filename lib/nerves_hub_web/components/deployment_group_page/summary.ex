@@ -249,7 +249,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
   def render(assigns) do
     ~H"""
     <div class="flex w-full flex-col items-start gap-4 p-6">
-      <div :if={@flow} class="w-full items-center justify-center rounded border border-line-default bg-surface-raised shadow-device-details-content">
+      <div :if={@flow} class="w-full items-center justify-center rounded border border-line-default bg-surface-raised shadow-card">
         <div id="deployment-workflow-fit" phx-hook="WorkflowDiagramFit" class="h-[200px]">
           <.live_component
             module={LiveFlow.Components.Flow}
@@ -280,7 +280,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
 
       <div
         :if={@failed_step}
-        class="flex w-full flex-col gap-3 rounded border border-alert bg-surface-raised p-4 shadow-device-details-content sm:flex-row sm:items-center sm:justify-between"
+        class="flex w-full flex-col gap-3 rounded border border-alert bg-surface-raised p-4 shadow-card sm:flex-row sm:items-center sm:justify-between"
       >
         <div class="flex flex-col gap-1">
           <div class="text-base font-medium text-content-strong">
@@ -319,7 +319,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
 
       <div
         :if={@awaiting_approval}
-        class="flex w-full flex-col gap-3 rounded border border-warning bg-surface-raised p-4 shadow-device-details-content sm:flex-row sm:items-center sm:justify-between"
+        class="flex w-full flex-col gap-3 rounded border border-warning bg-surface-raised p-4 shadow-card sm:flex-row sm:items-center sm:justify-between"
       >
         <div class="flex flex-col gap-1">
           <div class="text-base font-medium text-content-strong">
@@ -344,7 +344,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
         </.button>
       </div>
 
-      <div :if={@waiting_for_update_count == 0 && is_nil(@flow)} class="w-full items-center justify-center rounded border border-line-default bg-surface-raised p-4 shadow-device-details-content">
+      <div :if={@waiting_for_update_count == 0 && is_nil(@flow)} class="w-full items-center justify-center rounded border border-line-default bg-surface-raised p-4 shadow-card">
         <div class="flex h-10 items-center justify-center text-xl/6 font-medium text-content-strong">
           {if @updates_disabled_count > 0, do: "All eligible devices are up to date!", else: "All devices are up to date!"}
         </div>
@@ -353,7 +353,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
         </div>
       </div>
 
-      <div :if={@waiting_for_update_count > 0} class="box-content flex w-full items-center justify-center rounded border border-line-default bg-surface-raised shadow-device-details-content">
+      <div :if={@waiting_for_update_count > 0} class="box-content flex w-full items-center justify-center rounded border border-line-default bg-surface-raised shadow-card">
         <div class="relative top-0 z-20 w-full items-center justify-center overflow-visible rounded">
           <div
             :if={@deployment_group.is_active}
@@ -379,7 +379,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
 
       <div class="flex size-full gap-4">
         <div class="flex w-1/2 flex-col gap-4">
-          <div class="flex flex-col gap-2 rounded border border-line-default bg-surface-raised p-4 shadow-device-details-content">
+          <div class="flex flex-col gap-2 rounded border border-line-default bg-surface-raised p-4 shadow-card">
             <div class="flex h-9 items-start justify-between">
               <div class="leading-6 font-medium text-content-strong">Current Release</div>
             </div>
@@ -426,7 +426,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
             </div>
           </div>
 
-          <div :if={@deployment_group.delta_updatable or Enum.any?(@deltas)} class="flex flex-col gap-2 rounded border border-line-default bg-surface-raised shadow-device-details-content">
+          <div :if={@deployment_group.delta_updatable or Enum.any?(@deltas)} class="flex flex-col gap-2 rounded border border-line-default bg-surface-raised shadow-card">
             <div class="flex h-9 items-start justify-between p-4">
               <div class="leading-6 font-medium text-content-strong">Firmware deltas</div>
             </div>
@@ -532,7 +532,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
             </div>
           </div>
 
-          <div class="flex flex-col gap-2 rounded border border-line-default bg-surface-raised p-4 shadow-device-details-content">
+          <div class="flex flex-col gap-2 rounded border border-line-default bg-surface-raised p-4 shadow-card">
             <div class="flex h-9 items-start justify-between">
               <div class="leading-6 font-medium text-content-strong">Inflight updates</div>
             </div>
@@ -563,7 +563,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
           </div>
         </div>
         <div class="flex w-1/2 flex-col gap-4">
-          <div class="flex flex-col gap-4 rounded border border-line-default bg-surface-raised p-4 shadow-device-details-content">
+          <div class="flex flex-col gap-4 rounded border border-line-default bg-surface-raised p-4 shadow-card">
             <div class="flex h-9 items-start justify-between">
               <div class="leading-6 font-medium text-content-strong">Settings Overview</div>
             </div>
@@ -644,7 +644,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
             </div>
           </div>
 
-          <div class="flex flex-col gap-2 rounded border border-line-default bg-surface-raised p-4 shadow-device-details-content">
+          <div class="flex flex-col gap-2 rounded border border-line-default bg-surface-raised p-4 shadow-card">
             <div class="flex h-9 items-start justify-between">
               <div class="leading-6 font-medium text-content-strong">Device Matching Conditions</div>
             </div>
@@ -745,7 +745,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
             </div>
           </div>
 
-          <div class="flex flex-col gap-2 rounded border border-line-default bg-surface-raised p-4 shadow-device-details-content">
+          <div class="flex flex-col gap-2 rounded border border-line-default bg-surface-raised p-4 shadow-card">
             <div class="flex items-start justify-between">
               <div class="leading-6 font-medium text-content-strong">Transfer Stats</div>
             </div>

@@ -351,7 +351,7 @@ defmodule NervesHubWeb.Components.DevicePage.LogsTab do
                 class={[
                   "pointer-events-none inline-block size-3",
                   (@streaming_enabled && "translate-x-3") || "translate-x-0",
-                  "transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out"
+                  "transform rounded-full bg-white shadow-control ring-0 transition duration-200 ease-in-out"
                 ]}
               ></span>
             </button>

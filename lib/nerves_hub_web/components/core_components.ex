@@ -171,7 +171,7 @@ defmodule NervesHubWeb.CoreComponents do
               phx-window-keydown={JS.exec("data-cancel", to: "##{@id}")}
               phx-key="escape"
               phx-click-away={JS.exec("data-cancel", to: "##{@id}")}
-              class="relative hidden rounded-2xl bg-base-900 p-4 shadow-lg ring-1 shadow-base-700/10 ring-line-default/10 transition"
+              class="relative hidden rounded-2xl bg-base-900 p-4 shadow-overlay ring-1 ring-line-default/10 transition"
             >
               <div class="absolute top-6 right-5">
                 <button phx-click={JS.exec("data-cancel", to: "##{@id}")} type="button" class="-m-3 flex-none p-3 opacity-20 hover:opacity-40" aria-label={gettext("close")}>
@@ -525,7 +525,7 @@ defmodule NervesHubWeb.CoreComponents do
       <select
         id={@id}
         name={@name}
-        class="mt-2 block w-full rounded border border-line-strong bg-base-900 px-2 py-1.5 text-content-muted shadow-sm focus:ring-2 focus:ring-focus-ring sm:text-sm"
+        class="mt-2 block w-full rounded border border-line-strong bg-base-900 px-2 py-1.5 text-content-muted focus:ring-2 focus:ring-focus-ring sm:text-sm"
         multiple={@multiple}
         {@rest}
       >
@@ -675,7 +675,7 @@ defmodule NervesHubWeb.CoreComponents do
           data-tag-suggestions
           role="listbox"
           hidden
-          class="absolute z-10 mt-1 max-h-56 w-full overflow-y-auto rounded border border-line-strong bg-base-900 py-1 shadow-lg"
+          class="absolute z-10 mt-1 max-h-56 w-full overflow-y-auto rounded border border-line-strong bg-base-900 py-1 shadow-overlay"
         >
         </ul>
       </div>

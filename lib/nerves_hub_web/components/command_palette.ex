@@ -64,7 +64,7 @@ defmodule NervesHubWeb.Components.CommandPalette do
       <div data-palette-overlay class={["relative z-50", not @open && "hidden"]} role="dialog" aria-modal="true" aria-label="Command palette">
         <div data-palette-backdrop class="fixed inset-0 bg-backdrop transition-opacity" aria-hidden="true"></div>
         <div class="fixed inset-0 overflow-y-auto p-4 sm:p-6 md:p-20">
-          <div class="mx-auto max-w-2xl overflow-hidden rounded-xl border border-line-default bg-surface-overlay shadow-2xl ring-1 ring-line-default/10">
+          <div class="mx-auto max-w-2xl overflow-hidden rounded-xl border border-line-default bg-surface-overlay shadow-overlay ring-1 ring-line-default/10">
             <form id="command-palette-form" phx-change="search" phx-target={@myself} phx-debounce="150" autocomplete="off">
               <div class="flex items-center gap-3 border-b border-line-default px-4">
                 <span class="lucide-search--light size-5 shrink-0 text-content-muted"></span>

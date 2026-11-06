@@ -36,7 +36,7 @@
               class={[
                 "pointer-events-none inline-block size-3",
                 (@polling_pid && "translate-x-3") || "translate-x-0",
-                "transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out"
+                "transform rounded-full bg-white shadow-control ring-0 transition duration-200 ease-in-out"
               ]}
             ></span>
           </button>
@@ -48,7 +48,7 @@
   <div :if={@fleet_size > 0} class="flex h-0 flex-1 flex-col gap-4 overflow-y-auto p-6">
     <div class="grid h-[132px] grid-cols-4 gap-4">
       <.link navigate={~p"/org/#{@current_scope.org}/#{@current_scope.product}/devices?connection=connected"}>
-        <div class="relative flex h-[132px] flex-col overflow-hidden rounded border border-line-default bg-surface-raised px-5 py-4.5 shadow-device-details-content">
+        <div class="relative flex h-[132px] flex-col overflow-hidden rounded border border-line-default bg-surface-raised px-5 py-4.5 shadow-card">
           <div class="absolute inset-y-0 left-0 w-[3.5px] bg-status-online"></div>
           <div class="mb-3.5 flex items-center gap-2">
             <.status_dot class="bg-status-online" />
@@ -64,7 +64,7 @@
       </.link>
 
       <.link navigate={~p"/org/#{@current_scope.org}/#{@current_scope.product}/devices?connection=disconnected"}>
-        <div class="relative flex h-[132px] flex-col overflow-hidden rounded border border-line-default bg-surface-raised px-5 py-4.5 shadow-device-details-content">
+        <div class="relative flex h-[132px] flex-col overflow-hidden rounded border border-line-default bg-surface-raised px-5 py-4.5 shadow-card">
           <div class="absolute inset-y-0 left-0 w-[3.5px] bg-status-offline"></div>
           <div class="mb-3.5 flex items-center gap-2">
             <.status_dot class="bg-status-offline" />
@@ -80,7 +80,7 @@
       </.link>
 
       <.link navigate={~p"/org/#{@current_scope.org}/#{@current_scope.product}/devices?connection=not_seen_in_seven_days"}>
-        <div class="relative flex h-[132px] flex-col overflow-hidden rounded border border-line-default bg-surface-raised px-5 py-4.5 shadow-device-details-content">
+        <div class="relative flex h-[132px] flex-col overflow-hidden rounded border border-line-default bg-surface-raised px-5 py-4.5 shadow-card">
           <div class="absolute inset-y-0 left-0 w-[3.5px] bg-warning"></div>
           <div class="mb-3.5 flex items-center gap-2">
             <span class="lucide-clock-alert--light size-4 shrink text-warning"></span>
@@ -95,7 +95,7 @@
         </div>
       </.link>
       <.link navigate={~p"/org/#{@current_scope.org}/#{@current_scope.product}/devices?connection=not_seen_in_fourteen_days"}>
-        <div class="relative flex h-[132px] flex-col overflow-hidden rounded border border-line-default bg-surface-raised px-5 py-4.5 shadow-device-details-content">
+        <div class="relative flex h-[132px] flex-col overflow-hidden rounded border border-line-default bg-surface-raised px-5 py-4.5 shadow-card">
           <div class="absolute inset-y-0 left-0 w-[3.5px] bg-danger"></div>
           <div class="mb-3.5 flex items-center gap-2">
             <span class="lucide-triangle-alert--light size-4 shrink text-danger"></span>
@@ -111,7 +111,7 @@
       </.link>
     </div>
 
-    <div :if={@device_connections_graph_enabled} class="flex flex-col gap-5 rounded border border-line-default bg-surface-raised p-5 shadow-device-details-content">
+    <div :if={@device_connections_graph_enabled} class="flex flex-col gap-5 rounded border border-line-default bg-surface-raised p-5 shadow-card">
       <div class="flex justify-between">
         <div class="flex items-center leading-6 font-medium text-content-strong">
           Connected Device History
@@ -123,21 +123,21 @@
             data-selected={@connected_devices_period == :twenty_four_hours}
             phx-click="select-graph-time-period"
             phx-value-period="twenty_four_hours"
-            class="cursor-pointer appearance-none rounded-sm border-0 bg-transparent px-3 py-1.5 text-xs leading-none font-medium whitespace-nowrap text-content-muted shadow-none transition-colors duration-120 hover:bg-primary/80 hover:text-primary-content data-selected:bg-primary data-selected:font-semibold data-selected:text-primary-content data-selected:shadow-[0_1px_2px_rgba(0,0,0,0.18)]"
+            class="cursor-pointer appearance-none rounded-sm border-0 bg-transparent px-3 py-1.5 text-xs leading-none font-medium whitespace-nowrap text-content-muted shadow-none transition-colors duration-120 hover:bg-primary/80 hover:text-primary-content data-selected:bg-primary data-selected:font-semibold data-selected:text-primary-content data-selected:shadow-control"
           >Last 24 hours</button>
           <button
             role="tab"
             data-selected={@connected_devices_period == :fourteen_days}
             phx-click="select-graph-time-period"
             phx-value-period="fourteen_days"
-            class="cursor-pointer appearance-none rounded-sm border-0 bg-transparent px-3 py-1.5 text-xs leading-none font-medium whitespace-nowrap text-content-muted shadow-none transition-colors duration-120 hover:bg-primary/80 hover:text-primary-content data-selected:bg-primary data-selected:font-semibold data-selected:text-primary-content data-selected:shadow-[0_1px_2px_rgba(0,0,0,0.18)]"
+            class="cursor-pointer appearance-none rounded-sm border-0 bg-transparent px-3 py-1.5 text-xs leading-none font-medium whitespace-nowrap text-content-muted shadow-none transition-colors duration-120 hover:bg-primary/80 hover:text-primary-content data-selected:bg-primary data-selected:font-semibold data-selected:text-primary-content data-selected:shadow-control"
           >14 days</button>
           <button
             role="tab"
             phx-click="select-graph-time-period"
             phx-value-period="four_weeks"
             data-selected={@connected_devices_period == :four_weeks}
-            class="cursor-pointer appearance-none rounded-sm border-0 bg-transparent px-3 py-1.5 text-xs leading-none font-medium whitespace-nowrap text-content-muted shadow-none transition-colors duration-120 hover:bg-primary/80 hover:text-primary-content data-selected:bg-primary data-selected:font-semibold data-selected:text-primary-content data-selected:shadow-[0_1px_2px_rgba(0,0,0,0.18)]"
+            class="cursor-pointer appearance-none rounded-sm border-0 bg-transparent px-3 py-1.5 text-xs leading-none font-medium whitespace-nowrap text-content-muted shadow-none transition-colors duration-120 hover:bg-primary/80 hover:text-primary-content data-selected:bg-primary data-selected:font-semibold data-selected:text-primary-content data-selected:shadow-control"
           >4 weeks</button>
         </div>
       </div>
@@ -157,7 +157,7 @@
       </div>
     </div>
 
-    <div :if={@update_outcomes_graph_enabled} class="flex flex-col gap-5 rounded border border-line-default bg-surface-raised p-5 shadow-device-details-content">
+    <div :if={@update_outcomes_graph_enabled} class="flex flex-col gap-5 rounded border border-line-default bg-surface-raised p-5 shadow-card">
       <div class="flex justify-between">
         <div class="flex items-center">
           <div class="flex items-center leading-6 font-medium text-content-strong">
@@ -180,21 +180,21 @@
             data-selected={@update_outcomes_period == :twenty_four_hours}
             phx-click="select-update-graph-time-period"
             phx-value-period="twenty_four_hours"
-            class="cursor-pointer appearance-none rounded-sm border-0 bg-transparent px-3 py-1.5 text-xs leading-none font-medium whitespace-nowrap text-content-muted shadow-none transition-colors duration-120 hover:bg-primary/80 hover:text-primary-content data-selected:bg-primary data-selected:font-semibold data-selected:text-primary-content data-selected:shadow-[0_1px_2px_rgba(0,0,0,0.18)]"
+            class="cursor-pointer appearance-none rounded-sm border-0 bg-transparent px-3 py-1.5 text-xs leading-none font-medium whitespace-nowrap text-content-muted shadow-none transition-colors duration-120 hover:bg-primary/80 hover:text-primary-content data-selected:bg-primary data-selected:font-semibold data-selected:text-primary-content data-selected:shadow-control"
           >Last 24 hours</button>
           <button
             role="tab"
             data-selected={@update_outcomes_period == :fourteen_days}
             phx-click="select-update-graph-time-period"
             phx-value-period="fourteen_days"
-            class="cursor-pointer appearance-none rounded-sm border-0 bg-transparent px-3 py-1.5 text-xs leading-none font-medium whitespace-nowrap text-content-muted shadow-none transition-colors duration-120 hover:bg-primary/80 hover:text-primary-content data-selected:bg-primary data-selected:font-semibold data-selected:text-primary-content data-selected:shadow-[0_1px_2px_rgba(0,0,0,0.18)]"
+            class="cursor-pointer appearance-none rounded-sm border-0 bg-transparent px-3 py-1.5 text-xs leading-none font-medium whitespace-nowrap text-content-muted shadow-none transition-colors duration-120 hover:bg-primary/80 hover:text-primary-content data-selected:bg-primary data-selected:font-semibold data-selected:text-primary-content data-selected:shadow-control"
           >14 days</button>
           <button
             role="tab"
             data-selected={@update_outcomes_period == :four_weeks}
             phx-click="select-update-graph-time-period"
             phx-value-period="four_weeks"
-            class="cursor-pointer appearance-none rounded-sm border-0 bg-transparent px-3 py-1.5 text-xs leading-none font-medium whitespace-nowrap text-content-muted shadow-none transition-colors duration-120 hover:bg-primary/80 hover:text-primary-content data-selected:bg-primary data-selected:font-semibold data-selected:text-primary-content data-selected:shadow-[0_1px_2px_rgba(0,0,0,0.18)]"
+            class="cursor-pointer appearance-none rounded-sm border-0 bg-transparent px-3 py-1.5 text-xs leading-none font-medium whitespace-nowrap text-content-muted shadow-none transition-colors duration-120 hover:bg-primary/80 hover:text-primary-content data-selected:bg-primary data-selected:font-semibold data-selected:text-primary-content data-selected:shadow-control"
           >4 weeks</button>
         </div>
       </div>
@@ -240,7 +240,7 @@
 
     <div class="grid grid-cols-2 gap-4">
       <div class="flex flex-col gap-4">
-        <div class="flex flex-col gap-5 rounded border border-line-default bg-surface-raised p-5 shadow-device-details-content">
+        <div class="flex flex-col gap-5 rounded border border-line-default bg-surface-raised p-5 shadow-card">
           <div class="flex items-center leading-6 font-medium text-content-strong">
             Fleet Health
           </div>
@@ -286,7 +286,7 @@
           </div>
         </div>
 
-        <div :if={@flapping_connections_enabled} class="flex flex-col gap-5 rounded border border-line-default bg-surface-raised p-5 shadow-device-details-content">
+        <div :if={@flapping_connections_enabled} class="flex flex-col gap-5 rounded border border-line-default bg-surface-raised p-5 shadow-card">
           <div class="flex justify-between">
             <div class="flex items-center leading-6 font-medium text-content-strong">
               Flapping Connections
@@ -318,7 +318,7 @@
             </div>
           </div>
         </div>
-        <div :if={@flapping_health_enabled} class="flex flex-col gap-5 rounded border border-line-default bg-surface-raised p-5 shadow-device-details-content">
+        <div :if={@flapping_health_enabled} class="flex flex-col gap-5 rounded border border-line-default bg-surface-raised p-5 shadow-card">
           <div class="flex justify-between">
             <div class="flex items-center leading-6 font-medium text-content-strong">
               Flapping Health
@@ -352,7 +352,7 @@
           </div>
         </div>
 
-        <%!-- <div class="bg-surface-raised border-line-default shadow-device-details-content flex h-[132px] flex-col rounded border">
+        <%!-- <div class="bg-surface-raised border-line-default shadow-card flex h-[132px] flex-col rounded border">
           <div class="text-content-strong flex h-14 items-center pr-3 pl-4 leading-6 font-medium">
             Device Alarms
           </div>
@@ -360,7 +360,7 @@
       </div>
 
       <div class="flex flex-col gap-4">
-        <div class="flex h-fit grow-0 flex-col gap-5 rounded border border-line-default bg-surface-raised p-5 shadow-device-details-content">
+        <div class="flex h-fit grow-0 flex-col gap-5 rounded border border-line-default bg-surface-raised p-5 shadow-card">
           <div class="flex items-center justify-between">
             <div class="flex items-center">
               <div class="leading-6 font-medium text-content-strong">
@@ -404,7 +404,7 @@
           </div>
         </div>
 
-        <div class="flex h-fit grow-0 flex-col gap-4.5 rounded border border-line-default bg-surface-raised p-5 shadow-device-details-content">
+        <div class="flex h-fit grow-0 flex-col gap-4.5 rounded border border-line-default bg-surface-raised p-5 shadow-card">
           <div class="flex items-center justify-between">
             <div class="leading-6 font-medium text-content-strong">
               Notifications <span class="ml-2.5 inline-flex items-center gap-1.5 rounded-full border border-line-default py-0.5 pr-2.5 pl-2 text-xs/4 tracking-tight">{@notification_count}</span>
@@ -439,7 +439,7 @@
           </div>
         </div>
 
-        <div class="flex h-fit grow-0 flex-col gap-5 rounded border border-line-default bg-surface-raised p-5 shadow-device-details-content">
+        <div class="flex h-fit grow-0 flex-col gap-5 rounded border border-line-default bg-surface-raised p-5 shadow-card">
           <div class="flex items-center justify-between">
             <div class="leading-6 font-medium text-content-strong">
               Firmware Versions
