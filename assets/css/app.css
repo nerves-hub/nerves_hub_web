@@ -1,5 +1,3 @@
-@import url("https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap");
-
 @import "highlight.js/styles/stackoverflow-light.css";
 @import "leaflet/dist/leaflet.css";
 @import "leaflet.markercluster/dist/MarkerCluster.css";
@@ -31,6 +29,28 @@
 }
 
 @import "@artusdev/tailwind-underlines";
+
+/*
+ * Inter 4.1 (https://github.com/rsms/inter), served from priv/static/fonts/inter
+ * rather than a font CDN, so instances without internet access still get it.
+ * These are the release's variable fonts, with the optical size (14–32) and
+ * weight (100–900) axes. The OFL license is next to them.
+ */
+@font-face {
+  font-family: "Inter";
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url("/fonts/inter/InterVariable.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Inter";
+  font-style: italic;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url("/fonts/inter/InterVariable-Italic.woff2") format("woff2");
+}
 
 @theme {
   --default-font-family: "Inter", var(--font-sans);

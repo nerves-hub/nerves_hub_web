@@ -195,6 +195,10 @@ when adding or removing one.
   `deps/lucide/icons`. Lucide renames icons between releases, and a class whose
   icon is gone renders as nothing, so `NervesHubWeb.LucideIconsTest` fails on
   any class with no SVG behind it.
+- **Fonts:** Inter is vendored in `priv/static/fonts/inter/` (the upstream
+  release's variable woff2 files and its OFL license) and declared with
+  `@font-face` in `assets/css/app.css`. Self-hosted instances may have no
+  internet access, so don't load fonts or other assets from a third-party CDN.
 - **Boundaries:** contexts (`lib/nerves_hub/`) hold business logic; web modules
   stay thin and call into them. Match the surrounding module's conventions,
   error handling, and naming rather than importing your own.
