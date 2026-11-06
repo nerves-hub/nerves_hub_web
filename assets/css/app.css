@@ -267,6 +267,21 @@
 @utility h-nav-item {
   height: var(--nav-item-height);
 }
+/* Holds a label at the width of its semibold weight, so text that turns
+   semibold when selected doesn't push what follows it. The element needs
+   data-label set to its text and a flex column display; the hidden copy
+   stays out of the accessibility tree. */
+@utility reserve-semibold-width {
+  &::after {
+    content: attr(data-label);
+    height: 0;
+    overflow: hidden;
+    visibility: hidden;
+    font-weight: var(--font-weight-semibold);
+    pointer-events: none;
+    user-select: none;
+  }
+}
 /* Hover is the neutral veil in both themes. Only selected carries the
    primary tint, so a hovered item never looks selected. */
 @utility sidebar-item-hover {

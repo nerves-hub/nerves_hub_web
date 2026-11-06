@@ -147,7 +147,7 @@ defmodule NervesHubWeb.Components.Navigation do
           data-selected={"#{@selected}"}
           class={"size-5 #{@icon} data-[selected=false]:text-content-faint data-[selected=true]:text-primary"}
         />
-        <span class={["hidden lg:inline collapsed:hidden", @selected && "font-semibold text-content-strong"]}>{@label}</span>
+        <span data-label={@label} class={["reserve-semibold-width hidden lg:inline-flex lg:flex-col collapsed:hidden", @selected && "font-semibold text-content-strong"]}>{@label}</span>
         <span :if={@badge} class="ml-1 rounded-full bg-base-800 px-1.5 py-0.5 text-xs collapsed:hidden">{@badge}</span>
       </.link>
     </li>
