@@ -34,44 +34,49 @@ NervesHubLink already sends `NHL/<version>` when it downloads firmware, so it
 can use the same token on the websocket. Both of its tokens are recorded the
 same way.
 
-If a listed client's version isn't valid SemVer, NervesHub records the library
-and leaves the version unknown.
+### Custom clients
 
-### Any other client
+A client that isn't listed opts in by putting `custom:` in front of its name:
 
-Any other client is recorded under the name it sends, so integrations written
-outside this project show up too. `acme-link/1.4.0` is recorded as
-`acme-link`, version `1.4.0`. To be recorded, it needs:
+```
+User-Agent: custom:acme-link/1.4.0
+```
 
-- a SemVer version, 64 characters at most, with no leading `v`
-- a name of at most 64 letters, digits, `.`, `_` and `-`, starting with a
-  letter or digit
+It's recorded under that name, prefix included: `lib` is `custom:acme-link`
+and `lib_version` is `1.4.0`. Integrations written outside this project show
+up without any change to NervesHub. The prefix keeps what a client says about
+itself apart from the listed names, so `custom:nerves_hub_link` is never
+counted as `nerves_hub_link`.
 
-These limits leave out most of what HTTP libraries send by default
-(`ESP32 Websocket Client`, `Go-http-client/1.1`, `Python/3.11 websockets/12.0`).
-They also keep the ClickHouse `LowCardinality` columns to something like a list
-of clients.
+The name after the prefix can be at most 64 letters, digits, `.`, `_` and `-`,
+starting with a letter or digit. That keeps the ClickHouse `LowCardinality`
+columns to something like a list of clients.
 
-A few HTTP libraries send a default that does pass, so NervesHub skips them by
-name, ignoring case: `mint`, `okhttp`, `Java-http-client`, `aiohttp` and
-`curl`. They name the HTTP library, not the client. Mint is the one that
-matters: NervesHubLink connects with it, so a NervesHubLink that doesn't send
-its own token sends `mint/<version>`, and is recorded as unknown.
+An unlisted token without the prefix is skipped. That keeps out the defaults
+HTTP libraries send when the client sets no `User-Agent`. Mint's matters most:
+NervesHubLink connects with Mint, so a NervesHubLink that doesn't send its own
+token sends `mint/<version>`. That's recorded as unknown, not as a library
+called `mint`.
+
+RFC 9110 doesn't allow `:` in a product token, but a header value can contain
+it, and NervesHub's own tests send it through Mint unchanged.
 
 ### How the header is read
 
 The rules, all in `NervesHub.Devices.ClientLibrary`:
 
-- **The first token that names a client wins**, listed or not, so a client puts
-  its own token first. It can add more after it, such as its HTTP library:
-  `NHL/2.13.0 Mint/1.7.1`. Tokens that don't name a client are skipped, so
-  `Go-http-client/1.1 acme-link/1.4.0` is still recorded as `acme-link`.
+- **The first token that names a client wins**, listed or custom, so a client
+  puts its own token first. It can add more after it, such as its HTTP library:
+  `NHL/2.13.0 Mint/1.7.1`. Tokens that name no client are skipped, so
+  `mint/1.7.1 custom:acme-link/1.4.0` is still recorded as `custom:acme-link`.
 - **Tokens inside a parenthesised comment are ignored.** A comment describes
   something else, such as the platform: `nerves-hub-link-esp32/0.1.0 (esp-idf 5.2.3)`.
-- **Names are matched exactly**, case included. `nhl/2.13.0` isn't
-  NervesHubLink; it's recorded as a client called `nhl`.
-- **Anything else is unknown.** A missing header, or one where no token names a
-  client, leaves both columns `NULL` in Postgres and empty in ClickHouse.
+- **Names and the prefix are matched exactly**, case included. `nhl/2.13.0`
+  and `Custom:acme-link/1.4.0` name no client.
+- **The version must be SemVer**, 64 characters at most, with no leading `v`.
+  If it isn't, NervesHub records the library and leaves the version unknown.
+- **Anything else is unknown.** A missing header, or one that names no client,
+  leaves both columns `NULL` in Postgres and empty in ClickHouse.
 
 Every connection is recorded fresh. If a device reconnects without the header,
 its library goes back to unknown; NervesHub doesn't keep the value from the
@@ -100,14 +105,14 @@ extra headers block does nothing. Set the client's `user_agent` field instead:
 
 ## Listing a client
 
-A new client doesn't need a change in NervesHub: it's recorded under the name
-it sends. List it only to record it under a different name, or to record it
-when its version isn't SemVer. Add its token and the name to record to
-`@libraries` in `NervesHub.Devices.ClientLibrary`, and add a row to the table
-above.
+A new client doesn't need a change in NervesHub: it can send a `custom:`
+token. Listing it lets it drop the prefix. Add its token and the name to record
+to `@libraries` in `NervesHub.Devices.ClientLibrary`, and add a row to the
+table above.
 
-Changing a listed client's recorded name splits its history in two, because
-rows already written keep the old name.
+Listing a client that has been sending `custom:`, or changing a listed client's
+recorded name, splits its history in two, because rows already written keep
+the old name.
 
 ## Nodes that hold device sockets elsewhere
 

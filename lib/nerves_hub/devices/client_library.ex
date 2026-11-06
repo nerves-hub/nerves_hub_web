@@ -11,16 +11,21 @@ defmodule NervesHub.Devices.ClientLibrary do
   tokens a client sends: NervesHubLink is `nerves_hub_link` whether it sends
   `NHL` or `nerves_hub_link`.
 
-  Any other client is recorded under the name it sends, so integrations written
-  elsewhere still show up. It has to send a SemVer version, and its name can be
-  at most 64 letters, digits, `.`, `_` and `-`. That leaves out most of what
-  HTTP libraries send when nothing is set (`ESP32 Websocket Client`,
-  `Go-http-client/1.1`), and keeps a `LowCardinality` column in ClickHouse to
-  something like a list of clients. The HTTP libraries whose default does pass
-  are skipped by name, Mint's `mint/1.7.1` among them.
+  Any other client opts in by putting `custom:` in front of its name, and is
+  recorded under that, prefix included: `custom:acme-link/1.4.0` is
+  `custom:acme-link`. The prefix keeps what a client says about itself apart
+  from the listed names. Without it, an unlisted token is skipped, which is
+  what keeps out the defaults HTTP libraries send when the client sets no
+  User-Agent: Mint's `mint/1.7.1`, which every NervesHubLink that doesn't send
+  its own token sends, or `ESP32 Websocket Client`.
 
-  Anything else is unknown, `nil` for both fields. A listed name without a
-  SemVer version still records the library, leaving the version `nil`.
+  The name after `custom:` can be at most 64 letters, digits, `.`, `_` and
+  `-`, which keeps a `LowCardinality` column in ClickHouse to something like a
+  list of clients.
+
+  The version must be SemVer. Without one, the library is still recorded and
+  the version is `nil`. A header that names no client is unknown, `nil` for
+  both.
 
   See `docs/device_client_identification.md` for what clients send.
   """
@@ -33,14 +38,9 @@ defmodule NervesHub.Devices.ClientLibrary do
     "nerves_hub_link_atomvm_esp32" => "nerves_hub_link_atomvm_esp32"
   }
 
-  # HTTP libraries a device might connect with that name themselves, with a
-  # SemVer version, when the client sets no User-Agent. They say nothing about
-  # the client, so they are skipped rather than recorded as one. Mint matters
-  # most: every NervesHubLink that doesn't send its own token sends Mint's.
-  # Compared ignoring case.
-  @http_libraries ~w(mint okhttp java-http-client aiohttp curl)
+  @custom_prefix "custom:"
 
-  @max_name_length 64
+  @max_custom_name_length 64
 
   # Room for any real release, pre-release and build metadata included.
   @max_version_length 64
@@ -52,18 +52,18 @@ defmodule NervesHub.Devices.ClientLibrary do
   @doc """
   The client library and version a `User-Agent` header names.
 
-  The first product token that names a client wins, listed or not, so a client
-  puts its own token first and may follow it with others (its HTTP stack, say).
-  Tokens inside a parenthesised comment are skipped: they describe something
-  else, such as the platform the client runs on.
+  The first product token that names a client wins, listed or `custom:`, so a
+  client puts its own token first and may follow it with others (its HTTP
+  stack, say). Tokens inside a parenthesised comment are skipped: they describe
+  something else, such as the platform the client runs on.
 
       iex> from_user_agent("NHL/2.13.0")
       %{lib: "nerves_hub_link", lib_version: "2.13.0"}
 
-      iex> from_user_agent("acme-link/1.4.0")
-      %{lib: "acme-link", lib_version: "1.4.0"}
+      iex> from_user_agent("custom:acme-link/1.4.0")
+      %{lib: "custom:acme-link", lib_version: "1.4.0"}
 
-      iex> from_user_agent("ESP32 Websocket Client")
+      iex> from_user_agent("mint/1.7.1")
       %{lib: nil, lib_version: nil}
   """
   @spec from_user_agent(String.t() | nil) :: t()
@@ -86,20 +86,17 @@ defmodule NervesHub.Devices.ClientLibrary do
 
   defp library(token) do
     [name | version] = String.split(token, "/", parts: 2)
-    version = semver(version)
 
     case Map.fetch(@libraries, name) do
-      {:ok, lib} -> %{lib: lib, lib_version: version}
-      :error -> custom(name, version)
+      {:ok, lib} -> %{lib: lib, lib_version: semver(version)}
+      :error -> if custom_name?(name), do: %{lib: name, lib_version: semver(version)}
     end
   end
 
-  defp custom(name, version) when is_binary(version) and byte_size(name) <= @max_name_length do
-    if name =~ ~r/\A[A-Za-z0-9][A-Za-z0-9._-]*\z/ and String.downcase(name) not in @http_libraries,
-      do: %{lib: name, lib_version: version}
-  end
+  defp custom_name?(@custom_prefix <> name) when byte_size(name) <= @max_custom_name_length,
+    do: name =~ ~r/\A[A-Za-z0-9][A-Za-z0-9._-]*\z/
 
-  defp custom(_name, _version), do: nil
+  defp custom_name?(_name), do: false
 
   defp semver([version]) when byte_size(version) <= @max_version_length do
     case Version.parse(version) do

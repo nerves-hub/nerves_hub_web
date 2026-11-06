@@ -47,31 +47,38 @@ defmodule NervesHub.Devices.ClientLibraryTest do
     end
   end
 
-  describe "from_user_agent/1 with any other client" do
-    test "records it under the name it sends" do
-      assert from_user_agent("acme-link/1.4.0") == %{lib: "acme-link", lib_version: "1.4.0"}
-      assert from_user_agent("Acme_Link.v2/0.0.1-beta") == %{lib: "Acme_Link.v2", lib_version: "0.0.1-beta"}
+  describe "from_user_agent/1 with a custom client" do
+    test "records it under the name it sends, prefix included" do
+      assert from_user_agent("custom:acme-link/1.4.0") == %{lib: "custom:acme-link", lib_version: "1.4.0"}
+
+      assert from_user_agent("custom:Acme_Link.v2/0.0.1-beta") ==
+               %{lib: "custom:Acme_Link.v2", lib_version: "0.0.1-beta"}
     end
 
-    test "matches listed names exactly, so a near miss is a client of its own" do
-      assert from_user_agent("nhl/2.13.0") == %{lib: "nhl", lib_version: "2.13.0"}
+    test "keeps a listed name apart from the listed client" do
+      assert from_user_agent("custom:nerves_hub_link/9.9.9") ==
+               %{lib: "custom:nerves_hub_link", lib_version: "9.9.9"}
     end
 
-    test "is unknown without a SemVer version" do
-      assert from_user_agent("acme-link") == @unknown
-      assert from_user_agent("acme-link/") == @unknown
-      assert from_user_agent("acme-link/1.4") == @unknown
-      assert from_user_agent("acme-link/v1.4.0") == @unknown
-      assert from_user_agent("acme-link/1.4.0-" <> String.duplicate("a", 64)) == @unknown
+    test "records the library without a version it can't read" do
+      assert from_user_agent("custom:acme-link") == %{lib: "custom:acme-link", lib_version: nil}
+      assert from_user_agent("custom:acme-link/1.4") == %{lib: "custom:acme-link", lib_version: nil}
+      assert from_user_agent("custom:acme-link/v1.4.0") == %{lib: "custom:acme-link", lib_version: nil}
     end
 
     test "is unknown for a name outside the limits" do
-      assert from_user_agent("acme@link/1.4.0") == @unknown
-      assert from_user_agent(".acme-link/1.4.0") == @unknown
-      assert from_user_agent(String.duplicate("a", 65) <> "/1.4.0") == @unknown
+      assert from_user_agent("custom:/1.4.0") == @unknown
+      assert from_user_agent("custom:acme@link/1.4.0") == @unknown
+      assert from_user_agent("custom:.acme-link/1.4.0") == @unknown
+      assert from_user_agent("custom:" <> String.duplicate("a", 65) <> "/1.4.0") == @unknown
 
-      assert from_user_agent(String.duplicate("a", 64) <> "/1.4.0") ==
-               %{lib: String.duplicate("a", 64), lib_version: "1.4.0"}
+      assert from_user_agent("custom:" <> String.duplicate("a", 64) <> "/1.4.0") ==
+               %{lib: "custom:" <> String.duplicate("a", 64), lib_version: "1.4.0"}
+    end
+
+    test "matches the prefix exactly" do
+      assert from_user_agent("Custom:acme-link/1.4.0") == @unknown
+      assert from_user_agent("custom-acme-link/1.4.0") == @unknown
     end
   end
 
@@ -81,35 +88,38 @@ defmodule NervesHub.Devices.ClientLibraryTest do
       assert from_user_agent("") == @unknown
     end
 
+    test "is unknown for an unlisted name without the prefix" do
+      assert from_user_agent("acme-link/1.4.0") == @unknown
+      assert from_user_agent("nhl/2.13.0") == @unknown
+    end
+
+    # Every NervesHubLink that doesn't send its own token sends Mint's.
     test "is unknown for what HTTP libraries send by default" do
+      assert from_user_agent("mint/1.7.1") == @unknown
+      assert from_user_agent("okhttp/4.12.0") == @unknown
       assert from_user_agent("ESP32 Websocket Client") == @unknown
       assert from_user_agent("Go-http-client/1.1") == @unknown
       assert from_user_agent("Python/3.11 websockets/12.0") == @unknown
       assert from_user_agent("Mozilla/5.0 (X11; Linux x86_64)") == @unknown
-    end
-
-    # Every NervesHubLink that doesn't send its own token sends Mint's.
-    test "is unknown for an HTTP library's default even with a SemVer version" do
-      assert from_user_agent("mint/1.7.1") == @unknown
-      assert from_user_agent("Mint/1.7.1") == @unknown
-      assert from_user_agent("okhttp/4.12.0") == @unknown
-      assert from_user_agent("Java-http-client/21.0.1") == @unknown
-      assert from_user_agent("Python/3.11 aiohttp/3.9.1") == @unknown
-      assert from_user_agent("curl/8.4.0") == @unknown
     end
   end
 
   describe "from_user_agent/1 with several tokens" do
     test "takes the first that names a client" do
       assert from_user_agent("NHL/2.13.0 Mint/1.7.1") == %{lib: "nerves_hub_link", lib_version: "2.13.0"}
-      assert from_user_agent("acme-link/1.4.0 NHL/2.13.0") == %{lib: "acme-link", lib_version: "1.4.0"}
-      assert from_user_agent("Go-http-client/1.1 acme-link/1.4.0") == %{lib: "acme-link", lib_version: "1.4.0"}
-      assert from_user_agent("mint/1.7.1 acme-link/1.4.0") == %{lib: "acme-link", lib_version: "1.4.0"}
+      assert from_user_agent("mint/1.7.1 NHL/2.13.0") == %{lib: "nerves_hub_link", lib_version: "2.13.0"}
+
+      assert from_user_agent("custom:acme-link/1.4.0 NHL/2.13.0") ==
+               %{lib: "custom:acme-link", lib_version: "1.4.0"}
+
+      assert from_user_agent("okhttp/4.12.0 custom:acme-link/1.4.0") ==
+               %{lib: "custom:acme-link", lib_version: "1.4.0"}
     end
 
     test "skips tokens inside comments" do
       assert from_user_agent("Other/1.0 (compatible; NHL/2.13.0)") == @unknown
       assert from_user_agent("Other/1.0 (outer (NHL/2.13.0) more)") == @unknown
+      assert from_user_agent("Other/1.0 (custom:acme-link/1.4.0)") == @unknown
 
       assert from_user_agent("nerves-hub-link-esp32/0.1.0 (esp-idf 5.2.3)") ==
                %{lib: "nerves_hub_link_esp32", lib_version: "0.1.0"}
