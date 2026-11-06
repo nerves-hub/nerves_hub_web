@@ -17,7 +17,8 @@ defmodule NervesHubWeb.MaintenanceEndpoint do
   # its health check, and nobody would ever see the page.
   plug(ImAlive, check_database: false)
 
-  plug(Plug.Static, at: "/", from: :nerves_hub, gzip: false, only: ~w(favicon.ico))
+  # Fonts too, or the page would fall back to the system font.
+  plug(Plug.Static, at: "/", from: :nerves_hub, gzip: false, only: ~w(favicon.ico fonts))
 
   plug(Sentry.PlugContext)
 

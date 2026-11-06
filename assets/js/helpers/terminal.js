@@ -2,6 +2,7 @@ import { Terminal } from "@xterm/xterm"
 import { WebglAddon } from "@xterm/addon-webgl"
 import { WebLinksAddon } from "@xterm/addon-web-links"
 import { FitAddon } from "@xterm/addon-fit"
+import { whenFontsLoaded } from "./fonts.js"
 
 // `macOptionIsMeta` is only honoured on a Mac, so mirror xterm's own platform
 // check rather than showing a toggle that does nothing everywhere else.
@@ -14,6 +15,17 @@ const OPTION_AS_META_KEY = "terminalOptionAsMeta"
 
 const optionAsMeta = () => localStorage.getItem(OPTION_AS_META_KEY) === "true"
 
+// JetBrains Mono is the app's `--font-mono` (see app.css). xterm draws on a
+// canvas, so it is named here too.
+export const TERMINAL_FONT_FAMILY =
+  '"JetBrains Mono", Ubuntu Mono, courier-new, courier, monospace'
+
+// The faces xterm draws with: regular text, and bold for bold ANSI output.
+export const TERMINAL_FONTS = [
+  `14px ${TERMINAL_FONT_FAMILY}`,
+  `bold 14px ${TERMINAL_FONT_FAMILY}`
+]
+
 const defaultTermOptions = {
   cursorBlink: true,
   cursorStyle: "bar",
@@ -23,7 +35,7 @@ const defaultTermOptions = {
   // German Opt+5 into `ESC 5` rather than `[`. Users who'd rather have `M-b`
   // and `M-f` opt back in with the toggle above the terminal.
   macOptionIsMeta: false,
-  fontFamily: "Ubuntu Mono, courier-new, courier, monospace",
+  fontFamily: TERMINAL_FONT_FAMILY,
   fontSize: 14,
   theme: {
     foreground: "#FFFAF4",
@@ -57,7 +69,10 @@ export const debounce = (func, time = 100) => {
 }
 
 // Builds the terminal shared by the device console and the local shell, opens
-// it in `elementId` and sizes it to the container.
+// it in `elementId` and sizes it to the container. It opens once JetBrains Mono
+// has loaded, since xterm measures its cells then. Until it opens, anything
+// written to it is kept and shown when it does, and `fitAddon.fit()` does
+// nothing.
 export const createTerminal = elementId => {
   // use previous scrollback if available, default to 1000 lines
   const storedScrollback = parseInt(localStorage.getItem("scrollback"))
@@ -76,10 +91,16 @@ export const createTerminal = elementId => {
   term.loadAddon(new WebglAddon())
   term.loadAddon(new WebLinksAddon())
 
-  term.open(document.getElementById(elementId))
+  const container = document.getElementById(elementId)
 
-  fitAddon.fit()
-  term.focus()
+  whenFontsLoaded(TERMINAL_FONTS, () => {
+    // The hook may have been torn down while the font loaded.
+    if (!container.isConnected) return
+
+    term.open(container)
+    fitAddon.fit()
+    term.focus()
+  })
 
   return { term, fitAddon }
 }
