@@ -66,28 +66,6 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
           </div>
           <div class="flex gap-6 p-6">
             <div class="flex w-1/2 flex-col gap-6">
-              <%!-- <div phx-feedback-for={f[:description].name}>
-                <label for={@for} class="block text-sm font-semibold leading-6 text-base-800">
-                  Description
-                </label>
-                <input
-                  type={@type}
-                  name={@name}
-                  id={@id}
-                  value={Phoenix.HTML.Form.normalize_value(@type, @value)}
-                  class={[
-                    "mt-2 block w-full rounded-lg text-base-900 focus:ring-0 sm:text-sm sm:leading-6",
-                    "phx-no-feedback:border-base-300 phx-no-feedback:focus:border-base-400",
-                    @errors == [] && "border-base-300 focus:border-base-400",
-                    @errors != [] && "border-rose-400 focus:border-rose-400"
-                  ]}
-                />
-                <p :for={msg <- @errors} class="mt-3 flex gap-3 text-sm leading-6 text-rose-600 phx-no-feedback:hidden">
-                  <.icon name="hero-exclamation-circle-mini" class="mt-0.5 h-5 w-5 flex-none" />
-                  <%= render_slot(@inner_block) %>
-                </p>
-              </div> --%>
-
               <.input field={@settings_form[:description]} label="Description" placeholder="eg. sensor hub at customer X" phx-debounce="blur" />
 
               <.tag_input field={@settings_form[:tags]} label="Tags" placeholder="eg. batch-123" available_tags={@available_tags} />

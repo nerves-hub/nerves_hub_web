@@ -473,7 +473,7 @@ defmodule NervesHubWeb.CoreComponents do
       end)
 
     ~H"""
-    <div phx-feedback-for={@name}>
+    <div>
       <span class="flex items-center gap-4 text-sm/6 font-medium text-content-body">
         <input type="hidden" name={@name} value="false" />
         <input
@@ -497,7 +497,7 @@ defmodule NervesHubWeb.CoreComponents do
 
   def input(%{type: "select"} = assigns) do
     ~H"""
-    <div phx-feedback-for={@name} class="flex flex-col">
+    <div class="flex flex-col">
       <.label for={@id} hide={@hide_label}>{@label}</.label>
       <select
         id={@id}
@@ -519,14 +519,13 @@ defmodule NervesHubWeb.CoreComponents do
 
   def input(%{type: "textarea"} = assigns) do
     ~H"""
-    <div phx-feedback-for={@name}>
+    <div>
       <.label for={@id}>{@label}</.label>
       <textarea
         id={@id}
         name={@name}
         class={[
           "mt-2 block w-full rounded bg-base-900 px-2 py-1.5 text-content-muted focus:ring-2 sm:text-sm/6",
-          "phx-no-feedback:border-line-strong phx-no-feedback:focus:border-line-default",
           @class || "min-h-24",
           @errors == [] && "border-line-strong focus:ring-focus-ring",
           @errors != [] && "border-alert focus:ring-alert"
@@ -543,7 +542,7 @@ defmodule NervesHubWeb.CoreComponents do
 
   def input(%{type: "number"} = assigns) do
     ~H"""
-    <div phx-feedback-for={@name}>
+    <div>
       <span class="flex items-end">
         <.label for={@id}>{@label}</.label>
       </span>
@@ -554,7 +553,6 @@ defmodule NervesHubWeb.CoreComponents do
         value={Phoenix.HTML.Form.normalize_value(@type, @value)}
         class={[
           "mt-2 block w-full rounded bg-base-900 px-2 py-1.5 text-content-muted focus:ring-2 sm:text-sm",
-          "phx-no-feedback:border-line-strong phx-no-feedback:focus:border-line-default",
           @errors == [] && "border-line-strong focus:ring-focus-ring",
           @errors != [] && "border-alert focus:ring-alert"
         ]}
@@ -571,7 +569,7 @@ defmodule NervesHubWeb.CoreComponents do
   # All other inputs text, datetime-local, url, password, etc. are handled here...
   def input(assigns) do
     ~H"""
-    <div phx-feedback-for={@name}>
+    <div>
       <.label for={@id}>{@label}</.label>
       <input
         type={@type}
@@ -580,7 +578,6 @@ defmodule NervesHubWeb.CoreComponents do
         value={Phoenix.HTML.Form.normalize_value(@type, @value)}
         class={[
           "mt-2 block w-full rounded bg-base-900 px-2 py-1.5 text-content-muted focus:ring-2 sm:text-sm",
-          "phx-no-feedback:border-line-strong phx-no-feedback:focus:border-line-default",
           @errors == [] && "border-line-strong focus:ring-focus-ring",
           @errors != [] && "border-alert focus:ring-alert"
         ]}
@@ -627,7 +624,7 @@ defmodule NervesHubWeb.CoreComponents do
     assigns = assign(assigns, :value, tag_value_to_string(assigns.value))
 
     ~H"""
-    <div phx-feedback-for={@name}>
+    <div>
       <.label for={@id}>{@label}</.label>
       <div
         id={"#{@id}-autocomplete"}
@@ -644,7 +641,6 @@ defmodule NervesHubWeb.CoreComponents do
           data-tag-input
           class={[
             "block w-full rounded bg-base-900 px-2 py-1.5 text-content-muted focus:ring-2 sm:text-sm",
-            "phx-no-feedback:border-line-strong phx-no-feedback:focus:border-line-default",
             @errors == [] && "border-line-strong focus:ring-focus-ring",
             @errors != [] && "border-alert focus:ring-alert"
           ]}
@@ -693,7 +689,7 @@ defmodule NervesHubWeb.CoreComponents do
 
   def error(assigns) do
     ~H"""
-    <p class="mt-1 flex gap-2 text-sm/6 text-alert phx-no-feedback:hidden">
+    <p class="mt-1 flex gap-2 text-sm/6 text-alert">
       <svg class="mt-0.5 size-5 flex-none stroke-alert" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
         <path d="M12 5V13M12 19.001V19" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />
       </svg>

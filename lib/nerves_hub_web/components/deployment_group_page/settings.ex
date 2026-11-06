@@ -251,7 +251,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
             </div>
             <div class="flex gap-6">
               <div class="w-1/2">
-                <div phx-feedback-for={@form[:device_failure_rate_amount].name}>
+                <div>
                   <span class="flex items-end">
                     <.core_label for={@form[:device_failure_rate_amount].id}>Device failure rate</.core_label>
                   </span>
@@ -263,7 +263,6 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
                       value={Phoenix.HTML.Form.normalize_value("number", @form[:device_failure_rate_amount].value)}
                       class={[
                         "mt-2 block w-20 rounded bg-base-900 px-2 py-1.5 text-content-muted focus:ring-0 sm:text-sm",
-                        "phx-no-feedback:border-line-strong phx-no-feedback:focus:border-line-default",
                         @form[:device_failure_rate_amount].errors == [] && "border-line-strong focus:border-line-default",
                         @form[:device_failure_rate_amount].errors != [] && "border-alert focus:border-alert"
                       ]}
@@ -276,7 +275,6 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
                       value={Phoenix.HTML.Form.normalize_value("number", @form[:device_failure_rate_seconds].value)}
                       class={[
                         "mt-2 block w-20 rounded bg-base-900 px-2 py-1.5 text-content-muted focus:ring-0 sm:text-sm",
-                        "phx-no-feedback:border-line-strong phx-no-feedback:focus:border-line-default",
                         @form[:device_failure_rate_seconds].errors == [] && "border-line-strong focus:border-line-default",
                         @form[:device_failure_rate_seconds].errors != [] && "border-alert focus:border-alert"
                       ]}
