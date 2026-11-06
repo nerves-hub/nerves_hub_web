@@ -253,7 +253,7 @@ defmodule NervesHubWeb.Components.DeviceLocation do
         }
         phx-key="Escape"
       >
-        <span class="lucide-layers--light block size-3 text-content-muted" />
+        <span class="lucide-layers--bold block size-3 text-content-muted" />
       </button>
 
       <div
@@ -276,7 +276,7 @@ defmodule NervesHubWeb.Components.DeviceLocation do
           tabindex="-1"
         >
           {map_style_label(option)}
-          <span :if={option == @map_style} class="lucide-check--light size-3.5 text-primary" />
+          <span :if={option == @map_style} class="lucide-check--bold size-3.5 text-primary" />
         </button>
       </div>
     </div>

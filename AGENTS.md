@@ -194,7 +194,10 @@ when adding or removing one.
   `assets/vendor/lucideicons.js`, which only generates a class for each SVG in
   `deps/lucide/icons`. Lucide renames icons between releases, and a class whose
   icon is gone renders as nothing, so `NervesHubWeb.LucideIconsTest` fails on
-  any class with no SVG behind it.
+  any class with no SVG behind it. A line icon draws its stroke at 1/16 of its
+  size and never under 1px: plain `lucide-<icon>` is that weight, `--bold` is
+  for a selected nav item or an icon under 16px, and `--thin` for 32px and up.
+  A hand-drawn SVG's `stroke-width` follows the same rule (1.25 on a 20 grid).
 - **Boundaries:** contexts (`lib/nerves_hub/`) hold business logic; web modules
   stay thin and call into them. Match the surrounding module's conventions,
   error handling, and naming rather than importing your own.

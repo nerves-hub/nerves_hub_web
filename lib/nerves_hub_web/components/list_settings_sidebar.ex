@@ -31,7 +31,7 @@ defmodule NervesHubWeb.Components.ListSettingsSidebar do
             <h4 class="text-card-title">Settings</h4>
 
             <button class="ml-auto cursor-pointer p-1.5" type="button" phx-click={hide_settings_sidebar()}>
-              <span class="lucide-x--light size-5 text-content-body" />
+              <span class="lucide-x size-5 text-content-body" />
             </button>
           </div>
 

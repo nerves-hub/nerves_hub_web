@@ -213,7 +213,7 @@ defmodule NervesHubWeb.CoreComponents do
   ## Examples
 
       <.tooltip id="firmware-versions-help" placement="top" content_class="w-64">
-        <span class="lucide-info--light size-4" />
+        <span class="lucide-info size-4" />
         <:content>Devices grouped by the firmware they last reported.</:content>
       </.tooltip>
   """

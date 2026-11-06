@@ -36,37 +36,37 @@ defmodule NervesHubWeb.Components.Navigation do
         label="Insights"
         path={~p"/org/#{@scope.org}/#{@scope.product}/insights"}
         selected={:insights == @selected_tab}
-        icon="data-[selected=false]:lucide-activity--light data-[selected=true]:lucide-activity"
+        icon="data-[selected=false]:lucide-activity data-[selected=true]:lucide-activity--bold"
       />
       <.nav_link
         label="Devices"
         path={~p"/org/#{@scope.org}/#{@scope.product}/devices"}
         selected={:devices == @selected_tab}
-        icon="data-[selected=false]:lucide-cpu--light data-[selected=true]:lucide-cpu"
+        icon="data-[selected=false]:lucide-cpu data-[selected=true]:lucide-cpu--bold"
       />
       <.nav_link
         label="Deployment Groups"
         path={~p"/org/#{@scope.org}/#{@scope.product}/deployment_groups"}
         selected={:deployments == @selected_tab}
-        icon="data-[selected=false]:lucide-rocket--light data-[selected=true]:lucide-rocket"
+        icon="data-[selected=false]:lucide-rocket data-[selected=true]:lucide-rocket--bold"
       />
       <.nav_link
         label="Firmware"
         path={~p"/org/#{@scope.org}/#{@scope.product}/firmware"}
         selected={:firmware == @selected_tab}
-        icon="data-[selected=false]:lucide-binary--light data-[selected=true]:lucide-binary"
+        icon="data-[selected=false]:lucide-binary data-[selected=true]:lucide-binary--bold"
       />
       <.nav_link
         label="Archives"
         path={~p"/org/#{@scope.org}/#{@scope.product}/archives"}
         selected={:archives == @selected_tab}
-        icon="data-[selected=false]:lucide-archive--light data-[selected=true]:lucide-archive"
+        icon="data-[selected=false]:lucide-archive data-[selected=true]:lucide-archive--bold"
       />
       <.nav_link
         label="Support Scripts"
         path={~p"/org/#{@scope.org}/#{@scope.product}/scripts"}
         selected={:support_scripts == @selected_tab}
-        icon="data-[selected=false]:lucide-file-code-corner--light data-[selected=true]:lucide-file-code-corner"
+        icon="data-[selected=false]:lucide-file-code-corner data-[selected=true]:lucide-file-code-corner--bold"
       />
       <.nav_link
         :if={@error_reports_enabled}
@@ -74,20 +74,20 @@ defmodule NervesHubWeb.Components.Navigation do
         badge={@unresolved_errors_count}
         path={~p"/org/#{@scope.org}/#{@scope.product}/errors"}
         selected={:errors == @selected_tab}
-        icon="data-[selected=false]:lucide-circle-alert--light data-[selected=true]:lucide-circle-alert"
+        icon="data-[selected=false]:lucide-circle-alert data-[selected=true]:lucide-circle-alert--bold"
       />
       <.nav_link
         label="Notifications"
         badge={@notifications_count}
         path={~p"/org/#{@scope.org}/#{@scope.product}/notifications"}
         selected={:notifications == @selected_tab}
-        icon="data-[selected=false]:lucide-bell--light data-[selected=true]:lucide-bell"
+        icon="data-[selected=false]:lucide-bell data-[selected=true]:lucide-bell--bold"
       />
       <.nav_link
         label="Settings"
         path={~p"/org/#{@scope.org}/#{@scope.product}/settings"}
         selected={:settings == @selected_tab}
-        icon="data-[selected=false]:lucide-settings--light data-[selected=true]:lucide-settings"
+        icon="data-[selected=false]:lucide-settings data-[selected=true]:lucide-settings--bold"
       />
     </ul>
     """
@@ -96,34 +96,34 @@ defmodule NervesHubWeb.Components.Navigation do
   def sidebar(assigns) do
     ~H"""
     <ul role="list">
-      <.nav_link label="Products" path={~p"/org/#{@scope.org}/"} selected={:products == @selected_tab} icon="data-[selected=false]:lucide-package--light data-[selected=true]:lucide-package" />
+      <.nav_link label="Products" path={~p"/org/#{@scope.org}/"} selected={:products == @selected_tab} icon="data-[selected=false]:lucide-package data-[selected=true]:lucide-package--bold" />
       <.nav_link
         label="Signing Keys"
         path={~p"/org/#{@scope.org}/settings/keys"}
         selected={:signing_keys == @selected_tab}
-        icon="data-[selected=false]:lucide-key-round--light data-[selected=true]:lucide-key-round"
+        icon="data-[selected=false]:lucide-key-round data-[selected=true]:lucide-key-round--bold"
       />
-      <.nav_link label="Users" path={~p"/org/#{@scope.org}/settings/users"} selected={:users == @selected_tab} icon="data-[selected=false]:lucide-users--light data-[selected=true]:lucide-users" />
+      <.nav_link label="Users" path={~p"/org/#{@scope.org}/settings/users"} selected={:users == @selected_tab} icon="data-[selected=false]:lucide-users data-[selected=true]:lucide-users--bold" />
       <.nav_link
         :if={org_iroh_endpoints_ui_enabled?()}
         label="Iroh Endpoints"
         path={~p"/org/#{@scope.org}/settings/iroh-endpoints"}
         selected={:iroh_endpoints == @selected_tab}
-        icon="data-[selected=false]:lucide-waypoints--light data-[selected=true]:lucide-waypoints"
+        icon="data-[selected=false]:lucide-waypoints data-[selected=true]:lucide-waypoints--bold"
       />
       <.nav_link
         label="Certificates"
         path={~p"/org/#{@scope.org}/settings/certificates"}
         selected={:certificates == @selected_tab}
-        icon="data-[selected=false]:lucide-shield-check--light data-[selected=true]:lucide-shield-check"
+        icon="data-[selected=false]:lucide-shield-check data-[selected=true]:lucide-shield-check--bold"
       />
       <.nav_link
         label="Integrations"
         path={~p"/org/#{@scope.org}/settings/integrations"}
         selected={:integrations == @selected_tab}
-        icon="data-[selected=false]:lucide-webhook--light data-[selected=true]:lucide-webhook"
+        icon="data-[selected=false]:lucide-webhook data-[selected=true]:lucide-webhook--bold"
       />
-      <.nav_link label="Settings" path={~p"/org/#{@scope.org}/settings"} selected={:settings == @selected_tab} icon="data-[selected=false]:lucide-settings--light data-[selected=true]:lucide-settings" />
+      <.nav_link label="Settings" path={~p"/org/#{@scope.org}/settings"} selected={:settings == @selected_tab} icon="data-[selected=false]:lucide-settings data-[selected=true]:lucide-settings--bold" />
     </ul>
     """
   end

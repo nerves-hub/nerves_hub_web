@@ -60,8 +60,8 @@
         title="Copy device identifier"
         class="shrink-0 cursor-pointer text-content-faint opacity-0 transition-opacity group-hover/identifier:opacity-100 hover:text-base-200 focus-visible:opacity-100"
       >
-        <span data-icon="copy" class="lucide-copy--light size-4"></span>
-        <span data-icon="check" class="lucide-check--light hidden size-4 text-success"></span>
+        <span data-icon="copy" class="lucide-copy size-4"></span>
+        <span data-icon="check" class="lucide-check hidden size-4 text-success"></span>
       </button>
     </div>
 
@@ -87,7 +87,7 @@
             <path
               d="M8 10V8M8 6V5.99333M14 8C14 11.3137 11.3137 14 8 14C4.68629 14 2 11.3137 2 8C2 4.68629 4.68629 2 8 2C11.3137 2 14 4.68629 14 8Z"
               class="stroke-base-400"
-              stroke-width="1.2"
+              stroke-width="1"
               stroke-linecap="round"
               stroke-linejoin="round"
             />
@@ -105,7 +105,7 @@
               <svg class="mx-2 size-4 stroke-warning" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none">
                 <path
                   d="M19 14V5C17.5 5.16667 14 5 12 3C11.4286 3.57143 10.7347 3.9932 10 4.30029M5 5V14C5 18 12 21 12 21C12 21 15.2039 19.6269 17.2766 17.5M3 3L21 21"
-                  stroke-width="2"
+                  stroke-width="1.5"
                   stroke-linecap="round"
                   stroke-linejoin="round"
                 />
@@ -124,7 +124,7 @@
               disabled={!authorized?(:"device:clear-penalty-box", @current_scope)}
               class="flex items-center rounded p-1 text-content-muted hover:bg-primary/20 hover:text-content-strong disabled:pointer-events-none disabled:opacity-60"
             >
-              <span class="lucide-x--light size-4" />
+              <span class="lucide-x size-4" />
             </button>
           <% true -> %>
             <div class="relative ml-2">
@@ -138,7 +138,7 @@
                 class="flex items-center gap-1 rounded p-1 hover:bg-primary/20 disabled:pointer-events-none disabled:opacity-60"
               >
                 <span class={[update_mode_icon(@device.update_mode), update_mode_color(@device.update_mode), "size-4"]} />
-                <span class="lucide-chevron-down--light size-3 text-content-muted" />
+                <span class="lucide-chevron-down--bold size-3 text-content-muted" />
               </button>
 
               <div
@@ -164,7 +164,7 @@
                     <span class="flex flex-col gap-0.5">
                       <span class="flex items-center gap-1.5 text-sm font-medium text-content-strong">
                         {label}
-                        <span :if={@device.update_mode == mode} class="lucide-check--light size-4 text-primary" />
+                        <span :if={@device.update_mode == mode} class="lucide-check size-4 text-primary" />
                       </span>
                       <span class="text-xs/snug text-content-muted">{description}</span>
                     </span>

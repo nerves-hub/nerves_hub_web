@@ -52,7 +52,7 @@ defmodule NervesHubWeb.Components.DevicePage.FirmwareHistoryTab do
           <div :if={Enum.any?(@device_firmwares)} class="flex flex-col gap-1 px-4 py-2">
             <div :for={entry <- @device_firmwares} class="flex h-16 items-center gap-6 p-2">
               <div class="flex h-8 items-center rounded-full border border-line-default bg-base-800 px-2 py-1">
-                <span class="lucide-binary--light size-4"></span>
+                <span class="lucide-binary size-4"></span>
               </div>
               <div class="grow">
                 <div id={"device-firmware-#{entry.id}"} class="flex justify-between">

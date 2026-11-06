@@ -64,7 +64,7 @@ defmodule NervesHubWeb.Components.AdvancedSearch do
             id="search-icon"
             phx-update="ignore"
             data-role="search-icon"
-            class="pointer-events-none col-start-1 row-start-1 mr-3 lucide-search--light size-5 self-center justify-self-end text-content-faint"
+            class="pointer-events-none col-start-1 row-start-1 mr-3 lucide-search size-5 self-center justify-self-end text-content-faint"
           />
 
           <button
@@ -76,7 +76,7 @@ defmodule NervesHubWeb.Components.AdvancedSearch do
             phx-update="ignore"
             id="clear-button"
           >
-            <div class="bg-surface-muted"><span class="lucide-x--light size-4 text-content-faint" /></div>
+            <div class="bg-surface-muted"><span class="lucide-x size-4 text-content-faint" /></div>
           </button>
         </div>
       </div>

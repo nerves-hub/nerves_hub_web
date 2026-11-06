@@ -148,7 +148,7 @@
 
         <div class="space-y-3 pt-4">
           <div :for={access_token <- @access_tokens} class="flex items-start gap-4 rounded-md border border-line-default bg-linear-to-r from-base-800/50 to-base-800 p-4">
-            <span class="mt-1 lucide-key-round--light size-6"></span>
+            <span class="mt-1 lucide-key-round size-6"></span>
             <div class="min-w-0 flex-1">
               <h3 :if={access_token.note != ""} class="mb-2 text-group-title text-content-strong">
                 {access_token.note}

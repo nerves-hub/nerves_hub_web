@@ -9,7 +9,7 @@
       </div>
       <div class="flex items-center gap-3">
         <div class="flex items-center gap-1 text-xs tracking-wide text-content-faint">
-          <span class="lucide-clock--light size-4 shrink"></span>
+          <span class="lucide-clock size-4 shrink"></span>
           <span class="font-normal">Updated</span>
           <time class="font-normal" id="health-last-updated" phx-hook="UpdatingTimeAgo" datetime={String.replace(DateTime.to_string(DateTime.truncate(@updated_at, :second)), " ", "T")}>
             {RelativeTime.from_now(@updated_at)}
@@ -80,7 +80,7 @@
         <div class="relative flex h-[132px] flex-col overflow-hidden rounded-md border border-line-default bg-surface-raised p-4 shadow-card">
           <div class="absolute inset-y-0 left-0 w-[3.5px] bg-warning"></div>
           <div class="mb-3.5 flex items-center gap-2">
-            <span class="lucide-clock-alert--light size-4 shrink text-warning"></span>
+            <span class="lucide-clock-alert size-4 shrink text-warning"></span>
             <span class="font-sans text-sm text-content-muted">Not seen in 7 days</span>
           </div>
           <div id="not-seen-7-days-count" phx-hook="CrossFadeOnUpdate" class="font-mono text-3xl leading-none tracking-tight text-content-strong">
@@ -95,7 +95,7 @@
         <div class="relative flex h-[132px] flex-col overflow-hidden rounded-md border border-line-default bg-surface-raised p-4 shadow-card">
           <div class="absolute inset-y-0 left-0 w-[3.5px] bg-danger"></div>
           <div class="mb-3.5 flex items-center gap-2">
-            <span class="lucide-triangle-alert--light size-4 shrink text-danger"></span>
+            <span class="lucide-triangle-alert size-4 shrink text-danger"></span>
             <span class="font-sans text-sm text-content-muted">Not seen in 14 days</span>
           </div>
           <div id="not-seen-14-days-count" phx-hook="CrossFadeOnUpdate" class="font-mono text-3xl leading-none tracking-tight text-content-strong">
@@ -143,7 +143,7 @@
             Firmware Update History
           </div>
           <.tooltip id="update-outcomes-tooltip" placement="top" class="z-20 ml-4" content_class="w-72">
-            <span class="lucide-info--light size-4" />
+            <span class="lucide-info size-4" />
             <:content>
               <p class="pb-2">Every firmware update attempt that finished, counted on the day it finished.</p>
               <p class="pb-2">A failure is a device that did not end up running the firmware it was sent: it reported an error, refused it, stopped partway, or came back on its old firmware.</p>
@@ -252,7 +252,7 @@
               Flapping Connections
             </div>
             <.tooltip id="flapping-connections-tooltip" placement="top" class="z-20 ml-4">
-              <span class="lucide-info--light size-4" />
+              <span class="lucide-info size-4" />
               <:content>
                 <p class="pb-2">Devices that have reconnected 10 times or more in the last hour.</p>
                 <p>
@@ -283,7 +283,7 @@
               Flapping Health
             </div>
             <.tooltip id="flapping-health-tooltip" placement="top" class="z-20 ml-4">
-              <span class="lucide-info--light size-4" />
+              <span class="lucide-info size-4" />
               <:content>
                 <p class="pb-2">Devices whose health has crossed into warning or unhealthy more than 5 times in the last hour.</p>
                 <p>
@@ -326,7 +326,7 @@
                 <.badge class="ml-2.5">{@failing_count}</.badge>
               </div>
               <.tooltip id="failing-updates-tooltip" placement="top" class="z-20 ml-4" content_class="w-72">
-                <span class="lucide-info--light size-4" />
+                <span class="lucide-info size-4" />
                 <:content>
                   <p class="pb-2">Devices that are failing to take their firmware, and are blocked from trying again for now.</p>
                   <p class="pb-2">The count is attempts in a row that ended without the device running the firmware it was sent, since the last time it did.</p>
@@ -340,7 +340,7 @@
               navigate={~p"/org/#{@current_scope.org}/#{@current_scope.product}/devices?updates=failed-updates"}
               class="flex items-center gap-1.5 text-xs text-content-muted"
             >
-              All <span class="lucide-chevron-right--light size-4"></span>
+              All <span class="lucide-chevron-right size-4"></span>
             </.link>
           </div>
 
@@ -373,7 +373,7 @@
               navigate={~p"/org/#{@current_scope.org}/#{@product}/notifications"}
               class="flex items-center gap-1.5 text-xs text-content-muted"
             >
-              All <span class="lucide-chevron-right--light size-4"></span>
+              All <span class="lucide-chevron-right size-4"></span>
             </.link>
           </div>
 
@@ -404,7 +404,7 @@
               <.badge class="ml-2.5">{@firmware_version_count}</.badge>
             </div>
             <.tooltip id="firmware-versions-tooltip" placement="top" class="z-20 ml-4" content_class="w-64">
-              <span class="lucide-info--light size-4" />
+              <span class="lucide-info size-4" />
               <:content>
                 <p>The firmware version each device last reported, not the version its deployment group is on. Select a version to see those devices.</p>
               </:content>

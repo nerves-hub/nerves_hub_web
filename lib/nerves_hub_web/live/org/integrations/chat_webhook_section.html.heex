@@ -54,7 +54,7 @@
               title="More actions"
               class="flex items-center rounded p-1.5 hover:cursor-pointer hover:bg-base-700"
             >
-              <span class="lucide-ellipsis--light size-4 text-content-muted"></span>
+              <span class="lucide-ellipsis size-4 text-content-muted"></span>
               <span class="sr-only">More actions</span>
             </button>
 
@@ -75,7 +75,7 @@
                   phx-click={JS.push("edit-channel", value: %{channel_id: channel.id}, target: @myself) |> hide_menu(@provider, channel.id)}
                   class="flex items-center gap-2 rounded px-2 py-1.5 text-left text-sm text-content-body hover:cursor-pointer hover:bg-primary/20"
                 >
-                  <span class="lucide-pencil--light size-4 text-content-muted"></span> Edit
+                  <span class="lucide-pencil size-4 text-content-muted"></span> Edit
                 </button>
                 <button
                   type="button"
@@ -83,8 +83,8 @@
                   phx-click={JS.push("toggle", value: %{channel_id: channel.id}, target: @myself) |> hide_menu(@provider, channel.id)}
                   class="flex items-center gap-2 rounded px-2 py-1.5 text-left text-sm text-content-body hover:cursor-pointer hover:bg-primary/20"
                 >
-                  <span :if={channel.enabled} class="lucide-power-off--light size-4 text-content-muted"></span>
-                  <span :if={!channel.enabled} class="lucide-power--light size-4 text-success"></span>
+                  <span :if={channel.enabled} class="lucide-power-off size-4 text-content-muted"></span>
+                  <span :if={!channel.enabled} class="lucide-power size-4 text-success"></span>
                   {if channel.enabled, do: "Turn off", else: "Turn on"}
                 </button>
                 <button
@@ -95,7 +95,7 @@
                   data-confirm={"Stop posting to #{channel.name}? Events held for it are dropped."}
                   class="flex items-center gap-2 rounded px-2 py-1.5 text-left text-sm text-alert hover:cursor-pointer hover:bg-alert-soft"
                 >
-                  <span class="lucide-trash--light size-4"></span> Delete
+                  <span class="lucide-trash size-4"></span> Delete
                 </button>
               </div>
             </div>

@@ -132,15 +132,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
               </div>
 
               <div class="flex w-fit shrink gap-2 rounded border border-line-strong bg-base-800 px-3 py-1.5 hover:cursor-pointer">
-                <svg class="size-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="none">
-                  <path
-                    d="M4.1665 10.0001H9.99984M15.8332 10.0001H9.99984M9.99984 10.0001V4.16675M9.99984 10.0001V15.8334"
-                    class="stroke-base-400"
-                    stroke-width="1.2"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                  />
-                </svg>
+                <.icon name="add" class="stroke-base-400" />
                 <label for={@uploads.workflow_definition.ref} class="text-sm font-medium text-content-body hover:cursor-pointer">
                   {if is_nil(@deployment_group.workflow_definition), do: "Upload Workflow Definition", else: "Upload New Workflow Definition"}
                 </label>

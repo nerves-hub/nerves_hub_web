@@ -306,10 +306,10 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
                   class="rounded border border-line-strong bg-base-900 px-2 py-1 text-base font-medium text-content-strong focus:border-base-400 focus:ring-0"
                 />
                 <button type="submit" aria-label="Save label" class="cursor-pointer text-content-muted hover:text-success">
-                  <span class="lucide-check--light size-5"></span>
+                  <span class="lucide-check size-5"></span>
                 </button>
                 <button type="button" phx-click="cancel-health-label" aria-label="Cancel editing label" class="cursor-pointer text-content-muted hover:text-alert">
-                  <span class="lucide-x--light size-5"></span>
+                  <span class="lucide-x size-5"></span>
                 </button>
               </form>
               <div :if={@editing_label_key != key} class="flex items-center gap-2">
@@ -322,7 +322,7 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
                   aria-label={"Edit label for #{label_for(key, @custom_health_labels)}"}
                   class="cursor-pointer text-content-faint opacity-0 transition-opacity group-hover/label:opacity-100 hover:text-content-body"
                 >
-                  <span class="lucide-pencil--light size-4"></span>
+                  <span class="lucide-pencil size-4"></span>
                 </button>
               </div>
             </div>

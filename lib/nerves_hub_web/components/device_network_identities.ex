@@ -140,8 +140,8 @@ defmodule NervesHubWeb.Components.DeviceNetworkIdentities do
         title="Copy value"
         class="shrink-0 cursor-pointer text-content-faint opacity-0 transition-opacity group-hover/identity:opacity-100 hover:text-base-200 focus:opacity-100"
       >
-        <span data-icon="copy" class="lucide-copy--light size-4"></span>
-        <span data-icon="check" class="lucide-check--light hidden size-4 text-success"></span>
+        <span data-icon="copy" class="lucide-copy size-4"></span>
+        <span data-icon="check" class="lucide-check hidden size-4 text-success"></span>
       </button>
     </div>
     """

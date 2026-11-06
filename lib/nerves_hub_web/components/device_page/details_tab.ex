@@ -153,7 +153,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
           <span
             data-drag-handle
             title="Drag to move"
-            class="absolute top-5 left-0.5 z-10 lucide-grip-vertical--light size-3.5 cursor-grab text-content-faint opacity-0 transition-opacity group-hover/box:opacity-100 active:cursor-grabbing"
+            class="absolute top-5 left-0.5 z-10 lucide-grip-vertical--bold size-3.5 cursor-grab text-content-faint opacity-0 transition-opacity group-hover/box:opacity-100 active:cursor-grabbing"
           />
           <.health_box
             :if={box == :health}
@@ -935,7 +935,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
               <path
                 d="M12.4999 5.83337H7.49992M12.4999 5.83337H14.9999M12.4999 5.83337C12.4999 4.45266 11.3806 3.33337 9.99992 3.33337C8.61921 3.33337 7.49992 4.45266 7.49992 5.83337M7.49992 5.83337H4.99992M3.33325 5.83337H4.99992M4.99992 5.83337V15C4.99992 15.9205 5.74611 16.6667 6.66659 16.6667H13.3333C14.2537 16.6667 14.9999 15.9205 14.9999 15V5.83337M14.9999 5.83337H16.6666M8.33325 9.16671V13.3334M11.6666 13.3334V9.16671"
                 class="stroke-alert"
-                stroke-width="1.2"
+                stroke-width="1.667"
                 stroke-linecap="round"
                 stroke-linejoin="round"
               />
@@ -1145,7 +1145,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
               <svg class="size-3 stroke-alert" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <path
                   d="M8 8H16M16 12H8M8 16H12M20 13V6C20 4.89543 19.1046 4 18 4H6C4.89543 4 4 4.89543 4 6V18C4 19.1046 4.89543 20 6 20H13M19 19L21 17M19 19L17 17M19 19L21 21M19 19L17 21"
-                  stroke-width="1.2"
+                  stroke-width="2"
                   stroke-linecap="round"
                   stroke-linejoin="round"
                 />
@@ -1220,8 +1220,8 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
               title="Copy value"
               class="inline-flex shrink-0 cursor-pointer items-center text-content-faint opacity-0 transition-opacity group-hover/ip:opacity-100 hover:text-base-200 focus-visible:opacity-100"
             >
-              <span data-icon="copy" class="lucide-copy--light size-4"></span>
-              <span data-icon="check" class="lucide-check--light hidden size-4 text-success"></span>
+              <span data-icon="copy" class="lucide-copy size-4"></span>
+              <span data-icon="check" class="lucide-check hidden size-4 text-success"></span>
             </button>
           </div>
         </div>
@@ -1245,7 +1245,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
                 class="ml-1 text-content-faint hover:text-alert-content"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" class="size-3" viewBox="0 0 20 20" fill="none">
-                  <path d="M10 10L6 6M10 10L14 14M10 10L14 6M10 10L6 14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+                  <path d="M10 10L6 6M10 10L14 14M10 10L14 6M10 10L6 14" stroke="currentColor" stroke-width="1.667" stroke-linecap="round" stroke-linejoin="round" />
                 </svg>
               </button>
             </span>
@@ -1261,7 +1261,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
                 |> JS.hide(to: "#add-tag-open")
               }
             >
-              <span class="lucide-plus--light size-3.5" />
+              <span class="lucide-plus--bold size-3.5" />
             </button>
             <button
               id="add-tag-close"
@@ -1276,7 +1276,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
                 |> JS.show(to: "#add-tag-open")
               }
             >
-              <span class="lucide-x--light size-3.5" />
+              <span class="lucide-x--bold size-3.5" />
             </button>
             <form
               id="add-tag-form"
@@ -1346,8 +1346,8 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
                 title="Copy value"
                 class="shrink-0 cursor-pointer text-content-faint opacity-0 transition-opacity group-hover/meta:opacity-100 hover:text-base-200 focus-visible:opacity-100"
               >
-                <span data-icon="copy" class="lucide-copy--light size-4"></span>
-                <span data-icon="check" class="lucide-check--light hidden size-4 text-success"></span>
+                <span data-icon="copy" class="lucide-copy size-4"></span>
+                <span data-icon="check" class="lucide-check hidden size-4 text-success"></span>
               </button>
             </div>
           </div>

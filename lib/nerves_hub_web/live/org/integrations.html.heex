@@ -216,7 +216,7 @@
                   title="More actions"
                   class="flex items-center rounded p-1.5 hover:cursor-pointer hover:bg-base-700"
                 >
-                  <span class="lucide-ellipsis--light size-4 text-content-muted"></span>
+                  <span class="lucide-ellipsis size-4 text-content-muted"></span>
                   <span class="sr-only">More actions</span>
                 </button>
 
@@ -237,7 +237,7 @@
                       phx-click={JS.push("edit", value: %{webhook_id: webhook.id}) |> hide_menu(webhook.id)}
                       class="flex items-center gap-2 rounded px-2 py-1.5 text-left text-sm text-content-body hover:cursor-pointer hover:bg-primary/20"
                     >
-                      <span class="lucide-pencil--light size-4 text-content-muted"></span> Edit
+                      <span class="lucide-pencil size-4 text-content-muted"></span> Edit
                     </button>
                     <button
                       type="button"
@@ -245,8 +245,8 @@
                       phx-click={JS.push("toggle", value: %{webhook_id: webhook.id}) |> hide_menu(webhook.id)}
                       class="flex items-center gap-2 rounded px-2 py-1.5 text-left text-sm text-content-body hover:cursor-pointer hover:bg-primary/20"
                     >
-                      <span :if={webhook.enabled} class="lucide-power-off--light size-4 text-content-muted"></span>
-                      <span :if={!webhook.enabled} class="lucide-power--light size-4 text-success"></span>
+                      <span :if={webhook.enabled} class="lucide-power-off size-4 text-content-muted"></span>
+                      <span :if={!webhook.enabled} class="lucide-power size-4 text-success"></span>
                       {if webhook.enabled, do: "Turn off", else: "Turn on"}
                     </button>
                     <button
@@ -257,7 +257,7 @@
                       data-confirm={"Remove the webhook to #{host(webhook)}? Deliveries still queued for it are dropped."}
                       class="flex items-center gap-2 rounded px-2 py-1.5 text-left text-sm text-alert hover:cursor-pointer hover:bg-alert-soft"
                     >
-                      <span class="lucide-trash--light size-4"></span> Delete
+                      <span class="lucide-trash size-4"></span> Delete
                     </button>
                   </div>
                 </div>
@@ -293,8 +293,8 @@
               aria-label="Copy signing secret"
               class="inline-flex cursor-pointer items-center gap-1.5 rounded border border-line-strong px-2 py-0.5 hover:text-base-200"
             >
-              <span data-icon="copy" class="lucide-copy--light size-4"></span>
-              <span data-icon="check" class="lucide-check--light hidden size-4 text-success"></span> Copy
+              <span data-icon="copy" class="lucide-copy size-4"></span>
+              <span data-icon="check" class="lucide-check hidden size-4 text-success"></span> Copy
             </button>
             <button
               type="button"

@@ -35,8 +35,8 @@
                   disabled={!authorized?(:"org_user:invite:resend", @current_scope)}
                   title={invite_action_title(authorized?(:"org_user:invite:resend", @current_scope), "Copy the invite link")}
                 >
-                  <span data-icon="copy" class="lucide-copy--light size-4"></span>
-                  <span data-icon="check" class="lucide-check--light hidden size-4 text-success"></span> Copy invite link
+                  <span data-icon="copy" class="lucide-copy size-4"></span>
+                  <span data-icon="check" class="lucide-check hidden size-4 text-success"></span> Copy invite link
                 </.button>
                 <.button
                   style="secondary"
@@ -47,7 +47,7 @@
                   title={invite_action_title(authorized?(:"org_user:invite:resend", @current_scope), "Send the invitation email again")}
                   data-confirm={"Resend the invitation to #{invite.email}? This sends a new link and stops the previous one working."}
                 >
-                  <span class="lucide-mail--light size-4"></span> Resend invite
+                  <span class="lucide-mail size-4"></span> Resend invite
                 </.button>
                 <.button
                   style="danger"

@@ -12,8 +12,8 @@
         aria-label="Collapse or expand the sidebar"
         class="flex size-7 shrink-0 items-center justify-center rounded text-content-muted hover:cursor-pointer hover:text-content-strong"
       >
-        <span class="lucide-panel-left-close--light size-5 text-content-muted collapsed:hidden"></span>
-        <span class="lucide-panel-left-open--light hidden size-5 text-content-muted collapsed:block"></span>
+        <span class="lucide-panel-left-close size-5 text-content-muted collapsed:hidden"></span>
+        <span class="lucide-panel-left-open hidden size-5 text-content-muted collapsed:block"></span>
       </button>
     </div>
 
@@ -30,14 +30,14 @@
           <div class="org-selector-title">{@current_scope.org.name}</div>
           <div :if={@current_scope.product} class="product-selector-title flex items-center gap-2">
             <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 10 10" fill="none">
-              <path d="M1 1V5C1 7.20914 2.79086 9 5 9H9" class="stroke-base-500" stroke-width="1.2" stroke-linecap="round" />
+              <path d="M1 1V5C1 7.20914 2.79086 9 5 9H9" class="stroke-base-500" stroke-width="1" stroke-linecap="round" />
             </svg>
             <span>{@current_scope.product.name}</span>
           </div>
         </div>
         <div class="product-selector-icon ml-auto rounded p-1.5 collapsed:hidden">
           <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="none">
-            <path d="M8.33203 5.83398L12.4987 10.0007L8.33203 14.1673" class="stroke-base-400" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" />
+            <path d="M8.33203 5.83398L12.4987 10.0007L8.33203 14.1673" class="stroke-base-400" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" />
           </svg>
         </div>
       </div>
@@ -88,19 +88,19 @@
           class="mx-3.5 mb-4 flex flex-col rounded-md border border-line-default bg-surface-overlay p-2 shadow-overlay collapsed:absolute collapsed:bottom-14 collapsed:left-2 collapsed:mx-0 collapsed:w-56"
         >
           <div class="justify-left flex items-center gap-1.5 rounded p-2 hover:bg-primary/20">
-            <span class="lucide-user-round--light size-5 text-content-body" />
+            <span class="lucide-user-round size-5 text-content-body" />
             <.link navigate={~p"/account"} class="text-sm font-light tracking-wide">Account</.link>
           </div>
 
           <div class="justify-left flex items-center gap-1.5 rounded p-2 hover:bg-primary/20">
-            <span class="lucide-log-out--light size-5 text-alert" />
+            <span class="lucide-log-out size-5 text-alert" />
             <.link navigate={~p"/logout"} class="text-sm font-light tracking-wide text-alert">Log out</.link>
           </div>
 
           <div aria-hidden="true" class="col-span-full -mx-1.5 my-1.5 h-px border-t border-line-default"></div>
 
           <div class="justify-left flex items-center gap-1.5 rounded p-2 hover:bg-primary/20">
-            <span class="lucide-book-open-text--light size-5 text-content-body" />
+            <span class="lucide-book-open-text size-5 text-content-body" />
             <a href="https://docs.nerves-hub.org" class="text-sm font-light tracking-wide">Documentation</a>
           </div>
 
@@ -116,7 +116,7 @@
               type="button"
             >
               <div class="absolute inset-0 hidden rounded-full bg-primary/10 group-data-[selected=true]:flex"></div>
-              <span class="lucide-sun--light size-5 text-base-600 group-hover:cursor-pointer group-hover:text-primary group-data-[selected=true]:text-primary" />
+              <span class="lucide-sun size-5 text-base-600 group-hover:cursor-pointer group-hover:text-primary group-data-[selected=true]:text-primary" />
             </button>
             <button
               id="theme-dark"
@@ -127,7 +127,7 @@
               type="button"
             >
               <div class="absolute inset-0 hidden rounded-full bg-primary/10 group-data-[selected=true]:flex"></div>
-              <span class="lucide-moon--light size-5 text-base-600 group-hover:cursor-pointer group-hover:text-primary group-data-[selected=true]:text-primary" />
+              <span class="lucide-moon size-5 text-base-600 group-hover:cursor-pointer group-hover:text-primary group-data-[selected=true]:text-primary" />
             </button>
             <button
               id="theme-system"
@@ -138,7 +138,7 @@
               type="button"
             >
               <div class="absolute inset-0 hidden rounded-full bg-primary/10 group-data-[selected=true]:flex"></div>
-              <span class="lucide-monitor--light size-4.5 text-base-600 group-hover:cursor-pointer group-hover:text-primary group-data-[selected=true]:text-primary" />
+              <span class="lucide-monitor size-4.5 text-base-600 group-hover:cursor-pointer group-hover:text-primary group-data-[selected=true]:text-primary" />
             </button>
           </div>
         </div>
@@ -158,7 +158,7 @@
           <div aria-hidden="true" class="truncate text-xs font-light text-content-muted">{@current_scope.user.email}</div>
         </div>
 
-        <span class="ml-auto lucide-chevrons-up-down--light size-4 collapsed:hidden"></span>
+        <span class="ml-auto lucide-chevrons-up-down size-4 collapsed:hidden"></span>
       </a>
     </div>
   </div>
@@ -207,7 +207,7 @@
           class="group relative -bottom-px flex h-11 items-center px-6 py-2 text-sm font-normal text-content-muted hover:border-b hover:border-base-500 hover:text-content-body data-[selected=true]:border-b data-[selected=true]:border-primary data-[selected=true]:tab-selected data-[selected=true]:text-content-strong"
           patch={nav.path}
         >
-          <span class="lucide-bug--light size-4 shrink-0"></span>
+          <span class="lucide-bug size-4 shrink-0"></span>
           <%!-- Collapsed to zero width rather than hidden, so revealing the label
                 slides it out instead of snapping the tab to a new width. --%>
           <span class="max-w-0 overflow-hidden whitespace-nowrap opacity-0 transition-all duration-200 ease-out group-hover:ml-2 group-hover:max-w-40 group-hover:opacity-100 group-data-[selected=true]:ml-2 group-data-[selected=true]:max-w-40 group-data-[selected=true]:opacity-100">

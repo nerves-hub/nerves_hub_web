@@ -49,7 +49,7 @@ defmodule NervesHubWeb.Components.Breadcrumb do
         >
           <path
             d="M4.16671 10L9.16671 5M4.16671 10L9.16671 15M4.16671 10H15.8334"
-            stroke-width="1.2"
+            stroke-width="1.25"
             stroke-linecap="round"
             stroke-linejoin="round"
           />
