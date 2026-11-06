@@ -144,6 +144,20 @@ defmodule NervesHub.DeviceEventsTest do
       refute_disconnected(context.others.same_product_offline)
     end
 
+    test "closing an account closes the connections of the devices in the orgs it was the last member of",
+         context do
+      # Someone else still belongs to the other org, so it outlives the account.
+      other_org = Accounts.get_org!(context.others.other_org.org_id)
+      {:ok, _} = Accounts.add_org_user(other_org, Fixtures.user_fixture(), %{role: :admin})
+
+      {:ok, _} = Accounts.remove_account(context.user.id)
+
+      assert_disconnected(context.device)
+      assert_disconnected(context.others.other_product)
+      refute_disconnected(context.others.other_org)
+      refute_disconnected(context.others.same_product_offline)
+    end
+
     test "deleting a product closes the connections of its devices only", context do
       {:ok, _} = Products.delete_product(context.product)
 
