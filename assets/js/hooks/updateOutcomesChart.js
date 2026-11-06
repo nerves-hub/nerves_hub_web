@@ -1,5 +1,6 @@
 import Chart from "chart.js/auto"
-import { MONO_FONT_FAMILY, timeAxis } from "../helpers/timeAxis.js"
+import { whenFontsLoaded } from "../helpers/fonts.js"
+import { MONO_FONT, MONO_FONT_FAMILY, timeAxis } from "../helpers/timeAxis.js"
 
 // Successes and failures are a status pair, not a categorical one, so they wear
 // the page's own `--color-success` / `--color-danger` tokens — the two the Fleet
@@ -59,7 +60,7 @@ export default {
 
     const colors = seriesColors()
 
-    this.chart = new Chart(this.el, {
+    const config = {
       type: "bar",
       data: { datasets: datasets(buckets, colors) },
       options: {
@@ -97,9 +98,15 @@ export default {
         responsive: true,
         maintainAspectRatio: false,
       },
+    }
+
+    whenFontsLoaded([MONO_FONT], () => {
+      if (this.el.isConnected) this.chart = new Chart(this.el, config)
     })
 
     this.onThemeUpdated = () => {
+      if (!this.chart) return
+
       const updated = seriesColors()
 
       this.chart.data.datasets.forEach((dataset, index) => {
