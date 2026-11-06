@@ -19,15 +19,7 @@
 
   <:big_header>
     <div class="flex items-center gap-3">
-      <svg
-        data-is-active={(@deployment_group.is_active && "true") || "false"}
-        class="size-3 data-[is-active=false]:fill-base-500 data-[is-active=true]:fill-success"
-        xmlns="http://www.w3.org/2000/svg"
-        viewBox="0 0 6 6"
-        fill="currentColor"
-      >
-        <circle cx="3" cy="3" r="3" />
-      </svg>
+      <.status_dot data-is-active={(@deployment_group.is_active && "true") || "false"} class="data-[is-active=false]:bg-base-500 data-[is-active=true]:bg-success" />
       <h1 class="text-xl leading-[30px] font-semibold text-content-strong">
         {@deployment_group.name}
       </h1>

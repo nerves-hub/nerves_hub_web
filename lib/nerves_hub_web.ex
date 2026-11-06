@@ -93,7 +93,7 @@ defmodule NervesHubWeb do
       import NervesHubWeb.Components.Icons
 
       import NervesHubWeb.CoreComponents,
-        only: [button: 1, input: 1, tag_input: 1, core_label: 1, error: 1, field_errors: 1, logo: 1]
+        only: [button: 1, input: 1, tag_input: 1, core_label: 1, error: 1, field_errors: 1, logo: 1, status_dot: 1]
 
       import NervesHubWeb.Helpers.Authorization
       # HTML escaping functionality
@@ -170,7 +170,10 @@ defmodule NervesHubWeb do
 
       import NervesHubWeb.Components.DateTimes
       import NervesHubWeb.Components.Icons
-      import NervesHubWeb.CoreComponents, only: [button: 1, input: 1, tag_input: 1, core_label: 1, error: 1, logo: 1]
+
+      import NervesHubWeb.CoreComponents,
+        only: [button: 1, input: 1, tag_input: 1, core_label: 1, error: 1, logo: 1, status_dot: 1]
+
       import NervesHubWeb.Helpers.Authorization
 
       def ok(socket), do: {:ok, socket}
@@ -232,7 +235,9 @@ defmodule NervesHubWeb do
 
       import NervesHubWeb.Components.DateTimes
       import NervesHubWeb.Components.Icons
-      import NervesHubWeb.CoreComponents, only: [button: 1, input: 1, tag_input: 1, core_label: 1, error: 1, logo: 1]
+
+      import NervesHubWeb.CoreComponents,
+        only: [button: 1, input: 1, tag_input: 1, core_label: 1, error: 1, logo: 1, status_dot: 1]
 
       # The sidebar asks this before rendering the link to the Iroh Endpoints
       # page. Hiding the link is presentation; the route refuses too.
@@ -268,7 +273,10 @@ defmodule NervesHubWeb do
     quote do
       import NervesHubWeb.Components.DateTimes
       import NervesHubWeb.Components.Icons
-      import NervesHubWeb.CoreComponents, only: [button: 1, input: 1, tag_input: 1, core_label: 1, error: 1, logo: 1]
+
+      import NervesHubWeb.CoreComponents,
+        only: [button: 1, input: 1, tag_input: 1, core_label: 1, error: 1, logo: 1, status_dot: 1]
+
       import NervesHubWeb.Helpers.Authorization
 
       import Phoenix.LiveView,

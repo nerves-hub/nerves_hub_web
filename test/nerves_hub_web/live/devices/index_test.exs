@@ -76,8 +76,8 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
   describe "device connection status updates" do
     setup context do
       Map.merge(context, %{
-        offline_indicator: "circle.fill-status-offline",
-        online_indicator: "circle.fill-status-online"
+        offline_indicator: "span.bg-status-offline",
+        online_indicator: "span.bg-status-online"
       })
     end
 

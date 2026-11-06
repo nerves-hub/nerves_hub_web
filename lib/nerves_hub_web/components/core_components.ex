@@ -111,6 +111,29 @@ defmodule NervesHubWeb.CoreComponents do
   end
 
   @doc """
+  Renders a status dot, such as a device's connection state.
+
+  Every status dot is the same size, whether it sits in a table row or beside
+  a page title. Give it a colour with `class`, either fixed or as `data-*`
+  variants keyed on an attribute passed through.
+
+  Chart legend keys are not status dots and keep their own size.
+
+  ## Examples
+
+      <.status_dot class="bg-status-online" />
+      <.status_dot data-level={@level} class="data-[level=error]:bg-alert data-[level=info]:bg-notice" />
+  """
+  attr(:class, :any, default: nil)
+  attr(:rest, :global)
+
+  def status_dot(assigns) do
+    ~H"""
+    <span class={["inline-block size-2 shrink-0 rounded-full", @class]} {@rest}></span>
+    """
+  end
+
+  @doc """
   Renders a modal.
 
   ## Examples

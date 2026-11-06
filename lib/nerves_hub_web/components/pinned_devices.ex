@@ -35,13 +35,9 @@ defmodule NervesHubWeb.Components.PinnedDevices do
                     <div class="flex items-center gap-[8px]">
                       <span title="status">
                         <%= if @statuses[device.identifier] == "online" do %>
-                          <svg xmlns="http://www.w3.org/2000/svg" width="6" height="6" viewBox="0 0 6 6" fill="none">
-                            <circle cx="3" cy="3" r="3" class="fill-status-online" />
-                          </svg>
+                          <.status_dot class="bg-status-online" />
                         <% else %>
-                          <svg xmlns="http://www.w3.org/2000/svg" width="6" height="6" viewBox="0 0 6 6" fill="none">
-                            <circle cx="3" cy="3" r="3" class="fill-status-offline" />
-                          </svg>
+                          <.status_dot class="bg-status-offline" />
                         <% end %>
                       </span>
                       <.link navigate={~p"/org/#{device.org.name}/#{device.product.name}/devices/#{device.identifier}"} class="ff-m">

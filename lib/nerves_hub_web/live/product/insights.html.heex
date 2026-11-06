@@ -51,7 +51,7 @@
         <div class="relative flex h-[132px] flex-col overflow-hidden rounded border border-line-default bg-surface-raised px-5 py-4.5 shadow-device-details-content">
           <div class="absolute inset-y-0 left-0 w-[3.5px] bg-status-online"></div>
           <div class="mb-3.5 flex items-center gap-2">
-            <span class="size-1.5 shrink rounded-full bg-status-online"></span>
+            <.status_dot class="bg-status-online" />
             <span class="font-sans text-sm text-content-muted">Online now</span>
           </div>
           <div id="online-count" phx-hook="CrossFadeOnUpdate" class="font-mono text-3xl leading-none tracking-tight text-content-strong">
@@ -67,7 +67,7 @@
         <div class="relative flex h-[132px] flex-col overflow-hidden rounded border border-line-default bg-surface-raised px-5 py-4.5 shadow-device-details-content">
           <div class="absolute inset-y-0 left-0 w-[3.5px] bg-status-offline"></div>
           <div class="mb-3.5 flex items-center gap-2">
-            <span class="size-1.5 shrink rounded-full bg-status-offline"></span>
+            <.status_dot class="bg-status-offline" />
             <span class="font-sans text-sm text-content-muted">Offline</span>
           </div>
           <div id="offline-count" phx-hook="CrossFadeOnUpdate" class="font-mono text-3xl leading-none tracking-tight text-content-strong">
@@ -425,7 +425,7 @@
           </div>
           <div :if={Enum.any?(@notifications)} class="flex flex-col divide-y divide-line-subtle">
             <div :for={entry <- @notifications} class="flex items-center gap-2.5 py-2.5">
-              <span data-level={entry.level} class="size-2 shrink-0 rounded-full data-[level=error]:bg-alert data-[level=info]:bg-notice data-[level=warning]:bg-warning/85"></span>
+              <.status_dot data-level={entry.level} class="data-[level=error]:bg-alert data-[level=info]:bg-notice data-[level=warning]:bg-warning/85" />
               <div class="min-w-0 flex-[1_1_0%]">
                 <div class="truncate font-mono text-sm font-normal">
                   {entry.title}

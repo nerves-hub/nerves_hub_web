@@ -921,9 +921,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
             navigate={~p"/org/#{@org}/#{@product}/deployment_groups/#{@device.deployment_group}"}
             class="flex items-center gap-1 rounded-full border border-line-default bg-base-800 py-0.5 pr-2.5 pl-1.5"
           >
-            <svg class="size-1.5" viewBox="0 0 6 6" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <circle cx="3" cy="3" r="3" class="fill-success" />
-            </svg>
+            <.status_dot class="bg-success" />
             <span class="text-xs tracking-tight text-content-body" class="">{@device.deployment_group.name}</span>
           </.link>
           <button

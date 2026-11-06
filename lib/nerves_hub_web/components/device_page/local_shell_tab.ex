@@ -154,15 +154,10 @@ defmodule NervesHubWeb.Components.DevicePage.LocalShellTab do
               <div id="local-shell" phx-hook="LocalShell" phx-update="ignore" data-user-token={@user_token} data-device-identifier={@device.identifier} class="z-10 size-full"></div>
               <div id="immersive-device" class="pointer-events-none absolute top-4 left-6 z-20 hidden text-base-800">
                 <div class="flex items-center gap-3">
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    viewBox="0 0 6 6"
-                    fill="currentColor"
-                    class="size-3 data-[connection-status=connected]:fill-status-online data-[connection-status=connecting]:animate-pulse data-[connection-status=connecting]:fill-status-connecting data-[connection-status=disconnected]:fill-status-offline data-[connection-status=unknown]:fill-status-offline"
+                  <.status_dot
                     data-connection-status={Map.get(@device_connection || %{}, :status) || "unknown"}
-                  >
-                    <circle cx="3" cy="3" r="3" />
-                  </svg>
+                    class="data-[connection-status=connected]:bg-status-online data-[connection-status=connecting]:animate-pulse data-[connection-status=connecting]:bg-status-connecting data-[connection-status=disconnected]:bg-status-offline data-[connection-status=unknown]:bg-status-offline"
+                  />
                   <h1 class="font-mono text-xl leading-[30px] font-semibold text-content-strong">
                     System Shell : {@device.identifier}
                   </h1>

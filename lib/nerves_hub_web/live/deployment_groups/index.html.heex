@@ -79,9 +79,7 @@
               <td>
                 <.link navigate={~p"/org/#{@current_scope.org}/#{@current_scope.product}/deployment_groups/#{deployment_group}"}>
                   <div class="flex h-10 w-full items-center gap-2">
-                    <svg class={["size-1.5", (deployment_group.is_active && "fill-success") || "fill-base-500"]} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 6 6">
-                      <circle cx="3" cy="3" r="3" />
-                    </svg>
+                    <.status_dot class={(deployment_group.is_active && "bg-success") || "bg-base-500"} />
 
                     {deployment_group.name}
                   </div>

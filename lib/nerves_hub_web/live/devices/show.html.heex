@@ -45,15 +45,10 @@
     <UpdateProgress.render :if={@firmware_update_stage} stage={@firmware_update_stage} progress={@firmware_update_progress} />
 
     <div class="group/identifier flex shrink-0 items-center gap-3">
-      <svg
+      <.status_dot
         data-connection-status={Map.get(@device_connection || %{}, :status) || "unknown"}
-        class="size-3 shrink-0 data-[connection-status=connected]:fill-status-online data-[connection-status=connecting]:animate-pulse data-[connection-status=connecting]:fill-status-connecting data-[connection-status=disconnected]:fill-status-offline data-[connection-status=unknown]:fill-status-offline"
-        xmlns="http://www.w3.org/2000/svg"
-        viewBox="0 0 6 6"
-        fill="currentColor"
-      >
-        <circle cx="3" cy="3" r="3" />
-      </svg>
+        class="data-[connection-status=connected]:bg-status-online data-[connection-status=connecting]:animate-pulse data-[connection-status=connecting]:bg-status-connecting data-[connection-status=disconnected]:bg-status-offline data-[connection-status=unknown]:bg-status-offline"
+      />
       <h1 class="shrink-0 font-mono text-xl leading-[30px] font-semibold text-content-strong">
         {@device.identifier}
       </h1>

@@ -66,9 +66,7 @@
                 <td class="checkbox"><input class="checkbox opacity-50" disabled type="checkbox" /></td>
                 <td>
                   <div class="flex items-center gap-2">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="6" height="6" viewBox="0 0 6 6" fill="none">
-                      <circle cx="3" cy="3" r="3" class="fill-status-offline" />
-                    </svg>
+                    <.status_dot class="bg-status-offline" />
                     <div class="h-2.5 w-[200px] rounded-full bg-base-700"></div>
                   </div>
                 </td>
@@ -240,9 +238,7 @@
                     <div class="flex items-center gap-2">
                       <span title={connection_established_at_status(device.latest_connection)}>
                         <%= if @device_statuses.result[device.id] == "online" do %>
-                          <svg xmlns="http://www.w3.org/2000/svg" width="6" height="6" viewBox="0 0 6 6" fill="none">
-                            <circle cx="3" cy="3" r="3" class="fill-status-online" />
-                          </svg>
+                          <.status_dot class="bg-status-online" />
                           <!-- use this when we have connection type information -->
                           <%!-- <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none">
                           <path
@@ -254,9 +250,7 @@
                           />
                         </svg> --%>
                         <% else %>
-                          <svg xmlns="http://www.w3.org/2000/svg" width="6" height="6" viewBox="0 0 6 6" fill="none">
-                            <circle cx="3" cy="3" r="3" class="fill-status-offline" />
-                          </svg>
+                          <.status_dot class="bg-status-offline" />
                           <!-- use this when we have connection type information -->
                           <%!-- <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none">
                           <path
@@ -323,9 +317,7 @@
 
                   <td :if={show_column?(@current_scope.user, :deployment_group)}>
                     <span :if={device.deployment_id} class="flex w-fit items-center gap-1 rounded-full border border-line-default bg-base-800 py-0.5 pr-2.5 pl-1.5">
-                      <svg class="size-1.5" viewBox="0 0 6 6" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <circle cx="3" cy="3" r="3" class="fill-success" />
-                      </svg>
+                      <.status_dot class="bg-success" />
                       <span class="text-xs tracking-tight text-content-body">{device.deployment_group.name}</span>
                     </span>
                   </td>

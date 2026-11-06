@@ -88,11 +88,11 @@
             <div class="flex items-center gap-6 text-sm">
               <div class="flex items-center gap-4">
                 <div class="flex items-center gap-1.5">
-                  <div class="size-2 rounded-full bg-status-online"></div>
+                  <.status_dot class="bg-status-online" />
                   <span id={"org-connected-devices-count-#{org.id}"} class="text-content-body">{if org_connected, do: number_to_delimited(org_connected, precision: 0), else: "—"}</span>
                 </div>
                 <div class="flex items-center gap-1.5">
-                  <div class="size-2 rounded-full bg-status-offline"></div>
+                  <.status_dot class="bg-status-offline" />
                   <span id={"org-disconnected-devices-count-#{org.id}"} class="text-content-muted">{if org_disconnected, do: number_to_delimited(org_disconnected, precision: 0), else: "—"}</span>
                 </div>
               </div>
@@ -148,11 +148,11 @@
                     else: {nil, nil} %>
                 <div class="flex gap-4 text-sm font-medium">
                   <div class="flex items-center gap-1.5">
-                    <div class="size-2 rounded-full bg-status-online"></div>
+                    <.status_dot class="bg-status-online" />
                     <span class="product-connected-devices-count text-content-body">{if prod_connected, do: number_to_delimited(prod_connected, precision: 0), else: "—"}</span>
                   </div>
                   <div class="flex items-center gap-1.5">
-                    <div class="size-2 rounded-full bg-status-offline"></div>
+                    <.status_dot class="bg-status-offline" />
                     <span class="product-disconnected-devices-count text-content-muted">{if prod_disconnected, do: number_to_delimited(prod_disconnected, precision: 0), else: "—"}</span>
                   </div>
                 </div>
