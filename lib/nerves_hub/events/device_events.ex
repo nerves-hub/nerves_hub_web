@@ -48,9 +48,23 @@ defmodule NervesHub.DeviceEvents do
     disconnect(device)
   end
 
-  defp disconnect(device) do
+  @doc """
+  Closes the connections of the devices in products that have just been
+  deleted, on their own or along with their org.
+
+  They are refused when they try again: `NervesHub.DeviceLink.Authentication`
+  turns away a device whose product has been deleted, however it authenticates.
+  """
+  @spec products_deleted([pos_integer()]) :: :ok
+  def products_deleted(product_ids) do
+    product_ids
+    |> Devices.connected_device_ids()
+    |> Enum.each(&disconnect(%{id: &1}))
+  end
+
+  defp disconnect(%{id: device_id}) do
     :ok =
-      ChannelServer.broadcast(NervesHub.PubSub, "device_socket:#{device.id}", "disconnect", %{})
+      ChannelServer.broadcast(NervesHub.PubSub, "device_socket:#{device_id}", "disconnect", %{})
   end
 
   @doc """

@@ -287,6 +287,11 @@ defmodule NervesHub.SSL do
       {:ok, _deleted} ->
         :ignore_deleted_device
 
+      # Deleting an org deletes its products, so this covers a CA left behind in
+      # a deleted org too.
+      _ when not is_nil(jitp.product.deleted_at) ->
+        :ignore_deleted_product
+
       _ ->
         params = %{
           identifier: cn,

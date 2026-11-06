@@ -15,6 +15,7 @@ defmodule NervesHub.Accounts do
   alias NervesHub.Accounts.UserNotifier
   alias NervesHub.Accounts.UserToken
   alias NervesHub.CLISessionCache
+  alias NervesHub.DeviceEvents
   alias NervesHub.Devices.Device
   alias NervesHub.Devices.DeviceConnection
   alias NervesHub.Devices.Pinning
@@ -53,16 +54,24 @@ defmodule NervesHub.Accounts do
     end
   end
 
+  @doc """
+  Deletes an org, and its products with it.
+
+  Its devices stay, but can't connect, and the connections they have open are
+  closed once the org is deleted.
+  """
   @spec soft_delete_org(Org.t()) :: {:ok, Org.t()} | {:error, Changeset.t()}
   def soft_delete_org(%Org{} = org) do
     deleted_at = DateTime.truncate(DateTime.utc_now(), :second)
+    products = org |> Ecto.assoc(:products) |> select([p], p.id)
 
     Multi.new()
-    |> Multi.update_all(:soft_delete_products, Ecto.assoc(org, :products), set: [deleted_at: deleted_at])
+    |> Multi.update_all(:soft_delete_products, products, set: [deleted_at: deleted_at])
     |> Multi.update(:soft_delete_org, Org.delete_changeset(org))
     |> Repo.transact()
     |> case do
-      {:ok, _result} ->
+      {:ok, %{soft_delete_products: {_count, product_ids}}} ->
+        :ok = DeviceEvents.products_deleted(product_ids)
         {:ok, org}
 
       {:error, _, changeset, _} ->

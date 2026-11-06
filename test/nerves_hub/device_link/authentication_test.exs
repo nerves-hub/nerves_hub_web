@@ -4,6 +4,7 @@ defmodule NervesHub.DeviceLink.AuthenticationTest do
 
   alias NervesHub.Accounts
   alias NervesHub.DeviceLink.Authentication
+  alias NervesHub.Devices
   alias NervesHub.Devices.Device
   alias NervesHub.Fixtures
   alias NervesHub.Products
@@ -96,6 +97,75 @@ defmodule NervesHub.DeviceLink.AuthenticationTest do
       {:ok, _} = Accounts.soft_delete_org(other_org)
 
       assert {:ok, _} = Authentication.authenticate(credentials, "link.example.com")
+    end
+  end
+
+  # Deleting a product, or an org with its products, leaves the devices and
+  # their certificates and keys where they were.
+  describe "authenticate/2 once the device, its product or its org is deleted" do
+    setup %{org: org, user: user, tmp_dir: tmp_dir} do
+      product = Fixtures.product_fixture(user, org, %{name: "deleted_later"})
+      org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
+      firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+      device = Fixtures.device_fixture(org, product, firmware)
+      %{cert: cert} = Fixtures.device_certificate_fixture(device, X509.PrivateKey.new_ec(:secp256r1))
+      {:ok, device_key} = Devices.create_shared_secret_auth(device)
+      {:ok, product_key} = Products.create_shared_secret_auth(product)
+
+      %{
+        product: product,
+        firmware: firmware,
+        device: device,
+        cert: {:ssl_cert, X509.Certificate.to_der(cert)},
+        device_key: {:shared_secret, Map.new(Utils.nh1_key_secret_headers(device_key, device.identifier))},
+        product_key: {:shared_secret, Map.new(Utils.nh1_key_secret_headers(product_key, device.identifier))}
+      }
+    end
+
+    test "refuses the device however it authenticates once its org is deleted, and says why", context do
+      {:ok, _} = Accounts.soft_delete_org(context.org)
+
+      ref = :telemetry_test.attach_event_handlers(self(), [[:nerves_hub, :devices, :invalid_auth]])
+
+      for credentials <- [context.cert, context.device_key, context.product_key] do
+        assert {:error, :invalid_auth} = Authentication.authenticate(credentials)
+      end
+
+      identifier = context.device.identifier
+
+      # The product key already stopped working with its product.
+      for _ <- [:cert, :device_key] do
+        assert_received {[:nerves_hub, :devices, :invalid_auth], ^ref, _, %{reason: :deleted, identifier: ^identifier}}
+      end
+
+      assert %{status: :registered} = Repo.reload!(context.device)
+    end
+
+    test "refuses the device once its product is deleted, and not the org's other devices", context do
+      other_product = Fixtures.product_fixture(context.user, context.org, %{name: "still_here"})
+      other_device = Fixtures.device_fixture(context.org, other_product, context.firmware)
+      %{cert: other_cert} = Fixtures.device_certificate_fixture(other_device, X509.PrivateKey.new_ec(:secp256r1))
+
+      {:ok, _} = Products.delete_product(context.product)
+
+      for credentials <- [context.cert, context.device_key, context.product_key] do
+        assert {:error, :invalid_auth} = Authentication.authenticate(credentials)
+      end
+
+      assert {:ok, %{device_id: other_device_id}} =
+               Authentication.authenticate({:ssl_cert, X509.Certificate.to_der(other_cert)})
+
+      assert other_device_id == other_device.id
+    end
+
+    # Deleting a device removes its certificates, and the TLS handshake turns a
+    # deleted device away, but neither is the socket's own check.
+    test "refuses a deleted device whose certificate is still on record", context do
+      context.device
+      |> Ecto.Changeset.change(deleted_at: DateTime.truncate(DateTime.utc_now(), :second))
+      |> Repo.update!()
+
+      assert {:error, :invalid_auth} = Authentication.authenticate(context.cert)
     end
   end
 

@@ -10,6 +10,7 @@ defmodule NervesHub.Products do
   alias NervesHub.Accounts.OrgUser
   alias NervesHub.Accounts.Scope
   alias NervesHub.Accounts.User
+  alias NervesHub.DeviceEvents
   alias NervesHub.Devices.Device
   alias NervesHub.Extensions
   alias NervesHub.Products.CustomHealthMetricsLabel
@@ -225,6 +226,9 @@ defmodule NervesHub.Products do
   @doc """
   Deletes a Product.
 
+  Its devices stay, but can't connect, and the connections they have open are
+  closed once the product is deleted.
+
   ## Examples
 
       iex> delete_product(product)
@@ -236,9 +240,10 @@ defmodule NervesHub.Products do
   """
   @spec delete_product(Product.t()) :: {:ok, Product.t()} | {:error, Ecto.Changeset.t()}
   def delete_product(%Product{} = product) do
-    product
-    |> Product.delete_changeset()
-    |> Repo.update()
+    with {:ok, product} <- product |> Product.delete_changeset() |> Repo.update() do
+      :ok = DeviceEvents.products_deleted([product.id])
+      {:ok, product}
+    end
   end
 
   @doc """

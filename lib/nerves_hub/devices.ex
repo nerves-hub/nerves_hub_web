@@ -1181,6 +1181,19 @@ defmodule NervesHub.Devices do
     |> Repo.exists?()
   end
 
+  @doc """
+  The ids of the devices in these products whose connection is open.
+  """
+  @spec connected_device_ids([pos_integer()]) :: [pos_integer()]
+  def connected_device_ids(product_ids) do
+    Device
+    |> join(:inner, [d], lc in assoc(d, :latest_connection))
+    |> where([d], d.product_id in ^product_ids)
+    |> where([_, lc], lc.status == :connected)
+    |> select([d], d.id)
+    |> Repo.all()
+  end
+
   def online_count(product) do
     Device
     |> join(:left, [d], lc in assoc(d, :latest_connection))
