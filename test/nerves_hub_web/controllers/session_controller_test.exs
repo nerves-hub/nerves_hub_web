@@ -9,6 +9,8 @@ defmodule NervesHubWeb.SessionControllerTest do
   alias NervesHub.Fixtures
   alias NervesHub.Repo
 
+  @remember_me_cookie "_nerves_hub_user_remember_me"
+
   describe "already signed in" do
     test "visiting the login page redirects to the signed in landing page", %{conn: conn} do
       conn
@@ -187,6 +189,66 @@ defmodule NervesHubWeb.SessionControllerTest do
       |> fill_in("Password", with: "JohnRingoPaulGeorge")
       |> submit()
       |> assert_path(~p"/orgs/new")
+    end
+  end
+
+  describe "remember me" do
+    setup do
+      %{
+        name: "Sgt Pepper",
+        email: "sgtpepper@geocities.com",
+        password: "JohnRingoPaulGeorge"
+      }
+      |> Fixtures.user_fixture()
+      |> Fixtures.org_fixture(%{name: "LonelyHeartsClubBand"})
+
+      :ok
+    end
+
+    test "ticking it keeps the user signed in once the session cookie is gone" do
+      session =
+        build_conn()
+        |> visit(~p"/login")
+        |> fill_in("Email address", with: "sgtpepper@geocities.com")
+        |> fill_in("Password", with: "JohnRingoPaulGeorge")
+        |> check("Remember me")
+        |> submit()
+        |> assert_path(~p"/orgs")
+
+      # PhoenixTest carries each response's cookies into the next request, as a
+      # browser does, so the cookie set by the login POST is on the request that
+      # followed its redirect.
+      remember_me = session.conn.req_cookies[@remember_me_cookie]
+      assert remember_me
+
+      # A new browser session: no session cookie, only the remember-me one.
+      build_conn()
+      |> Phoenix.ConnTest.put_req_cookie(@remember_me_cookie, remember_me)
+      |> visit(~p"/orgs")
+      |> assert_path(~p"/orgs")
+    end
+
+    test "leaving it unticked sets no remember-me cookie" do
+      session =
+        build_conn()
+        |> visit(~p"/login")
+        |> fill_in("Email address", with: "sgtpepper@geocities.com")
+        |> fill_in("Password", with: "JohnRingoPaulGeorge")
+        |> submit()
+        |> assert_path(~p"/orgs")
+
+      refute Map.has_key?(session.conn.req_cookies, @remember_me_cookie)
+    end
+
+    test "stays ticked when the password is wrong" do
+      build_conn()
+      |> visit(~p"/login")
+      |> fill_in("Email address", with: "sgtpepper@geocities.com")
+      |> fill_in("Password", with: "not the password")
+      |> check("Remember me")
+      |> submit()
+      |> assert_has("p", text: "Invalid email or password")
+      |> assert_has("#remember-me[checked]")
     end
   end
 
