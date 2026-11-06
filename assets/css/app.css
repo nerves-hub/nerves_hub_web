@@ -551,7 +551,7 @@ body {
 }
 
 .pager-button {
-  @apply rounded-sm px-3 py-1.5;
+  @apply rounded px-3 py-1.5;
   font-size: 14px;
   font-weight: 500;
   line-height: 20px;
@@ -574,11 +574,11 @@ body {
 }
 
 .sidebar-select {
-  @apply bg-surface-muted text-content-muted border-line-strong w-full rounded-sm border px-2 py-1.5 text-sm;
+  @apply bg-surface-muted text-content-muted border-line-strong w-full rounded border px-2 py-1.5 text-sm;
 }
 
 .sidebar-text-input {
-  @apply bg-surface-muted text-content-muted border-line-strong w-full rounded-sm border px-2 py-1.5 text-sm;
+  @apply bg-surface-muted text-content-muted border-line-strong w-full rounded border px-2 py-1.5 text-sm;
 }
 
 /* Without these the forms plugin's blue focus border and ring show through. */
@@ -588,7 +588,7 @@ body {
 }
 
 .sidebar-search {
-  @apply bg-surface-muted text-content-muted border-line-strong flex items-center rounded-sm border px-2 py-1.5 text-sm;
+  @apply bg-surface-muted text-content-muted border-line-strong flex items-center rounded border px-2 py-1.5 text-sm;
   gap: 8px;
   padding: 8px 12px;
 }

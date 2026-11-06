@@ -23,7 +23,7 @@
 
     <div :if={!@firmware_required} class="flex flex-col items-start justify-between gap-4 p-6">
       <.form for={@form} id="new-deployment" class="w-full" phx-submit="create-deployment-group" phx-change="update-form" phx-auto-recover="recover-form">
-        <div class="flex w-2/3 flex-col rounded border border-line-default bg-surface-raised">
+        <div class="flex w-2/3 flex-col rounded-md border border-line-default bg-surface-raised">
           <div class="flex h-14 items-center justify-between border-b border-line-default px-4">
             <div class="text-base font-medium text-content-strong">General settings</div>
           </div>

@@ -143,7 +143,7 @@ defmodule NervesHubWeb.Components.DeviceLocation do
         <.map_style_menu map_style={@map_style} />
         <div class="relative flex justify-end">
           <button
-            class="rounded-sm border border-line-strong bg-base-800 p-0.5 hover:bg-base-700 active:bg-primary disabled:bg-base-800"
+            class="rounded border border-line-strong bg-base-800 p-0.5 hover:bg-base-700 active:bg-primary disabled:bg-base-800"
             id="location-settings-button"
             aria-expanded="true"
             aria-haspopup="true"
@@ -173,7 +173,7 @@ defmodule NervesHubWeb.Components.DeviceLocation do
 
           <div
             id="location-settings-menu"
-            class="absolute right-0 z-10 mt-6 w-48 origin-top-right rounded border border-line-default bg-surface-overlay shadow-overlay ring-1 ring-black/5 focus:outline-none"
+            class="absolute right-0 z-10 mt-6 w-48 origin-top-right rounded-md border border-line-default bg-surface-overlay shadow-overlay ring-1 ring-black/5 focus:outline-none"
             role="menu"
             style="display: none;"
             aria-orientation="vertical"
@@ -227,7 +227,7 @@ defmodule NervesHubWeb.Components.DeviceLocation do
     <div class="relative flex justify-end">
       <button
         type="button"
-        class="rounded-sm border border-line-strong bg-base-800 p-0.5 hover:bg-base-700 active:bg-primary"
+        class="rounded border border-line-strong bg-base-800 p-0.5 hover:bg-base-700 active:bg-primary"
         id="map-style-button"
         title="Map style"
         aria-label="Map style"
@@ -258,7 +258,7 @@ defmodule NervesHubWeb.Components.DeviceLocation do
 
       <div
         id="map-style-menu"
-        class="absolute right-0 z-10 mt-6 w-48 origin-top-right rounded border border-line-default bg-surface-overlay py-1 shadow-overlay ring-1 ring-black/5 focus:outline-none"
+        class="absolute right-0 z-10 mt-6 w-48 origin-top-right rounded-md border border-line-default bg-surface-overlay py-1 shadow-overlay ring-1 ring-black/5 focus:outline-none"
         role="menu"
         style="display: none;"
         aria-orientation="vertical"

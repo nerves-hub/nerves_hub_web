@@ -30,7 +30,7 @@
       </a>
     </div>
 
-    <div :if={@registering} class="mb-6 rounded border border-line-default bg-base-800/50 p-4">
+    <div :if={@registering} class="mb-6 rounded-md border border-line-default bg-base-800/50 p-4">
       <.form :let={f} id="register_identity" for={@form} phx-submit="register" class="space-y-4">
         <div>
           <.input field={f[:identifier]} label="Endpoint id" placeholder="64 hex characters" />
@@ -100,7 +100,7 @@
       </form>
     </div>
 
-    <div :if={@identities == []} class="rounded border border-dashed border-line-default p-8 text-center text-sm text-content-muted">
+    <div :if={@identities == []} class="rounded-md border border-dashed border-line-default p-8 text-center text-sm text-content-muted">
       <p :if={@search == "" and is_nil(@owner_filter)}>
         No endpoints yet. Devices record their own when they connect.
       </p>
@@ -110,7 +110,7 @@
     <div :if={@identities != []} class="space-y-2">
       <div
         :for={identity <- @identities}
-        class="flex items-start gap-4 rounded border border-line-default bg-linear-to-r from-base-800/50 to-base-800 p-4"
+        class="flex items-start gap-4 rounded-md border border-line-default bg-linear-to-r from-base-800/50 to-base-800 p-4"
       >
         <div class="min-w-0 flex-1">
           <div class="group/identity flex w-full min-w-0 items-center gap-1.5">

@@ -18,19 +18,19 @@
   <div class="fixed bottom-0">
     <div id="user-menu-container" class="hidden" phx-click-away={hide_user_menu()} phx-window-keydown={hide_user_menu()} phx-key="escape">
       <div id="user-menu" class="mx-3.5 mb-4 flex flex-col rounded-md border border-line-default bg-surface-overlay p-2 shadow-overlay">
-        <div class="justify-left flex items-center gap-1.5 p-2 hover:rounded-md hover:bg-primary/20">
+        <div class="justify-left flex items-center gap-1.5 rounded p-2 hover:bg-primary/20">
           <span class="lucide-user-round--light size-5 text-content-body" />
           <.link navigate={~p"/account"} class="text-sm font-light tracking-wide">Account</.link>
         </div>
 
-        <div class="justify-left flex items-center gap-1.5 p-2 hover:rounded-md hover:bg-primary/20">
+        <div class="justify-left flex items-center gap-1.5 rounded p-2 hover:bg-primary/20">
           <span class="lucide-log-out--light size-5 text-alert" />
           <.link navigate={~p"/logout"} class="text-sm font-light tracking-wide text-alert">Log out</.link>
         </div>
 
         <div aria-hidden="true" class="col-span-full -mx-1.5 my-1.5 h-px border-t border-line-default"></div>
 
-        <div class="justify-left flex items-center gap-1.5 p-2 hover:rounded-md hover:bg-primary/20">
+        <div class="justify-left flex items-center gap-1.5 rounded p-2 hover:bg-primary/20">
           <span class="lucide-book-open-text--light size-5 text-content-body" />
           <a href="https://docs.nerves-hub.org" class="text-sm font-light tracking-wide">Documentation</a>
         </div>
@@ -78,7 +78,7 @@
     <a
       id="user-menu-toggle"
       href="#"
-      class="mx-3 my-0.5 flex items-center gap-x-2.5 p-2 text-sm/6 font-semibold text-content-strong hover:rounded-lg hover:bg-primary/10"
+      class="mx-3 my-0.5 flex items-center gap-x-2.5 rounded p-2 text-sm/6 font-semibold text-content-strong hover:bg-primary/10"
       phx-click={toggle_user_menu()}
     >
       <.user_avatar user={@current_scope.user} />

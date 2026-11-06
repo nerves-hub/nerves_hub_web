@@ -19,7 +19,7 @@
 
   <div class="h-0 flex-1 overflow-y-auto">
     <div class="flex flex-col items-start justify-between gap-4 p-6">
-      <div :for={profile <- @profiles} class="flex w-full flex-col rounded border border-line-default bg-surface-raised">
+      <div :for={profile <- @profiles} class="flex w-full flex-col rounded-md border border-line-default bg-surface-raised">
         <div class="flex h-14 items-center justify-between border-b border-line-default px-4">
           <div class="text-base font-medium text-content-strong">
             <%= if profile.platform do %>
@@ -197,7 +197,7 @@
         </div>
       </div>
 
-      <div class="flex w-full flex-col rounded border border-line-default bg-surface-raised">
+      <div class="flex w-full flex-col rounded-md border border-line-default bg-surface-raised">
         <div class="flex h-14 items-center justify-between border-b border-line-default px-4">
           <div class="text-base font-medium text-content-strong">Add a platform profile</div>
         </div>

@@ -8,7 +8,7 @@
 
     <.form :let={f} id="invite-form" for={@form} phx-submit="send_invite">
       <%= if f.action do %>
-        <div class="mb-4 rounded border border-alert bg-alert-soft p-4 text-sm text-alert-content">
+        <div class="mb-4 rounded-md border border-alert bg-alert-soft p-4 text-sm text-alert-content">
           <p>Something went wrong, please check the errors below.</p>
         </div>
       <% end %>

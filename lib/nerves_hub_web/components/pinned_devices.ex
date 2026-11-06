@@ -15,22 +15,22 @@ defmodule NervesHubWeb.Components.PinnedDevices do
       <div class="mt-12 flex h-[88px] items-center justify-between py-6">
         <h1 class="text-xl leading-[30px] font-semibold text-content-strong">My Pinned Devices</h1>
       </div>
-      <div class="rounded border border-line-default bg-surface-raised">
+      <div class="rounded-md border border-line-default bg-surface-raised">
         <div class="flex flex-col">
           <div class="listing">
             <table class="">
               <thead>
                 <tr>
-                  <th class="rounded-tl">Identifier</th>
+                  <th class="rounded-tl-md">Identifier</th>
                   <th>Health</th>
                   <th>Firmware</th>
                   <th>Platform</th>
                   <th>Tags</th>
-                  <th class="rounded-tr">Project</th>
+                  <th class="rounded-tr-md">Project</th>
                 </tr>
               </thead>
               <tbody>
-                <tr :for={device <- @devices} class="relative border-b border-line-subtle last:rounded-b last:border-0">
+                <tr :for={device <- @devices} class="relative border-b border-line-subtle last:rounded-b-md last:border-0">
                   <td>
                     <div class="flex items-center gap-[8px]">
                       <span title="status">

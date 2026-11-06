@@ -13,7 +13,7 @@ defmodule NervesHubWeb.Components.OAuthLinks do
       <div class="mt-6 flex justify-center gap-4">
         <.link
           href="/auth/google"
-          class="flex w-44 items-center justify-center gap-3 rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-control ring-1 ring-gray-300 ring-inset hover:bg-base-100 focus-visible:ring-transparent"
+          class="flex w-44 items-center justify-center gap-3 rounded bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-control ring-1 ring-gray-300 ring-inset hover:bg-base-100 focus-visible:ring-transparent"
         >
           <svg class="size-5" viewBox="0 0 24 24" aria-hidden="true">
             <path

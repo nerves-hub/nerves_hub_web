@@ -158,7 +158,7 @@
                     type="button"
                     role="menuitem"
                     phx-click={JS.push("set-update-mode", value: %{mode: mode}) |> hide_update_mode_menu()}
-                    class="flex items-start gap-2.5 rounded-md p-2 text-left hover:bg-primary/20"
+                    class="flex items-start gap-2.5 rounded p-2 text-left hover:bg-primary/20"
                   >
                     <span class={[update_mode_icon(mode), update_mode_color(mode), "mt-0.5 size-5 shrink-0"]} />
                     <span class="flex flex-col gap-0.5">

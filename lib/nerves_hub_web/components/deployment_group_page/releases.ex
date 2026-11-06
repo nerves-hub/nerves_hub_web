@@ -76,7 +76,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Releases do
     ~H"""
     <div class="flex flex-col gap-6 p-6">
       <div class="w-full">
-        <div class="flex flex-col rounded border border-line-default bg-surface-raised">
+        <div class="flex flex-col rounded-md border border-line-default bg-surface-raised">
           <div class="flex h-14 items-center justify-between border-b border-line-default px-4">
             <div class="text-base font-medium text-content-strong">Release History</div>
 
@@ -324,7 +324,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Releases do
             <table>
               <thead>
                 <tr>
-                  <th class="rounded-tl">From</th>
+                  <th class="rounded-tl-md">From</th>
                   <th>Status</th>
                   <th>Size</th>
                   <th>Saving</th>

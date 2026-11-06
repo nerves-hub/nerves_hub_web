@@ -216,7 +216,7 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
       phx-mounted={JS.remove_class("opacity-0")}
       class="tab-content size-full p-6 opacity-0 transition-all duration-500 phx-click-loading:opacity-50"
     >
-      <div :if={Enum.any?(@latest_metrics) && @health_enabled?} class="mb-6 flex w-full flex-col rounded border border-line-default bg-surface-raised shadow-card">
+      <div :if={Enum.any?(@latest_metrics) && @health_enabled?} class="mb-6 flex w-full flex-col rounded-md border border-line-default bg-surface-raised shadow-card">
         <div class="flex flex-col">
           <div class="flex flex-wrap items-center justify-items-stretch gap-2 px-4 pt-2 pb-4">
             <div class="flex h-16 grow flex-col rounded border-b border-success health-good px-3 py-2">
@@ -267,7 +267,7 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
         </div>
       </div>
 
-      <div :if={Enum.any?(Map.keys(@latest_metrics))} class="flex w-full flex-col rounded border border-line-default bg-surface-raised shadow-card">
+      <div :if={Enum.any?(Map.keys(@latest_metrics))} class="flex w-full flex-col rounded-md border border-line-default bg-surface-raised shadow-card">
         <div class="flex h-14 items-center justify-between border-b border-line-default px-4">
           <div class="flex items-end gap-3">
             <div class="text-base font-medium text-content-strong">Health over time</div>
@@ -363,7 +363,7 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
         </div>
       </div>
 
-      <div :if={Enum.empty?(Map.keys(@latest_metrics))} class="flex size-full flex-col rounded border border-line-default bg-surface-raised shadow-card">
+      <div :if={Enum.empty?(Map.keys(@latest_metrics))} class="flex size-full flex-col rounded-md border border-line-default bg-surface-raised shadow-card">
         <div class="flex h-14 shrink-0 items-center justify-between border-b border-line-default px-4">
           <div class="flex items-end gap-3">
             <div class="text-base font-medium text-content-strong">Health over time</div>

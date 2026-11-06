@@ -284,7 +284,7 @@ defmodule NervesHubWeb.CoreComponents do
               phx-window-keydown={JS.exec("data-cancel", to: "##{@id}")}
               phx-key="escape"
               phx-click-away={JS.exec("data-cancel", to: "##{@id}")}
-              class="relative hidden rounded-2xl bg-base-900 p-4 shadow-overlay ring-1 ring-line-default/10 transition"
+              class="relative hidden rounded-md bg-base-900 p-4 shadow-overlay ring-1 ring-line-default/10 transition"
             >
               <div class="absolute top-6 right-5">
                 <button phx-click={JS.exec("data-cancel", to: "##{@id}")} type="button" class="-m-3 flex-none p-3 opacity-20 hover:opacity-40" aria-label={gettext("close")}>
@@ -328,7 +328,7 @@ defmodule NervesHubWeb.CoreComponents do
       phx-click={JS.push("lv:clear-flash", value: %{key: @kind}) |> hide("##{@id}")}
       role="alert"
       data-kind={@kind}
-      class="fixed right-2 bottom-4 z-50 mr-2 w-80 rounded-sm p-3 ring-1 data-[kind=error]:bg-alert-soft data-[kind=error]:text-alert-content data-[kind=error]:ring-alert data-[kind=info]:bg-success-soft data-[kind=info]:text-success-content data-[kind=info]:ring-success data-[kind=notice]:bg-notice-soft data-[kind=notice]:text-notice data-[kind=notice]:ring-notice sm:w-96"
+      class="fixed right-2 bottom-4 z-50 mr-2 w-80 rounded-md p-3 ring-1 data-[kind=error]:bg-alert-soft data-[kind=error]:text-alert-content data-[kind=error]:ring-alert data-[kind=info]:bg-success-soft data-[kind=info]:text-success-content data-[kind=info]:ring-success data-[kind=notice]:bg-notice-soft data-[kind=notice]:text-notice data-[kind=notice]:ring-notice sm:w-96"
       {@rest}
     >
       <p :if={@title} class="flex items-center gap-1.5 text-sm/6 font-semibold">
@@ -800,7 +800,7 @@ defmodule NervesHubWeb.CoreComponents do
           data-tag-suggestions
           role="listbox"
           hidden
-          class="absolute z-10 mt-1 max-h-56 w-full overflow-y-auto rounded border border-line-strong bg-base-900 py-1 shadow-overlay"
+          class="absolute z-10 mt-1 max-h-56 w-full overflow-y-auto rounded-md border border-line-strong bg-base-900 py-1 shadow-overlay"
         >
         </ul>
       </div>

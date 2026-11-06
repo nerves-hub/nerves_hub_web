@@ -14,7 +14,7 @@
         <p class="text-sm text-content-muted">Create a new product to get started.</p>
       </div>
     </div>
-    <div :for={product <- @products} class="flex w-full justify-between gap-[16px] rounded border border-line-default bg-linear-to-r from-base-800/50 to-base-800 p-4">
+    <div :for={product <- @products} class="flex w-full justify-between gap-[16px] rounded-md border border-line-default bg-linear-to-r from-base-800/50 to-base-800 p-4">
       <div class="text-sm font-semibold text-content-strong">
         <.link navigate={~p"/org/#{@org}/#{product}/insights"}>{product.name}</.link>
       </div>

@@ -7,7 +7,7 @@
           Create your first organization and product to start managing devices.
         </p>
 
-        <div :if={@onboarding_error} class="mb-4 rounded border border-alert bg-alert-soft p-3 text-sm text-alert-content">
+        <div :if={@onboarding_error} class="mb-4 rounded-md border border-alert bg-alert-soft p-3 text-sm text-alert-content">
           {@onboarding_error}
         </div>
 
@@ -64,7 +64,7 @@
         </.button>
       </div>
       <div class="flex flex-col gap-4">
-        <div :for={org <- @orgs} class="rounded border border-line-default bg-surface-raised">
+        <div :for={org <- @orgs} class="rounded-md border border-line-default bg-surface-raised">
           <% org_counts = Map.get(assigns, :"org_counts_#{org.id}") %>
           <% {org_connected, org_disconnected} =
             if org_counts && org_counts.ok?,
@@ -131,7 +131,7 @@
               <.link
                 :for={product <- org.products}
                 navigate={~p"/org/#{org}/#{product}/insights"}
-                class="flex w-full justify-between gap-4 rounded border border-line-default bg-linear-to-r from-base-800/50 to-base-800 p-4 transition-colors hover:border-base-500"
+                class="flex w-full justify-between gap-4 rounded-md border border-line-default bg-linear-to-r from-base-800/50 to-base-800 p-4 transition-colors hover:border-base-500"
               >
                 <div class="text-sm font-semibold text-content-strong">
                   {product.name}
