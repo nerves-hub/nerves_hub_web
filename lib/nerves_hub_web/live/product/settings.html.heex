@@ -23,7 +23,7 @@
         <div class="flex h-14 items-center justify-between border-b border-line-default px-4">
           <div class="text-base font-medium text-content-strong">General settings</div>
         </div>
-        <div class="flex gap-6 p-6">
+        <div class="flex gap-6 p-4">
           <div class="flex w-1/2 flex-col gap-6">
             <.input field={@form[:name]} label="Name" hint="Once created, a product name cannot be changed" disabled />
           </div>
@@ -35,7 +35,7 @@
           <div class="text-base font-medium text-content-strong">Device Extensions</div>
         </div>
 
-        <div class="flex flex-col gap-3 p-6">
+        <div class="flex flex-col gap-3 p-4">
           <div class="flex flex-col gap-3">
             <p class="w-2/3 text-sm">
               Device extensions are encapsulated features which use isolated channels for communication. The use of isolated channels ensures that firmware updates are not affected, while allowing NervesHub to manage, monitor, and introspect your fleet.
@@ -108,7 +108,7 @@
           <div class="text-base font-medium text-content-strong">Device-managed updates</div>
         </div>
 
-        <div class="flex flex-col gap-3 p-6">
+        <div class="flex flex-col gap-3 p-4">
           <div class="flex flex-col gap-3">
             <p class="w-2/3 text-sm">
               A device that may choose its own update mode can move itself between automatic and device managed. A device-managed device decides when to take the firmware its deployment group names, rather than having it pushed.
@@ -171,7 +171,7 @@
           <div class="text-base font-medium text-content-strong">Firmware</div>
         </div>
 
-        <div class="flex flex-col gap-3 p-6">
+        <div class="flex flex-col gap-3 p-4">
           <div class="flex h-16 items-center gap-6 p-2">
             <div class="flex h-8 items-center rounded-full border border-line-default bg-base-800 px-2 py-1">
               <input
@@ -241,7 +241,7 @@
           <div class="text-base font-medium text-content-strong">Device Shared Secret Authentication</div>
         </div>
 
-        <div class="flex flex-col gap-3 p-6">
+        <div class="flex flex-col gap-3 p-4">
           <div class="flex flex-col gap-3">
             <p class="w-2/3 text-sm">
               Shared Secret authentication allows Devices to connect to Nerves Hub using a shared key and secret.
@@ -311,7 +311,7 @@
             </table>
           </div>
 
-          <div :if={Enum.empty?(@shared_secrets)} class="flex flex-col gap-3 border-t border-line-default p-6">
+          <div :if={Enum.empty?(@shared_secrets)} class="flex flex-col gap-3 border-t border-line-default p-4">
             <div class="flex flex-col gap-3">
               <p class="w-2/3 text-sm text-warning">
                 You don't have any Shared Secrets configured.
@@ -319,7 +319,7 @@
             </div>
           </div>
 
-          <div class="flex border-t border-line-default p-6">
+          <div class="flex border-t border-line-default p-4">
             <.button
               phx-click="add-shared-secret"
               disabled={!authorized?(:"product:update", @current_scope)}
@@ -330,7 +330,7 @@
             </.button>
           </div>
         <% else %>
-          <div class="flex flex-col gap-3 border-t border-line-default p-6">
+          <div class="flex flex-col gap-3 border-t border-line-default p-4">
             <div class="flex flex-col gap-3">
               <p class="w-2/3 text-sm text-warning">
                 Shared Secret authentication hasn't been enabled for your platform.
@@ -344,7 +344,7 @@
       </div>
 
       <div class="flex w-full flex-col rounded-md border border-line-default bg-surface-raised">
-        <div class="flex items-center gap-6 border-t border-line-default p-6">
+        <div class="flex items-center gap-6 border-t border-line-default p-4">
           <div>
             <.button
               style="danger"

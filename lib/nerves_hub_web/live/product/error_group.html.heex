@@ -24,7 +24,7 @@
   </:header>
 
   <div class="flex h-0 flex-1 flex-col gap-4 overflow-x-auto p-6">
-    <div class="grid grid-cols-2 gap-x-8 gap-y-3 rounded-md border border-line-default bg-surface-raised p-5 text-sm md:grid-cols-4">
+    <div class="grid grid-cols-2 gap-x-8 gap-y-3 rounded-md border border-line-default bg-surface-raised p-4 text-sm md:grid-cols-4">
       <div>
         <div class="text-xs text-content-muted">Occurrences</div>
         <div class="font-mono text-lg text-base-100">{@group.occurrence_count}</div>
@@ -74,7 +74,7 @@
       </div>
     </div>
 
-    <div class="flex flex-col gap-4 rounded-md border border-line-default bg-surface-raised p-5">
+    <div class="flex flex-col gap-4 rounded-md border border-line-default bg-surface-raised p-4">
       <div class="flex flex-row items-center justify-between">
         <div class="leading-6 font-medium text-content-strong">Occurrences over time</div>
         <.segmented_control label="Occurrences period">
@@ -98,7 +98,7 @@
       </div>
     </div>
 
-    <div class="flex flex-col gap-3 rounded-md border border-line-default bg-surface-raised p-5">
+    <div class="flex flex-col gap-3 rounded-md border border-line-default bg-surface-raised p-4">
       <div class="leading-6 font-medium text-content-strong">Most recent occurrence</div>
       <div :if={is_nil(@latest_occurrence)} class="text-sm font-extralight text-content-faint">
         No stored occurrence — reports are kept for 30 days, and this error's have aged out.
@@ -120,7 +120,7 @@
     </div>
 
     <div class="flex flex-col rounded-md border border-line-default bg-surface-raised">
-      <div class="flex h-14 items-center border-b border-line-default px-5">
+      <div class="flex h-14 items-center border-b border-line-default px-4">
         <div class="leading-6 font-medium text-content-strong">Affected devices</div>
       </div>
       <div :if={Enum.empty?(@affected_devices)} class="p-8 text-center text-sm font-extralight text-content-faint">
@@ -134,27 +134,27 @@
         </colgroup>
         <thead>
           <tr class="border-b border-line-default text-left font-extralight text-content-muted">
-            <th class="px-5 py-2 font-normal">Device</th>
+            <th class="px-4 py-2 font-normal">Device</th>
             <th class="py-2 pr-6 font-normal">Occurrences</th>
-            <th class="py-2 pr-5 font-normal">Last seen</th>
+            <th class="py-2 pr-4 font-normal">Last seen</th>
           </tr>
         </thead>
         <tbody>
           <tr :for={entry <- @affected_devices} class="border-b border-line-subtle hover:bg-base-900">
-            <td class="px-5 py-2">
+            <td class="px-4 py-2">
               <.link navigate={~p"/org/#{@current_scope.org}/#{@current_scope.product}/devices/#{entry.device}/errors"} class="font-mono text-base-200 hover:underline">
                 {entry.device.identifier}
               </.link>
             </td>
             <td class="py-2 pr-6 font-mono text-content-body">{entry.occurrence_count}</td>
-            <td class="py-2 pr-5 text-content-body">{RelativeTime.from_now(entry.last_seen_at)}</td>
+            <td class="py-2 pr-4 text-content-body">{RelativeTime.from_now(entry.last_seen_at)}</td>
           </tr>
         </tbody>
       </table>
     </div>
 
     <div class="flex flex-col rounded-md border border-line-default bg-surface-raised">
-      <div class="flex h-14 items-center justify-between border-b border-line-default px-5">
+      <div class="flex h-14 items-center justify-between border-b border-line-default px-4">
         <div class="leading-6 font-medium text-content-strong">Recent occurrences</div>
         <span class="text-sm font-extralight text-content-muted">Showing the last 25.</span>
       </div>
@@ -169,20 +169,20 @@
         </colgroup>
         <thead>
           <tr class="border-b border-line-default text-left font-extralight text-content-muted">
-            <th class="px-5 py-2 font-normal">Timestamp ({zone_abbr(@time_zone)})</th>
+            <th class="px-4 py-2 font-normal">Timestamp ({zone_abbr(@time_zone)})</th>
             <th class="py-2 pr-6 font-normal">Firmware</th>
-            <th class="py-2 pr-5 font-normal">Reason</th>
+            <th class="py-2 pr-4 font-normal">Reason</th>
           </tr>
         </thead>
         <tbody>
           <tr :for={occurrence <- @occurrences} class="border-b border-line-subtle align-top hover:bg-base-900">
-            <td class="px-5 py-2 font-mono whitespace-nowrap text-content-body">
+            <td class="px-4 py-2 font-mono whitespace-nowrap text-content-body">
               <.local_datetime at={occurrence.timestamp} time_zone={@time_zone} format={:timestamp} zone_label={false} />
             </td>
             <td class="truncate py-2 pr-6 font-mono text-xs text-content-muted" title={occurrence.firmware_uuid}>
               {occurrence.firmware_uuid}
             </td>
-            <td class="truncate py-2 pr-5 font-mono text-xs text-content-body" title={occurrence.reason}>
+            <td class="truncate py-2 pr-4 font-mono text-xs text-content-body" title={occurrence.reason}>
               {occurrence.reason}
             </td>
           </tr>

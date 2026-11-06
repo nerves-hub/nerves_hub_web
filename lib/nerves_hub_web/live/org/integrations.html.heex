@@ -41,7 +41,7 @@
         </div>
 
         <%!-- The rest is shown on request: the form and the list are what people come here for. Hidden with an inline style rather than `hidden`, which Tailwind makes `!important` and JS.show cannot override. --%>
-        <div class="flex flex-col gap-3 p-6">
+        <div class="flex flex-col gap-3 p-4">
           <p class="w-2/3 text-sm">
             A webhook sends device events from every product in this organization, or from the ones you choose, to a URL you choose, as a signed JSON <code>POST</code>.
             <button
@@ -83,7 +83,7 @@
           id="webhook-form"
           phx-change="validate"
           phx-submit="save"
-          class="flex flex-col gap-6 border-t border-line-default p-6"
+          class="flex flex-col gap-6 border-t border-line-default p-4"
         >
           <div class="text-sm font-medium text-content-strong">
             {if @editing == :new, do: "New webhook", else: "Edit webhook"}
@@ -174,14 +174,14 @@
           </div>
         </.form>
 
-        <div :if={@webhooks == [] && is_nil(@form)} class="border-t border-line-default p-6">
+        <div :if={@webhooks == [] && is_nil(@form)} class="border-t border-line-default p-4">
           <p class="text-sm text-content-muted">This organization has no webhooks.</p>
         </div>
 
         <div
           :for={webhook <- @webhooks}
           id={"webhook-#{webhook.id}"}
-          class="flex flex-col gap-3 border-t border-line-default p-6"
+          class="flex flex-col gap-3 border-t border-line-default p-4"
         >
           <div class="flex flex-wrap items-start justify-between gap-3">
             <div class="flex min-w-0 flex-col gap-1">
@@ -308,7 +308,7 @@
           </div>
         </div>
 
-        <div :if={length(@webhooks) >= Webhooks.max_webhooks_per_org()} class="border-t border-line-default p-6">
+        <div :if={length(@webhooks) >= Webhooks.max_webhooks_per_org()} class="border-t border-line-default p-4">
           <p class="text-sm text-content-muted">
             This organization has the most webhooks it can have ({Webhooks.max_webhooks_per_org()}). Remove one to add another.
           </p>

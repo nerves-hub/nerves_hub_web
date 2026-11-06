@@ -14,18 +14,18 @@
     </.form>
   </div>
 
-  <div class="flex flex-col gap-3 p-6">
+  <div class="flex flex-col gap-3 p-4">
     <p class="w-2/3 text-sm">
       Post this organization's device notifications to Slack channels. Connecting a workspace installs {Branding.friendly_platform_name()}'s Slack
       app there, which takes an admin of this organization. Choosing channels and what they hear takes the manage role.
     </p>
   </div>
 
-  <div :if={@connections == []} class="border-t border-line-default p-6">
+  <div :if={@connections == []} class="border-t border-line-default p-4">
     <p class="text-sm text-content-muted">No Slack workspace is connected.</p>
   </div>
 
-  <div :for={connection <- @connections} id={"slack-connection-#{connection.id}"} class="flex flex-col gap-4 border-t border-line-default p-6">
+  <div :for={connection <- @connections} id={"slack-connection-#{connection.id}"} class="flex flex-col gap-4 border-t border-line-default p-4">
     <div class="flex flex-wrap items-center justify-between gap-3">
       <div class="flex min-w-0 flex-col gap-1">
         <span class="font-medium text-content-strong">{connection.workspace.team_name}</span>

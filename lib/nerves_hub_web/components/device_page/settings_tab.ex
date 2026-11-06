@@ -64,7 +64,7 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
               </.button>
             <% end %>
           </div>
-          <div class="flex gap-6 p-6">
+          <div class="flex gap-6 p-4">
             <div class="flex w-1/2 flex-col gap-6">
               <.input field={@settings_form[:description]} label="Description" placeholder="eg. sensor hub at customer X" phx-debounce="blur" />
 
@@ -243,7 +243,7 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
             <.icon name="add" />Create shared secret
           </.button>
         </div>
-        <div :if={@new_shared_secret} class="flex flex-col gap-3 border-b border-line-default p-6">
+        <div :if={@new_shared_secret} class="flex flex-col gap-3 border-b border-line-default p-4">
           <p class="text-sm text-warning">
             Copy the secret now. It is only shown once, and cannot be retrieved again.
           </p>
@@ -304,10 +304,10 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
       </div>
 
       <div :if={@device.deleted_at && authorized?(:"device:update", @current_scope)} class="flex w-full flex-col rounded-md border border-line-default bg-surface-raised shadow-card">
-        <div class="p-6 pb-0 text-content-body">
+        <div class="p-4 pb-0 text-content-body">
           The device has been disabled. Attempts to connect to NervesHub will be blocked.
         </div>
-        <div class="flex items-center gap-6 border-line-default p-6">
+        <div class="flex items-center gap-6 border-line-default p-4">
           <div>
             <.button style="danger" type="button" phx-click="destroy-device" data-confirm="Are you sure you want to permanently delete this device?">
               <svg class="size-5 stroke-alert" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -342,7 +342,7 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
       </div>
 
       <div :if={!@device.deleted_at && authorized?(:"device:update", @current_scope)} class="flex w-full flex-col rounded-md border border-line-default bg-surface-raised shadow-card">
-        <div class="flex items-center gap-6 border-t border-line-default p-6">
+        <div class="flex items-center gap-6 border-t border-line-default p-4">
           <div>
             <.button
               style="danger"

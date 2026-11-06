@@ -41,7 +41,7 @@
           </.button>
         </div>
 
-        <div class="flex flex-col gap-3 p-6">
+        <div class="flex flex-col gap-3 p-4">
           <p :if={is_nil(profile.platform)} class="w-2/3 text-sm text-content-muted">
             A metric engages its warning (orange) or alert (red) level when its median over the measurement period crosses the
             threshold in the direction the operator points. This profile applies to every device without a platform profile.
@@ -201,7 +201,7 @@
         <div class="flex h-14 items-center justify-between border-b border-line-default px-4">
           <div class="text-base font-medium text-content-strong">Add a platform profile</div>
         </div>
-        <div class="flex flex-col gap-3 p-6">
+        <div class="flex flex-col gap-3 p-4">
           <p class="w-2/3 text-sm">
             A platform profile starts as a copy of the default profile and overrides it for devices on that platform. Platforms are
             taken from the firmware uploaded to this product.

@@ -292,7 +292,7 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
         </div>
 
         <div class="flex flex-col divide-y divide-line-subtle">
-          <div :for={key <- metrics_to_chart(@latest_metrics)} class="flex flex-col gap-1 p-6">
+          <div :for={key <- metrics_to_chart(@latest_metrics)} class="flex flex-col gap-1 p-4">
             <div class="group/label flex h-7 items-center gap-2">
               <form :if={@editing_label_key == key} phx-submit="save-health-label" class="flex items-center gap-2">
                 <input type="hidden" name="key" value={key} />

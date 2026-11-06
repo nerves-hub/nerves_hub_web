@@ -777,7 +777,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
   defp health_box(assigns) do
     ~H"""
     <div :if={!@product.extensions.health || !@device.extensions.health} class="flex flex-col rounded-md border border-line-default bg-surface-raised shadow-card">
-      <div class="flex h-14 items-center justify-between pr-3 pl-4">
+      <div class="flex h-14 items-center justify-between px-4">
         <div class="leading-6 font-medium text-content-strong">Health and Alerting</div>
       </div>
       <div class="flex items-center gap-2 px-4 pt-2 pb-4 text-content-faint">
@@ -794,7 +794,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
       :if={Enum.any?(@latest_metrics) && @product.extensions.health && @device.extensions.health}
       class="flex flex-col rounded-md border border-line-default bg-surface-raised shadow-card"
     >
-      <div class="flex h-14 items-center justify-between pr-3 pl-4">
+      <div class="flex h-14 items-center justify-between px-4">
         <div class="flex items-center gap-2">
           <div class="leading-6 font-medium text-content-strong">Health</div>
           <HealthStatus.render device_id={@device.id} health={@device.latest_health} tooltip_position="right" />
@@ -836,7 +836,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
       :if={Enum.empty?(@latest_metrics) && @product.extensions.health && @device.extensions.health}
       class="flex flex-col rounded-md border border-line-default bg-surface-raised shadow-card"
     >
-      <div class="flex h-14 items-center justify-between pr-3 pl-4">
+      <div class="flex h-14 items-center justify-between px-4">
         <div class="leading-6 font-medium text-content-strong">Health</div>
       </div>
       <div class="flex items-center gap-2 px-4 pt-2 pb-4 text-content-faint">
@@ -859,7 +859,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
   defp alarms_box(assigns) do
     ~H"""
     <div :if={@alarms && alarms_reported?(@product, @device)} class="flex flex-col rounded-md border border-line-default bg-surface-raised shadow-card">
-      <div class="flex h-14 items-center justify-between pr-3 pl-4">
+      <div class="flex h-14 items-center justify-between px-4">
         <div class="leading-6 font-medium text-content-strong">Alarms</div>
       </div>
 
@@ -880,7 +880,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
     </div>
 
     <div :if={!@alarms && alarms_reported?(@product, @device)} class="flex flex-col rounded-md border border-line-default bg-surface-raised shadow-card">
-      <div class="flex h-14 items-center justify-between pr-3 pl-4">
+      <div class="flex h-14 items-center justify-between px-4">
         <div class="leading-6 font-medium text-content-strong">No Alarms Received</div>
       </div>
       <div class="px-4 pb-4 text-xs font-normal text-content-muted">
@@ -906,7 +906,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
   defp deployment_box(assigns) do
     ~H"""
     <div class="flex flex-col rounded-md border border-line-default bg-surface-raised shadow-card">
-      <div class="flex h-14 items-center pr-3 pl-4 leading-6 font-medium text-content-strong">
+      <div class="flex h-14 items-center px-4 leading-6 font-medium text-content-strong">
         Deployment Groups
       </div>
 
@@ -1064,7 +1064,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
   defp support_scripts_box(assigns) do
     ~H"""
     <div class="flex flex-col rounded-md border border-line-default bg-surface-raised shadow-card">
-      <div class="flex h-14 items-center pr-3 pl-4 leading-6 font-medium text-content-strong">
+      <div class="flex h-14 items-center px-4 leading-6 font-medium text-content-strong">
         Support Scripts
       </div>
 
@@ -1172,7 +1172,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
   defp general_info(assigns) do
     ~H"""
     <div class="flex flex-col rounded-md border border-line-default bg-surface-raised pb-4 shadow-card">
-      <div class="flex h-14 items-center pr-3 pl-4 leading-6 font-medium text-content-strong">
+      <div class="flex h-14 items-center px-4 leading-6 font-medium text-content-strong">
         General Info
       </div>
       <div class="flex flex-col gap-3">

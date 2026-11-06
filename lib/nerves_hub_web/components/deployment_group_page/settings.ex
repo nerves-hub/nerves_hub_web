@@ -34,7 +34,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
             <div class="text-base font-medium text-content-strong">General settings</div>
           </div>
 
-          <div class="flex gap-6 p-6">
+          <div class="flex gap-6 p-4">
             <div class="flex w-1/2 flex-col gap-6">
               <.input field={@form[:name]} label="Name" placeholder="Production" phx-debounce="blur" />
               <.input field={@form[:delta_updatable]} type="checkbox" label="Delta updates">
@@ -66,7 +66,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
             <div class="text-base font-medium text-content-strong">Device matching conditions</div>
           </div>
 
-          <div class="flex flex-col gap-6 p-6">
+          <div class="flex flex-col gap-6 p-4">
             <div class="flex flex-col gap-3">
               <p class="w-2/3 text-sm text-content-muted">
                 These conditions are used for matching devices which don't have a configured deployment group.
@@ -102,7 +102,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
             <div class="text-base font-medium text-content-strong">Deployment Workflows</div>
           </div>
 
-          <div class="flex flex-col gap-6 p-6">
+          <div class="flex flex-col gap-6 p-4">
             <div class="flex flex-col gap-3">
               <p class="w-2/3 text-sm text-content-muted">
                 Use continuous deployment workflows for updating devices. These workflows are defined in JSON, similar to how GitHub Actions and CircleCI configs are defined in YML.
@@ -155,7 +155,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
             <div class="text-base font-medium text-content-strong">Device queue settings</div>
           </div>
 
-          <div class="flex flex-col gap-6 p-6">
+          <div class="flex flex-col gap-6 p-4">
             <div class="w-1/2">
               <.input
                 field={@form[:queue_management]}
@@ -173,7 +173,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
             <div class="text-base font-medium text-content-strong">Rolling updates</div>
           </div>
 
-          <div class="flex flex-col gap-6 p-6">
+          <div class="flex flex-col gap-6 p-4">
             <.superseded_by_workflow :if={@deployment_group.workflow_definition}>
               A workflow paces each step separately, using the step's own <span class="font-mono">concurrent_updates</span>, so this limit is not applied while one is in use.
             </.superseded_by_workflow>
@@ -196,7 +196,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
             <div class="text-base font-medium text-content-strong">Priority queue</div>
           </div>
 
-          <div class="flex flex-col gap-6 p-6">
+          <div class="flex flex-col gap-6 p-4">
             <.superseded_by_workflow :if={@deployment_group.workflow_definition}>
               A workflow decides the order devices update in through its steps, so the priority queue is not used while one is in use.
             </.superseded_by_workflow>
@@ -240,7 +240,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
           <div class="flex h-14 items-center justify-between border-b border-line-default px-4">
             <div class="text-base font-medium text-content-strong">Device penalty box logic</div>
           </div>
-          <div class="flex flex-col gap-8 border-t border-line-default p-6">
+          <div class="flex flex-col gap-8 border-t border-line-default p-4">
             <div>
               <p class="mb-4 w-2/3 text-sm text-content-muted">
                 When device update attempts fail consistently, the device is placed in the penalty box. It will not attempt to update until it's removed from the penalty box.
@@ -306,7 +306,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
             <div class="text-base font-medium text-content-strong">First Connect Code</div>
           </div>
 
-          <div class="flex flex-col gap-6 p-6">
+          <div class="flex flex-col gap-6 p-4">
             <div class="flex w-2/3 flex-col gap-6">
               <.input field={@form[:connecting_code]} type="textarea" rows={8} label="Run this code when the device first connects to the console." phx-debounce="2000">
                 <:rich_hint>
@@ -326,7 +326,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
         </div>
 
         <div class="flex w-2/3 flex-col rounded-md border border-line-default bg-surface-raised">
-          <div class="flex items-center justify-between gap-6 border-t border-line-default p-6">
+          <div class="flex items-center justify-between gap-6 border-t border-line-default p-4">
             <.button style="primary" type="submit">
               <.icon name="save" /> Save changes
             </.button>

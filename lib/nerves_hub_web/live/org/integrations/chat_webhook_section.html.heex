@@ -13,17 +13,17 @@
     </.button>
   </div>
 
-  <div class="flex flex-col gap-3 p-6">
+  <div class="flex flex-col gap-3 p-4">
     <p class="w-2/3 text-sm">
       {instructions(@provider)} Choosing channels and what they hear takes the manage role.
     </p>
   </div>
 
-  <div :if={@channels == [] && @editing != :new} class="border-t border-line-default p-6">
+  <div :if={@channels == [] && @editing != :new} class="border-t border-line-default p-4">
     <p class="text-sm text-content-muted">No {service_name(@provider)} channel gets this organization's events yet.</p>
   </div>
 
-  <div :if={@channels != [] || @editing == :new} class="flex flex-col gap-4 border-t border-line-default p-6">
+  <div :if={@channels != [] || @editing == :new} class="flex flex-col gap-4 border-t border-line-default p-4">
     <div :for={channel <- @channels} id={"#{@provider}-channel-#{channel.id}"} class="flex flex-col gap-2 rounded border border-line-default p-4">
       <div class="flex flex-wrap items-start justify-between gap-3">
         <div class="flex min-w-0 flex-col gap-1">
