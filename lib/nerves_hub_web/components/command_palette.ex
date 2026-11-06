@@ -62,7 +62,7 @@ defmodule NervesHubWeb.Components.CommandPalette do
     ~H"""
     <div id={@id} phx-hook="CommandPalette">
       <div data-palette-overlay class={["relative z-50", not @open && "hidden"]} role="dialog" aria-modal="true" aria-label="Command palette">
-        <div data-palette-backdrop class="fixed inset-0 bg-base-200/90 transition-opacity" aria-hidden="true"></div>
+        <div data-palette-backdrop class="fixed inset-0 bg-backdrop transition-opacity" aria-hidden="true"></div>
         <div class="fixed inset-0 overflow-y-auto p-4 sm:p-6 md:p-20">
           <div class="mx-auto max-w-2xl overflow-hidden rounded-xl border border-base-700 bg-surface-overlay shadow-2xl ring-1 ring-base-700/10">
             <form id="command-palette-form" phx-change="search" phx-target={@myself} phx-debounce="150" autocomplete="off">

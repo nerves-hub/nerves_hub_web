@@ -140,7 +140,7 @@ defmodule NervesHubWeb.CoreComponents do
   def modal(assigns) do
     ~H"""
     <div id={@id} phx-mounted={@show && show_modal(@id)} phx-remove={hide_modal(@id)} data-cancel={JS.exec(@on_cancel, "phx-remove")} class="absolute z-50 hidden">
-      <div id={"#{@id}-bg"} class="fixed inset-0 bg-base-200/90 transition-opacity" aria-hidden="true" />
+      <div id={"#{@id}-bg"} class="fixed inset-0 bg-backdrop transition-opacity" aria-hidden="true" />
       <div class="fixed inset-0 overflow-y-auto" aria-labelledby={"#{@id}-title"} aria-describedby={"#{@id}-description"} role="dialog" aria-modal="true" tabindex="0">
         <div class="flex min-h-full items-center justify-center">
           <div class="w-full max-w-3xl p-4 sm:p-6 lg:py-8">
@@ -315,6 +315,7 @@ defmodule NervesHubWeb.CoreComponents do
     <.link
       class={[
         "flex items-center justify-center gap-2 rounded px-3 py-1.5 phx-submit-loading:opacity-75",
+        "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring",
         "bg-base-800 hover:bg-base-700 active:bg-primary disabled:bg-base-800",
         "rounded border border-base-600 active:border-primary",
         "stroke-base-400 active:stroke-primary-content disabled:stroke-base-600",
@@ -334,7 +335,7 @@ defmodule NervesHubWeb.CoreComponents do
       class={[
         "flex items-center justify-center gap-2 rounded px-3 py-1.5 phx-submit-loading:opacity-75",
         "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring",
-        "bg-primary hover:bg-primary-hover active:bg-primary-active",
+        "border border-transparent bg-primary hover:bg-primary-hover active:bg-primary-active",
         "stroke-primary-content text-sm font-medium text-primary-content",
         "light:bg-indigo-600 light:hover:bg-indigo-500 light:active:bg-indigo-700",
         @class
@@ -352,6 +353,7 @@ defmodule NervesHubWeb.CoreComponents do
       class={[
         "flex items-center",
         "flex gap-2 rounded px-3 py-1.5 phx-submit-loading:opacity-75",
+        "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring",
         "bg-base-800 hover:bg-base-700 active:bg-base-600",
         "rounded border border-alert",
         "stroke-alert",
@@ -373,8 +375,10 @@ defmodule NervesHubWeb.CoreComponents do
         [
           "flex gap-2 rounded px-3 py-1.5 hover:cursor-pointer phx-submit-loading:opacity-75",
           "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring",
-          "bg-primary hover:bg-primary-hover active:bg-primary-active disabled:bg-base-800",
-          "disabled:rounded disabled:border disabled:border-base-600 disabled:bg-base-800",
+          # The transparent border keeps it the height of a secondary button, and
+          # lets disabled recolour the edge rather than add one.
+          "border border-transparent bg-primary hover:bg-primary-hover active:bg-primary-active",
+          "disabled:border-base-600 disabled:bg-base-800",
           "stroke-primary-content disabled:stroke-base-500",
           "text-sm font-medium text-primary-content disabled:text-base-500",
           # Light-theme contrast: indigo-500 sits at the AA floor on white, so the design system
@@ -421,10 +425,11 @@ defmodule NervesHubWeb.CoreComponents do
       type={@type}
       class={[
         "flex gap-2 rounded px-3 py-1.5 hover:cursor-pointer phx-submit-loading:opacity-75",
-        "bg-base-800 hover:bg-base-700 active:bg-base-600",
-        "rounded border border-alert",
-        "stroke-alert",
-        "text-sm font-medium text-alert",
+        "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring",
+        "bg-base-800 hover:bg-base-700 active:bg-base-600 disabled:bg-base-800",
+        "rounded border border-alert disabled:border-base-600",
+        "stroke-alert disabled:stroke-base-500",
+        "text-sm font-medium text-alert disabled:text-base-500",
         @class
       ]}
       {@rest}
@@ -525,7 +530,15 @@ defmodule NervesHubWeb.CoreComponents do
     <div phx-feedback-for={@name}>
       <span class="flex items-center gap-4 text-sm/6 font-medium text-base-300">
         <input type="hidden" name={@name} value="false" />
-        <input type="checkbox" id={@name} name={@name} value="true" checked={@checked} class="rounded border-base-700 text-base-400 checked:bg-primary focus:ring-0" {@rest} />
+        <input
+          type="checkbox"
+          id={@name}
+          name={@name}
+          value="true"
+          checked={@checked}
+          class="rounded border-base-600 bg-base-800 text-base-400 checked:bg-primary focus:ring-0 focus:ring-offset-0 focus-visible:ring-2 focus-visible:ring-focus-ring"
+          {@rest}
+        />
         <label for={@name}>{@label}</label>
       </span>
       <div :if={assigns[:hint] || assigns[:rich_hint]} class="text-xs text-base-400">
@@ -543,7 +556,7 @@ defmodule NervesHubWeb.CoreComponents do
       <select
         id={@id}
         name={@name}
-        class="mt-2 block w-full rounded border border-base-600 bg-base-900 px-2 py-1 text-base-400 shadow-sm focus:border-base-400 focus:ring-0 sm:text-sm"
+        class="mt-2 block w-full rounded border border-base-600 bg-base-900 px-2 py-1.5 text-base-400 shadow-sm focus:ring-2 focus:ring-focus-ring sm:text-sm"
         multiple={@multiple}
         {@rest}
       >
@@ -566,11 +579,11 @@ defmodule NervesHubWeb.CoreComponents do
         id={@id}
         name={@name}
         class={[
-          "mt-2 block w-full rounded bg-base-900 text-base-400 focus:ring-0 sm:text-sm/6",
+          "mt-2 block w-full rounded bg-base-900 px-2 py-1.5 text-base-400 focus:ring-2 sm:text-sm/6",
           "phx-no-feedback:border-base-600 phx-no-feedback:focus:border-base-700",
           @class || "min-h-24",
-          @errors == [] && "border-base-600 focus:border-base-700",
-          @errors != [] && "border-alert focus:border-alert"
+          @errors == [] && "border-base-600 focus:ring-focus-ring",
+          @errors != [] && "border-alert focus:ring-alert"
         ]}
         {@rest}
       ><%= Phoenix.HTML.Form.normalize_value("textarea", @value) %></textarea>
@@ -594,10 +607,10 @@ defmodule NervesHubWeb.CoreComponents do
         id={@id}
         value={Phoenix.HTML.Form.normalize_value(@type, @value)}
         class={[
-          "mt-2 block w-full rounded bg-base-900 px-2 py-1.5 text-base-400 focus:ring-0 sm:text-sm",
+          "mt-2 block w-full rounded bg-base-900 px-2 py-1.5 text-base-400 focus:ring-2 sm:text-sm",
           "phx-no-feedback:border-base-600 phx-no-feedback:focus:border-base-700",
-          @errors == [] && "border-base-600 focus:border-base-700",
-          @errors != [] && "border-alert focus:border-alert"
+          @errors == [] && "border-base-600 focus:ring-focus-ring",
+          @errors != [] && "border-alert focus:ring-alert"
         ]}
         {@rest}
       />
@@ -620,10 +633,10 @@ defmodule NervesHubWeb.CoreComponents do
         id={@id}
         value={Phoenix.HTML.Form.normalize_value(@type, @value)}
         class={[
-          "mt-2 block w-full rounded bg-base-900 px-2 py-1.5 text-base-400 focus:ring-0 sm:text-sm",
+          "mt-2 block w-full rounded bg-base-900 px-2 py-1.5 text-base-400 focus:ring-2 sm:text-sm",
           "phx-no-feedback:border-base-600 phx-no-feedback:focus:border-base-700",
-          @errors == [] && "border-base-600 focus:border-base-700",
-          @errors != [] && "border-alert focus:border-alert"
+          @errors == [] && "border-base-600 focus:ring-focus-ring",
+          @errors != [] && "border-alert focus:ring-alert"
         ]}
         {@rest}
       />
@@ -684,10 +697,10 @@ defmodule NervesHubWeb.CoreComponents do
           autocomplete="off"
           data-tag-input
           class={[
-            "block w-full rounded bg-base-900 px-2 py-1.5 text-base-400 focus:ring-0 sm:text-sm",
+            "block w-full rounded bg-base-900 px-2 py-1.5 text-base-400 focus:ring-2 sm:text-sm",
             "phx-no-feedback:border-base-600 phx-no-feedback:focus:border-base-700",
-            @errors == [] && "border-base-600 focus:border-base-700",
-            @errors != [] && "border-alert focus:border-alert"
+            @errors == [] && "border-base-600 focus:ring-focus-ring",
+            @errors != [] && "border-alert focus:ring-alert"
           ]}
           {@rest}
         />

@@ -69,6 +69,9 @@
   ); /* text/icon on a primary fill */
   --color-focus-ring: var(--color-indigo-500);
 
+  /* Scrim behind modals, the command palette and the product picker */
+  --color-backdrop: rgb(9 9 11 / 0.8); /* zinc-950 */
+
   /* State — solid / content (text on the soft tint) / soft (tint background).
      DARK: bright -400 content + a translucent brand tint over the dark canvas. */
   --color-notice: var(--color-indigo-500);
@@ -182,6 +185,8 @@
   --color-base-950: var(--color-zinc-50);
 
   --color-primary-content: #ffffff;
+
+  --color-backdrop: rgb(24 24 27 / 0.5); /* zinc-900 */
 
   /* Light: deep -900 text on light pastel -50/-100 fills */
   --color-notice-content: var(--color-indigo-900);
@@ -465,9 +470,16 @@ body {
   @apply bg-primary;
 }
 
+/* Visually hidden rather than display: none, so the real input stays in the
+   tab order. The label stands in for it, focus ring included. */
 .listing th.checkbox input,
 .listing td.checkbox input {
-  display: none;
+  @apply sr-only;
+}
+
+.listing .checkbox input:focus-visible ~ label {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: 2px;
 }
 
 .listing tbody tr:hover {
@@ -540,11 +552,17 @@ body {
 }
 
 .sidebar-select {
-  @apply bg-surface-muted text-base-400 w-full rounded-sm px-2 py-1.5 text-sm;
+  @apply bg-surface-muted text-base-400 border-base-600 w-full rounded-sm border px-2 py-1.5 text-sm;
 }
 
 .sidebar-text-input {
-  @apply bg-surface-muted text-base-400 w-full rounded-sm px-2 py-1.5 text-sm;
+  @apply bg-surface-muted text-base-400 border-base-600 w-full rounded-sm border px-2 py-1.5 text-sm;
+}
+
+/* Without these the forms plugin's blue focus border and ring show through. */
+.sidebar-select:focus,
+.sidebar-text-input:focus {
+  @apply border-base-600 ring-focus-ring ring-2;
 }
 
 .sidebar-search {

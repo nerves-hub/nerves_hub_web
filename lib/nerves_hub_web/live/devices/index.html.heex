@@ -63,7 +63,7 @@
             </thead>
             <tbody>
               <tr :for={_ <- 1..25} class="clickable-table-row isolate animate-pulse border-b border-base-800">
-                <td class="checkbox"><input class="checkbox opacity-50" type="checkbox" /></td>
+                <td class="checkbox"><input class="checkbox opacity-50" disabled type="checkbox" /></td>
                 <td>
                   <div class="flex items-center gap-2">
                     <svg xmlns="http://www.w3.org/2000/svg" width="6" height="6" viewBox="0 0 6 6" fill="none">
@@ -224,6 +224,7 @@
                       {if device.id in @selected_devices, do: [checked: true], else: []}
                       type="checkbox"
                       id={"#{device.id}-select"}
+                      aria-label={"Select #{device.identifier}"}
                       phx-value-id={device.id}
                       phx-click="select"
                       disabled={not authorized?(:"device:update", @current_scope)}

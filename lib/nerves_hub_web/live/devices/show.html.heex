@@ -47,7 +47,7 @@
     <div class="group/identifier flex shrink-0 items-center gap-3">
       <svg
         data-connection-status={Map.get(@device_connection || %{}, :status) || "unknown"}
-        class="data-[connection-status=connecting]:fill-primary-500 size-3 shrink-0 data-[connection-status=connected]:fill-success data-[connection-status=connecting]:animate-pulse data-[connection-status=disconnected]:fill-base-500 data-[connection-status=unknown]:fill-base-500"
+        class="size-3 shrink-0 data-[connection-status=connected]:fill-status-online data-[connection-status=connecting]:animate-pulse data-[connection-status=connecting]:fill-status-connecting data-[connection-status=disconnected]:fill-status-offline data-[connection-status=unknown]:fill-status-offline"
         xmlns="http://www.w3.org/2000/svg"
         viewBox="0 0 6 6"
         fill="currentColor"

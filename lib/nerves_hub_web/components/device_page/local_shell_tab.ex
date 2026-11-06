@@ -158,7 +158,7 @@ defmodule NervesHubWeb.Components.DevicePage.LocalShellTab do
                     xmlns="http://www.w3.org/2000/svg"
                     viewBox="0 0 6 6"
                     fill="currentColor"
-                    class="size-3 data-[connection-status=connected]:fill-success data-[connection-status=connecting]:animate-pulse data-[connection-status=connecting]:fill-alert data-[connection-status=disconnected]:fill-base-500 data-[connection-status=unknown]:fill-base-500"
+                    class="size-3 data-[connection-status=connected]:fill-status-online data-[connection-status=connecting]:animate-pulse data-[connection-status=connecting]:fill-status-connecting data-[connection-status=disconnected]:fill-status-offline data-[connection-status=unknown]:fill-status-offline"
                     data-connection-status={Map.get(@device_connection || %{}, :status) || "unknown"}
                   >
                     <circle cx="3" cy="3" r="3" />
