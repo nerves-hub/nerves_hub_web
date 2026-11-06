@@ -167,7 +167,13 @@ defmodule NervesHubWeb.WebsocketTest do
       close_socket_cleanly(socket)
     end
 
-    test "records an unknown client library without a User-Agent", %{user: user, tmp_dir: tmp_dir} do
+    # The test client is Slipstream over Mint, like NervesHubLink. Mint sends
+    # `mint/<vsn>` when the client sets no User-Agent, which is what every
+    # NervesHubLink that doesn't send its own token looks like.
+    test "records an unknown client library when only the HTTP library names itself", %{
+      user: user,
+      tmp_dir: tmp_dir
+    } do
       {device, _firmware} = device_fixture(tmp_dir, user, %{identifier: @valid_serial})
 
       Fixtures.device_certificate_fixture(device)

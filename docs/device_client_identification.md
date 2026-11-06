@@ -19,31 +19,59 @@ request, as a product token:
 User-Agent: <name>/<version>
 ```
 
-These are the names NervesHub recognises:
+### Listed clients
+
+These clients are recorded under a fixed name:
 
 | Client | Header | Recorded `lib` |
 | --- | --- | --- |
-| NervesHubLink | `NHL/2.13.0` | `nerves_hub_link` |
+| NervesHubLink | `NHL/2.13.0` or `nerves_hub_link/2.13.0` | `nerves_hub_link` |
 | nerves-hub-link-agent (Rust, Linux) | `nerves-hub-link-agent/0.1.0` | `nerves_hub_link_agent` |
 | nerves-hub-link-esp32 (Rust, ESP-IDF) | `nerves-hub-link-esp32/0.1.0` | `nerves_hub_link_esp32` |
 | nerves_hub_link_atomvm_esp32 (AtomVM) | `nerves_hub_link_atomvm_esp32/0.2.0` | `nerves_hub_link_atomvm_esp32` |
 
-NervesHubLink already sends `NHL/<version>` when it downloads firmware, so the
-websocket uses the same token.
+NervesHubLink already sends `NHL/<version>` when it downloads firmware, so it
+can use the same token on the websocket. Both of its tokens are recorded the
+same way.
+
+If a listed client's version isn't valid SemVer, NervesHub records the library
+and leaves the version unknown.
+
+### Any other client
+
+Any other client is recorded under the name it sends, so integrations written
+outside this project show up too. `acme-link/1.4.0` is recorded as
+`acme-link`, version `1.4.0`. To be recorded, it needs:
+
+- a SemVer version, 64 characters at most, with no leading `v`
+- a name of at most 64 letters, digits, `.`, `_` and `-`, starting with a
+  letter or digit
+
+These limits leave out most of what HTTP libraries send by default
+(`ESP32 Websocket Client`, `Go-http-client/1.1`, `Python/3.11 websockets/12.0`).
+They also keep the ClickHouse `LowCardinality` columns to something like a list
+of clients.
+
+A few HTTP libraries send a default that does pass, so NervesHub skips them by
+name, ignoring case: `mint`, `okhttp`, `Java-http-client`, `aiohttp` and
+`curl`. They name the HTTP library, not the client. Mint is the one that
+matters: NervesHubLink connects with it, so a NervesHubLink that doesn't send
+its own token sends `mint/<version>`, and is recorded as unknown.
+
+### How the header is read
 
 The rules, all in `NervesHub.Devices.ClientLibrary`:
 
-- **The first recognised token wins.** A client can add more tokens after its
-  own, such as its HTTP library: `NHL/2.13.0 Mint/1.7.1`.
+- **The first token that names a client wins**, listed or not, so a client puts
+  its own token first. It can add more after it, such as its HTTP library:
+  `NHL/2.13.0 Mint/1.7.1`. Tokens that don't name a client are skipped, so
+  `Go-http-client/1.1 acme-link/1.4.0` is still recorded as `acme-link`.
 - **Tokens inside a parenthesised comment are ignored.** A comment describes
   something else, such as the platform: `nerves-hub-link-esp32/0.1.0 (esp-idf 5.2.3)`.
-- **Names are matched exactly**, case included.
-- **The version must be SemVer**, 64 characters at most, with no leading `v`.
-  If the name is recognised but the version isn't valid, NervesHub records the
-  library and leaves the version unknown.
-- **Anything else is unknown.** A missing header, an unrecognised name, or an
-  HTTP library's default (`ESP32 Websocket Client`) leaves both columns `NULL`
-  in Postgres and empty in ClickHouse.
+- **Names are matched exactly**, case included. `nhl/2.13.0` isn't
+  NervesHubLink; it's recorded as a client called `nhl`.
+- **Anything else is unknown.** A missing header, or one where no token names a
+  client, leaves both columns `NULL` in Postgres and empty in ClickHouse.
 
 Every connection is recorded fresh. If a device reconnects without the header,
 its library goes back to unknown; NervesHub doesn't keep the value from the
@@ -70,18 +98,24 @@ extra headers block does nothing. Set the client's `user_agent` field instead:
 `esp_websocket_client_config_t.user_agent`, or
 `esp_transport_ws_config_t.user_agent` when you supply the transport yourself.
 
-## Adding a client
+## Listing a client
 
-Add its product token and the name to record to `@libraries` in
-`NervesHub.Devices.ClientLibrary`, and add a row to the table above. A client
-NervesHub doesn't know about connects as usual, with its library recorded as
-unknown.
+A new client doesn't need a change in NervesHub: it's recorded under the name
+it sends. List it only to record it under a different name, or to record it
+when its version isn't SemVer. Add its token and the name to record to
+`@libraries` in `NervesHub.Devices.ClientLibrary`, and add a row to the table
+above.
+
+Changing a listed client's recorded name splits its history in two, because
+rows already written keep the old name.
 
 ## Nodes that hold device sockets elsewhere
 
-The header is parsed on the node that records the connection, not the node
-holding the socket. A node that holds device sockets and reaches the platform
-through `NervesHub.DeviceLink.Dispatcher.Remote` therefore needs two things:
+The header is parsed on the node that records the connection, not on the node
+holding the socket, so changing the rules or the list needs no change there. A
+node that holds device sockets and reaches the platform through
+`NervesHub.DeviceLink.Dispatcher.Remote` only has to pass the header on, which
+takes two things:
 
 - `:user_agent` in its device socket's `connect_info`
 - to pass the header on, through `NervesHub.DeviceLink.Client.connect/3`
