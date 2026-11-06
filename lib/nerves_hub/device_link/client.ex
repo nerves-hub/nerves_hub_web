@@ -28,9 +28,10 @@ defmodule NervesHub.DeviceLink.Client do
   @spec authenticate(Authentication.credentials()) :: {:ok, DeviceInfo.t()} | {:error, :invalid_auth}
   def authenticate(credentials, server_name \\ nil), do: Dispatcher.call(:authenticate, [credentials, server_name])
 
-  @spec connect(DeviceInfo.t(), ip_address :: String.t() | nil) ::
+  @spec connect(DeviceInfo.t(), ip_address :: String.t() | nil, user_agent :: String.t() | nil) ::
           {:ok, DeviceInfo.t()} | {:error, Ecto.Changeset.t()}
-  def connect(device_info, ip_address \\ nil), do: Dispatcher.call(:connect, [device_info, ip_address])
+  def connect(device_info, ip_address \\ nil, user_agent \\ nil),
+    do: Dispatcher.call(:connect, [device_info, ip_address, user_agent])
 
   @spec heartbeat(connection_ref :: String.t()) :: :ok | :error
   def heartbeat(connection_ref), do: Dispatcher.call(:heartbeat, [connection_ref])

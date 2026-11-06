@@ -244,3 +244,12 @@ the firmware metadata as `AtomVM <version>`.
 A device that does not hash its partition simply reports no UUID. That costs it
 the database fallback NervesHub uses when the rest of a device's metadata is
 incomplete, so it is worth sending.
+
+### Identifying the client
+
+Optional, but it lets NervesHub record which agent and version each device
+runs: send `User-Agent: nerves_hub_link_atomvm_esp32/<version>` on the
+websocket upgrade. The underlying `esp_websocket_client` sends its own default
+before any extra headers, so this has to be set as the client's `user_agent`,
+not added to them. See
+[Identifying the Device Client](device_client_identification.md).

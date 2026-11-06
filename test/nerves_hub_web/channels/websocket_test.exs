@@ -147,6 +147,49 @@ defmodule NervesHubWeb.WebsocketTest do
       close_socket_cleanly(socket)
     end
 
+    test "records the client library a device names in its User-Agent", %{user: user, tmp_dir: tmp_dir} do
+      {device, _firmware} = device_fixture(tmp_dir, user, %{identifier: @valid_serial})
+
+      Fixtures.device_certificate_fixture(device)
+
+      subscribe_for_updates(device)
+
+      opts = Keyword.put(@socket_config, :headers, [{"user-agent", "NHL/2.13.0"}])
+
+      {:ok, socket} = SocketClient.start_link(with_serializer(opts))
+      SocketClient.join_and_wait(socket)
+
+      assert_online_and_available(device)
+
+      assert %DeviceConnection{lib: "nerves_hub_link", lib_version: "2.13.0"} =
+               Connections.get_latest_for_device(device.id)
+
+      close_socket_cleanly(socket)
+    end
+
+    # The test client is Slipstream over Mint, like NervesHubLink. Mint sends
+    # `mint/<vsn>` when the client sets no User-Agent, which is what every
+    # NervesHubLink that doesn't send its own token looks like.
+    test "records an unknown client library when only the HTTP library names itself", %{
+      user: user,
+      tmp_dir: tmp_dir
+    } do
+      {device, _firmware} = device_fixture(tmp_dir, user, %{identifier: @valid_serial})
+
+      Fixtures.device_certificate_fixture(device)
+
+      subscribe_for_updates(device)
+
+      {:ok, socket} = SocketClient.start_link(with_serializer(@socket_config))
+      SocketClient.join_and_wait(socket)
+
+      assert_online_and_available(device)
+
+      assert %DeviceConnection{lib: nil, lib_version: nil} = Connections.get_latest_for_device(device.id)
+
+      close_socket_cleanly(socket)
+    end
+
     test "Can connect and authenticate to channel using client ssl certificate with TLS 1.3", %{
       user: user,
       tmp_dir: tmp_dir
@@ -746,6 +789,30 @@ defmodule NervesHubWeb.WebsocketTest do
       assert_online_and_available(device)
 
       assert %DeviceConnection{ip_address: "203.0.113.7"} = Connections.get_latest_for_device(device.id)
+
+      close_socket_cleanly(socket)
+    end
+
+    test "records the client library a device names in its User-Agent", %{user: user, tmp_dir: tmp_dir} do
+      {device, _firmware} = device_fixture(tmp_dir, user)
+      assert {:ok, auth} = Devices.create_shared_secret_auth(device)
+
+      opts = [
+        mint_opts: [protocols: [:http1]],
+        uri: "ws://127.0.0.1:#{@web_port}/device-socket/websocket",
+        headers: [{"user-agent", "custom#acme-link/1.4.0"} | Utils.nh1_key_secret_headers(auth, device.identifier)]
+      ]
+
+      subscribe_for_updates(device)
+
+      {:ok, socket} = SocketClient.start_link(with_serializer(opts))
+      SocketClient.join_and_wait(socket, shared_secret_params(device))
+
+      assert_connection_change()
+      assert_online_and_available(device)
+
+      assert %DeviceConnection{lib: "custom#acme-link", lib_version: "1.4.0"} =
+               Connections.get_latest_for_device(device.id)
 
       close_socket_cleanly(socket)
     end

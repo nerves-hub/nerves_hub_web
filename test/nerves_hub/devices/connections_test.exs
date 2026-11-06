@@ -47,6 +47,29 @@ defmodule NervesHub.Devices.ConnectionsTest do
       assert %DeviceConnection{ip_address: "198.51.100.2"} = Connections.get_latest_for_device(device.id)
     end
 
+    test "records the client library the device connected with", %{device: device} do
+      assert {:ok, %DeviceConnection{lib: "nerves_hub_link", lib_version: "2.13.0"}} =
+               Connections.device_connecting(device.org_id, device.product_id, device.id, nil, %{
+                 lib: "nerves_hub_link",
+                 lib_version: "2.13.0"
+               })
+
+      assert %DeviceConnection{lib: "nerves_hub_link", lib_version: "2.13.0"} =
+               Connections.get_latest_for_device(device.id)
+    end
+
+    test "records an unknown client library when a reconnect doesn't name one", %{device: device} do
+      {:ok, _connection} =
+        Connections.device_connecting(device.org_id, device.product_id, device.id, nil, %{
+          lib: "nerves_hub_link",
+          lib_version: "2.13.0"
+        })
+
+      {:ok, _connection} = Connections.device_connecting(device.org_id, device.product_id, device.id)
+
+      assert %DeviceConnection{lib: nil, lib_version: nil} = Connections.get_latest_for_device(device.id)
+    end
+
     test "transitions through connecting -> connected -> disconnected states", %{device: device} do
       topic = "internal:device:#{device.id}"
       PubSub.subscribe(device.id)

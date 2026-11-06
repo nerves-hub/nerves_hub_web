@@ -17,7 +17,7 @@ defmodule NervesHubWeb.DeviceEndpoint do
     "/socket",
     NervesHubWeb.DeviceSocket,
     websocket: [
-      connect_info: [:peer_data, :x_headers],
+      connect_info: [:peer_data, :x_headers, :user_agent],
       compress: true,
       timeout: 180_000,
       fullsweep_after: 0,
@@ -31,7 +31,7 @@ defmodule NervesHubWeb.DeviceEndpoint do
     "/device-socket",
     NervesHubWeb.DeviceSocket,
     websocket: [
-      connect_info: [:peer_data, :x_headers],
+      connect_info: [:peer_data, :x_headers, :user_agent],
       compress: true,
       timeout: 180_000,
       fullsweep_after: 0,

@@ -205,3 +205,11 @@ This pairs with `esp_ota_mark_app_valid_cancel_rollback()`.
 
 Failure is reported through `status_update` with a status of `"failed"` and a
 `reason`.
+
+### Identifying the client
+
+Optional, but it lets NervesHub record which agent and version each device
+runs. Set `user_agent` on the websocket client (for example
+`nerves-hub-link-esp32/0.1.0`) rather than adding a `User-Agent` line to the
+extra headers, which the client sends after its own default. See
+[Identifying the Device Client](device_client_identification.md).
