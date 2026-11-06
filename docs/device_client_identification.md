@@ -36,16 +36,16 @@ same way.
 
 ### Custom clients
 
-A client that isn't listed opts in by putting `custom:` in front of its name:
+A client that isn't listed opts in by putting `custom#` in front of its name:
 
 ```
-User-Agent: custom:acme-link/1.4.0
+User-Agent: custom#acme-link/1.4.0
 ```
 
-It's recorded under that name, prefix included: `lib` is `custom:acme-link`
+It's recorded under that name, prefix included: `lib` is `custom#acme-link`
 and `lib_version` is `1.4.0`. Integrations written outside this project show
 up without any change to NervesHub. The prefix keeps what a client says about
-itself apart from the listed names, so `custom:nerves_hub_link` is never
+itself apart from the listed names, so `custom#nerves_hub_link` is never
 counted as `nerves_hub_link`.
 
 The name after the prefix can be at most 64 letters, digits, `.`, `_` and `-`,
@@ -58,8 +58,10 @@ NervesHubLink connects with Mint, so a NervesHubLink that doesn't send its own
 token sends `mint/<version>`. That's recorded as unknown, not as a library
 called `mint`.
 
-RFC 9110 doesn't allow `:` in a product token, but a header value can contain
-it, and NervesHub's own tests send it through Mint unchanged.
+`#` is one of the characters RFC 9110 allows in a product token, but many
+config formats treat it as the start of a comment. Quote the string wherever
+you keep it: unquoted in an `.env` or INI file, `custom#acme-link/1.4.0` can
+come through as `custom`, which names no client.
 
 ### How the header is read
 
@@ -68,11 +70,11 @@ The rules, all in `NervesHub.Devices.ClientLibrary`:
 - **The first token that names a client wins**, listed or custom, so a client
   puts its own token first. It can add more after it, such as its HTTP library:
   `NHL/2.13.0 Mint/1.7.1`. Tokens that name no client are skipped, so
-  `mint/1.7.1 custom:acme-link/1.4.0` is still recorded as `custom:acme-link`.
+  `mint/1.7.1 custom#acme-link/1.4.0` is still recorded as `custom#acme-link`.
 - **Tokens inside a parenthesised comment are ignored.** A comment describes
   something else, such as the platform: `nerves-hub-link-esp32/0.1.0 (esp-idf 5.2.3)`.
 - **Names and the prefix are matched exactly**, case included. `nhl/2.13.0`
-  and `Custom:acme-link/1.4.0` name no client.
+  and `Custom#acme-link/1.4.0` name no client.
 - **The version must be SemVer**, 64 characters at most, with no leading `v`.
   If it isn't, NervesHub records the library and leaves the version unknown.
 - **Anything else is unknown.** A missing header, or one that names no client,
@@ -105,12 +107,12 @@ extra headers block does nothing. Set the client's `user_agent` field instead:
 
 ## Listing a client
 
-A new client doesn't need a change in NervesHub: it can send a `custom:`
+A new client doesn't need a change in NervesHub: it can send a `custom#`
 token. Listing it lets it drop the prefix. Add its token and the name to record
 to `@libraries` in `NervesHub.Devices.ClientLibrary`, and add a row to the
 table above.
 
-Listing a client that has been sending `custom:`, or changing a listed client's
+Listing a client that has been sending `custom#`, or changing a listed client's
 recorded name, splits its history in two, because rows already written keep
 the old name.
 

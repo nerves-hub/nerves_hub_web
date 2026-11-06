@@ -11,15 +11,15 @@ defmodule NervesHub.Devices.ClientLibrary do
   tokens a client sends: NervesHubLink is `nerves_hub_link` whether it sends
   `NHL` or `nerves_hub_link`.
 
-  Any other client opts in by putting `custom:` in front of its name, and is
-  recorded under that, prefix included: `custom:acme-link/1.4.0` is
-  `custom:acme-link`. The prefix keeps what a client says about itself apart
+  Any other client opts in by putting `custom#` in front of its name, and is
+  recorded under that, prefix included: `custom#acme-link/1.4.0` is
+  `custom#acme-link`. The prefix keeps what a client says about itself apart
   from the listed names. Without it, an unlisted token is skipped, which is
   what keeps out the defaults HTTP libraries send when the client sets no
   User-Agent: Mint's `mint/1.7.1`, which every NervesHubLink that doesn't send
   its own token sends, or `ESP32 Websocket Client`.
 
-  The name after `custom:` can be at most 64 letters, digits, `.`, `_` and
+  The name after `custom#` can be at most 64 letters, digits, `.`, `_` and
   `-`, which keeps a `LowCardinality` column in ClickHouse to something like a
   list of clients.
 
@@ -38,7 +38,7 @@ defmodule NervesHub.Devices.ClientLibrary do
     "nerves_hub_link_atomvm_esp32" => "nerves_hub_link_atomvm_esp32"
   }
 
-  @custom_prefix "custom:"
+  @custom_prefix "custom#"
 
   @max_custom_name_length 64
 
@@ -52,7 +52,7 @@ defmodule NervesHub.Devices.ClientLibrary do
   @doc """
   The client library and version a `User-Agent` header names.
 
-  The first product token that names a client wins, listed or `custom:`, so a
+  The first product token that names a client wins, listed or `custom#`, so a
   client puts its own token first and may follow it with others (its HTTP
   stack, say). Tokens inside a parenthesised comment are skipped: they describe
   something else, such as the platform the client runs on.
@@ -60,8 +60,8 @@ defmodule NervesHub.Devices.ClientLibrary do
       iex> from_user_agent("NHL/2.13.0")
       %{lib: "nerves_hub_link", lib_version: "2.13.0"}
 
-      iex> from_user_agent("custom:acme-link/1.4.0")
-      %{lib: "custom:acme-link", lib_version: "1.4.0"}
+      iex> from_user_agent("custom#acme-link/1.4.0")
+      %{lib: "custom#acme-link", lib_version: "1.4.0"}
 
       iex> from_user_agent("mint/1.7.1")
       %{lib: nil, lib_version: nil}

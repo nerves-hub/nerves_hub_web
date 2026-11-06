@@ -49,36 +49,37 @@ defmodule NervesHub.Devices.ClientLibraryTest do
 
   describe "from_user_agent/1 with a custom client" do
     test "records it under the name it sends, prefix included" do
-      assert from_user_agent("custom:acme-link/1.4.0") == %{lib: "custom:acme-link", lib_version: "1.4.0"}
+      assert from_user_agent("custom#acme-link/1.4.0") == %{lib: "custom#acme-link", lib_version: "1.4.0"}
 
-      assert from_user_agent("custom:Acme_Link.v2/0.0.1-beta") ==
-               %{lib: "custom:Acme_Link.v2", lib_version: "0.0.1-beta"}
+      assert from_user_agent("custom#Acme_Link.v2/0.0.1-beta") ==
+               %{lib: "custom#Acme_Link.v2", lib_version: "0.0.1-beta"}
     end
 
     test "keeps a listed name apart from the listed client" do
-      assert from_user_agent("custom:nerves_hub_link/9.9.9") ==
-               %{lib: "custom:nerves_hub_link", lib_version: "9.9.9"}
+      assert from_user_agent("custom#nerves_hub_link/9.9.9") ==
+               %{lib: "custom#nerves_hub_link", lib_version: "9.9.9"}
     end
 
     test "records the library without a version it can't read" do
-      assert from_user_agent("custom:acme-link") == %{lib: "custom:acme-link", lib_version: nil}
-      assert from_user_agent("custom:acme-link/1.4") == %{lib: "custom:acme-link", lib_version: nil}
-      assert from_user_agent("custom:acme-link/v1.4.0") == %{lib: "custom:acme-link", lib_version: nil}
+      assert from_user_agent("custom#acme-link") == %{lib: "custom#acme-link", lib_version: nil}
+      assert from_user_agent("custom#acme-link/1.4") == %{lib: "custom#acme-link", lib_version: nil}
+      assert from_user_agent("custom#acme-link/v1.4.0") == %{lib: "custom#acme-link", lib_version: nil}
     end
 
     test "is unknown for a name outside the limits" do
-      assert from_user_agent("custom:/1.4.0") == @unknown
-      assert from_user_agent("custom:acme@link/1.4.0") == @unknown
-      assert from_user_agent("custom:.acme-link/1.4.0") == @unknown
-      assert from_user_agent("custom:" <> String.duplicate("a", 65) <> "/1.4.0") == @unknown
+      assert from_user_agent("custom#/1.4.0") == @unknown
+      assert from_user_agent("custom#acme@link/1.4.0") == @unknown
+      assert from_user_agent("custom#.acme-link/1.4.0") == @unknown
+      assert from_user_agent("custom#" <> String.duplicate("a", 65) <> "/1.4.0") == @unknown
 
-      assert from_user_agent("custom:" <> String.duplicate("a", 64) <> "/1.4.0") ==
-               %{lib: "custom:" <> String.duplicate("a", 64), lib_version: "1.4.0"}
+      assert from_user_agent("custom#" <> String.duplicate("a", 64) <> "/1.4.0") ==
+               %{lib: "custom#" <> String.duplicate("a", 64), lib_version: "1.4.0"}
     end
 
     test "matches the prefix exactly" do
-      assert from_user_agent("Custom:acme-link/1.4.0") == @unknown
+      assert from_user_agent("Custom#acme-link/1.4.0") == @unknown
       assert from_user_agent("custom-acme-link/1.4.0") == @unknown
+      assert from_user_agent("custom:acme-link/1.4.0") == @unknown
     end
   end
 
@@ -109,17 +110,17 @@ defmodule NervesHub.Devices.ClientLibraryTest do
       assert from_user_agent("NHL/2.13.0 Mint/1.7.1") == %{lib: "nerves_hub_link", lib_version: "2.13.0"}
       assert from_user_agent("mint/1.7.1 NHL/2.13.0") == %{lib: "nerves_hub_link", lib_version: "2.13.0"}
 
-      assert from_user_agent("custom:acme-link/1.4.0 NHL/2.13.0") ==
-               %{lib: "custom:acme-link", lib_version: "1.4.0"}
+      assert from_user_agent("custom#acme-link/1.4.0 NHL/2.13.0") ==
+               %{lib: "custom#acme-link", lib_version: "1.4.0"}
 
-      assert from_user_agent("okhttp/4.12.0 custom:acme-link/1.4.0") ==
-               %{lib: "custom:acme-link", lib_version: "1.4.0"}
+      assert from_user_agent("okhttp/4.12.0 custom#acme-link/1.4.0") ==
+               %{lib: "custom#acme-link", lib_version: "1.4.0"}
     end
 
     test "skips tokens inside comments" do
       assert from_user_agent("Other/1.0 (compatible; NHL/2.13.0)") == @unknown
       assert from_user_agent("Other/1.0 (outer (NHL/2.13.0) more)") == @unknown
-      assert from_user_agent("Other/1.0 (custom:acme-link/1.4.0)") == @unknown
+      assert from_user_agent("Other/1.0 (custom#acme-link/1.4.0)") == @unknown
 
       assert from_user_agent("nerves-hub-link-esp32/0.1.0 (esp-idf 5.2.3)") ==
                %{lib: "nerves_hub_link_esp32", lib_version: "0.1.0"}

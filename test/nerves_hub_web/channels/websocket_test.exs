@@ -800,7 +800,7 @@ defmodule NervesHubWeb.WebsocketTest do
       opts = [
         mint_opts: [protocols: [:http1]],
         uri: "ws://127.0.0.1:#{@web_port}/device-socket/websocket",
-        headers: [{"user-agent", "custom:acme-link/1.4.0"} | Utils.nh1_key_secret_headers(auth, device.identifier)]
+        headers: [{"user-agent", "custom#acme-link/1.4.0"} | Utils.nh1_key_secret_headers(auth, device.identifier)]
       ]
 
       subscribe_for_updates(device)
@@ -811,7 +811,7 @@ defmodule NervesHubWeb.WebsocketTest do
       assert_connection_change()
       assert_online_and_available(device)
 
-      assert %DeviceConnection{lib: "custom:acme-link", lib_version: "1.4.0"} =
+      assert %DeviceConnection{lib: "custom#acme-link", lib_version: "1.4.0"} =
                Connections.get_latest_for_device(device.id)
 
       close_socket_cleanly(socket)
