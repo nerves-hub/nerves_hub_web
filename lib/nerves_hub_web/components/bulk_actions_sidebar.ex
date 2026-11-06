@@ -34,9 +34,9 @@ defmodule NervesHubWeb.Components.BulkActionsSidebar do
             <span :if={length(@selected_devices) == @total_entries or @select_all_matching}>All available devices matching the filters have been selected.</span>
             <div :if={length(@selected_devices) != @total_entries and not @select_all_matching}>
               <span>{Number.Delimit.number_to_delimited(@total_entries - length(@selected_devices), precision: 0)} additional devices match the filters but haven't been selected.</span>
-              <button class="sidebar-button" type="button" phx-click="select-all-matching">
+              <.button type="button" phx-click="select-all-matching">
                 Select all
-              </button>
+              </.button>
             </div>
           </div>
 
@@ -210,7 +210,7 @@ defmodule NervesHubWeb.Components.BulkActionsSidebar do
 
               <div class="flex w-full gap-2">
                 <form class="grow" id="disable-updates" phx-submit="disable-updates-for-devices">
-                  <button class="sidebar-button w-full" type="submit" data-confirm="This will disable updates for all selected devices">
+                  <.button type="submit" data-confirm="This will disable updates for all selected devices" class="w-full">
                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="none">
                       <path
                         d="M10.0002 10L5.8335 5.83334M10.0002 10L14.1668 14.1667M10.0002 10L14.1668 5.83334M10.0002 10L5.8335 14.1667"
@@ -221,23 +221,23 @@ defmodule NervesHubWeb.Components.BulkActionsSidebar do
                       />
                     </svg>
                     <span>Disable</span>
-                  </button>
+                  </.button>
                 </form>
 
                 <form class="grow" id="enable-updates" phx-submit="enable-updates-for-devices">
-                  <button class="sidebar-button w-full" type="submit" data-confirm="This will enable updates for all selected devices">
+                  <.button type="submit" data-confirm="This will enable updates for all selected devices" class="w-full">
                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="none">
                       <path d="M4.1665 10.8333L7.49984 14.1667L16.6665 5" class="stroke-base-400" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" />
                     </svg>
                     Enable
-                  </button>
+                  </.button>
                 </form>
               </div>
 
               <form id="clear-penalty-box" class="mt-2" phx-submit="clear-penalty-box-for-devices">
-                <button class="sidebar-button w-full" type="submit" data-confirm="This will clear the penalty box all selected devices">
+                <.button type="submit" data-confirm="This will clear the penalty box all selected devices" class="w-full">
                   <span class="">Clear penalty box</span>
-                </button>
+                </.button>
               </form>
             </div>
           </div>

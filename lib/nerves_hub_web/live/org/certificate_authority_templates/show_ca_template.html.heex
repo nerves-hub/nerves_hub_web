@@ -11,16 +11,16 @@
     <.button :if={authorized?(:"certificate_authority:update", @current_scope)} type="link" navigate={~p"/org/#{@org}/settings/certificates/#{@certificate}/edit"}>
       Edit
     </.button>
-    <button
+    <.button
       :if={authorized?(:"certificate_authority:delete", @current_scope)}
-      class="rounded border border-alert bg-base-800 px-3 py-1.5 text-sm font-medium text-alert hover:bg-base-700"
+      style="danger"
       type="button"
       phx-click="delete-certificate-authority"
       phx-value-certificate_serial={@certificate.serial}
       data-confirm="Are you sure you want to delete this certificate? This can not be undone."
     >
       Delete
-    </button>
+    </.button>
   </:header>
 
   <div class="h-0 max-w-[650px] flex-1 flex-col gap-6 overflow-y-auto px-6 py-4">

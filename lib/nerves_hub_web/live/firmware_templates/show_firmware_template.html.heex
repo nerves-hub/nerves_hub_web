@@ -21,8 +21,8 @@
         <%!-- The tooltip only explains why delete is disabled, so it is only
         enabled when something blocks the deletion. --%>
         <.tooltip id="delete-firmware-tooltip" class="z-20 flex items-center" content_class="w-max max-w-72" enabled={@deletion_blockers != []}>
-          <button
-            class="box-content flex h-5 items-center justify-center gap-2 rounded border border-alert bg-base-800 px-3 py-1.5 text-sm font-medium text-content-body hover:cursor-pointer disabled:cursor-not-allowed disabled:border-line-default disabled:text-content-faint"
+          <.button
+            style="danger"
             aria-label="Delete firmware"
             type="button"
             disabled={@deletion_blockers != []}
@@ -45,7 +45,7 @@
             <span class={["text-sm font-medium", if(@deletion_blockers == [], do: "text-alert", else: "text-content-faint")]}>
               Delete
             </span>
-          </button>
+          </.button>
           <:content>
             {FirmwareDeletion.blockers_message(@deletion_blockers)}
           </:content>

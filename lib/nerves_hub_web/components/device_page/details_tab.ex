@@ -1317,9 +1317,9 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
                 >
                 </ul>
               </div>
-              <button type="submit" aria-label="Add tag" class="rounded border border-line-default bg-base-800 px-2 py-1 text-xs text-content-body hover:bg-base-700">
+              <.button size="sm" type="submit" aria-label="Add tag">
                 Add
-              </button>
+              </.button>
             </form>
           </div>
         </div>

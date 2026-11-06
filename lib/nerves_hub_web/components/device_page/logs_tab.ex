@@ -418,7 +418,7 @@ defmodule NervesHubWeb.Components.DevicePage.LogsTab do
 
             <%!-- `data-count` changes with every page, which is what makes the
             hook see an update and check whether this is still on screen. --%>
-            <button
+            <.button
               :if={@more_logs and @log_count < max_lines()}
               id="show-more-logs"
               type="button"
@@ -426,10 +426,10 @@ defmodule NervesHubWeb.Components.DevicePage.LogsTab do
               data-event="load-more-logs"
               data-list="log_lines"
               data-count={@log_count}
-              class="mb-4 rounded border border-line-strong bg-base-800 px-3 py-1 text-sm text-content-body hover:bg-base-700 data-loading:opacity-50"
+              class="mb-4 data-loading:opacity-50"
             >
               Show more
-            </button>
+            </.button>
 
             <div :if={@more_logs and @log_count >= max_lines()} id="log-limit-reached" class="mb-4 text-sm font-extralight text-content-muted">
               Showing the newest {max_lines()} lines. Search, or narrow the time, to look further back.

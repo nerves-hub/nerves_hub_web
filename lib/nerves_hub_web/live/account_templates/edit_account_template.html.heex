@@ -2,9 +2,9 @@
   <div class="w-[800px] pb-10">
     <div class="flex h-[88px] items-center justify-between py-6">
       <h1 class="text-xl leading-[30px] font-semibold text-content-strong">Personal Info</h1>
-      <.link navigate={~p"/account/delete"} class="rounded bg-danger px-4 py-2 text-sm font-medium text-danger-content transition-colors hover:bg-danger-hover">
+      <.button type="link" style="danger" navigate={~p"/account/delete"}>
         Delete Account
-      </.link>
+      </.button>
     </div>
 
     <div class="flex flex-col gap-6">
@@ -167,14 +167,9 @@
                 <% end %>
               </div>
             </div>
-            <button
-              class="rounded border border-line-default bg-base-800 px-3 py-1.5 text-sm font-medium text-content-body hover:bg-base-700 disabled:cursor-not-allowed disabled:opacity-50"
-              phx-click="delete-access-token"
-              phx-value-access_token_id={access_token.id}
-              data-confirm="Are you sure?"
-            >
+            <.button phx-click="delete-access-token" phx-value-access_token_id={access_token.id} data-confirm="Are you sure?">
               Delete
-            </button>
+            </.button>
           </div>
         </div>
       </div>
@@ -202,14 +197,9 @@
               </span>
               <span :if={is_nil(link.last_used_at)}>Not used yet.</span>
             </div>
-            <button
-              class="rounded border border-line-default bg-base-800 px-3 py-1.5 text-sm font-medium text-content-body hover:bg-base-700"
-              phx-click="unlink-slack"
-              phx-value-link_id={link.id}
-              data-confirm="Unlink this Slack account? Its buttons in Slack will ask to be linked again."
-            >
+            <.button phx-click="unlink-slack" phx-value-link_id={link.id} data-confirm="Unlink this Slack account? Its buttons in Slack will ask to be linked again.">
               Unlink
-            </button>
+            </.button>
           </div>
         </div>
       </div>

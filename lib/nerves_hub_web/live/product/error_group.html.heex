@@ -77,17 +77,11 @@
     <div class="flex flex-col gap-4 rounded border border-line-default bg-surface-raised p-5">
       <div class="flex flex-row items-center justify-between">
         <div class="leading-6 font-medium text-content-strong">Occurrences over time</div>
-        <div class="flex flex-row gap-1 rounded-sm bg-base-800 p-0.5">
-          <button
-            :for={{label, value} <- periods()}
-            phx-click="select-period"
-            phx-value-period={value}
-            data-selected={@period == value}
-            class="cursor-pointer appearance-none rounded-sm border-0 bg-transparent px-3 py-1.5 text-xs leading-none font-medium whitespace-nowrap text-content-muted shadow-none transition-colors duration-120 hover:bg-primary/80 hover:text-primary-content data-selected:bg-primary data-selected:font-semibold data-selected:text-primary-content"
-          >
+        <.segmented_control label="Occurrences period">
+          <:segment :for={{label, value} <- periods()} selected={@period == value} phx-click="select-period" phx-value-period={value}>
             {label}
-          </button>
-        </div>
+          </:segment>
+        </.segmented_control>
       </div>
       <div class="h-[160px] grow">
         <canvas

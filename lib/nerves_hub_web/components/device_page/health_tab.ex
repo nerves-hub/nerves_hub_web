@@ -278,24 +278,17 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
               </time>
             </div>
           </div>
-          <div class="inline-flex rounded-md shadow-control" role="group">
-            <button
+          <.segmented_control label="Metrics time frame">
+            <:segment
               :for={{unit, amount} <- @time_frame_opts}
-              type="button"
-              class={[
-                "cursor-pointer border border-line-strong px-4 py-2 text-sm font-medium first:rounded-s-lg last:rounded-e-lg hover:bg-base-700 hover:text-base-200 focus:z-10 focus:ring-0",
-                {unit, amount} != @time_frame && "bg-base-800 text-content-body",
-                {unit, amount} == @time_frame && "bg-base-700 text-base-200"
-              ]}
-              aria-label={Integer.to_string(amount) <> " " <> unit <> if amount > 1, do: "s", else: ""}
-              type="button"
+              selected={{unit, amount} == @time_frame}
               phx-click="set-time-frame"
               phx-value-unit={unit}
               phx-value-amount={amount}
             >
               {Integer.to_string(amount) <> " " <> unit <> if amount > 1, do: "s", else: ""}
-            </button>
-          </div>
+            </:segment>
+          </.segmented_control>
         </div>
 
         <div class="flex flex-col divide-y divide-line-subtle">
@@ -375,25 +368,18 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
           <div class="flex items-end gap-3">
             <div class="text-base font-medium text-content-strong">Health over time</div>
           </div>
-          <div class="inline-flex rounded-md shadow-control" role="group">
-            <button
+          <.segmented_control label="Metrics time frame">
+            <:segment
               :for={{unit, amount} <- @time_frame_opts}
-              type="button"
-              class={[
-                "border border-line-strong px-4 py-2 text-sm font-medium first:rounded-s-lg last:rounded-e-lg focus:z-10 focus:ring-0",
-                {unit, amount} != @time_frame && "bg-base-800 text-content-body",
-                {unit, amount} == @time_frame && "bg-base-700 text-base-200"
-              ]}
-              aria-label={Integer.to_string(amount) <> " " <> unit <> if amount > 1, do: "s", else: ""}
-              type="button"
+              selected={{unit, amount} == @time_frame}
               disabled
               phx-click="set-time-frame"
               phx-value-unit={unit}
               phx-value-amount={amount}
             >
               {Integer.to_string(amount) <> " " <> unit <> if amount > 1, do: "s", else: ""}
-            </button>
-          </div>
+            </:segment>
+          </.segmented_control>
         </div>
 
         <div class="flex h-full flex-col items-center justify-center gap-10 p-10">

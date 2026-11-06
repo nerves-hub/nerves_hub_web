@@ -104,7 +104,8 @@ defmodule NervesHubWeb do
           status_dot: 1,
           tooltip: 1,
           badge: 1,
-          tag: 1
+          tag: 1,
+          segmented_control: 1
         ]
 
       import NervesHubWeb.Helpers.Authorization
@@ -194,7 +195,8 @@ defmodule NervesHubWeb do
           status_dot: 1,
           tooltip: 1,
           badge: 1,
-          tag: 1
+          tag: 1,
+          segmented_control: 1
         ]
 
       import NervesHubWeb.Helpers.Authorization
@@ -270,7 +272,8 @@ defmodule NervesHubWeb do
           status_dot: 1,
           tooltip: 1,
           badge: 1,
-          tag: 1
+          tag: 1,
+          segmented_control: 1
         ]
 
       # The sidebar asks this before rendering the link to the Iroh Endpoints
@@ -319,7 +322,8 @@ defmodule NervesHubWeb do
           status_dot: 1,
           tooltip: 1,
           badge: 1,
-          tag: 1
+          tag: 1,
+          segmented_control: 1
         ]
 
       import NervesHubWeb.Helpers.Authorization

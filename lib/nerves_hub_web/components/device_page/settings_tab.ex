@@ -205,7 +205,7 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
               </div>
             </div>
             <div class="flex gap-2">
-              <.link class="flex gap-2 rounded border border-line-strong bg-base-800 px-3 py-1.5" href={~p"/org/#{@org}/#{@product}/devices/#{@device}/certificate/#{certificate}/download"} download>
+              <.button type="link" href={~p"/org/#{@org}/#{@product}/devices/#{@device}/certificate/#{certificate}/download"} download>
                 <svg class="size-5" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
                   <path
                     d="M6.66671 16.6667H5.00004C4.07957 16.6667 3.33337 15.9205 3.33337 15V5.00004C3.33337 4.07957 4.07957 3.33337 5.00004 3.33337H12.643C13.085 3.33337 13.509 3.50897 13.8215 3.82153L16.1786 6.17855C16.4911 6.49111 16.6667 6.91504 16.6667 7.35706V15C16.6667 15.9205 15.9205 16.6667 15 16.6667H13.3334M6.66671 16.6667V12.5H13.3334V16.6667M6.66671 16.6667H13.3334M6.66671 6.66671V9.16671H9.16671V6.66671H6.66671Z"
@@ -215,14 +215,8 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
                     stroke-linejoin="round"
                   />
                 </svg>
-              </.link>
-              <button
-                class="flex gap-2 rounded border border-alert bg-base-800 px-3 py-1.5"
-                type="button"
-                phx-click="delete-certificate"
-                phx-value-serial={certificate.serial}
-                data-confirm="Are you sure you want to delete this certificate?"
-              >
+              </.button>
+              <.button style="danger" type="button" phx-click="delete-certificate" phx-value-serial={certificate.serial} data-confirm="Are you sure you want to delete this certificate?">
                 <svg class="size-5" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
                   <path
                     d="M12.4999 5.83337H7.49992M12.4999 5.83337H14.9999M12.4999 5.83337C12.4999 4.45266 11.3806 3.33337 9.99992 3.33337C8.61921 3.33337 7.49992 4.45266 7.49992 5.83337M7.49992 5.83337H4.99992M3.33325 5.83337H4.99992M4.99992 5.83337V15C4.99992 15.9205 5.74611 16.6667 6.66659 16.6667H13.3333C14.2537 16.6667 14.9999 15.9205 14.9999 15V5.83337M14.9999 5.83337H16.6666M8.33325 9.16671V13.3334M11.6666 13.3334V9.16671"
@@ -232,7 +226,7 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
                     stroke-linejoin="round"
                   />
                 </svg>
-              </button>
+              </.button>
             </div>
           </div>
         </div>
@@ -315,12 +309,7 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
         </div>
         <div class="flex items-center gap-6 border-line-default p-6">
           <div>
-            <button
-              class="flex gap-2 rounded border border-alert bg-base-800 px-3 py-1.5"
-              type="button"
-              phx-click="destroy-device"
-              data-confirm="Are you sure you want to permanently delete this device?"
-            >
+            <.button style="danger" type="button" phx-click="destroy-device" data-confirm="Are you sure you want to permanently delete this device?">
               <svg class="size-5 stroke-alert" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <path
                   d="M12.4999 5.83337H7.49992M12.4999 5.83337H14.9999M12.4999 5.83337C12.4999 4.45266 11.3806 3.33337 9.99992 3.33337C8.61921 3.33337 7.49992 4.45266 7.49992 5.83337M7.49992 5.83337H4.99992M3.33325 5.83337H4.99992M4.99992 5.83337V15C4.99992 15.9205 5.74611 16.6667 6.66659 16.6667H13.3333C14.2537 16.6667 14.9999 15.9205 14.9999 15V5.83337M14.9999 5.83337H16.6666M8.33325 9.16671V13.3334M11.6666 13.3334V9.16671"
@@ -331,11 +320,11 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
               </svg>
 
               <span class="text-sm font-medium text-alert">Permanently delete device</span>
-            </button>
+            </.button>
           </div>
           <div class="text-content-body">or</div>
           <div>
-            <button class="flex gap-2 rounded border border-line-strong bg-base-800 px-3 py-1.5" type="button" phx-click="restore-device" data-confirm="Are you sure you want to restore this device?">
+            <.button type="button" phx-click="restore-device" data-confirm="Are you sure you want to restore this device?">
               <svg class="size-5" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <path
                   d="M8.5 18.9999H5.39903C3.87406 18.9999 2.91012 17.3617 3.65071 16.0287L7 9.99994M7 9.99994L3 11.9999M7 9.99994L8 13.9999M18.9999 13.9999L20.1987 16.0122C20.9929 17.3454 20.0323 19.0358 18.4805 19.0358L12.768 19.0358M12.768 19.0358L16 21.9999M12.768 19.0358L16 15.9999M8.5 6.99994L10.5883 3.86749C11.4401 2.58975 13.3545 2.70894 14.0413 4.08246L17 9.99994M17 9.99994L18 5.99994M17 9.99994L13 8.99994"
@@ -347,7 +336,7 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
               </svg>
 
               <span class="text-sm font-medium text-content-body">Restore device</span>
-            </button>
+            </.button>
           </div>
         </div>
       </div>
@@ -355,8 +344,8 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
       <div :if={!@device.deleted_at && authorized?(:"device:update", @current_scope)} class="flex w-full flex-col rounded border border-line-default bg-surface-raised shadow-card">
         <div class="flex items-center gap-6 border-t border-line-default p-6">
           <div>
-            <button
-              class="flex gap-2 rounded border border-alert bg-base-800 px-3 py-1.5 hover:bg-alert-soft"
+            <.button
+              style="danger"
               type="button"
               phx-click="delete-device"
               data-confirm="Are you sure you want to delete this device? It will be disconnected and removed from its deployment group, and any certificates associated with it will be deleted."
@@ -370,7 +359,7 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
                 />
               </svg>
               <span class="text-sm font-medium text-alert">Delete device</span>
-            </button>
+            </.button>
           </div>
           <div>
             The device will be disabled and unable to connect to the NervesHub server.

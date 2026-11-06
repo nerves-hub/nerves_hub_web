@@ -27,15 +27,9 @@
               Created by: {signing_key.created_by.name} ({signing_key.created_by.email})
             </div>
           </div>
-          <button
-            class="rounded border border-line-default bg-base-800 px-3 py-1.5 text-sm font-medium text-content-body hover:bg-base-700 disabled:cursor-not-allowed disabled:opacity-50"
-            phx-click="delete"
-            phx-value-signing_key_id={signing_key.id}
-            disabled={!authorized?(:"signing_key:delete", @current_scope)}
-            data-confirm="Are you sure?"
-          >
+          <.button phx-click="delete" phx-value-signing_key_id={signing_key.id} disabled={!authorized?(:"signing_key:delete", @current_scope)} data-confirm="Are you sure?">
             Delete
-          </button>
+          </.button>
         </div>
       <% end %>
     </div>

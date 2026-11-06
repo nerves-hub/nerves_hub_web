@@ -79,7 +79,7 @@ defmodule NervesHubWeb.Components.FilterSidebar do
         </div>
 
         <div class="mb-14 flex h-16 shrink-0 justify-end border-t border-line-default p-4">
-          <button class="sidebar-button" type="button" phx-click={@on_reset}>Reset Filters</button>
+          <.button type="button" phx-click={@on_reset}>Reset Filters</.button>
         </div>
       </div>
     </div>

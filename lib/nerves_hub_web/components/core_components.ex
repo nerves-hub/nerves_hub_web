@@ -394,146 +394,158 @@ defmodule NervesHubWeb.CoreComponents do
   end
 
   @doc """
-  Renders a button.
+  Renders a button, or a link that looks like one with `type="link"`.
+
+  ## Styles
+
+    * `secondary` (the default): an everyday action.
+    * `primary`: the one main action on a page or in a form.
+    * `danger`: an outlined destructive action, such as one that asks for
+      confirmation first or leads to a page that does.
+    * `danger-solid`: the last step of something that can't be undone, such as
+      deleting an account.
+
+  ## Sizes
+
+  `md` (the default) for page and form actions, and `sm` for a compact action
+  inside a row, card or toolbar.
 
   ## Examples
 
       <.button>Send!</.button>
-      <.button phx-click="go" class="ml-2">Send!</.button>
+      <.button style="primary" type="submit">Save</.button>
+      <.button type="link" navigate={~p"/orgs"}>Back</.button>
+      <.button style="danger" size="sm" phx-click="remove">Remove</.button>
   """
-  attr(:style, :string, default: "secondary", values: ~w(primary secondary danger))
+  attr(:style, :string, default: "secondary", values: ~w(primary secondary danger danger-solid))
+  attr(:size, :string, default: "md", values: ~w(sm md))
   attr(:type, :string, default: "button")
-  attr(:class, :string, default: nil)
-  attr(:rest, :global, include: ~w(disabled form name value href navigate download patch))
+  attr(:class, :any, default: nil)
+  attr(:rest, :global, include: ~w(disabled form name value href navigate download patch method replace))
 
   slot(:inner_block, required: true)
 
-  def button(%{type: "link", style: "secondary"} = assigns) do
+  def button(%{type: "link"} = assigns) do
     ~H"""
-    <.link
-      class={[
-        "flex items-center justify-center gap-2 rounded px-3 py-1.5 phx-submit-loading:opacity-75",
-        "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring",
-        "bg-base-800 hover:bg-base-700 active:bg-primary disabled:bg-base-800",
-        "rounded border border-line-strong active:border-primary",
-        "stroke-base-400 active:stroke-primary-content disabled:stroke-base-600",
-        "text-sm font-medium text-content-body hover:text-content-strong active:text-primary-content disabled:text-content-faint",
-        @class
-      ]}
-      {@rest}
-    >
+    <.link class={button_classes(@style, @size, @class)} {@rest}>
       {render_slot(@inner_block)}
     </.link>
     """
   end
 
-  def button(%{type: "link", style: "primary"} = assigns) do
+  def button(assigns) do
     ~H"""
-    <.link
-      class={[
-        "flex items-center justify-center gap-2 rounded px-3 py-1.5 phx-submit-loading:opacity-75",
-        "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring",
-        "border border-transparent bg-primary hover:bg-primary-hover active:bg-primary-active",
-        "stroke-primary-content text-sm font-medium text-primary-content",
-        "light:bg-indigo-600 light:hover:bg-indigo-500 light:active:bg-indigo-700",
-        @class
-      ]}
-      {@rest}
-    >
-      {render_slot(@inner_block)}
-    </.link>
-    """
-  end
-
-  def button(%{type: "link", style: "danger"} = assigns) do
-    ~H"""
-    <.link
-      class={[
-        "flex items-center",
-        "flex gap-2 rounded px-3 py-1.5 phx-submit-loading:opacity-75",
-        "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring",
-        "bg-base-800 hover:bg-base-700 active:bg-base-600",
-        "rounded border border-alert",
-        "stroke-alert",
-        "text-sm font-medium text-alert",
-        @class
-      ]}
-      {@rest}
-    >
-      {render_slot(@inner_block)}
-    </.link>
-    """
-  end
-
-  def button(%{style: "primary"} = assigns) do
-    ~H"""
-    <button
-      type={@type}
-      class={
-        [
-          "flex gap-2 rounded px-3 py-1.5 hover:cursor-pointer phx-submit-loading:opacity-75",
-          "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring",
-          # The transparent border keeps it the height of a secondary button, and
-          # lets disabled recolour the edge rather than add one.
-          "border border-transparent bg-primary hover:bg-primary-hover active:bg-primary-active",
-          "disabled:border-line-strong disabled:bg-base-800",
-          "stroke-primary-content disabled:stroke-base-500",
-          "text-sm font-medium text-primary-content disabled:text-content-faint",
-          # Light-theme contrast: indigo-500 sits at the AA floor on white, so the design system
-          # darkens the fill to indigo-600 (hover 500 / active 700); disabled stays grey.
-          "light:bg-indigo-600 light:hover:bg-indigo-500 light:active:bg-indigo-700 light:disabled:bg-base-800",
-          @class
-        ]
-      }
-      {@rest}
-    >
+    <button type={@type} class={button_classes(@style, @size, @class)} {@rest}>
       {render_slot(@inner_block)}
     </button>
     """
   end
 
-  def button(%{style: "secondary"} = assigns) do
-    ~H"""
-    <button
-      type={@type}
-      class={
-        [
-          "flex gap-2 rounded px-3 py-1.5 hover:cursor-pointer phx-submit-loading:opacity-75",
-          "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring",
-          "bg-base-800 hover:bg-base-700 active:bg-primary disabled:bg-base-800",
-          "rounded border border-line-strong active:border-primary",
-          "stroke-base-400 active:stroke-primary-content disabled:stroke-base-600",
-          "text-sm font-medium text-content-body hover:text-content-strong active:text-primary-content disabled:text-content-faint",
-          # line-strong already clears 3:1 on white, as every control outline does,
-          # so light only darkens the edge on hover (zinc-600).
-          "light:hover:border-base-400",
-          @class
-        ]
-      }
-      {@rest}
-    >
-      {render_slot(@inner_block)}
-    </button>
-    """
+  defp button_classes(style, size, class) do
+    [
+      "flex items-center justify-center rounded border font-medium hover:cursor-pointer disabled:cursor-not-allowed phx-submit-loading:opacity-75",
+      "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring",
+      button_size(size),
+      button_style(style),
+      class
+    ]
   end
 
-  def button(%{style: "danger"} = assigns) do
+  defp button_size("md"), do: "gap-2 px-3 py-1.5 text-sm"
+  defp button_size("sm"), do: "gap-1.5 px-2 py-1 text-xs"
+
+  defp button_style("primary") do
+    [
+      # The transparent border keeps it the height of a secondary button, and
+      # lets disabled recolour the edge rather than add one.
+      "border-transparent bg-primary hover:bg-primary-hover active:bg-primary-active",
+      "disabled:border-line-strong disabled:bg-base-800",
+      "stroke-primary-content text-primary-content disabled:stroke-base-500 disabled:text-content-faint",
+      # Light-theme contrast: indigo-500 sits at the AA floor on white, so the design system
+      # darkens the fill to indigo-600 (hover 500 / active 700); disabled stays grey.
+      "light:bg-indigo-600 light:hover:bg-indigo-500 light:active:bg-indigo-700 light:disabled:bg-base-800"
+    ]
+  end
+
+  defp button_style("secondary") do
+    [
+      "border-line-strong bg-base-800 hover:bg-base-700 active:border-primary active:bg-primary disabled:bg-base-800",
+      "stroke-base-400 active:stroke-primary-content disabled:stroke-base-600",
+      "text-content-body hover:text-content-strong active:text-primary-content disabled:text-content-faint",
+      # line-strong already clears 3:1 on white, as every control outline does,
+      # so light only darkens the edge on hover (zinc-600).
+      "light:hover:border-base-400"
+    ]
+  end
+
+  defp button_style("danger") do
+    [
+      "border-alert bg-base-800 hover:bg-base-700 active:bg-base-600 disabled:border-line-strong disabled:bg-base-800",
+      "stroke-alert text-alert disabled:stroke-base-500 disabled:text-content-faint"
+    ]
+  end
+
+  defp button_style("danger-solid") do
+    [
+      "border-transparent bg-danger hover:bg-danger-hover disabled:border-line-strong disabled:bg-base-800",
+      "stroke-danger-content text-danger-content disabled:stroke-base-500 disabled:text-content-faint"
+    ]
+  end
+
+  @doc """
+  Renders a segmented control: a few mutually exclusive options that act as
+  soon as one is picked, such as a chart's time range.
+
+  Each `:segment` is a button, and `selected` marks the current one (as
+  `aria-pressed`). Any other attribute on a segment, such as `phx-click`,
+  `phx-value-*` or `disabled`, is passed to its button.
+
+  ## Examples
+
+      <.segmented_control id="chart-period" label="Time range">
+        <:segment :for={{label, value} <- @periods} selected={@period == value} phx-click="select-period" phx-value-period={value}>
+          {label}
+        </:segment>
+      </.segmented_control>
+  """
+  attr(:id, :string, default: nil)
+  attr(:label, :string, required: true, doc: "names the group for assistive technology")
+  attr(:class, :any, default: nil)
+  attr(:rest, :global)
+
+  # Every attribute but `selected` passes through to the segment's button, so
+  # the slot's attributes aren't validated.
+  slot(:segment,
+    required: true,
+    validate_attrs: false,
+    doc: "an option; `selected` marks the current one, and other attributes go to its button"
+  )
+
+  def segmented_control(assigns) do
     ~H"""
-    <button
-      type={@type}
-      class={[
-        "flex gap-2 rounded px-3 py-1.5 hover:cursor-pointer phx-submit-loading:opacity-75",
-        "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring",
-        "bg-base-800 hover:bg-base-700 active:bg-base-600 disabled:bg-base-800",
-        "rounded border border-alert disabled:border-line-strong",
-        "stroke-alert disabled:stroke-base-500",
-        "text-sm font-medium text-alert disabled:text-content-faint",
-        @class
-      ]}
+    <div
+      id={@id}
+      role="group"
+      aria-label={@label}
+      class={["inline-flex gap-0.5 rounded-md border border-line-default bg-surface-muted p-0.5", @class]}
       {@rest}
     >
-      {render_slot(@inner_block)}
-    </button>
+      <button
+        :for={segment <- @segment}
+        type="button"
+        aria-pressed={to_string(segment[:selected] || false)}
+        class={[
+          "rounded px-3 py-1.5 text-xs leading-none font-medium whitespace-nowrap text-content-muted transition-colors duration-120",
+          "focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-focus-ring",
+          "enabled:cursor-pointer disabled:opacity-50",
+          "aria-[pressed=false]:enabled:hover:bg-primary/80 aria-[pressed=false]:enabled:hover:text-primary-content",
+          "aria-pressed:bg-primary aria-pressed:text-primary-content aria-pressed:shadow-control light:aria-pressed:bg-indigo-600"
+        ]}
+        {assigns_to_attributes(segment, [:selected])}
+      >
+        {render_slot(segment)}
+      </button>
+    </div>
     """
   end
 

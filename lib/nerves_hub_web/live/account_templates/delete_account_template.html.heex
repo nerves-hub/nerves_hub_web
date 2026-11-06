@@ -2,9 +2,9 @@
   <div class="w-[800px]">
     <div class="flex h-[88px] items-center justify-between py-6">
       <h1 class="text-xl leading-[30px] font-semibold text-content-strong">Delete Account</h1>
-      <.link navigate={~p"/account"} class="rounded border border-line-strong bg-base-800 px-4 py-2 text-sm font-medium text-content-strong transition-colors hover:bg-base-700">
+      <.button type="link" navigate={~p"/account"}>
         Cancel
-      </.link>
+      </.button>
     </div>
 
     <div class="rounded border border-alert bg-base-900 p-6">
@@ -44,9 +44,9 @@
         </div>
 
         <div class="flex justify-end">
-          <button type="submit" class="cursor-pointer rounded bg-danger px-4 py-2 text-sm font-medium text-danger-content transition-colors hover:bg-danger-hover">
+          <.button style="danger-solid" type="submit">
             I understand the consequences, delete this account
-          </button>
+          </.button>
         </div>
       </.form>
     </div>

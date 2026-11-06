@@ -150,9 +150,8 @@
           </div>
         </div>
 
-        <button
+        <.button
           :if={authorized?(:"network_identity:delete", @current_scope)}
-          class="rounded border border-line-default bg-base-800 px-3 py-1.5 text-sm font-medium text-content-body hover:bg-base-700"
           phx-click="delete"
           phx-value-id={identity.id}
           data-confirm={
@@ -162,7 +161,7 @@
           }
         >
           Remove
-        </button>
+        </.button>
       </div>
     </div>
   </div>

@@ -602,20 +602,6 @@ body {
   padding: 0;
 }
 
-.sidebar-button {
-  @apply bg-base-800 border-line-strong text-content-strong hover:border-base-400 border;
-  display: flex;
-  gap: 8px;
-  padding: 6px 12px;
-  justify-content: center;
-  align-items: center;
-  border-radius: 4px;
-  font-size: 14px;
-  font-weight: 500;
-  line-height: 20px;
-  cursor: pointer;
-}
-
 .org-avatar {
   width: 32px;
   height: 32px;

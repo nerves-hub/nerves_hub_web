@@ -95,24 +95,23 @@
             </td>
             <td class="text-right">
               <div class="flex justify-end gap-2">
-                <.link
+                <.button
                   :if={authorized?(:"org_user:update", @current_scope) && org_user.user.id != @current_scope.user.id}
+                  type="link"
                   navigate={~p"/org/#{@org}/settings/users/#{org_user.user_id}/edit"}
-                  class="rounded border border-line-default bg-base-800 px-3 py-1.5 text-sm font-medium text-content-body hover:bg-base-700"
                 >
                   Edit Role
-                </.link>
-                <button
+                </.button>
+                <.button
                   :if={can_remove?(org_user, @current_scope, @admin_count)}
+                  style="danger"
                   id={"remove-user-#{org_user.user_id}"}
-                  type="link"
-                  class="cursor-pointer rounded border border-alert bg-base-800 px-3 py-1.5 text-sm font-medium text-alert hover:bg-base-700"
                   phx-click="delete_org_user"
                   phx-value-user_id={org_user.user_id}
                   data-confirm={remove_user_message(org_user, @current_scope)}
                 >
                   Remove
-                </button>
+                </.button>
               </div>
             </td>
           </tr>
