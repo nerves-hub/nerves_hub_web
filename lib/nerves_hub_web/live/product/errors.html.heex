@@ -1,9 +1,9 @@
 <NervesHubWeb.Layouts.sidebar flash={@flash} current_scope={@current_scope} sidebar_tab={@sidebar_tab}>
   <:header>
     <h1 class="text-xl leading-[30px] font-semibold text-content-strong">Errors</h1>
-    <div :if={@extension_enabled?} id="error-count" class="mr-auto rounded-sm bg-base-800 px-1.5 py-0.5 text-xs text-content-body">
+    <.badge :if={@extension_enabled?} id="error-count" class="mr-auto">
       {@status_counts.unresolved} unresolved
-    </div>
+    </.badge>
   </:header>
 
   <div :if={!@extension_enabled?} class="flex h-full flex-col items-center justify-center gap-3 p-14">

@@ -33,7 +33,7 @@
         <div class="flex justify-between gap-4">
           <dt class="text-content-muted">Serial</dt>
           <dd>
-            <code class="rounded bg-base-800 px-2 py-1 font-mono text-xs break-all text-content-body">{Utils.format_serial(@certificate.serial)}</code>
+            <.tag mono class="break-all">{Utils.format_serial(@certificate.serial)}</.tag>
           </dd>
         </div>
         <div class="flex justify-between gap-4">
@@ -76,9 +76,9 @@
     <div id="ca-devices" class="flex flex-col rounded border border-line-default bg-surface-raised">
       <div class="flex h-14 items-center gap-2 border-b border-line-default px-4">
         <div class="text-base font-medium text-content-strong">Devices</div>
-        <div class="rounded-sm bg-base-800 px-1.5 py-0.5 text-xs text-content-body">
+        <.badge>
           {Number.Delimit.number_to_delimited(@device_count, precision: 0)}
-        </div>
+        </.badge>
       </div>
       <div class="flex flex-col px-4 py-3">
         <div :if={@device_counts == []} class="text-sm text-content-muted">

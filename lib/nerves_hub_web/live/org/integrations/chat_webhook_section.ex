@@ -297,21 +297,15 @@ defmodule NervesHubWeb.Live.Org.Integrations.ChatWebhookSection do
 
   defp status_badge(assigns) do
     ~H"""
-    <span :if={!@channel.enabled} class="rounded-full border border-line-strong bg-base-800 px-2 py-0.5 text-xs font-medium text-content-muted">
+    <.badge :if={!@channel.enabled}>
       Off
-    </span>
-    <span
-      :if={@channel.enabled && @channel.last_error}
-      class="rounded-full border border-alert bg-alert-soft px-2 py-0.5 text-xs font-medium text-alert"
-    >
+    </.badge>
+    <.badge :if={@channel.enabled && @channel.last_error} tone="alert">
       Failing
-    </span>
-    <span
-      :if={@channel.enabled && is_nil(@channel.last_error)}
-      class="rounded-full border border-success px-2 py-0.5 text-xs font-medium text-success"
-    >
+    </.badge>
+    <.badge :if={@channel.enabled && is_nil(@channel.last_error)} tone="success">
       On
-    </span>
+    </.badge>
     """
   end
 end

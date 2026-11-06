@@ -1,9 +1,9 @@
 <NervesHubWeb.Layouts.sidebar flash={@flash} current_scope={@current_scope} sidebar_tab={@sidebar_tab}>
   <:header>
     <h1 class="text-xl leading-[30px] font-semibold text-content-strong">All Archives</h1>
-    <div class="mr-auto rounded-sm bg-base-800 px-1.5 py-0.5 text-xs text-content-body">
+    <.badge class="mr-auto">
       {@pager_meta.total_count}
-    </div>
+    </.badge>
 
     <div :for={entry <- @uploads.archive.entries} class="flex w-2/5 flex-col items-center pr-2 pl-4">
       <div class="mb-1 flex justify-between">

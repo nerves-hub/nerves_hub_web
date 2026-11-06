@@ -31,12 +31,9 @@
         <span class="text-xs text-content-strong">Preparing: Generating Deltas</span>
       </div>
 
-      <div
-        :if={@deployment_group.current_release.delta_status == :failed}
-        class="rounded border border-alert bg-base-800 px-2 py-1 text-xs text-alert"
-      >
+      <.badge :if={@deployment_group.current_release.delta_status == :failed} tone="alert">
         Error: Deltas failed to generate
-      </div>
+      </.badge>
     </div>
 
     <div class="flex items-center gap-2">

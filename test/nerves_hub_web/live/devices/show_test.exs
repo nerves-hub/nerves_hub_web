@@ -2453,8 +2453,8 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
 
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
-      |> assert_has("span", text: "iroh_console")
-      |> assert_has("span", text: "kiosk_sync")
+      |> assert_has("code", text: "iroh_console")
+      |> assert_has("code", text: "kiosk_sync")
       |> assert_has("span", text: "console-endpoint-key")
       |> assert_has("span", text: "sync-endpoint-key")
     end

@@ -110,14 +110,14 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Releases do
                       <.local_datetime at={release.inserted_at} time_zone={@time_zone} format={:time} class="text-xs text-content-faint" />
                     </div>
 
-                    <span
+                    <.badge
                       :if={release.required}
                       id={"release-#{release.id}-required"}
-                      class="mt-2 flex h-6 w-fit items-center rounded-full border border-line-default bg-base-800 px-2.5 text-xs font-medium text-content-body"
                       title="Devices that haven't reached this release are updated to it before any newer release"
+                      class="mt-2 block w-fit"
                     >
                       Required
-                    </span>
+                    </.badge>
                   </div>
 
                   <div class="flex min-w-0 grow flex-col gap-2 px-4 py-3 text-sm">
@@ -163,13 +163,9 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Releases do
                         <%!-- Release history outlives the firmware it names. The link still
                         resolves — the firmware page renders its own deleted state — but
                         without this the history reads as though the firmware is still there. --%>
-                        <span
-                          :if={Firmware.deleted?(release.firmware)}
-                          class="rounded-full border border-line-default bg-base-800 px-2 py-0.5 text-xs text-content-muted"
-                          title={deleted_summary(release.firmware, @time_zone)}
-                        >
+                        <.badge :if={Firmware.deleted?(release.firmware)} title={deleted_summary(release.firmware, @time_zone)}>
                           Deleted
-                        </span>
+                        </.badge>
                       </div>
 
                       <div class="text-sm whitespace-nowrap">

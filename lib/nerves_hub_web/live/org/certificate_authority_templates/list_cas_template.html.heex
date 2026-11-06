@@ -25,7 +25,7 @@
           <tr class="isolate border-b border-line-subtle">
             <td>
               <.link navigate={~p"/org/#{@org}/settings/certificates/#{cert}"}>
-                <code class="rounded bg-base-800 px-2 py-1 font-mono text-xs break-all text-content-body hover:text-content-strong">{Utils.format_serial(cert.serial)}</code>
+                <.tag mono class="break-all hover:text-content-strong">{Utils.format_serial(cert.serial)}</.tag>
               </.link>
             </td>
             <td>

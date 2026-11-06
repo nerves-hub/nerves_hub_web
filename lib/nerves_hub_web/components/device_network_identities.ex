@@ -64,12 +64,12 @@ defmodule NervesHubWeb.Components.DeviceNetworkIdentities do
             <span class="text-sm font-medium text-content-body">{service_name(identity.service)}</span>
             <%!-- Only worth naming when a device runs more than one endpoint of
             a service; saying "default" on every row is noise. --%>
-            <span :if={named_instance?(identity)} class="rounded border border-line-default bg-base-800 px-1.5 py-0.5 font-mono text-xs text-content-muted">
+            <.tag :if={named_instance?(identity)} mono>
               {identity.instance}
-            </span>
-            <span :if={identity.source == :operator} class="rounded border border-line-default bg-base-800 px-1.5 py-0.5 text-xs text-content-muted">
+            </.tag>
+            <.tag :if={identity.source == :operator}>
               set by operator
-            </span>
+            </.tag>
           </div>
 
           <.value_pill

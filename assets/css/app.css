@@ -536,18 +536,6 @@ body {
   text-align: left;
 }
 
-.tag {
-  @apply bg-base-800 rounded-md;
-  display: flex;
-  padding: 2px 4px;
-  align-items: center;
-  gap: 8px;
-
-  font-size: 12px;
-  font-weight: 400;
-  line-height: 16px;
-}
-
 .title {
   font-style: normal;
   font-weight: 600;
@@ -560,11 +548,6 @@ body {
   font-size: 16px;
   font-style: normal;
   font-weight: 600;
-}
-
-.badge {
-  @apply bg-base-800 text-content-body rounded-sm px-1 py-0.5;
-  font-size: 12px;
 }
 
 .pager-button {

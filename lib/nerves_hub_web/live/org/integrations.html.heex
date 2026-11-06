@@ -270,13 +270,9 @@
           </div>
 
           <div class="flex flex-wrap gap-2">
-            <code
-              :for={type <- webhook.events}
-              title={Events.label(type)}
-              class="rounded border border-line-default bg-base-800 px-2 py-0.5 text-xs text-content-body"
-            >
+            <.tag :for={type <- webhook.events} title={Events.label(type)} mono>
               {type}
-            </code>
+            </.tag>
           </div>
 
           <p :if={webhook.disabled_reason} class="text-sm text-alert">{webhook.disabled_reason}</p>

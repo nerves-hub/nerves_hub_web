@@ -3,12 +3,9 @@
     <div class="flex w-full justify-between">
       <div class="flex items-center gap-4">
         <h1 class="text-xl leading-[30px] font-semibold text-content-strong">Insights</h1>
-        <div
-          id="device-count"
-          class="mr-auto rounded-sm bg-base-800 px-1.5 py-0.5 text-xs text-content-body"
-        >
+        <.badge id="device-count" class="mr-auto">
           {Number.Delimit.number_to_delimited(@fleet_size, precision: 0)} {if(@fleet_size == 1, do: "device", else: "devices")}
-        </div>
+        </.badge>
       </div>
       <div class="flex items-center gap-3">
         <div class="flex items-center gap-1 text-xs tracking-wide text-content-faint">
@@ -362,7 +359,7 @@
             <div class="flex items-center">
               <div class="leading-6 font-medium text-content-strong">
                 Failed Firmware Updates
-                <span class="ml-2.5 inline-flex items-center gap-1.5 rounded-full border border-line-default py-0.5 pr-2.5 pl-2 text-xs/4 tracking-tight">{@failing_count}</span>
+                <.badge class="ml-2.5">{@failing_count}</.badge>
               </div>
               <.tooltip id="failing-updates-tooltip" placement="top" class="z-20 ml-4" content_class="w-72">
                 <span class="lucide-info--light size-4" />
@@ -403,7 +400,8 @@
         <div class="flex h-fit grow-0 flex-col gap-4.5 rounded border border-line-default bg-surface-raised p-5 shadow-card">
           <div class="flex items-center justify-between">
             <div class="leading-6 font-medium text-content-strong">
-              Notifications <span class="ml-2.5 inline-flex items-center gap-1.5 rounded-full border border-line-default py-0.5 pr-2.5 pl-2 text-xs/4 tracking-tight">{@notification_count}</span>
+              Notifications
+              <.badge class="ml-2.5">{@notification_count}</.badge>
             </div>
 
             <.link
@@ -439,7 +437,7 @@
           <div class="flex items-center justify-between">
             <div class="leading-6 font-medium text-content-strong">
               Firmware Versions
-              <span class="ml-2.5 inline-flex items-center gap-1.5 rounded-full border border-line-default py-0.5 pr-2.5 pl-2 text-xs/4 tracking-tight">{@firmware_version_count}</span>
+              <.badge class="ml-2.5">{@firmware_version_count}</.badge>
             </div>
             <.tooltip id="firmware-versions-tooltip" placement="top" class="z-20 ml-4" content_class="w-64">
               <span class="lucide-info--light size-4" />

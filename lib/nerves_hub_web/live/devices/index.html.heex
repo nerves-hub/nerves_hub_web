@@ -18,9 +18,9 @@
     </h1>
 
     <div class="mr-auto">
-      <div :if={@devices.ok?} id="device-count" class="mr-auto hidden rounded-sm bg-base-800 px-1.5 py-0.5 text-xs text-content-body" phx-mounted={fade_in("#device-count")}>
+      <.badge :if={@devices.ok?} id="device-count" phx-mounted={fade_in("#device-count")} class="mr-auto hidden">
         {Number.Delimit.number_to_delimited(@total_entries, precision: 0)}
-      </div>
+      </.badge>
     </div>
 
     <div class="flex justify-center gap-4">
@@ -95,7 +95,7 @@
 
                 <td>
                   <div class="flex items-center gap-1">
-                    <div class="tag h-2.5 w-[30px] rounded-full bg-base-700"></div>
+                    <div class="h-2.5 w-[30px] rounded-full bg-base-700"></div>
                   </div>
                 </td>
               </tr>
@@ -325,7 +325,7 @@
                     <div class="flex items-center gap-1 text-nowrap">
                       <%= if !is_nil(device.tags) do %>
                         <%= for tag <- device.tags do %>
-                          <span class="tag">{tag}</span>
+                          <.tag>{tag}</.tag>
                         <% end %>
                       <% end %>
                     </div>

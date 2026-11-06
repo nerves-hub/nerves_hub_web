@@ -97,7 +97,7 @@ defmodule NervesHubWeb.Components.PinnedDevices do
                     <div class="scrollable-inner flex items-center gap-[4px] text-nowrap">
                       <%= if !is_nil(device.tags) do %>
                         <%= for tag <- device.tags do %>
-                          <span class="tag">{tag}</span>
+                          <.tag>{tag}</.tag>
                         <% end %>
                       <% end %>
                     </div>

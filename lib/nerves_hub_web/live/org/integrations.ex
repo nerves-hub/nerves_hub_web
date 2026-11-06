@@ -265,24 +265,15 @@ defmodule NervesHubWeb.Live.Org.Integrations do
 
   defp status_badge(assigns) do
     ~H"""
-    <span
-      :if={!@webhook.enabled}
-      class="rounded-full border border-line-strong bg-base-800 px-2 py-0.5 text-xs font-medium text-content-muted"
-    >
+    <.badge :if={!@webhook.enabled}>
       Off
-    </span>
-    <span
-      :if={@webhook.enabled && @webhook.failing_since}
-      class="rounded-full border border-alert bg-alert-soft px-2 py-0.5 text-xs font-medium text-alert"
-    >
+    </.badge>
+    <.badge :if={@webhook.enabled && @webhook.failing_since} tone="alert">
       Failing
-    </span>
-    <span
-      :if={@webhook.enabled && is_nil(@webhook.failing_since)}
-      class="rounded-full border border-success px-2 py-0.5 text-xs font-medium text-success"
-    >
+    </.badge>
+    <.badge :if={@webhook.enabled && is_nil(@webhook.failing_since)} tone="success">
       On
-    </span>
+    </.badge>
     """
   end
 end

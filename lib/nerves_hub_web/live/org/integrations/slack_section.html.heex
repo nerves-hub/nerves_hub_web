@@ -154,9 +154,9 @@
       </div>
 
       <div class="flex flex-wrap gap-2">
-        <span :for={key <- subscription.events} class="rounded border border-line-default bg-base-800 px-2 py-0.5 text-xs text-content-body">
+        <.tag :for={key <- subscription.events}>
           {ChannelEvents.label(key)}
-        </span>
+        </.tag>
       </div>
 
       <p :if={subscription.disabled_reason} class="text-sm text-alert">{subscription.disabled_reason}</p>

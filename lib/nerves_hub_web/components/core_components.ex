@@ -134,6 +134,69 @@ defmodule NervesHubWeb.CoreComponents do
   end
 
   @doc """
+  Renders a badge: a short status or count, such as "Deleted", "Failing" or
+  the number beside a page title.
+
+  `tone` picks the colour, each a tinted fill with matching text: `neutral`
+  (the default), `notice`, `success`, `warning` or `alert`. For a label a user
+  gave something, such as a device tag, use `tag/1`.
+
+  ## Examples
+
+      <.badge>{@device_count}</.badge>
+      <.badge tone="alert">Failing</.badge>
+  """
+  attr(:tone, :string, default: "neutral", values: ~w(neutral notice success warning alert))
+  attr(:class, :any, default: nil)
+  attr(:rest, :global)
+
+  slot(:inner_block, required: true)
+
+  def badge(assigns) do
+    ~H"""
+    <span class={["rounded-full px-2 py-0.5 text-xs font-medium whitespace-nowrap", badge_tone(@tone), @class]} {@rest}>
+      {render_slot(@inner_block)}
+    </span>
+    """
+  end
+
+  defp badge_tone("neutral"), do: "bg-base-800 text-content-body"
+  defp badge_tone("notice"), do: "bg-notice-soft text-notice-content"
+  defp badge_tone("success"), do: "bg-success-soft text-success-content"
+  defp badge_tone("warning"), do: "bg-warning-soft text-warning-content"
+  defp badge_tone("alert"), do: "bg-alert-soft text-alert-content"
+
+  @doc """
+  Renders a tag: a label a user gave something, such as a device tag, or an
+  identifier shown as a value.
+
+  `mono` sets it in the monospace face inside a `<code>`, for identifiers
+  such as a serial or an event type. For a status or a count, use `badge/1`.
+
+  ## Examples
+
+      <.tag :for={tag <- @device.tags}>{tag}</.tag>
+      <.tag mono>{@certificate.serial}</.tag>
+  """
+  attr(:mono, :boolean, default: false)
+  attr(:class, :any, default: nil)
+  attr(:rest, :global)
+
+  slot(:inner_block, required: true)
+
+  def tag(%{mono: true} = assigns) do
+    ~H"""
+    <code class={["rounded border border-line-default bg-base-800 px-1.5 py-0.5 font-mono text-xs text-content-body", @class]} {@rest}>{render_slot(@inner_block)}</code>
+    """
+  end
+
+  def tag(assigns) do
+    ~H"""
+    <span class={["rounded border border-line-default bg-base-800 px-1.5 py-0.5 text-xs text-content-body", @class]} {@rest}>{render_slot(@inner_block)}</span>
+    """
+  end
+
+  @doc """
   Renders a trigger that shows a tooltip on hover.
 
   The inner block is the trigger and the `:content` slot is the tooltip. The

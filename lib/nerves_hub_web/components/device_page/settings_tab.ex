@@ -303,7 +303,7 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
               >
                 Deactivate
               </.button>
-              <span :if={auth.deactivated_at} class="rounded-sm bg-base-800 px-1.5 py-0.5 text-xs text-content-body">Deactivated</span>
+              <.badge :if={auth.deactivated_at}>Deactivated</.badge>
             </div>
           </div>
         </div>

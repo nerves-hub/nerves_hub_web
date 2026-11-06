@@ -17,9 +17,7 @@
           <div class="min-w-0 flex-1">
             <h3 class="mb-2 flex items-center gap-2 text-sm font-semibold text-content-strong">
               {signing_key.name}
-              <span class="rounded-full border border-line-default bg-base-800 px-2 py-0.5 text-xs font-normal">
-                <code class="text-content-body">{scheme_label(signing_key.scheme)}</code>
-              </span>
+              <.tag mono class="font-normal">{scheme_label(signing_key.scheme)}</.tag>
             </h3>
             <div class="mb-1 flex items-baseline gap-2 text-xs text-content-muted">
               <span :if={key_label(signing_key)} class="shrink-0 text-content-faint">{key_label(signing_key)}</span>
