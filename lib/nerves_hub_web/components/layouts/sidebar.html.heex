@@ -44,9 +44,9 @@
       <div
         :if={@current_scope.org}
         id="product-picker"
-        class="absolute top-0 left-[265px] hidden w-sidebar collapsed:left-16"
+        class="absolute top-0 left-(--sidebar-width) hidden w-sidebar collapsed:left-16"
       >
-        <div class="fixed top-0 left-[265px] z-30 size-full bg-backdrop collapsed:left-16"></div>
+        <div class="fixed top-0 left-(--sidebar-width) z-30 size-full bg-backdrop collapsed:left-16"></div>
         <div class="relative">
           <div
             class="relative z-50 scrollbar-thin max-h-[612px] overflow-y-scroll overscroll-none border-r border-b border-line-default bg-surface-overlay p-3 scrollbar-thumb-base-800 scrollbar-track-base-900"
