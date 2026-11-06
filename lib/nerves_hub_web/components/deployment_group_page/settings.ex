@@ -132,7 +132,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
               </div>
 
               <div class="flex w-fit shrink gap-2 rounded border border-line-strong bg-base-800 px-3 py-1.5 hover:cursor-pointer">
-                <.icon name="add" class="stroke-base-400" />
+                <.icon name="add" class="text-content-muted" />
                 <label for={@uploads.workflow_definition.ref} class="text-sm font-medium text-content-body hover:cursor-pointer">
                   {if is_nil(@deployment_group.workflow_definition), do: "Upload Workflow Definition", else: "Upload New Workflow Definition"}
                 </label>
@@ -352,7 +352,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
   defp superseded_by_workflow(assigns) do
     ~H"""
     <div class="flex w-2/3 gap-2 rounded border border-line-default bg-surface-muted px-3 py-2 text-sm text-content-muted">
-      <.icon name="info" class="mt-0.5 size-4 shrink-0 stroke-base-400" />
+      <.icon name="info" class="mt-0.5 text-content-muted" />
       <div>{render_slot(@inner_block)}</div>
     </div>
     """

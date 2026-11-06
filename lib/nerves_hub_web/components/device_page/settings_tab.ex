@@ -145,7 +145,7 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
           <div>
             <form id="upload-certificate" phx-change="validate-cert" phx-drop-target={@uploads.certificate.ref}>
               <div class="flex gap-2 rounded border border-line-strong bg-base-800 px-3 py-1.5 hover:cursor-pointer">
-                <.icon name="save" class="stroke-base-400" />
+                <.icon name="save" class="text-content-muted" />
                 <label for={@uploads.certificate.ref} class="text-sm font-medium text-content-body hover:cursor-pointer">Upload certificate</label>
                 <.live_file_input upload={@uploads.certificate} class="hidden" />
               </div>
@@ -158,15 +158,7 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
           </div>
           <div :for={certificate <- @device.device_certificates} class="flex h-16 items-center gap-6 p-2">
             <div class="flex h-8 items-center rounded-full border border-line-default bg-base-800 px-2 py-1">
-              <svg class="size-4" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path
-                  d="M8 6L7 7L8 8M11 6L12 7L11 8M15 7H17M7 11H9M12 11H17M17 14H16M13 14H7M6 21H18C19.1046 21 20 20.1046 20 19V5C20 3.89543 19.1046 3 18 3H6C4.89543 3 4 3.89543 4 5V19C4 20.1046 4.89543 21 6 21Z"
-                  class="stroke-base-400"
-                  stroke-width="1.5"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                />
-              </svg>
+              <span class="lucide-file-badge size-4 text-content-muted" aria-hidden="true"></span>
             </div>
             <div class="grow">
               <div class="text-content-body">Serial: {Utils.format_serial(certificate.serial)}</div>
@@ -198,18 +190,10 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
             </div>
             <div class="flex gap-2">
               <.button type="link" href={~p"/org/#{@org}/#{@product}/devices/#{@device}/certificate/#{certificate}/download"} download>
-                <.icon name="save" class="stroke-base-400" />
+                <.icon name="save" class="text-content-muted" />
               </.button>
               <.button style="danger" type="button" phx-click="delete-certificate" phx-value-serial={certificate.serial} data-confirm="Are you sure you want to delete this certificate?">
-                <svg class="size-5" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path
-                    d="M12.4999 5.83337H7.49992M12.4999 5.83337H14.9999M12.4999 5.83337C12.4999 4.45266 11.3806 3.33337 9.99992 3.33337C8.61921 3.33337 7.49992 4.45266 7.49992 5.83337M7.49992 5.83337H4.99992M3.33325 5.83337H4.99992M4.99992 5.83337V15C4.99992 15.9205 5.74611 16.6667 6.66659 16.6667H13.3333C14.2537 16.6667 14.9999 15.9205 14.9999 15V5.83337M14.9999 5.83337H16.6666M8.33325 9.16671V13.3334M11.6666 13.3334V9.16671"
-                    class="stroke-alert"
-                    stroke-width="1.25"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                  />
-                </svg>
+                <span class="lucide-trash size-4 text-alert" aria-hidden="true"></span>
               </.button>
             </div>
           </div>
@@ -294,14 +278,7 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
         <div class="flex items-center gap-6 border-line-default p-4">
           <div>
             <.button style="danger" type="button" phx-click="destroy-device" data-confirm="Are you sure you want to permanently delete this device?">
-              <svg class="size-5 stroke-alert" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path
-                  d="M12.4999 5.83337H7.49992M12.4999 5.83337H14.9999M12.4999 5.83337C12.4999 4.45266 11.3806 3.33337 9.99992 3.33337C8.61921 3.33337 7.49992 4.45266 7.49992 5.83337M7.49992 5.83337H4.99992M3.33325 5.83337H4.99992M4.99992 5.83337V15C4.99992 15.9205 5.74611 16.6667 6.66659 16.6667H13.3333C14.2537 16.6667 14.9999 15.9205 14.9999 15V5.83337M14.9999 5.83337H16.6666M8.33325 9.16671V13.3334M11.6666 13.3334V9.16671"
-                  stroke-width="1.25"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                />
-              </svg>
+              <span class="lucide-trash size-4 text-alert" aria-hidden="true"></span>
 
               <span class="text-sm font-medium text-alert">Permanently delete device</span>
             </.button>
@@ -309,15 +286,7 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
           <div class="text-content-body">or</div>
           <div>
             <.button type="button" phx-click="restore-device" data-confirm="Are you sure you want to restore this device?">
-              <svg class="size-5" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path
-                  d="M8.5 18.9999H5.39903C3.87406 18.9999 2.91012 17.3617 3.65071 16.0287L7 9.99994M7 9.99994L3 11.9999M7 9.99994L8 13.9999M18.9999 13.9999L20.1987 16.0122C20.9929 17.3454 20.0323 19.0358 18.4805 19.0358L12.768 19.0358M12.768 19.0358L16 21.9999M12.768 19.0358L16 15.9999M8.5 6.99994L10.5883 3.86749C11.4401 2.58975 13.3545 2.70894 14.0413 4.08246L17 9.99994M17 9.99994L18 5.99994M17 9.99994L13 8.99994"
-                  class="stroke-base-400"
-                  stroke-width="1.5"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                />
-              </svg>
+              <span class="lucide-rotate-ccw size-4 text-content-muted" aria-hidden="true"></span>
 
               <span class="text-sm font-medium text-content-body">Restore device</span>
             </.button>
@@ -334,14 +303,7 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
               phx-click="delete-device"
               data-confirm="Are you sure you want to delete this device? It will be disconnected and removed from its deployment group, and any certificates associated with it will be deleted."
             >
-              <svg class="size-5 stroke-alert" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path
-                  d="M12.4999 5.83337H7.49992M12.4999 5.83337H14.9999M12.4999 5.83337C12.4999 4.45266 11.3806 3.33337 9.99992 3.33337C8.61921 3.33337 7.49992 4.45266 7.49992 5.83337M7.49992 5.83337H4.99992M3.33325 5.83337H4.99992M4.99992 5.83337V15C4.99992 15.9205 5.74611 16.6667 6.66659 16.6667H13.3333C14.2537 16.6667 14.9999 15.9205 14.9999 15V5.83337M14.9999 5.83337H16.6666M8.33325 9.16671V13.3334M11.6666 13.3334V9.16671"
-                  stroke-width="1.25"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                />
-              </svg>
+              <span class="lucide-trash size-4 text-alert" aria-hidden="true"></span>
               <span class="text-sm font-medium text-alert">Delete device</span>
             </.button>
           </div>

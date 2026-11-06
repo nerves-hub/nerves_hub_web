@@ -770,15 +770,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Releases do
         phx-target={@myself}
         class="flex items-center gap-2 text-sm font-medium text-content-body hover:text-base-100"
       >
-        <svg
-          class={["size-4 transition-transform", @show_rollout_options && "rotate-90"]}
-          xmlns="http://www.w3.org/2000/svg"
-          viewBox="0 0 20 20"
-          fill="currentColor"
-        >
-          <path fill-rule="evenodd" d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z" clip-rule="evenodd" />
-        </svg>
-        Rollout options
+        <span class={["lucide-chevron-right--bold size-3 transition-transform", @show_rollout_options && "rotate-90"]} aria-hidden="true"></span> Rollout options
       </button>
 
       <div :if={@show_rollout_options} class="mt-4 w-1/2">

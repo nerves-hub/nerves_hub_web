@@ -931,15 +931,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
             type="button"
             phx-click="remove-from-deployment-group"
           >
-            <svg class="size-3" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path
-                d="M12.4999 5.83337H7.49992M12.4999 5.83337H14.9999M12.4999 5.83337C12.4999 4.45266 11.3806 3.33337 9.99992 3.33337C8.61921 3.33337 7.49992 4.45266 7.49992 5.83337M7.49992 5.83337H4.99992M3.33325 5.83337H4.99992M4.99992 5.83337V15C4.99992 15.9205 5.74611 16.6667 6.66659 16.6667H13.3333C14.2537 16.6667 14.9999 15.9205 14.9999 15V5.83337M14.9999 5.83337H16.6666M8.33325 9.16671V13.3334M11.6666 13.3334V9.16671"
-                class="stroke-alert"
-                stroke-width="1.667"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-              />
-            </svg>
+            <span class="lucide-trash--bold size-3 text-alert" aria-hidden="true"></span>
           </button>
         </div>
       </div>
@@ -1142,14 +1134,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
               aria-label="Clear script output"
               phx-click="clear-script-output"
             >
-              <svg class="size-3 stroke-alert" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path
-                  d="M8 8H16M16 12H8M8 16H12M20 13V6C20 4.89543 19.1046 4 18 4H6C4.89543 4 4 4.89543 4 6V18C4 19.1046 4.89543 20 6 20H13M19 19L21 17M19 19L17 17M19 19L21 21M19 19L17 21"
-                  stroke-width="2"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                />
-              </svg>
+              <span class="lucide-list-x--bold size-3 text-alert" aria-hidden="true"></span>
             </button>
           </div>
           <div class="rounded border border-line-default bg-base-950 p-2">
@@ -1244,9 +1229,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
                 aria-label={"Remove tag #{tag}"}
                 class="ml-1 text-content-faint hover:text-alert-content"
               >
-                <svg xmlns="http://www.w3.org/2000/svg" class="size-3" viewBox="0 0 20 20" fill="none">
-                  <path d="M10 10L6 6M10 10L14 14M10 10L14 6M10 10L6 14" stroke="currentColor" stroke-width="1.667" stroke-linecap="round" stroke-linejoin="round" />
-                </svg>
+                <span class="lucide-x--bold size-3" aria-hidden="true"></span>
               </button>
             </span>
             <button

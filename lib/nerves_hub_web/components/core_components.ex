@@ -288,7 +288,7 @@ defmodule NervesHubWeb.CoreComponents do
             >
               <div class="absolute top-6 right-5">
                 <button phx-click={JS.exec("data-cancel", to: "##{@id}")} type="button" class="-m-3 flex-none p-3 opacity-20 hover:opacity-40" aria-label={gettext("close")}>
-                  <.icon name="close" class="size-8 stroke-base-200" />
+                  <.icon name="close" class="size-6 text-base-200" />
                 </button>
               </div>
               <div id={"#{@id}-content"}>
@@ -339,7 +339,7 @@ defmodule NervesHubWeb.CoreComponents do
         <.icon
           name="close"
           data-kind={@kind}
-          class="opacity-40 group-hover:opacity-70 data-[kind=error]:stroke-alert data-[kind=info]:stroke-success data-[kind=notice]:stroke-notice"
+          class="opacity-40 group-hover:opacity-70 data-[kind=error]:text-alert data-[kind=info]:text-success data-[kind=notice]:text-notice"
         />
       </button>
     </div>
@@ -460,7 +460,7 @@ defmodule NervesHubWeb.CoreComponents do
       # lets disabled recolour the edge rather than add one.
       "border-transparent bg-primary hover:bg-primary-hover active:bg-primary-active",
       "disabled:border-line-strong disabled:bg-base-800",
-      "stroke-primary-content text-primary-content disabled:stroke-base-500 disabled:text-content-faint",
+      "text-primary-content disabled:text-content-faint",
       # Light-theme contrast: indigo-500 sits at the AA floor on white, so the design system
       # darkens the fill to indigo-600 (hover 500 / active 700); disabled stays grey.
       "light:bg-indigo-600 light:hover:bg-indigo-500 light:active:bg-indigo-700 light:disabled:bg-base-800"
@@ -470,7 +470,6 @@ defmodule NervesHubWeb.CoreComponents do
   defp button_style("secondary") do
     [
       "border-line-strong bg-base-800 hover:bg-base-700 active:border-primary active:bg-primary disabled:bg-base-800",
-      "stroke-base-400 active:stroke-primary-content disabled:stroke-base-600",
       "text-content-body hover:text-content-strong active:text-primary-content disabled:text-content-faint",
       # line-strong already clears 3:1 on white, as every control outline does,
       # so light only darkens the edge on hover (zinc-600).
@@ -481,14 +480,14 @@ defmodule NervesHubWeb.CoreComponents do
   defp button_style("danger") do
     [
       "border-alert bg-base-800 hover:bg-base-700 active:bg-base-600 disabled:border-line-strong disabled:bg-base-800",
-      "stroke-alert text-alert disabled:stroke-base-500 disabled:text-content-faint"
+      "text-alert disabled:text-content-faint"
     ]
   end
 
   defp button_style("danger-solid") do
     [
       "border-transparent bg-danger hover:bg-danger-hover disabled:border-line-strong disabled:bg-base-800",
-      "stroke-danger-content text-danger-content disabled:stroke-base-500 disabled:text-content-faint"
+      "text-danger-content disabled:text-content-faint"
     ]
   end
 
@@ -838,9 +837,7 @@ defmodule NervesHubWeb.CoreComponents do
   def error(assigns) do
     ~H"""
     <p class="mt-1 flex gap-2 text-sm/6 text-alert">
-      <svg class="mt-0.5 size-5 flex-none stroke-alert" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <path d="M12 5V13M12 19.001V19" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />
-      </svg>
+      <span class="mt-0.5 lucide-circle-alert size-4 flex-none text-alert" aria-hidden="true"></span>
 
       <span class="error-text">{render_slot(@inner_block)}</span>
     </p>

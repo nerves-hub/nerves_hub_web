@@ -393,15 +393,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
                     class="flex items-center"
                   >
                     <span class="mr-1 font-mono text-sm text-content-body">{@deployment_group.current_release.firmware.version} ({String.slice(@deployment_group.current_release.firmware.uuid, 0..7)})</span>
-                    <svg class="size-4" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      <path
-                        d="M8 10V8M8 6V5.99333M14 8C14 11.3137 11.3137 14 8 14C4.68629 14 2 11.3137 2 8C2 4.68629 4.68629 2 8 2C11.3137 2 14 4.68629 14 8Z"
-                        class="stroke-base-400"
-                        stroke-width="1"
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                      />
-                    </svg>
+                    <span class="lucide-info size-4 text-content-muted" aria-hidden="true"></span>
                   </.link>
                 </div>
               </div>
@@ -682,11 +674,11 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
                 </div>
                 <%!-- We have no way of filtering by version as of March 2025. When we do we can use this. --%>
                 <%!-- <.link navigate={~p"/org/#{@org}/#{@product}/devices"} class="flex items-center h-6 bg-base-800 border border-line-default rounded-full">
-                  <.icon name="open" class="stroke-base-400" />
+                  <.icon name="open" class="text-content-muted" />
                 </.link> --%>
                 <div class="flex items-center gap-2">
                   <.tooltip id="remove-devices-from-deployment-group" placement="top">
-                    <.icon name="info" class="stroke-base-400" />
+                    <.icon name="info" class="text-content-muted" />
                     <:content>
                       This action will remove {@unmatched_device_count} {if @matched_devices_outside_deployment_group_count == 1, do: "device", else: "devices"} from {@deployment_group.name}
                     </:content>
@@ -708,11 +700,11 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
                 </div>
                 <%!-- We have no way of filtering by version as of March 2025. When we do we can use this. --%>
                 <%!-- <.link navigate={~p"/org/#{@org}/#{@product}/devices"} class="flex items-center h-6 bg-base-800 border border-line-default rounded-full">
-                  <.icon name="open" class="stroke-base-400" />
+                  <.icon name="open" class="text-content-muted" />
                 </.link> --%>
                 <div class="flex items-center gap-2">
                   <.tooltip id="move-devices-to-deployment-group" placement="top">
-                    <.icon name="info" class="stroke-base-400" />
+                    <.icon name="info" class="text-content-muted" />
                     <:content>
                       This action will move {@matched_devices_outside_deployment_group_count} {if @matched_devices_outside_deployment_group_count == 1, do: "device", else: "devices"}<br />
                       that do not belong to a deployment <br />group into {@deployment_group.name}
@@ -736,7 +728,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
                   for={@uploads.device_csv.ref}
                   class="flex cursor-pointer items-center gap-1.5 rounded border border-line-default bg-base-800 px-3 py-1.5 text-sm text-content-body hover:bg-base-700"
                 >
-                  <.icon name="add" class="stroke-base-400" /> Import from CSV
+                  <.icon name="add" class="text-content-muted" /> Import from CSV
                 </label>
                 <.live_file_input upload={@uploads.device_csv} class="hidden" />
               </form>

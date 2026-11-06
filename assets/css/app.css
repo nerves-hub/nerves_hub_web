@@ -517,12 +517,6 @@ body {
   border-radius: 4px;
 }
 
-.listing .checkbox label svg {
-  flex-shrink: 0;
-  width: 12px;
-  height: 12px;
-}
-
 .listing .checkbox label:hover {
   @apply bg-base-700;
 }

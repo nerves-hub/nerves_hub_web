@@ -46,15 +46,7 @@ defmodule NervesHubWeb.Components.DevicePage.ActivityTab do
 
             <div class="rounded border border-line-strong bg-base-800 p-1.5">
               <.link href={~p"/org/#{@org}/#{@product}/devices/#{@device}/audit_logs/download"}>
-                <svg class="size-5" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path
-                    d="M2.5 11.6666V14.1666C2.5 15.0871 3.24619 15.8333 4.16667 15.8333H15.8333C16.7538 15.8333 17.5 15.0871 17.5 14.1666V11.6666M10 4.16663V12.5M10 12.5L13.3333 9.16663M10 12.5L6.66667 9.16663"
-                    class="stroke-base-400"
-                    stroke-width="1.25"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                  />
-                </svg>
+                <span class="lucide-download size-4 text-content-muted" aria-hidden="true"></span>
               </.link>
             </div>
           </div>
@@ -66,15 +58,7 @@ defmodule NervesHubWeb.Components.DevicePage.ActivityTab do
           <div :if={Enum.any?(@activity)} class="flex flex-col gap-1 px-4 py-2">
             <div :for={entry <- @activity} class="flex h-16 items-center gap-6 p-2">
               <div class="flex h-8 items-center rounded-full border border-line-default bg-base-800 px-2 py-1">
-                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path
-                    d="M8.66663 4.66661L10.1952 3.13801C10.4556 2.87766 10.8777 2.87766 11.138 3.13801L12.8619 4.86187C13.1222 5.12222 13.1222 5.54433 12.8619 5.80468L11.3333 7.33327M8.66663 4.66661L2.86189 10.4713C2.73686 10.5964 2.66663 10.7659 2.66663 10.9427V12.6666C2.66663 13.0348 2.9651 13.3333 3.33329 13.3333H5.05715C5.23396 13.3333 5.40353 13.263 5.52855 13.138L11.3333 7.33327M8.66663 4.66661L11.3333 7.33327M8.66663 13.3333H13.3333"
-                    class="stroke-base-400"
-                    stroke-width="1"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                  />
-                </svg>
+                <span class="lucide-pencil size-4 text-content-muted" aria-hidden="true"></span>
               </div>
               <div class="grow">
                 <div class="text-content-body">{entry.description}</div>

@@ -197,7 +197,10 @@ when adding or removing one.
   any class with no SVG behind it. A line icon draws its stroke at 1/16 of its
   size and never under 1px: plain `lucide-<icon>` is that weight, `--bold` is
   for a selected nav item or an icon under 16px, and `--thin` for 32px and up.
-  A hand-drawn SVG's `stroke-width` follows the same rule (1.25 on a 20 grid).
+  Every icon is a Lucide glyph, either a `lucide-*` span or `<.icon name="…">`
+  (`NervesHubWeb.Components.Icons`, which names the ones used across pages).
+  The glyph is a mask filled with `currentColor`, so a `text-*` class colours
+  it, never `stroke-*` or `fill-*`. Inline SVG is for logos and illustrations.
 - **Boundaries:** contexts (`lib/nerves_hub/`) hold business logic; web modules
   stay thin and call into them. Match the surrounding module's conventions,
   error handling, and naming rather than importing your own.

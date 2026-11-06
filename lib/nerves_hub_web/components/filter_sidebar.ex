@@ -37,15 +37,7 @@ defmodule NervesHubWeb.Components.FilterSidebar do
             <h4 class="text-card-title">Filters</h4>
 
             <button class="ml-auto cursor-pointer p-1.5" type="button" phx-click={hide_filter_sidebar()}>
-              <svg xmlns="http://www.w3.org/2000/svg" class="size-5" viewBox="0 0 20 20" fill="none">
-                <path
-                  d="M10.0002 9.99998L5.8335 5.83331M10.0002 9.99998L14.1668 14.1666M10.0002 9.99998L14.1668 5.83331M10.0002 9.99998L5.8335 14.1666"
-                  class="stroke-base-400"
-                  stroke-width="1.25"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                />
-              </svg>
+              <span class="lucide-x size-4 text-content-muted" aria-hidden="true"></span>
             </button>
           </div>
 
@@ -55,7 +47,7 @@ defmodule NervesHubWeb.Components.FilterSidebar do
                 <div class="flex items-center justify-between gap-2">
                   <label class="sidebar-label" for={"input_#{filter.attr}"}>{filter.label}</label>
                   <.tooltip :if={filter[:hint]} id={"filter-hint-#{filter.attr}"} placement="left" class="z-20 flex items-center" content_class="w-max max-w-56">
-                    <.icon name="info" class="stroke-base-400" />
+                    <.icon name="info" class="text-content-muted" />
                     <:content>
                       {filter.hint}
                     </:content>

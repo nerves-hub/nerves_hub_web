@@ -61,24 +61,8 @@ defmodule NervesHubWeb.Components.PinnedDevices do
                           {device.firmware_metadata.version}
                         <% end %>
                       </span>
-                      <svg :if={device.firmware_metadata && device.update_mode != :off} title="Updates enabled" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none">
-                        <path
-                          d="M6.00016 8L7.3335 9.33333L10.0002 6M8.00016 14C8.00016 14 12.6668 12 12.6668 9.33333V3.33333C11.6668 3.44444 9.3335 3.33333 8.00016 2C6.66683 3.33333 4.3335 3.44444 3.3335 3.33333V9.33333C3.3335 12 8.00016 14 8.00016 14Z"
-                          class="stroke-success"
-                          stroke-width="1"
-                          stroke-linecap="round"
-                          stroke-linejoin="round"
-                        />
-                      </svg>
-                      <svg :if={device.firmware_metadata && device.update_mode == :off} title="Updates disabled" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none">
-                        <path
-                          d="M12.6667 9.33333V3.33333C11.6667 3.44444 9.33333 3.33333 8 2C7.61905 2.38095 7.15646 2.66213 6.66667 2.86686M3.33333 3.33333V9.33333C3.33333 12 8 14 8 14C8 14 10.1359 13.0846 11.5177 11.6667M2 2L14 14"
-                          class="stroke-base-400"
-                          stroke-width="1"
-                          stroke-linecap="round"
-                          stroke-linejoin="round"
-                        />
-                      </svg>
+                      <span :if={device.firmware_metadata && device.update_mode != :off} class="lucide-shield-check size-4 text-success" title="Updates enabled"></span>
+                      <span :if={device.firmware_metadata && device.update_mode == :off} class="lucide-shield-off size-4 text-content-muted" title="Updates disabled"></span>
                     </div>
                   </td>
 

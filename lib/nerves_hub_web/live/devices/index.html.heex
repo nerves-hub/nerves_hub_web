@@ -181,9 +181,7 @@
                     />
                     <label for="toggle-all" class="peer-disabled:opacity-40 peer-disabled:hover:bg-base-800">
                       <span class="hidden">Select all devices</span>
-                      <svg :if={Enum.any?(@selected_devices)} xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 12 12" fill="none">
-                        <path d="M2 6H6H10" class="stroke-primary-content" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" />
-                      </svg>
+                      <span :if={Enum.any?(@selected_devices)} class="lucide-minus--bold size-3 shrink-0 text-primary-content" aria-hidden="true"></span>
                     </label>
                   </th>
                   <th phx-click="sort" phx-value-sort="identifier" class="cursor-pointer">
@@ -229,9 +227,7 @@
                       disabled={not authorized?(:"device:update", @current_scope)}
                     />
                     <label for={"checkbox-device-#{device.id}"} class="relative z-20 peer-disabled:opacity-40 peer-disabled:hover:bg-base-800">
-                      <svg :if={device.id in @selected_devices} xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 12 12" fill="none">
-                        <path d="M2.5 6.5L4.5 8.5L10 3" class="stroke-primary-content" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" />
-                      </svg>
+                      <span :if={device.id in @selected_devices} class="lucide-check--bold size-3 shrink-0 text-primary-content" aria-hidden="true"></span>
                     </label>
                   </td>
                   <td>
@@ -240,33 +236,17 @@
                         <%= if @device_statuses.result[device.id] == "online" do %>
                           <.status_dot class="bg-status-online" />
                           <!-- use this when we have connection type information -->
-                          <%!-- <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none">
-                          <path
-                            d="M10.8573 9.17153C10.1261 8.44767 9.11595 7.99996 8.00016 7.99996C6.88438 7.99996 5.87423 8.44767 5.14302 9.17153M12.7621 7.28591C11.5434 6.07948 9.8598 5.33329 8.00016 5.33329C6.14052 5.33329 4.45694 6.07948 3.23826 7.28591M14.6668 5.4003C12.9607 3.71129 10.6037 2.66663 8.00016 2.66663C5.39667 2.66663 3.03964 3.71129 1.3335 5.4003M9.34703 12C9.34703 12.7363 8.74402 13.3333 8.00016 13.3333C7.25631 13.3333 6.65329 12.7363 6.65329 12C6.65329 11.6318 6.80405 11.2984 7.04778 11.0572C7.29152 10.8159 7.62823 10.6666 8.00016 10.6666C8.37209 10.6666 8.70881 10.8159 8.95254 11.0572C9.19628 11.2984 9.34703 11.6318 9.34703 12Z"
-                            class="stroke-success"
-                            stroke-width="1"
-                            stroke-linecap="round"
-                            stroke-linejoin="round"
-                          />
-                        </svg> --%>
+                          <%!-- <span class="lucide-wifi size-4 text-success" aria-hidden="true"></span> --%>
                         <% else %>
                           <.status_dot class="bg-status-offline" />
                           <!-- use this when we have connection type information -->
-                          <%!-- <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none">
-                          <path
-                            d="M8.00016 5.33333C9.8598 5.33333 11.5434 6.07953 12.7621 7.28596M14.6668 5.40034C12.9607 3.71134 10.6037 2.66667 8.00016 2.66667C7.3139 2.66667 6.64477 2.73925 6.00016 2.87709M5.14302 9.17157C5.87423 8.44772 6.88438 8 8.00016 8M3.23826 7.28595C3.91937 6.61169 4.7457 6.08118 5.66683 5.74436M1.3335 5.40034C2.0158 4.72489 2.8022 4.15249 3.66683 3.70874M2.00016 2L14.0002 14M9.34703 12C9.34703 12.7364 8.74402 13.3333 8.00016 13.3333C7.25631 13.3333 6.65329 12.7364 6.65329 12C6.65329 11.6318 6.80405 11.2985 7.04778 11.0572C7.29152 10.8159 7.62823 10.6667 8.00016 10.6667C8.37209 10.6667 8.70881 10.8159 8.95254 11.0572C9.19628 11.2985 9.34703 11.6318 9.34703 12Z"
-                            class="stroke-alert"
-                            stroke-width="1"
-                            stroke-linecap="round"
-                            stroke-linejoin="round"
-                          />
-                        </svg> --%>
+                          <%!-- <span class="lucide-wifi-off size-4 text-alert" aria-hidden="true"></span> --%>
                         <% end %>
                       </span>
                       <.link navigate={~p"/org/#{@org}/#{@product}/devices/#{device}"} class="ff-m font-mono">
                         {device.identifier}
                         <.tooltip :if={device.deleted_at} id={"health-tooltip-#{device.identifier}"} placement="right" class="z-50 inline-block align-middle">
-                          <.icon name="info" class="stroke-base-400" />
+                          <.icon name="info" class="text-content-muted" />
                           <:content>
                             This device has been deleted. <br /> You can destroy or restore it in the device's settings.
                           </:content>

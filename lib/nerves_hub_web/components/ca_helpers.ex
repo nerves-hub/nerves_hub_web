@@ -19,7 +19,7 @@ defmodule NervesHubWeb.Components.CAHelpers do
   def check_expiration_tooltip(assigns) do
     ~H"""
     <.tooltip id={@id} placement={@placement} class="z-20 flex items-center" content_class="w-max max-w-72">
-      <.icon name="info" class="stroke-base-400" />
+      <.icon name="info" class="text-content-muted" />
       <:content>
         By default, the time validity of CA certificates is unchecked. You can
         toggle this to check expiration to prevent device certificates

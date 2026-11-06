@@ -168,7 +168,7 @@ defmodule NervesHubWeb.Components.DeviceLocation do
             }
             phx-key="Escape"
           >
-            <.icon name="settings" class="size-3 fill-base-400" />
+            <span class="lucide-settings--bold size-3 text-content-muted" aria-hidden="true"></span>
           </button>
 
           <div

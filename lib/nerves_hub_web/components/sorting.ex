@@ -10,15 +10,9 @@ defmodule NervesHubWeb.Components.Sorting do
     ~H"""
     <div class="group flex items-center whitespace-nowrap">
       {@text}
-      <svg :if={@selected_field != @field} class="invisible ml-auto size-6 group-hover:visible" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <path d="M12.5 7.5L10 5L7.5 7.5M12.5 12.5L10 15L7.5 12.5" class="stroke-base-500" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
-      </svg>
-      <svg :if={@selected_field == @field && @selected_direction == "asc"} class="ml-auto size-5" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <path d="M17 14L12 9L7 14" class="stroke-base-500" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
-      </svg>
-      <svg :if={@selected_field == @field && (@selected_direction == "desc" || is_nil(@selected_direction))} class="ml-auto size-5" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <path d="M17 10L12 15L7 10" class="stroke-base-500" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
-      </svg>
+      <span :if={@selected_field != @field} class="invisible ml-auto lucide-chevrons-up-down size-4 text-base-500 group-hover:visible" aria-hidden="true"></span>
+      <span :if={@selected_field == @field && @selected_direction == "asc"} class="ml-auto lucide-chevron-up size-4 text-base-500" aria-hidden="true"></span>
+      <span :if={@selected_field == @field && (@selected_direction == "desc" || is_nil(@selected_direction))} class="ml-auto lucide-chevron-down size-4 text-base-500" aria-hidden="true"></span>
     </div>
     """
   end

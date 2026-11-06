@@ -18,15 +18,7 @@ defmodule NervesHubWeb.Components.BulkActionsSidebar do
             <h4 :if={@select_all_matching} class="text-card-title">All devices selected</h4>
 
             <button class="ml-auto cursor-pointer p-1.5" type="button" phx-click="deselect-all">
-              <svg xmlns="http://www.w3.org/2000/svg" class="size-5" viewBox="0 0 20 20" fill="none">
-                <path
-                  d="M10.0002 9.99998L5.8335 5.83331M10.0002 9.99998L14.1668 14.1666M10.0002 9.99998L14.1668 5.83331M10.0002 9.99998L5.8335 14.1666"
-                  class="stroke-base-400"
-                  stroke-width="1.25"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                />
-              </svg>
+              <span class="lucide-x size-4 text-content-muted" aria-hidden="true"></span>
             </button>
           </div>
 
@@ -80,15 +72,7 @@ defmodule NervesHubWeb.Components.BulkActionsSidebar do
                   type="button"
                   phx-click="remove-devices-from-deployment-group"
                 >
-                  <svg class="size-3" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path
-                      d="M12.4999 5.83337H7.49992M12.4999 5.83337H14.9999M12.4999 5.83337C12.4999 4.45266 11.3806 3.33337 9.99992 3.33337C8.61921 3.33337 7.49992 4.45266 7.49992 5.83337M7.49992 5.83337H4.99992M3.33325 5.83337H4.99992M4.99992 5.83337V15C4.99992 15.9205 5.74611 16.6667 6.66659 16.6667H13.3333C14.2537 16.6667 14.9999 15.9205 14.9999 15V5.83337M14.9999 5.83337H16.6666M8.33325 9.16671V13.3334M11.6666 13.3334V9.16671"
-                      class="stroke-alert"
-                      stroke-width="1.667"
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                    />
-                  </svg>
+                  <span class="lucide-trash--bold size-3 text-alert" aria-hidden="true"></span>
                 </button>
               </div>
             </div>
@@ -211,25 +195,14 @@ defmodule NervesHubWeb.Components.BulkActionsSidebar do
               <div class="flex w-full gap-2">
                 <form class="grow" id="disable-updates" phx-submit="disable-updates-for-devices">
                   <.button type="submit" data-confirm="This will disable updates for all selected devices" class="w-full">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="none">
-                      <path
-                        d="M10.0002 10L5.8335 5.83334M10.0002 10L14.1668 14.1667M10.0002 10L14.1668 5.83334M10.0002 10L5.8335 14.1667"
-                        class="stroke-base-400"
-                        stroke-width="1.25"
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                      />
-                    </svg>
+                    <span class="lucide-x size-4 text-content-muted" aria-hidden="true"></span>
                     <span>Disable</span>
                   </.button>
                 </form>
 
                 <form class="grow" id="enable-updates" phx-submit="enable-updates-for-devices">
                   <.button type="submit" data-confirm="This will enable updates for all selected devices" class="w-full">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="none">
-                      <path d="M4.1665 10.8333L7.49984 14.1667L16.6665 5" class="stroke-base-400" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" />
-                    </svg>
-                    Enable
+                    <span class="lucide-check size-4 text-content-muted" aria-hidden="true"></span> Enable
                   </.button>
                 </form>
               </div>
