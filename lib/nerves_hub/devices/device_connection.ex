@@ -4,6 +4,7 @@ defmodule NervesHub.Devices.DeviceConnection do
   import Ecto.Changeset
 
   alias NervesHub.Accounts.Org
+  alias NervesHub.Devices.ClientLibrary
   alias NervesHub.Devices.Device
   alias NervesHub.Products.Product
 
@@ -36,7 +37,27 @@ defmodule NervesHub.Devices.DeviceConnection do
     field(:network_interface, Ecto.Enum, values: [:wifi, :ethernet, :cellular, :unknown])
   end
 
-  def connecting_changeset(org_id, product_id, device_id, ip_address \\ nil) do
+  @doc """
+  A new connection for a device, as it starts connecting.
+
+  `client_library` is the library the device connected with, as
+  `NervesHub.Devices.ClientLibrary.from_user_agent/1` reads it; leaving it out
+  records the library as unknown.
+  """
+  @spec connecting_changeset(
+          pos_integer(),
+          pos_integer(),
+          pos_integer(),
+          String.t() | nil,
+          ClientLibrary.t()
+        ) :: Ecto.Changeset.t()
+  def connecting_changeset(
+        org_id,
+        product_id,
+        device_id,
+        ip_address \\ nil,
+        client_library \\ %{lib: nil, lib_version: nil}
+      ) do
     now = DateTime.utc_now()
 
     %__MODULE__{}
@@ -48,6 +69,8 @@ defmodule NervesHub.Devices.DeviceConnection do
     |> put_change(:last_seen_at, now)
     |> put_change(:status, :connecting)
     |> put_change(:ip_address, ip_address)
+    |> put_change(:lib, client_library.lib)
+    |> put_change(:lib_version, client_library.lib_version)
   end
 
   @spec humanized_network_interface_name(any()) :: :wifi | :ethernet | :cellular | :unknown

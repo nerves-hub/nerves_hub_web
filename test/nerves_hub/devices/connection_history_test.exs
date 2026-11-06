@@ -42,6 +42,33 @@ defmodule NervesHub.Devices.ConnectionHistoryTest do
       assert is_nil(history.disconnected_at)
     end
 
+    test "records the client library the device connected with", %{device: device} do
+      {:ok, connection} =
+        Connections.device_connecting(device.org_id, device.product_id, device.id, nil, %{
+          lib: "nerves_hub_link",
+          lib_version: "2.13.0"
+        })
+
+      assert_eventually(
+        [%DeviceConnectionHistory{lib: "nerves_hub_link", lib_version: "2.13.0"}] = history_for(connection.id)
+      )
+
+      # the rows after it are copied from the connection, so they keep it
+      :ok = Connections.device_connected(connection.id)
+      :ok = Connections.device_disconnected(connection.id)
+
+      assert_eventually(
+        [%DeviceConnectionHistory{lib: "nerves_hub_link", lib_version: "2.13.0", disconnected_at: %DateTime{}}] =
+          history_for(connection.id)
+      )
+    end
+
+    test "records an unknown client library as empty", %{device: device} do
+      {:ok, connection} = Connections.device_connecting(device.org_id, device.product_id, device.id)
+
+      assert_eventually([%DeviceConnectionHistory{lib: "", lib_version: ""}] = history_for(connection.id))
+    end
+
     test "device_connected/1 records a history row", %{device: device} do
       {:ok, connection} = Connections.device_connecting(device.org_id, device.product_id, device.id)
       assert_eventually([_] = history_for(connection.id))
