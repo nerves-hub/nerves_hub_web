@@ -41,9 +41,12 @@
   --color-surface-raised: #1c1c1f; /* cards, chips, inputs — between surface-muted and zinc-800 */
   --color-surface-overlay: #18181b; /* menus, popovers, modals */
 
-  --color-b-default: #3f3f46; /* zinc-700 — default hairline */
-  --color-b-strong: #52525b; /* zinc-600 — inputs, buttons */
-  --color-b-subtle: #27272a; /* zinc-800 — faint divider */
+  /* Hairlines. Named `line-*` because a `b-*` name reads as Tailwind's
+     bottom-side syntax: `border-b-default` coloured all four sides.
+     Use these for borders, not border-line-strong/700/800. */
+  --color-line-default: var(--color-zinc-700); /* cards, panels, header rules */
+  --color-line-strong: var(--color-zinc-600); /* inputs, selects, buttons, chips */
+  --color-line-subtle: var(--color-zinc-800); /* dividers between rows */
 
   /* Neutral ramp — low = bright text, high = recessed surface; inverts in light */
   --color-base-50: var(--color-zinc-50);
@@ -76,19 +79,19 @@
      DARK: bright -400 content + a translucent brand tint over the dark canvas. */
   --color-notice: var(--color-indigo-500);
   --color-notice-content: var(--color-indigo-400);
-  --color-notice-soft: rgb(var(--primary-rgb) / 0.15);
+  --color-notice-soft: color-mix(in oklab, var(--color-notice) 15%, transparent);
 
   --color-success: var(--color-emerald-500);
   --color-success-content: var(--color-emerald-400);
-  --color-success-soft: rgb(var(--success-rgb) / 0.15);
+  --color-success-soft: color-mix(in oklab, var(--color-success) 15%, transparent);
 
   --color-warning: var(--color-amber-500);
   --color-warning-content: var(--color-amber-400);
-  --color-warning-soft: rgb(var(--warning-rgb) / 0.15);
+  --color-warning-soft: color-mix(in oklab, var(--color-warning) 15%, transparent);
 
   --color-alert: var(--color-red-500);
   --color-alert-content: var(--color-red-400);
-  --color-alert-soft: rgb(var(--alert-rgb) / 0.15);
+  --color-alert-soft: color-mix(in oklab, var(--color-alert) 15%, transparent);
 
   /* Danger — solid destructive CTAs (e.g. "Delete account"). Distinct from
      `alert` (red-500 feedback/state): a heavier red-600 fill with white text,
@@ -102,22 +105,22 @@
   --color-status-offline: var(--color-zinc-500);
   --color-status-connecting: var(--color-indigo-500);
 
-  --color-content-strong: #fafafa; /* zinc-50  — headings, key values */
-  --color-content-body: #d4d4d8; /* zinc-300 — default body text */
-  --color-content-muted: #a1a1aa; /* zinc-400 — secondary / labels */
-  --color-content-faint: #71717a; /* zinc-500 — placeholder / disabled */
+  /* Text roles. Use these for text, not the base-* ramp they replaced:
+     text-base-50/300/400/500 were the same colours under a second name.
+     The other base-* shades have no text role yet. */
+  --color-content-strong: var(--color-zinc-50); /* headings, key values */
+  --color-content-body: var(--color-zinc-300); /* default body text */
+  --color-content-muted: var(--color-zinc-400); /* secondary / labels */
+  --color-content-faint: var(--color-zinc-500); /* placeholder / disabled */
 }
 
 /*
  * Plain custom properties (NOT @theme tokens). A token lives here when:
  *
- *   • It is a channel token (`--*-rgb`): space-separated RGB channels used in
- *     rgb(var(--x) / <alpha>) for the translucent state tints above and the
- *     gradient utilities below. `--veil-rgb` is the neutral hover veil and
- *     inverts in light; the brand/state channels do not.
- *   • It is a semantic text/border role mirroring the design system's named
- *     foundation, available for var() use / component adoption (templates today
- *     lean on the base-* ramp directly).
+ *   • It is the neutral hover veil (`--veil`), which inverts in light. Like
+ *     the translucent state tints above and the gradient utilities below, it
+ *     is mixed with `color-mix(in oklab, …, transparent)` rather than split
+ *     into RGB channels, so tints use the same v4 colour as the solid fill.
  *   • It is a themed box-shadow: Tailwind inlines @theme --shadow-* values into
  *     the generated utility, so a [data-theme] override would be ignored. The
  *     @utility rules below read these at runtime instead.
@@ -139,15 +142,8 @@
   --color-chart-6: #008300;
   --color-chart-other: #71717a;
 
-  --primary-rgb: 99 102 241;
-  --success-rgb: 16 185 129;
-  --warning-rgb: 245 158 11;
-  --alert-rgb: 239 68 68;
-  --veil-rgb: 63 63 70;
-
-  --hover-row: rgb(var(--primary-rgb) / 0.06);
-  --tint-primary-weak: rgb(var(--primary-rgb) / 0.1);
-  --tint-primary-soft: rgb(var(--primary-rgb) / 0.2);
+  /* The neutral hover veil behind sidebar items; flips in light */
+  --veil: var(--color-zinc-700);
 
   /* Fixed layout rails — semantic dimensions for the app chrome (theme-independent).
      Exposed as w-sidebar / h-topbar / h-header / h-row / h-nav-item utilities below. */
@@ -212,11 +208,16 @@
   --color-content-muted: var(--color-zinc-600); /* zinc-600 */
   --color-content-faint: var(--color-zinc-500); /* zinc-500 (shared) */
 
-  --color-b-default: #e4e4e7; /* zinc-200 */
-  --color-b-strong: #d4d4d8; /* zinc-300 */
-  --color-b-subtle: #ececee;
+  /* Hairlines are set to match dark mode's contrast, not inverted from it.
+     line-strong outlines controls, so it stays at 3:1 or more on every light
+     surface (WCAG 1.4.11); zinc-400 is only 2.3–2.6:1 here. */
+  --color-line-default: var(--color-zinc-300);
+  --color-line-strong: #8c8c95; /* between zinc-400 and zinc-500 */
+  --color-line-subtle: var(--color-zinc-200);
 
-  --veil-rgb: 228 228 231;
+  /* Between zinc-300 and zinc-400: at the hover gradient's 24–48% it gives
+     the light sidebar the same contrast (1.12–1.27:1) zinc-700 gives dark. */
+  --veil: #bdbdc3;
 
   --shadow-filter-slider: -16px 0px 32px -4px #ebebe8, 0px 4px 4px -4px #ebebe8;
   --shadow-device-details-content:
@@ -267,73 +268,68 @@
 @utility h-nav-item {
   height: var(--nav-item-height);
 }
-@utility light-sidebar-item-hover {
+/* Hover is the neutral veil in both themes. Only selected carries the
+   primary tint, so a hovered item never looks selected. */
+@utility sidebar-item-hover {
   background-image: linear-gradient(
     90deg,
-    rgba(246, 246, 247, 1) 0%,
-    rgb(var(--primary-rgb) / 0.2) 100%
-  );
-}
-@utility dark-sidebar-item-hover {
-  background-image: linear-gradient(
-    90deg,
-    rgb(var(--veil-rgb) / 0.24) 0%,
-    rgb(var(--veil-rgb) / 0.48) 100%
+    color-mix(in oklab, var(--veil) 24%, transparent) 0%,
+    color-mix(in oklab, var(--veil) 48%, transparent) 100%
   );
 }
 @utility light-sidebar-item-selected {
   background-image: linear-gradient(
     90deg,
     rgba(246, 246, 247, 1) 0%,
-    rgb(var(--primary-rgb) / 0.2) 100%
+    color-mix(in oklab, var(--color-primary) 20%, transparent) 100%
   );
 }
 @utility dark-sidebar-item-selected {
   background-image:
     linear-gradient(
       90deg,
-      rgb(var(--primary-rgb) / 0) 50%,
-      rgb(var(--primary-rgb) / 0.08) 100%
+      transparent 50%,
+      color-mix(in oklab, var(--color-primary) 8%, transparent) 100%
     ),
     linear-gradient(
       90deg,
-      rgb(var(--veil-rgb) / 0.24) 0%,
-      rgb(var(--veil-rgb) / 0.48) 100%
+      color-mix(in oklab, var(--veil) 24%, transparent) 0%,
+      color-mix(in oklab, var(--veil) 48%, transparent) 100%
     );
 }
 @utility tab-selected {
   background-image: linear-gradient(
     180deg,
-    rgba(99, 102, 241, 0) 86.32%,
-    rgba(99, 102, 241, 0.48) 103.41%
+    transparent 86.32%,
+    color-mix(in oklab, var(--color-primary) 48%, transparent) 103.41%
   );
 }
 @utility health-good {
   background-image: linear-gradient(
     180deg,
-    rgba(16, 185, 129, 0) 18.75%,
-    rgba(16, 185, 129, 0.06) 81.25%
+    transparent 18.75%,
+    color-mix(in oklab, var(--color-success) 6%, transparent) 81.25%
   );
 }
 @utility health-warning {
   background-image: linear-gradient(
     180deg,
-    rgba(245, 158, 11, 0) 18.75%,
-    rgba(245, 158, 11, 0.04) 81.25%
+    transparent 18.75%,
+    color-mix(in oklab, var(--color-warning) 4%, transparent) 81.25%
   );
 }
 @utility health-alert {
   background-image: linear-gradient(
     180deg,
-    rgba(239, 68, 68, 0) 18.75%,
-    rgba(239, 68, 68, 0.04) 81.25%
+    transparent 18.75%,
+    color-mix(in oklab, var(--color-alert) 4%, transparent) 81.25%
   );
 }
 @utility health-neutral {
   background-image: linear-gradient(
     180deg,
-    rgba(99, 102, 241, 0) 18.75%,
-    rgba(99, 102, 241, 0.06) 81.25%
+    transparent 18.75%,
+    color-mix(in oklab, var(--color-primary) 6%, transparent) 81.25%
   );
 }
 @utility health-plain {
@@ -347,13 +343,13 @@
   background-image:
     radial-gradient(
       ellipse 80% 80% at 50% -10%,
-      rgba(16, 185, 129, 0.3) 0,
-      rgba(16, 185, 129, 0) 80%
+      color-mix(in oklab, var(--color-success) 30%, transparent) 0,
+      transparent 80%
     ),
     radial-gradient(
       ellipse 50% 50% at 50% -10%,
-      rgba(16, 185, 129, 0.3) 0,
-      rgba(16, 185, 129, 0) 50%
+      color-mix(in oklab, var(--color-success) 30%, transparent) 0,
+      transparent 50%
     );
 }
 @utility example-map {
@@ -375,15 +371,15 @@
 @keyframes pulse {
   0%,
   100% {
-    box-shadow: 0 0 0 0 rgba(99, 102, 241, 1);
+    box-shadow: 0 0 0 0 var(--color-primary);
   }
   50% {
-    box-shadow: 0 0 0 12px rgba(99, 102, 241, 0.85);
+    box-shadow: 0 0 0 12px color-mix(in oklab, var(--color-primary) 85%, transparent);
   }
 }
 
 html {
-  @apply text-base-300;
+  @apply text-content-body;
 }
 
 body {
@@ -391,7 +387,7 @@ body {
 }
 
 .listing {
-  @apply border-base-700 w-full grow;
+  @apply border-line-default w-full grow;
   font-size: 14px;
   font-style: normal;
   font-weight: 400;
@@ -408,7 +404,7 @@ body {
 
 /* Tables within raised boxes should have a slight bottom border */
 .bg-surface-raised .listing thead tr {
-  @apply border-base-700 border-b;
+  @apply border-line-default border-b;
 }
 
 .listing tbody tr {
@@ -416,7 +412,7 @@ body {
 }
 
 .listing th {
-  @apply bg-surface-muted text-base-400 px-4 py-1.5 text-left text-sm font-medium;
+  @apply bg-surface-muted text-content-muted px-4 py-1.5 text-left text-sm font-medium;
 }
 
 /* Table headers within raised divs should use the matching background color */
@@ -445,7 +441,7 @@ body {
 }
 
 .listing .checkbox label {
-  @apply border-base-600 bg-base-800 border;
+  @apply border-line-strong bg-base-800 border;
   display: flex;
   width: 16px;
   height: 16px;
@@ -518,7 +514,7 @@ body {
 }
 
 .badge {
-  @apply bg-base-800 text-base-300 rounded-sm px-1 py-0.5;
+  @apply bg-base-800 text-content-body rounded-sm px-1 py-0.5;
   font-size: 12px;
 }
 
@@ -534,7 +530,7 @@ body {
 }
 
 .sidebar-title {
-  @apply text-base-50;
+  @apply text-content-strong;
   font-size: 16px;
   font-weight: 600;
   height: 32px;
@@ -542,31 +538,31 @@ body {
 }
 
 .sidebar-label {
-  @apply text-base-300 text-sm;
+  @apply text-content-body text-sm;
 }
 
 .sidebar-select {
-  @apply bg-surface-muted text-base-400 border-base-600 w-full rounded-sm border px-2 py-1.5 text-sm;
+  @apply bg-surface-muted text-content-muted border-line-strong w-full rounded-sm border px-2 py-1.5 text-sm;
 }
 
 .sidebar-text-input {
-  @apply bg-surface-muted text-base-400 border-base-600 w-full rounded-sm border px-2 py-1.5 text-sm;
+  @apply bg-surface-muted text-content-muted border-line-strong w-full rounded-sm border px-2 py-1.5 text-sm;
 }
 
 /* Without these the forms plugin's blue focus border and ring show through. */
 .sidebar-select:focus,
 .sidebar-text-input:focus {
-  @apply border-base-600 ring-focus-ring ring-2;
+  @apply border-line-strong ring-focus-ring ring-2;
 }
 
 .sidebar-search {
-  @apply bg-surface-muted text-base-400 border-base-600 flex items-center rounded-sm border px-2 py-1.5 text-sm;
+  @apply bg-surface-muted text-content-muted border-line-strong flex items-center rounded-sm border px-2 py-1.5 text-sm;
   gap: 8px;
   padding: 8px 12px;
 }
 
 .sidebar-search input {
-  @apply text-base-400 border-transparent bg-transparent;
+  @apply text-content-muted border-transparent bg-transparent;
   font-size: 14px;
   font-weight: 400;
   line-height: 20px;
@@ -575,7 +571,7 @@ body {
 }
 
 .sidebar-button {
-  @apply bg-base-800 border-base-600 text-base-50 hover:border-base-400 border;
+  @apply bg-base-800 border-line-strong text-content-strong hover:border-base-400 border;
   display: flex;
   gap: 8px;
   padding: 6px 12px;
@@ -596,22 +592,22 @@ body {
   text-align: center;
   text-transform: uppercase;
   font-size: 14px;
-  @apply bg-base-800 text-base-500;
+  @apply bg-base-800 text-content-faint;
 }
 
 .menu-box {
-  @apply bg-surface-overlay border-base-700 rounded-md border px-4 py-3;
+  @apply bg-surface-overlay border-line-default rounded-md border px-4 py-3;
 }
 
 .org-selector-title {
-  @apply text-base-50;
+  @apply text-content-strong;
   font-size: 14px;
   font-style: normal;
   font-weight: 600;
   line-height: 20px;
 }
 .product-selector-title {
-  @apply text-base-400;
+  @apply text-content-muted;
   font-size: 14px;
   font-style: normal;
   font-weight: 400;
@@ -624,7 +620,7 @@ body {
 
 .product-picker-product,
 .product-picker-product:link {
-  @apply text-base-300 hover:bg-base-800 ml-7 block rounded px-4 py-1.5;
+  @apply text-content-body hover:bg-base-800 ml-7 block rounded px-4 py-1.5;
   font-size: 14px;
   font-style: normal;
   font-weight: 500;

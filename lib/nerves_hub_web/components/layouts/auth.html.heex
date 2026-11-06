@@ -5,10 +5,10 @@
         <.link href="/login">
           <.logo class="h-14" />
         </.link>
-        <h1 class="mt-12 text-2xl/9 font-bold tracking-tight text-base-50">
+        <h1 class="mt-12 text-2xl/9 font-bold tracking-tight text-content-strong">
           {render_slot(@title)}
         </h1>
-        <p :if={assigns[:subheader]} class="mt-2 text-sm/6 text-base-300">
+        <p :if={assigns[:subheader]} class="mt-2 text-sm/6 text-content-body">
           {render_slot(@subheader)}
         </p>
       </div>

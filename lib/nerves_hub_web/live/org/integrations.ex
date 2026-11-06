@@ -267,7 +267,7 @@ defmodule NervesHubWeb.Live.Org.Integrations do
     ~H"""
     <span
       :if={!@webhook.enabled}
-      class="rounded-full border border-base-600 bg-base-800 px-2 py-0.5 text-xs font-medium text-base-400"
+      class="rounded-full border border-line-strong bg-base-800 px-2 py-0.5 text-xs font-medium text-content-muted"
     >
       Off
     </span>

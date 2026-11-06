@@ -1,7 +1,7 @@
 <NervesHubWeb.Layouts.sidebar flash={@flash} current_scope={@current_scope} sidebar_tab={@sidebar_tab}>
   <:header>
-    <h1 class="text-xl leading-[30px] font-semibold text-base-50">All Support Scripts</h1>
-    <div class="mr-auto rounded-sm bg-base-800 px-1.5 py-0.5 text-xs text-base-300">
+    <h1 class="text-xl leading-[30px] font-semibold text-content-strong">All Support Scripts</h1>
+    <div class="mr-auto rounded-sm bg-base-800 px-1.5 py-0.5 text-xs text-content-body">
       {@pager_meta.total_count}
     </div>
 
@@ -9,7 +9,7 @@
       <div class="grid grid-cols-1">
         <input
           type="text"
-          class="col-start-1 row-start-1 block h-9 w-64 gap-2 rounded border border-base-600 bg-surface-muted px-3 py-1 text-sm font-normal text-base-400"
+          class="col-start-1 row-start-1 block h-9 w-64 gap-2 rounded border border-line-strong bg-surface-muted px-3 py-1 text-sm font-normal text-content-muted"
           name="search"
           id="script_search_top"
           placeholder="Search by name or tags..."
@@ -58,7 +58,7 @@
           </tr>
         </thead>
         <tbody>
-          <tr :for={script <- @scripts} class="border-b border-base-800">
+          <tr :for={script <- @scripts} class="border-b border-line-subtle">
             <td class="h-[52px]">
               <.link class="flex size-full items-center" navigate={~p"/org/#{@current_scope.org}/#{@current_scope.product}/scripts/#{script}/edit"}>
                 {script.name}
@@ -88,7 +88,7 @@
     </div>
 
     <div :if={Enum.empty?(@scripts) && @currently_filtering} class="flex h-full items-center justify-center pb-16">
-      <span class="text-xl font-medium text-base-50">No Support Scripts match the current filters.</span>
+      <span class="text-xl font-medium text-content-strong">No Support Scripts match the current filters.</span>
     </div>
 
     <div :if={Enum.empty?(@scripts) && !@currently_filtering} class="flex h-full items-center justify-center pb-16">

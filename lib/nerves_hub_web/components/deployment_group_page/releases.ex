@@ -76,9 +76,9 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Releases do
     ~H"""
     <div class="flex flex-col gap-6 p-6">
       <div class="w-full">
-        <div class="flex flex-col rounded border border-base-700 bg-surface-raised">
-          <div class="flex h-14 items-center justify-between border-b border-base-700 px-4">
-            <div class="text-base font-medium text-base-50">Release History</div>
+        <div class="flex flex-col rounded border border-line-default bg-surface-raised">
+          <div class="flex h-14 items-center justify-between border-b border-line-default px-4">
+            <div class="text-base font-medium text-content-strong">Release History</div>
 
             <.button style="secondary" type="submit" phx-click={CoreComponents.show_modal("new-release")}>
               <svg class="size-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="none">
@@ -94,26 +94,26 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Releases do
           </div>
 
           <div :if={@releases == []} class="flex flex-col items-center justify-center gap-4 p-12">
-            <div class="text-base-400">No releases have been created.</div>
-            <div class="text-sm text-base-500">
+            <div class="text-content-muted">No releases have been created.</div>
+            <div class="text-sm text-content-faint">
               Release history will appear here when you change the firmware version above.
             </div>
           </div>
 
           <div :if={@releases != []} class="overflow-x-auto">
             <div class="w-full">
-              <div :for={release <- @releases} class="border-b border-base-800 hover:bg-base-800/50">
+              <div :for={release <- @releases} class="border-b border-line-subtle hover:bg-base-800/50">
                 <div class="flex w-full">
-                  <div class="w-44 px-4 py-3 text-sm text-base-300">
+                  <div class="w-44 px-4 py-3 text-sm text-content-body">
                     <div class="flex flex-col">
                       <.local_datetime at={release.inserted_at} time_zone={@time_zone} format={:long_date} zone_label={false} />
-                      <.local_datetime at={release.inserted_at} time_zone={@time_zone} format={:time} class="text-xs text-base-500" />
+                      <.local_datetime at={release.inserted_at} time_zone={@time_zone} format={:time} class="text-xs text-content-faint" />
                     </div>
 
                     <span
                       :if={release.required}
                       id={"release-#{release.id}-required"}
-                      class="mt-2 flex h-6 w-fit items-center rounded-full border border-base-700 bg-base-800 px-2.5 text-xs font-medium text-base-300"
+                      class="mt-2 flex h-6 w-fit items-center rounded-full border border-line-default bg-base-800 px-2.5 text-xs font-medium text-content-body"
                       title="Devices that haven't reached this release are updated to it before any newer release"
                     >
                       Required
@@ -122,14 +122,18 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Releases do
 
                   <div class="flex min-w-0 grow flex-col gap-2 px-4 py-3 text-sm">
                     <div class="flex">
-                      <span :if={release.description} class="grow font-semibold text-base-300">
+                      <span :if={release.description} class="grow font-semibold text-content-body">
                         {release.description}
                       </span>
-                      <span :if={!release.description} class="grow font-medium text-base-400">
+                      <span :if={!release.description} class="grow font-medium text-content-muted">
                         No description
                       </span>
 
-                      <.link :if={release.notes} phx-click={CoreComponents.show_modal("release-notes-#{release.id}")} class="font-medium text-base-300 underline decoration-dashed hover:decoration-solid">
+                      <.link
+                        :if={release.notes}
+                        phx-click={CoreComponents.show_modal("release-notes-#{release.id}")}
+                        class="font-medium text-content-body underline decoration-dashed hover:decoration-solid"
+                      >
                         Show notes
                       </.link>
                       <CoreComponents.modal
@@ -137,7 +141,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Releases do
                         on_cancel={Phoenix.LiveView.JS.patch(~p"/org/#{@current_scope.org}/#{@current_scope.product}/deployment_groups/#{@deployment_group}/releases")}
                       >
                         <div class="p-4">
-                          <h2 class="pb-5 text-lg font-semibold text-base-300">Release notes</h2>
+                          <h2 class="pb-5 text-lg font-semibold text-content-body">Release notes</h2>
                           <div class="bg-base-800/50 p-5 whitespace-break-spaces">{release.notes}</div>
                         </div>
                       </CoreComponents.modal>
@@ -147,11 +151,11 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Releases do
                     release's firmware carries an extra badge. --%>
                     <div class="flex flex-wrap gap-x-4 gap-y-1">
                       <div class="flex items-center gap-1.5">
-                        <span class="text-base-400">Firmware:</span>
-                        <span class="font-medium text-base-300">
+                        <span class="text-content-muted">Firmware:</span>
+                        <span class="font-medium text-content-body">
                           {release.firmware.version}
                         </span>
-                        <span class="font-mono text-base-300">
+                        <span class="font-mono text-content-body">
                           <.link class="underline decoration-dashed hover:decoration-solid" navigate={~p"/org/#{@current_scope.org}/#{@current_scope.product}/firmware/#{release.firmware.uuid}"}>
                             ({String.slice(release.firmware.uuid, 0..7)})
                           </.link>
@@ -161,7 +165,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Releases do
                         without this the history reads as though the firmware is still there. --%>
                         <span
                           :if={Firmware.deleted?(release.firmware)}
-                          class="rounded-full border border-base-700 bg-base-800 px-2 py-0.5 text-xs text-base-400"
+                          class="rounded-full border border-line-default bg-base-800 px-2 py-0.5 text-xs text-content-muted"
                           title={deleted_summary(release.firmware, @time_zone)}
                         >
                           Deleted
@@ -169,26 +173,26 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Releases do
                       </div>
 
                       <div class="text-sm whitespace-nowrap">
-                        <span class="text-base-400">Archive:</span>
-                        <span :if={release.archive} class="font-medium text-base-300">
+                        <span class="text-content-muted">Archive:</span>
+                        <span :if={release.archive} class="font-medium text-content-body">
                           {release.archive.version}
                         </span>
-                        <span :if={release.archive} class="font-mono text-base-400">
+                        <span :if={release.archive} class="font-mono text-content-muted">
                           <.link class="underline decoration-dashed hover:decoration-solid" navigate={~p"/org/#{@current_scope.org}/#{@current_scope.product}/archives/#{release.archive.uuid}"}>
                             ({String.slice(release.archive.uuid, 0..7)})
                           </.link>
                         </span>
-                        <span :if={!release.archive} class="font-medium text-base-400">
+                        <span :if={!release.archive} class="font-medium text-content-muted">
                           None
                         </span>
                       </div>
 
                       <div :if={@delta_counts[release.id]} class="text-sm">
-                        <span class="text-base-400">Deltas:</span>
+                        <span class="text-content-muted">Deltas:</span>
                         <.link
                           id={"release-#{release.id}-deltas"}
                           phx-click={show_release_deltas(release, @myself)}
-                          class="font-medium text-base-300 underline decoration-dashed hover:decoration-solid"
+                          class="font-medium text-content-body underline decoration-dashed hover:decoration-solid"
                         >
                           {@delta_counts[release.id].total}
                         </.link>
@@ -198,37 +202,37 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Releases do
                       </div>
 
                       <div class="text-sm">
-                        <span class="text-base-400">Connecting code:</span>
+                        <span class="text-content-muted">Connecting code:</span>
                         <.link
                           :if={release.connecting_code}
                           id={"release-#{release.id}-connecting-code"}
                           phx-click={CoreComponents.show_modal("release-connecting-code-#{release.id}")}
-                          class="font-medium text-base-300 underline decoration-dashed hover:decoration-solid"
+                          class="font-medium text-content-body underline decoration-dashed hover:decoration-solid"
                         >
                           {connecting_code_mode_summary(release.connecting_code_mode)}
                         </.link>
-                        <span :if={!release.connecting_code} class="font-medium text-base-400">
+                        <span :if={!release.connecting_code} class="font-medium text-content-muted">
                           None
                         </span>
                         <CoreComponents.modal :if={release.connecting_code} id={"release-connecting-code-#{release.id}"}>
                           <div class="flex flex-col gap-5 p-4">
-                            <h2 class="text-lg font-semibold text-base-300">Connecting code</h2>
-                            <p class="text-sm text-base-400">
+                            <h2 class="text-lg font-semibold text-content-body">Connecting code</h2>
+                            <p class="text-sm text-content-muted">
                               {connecting_code_mode_summary(release.connecting_code_mode)}. Devices running this release run it when they connect.
                             </p>
-                            <pre class="overflow-x-auto bg-base-800/50 p-5 text-sm text-base-300">{release.connecting_code}</pre>
+                            <pre class="overflow-x-auto bg-base-800/50 p-5 text-sm text-content-body">{release.connecting_code}</pre>
                           </div>
                         </CoreComponents.modal>
                       </div>
                     </div>
                   </div>
 
-                  <div class="flex w-54 flex-col gap-0.5 px-8 py-3 text-sm text-base-400">
+                  <div class="flex w-54 flex-col gap-0.5 px-8 py-3 text-sm text-content-muted">
                     <span>Released by:</span>
                     <span :if={release.created_by}>
                       {release.created_by.name}
                     </span>
-                    <span :if={!release.created_by} class="text-base-500 italic">
+                    <span :if={!release.created_by} class="text-content-faint italic">
                       Unknown
                     </span>
                   </div>
@@ -246,8 +250,8 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Releases do
       </div>
       <CoreComponents.modal id="new-release" on_cancel={Phoenix.LiveView.JS.patch(~p"/org/#{@current_scope.org}/#{@current_scope.product}/deployment_groups/#{@deployment_group}/releases")}>
         <.form :let={f} id="release-form" for={@form} phx-change="validate-release" phx-submit="update-release" phx-target={@myself}>
-          <div class="flex h-14 items-center justify-between border-b border-base-700 px-4">
-            <div class="text-base font-medium text-base-50">Release settings</div>
+          <div class="flex h-14 items-center justify-between border-b border-line-default px-4">
+            <div class="text-base font-medium text-content-strong">Release settings</div>
           </div>
 
           <div class="flex flex-col gap-6 p-4">
@@ -315,8 +319,8 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Releases do
 
       <CoreComponents.modal id="release-deltas">
         <div :if={@deltas_release} class="flex flex-col gap-5 p-4">
-          <h2 class="text-lg font-semibold text-base-300">Deltas for release {@deltas_release.number}</h2>
-          <p class="text-sm text-base-400">
+          <h2 class="text-lg font-semibold text-content-body">Deltas for release {@deltas_release.number}</h2>
+          <p class="text-sm text-content-muted">
             What this release's devices download instead of the whole firmware, from what each of them is running now.
           </p>
 
@@ -332,7 +336,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Releases do
                 </tr>
               </thead>
               <tbody>
-                <tr :for={delta <- @deltas} id={"release-delta-#{delta.id}"} class="border-b border-base-800 last:border-0">
+                <tr :for={delta <- @deltas} id={"release-delta-#{delta.id}"} class="border-b border-line-subtle last:border-0">
                   <td>{delta.source.version}</td>
                   <td>
                     <div
@@ -350,7 +354,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Releases do
                     <div :if={authorized?(:"deployment_group:update", @current_scope)} class="flex items-center gap-2">
                       <.link
                         :if={delta.status in [:failed, :timed_out]}
-                        class="cursor-pointer text-base-300 underline"
+                        class="cursor-pointer text-content-body underline"
                         phx-click="retry-delta"
                         phx-value-id={delta.id}
                         phx-target={@myself}
@@ -360,7 +364,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Releases do
                       </.link>
                       <.link
                         :if={delta.status in [:failed, :timed_out, :completed]}
-                        class="cursor-pointer text-base-300 underline"
+                        class="cursor-pointer text-content-body underline"
                         phx-click="delete-delta"
                         phx-value-id={delta.id}
                         phx-target={@myself}
@@ -380,13 +384,13 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Releases do
 
       <CoreComponents.modal id="edit-release">
         <div :if={@editing_release}>
-          <div class="flex h-14 items-center justify-between border-b border-base-700 px-4">
-            <div class="text-base font-medium text-base-50">Edit release {@editing_release.number}</div>
+          <div class="flex h-14 items-center justify-between border-b border-line-default px-4">
+            <div class="text-base font-medium text-content-strong">Edit release {@editing_release.number}</div>
           </div>
 
-          <div class="flex flex-col gap-3 border-b border-base-700 p-4">
-            <div class="text-sm font-medium text-base-50">Required release</div>
-            <p class="text-sm text-base-400">
+          <div class="flex flex-col gap-3 border-b border-line-default p-4">
+            <div class="text-sm font-medium text-content-strong">Required release</div>
+            <p class="text-sm text-content-muted">
               {if @editing_release.required, do: "This release is required.", else: "This release isn't required."} Devices that haven't reached a required release are updated to it before any newer release.
             </p>
             <div>
@@ -771,12 +775,12 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Releases do
   # keeping some code around while the feature is being developed
   defp rollout_options(assigns) do
     ~H"""
-    <div class="hidden w-full border-t border-base-700 pt-6">
+    <div class="hidden w-full border-t border-line-default pt-6">
       <button
         type="button"
         phx-click="toggle-rollout-options"
         phx-target={@myself}
-        class="flex items-center gap-2 text-sm font-medium text-base-300 hover:text-base-100"
+        class="flex items-center gap-2 text-sm font-medium text-content-body hover:text-base-100"
       >
         <svg
           class={["size-4 transition-transform", @show_rollout_options && "rotate-90"]}

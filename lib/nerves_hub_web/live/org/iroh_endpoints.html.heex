@@ -1,6 +1,6 @@
 <NervesHubWeb.Layouts.sidebar flash={@flash} current_scope={@current_scope} sidebar_tab={@sidebar_tab}>
   <:header>
-    <h1 class="text-xl leading-[30px] font-semibold text-base-50">Iroh Endpoints</h1>
+    <h1 class="text-xl leading-[30px] font-semibold text-content-strong">Iroh Endpoints</h1>
     <div class="mr-auto"></div>
     <.button
       :if={authorized?(:"network_identity:create", @current_scope)}
@@ -13,35 +13,35 @@
   </:header>
 
   <div class="px-6 py-4">
-    <p class="mb-4 text-sm text-base-400">
+    <p class="mb-4 text-sm text-content-muted">
       Endpoint ids your devices and people use to reach each other over iroh. A device records its
       own when it connects; anything else is registered here.
     </p>
 
-    <div class="mb-4 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-base-500">
+    <div class="mb-4 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-content-faint">
       <a
         :for={{label, url} <- @links}
         href={url}
         target="_blank"
         rel="noopener noreferrer"
-        class="underline underline-offset-2 hover:text-base-300"
+        class="underline underline-offset-2 hover:text-content-body"
       >
         {label}
       </a>
     </div>
 
-    <div :if={@registering} class="mb-6 rounded border border-base-700 bg-base-800/50 p-4">
+    <div :if={@registering} class="mb-6 rounded border border-line-default bg-base-800/50 p-4">
       <.form :let={f} id="register_identity" for={@form} phx-submit="register" class="space-y-4">
         <div>
           <.input field={f[:identifier]} label="Endpoint id" placeholder="64 hex characters" />
-          <p class="mt-1 text-xs text-base-500">
+          <p class="mt-1 text-xs text-content-faint">
             The public key the endpoint proves it holds, not a ticket or a relay URL.
           </p>
         </div>
 
         <div>
           <.input field={f[:instance]} label="Instance" placeholder="default" />
-          <p class="mt-1 text-xs text-base-500">
+          <p class="mt-1 text-xs text-content-faint">
             Names which endpoint this is, for something running more than one. Leave blank if it
             runs a single one.
           </p>
@@ -54,7 +54,7 @@
             label="Belongs to"
             options={[{"Nobody in particular", ""} | @members]}
           />
-          <p class="mt-1 text-xs text-base-500">
+          <p class="mt-1 text-xs text-content-faint">
             Attach this endpoint to someone in this organisation, for a laptop or a workstation.
             Leave it unassigned for something the organisation holds directly, or for a device
             that will claim the endpoint itself when it next connects.
@@ -78,7 +78,7 @@
           value={@search}
           placeholder="Search by endpoint id, device or person"
           phx-debounce="300"
-          class="w-full rounded border border-base-700 bg-base-800 px-3 py-1.5 text-sm text-base-100 placeholder:text-base-500"
+          class="w-full rounded border border-line-default bg-base-800 px-3 py-1.5 text-sm text-base-100 placeholder:text-content-faint"
         />
       </form>
 
@@ -90,7 +90,7 @@
         <select
           id="identity-owner-select"
           name="owner"
-          class="rounded border border-base-700 bg-base-800 py-1.5 pr-8 pl-3 text-sm text-base-100"
+          class="rounded border border-line-default bg-base-800 py-1.5 pr-8 pl-3 text-sm text-base-100"
         >
           <option value="" selected={is_nil(@owner_filter)}>All owners</option>
           <option value="device" selected={@owner_filter == :device}>Devices</option>
@@ -100,7 +100,7 @@
       </form>
     </div>
 
-    <div :if={@identities == []} class="rounded border border-dashed border-base-700 p-8 text-center text-sm text-base-400">
+    <div :if={@identities == []} class="rounded border border-dashed border-line-default p-8 text-center text-sm text-content-muted">
       <p :if={@search == "" and is_nil(@owner_filter)}>
         No endpoints yet. Devices record their own when they connect.
       </p>
@@ -110,14 +110,14 @@
     <div :if={@identities != []} class="space-y-2">
       <div
         :for={identity <- @identities}
-        class="flex items-start gap-4 rounded border border-base-700 bg-linear-to-r from-base-800/50 to-base-800 p-4"
+        class="flex items-start gap-4 rounded border border-line-default bg-linear-to-r from-base-800/50 to-base-800 p-4"
       >
         <div class="min-w-0 flex-1">
           <div class="group/identity flex w-full min-w-0 items-center gap-1.5">
             <%!-- A key fits at most window widths, so it is rendered whole and
                   truncated by CSS only when it has to be. Whatever is on screen,
                   the clipboard gets the full value. --%>
-            <span class="min-w-0 truncate font-mono text-sm text-base-50">
+            <span class="min-w-0 truncate font-mono text-sm text-content-strong">
               {identity.identifier}
             </span>
             <button
@@ -127,32 +127,32 @@
               data-copy-value={identity.identifier}
               aria-label="Copy endpoint id"
               title="Copy endpoint id"
-              class="shrink-0 cursor-pointer text-base-500 opacity-0 transition-opacity group-hover/identity:opacity-100 hover:text-base-200 focus:opacity-100"
+              class="shrink-0 cursor-pointer text-content-faint opacity-0 transition-opacity group-hover/identity:opacity-100 hover:text-base-200 focus:opacity-100"
             >
               <span data-icon="copy" class="lucide-copy--light size-4"></span>
               <span data-icon="check" class="lucide-check--light hidden size-4 text-success"></span>
             </button>
           </div>
 
-          <div class="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-xs text-base-400">
+          <div class="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-xs text-content-muted">
             <% {kind, who} = NervesHubWeb.Live.Org.IrohEndpoints.owner_label(identity) %>
-            <span><span class="text-base-500">{kind}:</span> {who}</span>
+            <span><span class="text-content-faint">{kind}:</span> {who}</span>
             <span :if={identity.instance != "default"}>
-              <span class="text-base-500">Instance:</span> {identity.instance}
+              <span class="text-content-faint">Instance:</span> {identity.instance}
             </span>
             <span>
-              <span class="text-base-500">Source:</span>
+              <span class="text-content-faint">Source:</span>
               {if identity.source == :device_reported, do: "reported by device", else: "registered"}
             </span>
             <span :if={identity.last_reported_at}>
-              <span class="text-base-500">Last seen:</span> <.local_datetime at={identity.last_reported_at} time_zone={@time_zone} format={:short_timestamp} />
+              <span class="text-content-faint">Last seen:</span> <.local_datetime at={identity.last_reported_at} time_zone={@time_zone} format={:short_timestamp} />
             </span>
           </div>
         </div>
 
         <button
           :if={authorized?(:"network_identity:delete", @current_scope)}
-          class="rounded border border-base-700 bg-base-800 px-3 py-1.5 text-sm font-medium text-base-300 hover:bg-base-700"
+          class="rounded border border-line-default bg-base-800 px-3 py-1.5 text-sm font-medium text-content-body hover:bg-base-700"
           phx-click="delete"
           phx-value-id={identity.id}
           data-confirm={

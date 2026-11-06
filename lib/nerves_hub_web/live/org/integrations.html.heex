@@ -1,6 +1,6 @@
 <NervesHubWeb.Layouts.sidebar flash={@flash} current_scope={@current_scope} sidebar_tab={@sidebar_tab}>
   <:header>
-    <h1 class="text-xl leading-[30px] font-semibold text-base-50">Integrations</h1>
+    <h1 class="text-xl leading-[30px] font-semibold text-content-strong">Integrations</h1>
   </:header>
 
   <div class="h-0 flex-1 overflow-y-auto">
@@ -26,9 +26,9 @@
         time_zone={@time_zone}
       />
 
-      <div class="flex w-full flex-col rounded border border-base-700 bg-surface-raised">
-        <div class="flex h-14 items-center justify-between border-b border-base-700 px-4">
-          <div class="text-base font-medium text-base-50">Webhooks</div>
+      <div class="flex w-full flex-col rounded border border-line-default bg-surface-raised">
+        <div class="flex h-14 items-center justify-between border-b border-line-default px-4">
+          <div class="text-base font-medium text-content-strong">Webhooks</div>
           <.button
             :if={is_nil(@editing) && length(@webhooks) < Webhooks.max_webhooks_per_org()}
             type="button"
@@ -48,7 +48,7 @@
               id="webhooks-show-more"
               type="button"
               phx-click={JS.show(to: "#webhooks-more", display: "flex") |> JS.hide()}
-              class="cursor-pointer text-base-400 underline hover:text-base-200"
+              class="cursor-pointer text-content-muted underline hover:text-base-200"
             >
               Show more
             </button>
@@ -70,7 +70,7 @@
             <button
               type="button"
               phx-click={JS.hide(to: "#webhooks-more") |> JS.show(to: "#webhooks-show-more", display: "inline")}
-              class="cursor-pointer self-start text-base-400 underline hover:text-base-200"
+              class="cursor-pointer self-start text-content-muted underline hover:text-base-200"
             >
               Show less
             </button>
@@ -83,9 +83,9 @@
           id="webhook-form"
           phx-change="validate"
           phx-submit="save"
-          class="flex flex-col gap-6 border-t border-base-700 p-6"
+          class="flex flex-col gap-6 border-t border-line-default p-6"
         >
-          <div class="text-sm font-medium text-base-50">
+          <div class="text-sm font-medium text-content-strong">
             {if @editing == :new, do: "New webhook", else: "Edit webhook"}
           </div>
 
@@ -95,7 +95,7 @@
           </div>
 
           <div class="flex flex-col gap-3">
-            <div class="text-sm font-medium text-base-300">Products</div>
+            <div class="text-sm font-medium text-content-body">Products</div>
             <label for="webhook-all-products-true" class="flex items-center gap-3">
               <input
                 id="webhook-all-products-true"
@@ -103,9 +103,9 @@
                 name="webhook[all_products]"
                 value="true"
                 checked={all_products?(@form)}
-                class="border-base-700 text-base-400 checked:bg-primary focus:ring-0"
+                class="border-line-default text-content-muted checked:bg-primary focus:ring-0"
               />
-              <span class="text-sm text-base-300">Every product, including products added later</span>
+              <span class="text-sm text-content-body">Every product, including products added later</span>
             </label>
             <label for="webhook-all-products-false" class="flex items-center gap-3">
               <input
@@ -114,9 +114,9 @@
                 name="webhook[all_products]"
                 value="false"
                 checked={!all_products?(@form)}
-                class="border-base-700 text-base-400 checked:bg-primary focus:ring-0"
+                class="border-line-default text-content-muted checked:bg-primary focus:ring-0"
               />
-              <span class="text-sm text-base-300">Only these products</span>
+              <span class="text-sm text-content-body">Only these products</span>
             </label>
 
             <input type="hidden" name="webhook[products][]" value="" />
@@ -128,22 +128,22 @@
                   name="webhook[products][]"
                   value={product.name}
                   checked={MapSet.member?(selected_products(@form), product.name)}
-                  class="rounded border-base-700 text-base-400 checked:bg-primary focus:ring-0"
+                  class="rounded border-line-default text-content-muted checked:bg-primary focus:ring-0"
                 />
-                <span class="text-sm text-base-300">{product.name}</span>
+                <span class="text-sm text-content-body">{product.name}</span>
               </label>
-              <p :if={@products == []} class="text-sm text-base-400">This organization has no products yet.</p>
+              <p :if={@products == []} class="text-sm text-content-muted">This organization has no products yet.</p>
             </div>
 
             <.error :for={message <- checkbox_errors(@form, :products)}>{message}</.error>
           </div>
 
           <div class="flex flex-col gap-4">
-            <div class="text-sm font-medium text-base-300">Events</div>
+            <div class="text-sm font-medium text-content-body">Events</div>
             <input type="hidden" name="webhook[events][]" value="" />
 
             <div :for={{group, events} <- @event_groups} class="flex flex-col gap-2">
-              <div class="text-xs font-semibold tracking-wide text-base-400 uppercase">{group}</div>
+              <div class="text-xs font-semibold tracking-wide text-content-muted uppercase">{group}</div>
               <label :for={event <- events} for={"event-#{event.type}"} class="flex items-start gap-3 py-1">
                 <input
                   id={"event-#{event.type}"}
@@ -151,14 +151,14 @@
                   name="webhook[events][]"
                   value={event.type}
                   checked={event.type in selected_events(@form)}
-                  class="mt-0.5 rounded border-base-700 text-base-400 checked:bg-primary focus:ring-0"
+                  class="mt-0.5 rounded border-line-default text-content-muted checked:bg-primary focus:ring-0"
                 />
                 <div class="flex flex-col">
                   <div class="flex items-center gap-2">
-                    <span class="text-sm font-medium text-base-300">{event.label}</span>
-                    <code class="text-xs text-base-500">{event.type}</code>
+                    <span class="text-sm font-medium text-content-body">{event.label}</span>
+                    <code class="text-xs text-content-faint">{event.type}</code>
                   </div>
-                  <span class="text-xs text-base-400">{event.description}</span>
+                  <span class="text-xs text-content-muted">{event.description}</span>
                 </div>
               </label>
             </div>
@@ -174,25 +174,25 @@
           </div>
         </.form>
 
-        <div :if={@webhooks == [] && is_nil(@form)} class="border-t border-base-700 p-6">
-          <p class="text-sm text-base-400">This organization has no webhooks.</p>
+        <div :if={@webhooks == [] && is_nil(@form)} class="border-t border-line-default p-6">
+          <p class="text-sm text-content-muted">This organization has no webhooks.</p>
         </div>
 
         <div
           :for={webhook <- @webhooks}
           id={"webhook-#{webhook.id}"}
-          class="flex flex-col gap-3 border-t border-base-700 p-6"
+          class="flex flex-col gap-3 border-t border-line-default p-6"
         >
           <div class="flex flex-wrap items-start justify-between gap-3">
             <div class="flex min-w-0 flex-col gap-1">
               <div class="flex items-center gap-2">
-                <span class="font-medium text-base-50">{webhook.description || host(webhook)}</span>
+                <span class="font-medium text-content-strong">{webhook.description || host(webhook)}</span>
                 <.status_badge webhook={webhook} />
               </div>
-              <code :if={authorized?(:"webhook:update", @current_scope)} class="text-sm break-all text-base-400">
+              <code :if={authorized?(:"webhook:update", @current_scope)} class="text-sm break-all text-content-muted">
                 {webhook.url}
               </code>
-              <code :if={!authorized?(:"webhook:update", @current_scope)} class="text-sm text-base-400">
+              <code :if={!authorized?(:"webhook:update", @current_scope)} class="text-sm text-content-muted">
                 {host(webhook)}
               </code>
             </div>
@@ -216,7 +216,7 @@
                   title="More actions"
                   class="flex items-center rounded p-1.5 hover:cursor-pointer hover:bg-base-700"
                 >
-                  <span class="lucide-ellipsis--light size-4 text-base-400"></span>
+                  <span class="lucide-ellipsis--light size-4 text-content-muted"></span>
                   <span class="sr-only">More actions</span>
                 </button>
 
@@ -229,23 +229,23 @@
                 >
                   <div
                     role="menu"
-                    class="absolute top-9 right-0 z-30 flex w-40 flex-col rounded-md border border-base-700 bg-surface-overlay p-1 shadow-lg"
+                    class="absolute top-9 right-0 z-30 flex w-40 flex-col rounded-md border border-line-default bg-surface-overlay p-1 shadow-lg"
                   >
                     <button
                       type="button"
                       role="menuitem"
                       phx-click={JS.push("edit", value: %{webhook_id: webhook.id}) |> hide_menu(webhook.id)}
-                      class="flex items-center gap-2 rounded px-2 py-1.5 text-left text-sm text-base-300 hover:cursor-pointer hover:bg-primary/20"
+                      class="flex items-center gap-2 rounded px-2 py-1.5 text-left text-sm text-content-body hover:cursor-pointer hover:bg-primary/20"
                     >
-                      <span class="lucide-pencil--light size-4 text-base-400"></span> Edit
+                      <span class="lucide-pencil--light size-4 text-content-muted"></span> Edit
                     </button>
                     <button
                       type="button"
                       role="menuitem"
                       phx-click={JS.push("toggle", value: %{webhook_id: webhook.id}) |> hide_menu(webhook.id)}
-                      class="flex items-center gap-2 rounded px-2 py-1.5 text-left text-sm text-base-300 hover:cursor-pointer hover:bg-primary/20"
+                      class="flex items-center gap-2 rounded px-2 py-1.5 text-left text-sm text-content-body hover:cursor-pointer hover:bg-primary/20"
                     >
-                      <span :if={webhook.enabled} class="lucide-power-off--light size-4 text-base-400"></span>
+                      <span :if={webhook.enabled} class="lucide-power-off--light size-4 text-content-muted"></span>
                       <span :if={!webhook.enabled} class="lucide-power--light size-4 text-success"></span>
                       {if webhook.enabled, do: "Turn off", else: "Turn on"}
                     </button>
@@ -265,15 +265,15 @@
             </div>
           </div>
 
-          <div class="text-sm text-base-400">
-            <span class="text-base-300">Products:</span> {scope_label(webhook)}
+          <div class="text-sm text-content-muted">
+            <span class="text-content-body">Products:</span> {scope_label(webhook)}
           </div>
 
           <div class="flex flex-wrap gap-2">
             <code
               :for={type <- webhook.events}
               title={Events.label(type)}
-              class="rounded border border-base-700 bg-base-800 px-2 py-0.5 text-xs text-base-300"
+              class="rounded border border-line-default bg-base-800 px-2 py-0.5 text-xs text-content-body"
             >
               {type}
             </code>
@@ -286,7 +286,7 @@
             <.local_datetime at={webhook.last_error_at} time_zone={@time_zone} format={:time} />: {webhook.last_error}
           </p>
 
-          <div :if={authorized?(:"webhook:update", @current_scope)} class="flex flex-wrap items-center gap-3 text-sm text-base-400">
+          <div :if={authorized?(:"webhook:update", @current_scope)} class="flex flex-wrap items-center gap-3 text-sm text-content-muted">
             <span>Signing secret</span>
             <%!-- Left out rather than hidden for members who cannot manage webhooks: anyone holding it can forge deliveries. --%>
             <button
@@ -295,7 +295,7 @@
               phx-hook="CopyToClipboard"
               data-copy-value={webhook.secret}
               aria-label="Copy signing secret"
-              class="inline-flex cursor-pointer items-center gap-1.5 rounded border border-base-600 px-2 py-0.5 hover:text-base-200"
+              class="inline-flex cursor-pointer items-center gap-1.5 rounded border border-line-strong px-2 py-0.5 hover:text-base-200"
             >
               <span data-icon="copy" class="lucide-copy--light size-4"></span>
               <span data-icon="check" class="lucide-check--light hidden size-4 text-success"></span> Copy
@@ -312,8 +312,8 @@
           </div>
         </div>
 
-        <div :if={length(@webhooks) >= Webhooks.max_webhooks_per_org()} class="border-t border-base-700 p-6">
-          <p class="text-sm text-base-400">
+        <div :if={length(@webhooks) >= Webhooks.max_webhooks_per_org()} class="border-t border-line-default p-6">
+          <p class="text-sm text-content-muted">
             This organization has the most webhooks it can have ({Webhooks.max_webhooks_per_org()}). Remove one to add another.
           </p>
         </div>

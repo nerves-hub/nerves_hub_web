@@ -28,15 +28,15 @@
       >
         <circle cx="3" cy="3" r="3" />
       </svg>
-      <h1 class="text-xl leading-[30px] font-semibold text-base-50">
+      <h1 class="text-xl leading-[30px] font-semibold text-content-strong">
         {@deployment_group.name}
       </h1>
       <div
         :if={@deployment_group.current_release.delta_status == :preparing}
         phx-remove={JS.hide(transition: {"ease-in duration-1000", "opacity-100", "opacity-0"}, blocking: false)}
-        class="pulsing-div flex items-center gap-1 rounded-full border border-base-700 bg-notice py-0.5 pr-3 pl-2.5"
+        class="pulsing-div flex items-center gap-1 rounded-full border border-line-default bg-notice py-0.5 pr-3 pl-2.5"
       >
-        <span class="text-xs text-base-50">Preparing: Generating Deltas</span>
+        <span class="text-xs text-content-strong">Preparing: Generating Deltas</span>
       </div>
 
       <div
@@ -52,26 +52,26 @@
         navigate={~p"/org/#{@org}/#{@product}/devices?deployment_id=#{@deployment_group.id}"}
         class="flex h-7 cursor-pointer items-center rounded bg-base-800 px-2 py-1 transition-colors hover:bg-base-700"
       >
-        <span class="mr-1 text-sm text-base-400">Devices:</span>
+        <span class="mr-1 text-sm text-content-muted">Devices:</span>
 
         <div class="flex items-center">
-          <span class="mr-1 text-sm text-base-300">{@deployment_group.device_count || 0}</span>
+          <span class="mr-1 text-sm text-content-body">{@deployment_group.device_count || 0}</span>
         </div>
       </.link>
 
       <div class="flex h-7 items-center rounded bg-base-800 px-2 py-1">
-        <span class="mr-1 text-sm text-base-400">Platform:</span>
+        <span class="mr-1 text-sm text-content-muted">Platform:</span>
 
         <div class="flex items-center">
-          <span class="mr-1 font-mono text-sm text-base-300">{@deployment_group.current_release.firmware.platform}</span>
+          <span class="mr-1 font-mono text-sm text-content-body">{@deployment_group.current_release.firmware.platform}</span>
         </div>
       </div>
 
       <div class="flex h-7 items-center rounded bg-base-800 px-2 py-1">
-        <span class="mr-1 text-sm text-base-400">Arch:</span>
+        <span class="mr-1 text-sm text-content-muted">Arch:</span>
 
         <div class="flex items-center">
-          <span class="mr-1 font-mono text-sm text-base-300">{@deployment_group.current_release.firmware.architecture}</span>
+          <span class="mr-1 font-mono text-sm text-content-body">{@deployment_group.current_release.firmware.architecture}</span>
         </div>
       </div>
     </div>

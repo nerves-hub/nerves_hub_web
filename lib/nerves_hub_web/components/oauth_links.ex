@@ -6,7 +6,7 @@ defmodule NervesHubWeb.Components.OAuthLinks do
     <div :if={google_auth_enabled?()} class="mt-10">
       <div class="relative">
         <div class="relative flex justify-center text-sm/6 font-medium">
-          <span class="px-6 text-base-300">Or create a new account with</span>
+          <span class="px-6 text-content-body">Or create a new account with</span>
         </div>
       </div>
 

@@ -297,7 +297,7 @@ defmodule NervesHubWeb.Live.Org.Integrations.ChatWebhookSection do
 
   defp status_badge(assigns) do
     ~H"""
-    <span :if={!@channel.enabled} class="rounded-full border border-base-600 bg-base-800 px-2 py-0.5 text-xs font-medium text-base-400">
+    <span :if={!@channel.enabled} class="rounded-full border border-line-strong bg-base-800 px-2 py-0.5 text-xs font-medium text-content-muted">
       Off
     </span>
     <span

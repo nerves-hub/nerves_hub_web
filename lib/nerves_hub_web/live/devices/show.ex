@@ -467,7 +467,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
 
   @doc false
   def update_mode_color(:automatic), do: "text-success"
-  def update_mode_color(:device_managed), do: "text-base-300"
+  def update_mode_color(:device_managed), do: "text-content-body"
   def update_mode_color(:off), do: "text-alert"
 
   @doc false

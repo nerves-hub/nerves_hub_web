@@ -1,6 +1,6 @@
 <NervesHubWeb.Layouts.sidebar flash={@flash} current_scope={@current_scope} sidebar_tab={@sidebar_tab}>
   <:header>
-    <h1 class="text-xl leading-[30px] font-semibold text-base-50">Product Settings</h1>
+    <h1 class="text-xl leading-[30px] font-semibold text-content-strong">Product Settings</h1>
   </:header>
 
   <%!-- Separate LiveViews rather than actions of one, so these navigate. --%>
@@ -19,9 +19,9 @@
 
   <div class="h-0 flex-1 overflow-y-auto">
     <div class="flex flex-col items-start justify-between gap-4 p-6">
-      <div class="flex w-full flex-col rounded border border-base-700 bg-surface-raised">
-        <div class="flex h-14 items-center justify-between border-b border-base-700 px-4">
-          <div class="text-base font-medium text-base-50">General settings</div>
+      <div class="flex w-full flex-col rounded border border-line-default bg-surface-raised">
+        <div class="flex h-14 items-center justify-between border-b border-line-default px-4">
+          <div class="text-base font-medium text-content-strong">General settings</div>
         </div>
         <div class="flex gap-6 p-6">
           <div class="flex w-1/2 flex-col gap-6">
@@ -30,9 +30,9 @@
         </div>
       </div>
 
-      <div class="flex w-full flex-col rounded border border-base-700 bg-surface-raised">
-        <div class="flex h-14 items-center justify-between border-b border-base-700 px-4">
-          <div class="text-base font-medium text-base-50">Device Extensions</div>
+      <div class="flex w-full flex-col rounded border border-line-default bg-surface-raised">
+        <div class="flex h-14 items-center justify-between border-b border-line-default px-4">
+          <div class="text-base font-medium text-content-strong">Device Extensions</div>
         </div>
 
         <div class="flex flex-col gap-3 p-6">
@@ -54,12 +54,12 @@
           <%!-- The buttons wrap below the description when the row is too narrow for both. --%>
           <div :for={{key, description} <- @available_extensions} class="flex min-h-16 flex-wrap items-center gap-x-6 gap-y-3 p-2">
             <div class="flex min-w-0 flex-1 basis-72 items-center gap-6">
-              <div class="flex h-8 shrink-0 items-center rounded-full border border-base-700 bg-base-800 px-2 py-1">
+              <div class="flex h-8 shrink-0 items-center rounded-full border border-line-default bg-base-800 px-2 py-1">
                 <input
                   id={"extension-#{key}"}
                   name={key}
                   type="checkbox"
-                  class="rounded border-base-700 text-base-400 checked:bg-primary focus:ring-0"
+                  class="rounded border-line-default text-content-muted checked:bg-primary focus:ring-0"
                   phx-click="update-extension"
                   phx-value-extension={key}
                   checked={@product.extensions[key]}
@@ -68,11 +68,11 @@
               </div>
               <div class="flex min-w-0 flex-col">
                 <div class="flex gap-2">
-                  <div class="font-medium text-base-300">
+                  <div class="font-medium text-content-body">
                     {Extensions.display_name(key)}
                   </div>
                 </div>
-                <div class="text-xs text-base-400">
+                <div class="text-xs text-content-muted">
                   {description}
                 </div>
               </div>
@@ -103,9 +103,9 @@
         </div>
       </div>
 
-      <div class="flex w-full flex-col rounded border border-base-700 bg-surface-raised">
-        <div class="flex h-14 items-center justify-between border-b border-base-700 px-4">
-          <div class="text-base font-medium text-base-50">Device-managed updates</div>
+      <div class="flex w-full flex-col rounded border border-line-default bg-surface-raised">
+        <div class="flex h-14 items-center justify-between border-b border-line-default px-4">
+          <div class="text-base font-medium text-content-strong">Device-managed updates</div>
         </div>
 
         <div class="flex flex-col gap-3 p-6">
@@ -116,20 +116,20 @@
           </div>
 
           <div class="flex min-h-16 items-center gap-6 p-2">
-            <div class="flex h-8 shrink-0 items-center rounded-full border border-base-700 bg-base-800 px-2 py-1">
+            <div class="flex h-8 shrink-0 items-center rounded-full border border-line-default bg-base-800 px-2 py-1">
               <input
                 id="default-managed-updates-allowed"
                 name="default-managed-updates-allowed"
                 type="checkbox"
-                class="rounded border-base-700 text-base-400 checked:bg-primary focus:ring-0"
+                class="rounded border-line-default text-content-muted checked:bg-primary focus:ring-0"
                 phx-click="update-default-managed-updates-allowed"
                 checked={@product.default_managed_updates_allowed}
                 disabled={!authorized?(:"product:update", @current_scope)}
               />
             </div>
             <div class="flex flex-col">
-              <div class="font-medium text-base-300">Let new devices choose their update mode</div>
-              <div class="text-xs text-base-400">
+              <div class="font-medium text-content-body">Let new devices choose their update mode</div>
+              <div class="text-xs text-content-muted">
                 Devices added to this product from now on start with this setting. Existing devices keep their own.
               </div>
             </div>
@@ -137,8 +137,8 @@
 
           <div class="flex min-h-16 flex-wrap items-center gap-x-6 gap-y-3 p-2">
             <div class="flex min-w-0 flex-1 basis-72 flex-col">
-              <div class="font-medium text-base-300">Existing devices</div>
-              <div class="text-xs text-base-400">
+              <div class="font-medium text-content-body">Existing devices</div>
+              <div class="text-xs text-content-muted">
                 Change the setting on every device already in this product. Disallowing does not move a device that is already device managed.
               </div>
             </div>
@@ -166,39 +166,39 @@
         </div>
       </div>
 
-      <div class="flex w-full flex-col rounded border border-base-700 bg-surface-raised">
-        <div class="flex h-14 items-center justify-between border-b border-base-700 px-4">
-          <div class="text-base font-medium text-base-50">Firmware</div>
+      <div class="flex w-full flex-col rounded border border-line-default bg-surface-raised">
+        <div class="flex h-14 items-center justify-between border-b border-line-default px-4">
+          <div class="text-base font-medium text-content-strong">Firmware</div>
         </div>
 
         <div class="flex flex-col gap-3 p-6">
           <div class="flex h-16 items-center gap-6 p-2">
-            <div class="flex h-8 items-center rounded-full border border-base-700 bg-base-800 px-2 py-1">
+            <div class="flex h-8 items-center rounded-full border border-line-default bg-base-800 px-2 py-1">
               <input
                 id="require-unique-firmware-version"
                 name="require-unique-firmware-version"
                 type="checkbox"
-                class="rounded border-base-700 text-base-400 checked:bg-primary focus:ring-0"
+                class="rounded border-line-default text-content-muted checked:bg-primary focus:ring-0"
                 phx-click="update-require-unique-firmware-version"
                 checked={@product.require_unique_firmware_version}
                 disabled={!authorized?(:"product:update", @current_scope)}
               />
             </div>
             <div class="flex flex-col">
-              <div class="font-medium text-base-300">Require unique firmware versions</div>
-              <div class="text-xs text-base-400">
+              <div class="font-medium text-content-body">Require unique firmware versions</div>
+              <div class="text-xs text-content-muted">
                 Reject uploaded firmware whose version already exists for this product's platform and architecture.
               </div>
             </div>
           </div>
 
           <div :for={tool <- @optional_tools} class="flex h-16 items-center gap-6 p-2">
-            <div class="flex h-8 items-center rounded-full border border-base-700 bg-base-800 px-2 py-1">
+            <div class="flex h-8 items-center rounded-full border border-line-default bg-base-800 px-2 py-1">
               <input
                 id={"allow-#{tool.name}-firmware"}
                 name={"allow-#{tool.name}-firmware"}
                 type="checkbox"
-                class="rounded border-base-700 text-base-400 checked:bg-primary focus:ring-0"
+                class="rounded border-line-default text-content-muted checked:bg-primary focus:ring-0"
                 phx-click="update-allowed-update-tool"
                 phx-value-tool={tool.name}
                 checked={Product.accepts_update_tool?(@product, tool.name)}
@@ -206,8 +206,8 @@
               />
             </div>
             <div class="flex flex-col">
-              <div class="font-medium text-base-300">Accept {tool.label}</div>
-              <div class="text-xs text-base-400">{tool.description}</div>
+              <div class="font-medium text-content-body">Accept {tool.label}</div>
+              <div class="text-xs text-content-muted">{tool.description}</div>
             </div>
           </div>
 
@@ -216,12 +216,12 @@
             :if={tool[:unsigned_field] && Product.accepts_update_tool?(@product, tool.name)}
             class="flex h-16 items-center gap-6 p-2"
           >
-            <div class="flex h-8 items-center rounded-full border border-base-700 bg-base-800 px-2 py-1">
+            <div class="flex h-8 items-center rounded-full border border-line-default bg-base-800 px-2 py-1">
               <input
                 id={"allow-unsigned-#{tool.name}-firmware"}
                 name={"allow-unsigned-#{tool.name}-firmware"}
                 type="checkbox"
-                class="rounded border-base-700 text-base-400 checked:bg-primary focus:ring-0"
+                class="rounded border-line-default text-content-muted checked:bg-primary focus:ring-0"
                 phx-click="update-allow-unsigned"
                 phx-value-tool={tool.name}
                 checked={Map.get(@product, tool.unsigned_field)}
@@ -229,16 +229,16 @@
               />
             </div>
             <div class="flex flex-col">
-              <div class="font-medium text-base-300">{tool.unsigned_label}</div>
-              <div class="text-xs text-base-400">{tool.unsigned_description}</div>
+              <div class="font-medium text-content-body">{tool.unsigned_label}</div>
+              <div class="text-xs text-content-muted">{tool.unsigned_description}</div>
             </div>
           </div>
         </div>
       </div>
 
-      <div class="flex w-full flex-col rounded border border-base-700 bg-surface-raised">
-        <div class="flex h-14 items-center justify-between border-b border-base-700 px-4">
-          <div class="text-base font-medium text-base-50">Device Shared Secret Authentication</div>
+      <div class="flex w-full flex-col rounded border border-line-default bg-surface-raised">
+        <div class="flex h-14 items-center justify-between border-b border-line-default px-4">
+          <div class="text-base font-medium text-content-strong">Device Shared Secret Authentication</div>
         </div>
 
         <div class="flex flex-col gap-3 p-6">
@@ -263,7 +263,7 @@
         <%= if @shared_auth_enabled do %>
           <div :if={Enum.any?(@shared_secrets)} class="listing flex flex-col gap-3 pt-6">
             <table>
-              <thead class="border-y border-base-700">
+              <thead class="border-y border-line-default">
                 <tr>
                   <th>Key</th>
                   <th>Created at</th>
@@ -311,7 +311,7 @@
             </table>
           </div>
 
-          <div :if={Enum.empty?(@shared_secrets)} class="flex flex-col gap-3 border-t border-base-700 p-6">
+          <div :if={Enum.empty?(@shared_secrets)} class="flex flex-col gap-3 border-t border-line-default p-6">
             <div class="flex flex-col gap-3">
               <p class="w-2/3 text-sm text-warning">
                 You don't have any Shared Secrets configured.
@@ -319,7 +319,7 @@
             </div>
           </div>
 
-          <div class="flex border-t border-base-700 p-6">
+          <div class="flex border-t border-line-default p-6">
             <.button
               phx-click="add-shared-secret"
               disabled={!authorized?(:"product:update", @current_scope)}
@@ -330,7 +330,7 @@
             </.button>
           </div>
         <% else %>
-          <div class="flex flex-col gap-3 border-t border-base-700 p-6">
+          <div class="flex flex-col gap-3 border-t border-line-default p-6">
             <div class="flex flex-col gap-3">
               <p class="w-2/3 text-sm text-warning">
                 Shared Secret authentication hasn't been enabled for your platform.
@@ -343,8 +343,8 @@
         <% end %>
       </div>
 
-      <div class="flex w-full flex-col rounded border border-base-700 bg-surface-raised">
-        <div class="flex items-center gap-6 border-t border-base-700 p-6">
+      <div class="flex w-full flex-col rounded border border-line-default bg-surface-raised">
+        <div class="flex items-center gap-6 border-t border-line-default p-6">
           <div>
             <button
               class="flex gap-2 rounded border border-alert bg-base-800 px-3 py-1.5 hover:bg-alert-soft"

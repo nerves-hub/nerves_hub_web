@@ -3,22 +3,22 @@
     <div></div>
     <div class="mr-6 flex gap-2">
       <.button type="link" navigate={~p"/org/#{@current_scope.org}/#{@current_scope.product}/devices/new"} aria-label="Add new device">
-        <span class="lucide-plus--light size-5 text-base-300" /> Add Device
+        <span class="lucide-plus--light size-5 text-content-body" /> Add Device
       </.button>
       <.button :if={has_results?(@devices, @currently_filtering)} type="link" aria-label="Export devices" href={~p"/org/#{@org}/#{@product}/devices/export?#{@params}"} download>
-        <span class="lucide-download--light size-5 text-base-300" />
+        <span class="lucide-download--light size-5 text-content-body" />
       </.button>
     </div>
   </:top_bar>
 
   <:header>
-    <h1 :if={!@devices.ok?} class="text-xl leading-[30px] font-semibold text-base-50">Loading...</h1>
-    <h1 :if={@devices.ok?} id="devices-header" class="hidden text-xl leading-[30px] font-semibold text-base-50" phx-mounted={fade_in("#devices-header")}>
+    <h1 :if={!@devices.ok?} class="text-xl leading-[30px] font-semibold text-content-strong">Loading...</h1>
+    <h1 :if={@devices.ok?} id="devices-header" class="hidden text-xl leading-[30px] font-semibold text-content-strong" phx-mounted={fade_in("#devices-header")}>
       All Devices
     </h1>
 
     <div class="mr-auto">
-      <div :if={@devices.ok?} id="device-count" class="mr-auto hidden rounded-sm bg-base-800 px-1.5 py-0.5 text-xs text-base-300" phx-mounted={fade_in("#device-count")}>
+      <div :if={@devices.ok?} id="device-count" class="mr-auto hidden rounded-sm bg-base-800 px-1.5 py-0.5 text-xs text-content-body" phx-mounted={fade_in("#device-count")}>
         {Number.Delimit.number_to_delimited(@total_entries, precision: 0)}
       </div>
     </div>
@@ -35,7 +35,7 @@
         <.icon name="filter" />
       </.button>
       <.button type="button" phx-click={ListSettingsSidebar.show_settings_sidebar()}>
-        <span class="lucide-settings--light size-5 text-base-300" />
+        <span class="lucide-settings--light size-5 text-content-body" />
       </.button>
     </div>
   </:header>
@@ -62,7 +62,7 @@
               </tr>
             </thead>
             <tbody>
-              <tr :for={_ <- 1..25} class="clickable-table-row isolate animate-pulse border-b border-base-800">
+              <tr :for={_ <- 1..25} class="clickable-table-row isolate animate-pulse border-b border-line-subtle">
                 <td class="checkbox"><input class="checkbox opacity-50" disabled type="checkbox" /></td>
                 <td>
                   <div class="flex items-center gap-2">
@@ -107,28 +107,28 @@
       </:loading>
       <:failed :let={_failure}>
         <div class="flex h-full items-center justify-center pb-16">
-          <span class="text-xl font-medium text-base-50">There was an error loading the device list, please contact support.</span>
+          <span class="text-xl font-medium text-content-strong">There was an error loading the device list, please contact support.</span>
         </div>
       </:failed>
 
       <%= cond do %>
         <% Enum.empty?(devices) && @currently_filtering -> %>
           <div class="flex h-full items-center justify-center pb-16">
-            <span class="text-xl font-medium text-base-50">No devices match the current filters.</span>
+            <span class="text-xl font-medium text-content-strong">No devices match the current filters.</span>
           </div>
         <% Enum.empty?(devices) -> %>
           <div class="flex h-full items-center justify-center pb-16">
             <div class="w-full max-w-2xl px-6">
-              <h2 class="mb-4 text-xl font-semibold text-base-50">{@product.name} doesn't have any devices yet.</h2>
-              <p class="mb-6 text-sm text-base-400">Get started by adding <code class="text-base-300">nerves_hub_link</code> to your Nerves project.</p>
+              <h2 class="mb-4 text-xl font-semibold text-content-strong">{@product.name} doesn't have any devices yet.</h2>
+              <p class="mb-6 text-sm text-content-muted">Get started by adding <code class="text-content-body">nerves_hub_link</code> to your Nerves project.</p>
               <% active_secret = Enum.find(@product.shared_secret_auths, &is_nil(&1.deactivated_at)) %>
               <%!-- The secret lets a device connect and register itself, so only members who could manage it are shown it. --%>
               <%= if active_secret && authorized?(:"product:update", @current_scope) do %>
-                <div class="rounded-lg border border-base-700 bg-surface-raised p-4">
-                  <h3 class="mb-3 text-sm font-semibold text-base-300">1. Add the dependency to your <code>mix.exs</code></h3>
+                <div class="rounded-lg border border-line-default bg-surface-raised p-4">
+                  <h3 class="mb-3 text-sm font-semibold text-content-body">1. Add the dependency to your <code>mix.exs</code></h3>
                   <pre class="mb-4 overflow-x-auto rounded bg-base-950 p-3 font-mono text-sm text-success-content"><code>&#123;:nerves_hub_link, "~&gt; 2.0"&#125;</code></pre>
 
-                  <h3 class="mb-3 text-sm font-semibold text-base-300">2. Add this to your <code>config/config.exs</code></h3>
+                  <h3 class="mb-3 text-sm font-semibold text-content-body">2. Add this to your <code>config/config.exs</code></h3>
                   <pre class="overflow-x-auto rounded bg-base-950 p-3 font-mono text-sm text-success-content"><code>config :nerves_hub_link,
   host: "{onboarding_nhl_host()}",
   remote_iex: true,
@@ -137,27 +137,28 @@
     product_secret: "{active_secret.secret}"
   ]</code></pre>
 
-                  <p class="mt-4 text-xs text-base-500">
-                    See the <a class="text-base-400 underline hover:text-base-300" href="https://hexdocs.pm/nerves_hub_link" target="_blank">nerves_hub_link documentation</a> for more details.
+                  <p class="mt-4 text-xs text-content-faint">
+                    See the <a class="text-content-muted underline hover:text-content-body" href="https://hexdocs.pm/nerves_hub_link" target="_blank">nerves_hub_link documentation</a>
+                    for more details.
                   </p>
                 </div>
               <% else %>
-                <p class="text-sm text-base-400">
-                  Check the <a class="text-base-300 underline hover:text-base-200" href="https://hexdocs.pm/nerves_hub_link" target="_blank">nerves_hub_link documentation</a>
+                <p class="text-sm text-content-muted">
+                  Check the <a class="text-content-body underline hover:text-base-200" href="https://hexdocs.pm/nerves_hub_link" target="_blank">nerves_hub_link documentation</a>
                   for how to connect your first device.
                 </p>
               <% end %>
 
-              <div class="mt-6 rounded-lg border border-base-800 bg-surface-muted p-4">
-                <h3 class="mb-2 text-sm font-semibold text-base-300">Production authentication</h3>
-                <p class="text-xs text-base-400">
+              <div class="mt-6 rounded-lg border border-line-subtle bg-surface-muted p-4">
+                <h3 class="mb-2 text-sm font-semibold text-content-body">Production authentication</h3>
+                <p class="text-xs text-content-muted">
                   For production applications, we recommend mTLS authentication using a local certificate or dedicated secure hardware.
                 </p>
                 <div class="mt-2 flex gap-4">
-                  <a class="text-xs text-base-400 underline hover:text-base-300" href="https://hexdocs.pm/nerves_hub_link/NervesHubLink.Configurator.LocalCert.html" target="_blank">
+                  <a class="text-xs text-content-muted underline hover:text-content-body" href="https://hexdocs.pm/nerves_hub_link/NervesHubLink.Configurator.LocalCert.html" target="_blank">
                     LocalCert configurator
                   </a>
-                  <a class="text-xs text-base-400 underline hover:text-base-300" href="https://hexdocs.pm/nerves_hub_link/NervesHubLink.Configurator.NervesKey.html" target="_blank">
+                  <a class="text-xs text-content-muted underline hover:text-content-body" href="https://hexdocs.pm/nerves_hub_link/NervesHubLink.Configurator.NervesKey.html" target="_blank">
                     NervesKey configurator
                   </a>
                 </div>
@@ -214,7 +215,7 @@
               <tbody>
                 <tr
                   :for={device <- devices}
-                  class={["clickable-table-row isolate border-b border-base-800", device.id in @selected_devices && "selected-row"]}
+                  class={["clickable-table-row isolate border-b border-line-subtle", device.id in @selected_devices && "selected-row"]}
                   style={progress_style(@progress[device.id])}
                 >
                   <td class="checkbox">
@@ -272,15 +273,15 @@
                         {device.identifier}
                         <div :if={device.deleted_at} class="relative z-50 inline-block align-middle" id={"health-tooltip-#{device.identifier}"} phx-hook="ToolTip" data-placement="right">
                           <.icon name="info" class="stroke-base-400" />
-                          <div class="tooltip-content absolute top-0 left-0 z-20 hidden w-max rounded border border-base-700 bg-surface-muted px-2 py-1.5 text-xs">
+                          <div class="tooltip-content absolute top-0 left-0 z-20 hidden w-max rounded border border-line-default bg-surface-muted px-2 py-1.5 text-xs">
                             This device has been deleted. <br /> You can destroy or restore it in the device's settings.
-                            <div class="tooltip-arrow absolute size-2 origin-center rotate-45 border-base-700 bg-surface-muted"></div>
+                            <div class="tooltip-arrow absolute size-2 origin-center rotate-45 border-line-default bg-surface-muted"></div>
                           </div>
                         </div>
                         <span class="clickable-table-row-mask" />
                       </.link>
-                      <span class={["ml-2 flex items-center gap-1 rounded-full border border-base-700 bg-base-800 px-2.5 py-0.5", !@progress[device.id] && "invisible"]}>
-                        <span class="text-xs tracking-tight text-base-300">{@progress[device.id][:stage]}</span>
+                      <span class={["ml-2 flex items-center gap-1 rounded-full border border-line-default bg-base-800 px-2.5 py-0.5", !@progress[device.id] && "invisible"]}>
+                        <span class="text-xs tracking-tight text-content-body">{@progress[device.id][:stage]}</span>
                       </span>
                     </div>
                   </td>
@@ -321,11 +322,11 @@
                   </td>
 
                   <td :if={show_column?(@current_scope.user, :deployment_group)}>
-                    <span :if={device.deployment_id} class="flex w-fit items-center gap-1 rounded-full border border-base-700 bg-base-800 py-0.5 pr-2.5 pl-1.5">
+                    <span :if={device.deployment_id} class="flex w-fit items-center gap-1 rounded-full border border-line-default bg-base-800 py-0.5 pr-2.5 pl-1.5">
                       <svg class="size-1.5" viewBox="0 0 6 6" fill="none" xmlns="http://www.w3.org/2000/svg">
                         <circle cx="3" cy="3" r="3" class="fill-success" />
                       </svg>
-                      <span class="text-xs tracking-tight text-base-300">{device.deployment_group.name}</span>
+                      <span class="text-xs tracking-tight text-content-body">{device.deployment_group.name}</span>
                     </span>
                   </td>
 

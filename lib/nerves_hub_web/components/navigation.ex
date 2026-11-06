@@ -139,15 +139,15 @@ defmodule NervesHubWeb.Components.Navigation do
     <li
       data-selected={"#{@selected}"}
       class={[
-        "flex h-nav-item items-center justify-center hover:light-sidebar-item-hover data-[selected=true]:border-r-2 data-[selected=true]:border-primary data-[selected=true]:light-sidebar-item-selected lg:justify-start lg:px-4 hover:dark:dark-sidebar-item-hover dark:data-[selected=true]:dark-sidebar-item-selected collapsed:justify-center collapsed:px-0"
+        "flex h-nav-item items-center justify-center hover:sidebar-item-hover data-[selected=true]:border-r-2 data-[selected=true]:border-primary data-[selected=true]:light-sidebar-item-selected lg:justify-start lg:px-4 dark:data-[selected=true]:dark-sidebar-item-selected collapsed:justify-center collapsed:px-0"
       ]}
     >
-      <.link class="group flex size-full items-center justify-center gap-x-3 text-sm leading-[19px] font-light tracking-wide text-base-300 lg:justify-start collapsed:justify-center" navigate={@path}>
+      <.link class="group flex size-full items-center justify-center gap-x-3 text-sm leading-[19px] font-light tracking-wide text-content-body lg:justify-start collapsed:justify-center" navigate={@path}>
         <span
           data-selected={"#{@selected}"}
-          class={"size-5 #{@icon} data-[selected=false]:text-base-500 data-[selected=true]:text-primary"}
+          class={"size-5 #{@icon} data-[selected=false]:text-content-faint data-[selected=true]:text-primary"}
         />
-        <span class={["hidden lg:inline collapsed:hidden", @selected && "font-semibold text-base-50"]}>{@label}</span>
+        <span class={["hidden lg:inline collapsed:hidden", @selected && "font-semibold text-content-strong"]}>{@label}</span>
         <span :if={@badge} class="ml-1 rounded-full bg-base-800 px-1.5 py-0.5 text-xs collapsed:hidden">{@badge}</span>
       </.link>
     </li>

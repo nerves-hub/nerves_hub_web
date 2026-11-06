@@ -6,7 +6,7 @@
   </:top_bar>
 
   <:header>
-    <h1 class="text-xl leading-[30px] font-semibold text-base-50">{CAHelpers.label(@certificate)}</h1>
+    <h1 class="text-xl leading-[30px] font-semibold text-content-strong">{CAHelpers.label(@certificate)}</h1>
     <div class="mr-auto"></div>
     <.button :if={authorized?(:"certificate_authority:update", @current_scope)} type="link" navigate={~p"/org/#{@org}/settings/certificates/#{@certificate}/edit"}>
       Edit
@@ -24,64 +24,64 @@
   </:header>
 
   <div class="h-0 max-w-[650px] flex-1 flex-col gap-6 overflow-y-auto px-6 py-4">
-    <div class="flex flex-col rounded border border-base-700 bg-surface-raised">
-      <div class="flex h-14 items-center justify-between border-b border-base-700 px-4">
-        <div class="text-base font-medium text-base-50">Certificate Authority</div>
+    <div class="flex flex-col rounded border border-line-default bg-surface-raised">
+      <div class="flex h-14 items-center justify-between border-b border-line-default px-4">
+        <div class="text-base font-medium text-content-strong">Certificate Authority</div>
         <CAHelpers.certificate_status not_before={@certificate.not_before} not_after={@certificate.not_after} />
       </div>
       <dl class="flex flex-col gap-3 p-4 text-sm">
         <div class="flex justify-between gap-4">
-          <dt class="text-base-400">Serial</dt>
+          <dt class="text-content-muted">Serial</dt>
           <dd>
-            <code class="rounded bg-base-800 px-2 py-1 font-mono text-xs break-all text-base-300">{Utils.format_serial(@certificate.serial)}</code>
+            <code class="rounded bg-base-800 px-2 py-1 font-mono text-xs break-all text-content-body">{Utils.format_serial(@certificate.serial)}</code>
           </dd>
         </div>
         <div class="flex justify-between gap-4">
-          <dt class="text-base-400">Description</dt>
-          <dd class="text-base-300">{@certificate.description || "-"}</dd>
+          <dt class="text-content-muted">Description</dt>
+          <dd class="text-content-body">{@certificate.description || "-"}</dd>
         </div>
         <div class="flex justify-between gap-4">
-          <dt class="text-base-400">Last used</dt>
-          <dd class="text-base-300">
+          <dt class="text-content-muted">Last used</dt>
+          <dd class="text-content-body">
             {if @certificate.last_used, do: DateTimes.from_now(@certificate.last_used), else: "Never"}
           </dd>
         </div>
         <div class="flex justify-between gap-4">
-          <dt class="text-base-400">Not before</dt>
-          <dd class="text-base-300">
+          <dt class="text-content-muted">Not before</dt>
+          <dd class="text-content-body">
             <div phx-hook="SimpleDate" id="ca-not-before" class="date-time">{@certificate.not_before}</div>
           </dd>
         </div>
         <div class="flex justify-between gap-4">
-          <dt class="text-base-400">Not after</dt>
-          <dd class="text-base-300">
+          <dt class="text-content-muted">Not after</dt>
+          <dd class="text-content-body">
             <div phx-hook="SimpleDate" id="ca-not-after" class="date-time">{@certificate.not_after}</div>
           </dd>
         </div>
         <div class="flex items-center justify-between gap-4">
-          <dt class="flex items-center gap-2 text-base-400">
+          <dt class="flex items-center gap-2 text-content-muted">
             Check expiration <CAHelpers.check_expiration_tooltip />
           </dt>
-          <dd class="text-base-300">{if @certificate.check_expiration, do: "Yes", else: "No"}</dd>
+          <dd class="text-content-body">{if @certificate.check_expiration, do: "Yes", else: "No"}</dd>
         </div>
         <div class="flex justify-between gap-4">
-          <dt class="text-base-400">Just In Time Provisioning</dt>
-          <dd class="text-base-300">
+          <dt class="text-content-muted">Just In Time Provisioning</dt>
+          <dd class="text-content-body">
             {if @certificate.jitp, do: "Enabled for #{@certificate.jitp.product.name}", else: "Disabled"}
           </dd>
         </div>
       </dl>
     </div>
 
-    <div id="ca-devices" class="flex flex-col rounded border border-base-700 bg-surface-raised">
-      <div class="flex h-14 items-center gap-2 border-b border-base-700 px-4">
-        <div class="text-base font-medium text-base-50">Devices</div>
-        <div class="rounded-sm bg-base-800 px-1.5 py-0.5 text-xs text-base-300">
+    <div id="ca-devices" class="flex flex-col rounded border border-line-default bg-surface-raised">
+      <div class="flex h-14 items-center gap-2 border-b border-line-default px-4">
+        <div class="text-base font-medium text-content-strong">Devices</div>
+        <div class="rounded-sm bg-base-800 px-1.5 py-0.5 text-xs text-content-body">
           {Number.Delimit.number_to_delimited(@device_count, precision: 0)}
         </div>
       </div>
       <div class="flex flex-col px-4 py-3">
-        <div :if={@device_counts == []} class="text-sm text-base-400">
+        <div :if={@device_counts == []} class="text-sm text-content-muted">
           No devices are using a certificate signed by this Certificate Authority.
         </div>
         <.link
@@ -89,8 +89,8 @@
           navigate={~p"/org/#{@org}/#{product}/devices?#{[signer_ca: @certificate.serial]}"}
           class="-mx-2 flex items-center justify-between gap-4 rounded px-2 py-1.5 hover:bg-base-800"
         >
-          <span class="text-sm text-base-300">{product.name}</span>
-          <span class="text-sm text-base-400">{Number.Delimit.number_to_delimited(device_count, precision: 0)}</span>
+          <span class="text-sm text-content-body">{product.name}</span>
+          <span class="text-sm text-content-muted">{Number.Delimit.number_to_delimited(device_count, precision: 0)}</span>
         </.link>
       </div>
     </div>

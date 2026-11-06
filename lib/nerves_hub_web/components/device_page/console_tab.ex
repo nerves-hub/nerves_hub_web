@@ -210,7 +210,7 @@ defmodule NervesHubWeb.Components.DevicePage.ConsoleTab do
                       <circle cx="3" cy="3" r="3" class="fill-status-offline" />
                     </svg>
                   <% end %>
-                  <h1 class="font-mono text-xl leading-[30px] font-semibold text-base-50">
+                  <h1 class="font-mono text-xl leading-[30px] font-semibold text-content-strong">
                     {@device.identifier}
                   </h1>
                 </div>
@@ -220,7 +220,7 @@ defmodule NervesHubWeb.Components.DevicePage.ConsoleTab do
                   class="hidden cursor-pointer items-center gap-2 rounded-full bg-neutral-900 px-3 py-1.5 text-xs text-neutral-50"
                   title="Send ⌥ (Option) to the device as Meta, for shortcuts such as M-b and M-f. Leave this off to type characters like [ ] { } | on non-US keyboard layouts."
                 >
-                  <input type="checkbox" id="option-as-meta" class="size-3.5 rounded border-base-700 text-base-400 checked:bg-primary focus:ring-0" />
+                  <input type="checkbox" id="option-as-meta" class="size-3.5 rounded border-line-default text-content-muted checked:bg-primary focus:ring-0" />
                   <span>⌥ as Meta</span>
                 </label>
                 <button id="fullscreen" class="cursor-pointer rounded-full bg-neutral-900 hover:scale-[1.1]" phx-click={toggle_fullscreen()} title="Toggle fullscreen">

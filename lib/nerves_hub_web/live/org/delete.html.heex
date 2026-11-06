@@ -1,6 +1,6 @@
 <NervesHubWeb.Layouts.sidebar flash={@flash} current_scope={@current_scope} sidebar_tab={@sidebar_tab}>
   <:header>
-    <h1 class="text-xl leading-[30px] font-semibold text-base-50">Delete Organization</h1>
+    <h1 class="text-xl leading-[30px] font-semibold text-content-strong">Delete Organization</h1>
   </:header>
 
   <div class="max-w-[650px] px-6 py-4">
@@ -12,7 +12,7 @@
 
     <.form :let={f} id="delete-org-form" for={@form} phx-submit="delete">
       <div class="mb-6">
-        <label for="org_name_input" class="mb-2 block text-sm font-medium text-base-300">
+        <label for="org_name_input" class="mb-2 block text-sm font-medium text-content-body">
           Please type <strong>{@org.name}</strong> to confirm.
         </label>
         <input
@@ -20,7 +20,7 @@
           id="org_name_input"
           name={f[:confirm_name].name}
           value={f[:confirm_name].value}
-          class="w-full rounded border border-base-700 bg-base-900 px-3 py-2 text-sm text-base-50 focus:ring-2 focus:ring-alert focus:outline-none"
+          class="w-full rounded border border-line-default bg-base-900 px-3 py-2 text-sm text-content-strong focus:ring-2 focus:ring-alert focus:outline-none"
         />
       </div>
 

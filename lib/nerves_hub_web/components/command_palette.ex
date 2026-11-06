@@ -64,10 +64,10 @@ defmodule NervesHubWeb.Components.CommandPalette do
       <div data-palette-overlay class={["relative z-50", not @open && "hidden"]} role="dialog" aria-modal="true" aria-label="Command palette">
         <div data-palette-backdrop class="fixed inset-0 bg-backdrop transition-opacity" aria-hidden="true"></div>
         <div class="fixed inset-0 overflow-y-auto p-4 sm:p-6 md:p-20">
-          <div class="mx-auto max-w-2xl overflow-hidden rounded-xl border border-base-700 bg-surface-overlay shadow-2xl ring-1 ring-base-700/10">
+          <div class="mx-auto max-w-2xl overflow-hidden rounded-xl border border-line-default bg-surface-overlay shadow-2xl ring-1 ring-line-default/10">
             <form id="command-palette-form" phx-change="search" phx-target={@myself} phx-debounce="150" autocomplete="off">
-              <div class="flex items-center gap-3 border-b border-base-700 px-4">
-                <span class="lucide-search--light size-5 shrink-0 text-base-400"></span>
+              <div class="flex items-center gap-3 border-b border-line-default px-4">
+                <span class="lucide-search--light size-5 shrink-0 text-content-muted"></span>
                 <label for="command-palette-input" class="sr-only">Search devices, deployment groups, firmware</label>
                 <input
                   type="text"
@@ -79,19 +79,19 @@ defmodule NervesHubWeb.Components.CommandPalette do
                   aria-controls="command-palette-results"
                   spellcheck="false"
                   placeholder="Search devices, deployment groups, firmware…"
-                  class="h-12 w-full border-0 bg-transparent text-sm text-base-50 placeholder:text-base-500 focus:ring-0 focus:outline-none"
+                  class="h-12 w-full border-0 bg-transparent text-sm text-content-strong placeholder:text-content-faint focus:ring-0 focus:outline-none"
                 />
-                <kbd class="hidden rounded border border-base-700 px-1.5 py-0.5 text-xs text-base-400 sm:inline-block">esc</kbd>
+                <kbd class="hidden rounded border border-line-default px-1.5 py-0.5 text-xs text-content-muted sm:inline-block">esc</kbd>
               </div>
             </form>
 
             <div id="command-palette-results" data-palette-results role="listbox" class="scrollbar-thin max-h-96 overflow-y-auto py-2 scrollbar-thumb-base-800">
               <.async_result :let={results} assign={@results}>
                 <:loading>
-                  <div class="px-4 py-6 text-center text-sm text-base-500">Searching…</div>
+                  <div class="px-4 py-6 text-center text-sm text-content-faint">Searching…</div>
                 </:loading>
                 <:failed :let={_failure}>
-                  <div class="px-4 py-6 text-center text-sm text-base-500">Something went wrong while searching.</div>
+                  <div class="px-4 py-6 text-center text-sm text-content-faint">Something went wrong while searching.</div>
                 </:failed>
 
                 <.result_group :if={results.devices != []} title="Devices">
@@ -126,7 +126,7 @@ defmodule NervesHubWeb.Components.CommandPalette do
 
                 <div
                   :if={results.devices == [] and results.deployment_groups == [] and results.firmware == [] and @commands == []}
-                  class="px-4 py-6 text-center text-sm text-base-500"
+                  class="px-4 py-6 text-center text-sm text-content-faint"
                 >
                   <span :if={String.trim(@query) == ""}>Type to search devices, deployment groups and firmware.</span>
                   <span :if={String.trim(@query) != ""}>No results for &ldquo;{@query}&rdquo;.</span>
@@ -155,7 +155,7 @@ defmodule NervesHubWeb.Components.CommandPalette do
   defp result_group(assigns) do
     ~H"""
     <div class="px-2 pb-2">
-      <div class="px-2 pt-2 pb-1 text-xs font-semibold tracking-wide text-base-500 uppercase">{@title}</div>
+      <div class="px-2 pt-2 pb-1 text-xs font-semibold tracking-wide text-content-faint uppercase">{@title}</div>
       {render_slot(@inner_block)}
     </div>
     """
@@ -174,9 +174,9 @@ defmodule NervesHubWeb.Components.CommandPalette do
       role="option"
       class="flex items-center gap-3 rounded-md p-2 text-sm text-base-200 hover:bg-primary/20"
     >
-      <span class={["size-4 shrink-0 text-base-400", @icon]}></span>
+      <span class={["size-4 shrink-0 text-content-muted", @icon]}></span>
       <span class="min-w-0 flex-1 truncate">{@label}</span>
-      <span :if={@hint} class="shrink-0 truncate text-xs text-base-500">{@hint}</span>
+      <span :if={@hint} class="shrink-0 truncate text-xs text-content-faint">{@hint}</span>
     </.link>
     """
   end

@@ -30,7 +30,7 @@ defmodule NervesHubWeb.Components.AdvancedSearch do
       data-value={@query}
       class="h-8 w-64 transition-[width] duration-400 ease-in-out [&[data-value]:not([data-value=''])]:w-136"
     >
-      <div data-role="box" class="rounded border border-base-600 bg-surface-muted">
+      <div data-role="box" class="rounded border border-line-strong bg-surface-muted">
         <div class="grid grid-cols-1">
           <div
             id="advanced-query-input"
@@ -41,7 +41,7 @@ defmodule NervesHubWeb.Components.AdvancedSearch do
             autocorrect="off"
             autocapitalize="off"
             class={[
-              "ff-m col-start-1 row-start-1 mr-9 scrollbar-none block h-8 truncate overflow-x-scroll py-1.5 pl-3 text-sm font-normal text-base-400 outline-none",
+              "ff-m col-start-1 row-start-1 mr-9 scrollbar-none block h-8 truncate overflow-x-scroll py-1.5 pl-3 text-sm font-normal text-content-muted outline-none",
               "mask-[linear-gradient(to_right,transparent,black_2%,black_98%,transparent)]"
             ]}
           ></div>
@@ -52,11 +52,11 @@ defmodule NervesHubWeb.Components.AdvancedSearch do
             data-role="placeholder"
             phx-update="ignore"
             class={[
-              "ff-m pointer-events-none col-start-1 row-start-1 flex h-8 items-center gap-1.5 pl-3 text-sm text-base-500",
+              "ff-m pointer-events-none col-start-1 row-start-1 flex h-8 items-center gap-1.5 pl-3 text-sm text-content-faint",
               @query != "" && "hidden"
             ]}
           >
-            <kbd class="inline-flex size-4 items-center justify-center rounded border border-base-600 bg-base-800 text-xs leading-none text-base-300">/</kbd>
+            <kbd class="inline-flex size-4 items-center justify-center rounded border border-line-strong bg-base-800 text-xs leading-none text-content-body">/</kbd>
             <span>Advanced search</span>
           </div>
 
@@ -70,7 +70,7 @@ defmodule NervesHubWeb.Components.AdvancedSearch do
           <button
             type="button"
             data-role="clear"
-            class="col-start-1 row-start-1 mr-3 hidden self-center justify-self-end text-base-400 hover:cursor-pointer hover:text-base-200"
+            class="col-start-1 row-start-1 mr-3 hidden self-center justify-self-end text-content-muted hover:cursor-pointer hover:text-base-200"
             title="Clear"
             aria-label="Clear advanced query"
             phx-update="ignore"

@@ -7,7 +7,7 @@
     <span class={["rounded px-1.5 py-0.5 text-xs", status_class(@group.status)]}>
       {@group.status}
     </span>
-    <h1 class="w-full text-xl leading-[30px] font-semibold text-base-50" title={@group.reason}>
+    <h1 class="w-full text-xl leading-[30px] font-semibold text-content-strong" title={@group.reason}>
       {@group.reason}
     </h1>
     <div :if={authorized?(:"error_group:update", @current_scope)} class="flex flex-row gap-2">
@@ -24,59 +24,59 @@
   </:header>
 
   <div class="flex h-0 flex-1 flex-col gap-4 overflow-x-auto p-6">
-    <div class="grid grid-cols-2 gap-x-8 gap-y-3 rounded border border-base-700 bg-surface-raised p-5 text-sm md:grid-cols-4">
+    <div class="grid grid-cols-2 gap-x-8 gap-y-3 rounded border border-line-default bg-surface-raised p-5 text-sm md:grid-cols-4">
       <div>
-        <div class="text-xs text-base-400">Occurrences</div>
+        <div class="text-xs text-content-muted">Occurrences</div>
         <div class="font-mono text-lg text-base-100">{@group.occurrence_count}</div>
       </div>
       <div>
-        <div class="text-xs text-base-400">Devices affected</div>
+        <div class="text-xs text-content-muted">Devices affected</div>
         <div class="font-mono text-lg text-base-100">{@affected_device_count}</div>
-        <div class="text-xs text-base-500">in the last 30 days</div>
+        <div class="text-xs text-content-faint">in the last 30 days</div>
       </div>
       <div>
-        <div class="text-xs text-base-400">First seen</div>
+        <div class="text-xs text-content-muted">First seen</div>
         <div class="text-base-200">{RelativeTime.from_now(@group.first_seen_at)}</div>
-        <div :if={@group.first_seen_firmware_uuid not in [nil, ""]} class="truncate font-mono text-xs text-base-500" title={@group.first_seen_firmware_uuid}>
+        <div :if={@group.first_seen_firmware_uuid not in [nil, ""]} class="truncate font-mono text-xs text-content-faint" title={@group.first_seen_firmware_uuid}>
           {@group.first_seen_firmware_uuid}
         </div>
       </div>
       <div>
-        <div class="text-xs text-base-400">Last seen</div>
+        <div class="text-xs text-content-muted">Last seen</div>
         <div class="text-base-200">{RelativeTime.from_now(@group.last_seen_at)}</div>
-        <div :if={@group.last_seen_firmware_uuid not in [nil, ""]} class="truncate font-mono text-xs text-base-500" title={@group.last_seen_firmware_uuid}>
+        <div :if={@group.last_seen_firmware_uuid not in [nil, ""]} class="truncate font-mono text-xs text-content-faint" title={@group.last_seen_firmware_uuid}>
           {@group.last_seen_firmware_uuid}
         </div>
       </div>
       <div>
-        <div class="text-xs text-base-400">Kind</div>
+        <div class="text-xs text-content-muted">Kind</div>
         <div class="font-mono text-base-200">{@group.kind}</div>
       </div>
       <div>
-        <div class="text-xs text-base-400">Source</div>
+        <div class="text-xs text-content-muted">Source</div>
         <div class="font-mono text-base-200">{@group.source}</div>
       </div>
       <div :if={@group.resolved_at}>
-        <div class="text-xs text-base-400">Resolved</div>
+        <div class="text-xs text-content-muted">Resolved</div>
         <div class="text-base-200">
           {RelativeTime.from_now(@group.resolved_at)}<span :if={@group.resolved_by}> by {@group.resolved_by.name}</span>
         </div>
       </div>
       <div :if={@group.muted_at}>
-        <div class="text-xs text-base-400">Muted</div>
+        <div class="text-xs text-content-muted">Muted</div>
         <div class="text-base-200">
           {RelativeTime.from_now(@group.muted_at)}<span :if={@group.muted_by}> by {@group.muted_by.name}</span>
         </div>
       </div>
       <div :if={@group.regressed_at}>
-        <div class="text-xs text-base-400">Regressed</div>
+        <div class="text-xs text-content-muted">Regressed</div>
         <div class="text-warning">{RelativeTime.from_now(@group.regressed_at)}</div>
       </div>
     </div>
 
-    <div class="flex flex-col gap-4 rounded border border-base-700 bg-surface-raised p-5">
+    <div class="flex flex-col gap-4 rounded border border-line-default bg-surface-raised p-5">
       <div class="flex flex-row items-center justify-between">
-        <div class="leading-6 font-medium text-base-50">Occurrences over time</div>
+        <div class="leading-6 font-medium text-content-strong">Occurrences over time</div>
         <div class="flex flex-row gap-1 rounded-sm bg-base-800 p-0.5">
           <button
             :for={{label, value} <- periods()}
@@ -104,32 +104,32 @@
       </div>
     </div>
 
-    <div class="flex flex-col gap-3 rounded border border-base-700 bg-surface-raised p-5">
-      <div class="leading-6 font-medium text-base-50">Most recent occurrence</div>
-      <div :if={is_nil(@latest_occurrence)} class="text-sm font-extralight text-base-500">
+    <div class="flex flex-col gap-3 rounded border border-line-default bg-surface-raised p-5">
+      <div class="leading-6 font-medium text-content-strong">Most recent occurrence</div>
+      <div :if={is_nil(@latest_occurrence)} class="text-sm font-extralight text-content-faint">
         No stored occurrence — reports are kept for 30 days, and this error's have aged out.
       </div>
       <div :if={@latest_occurrence} class="flex flex-col gap-3 font-mono text-xs">
-        <div :if={@latest_occurrence.message != ""} class="max-h-60 overflow-y-auto whitespace-pre-wrap text-base-300">
+        <div :if={@latest_occurrence.message != ""} class="max-h-60 overflow-y-auto whitespace-pre-wrap text-content-body">
           {@latest_occurrence.message}
         </div>
         <div class="flex flex-col gap-0.5">
-          <div :for={frame <- frames(@latest_occurrence)} class="text-base-400">
+          <div :for={frame <- frames(@latest_occurrence)} class="text-content-muted">
             <span class="text-base-200">{frame["module"]}.{frame["function"]}</span>
             <span :if={frame["file"]}>&nbsp;({frame["file"]}<span :if={frame["line"]}>:{frame["line"]}</span>)</span>
           </div>
         </div>
-        <div :if={@latest_occurrence.context != %{}} class="flex flex-row flex-wrap gap-x-6 gap-y-1 text-base-400">
+        <div :if={@latest_occurrence.context != %{}} class="flex flex-row flex-wrap gap-x-6 gap-y-1 text-content-muted">
           <span :for={{key, value} <- @latest_occurrence.context}>{key}: <span class="text-base-200">{value}</span></span>
         </div>
       </div>
     </div>
 
-    <div class="flex flex-col rounded border border-base-700 bg-surface-raised">
-      <div class="flex h-14 items-center border-b border-base-700 px-5">
-        <div class="leading-6 font-medium text-base-50">Affected devices</div>
+    <div class="flex flex-col rounded border border-line-default bg-surface-raised">
+      <div class="flex h-14 items-center border-b border-line-default px-5">
+        <div class="leading-6 font-medium text-content-strong">Affected devices</div>
       </div>
-      <div :if={Enum.empty?(@affected_devices)} class="p-8 text-center text-sm font-extralight text-base-500">
+      <div :if={Enum.empty?(@affected_devices)} class="p-8 text-center text-sm font-extralight text-content-faint">
         No devices with retained occurrences.
       </div>
       <table :if={Enum.any?(@affected_devices)} class="w-full table-fixed text-sm">
@@ -139,32 +139,32 @@
           <col class="w-44" />
         </colgroup>
         <thead>
-          <tr class="border-b border-base-700 text-left font-extralight text-base-400">
+          <tr class="border-b border-line-default text-left font-extralight text-content-muted">
             <th class="px-5 py-2 font-normal">Device</th>
             <th class="py-2 pr-6 font-normal">Occurrences</th>
             <th class="py-2 pr-5 font-normal">Last seen</th>
           </tr>
         </thead>
         <tbody>
-          <tr :for={entry <- @affected_devices} class="border-b border-base-800 hover:bg-base-900">
+          <tr :for={entry <- @affected_devices} class="border-b border-line-subtle hover:bg-base-900">
             <td class="px-5 py-2">
               <.link navigate={~p"/org/#{@current_scope.org}/#{@current_scope.product}/devices/#{entry.device}/errors"} class="font-mono text-base-200 hover:underline">
                 {entry.device.identifier}
               </.link>
             </td>
-            <td class="py-2 pr-6 font-mono text-base-300">{entry.occurrence_count}</td>
-            <td class="py-2 pr-5 text-base-300">{RelativeTime.from_now(entry.last_seen_at)}</td>
+            <td class="py-2 pr-6 font-mono text-content-body">{entry.occurrence_count}</td>
+            <td class="py-2 pr-5 text-content-body">{RelativeTime.from_now(entry.last_seen_at)}</td>
           </tr>
         </tbody>
       </table>
     </div>
 
-    <div class="flex flex-col rounded border border-base-700 bg-surface-raised">
-      <div class="flex h-14 items-center justify-between border-b border-base-700 px-5">
-        <div class="leading-6 font-medium text-base-50">Recent occurrences</div>
-        <span class="text-sm font-extralight text-base-400">Showing the last 25.</span>
+    <div class="flex flex-col rounded border border-line-default bg-surface-raised">
+      <div class="flex h-14 items-center justify-between border-b border-line-default px-5">
+        <div class="leading-6 font-medium text-content-strong">Recent occurrences</div>
+        <span class="text-sm font-extralight text-content-muted">Showing the last 25.</span>
       </div>
-      <div :if={Enum.empty?(@occurrences)} class="p-8 text-center text-sm font-extralight text-base-500">
+      <div :if={Enum.empty?(@occurrences)} class="p-8 text-center text-sm font-extralight text-content-faint">
         No retained occurrences.
       </div>
       <table :if={Enum.any?(@occurrences)} class="w-full table-fixed text-sm">
@@ -174,21 +174,21 @@
           <col />
         </colgroup>
         <thead>
-          <tr class="border-b border-base-700 text-left font-extralight text-base-400">
+          <tr class="border-b border-line-default text-left font-extralight text-content-muted">
             <th class="px-5 py-2 font-normal">Timestamp ({zone_abbr(@time_zone)})</th>
             <th class="py-2 pr-6 font-normal">Firmware</th>
             <th class="py-2 pr-5 font-normal">Reason</th>
           </tr>
         </thead>
         <tbody>
-          <tr :for={occurrence <- @occurrences} class="border-b border-base-800 align-top hover:bg-base-900">
-            <td class="px-5 py-2 font-mono whitespace-nowrap text-base-300">
+          <tr :for={occurrence <- @occurrences} class="border-b border-line-subtle align-top hover:bg-base-900">
+            <td class="px-5 py-2 font-mono whitespace-nowrap text-content-body">
               <.local_datetime at={occurrence.timestamp} time_zone={@time_zone} format={:timestamp} zone_label={false} />
             </td>
-            <td class="truncate py-2 pr-6 font-mono text-xs text-base-400" title={occurrence.firmware_uuid}>
+            <td class="truncate py-2 pr-6 font-mono text-xs text-content-muted" title={occurrence.firmware_uuid}>
               {occurrence.firmware_uuid}
             </td>
-            <td class="truncate py-2 pr-5 font-mono text-xs text-base-300" title={occurrence.reason}>
+            <td class="truncate py-2 pr-5 font-mono text-xs text-content-body" title={occurrence.reason}>
               {occurrence.reason}
             </td>
           </tr>

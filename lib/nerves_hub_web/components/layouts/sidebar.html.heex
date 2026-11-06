@@ -1,7 +1,7 @@
 <div class="flex h-full">
   <.live_component module={NervesHubWeb.Components.CommandPalette} id="command-palette" current_scope={@current_scope} />
-  <div class="flex h-full w-sidebar shrink-0 flex-col border-r border-base-700 bg-surface-muted transition-[width] duration-200 collapsed:w-16">
-    <div class="flex h-14 shrink-0 items-center justify-between border-b border-base-700 pr-3 pl-6 collapsed:justify-center collapsed:px-0">
+  <div class="flex h-full w-sidebar shrink-0 flex-col border-r border-line-default bg-surface-muted transition-[width] duration-200 collapsed:w-16">
+    <div class="flex h-14 shrink-0 items-center justify-between border-b border-line-default pr-3 pl-6 collapsed:justify-center collapsed:px-0">
       <.link navigate={~p"/orgs"} class="collapsed:hidden">
         <.logo class="h-6" />
       </.link>
@@ -10,17 +10,17 @@
         type="button"
         phx-hook="SidebarToggle"
         aria-label="Collapse or expand the sidebar"
-        class="flex size-7 shrink-0 items-center justify-center rounded text-base-400 hover:cursor-pointer hover:text-base-50"
+        class="flex size-7 shrink-0 items-center justify-center rounded text-content-muted hover:cursor-pointer hover:text-content-strong"
       >
         <span class="lucide-panel-left-close--light size-5 text-content-muted collapsed:hidden"></span>
         <span class="lucide-panel-left-open--light hidden size-5 text-content-muted collapsed:block"></span>
       </button>
     </div>
 
-    <div class="relative flex flex-col border-base-700">
+    <div class="relative flex flex-col border-line-default">
       <div
         :if={@current_scope.org}
-        class="product-selector relative flex h-header shrink-0 cursor-pointer items-center border-b border-base-700 py-4 pr-3 pl-6 collapsed:justify-center collapsed:px-0"
+        class="product-selector relative flex h-header shrink-0 cursor-pointer items-center border-b border-line-default py-4 pr-3 pl-6 collapsed:justify-center collapsed:px-0"
         phx-click={toggle_product_picker()}
       >
         <div class="org-avatar hidden collapsed:flex">
@@ -49,7 +49,7 @@
         <div class="fixed top-0 left-[265px] z-30 size-full bg-backdrop collapsed:left-16"></div>
         <div class="relative">
           <div
-            class="relative z-50 scrollbar-thin max-h-[612px] overflow-y-scroll overscroll-none border-r border-b border-base-700 bg-surface-overlay p-3 scrollbar-thumb-base-800 scrollbar-track-base-900"
+            class="relative z-50 scrollbar-thin max-h-[612px] overflow-y-scroll overscroll-none border-r border-b border-line-default bg-surface-overlay p-3 scrollbar-thumb-base-800 scrollbar-track-base-900"
             phx-window-keydown={hide_product_picker()}
             phx-key="escape"
             phx-click-away={toggle_product_picker()}
@@ -81,14 +81,14 @@
       </nav>
     </div>
 
-    <div class="sticky bottom-0 col-start-1 col-end-2 mt-auto border-t border-b-subtle">
+    <div class="sticky bottom-0 col-start-1 col-end-2 mt-auto border-t border-line-subtle">
       <div id="user-menu-container" class="hidden" phx-click-away={hide_user_menu()} phx-window-keydown={hide_user_menu()} phx-key="escape">
         <div
           id="user-menu"
-          class="mx-3.5 mb-4 flex flex-col rounded-md border border-base-700 bg-surface-overlay p-2 shadow-lg collapsed:absolute collapsed:bottom-14 collapsed:left-2 collapsed:mx-0 collapsed:w-56"
+          class="mx-3.5 mb-4 flex flex-col rounded-md border border-line-default bg-surface-overlay p-2 shadow-lg collapsed:absolute collapsed:bottom-14 collapsed:left-2 collapsed:mx-0 collapsed:w-56"
         >
           <div class="justify-left flex items-center gap-1.5 p-2 hover:rounded-md hover:bg-primary/20">
-            <span class="lucide-user-round--light size-5 text-base-300" />
+            <span class="lucide-user-round--light size-5 text-content-body" />
             <.link navigate={~p"/account"} class="text-sm font-light tracking-wide">Account</.link>
           </div>
 
@@ -97,16 +97,16 @@
             <.link navigate={~p"/logout"} class="text-sm font-light tracking-wide text-alert">Log out</.link>
           </div>
 
-          <div aria-hidden="true" class="col-span-full -mx-1.5 my-1.5 h-px border-t border-base-700"></div>
+          <div aria-hidden="true" class="col-span-full -mx-1.5 my-1.5 h-px border-t border-line-default"></div>
 
           <div class="justify-left flex items-center gap-1.5 p-2 hover:rounded-md hover:bg-primary/20">
-            <span class="lucide-book-open-text--light size-5 text-base-300" />
+            <span class="lucide-book-open-text--light size-5 text-content-body" />
             <a href="https://docs.nerves-hub.org" class="text-sm font-light tracking-wide">Documentation</a>
           </div>
 
-          <div aria-hidden="true" class="col-span-full -mx-1.5 my-1.5 h-px border-t border-base-700"></div>
+          <div aria-hidden="true" class="col-span-full -mx-1.5 my-1.5 h-px border-t border-line-default"></div>
 
-          <div id="theme-selector" phx-update="ignore" class="ring-border relative isolate mt-2.5 mb-2 ml-2 flex h-8 w-fit gap-1.5 rounded-full p-1 ring-1 ring-base-700">
+          <div id="theme-selector" phx-update="ignore" class="ring-border relative isolate mt-2.5 mb-2 ml-2 flex h-8 w-fit gap-1.5 rounded-full p-1 ring-1 ring-line-default">
             <button
               id="theme-light"
               aria-label="Light theme"
@@ -147,15 +147,15 @@
       <a
         id="user-menu-toggle"
         href="#"
-        class="flex h-16 items-center gap-x-2.5 px-3 py-2.5 text-sm/6 font-semibold text-base-50 hover:bg-primary/10 collapsed:mx-0 collapsed:justify-center"
+        class="flex h-16 items-center gap-x-2.5 px-3 py-2.5 text-sm/6 font-semibold text-content-strong hover:bg-primary/10 collapsed:mx-0 collapsed:justify-center"
         phx-click={toggle_user_menu()}
       >
         <.user_avatar user={@current_scope.user} />
 
         <div class="collapsed:hidden">
           <div class="sr-only">Your profile</div>
-          <div aria-hidden="true" class="truncate text-sm font-light text-base-50">{@current_scope.user.name}</div>
-          <div aria-hidden="true" class="truncate text-xs font-light text-base-400">{@current_scope.user.email}</div>
+          <div aria-hidden="true" class="truncate text-sm font-light text-content-strong">{@current_scope.user.name}</div>
+          <div aria-hidden="true" class="truncate text-xs font-light text-content-muted">{@current_scope.user.email}</div>
         </div>
 
         <span class="ml-auto lucide-chevrons-up-down--light size-4 collapsed:hidden"></span>
@@ -166,7 +166,7 @@
   <div class="flex size-full min-w-0 flex-col">
     <.flash_group flash={@flash} />
 
-    <div class="flex h-topbar shrink-0 items-center justify-between border-b border-base-700 bg-surface-muted pl-6">
+    <div class="flex h-topbar shrink-0 items-center justify-between border-b border-line-default bg-surface-muted pl-6">
       {if(assigns[:top_bar], do: render_slot(@top_bar))}
     </div>
 
@@ -176,7 +176,7 @@
       :if={assigns[:header]}
       id="header"
       class={[
-        "flex h-header items-center gap-4 border-base-700 px-6 text-sm font-medium",
+        "flex h-header items-center gap-4 border-line-default px-6 text-sm font-medium",
         !assigns[:tabbed_nav] && "border-b"
       ]}
     >
@@ -187,7 +187,7 @@
       {render_slot(@big_header)}
     </div>
 
-    <div :if={assigns[:tabbed_nav]} class="-mt-px flex w-full justify-between border-b border-base-700 px-6">
+    <div :if={assigns[:tabbed_nav]} class="-mt-px flex w-full justify-between border-b border-line-default px-6">
       <div class="flex">
         <.link
           :for={nav <- @tabbed_nav}

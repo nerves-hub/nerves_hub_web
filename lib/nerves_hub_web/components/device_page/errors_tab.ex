@@ -169,9 +169,9 @@ defmodule NervesHubWeb.Components.DevicePage.ErrorsTab do
       phx-mounted={JS.remove_class("opacity-0")}
       class="tab-content size-full bg-base-950 pb-10 opacity-0 transition-all duration-500 phx-click-loading:opacity-50"
     >
-      <div class="flex h-11 flex-row items-center justify-between border-b border-base-700 px-12">
+      <div class="flex h-11 flex-row items-center justify-between border-b border-line-default px-12">
         <div>
-          <span class="text-sm text-base-400">Live updates :</span>
+          <span class="text-sm text-content-muted">Live updates :</span>
           <button
             id="toggle-error-streaming"
             type="button"
@@ -194,7 +194,7 @@ defmodule NervesHubWeb.Components.DevicePage.ErrorsTab do
             ></span>
           </button>
         </div>
-        <span class="text-sm font-extralight text-base-400">Errors reported in the last 30 days.</span>
+        <span class="text-sm font-extralight text-content-muted">Errors reported in the last 30 days.</span>
       </div>
 
       <div :if={@error_groups == []} class="text-medium flex size-full items-center justify-center gap-6 p-6 font-mono">
@@ -211,7 +211,7 @@ defmodule NervesHubWeb.Components.DevicePage.ErrorsTab do
             <col class="w-8" />
           </colgroup>
           <thead>
-            <tr class="border-b border-base-700 text-left font-extralight text-base-400">
+            <tr class="border-b border-line-default text-left font-extralight text-content-muted">
               <th class="py-2 pr-6 font-normal">Status</th>
               <th class="py-2 pr-6 font-normal">Error</th>
               <th class="py-2 pr-6 font-normal">Count</th>
@@ -225,7 +225,7 @@ defmodule NervesHubWeb.Components.DevicePage.ErrorsTab do
                 id={"error-group-#{entry.group.fingerprint}"}
                 phx-click="toggle-error-details"
                 phx-value-fingerprint={entry.group.fingerprint}
-                class="cursor-pointer border-b border-base-800 align-top hover:bg-base-900"
+                class="cursor-pointer border-b border-line-subtle align-top hover:bg-base-900"
               >
                 <td class="py-2 pr-6">
                   <span class={["rounded px-1.5 py-0.5 text-xs", status_class(entry.group.status)]}>
@@ -234,13 +234,13 @@ defmodule NervesHubWeb.Components.DevicePage.ErrorsTab do
                 </td>
                 <td class="py-2 pr-6">
                   <div class="truncate text-base-200" title={entry.group.reason}>{entry.group.reason}</div>
-                  <div :if={entry.group.top_frame_module} class="truncate pt-0.5 text-xs text-base-500">
+                  <div :if={entry.group.top_frame_module} class="truncate pt-0.5 text-xs text-content-faint">
                     {entry.group.top_frame_module}.{entry.group.top_frame_function}
                     <span :if={entry.group.top_frame_file}>({entry.group.top_frame_file}:{entry.group.top_frame_line})</span>
                   </div>
                 </td>
-                <td class="py-2 pr-6 text-base-300">{entry.device_occurrence_count}</td>
-                <td class="py-2 pr-6 whitespace-nowrap text-base-300">
+                <td class="py-2 pr-6 text-content-body">{entry.device_occurrence_count}</td>
+                <td class="py-2 pr-6 whitespace-nowrap text-content-body">
                   <.local_datetime at={entry.last_seen_at} time_zone={@time_zone} format={:timestamp} zone_label={false} />
                 </td>
                 <td class="py-2">
@@ -252,13 +252,13 @@ defmodule NervesHubWeb.Components.DevicePage.ErrorsTab do
                     phx-value-fingerprint={entry.group.fingerprint}
                     aria-expanded={to_string(@expanded_fingerprint == entry.group.fingerprint)}
                     aria-label={"Toggle details for #{entry.group.reason}"}
-                    class="cursor-pointer text-base-500 hover:text-base-300"
+                    class="cursor-pointer text-content-faint hover:text-content-body"
                   >
                     {(@expanded_fingerprint == entry.group.fingerprint && "−") || "+"}
                   </button>
                 </td>
               </tr>
-              <tr :if={@expanded_fingerprint == entry.group.fingerprint} class="border-b border-base-800">
+              <tr :if={@expanded_fingerprint == entry.group.fingerprint} class="border-b border-line-subtle">
                 <td colspan="5" class="px-2 py-4">
                   <.occurrence_details
                     occurrence={@expanded_occurrence}
@@ -284,7 +284,7 @@ defmodule NervesHubWeb.Components.DevicePage.ErrorsTab do
 
   defp occurrence_details(%{occurrence: nil} = assigns) do
     ~H"""
-    <div class="text-xs text-base-400">
+    <div class="text-xs text-content-muted">
       No stored occurrence — reports are kept for 30 days, and this issue's have aged out.
     </div>
     """
@@ -295,7 +295,7 @@ defmodule NervesHubWeb.Components.DevicePage.ErrorsTab do
 
     ~H"""
     <div class="flex flex-col gap-3 text-xs">
-      <div class="flex flex-row flex-wrap gap-x-6 gap-y-1 text-base-400">
+      <div class="flex flex-row flex-wrap gap-x-6 gap-y-1 text-content-muted">
         <span>kind: <span class="text-base-200">{@occurrence.kind}</span></span>
         <span>source: <span class="text-base-200">{@occurrence.source}</span></span>
         <span :if={@occurrence.firmware_uuid != ""}>
@@ -308,23 +308,23 @@ defmodule NervesHubWeb.Components.DevicePage.ErrorsTab do
         </span>
       </div>
 
-      <div :if={@occurrence.message != ""} class="max-h-40 overflow-y-auto whitespace-pre-wrap text-base-300">
+      <div :if={@occurrence.message != ""} class="max-h-40 overflow-y-auto whitespace-pre-wrap text-content-body">
         {@occurrence.message}
       </div>
 
       <div :if={@frames != []} class="flex flex-col gap-0.5">
-        <div :for={frame <- @frames} class="text-base-400">
+        <div :for={frame <- @frames} class="text-content-muted">
           <span class="text-base-200">{frame["module"]}.{frame["function"]}</span>
           <span :if={frame["file"]}>&nbsp;({frame["file"]}<span :if={frame["line"]}>:{frame["line"]}</span>)</span>
         </div>
       </div>
 
-      <div :if={ErrorReport.truncated?(@occurrence)} class="text-base-500">
+      <div :if={ErrorReport.truncated?(@occurrence)} class="text-content-faint">
         truncated for storage — {format_bytes(@occurrence.payload_bytes)} were sent
       </div>
 
       <div>
-        <.link navigate={~p"/org/#{@org}/#{@product}/errors/#{@group.id}"} class="text-base-300 underline">
+        <.link navigate={~p"/org/#{@org}/#{@product}/errors/#{@group.id}"} class="text-content-body underline">
           See this error across the fleet
         </.link>
       </div>
@@ -357,7 +357,7 @@ defmodule NervesHubWeb.Components.DevicePage.ErrorsTab do
 
   defp status_class(:unresolved), do: "bg-base-800 text-orange-400"
   defp status_class(:resolved), do: "bg-base-800 text-success"
-  defp status_class(:muted), do: "bg-base-800 text-base-400"
+  defp status_class(:muted), do: "bg-base-800 text-content-muted"
 
   defp format_uptime(milliseconds) do
     seconds = div(milliseconds, 1000)

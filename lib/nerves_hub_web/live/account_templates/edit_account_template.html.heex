@@ -1,50 +1,50 @@
 <NervesHubWeb.Layouts.no_sidebar flash={@flash} current_scope={@current_scope}>
   <div class="w-[800px] pb-10">
     <div class="flex h-[88px] items-center justify-between py-6">
-      <h1 class="text-xl leading-[30px] font-semibold text-base-50">Personal Info</h1>
+      <h1 class="text-xl leading-[30px] font-semibold text-content-strong">Personal Info</h1>
       <.link navigate={~p"/account/delete"} class="rounded bg-danger px-4 py-2 text-sm font-medium text-danger-content transition-colors hover:bg-danger-hover">
         Delete Account
       </.link>
     </div>
 
     <div class="flex flex-col gap-6">
-      <div class="rounded border border-base-700 bg-surface-raised p-6 shadow-device-details-content">
-        <h2 class="mb-4 text-lg font-semibold text-base-50">Account Details</h2>
+      <div class="rounded border border-line-default bg-surface-raised p-6 shadow-device-details-content">
+        <h2 class="mb-4 text-lg font-semibold text-content-strong">Account Details</h2>
         <.form :let={f} id="details-form" for={@form} phx-submit="update-details">
           <div class="flex flex-col gap-4">
             <div>
-              <label for="name_input" class="mb-2 block text-sm font-medium text-base-300">Name</label>
+              <label for="name_input" class="mb-2 block text-sm font-medium text-content-body">Name</label>
               <input
                 type="text"
                 id="name_input"
                 name={f[:name].name}
                 value={f[:name].value}
-                class="w-full rounded border border-base-600 bg-base-900 px-3 py-2 text-base-50 placeholder-base-500 focus:border-transparent focus:ring-2 focus:ring-focus-ring focus:outline-none"
+                class="w-full rounded border border-line-strong bg-base-900 px-3 py-2 text-content-strong placeholder-base-500 focus:border-transparent focus:ring-2 focus:ring-focus-ring focus:outline-none"
               />
               <div class="mt-1 text-sm text-alert-content"><.field_errors field={f[:name]} /></div>
             </div>
 
             <div>
-              <label for="email_input" class="mb-2 block text-sm font-medium text-base-300">Email</label>
+              <label for="email_input" class="mb-2 block text-sm font-medium text-content-body">Email</label>
               <input
                 type="email"
                 id="email_input"
                 name={f[:email].name}
                 value={f[:email].value}
-                class="w-full rounded border border-base-600 bg-base-900 px-3 py-2 text-base-50 placeholder-base-500 focus:border-transparent focus:ring-2 focus:ring-focus-ring focus:outline-none"
+                class="w-full rounded border border-line-strong bg-base-900 px-3 py-2 text-content-strong placeholder-base-500 focus:border-transparent focus:ring-2 focus:ring-focus-ring focus:outline-none"
               />
               <div class="mt-1 text-sm text-alert-content"><.field_errors field={f[:email]} /></div>
             </div>
 
             <div>
-              <label for="details_current_password_input" class="mb-2 block text-sm font-medium text-base-300">
-                Password <span class="text-xs text-base-500">(required for updating your email address)</span>
+              <label for="details_current_password_input" class="mb-2 block text-sm font-medium text-content-body">
+                Password <span class="text-xs text-content-faint">(required for updating your email address)</span>
               </label>
               <input
                 type="password"
                 id="details_current_password_input"
                 name={f[:current_password].name}
-                class="w-full rounded border border-base-600 bg-base-900 px-3 py-2 text-base-50 placeholder-base-500 focus:border-transparent focus:ring-2 focus:ring-focus-ring focus:outline-none"
+                class="w-full rounded border border-line-strong bg-base-900 px-3 py-2 text-content-strong placeholder-base-500 focus:border-transparent focus:ring-2 focus:ring-focus-ring focus:outline-none"
                 placeholder="Enter current password"
               />
               <div class="mt-1 text-sm text-alert-content"><.field_errors field={f[:current_password]} /></div>
@@ -63,41 +63,41 @@
         </.form>
       </div>
 
-      <div class="rounded border border-base-700 bg-surface-raised p-6 shadow-device-details-content">
-        <h2 class="mb-4 text-lg font-semibold text-base-50">Change Password</h2>
+      <div class="rounded border border-line-default bg-surface-raised p-6 shadow-device-details-content">
+        <h2 class="mb-4 text-lg font-semibold text-content-strong">Change Password</h2>
         <.form :let={f} id="password-form" for={@password_changeset} phx-submit="update-password">
           <div class="flex flex-col gap-4">
             <div>
-              <label for="current_password_input" class="mb-2 block text-sm font-medium text-base-300">Old Password</label>
+              <label for="current_password_input" class="mb-2 block text-sm font-medium text-content-body">Old Password</label>
               <input
                 type="password"
                 id="current_password_input"
                 name={f[:current_password].name}
-                class="w-full rounded border border-base-600 bg-base-900 px-3 py-2 text-base-50 placeholder-base-500 focus:border-transparent focus:ring-2 focus:ring-focus-ring focus:outline-none"
+                class="w-full rounded border border-line-strong bg-base-900 px-3 py-2 text-content-strong placeholder-base-500 focus:border-transparent focus:ring-2 focus:ring-focus-ring focus:outline-none"
                 placeholder="Enter current password"
               />
               <div class="mt-1 text-sm text-alert-content"><.field_errors field={f[:current_password]} /></div>
             </div>
 
             <div>
-              <label for="password_input" class="mb-2 block text-sm font-medium text-base-300">New Password</label>
+              <label for="password_input" class="mb-2 block text-sm font-medium text-content-body">New Password</label>
               <input
                 type="password"
                 id="password_input"
                 name={f[:password].name}
-                class="w-full rounded border border-base-600 bg-base-900 px-3 py-2 text-base-50 placeholder-base-500 focus:border-transparent focus:ring-2 focus:ring-focus-ring focus:outline-none"
+                class="w-full rounded border border-line-strong bg-base-900 px-3 py-2 text-content-strong placeholder-base-500 focus:border-transparent focus:ring-2 focus:ring-focus-ring focus:outline-none"
                 placeholder="Enter new password"
               />
               <div class="mt-1 text-sm text-alert-content"><.field_errors field={f[:password]} /></div>
             </div>
 
             <div>
-              <label for="password_confirmation_input" class="mb-2 block text-sm font-medium text-base-300">Confirm New Password</label>
+              <label for="password_confirmation_input" class="mb-2 block text-sm font-medium text-content-body">Confirm New Password</label>
               <input
                 type="password"
                 id="password_confirmation_input"
                 name={f[:password_confirmation].name}
-                class="w-full rounded border border-base-600 bg-base-900 px-3 py-2 text-base-50 placeholder-base-500 focus:border-transparent focus:ring-2 focus:ring-focus-ring focus:outline-none"
+                class="w-full rounded border border-line-strong bg-base-900 px-3 py-2 text-content-strong placeholder-base-500 focus:border-transparent focus:ring-2 focus:ring-focus-ring focus:outline-none"
                 placeholder="Confirm new password"
               />
               <div class="mt-1 text-sm text-alert-content"><.field_errors field={f[:password_confirmation]} /></div>
@@ -116,9 +116,9 @@
         </.form>
       </div>
 
-      <div class="rounded border border-base-700 bg-surface-raised p-6 shadow-device-details-content">
+      <div class="rounded border border-line-default bg-surface-raised p-6 shadow-device-details-content">
         <div class="flex justify-between">
-          <h2 class="mb-4 text-lg font-semibold text-base-50">Access tokens</h2>
+          <h2 class="mb-4 text-lg font-semibold text-content-strong">Access tokens</h2>
           <div>
             <.button
               type="button"
@@ -133,42 +133,42 @@
 
         <div :if={@new_token} class="flex items-start gap-4 rounded border border-primary bg-linear-to-r from-base-800/50 to-base-800 p-4">
           <div class="flex min-w-0 gap-4">
-            <h3 class="text-sm font-semibold text-base-50">
+            <h3 class="text-sm font-semibold text-content-strong">
               New Token:
             </h3>
-            <div class="text-sm text-base-300">
+            <div class="text-sm text-content-body">
               <code>{@new_token}</code>
             </div>
           </div>
         </div>
 
-        <div :if={@access_tokens == []} class="space-y-3 text-base-500">
+        <div :if={@access_tokens == []} class="space-y-3 text-content-faint">
           No access tokens have been created
         </div>
 
         <div class="space-y-3 pt-4">
-          <div :for={access_token <- @access_tokens} class="flex items-start gap-4 rounded border border-base-700 bg-linear-to-r from-base-800/50 to-base-800 p-4">
+          <div :for={access_token <- @access_tokens} class="flex items-start gap-4 rounded border border-line-default bg-linear-to-r from-base-800/50 to-base-800 p-4">
             <span class="mt-1 lucide-key-round--light size-6"></span>
             <div class="min-w-0 flex-1">
-              <h3 :if={access_token.note != ""} class="mb-2 text-sm font-semibold text-base-50">
+              <h3 :if={access_token.note != ""} class="mb-2 text-sm font-semibold text-content-strong">
                 {access_token.note}
               </h3>
 
-              <h3 :if={access_token.note == ""} class="mb-2 text-sm text-base-50 italic">
+              <h3 :if={access_token.note == ""} class="mb-2 text-sm text-content-strong italic">
                 Unnamed
               </h3>
 
-              <div class="text-xs text-base-500">
+              <div class="text-xs text-content-faint">
                 Last used:
                 <%= if !is_nil(access_token.last_used) do %>
                   {DateTimes.from_now(access_token.last_used)}
                 <% else %>
-                  <span class="text-base-400">Never</span>
+                  <span class="text-content-muted">Never</span>
                 <% end %>
               </div>
             </div>
             <button
-              class="rounded border border-base-700 bg-base-800 px-3 py-1.5 text-sm font-medium text-base-300 hover:bg-base-700 disabled:cursor-not-allowed disabled:opacity-50"
+              class="rounded border border-line-default bg-base-800 px-3 py-1.5 text-sm font-medium text-content-body hover:bg-base-700 disabled:cursor-not-allowed disabled:opacity-50"
               phx-click="delete-access-token"
               phx-value-access_token_id={access_token.id}
               data-confirm="Are you sure?"
@@ -181,10 +181,10 @@
       <div
         :if={@slack_links != []}
         id="slack-links"
-        class="rounded border border-base-700 bg-surface-raised p-6 shadow-device-details-content"
+        class="rounded border border-line-default bg-surface-raised p-6 shadow-device-details-content"
       >
-        <h2 class="mb-2 text-lg font-semibold text-base-50">Slack accounts</h2>
-        <p class="mb-4 text-sm text-base-400">
+        <h2 class="mb-2 text-lg font-semibold text-content-strong">Slack accounts</h2>
+        <p class="mb-4 text-sm text-content-muted">
           What these Slack users do with {NervesHub.Branding.friendly_platform_name()}'s buttons in Slack is done as you.
         </p>
 
@@ -192,10 +192,10 @@
           <div
             :for={%{link: link, team_name: team_name} <- @slack_links}
             id={"slack-link-#{link.id}"}
-            class="flex items-center justify-between gap-4 rounded border border-base-700 bg-linear-to-r from-base-800/50 to-base-800 p-4"
+            class="flex items-center justify-between gap-4 rounded border border-line-default bg-linear-to-r from-base-800/50 to-base-800 p-4"
           >
-            <div class="min-w-0 text-sm text-base-300">
-              <span class="font-semibold text-base-50">{if link.slack_name, do: link.slack_name, else: link.slack_user_id}</span>
+            <div class="min-w-0 text-sm text-content-body">
+              <span class="font-semibold text-content-strong">{if link.slack_name, do: link.slack_name, else: link.slack_user_id}</span>
               in {team_name || "a workspace no longer connected"}, linked <.local_datetime at={link.linked_at} time_zone={@time_zone} format={:long_date} zone_label={false} />.
               <span :if={link.last_used_at}>
                 Last used <.local_datetime at={link.last_used_at} time_zone={@time_zone} format={:long_datetime} />.
@@ -203,7 +203,7 @@
               <span :if={is_nil(link.last_used_at)}>Not used yet.</span>
             </div>
             <button
-              class="rounded border border-base-700 bg-base-800 px-3 py-1.5 text-sm font-medium text-base-300 hover:bg-base-700"
+              class="rounded border border-line-default bg-base-800 px-3 py-1.5 text-sm font-medium text-content-body hover:bg-base-700"
               phx-click="unlink-slack"
               phx-value-link_id={link.id}
               data-confirm="Unlink this Slack account? Its buttons in Slack will ask to be linked again."
@@ -217,8 +217,8 @@
 
     <CoreComponents.modal id="new-access-token" on_cancel={Phoenix.LiveView.JS.add_class("hidden")}>
       <.form id="access-token-form" for={@access_token_form} phx-submit="generate-access-token">
-        <div class="flex h-14 items-center justify-between border-b border-base-700 px-4">
-          <div class="text-base font-medium text-base-50">New access token</div>
+        <div class="flex h-14 items-center justify-between border-b border-line-default px-4">
+          <div class="text-base font-medium text-content-strong">New access token</div>
         </div>
 
         <div class="flex flex-col gap-6 p-4">

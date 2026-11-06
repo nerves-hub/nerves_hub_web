@@ -9,7 +9,7 @@
   <div class="mt-6">
     <%= case @mode do %>
       <% :accept -> %>
-        <p class="text-sm/6 text-base-300">
+        <p class="text-sm/6 text-content-body">
           Joining will give the {@org.name} organization's admins the ability to manage your membership.
         </p>
 
@@ -38,7 +38,7 @@
           </p>
         </div>
 
-        <p class="mt-6 text-sm/6 text-base-300">
+        <p class="mt-6 text-sm/6 text-content-body">
           Sign out and sign back in with the invited account to accept it.
         </p>
 
@@ -48,7 +48,7 @@
           </.button>
         </div>
       <% :sign_in -> %>
-        <p class="text-sm/6 text-base-300">
+        <p class="text-sm/6 text-content-body">
           You already have a {platform_name()} account. Sign in with the invited email address to accept this invitation.
         </p>
 
@@ -98,7 +98,7 @@
             <button
               type="submit"
               id="decline-invite"
-              class="text-sm/6 text-base-400 underline hover:cursor-pointer hover:text-base-200"
+              class="text-sm/6 text-content-muted underline hover:cursor-pointer hover:text-base-200"
               data-confirm={"Are you sure you want to decline the invitation to join #{@org.name}?"}
             >
               Decline this invitation

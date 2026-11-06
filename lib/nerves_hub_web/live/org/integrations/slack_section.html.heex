@@ -1,6 +1,6 @@
-<div id={@id} class="flex w-full flex-col rounded border border-base-700 bg-surface-raised">
-  <div class="flex h-14 items-center justify-between border-b border-base-700 px-4">
-    <div class="text-base font-medium text-base-50">Slack</div>
+<div id={@id} class="flex w-full flex-col rounded border border-line-default bg-surface-raised">
+  <div class="flex h-14 items-center justify-between border-b border-line-default px-4">
+    <div class="text-base font-medium text-content-strong">Slack</div>
     <%!-- A form rather than a link: starting an install is a change, so it carries the CSRF token. --%>
     <.form
       :if={authorized?(:"slack_connection:create", @current_scope)}
@@ -21,15 +21,15 @@
     </p>
   </div>
 
-  <div :if={@connections == []} class="border-t border-base-700 p-6">
-    <p class="text-sm text-base-400">No Slack workspace is connected.</p>
+  <div :if={@connections == []} class="border-t border-line-default p-6">
+    <p class="text-sm text-content-muted">No Slack workspace is connected.</p>
   </div>
 
-  <div :for={connection <- @connections} id={"slack-connection-#{connection.id}"} class="flex flex-col gap-4 border-t border-base-700 p-6">
+  <div :for={connection <- @connections} id={"slack-connection-#{connection.id}"} class="flex flex-col gap-4 border-t border-line-default p-6">
     <div class="flex flex-wrap items-center justify-between gap-3">
       <div class="flex min-w-0 flex-col gap-1">
-        <span class="font-medium text-base-50">{connection.workspace.team_name}</span>
-        <span class="text-sm text-base-400">
+        <span class="font-medium text-content-strong">{connection.workspace.team_name}</span>
+        <span class="text-sm text-content-muted">
           Connected by {if connection.connected_by, do: connection.connected_by.name, else: "a former member"} on
           <.local_datetime at={connection.inserted_at} time_zone={@time_zone} format={:long_date} zone_label={false} />
         </span>
@@ -60,23 +60,23 @@
     </div>
 
     <%!-- Slack grants new scopes only on install, so a workspace connected before link previews has neither them nor the event. --%>
-    <p :if={"links:write" not in connection.workspace.scopes} class="text-sm text-base-400">
+    <p :if={"links:write" not in connection.workspace.scopes} class="text-sm text-content-muted">
       To preview {Branding.friendly_platform_name()} links posted in this workspace, an admin of this organization installs the app again:
       Add to Slack, then choose {connection.workspace.team_name}.
     </p>
 
-    <p :if={connection.subscriptions == [] && !editing_connection?(@editing, connection)} class="text-sm text-base-400">
+    <p :if={connection.subscriptions == [] && !editing_connection?(@editing, connection)} class="text-sm text-content-muted">
       No channel gets this organization's events yet.
     </p>
 
     <div
       :for={subscription <- connection.subscriptions}
       id={"slack-subscription-#{subscription.id}"}
-      class="flex flex-col gap-2 rounded border border-base-700 p-4"
+      class="flex flex-col gap-2 rounded border border-line-default p-4"
     >
       <div class="flex flex-wrap items-start justify-between gap-3">
         <div class="flex items-center gap-2">
-          <span class="font-medium text-base-50">#{subscription.channel_name}</span>
+          <span class="font-medium text-content-strong">#{subscription.channel_name}</span>
           <.status_badge subscription={subscription} />
         </div>
 
@@ -100,7 +100,7 @@
               title="More actions"
               class="flex items-center rounded p-1.5 hover:cursor-pointer hover:bg-base-700"
             >
-              <span class="lucide-ellipsis--light size-4 text-base-400"></span>
+              <span class="lucide-ellipsis--light size-4 text-content-muted"></span>
               <span class="sr-only">More actions</span>
             </button>
 
@@ -113,23 +113,23 @@
             >
               <div
                 role="menu"
-                class="absolute top-9 right-0 z-30 flex w-40 flex-col rounded-md border border-base-700 bg-surface-overlay p-1 shadow-lg"
+                class="absolute top-9 right-0 z-30 flex w-40 flex-col rounded-md border border-line-default bg-surface-overlay p-1 shadow-lg"
               >
                 <button
                   type="button"
                   role="menuitem"
                   phx-click={JS.push("edit-channel", value: %{subscription_id: subscription.id}, target: @myself) |> hide_menu(subscription.id)}
-                  class="flex items-center gap-2 rounded px-2 py-1.5 text-left text-sm text-base-300 hover:cursor-pointer hover:bg-primary/20"
+                  class="flex items-center gap-2 rounded px-2 py-1.5 text-left text-sm text-content-body hover:cursor-pointer hover:bg-primary/20"
                 >
-                  <span class="lucide-pencil--light size-4 text-base-400"></span> Edit
+                  <span class="lucide-pencil--light size-4 text-content-muted"></span> Edit
                 </button>
                 <button
                   type="button"
                   role="menuitem"
                   phx-click={JS.push("toggle", value: %{subscription_id: subscription.id}, target: @myself) |> hide_menu(subscription.id)}
-                  class="flex items-center gap-2 rounded px-2 py-1.5 text-left text-sm text-base-300 hover:cursor-pointer hover:bg-primary/20"
+                  class="flex items-center gap-2 rounded px-2 py-1.5 text-left text-sm text-content-body hover:cursor-pointer hover:bg-primary/20"
                 >
-                  <span :if={subscription.enabled} class="lucide-power-off--light size-4 text-base-400"></span>
+                  <span :if={subscription.enabled} class="lucide-power-off--light size-4 text-content-muted"></span>
                   <span :if={!subscription.enabled} class="lucide-power--light size-4 text-success"></span>
                   {if subscription.enabled, do: "Turn off", else: "Turn on"}
                 </button>
@@ -149,12 +149,12 @@
         </div>
       </div>
 
-      <div class="text-sm text-base-400">
-        <span class="text-base-300">Products:</span> {scope_label(subscription)}
+      <div class="text-sm text-content-muted">
+        <span class="text-content-body">Products:</span> {scope_label(subscription)}
       </div>
 
       <div class="flex flex-wrap gap-2">
-        <span :for={key <- subscription.events} class="rounded border border-base-700 bg-base-800 px-2 py-0.5 text-xs text-base-300">
+        <span :for={key <- subscription.events} class="rounded border border-line-default bg-base-800 px-2 py-0.5 text-xs text-content-body">
           {ChannelEvents.label(key)}
         </span>
       </div>
@@ -173,9 +173,9 @@
       phx-change="validate"
       phx-submit="save"
       phx-target={@myself}
-      class="flex flex-col gap-6 rounded border border-base-700 p-4"
+      class="flex flex-col gap-6 rounded border border-line-default p-4"
     >
-      <div class="text-sm font-medium text-base-50">
+      <div class="text-sm font-medium text-content-strong">
         {case @editing do
           {:new, _} -> "New channel"
           subscription -> "Edit ##{subscription.channel_name}"
@@ -183,7 +183,7 @@
       </div>
 
       <div :if={match?({:new, _}, @editing)} class="flex w-2/3 flex-col gap-2">
-        <div :if={@channels.loading} class="text-sm text-base-400">Loading channels from Slack...</div>
+        <div :if={@channels.loading} class="text-sm text-content-muted">Loading channels from Slack...</div>
         <div :if={@channels.failed} class="text-sm text-alert">
           Slack did not list the workspace's channels: {error_message(@channels.failed)}
         </div>
@@ -197,13 +197,13 @@
           prompt="Choose a channel"
           options={channel_options(@channels.result)}
         />
-        <p class="text-xs text-base-500">
+        <p class="text-xs text-content-faint">
           Every public channel is listed. To post to a private channel, invite the {Branding.friendly_platform_name()} app to it first.
         </p>
       </div>
 
       <div class="flex flex-col gap-3">
-        <div class="text-sm font-medium text-base-300">Products</div>
+        <div class="text-sm font-medium text-content-body">Products</div>
         <label for="slack-all-products-true" class="flex items-center gap-3">
           <input
             id="slack-all-products-true"
@@ -211,9 +211,9 @@
             name="slack_subscription[all_products]"
             value="true"
             checked={all_products?(@form)}
-            class="border-base-700 text-base-400 checked:bg-primary focus:ring-0"
+            class="border-line-default text-content-muted checked:bg-primary focus:ring-0"
           />
-          <span class="text-sm text-base-300">Every product, including products added later</span>
+          <span class="text-sm text-content-body">Every product, including products added later</span>
         </label>
         <label for="slack-all-products-false" class="flex items-center gap-3">
           <input
@@ -222,9 +222,9 @@
             name="slack_subscription[all_products]"
             value="false"
             checked={!all_products?(@form)}
-            class="border-base-700 text-base-400 checked:bg-primary focus:ring-0"
+            class="border-line-default text-content-muted checked:bg-primary focus:ring-0"
           />
-          <span class="text-sm text-base-300">Only these products</span>
+          <span class="text-sm text-content-body">Only these products</span>
         </label>
 
         <input type="hidden" name="slack_subscription[products][]" value="" />
@@ -236,9 +236,9 @@
               name="slack_subscription[products][]"
               value={product.name}
               checked={MapSet.member?(selected_products(@form), product.name)}
-              class="rounded border-base-700 text-base-400 checked:bg-primary focus:ring-0"
+              class="rounded border-line-default text-content-muted checked:bg-primary focus:ring-0"
             />
-            <span class="text-sm text-base-300">{product.name}</span>
+            <span class="text-sm text-content-body">{product.name}</span>
           </label>
         </div>
 
@@ -246,7 +246,7 @@
       </div>
 
       <div class="flex flex-col gap-2">
-        <div class="text-sm font-medium text-base-300">Events</div>
+        <div class="text-sm font-medium text-content-body">Events</div>
         <input type="hidden" name="slack_subscription[events][]" value="" />
         <label :for={event <- @events} for={"slack-event-#{event.key}"} class="flex items-start gap-3 py-1">
           <input
@@ -255,11 +255,11 @@
             name="slack_subscription[events][]"
             value={event.key}
             checked={event.key in selected_events(@form)}
-            class="mt-0.5 rounded border-base-700 text-base-400 checked:bg-primary focus:ring-0"
+            class="mt-0.5 rounded border-line-default text-content-muted checked:bg-primary focus:ring-0"
           />
           <div class="flex flex-col">
-            <span class="text-sm font-medium text-base-300">{event.label}</span>
-            <span class="text-xs text-base-400">{event.description}</span>
+            <span class="text-sm font-medium text-content-body">{event.label}</span>
+            <span class="text-xs text-content-muted">{event.description}</span>
           </div>
         </label>
 

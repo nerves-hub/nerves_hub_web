@@ -173,10 +173,10 @@ defmodule NervesHubWeb.Components.DevicePage.DataHistoryTab do
       phx-mounted={JS.remove_class("opacity-0")}
       class="tab-content size-full bg-base-950 pb-10 opacity-0 transition-all duration-500 phx-click-loading:opacity-50"
     >
-      <div class="flex h-11 flex-row items-center justify-between border-b border-base-700 px-12">
+      <div class="flex h-11 flex-row items-center justify-between border-b border-line-default px-12">
         <div class="flex flex-row items-center gap-6">
           <div>
-            <span class="text-sm text-base-400">Live streaming :</span>
+            <span class="text-sm text-content-muted">Live streaming :</span>
             <button
               id="toggle-message-streaming"
               type="button"
@@ -202,8 +202,8 @@ defmodule NervesHubWeb.Components.DevicePage.DataHistoryTab do
 
           <form id="data-history-filters" phx-change="filter-messages" class="flex flex-row items-center gap-4">
             <label class="flex items-center gap-2">
-              <span class="text-sm text-base-400">Direction :</span>
-              <select name="direction" class="rounded border border-base-600 bg-base-800 px-2 py-0.5 text-sm text-base-300">
+              <span class="text-sm text-content-muted">Direction :</span>
+              <select name="direction" class="rounded border border-line-strong bg-base-800 px-2 py-0.5 text-sm text-content-body">
                 <option :for={{label, value} <- direction_options()} value={value} selected={value == @direction_filter}>
                   {label}
                 </option>
@@ -211,8 +211,8 @@ defmodule NervesHubWeb.Components.DevicePage.DataHistoryTab do
             </label>
 
             <label class="flex items-center gap-2">
-              <span class="text-sm text-base-400">Channel :</span>
-              <select name="topic" class="rounded border border-base-600 bg-base-800 px-2 py-0.5 text-sm text-base-300">
+              <span class="text-sm text-content-muted">Channel :</span>
+              <select name="topic" class="rounded border border-line-strong bg-base-800 px-2 py-0.5 text-sm text-content-body">
                 <option :for={{label, value} <- topic_options()} value={value} selected={value == @topic_filter}>
                   {label}
                 </option>
@@ -221,7 +221,7 @@ defmodule NervesHubWeb.Components.DevicePage.DataHistoryTab do
           </form>
         </div>
 
-        <span class="text-sm font-extralight text-base-400">
+        <span class="text-sm font-extralight text-content-muted">
           {(@streaming_enabled && "Streaming the last #{limit()} messages.") || "Paused."}
         </span>
       </div>
@@ -240,7 +240,7 @@ defmodule NervesHubWeb.Components.DevicePage.DataHistoryTab do
             <col />
           </colgroup>
           <thead>
-            <tr class="border-b border-base-700 text-left font-extralight text-base-400">
+            <tr class="border-b border-line-default text-left font-extralight text-content-muted">
               <th class="py-2 pr-6 font-normal">Timestamp ({zone_abbr(@time_zone)})</th>
               <th class="py-2 pr-6 font-normal">Direction</th>
               <th class="py-2 pr-6 font-normal">Channel</th>
@@ -249,8 +249,8 @@ defmodule NervesHubWeb.Components.DevicePage.DataHistoryTab do
             </tr>
           </thead>
           <tbody id="device-messages" phx-update="stream">
-            <tr :for={{dom_id, message} <- @streams.messages} id={dom_id} class="border-b border-base-800 align-top hover:bg-base-900">
-              <td class="py-2 pr-6 whitespace-nowrap text-base-300">
+            <tr :for={{dom_id, message} <- @streams.messages} id={dom_id} class="border-b border-line-subtle align-top hover:bg-base-900">
+              <td class="py-2 pr-6 whitespace-nowrap text-content-body">
                 <.local_datetime at={message.timestamp} time_zone={@time_zone} format={:timestamp} zone_label={false} />
               </td>
               <td class="py-2 pr-6">
@@ -261,11 +261,11 @@ defmodule NervesHubWeb.Components.DevicePage.DataHistoryTab do
                   {message.direction}
                 </span>
               </td>
-              <td class="py-2 pr-6 text-base-400">{message.topic}</td>
+              <td class="py-2 pr-6 text-content-muted">{message.topic}</td>
               <td class="truncate py-2 pr-6 text-base-200" title={message.event}>{message.event}</td>
-              <td class="py-2 text-base-300">
+              <td class="py-2 text-content-body">
                 <div class="max-h-24 overflow-y-auto break-all whitespace-pre-wrap">{payload_text(message)}</div>
-                <div :if={DeviceMessage.truncated?(message)} class="pt-1 text-xs text-base-500">
+                <div :if={DeviceMessage.truncated?(message)} class="pt-1 text-xs text-content-faint">
                   truncated for storage — {bytes(message.payload_bytes)} were sent
                 </div>
               </td>

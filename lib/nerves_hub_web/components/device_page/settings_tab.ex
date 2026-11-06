@@ -55,9 +55,9 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
       class="tab-content flex flex-col items-start justify-between gap-4 p-6 opacity-0 transition-all duration-500 phx-click-loading:opacity-50"
     >
       <.form id="settings-form" for={@settings_form} class="w-full" phx-change="validate-device-settings" phx-submit="update-device-settings">
-        <div class="flex w-full flex-col rounded border border-base-700 bg-surface-raised shadow-device-details-content">
-          <div class="flex h-14 items-center justify-between border-b border-base-700 px-4">
-            <div class="text-base font-medium text-base-50">General settings</div>
+        <div class="flex w-full flex-col rounded border border-line-default bg-surface-raised shadow-device-details-content">
+          <div class="flex h-14 items-center justify-between border-b border-line-default px-4">
+            <div class="text-base font-medium text-content-strong">General settings</div>
             <%= if authorized?(:"device:update", @current_scope) do %>
               <.button style="primary" type="submit">
                 <.icon name="save" /> Save changes
@@ -95,19 +95,19 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
 
             <div class="flex w-1/2 flex-col gap-2">
               <.input field={@settings_form[:connecting_code]} label="First connect code" type="textarea" rows="10" phx-debounce="2000" />
-              <div class="text-xs tracking-wide text-base-400">Make sure this is valid Elixir and will not crash the device</div>
+              <div class="text-xs tracking-wide text-content-muted">Make sure this is valid Elixir and will not crash the device</div>
             </div>
           </div>
         </div>
       </.form>
 
-      <div class="flex w-full flex-col rounded border border-base-700 bg-surface-raised shadow-device-details-content">
-        <div class="flex h-14 items-center justify-between border-b border-base-700 px-4">
-          <div class="text-base font-medium text-base-50">Firmware updates</div>
+      <div class="flex w-full flex-col rounded border border-line-default bg-surface-raised shadow-device-details-content">
+        <div class="flex h-14 items-center justify-between border-b border-line-default px-4">
+          <div class="text-base font-medium text-content-strong">Firmware updates</div>
         </div>
         <div class="flex flex-col gap-1 px-4 py-2">
           <div class="flex h-16 items-center gap-6 p-2">
-            <div class="flex h-8 shrink-0 items-center rounded-full border border-base-700 bg-base-800 px-2 py-1">
+            <div class="flex h-8 shrink-0 items-center rounded-full border border-line-default bg-base-800 px-2 py-1">
               <input
                 id="managed-updates-allowed"
                 name="managed-updates-allowed"
@@ -118,8 +118,8 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
               />
             </div>
             <div class="flex flex-col">
-              <div class="font-medium text-base-300">Let the device choose its update mode</div>
-              <div class="font-light text-base-400">
+              <div class="font-medium text-content-body">Let the device choose its update mode</div>
+              <div class="font-light text-content-muted">
                 The device may move itself between automatic and device managed.
               </div>
             </div>
@@ -127,13 +127,13 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
         </div>
       </div>
 
-      <div class="flex w-full flex-col rounded border border-base-700 bg-surface-raised shadow-device-details-content">
-        <div class="flex h-14 items-center justify-between border-b border-base-700 px-4">
-          <div class="text-base font-medium text-base-50">Extensions</div>
+      <div class="flex w-full flex-col rounded border border-line-default bg-surface-raised shadow-device-details-content">
+        <div class="flex h-14 items-center justify-between border-b border-line-default px-4">
+          <div class="text-base font-medium text-content-strong">Extensions</div>
         </div>
         <div class="flex flex-col gap-1 px-4 py-2">
           <div :for={{key, description} <- available_extensions()} class="flex h-16 items-center gap-6 p-2">
-            <div class="flex h-8 items-center rounded-full border border-base-700 bg-base-800 px-2 py-1">
+            <div class="flex h-8 items-center rounded-full border border-line-default bg-base-800 px-2 py-1">
               <input
                 id={"extension-#{key}"}
                 name={key}
@@ -146,14 +146,14 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
             </div>
             <div class="flex flex-col">
               <div class="flex gap-2">
-                <div class="font-medium text-base-300">
+                <div class="font-medium text-content-body">
                   {Extensions.display_name(key)}
                 </div>
                 <div :if={Map.get(@device.product.extensions, key) != true} class="text-alert">
                   - Extension is disabled at the product level.
                 </div>
               </div>
-              <div class="font-light text-base-400">
+              <div class="font-light text-content-muted">
                 {description}
               </div>
             </div>
@@ -161,12 +161,12 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
         </div>
       </div>
 
-      <div class="flex w-full flex-col rounded border border-base-700 bg-surface-raised shadow-device-details-content">
-        <div class="flex h-14 items-center justify-between border-b border-base-700 px-4">
-          <div class="text-base font-medium text-base-50">Certificates</div>
+      <div class="flex w-full flex-col rounded border border-line-default bg-surface-raised shadow-device-details-content">
+        <div class="flex h-14 items-center justify-between border-b border-line-default px-4">
+          <div class="text-base font-medium text-content-strong">Certificates</div>
           <div>
             <form id="upload-certificate" phx-change="validate-cert" phx-drop-target={@uploads.certificate.ref}>
-              <div class="flex gap-2 rounded border border-base-600 bg-base-800 px-3 py-1.5 hover:cursor-pointer">
+              <div class="flex gap-2 rounded border border-line-strong bg-base-800 px-3 py-1.5 hover:cursor-pointer">
                 <svg class="size-5" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
                   <path
                     d="M6.66671 16.6667H5.00004C4.07957 16.6667 3.33337 15.9205 3.33337 15V5.00004C3.33337 4.07957 4.07957 3.33337 5.00004 3.33337H12.643C13.085 3.33337 13.509 3.50897 13.8215 3.82153L16.1786 6.17855C16.4911 6.49111 16.6667 6.91504 16.6667 7.35706V15C16.6667 15.9205 15.9205 16.6667 15 16.6667H13.3334M6.66671 16.6667V12.5H13.3334V16.6667M6.66671 16.6667H13.3334M6.66671 6.66671V9.16671H9.16671V6.66671H6.66671Z"
@@ -176,7 +176,7 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
                     stroke-linejoin="round"
                   />
                 </svg>
-                <label for={@uploads.certificate.ref} class="text-sm font-medium text-base-300 hover:cursor-pointer">Upload certificate</label>
+                <label for={@uploads.certificate.ref} class="text-sm font-medium text-content-body hover:cursor-pointer">Upload certificate</label>
                 <.live_file_input upload={@uploads.certificate} class="hidden" />
               </div>
             </form>
@@ -187,7 +187,7 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
             <div>No certificates have been uploaded.</div>
           </div>
           <div :for={certificate <- @device.device_certificates} class="flex h-16 items-center gap-6 p-2">
-            <div class="flex h-8 items-center rounded-full border border-base-700 bg-base-800 px-2 py-1">
+            <div class="flex h-8 items-center rounded-full border border-line-default bg-base-800 px-2 py-1">
               <svg class="size-4" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <path
                   d="M8 6L7 7L8 8M11 6L12 7L11 8M15 7H17M7 11H9M12 11H17M17 14H16M13 14H7M6 21H18C19.1046 21 20 20.1046 20 19V5C20 3.89543 19.1046 3 18 3H6C4.89543 3 4 3.89543 4 5V19C4 20.1046 4.89543 21 6 21Z"
@@ -199,9 +199,9 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
               </svg>
             </div>
             <div class="grow">
-              <div class="text-base-300">Serial: {Utils.format_serial(certificate.serial)}</div>
+              <div class="text-content-body">Serial: {Utils.format_serial(certificate.serial)}</div>
               <div class="flex gap-2">
-                <div class="text-xs tracking-wide text-base-400">
+                <div class="text-xs tracking-wide text-content-muted">
                   <span>Last used:</span>
                   <%= if !is_nil(certificate.last_used) do %>
                     <span>{DateTimes.from_now(certificate.last_used)}</span>
@@ -210,24 +210,24 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
                   <% end %>
                 </div>
 
-                <div class="text-xs tracking-wide text-base-400">
+                <div class="text-xs tracking-wide text-content-muted">
                   <span>Not before:</span>
                   <.local_datetime at={certificate.not_before} time_zone={@time_zone} format={:date} zone_label={false} />
                 </div>
 
-                <div class="text-xs tracking-wide text-base-400">
+                <div class="text-xs tracking-wide text-content-muted">
                   <span>Not after:</span>
                   <.local_datetime at={certificate.not_after} time_zone={@time_zone} format={:date} zone_label={false} />
                 </div>
 
-                <div class="text-xs tracking-wide text-base-400">
+                <div class="text-xs tracking-wide text-content-muted">
                   <span>Signer CA:</span>
                   <.signer_ca signer_ca={@signer_cas[certificate.aki]} org={@org} />
                 </div>
               </div>
             </div>
             <div class="flex gap-2">
-              <.link class="flex gap-2 rounded border border-base-600 bg-base-800 px-3 py-1.5" href={~p"/org/#{@org}/#{@product}/devices/#{@device}/certificate/#{certificate}/download"} download>
+              <.link class="flex gap-2 rounded border border-line-strong bg-base-800 px-3 py-1.5" href={~p"/org/#{@org}/#{@product}/devices/#{@device}/certificate/#{certificate}/download"} download>
                 <svg class="size-5" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
                   <path
                     d="M6.66671 16.6667H5.00004C4.07957 16.6667 3.33337 15.9205 3.33337 15V5.00004C3.33337 4.07957 4.07957 3.33337 5.00004 3.33337H12.643C13.085 3.33337 13.509 3.50897 13.8215 3.82153L16.1786 6.17855C16.4911 6.49111 16.6667 6.91504 16.6667 7.35706V15C16.6667 15.9205 15.9205 16.6667 15 16.6667H13.3334M6.66671 16.6667V12.5H13.3334V16.6667M6.66671 16.6667H13.3334M6.66671 6.66671V9.16671H9.16671V6.66671H6.66671Z"
@@ -260,9 +260,9 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
         </div>
       </div>
 
-      <div :if={@shared_secrets_enabled} id="shared-secrets" class="flex w-full flex-col rounded border border-base-700 bg-surface-raised shadow-device-details-content">
-        <div class="flex h-14 items-center justify-between border-b border-base-700 px-4">
-          <div class="text-base font-medium text-base-50">Shared secrets</div>
+      <div :if={@shared_secrets_enabled} id="shared-secrets" class="flex w-full flex-col rounded border border-line-default bg-surface-raised shadow-device-details-content">
+        <div class="flex h-14 items-center justify-between border-b border-line-default px-4">
+          <div class="text-base font-medium text-content-strong">Shared secrets</div>
           <.button
             :if={is_nil(@device.deleted_at) && authorized?(:"device:update", @current_scope)}
             phx-click="create-shared-secret"
@@ -271,11 +271,11 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
             <.icon name="add" />Create shared secret
           </.button>
         </div>
-        <div :if={@new_shared_secret} class="flex flex-col gap-3 border-b border-base-700 p-6">
+        <div :if={@new_shared_secret} class="flex flex-col gap-3 border-b border-line-default p-6">
           <p class="text-sm text-warning">
             Copy the secret now. It is only shown once, and cannot be retrieved again.
           </p>
-          <div class="text-sm text-base-300">Key: <code>{@new_shared_secret.key}</code></div>
+          <div class="text-sm text-content-body">Key: <code>{@new_shared_secret.key}</code></div>
           <input type="hidden" id="shared-secret-new" value={@new_shared_secret.secret} />
           <div class="flex gap-3">
             <.button id="shared-secret-new-button" value="new" phx-hook="SharedSecretClipboardClick" aria-label="Copy secret">
@@ -288,7 +288,7 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
           <div :if={Enum.empty?(@shared_secrets)} class="flex h-16 items-center gap-6 p-2">
             <div>No shared secrets have been created.</div>
           </div>
-          <div :if={Enum.any?(@shared_secrets)} class="flex items-center gap-6 px-2 pt-2 text-xs tracking-wide text-base-400">
+          <div :if={Enum.any?(@shared_secrets)} class="flex items-center gap-6 px-2 pt-2 text-xs tracking-wide text-content-muted">
             <div class="grow">Key</div>
             <div class="w-24 text-center">Created by</div>
             <div class="w-24 text-center">Deactivated by</div>
@@ -296,8 +296,8 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
           </div>
           <div :for={auth <- @shared_secrets} class="flex h-16 items-center gap-6 p-2">
             <div class={["grow", auth.deactivated_at && "opacity-60"]}>
-              <div class="text-base-300"><code>{auth.key}</code></div>
-              <div class="text-xs tracking-wide text-base-400">
+              <div class="text-content-body"><code>{auth.key}</code></div>
+              <div class="text-xs tracking-wide text-content-muted">
                 <span :if={auth.last_used}>Last used {DateTimes.from_now(auth.last_used)}</span>
                 <span :if={is_nil(auth.last_used)}>Never used</span>
               </div>
@@ -325,17 +325,17 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
               >
                 Deactivate
               </.button>
-              <span :if={auth.deactivated_at} class="rounded-sm bg-base-800 px-1.5 py-0.5 text-xs text-base-300">Deactivated</span>
+              <span :if={auth.deactivated_at} class="rounded-sm bg-base-800 px-1.5 py-0.5 text-xs text-content-body">Deactivated</span>
             </div>
           </div>
         </div>
       </div>
 
-      <div :if={@device.deleted_at && authorized?(:"device:update", @current_scope)} class="flex w-full flex-col rounded border border-base-700 bg-surface-raised shadow-device-details-content">
-        <div class="p-6 pb-0 text-base-300">
+      <div :if={@device.deleted_at && authorized?(:"device:update", @current_scope)} class="flex w-full flex-col rounded border border-line-default bg-surface-raised shadow-device-details-content">
+        <div class="p-6 pb-0 text-content-body">
           The device has been disabled. Attempts to connect to NervesHub will be blocked.
         </div>
-        <div class="flex items-center gap-6 border-base-700 p-6">
+        <div class="flex items-center gap-6 border-line-default p-6">
           <div>
             <button
               class="flex gap-2 rounded border border-alert bg-base-800 px-3 py-1.5"
@@ -355,9 +355,9 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
               <span class="text-sm font-medium text-alert">Permanently delete device</span>
             </button>
           </div>
-          <div class="text-base-300">or</div>
+          <div class="text-content-body">or</div>
           <div>
-            <button class="flex gap-2 rounded border border-base-600 bg-base-800 px-3 py-1.5" type="button" phx-click="restore-device" data-confirm="Are you sure you want to restore this device?">
+            <button class="flex gap-2 rounded border border-line-strong bg-base-800 px-3 py-1.5" type="button" phx-click="restore-device" data-confirm="Are you sure you want to restore this device?">
               <svg class="size-5" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <path
                   d="M8.5 18.9999H5.39903C3.87406 18.9999 2.91012 17.3617 3.65071 16.0287L7 9.99994M7 9.99994L3 11.9999M7 9.99994L8 13.9999M18.9999 13.9999L20.1987 16.0122C20.9929 17.3454 20.0323 19.0358 18.4805 19.0358L12.768 19.0358M12.768 19.0358L16 21.9999M12.768 19.0358L16 15.9999M8.5 6.99994L10.5883 3.86749C11.4401 2.58975 13.3545 2.70894 14.0413 4.08246L17 9.99994M17 9.99994L18 5.99994M17 9.99994L13 8.99994"
@@ -368,14 +368,14 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
                 />
               </svg>
 
-              <span class="text-sm font-medium text-base-300">Restore device</span>
+              <span class="text-sm font-medium text-content-body">Restore device</span>
             </button>
           </div>
         </div>
       </div>
 
-      <div :if={!@device.deleted_at && authorized?(:"device:update", @current_scope)} class="flex w-full flex-col rounded border border-base-700 bg-surface-raised shadow-device-details-content">
-        <div class="flex items-center gap-6 border-t border-base-700 p-6">
+      <div :if={!@device.deleted_at && authorized?(:"device:update", @current_scope)} class="flex w-full flex-col rounded border border-line-default bg-surface-raised shadow-device-details-content">
+        <div class="flex items-center gap-6 border-t border-line-default p-6">
           <div>
             <button
               class="flex gap-2 rounded border border-alert bg-base-800 px-3 py-1.5 hover:bg-alert-soft"
@@ -414,7 +414,7 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
 
   defp signer_ca(assigns) do
     ~H"""
-    <.link navigate={~p"/org/#{@org}/settings/certificates/#{@signer_ca}"} class="underline hover:text-base-300">
+    <.link navigate={~p"/org/#{@org}/settings/certificates/#{@signer_ca}"} class="underline hover:text-content-body">
       {CAHelpers.label(@signer_ca)}
     </.link>
     """
@@ -435,12 +435,12 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
         :if={!@user}
         class="relative inline-flex size-8 items-center justify-center rounded-full bg-base-800 dark:bg-base-600"
       >
-        <span class="font-medium text-base-400 dark:text-base-300">?</span>
+        <span class="font-medium text-content-muted dark:text-content-body">?</span>
       </div>
-      <div class="tooltip-content absolute top-0 left-0 z-20 hidden w-max rounded border border-base-700 bg-surface-muted px-2 py-1.5 text-xs">
+      <div class="tooltip-content absolute top-0 left-0 z-20 hidden w-max rounded border border-line-default bg-surface-muted px-2 py-1.5 text-xs">
         {@action}<span :if={@user}> by {@user.name}</span>
         on <.local_datetime at={@at} time_zone={@time_zone} format={:date} zone_label={false} />
-        <div class="tooltip-arrow absolute size-2 origin-center rotate-45 border-base-700 bg-surface-muted"></div>
+        <div class="tooltip-arrow absolute size-2 origin-center rotate-45 border-line-default bg-surface-muted"></div>
       </div>
     </div>
     """

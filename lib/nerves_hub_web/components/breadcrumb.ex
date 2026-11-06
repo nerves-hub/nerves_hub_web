@@ -54,11 +54,11 @@ defmodule NervesHubWeb.Components.Breadcrumb do
             stroke-linejoin="round"
           />
         </svg>
-        <span class={["text-base-400", @root_class]}>{@root_label}</span>
+        <span class={["text-content-muted", @root_class]}>{@root_label}</span>
       </.link>
       <span :for={crumb <- @crumb} class="contents">
-        <span class={["text-base-400", crumb[:class]]}>/</span>
-        <span class={["font-semibold text-base-50", crumb[:class]]}>{render_slot(crumb)}</span>
+        <span class={["text-content-muted", crumb[:class]]}>/</span>
+        <span class={["font-semibold text-content-strong", crumb[:class]]}>{render_slot(crumb)}</span>
       </span>
     </div>
     """

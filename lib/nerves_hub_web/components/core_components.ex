@@ -94,7 +94,7 @@ defmodule NervesHubWeb.CoreComponents do
         @class
       ]}
     >
-      <span class="font-medium text-base-400 dark:text-base-300">{user_initials(@user.name)}</span>
+      <span class="font-medium text-content-muted dark:text-content-body">{user_initials(@user.name)}</span>
     </div>
     <div
       :if={@user.profile_picture_url}
@@ -149,7 +149,7 @@ defmodule NervesHubWeb.CoreComponents do
               phx-window-keydown={JS.exec("data-cancel", to: "##{@id}")}
               phx-key="escape"
               phx-click-away={JS.exec("data-cancel", to: "##{@id}")}
-              class="relative hidden rounded-2xl bg-base-900 p-4 shadow-lg ring-1 shadow-base-700/10 ring-base-700/10 transition"
+              class="relative hidden rounded-2xl bg-base-900 p-4 shadow-lg ring-1 shadow-base-700/10 ring-line-default/10 transition"
             >
               <div class="absolute top-6 right-5">
                 <button phx-click={JS.exec("data-cancel", to: "##{@id}")} type="button" class="-m-3 flex-none p-3 opacity-20 hover:opacity-40" aria-label={gettext("close")}>
@@ -317,9 +317,9 @@ defmodule NervesHubWeb.CoreComponents do
         "flex items-center justify-center gap-2 rounded px-3 py-1.5 phx-submit-loading:opacity-75",
         "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring",
         "bg-base-800 hover:bg-base-700 active:bg-primary disabled:bg-base-800",
-        "rounded border border-base-600 active:border-primary",
+        "rounded border border-line-strong active:border-primary",
         "stroke-base-400 active:stroke-primary-content disabled:stroke-base-600",
-        "text-sm font-medium text-base-300 hover:text-base-50 active:text-primary-content disabled:text-base-500",
+        "text-sm font-medium text-content-body hover:text-content-strong active:text-primary-content disabled:text-content-faint",
         @class
       ]}
       {@rest}
@@ -378,9 +378,9 @@ defmodule NervesHubWeb.CoreComponents do
           # The transparent border keeps it the height of a secondary button, and
           # lets disabled recolour the edge rather than add one.
           "border border-transparent bg-primary hover:bg-primary-hover active:bg-primary-active",
-          "disabled:border-base-600 disabled:bg-base-800",
+          "disabled:border-line-strong disabled:bg-base-800",
           "stroke-primary-content disabled:stroke-base-500",
-          "text-sm font-medium text-primary-content disabled:text-base-500",
+          "text-sm font-medium text-primary-content disabled:text-content-faint",
           # Light-theme contrast: indigo-500 sits at the AA floor on white, so the design system
           # darkens the fill to indigo-600 (hover 500 / active 700); disabled stays grey.
           "light:bg-indigo-600 light:hover:bg-indigo-500 light:active:bg-indigo-700 light:disabled:bg-base-800",
@@ -403,12 +403,12 @@ defmodule NervesHubWeb.CoreComponents do
           "flex gap-2 rounded px-3 py-1.5 hover:cursor-pointer phx-submit-loading:opacity-75",
           "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring",
           "bg-base-800 hover:bg-base-700 active:bg-primary disabled:bg-base-800",
-          "rounded border border-base-600 active:border-primary",
+          "rounded border border-line-strong active:border-primary",
           "stroke-base-400 active:stroke-primary-content disabled:stroke-base-600",
-          "text-sm font-medium text-base-300 hover:text-base-50 active:text-primary-content disabled:text-base-500",
-          # Light-theme contrast: the grey border is too faint on white, so the design system
-          # gives it a defined ~zinc-500 edge (zinc-600 on hover).
-          "light:border-base-500 light:hover:border-base-400",
+          "text-sm font-medium text-content-body hover:text-content-strong active:text-primary-content disabled:text-content-faint",
+          # line-strong already clears 3:1 on white, as every control outline does,
+          # so light only darkens the edge on hover (zinc-600).
+          "light:hover:border-base-400",
           @class
         ]
       }
@@ -427,9 +427,9 @@ defmodule NervesHubWeb.CoreComponents do
         "flex gap-2 rounded px-3 py-1.5 hover:cursor-pointer phx-submit-loading:opacity-75",
         "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring",
         "bg-base-800 hover:bg-base-700 active:bg-base-600 disabled:bg-base-800",
-        "rounded border border-alert disabled:border-base-600",
+        "rounded border border-alert disabled:border-line-strong",
         "stroke-alert disabled:stroke-base-500",
-        "text-sm font-medium text-alert disabled:text-base-500",
+        "text-sm font-medium text-alert disabled:text-content-faint",
         @class
       ]}
       {@rest}
@@ -528,7 +528,7 @@ defmodule NervesHubWeb.CoreComponents do
 
     ~H"""
     <div phx-feedback-for={@name}>
-      <span class="flex items-center gap-4 text-sm/6 font-medium text-base-300">
+      <span class="flex items-center gap-4 text-sm/6 font-medium text-content-body">
         <input type="hidden" name={@name} value="false" />
         <input
           type="checkbox"
@@ -536,12 +536,12 @@ defmodule NervesHubWeb.CoreComponents do
           name={@name}
           value="true"
           checked={@checked}
-          class="rounded border-base-600 bg-base-800 text-base-400 checked:bg-primary focus:ring-0 focus:ring-offset-0 focus-visible:ring-2 focus-visible:ring-focus-ring"
+          class="rounded border-line-strong bg-base-800 text-content-muted checked:bg-primary focus:ring-0 focus:ring-offset-0 focus-visible:ring-2 focus-visible:ring-focus-ring"
           {@rest}
         />
         <label for={@name}>{@label}</label>
       </span>
-      <div :if={assigns[:hint] || assigns[:rich_hint]} class="text-xs text-base-400">
+      <div :if={assigns[:hint] || assigns[:rich_hint]} class="text-xs text-content-muted">
         {assigns[:hint] || render_slot(assigns[:rich_hint])}
       </div>
       <.error :for={msg <- @errors}>{msg}</.error>
@@ -556,14 +556,14 @@ defmodule NervesHubWeb.CoreComponents do
       <select
         id={@id}
         name={@name}
-        class="mt-2 block w-full rounded border border-base-600 bg-base-900 px-2 py-1.5 text-base-400 shadow-sm focus:ring-2 focus:ring-focus-ring sm:text-sm"
+        class="mt-2 block w-full rounded border border-line-strong bg-base-900 px-2 py-1.5 text-content-muted shadow-sm focus:ring-2 focus:ring-focus-ring sm:text-sm"
         multiple={@multiple}
         {@rest}
       >
         <option :if={@prompt} value="">{@prompt}</option>
         {Phoenix.HTML.Form.options_for_select(@options, @value)}
       </select>
-      <div :if={assigns[:hint] || assigns[:rich_hint]} class="mt-2 text-xs text-base-400">
+      <div :if={assigns[:hint] || assigns[:rich_hint]} class="mt-2 text-xs text-content-muted">
         {assigns[:hint] || render_slot(assigns[:rich_hint])}
       </div>
       <.error :for={msg <- @errors}>{msg}</.error>
@@ -579,15 +579,15 @@ defmodule NervesHubWeb.CoreComponents do
         id={@id}
         name={@name}
         class={[
-          "mt-2 block w-full rounded bg-base-900 px-2 py-1.5 text-base-400 focus:ring-2 sm:text-sm/6",
-          "phx-no-feedback:border-base-600 phx-no-feedback:focus:border-base-700",
+          "mt-2 block w-full rounded bg-base-900 px-2 py-1.5 text-content-muted focus:ring-2 sm:text-sm/6",
+          "phx-no-feedback:border-line-strong phx-no-feedback:focus:border-line-default",
           @class || "min-h-24",
-          @errors == [] && "border-base-600 focus:ring-focus-ring",
+          @errors == [] && "border-line-strong focus:ring-focus-ring",
           @errors != [] && "border-alert focus:ring-alert"
         ]}
         {@rest}
       ><%= Phoenix.HTML.Form.normalize_value("textarea", @value) %></textarea>
-      <div :if={assigns[:hint] || assigns[:rich_hint]} class="flex flex-col gap-1 pt-1 text-xs text-base-400">
+      <div :if={assigns[:hint] || assigns[:rich_hint]} class="flex flex-col gap-1 pt-1 text-xs text-content-muted">
         {assigns[:hint] || render_slot(assigns[:rich_hint])}
       </div>
       <.error :for={msg <- @errors}>{msg}</.error>
@@ -607,14 +607,14 @@ defmodule NervesHubWeb.CoreComponents do
         id={@id}
         value={Phoenix.HTML.Form.normalize_value(@type, @value)}
         class={[
-          "mt-2 block w-full rounded bg-base-900 px-2 py-1.5 text-base-400 focus:ring-2 sm:text-sm",
-          "phx-no-feedback:border-base-600 phx-no-feedback:focus:border-base-700",
-          @errors == [] && "border-base-600 focus:ring-focus-ring",
+          "mt-2 block w-full rounded bg-base-900 px-2 py-1.5 text-content-muted focus:ring-2 sm:text-sm",
+          "phx-no-feedback:border-line-strong phx-no-feedback:focus:border-line-default",
+          @errors == [] && "border-line-strong focus:ring-focus-ring",
           @errors != [] && "border-alert focus:ring-alert"
         ]}
         {@rest}
       />
-      <div :if={assigns[:hint] || assigns[:rich_hint]} class="flex flex-col gap-1 pt-1 text-xs text-base-400">
+      <div :if={assigns[:hint] || assigns[:rich_hint]} class="flex flex-col gap-1 pt-1 text-xs text-content-muted">
         {assigns[:hint] || render_slot(assigns[:rich_hint])}
       </div>
       <.error :for={msg <- @errors}>{msg}</.error>
@@ -633,14 +633,14 @@ defmodule NervesHubWeb.CoreComponents do
         id={@id}
         value={Phoenix.HTML.Form.normalize_value(@type, @value)}
         class={[
-          "mt-2 block w-full rounded bg-base-900 px-2 py-1.5 text-base-400 focus:ring-2 sm:text-sm",
-          "phx-no-feedback:border-base-600 phx-no-feedback:focus:border-base-700",
-          @errors == [] && "border-base-600 focus:ring-focus-ring",
+          "mt-2 block w-full rounded bg-base-900 px-2 py-1.5 text-content-muted focus:ring-2 sm:text-sm",
+          "phx-no-feedback:border-line-strong phx-no-feedback:focus:border-line-default",
+          @errors == [] && "border-line-strong focus:ring-focus-ring",
           @errors != [] && "border-alert focus:ring-alert"
         ]}
         {@rest}
       />
-      <p :if={assigns[:hint]} class="mt-1 text-xs text-base-400">{@hint}</p>
+      <p :if={assigns[:hint]} class="mt-1 text-xs text-content-muted">{@hint}</p>
       <.error :for={msg <- @errors}>{msg}</.error>
     </div>
     """
@@ -697,9 +697,9 @@ defmodule NervesHubWeb.CoreComponents do
           autocomplete="off"
           data-tag-input
           class={[
-            "block w-full rounded bg-base-900 px-2 py-1.5 text-base-400 focus:ring-2 sm:text-sm",
-            "phx-no-feedback:border-base-600 phx-no-feedback:focus:border-base-700",
-            @errors == [] && "border-base-600 focus:ring-focus-ring",
+            "block w-full rounded bg-base-900 px-2 py-1.5 text-content-muted focus:ring-2 sm:text-sm",
+            "phx-no-feedback:border-line-strong phx-no-feedback:focus:border-line-default",
+            @errors == [] && "border-line-strong focus:ring-focus-ring",
             @errors != [] && "border-alert focus:ring-alert"
           ]}
           {@rest}
@@ -710,7 +710,7 @@ defmodule NervesHubWeb.CoreComponents do
           data-tag-suggestions
           role="listbox"
           hidden
-          class="absolute z-10 mt-1 max-h-56 w-full overflow-y-auto rounded border border-base-600 bg-base-900 py-1 shadow-lg"
+          class="absolute z-10 mt-1 max-h-56 w-full overflow-y-auto rounded border border-line-strong bg-base-900 py-1 shadow-lg"
         >
         </ul>
       </div>
@@ -731,7 +731,7 @@ defmodule NervesHubWeb.CoreComponents do
 
   def label(assigns) do
     ~H"""
-    <label for={@for} class={["block text-sm font-medium text-base-300", @hide && "hidden"]}>
+    <label for={@for} class={["block text-sm font-medium text-content-body", @hide && "hidden"]}>
       {render_slot(@inner_block)}
     </label>
     """
@@ -832,7 +832,7 @@ defmodule NervesHubWeb.CoreComponents do
     ~H"""
     <div class="overflow-y-auto px-4 sm:overflow-visible sm:px-0">
       <table class="mt-11 w-160 sm:w-full">
-        <thead class="text-left text-sm/6 text-base-500">
+        <thead class="text-left text-sm/6 text-content-faint">
           <tr>
             <th :for={col <- @col} class="p-0 pr-6 pb-4 font-normal">{col[:label]}</th>
             <th :if={@action != []} class="relative p-0 pb-4">
@@ -884,7 +884,7 @@ defmodule NervesHubWeb.CoreComponents do
     <div class="mt-14">
       <dl class="-my-4 divide-y divide-base-100">
         <div :for={item <- @item} class="flex gap-4 py-4 text-sm/6 sm:gap-8">
-          <dt class="w-1/4 flex-none text-base-500">{item.title}</dt>
+          <dt class="w-1/4 flex-none text-content-faint">{item.title}</dt>
           <dd class="text-base-700">{render_slot(item)}</dd>
         </div>
       </dl>
