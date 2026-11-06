@@ -18,14 +18,9 @@
           <.icon name="download" />Download
         </.button>
 
-        <%!-- The ToolTip hook reads its own `.tooltip-content` on mouseover, so it
-        is only attached when there is a reason to show one. --%>
-        <div
-          class="relative z-20 flex items-center"
-          id="delete-firmware-tooltip"
-          phx-hook={@deletion_blockers != [] && "ToolTip"}
-          data-placement="bottom"
-        >
+        <%!-- The tooltip only explains why delete is disabled, so it is only
+        enabled when something blocks the deletion. --%>
+        <.tooltip id="delete-firmware-tooltip" class="z-20 flex items-center" content_class="w-max max-w-72" enabled={@deletion_blockers != []}>
           <button
             class="box-content flex h-5 items-center justify-center gap-2 rounded border border-alert bg-base-800 px-3 py-1.5 text-sm font-medium text-content-body hover:cursor-pointer disabled:cursor-not-allowed disabled:border-line-default disabled:text-content-faint"
             aria-label="Delete firmware"
@@ -51,15 +46,10 @@
               Delete
             </span>
           </button>
-          <div
-            :if={@deletion_blockers != []}
-            role="tooltip"
-            class="tooltip-content absolute top-0 left-0 z-20 hidden w-max max-w-72 rounded border border-line-default bg-surface-muted px-2 py-1.5 text-xs"
-          >
+          <:content>
             {FirmwareDeletion.blockers_message(@deletion_blockers)}
-            <div class="tooltip-arrow absolute size-2 origin-center rotate-45 border-line-default bg-surface-muted"></div>
-          </div>
-        </div>
+          </:content>
+        </.tooltip>
       </div>
     </div>
 

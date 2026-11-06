@@ -265,13 +265,12 @@
                       </span>
                       <.link navigate={~p"/org/#{@org}/#{@product}/devices/#{device}"} class="ff-m font-mono">
                         {device.identifier}
-                        <div :if={device.deleted_at} class="relative z-50 inline-block align-middle" id={"health-tooltip-#{device.identifier}"} phx-hook="ToolTip" data-placement="right">
+                        <.tooltip :if={device.deleted_at} id={"health-tooltip-#{device.identifier}"} placement="right" class="z-50 inline-block align-middle">
                           <.icon name="info" class="stroke-base-400" />
-                          <div class="tooltip-content absolute top-0 left-0 z-20 hidden w-max rounded border border-line-default bg-surface-muted px-2 py-1.5 text-xs">
+                          <:content>
                             This device has been deleted. <br /> You can destroy or restore it in the device's settings.
-                            <div class="tooltip-arrow absolute size-2 origin-center rotate-45 border-line-default bg-surface-muted"></div>
-                          </div>
-                        </div>
+                          </:content>
+                        </.tooltip>
                         <span class="clickable-table-row-mask" />
                       </.link>
                       <span class={["ml-2 flex items-center gap-1 rounded-full border border-line-default bg-base-800 px-2.5 py-0.5", !@progress[device.id] && "invisible"]}>

@@ -122,16 +122,15 @@ defmodule NervesHubWeb.Components.DeviceNetworkIdentities do
   defp value_pill(assigns) do
     ~H"""
     <div class="group/identity flex w-full min-w-0 items-center gap-1.5">
-      <div id={@id} class="relative flex min-w-0" phx-hook={long_value?(@value) && "ToolTip"} data-placement="top">
+      <.tooltip id={@id} placement="top" class="flex min-w-0" content_class="max-w-md" enabled={long_value?(@value)}>
         <div class="flex min-w-0 items-stretch overflow-hidden rounded border border-line-default text-xs">
           <span class="shrink-0 bg-base-700 px-2 py-0.5 tracking-wide text-content-body">{@label}</span>
           <span class="min-w-0 truncate bg-base-800 px-2 py-0.5 font-mono text-base-200">{@value}</span>
         </div>
-        <div :if={long_value?(@value)} role="tooltip" class="tooltip-content absolute top-0 left-0 z-20 hidden max-w-md rounded border border-line-default bg-surface-overlay px-2 py-1.5 shadow-overlay">
+        <:content>
           <span class="font-mono text-xs break-all text-base-200">{@value}</span>
-          <div class="tooltip-arrow absolute size-2 origin-center rotate-45 border-line-default bg-surface-overlay"></div>
-        </div>
-      </div>
+        </:content>
+      </.tooltip>
       <button
         id={"copy-#{@id}"}
         type="button"

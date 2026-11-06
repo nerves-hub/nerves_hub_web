@@ -54,13 +54,12 @@ defmodule NervesHubWeb.Components.FilterSidebar do
               <div :for={filter <- @filter} class="mt-6">
                 <div class="flex items-center justify-between gap-2">
                   <label class="sidebar-label" for={"input_#{filter.attr}"}>{filter.label}</label>
-                  <div :if={filter[:hint]} class="relative z-20 flex items-center" id={"filter-hint-#{filter.attr}"} phx-hook="ToolTip" data-placement="left">
+                  <.tooltip :if={filter[:hint]} id={"filter-hint-#{filter.attr}"} placement="left" class="z-20 flex items-center" content_class="w-max max-w-56">
                     <.icon name="info" class="stroke-base-400" />
-                    <div class="tooltip-content absolute top-0 left-0 z-20 hidden w-max max-w-56 rounded border border-line-default bg-surface-muted px-2 py-1.5 text-xs">
+                    <:content>
                       {filter.hint}
-                      <div class="tooltip-arrow absolute size-2 origin-center rotate-45 border-line-default bg-surface-muted"></div>
-                    </div>
-                  </div>
+                    </:content>
+                  </.tooltip>
                 </div>
                 <%= case filter.type do %>
                   <% :text -> %>

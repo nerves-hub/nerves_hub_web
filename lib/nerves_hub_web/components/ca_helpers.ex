@@ -18,15 +18,14 @@ defmodule NervesHubWeb.Components.CAHelpers do
 
   def check_expiration_tooltip(assigns) do
     ~H"""
-    <div class="relative z-20 flex items-center" id={@id} phx-hook="ToolTip" data-placement={@placement}>
+    <.tooltip id={@id} placement={@placement} class="z-20 flex items-center" content_class="w-max max-w-72">
       <.icon name="info" class="stroke-base-400" />
-      <div class="tooltip-content absolute top-0 left-0 z-20 hidden w-max max-w-72 rounded border border-line-default bg-surface-muted px-2 py-1.5 text-xs">
+      <:content>
         By default, the time validity of CA certificates is unchecked. You can
         toggle this to check expiration to prevent device certificates
         from being created from an expired signing CA certificate.
-        <div class="tooltip-arrow absolute size-2 origin-center rotate-45 border-line-default bg-surface-muted"></div>
-      </div>
-    </div>
+      </:content>
+    </.tooltip>
     """
   end
 

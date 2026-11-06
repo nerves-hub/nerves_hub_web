@@ -8,7 +8,7 @@ defmodule NervesHubWeb.Components.DeviceUpdateStatus do
     cond do
       Updates.device_in_penalty_box?(device) ->
         ~H"""
-        <div class="relative z-20" id={"update-status-#{@device.id}"} phx-hook="ToolTip" data-placement="top">
+        <.tooltip id={"update-status-#{@device.id}"} placement="top">
           <svg class="z-10 size-4 stroke-warning" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none">
             <path
               d="M19 14V5C17.5 5.16667 14 5 12 3C11.4286 3.57143 10.7347 3.9932 10 4.30029M5 5V14C5 18 12 21 12 21C12 21 15.2039 19.6269 17.2766 17.5M3 3L21 21"
@@ -17,11 +17,10 @@ defmodule NervesHubWeb.Components.DeviceUpdateStatus do
               stroke-linejoin="round"
             />
           </svg>
-          <div class="tooltip-content absolute top-0 left-0 z-20 hidden w-max rounded border border-line-default bg-surface-muted px-2 py-1.5 text-xs">
+          <:content>
             Updates blocked {friendly_blocked_until(@device.updates_blocked_until, @time_zone)}
-            <div class="tooltip-arrow absolute size-2 origin-center rotate-45 border-line-default bg-surface-muted"></div>
-          </div>
-        </div>
+          </:content>
+        </.tooltip>
         """
 
       device.update_mode != :off ->
@@ -38,7 +37,7 @@ defmodule NervesHubWeb.Components.DeviceUpdateStatus do
 
       true ->
         ~H"""
-        <div class="relative z-20" id={"update-status-#{@device.id}"} phx-hook="ToolTip" data-placement="top">
+        <.tooltip id={"update-status-#{@device.id}"} placement="top">
           <svg title="Updates disabled" xmlns="http://www.w3.org/2000/svg" class="z-10 size-4 stroke-alert" viewBox="0 0 16 16" fill="none">
             <path
               d="M12.6667 9.33333V3.33333C11.6667 3.44444 9.33333 3.33333 8 2C7.61905 2.38095 7.15646 2.66213 6.66667 2.86686M3.33333 3.33333V9.33333C3.33333 12 8 14 8 14C8 14 10.1359 13.0846 11.5177 11.6667M2 2L14 14"
@@ -47,11 +46,10 @@ defmodule NervesHubWeb.Components.DeviceUpdateStatus do
               stroke-linejoin="round"
             />
           </svg>
-          <div class="tooltip-content absolute top-0 left-0 z-20 hidden w-max rounded border border-line-default bg-surface-muted px-2 py-1.5 text-xs">
+          <:content>
             Updates disabled
-            <div class="tooltip-arrow absolute size-2 origin-center rotate-45 border-line-default bg-surface-muted"></div>
-          </div>
-        </div>
+          </:content>
+        </.tooltip>
         """
     end
   end

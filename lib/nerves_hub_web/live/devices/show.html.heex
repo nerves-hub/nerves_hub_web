@@ -10,16 +10,15 @@
 
     <div class="mr-6 ml-auto flex items-center gap-2">
       <div id="present-users" phx-update="stream" class="mr-3 flex h-8 flex-row-reverse -space-x-1 space-x-reverse overflow-hidden border-r border-line-default px-5">
-        <div :for={{id, %{user: user}} <- @streams.presences} class="z-10 inline-flex cursor-default items-center justify-center" id={id} phx-hook="ToolTip" data-placement="bottom">
+        <.tooltip :for={{id, %{user: user}} <- @streams.presences} id={id} class="z-10 inline-flex cursor-default items-center justify-center">
           <span :if={!@user.profile_picture_url} class="inline-flex size-7 items-center justify-center rounded-full bg-base-800 px-1 text-sm font-medium text-content-muted ring-2 ring-line-strong">
             {String.split(user.name) |> Enum.map(fn w -> String.at(w, 0) |> String.upcase() end)}
           </span>
           <img :if={@user.profile_picture_url} src={@user.profile_picture_url} alt="User Profile Picture" class="size-full rounded-full object-cover" />
-          <div class="tooltip-content absolute top-0 left-0 z-20 hidden w-max rounded border border-line-default bg-surface-muted px-2 py-1.5 text-xs">
+          <:content>
             {user.name}
-            <div class="tooltip-arrow absolute size-2 origin-center rotate-45 border-line-default bg-surface-muted"></div>
-          </div>
-        </div>
+          </:content>
+        </.tooltip>
       </div>
       <.button :if={@pinned?} aria-label="Unpin device" style="primary" phx-click="unpin">
         <.icon name="pinned" />
@@ -102,7 +101,7 @@
           <% is_nil(@device.deployment_id) -> %>
             <span class="mr-1 ml-2 text-sm text-content-body">N/A</span>
           <% Updates.device_in_penalty_box?(@device) -> %>
-            <div class="relative z-20" id={"update-status-#{@device.id}"} phx-hook="ToolTip" data-placement="left">
+            <.tooltip id={"update-status-#{@device.id}"} placement="left">
               <svg class="mx-2 size-4 stroke-warning" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none">
                 <path
                   d="M19 14V5C17.5 5.16667 14 5 12 3C11.4286 3.57143 10.7347 3.9932 10 4.30029M5 5V14C5 18 12 21 12 21C12 21 15.2039 19.6269 17.2766 17.5M3 3L21 21"
@@ -111,11 +110,10 @@
                   stroke-linejoin="round"
                 />
               </svg>
-              <div class="tooltip-content absolute top-0 left-0 z-20 hidden w-max rounded border border-line-default bg-surface-muted px-2 py-1.5 text-xs">
+              <:content>
                 Updates blocked {DeviceUpdateStatus.friendly_blocked_until(@device.updates_blocked_until, @time_zone)}
-                <div class="tooltip-arrow absolute size-2 origin-center rotate-45 border-line-default bg-surface-muted"></div>
-              </div>
-            </div>
+              </:content>
+            </.tooltip>
 
             <%!-- Dismissing the penalty box is a one-way action, not a state to
                  switch between, so it reads as a button rather than a toggle. --%>

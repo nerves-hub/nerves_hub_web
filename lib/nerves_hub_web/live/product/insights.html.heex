@@ -163,15 +163,14 @@
           <div class="flex items-center leading-6 font-medium text-content-strong">
             Firmware Update History
           </div>
-          <div class="relative z-20 ml-4" id="update-outcomes-tooltip" phx-hook="ToolTip" data-placement="top">
+          <.tooltip id="update-outcomes-tooltip" placement="top" class="z-20 ml-4" content_class="w-72">
             <span class="lucide-info--light size-4" />
-            <div class="tooltip-content absolute top-0 left-0 z-20 hidden w-72 rounded border border-line-default bg-surface-muted px-2 py-1.5 text-xs">
+            <:content>
               <p class="pb-2">Every firmware update attempt that finished, counted on the day it finished.</p>
               <p class="pb-2">A failure is a device that did not end up running the firmware it was sent: it reported an error, refused it, stopped partway, or came back on its old firmware.</p>
               <p>A device that asked for the update to come back later is deferring rather than failing, and is not counted here.</p>
-              <div class="tooltip-arrow absolute size-2 origin-center rotate-45 border-line-default bg-surface-muted"></div>
-            </div>
-          </div>
+            </:content>
+          </.tooltip>
         </div>
 
         <div id="update-outcomes-period" role="tablist" class="inline-flex gap-0.5 rounded-md border border-line-default bg-surface-muted p-0.5">
@@ -291,16 +290,15 @@
             <div class="flex items-center leading-6 font-medium text-content-strong">
               Flapping Connections
             </div>
-            <div class="relative z-20 ml-4" id="flapping-connections-tooltip" phx-hook="ToolTip" data-placement="top">
+            <.tooltip id="flapping-connections-tooltip" placement="top" class="z-20 ml-4">
               <span class="lucide-info--light size-4" />
-              <div class="tooltip-content absolute top-0 left-0 z-20 hidden w-max rounded border border-line-default bg-surface-muted px-2 py-1.5 text-xs">
+              <:content>
                 <p class="pb-2">Devices that have reconnected 10 times or more in the last hour.</p>
                 <p>
                   These devices might have issues with connection stability, <br />or underlying errors which are causing the devices to crash.
                 </p>
-                <div class="tooltip-arrow absolute size-2 origin-center rotate-45 border-line-default bg-surface-muted"></div>
-              </div>
-            </div>
+              </:content>
+            </.tooltip>
           </div>
           <div class="flex flex-col divide-y divide-line-subtle">
             <.link
@@ -323,17 +321,16 @@
             <div class="flex items-center leading-6 font-medium text-content-strong">
               Flapping Health
             </div>
-            <div class="relative z-20 ml-4" id="flapping-health-tooltip" phx-hook="ToolTip" data-placement="top">
+            <.tooltip id="flapping-health-tooltip" placement="top" class="z-20 ml-4">
               <span class="lucide-info--light size-4" />
-              <div class="tooltip-content absolute top-0 left-0 z-20 hidden w-max rounded border border-line-default bg-surface-muted px-2 py-1.5 text-xs">
+              <:content>
                 <p class="pb-2">Devices whose health has crossed into warning or unhealthy more than 5 times in the last hour.</p>
                 <p>
                   A device sitting steadily unhealthy is not here — these are the ones <br />changing their mind, which usually means a
                   threshold sits right where <br />the metric normally runs.
                 </p>
-                <div class="tooltip-arrow absolute size-2 origin-center rotate-45 border-line-default bg-surface-muted"></div>
-              </div>
-            </div>
+              </:content>
+            </.tooltip>
           </div>
           <div class="flex flex-col divide-y divide-line-subtle">
             <.link
@@ -367,15 +364,14 @@
                 Failed Firmware Updates
                 <span class="ml-2.5 inline-flex items-center gap-1.5 rounded-full border border-line-default py-0.5 pr-2.5 pl-2 text-xs/4 tracking-tight">{@failing_count}</span>
               </div>
-              <div class="relative z-20 ml-4" id="failing-updates-tooltip" phx-hook="ToolTip" data-placement="top">
+              <.tooltip id="failing-updates-tooltip" placement="top" class="z-20 ml-4" content_class="w-72">
                 <span class="lucide-info--light size-4" />
-                <div class="tooltip-content absolute top-0 left-0 z-20 hidden w-72 rounded border border-line-default bg-surface-muted px-2 py-1.5 text-xs">
+                <:content>
                   <p class="pb-2">Devices that are failing to take their firmware, and are blocked from trying again for now.</p>
                   <p class="pb-2">The count is attempts in a row that ended without the device running the firmware it was sent, since the last time it did.</p>
                   <p>Beside it is how long that run has been going: an afternoon is bad luck, a fortnight is a device that will not fix itself.</p>
-                  <div class="tooltip-arrow absolute size-2 origin-center rotate-45 border-line-default bg-surface-muted"></div>
-                </div>
-              </div>
+                </:content>
+              </.tooltip>
             </div>
 
             <.link
@@ -445,13 +441,12 @@
               Firmware Versions
               <span class="ml-2.5 inline-flex items-center gap-1.5 rounded-full border border-line-default py-0.5 pr-2.5 pl-2 text-xs/4 tracking-tight">{@firmware_version_count}</span>
             </div>
-            <div class="relative z-20 ml-4" id="firmware-versions-tooltip" phx-hook="ToolTip" data-placement="top">
+            <.tooltip id="firmware-versions-tooltip" placement="top" class="z-20 ml-4" content_class="w-64">
               <span class="lucide-info--light size-4" />
-              <div class="tooltip-content absolute top-0 left-0 z-20 hidden w-64 rounded border border-line-default bg-surface-muted px-2 py-1.5 text-xs">
+              <:content>
                 <p>The firmware version each device last reported, not the version its deployment group is on. Select a version to see those devices.</p>
-                <div class="tooltip-arrow absolute size-2 origin-center rotate-45 border-line-default bg-surface-muted"></div>
-              </div>
-            </div>
+              </:content>
+            </.tooltip>
           </div>
 
           <div class="flex items-center gap-6">

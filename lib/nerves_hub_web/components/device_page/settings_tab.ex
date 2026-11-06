@@ -407,7 +407,7 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
   # Who changed a shared secret, as an avatar with the details on hover.
   defp shared_secret_change(assigns) do
     ~H"""
-    <div id={@id} class="relative flex items-center" phx-hook="ToolTip" data-placement="top">
+    <.tooltip id={@id} placement="top" class="flex items-center">
       <CoreComponents.user_avatar :if={@user} user={@user} />
       <div
         :if={!@user}
@@ -415,12 +415,10 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
       >
         <span class="font-medium text-content-muted dark:text-content-body">?</span>
       </div>
-      <div class="tooltip-content absolute top-0 left-0 z-20 hidden w-max rounded border border-line-default bg-surface-muted px-2 py-1.5 text-xs">
-        {@action}<span :if={@user}> by {@user.name}</span>
-        on <.local_datetime at={@at} time_zone={@time_zone} format={:date} zone_label={false} />
-        <div class="tooltip-arrow absolute size-2 origin-center rotate-45 border-line-default bg-surface-muted"></div>
-      </div>
-    </div>
+      <:content>
+        {@action}<span :if={@user}> by {@user.name}</span> on <.local_datetime at={@at} time_zone={@time_zone} format={:date} zone_label={false} />
+      </:content>
+    </.tooltip>
     """
   end
 

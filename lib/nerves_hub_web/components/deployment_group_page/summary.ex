@@ -685,13 +685,12 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
                   <.icon name="open" class="stroke-base-400" />
                 </.link> --%>
                 <div class="flex items-center gap-2">
-                  <div id="remove-devices-from-deployment-group" class="relative z-20" phx-hook="ToolTip" data-placement="top">
+                  <.tooltip id="remove-devices-from-deployment-group" placement="top">
                     <.icon name="info" class="stroke-base-400" />
-                    <div class="tooltip-content absolute top-0 left-0 z-20 hidden w-max rounded border border-line-default bg-surface-muted px-2 py-1.5 text-xs">
+                    <:content>
                       This action will remove {@unmatched_device_count} {if @matched_devices_outside_deployment_group_count == 1, do: "device", else: "devices"} from {@deployment_group.name}
-                      <div class="tooltip-arrow absolute size-2 origin-center rotate-45 border-line-default bg-surface-muted"></div>
-                    </div>
-                  </div>
+                    </:content>
+                  </.tooltip>
                   <.button
                     class="w-41"
                     style="danger"
@@ -712,14 +711,13 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
                   <.icon name="open" class="stroke-base-400" />
                 </.link> --%>
                 <div class="flex items-center gap-2">
-                  <div id="move-devices-to-deployment-group" class="relative z-20" phx-hook="ToolTip" data-placement="top">
+                  <.tooltip id="move-devices-to-deployment-group" placement="top">
                     <.icon name="info" class="stroke-base-400" />
-                    <div class="tooltip-content absolute top-0 left-0 z-20 hidden w-max rounded border border-line-default bg-surface-muted px-2 py-1.5 text-xs">
+                    <:content>
                       This action will move {@matched_devices_outside_deployment_group_count} {if @matched_devices_outside_deployment_group_count == 1, do: "device", else: "devices"}<br />
                       that do not belong to a deployment <br />group into {@deployment_group.name}
-                      <div class="tooltip-arrow absolute size-2 origin-center rotate-45 border-line-default bg-surface-muted"></div>
-                    </div>
-                  </div>
+                    </:content>
+                  </.tooltip>
                   <.button
                     class="w-41"
                     style="secondary"

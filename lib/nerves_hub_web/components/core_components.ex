@@ -134,6 +134,56 @@ defmodule NervesHubWeb.CoreComponents do
   end
 
   @doc """
+  Renders a trigger that shows a tooltip on hover.
+
+  The inner block is the trigger and the `:content` slot is the tooltip. The
+  `ToolTip` hook positions the tooltip and its arrow with Floating UI, so every
+  tooltip needs a unique `id`.
+
+  `class` sets the wrapper's layout and stacking (it is always `relative`, and
+  defaults to `z-20`). `content_class` sizes the tooltip: `w-max` for a short
+  label, or a width such as `w-72` or `max-w-md` for a sentence.
+
+  With `enabled={false}` only the trigger renders, without the hook, for a
+  tooltip that only sometimes has something to say.
+
+  ## Examples
+
+      <.tooltip id="firmware-versions-help" placement="top" content_class="w-64">
+        <span class="lucide-info--light size-4" />
+        <:content>Devices grouped by the firmware they last reported.</:content>
+      </.tooltip>
+  """
+  attr(:id, :string, required: true)
+  attr(:placement, :string, default: "bottom", values: ~w(top right bottom left))
+  attr(:enabled, :boolean, default: true)
+  attr(:class, :any, default: "z-20")
+  attr(:content_class, :any, default: "w-max")
+  attr(:rest, :global)
+
+  slot(:inner_block, required: true)
+  slot(:content, required: true)
+
+  def tooltip(assigns) do
+    ~H"""
+    <div id={@id} class={["relative", @class]} phx-hook={@enabled && "ToolTip"} data-placement={@placement} {@rest}>
+      {render_slot(@inner_block)}
+      <div
+        :if={@enabled}
+        role="tooltip"
+        class={[
+          "tooltip-content absolute top-0 left-0 z-20 hidden rounded border border-line-default bg-surface-overlay px-2 py-1.5 text-xs shadow-overlay",
+          @content_class
+        ]}
+      >
+        {render_slot(@content)}
+        <div class="tooltip-arrow absolute size-2 origin-center rotate-45 border-line-default bg-surface-overlay"></div>
+      </div>
+    </div>
+    """
+  end
+
+  @doc """
   Renders a modal.
 
   ## Examples
