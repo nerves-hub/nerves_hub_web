@@ -170,7 +170,7 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
                 <svg class="size-5" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
                   <path
                     d="M6.66671 16.6667H5.00004C4.07957 16.6667 3.33337 15.9205 3.33337 15V5.00004C3.33337 4.07957 4.07957 3.33337 5.00004 3.33337H12.643C13.085 3.33337 13.509 3.50897 13.8215 3.82153L16.1786 6.17855C16.4911 6.49111 16.6667 6.91504 16.6667 7.35706V15C16.6667 15.9205 15.9205 16.6667 15 16.6667H13.3334M6.66671 16.6667V12.5H13.3334V16.6667M6.66671 16.6667H13.3334M6.66671 6.66671V9.16671H9.16671V6.66671H6.66671Z"
-                    stroke="#A1A1AA"
+                    class="stroke-base-400"
                     stroke-width="1.2"
                     stroke-linecap="round"
                     stroke-linejoin="round"
@@ -191,7 +191,7 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
               <svg class="size-4" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <path
                   d="M8 6L7 7L8 8M11 6L12 7L11 8M15 7H17M7 11H9M12 11H17M17 14H16M13 14H7M6 21H18C19.1046 21 20 20.1046 20 19V5C20 3.89543 19.1046 3 18 3H6C4.89543 3 4 3.89543 4 5V19C4 20.1046 4.89543 21 6 21Z"
-                  stroke="#A1A1AA"
+                  class="stroke-base-400"
                   stroke-width="1.2"
                   stroke-linecap="round"
                   stroke-linejoin="round"
@@ -231,7 +231,7 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
                 <svg class="size-5" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
                   <path
                     d="M6.66671 16.6667H5.00004C4.07957 16.6667 3.33337 15.9205 3.33337 15V5.00004C3.33337 4.07957 4.07957 3.33337 5.00004 3.33337H12.643C13.085 3.33337 13.509 3.50897 13.8215 3.82153L16.1786 6.17855C16.4911 6.49111 16.6667 6.91504 16.6667 7.35706V15C16.6667 15.9205 15.9205 16.6667 15 16.6667H13.3334M6.66671 16.6667V12.5H13.3334V16.6667M6.66671 16.6667H13.3334M6.66671 6.66671V9.16671H9.16671V6.66671H6.66671Z"
-                    stroke="#A1A1AA"
+                    class="stroke-base-400"
                     stroke-width="1.2"
                     stroke-linecap="round"
                     stroke-linejoin="round"
@@ -248,7 +248,7 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
                 <svg class="size-5" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
                   <path
                     d="M12.4999 5.83337H7.49992M12.4999 5.83337H14.9999M12.4999 5.83337C12.4999 4.45266 11.3806 3.33337 9.99992 3.33337C8.61921 3.33337 7.49992 4.45266 7.49992 5.83337M7.49992 5.83337H4.99992M3.33325 5.83337H4.99992M4.99992 5.83337V15C4.99992 15.9205 5.74611 16.6667 6.66659 16.6667H13.3333C14.2537 16.6667 14.9999 15.9205 14.9999 15V5.83337M14.9999 5.83337H16.6666M8.33325 9.16671V13.3334M11.6666 13.3334V9.16671"
-                    stroke="#EF4444"
+                    class="stroke-alert"
                     stroke-width="1.2"
                     stroke-linecap="round"
                     stroke-linejoin="round"
@@ -361,7 +361,7 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
               <svg class="size-5" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <path
                   d="M8.5 18.9999H5.39903C3.87406 18.9999 2.91012 17.3617 3.65071 16.0287L7 9.99994M7 9.99994L3 11.9999M7 9.99994L8 13.9999M18.9999 13.9999L20.1987 16.0122C20.9929 17.3454 20.0323 19.0358 18.4805 19.0358L12.768 19.0358M12.768 19.0358L16 21.9999M12.768 19.0358L16 15.9999M8.5 6.99994L10.5883 3.86749C11.4401 2.58975 13.3545 2.70894 14.0413 4.08246L17 9.99994M17 9.99994L18 5.99994M17 9.99994L13 8.99994"
-                  stroke="#A1A1AA"
+                  class="stroke-base-400"
                   stroke-width="1.2"
                   stroke-linecap="round"
                   stroke-linejoin="round"

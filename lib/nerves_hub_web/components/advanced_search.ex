@@ -83,7 +83,7 @@ defmodule NervesHubWeb.Components.AdvancedSearch do
 
       <div data-role="hints" class="hidden">
         <div data-role="suggestions" class="relative"></div>
-        <p :if={@error} class="text-xs text-red-400">{@error}</p>
+        <p :if={@error} class="text-xs text-alert-content">{@error}</p>
       </div>
     </div>
     """

@@ -40,7 +40,7 @@ defmodule NervesHubWeb.Components.FilterSidebar do
               <svg xmlns="http://www.w3.org/2000/svg" class="size-5" viewBox="0 0 20 20" fill="none">
                 <path
                   d="M10.0002 9.99998L5.8335 5.83331M10.0002 9.99998L14.1668 14.1666M10.0002 9.99998L14.1668 5.83331M10.0002 9.99998L5.8335 14.1666"
-                  stroke="#A1A1AA"
+                  class="stroke-base-400"
                   stroke-width="1.2"
                   stroke-linecap="round"
                   stroke-linejoin="round"

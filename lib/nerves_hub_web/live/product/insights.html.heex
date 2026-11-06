@@ -25,7 +25,7 @@
             phx-click="toggle-auto-refresh"
             class={[
               "border-1.5 relative inline-flex h-3.5 w-6 shrink-0 cursor-pointer items-center rounded-full border-transparent transition-colors duration-200 ease-in-out focus:ring-1 focus:ring-focus-ring focus:ring-offset-2 focus:outline-none",
-              (@polling_pid && "bg-primary") || "bg-gray-200"
+              (@polling_pid && "bg-primary") || "bg-base-600"
             ]}
             role="switch"
             aria-checked="false"
@@ -123,21 +123,21 @@
             data-selected={@connected_devices_period == :twenty_four_hours}
             phx-click="select-graph-time-period"
             phx-value-period="twenty_four_hours"
-            class="cursor-pointer appearance-none rounded-sm border-0 bg-transparent px-3 py-1.5 text-xs leading-none font-medium whitespace-nowrap text-content-muted shadow-none transition-colors duration-120 hover:bg-indigo-500/80 hover:text-white data-selected:bg-indigo-500 data-selected:font-semibold data-selected:text-white data-selected:shadow-[0_1px_2px_rgba(0,0,0,0.18)]"
+            class="cursor-pointer appearance-none rounded-sm border-0 bg-transparent px-3 py-1.5 text-xs leading-none font-medium whitespace-nowrap text-content-muted shadow-none transition-colors duration-120 hover:bg-primary/80 hover:text-primary-content data-selected:bg-primary data-selected:font-semibold data-selected:text-primary-content data-selected:shadow-[0_1px_2px_rgba(0,0,0,0.18)]"
           >Last 24 hours</button>
           <button
             role="tab"
             data-selected={@connected_devices_period == :fourteen_days}
             phx-click="select-graph-time-period"
             phx-value-period="fourteen_days"
-            class="cursor-pointer appearance-none rounded-sm border-0 bg-transparent px-3 py-1.5 text-xs leading-none font-medium whitespace-nowrap text-content-muted shadow-none transition-colors duration-120 hover:bg-indigo-500/80 hover:text-white data-selected:bg-indigo-500 data-selected:font-semibold data-selected:text-white data-selected:shadow-[0_1px_2px_rgba(0,0,0,0.18)]"
+            class="cursor-pointer appearance-none rounded-sm border-0 bg-transparent px-3 py-1.5 text-xs leading-none font-medium whitespace-nowrap text-content-muted shadow-none transition-colors duration-120 hover:bg-primary/80 hover:text-primary-content data-selected:bg-primary data-selected:font-semibold data-selected:text-primary-content data-selected:shadow-[0_1px_2px_rgba(0,0,0,0.18)]"
           >14 days</button>
           <button
             role="tab"
             phx-click="select-graph-time-period"
             phx-value-period="four_weeks"
             data-selected={@connected_devices_period == :four_weeks}
-            class="cursor-pointer appearance-none rounded-sm border-0 bg-transparent px-3 py-1.5 text-xs leading-none font-medium whitespace-nowrap text-content-muted shadow-none transition-colors duration-120 hover:bg-indigo-500/80 hover:text-white data-selected:bg-indigo-500 data-selected:font-semibold data-selected:text-white data-selected:shadow-[0_1px_2px_rgba(0,0,0,0.18)]"
+            class="cursor-pointer appearance-none rounded-sm border-0 bg-transparent px-3 py-1.5 text-xs leading-none font-medium whitespace-nowrap text-content-muted shadow-none transition-colors duration-120 hover:bg-primary/80 hover:text-primary-content data-selected:bg-primary data-selected:font-semibold data-selected:text-primary-content data-selected:shadow-[0_1px_2px_rgba(0,0,0,0.18)]"
           >4 weeks</button>
         </div>
       </div>
@@ -180,21 +180,21 @@
             data-selected={@update_outcomes_period == :twenty_four_hours}
             phx-click="select-update-graph-time-period"
             phx-value-period="twenty_four_hours"
-            class="cursor-pointer appearance-none rounded-sm border-0 bg-transparent px-3 py-1.5 text-xs leading-none font-medium whitespace-nowrap text-content-muted shadow-none transition-colors duration-120 hover:bg-indigo-500/80 hover:text-white data-selected:bg-indigo-500 data-selected:font-semibold data-selected:text-white data-selected:shadow-[0_1px_2px_rgba(0,0,0,0.18)]"
+            class="cursor-pointer appearance-none rounded-sm border-0 bg-transparent px-3 py-1.5 text-xs leading-none font-medium whitespace-nowrap text-content-muted shadow-none transition-colors duration-120 hover:bg-primary/80 hover:text-primary-content data-selected:bg-primary data-selected:font-semibold data-selected:text-primary-content data-selected:shadow-[0_1px_2px_rgba(0,0,0,0.18)]"
           >Last 24 hours</button>
           <button
             role="tab"
             data-selected={@update_outcomes_period == :fourteen_days}
             phx-click="select-update-graph-time-period"
             phx-value-period="fourteen_days"
-            class="cursor-pointer appearance-none rounded-sm border-0 bg-transparent px-3 py-1.5 text-xs leading-none font-medium whitespace-nowrap text-content-muted shadow-none transition-colors duration-120 hover:bg-indigo-500/80 hover:text-white data-selected:bg-indigo-500 data-selected:font-semibold data-selected:text-white data-selected:shadow-[0_1px_2px_rgba(0,0,0,0.18)]"
+            class="cursor-pointer appearance-none rounded-sm border-0 bg-transparent px-3 py-1.5 text-xs leading-none font-medium whitespace-nowrap text-content-muted shadow-none transition-colors duration-120 hover:bg-primary/80 hover:text-primary-content data-selected:bg-primary data-selected:font-semibold data-selected:text-primary-content data-selected:shadow-[0_1px_2px_rgba(0,0,0,0.18)]"
           >14 days</button>
           <button
             role="tab"
             data-selected={@update_outcomes_period == :four_weeks}
             phx-click="select-update-graph-time-period"
             phx-value-period="four_weeks"
-            class="cursor-pointer appearance-none rounded-sm border-0 bg-transparent px-3 py-1.5 text-xs leading-none font-medium whitespace-nowrap text-content-muted shadow-none transition-colors duration-120 hover:bg-indigo-500/80 hover:text-white data-selected:bg-indigo-500 data-selected:font-semibold data-selected:text-white data-selected:shadow-[0_1px_2px_rgba(0,0,0,0.18)]"
+            class="cursor-pointer appearance-none rounded-sm border-0 bg-transparent px-3 py-1.5 text-xs leading-none font-medium whitespace-nowrap text-content-muted shadow-none transition-colors duration-120 hover:bg-primary/80 hover:text-primary-content data-selected:bg-primary data-selected:font-semibold data-selected:text-primary-content data-selected:shadow-[0_1px_2px_rgba(0,0,0,0.18)]"
           >4 weeks</button>
         </div>
       </div>
@@ -498,10 +498,10 @@
       <%= if active_secret && authorized?(:"product:update", @current_scope) do %>
         <div class="rounded-lg border border-base-700 bg-surface-raised p-4">
           <h3 class="mb-3 text-sm font-semibold text-base-300">1. Add the dependency to your <code>mix.exs</code></h3>
-          <pre class="mb-4 overflow-x-auto rounded bg-base-950 p-3 font-mono text-sm text-green-400"><code>&#123;:nerves_hub_link, "~&gt; 2.0"&#125;</code></pre>
+          <pre class="mb-4 overflow-x-auto rounded bg-base-950 p-3 font-mono text-sm text-success-content"><code>&#123;:nerves_hub_link, "~&gt; 2.0"&#125;</code></pre>
 
           <h3 class="mb-3 text-sm font-semibold text-base-300">2. Add this to your <code>config/config.exs</code></h3>
-          <pre class="overflow-x-auto rounded bg-base-950 p-3 font-mono text-sm text-green-400"><code>config :nerves_hub_link,
+          <pre class="overflow-x-auto rounded bg-base-950 p-3 font-mono text-sm text-success-content"><code>config :nerves_hub_link,
 host: "{onboarding_nhl_host()}",
 remote_iex: true,
 shared_secret: [

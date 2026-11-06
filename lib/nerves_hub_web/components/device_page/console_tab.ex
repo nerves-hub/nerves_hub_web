@@ -203,11 +203,11 @@ defmodule NervesHubWeb.Components.DevicePage.ConsoleTab do
                 <div class="flex items-center gap-3">
                   <%= if Map.get(@device_connection || %{}, :status) == :connected do %>
                     <svg class="size-3" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 6 6" fill="none">
-                      <circle cx="3" cy="3" r="3" fill="#10B981" />
+                      <circle cx="3" cy="3" r="3" class="fill-status-online" />
                     </svg>
                   <% else %>
                     <svg class="size-3" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 6 6" fill="none">
-                      <circle cx="3" cy="3" r="3" fill="#71717A" />
+                      <circle cx="3" cy="3" r="3" class="fill-status-offline" />
                     </svg>
                   <% end %>
                   <h1 class="font-mono text-xl leading-[30px] font-semibold text-base-50">

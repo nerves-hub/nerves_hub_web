@@ -17,7 +17,7 @@ defmodule NervesHubWeb.Components.Pager do
     <div :if={@total_pages > 1} class="flex gap-4">
       <button class={["pager-button", @page_number < 2 && "invisible"]} phx-click="paginate" phx-value-page={@page_number - 1} {@rest}>
         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="none">
-          <path d="M11.6667 5.83337L7.5 10L11.6667 14.1667" stroke="#A1A1AA" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" />
+          <path d="M11.6667 5.83337L7.5 10L11.6667 14.1667" class="stroke-base-400" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" />
         </svg>
       </button>
       <button :for={page <- @start_range..@end_range} phx-click="paginate" phx-value-page={page} {@rest} class={"pager-button #{if page == @page_number do
@@ -29,7 +29,7 @@ defmodule NervesHubWeb.Components.Pager do
       <button :if={@end_range != @total_pages} class="pager-button" phx-click="paginate" phx-value-page={@total_pages} {@rest}>{@total_pages}</button>
       <button class={["pager-button", @page_number == @total_pages && "invisible"]} phx-click="paginate" phx-value-page={@page_number + 1} {@rest}>
         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="none">
-          <path d="M8.3335 5.83337L12.5002 10L8.3335 14.1667" stroke="#A1A1AA" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" />
+          <path d="M8.3335 5.83337L12.5002 10L8.3335 14.1667" class="stroke-base-400" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" />
         </svg>
       </button>
     </div>

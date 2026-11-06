@@ -30,14 +30,14 @@
           <div class="org-selector-title">{@current_scope.org.name}</div>
           <div :if={@current_scope.product} class="product-selector-title flex items-center gap-2">
             <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 10 10" fill="none">
-              <path d="M1 1V5C1 7.20914 2.79086 9 5 9H9" stroke="#71717A" stroke-width="1.2" stroke-linecap="round" />
+              <path d="M1 1V5C1 7.20914 2.79086 9 5 9H9" class="stroke-base-500" stroke-width="1.2" stroke-linecap="round" />
             </svg>
             <span>{@current_scope.product.name}</span>
           </div>
         </div>
         <div class="product-selector-icon ml-auto rounded p-1.5 collapsed:hidden">
           <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="none">
-            <path d="M8.33203 5.83398L12.4987 10.0007L8.33203 14.1673" stroke="#A1A1AA" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" />
+            <path d="M8.33203 5.83398L12.4987 10.0007L8.33203 14.1673" class="stroke-base-400" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" />
           </svg>
         </div>
       </div>

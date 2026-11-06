@@ -54,20 +54,23 @@ defmodule NervesHubWeb.Live.NewUI.Devices.IndexTest do
 
   describe "device connection status updates" do
     setup context do
-      Map.merge(context, %{offline_indicator_color: "#71717A", online_indicator_color: "#10B981"})
+      Map.merge(context, %{
+        offline_indicator: "circle.fill-status-offline",
+        online_indicator: "circle.fill-status-online"
+      })
     end
 
     test "connection:change", %{
       conn: conn,
       fixture: fixture,
-      offline_indicator_color: offline_indicator_color,
-      online_indicator_color: online_indicator_color
+      offline_indicator: offline_indicator,
+      online_indicator: online_indicator
     } do
       %{device: device, org: org, product: product} = fixture
 
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices")
-      |> assert_has("circle[fill='#{offline_indicator_color}']", timeout: 1000)
+      |> assert_has(offline_indicator, timeout: 1000)
       |> unwrap(fn view ->
         send(view.pid, %Broadcast{
           topic: "internal:device:#{device.id}",
@@ -77,7 +80,7 @@ defmodule NervesHubWeb.Live.NewUI.Devices.IndexTest do
 
         render(view)
       end)
-      |> assert_has("circle[fill='#{online_indicator_color}']")
+      |> assert_has(online_indicator)
     end
   end
 

@@ -84,7 +84,6 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Releases do
               <svg class="size-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="none">
                 <path
                   d="M4.1665 10.0001H9.99984M15.8332 10.0001H9.99984M9.99984 10.0001V4.16675M9.99984 10.0001V15.8334"
-                  stroke="#A1A1AA"
                   stroke-width="1.2"
                   stroke-linecap="round"
                   stroke-linejoin="round"

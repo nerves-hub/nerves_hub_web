@@ -408,7 +408,7 @@ defmodule NervesHubWeb.Components.DevicePage.LogsTab do
                 <.local_datetime at={line.timestamp} time_zone={@time_zone} format={:log} class="min-w-fit" />
                 <div
                   data-log-level={line.level}
-                  class="data-[log-level=alert]:text-alert data-[log-level=critical]:text-alert data-[log-level=debug]:text-blue-500 data-[log-level=emergency]:text-alert data-[log-level=error]:text-alert data-[log-level=warn]:text-orange-500 data-[log-level=warning]:text-orange-500"
+                  class="data-[log-level=alert]:text-alert-content data-[log-level=critical]:text-alert-content data-[log-level=debug]:text-notice-content data-[log-level=emergency]:text-alert-content data-[log-level=error]:text-alert-content data-[log-level=warn]:text-warning-content data-[log-level=warning]:text-warning-content"
                 >
                   [{line.level}]
                 </div>

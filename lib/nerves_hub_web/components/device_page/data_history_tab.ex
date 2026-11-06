@@ -256,7 +256,7 @@ defmodule NervesHubWeb.Components.DevicePage.DataHistoryTab do
               <td class="py-2 pr-6">
                 <span class={[
                   "rounded px-1.5 py-0.5 text-xs",
-                  (message.direction == "sent" && "bg-base-800 text-blue-400") || "bg-base-800 text-success"
+                  (message.direction == "sent" && "bg-base-800 text-notice-content") || "bg-base-800 text-success-content"
                 ]}>
                   {message.direction}
                 </span>

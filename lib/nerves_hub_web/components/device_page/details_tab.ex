@@ -922,7 +922,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
             class="flex items-center gap-1 rounded-full border border-base-700 bg-base-800 py-0.5 pr-2.5 pl-1.5"
           >
             <svg class="size-1.5" viewBox="0 0 6 6" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <circle cx="3" cy="3" r="3" fill="#10B981" />
+              <circle cx="3" cy="3" r="3" class="fill-success" />
             </svg>
             <span class="text-xs tracking-tight text-base-300" class="">{@device.deployment_group.name}</span>
           </.link>
@@ -936,7 +936,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
             <svg class="size-3" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path
                 d="M12.4999 5.83337H7.49992M12.4999 5.83337H14.9999M12.4999 5.83337C12.4999 4.45266 11.3806 3.33337 9.99992 3.33337C8.61921 3.33337 7.49992 4.45266 7.49992 5.83337M7.49992 5.83337H4.99992M3.33325 5.83337H4.99992M4.99992 5.83337V15C4.99992 15.9205 5.74611 16.6667 6.66659 16.6667H13.3333C14.2537 16.6667 14.9999 15.9205 14.9999 15V5.83337M14.9999 5.83337H16.6666M8.33325 9.16671V13.3334M11.6666 13.3334V9.16671"
-                stroke="#EF4444"
+                class="stroke-alert"
                 stroke-width="1.2"
                 stroke-linecap="round"
                 stroke-linejoin="round"
@@ -1501,7 +1501,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
     assigns = assign(assigns, :key, key)
 
     ~H"""
-    <div class="flex h-16 grow flex-col rounded border-b border-neutral-500 health-plain px-3 py-2">
+    <div class="flex h-16 grow flex-col rounded border-b border-base-500 health-plain px-3 py-2">
       <span class="text-xs tracking-wide text-base-400">{MetricLabels.label(@key, @custom_labels)}</span>
       <span :if={@latest_metrics[@key]} class="text-xl leading-[30px] text-base-50">{Utils.nice_round(@latest_metrics[@key])}</span>
       <span :if={!@latest_metrics[@key]} class="text-xl leading-[30px] text-base-500">Not reported</span>

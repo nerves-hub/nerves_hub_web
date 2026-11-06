@@ -44,7 +44,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Activity do
                 <svg class="size-5" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
                   <path
                     d="M2.5 11.6666V14.1666C2.5 15.0871 3.24619 15.8333 4.16667 15.8333H15.8333C16.7538 15.8333 17.5 15.0871 17.5 14.1666V11.6666M10 4.16663V12.5M10 12.5L13.3333 9.16663M10 12.5L6.66667 9.16663"
-                    stroke="#A1A1AA"
+                    class="stroke-base-400"
                     stroke-width="1.2"
                     stroke-linecap="round"
                     stroke-linejoin="round"
@@ -64,7 +64,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Activity do
                 <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
                   <path
                     d="M8.66663 4.66661L10.1952 3.13801C10.4556 2.87766 10.8777 2.87766 11.138 3.13801L12.8619 4.86187C13.1222 5.12222 13.1222 5.54433 12.8619 5.80468L11.3333 7.33327M8.66663 4.66661L2.86189 10.4713C2.73686 10.5964 2.66663 10.7659 2.66663 10.9427V12.6666C2.66663 13.0348 2.9651 13.3333 3.33329 13.3333H5.05715C5.23396 13.3333 5.40353 13.263 5.52855 13.138L11.3333 7.33327M8.66663 4.66661L11.3333 7.33327M8.66663 13.3333H13.3333"
-                    stroke="#A1A1AA"
+                    class="stroke-base-400"
                     stroke-width="1.2"
                     stroke-linecap="round"
                     stroke-linejoin="round"
@@ -79,7 +79,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Activity do
                   </div>
                   <div class="flex items-center">
                     <svg class="size-0.5" viewBox="0 0 2 2" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      <circle cx="1" cy="1" r="1" fill="#71717A" />
+                      <circle cx="1" cy="1" r="1" class="fill-base-500" />
                     </svg>
                   </div>
                   <div class="text-xs tracking-wide text-base-400">

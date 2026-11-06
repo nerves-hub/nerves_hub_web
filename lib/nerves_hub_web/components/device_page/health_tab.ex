@@ -259,7 +259,7 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
                 <span class="text-xl leading-[30px] text-base-500">Not reported</span>
               </div>
             </div>
-            <div :for={{key, value} <- custom_metrics(@latest_metrics)} class="flex h-16 grow flex-col rounded border-b border-neutral-500 health-plain px-3 py-2">
+            <div :for={{key, value} <- custom_metrics(@latest_metrics)} class="flex h-16 grow flex-col rounded border-b border-base-500 health-plain px-3 py-2">
               <span class="text-xs tracking-wide text-base-400">{label_for(key, @custom_health_labels)}</span>
               <span class="text-xl leading-[30px] text-base-50">{nice_round(value)}</span>
             </div>
