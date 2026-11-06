@@ -197,7 +197,8 @@ when adding or removing one.
   any class with no SVG behind it.
 - **Fonts:** Inter is vendored in `priv/static/fonts/inter/` (the upstream
   release's variable woff2 files and its OFL license) and declared with
-  `@font-face` in `assets/css/app.css`. Self-hosted instances may have no
+  `@font-face` in `assets/css/app.css` and in the maintenance page's inline CSS
+  (`MaintenanceEndpoint` serves `fonts` for it). Self-hosted instances may have no
   internet access, so don't load fonts or other assets from a third-party CDN.
 - **Boundaries:** contexts (`lib/nerves_hub/`) hold business logic; web modules
   stay thin and call into them. Match the surrounding module's conventions,
