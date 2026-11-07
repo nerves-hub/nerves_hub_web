@@ -1,6 +1,6 @@
-<div id={@id} class="flex w-full flex-col rounded border border-base-700 bg-surface-raised">
-  <div class="flex h-14 items-center justify-between border-b border-base-700 px-4">
-    <div class="text-base font-medium text-base-50">{service_name(@provider)}</div>
+<div id={@id} class="flex w-full flex-col rounded-md border border-line-default bg-surface-raised">
+  <div class="flex h-14 items-center justify-between border-b border-line-default px-4">
+    <div class="text-card-title text-content-strong">{service_name(@provider)}</div>
     <.button
       :if={is_nil(@editing) && length(@channels) < ChatWebhooks.max_channels_per_org()}
       type="button"
@@ -13,25 +13,25 @@
     </.button>
   </div>
 
-  <div class="flex flex-col gap-3 p-6">
+  <div class="flex flex-col gap-3 p-4">
     <p class="w-2/3 text-sm">
       {instructions(@provider)} Choosing channels and what they hear takes the manage role.
     </p>
   </div>
 
-  <div :if={@channels == [] && @editing != :new} class="border-t border-base-700 p-6">
-    <p class="text-sm text-base-400">No {service_name(@provider)} channel gets this organization's events yet.</p>
+  <div :if={@channels == [] && @editing != :new} class="border-t border-line-default p-4">
+    <p class="text-sm text-content-muted">No {service_name(@provider)} channel gets this organization's events yet.</p>
   </div>
 
-  <div :if={@channels != [] || @editing == :new} class="flex flex-col gap-4 border-t border-base-700 p-6">
-    <div :for={channel <- @channels} id={"#{@provider}-channel-#{channel.id}"} class="flex flex-col gap-2 rounded border border-base-700 p-4">
+  <div :if={@channels != [] || @editing == :new} class="flex flex-col gap-4 border-t border-line-default p-4">
+    <div :for={channel <- @channels} id={"#{@provider}-channel-#{channel.id}"} class="flex flex-col gap-2 rounded border border-line-default p-4">
       <div class="flex flex-wrap items-start justify-between gap-3">
         <div class="flex min-w-0 flex-col gap-1">
           <div class="flex items-center gap-2">
-            <span class="font-medium text-base-50">{channel.name}</span>
+            <span class="font-medium text-content-strong">{channel.name}</span>
             <.status_badge channel={channel} />
           </div>
-          <span class="text-xs text-base-400">{webhook_kind(@provider)} on {channel.url_host}</span>
+          <span class="text-xs text-content-muted">{webhook_kind(@provider)} on {channel.url_host}</span>
         </div>
 
         <div :if={authorized?(:"chat_webhook:update", @current_scope)} class="flex items-center gap-2">
@@ -54,7 +54,7 @@
               title="More actions"
               class="flex items-center rounded p-1.5 hover:cursor-pointer hover:bg-base-700"
             >
-              <span class="lucide-ellipsis--light size-4 text-base-400"></span>
+              <span class="lucide-ellipsis size-4 text-content-muted"></span>
               <span class="sr-only">More actions</span>
             </button>
 
@@ -67,24 +67,24 @@
             >
               <div
                 role="menu"
-                class="absolute top-9 right-0 z-30 flex w-40 flex-col rounded-md border border-base-700 bg-surface-overlay p-1 shadow-lg"
+                class="absolute top-9 right-0 z-30 flex w-40 flex-col rounded-md border border-line-default bg-surface-overlay p-1 shadow-overlay"
               >
                 <button
                   type="button"
                   role="menuitem"
                   phx-click={JS.push("edit-channel", value: %{channel_id: channel.id}, target: @myself) |> hide_menu(@provider, channel.id)}
-                  class="flex items-center gap-2 rounded px-2 py-1.5 text-left text-sm text-base-300 hover:cursor-pointer hover:bg-primary/20"
+                  class="flex items-center gap-2 rounded px-2 py-1.5 text-left text-sm text-content-body hover:cursor-pointer hover:bg-primary/20"
                 >
-                  <span class="lucide-pencil--light size-4 text-base-400"></span> Edit
+                  <span class="lucide-pencil size-4 text-content-muted"></span> Edit
                 </button>
                 <button
                   type="button"
                   role="menuitem"
                   phx-click={JS.push("toggle", value: %{channel_id: channel.id}, target: @myself) |> hide_menu(@provider, channel.id)}
-                  class="flex items-center gap-2 rounded px-2 py-1.5 text-left text-sm text-base-300 hover:cursor-pointer hover:bg-primary/20"
+                  class="flex items-center gap-2 rounded px-2 py-1.5 text-left text-sm text-content-body hover:cursor-pointer hover:bg-primary/20"
                 >
-                  <span :if={channel.enabled} class="lucide-power-off--light size-4 text-base-400"></span>
-                  <span :if={!channel.enabled} class="lucide-power--light size-4 text-success"></span>
+                  <span :if={channel.enabled} class="lucide-power-off size-4 text-content-muted"></span>
+                  <span :if={!channel.enabled} class="lucide-power size-4 text-success"></span>
                   {if channel.enabled, do: "Turn off", else: "Turn on"}
                 </button>
                 <button
@@ -95,7 +95,7 @@
                   data-confirm={"Stop posting to #{channel.name}? Events held for it are dropped."}
                   class="flex items-center gap-2 rounded px-2 py-1.5 text-left text-sm text-alert hover:cursor-pointer hover:bg-alert-soft"
                 >
-                  <span class="lucide-trash--light size-4"></span> Delete
+                  <span class="lucide-trash size-4"></span> Delete
                 </button>
               </div>
             </div>
@@ -103,14 +103,14 @@
         </div>
       </div>
 
-      <div class="text-sm text-base-400">
-        <span class="text-base-300">Products:</span> {scope_label(channel)}
+      <div class="text-sm text-content-muted">
+        <span class="text-content-body">Products:</span> {scope_label(channel)}
       </div>
 
       <div class="flex flex-wrap gap-2">
-        <span :for={key <- channel.events} class="rounded border border-base-700 bg-base-800 px-2 py-0.5 text-xs text-base-300">
+        <.tag :for={key <- channel.events}>
           {ChannelEvents.label(key)}
-        </span>
+        </.tag>
       </div>
 
       <p :if={channel.disabled_reason} class="text-sm text-alert">{channel.disabled_reason}</p>
@@ -127,15 +127,15 @@
       phx-change="validate"
       phx-submit="save"
       phx-target={@myself}
-      class="flex flex-col gap-6 rounded border border-base-700 p-4"
+      class="flex flex-col gap-6 rounded border border-line-default p-4"
     >
-      <div class="text-sm font-medium text-base-50">
+      <div class="text-sm font-medium text-content-strong">
         {if @editing == :new, do: "New channel", else: "Edit #{@editing.name}"}
       </div>
 
       <div class="flex w-2/3 flex-col gap-4">
         <.input field={@form[:name]} type="text" label="Name" placeholder="Fleet alerts in Operations" />
-        <p class="-mt-2 text-xs text-base-500">What to call the channel here. {service_name(@provider)} does not tell NervesHub its name.</p>
+        <p class="-mt-2 text-xs text-content-faint">What to call the channel here. {service_name(@provider)} does not tell NervesHub its name.</p>
 
         <.input
           field={@form[:url]}
@@ -145,7 +145,7 @@
           placeholder="https://..."
           autocomplete="off"
         />
-        <p class="-mt-2 text-xs text-base-500">
+        <p class="-mt-2 text-xs text-content-faint">
           {if @editing == :new,
             do: "Anyone with this URL can post to the channel, so it is stored encrypted and not shown again.",
             else: "Leave empty to keep posting to the webhook it has. A URL pasted here replaces it."}
@@ -153,7 +153,7 @@
       </div>
 
       <div class="flex flex-col gap-3">
-        <div class="text-sm font-medium text-base-300">Products</div>
+        <div class="text-sm font-medium text-content-body">Products</div>
         <label for={"#{@provider}-all-products-true"} class="flex items-center gap-3">
           <input
             id={"#{@provider}-all-products-true"}
@@ -161,9 +161,9 @@
             name={"#{@provider}_channel[all_products]"}
             value="true"
             checked={all_products?(@form)}
-            class="border-base-700 text-base-400 checked:bg-primary focus:ring-0"
+            class="border-line-default text-content-muted checked:bg-primary focus:ring-0"
           />
-          <span class="text-sm text-base-300">Every product, including products added later</span>
+          <span class="text-sm text-content-body">Every product, including products added later</span>
         </label>
         <label for={"#{@provider}-all-products-false"} class="flex items-center gap-3">
           <input
@@ -172,9 +172,9 @@
             name={"#{@provider}_channel[all_products]"}
             value="false"
             checked={!all_products?(@form)}
-            class="border-base-700 text-base-400 checked:bg-primary focus:ring-0"
+            class="border-line-default text-content-muted checked:bg-primary focus:ring-0"
           />
-          <span class="text-sm text-base-300">Only these products</span>
+          <span class="text-sm text-content-body">Only these products</span>
         </label>
 
         <input type="hidden" name={"#{@provider}_channel[products][]"} value="" />
@@ -186,9 +186,9 @@
               name={"#{@provider}_channel[products][]"}
               value={product.name}
               checked={MapSet.member?(selected_products(@form), product.name)}
-              class="rounded border-base-700 text-base-400 checked:bg-primary focus:ring-0"
+              class="rounded border-line-default text-content-muted checked:bg-primary focus:ring-0"
             />
-            <span class="text-sm text-base-300">{product.name}</span>
+            <span class="text-sm text-content-body">{product.name}</span>
           </label>
         </div>
 
@@ -196,7 +196,7 @@
       </div>
 
       <div class="flex flex-col gap-2">
-        <div class="text-sm font-medium text-base-300">Events</div>
+        <div class="text-sm font-medium text-content-body">Events</div>
         <input type="hidden" name={"#{@provider}_channel[events][]"} value="" />
         <label :for={event <- @events} for={"#{@provider}-event-#{event.key}"} class="flex items-start gap-3 py-1">
           <input
@@ -205,11 +205,11 @@
             name={"#{@provider}_channel[events][]"}
             value={event.key}
             checked={event.key in selected_events(@form)}
-            class="mt-0.5 rounded border-base-700 text-base-400 checked:bg-primary focus:ring-0"
+            class="mt-0.5 rounded border-line-default text-content-muted checked:bg-primary focus:ring-0"
           />
           <div class="flex flex-col">
-            <span class="text-sm font-medium text-base-300">{event.label}</span>
-            <span class="text-xs text-base-400">{event.description}</span>
+            <span class="text-sm font-medium text-content-body">{event.label}</span>
+            <span class="text-xs text-content-muted">{event.description}</span>
           </div>
         </label>
 

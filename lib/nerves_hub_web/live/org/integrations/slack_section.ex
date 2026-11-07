@@ -334,24 +334,15 @@ defmodule NervesHubWeb.Live.Org.Integrations.SlackSection do
 
   defp status_badge(assigns) do
     ~H"""
-    <span
-      :if={!@subscription.enabled}
-      class="rounded-full border border-base-600 bg-base-800 px-2 py-0.5 text-xs font-medium text-base-400"
-    >
+    <.badge :if={!@subscription.enabled}>
       Off
-    </span>
-    <span
-      :if={@subscription.enabled && @subscription.last_error}
-      class="rounded-full border border-alert bg-alert-soft px-2 py-0.5 text-xs font-medium text-alert"
-    >
+    </.badge>
+    <.badge :if={@subscription.enabled && @subscription.last_error} tone="alert">
       Failing
-    </span>
-    <span
-      :if={@subscription.enabled && is_nil(@subscription.last_error)}
-      class="rounded-full border border-success px-2 py-0.5 text-xs font-medium text-success"
-    >
+    </.badge>
+    <.badge :if={@subscription.enabled && is_nil(@subscription.last_error)} tone="success">
       On
-    </span>
+    </.badge>
     """
   end
 end

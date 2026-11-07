@@ -1,6 +1,6 @@
 <NervesHubWeb.Layouts.sidebar flash={@flash} current_scope={@current_scope} sidebar_tab={@sidebar_tab}>
   <:header>
-    <h1 class="text-xl leading-[30px] font-semibold text-base-50">Product Settings</h1>
+    <h1 class="text-page-title text-content-strong">Product Settings</h1>
   </:header>
 
   <%!-- Separate LiveViews rather than actions of one, so these navigate. --%>
@@ -19,9 +19,9 @@
 
   <div class="h-0 flex-1 overflow-y-auto">
     <div class="flex flex-col items-start justify-between gap-4 p-6">
-      <div :for={profile <- @profiles} class="flex w-full flex-col rounded border border-base-700 bg-surface-raised">
-        <div class="flex h-14 items-center justify-between border-b border-base-700 px-4">
-          <div class="text-base font-medium text-base-50">
+      <div :for={profile <- @profiles} class="flex w-full flex-col rounded-md border border-line-default bg-surface-raised">
+        <div class="flex h-14 items-center justify-between border-b border-line-default px-4">
+          <div class="text-card-title text-content-strong">
             <%= if profile.platform do %>
               Platform: {profile.platform}
             <% else %>
@@ -41,13 +41,13 @@
           </.button>
         </div>
 
-        <div class="flex flex-col gap-3 p-6">
-          <p :if={is_nil(profile.platform)} class="w-2/3 text-sm text-base-400">
+        <div class="flex flex-col gap-3 p-4">
+          <p :if={is_nil(profile.platform)} class="w-2/3 text-sm text-content-muted">
             A metric engages its warning (orange) or alert (red) level when its median over the measurement period crosses the
             threshold in the direction the operator points. This profile applies to every device without a platform profile.
             Featured metrics are shown at the top of the device details page.
           </p>
-          <div :if={profile.metrics == []} class="text-sm text-base-400">
+          <div :if={profile.metrics == []} class="text-sm text-content-muted">
             This profile has no metrics, so its devices always report an unknown health status.
           </div>
 
@@ -55,16 +55,20 @@
             :for={metric <- profile.metrics}
             id={"metric-#{metric.id}"}
             phx-submit="update-metric"
-            class="flex flex-col gap-3 rounded border border-base-700 p-3"
+            class="flex flex-col gap-3 rounded border border-line-default p-3"
           >
             <input type="hidden" name="profile_id" value={profile.id} />
             <input type="hidden" name="metric_id" value={metric.id} />
             <div class="flex flex-wrap items-center justify-between gap-2">
               <div class="flex flex-col">
-                <span class="text-sm font-medium text-base-300">{MetricLabels.label(metric.key, @custom_labels)}</span>
-                <span :if={metric.built_in} class="text-xs text-base-500">built-in</span>
-                <span :if={!metric.built_in && MetricLabels.label(metric.key, @custom_labels) != metric.key} class="text-xs text-base-500">{metric.key}</span>
-                <span :if={seen_range(@observed_stats, metric.key)} class="text-xs text-base-500" title="Lowest and highest value reported across this product's devices, over the retention window">
+                <span class="text-sm font-medium text-content-body">{MetricLabels.label(metric.key, @custom_labels)}</span>
+                <span :if={metric.built_in} class="text-xs text-content-faint">built-in</span>
+                <span :if={!metric.built_in && MetricLabels.label(metric.key, @custom_labels) != metric.key} class="text-xs text-content-faint">{metric.key}</span>
+                <span
+                  :if={seen_range(@observed_stats, metric.key)}
+                  class="text-xs text-content-faint"
+                  title="Lowest and highest value reported across this product's devices, over the retention window"
+                >
                   {seen_range(@observed_stats, metric.key)}
                   <span
                     :if={suggested(@observed_stats, metric.key, metric.operator)}
@@ -75,7 +79,7 @@
                 </span>
               </div>
               <div class="flex items-center gap-3">
-                <label class="flex items-center gap-2 text-xs text-base-400" title="Featured metrics are shown at the top of the device details page">
+                <label class="flex items-center gap-2 text-xs text-content-muted" title="Featured metrics are shown at the top of the device details page">
                   <input type="hidden" name="metric[featured]" value="false" />
                   <input
                     type="checkbox"
@@ -83,7 +87,7 @@
                     value="true"
                     checked={metric.featured}
                     disabled={!authorized?(:"product:update", @current_scope)}
-                    class="rounded border-base-700 text-base-400 checked:bg-primary focus:ring-0"
+                    class="rounded border-line-default text-content-muted checked:bg-primary focus:ring-0"
                   /> Featured
                 </label>
                 <button
@@ -92,7 +96,7 @@
                   disabled={!authorized?(:"product:update", @current_scope)}
                   class="rounded p-1.5 hover:cursor-pointer hover:bg-base-700 disabled:cursor-not-allowed"
                 >
-                  <span class="lucide-save--light size-4 text-base-400"></span>
+                  <span class="lucide-save size-4 text-content-muted"></span>
                 </button>
                 <button
                   type="button"
@@ -104,7 +108,7 @@
                   disabled={!authorized?(:"product:update", @current_scope)}
                   class="rounded p-1.5 hover:cursor-pointer hover:bg-base-700 disabled:cursor-not-allowed"
                 >
-                  <span class="lucide-trash--light size-4 text-alert"></span>
+                  <span class="lucide-trash size-4 text-alert"></span>
                 </button>
               </div>
             </div>
@@ -112,7 +116,7 @@
               <span
                 :if={metric.built_in}
                 title="A count only goes bad high"
-                class="flex size-9 shrink-0 items-center justify-center font-mono text-lg text-base-500"
+                class="flex size-9 shrink-0 items-center justify-center font-mono text-lg text-content-faint"
               >
                 ≥
               </span>
@@ -141,7 +145,7 @@
             id={"add-metric-#{profile.id}"}
             phx-submit="add-metric"
             phx-change="suggest-thresholds"
-            class="mt-2 flex flex-col gap-3 rounded border border-dashed border-base-700 p-3"
+            class="mt-2 flex flex-col gap-3 rounded border border-dashed border-line-default p-3"
           >
             <input type="hidden" name="profile_id" value={profile.id} />
             <div class="flex flex-wrap items-center justify-between gap-2">
@@ -149,20 +153,20 @@
                 name="metric[key]"
                 required
                 disabled={!authorized?(:"product:update", @current_scope)}
-                class="block w-64 rounded border border-base-600 bg-base-900 px-2 py-1 text-base-400 focus:border-base-400 focus:ring-0 sm:text-sm"
+                class="block w-64 rounded border border-line-strong bg-base-900 px-2 py-1 text-content-muted focus:border-base-400 focus:ring-0 sm:text-sm"
               >
                 <option value="">Add a metric...</option>
                 {Phoenix.HTML.Form.options_for_select(metric_options(assigns, profile), nil)}
               </select>
               <div class="flex items-center gap-3">
-                <label class="flex items-center gap-2 text-xs text-base-400" title="Featured metrics are shown at the top of the device details page">
+                <label class="flex items-center gap-2 text-xs text-content-muted" title="Featured metrics are shown at the top of the device details page">
                   <input type="hidden" name="metric[featured]" value="false" />
                   <input
                     type="checkbox"
                     name="metric[featured]"
                     value="true"
                     disabled={!authorized?(:"product:update", @current_scope)}
-                    class="rounded border-base-700 text-base-400 checked:bg-primary focus:ring-0"
+                    class="rounded border-line-default text-content-muted checked:bg-primary focus:ring-0"
                   /> Featured
                 </label>
                 <.button style="secondary" type="submit" disabled={!authorized?(:"product:update", @current_scope)}>
@@ -193,11 +197,11 @@
         </div>
       </div>
 
-      <div class="flex w-full flex-col rounded border border-base-700 bg-surface-raised">
-        <div class="flex h-14 items-center justify-between border-b border-base-700 px-4">
-          <div class="text-base font-medium text-base-50">Add a platform profile</div>
+      <div class="flex w-full flex-col rounded-md border border-line-default bg-surface-raised">
+        <div class="flex h-14 items-center justify-between border-b border-line-default px-4">
+          <div class="text-card-title text-content-strong">Add a platform profile</div>
         </div>
-        <div class="flex flex-col gap-3 p-6">
+        <div class="flex flex-col gap-3 p-4">
           <p class="w-2/3 text-sm">
             A platform profile starts as a copy of the default profile and overrides it for devices on that platform. Platforms are
             taken from the firmware uploaded to this product.
@@ -207,7 +211,7 @@
               name="platform"
               required
               disabled={!authorized?(:"product:update", @current_scope)}
-              class="block w-64 rounded border border-base-600 bg-base-900 px-2 py-1 text-base-400 focus:border-base-400 focus:ring-0 sm:text-sm"
+              class="block w-64 rounded border border-line-strong bg-base-900 px-2 py-1 text-content-muted focus:border-base-400 focus:ring-0 sm:text-sm"
             >
               <option value="">Choose a platform...</option>
               {Phoenix.HTML.Form.options_for_select(@available_platforms, nil)}
@@ -216,7 +220,7 @@
               Create profile
             </.button>
           </form>
-          <p :if={@available_platforms == []} class="text-sm text-base-400">
+          <p :if={@available_platforms == []} class="text-sm text-content-muted">
             Every platform seen in this product's firmware already has a profile, or no firmware has been uploaded yet.
           </p>
         </div>

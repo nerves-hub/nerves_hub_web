@@ -25,8 +25,8 @@ defmodule NervesHubWeb.Components.DeviceLocation do
     ~H"""
     <div class="flex h-[450px] w-full flex-col gap-4 p-4">
       <div class="flex items-end justify-between gap-2">
-        <div class="leading-6 font-medium text-base-50">Location</div>
-        <div class="ml-auto text-xs font-normal text-base-400">
+        <div class="leading-6 font-medium text-content-strong">Location</div>
+        <div class="ml-auto text-xs font-normal text-content-muted">
           Please select the devices location.
         </div>
         <.map_style_menu map_style={@map_style} />
@@ -55,15 +55,15 @@ defmodule NervesHubWeb.Components.DeviceLocation do
     ~H"""
     <div class="flex h-[450px] w-full flex-col gap-4 p-4">
       <div class="flex items-end justify-between">
-        <div class="leading-6 font-medium text-base-50">Location</div>
-        <div class="text-xs font-normal text-base-400">The devices location is announced by the device after it connects.</div>
+        <div class="leading-6 font-medium text-content-strong">Location</div>
+        <div class="text-xs font-normal text-content-muted">The devices location is announced by the device after it connects.</div>
       </div>
 
       <div class="relative flex size-full flex-col items-center justify-center">
         <div class="bg-example-map-dark absolute bottom-0 left-0 z-10 size-full bg-cover bg-center blur-sm"></div>
         <div class="z-50 flex flex-col items-center gap-4">
-          <div class="text-base-300">No location information found.</div>
-          <div class="text-base-300">Please check if the Geo extension has been included in your firmware.</div>
+          <div class="text-content-body">No location information found.</div>
+          <div class="text-content-body">Please check if the Geo extension has been included in your firmware.</div>
           <div>
             <.button phx-click="enable-location-editor">Manually set the location</.button>
           </div>
@@ -81,14 +81,14 @@ defmodule NervesHubWeb.Components.DeviceLocation do
     <div class="flex h-[450px] w-full flex-col gap-4 p-4">
       <div class="flex items-end justify-between">
         <div class="disabled:border-gray-300 disabled:bg-gray-100 disabled:checked:bg-gray-100">Location</div>
-        <div class="text-xs font-normal text-base-400">The devices location is announced by the device after it connects.</div>
+        <div class="text-xs font-normal text-content-muted">The devices location is announced by the device after it connects.</div>
       </div>
 
       <div class="relative flex size-full flex-col items-center justify-center">
         <div class="bg-example-map-dark absolute bottom-0 left-0 z-10 size-full bg-cover bg-center blur-sm"></div>
         <div class="z-50 flex flex-col items-center gap-4">
-          <div class="text-base-300">An error occurred during location resolution : {@location["error_code"]}</div>
-          <div :if={@location["error_description"]} class="text-base-300">{@location["error_description"]}</div>
+          <div class="text-content-body">An error occurred during location resolution : {@location["error_code"]}</div>
+          <div :if={@location["error_description"]} class="text-content-body">{@location["error_description"]}</div>
         </div>
       </div>
     </div>
@@ -100,13 +100,13 @@ defmodule NervesHubWeb.Components.DeviceLocation do
     ~H"""
     <div class="flex h-[450px] w-full flex-col gap-4 p-4">
       <div class="flex items-end justify-between">
-        <div class="leading-6 font-medium text-base-50">Location</div>
+        <div class="leading-6 font-medium text-content-strong">Location</div>
       </div>
 
       <div class="relative flex size-full flex-col items-center justify-center">
         <div class="bg-example-map-dark absolute bottom-0 left-0 z-10 size-full bg-cover bg-center blur-sm"></div>
         <div class="z-50 flex flex-col items-center gap-4">
-          <div class="text-base-300">The location coordinates are invalid and can't be displayed.</div>
+          <div class="text-content-body">The location coordinates are invalid and can't be displayed.</div>
         </div>
       </div>
     </div>
@@ -136,14 +136,14 @@ defmodule NervesHubWeb.Components.DeviceLocation do
     ~H"""
     <div class="flex h-[450px] w-full flex-col gap-4 p-4">
       <div class="flex items-end justify-between gap-2">
-        <div class="leading-6 font-medium text-base-50">Location</div>
-        <div class="ml-auto text-xs font-normal text-base-400">
+        <div class="leading-6 font-medium text-content-strong">Location</div>
+        <div class="ml-auto text-xs font-normal text-content-muted">
           {@source_information}
         </div>
         <.map_style_menu map_style={@map_style} />
         <div class="relative flex justify-end">
           <button
-            class="rounded-sm border border-base-600 bg-base-800 p-0.5 hover:bg-base-700 active:bg-primary disabled:bg-base-800"
+            class="rounded border border-line-strong bg-base-800 p-0.5 hover:bg-base-700 active:bg-primary disabled:bg-base-800"
             id="location-settings-button"
             aria-expanded="true"
             aria-haspopup="true"
@@ -168,12 +168,12 @@ defmodule NervesHubWeb.Components.DeviceLocation do
             }
             phx-key="Escape"
           >
-            <.icon name="settings" class="size-3 fill-base-400" />
+            <span class="lucide-settings--bold size-3 text-content-muted" aria-hidden="true"></span>
           </button>
 
           <div
             id="location-settings-menu"
-            class="absolute right-0 z-10 mt-6 w-48 origin-top-right rounded border border-base-700 bg-surface-overlay shadow-lg ring-1 ring-black/5 focus:outline-none"
+            class="absolute right-0 z-10 mt-6 w-48 origin-top-right rounded-md border border-line-default bg-surface-overlay shadow-overlay ring-1 ring-black/5 focus:outline-none"
             role="menu"
             style="display: none;"
             aria-orientation="vertical"
@@ -181,13 +181,13 @@ defmodule NervesHubWeb.Components.DeviceLocation do
             tabindex="-1"
           >
             <div role="none">
-              <button phx-click="enable-location-editor" class="block w-full px-4 pt-2 pb-3 text-left text-xs text-base-300 hover:bg-base-700" role="menuitem" tabindex="-1">
+              <button phx-click="enable-location-editor" class="block w-full px-4 pt-2 pb-3 text-left text-xs text-content-body hover:bg-base-700" role="menuitem" tabindex="-1">
                 Manually update location
               </button>
               <button
                 :if={@source == "manual"}
                 phx-click="clear-manual-location-information"
-                class="block w-full px-4 pt-2 pb-3 text-left text-xs text-base-300 hover:bg-base-700"
+                class="block w-full px-4 pt-2 pb-3 text-left text-xs text-content-body hover:bg-base-700"
                 role="menuitem"
                 tabindex="-1"
               >
@@ -227,7 +227,7 @@ defmodule NervesHubWeb.Components.DeviceLocation do
     <div class="relative flex justify-end">
       <button
         type="button"
-        class="rounded-sm border border-base-600 bg-base-800 p-0.5 hover:bg-base-700 active:bg-primary"
+        class="rounded border border-line-strong bg-base-800 p-0.5 hover:bg-base-700 active:bg-primary"
         id="map-style-button"
         title="Map style"
         aria-label="Map style"
@@ -253,12 +253,12 @@ defmodule NervesHubWeb.Components.DeviceLocation do
         }
         phx-key="Escape"
       >
-        <span class="lucide-layers--light block size-3 text-base-400" />
+        <span class="lucide-layers--bold block size-3 text-content-muted" />
       </button>
 
       <div
         id="map-style-menu"
-        class="absolute right-0 z-10 mt-6 w-48 origin-top-right rounded border border-base-700 bg-surface-overlay py-1 shadow-lg ring-1 ring-black/5 focus:outline-none"
+        class="absolute right-0 z-10 mt-6 w-48 origin-top-right rounded-md border border-line-default bg-surface-overlay py-1 shadow-overlay ring-1 ring-black/5 focus:outline-none"
         role="menu"
         style="display: none;"
         aria-orientation="vertical"
@@ -270,13 +270,13 @@ defmodule NervesHubWeb.Components.DeviceLocation do
           type="button"
           phx-click="set-map-style"
           phx-value-style={to_string(option)}
-          class="flex w-full items-center justify-between gap-2 px-4 py-2 text-left text-xs text-base-300 hover:bg-base-700"
+          class="flex w-full items-center justify-between gap-2 px-4 py-2 text-left text-xs text-content-body hover:bg-base-700"
           role="menuitemradio"
           aria-checked={to_string(option == @map_style)}
           tabindex="-1"
         >
           {map_style_label(option)}
-          <span :if={option == @map_style} class="lucide-check--light size-3.5 text-primary" />
+          <span :if={option == @map_style} class="lucide-check--bold size-3.5 text-primary" />
         </button>
       </div>
     </div>

@@ -29,12 +29,12 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
     ~H"""
     <div class="flex flex-col items-start justify-between gap-4 p-6">
       <.form id="deployment-form" for={@form} class="flex w-full flex-col gap-4" phx-change="validate-deployment-group" phx-submit="update-deployment-group" phx-target={@myself}>
-        <div class="flex w-2/3 flex-col rounded border border-base-700 bg-surface-raised">
-          <div class="flex h-14 items-center justify-between border-b border-base-700 px-4">
-            <div class="text-base font-medium text-base-50">General settings</div>
+        <div class="flex w-2/3 flex-col rounded-md border border-line-default bg-surface-raised">
+          <div class="flex h-14 items-center justify-between border-b border-line-default px-4">
+            <div class="text-card-title text-content-strong">General settings</div>
           </div>
 
-          <div class="flex gap-6 p-6">
+          <div class="flex gap-6 p-4">
             <div class="flex w-1/2 flex-col gap-6">
               <.input field={@form[:name]} label="Name" placeholder="Production" phx-debounce="blur" />
               <.input field={@form[:delta_updatable]} type="checkbox" label="Delta updates">
@@ -61,17 +61,17 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
           </div>
         </div>
 
-        <div class="flex w-2/3 flex-col rounded border border-base-700 bg-surface-raised">
-          <div class="flex h-14 items-center justify-between border-b border-base-700 px-4">
-            <div class="text-base font-medium text-base-50">Device matching conditions</div>
+        <div class="flex w-2/3 flex-col rounded-md border border-line-default bg-surface-raised">
+          <div class="flex h-14 items-center justify-between border-b border-line-default px-4">
+            <div class="text-card-title text-content-strong">Device matching conditions</div>
           </div>
 
-          <div class="flex flex-col gap-6 p-6">
+          <div class="flex flex-col gap-6 p-4">
             <div class="flex flex-col gap-3">
-              <p class="w-2/3 text-sm text-base-400">
+              <p class="w-2/3 text-sm text-content-muted">
                 These conditions are used for matching devices which don't have a configured deployment group.
               </p>
-              <p class="w-2/3 text-sm text-base-400">
+              <p class="w-2/3 text-sm text-content-muted">
                 The matching is undertaken when a device connects to the platform.
               </p>
             </div>
@@ -97,22 +97,22 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
           </div>
         </div>
 
-        <div class="flex w-2/3 flex-col rounded border border-base-700 bg-surface-raised">
-          <div class="flex h-14 items-center justify-between border-b border-base-700 px-4">
-            <div class="text-base font-medium text-base-50">Deployment Workflows</div>
+        <div class="flex w-2/3 flex-col rounded-md border border-line-default bg-surface-raised">
+          <div class="flex h-14 items-center justify-between border-b border-line-default px-4">
+            <div class="text-card-title text-content-strong">Deployment Workflows</div>
           </div>
 
-          <div class="flex flex-col gap-6 p-6">
+          <div class="flex flex-col gap-6 p-4">
             <div class="flex flex-col gap-3">
-              <p class="w-2/3 text-sm text-base-400">
+              <p class="w-2/3 text-sm text-content-muted">
                 Use continuous deployment workflows for updating devices. These workflows are defined in JSON, similar to how GitHub Actions and CircleCI configs are defined in YML.
               </p>
 
-              <p class="w-2/3 text-sm text-base-400">
+              <p class="w-2/3 text-sm text-content-muted">
                 This is an early release feature, please report all feedback to the <.link href="https://github.com/nerves_hub/nerves_hub_web/issues">NervesHub GitHub issue tracker.</.link>
               </p>
 
-              <p :if={@deployment_group.workflow_definition} class="w-2/3 text-sm font-semibold text-base-400">
+              <p :if={@deployment_group.workflow_definition} class="w-2/3 text-sm font-semibold text-content-muted">
                 A Workflow Definition with {length(@deployment_group.workflow_definition["steps"])} steps has been uploaded.
               </p>
             </div>
@@ -131,31 +131,21 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
                 </.button>
               </div>
 
-              <div class="flex w-fit shrink gap-2 rounded border border-base-600 bg-base-800 px-3 py-1.5 hover:cursor-pointer">
-                <svg class="size-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="none">
-                  <path
-                    d="M4.1665 10.0001H9.99984M15.8332 10.0001H9.99984M9.99984 10.0001V4.16675M9.99984 10.0001V15.8334"
-                    stroke="#A1A1AA"
-                    stroke-width="1.2"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                  />
-                </svg>
-                <label for={@uploads.workflow_definition.ref} class="text-sm font-medium text-base-300 hover:cursor-pointer">
-                  {if is_nil(@deployment_group.workflow_definition), do: "Upload Workflow Definition", else: "Upload New Workflow Definition"}
-                </label>
-                <.live_file_input upload={@uploads.workflow_definition} class="hidden" />
-              </div>
+              <.button type="label" for={@uploads.workflow_definition.ref} class="w-fit">
+                <.icon name="add" />
+                {if is_nil(@deployment_group.workflow_definition), do: "Upload Workflow Definition", else: "Upload New Workflow Definition"}
+              </.button>
+              <.live_file_input upload={@uploads.workflow_definition} class="hidden" />
             </div>
           </div>
         </div>
 
-        <div class="flex w-2/3 flex-col rounded border border-base-700 bg-surface-raised">
-          <div class="flex h-14 items-center justify-between border-b border-base-700 px-4">
-            <div class="text-base font-medium text-base-50">Device queue settings</div>
+        <div class="flex w-2/3 flex-col rounded-md border border-line-default bg-surface-raised">
+          <div class="flex h-14 items-center justify-between border-b border-line-default px-4">
+            <div class="text-card-title text-content-strong">Device queue settings</div>
           </div>
 
-          <div class="flex flex-col gap-6 p-6">
+          <div class="flex flex-col gap-6 p-4">
             <div class="w-1/2">
               <.input
                 field={@form[:queue_management]}
@@ -168,12 +158,12 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
           </div>
         </div>
 
-        <div class="flex w-2/3 flex-col rounded border border-base-700 bg-surface-raised">
-          <div class="flex h-14 items-center justify-between border-b border-base-700 px-4">
-            <div class="text-base font-medium text-base-50">Rolling updates</div>
+        <div class="flex w-2/3 flex-col rounded-md border border-line-default bg-surface-raised">
+          <div class="flex h-14 items-center justify-between border-b border-line-default px-4">
+            <div class="text-card-title text-content-strong">Rolling updates</div>
           </div>
 
-          <div class="flex flex-col gap-6 p-6">
+          <div class="flex flex-col gap-6 p-4">
             <.superseded_by_workflow :if={@deployment_group.workflow_definition}>
               A workflow paces each step separately, using the step's own <span class="font-mono">concurrent_updates</span>, so this limit is not applied while one is in use.
             </.superseded_by_workflow>
@@ -191,18 +181,18 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
           </div>
         </div>
 
-        <div class="flex w-2/3 flex-col rounded border border-base-700 bg-surface-raised">
-          <div class="flex h-14 items-center justify-between border-b border-base-700 px-4">
-            <div class="text-base font-medium text-base-50">Priority queue</div>
+        <div class="flex w-2/3 flex-col rounded-md border border-line-default bg-surface-raised">
+          <div class="flex h-14 items-center justify-between border-b border-line-default px-4">
+            <div class="text-card-title text-content-strong">Priority queue</div>
           </div>
 
-          <div class="flex flex-col gap-6 p-6">
+          <div class="flex flex-col gap-6 p-4">
             <.superseded_by_workflow :if={@deployment_group.workflow_definition}>
               A workflow decides the order devices update in through its steps, so the priority queue is not used while one is in use.
             </.superseded_by_workflow>
 
             <div class="flex flex-col gap-3">
-              <p class="w-2/3 text-sm text-base-400">
+              <p class="w-2/3 text-sm text-content-muted">
                 Enable priority queue to fast-track devices with older firmware versions (e.g., fresh from factory) for immediate updates, bypassing the normal rolling update queue.
               </p>
             </div>
@@ -236,22 +226,22 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
           </div>
         </div>
 
-        <div class="flex w-2/3 flex-col rounded border border-base-700 bg-surface-raised">
-          <div class="flex h-14 items-center justify-between border-b border-base-700 px-4">
-            <div class="text-base font-medium text-base-50">Device penalty box logic</div>
+        <div class="flex w-2/3 flex-col rounded-md border border-line-default bg-surface-raised">
+          <div class="flex h-14 items-center justify-between border-b border-line-default px-4">
+            <div class="text-card-title text-content-strong">Device penalty box logic</div>
           </div>
-          <div class="flex flex-col gap-8 border-t border-base-700 p-6">
+          <div class="flex flex-col gap-8 border-t border-line-default p-4">
             <div>
-              <p class="mb-4 w-2/3 text-sm text-base-400">
+              <p class="mb-4 w-2/3 text-sm text-content-muted">
                 When device update attempts fail consistently, the device is placed in the penalty box. It will not attempt to update until it's removed from the penalty box.
               </p>
-              <p class="w-2/3 text-sm text-base-400">
+              <p class="w-2/3 text-sm text-content-muted">
                 There are two ways a device can be removed from the penalty box: after "Device penalty box timeout minutes" have passed or viewing the device and re-enabling "Firmware updates" in the top right of UI. In both cases, device update attempts will resume again.
               </p>
             </div>
             <div class="flex gap-6">
               <div class="w-1/2">
-                <div phx-feedback-for={@form[:device_failure_rate_amount].name}>
+                <div>
                   <span class="flex items-end">
                     <.core_label for={@form[:device_failure_rate_amount].id}>Device failure rate</.core_label>
                   </span>
@@ -262,9 +252,8 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
                       id={@form[:device_failure_rate_amount].id}
                       value={Phoenix.HTML.Form.normalize_value("number", @form[:device_failure_rate_amount].value)}
                       class={[
-                        "mt-2 block w-20 rounded bg-base-900 px-2 py-1.5 text-base-400 focus:ring-0 sm:text-sm",
-                        "phx-no-feedback:border-base-600 phx-no-feedback:focus:border-base-700",
-                        @form[:device_failure_rate_amount].errors == [] && "border-base-600 focus:border-base-700",
+                        "mt-2 block w-20 rounded bg-base-900 px-2 py-1.5 text-content-muted focus:ring-0 sm:text-sm",
+                        @form[:device_failure_rate_amount].errors == [] && "border-line-strong focus:border-line-default",
                         @form[:device_failure_rate_amount].errors != [] && "border-alert focus:border-alert"
                       ]}
                     />
@@ -275,15 +264,14 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
                       id={@form[:device_failure_rate_seconds].id}
                       value={Phoenix.HTML.Form.normalize_value("number", @form[:device_failure_rate_seconds].value)}
                       class={[
-                        "mt-2 block w-20 rounded bg-base-900 px-2 py-1.5 text-base-400 focus:ring-0 sm:text-sm",
-                        "phx-no-feedback:border-base-600 phx-no-feedback:focus:border-base-700",
-                        @form[:device_failure_rate_seconds].errors == [] && "border-base-600 focus:border-base-700",
+                        "mt-2 block w-20 rounded bg-base-900 px-2 py-1.5 text-content-muted focus:ring-0 sm:text-sm",
+                        @form[:device_failure_rate_seconds].errors == [] && "border-line-strong focus:border-line-default",
                         @form[:device_failure_rate_seconds].errors != [] && "border-alert focus:border-alert"
                       ]}
                     />
                     <div class="mt-2 text-sm">sec</div>
                   </div>
-                  <div class="flex flex-col gap-1 pt-1 text-xs text-base-400">
+                  <div class="flex flex-col gap-1 pt-1 text-xs text-content-muted">
                     {help_message_for(:device_failure_rate)}
                   </div>
                   <.error :for={msg <- Enum.map(@form[:device_failure_rate_amount].errors ++ @form[:device_failure_rate_seconds].errors, &NervesHubWeb.CoreComponents.translate_error(&1))}>
@@ -303,12 +291,12 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
           </div>
         </div>
 
-        <div class="flex w-2/3 flex-col rounded border border-base-700 bg-surface-raised">
-          <div class="flex h-14 items-center justify-between border-b border-base-700 px-4">
-            <div class="text-base font-medium text-base-50">First Connect Code</div>
+        <div class="flex w-2/3 flex-col rounded-md border border-line-default bg-surface-raised">
+          <div class="flex h-14 items-center justify-between border-b border-line-default px-4">
+            <div class="text-card-title text-content-strong">First Connect Code</div>
           </div>
 
-          <div class="flex flex-col gap-6 p-6">
+          <div class="flex flex-col gap-6 p-4">
             <div class="flex w-2/3 flex-col gap-6">
               <.input field={@form[:connecting_code]} type="textarea" rows={8} label="Run this code when the device first connects to the console." phx-debounce="2000">
                 <:rich_hint>
@@ -327,8 +315,8 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
           </div>
         </div>
 
-        <div class="flex w-2/3 flex-col rounded border border-base-700 bg-surface-raised">
-          <div class="flex items-center justify-between gap-6 border-t border-base-700 p-6">
+        <div class="flex w-2/3 flex-col rounded-md border border-line-default bg-surface-raised">
+          <div class="flex items-center justify-between gap-6 border-t border-line-default p-4">
             <.button style="primary" type="submit">
               <.icon name="save" /> Save changes
             </.button>
@@ -361,8 +349,8 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
 
   defp superseded_by_workflow(assigns) do
     ~H"""
-    <div class="flex w-2/3 gap-2 rounded border border-base-700 bg-surface-muted px-3 py-2 text-sm text-base-400">
-      <.icon name="info" class="mt-0.5 size-4 shrink-0 stroke-base-400" />
+    <div class="flex w-2/3 gap-2 rounded border border-line-default bg-surface-muted px-3 py-2 text-sm text-content-muted">
+      <.icon name="info" class="mt-0.5 text-content-muted" />
       <div>{render_slot(@inner_block)}</div>
     </div>
     """
