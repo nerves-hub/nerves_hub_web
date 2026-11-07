@@ -6,7 +6,7 @@ An organization can post its device notifications to Discord channels from its *
 
 1. In Discord, open the channel's settings (**Edit Channel**) and choose **Integrations**, then **Webhooks**. Making a webhook takes the **Manage Webhooks** permission in that channel.
 2. Choose **New Webhook**, then **Copy Webhook URL**.
-3. On the organization's Integrations page, under Discord, choose **Add channel**. Give it a name to know it by, paste the URL, and choose the products and events it gets.
+3. On the organization's Integrations page, choose **Add integration**, then **Discord channel** (**Add Discord channel** while the organization has no integrations). Give it a name to know it by, paste the URL, and choose the products and events it gets.
 
 Adding, changing and removing a channel takes the organization `manage` role, as webhooks, Slack channels and Teams channels do. Everyone in the organization sees each channel's name, events, products and state.
 

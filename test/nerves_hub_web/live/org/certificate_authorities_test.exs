@@ -4,8 +4,10 @@ defmodule NervesHubWeb.Live.Org.CertificateAuthoritiesTest do
 
   alias NervesHub.Certificate
   alias NervesHub.Devices.CACertificate.CSR
+  alias NervesHub.Devices.CACertificate.JITP
   alias NervesHub.Devices.CACertificates
   alias NervesHub.Fixtures
+  alias NervesHub.Repo
   alias NervesHubWeb.Components.Utils
   alias X509.Certificate.Validity
 
@@ -18,9 +20,37 @@ defmodule NervesHubWeb.Live.Org.CertificateAuthoritiesTest do
 
       conn
       |> visit("/org/#{org.name}/settings/certificates")
-      |> assert_has("h1", text: "Certificate Authorities")
+      |> assert_has("h2", text: "Certificate authorities")
       |> assert_has("code", text: Utils.format_serial(db1_cert.serial))
       |> assert_has("code", text: Utils.format_serial(db2_cert.serial))
+    end
+
+    test "says when a CA adds new devices to a product", %{conn: conn, org: org, product: product} do
+      %{db_cert: ca} = Fixtures.ca_certificate_fixture(org)
+      jitp = Repo.insert!(%JITP{product_id: product.id})
+      ca |> Ecto.Changeset.change(jitp_id: jitp.id, description: "Factory signer") |> Repo.update!()
+
+      conn
+      |> visit("/org/#{org.name}/settings/certificates")
+      |> assert_has("#ca-#{ca.id} h3", text: "Factory signer")
+      |> assert_has("#ca-#{ca.id}", text: "Adds new devices to #{product.name}")
+    end
+
+    test "says how soon a CA expires", %{conn: conn, org: org} do
+      now = DateTime.utc_now()
+      validity = Validity.new(DateTime.shift(now, year: -1), DateTime.shift(now, day: 20, hour: 1))
+      %{db_cert: ca} = Fixtures.ca_certificate_fixture(org, validity: validity)
+
+      conn
+      |> visit("/org/#{org.name}/settings/certificates")
+      |> assert_has("#ca-#{ca.id}", text: "Expires in 20 days")
+      |> assert_has("#ca-#{ca.id}", text: "Never used")
+    end
+
+    test "says when there are none", %{conn: conn, org: org} do
+      conn
+      |> visit("/org/#{org.name}/settings/certificates")
+      |> assert_has("#no-certificate-authorities")
     end
   end
 
@@ -36,7 +66,7 @@ defmodule NervesHubWeb.Live.Org.CertificateAuthoritiesTest do
 
       conn
       |> visit("/org/#{org.name}/settings/certificates")
-      |> assert_has("th", text: "Devices")
+      |> assert_has("[role=columnheader]", text: "Devices")
       |> assert_has("#ca-#{in_use.id}-device-count", text: "2")
       |> assert_has("#ca-#{unused.id}-device-count", text: "0")
     end
@@ -49,8 +79,8 @@ defmodule NervesHubWeb.Live.Org.CertificateAuthoritiesTest do
 
       conn
       |> visit("/org/#{org.name}/settings/certificates/#{ca_cert.serial}")
-      |> assert_has("h1", text: "Factory signer")
-      |> assert_has("a[href='/org/#{org.name}/settings/certificates']", text: "All Certificate Authorities")
+      |> assert_has("h2", text: "Factory signer")
+      |> assert_has("a[href='/org/#{org.name}/settings/certificates'][aria-label='All certificate authorities']")
       |> assert_has("code", text: Utils.format_serial(ca_cert.serial))
       |> assert_has("dd", text: "Never")
       |> assert_has("dd", text: "Disabled")
@@ -62,7 +92,7 @@ defmodule NervesHubWeb.Live.Org.CertificateAuthoritiesTest do
 
       conn
       |> visit("/org/#{org.name}/settings/certificates/#{serial}")
-      |> assert_has("h1", text: Utils.format_serial(serial))
+      |> assert_has("h2", text: Utils.format_serial(serial))
     end
 
     test "shows the devices using the CA, linked to each product's filtered device list", %{
@@ -124,7 +154,7 @@ defmodule NervesHubWeb.Live.Org.CertificateAuthoritiesTest do
 
       conn
       |> visit("/org/#{org.name}/settings/certificates/new")
-      |> assert_has("h1", text: "New Certificate Authority")
+      |> assert_has("h2", text: "New Certificate Authority")
       |> unwrap(fn view ->
         # its a bit tricky to extract the registration code from the view,
         # so lets generate a new one and use that instead
@@ -145,8 +175,8 @@ defmodule NervesHubWeb.Live.Org.CertificateAuthoritiesTest do
       |> click_button("Create Certificate")
       |> assert_path("/org/#{org.name}/settings/certificates")
       |> assert_has("div", text: "Certificate Authority created")
-      |> assert_has("h1", text: "Certificate Authorities")
-      |> assert_has("tr > td > a > code")
+      |> assert_has("h2", text: "Certificate authorities")
+      |> assert_has("#certificate-authorities a code")
 
       {:ok, ca} = File.read!(ca_file_path) |> X509.Certificate.from_pem()
 
@@ -162,7 +192,7 @@ defmodule NervesHubWeb.Live.Org.CertificateAuthoritiesTest do
 
       conn
       |> visit("/org/#{org.name}/settings/certificates/new")
-      |> assert_has("h1", text: "New Certificate Authority")
+      |> assert_has("h2", text: "New Certificate Authority")
       |> unwrap(fn view ->
         # its a bit tricky to extract the registration code from the view,
         # so lets generate a new one and use that instead
@@ -202,7 +232,7 @@ defmodule NervesHubWeb.Live.Org.CertificateAuthoritiesTest do
 
       conn
       |> visit("/org/#{org.name}/settings/certificates/new")
-      |> assert_has("h1", text: "New Certificate Authority")
+      |> assert_has("h2", text: "New Certificate Authority")
       |> unwrap(fn view ->
         upload_file(view, "rootCA.pem", ca_file_path, :cert)
         upload_file(view, "verificationCert.crt", verification_cert_crt, :csr)
@@ -239,7 +269,7 @@ defmodule NervesHubWeb.Live.Org.CertificateAuthoritiesTest do
           "Certificate Authority created. It expired on 2025-01-01. " <>
             "Devices can still register with it because Check expiration is off."
       )
-      |> assert_has("td", text: "Expired")
+      |> assert_has("#certificate-authorities", text: "Expired")
 
       assert {:ok, %{not_after: ~U[2025-01-01 00:00:00Z], check_expiration: false}} =
                CACertificates.get_ca_certificate_by_serial(Certificate.get_serial_number(ca_cert))
@@ -258,7 +288,7 @@ defmodule NervesHubWeb.Live.Org.CertificateAuthoritiesTest do
           "Certificate Authority created. It isn't valid until #{Calendar.strftime(starts, "%Y-%m-%d %H:%M UTC")}. " <>
             "Devices can still register with it because Check expiration is off."
       )
-      |> assert_has("td", text: "Not Yet Valid")
+      |> assert_has("#certificate-authorities", text: "Not valid yet")
     end
 
     test "creates a CA not valid yet with Check expiration on", %{conn: conn, org: org, tmp_dir: tmp_dir} do
@@ -335,7 +365,7 @@ defmodule NervesHubWeb.Live.Org.CertificateAuthoritiesTest do
 
       conn
       |> visit("/org/#{org.name}/settings/certificates/new")
-      |> assert_has("h1", text: "New Certificate Authority")
+      |> assert_has("h2", text: "New Certificate Authority")
       |> unwrap(fn view ->
         # its a bit tricky to extract the registration code from the view,
         # so lets generate a new one and use that instead
@@ -360,8 +390,8 @@ defmodule NervesHubWeb.Live.Org.CertificateAuthoritiesTest do
       |> click_button("Create Certificate")
       |> assert_path("/org/#{org.name}/settings/certificates")
       |> assert_has("div", text: "Certificate Authority created")
-      |> assert_has("h1", text: "Certificate Authorities")
-      |> assert_has("tr > td > a > code")
+      |> assert_has("h2", text: "Certificate authorities")
+      |> assert_has("#certificate-authorities a code")
 
       {:ok, ca} = File.read!(ca_file_path) |> X509.Certificate.from_pem()
 
@@ -385,7 +415,7 @@ defmodule NervesHubWeb.Live.Org.CertificateAuthoritiesTest do
       |> click_button("Delete")
       |> assert_path("/org/#{org.name}/settings/certificates")
       |> assert_has("div", text: "Certificate successfully deleted")
-      |> assert_has("h1", text: "Certificate Authorities")
+      |> assert_has("h2", text: "Certificate authorities")
       |> refute_has("code", text: Utils.format_serial(ca.serial))
 
       assert {:error, :not_found} = CACertificates.get_ca_certificate_by_serial(ca.serial)
@@ -421,7 +451,7 @@ defmodule NervesHubWeb.Live.Org.CertificateAuthoritiesTest do
 
       conn
       |> visit("/org/#{org.name}/settings/certificates/#{serial}/edit")
-      |> assert_has("h1", text: "Edit Certificate Authority")
+      |> assert_has("h2", text: "Edit Certificate Authority")
       |> fill_in("Description", with: "a new description")
       |> click_button("Update Certificate")
       |> assert_path("/org/#{org.name}/settings/certificates/#{serial}")
@@ -457,7 +487,7 @@ defmodule NervesHubWeb.Live.Org.CertificateAuthoritiesTest do
 
       conn
       |> visit("/org/#{org.name}/settings/certificates/#{serial}/edit")
-      |> assert_has("h1", text: "Edit Certificate Authority")
+      |> assert_has("h2", text: "Edit Certificate Authority")
       |> check("Enable Just In Time Provisioning")
       |> fill_in("JITP Description", with: "", exact: false)
       |> fill_in("JITP Tags", with: "", exact: false)
@@ -477,7 +507,7 @@ defmodule NervesHubWeb.Live.Org.CertificateAuthoritiesTest do
 
       conn
       |> visit("/org/#{org.name}/settings/certificates/#{serial}/edit")
-      |> assert_has("h1", text: "Edit Certificate Authority")
+      |> assert_has("h2", text: "Edit Certificate Authority")
       |> check("Enable Just In Time Provisioning")
       |> fill_in("JITP Description", with: "a jitp description", exact: false)
       |> fill_in("JITP Tags", with: "prod", exact: false)

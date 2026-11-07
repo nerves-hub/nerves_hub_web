@@ -26,18 +26,18 @@ defmodule NervesHubWeb.Live.Org.IrohEndpointsTest do
       end
     end
 
-    test "keeps the link out of the sidebar when off", %{conn: conn, org: org} do
+    test "keeps the tab out of the organization's tabs when off", %{conn: conn, org: org} do
       Application.put_env(:nerves_hub, :org_iroh_endpoints_ui_enabled, false)
 
       conn
       |> visit("/org/#{org.name}/settings/keys")
-      |> refute_has("a", text: "Iroh Endpoints")
+      |> refute_has("a", text: "Iroh endpoints")
     end
 
-    test "shows the link when on", %{conn: conn, org: org} do
+    test "shows the tab when on", %{conn: conn, org: org} do
       conn
       |> visit("/org/#{org.name}/settings/keys")
-      |> assert_has("a", text: "Iroh Endpoints")
+      |> assert_has("a", text: "Iroh endpoints")
     end
   end
 
@@ -45,7 +45,7 @@ defmodule NervesHubWeb.Live.Org.IrohEndpointsTest do
     test "says so when there is nothing yet", %{conn: conn, org: org} do
       conn
       |> visit(path(org))
-      |> assert_has("h1", text: "Iroh Endpoints")
+      |> assert_has("h2", text: "Iroh Endpoints")
       |> assert_has("p", text: "No endpoints yet")
     end
 

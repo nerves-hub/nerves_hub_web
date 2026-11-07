@@ -156,8 +156,15 @@ when adding or removing one.
   - User-facing counterparts: `UserConsoleChannel`, `UserLocalShellChannel`.
 - `live/` — LiveViews (the dashboard). `live/devices/show.ex` is the device
   page; its tabs live in `components/device_page/*` as tab components that hook
-  into the LiveView.
-- `components/` — shared function/live components.
+  into the LiveView. An organization's pages (`live/org/`, plus
+  `live/products/new.ex`) have no sidebar: they render inside `Layouts.org/1`,
+  a centered column under the organization's name, counts and tabs, and mount
+  `NervesHubWeb.Mounts.OrgCounts` for the counts. Product pages keep the
+  sidebar layout.
+- `components/` — shared function/live components. `components/fleet.ex`
+  sums up how a set of products is doing (Needs attention, online meters,
+  health chips), for the organizations home page and an organization's
+  Products tab.
 - `controllers/` — JSON API (`controllers/api/`) and others.
 - `plugs/`, `router.ex`, `endpoint.ex`, `device_endpoint.ex`,
   `health_check_endpoint.ex`, `auth*.ex`.

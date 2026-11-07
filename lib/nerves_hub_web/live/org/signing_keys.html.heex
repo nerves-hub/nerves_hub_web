@@ -1,55 +1,155 @@
-<NervesHubWeb.Layouts.sidebar :if={@live_action == :index} flash={@flash} current_scope={@current_scope} sidebar_tab={@sidebar_tab}>
-  <:header>
-    <h1 class="text-page-title text-content-strong">Signing Keys</h1>
-    <div class="mr-auto"></div>
-    <.button type="link" navigate={~p"/org/#{@org}/settings/keys/new"} aria-label="Add new signing key">
-      <.icon name="add" /> Add Key
-    </.button>
-  </:header>
-
-  <div class="h-0 flex-1 overflow-y-auto px-6 py-4">
-    <p class="mb-4 text-sm text-content-muted">Signing Keys are used to sign uploaded firmware, and verify the firmware on the device before the device is updated.</p>
-
-    <div class="space-y-3">
-      <%= for signing_key <- @signing_keys do %>
-        <div class="flex items-start gap-4 rounded-md border border-line-default bg-linear-to-r from-base-800/50 to-base-800 p-4">
-          <span class="mt-1 lucide-key-round size-6"></span>
-          <div class="min-w-0 flex-1">
-            <h3 class="mb-2 flex items-center gap-2 text-group-title text-content-strong">
-              {signing_key.name}
-              <.tag mono class="font-normal">{scheme_label(signing_key.scheme)}</.tag>
-            </h3>
-            <div class="mb-1 flex items-baseline gap-2 text-xs text-content-muted">
-              <span :if={key_label(signing_key)} class="shrink-0 text-content-faint">{key_label(signing_key)}</span>
-              <span class="font-mono break-all">{key_preview(signing_key)}</span>
-            </div>
-            <div :if={signing_key.created_by} class="text-xs text-content-faint">
-              Created by: {signing_key.created_by.name} ({signing_key.created_by.email})
-            </div>
-          </div>
-          <.button phx-click="delete" phx-value-signing_key_id={signing_key.id} disabled={!authorized?(:"signing_key:delete", @current_scope)} data-confirm="Are you sure?">
-            Delete
-          </.button>
+<NervesHubWeb.Layouts.org :if={@live_action == :index} flash={@flash} current_scope={@current_scope} tab={@sidebar_tab} counts={@org_counts}>
+  <section id="signing-keys" aria-labelledby="signing-keys-title" class="flex flex-col gap-3">
+    <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-6">
+      <div class="flex min-w-0 flex-col gap-1">
+        <div class="flex items-baseline gap-2">
+          <h2 id="signing-keys-title" class="text-group-title text-content-strong">Signing keys</h2>
+          <span class="text-[13px] text-content-faint">{length(@signing_keys)}</span>
         </div>
-      <% end %>
+        <p class="text-[13px] text-content-muted">Firmware and archives you upload must be signed with one of these keys.</p>
+      </div>
+      <div class="flex shrink-0 items-center gap-4">
+        <a
+          href="https://docs.nerves-hub.org/nerves-hub/setup/firmware-signing-keys"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="inline-flex items-center gap-1 text-[13px] font-medium text-content-muted hover:text-content-strong"
+        >
+          How to generate a key <span class="lucide-arrow-up-right size-3.5" aria-hidden="true"></span>
+        </a>
+        <.button type="link" style="primary" navigate={~p"/org/#{@org}/settings/keys/new"}>
+          <span class="lucide-plus size-3.5" aria-hidden="true"></span> Add signing key
+        </.button>
+      </div>
     </div>
 
-    <.link
-      href="https://docs.nerves-hub.org/nerves-hub/setup/firmware-signing-keys"
-      class="mt-4 inline-flex items-center gap-2 text-sm text-primary hover:text-primary-hover"
-      target="_blank"
-      rel="noopener noreferrer"
-    >
-      <span>How to generate a signing key -&gt;</span>
-    </.link>
-  </div>
-</NervesHubWeb.Layouts.sidebar>
-<NervesHubWeb.Layouts.sidebar :if={@live_action == :new} flash={@flash} current_scope={@current_scope} sidebar_tab={@sidebar_tab}>
-  <:header>
-    <h1 class="text-page-title text-content-strong">New Signing Key</h1>
-  </:header>
+    <% can_delete? = authorized?(:"signing_key:delete", @current_scope) %>
+    <div class="rounded-lg border border-line-default bg-surface-raised shadow-card" role="table" aria-label={"#{@org.name} signing keys"}>
+      <div role="row" class="hidden h-9 items-center gap-4 rounded-t-lg border-b border-line-subtle bg-surface px-5 md:flex">
+        <span role="columnheader" class="flex-1 text-[11px]/3.5 font-medium tracking-[0.06em] text-content-faint uppercase">Key</span>
+        <span role="columnheader" class="w-30 text-[11px]/3.5 font-medium tracking-[0.06em] text-content-faint uppercase">Signs</span>
+        <span role="columnheader" class="w-35 text-[11px]/3.5 font-medium tracking-[0.06em] text-content-faint uppercase">Added</span>
+        <span class="w-7" aria-hidden="true"></span>
+      </div>
 
-  <div class="h-0 max-w-[650px] flex-1 overflow-y-auto px-6 py-4">
+      <p :if={@signing_keys == []} id="no-signing-keys" class="px-5 py-8 text-center text-sm text-content-muted">
+        No signing keys yet. Add one before you upload firmware.
+      </p>
+
+      <div
+        :for={signing_key <- @signing_keys}
+        role="row"
+        id={"signing-key-#{signing_key.id}"}
+        class="flex items-start gap-4 border-b border-line-subtle px-4 py-3.5 last:border-0 md:items-center md:px-5"
+      >
+        <% usage = Map.get(@usage, signing_key.id, %{firmware: 0, archives: 0}) %>
+        <div role="cell" class="flex min-w-0 flex-1 items-start gap-3">
+          <span class="flex size-7.5 shrink-0 items-center justify-center rounded-md bg-surface-muted" aria-hidden="true">
+            <span class="lucide-key-round size-3.5 text-content-muted"></span>
+          </span>
+          <div class="flex min-w-0 flex-1 flex-col gap-1">
+            <div class="flex flex-wrap items-center gap-x-2 gap-y-1">
+              <h3 class="text-sm/4.5 font-medium text-content-strong">{signing_key.name}</h3>
+              <span class="rounded bg-surface-muted px-1.5 text-[11px]/4.5 font-medium text-content-muted">{scheme_label(signing_key.scheme)}</span>
+            </div>
+            <div class="flex min-w-0 items-center gap-1.5 text-xs">
+              <span :if={key_label(signing_key)} class="shrink-0 text-content-faint">{key_label(signing_key)}</span>
+              <span class="truncate font-mono text-content-muted">{key_preview(signing_key)}</span>
+              <button
+                type="button"
+                id={"copy-key-#{signing_key.id}"}
+                phx-hook="CopyToClipboard"
+                data-copy-value={signing_key.key}
+                title="Copy key"
+                class="shrink-0 rounded p-0.5 text-content-faint hover:cursor-pointer hover:text-content-strong"
+              >
+                <span data-icon="copy" class="lucide-copy size-3.5" aria-hidden="true"></span>
+                <span data-icon="check" class="lucide-check hidden size-3.5 text-success" aria-hidden="true"></span>
+                <span class="sr-only">Copy key</span>
+              </button>
+            </div>
+            <p class="text-xs text-content-faint md:hidden">{usage_label(usage)} · Added {added(signing_key)}</p>
+          </div>
+        </div>
+
+        <div role="cell" class={["hidden w-30 shrink-0 text-[13px] md:block", if(unused?(usage), do: "text-content-faint", else: "text-content-body")]}>
+          {usage_label(usage)}
+        </div>
+
+        <div role="cell" class="hidden w-35 shrink-0 flex-col gap-px md:flex">
+          <span class="text-[13px] text-content-muted">{added(signing_key)}</span>
+          <span :if={signing_key.created_by} class="truncate text-xs text-content-faint" title={signing_key.created_by.email}>
+            by {signing_key.created_by.name}
+          </span>
+        </div>
+
+        <div role="cell" class="relative w-7 shrink-0">
+          <button
+            type="button"
+            id={"signing-key-#{signing_key.id}-menu-toggle"}
+            phx-click={toggle_menu(signing_key.id)}
+            aria-haspopup="menu"
+            aria-label={"Actions for #{signing_key.name}"}
+            class="flex size-7 items-center justify-center rounded text-content-muted hover:cursor-pointer hover:bg-surface-muted hover:text-content-strong"
+          >
+            <span class="lucide-ellipsis size-4" aria-hidden="true"></span>
+          </button>
+          <div
+            id={"signing-key-#{signing_key.id}-menu"}
+            class="hidden"
+            phx-click-away={hide_menu(signing_key.id)}
+            phx-window-keydown={hide_menu(signing_key.id)}
+            phx-key="escape"
+          >
+            <div role="menu" class="absolute top-8 right-0 z-30 flex w-60 flex-col rounded-md border border-line-default bg-surface-overlay p-1 shadow-overlay">
+              <button
+                type="button"
+                role="menuitem"
+                id={"copy-key-menu-#{signing_key.id}"}
+                phx-hook="CopyToClipboard"
+                data-copy-value={signing_key.key}
+                class="flex items-center gap-2 rounded px-2 py-1.5 text-left text-sm text-content-body hover:cursor-pointer hover:bg-surface-muted"
+              >
+                <span data-icon="copy" class="lucide-copy size-4 text-content-muted" aria-hidden="true"></span>
+                <span data-icon="check" class="lucide-check hidden size-4 text-success" aria-hidden="true"></span> Copy key
+              </button>
+              <div class="my-1 h-px bg-line-subtle" aria-hidden="true"></div>
+              <button
+                :if={can_delete? && unused?(usage)}
+                type="button"
+                role="menuitem"
+                id={"delete-key-#{signing_key.id}"}
+                phx-click="delete"
+                phx-value-signing_key_id={signing_key.id}
+                data-confirm={"Delete #{signing_key.name}? Firmware signed with it can't be uploaded once it's gone."}
+                class="flex items-center gap-2 rounded px-2 py-1.5 text-left text-sm text-alert-content hover:cursor-pointer hover:bg-alert-soft"
+              >
+                <span class="lucide-trash size-4" aria-hidden="true"></span> Delete key
+              </button>
+              <button
+                :if={!(can_delete? && unused?(usage))}
+                type="button"
+                role="menuitem"
+                id={"delete-key-#{signing_key.id}"}
+                disabled
+                class="flex items-start gap-2 rounded px-2 py-1.5 text-left text-sm text-content-faint"
+              >
+                <span class="mt-0.5 lucide-trash size-4" aria-hidden="true"></span>
+                <span class="flex flex-col gap-0.5">
+                  Delete key <span class="text-xs">{delete_blocked_reason(usage, can_delete?)}</span>
+                </span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+</NervesHubWeb.Layouts.org>
+<NervesHubWeb.Layouts.org :if={@live_action == :new} flash={@flash} current_scope={@current_scope} tab={@sidebar_tab} counts={@org_counts}>
+  <NervesHubWeb.Layouts.org_heading title="New Signing Key" back={~p"/org/#{@org}/settings/keys"} />
+
+  <div class="max-w-[650px]">
     <.form :let={f} id="signing_key_form" for={@form} phx-submit="save">
       <%= if @form.action do %>
         <div class="mb-4 rounded-md border border-alert bg-alert-soft p-4 text-sm text-alert-content">
@@ -111,4 +211,4 @@
       </div>
     </.form>
   </div>
-</NervesHubWeb.Layouts.sidebar>
+</NervesHubWeb.Layouts.org>

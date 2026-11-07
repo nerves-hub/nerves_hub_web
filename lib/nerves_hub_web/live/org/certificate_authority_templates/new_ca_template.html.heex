@@ -1,9 +1,7 @@
-<NervesHubWeb.Layouts.sidebar flash={@flash} current_scope={@current_scope} sidebar_tab={@sidebar_tab}>
-  <:header>
-    <h1 class="text-page-title text-content-strong">New Certificate Authority</h1>
-  </:header>
+<NervesHubWeb.Layouts.org flash={@flash} current_scope={@current_scope} tab={@sidebar_tab} counts={@org_counts}>
+  <NervesHubWeb.Layouts.org_heading title="New Certificate Authority" back={~p"/org/#{@org}/settings/certificates"} />
 
-  <div class="h-0 w-full flex-1 overflow-y-auto px-6 py-4">
+  <div class="w-full">
     <div class="max-w-225">
       <.form :let={f} id="new-ca-form" for={@form} phx-submit="add_certificate_authority" phx-change="validate_new_certificate_authority">
         <div
@@ -207,4 +205,4 @@
       </.form>
     </div>
   </div>
-</NervesHubWeb.Layouts.sidebar>
+</NervesHubWeb.Layouts.org>
