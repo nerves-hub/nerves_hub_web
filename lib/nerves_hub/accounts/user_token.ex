@@ -33,6 +33,11 @@ defmodule NervesHub.Accounts.UserToken do
   end
 
   @doc """
+  How long a password reset link works, in hours, for the pages that say so.
+  """
+  def password_reset_validity_in_hours(), do: @password_reset_validity_in_days * 24
+
+  @doc """
   Generates a token that will be stored in a signed place,
   such as session or cookie. As they are signed, those
   tokens do not need to be hashed.

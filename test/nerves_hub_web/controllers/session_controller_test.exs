@@ -10,6 +10,7 @@ defmodule NervesHubWeb.SessionControllerTest do
   alias NervesHub.Repo
 
   @remember_me_cookie "_nerves_hub_user_remember_me"
+  @remember_me_label "Keep me signed in for #{NervesHubWeb.Auth.remember_me_days()} days"
 
   describe "already signed in" do
     test "visiting the login page redirects to the signed in landing page", %{conn: conn} do
@@ -140,8 +141,8 @@ defmodule NervesHubWeb.SessionControllerTest do
 
       build_conn()
       |> visit(~p"/login")
-      |> assert_has("a[href='/register']", text: "Sign up for free")
-      |> refute_has("p", text: "Please contact your platform admin.")
+      |> assert_has("a[href='/register']", text: "Create one")
+      |> refute_has("p", text: "Ask your platform admin for an invite.")
     end
 
     test "points to the platform admin instead of sign up when registrations are closed" do
@@ -149,7 +150,7 @@ defmodule NervesHubWeb.SessionControllerTest do
 
       build_conn()
       |> visit(~p"/login")
-      |> assert_has("p", text: "Don't have an account? Please contact your platform admin.")
+      |> assert_has("p", text: "Don't have an account? Ask your platform admin for an invite.")
       |> refute_has("a[href='/register']")
     end
   end
@@ -166,8 +167,8 @@ defmodule NervesHubWeb.SessionControllerTest do
 
       build_conn()
       |> visit(~p"/login")
-      |> assert_has("h1", text: "Sign in to your account")
-      |> fill_in("Email address", with: "sgtpepper@geocities.com")
+      |> assert_has("h1", text: "Sign in to #{platform_name()}")
+      |> fill_in("Email", with: "sgtpepper@geocities.com")
       |> fill_in("Password", with: "JohnRingoPaulGeorge")
       |> submit()
       |> assert_path(~p"/orgs")
@@ -184,8 +185,8 @@ defmodule NervesHubWeb.SessionControllerTest do
 
       build_conn()
       |> visit(~p"/orgs/new")
-      |> assert_has("h1", text: "Sign in to your account")
-      |> fill_in("Email address", with: "sgtpepper@geocities.com")
+      |> assert_has("h1", text: "Sign in to #{platform_name()}")
+      |> fill_in("Email", with: "sgtpepper@geocities.com")
       |> fill_in("Password", with: "JohnRingoPaulGeorge")
       |> submit()
       |> assert_path(~p"/orgs/new")
@@ -209,9 +210,9 @@ defmodule NervesHubWeb.SessionControllerTest do
       session =
         build_conn()
         |> visit(~p"/login")
-        |> fill_in("Email address", with: "sgtpepper@geocities.com")
+        |> fill_in("Email", with: "sgtpepper@geocities.com")
         |> fill_in("Password", with: "JohnRingoPaulGeorge")
-        |> check("Remember me")
+        |> check(@remember_me_label)
         |> submit()
         |> assert_path(~p"/orgs")
 
@@ -232,7 +233,7 @@ defmodule NervesHubWeb.SessionControllerTest do
       session =
         build_conn()
         |> visit(~p"/login")
-        |> fill_in("Email address", with: "sgtpepper@geocities.com")
+        |> fill_in("Email", with: "sgtpepper@geocities.com")
         |> fill_in("Password", with: "JohnRingoPaulGeorge")
         |> submit()
         |> assert_path(~p"/orgs")
@@ -243,12 +244,14 @@ defmodule NervesHubWeb.SessionControllerTest do
     test "stays ticked when the password is wrong" do
       build_conn()
       |> visit(~p"/login")
-      |> fill_in("Email address", with: "sgtpepper@geocities.com")
+      |> fill_in("Email", with: "sgtpepper@geocities.com")
       |> fill_in("Password", with: "not the password")
-      |> check("Remember me")
+      |> check(@remember_me_label)
       |> submit()
-      |> assert_has("p", text: "Invalid email or password")
+      |> assert_has("[role='alert'] p", text: "That email and password don't match")
       |> assert_has("#remember-me[checked]")
+      |> assert_has("input[type='email'][value='sgtpepper@geocities.com']")
+      |> refute_has("input[type='password'][value]")
     end
   end
 
@@ -339,4 +342,6 @@ defmodule NervesHubWeb.SessionControllerTest do
       assert redirected_to(conn) == return_to
     end
   end
+
+  defp platform_name(), do: Application.get_env(:nerves_hub, :support_email_platform_name)
 end

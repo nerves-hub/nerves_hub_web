@@ -1,26 +1,34 @@
 <Layouts.auth flash={@flash}>
   <:title>
-    CLI Login
+    Sign in to the CLI
   </:title>
   <:subheader>
-    Please confirm that the code below matches the code display by the CLI.
+    Check that this code matches the one in your terminal.
   </:subheader>
 
-  <div class="mt-6">
-    <div>
-      <form id="cli_session" method="post" action={~p"/auth/cli/#{@token}"}>
-        <input type="hidden" name="_csrf_token" value={Plug.CSRFProtection.get_csrf_token()} />
+  <form id="cli_session" method="post" action={~p"/auth/cli/#{@token}"} class="flex flex-col gap-5">
+    <input type="hidden" name="_csrf_token" value={Plug.CSRFProtection.get_csrf_token()} />
 
-        <div class="mb-5">
-          <span class="font-semibold">Confirmation Code</span>: <span :for={char <- confirmation_code_list(@confirmation_code)} class="pl-1 font-mono text-xl">{char}</span>
-        </div>
-
-        <div>
-          <.button style="primary" type="submit" class="w-40">
-            Confirm login
-          </.button>
-        </div>
-      </form>
+    <div class="flex flex-col items-center gap-2">
+      <p class="text-[0.8125rem] font-medium text-content-muted">Confirmation code</p>
+      <p class="flex gap-1.5">
+        <span class="sr-only">{@confirmation_code}</span>
+        <span
+          :for={char <- confirmation_code_list(@confirmation_code)}
+          class="flex h-11 w-9 items-center justify-center rounded-md border border-line-default bg-surface font-mono text-xl font-medium text-content-strong"
+          aria-hidden="true"
+        >
+          {char}
+        </span>
+      </p>
     </div>
-  </div>
+
+    <.button style="primary" type="submit" class="w-full">
+      Confirm sign in
+    </.button>
+
+    <p class="text-center text-[0.8125rem] text-content-muted">
+      Different code, or you didn't start this? Close this window.
+    </p>
+  </form>
 </Layouts.auth>
