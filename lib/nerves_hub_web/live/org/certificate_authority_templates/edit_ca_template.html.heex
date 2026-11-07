@@ -1,9 +1,7 @@
-<NervesHubWeb.Layouts.sidebar flash={@flash} current_scope={@current_scope} sidebar_tab={@sidebar_tab}>
-  <:header>
-    <h1 class="text-page-title text-content-strong">Edit Certificate Authority</h1>
-  </:header>
+<NervesHubWeb.Layouts.org flash={@flash} current_scope={@current_scope} tab={@sidebar_tab} counts={@org_counts}>
+  <NervesHubWeb.Layouts.org_heading title="Edit Certificate Authority" back={~p"/org/#{@org}/settings/certificates/#{@serial}"} />
 
-  <div class="h-0 max-w-[650px] flex-1 overflow-y-auto px-6 py-4">
+  <div class="max-w-[650px]">
     <.form :let={f} id="edit-ca-form" for={@form} phx-submit="update_certificate_authority">
       <div class="mb-4">
         <label for="description_input" class="mb-2 block text-sm font-medium text-content-body">Description</label>
@@ -105,4 +103,4 @@
       </div>
     </.form>
   </div>
-</NervesHubWeb.Layouts.sidebar>
+</NervesHubWeb.Layouts.org>

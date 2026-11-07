@@ -184,26 +184,10 @@
         </nav>
       <% end %>
 
-      <section :if={@attention != nil and @attention != []} id="needs-attention" aria-labelledby="attention-title" class="flex flex-col gap-3">
-        <div class="flex items-center gap-2">
-          <h2 id="attention-title" class="text-group-title text-content-strong">Needs attention</h2>
-          <.badge tone="warning">{length(@attention)}</.badge>
-        </div>
-        <div class="divide-y divide-line-subtle rounded-md border border-line-default bg-surface-raised shadow-card">
-          <.attention_row :for={item <- @attention} item={item} single_org?={single_org?} />
-        </div>
-      </section>
+      <.attention_section :if={@attention != nil and @attention != []} items={@attention} single_org?={single_org?} />
 
       <div :if={@attention == [] or @pinned_devices == []} class="flex flex-col gap-3">
-        <div :if={@attention == []} id="all-clear" class="flex items-center gap-4 rounded-md border border-line-default bg-surface-raised p-4 shadow-card">
-          <span class="flex size-8 shrink-0 items-center justify-center rounded bg-success-soft text-success-content">
-            <span class="lucide-check size-4" aria-hidden="true"></span>
-          </span>
-          <div>
-            <p class="text-sm font-medium text-content-strong">Nothing needs attention</p>
-            <p class="text-xs text-content-muted">No releases waiting for approval · no unhealthy devices · nothing in the penalty box</p>
-          </div>
-        </div>
+        <.all_clear :if={@attention == []} />
 
         <div :if={@pinned_devices == []} id="pin-hint" class="flex items-center gap-3 rounded-md border border-dashed border-line-strong px-4 py-3 text-sm text-content-muted">
           <span class="lucide-pin size-4" aria-hidden="true"></span> Pin a device from its page to keep it here

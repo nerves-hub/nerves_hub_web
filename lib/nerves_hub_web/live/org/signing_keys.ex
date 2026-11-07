@@ -4,6 +4,9 @@ defmodule NervesHubWeb.Live.Org.SigningKeys do
   alias NervesHub.Accounts
   alias NervesHub.Accounts.OrgKey
   alias NervesHub.Firmwares.UpdateTool.EspIdf
+  alias NervesHubWeb.Mounts.OrgCounts
+
+  on_mount(OrgCounts)
 
   @impl Phoenix.LiveView
   def mount(_params, _session, %{assigns: %{current_scope: scope}} = socket) do
@@ -18,7 +21,7 @@ defmodule NervesHubWeb.Live.Org.SigningKeys do
   defp apply_action(socket, :index, _params) do
     socket
     |> page_title("Signing Keys - #{socket.assigns.org.name}")
-    |> assign(:signing_keys, list_signing_keys(socket.assigns.current_scope))
+    |> load_keys()
     |> sidebar_tab(:signing_keys)
   end
 
@@ -60,7 +63,8 @@ defmodule NervesHubWeb.Live.Org.SigningKeys do
         {:noreply,
          socket
          |> put_flash(:info, "Signing Key deleted successfully.")
-         |> assign(:signing_keys, list_signing_keys(scope))}
+         |> load_keys()
+         |> OrgCounts.refresh()}
 
       {:error, %Ecto.Changeset{} = changeset} ->
         message =
@@ -71,7 +75,11 @@ defmodule NervesHubWeb.Live.Org.SigningKeys do
     end
   end
 
-  defp list_signing_keys(scope), do: Accounts.list_org_keys(scope)
+  defp load_keys(%{assigns: %{current_scope: scope}} = socket) do
+    socket
+    |> assign(:signing_keys, Accounts.list_org_keys(scope))
+    |> assign(:usage, Accounts.org_key_usage(scope.org))
+  end
 
   defp scheme_options() do
     [
@@ -81,10 +89,56 @@ defmodule NervesHubWeb.Live.Org.SigningKeys do
     ]
   end
 
-  defp scheme_label(:ed25519), do: "ed25519"
-  defp scheme_label(:secure_boot_v2_rsa), do: "secure-boot-v2-rsa"
-  defp scheme_label(:x509_certificate), do: "x509-certificate"
+  # Which update tool the key is for, then what kind of key it is.
+  defp scheme_label(:ed25519), do: "fwup · Ed25519"
+  defp scheme_label(:secure_boot_v2_rsa), do: "ESP-IDF · RSA-3072"
+  defp scheme_label(:x509_certificate), do: "RAUC · X.509 certificate"
   defp scheme_label(other), do: to_string(other)
+
+  defp added(%OrgKey{inserted_at: inserted_at}), do: Calendar.strftime(inserted_at, "%B %Y")
+
+  defp unused?(%{firmware: 0, archives: 0}), do: true
+  defp unused?(_usage), do: false
+
+  defp usage_label(usage) do
+    case usage_parts(usage) do
+      [] -> "Not used yet"
+      parts -> Enum.join(parts, ", ")
+    end
+  end
+
+  defp usage_parts(%{firmware: firmware, archives: archives}) do
+    [
+      firmware > 0 && "#{firmware} firmware",
+      archives == 1 && "1 archive",
+      archives > 1 && "#{archives} archives"
+    ]
+    |> Enum.filter(& &1)
+  end
+
+  # Why the menu's Delete is greyed out. Firmware and archives hold the key by
+  # a foreign key, so it can't go while they're there.
+  defp delete_blocked_reason(_usage, false), do: "Deleting a key needs the Manage or Admin role."
+
+  defp delete_blocked_reason(%{firmware: firmware, archives: archives} = usage, true) do
+    verb = if firmware + archives == 1, do: "is", else: "are"
+    "#{usage |> usage_parts() |> Enum.join(" and ")} #{verb} signed with it."
+  end
+
+  defp toggle_menu(key_id) do
+    JS.toggle(
+      to: "#signing-key-#{key_id}-menu",
+      in: {"ease-out duration-150", "opacity-0", "opacity-100"},
+      out: {"ease-out duration-150", "opacity-100", "opacity-0"}
+    )
+  end
+
+  defp hide_menu(js \\ %JS{}, key_id) do
+    JS.hide(js,
+      to: "#signing-key-#{key_id}-menu",
+      transition: {"ease-out duration-150", "opacity-100", "opacity-0"}
+    )
+  end
 
   defp key_label(%{scheme: :secure_boot_v2_rsa}), do: "eFuse digest"
   defp key_label(%{scheme: :x509_certificate}), do: "SHA-256 fingerprint"
