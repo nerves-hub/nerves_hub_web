@@ -625,6 +625,10 @@ defmodule NervesHubWeb.CoreComponents do
   slot(:inner_block)
   slot(:rich_hint)
 
+  slot(:label_action,
+    doc: "a link at the far end of the label's row, such as \"Forgot password?\" (text inputs only)"
+  )
+
   def input(%{field: %FormField{} = field} = assigns) do
     errors = if Phoenix.Component.used_input?(field), do: field.errors, else: []
 
@@ -740,7 +744,11 @@ defmodule NervesHubWeb.CoreComponents do
   def input(assigns) do
     ~H"""
     <div>
-      <.label for={@id}>{@label}</.label>
+      <.label :if={@label_action == []} for={@id}>{@label}</.label>
+      <div :if={@label_action != []} class="flex items-center justify-between gap-3">
+        <.label for={@id}>{@label}</.label>
+        {render_slot(@label_action)}
+      </div>
       <input
         type={@type}
         name={@name}

@@ -1,8 +1,15 @@
 <Layouts.auth flash={@flash}>
   <:title>
-    You're all set to use the CLI
+    You're signed in to the CLI
   </:title>
-  <:subheader>
-    You can close this window and use the CLI to interact with your account.
-  </:subheader>
+
+  <div class="flex items-start gap-3.5">
+    <span class="flex size-10 flex-none items-center justify-center rounded-full bg-success-soft text-success-content" aria-hidden="true">
+      <span class="lucide-check size-5"></span>
+    </span>
+    <div class="text-sm">
+      <p class="font-semibold text-content-strong">All set</p>
+      <p class="text-content-muted">You can close this window and go back to your terminal.</p>
+    </div>
+  </div>
 </Layouts.auth>

@@ -1,10 +1,33 @@
 <Layouts.auth flash={@flash}>
   <:title>
-    Time to check your email
+    Check your email
   </:title>
-  <div class="mt-8">
-    <p class="mt-2 text-sm/6 text-content-body">
-      If your email is recognized, you will receive instructions to reset your password shortly.
-    </p>
+  <:subheader>
+    If <span class="font-semibold text-content-strong">{@email}</span> has an account, a reset link is on its way.
+  </:subheader>
+
+  <div class="flex flex-col gap-6">
+    <div class="flex items-start gap-3.5">
+      <span class="flex size-10 flex-none items-center justify-center rounded-full bg-notice-soft text-notice-content" aria-hidden="true">
+        <span class="lucide-mail size-5"></span>
+      </span>
+      <div class="text-sm">
+        <p class="font-semibold text-content-strong">
+          The link works for {NervesHub.Accounts.UserToken.password_reset_validity_in_hours()} hours
+        </p>
+        <p class="text-content-muted">Nothing after a few minutes? Check your spam folder, then send it again.</p>
+      </div>
+    </div>
+
+    <.form for={%{"email" => @email}} as={:user} action={~p"/password-reset"}>
+      <input type="hidden" name="user[email]" value={@email} />
+      <.button type="submit" class="w-full">
+        Send the link again
+      </.button>
+    </.form>
   </div>
+
+  <:footer>
+    <.link href={~p"/login"} class="font-semibold text-primary hover:text-primary-hover light:text-indigo-600 light:hover:text-indigo-500">Back to sign in</.link>
+  </:footer>
 </Layouts.auth>
