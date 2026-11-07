@@ -161,6 +161,10 @@
   /* The neutral hover veil behind sidebar items; flips in light */
   --veil: var(--color-zinc-700);
 
+  /* The dots of the auth pages' perfboard backdrop (the perfboard utility
+     below). Faint in both themes: line-subtle here, line-default in light. */
+  --perfboard-dot: var(--color-line-subtle);
+
   /* Fixed layout rails — semantic dimensions for the app chrome (theme-independent).
      Exposed as w-sidebar / h-topbar / h-header / h-row / h-nav-item utilities below. */
   --sidebar-width: 264px;
@@ -241,6 +245,8 @@
      the light sidebar the same contrast (1.12–1.27:1) zinc-700 gives dark. */
   --veil: #bdbdc3;
 
+  --perfboard-dot: var(--color-line-default);
+
   --shadow-card: 0 1px 2px rgb(24 24 27 / 0.04), 0 2px 6px rgb(24 24 27 / 0.06);
   --shadow-overlay:
     0 4px 8px -2px rgb(24 24 27 / 0.06), 0 12px 32px -4px rgb(24 24 27 / 0.12);
@@ -302,6 +308,21 @@
 /* The filter panel's shadow casts left, away from the screen edge it slides in from. */
 @utility shadow-filter-slider {
   box-shadow: var(--shadow-filter-slider);
+}
+/* The auth pages' backdrop: a 20px dot grid, like perfboard, that fades out
+   behind the form so the dots never sit under text. */
+@utility perfboard {
+  background-color: var(--color-surface);
+  background-image:
+    radial-gradient(
+      560px 480px at 50% 48%,
+      var(--color-surface) 35%,
+      transparent 100%
+    ),
+    radial-gradient(circle, var(--perfboard-dot) 1.2px, transparent 1.6px);
+  background-size:
+    100% 100%,
+    20px 20px;
 }
 @utility w-sidebar {
   width: var(--sidebar-width);
