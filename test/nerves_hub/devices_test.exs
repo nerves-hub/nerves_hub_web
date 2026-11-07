@@ -4187,4 +4187,19 @@ defmodule NervesHub.DevicesTest do
       product_id: device.product_id
     }
   end
+
+  describe "count_by_product/1" do
+    test "counts each product's devices, leaving out deleted ones", context do
+      %{user: user, org: org, product: product, device: device} = context
+
+      other_product = Fixtures.product_fixture(user, org)
+      {:ok, _} = Devices.delete_device(device)
+
+      assert Devices.count_by_product([product.id, other_product.id]) == %{product.id => 2}
+    end
+
+    test "is empty for no products" do
+      assert Devices.count_by_product([]) == %{}
+    end
+  end
 end

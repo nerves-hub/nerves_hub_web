@@ -59,6 +59,22 @@ defmodule NervesHub.ManagedDeployments do
   end
 
   @doc """
+  How many deployment groups each of the given products has. A product with
+  none is left out of the map.
+  """
+  @spec count_by_product([pos_integer()]) :: %{pos_integer() => pos_integer()}
+  def count_by_product([]), do: %{}
+
+  def count_by_product(product_ids) when is_list(product_ids) do
+    DeploymentGroup
+    |> where([d], d.product_id in ^product_ids)
+    |> group_by([d], d.product_id)
+    |> select([d], {d.product_id, count(d.id)})
+    |> Repo.all()
+    |> Map.new()
+  end
+
+  @doc """
   The deployment group names for a product, sorted.
   """
   def deployment_group_names(product_id) do
