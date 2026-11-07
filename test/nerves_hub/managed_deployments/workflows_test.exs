@@ -279,4 +279,40 @@ defmodule NervesHub.ManagedDeployments.WorkflowsTest do
       assert [%{status: :in_progress} | _] = Workflows.release_steps(release.id)
     end
   end
+
+  describe "awaiting_approval_in_products/1" do
+    @approval %{"version" => 1, "steps" => [%{"name" => "Sign-off", "type" => "approval_required"}]}
+
+    test "lists a started approval step with its release's firmware and group", context do
+      %{release: release, deployment_group: deployment_group} = with_workflow(context, @approval)
+      [step | _] = Workflows.release_steps(release.id)
+
+      assert Workflows.awaiting_approval_in_products([context.product.id]) == []
+
+      {:ok, waiting} = Workflows.start_step(deployment_group, step)
+
+      assert [found] = Workflows.awaiting_approval_in_products([context.product.id])
+      assert found.id == waiting.id
+      assert found.deployment_release.firmware.version == "0.0.2"
+      assert found.deployment_release.deployment_group.id == deployment_group.id
+
+      {:ok, _} = Workflows.approve_step(deployment_group, waiting, context.user)
+
+      assert Workflows.awaiting_approval_in_products([context.product.id]) == []
+    end
+
+    test "leaves out other products", context do
+      %{release: release, deployment_group: deployment_group} = with_workflow(context, @approval)
+      [step | _] = Workflows.release_steps(release.id)
+      {:ok, _} = Workflows.start_step(deployment_group, step)
+
+      other_product = Fixtures.product_fixture(context.user, context.org)
+
+      assert Workflows.awaiting_approval_in_products([other_product.id]) == []
+    end
+
+    test "is empty for no products" do
+      assert Workflows.awaiting_approval_in_products([]) == []
+    end
+  end
 end

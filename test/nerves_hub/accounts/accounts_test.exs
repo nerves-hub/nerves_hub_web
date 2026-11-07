@@ -7,9 +7,11 @@ defmodule NervesHub.AccountsTest do
   alias NervesHub.Accounts.Org
   alias NervesHub.Accounts.OrgKey
   alias NervesHub.Accounts.OrgUser
+  alias NervesHub.Accounts.Scope
   alias NervesHub.Accounts.User
   alias NervesHub.Accounts.UserToken
   alias NervesHub.Fixtures
+  alias NervesHub.Products
   alias NervesHub.Support.Utils
   alias NervesHub.Utils.Base62
 
@@ -626,6 +628,60 @@ defmodule NervesHub.AccountsTest do
       {:ok, org} = Accounts.update_org(org, %{device_hostnames: ["link.example.com"]})
 
       assert org.device_hostnames == []
+    end
+  end
+
+  describe "get_orgs_with_roles/1" do
+    test "lists the user's orgs with their role in each, products preloaded", %{user: user} do
+      own = Fixtures.org_fixture(user, %{name: "Beta"})
+      product = Fixtures.product_fixture(user, own)
+
+      other_user = Fixtures.user_fixture()
+      joined = Fixtures.org_fixture(other_user, %{name: "Alpha"})
+      {:ok, _} = Accounts.add_org_user(joined, user, %{role: :view})
+
+      _not_a_member = Fixtures.org_fixture(other_user)
+
+      assert [{alpha, :view}, {beta, :admin}] = Accounts.get_orgs_with_roles(Scope.for_user(user))
+      assert alpha.id == joined.id
+      assert beta.id == own.id
+      assert Enum.map(beta.products, & &1.id) == [product.id]
+    end
+  end
+
+  describe "count_org_users_by_org/1" do
+    test "counts each org's members", %{user: user} do
+      org = Fixtures.org_fixture(user)
+      {:ok, _} = Accounts.add_org_user(org, Fixtures.user_fixture(), %{role: :view})
+      solo = Fixtures.org_fixture(user)
+
+      assert Accounts.count_org_users_by_org([org.id, solo.id]) == %{org.id => 2, solo.id => 1}
+      assert Accounts.count_org_users_by_org([]) == %{}
+    end
+  end
+
+  describe "create_org_with_product/3" do
+    test "creates the org with the user as admin, and a product with a shared secret", %{user: user} do
+      assert {:ok, %{org: org, product: product}} =
+               Accounts.create_org_with_product(user, %{name: "Doggos"}, %{name: "Ball"})
+
+      assert org.name == "Doggos"
+      assert product.org_id == org.id
+      assert {:ok, %OrgUser{role: :admin}} = Accounts.get_org_user(org, user)
+      assert [_secret] = Products.load_shared_secret_auth(product).shared_secret_auths
+    end
+
+    test "leaves no org behind when the product is refused", %{user: user} do
+      assert {:error, :product, changeset} = Accounts.create_org_with_product(user, %{name: "Doggos"}, %{name: ""})
+
+      assert %{name: ["can't be blank"]} = errors_on(changeset)
+      assert {:error, :org_not_found} = Accounts.get_org_by_name("Doggos")
+    end
+
+    test "says when the org is the one refused", %{user: user} do
+      assert {:error, :org, changeset} = Accounts.create_org_with_product(user, %{name: ""}, %{name: "Ball"})
+
+      assert %{name: ["can't be blank"]} = errors_on(changeset)
     end
   end
 end

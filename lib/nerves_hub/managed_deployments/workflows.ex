@@ -93,6 +93,30 @@ defmodule NervesHub.ManagedDeployments.Workflows do
   end
 
   @doc """
+  Every step holding a workflow open for approval across the given products,
+  longest waiting first, for a page that covers several products, such as the
+  organizations home page.
+
+  Each step comes with its release's firmware and deployment group. Only a
+  group's current release counts, which is the one `awaiting_approval/1` is
+  asked about from the group's own page.
+  """
+  @spec awaiting_approval_in_products([pos_integer()]) :: [DeploymentWorkflowStep.t()]
+  def awaiting_approval_in_products([]), do: []
+
+  def awaiting_approval_in_products(product_ids) when is_list(product_ids) do
+    DeploymentWorkflowStep
+    |> join(:inner, [s], r in assoc(s, :deployment_release))
+    |> join(:inner, [s, r], g in DeploymentGroup, on: g.current_deployment_release_id == r.id)
+    |> join(:left, [s, r], f in assoc(r, :firmware))
+    |> where([s, r, g], g.product_id in ^product_ids)
+    |> where([s], s.type == :approval_required and s.status == :in_progress and is_nil(s.approved_at))
+    |> order_by([s], asc: s.started_at, asc: s.id)
+    |> preload([s, r, g, f], deployment_release: {r, firmware: f, deployment_group: g})
+    |> Repo.all()
+  end
+
+  @doc """
   The step whose failure has stopped the workflow, if one has.
   """
   @spec failed_step(integer() | nil) :: DeploymentWorkflowStep.t() | nil
