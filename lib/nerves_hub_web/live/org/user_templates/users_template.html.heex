@@ -1,122 +1,176 @@
-<NervesHubWeb.Layouts.sidebar flash={@flash} current_scope={@current_scope} sidebar_tab={@sidebar_tab}>
-  <:header>
-    <h1 class="text-page-title text-content-strong">Users</h1>
-    <div class="mr-auto"></div>
-    <.button type="link" navigate={~p"/org/#{@org}/settings/users/invite"} aria-label="Add new user">
-      <.icon name="add" /> Add New User
-    </.button>
-  </:header>
+<NervesHubWeb.Layouts.org flash={@flash} current_scope={@current_scope} tab={@sidebar_tab} counts={@org_counts}>
+  <div class="flex flex-col gap-7">
+    <section :if={@invites != []} id="invites" aria-labelledby="invites-title" class="flex flex-col gap-2.5">
+      <div class="flex min-h-8 items-center justify-between gap-4">
+        <div class="flex items-baseline gap-2">
+          <h2 id="invites-title" class="text-group-title text-content-strong">Waiting to join</h2>
+          <span class="text-[13px] text-content-faint">{length(@invites)}</span>
+        </div>
+        <.invite_button org={@org} />
+      </div>
 
-  <h2 :if={Enum.any?(@invites)} class="px-4 py-2 text-card-title text-content-strong">Outstanding Invites</h2>
-  <div :if={Enum.any?(@invites)} class="listing grow-0! pb-10">
-    <table>
-      <thead>
-        <tr>
-          <th>Email</th>
-          <th>Role</th>
-          <th>Invited by</th>
-          <th class="w-px"></th>
-        </tr>
-      </thead>
-      <tbody>
-        <%= for invite <- @invites do %>
-          <tr class="isolate border-b border-line-subtle">
-            <td class="text-content-muted">{invite.email}</td>
-            <td class="text-content-muted capitalize">{invite.role}</td>
-            <td class="text-content-muted">{invited_by_name(invite)}</td>
-            <td class="w-px text-right whitespace-nowrap">
-              <div class="flex justify-end gap-2">
-                <.button
-                  id={"copy-invite-#{invite.id}"}
-                  style="secondary"
-                  type="button"
-                  phx-hook="CopyToClipboard"
-                  data-copy-value={authorized?(:"org_user:invite:resend", @current_scope) && invite_url(invite)}
-                  disabled={!authorized?(:"org_user:invite:resend", @current_scope)}
-                  title={invite_action_title(authorized?(:"org_user:invite:resend", @current_scope), "Copy the invite link")}
-                >
-                  <span data-icon="copy" class="lucide-copy size-4"></span>
-                  <span data-icon="check" class="lucide-check hidden size-4 text-success"></span> Copy invite link
-                </.button>
-                <.button
-                  style="secondary"
-                  type="button"
-                  phx-click="resend_invite"
-                  phx-value-invite_token={authorized?(:"org_user:invite:resend", @current_scope) && invite.token}
-                  disabled={!authorized?(:"org_user:invite:resend", @current_scope)}
-                  title={invite_action_title(authorized?(:"org_user:invite:resend", @current_scope), "Send the invitation email again")}
-                  data-confirm={"Resend the invitation to #{invite.email}? This sends a new link and stops the previous one working."}
-                >
-                  <span class="lucide-mail size-4"></span> Resend invite
-                </.button>
-                <.button
-                  style="danger"
-                  type="button"
-                  phx-click="rescind_invite"
-                  phx-value-invite_token={authorized?(:"org_user:invite:rescind", @current_scope) && invite.token}
-                  disabled={!authorized?(:"org_user:invite:rescind", @current_scope)}
-                  title={invite_action_title(authorized?(:"org_user:invite:rescind", @current_scope), "Withdraw the invitation")}
-                  data-confirm="Are you sure you want to rescind the invite?"
-                >
-                  Rescind
-                </.button>
-              </div>
-            </td>
-          </tr>
-        <% end %>
-      </tbody>
-    </table>
-  </div>
+      <% can_manage_invites? = authorized?(:"org_user:invite:resend", @current_scope) %>
+      <% can_rescind? = authorized?(:"org_user:invite:rescind", @current_scope) %>
+      <div
+        :for={invite <- @invites}
+        id={"invite-#{invite.id}"}
+        class="flex flex-wrap items-center gap-x-4 gap-y-3 rounded-lg border border-dashed border-line-strong px-4 py-3.5 md:px-5"
+      >
+        <span class="flex size-8 shrink-0 items-center justify-center rounded-full border border-dashed border-line-strong" aria-hidden="true">
+          <span class="lucide-mail size-3.5 text-content-muted"></span>
+        </span>
+        <div class="flex min-w-0 flex-1 basis-56 flex-col gap-0.5">
+          <p class="truncate text-sm font-medium text-content-strong">{invite.email}</p>
+          <p class="text-xs text-content-muted">
+            Invited as {role_label(invite.role)}<span :if={invited_by_name(invite)}> by {invited_by_name(invite)}</span>
+            <span class="text-content-faint">·</span> {from_now(invite.inserted_at)}
+          </p>
+        </div>
+        <div class="flex shrink-0 items-center gap-2">
+          <.button
+            id={"copy-invite-#{invite.id}"}
+            size="sm"
+            type="button"
+            phx-hook="CopyToClipboard"
+            data-copy-value={can_manage_invites? && invite_url(invite)}
+            disabled={!can_manage_invites?}
+            title={invite_action_title(can_manage_invites?, "Copy the invite link")}
+          >
+            <span data-icon="copy" class="lucide-copy size-3.5 text-content-muted" aria-hidden="true"></span>
+            <span data-icon="check" class="lucide-check hidden size-3.5 text-success" aria-hidden="true"></span> Copy link
+          </.button>
+          <.button
+            size="sm"
+            type="button"
+            phx-click="resend_invite"
+            phx-value-invite_token={can_manage_invites? && invite.token}
+            disabled={!can_manage_invites?}
+            title={invite_action_title(can_manage_invites?, "Send the invitation email again")}
+            data-confirm={"Resend the invitation to #{invite.email}? This sends a new link and stops the previous one working."}
+          >
+            Resend
+          </.button>
+          <button
+            type="button"
+            phx-click="rescind_invite"
+            phx-value-invite_token={can_rescind? && invite.token}
+            disabled={!can_rescind?}
+            title={invite_action_title(can_rescind?, "Withdraw the invitation")}
+            data-confirm={"Withdraw the invitation to #{invite.email}?"}
+            class="rounded px-2 py-1 text-xs font-medium text-alert-content hover:cursor-pointer hover:bg-alert-soft disabled:cursor-not-allowed disabled:text-content-faint disabled:hover:bg-transparent"
+          >
+            Rescind
+          </button>
+        </div>
+      </div>
+    </section>
 
-  <h2 :if={Enum.any?(@invites)} class="px-4 py-2 text-card-title text-content-strong">Active Memberships</h2>
-  <div class="listing">
-    <table>
-      <thead>
-        <tr>
-          <th>User name</th>
-          <th>Email</th>
-          <th>Role</th>
-          <th>Added on</th>
-          <th></th>
-        </tr>
-      </thead>
-      <tbody>
-        <%= for org_user <- @org_users do %>
-          <tr class="isolate border-b border-line-subtle">
-            <td>
-              <.link navigate={~p"/org/#{@org}/settings/users/#{org_user.user_id}/edit"} class="text-content-body hover:text-base-100">
-                {org_user.user.name}
-              </.link>
-            </td>
-            <td>{org_user.user.email}</td>
-            <td class="text-content-muted capitalize">{org_user.role}</td>
-            <td class="text-content-muted">
-              <div><.local_datetime at={org_user.user.inserted_at} time_zone={@time_zone} format={:long_date} zone_label={false} /></div>
-            </td>
-            <td class="text-right">
-              <div class="flex justify-end gap-2">
-                <.button
-                  :if={authorized?(:"org_user:update", @current_scope) && org_user.user.id != @current_scope.user.id}
-                  type="link"
-                  navigate={~p"/org/#{@org}/settings/users/#{org_user.user_id}/edit"}
+    <section id="members" aria-labelledby="members-title" class="flex flex-col gap-2.5">
+      <div class="flex min-h-8 items-center justify-between gap-4">
+        <div class="flex items-baseline gap-2">
+          <h2 id="members-title" class="text-group-title text-content-strong">Members</h2>
+          <span class="text-[13px] text-content-faint">{length(@org_users)}</span>
+        </div>
+        <div class="flex items-center gap-4">
+          <p id="members-roles" class="hidden text-xs text-content-muted sm:block">
+            <%= for {label, index} <- Enum.with_index(role_summary(@org_users)) do %>
+              <span :if={index > 0} class="text-content-faint">·</span> {label}
+            <% end %>
+          </p>
+          <.invite_button :if={@invites == []} org={@org} />
+        </div>
+      </div>
+
+      <% can_update? = authorized?(:"org_user:update", @current_scope) %>
+      <div class="rounded-lg border border-line-default bg-surface-raised shadow-card" role="table" aria-label={"#{@org.name} members"}>
+        <div role="row" class="flex h-9 items-center gap-4 rounded-t-lg border-b border-line-subtle bg-surface px-4 md:px-5">
+          <span role="columnheader" class="flex-1 text-[11px]/3.5 font-medium tracking-[0.06em] text-content-faint uppercase">Name</span>
+          <span role="columnheader" class="w-24 text-[11px]/3.5 font-medium tracking-[0.06em] text-content-faint uppercase md:w-35">Role</span>
+          <span role="columnheader" class="hidden w-35 text-[11px]/3.5 font-medium tracking-[0.06em] text-content-faint uppercase md:block">
+            Member since
+          </span>
+          <span class="w-7" aria-hidden="true"></span>
+        </div>
+
+        <div
+          :for={org_user <- @org_users}
+          role="row"
+          id={"member-#{org_user.user_id}"}
+          class="flex min-h-14 items-center gap-4 border-b border-line-subtle px-4 py-2.5 last:border-0 md:px-5"
+        >
+          <% you? = org_user.user_id == @current_scope.user.id %>
+          <div role="cell" class="flex min-w-0 flex-1 items-center gap-3">
+            <.member_avatar user={org_user.user} />
+            <div class="flex min-w-0 flex-col gap-px">
+              <p class="flex items-center gap-1.5 text-sm/4.5 font-medium text-content-strong">
+                <span class="truncate">{org_user.user.name}</span>
+                <span :if={you?} class="shrink-0 text-xs font-normal text-content-faint">you</span>
+              </p>
+              <p class="truncate text-xs text-content-muted">{org_user.user.email}</p>
+            </div>
+          </div>
+
+          <div role="cell" class="w-24 shrink-0 md:w-35">
+            <%= if can_update? && !you? do %>
+              <form id={"role-form-#{org_user.user_id}"} phx-change="change_role">
+                <input type="hidden" name="user_id" value={org_user.user_id} />
+                <label for={"role-#{org_user.user_id}"} class="sr-only">Role for {org_user.user.name}</label>
+                <select
+                  id={"role-#{org_user.user_id}"}
+                  name="role"
+                  class="-ml-2 h-7 w-auto rounded border-0 bg-transparent py-0 pr-7 pl-2 text-[13px] text-content-body hover:cursor-pointer hover:bg-surface-muted focus:ring-2 focus:ring-focus-ring"
                 >
-                  Edit Role
-                </.button>
-                <.button
-                  :if={can_remove?(org_user, @current_scope, @admin_count)}
-                  style="danger"
-                  id={"remove-user-#{org_user.user_id}"}
-                  phx-click="delete_org_user"
-                  phx-value-user_id={org_user.user_id}
-                  data-confirm={remove_user_message(org_user, @current_scope)}
-                >
-                  Remove
-                </.button>
+                  {Phoenix.HTML.Form.options_for_select(Utils.role_options(), org_user.role)}
+                </select>
+              </form>
+            <% else %>
+              <span class="text-[13px] text-content-body">{role_label(org_user.role)}</span>
+            <% end %>
+          </div>
+
+          <div role="cell" class="hidden w-35 shrink-0 text-[13px] text-content-muted md:block">
+            {Calendar.strftime(org_user.inserted_at, "%B %Y")}
+          </div>
+
+          <div role="cell" class="relative w-7 shrink-0">
+            <%= if can_remove?(org_user, @current_scope, @admin_count) do %>
+              <button
+                type="button"
+                id={"member-#{org_user.user_id}-menu-toggle"}
+                phx-click={toggle_menu(org_user.user_id)}
+                aria-haspopup="menu"
+                aria-label={"Actions for #{org_user.user.name}"}
+                class="flex size-7 items-center justify-center rounded text-content-muted hover:cursor-pointer hover:bg-surface-muted hover:text-content-strong"
+              >
+                <span class="lucide-ellipsis size-4" aria-hidden="true"></span>
+              </button>
+              <div
+                id={"member-#{org_user.user_id}-menu"}
+                class="hidden"
+                phx-click-away={hide_menu(org_user.user_id)}
+                phx-window-keydown={hide_menu(org_user.user_id)}
+                phx-key="escape"
+              >
+                <div role="menu" class="absolute top-8 right-0 z-30 flex w-56 flex-col rounded-md border border-line-default bg-surface-overlay p-1 shadow-overlay">
+                  <button
+                    type="button"
+                    role="menuitem"
+                    id={"remove-user-#{org_user.user_id}"}
+                    phx-click="delete_org_user"
+                    phx-value-user_id={org_user.user_id}
+                    data-confirm={remove_user_message(org_user, @current_scope)}
+                    class="flex items-center gap-2 rounded px-2 py-1.5 text-left text-sm text-alert-content hover:cursor-pointer hover:bg-alert-soft"
+                  >
+                    <span :if={you?} class="lucide-log-out size-4" aria-hidden="true"></span>
+                    <span :if={!you?} class="lucide-user-minus size-4" aria-hidden="true"></span>
+                    {if you?, do: "Leave organization", else: "Remove from organization"}
+                  </button>
+                </div>
               </div>
-            </td>
-          </tr>
-        <% end %>
-      </tbody>
-    </table>
+            <% end %>
+          </div>
+        </div>
+      </div>
+    </section>
   </div>
-</NervesHubWeb.Layouts.sidebar>
+</NervesHubWeb.Layouts.org>

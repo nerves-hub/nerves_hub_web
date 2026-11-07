@@ -1,9 +1,7 @@
-<NervesHubWeb.Layouts.sidebar flash={@flash} current_scope={@current_scope} sidebar_tab={@sidebar_tab}>
-  <:header>
-    <h1 class="text-page-title text-content-strong">Add New User</h1>
-  </:header>
+<NervesHubWeb.Layouts.org flash={@flash} current_scope={@current_scope} tab={@sidebar_tab} counts={@org_counts}>
+  <NervesHubWeb.Layouts.org_heading title="Add New User" back={~p"/org/#{@org}/settings/users"} />
 
-  <div class="max-w-[650px] px-6 py-4">
+  <div class="max-w-[650px]">
     <p class="mb-6 text-sm text-content-muted">An invitation will be sent to join {@org.name}. Invites expire in 48 hours.</p>
 
     <.form :let={f} id="invite-form" for={@form} phx-submit="send_invite">
@@ -49,4 +47,4 @@
       </div>
     </.form>
   </div>
-</NervesHubWeb.Layouts.sidebar>
+</NervesHubWeb.Layouts.org>

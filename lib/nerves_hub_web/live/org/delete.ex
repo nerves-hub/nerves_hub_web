@@ -2,6 +2,9 @@ defmodule NervesHubWeb.Live.Org.Delete do
   use NervesHubWeb, :live_view
 
   alias NervesHub.Accounts
+  alias NervesHubWeb.Mounts.OrgCounts
+
+  on_mount(OrgCounts)
 
   @impl Phoenix.LiveView
   def mount(_params, _session, %{assigns: %{current_scope: scope}} = socket) do

@@ -1,45 +1,45 @@
 defmodule NervesHubWeb.Live.Org.Integrations.SlackSection do
   @moduledoc """
-  The Slack card on the organization's Integrations page: the workspaces the
-  organization is connected to, and the channels of each that its device
-  events are posted to.
+  Slack's rows in the Integrations page's chat channels table: the channels
+  of the organization's Slack workspaces that its device events are posted
+  to, and the dialog a channel is added and edited in.
+
+  The page loads the workspaces' connections, with their channels
+  (`connections`), and passes them in. It draws each workspace's line at the
+  foot of the table, whose Disconnect button sends `disconnect` here, and
+  opens the dialog for a new channel from its Add integration menu, with
+  `new-channel` and the connection. After a change it is told
+  (`:integrations_changed`) and loads them again.
 
   Connecting and disconnecting a workspace takes an admin; choosing channels
   and events takes the manage role, as webhooks do. Everyone in the
   organization sees what is connected and where events go.
 
   The channel picker lists what Slack says the app can post to, read when the
-  form opens. A channel is saved only if it was in that list, so the form
+  dialog opens. A channel is saved only if it was in that list, so the form
   cannot be used to aim the app at a channel id typed in by hand.
 
-  Flash messages go to the parent LiveView (`{:put_flash, kind, message}`):
-  a component's own flash is only shown when it navigates.
+  Flash messages go to the page (`{:put_flash, kind, message}`): a
+  component's own flash is only shown when it navigates.
   """
   use NervesHubWeb, :live_component
+
+  import NervesHubWeb.Live.Org.Integrations.Components
 
   alias NervesHub.Branding
   alias NervesHub.Integrations.ChannelEvents
   alias NervesHub.Integrations.Slack
   alias NervesHub.Integrations.Slack.Subscription
   alias NervesHub.Integrations.Slack.Subscriptions
-  alias Phoenix.HTML.Form
   alias Phoenix.LiveView.AsyncResult
   alias Phoenix.LiveView.JS
 
   @impl Phoenix.LiveComponent
   def mount(socket) do
     socket
-    |> assign(:events, ChannelEvents.all())
+    |> assign(:event_columns, channel_event_columns())
     |> assign(:testing, MapSet.new())
     |> close_form()
-    |> ok()
-  end
-
-  @impl Phoenix.LiveComponent
-  def update(assigns, socket) do
-    socket
-    |> assign(assigns)
-    |> assign_connections()
     |> ok()
   end
 
@@ -52,7 +52,7 @@ defmodule NervesHubWeb.Live.Org.Integrations.SlackSection do
 
     socket
     |> close_form()
-    |> assign_connections()
+    |> changed()
     |> flash(:info, "Disconnected the #{connection.workspace.team_name} Slack workspace.")
     |> noreply()
   end
@@ -123,7 +123,7 @@ defmodule NervesHubWeb.Live.Org.Integrations.SlackSection do
          }) do
       {:ok, updated} ->
         socket
-        |> assign_connections()
+        |> changed()
         |> flash(:info, "Posting to ##{updated.channel_name} is #{if updated.enabled, do: "on", else: "off"}.")
         |> noreply()
 
@@ -142,7 +142,7 @@ defmodule NervesHubWeb.Live.Org.Integrations.SlackSection do
 
     socket
     |> close_form()
-    |> assign_connections()
+    |> changed()
     |> flash(:info, "NervesHub stopped posting to ##{subscription.channel_name}.")
     |> noreply()
   end
@@ -221,7 +221,7 @@ defmodule NervesHubWeb.Live.Org.Integrations.SlackSection do
   defp saved({:ok, _subscription}, socket, message) do
     socket
     |> close_form()
-    |> assign_connections()
+    |> changed()
     |> flash(:info, message)
     |> noreply()
   end
@@ -249,16 +249,17 @@ defmodule NervesHubWeb.Live.Org.Integrations.SlackSection do
 
   defp listed_channel(_socket, _id), do: nil
 
-  defp assign_connections(socket) do
-    assign(socket, :connections, Slack.list_connections(socket.assigns.org))
-  end
-
   defp close_form(socket) do
     socket
     |> assign(:editing, nil)
     |> assign(:form, nil)
     |> assign(:selected_channel, nil)
     |> assign(:channels, nil)
+  end
+
+  defp changed(socket) do
+    send(self(), :integrations_changed)
+    socket
   end
 
   defp flash(socket, kind, message) do
@@ -269,38 +270,6 @@ defmodule NervesHubWeb.Live.Org.Integrations.SlackSection do
   defp form_subject({:new, _connection}), do: %Subscription{products: []}
   defp form_subject(%Subscription{} = subscription), do: subscription
 
-  # The checkboxes post a blank alongside the checked boxes, so that unticking
-  # every box still sends the field and the changeset can say one is needed.
-  defp form_params(params) do
-    params
-    |> Map.update("events", [], &drop_blank/1)
-    |> Map.update("products", [], &drop_blank/1)
-  end
-
-  defp drop_blank(values), do: Enum.reject(List.wrap(values), &(&1 == ""))
-
-  defp editing_connection?({:new, %{id: id}}, %{id: id}), do: true
-  defp editing_connection?(%Subscription{connection_id: id}, %{id: id}), do: true
-  defp editing_connection?(_editing, _connection), do: false
-
-  defp all_products?(form), do: Form.normalize_value("checkbox", form[:all_products].value)
-
-  defp selected_products(form) do
-    form.source
-    |> Ecto.Changeset.get_field(:products, [])
-    |> MapSet.new(& &1.name)
-  end
-
-  defp selected_events(form), do: form[:events].value || []
-
-  defp checkbox_errors(form, field) do
-    if Phoenix.Component.used_input?(form[field]) do
-      Enum.map(form[field].errors, &NervesHubWeb.CoreComponents.translate_error/1)
-    else
-      []
-    end
-  end
-
   defp channel_options(channels) do
     Enum.map(channels, fn
       %{private: true} = channel -> {"#{channel.name} (private)", channel.id}
@@ -308,41 +277,17 @@ defmodule NervesHubWeb.Live.Org.Integrations.SlackSection do
     end)
   end
 
-  defp scope_label(%Subscription{all_products: true}), do: "Every product"
-  defp scope_label(%Subscription{products: []}), do: "No products"
-  defp scope_label(%Subscription{products: products}), do: Enum.map_join(products, ", ", & &1.name)
+  defp status(%Subscription{enabled: false}), do: :off
+  defp status(%Subscription{last_error: error}) when is_binary(error), do: :failing
+  defp status(%Subscription{}), do: :on
+
+  defp event_labels(subscription), do: Enum.map(subscription.events, &ChannelEvents.label/1)
+
+  defp dialog_title({:new, _connection}), do: "Add a Slack channel"
+  defp dialog_title(%Subscription{channel_name: name}), do: "Edit ##{name}"
 
   defp error_message({:rate_limited, seconds}), do: "Slack asked NervesHub to wait #{seconds} seconds"
   defp error_message(error), do: to_string(error)
 
-  defp toggle_menu(id) do
-    JS.toggle(
-      to: "#slack-subscription-#{id}-menu",
-      in: {"ease-out duration-150", "opacity-0", "opacity-100"},
-      out: {"ease-out duration-150", "opacity-100", "opacity-0"}
-    )
-  end
-
-  defp hide_menu(js \\ %JS{}, id) do
-    JS.hide(js,
-      to: "#slack-subscription-#{id}-menu",
-      transition: {"ease-out duration-150", "opacity-100", "opacity-0"}
-    )
-  end
-
-  attr(:subscription, Subscription, required: true)
-
-  defp status_badge(assigns) do
-    ~H"""
-    <.badge :if={!@subscription.enabled}>
-      Off
-    </.badge>
-    <.badge :if={@subscription.enabled && @subscription.last_error} tone="alert">
-      Failing
-    </.badge>
-    <.badge :if={@subscription.enabled && is_nil(@subscription.last_error)} tone="success">
-      On
-    </.badge>
-    """
-  end
+  defp row_id(subscription), do: "slack-subscription-#{subscription.id}"
 end
