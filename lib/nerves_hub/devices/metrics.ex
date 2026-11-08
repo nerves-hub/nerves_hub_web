@@ -55,9 +55,15 @@ defmodule NervesHub.Devices.Metrics do
   # One notification per device per minute, whatever the report. The budget is
   # per device rather than per product: a single broken device in a large fleet
   # should not stop its neighbours' problems being reported.
+  #
+  # Hammer's token bucket refills a whole number of tokens a second, so a minute
+  # is a bucket that takes sixty seconds to fill and a notification that empties
+  # it. That spaces notifications a minute after the last one raised, where a
+  # fixed one-minute window would let one through either side of the minute
+  # boundary, seconds apart.
   @rate_limit_tokens_per_sec 1
-  @rate_limit_max_capacity 1
-  @rate_limit_token_cost 1
+  @rate_limit_max_capacity 60
+  @rate_limit_token_cost 60
 
   @default_metrics [
     "cpu_temp",
