@@ -3,8 +3,10 @@ defmodule NervesHub.Devices.HealthEvaluation do
   Judges a device's health against its product's profile, as each metric
   report arrives — on the `metrics` extension or the `health` extension,
   both of which store through `NervesHub.Devices.Metrics.record/3` and
-  judge through here. Stateless, per report, in the channel process: no
-  cache, no process, no state anywhere.
+  judge through here. The judgement itself is stateless, and runs per
+  report, but not in the call that delivered the report: that call is what
+  the process holding the device's connection waits on, so the report queues
+  its evaluation on `NervesHub.Devices.HealthEvaluation.Queue` and returns.
 
   ## The counting semantic
 
