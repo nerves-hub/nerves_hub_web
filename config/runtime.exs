@@ -158,11 +158,15 @@ config :nerves_hub,
     ],
     health: [
       interval_minutes: System.get_env("FEATURES_HEALTH_INTERVAL_MINUTES", "60") |> String.to_integer(),
-      ui_polling_seconds: System.get_env("FEATURES_HEALTH_UI_POLLING_SECONDS", "60") |> String.to_integer()
+      ui_polling_seconds: System.get_env("FEATURES_HEALTH_UI_POLLING_SECONDS", "60") |> String.to_integer(),
+      first_check_window_seconds:
+        System.get_env("FEATURES_HEALTH_FIRST_CHECK_WINDOW_SECONDS", "60") |> String.to_integer()
     ],
     metrics: [
       interval_minutes: System.get_env("FEATURES_METRICS_INTERVAL_MINUTES", "15") |> String.to_integer(),
-      ui_polling_seconds: System.get_env("FEATURES_METRICS_UI_POLLING_SECONDS", "60") |> String.to_integer()
+      ui_polling_seconds: System.get_env("FEATURES_METRICS_UI_POLLING_SECONDS", "60") |> String.to_integer(),
+      first_check_window_seconds:
+        System.get_env("FEATURES_METRICS_FIRST_CHECK_WINDOW_SECONDS", "60") |> String.to_integer()
     ],
     logging: [
       days_to_keep: String.to_integer(System.get_env("EXTENSIONS_LOGGING_DAYS_TO_KEEP", "3"))

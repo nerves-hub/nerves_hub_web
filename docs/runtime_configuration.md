@@ -458,8 +458,10 @@ instance-wide intervals.
 | `FEATURES_GEO_INTERVAL_MINUTES` | `0` | How often a device reports its location. `0` means once, on connection. |
 | `FEATURES_HEALTH_INTERVAL_MINUTES` | `60` | How often a device reports health metrics. |
 | `FEATURES_HEALTH_UI_POLLING_SECONDS` | `60` | How often the health pages refresh. |
+| `FEATURES_HEALTH_FIRST_CHECK_WINDOW_SECONDS` | `60` | After a device connects, it is asked for a health report at a random point in this window, so a fleet that reconnects together doesn't report together. A device whose page is open is asked straight away. `0` asks every device straight away. |
 | `FEATURES_METRICS_INTERVAL_MINUTES` | `15` | How often a device on the `metrics` extension reports, while nobody has its page open. |
 | `FEATURES_METRICS_UI_POLLING_SECONDS` | `60` | How often it reports while somebody does. |
+| `FEATURES_METRICS_FIRST_CHECK_WINDOW_SECONDS` | `60` | The same window for the `metrics` extension's first report. |
 | `EXTENSIONS_LOGGING_DAYS_TO_KEEP` | `3` | Days of device logs kept. |
 
 ## Device metrics

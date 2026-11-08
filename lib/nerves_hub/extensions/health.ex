@@ -18,6 +18,11 @@ defmodule NervesHub.Extensions.Health do
       `ui_polling_seconds` (a minute by default), because somebody is reading
       the numbers and a stale reading is the thing they would notice.
 
+  Attaching asks for a report ahead of the timer: straight away while watched,
+  and at a random point within `first_check_window_seconds` (a minute by
+  default) otherwise, so a fleet reconnecting together does not report
+  together.
+
   Both transitions come from `NervesHub.Extensions.PubSub`, and they are not
   symmetric: opening a page announces itself, closing one cannot. See
   `NervesHub.Extensions.PubSub.watch/2` for why each direction works the
@@ -40,6 +45,7 @@ defmodule NervesHub.Extensions.Health do
 
   @default_interval_minutes 60
   @default_ui_polling_seconds 60
+  @default_first_check_window_seconds 60
 
   @impl NervesHub.Extensions
   def description() do
@@ -55,8 +61,8 @@ defmodule NervesHub.Extensions.Health do
 
   @impl NervesHub.Extensions
   def attach(state) do
-    # Ask for a report immediately, then on an interval. The tick is delivered
-    # before the first timer fires, which preserves the previous ordering.
+    # Ask for a report soon, then on an interval; see `first_check/1` for how
+    # soon.
     #
     # The pace is settled here rather than starting slow and being told,
     # because a page that was already open when the device connected has
@@ -64,12 +70,12 @@ defmodule NervesHub.Extensions.Health do
     # to announce it to.
     mode = current_mode(state)
 
-    {State.assign(state, :mode, mode), [{:tick, :check}, timer(mode)]}
+    {State.assign(state, :mode, mode), [first_check(mode), timer(mode)]}
   end
 
   @impl NervesHub.Extensions
   def detach(state) do
-    {State.assign(state, :mode, nil), [{:cancel_timer, :check}]}
+    {State.assign(state, :mode, nil), [{:cancel_timer, :check}, {:cancel_timer, :first_check}]}
   end
 
   @impl NervesHub.Extensions
@@ -95,8 +101,10 @@ defmodule NervesHub.Extensions.Health do
 
     # Metadata rides the connection, not the health row: it describes the
     # device as this connection found it, and a reconnect resets it and is
-    # followed immediately by a fresh report (`attach/1` sends a check ahead of
-    # the timer).
+    # followed soon by a fresh report (`attach/1` sends a check ahead of the
+    # timer). Straight away if somebody has the device's page open, which is
+    # the only place connection metadata is read; within the first check
+    # window otherwise.
     :ok = merge_metadata(device_info, device_report["metadata"])
 
     in_hand = for {key, value} <- metrics, is_number(value), do: {key, now, value}
@@ -127,6 +135,9 @@ defmodule NervesHub.Extensions.Health do
     {state, [{:push, "health:check", %{}} | effects]}
   end
 
+  # The one-off check after attaching, which is any other check.
+  def handle_info(:first_check, state), do: handle_info(:check, state)
+
   # A device Show LiveView has opened on this device. Announced rather than
   # discovered so that speeding up does not wait on the join replicating to
   # whichever node this is running on; see
@@ -136,8 +147,9 @@ defmodule NervesHub.Extensions.Health do
       {state, []}
     else
       # Somebody has just opened the page and is looking at numbers taken up to
-      # an hour ago, so this asks straight away rather than in a minute.
-      {State.assign(state, :mode, :watched), [{:tick, :check}, timer(:watched)]}
+      # an hour ago, so this asks straight away rather than in a minute -- and
+      # instead of the first check, if that has not happened yet.
+      {State.assign(state, :mode, :watched), [{:cancel_timer, :first_check}, {:tick, :check}, timer(:watched)]}
     end
   end
 
@@ -153,6 +165,20 @@ defmodule NervesHub.Extensions.Health do
 
   defp current_mode(state) do
     if PubSub.watched?(device_id(state), :health), do: :watched, else: :idle
+  end
+
+  # Somebody is looking, so ask now. Only a handful of devices are watched at
+  # any one time, so this is not what makes a fleet answer together.
+  defp first_check(:watched), do: {:tick, :check}
+
+  # Nobody is. A fleet reconnecting together would otherwise all report at
+  # once; see `NervesHub.Extensions.Jitter`. A separate tag from `:check`, so
+  # the interval timer keeps its own offset across the whole interval.
+  defp first_check(:idle) do
+    case first_check_window_ms() do
+      0 -> {:tick, :check}
+      window -> {:send_after, :first_check, Jitter.first_check_delay(window)}
+    end
   end
 
   # Replaces whatever is armed under `:check`; see `NervesHubWeb.Channels.Effects`.
@@ -206,6 +232,13 @@ defmodule NervesHub.Extensions.Health do
     case config([:health, :ui_polling_seconds]) do
       i when is_integer(i) and i > 0 -> i
       _ -> @default_ui_polling_seconds
+    end
+  end
+
+  defp first_check_window_ms() do
+    case config([:health, :first_check_window_seconds]) do
+      i when is_integer(i) and i >= 0 -> to_timeout(second: i)
+      _ -> to_timeout(second: @default_first_check_window_seconds)
     end
   end
 
