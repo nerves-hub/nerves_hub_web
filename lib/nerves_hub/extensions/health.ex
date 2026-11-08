@@ -28,7 +28,7 @@ defmodule NervesHub.Extensions.Health do
 
   alias NervesHub.Devices.Alarms
   alias NervesHub.Devices.Connections
-  alias NervesHub.Devices.HealthEvaluation
+  alias NervesHub.Devices.HealthEvaluation.Queue, as: HealthEvaluationQueue
   alias NervesHub.Devices.Metrics
   alias NervesHub.Extensions.Jitter
   alias NervesHub.Extensions.PubSub
@@ -101,7 +101,10 @@ defmodule NervesHub.Extensions.Health do
 
     in_hand = for {key, value} <- metrics, is_number(value), do: {key, now, value}
 
-    _ = HealthEvaluation.evaluate_and_save(device_info, in_hand)
+    # Queued rather than run here: judging queries ClickHouse, and this call is
+    # what the process holding the device's connection is waiting on. See
+    # `NervesHub.Devices.HealthEvaluation.Queue`.
+    :ok = HealthEvaluationQueue.enqueue(device_info, in_hand)
 
     :ok =
       Integrations.dispatch(device_info.product_id, "device.health_reported", fn ->

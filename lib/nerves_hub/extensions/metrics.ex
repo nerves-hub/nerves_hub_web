@@ -59,7 +59,7 @@ defmodule NervesHub.Extensions.Metrics do
   @behaviour NervesHub.Extensions
 
   alias NervesHub.DeviceLink.DeviceInfo
-  alias NervesHub.Devices.HealthEvaluation
+  alias NervesHub.Devices.HealthEvaluation.Queue, as: HealthEvaluationQueue
   alias NervesHub.Devices.Metrics, as: Store
   alias NervesHub.Extensions.Jitter
   alias NervesHub.Extensions.PubSub
@@ -130,8 +130,9 @@ defmodule NervesHub.Extensions.Metrics do
       # The readings just recorded are still in the write buffer, so the
       # health judgement takes them in hand rather than expecting to read
       # them back. One judgement per message, however many batched reports
-      # it carried.
-      _ = HealthEvaluation.evaluate_and_save(state.device_info, in_hand_samples(reports))
+      # it carried, and queued rather than run here, for the reason
+      # `NervesHub.Devices.HealthEvaluation.Queue` gives.
+      :ok = HealthEvaluationQueue.enqueue(state.device_info, in_hand_samples(reports))
 
       :ok = dispatch_event(state.device_info, reports)
     end

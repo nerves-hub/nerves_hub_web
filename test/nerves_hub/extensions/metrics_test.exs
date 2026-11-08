@@ -14,6 +14,7 @@ defmodule NervesHub.Extensions.MetricsTest do
   alias NervesHub.AnalyticsRepo
   alias NervesHub.DeviceLink.DeviceInfo
   alias NervesHub.Devices.DeviceMetric
+  alias NervesHub.Devices.HealthEvaluation.Queue
   alias NervesHub.Extensions.Metrics
   alias NervesHub.Extensions.PubSub
   alias NervesHub.Extensions.State
@@ -63,9 +64,10 @@ defmodule NervesHub.Extensions.MetricsTest do
       ]
 
       {_state, []} = Metrics.handle_in("report", %{"reports" => reports}, state)
+      :ok = Queue.drain(device_id: device.id)
 
       # Two of three readings at or over the alert threshold: the batch's own
-      # readings are judged in hand, before any buffer flush.
+      # readings are judged in hand, flushed or not.
       device = Repo.preload(Repo.reload(device), :latest_health)
       assert device.latest_health.status == :unhealthy
       assert %{"cpu_usage_percent" => %{"value" => 67}} = device.latest_health.status_reasons["unhealthy"]
