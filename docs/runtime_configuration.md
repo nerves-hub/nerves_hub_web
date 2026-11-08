@@ -478,6 +478,22 @@ not configurable: it exists to protect a column type, not to express a policy.
 | --- | --- | --- |
 | `DEVICE_METRICS_MAX_KEYS_PER_REPORT` | `20` | Most metric names stored from one report. Raise it for genuinely wide devices. |
 
+## Health evaluation
+
+Read in every environment. A device's health and metrics reports don't judge its
+health themselves. They queue an evaluation on the node they arrived at, and a
+fixed number of workers run what is queued. See
+`NervesHub.Devices.HealthEvaluation.Queue`.
+
+Each running evaluation holds one analytics connection at a time, so keep the
+concurrency below `ANALYTICS_POOL_SIZE` × `ANALYTICS_POOL_COUNT`. The node logs a
+warning on boot if it isn't.
+
+| Variable | Default | Description |
+| --- | --- | --- |
+| `HEALTH_EVALUATION_CONCURRENCY` | half the analytics pool, at most `10` | Evaluations run at once on each node. |
+| `HEALTH_EVALUATION_MAX_AGE_SECONDS` | `60` | How long an evaluation may wait to start before it is dropped. The readings are stored either way, and the device's next report judges them. |
+
 ## Firmware formats
 
 Read in every environment. Both formats are experimental, and each also has to
