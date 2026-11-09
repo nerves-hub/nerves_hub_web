@@ -267,4 +267,45 @@ defmodule NervesHub.Devices.UpdatesTest do
       product_id: device.product_id
     }
   end
+
+  describe "failing_updates_by_product/2" do
+    test "counts a product's blocked devices that have failed, with the latest block", %{device: device} do
+      now = DateTime.utc_now(:second)
+      until = DateTime.add(now, 30, :minute)
+
+      {:ok, _} = Devices.update_device(device, %{updates_blocked_until: until, consecutive_failed_updates: 3})
+
+      assert Updates.failing_updates_by_product([device.product_id], now) == %{
+               device.product_id => %{count: 1, blocked_until: until}
+             }
+    end
+
+    test "leaves out a device that asked to be rescheduled", %{device: device} do
+      now = DateTime.utc_now(:second)
+
+      {:ok, _} =
+        Devices.update_device(device, %{
+          updates_blocked_until: DateTime.add(now, 30, :minute),
+          consecutive_failed_updates: 0
+        })
+
+      assert Updates.failing_updates_by_product([device.product_id], now) == %{}
+    end
+
+    test "leaves out a device whose block has ended", %{device: device} do
+      now = DateTime.utc_now(:second)
+
+      {:ok, _} =
+        Devices.update_device(device, %{
+          updates_blocked_until: DateTime.add(now, -1, :minute),
+          consecutive_failed_updates: 3
+        })
+
+      assert Updates.failing_updates_by_product([device.product_id], now) == %{}
+    end
+
+    test "is empty for no products" do
+      assert Updates.failing_updates_by_product([]) == %{}
+    end
+  end
 end

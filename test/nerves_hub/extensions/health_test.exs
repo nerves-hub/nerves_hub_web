@@ -26,11 +26,16 @@ defmodule NervesHub.Extensions.HealthTest do
   end
 
   describe "attaching" do
-    test "asks straight away and settles into the platform interval", %{state: state} do
+    test "asks within the first check window and settles into the platform interval", %{state: state} do
       {state, effects} = Health.attach(state)
 
       assert State.get(state, :mode) == :idle
-      assert {:tick, :check} in effects
+
+      # Not straight away: a fleet that reconnects together would answer
+      # together. A tag of its own, so the interval keeps its own offset.
+      refute {:tick, :check} in effects
+      assert [{:send_after, :first_check, first_check_ms}] = Enum.filter(effects, &match?({:send_after, _, _}, &1))
+      assert first_check_ms in 0..to_timeout(minute: 1)
       # A page announces itself on the device's extensions topic, so attaching
       # takes no membership that every node would have to hold.
       refute Enum.any?(effects, &match?({:group_join, _}, &1))
@@ -47,15 +52,38 @@ defmodule NervesHub.Extensions.HealthTest do
 
       assert State.get(state, :mode) == :watched
       assert {:start_timer, :check, @watched_ms} = timer(effects)
+
+      # Somebody is looking, so the first report is asked for at once.
+      assert {:tick, :check} in effects
+      refute Enum.any?(effects, &match?({:send_after, _, _}, &1))
     end
 
-    test "detaching gives up the timer", %{state: state} do
+    test "with no first check window, asks straight away", %{state: state} do
+      original = Application.get_env(:nerves_hub, :extension_config)
+      Application.put_env(:nerves_hub, :extension_config, health: [first_check_window_seconds: 0])
+      on_exit(fn -> Application.put_env(:nerves_hub, :extension_config, original) end)
+
+      {_state, effects} = Health.attach(state)
+
+      assert {:tick, :check} in effects
+      refute Enum.any?(effects, &match?({:send_after, _, _}, &1))
+    end
+
+    test "the first check is a check", %{state: state} do
+      {state, _effects} = Health.attach(state)
+
+      {_state, effects} = Health.handle_info(:first_check, state)
+
+      assert {:push, "health:check", %{}} in effects
+    end
+
+    test "detaching gives up the timers", %{state: state} do
       {state, _effects} = Health.attach(state)
 
       {state, effects} = Health.detach(state)
 
       assert State.get(state, :mode) == nil
-      assert effects == [{:cancel_timer, :check}]
+      assert effects == [{:cancel_timer, :check}, {:cancel_timer, :first_check}]
     end
   end
 
@@ -68,6 +96,9 @@ defmodule NervesHub.Extensions.HealthTest do
       assert State.get(state, :mode) == :watched
       assert {:tick, :check} in effects
       assert {:start_timer, :check, @watched_ms} = timer(effects)
+
+      # In place of the first check, if it has not come yet.
+      assert {:cancel_timer, :first_check} in effects
     end
 
     test "a second page changes nothing", %{device_id: device_id, state: state} do

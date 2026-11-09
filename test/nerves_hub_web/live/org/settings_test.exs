@@ -3,13 +3,14 @@ defmodule NervesHubWeb.Live.Org.SettingsTest do
   use Mimic
 
   alias NervesHub.Accounts
+  alias NervesHub.Fixtures
 
   test "updates org name", %{conn: conn, org: org} do
     conn
     |> visit("/org/#{org.name}/settings")
-    |> assert_has("h1", text: "Organization Settings")
-    |> fill_in("Organization Name", with: "MyAmazingOrganization", exact: false)
-    |> click_button("Save Changes")
+    |> assert_has("h2", text: "Organization name")
+    |> fill_in("Organization name", with: "MyAmazingOrganization", exact: false)
+    |> click_button("Save name")
     |> assert_path("/org/MyAmazingOrganization/settings")
     |> assert_has("div", text: "Organization updated")
   end
@@ -17,11 +18,41 @@ defmodule NervesHubWeb.Live.Org.SettingsTest do
   test "requires a name with no spaces", %{conn: conn, org: org} do
     conn
     |> visit("/org/#{org.name}/settings")
-    |> assert_has("h1", text: "Organization Settings")
-    |> fill_in("Organization Name", with: "My Amazing Organization", exact: false)
-    |> click_button("Save Changes")
+    |> assert_has("h2", text: "Organization name")
+    |> fill_in("Organization name", with: "My Amazing Organization", exact: false)
+    |> click_button("Save name")
     |> assert_path("/org/#{org.name}/settings")
     |> assert_has(".help-block", text: "has invalid format")
+  end
+
+  test "says what deleting the org takes with it", %{conn: conn, org: org, user: user, product: product} do
+    conn
+    |> visit("/org/#{org.name}/settings")
+    |> assert_has("#delete-org-summary", text: "Deletes #{org.name} and its 1 product, #{product.name}")
+    |> click_link("Delete organization…")
+    |> assert_path("/org/#{org.name}/settings/delete")
+
+    Fixtures.product_fixture(user, org, %{name: "aaa-probe"})
+    Fixtures.product_fixture(user, org, %{name: "zzz-probe"})
+
+    conn
+    |> visit("/org/#{org.name}/settings")
+    |> assert_has("#delete-org-summary",
+      text: "Deletes #{org.name} and its 3 products: aaa-probe, #{product.name} and zzz-probe"
+    )
+  end
+
+  test "a member who isn't an admin can't rename or delete the org", %{org: org} do
+    viewer = Fixtures.user_fixture()
+    {:ok, _} = Accounts.add_org_user(org, viewer, %{role: :manage})
+
+    build_conn()
+    |> init_test_session(%{"user_token" => Accounts.create_user_session_token(viewer)})
+    |> visit("/org/#{org.name}/settings")
+    |> assert_has("input#name_input[disabled]")
+    |> assert_has("button[disabled]", text: "Save name")
+    |> assert_has("button[disabled]", text: "Delete organization…")
+    |> refute_has("a", text: "Delete organization…")
   end
 
   describe "delete" do

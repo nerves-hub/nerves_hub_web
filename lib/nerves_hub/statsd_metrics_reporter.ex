@@ -55,6 +55,16 @@ defmodule NervesHub.StatsdMetricsReporter do
         tags: [:route, :env, :service],
         unit: {:native, :millisecond}
       ),
+      counter("nerves_hub.health_evaluation.evaluated.count", tags: [:env, :service, :result]),
+      distribution("nerves_hub.health_evaluation.evaluated.wait_time",
+        tags: [:env, :service],
+        unit: {:native, :millisecond}
+      ),
+      distribution("nerves_hub.health_evaluation.evaluated.duration",
+        tags: [:env, :service],
+        unit: {:native, :millisecond}
+      ),
+      counter("nerves_hub.health_evaluation.dropped.count", tags: [:env, :service]),
       counter("nerves_hub.repo.query.count", tags: [:env, :service]),
       distribution("nerves_hub.repo.query.idle_time",
         tags: [:env, :service],

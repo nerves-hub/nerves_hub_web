@@ -166,7 +166,7 @@ defmodule NervesHubWeb.Components.DevicePage.ConsoleTab do
     # disable top-8
     |> JS.toggle_class("top-8", to: "#terminal-controls")
     |> JS.toggle_class("top-4", to: "#terminal-controls")
-    |> JS.toggle_class("hidden", to: "#fullscreen svg")
+    |> JS.toggle_class("hidden", to: "#fullscreen > span")
   end
 
   def render(assigns) do
@@ -202,15 +202,11 @@ defmodule NervesHubWeb.Components.DevicePage.ConsoleTab do
               <div id="immersive-device" class="pointer-events-none absolute top-4 left-6 z-20 hidden text-base-800">
                 <div class="flex items-center gap-3">
                   <%= if Map.get(@device_connection || %{}, :status) == :connected do %>
-                    <svg class="size-3" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 6 6" fill="none">
-                      <circle cx="3" cy="3" r="3" fill="#10B981" />
-                    </svg>
+                    <.status_dot class="bg-status-online" />
                   <% else %>
-                    <svg class="size-3" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 6 6" fill="none">
-                      <circle cx="3" cy="3" r="3" fill="#71717A" />
-                    </svg>
+                    <.status_dot class="bg-status-offline" />
                   <% end %>
-                  <h1 class="font-mono text-xl leading-[30px] font-semibold text-base-50">
+                  <h1 class="font-mono text-page-title text-content-strong">
                     {@device.identifier}
                   </h1>
                 </div>
@@ -220,16 +216,17 @@ defmodule NervesHubWeb.Components.DevicePage.ConsoleTab do
                   class="hidden cursor-pointer items-center gap-2 rounded-full bg-neutral-900 px-3 py-1.5 text-xs text-neutral-50"
                   title="Send ⌥ (Option) to the device as Meta, for shortcuts such as M-b and M-f. Leave this off to type characters like [ ] { } | on non-US keyboard layouts."
                 >
-                  <input type="checkbox" id="option-as-meta" class="size-3.5 rounded border-base-700 text-base-400 checked:bg-primary focus:ring-0" />
+                  <input type="checkbox" id="option-as-meta" class="size-3.5 rounded border-line-default text-content-muted checked:bg-primary focus:ring-0" />
                   <span>⌥ as Meta</span>
                 </label>
-                <button id="fullscreen" class="cursor-pointer rounded-full bg-neutral-900 hover:scale-[1.1]" phx-click={toggle_fullscreen()} title="Toggle fullscreen">
-                  <svg class="stroke-neutral-50" width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M15 19H19M19 19V15M19 19L15 15M9 5H5M5 5V9M5 5L9 9M15 5H19M19 5V9M19 5L15 9M9 19H5M5 19V15M5 19L9 15" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" />
-                  </svg>
-                  <svg class="hidden stroke-neutral-50" width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M12 12L7 7M12 12L17 17M12 12L17 7M12 12L7 17" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" />
-                  </svg>
+                <button
+                  id="fullscreen"
+                  class="flex size-6 cursor-pointer items-center justify-center rounded-full bg-neutral-900 hover:scale-[1.1]"
+                  phx-click={toggle_fullscreen()}
+                  title="Toggle fullscreen"
+                >
+                  <span class="lucide-expand size-5 text-neutral-50" aria-hidden="true"></span>
+                  <span class="lucide-x hidden size-5 text-neutral-50" aria-hidden="true"></span>
                 </button>
               </div>
             </div>

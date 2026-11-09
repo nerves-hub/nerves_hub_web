@@ -228,6 +228,23 @@ defmodule NervesHub.Devices do
     |> Repo.one!()
   end
 
+  @doc """
+  How many devices each of the given products has. A product with none is left
+  out of the map.
+  """
+  @spec count_by_product([pos_integer()]) :: %{pos_integer() => pos_integer()}
+  def count_by_product([]), do: %{}
+
+  def count_by_product(product_ids) when is_list(product_ids) do
+    Device
+    |> where([d], d.product_id in ^product_ids)
+    |> Repo.exclude_deleted()
+    |> group_by([d], d.product_id)
+    |> select([d], {d.product_id, count(d.id)})
+    |> Repo.all()
+    |> Map.new()
+  end
+
   defp device_by_org_query(org_id, device_id) do
     from(
       d in Device,

@@ -4,6 +4,9 @@ defmodule NervesHubWeb.Live.Products.New do
   alias NervesHub.Extensions
   alias NervesHub.Products
   alias NervesHub.Products.Product
+  alias NervesHubWeb.Mounts.OrgCounts
+
+  on_mount(OrgCounts)
 
   @impl Phoenix.LiveView
   def mount(_params, _session, socket) do

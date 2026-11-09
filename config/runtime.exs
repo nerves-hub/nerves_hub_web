@@ -2,6 +2,7 @@ import Config
 
 alias NervesHub.DeviceLink.PeerVerification
 alias NervesHub.Devices.DeviceMessages
+alias NervesHub.Devices.HealthEvaluation.Queue
 alias NervesHub.DeviceTLS.Cluster
 alias NervesHub.DeviceTLS.Reloader
 alias NervesHub.Firmwares.Upload
@@ -107,6 +108,12 @@ else
   end
 end
 
+# Health evaluations a device's reports queue, rather than run in the call that
+# delivered them. See `NervesHub.Devices.HealthEvaluation.Queue`. Unset, the
+# concurrency is half the analytics pool, and at most 10.
+config :nerves_hub, Queue,
+  max_age: to_timeout(second: String.to_integer(System.get_env("HEALTH_EVALUATION_MAX_AGE_SECONDS", "60")))
+
 config :nerves_hub, :device_socket_drainer,
   batch_size: String.to_integer(System.get_env("DEVICE_SOCKET_DRAINER_BATCH_SIZE", "1000")),
   batch_interval: String.to_integer(System.get_env("DEVICE_SOCKET_DRAINER_BATCH_INTERVAL", "4000")),
@@ -151,11 +158,15 @@ config :nerves_hub,
     ],
     health: [
       interval_minutes: System.get_env("FEATURES_HEALTH_INTERVAL_MINUTES", "60") |> String.to_integer(),
-      ui_polling_seconds: System.get_env("FEATURES_HEALTH_UI_POLLING_SECONDS", "60") |> String.to_integer()
+      ui_polling_seconds: System.get_env("FEATURES_HEALTH_UI_POLLING_SECONDS", "60") |> String.to_integer(),
+      first_check_window_seconds:
+        System.get_env("FEATURES_HEALTH_FIRST_CHECK_WINDOW_SECONDS", "60") |> String.to_integer()
     ],
     metrics: [
       interval_minutes: System.get_env("FEATURES_METRICS_INTERVAL_MINUTES", "15") |> String.to_integer(),
-      ui_polling_seconds: System.get_env("FEATURES_METRICS_UI_POLLING_SECONDS", "60") |> String.to_integer()
+      ui_polling_seconds: System.get_env("FEATURES_METRICS_UI_POLLING_SECONDS", "60") |> String.to_integer(),
+      first_check_window_seconds:
+        System.get_env("FEATURES_METRICS_FIRST_CHECK_WINDOW_SECONDS", "60") |> String.to_integer()
     ],
     logging: [
       days_to_keep: String.to_integer(System.get_env("EXTENSIONS_LOGGING_DAYS_TO_KEEP", "3"))
@@ -176,6 +187,10 @@ config :nerves_hub,
   logo_url: System.get_env("LOGO_URL"),
   logo_url_light: System.get_env("LOGO_URL_LIGHT"),
   logo_url_dark: System.get_env("LOGO_URL_DARK")
+
+if concurrency = System.get_env("HEALTH_EVALUATION_CONCURRENCY") do
+  config :nerves_hub, Queue, concurrency: String.to_integer(concurrency)
+end
 
 # only set this in :prod as not to override the :dev config
 if config_env() == :prod do

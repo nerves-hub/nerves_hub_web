@@ -259,6 +259,10 @@ defmodule NervesHub.Extensions.AlarmsTest do
   end
 
   describe "rate limiting" do
+    # The bucket refills every second, so a test that empties it and expects
+    # a denial would otherwise fail whenever a second ticks over in between.
+    setup :freeze_rate_limit_clock
+
     test "a denied event schedules one resync, however many are denied", %{device: device, state: state} do
       state = exhaust(state)
 
