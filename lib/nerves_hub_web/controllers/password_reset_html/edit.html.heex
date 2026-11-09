@@ -1,28 +1,21 @@
 <Layouts.auth flash={@flash}>
   <:title>
-    Reset your password
+    Choose a new password
   </:title>
-  <div class="mt-6">
-    <div :if={@changeset.action} role="alert" class="mr-2 mb-6 w-full rounded-sm bg-alert-soft fill-alert p-3 text-alert-content shadow-md ring-1 ring-alert">
-      <p class="mt-1 text-sm/5">Oops, we couldn't save your account details.</p>
-    </div>
+  <:subheader>
+    You'll be signed in as soon as it's saved.
+  </:subheader>
 
-    <div>
-      <.form :let={f} for={@changeset} action={~p"/password-reset/#{@token}"} class="space-y-6">
-        <div>
-          <.input field={f[:password]} label="New password" type="password" autocomplete="current-password" required />
-        </div>
+  <.form :let={f} for={@changeset} action={~p"/password-reset/#{@token}"} class="flex flex-col gap-5">
+    <.input field={f[:password]} type="password" label="New password" autocomplete="new-password" hint="At least 12 characters" required />
+    <.input field={f[:password_confirmation]} type="password" label="Confirm new password" autocomplete="new-password" required />
 
-        <div>
-          <.input field={f[:password_confirmation]} label="Confirm your new password" type="password" autocomplete="current-password" required />
-        </div>
+    <.button style="primary" type="submit" class="w-full">
+      Save and sign in
+    </.button>
+  </.form>
 
-        <div>
-          <.button style="primary" type="submit" class="flex w-full justify-center">
-            Save changes
-          </.button>
-        </div>
-      </.form>
-    </div>
-  </div>
+  <:footer>
+    Remembered it? <.link href={~p"/login"} class="font-semibold text-primary hover:text-primary-hover light:text-indigo-600 light:hover:text-indigo-500">Back to sign in</.link>
+  </:footer>
 </Layouts.auth>

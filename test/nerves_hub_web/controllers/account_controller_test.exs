@@ -15,7 +15,7 @@ defmodule NervesHubWeb.AccountControllerTest do
 
       build_conn()
       |> visit(~p"/register")
-      |> assert_has("h1", text: "Create a new account")
+      |> assert_has("h1", text: "Create your account")
     end
 
     test "redirects to /login with a flash when registrations are disabled" do
@@ -34,12 +34,12 @@ defmodule NervesHubWeb.AccountControllerTest do
 
       build_conn()
       |> visit(~p"/register")
-      |> assert_has("h1", text: "Create a new account")
+      |> assert_has("h1", text: "Create your account")
       |> fill_in("Name", with: "Sgt Pepper")
-      |> fill_in("Email address", with: "sgtpepper@geocities.com")
+      |> fill_in("Email", with: "sgtpepper@geocities.com")
       |> fill_in("Password", with: "JohnRingoPaulGeorge")
       |> submit()
-      |> assert_has("h1", text: "Please confirm your email")
+      |> assert_has("h1", text: "Confirm your email")
       |> assert_has("p", text: "Your new account was created successfully!")
 
       platform_name = Application.get_env(:nerves_hub, :support_email_platform_name)
@@ -58,9 +58,9 @@ defmodule NervesHubWeb.AccountControllerTest do
 
       build_conn()
       |> visit(~p"/register")
-      |> assert_has("h1", text: "Create a new account")
+      |> assert_has("h1", text: "Create your account")
       |> fill_in("Name", with: "")
-      |> fill_in("Email address", with: "")
+      |> fill_in("Email", with: "")
       |> fill_in("Password", with: "")
       |> submit()
       |> assert_path(~p"/register")
@@ -170,7 +170,7 @@ defmodule NervesHubWeb.AccountControllerTest do
 
       build_conn()
       |> visit(~p"/invite/#{invite.token}")
-      |> assert_has("h1", text: "You've been invited to join #{org.name} on #{platform_name}")
+      |> assert_has("h1", text: "Join #{org.name} on #{platform_name}")
       |> refute_has("body", text: "joe@example.com")
       |> fill_in("Name", with: "Sgt Pepper")
       |> fill_in("Password", with: "JohnRingoPaulGeorge")
