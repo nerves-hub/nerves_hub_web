@@ -72,8 +72,11 @@ when adding or removing one.
 ### `lib/nerves_hub/` (contexts)
 
 - `accounts.ex` / `accounts/` — users, orgs, org-users, tokens, scopes.
-- `devices.ex` / `devices/` — device lifecycle, connections, health status,
-  metrics, firmware update history (`update_history.ex` — how each update
+- `devices.ex` / `devices/` — device lifecycle, connections, health status
+  (judged off the report path: reports queue an evaluation per device on a
+  per-node `HealthEvaluation.Queue` with a fixed number of workers, so a slow
+  ClickHouse never holds up a device's message), metrics, firmware update
+  history (`update_history.ex` — how each update
   attempt ended, split across both stores: the device's consecutive failure
   count in Postgres, the history itself in ClickHouse), and network identities
   (a device's identity on networks NervesHub doesn't run, such as iroh or
@@ -161,8 +164,15 @@ when adding or removing one.
   - User-facing counterparts: `UserConsoleChannel`, `UserLocalShellChannel`.
 - `live/` — LiveViews (the dashboard). `live/devices/show.ex` is the device
   page; its tabs live in `components/device_page/*` as tab components that hook
-  into the LiveView.
-- `components/` — shared function/live components.
+  into the LiveView. An organization's pages (`live/org/`, plus
+  `live/products/new.ex`) have no sidebar: they render inside `Layouts.org/1`,
+  a centered column under the organization's name, counts and tabs, and mount
+  `NervesHubWeb.Mounts.OrgCounts` for the counts. Product pages keep the
+  sidebar layout.
+- `components/` — shared function/live components. `components/fleet.ex`
+  sums up how a set of products is doing (Needs attention, online meters,
+  health chips), for the organizations home page and an organization's
+  Products tab.
 - `controllers/` — JSON API (`controllers/api/`) and others.
 - `plugs/`, `router.ex`, `endpoint.ex`, `device_endpoint.ex`,
   `health_check_endpoint.ex`, `auth*.ex`.
@@ -199,7 +209,16 @@ when adding or removing one.
   `assets/vendor/lucideicons.js`, which only generates a class for each SVG in
   `deps/lucide/icons`. Lucide renames icons between releases, and a class whose
   icon is gone renders as nothing, so `NervesHubWeb.LucideIconsTest` fails on
-  any class with no SVG behind it.
+  any class with no SVG behind it. A line icon draws its stroke at 1/16 of its
+  size and never under 1px: plain `lucide-<icon>` is that weight, `--bold` is
+  for a selected nav item or an icon under 16px, and `--thin` for 32px and up.
+  Every icon is a Lucide glyph, either a `lucide-*` span or `<.icon name="…">`
+  (`NervesHubWeb.Components.Icons`, which names the ones used across pages).
+  The glyph is a mask filled with `currentColor`, so a `text-*` class colours
+  it, never `stroke-*` or `fill-*`. Inline SVG is for logos and illustrations.
+  A `<.button>` holding only an icon sets `square`, or it comes out shorter
+  than the text buttons beside it. A file picker is `<.button type="label">`
+  with `for` set to the upload's ref.
 - **Boundaries:** contexts (`lib/nerves_hub/`) hold business logic; web modules
   stay thin and call into them. Match the surrounding module's conventions,
   error handling, and naming rather than importing your own.

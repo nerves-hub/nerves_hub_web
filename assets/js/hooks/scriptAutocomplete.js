@@ -85,7 +85,7 @@ export default {
       li.setAttribute("role", "option")
       li.dataset.id = script.id
       li.className =
-        "flex cursor-pointer items-baseline justify-between gap-2 px-2 py-1.5 text-sm text-base-300 hover:bg-base-800"
+        "flex cursor-pointer items-baseline justify-between gap-2 px-2 py-1.5 text-sm text-content-body hover:bg-base-800"
 
       const name = document.createElement("span")
       name.textContent = script.name
@@ -96,7 +96,7 @@ export default {
       if (script.language) {
         const language = document.createElement("span")
         language.textContent = script.language
-        language.className = "text-xs text-base-500"
+        language.className = "text-xs text-content-faint"
         li.appendChild(language)
       }
       // Use mousedown so the selection happens before the input's blur.

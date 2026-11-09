@@ -121,7 +121,7 @@ defmodule NervesHubWeb.Live.Product.NotificationsTest do
       conn
       |> visit("/org/#{org.name}/#{product.name}/notifications")
       |> assert_has("h1", text: "Notifications")
-      |> assert_has("div#notification-count", text: "30")
+      |> assert_has("#notification-count", text: "30")
       |> assert_has("div", text: "A device failed connecting as the identifier 'abc-1' already exists.")
       |> assert_has("div", text: "A device failed connecting as the identifier 'abc-25' already exists.")
       |> tap(fn _ ->
@@ -131,7 +131,7 @@ defmodule NervesHubWeb.Live.Product.NotificationsTest do
           :shared_secrets
         )
       end)
-      |> assert_has("div#notification-count", text: "31")
+      |> assert_has("#notification-count", text: "31")
       |> assert_has("div", text: "New notification is available")
       |> assert_has("div",
         text: "A device failed connecting as the identifier 'snootboop' already exists.",
@@ -167,7 +167,7 @@ defmodule NervesHubWeb.Live.Product.NotificationsTest do
       conn
       |> visit("/org/#{org.name}/#{product.name}/notifications")
       |> assert_has("h1", text: "Notifications")
-      |> assert_has("div#notification-count", text: "30")
+      |> assert_has("#notification-count", text: "30")
       |> assert_has("div", text: "A device failed connecting as the identifier 'abc-1' already exists.")
       |> assert_has("div", text: "A device failed connecting as the identifier 'abc-25' already exists.")
       |> click_button(".pager-button[phx-click=\"paginate\"]", "2")
@@ -180,7 +180,7 @@ defmodule NervesHubWeb.Live.Product.NotificationsTest do
           :shared_secrets
         )
       end)
-      |> assert_has("div#notification-count", text: "31")
+      |> assert_has("#notification-count", text: "31")
       |> assert_has("div", text: "New notification is available. Please view the 1st page to see it.")
       |> refute_has("div",
         text: "A device failed connecting as the identifier 'snootboop' already exists.",
@@ -215,7 +215,7 @@ defmodule NervesHubWeb.Live.Product.NotificationsTest do
       conn
       |> visit("/org/#{org.name}/#{product.name}/notifications")
       |> assert_has("h1", text: "Notifications")
-      |> assert_has("div#notification-count", text: "30")
+      |> assert_has("#notification-count", text: "30")
       |> assert_has("div", text: "A device failed connecting as the identifier 'abc-1' already exists.")
       |> assert_has("div", text: "A device failed connecting as the identifier 'abc-25' already exists.")
       |> click_button(".pager-button[phx-click=\"set-paginate-opts\"]", "50")

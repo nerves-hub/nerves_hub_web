@@ -9,6 +9,7 @@ defmodule NervesHub.Application do
   alias NervesHub.Devices.DeviceMessage
   alias NervesHub.Devices.DeviceMetric
   alias NervesHub.Devices.DeviceUpdateHistory
+  alias NervesHub.Devices.HealthEvaluation.Queue, as: HealthEvaluationQueue
   alias NervesHub.Devices.LogLine
   alias NervesHub.DeviceTLS.Reloader
   alias NervesHub.ErrorReports.ErrorReport
@@ -84,6 +85,10 @@ defmodule NervesHub.Application do
           NervesHub.GroupSupervisor,
           {Cluster.Supervisor, [NervesHub.Clustering.topologies()]},
           {Task.Supervisor, name: NervesHub.TaskSupervisor},
+          # Runs its evaluations under the task supervisor above, and has to
+          # be up before `device_link_handlers()` lets this node take device
+          # reports, which queue evaluations here.
+          HealthEvaluationQueue,
           {Oban, oban_opts()},
           NervesHubWeb.Presence,
           {LogLines, [clean_period: to_timeout(minute: 5), key_older_than: to_timeout(hour: 1)]},

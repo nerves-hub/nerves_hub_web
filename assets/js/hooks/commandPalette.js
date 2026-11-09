@@ -11,7 +11,7 @@
 
 // Utility classes toggled on the highlighted result. Kept here (not in a
 // data-attribute variant) so they don't depend on a bespoke Tailwind variant.
-const ACTIVE_CLASSES = ["bg-primary/20", "text-base-50"]
+const ACTIVE_CLASSES = ["bg-primary/20", "text-content-strong"]
 
 // True when the event is the global open/close shortcut (Cmd+K / Ctrl+K).
 export function isToggleShortcut(event) {
