@@ -1,13 +1,13 @@
 <NervesHubWeb.Layouts.sidebar flash={@flash} current_scope={@current_scope} sidebar_tab={@sidebar_tab}>
   <:header>
-    <h1 class="text-xl leading-[30px] font-semibold text-base-50">Users</h1>
+    <h1 class="text-page-title text-content-strong">Users</h1>
     <div class="mr-auto"></div>
     <.button type="link" navigate={~p"/org/#{@org}/settings/users/invite"} aria-label="Add new user">
       <.icon name="add" /> Add New User
     </.button>
   </:header>
 
-  <h2 :if={Enum.any?(@invites)} class="px-4 py-2 text-base font-semibold text-base-50">Outstanding Invites</h2>
+  <h2 :if={Enum.any?(@invites)} class="px-4 py-2 text-card-title text-content-strong">Outstanding Invites</h2>
   <div :if={Enum.any?(@invites)} class="listing grow-0! pb-10">
     <table>
       <thead>
@@ -20,10 +20,10 @@
       </thead>
       <tbody>
         <%= for invite <- @invites do %>
-          <tr class="isolate border-b border-base-800">
-            <td class="text-base-400">{invite.email}</td>
-            <td class="text-base-400 capitalize">{invite.role}</td>
-            <td class="text-base-400">{invited_by_name(invite)}</td>
+          <tr class="isolate border-b border-line-subtle">
+            <td class="text-content-muted">{invite.email}</td>
+            <td class="text-content-muted capitalize">{invite.role}</td>
+            <td class="text-content-muted">{invited_by_name(invite)}</td>
             <td class="w-px text-right whitespace-nowrap">
               <div class="flex justify-end gap-2">
                 <.button
@@ -35,8 +35,8 @@
                   disabled={!authorized?(:"org_user:invite:resend", @current_scope)}
                   title={invite_action_title(authorized?(:"org_user:invite:resend", @current_scope), "Copy the invite link")}
                 >
-                  <span data-icon="copy" class="lucide-copy--light size-4"></span>
-                  <span data-icon="check" class="lucide-check--light hidden size-4 text-success"></span> Copy invite link
+                  <span data-icon="copy" class="lucide-copy size-4"></span>
+                  <span data-icon="check" class="lucide-check hidden size-4 text-success"></span> Copy invite link
                 </.button>
                 <.button
                   style="secondary"
@@ -47,7 +47,7 @@
                   title={invite_action_title(authorized?(:"org_user:invite:resend", @current_scope), "Send the invitation email again")}
                   data-confirm={"Resend the invitation to #{invite.email}? This sends a new link and stops the previous one working."}
                 >
-                  <span class="lucide-mail--light size-4"></span> Resend invite
+                  <span class="lucide-mail size-4"></span> Resend invite
                 </.button>
                 <.button
                   style="danger"
@@ -68,7 +68,7 @@
     </table>
   </div>
 
-  <h2 :if={Enum.any?(@invites)} class="px-4 py-2 text-base font-semibold text-base-50">Active Memberships</h2>
+  <h2 :if={Enum.any?(@invites)} class="px-4 py-2 text-card-title text-content-strong">Active Memberships</h2>
   <div class="listing">
     <table>
       <thead>
@@ -82,37 +82,36 @@
       </thead>
       <tbody>
         <%= for org_user <- @org_users do %>
-          <tr class="isolate border-b border-base-800">
+          <tr class="isolate border-b border-line-subtle">
             <td>
-              <.link navigate={~p"/org/#{@org}/settings/users/#{org_user.user_id}/edit"} class="text-base-300 hover:text-base-100">
+              <.link navigate={~p"/org/#{@org}/settings/users/#{org_user.user_id}/edit"} class="text-content-body hover:text-base-100">
                 {org_user.user.name}
               </.link>
             </td>
             <td>{org_user.user.email}</td>
-            <td class="text-base-400 capitalize">{org_user.role}</td>
-            <td class="text-base-400">
+            <td class="text-content-muted capitalize">{org_user.role}</td>
+            <td class="text-content-muted">
               <div><.local_datetime at={org_user.user.inserted_at} time_zone={@time_zone} format={:long_date} zone_label={false} /></div>
             </td>
             <td class="text-right">
               <div class="flex justify-end gap-2">
-                <.link
+                <.button
                   :if={authorized?(:"org_user:update", @current_scope) && org_user.user.id != @current_scope.user.id}
+                  type="link"
                   navigate={~p"/org/#{@org}/settings/users/#{org_user.user_id}/edit"}
-                  class="rounded border border-base-700 bg-base-800 px-3 py-1.5 text-sm font-medium text-base-300 hover:bg-base-700"
                 >
                   Edit Role
-                </.link>
-                <button
+                </.button>
+                <.button
                   :if={can_remove?(org_user, @current_scope, @admin_count)}
+                  style="danger"
                   id={"remove-user-#{org_user.user_id}"}
-                  type="link"
-                  class="cursor-pointer rounded border border-alert bg-base-800 px-3 py-1.5 text-sm font-medium text-alert hover:bg-base-700"
                   phx-click="delete_org_user"
                   phx-value-user_id={org_user.user_id}
                   data-confirm={remove_user_message(org_user, @current_scope)}
                 >
                   Remove
-                </button>
+                </.button>
               </div>
             </td>
           </tr>

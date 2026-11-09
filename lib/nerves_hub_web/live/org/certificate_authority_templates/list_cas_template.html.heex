@@ -1,6 +1,6 @@
 <NervesHubWeb.Layouts.sidebar flash={@flash} current_scope={@current_scope} sidebar_tab={@sidebar_tab}>
   <:header>
-    <h1 class="text-xl leading-[30px] font-semibold text-base-50">Certificate Authorities</h1>
+    <h1 class="text-page-title text-content-strong">Certificate Authorities</h1>
     <div class="mr-auto"></div>
     <.button type="link" navigate={~p"/org/#{@org}/settings/certificates/new"} aria-label="Add certificate authority">
       <.icon name="add" /> Add Certificate Authority
@@ -22,33 +22,33 @@
       </thead>
       <tbody>
         <%= for cert <- @certificates do %>
-          <tr class="isolate border-b border-base-800">
+          <tr class="isolate border-b border-line-subtle">
             <td>
               <.link navigate={~p"/org/#{@org}/settings/certificates/#{cert}"}>
-                <code class="rounded bg-base-800 px-2 py-1 font-mono text-xs break-all text-base-300 hover:text-base-50">{Utils.format_serial(cert.serial)}</code>
+                <.tag mono class="break-all hover:text-content-strong">{Utils.format_serial(cert.serial)}</.tag>
               </.link>
             </td>
             <td>
               <%= if is_nil(cert.description) do %>
-                <span class="text-base-400">-</span>
+                <span class="text-content-muted">-</span>
               <% else %>
                 {cert.description}
               <% end %>
             </td>
-            <td id={"ca-#{cert.id}-device-count"} class="text-base-400">
+            <td id={"ca-#{cert.id}-device-count"} class="text-content-muted">
               {Number.Delimit.number_to_delimited(Map.get(@device_counts, cert.ski, 0), precision: 0)}
             </td>
-            <td class="text-base-400">
+            <td class="text-content-muted">
               <%= if !is_nil(cert.last_used) do %>
                 {DateTimes.from_now(cert.last_used)}
               <% else %>
-                <span class="text-base-400">Never</span>
+                <span class="text-content-muted">Never</span>
               <% end %>
             </td>
-            <td class="text-base-400">
+            <td class="text-content-muted">
               <div><.local_datetime at={cert.not_before} time_zone={@time_zone} format={:long_date} zone_label={false} /></div>
             </td>
-            <td class="text-base-400">
+            <td class="text-content-muted">
               <div><.local_datetime at={cert.not_after} time_zone={@time_zone} format={:long_date} zone_label={false} /></div>
             </td>
             <td>

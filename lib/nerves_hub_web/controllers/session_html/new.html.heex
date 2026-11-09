@@ -9,7 +9,7 @@
     Don't have an account? Please contact your platform admin.
   </:subheader>
 
-  <div :if={assigns[:error_message]} role="alert" class="mt-4 mr-2 w-full rounded-sm bg-alert-soft fill-alert p-3 text-alert-content shadow-md ring-1 ring-alert">
+  <div :if={assigns[:error_message]} role="alert" class="mt-4 mr-2 w-full rounded-md bg-alert-soft fill-alert p-3 text-alert-content ring-1 ring-alert">
     <p class="mt-1 text-sm/5">{@error_message}</p>
   </div>
 
@@ -41,7 +41,7 @@
                 class=""
               />
             </div>
-            <label for="remember-me" class="block text-sm/6 text-base-300">Remember me</label>
+            <label for="remember-me" class="block text-sm/6 text-content-body">Remember me</label>
           </div>
 
           <div class="text-sm/6">
@@ -50,16 +50,12 @@
         </div>
 
         <div>
-          <button
-            id="login-submit"
-            type="submit"
-            class="relative flex w-full justify-center rounded-md bg-primary px-3 py-1.5 text-sm/6 font-semibold text-primary-content shadow-sm hover:bg-primary-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring disabled:cursor-not-allowed disabled:opacity-75"
-          >
+          <.button style="primary" id="login-submit" type="submit" class="w-full">
             <span id="login-submit-spinner" class="absolute inset-0 hidden items-center justify-center">
               <span class="lucide-loader-circle size-5 animate-spin" />
             </span>
             <span id="login-submit-text">Sign in</span>
-          </button>
+          </.button>
         </div>
       </.form>
     </div>
