@@ -185,6 +185,7 @@ defmodule NervesHub.Extensions.Dispatch do
   defp translate({:start_timer, tag, ms}, key, mod), do: {:start_timer, {key, tag}, {mod, tag}, ms}
 
   defp translate({:start_timer, tag, first_ms, ms}, key, mod), do: {:start_timer, {key, tag}, {mod, tag}, first_ms, ms}
+  defp translate({:send_after, tag, ms}, key, mod), do: {:send_after, {key, tag}, {mod, tag}, ms}
   defp translate({:cancel_timer, tag}, key, _mod), do: {:cancel_timer, {key, tag}}
 
   # Effects that name no extension-specific thing pass straight through.

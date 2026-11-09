@@ -3,8 +3,10 @@ defmodule NervesHub.Devices.HealthEvaluation do
   Judges a device's health against its product's profile, as each metric
   report arrives — on the `metrics` extension or the `health` extension,
   both of which store through `NervesHub.Devices.Metrics.record/3` and
-  judge through here. Stateless, per report, in the channel process: no
-  cache, no process, no state anywhere.
+  judge through here. The judgement itself is stateless, and runs per
+  report, but not in the call that delivered the report: that call is what
+  the process holding the device's connection waits on, so the report queues
+  its evaluation on `NervesHub.Devices.HealthEvaluation.Queue` and returns.
 
   ## The counting semantic
 
@@ -32,6 +34,11 @@ defmodule NervesHub.Devices.HealthEvaluation do
   do not reintroduce "write then read back". Batched readings carry device
   timestamps and are bucketed where they belong, so a device reporting late
   lands its catch-up data in the right minutes.
+
+  Whether the buffer has flushed them by the time the store is asked is not
+  something this module can know: evaluation is queued, and may run well
+  after the report. So the stored count leaves out the in-hand readings'
+  timestamps, and each reading counts exactly once, from the hand.
 
   Without ClickHouse there is no history to window, so evaluation falls
   back to the legacy instantaneous check against the report itself, in
@@ -84,9 +91,13 @@ defmodule NervesHub.Devices.HealthEvaluation do
       now_minute = minute(DateTime.utc_now())
       regular = Enum.reject(profile.metrics, & &1.built_in)
 
+      # The in-hand readings are left out of the stored count and counted from
+      # the hand, so each one counts once whether or not it has been flushed.
+      in_hand_timestamps = for {_key, timestamp, _value} <- in_hand_samples, uniq: true, do: timestamp
+
       counts =
         merge_counts(
-          Metrics.health_breach_counts(device_info, regular, now_minute),
+          Metrics.health_breach_counts(device_info, regular, now_minute, in_hand_timestamps),
           count_samples(regular, in_hand_samples, now_minute)
         )
 

@@ -72,8 +72,11 @@ when adding or removing one.
 ### `lib/nerves_hub/` (contexts)
 
 - `accounts.ex` / `accounts/` — users, orgs, org-users, tokens, scopes.
-- `devices.ex` / `devices/` — device lifecycle, connections, health status,
-  metrics, firmware update history (`update_history.ex` — how each update
+- `devices.ex` / `devices/` — device lifecycle, connections, health status
+  (judged off the report path: reports queue an evaluation per device on a
+  per-node `HealthEvaluation.Queue` with a fixed number of workers, so a slow
+  ClickHouse never holds up a device's message), metrics, firmware update
+  history (`update_history.ex` — how each update
   attempt ended, split across both stores: the device's consecutive failure
   count in Postgres, the history itself in ClickHouse), and network identities
   (a device's identity on networks NervesHub doesn't run, such as iroh or
