@@ -1,9 +1,7 @@
-<NervesHubWeb.Layouts.sidebar flash={@flash} current_scope={@current_scope} sidebar_tab={@sidebar_tab}>
-  <:header>
-    <h1 class="text-page-title text-content-strong">Delete Organization</h1>
-  </:header>
+<NervesHubWeb.Layouts.org flash={@flash} current_scope={@current_scope} tab={@sidebar_tab} counts={@org_counts}>
+  <NervesHubWeb.Layouts.org_heading title="Delete Organization" back={~p"/org/#{@org}/settings"} />
 
-  <div class="max-w-[650px] px-6 py-4">
+  <div class="max-w-[650px]">
     <div class="mb-6 rounded-md border border-alert bg-alert-soft p-4">
       <h3 class="mb-2 text-card-title text-alert-content">Are you absolutely sure?</h3>
       <p class="mb-2 text-sm text-alert-content">Unexpected bad things will happen if you don't read this!</p>
@@ -34,4 +32,4 @@
       </div>
     </.form>
   </div>
-</NervesHubWeb.Layouts.sidebar>
+</NervesHubWeb.Layouts.org>

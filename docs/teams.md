@@ -9,7 +9,7 @@ Workflows webhooks replaced Teams' incoming webhooks (Office 365 connectors), wh
 1. In Teams, open the channel's **More options** menu and choose **Workflows**.
 2. Pick the **Send webhook alerts to a channel** template, check the team and channel, and add the workflow.
 3. Copy the URL Teams shows.
-4. On the organization's Integrations page, under Microsoft Teams, choose **Add channel**. Give it a name to know it by, paste the URL, and choose the products and events it gets.
+4. On the organization's Integrations page, choose **Add integration**, then **Microsoft Teams channel** (**Add Teams channel** while the organization has no integrations). Give it a name to know it by, paste the URL, and choose the products and events it gets.
 
 Adding, changing and removing a channel takes the organization `manage` role, as webhooks and Slack channels do. Everyone in the organization sees each channel's name, events, products and state, and the host its webhook is on.
 

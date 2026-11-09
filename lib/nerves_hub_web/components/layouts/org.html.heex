@@ -1,0 +1,51 @@
+<.no_sidebar flash={@flash} current_scope={@current_scope}>
+  <div class="flex w-full flex-col items-center border-b border-line-default bg-surface-raised">
+    <div class="flex w-full max-w-240 flex-col gap-4 px-4 pt-6 md:gap-6 md:pt-10">
+      <div class="flex items-center gap-4">
+        <span
+          class="flex size-12 shrink-0 items-center justify-center rounded-md border border-line-default bg-surface-raised text-lg font-semibold text-content-strong shadow-card"
+          aria-hidden="true"
+        >
+          {Fleet.monogram(@current_scope.org.name)}
+        </span>
+        <div class="min-w-0 flex-1">
+          <h1 class="truncate text-page-title text-content-strong">{@current_scope.org.name}</h1>
+          <p id="org-summary" class="truncate text-sm text-content-muted">{org_summary(@counts)}</p>
+        </div>
+        <div :if={@actions != []} class="hidden shrink-0 items-center gap-2 md:flex">
+          {render_slot(@actions)}
+        </div>
+      </div>
+
+      <%!-- On a phone the tabs scroll sideways under a fade at the right edge,
+            running to the screen's edges. ActiveTabInView scrolls the selected
+            tab into view, and drops the fade once the strip is scrolled to its
+            end. From md up they sit in the column, nudged left so the first
+            label lines up with the monogram. --%>
+      <nav
+        id="org-tabs"
+        phx-hook="ActiveTabInView"
+        aria-label={"#{@current_scope.org.name} sections"}
+        class="-mx-4 scrollbar-none flex overflow-x-auto mask-r-from-[calc(100%-2.5rem)] px-1 data-scrolled-to-end:mask-none md:mx-0 md:-ml-3 md:mask-none md:px-0"
+      >
+        <.link
+          :for={tab <- org_tabs(@current_scope.org, @counts)}
+          navigate={tab.path}
+          aria-current={if tab.key == @tab, do: "page"}
+          class="group relative flex h-11 shrink-0 items-center gap-2 border-b-2 border-transparent px-3 text-sm font-medium whitespace-nowrap text-content-muted hover:text-content-strong aria-[current=page]:border-primary aria-[current=page]:font-semibold aria-[current=page]:text-content-strong"
+        >
+          <span class={[tab.icon, "size-4 group-aria-[current=page]:hidden"]} aria-hidden="true"></span>
+          <span class={[tab.selected_icon, "hidden size-4 group-aria-[current=page]:block"]} aria-hidden="true"></span>
+          <span class="reserve-semibold-width flex flex-col" data-label={tab.label}>{tab.label}</span>
+          <span :if={tab.count} class="rounded-full bg-surface-muted px-1.5 text-[11px]/4 font-medium text-content-muted tabular-nums">
+            {Fleet.delimited(tab.count)}
+          </span>
+        </.link>
+      </nav>
+    </div>
+  </div>
+
+  <main class="flex w-full max-w-240 flex-col gap-4 px-4 pt-6 pb-16 md:pt-8">
+    {render_slot(@inner_block)}
+  </main>
+</.no_sidebar>

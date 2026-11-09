@@ -10,6 +10,7 @@ defmodule NervesHub.AccountsTest do
   alias NervesHub.Accounts.Scope
   alias NervesHub.Accounts.User
   alias NervesHub.Accounts.UserToken
+  alias NervesHub.Devices
   alias NervesHub.Fixtures
   alias NervesHub.Products
   alias NervesHub.Support.Utils
@@ -657,6 +658,45 @@ defmodule NervesHub.AccountsTest do
 
       assert Accounts.count_org_users_by_org([org.id, solo.id]) == %{org.id => 2, solo.id => 1}
       assert Accounts.count_org_users_by_org([]) == %{}
+    end
+  end
+
+  describe "org_counts/1" do
+    test "counts an org's products, devices, members, signing keys and certificate authorities", %{user: user} do
+      org = Fixtures.org_fixture(user)
+      product = Fixtures.product_fixture(user, org)
+      {:ok, _} = Devices.create_device(%{org_id: org.id, product_id: product.id, identifier: "counted-1"})
+      {:ok, _} = Devices.create_device(%{org_id: org.id, product_id: product.id, identifier: "counted-2"})
+      {:ok, _} = Accounts.add_org_user(org, Fixtures.user_fixture(), %{role: :view})
+      _ = Fixtures.org_key_fixture(org, user)
+      _ = Fixtures.ca_certificate_fixture(org)
+
+      other = Fixtures.org_fixture(user)
+      _ = Fixtures.product_fixture(user, other)
+
+      assert Accounts.org_counts(org) == %{products: 1, devices: 2, members: 2, signing_keys: 1, certificates: 1}
+    end
+  end
+
+  describe "org_key_usage/1" do
+    @tag :tmp_dir
+    test "counts the firmware and archives each of an org's keys signed", %{user: user, tmp_dir: tmp_dir} do
+      org = Fixtures.org_fixture(user)
+      product = Fixtures.product_fixture(user, org)
+      used = Fixtures.org_key_fixture(org, user, tmp_dir)
+      unused = Fixtures.org_key_fixture(org, user, tmp_dir)
+      _ = Fixtures.firmware_fixture(used, product, %{dir: tmp_dir})
+      _ = Fixtures.firmware_fixture(used, product, %{dir: tmp_dir})
+      _ = Fixtures.archive_fixture(used, product, %{dir: tmp_dir})
+
+      other = Fixtures.org_fixture(user)
+      other_key = Fixtures.org_key_fixture(other, user, tmp_dir)
+      _ = Fixtures.firmware_fixture(other_key, Fixtures.product_fixture(user, other), %{dir: tmp_dir})
+
+      usage = Accounts.org_key_usage(org)
+
+      assert usage == %{used.id => %{firmware: 2, archives: 1}}
+      refute Map.has_key?(usage, unused.id)
     end
   end
 

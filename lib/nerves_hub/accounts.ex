@@ -14,7 +14,9 @@ defmodule NervesHub.Accounts do
   alias NervesHub.Accounts.UserCLISession
   alias NervesHub.Accounts.UserNotifier
   alias NervesHub.Accounts.UserToken
+  alias NervesHub.Archives.Archive
   alias NervesHub.CLISessionCache
+  alias NervesHub.Devices.CACertificate
   alias NervesHub.Devices.Device
   alias NervesHub.Devices.DeviceConnection
   alias NervesHub.Devices.Pinning
@@ -505,6 +507,28 @@ defmodule NervesHub.Accounts do
     |> Map.new()
   end
 
+  @doc """
+  How many products, devices, members, signing keys and certificate
+  authorities an organization has. Every organization page shows these in its
+  header and tabs.
+  """
+  @spec org_counts(Org.t()) :: %{
+          products: non_neg_integer(),
+          devices: non_neg_integer(),
+          members: non_neg_integer(),
+          signing_keys: non_neg_integer(),
+          certificates: non_neg_integer()
+        }
+  def org_counts(%Org{id: org_id}) do
+    %{
+      products: Product |> where(org_id: ^org_id) |> Repo.exclude_deleted() |> Repo.aggregate(:count),
+      devices: Device |> where(org_id: ^org_id) |> Repo.exclude_deleted() |> Repo.aggregate(:count),
+      members: OrgUser |> where(org_id: ^org_id) |> Repo.exclude_deleted() |> Repo.aggregate(:count),
+      signing_keys: OrgKey |> where(org_id: ^org_id) |> Repo.aggregate(:count),
+      certificates: CACertificate |> where(org_id: ^org_id) |> Repo.aggregate(:count)
+    }
+  end
+
   def get_org_device_counts(%Scope{}, org_id) do
     products = products_subquery()
 
@@ -722,6 +746,35 @@ defmodule NervesHub.Accounts do
   end
 
   def maybe_copy_firmware_keys(_device, _target, _user), do: {:ok, []}
+
+  @doc """
+  How many firmware and archives name each of an organization's signing keys,
+  keyed by key id. Keys nothing names are left out.
+
+  A key with anything here can't be deleted. Deleted firmware counts too: the
+  rows stay, and still hold the key.
+  """
+  @spec org_key_usage(Org.t()) :: %{pos_integer() => %{firmware: non_neg_integer(), archives: non_neg_integer()}}
+  def org_key_usage(%Org{id: org_id}) do
+    firmware = count_by_org_key(Firmware, org_id)
+    archives = count_by_org_key(Archive, org_id)
+
+    (Map.keys(firmware) ++ Map.keys(archives))
+    |> Enum.uniq()
+    |> Map.new(&{&1, %{firmware: Map.get(firmware, &1, 0), archives: Map.get(archives, &1, 0)}})
+  end
+
+  defp count_by_org_key(schema, org_id) do
+    from(s in schema,
+      join: k in OrgKey,
+      on: k.id == s.org_key_id,
+      where: k.org_id == ^org_id,
+      group_by: s.org_key_id,
+      select: {s.org_key_id, count(s.id)}
+    )
+    |> Repo.all()
+    |> Map.new()
+  end
 
   @spec list_org_keys(Scope.t() | pos_integer(), boolean()) :: [OrgKey.t()]
   def list_org_keys(scope_or_org_id, load_created_by \\ true)

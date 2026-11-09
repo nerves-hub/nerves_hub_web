@@ -8,7 +8,7 @@ defmodule NervesHubWeb.Components.Navigation do
   attr(:scope, Scope, required: false)
   attr(:selected_tab, :any)
 
-  def sidebar(%{scope: %{product: product}} = assigns) when not is_nil(product) do
+  def sidebar(%{scope: %{product: product}} = assigns) do
     count =
       ProductNotifications.count(product)
       |> case do
@@ -89,41 +89,6 @@ defmodule NervesHubWeb.Components.Navigation do
         selected={:settings == @selected_tab}
         icon="data-[selected=false]:lucide-settings data-[selected=true]:lucide-settings--bold"
       />
-    </ul>
-    """
-  end
-
-  def sidebar(assigns) do
-    ~H"""
-    <ul role="list">
-      <.nav_link label="Products" path={~p"/org/#{@scope.org}/"} selected={:products == @selected_tab} icon="data-[selected=false]:lucide-package data-[selected=true]:lucide-package--bold" />
-      <.nav_link
-        label="Signing Keys"
-        path={~p"/org/#{@scope.org}/settings/keys"}
-        selected={:signing_keys == @selected_tab}
-        icon="data-[selected=false]:lucide-key-round data-[selected=true]:lucide-key-round--bold"
-      />
-      <.nav_link label="Users" path={~p"/org/#{@scope.org}/settings/users"} selected={:users == @selected_tab} icon="data-[selected=false]:lucide-users data-[selected=true]:lucide-users--bold" />
-      <.nav_link
-        :if={org_iroh_endpoints_ui_enabled?()}
-        label="Iroh Endpoints"
-        path={~p"/org/#{@scope.org}/settings/iroh-endpoints"}
-        selected={:iroh_endpoints == @selected_tab}
-        icon="data-[selected=false]:lucide-waypoints data-[selected=true]:lucide-waypoints--bold"
-      />
-      <.nav_link
-        label="Certificates"
-        path={~p"/org/#{@scope.org}/settings/certificates"}
-        selected={:certificates == @selected_tab}
-        icon="data-[selected=false]:lucide-shield-check data-[selected=true]:lucide-shield-check--bold"
-      />
-      <.nav_link
-        label="Integrations"
-        path={~p"/org/#{@scope.org}/settings/integrations"}
-        selected={:integrations == @selected_tab}
-        icon="data-[selected=false]:lucide-webhook data-[selected=true]:lucide-webhook--bold"
-      />
-      <.nav_link label="Settings" path={~p"/org/#{@scope.org}/settings"} selected={:settings == @selected_tab} icon="data-[selected=false]:lucide-settings data-[selected=true]:lucide-settings--bold" />
     </ul>
     """
   end

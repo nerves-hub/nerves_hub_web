@@ -1,18 +1,18 @@
-<NervesHubWeb.Layouts.sidebar flash={@flash} current_scope={@current_scope} sidebar_tab={@sidebar_tab}>
-  <:header>
-    <h1 class="text-page-title text-content-strong">Iroh Endpoints</h1>
-    <div class="mr-auto"></div>
-    <.button
-      :if={authorized?(:"network_identity:create", @current_scope)}
-      type="button"
-      phx-click="toggle-registration"
-      aria-label="Register an endpoint"
-    >
-      <.icon name="add" /> Register Endpoint
-    </.button>
-  </:header>
+<NervesHubWeb.Layouts.org flash={@flash} current_scope={@current_scope} tab={@sidebar_tab} counts={@org_counts}>
+  <NervesHubWeb.Layouts.org_heading title="Iroh Endpoints">
+    <:actions>
+      <.button
+        :if={authorized?(:"network_identity:create", @current_scope)}
+        type="button"
+        phx-click="toggle-registration"
+        aria-label="Register an endpoint"
+      >
+        <.icon name="add" /> Register Endpoint
+      </.button>
+    </:actions>
+  </NervesHubWeb.Layouts.org_heading>
 
-  <div class="px-6 py-4">
+  <div>
     <p class="mb-4 text-sm text-content-muted">
       Endpoint ids your devices and people use to reach each other over iroh. A device records its
       own when it connects; anything else is registered here.
@@ -165,4 +165,4 @@
       </div>
     </div>
   </div>
-</NervesHubWeb.Layouts.sidebar>
+</NervesHubWeb.Layouts.org>

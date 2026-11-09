@@ -13,9 +13,9 @@ defmodule NervesHubWeb.Live.Org.SigningKeysTest do
 
       conn
       |> visit("/org/#{org.name}/settings/keys")
-      |> assert_has("h1", text: "Signing Keys")
-      |> assert_has("a > span", text: "How to generate a signing key")
-      |> refute_has("div .firmware-key")
+      |> assert_has("h2", text: "Signing keys")
+      |> assert_has("a[href*='firmware-signing-keys']", text: "How to generate a key")
+      |> assert_has("#no-signing-keys", text: "No signing keys yet")
     end
 
     test "available signing keys are listed", %{conn: conn, org: org, org_key: org_key} do
@@ -29,7 +29,7 @@ defmodule NervesHubWeb.Live.Org.SigningKeysTest do
     test "with valid data", %{conn: conn, org: org, user: user} do
       conn
       |> visit("/org/#{org.name}/settings/keys/new")
-      |> assert_has("h1", text: "New Signing Key")
+      |> assert_has("h2", text: "New Signing Key")
       |> fill_in("Name", with: "my amazing key")
       |> fill_in("Key", with: "FMBdNKrU3qlyErQtpqxsq50nGAXz03DCeEXPt2iKBe0=")
       |> click_button("Create Key")
@@ -37,13 +37,13 @@ defmodule NervesHubWeb.Live.Org.SigningKeysTest do
       |> assert_has("div", text: "Signing Key created successfully.")
       |> assert_has("h3", text: "my amazing key")
       |> assert_has("div", text: "FMBdNKrU3qlyErQtpqxsq50nGAXz03DCeEXPt2iKBe0=")
-      |> assert_has("div", text: "Created by: #{user.name} (#{user.email})")
+      |> assert_has("#signing-keys", text: "by #{user.name}")
     end
 
     test "name is trimmed if there is extra space", %{conn: conn, org: org} do
       conn
       |> visit("/org/#{org.name}/settings/keys/new")
-      |> assert_has("h1", text: "New Signing Key")
+      |> assert_has("h2", text: "New Signing Key")
       |> fill_in("Name", with: "    my    amazing     key    ")
       |> fill_in("Key", with: "FMBdNKrU3qlyErQtpqxsq50nGAXz03DCeEXPt2iKBe0=")
       |> click_button("Create Key")
@@ -71,7 +71,7 @@ defmodule NervesHubWeb.Live.Org.SigningKeysTest do
       |> assert_path("/org/#{org.name}/settings/keys")
       |> assert_has("div", text: "Signing Key created successfully.")
       |> assert_has("h3", text: "rauc release key")
-      |> assert_has("code", text: "x509-certificate")
+      |> assert_has("span", text: "RAUC · X.509 certificate")
     end
 
     test "rejects something that is not a certificate", %{conn: conn, org: org} do
@@ -98,7 +98,7 @@ defmodule NervesHubWeb.Live.Org.SigningKeysTest do
       |> assert_path("/org/#{org.name}/settings/keys")
       |> assert_has("div", text: "Signing Key created successfully.")
       |> assert_has("h3", text: "esp release key")
-      |> assert_has("code", text: "secure-boot-v2-rsa")
+      |> assert_has("span", text: "ESP-IDF · RSA-3072")
     end
 
     # The Ed25519 check would reject a PEM and vice versa, so the scheme has to
@@ -149,25 +149,54 @@ defmodule NervesHubWeb.Live.Org.SigningKeysTest do
 
       conn
       |> visit("/org/#{org.name}/settings/keys")
-      |> assert_has("h1", text: "Signing Keys")
+      |> assert_has("h2", text: "Signing keys")
       |> assert_has("h3", text: key1.name)
       |> assert_has("h3", text: key2.name)
-      |> click_button("[phx-value-signing_key_id=\"#{key1.id}\"]", "Delete")
+      |> assert_has("nav a[aria-current='page']", text: "Signing keys 2")
+      |> click_button("#delete-key-#{key1.id}", "Delete key")
       |> assert_has("h3", text: key2.name)
       |> refute_has("h3", text: key1.name)
       |> assert_has("div", text: "Signing Key deleted successfully.")
+      |> assert_has("nav a[aria-current='page']", text: "Signing keys 1")
     end
 
-    test "throws an error if the key is used by firmware", %{conn: conn, org: org, org_key: key} do
+    test "a key firmware uses can't be deleted", %{conn: conn, org: org, org_key: key} do
       conn
       |> visit("/org/#{org.name}/settings/keys")
-      |> assert_has("h1", text: "Signing Keys")
-      |> assert_has("h3", text: key.name)
-      |> click_button("[phx-value-signing_key_id=\"#{key.id}\"]", "Delete")
+      |> assert_has("#signing-key-#{key.id}", text: "1 firmware")
+      |> assert_has("#delete-key-#{key.id}[disabled]", text: "1 firmware is signed with it.")
+      |> refute_has("#delete-key-#{key.id}[phx-click]")
+    end
+
+    test "the delete event still refuses a key firmware uses", %{conn: conn, org: org, org_key: key} do
+      conn
+      |> visit("/org/#{org.name}/settings/keys")
+      |> unwrap(&render_click(&1, "delete", %{"signing_key_id" => key.id}))
       |> assert_has("div",
         text: "Error deleting Signing Key : Firmware exists which uses the Signing Key"
       )
       |> assert_has("h3", text: key.name)
+    end
+
+    test "says what else holds a key", %{conn: conn, org: org, org_key: key, product: product, tmp_dir: tmp_dir} do
+      Fixtures.archive_fixture(key, product, %{dir: tmp_dir})
+
+      conn
+      |> visit("/org/#{org.name}/settings/keys")
+      |> assert_has("#signing-key-#{key.id}", text: "1 firmware, 1 archive")
+      |> assert_has("#delete-key-#{key.id}[disabled]", text: "1 firmware and 1 archive are signed with it.")
+    end
+
+    test "a member who can only view gets no delete", %{org: org, user: user} do
+      key = Fixtures.org_key_fixture(org, user)
+      viewer = Fixtures.user_fixture()
+      {:ok, _} = NervesHub.Accounts.add_org_user(org, viewer, %{role: :view})
+
+      build_conn()
+      |> init_test_session(%{"user_token" => NervesHub.Accounts.create_user_session_token(viewer)})
+      |> visit("/org/#{org.name}/settings/keys")
+      |> assert_has("#signing-key-#{key.id}", text: "Not used yet")
+      |> assert_has("#delete-key-#{key.id}[disabled]", text: "Deleting a key needs the Manage or Admin role.")
     end
   end
 end
