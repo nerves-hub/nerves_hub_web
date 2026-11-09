@@ -116,4 +116,34 @@ defmodule NervesHub.Devices.Health do
     |> Repo.exclude_deleted()
     |> Repo.aggregate(:count)
   end
+
+  @doc """
+  How many devices in each of the given products are `:healthy`, at
+  `:warning` and `:unhealthy`, for a page that covers several products at
+  once, such as the organizations home page.
+
+  Devices that have reported no health are not counted, so a product whose
+  devices have never reported reads as all zeroes rather than as healthy. A
+  product with no device reporting at all is left out of the map.
+  """
+  @spec status_counts_by_product([pos_integer()]) :: %{
+          pos_integer() => %{healthy: non_neg_integer(), warning: non_neg_integer(), unhealthy: non_neg_integer()}
+        }
+  def status_counts_by_product([]), do: %{}
+
+  def status_counts_by_product(product_ids) when is_list(product_ids) do
+    empty = %{healthy: 0, warning: 0, unhealthy: 0}
+
+    Device
+    |> join(:inner, [d], lh in assoc(d, :latest_health))
+    |> where([d], d.product_id in ^product_ids)
+    |> where([_, lh], lh.status in ^[:healthy, :warning, :unhealthy])
+    |> Repo.exclude_deleted()
+    |> group_by([d, lh], [d.product_id, lh.status])
+    |> select([d, lh], {d.product_id, lh.status, count(d.id)})
+    |> Repo.all()
+    |> Enum.reduce(%{}, fn {product_id, status, count}, acc ->
+      Map.update(acc, product_id, Map.put(empty, status, count), &Map.put(&1, status, count))
+    end)
+  end
 end

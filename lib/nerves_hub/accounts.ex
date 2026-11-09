@@ -19,6 +19,7 @@ defmodule NervesHub.Accounts do
   alias NervesHub.Devices.DeviceConnection
   alias NervesHub.Devices.Pinning
   alias NervesHub.Firmwares.Firmware
+  alias NervesHub.Products
   alias NervesHub.Products.Product
   alias NervesHub.Repo
 
@@ -50,6 +51,35 @@ defmodule NervesHub.Accounts do
 
       {:error, :org, changeset, _} ->
         {:error, changeset}
+    end
+  end
+
+  @doc """
+  Sets up a new user's first organization: the org, with the user as its
+  admin, and its first product with a shared secret, so a device can connect
+  straight away.
+
+  All or nothing. A product name that fails validation leaves no org behind,
+  so the user is still offered the form rather than an org with no product.
+  The error says which of the two was refused.
+  """
+  @spec create_org_with_product(User.t(), map(), map()) ::
+          {:ok, %{org: Org.t(), product: Product.t()}}
+          | {:error, :org | :product, Changeset.t()}
+  def create_org_with_product(%User{} = user, org_params, product_params) do
+    Repo.transact(fn ->
+      with {:org, {:ok, org}} <- {:org, create_org(user, org_params)},
+           {:product, {:ok, product}} <-
+             {:product, Products.create_product(Map.put(product_params, :org_id, org.id))},
+           {:product, {:ok, _auth}} <- {:product, Products.create_shared_secret_auth(product)} do
+        {:ok, %{org: org, product: product}}
+      else
+        {step, {:error, changeset}} -> {:error, {step, changeset}}
+      end
+    end)
+    |> case do
+      {:ok, created} -> {:ok, created}
+      {:error, {step, changeset}} -> {:error, step, changeset}
     end
   end
 
@@ -444,13 +474,35 @@ defmodule NervesHub.Accounts do
     |> Repo.one!()
   end
 
-  def get_orgs_without_counts(%Scope{user: user}) do
+  @doc """
+  The organizations the scope's user belongs to, each with the user's role in
+  it, and with the products preloaded.
+  """
+  @spec get_orgs_with_roles(Scope.t()) :: [{Org.t(), :admin | :manage | :view}]
+  def get_orgs_with_roles(%Scope{user: user}) do
     Org
-    |> from(as: :org)
     |> Repo.exclude_deleted()
-    |> join(:inner, [o], u in assoc(o, :users), on: u.id == ^user.id)
+    |> join(:inner, [o], ou in assoc(o, :org_users), on: ou.user_id == ^user.id)
     |> preload([o], :products)
+    |> order_by([o], asc: o.name)
+    |> select([o, ou], {o, ou.role})
     |> Repo.all()
+  end
+
+  @doc """
+  How many members each of the given organizations has.
+  """
+  @spec count_org_users_by_org([pos_integer()]) :: %{pos_integer() => pos_integer()}
+  def count_org_users_by_org([]), do: %{}
+
+  def count_org_users_by_org(org_ids) when is_list(org_ids) do
+    OrgUser
+    |> where([ou], ou.org_id in ^org_ids)
+    |> Repo.exclude_deleted()
+    |> group_by([ou], ou.org_id)
+    |> select([ou], {ou.org_id, count(ou.id)})
+    |> Repo.all()
+    |> Map.new()
   end
 
   def get_org_device_counts(%Scope{}, org_id) do
