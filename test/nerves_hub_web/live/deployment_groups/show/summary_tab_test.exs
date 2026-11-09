@@ -305,7 +305,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show.SummaryTabTest do
     deployment_group: deployment_group
   } do
     conn
-    |> assert_has("svg[data-is-active=true]")
+    |> assert_has("span[data-is-active=true]")
     |> assert_has("span", text: "0")
     |> then(fn conn ->
       for tag <- deployment_group.conditions.tags do

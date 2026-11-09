@@ -85,9 +85,10 @@ Without a library, check that `webhook-timestamp` is within a few minutes of
 your clock, then compare your signature with each space-separated entry in
 `webhook-signature` using a constant-time comparison.
 
-**Send test event** on the Integrations page sends a `webhook.test` event to
-the webhook straight away and shows how your endpoint answered. It is a good
-way to check verification before subscribing to real events.
+**Send test event**, in the webhook's ⋯ menu on the Integrations page, sends a
+`webhook.test` event to the webhook straight away and shows how your endpoint
+answered. It is a good way to check verification before subscribing to real
+events.
 
 ### Retries, ordering and duplicates
 

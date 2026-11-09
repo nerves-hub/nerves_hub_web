@@ -14,12 +14,15 @@ defmodule NervesHub.Accounts do
   alias NervesHub.Accounts.UserCLISession
   alias NervesHub.Accounts.UserNotifier
   alias NervesHub.Accounts.UserToken
+  alias NervesHub.Archives.Archive
   alias NervesHub.CLISessionCache
   alias NervesHub.DeviceEvents
+  alias NervesHub.Devices.CACertificate
   alias NervesHub.Devices.Device
   alias NervesHub.Devices.DeviceConnection
   alias NervesHub.Devices.Pinning
   alias NervesHub.Firmwares.Firmware
+  alias NervesHub.Products
   alias NervesHub.Products.Product
   alias NervesHub.Repo
 
@@ -51,6 +54,35 @@ defmodule NervesHub.Accounts do
 
       {:error, :org, changeset, _} ->
         {:error, changeset}
+    end
+  end
+
+  @doc """
+  Sets up a new user's first organization: the org, with the user as its
+  admin, and its first product with a shared secret, so a device can connect
+  straight away.
+
+  All or nothing. A product name that fails validation leaves no org behind,
+  so the user is still offered the form rather than an org with no product.
+  The error says which of the two was refused.
+  """
+  @spec create_org_with_product(User.t(), map(), map()) ::
+          {:ok, %{org: Org.t(), product: Product.t()}}
+          | {:error, :org | :product, Changeset.t()}
+  def create_org_with_product(%User{} = user, org_params, product_params) do
+    Repo.transact(fn ->
+      with {:org, {:ok, org}} <- {:org, create_org(user, org_params)},
+           {:product, {:ok, product}} <-
+             {:product, Products.create_product(Map.put(product_params, :org_id, org.id))},
+           {:product, {:ok, _auth}} <- {:product, Products.create_shared_secret_auth(product)} do
+        {:ok, %{org: org, product: product}}
+      else
+        {step, {:error, changeset}} -> {:error, {step, changeset}}
+      end
+    end)
+    |> case do
+      {:ok, created} -> {:ok, created}
+      {:error, {step, changeset}} -> {:error, step, changeset}
     end
   end
 
@@ -453,13 +485,57 @@ defmodule NervesHub.Accounts do
     |> Repo.one!()
   end
 
-  def get_orgs_without_counts(%Scope{user: user}) do
+  @doc """
+  The organizations the scope's user belongs to, each with the user's role in
+  it, and with the products preloaded.
+  """
+  @spec get_orgs_with_roles(Scope.t()) :: [{Org.t(), :admin | :manage | :view}]
+  def get_orgs_with_roles(%Scope{user: user}) do
     Org
-    |> from(as: :org)
     |> Repo.exclude_deleted()
-    |> join(:inner, [o], u in assoc(o, :users), on: u.id == ^user.id)
+    |> join(:inner, [o], ou in assoc(o, :org_users), on: ou.user_id == ^user.id)
     |> preload([o], :products)
+    |> order_by([o], asc: o.name)
+    |> select([o, ou], {o, ou.role})
     |> Repo.all()
+  end
+
+  @doc """
+  How many members each of the given organizations has.
+  """
+  @spec count_org_users_by_org([pos_integer()]) :: %{pos_integer() => pos_integer()}
+  def count_org_users_by_org([]), do: %{}
+
+  def count_org_users_by_org(org_ids) when is_list(org_ids) do
+    OrgUser
+    |> where([ou], ou.org_id in ^org_ids)
+    |> Repo.exclude_deleted()
+    |> group_by([ou], ou.org_id)
+    |> select([ou], {ou.org_id, count(ou.id)})
+    |> Repo.all()
+    |> Map.new()
+  end
+
+  @doc """
+  How many products, devices, members, signing keys and certificate
+  authorities an organization has. Every organization page shows these in its
+  header and tabs.
+  """
+  @spec org_counts(Org.t()) :: %{
+          products: non_neg_integer(),
+          devices: non_neg_integer(),
+          members: non_neg_integer(),
+          signing_keys: non_neg_integer(),
+          certificates: non_neg_integer()
+        }
+  def org_counts(%Org{id: org_id}) do
+    %{
+      products: Product |> where(org_id: ^org_id) |> Repo.exclude_deleted() |> Repo.aggregate(:count),
+      devices: Device |> where(org_id: ^org_id) |> Repo.exclude_deleted() |> Repo.aggregate(:count),
+      members: OrgUser |> where(org_id: ^org_id) |> Repo.exclude_deleted() |> Repo.aggregate(:count),
+      signing_keys: OrgKey |> where(org_id: ^org_id) |> Repo.aggregate(:count),
+      certificates: CACertificate |> where(org_id: ^org_id) |> Repo.aggregate(:count)
+    }
   end
 
   def get_org_device_counts(%Scope{}, org_id) do
@@ -679,6 +755,35 @@ defmodule NervesHub.Accounts do
   end
 
   def maybe_copy_firmware_keys(_device, _target, _user), do: {:ok, []}
+
+  @doc """
+  How many firmware and archives name each of an organization's signing keys,
+  keyed by key id. Keys nothing names are left out.
+
+  A key with anything here can't be deleted. Deleted firmware counts too: the
+  rows stay, and still hold the key.
+  """
+  @spec org_key_usage(Org.t()) :: %{pos_integer() => %{firmware: non_neg_integer(), archives: non_neg_integer()}}
+  def org_key_usage(%Org{id: org_id}) do
+    firmware = count_by_org_key(Firmware, org_id)
+    archives = count_by_org_key(Archive, org_id)
+
+    (Map.keys(firmware) ++ Map.keys(archives))
+    |> Enum.uniq()
+    |> Map.new(&{&1, %{firmware: Map.get(firmware, &1, 0), archives: Map.get(archives, &1, 0)}})
+  end
+
+  defp count_by_org_key(schema, org_id) do
+    from(s in schema,
+      join: k in OrgKey,
+      on: k.id == s.org_key_id,
+      where: k.org_id == ^org_id,
+      group_by: s.org_key_id,
+      select: {s.org_key_id, count(s.id)}
+    )
+    |> Repo.all()
+    |> Map.new()
+  end
 
   @spec list_org_keys(Scope.t() | pos_integer(), boolean()) :: [OrgKey.t()]
   def list_org_keys(scope_or_org_id, load_created_by \\ true)

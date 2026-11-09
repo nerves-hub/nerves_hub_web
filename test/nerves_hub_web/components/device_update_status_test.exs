@@ -9,7 +9,7 @@ defmodule NervesHubWeb.Components.DeviceUpdateStatusTest do
   end
 
   describe "render/1" do
-    test "renders penalty-box SVG when device is in penalty box" do
+    test "renders the penalty-box icon when device is in penalty box" do
       device = %Device{
         id: 1,
         update_mode: :automatic,
@@ -21,10 +21,10 @@ defmodule NervesHubWeb.Components.DeviceUpdateStatusTest do
           DeviceUpdateStatus.render(%{device: device, time_zone: "Pacific/Auckland"})
         )
 
-      assert String.contains?(rendered, "stroke-warning")
+      assert String.contains?(rendered, "lucide-shield-alert")
     end
 
-    test "renders enabled SVG when updates are enabled and not penalized" do
+    test "renders the enabled icon when updates are enabled and not penalized" do
       device = %Device{
         id: 2,
         update_mode: :automatic,
@@ -36,10 +36,10 @@ defmodule NervesHubWeb.Components.DeviceUpdateStatusTest do
           DeviceUpdateStatus.render(%{device: device, time_zone: "Pacific/Auckland"})
         )
 
-      assert String.contains?(rendered, "stroke-success")
+      assert String.contains?(rendered, "lucide-shield-check")
     end
 
-    test "renders disabled SVG when updates are disabled" do
+    test "renders the disabled icon when updates are disabled" do
       device = %Device{
         id: 3,
         update_mode: :off,
@@ -51,7 +51,7 @@ defmodule NervesHubWeb.Components.DeviceUpdateStatusTest do
           DeviceUpdateStatus.render(%{device: device, time_zone: "Pacific/Auckland"})
         )
 
-      assert String.contains?(rendered, "stroke-alert")
+      assert String.contains?(rendered, "lucide-shield-off")
     end
   end
 

@@ -1,227 +1,93 @@
-<div id={@id} class="flex w-full flex-col rounded border border-base-700 bg-surface-raised">
-  <div class="flex h-14 items-center justify-between border-b border-base-700 px-4">
-    <div class="text-base font-medium text-base-50">{service_name(@provider)}</div>
-    <.button
-      :if={is_nil(@editing) && length(@channels) < ChatWebhooks.max_channels_per_org()}
-      type="button"
-      phx-click="new-channel"
-      phx-target={@myself}
-      disabled={!authorized?(:"chat_webhook:create", @current_scope)}
-      aria-label={"Add a #{service_name(@provider)} channel"}
-    >
-      <.icon name="add" />Add channel
-    </.button>
-  </div>
+<div id={@id}>
+  <.integration_row
+    :for={channel <- @channels}
+    id={row_id(@provider, channel)}
+    service={@provider}
+    name={channel.name}
+    status={status(channel)}
+    products={products_scope(channel)}
+    events={event_labels(channel)}
+  >
+    <:subline>{service_name(@provider)} · {webhook_kind(@provider)}</:subline>
+    <:problem :if={channel.disabled_reason}>{channel.disabled_reason}</:problem>
+    <:problem :if={channel.enabled && channel.last_error}>
+      Posting failed at <.local_datetime at={channel.last_error_at} time_zone={@time_zone} format={:time} zone_label={false} />: {channel.last_error}
+    </:problem>
+    <:menu :if={authorized?(:"chat_webhook:update", @current_scope)}>
+      <.row_menu id={row_id(@provider, channel)} label={"Actions for #{channel.name}"}>
+        <.menu_item
+          icon="lucide-send"
+          phx-click={JS.push("send-test", value: %{channel_id: channel.id}, target: @myself) |> hide_menu(row_id(@provider, channel))}
+          disabled={MapSet.member?(@testing, channel.id)}
+        >
+          {if MapSet.member?(@testing, channel.id), do: "Sending…", else: "Send test message"}
+        </.menu_item>
+        <.menu_item icon="lucide-pencil" phx-click={JS.push("edit-channel", value: %{channel_id: channel.id}, target: @myself) |> hide_menu(row_id(@provider, channel))}>
+          Edit
+        </.menu_item>
+        <.menu_divider />
+        <.menu_item
+          icon={if channel.enabled, do: "lucide-power-off", else: "lucide-power"}
+          phx-click={JS.push("toggle", value: %{channel_id: channel.id}, target: @myself) |> hide_menu(row_id(@provider, channel))}
+        >
+          {if channel.enabled, do: "Turn off", else: "Turn on"}
+        </.menu_item>
+        <.menu_item
+          :if={authorized?(:"chat_webhook:delete", @current_scope)}
+          icon="lucide-trash"
+          danger
+          phx-click={JS.push("delete", value: %{channel_id: channel.id}, target: @myself) |> hide_menu(row_id(@provider, channel))}
+          data-confirm={"Stop posting to #{channel.name}? Events held for it are dropped."}
+        >
+          Delete channel
+        </.menu_item>
+      </.row_menu>
+    </:menu>
+  </.integration_row>
 
-  <div class="flex flex-col gap-3 p-6">
-    <p class="w-2/3 text-sm">
-      {instructions(@provider)} Choosing channels and what they hear takes the manage role.
-    </p>
-  </div>
+  <.dialog
+    :if={@form}
+    id={dialog_id(@provider)}
+    service={@provider}
+    title={dialog_title(@provider, @editing)}
+    on_cancel={JS.push("cancel", target: @myself)}
+  >
+    <.form for={@form} id={"#{@provider}-channel-form"} phx-change="validate" phx-submit="save" phx-target={@myself}>
+      <.dialog_body>
+        <.steps :if={@editing == :new && @provider == :teams} title="In Teams">
+          <:step>Open the channel’s ⋯ menu and choose <strong class="font-medium text-content-body">Workflows</strong>.</:step>
+          <:step>Pick the <strong class="font-medium text-content-body">Send webhook alerts to a channel</strong> template.</:step>
+          <:step>Copy the URL it gives you and paste it below.</:step>
+        </.steps>
+        <.steps :if={@editing == :new && @provider == :discord} title="In Discord">
+          <:step>Open the channel’s settings and choose <strong class="font-medium text-content-body">Integrations</strong>.</:step>
+          <:step>Choose <strong class="font-medium text-content-body">Webhooks</strong>, then <strong class="font-medium text-content-body">New Webhook</strong>.</:step>
+          <:step>Copy the webhook’s URL and paste it below.</:step>
+        </.steps>
 
-  <div :if={@channels == [] && @editing != :new} class="border-t border-base-700 p-6">
-    <p class="text-sm text-base-400">No {service_name(@provider)} channel gets this organization's events yet.</p>
-  </div>
-
-  <div :if={@channels != [] || @editing == :new} class="flex flex-col gap-4 border-t border-base-700 p-6">
-    <div :for={channel <- @channels} id={"#{@provider}-channel-#{channel.id}"} class="flex flex-col gap-2 rounded border border-base-700 p-4">
-      <div class="flex flex-wrap items-start justify-between gap-3">
-        <div class="flex min-w-0 flex-col gap-1">
-          <div class="flex items-center gap-2">
-            <span class="font-medium text-base-50">{channel.name}</span>
-            <.status_badge channel={channel} />
-          </div>
-          <span class="text-xs text-base-400">{webhook_kind(@provider)} on {channel.url_host}</span>
+        <div class="flex flex-col gap-4">
+          <.text_field field={@form[:url]} value={typed_url(@form)} label={url_label(@provider, @editing)} mono placeholder="https://…" autocomplete="off">
+            <:hint :if={@editing == :new}>
+              <span class="mt-0.5 lucide-lock size-3" aria-hidden="true"></span> Anyone with this URL can post to the channel, so it’s stored encrypted and not shown again.
+            </:hint>
+            <:hint :if={@editing != :new}>
+              Leave it empty to keep posting through the webhook the channel has. A URL pasted here replaces it.
+            </:hint>
+          </.text_field>
+          <.text_field field={@form[:name]} label="Name" placeholder={name_placeholder(@provider)}>
+            <:hint>What to call it here. {service_name(@provider)} doesn’t tell us the channel’s name.</:hint>
+          </.text_field>
         </div>
 
-        <div :if={authorized?(:"chat_webhook:update", @current_scope)} class="flex items-center gap-2">
-          <.button
-            type="button"
-            phx-click="send-test"
-            phx-value-channel_id={channel.id}
-            phx-target={@myself}
-            disabled={MapSet.member?(@testing, channel.id)}
-            aria-label={"Send a test message to #{channel.name}"}
-          >
-            {if MapSet.member?(@testing, channel.id), do: "Sending...", else: "Send test message"}
-          </.button>
-          <div class="relative">
-            <button
-              type="button"
-              id={"#{@provider}-channel-#{channel.id}-menu-toggle"}
-              phx-click={toggle_menu(@provider, channel.id)}
-              aria-haspopup="menu"
-              title="More actions"
-              class="flex items-center rounded p-1.5 hover:cursor-pointer hover:bg-base-700"
-            >
-              <span class="lucide-ellipsis--light size-4 text-base-400"></span>
-              <span class="sr-only">More actions</span>
-            </button>
+        <.products_field form={@form} id={"#{@provider}"} products={@products} />
+        <.events_field form={@form} id={"#{@provider}"} columns={@event_columns} />
+      </.dialog_body>
 
-            <div
-              id={"#{@provider}-channel-#{channel.id}-menu"}
-              class="hidden"
-              phx-click-away={hide_menu(@provider, channel.id)}
-              phx-window-keydown={hide_menu(@provider, channel.id)}
-              phx-key="escape"
-            >
-              <div
-                role="menu"
-                class="absolute top-9 right-0 z-30 flex w-40 flex-col rounded-md border border-base-700 bg-surface-overlay p-1 shadow-lg"
-              >
-                <button
-                  type="button"
-                  role="menuitem"
-                  phx-click={JS.push("edit-channel", value: %{channel_id: channel.id}, target: @myself) |> hide_menu(@provider, channel.id)}
-                  class="flex items-center gap-2 rounded px-2 py-1.5 text-left text-sm text-base-300 hover:cursor-pointer hover:bg-primary/20"
-                >
-                  <span class="lucide-pencil--light size-4 text-base-400"></span> Edit
-                </button>
-                <button
-                  type="button"
-                  role="menuitem"
-                  phx-click={JS.push("toggle", value: %{channel_id: channel.id}, target: @myself) |> hide_menu(@provider, channel.id)}
-                  class="flex items-center gap-2 rounded px-2 py-1.5 text-left text-sm text-base-300 hover:cursor-pointer hover:bg-primary/20"
-                >
-                  <span :if={channel.enabled} class="lucide-power-off--light size-4 text-base-400"></span>
-                  <span :if={!channel.enabled} class="lucide-power--light size-4 text-success"></span>
-                  {if channel.enabled, do: "Turn off", else: "Turn on"}
-                </button>
-                <button
-                  :if={authorized?(:"chat_webhook:delete", @current_scope)}
-                  type="button"
-                  role="menuitem"
-                  phx-click={JS.push("delete", value: %{channel_id: channel.id}, target: @myself) |> hide_menu(@provider, channel.id)}
-                  data-confirm={"Stop posting to #{channel.name}? Events held for it are dropped."}
-                  class="flex items-center gap-2 rounded px-2 py-1.5 text-left text-sm text-alert hover:cursor-pointer hover:bg-alert-soft"
-                >
-                  <span class="lucide-trash--light size-4"></span> Delete
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div class="text-sm text-base-400">
-        <span class="text-base-300">Products:</span> {scope_label(channel)}
-      </div>
-
-      <div class="flex flex-wrap gap-2">
-        <span :for={key <- channel.events} class="rounded border border-base-700 bg-base-800 px-2 py-0.5 text-xs text-base-300">
-          {ChannelEvents.label(key)}
-        </span>
-      </div>
-
-      <p :if={channel.disabled_reason} class="text-sm text-alert">{channel.disabled_reason}</p>
-
-      <p :if={channel.enabled && channel.last_error} class="text-sm text-alert">
-        Posting failed at <.local_datetime at={channel.last_error_at} time_zone={@time_zone} format={:time} />: {channel.last_error}
-      </p>
-    </div>
-
-    <.form
-      :if={@form}
-      for={@form}
-      id={"#{@provider}-channel-form"}
-      phx-change="validate"
-      phx-submit="save"
-      phx-target={@myself}
-      class="flex flex-col gap-6 rounded border border-base-700 p-4"
-    >
-      <div class="text-sm font-medium text-base-50">
-        {if @editing == :new, do: "New channel", else: "Edit #{@editing.name}"}
-      </div>
-
-      <div class="flex w-2/3 flex-col gap-4">
-        <.input field={@form[:name]} type="text" label="Name" placeholder="Fleet alerts in Operations" />
-        <p class="-mt-2 text-xs text-base-500">What to call the channel here. {service_name(@provider)} does not tell NervesHub its name.</p>
-
-        <.input
-          field={@form[:url]}
-          type="text"
-          value={typed_url(@form)}
-          label={url_label(@provider, @editing)}
-          placeholder="https://..."
-          autocomplete="off"
-        />
-        <p class="-mt-2 text-xs text-base-500">
-          {if @editing == :new,
-            do: "Anyone with this URL can post to the channel, so it is stored encrypted and not shown again.",
-            else: "Leave empty to keep posting to the webhook it has. A URL pasted here replaces it."}
-        </p>
-      </div>
-
-      <div class="flex flex-col gap-3">
-        <div class="text-sm font-medium text-base-300">Products</div>
-        <label for={"#{@provider}-all-products-true"} class="flex items-center gap-3">
-          <input
-            id={"#{@provider}-all-products-true"}
-            type="radio"
-            name={"#{@provider}_channel[all_products]"}
-            value="true"
-            checked={all_products?(@form)}
-            class="border-base-700 text-base-400 checked:bg-primary focus:ring-0"
-          />
-          <span class="text-sm text-base-300">Every product, including products added later</span>
-        </label>
-        <label for={"#{@provider}-all-products-false"} class="flex items-center gap-3">
-          <input
-            id={"#{@provider}-all-products-false"}
-            type="radio"
-            name={"#{@provider}_channel[all_products]"}
-            value="false"
-            checked={!all_products?(@form)}
-            class="border-base-700 text-base-400 checked:bg-primary focus:ring-0"
-          />
-          <span class="text-sm text-base-300">Only these products</span>
-        </label>
-
-        <input type="hidden" name={"#{@provider}_channel[products][]"} value="" />
-        <div :if={!all_products?(@form)} class="ml-7 flex flex-col gap-1">
-          <label :for={product <- @products} for={"#{@provider}-product-#{product.id}"} class="flex items-center gap-3 py-1">
-            <input
-              id={"#{@provider}-product-#{product.id}"}
-              type="checkbox"
-              name={"#{@provider}_channel[products][]"}
-              value={product.name}
-              checked={MapSet.member?(selected_products(@form), product.name)}
-              class="rounded border-base-700 text-base-400 checked:bg-primary focus:ring-0"
-            />
-            <span class="text-sm text-base-300">{product.name}</span>
-          </label>
-        </div>
-
-        <.error :for={message <- checkbox_errors(@form, :products)}>{message}</.error>
-      </div>
-
-      <div class="flex flex-col gap-2">
-        <div class="text-sm font-medium text-base-300">Events</div>
-        <input type="hidden" name={"#{@provider}_channel[events][]"} value="" />
-        <label :for={event <- @events} for={"#{@provider}-event-#{event.key}"} class="flex items-start gap-3 py-1">
-          <input
-            id={"#{@provider}-event-#{event.key}"}
-            type="checkbox"
-            name={"#{@provider}_channel[events][]"}
-            value={event.key}
-            checked={event.key in selected_events(@form)}
-            class="mt-0.5 rounded border-base-700 text-base-400 checked:bg-primary focus:ring-0"
-          />
-          <div class="flex flex-col">
-            <span class="text-sm font-medium text-base-300">{event.label}</span>
-            <span class="text-xs text-base-400">{event.description}</span>
-          </div>
-        </label>
-
-        <.error :for={message <- checkbox_errors(@form, :events)}>{message}</.error>
-      </div>
-
-      <div class="flex gap-3">
-        <.button style="primary" type="submit" phx-disable-with="Saving...">
+      <.dialog_footer dialog={dialog_id(@provider)}>
+        <.button style="primary" type="submit" phx-disable-with="Saving…">
           {if @editing == :new, do: "Add channel", else: "Save channel"}
         </.button>
-        <.button type="button" phx-click="cancel" phx-target={@myself}>Cancel</.button>
-      </div>
+      </.dialog_footer>
     </.form>
-  </div>
+  </.dialog>
 </div>

@@ -39,11 +39,12 @@ defmodule NervesHubWeb.SessionController do
         |> Auth.log_in_user(user, user_params)
 
       _ ->
-        form = Phoenix.Component.to_form(user_params, as: "user")
+        # Keep the email and the remember-me tick, but never send the password back.
+        form = Phoenix.Component.to_form(Map.delete(user_params, "password"), as: "user")
 
         # In order to prevent user enumeration attacks, don't disclose whether the email is registered.
         conn
-        |> assign(:error_message, "Invalid email or password")
+        |> assign(:error_message, "That email and password don't match")
         |> render(:new, form: form)
     end
   end

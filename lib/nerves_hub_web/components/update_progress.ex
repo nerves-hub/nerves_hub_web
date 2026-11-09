@@ -14,7 +14,7 @@ defmodule NervesHubWeb.Components.UpdateProgress do
     ~H"""
     <div class="absolute top-0 left-0 z-10 w-full">
       <div class="relative -top-[11px] z-100 flex h-0 w-full justify-center">
-        <div class="h-[24px] rounded-full border border-base-700 bg-surface-muted px-2.5 py-0.5 text-[0.8rem] font-normal">{@message}</div>
+        <div class="h-[24px] rounded-full border border-line-default bg-surface-muted px-2.5 py-0.5 text-xs font-normal">{@message}</div>
       </div>
       <div class="sticky top-0 z-20 h-0 w-full overflow-visible">
         <div class="absolute z-40 border-t border-success" role="progressbar" style={"width: #{@progress}%"}>
