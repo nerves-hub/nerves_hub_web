@@ -1,8 +1,13 @@
 <Layouts.auth flash={@flash}>
   <:title>
-    CLI authentication failed :(
+    The CLI sign-in didn't work
   </:title>
-  <:subheader>
-    The CLI authentication handshake was invalid and failed. If this was unexpected, please contact support.
-  </:subheader>
+
+  <div role="alert" class="flex gap-2.5 rounded-md border border-alert/30 bg-alert-soft p-3 text-sm text-alert-content">
+    <span class="mt-0.5 lucide-circle-alert size-4 flex-none" aria-hidden="true"></span>
+    <div>
+      <p class="font-semibold">This sign-in link isn't valid</p>
+      <p>It may have expired, or it was started from another account. Run the login command in your terminal again for a new link.</p>
+    </div>
+  </div>
 </Layouts.auth>

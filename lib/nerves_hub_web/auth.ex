@@ -16,6 +16,12 @@ defmodule NervesHubWeb.Auth do
   @remember_me_options [sign: true, max_age: @max_age, same_site: "Lax"]
 
   @doc """
+  How many days "Remember me" keeps someone signed in, for the sign-in page to
+  state.
+  """
+  def remember_me_days(), do: div(@max_age, 60 * 60 * 24)
+
+  @doc """
   Logs the User in.
 
   It renews the session ID and clears the whole session

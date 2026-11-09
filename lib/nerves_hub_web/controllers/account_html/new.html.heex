@@ -1,34 +1,26 @@
 <Layouts.auth flash={@flash}>
   <:title>
-    Create a new account
+    Create your account
   </:title>
-  <div class="mt-6">
-    <div :if={Enum.any?(@changeset.errors)} role="alert" class="mr-2 mb-6 w-full rounded-md bg-alert-soft fill-alert p-3 text-alert-content ring-1 ring-alert">
-      <p class="mt-1 text-sm/5">Oops, we couldn't save your account details.</p>
-    </div>
+  <:subheader>
+    Start with one device. Grow into a fleet.
+  </:subheader>
 
-    <div>
-      <.form :let={f} for={@changeset} action={~p"/register"} class="space-y-6">
-        <div>
-          <.input field={f[:name]} label="Name" placeholder="eg. Jane Doe" />
-        </div>
+  <div class="flex flex-col gap-5">
+    <OAuthLinks.render divider="or sign up with email" />
 
-        <div>
-          <.input field={f[:email]} label="Email address" placeholder="eg. person@company.com" />
-        </div>
+    <.form :let={f} for={@changeset} action={~p"/register"} class="flex flex-col gap-5">
+      <.input field={f[:name]} label="Name" autocomplete="name" placeholder="Jane Doe" />
+      <.input field={f[:email]} type="email" label="Email" autocomplete="email" placeholder="you@company.com" />
+      <.input field={f[:password]} type="password" label="Password" autocomplete="new-password" hint="At least 12 characters" required />
 
-        <div>
-          <.input field={f[:password]} label="Password" type="password" autocomplete="current-password" required />
-        </div>
-
-        <div>
-          <.button style="primary" type="submit" class="flex w-full justify-center">
-            Register
-          </.button>
-        </div>
-      </.form>
-    </div>
-
-    <OAuthLinks.render />
+      <.button style="primary" type="submit" class="w-full">
+        Create account
+      </.button>
+    </.form>
   </div>
+
+  <:footer>
+    Already have an account? <.link href={~p"/login"} class="font-semibold text-primary hover:text-primary-hover light:text-indigo-600 light:hover:text-indigo-500">Sign in</.link>
+  </:footer>
 </Layouts.auth>
