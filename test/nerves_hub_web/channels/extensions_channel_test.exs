@@ -5,6 +5,7 @@ defmodule NervesHubWeb.ExtensionsChannelTest do
   alias NervesHub.Consoles
   alias NervesHub.Devices
   alias NervesHub.Devices.Device
+  alias NervesHub.Devices.HealthEvaluation.Queue
   alias NervesHub.Devices.NetworkIdentities
   alias NervesHub.Devices.PubSub, as: DevicesPubSub
   alias NervesHub.Extensions.Health
@@ -100,7 +101,13 @@ defmodule NervesHubWeb.ExtensionsChannelTest do
     :ok = PubSub.subscribe_reports(device.id)
 
     push(extensions_channel, "health:report", %{"value" => dummy_health_report()})
-    assert_receive %Broadcast{event: "health_check_report"}
+
+    # The report queues its evaluation, which saves and broadcasts later, in a
+    # task of its own. Wait for it rather than for a fixed time.
+    :sys.get_state(extensions_channel.channel_pid)
+    :ok = Queue.drain(device_id: device.id)
+
+    assert_received %Broadcast{event: "health_check_report"}
 
     assert Repo.aggregate(Devices.DeviceHealth, :count) == 1
   end
