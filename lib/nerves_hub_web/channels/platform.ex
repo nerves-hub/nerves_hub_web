@@ -8,8 +8,8 @@ defmodule NervesHubWeb.Channels.Platform do
   finish in time. Raising in either case would end the process holding the
   connection, and with it a healthy connection, which the device then rebuilds
   -- adding load at the moment the platform is shortest of it. So both come
-  back as `:unanswered`, and what that costs is the caller's decision: usually
-  one message, sometimes a join.
+  back as `:unanswered`, and what that costs is the caller's decision: one
+  extension message, a join, or a device channel the device then joins again.
 
   An exception the platform raised is not caught. That is an answer, and a bug
   should not look like an outage.

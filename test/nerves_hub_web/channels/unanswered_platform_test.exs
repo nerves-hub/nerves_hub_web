@@ -77,7 +77,8 @@ end
 
 defmodule NervesHubWeb.UnansweredPlatformTest do
   @moduledoc """
-  A platform that does not answer costs a device one message, not its connection.
+  A platform that does not answer costs a device one extension message, or a
+  rejoin of its device channel, never its connection.
 
   The platform fails to answer in two ways that say nothing about the device:
   no node can be reached (`NoHandlersError`), or the node that took the call is
@@ -88,6 +89,8 @@ defmodule NervesHubWeb.UnansweredPlatformTest do
   """
 
   use NervesHubWeb.ChannelCase
+
+  import ExUnit.CaptureLog
 
   alias NervesHub.DeviceLink.Dispatcher.NoHandlersError
   alias NervesHub.DeviceLink.Dispatcher.TimeoutError
@@ -180,7 +183,10 @@ defmodule NervesHubWeb.UnansweredPlatformTest do
     describe "the device channel, when the platform #{reason}" do
       @describetag reason: reason
 
-      test "drops a message, a notification and a broadcast, and keeps the session",
+      # Dropping any of these would leave the session out of step with the
+      # device, and nothing would bring them back. The join reads the device
+      # afresh.
+      test "closes the channel for the device to rejoin, on a message, a notification or a broadcast",
            %{reason: reason} do
         StubPlatform.install(self(), %{
           device_message: fn _ -> unanswered(reason, :device_message) end,
@@ -189,22 +195,59 @@ defmodule NervesHubWeb.UnansweredPlatformTest do
         })
 
         {:ok, socket} = connect_device()
-        {:ok, _reply, channel} = subscribe_and_join(socket, DeviceChannel, "device:1234", %{})
-        session = session(channel)
 
+        channel = join_to_be_closed(socket)
         push(channel, "status_update", %{"status" => "updating"})
-        assert_receive {:platform_call, :device_message, _}, 1_000
+        assert_closed_for_rejoin(channel, :device_message)
         assert_unanswered(:device_message, reason)
 
+        channel = join_to_be_closed(socket)
         send(channel.channel_pid, :something_for_the_device)
-        assert_receive {:platform_call, :device_notify, _}, 1_000
+        assert_closed_for_rejoin(channel, :device_notify)
         assert_unanswered(:device_notify, reason)
 
+        channel = join_to_be_closed(socket)
         @endpoint.broadcast!("device:1234", "updated", %{})
-        assert_receive {:platform_call, :device_broadcast, _}, 1_000
+        assert_closed_for_rejoin(channel, :device_broadcast)
         assert_unanswered(:device_broadcast, reason)
+      end
 
-        assert session(channel) == session
+      # Through the socket a device holds: what it is sent, and that joining
+      # again works.
+      test "tells the device the channel errored, and takes it back when it joins again",
+           %{reason: reason} do
+        StubPlatform.install(self(), %{
+          device_message: fn _ -> unanswered(reason, :device_message) end
+        })
+
+        state = websocket_join(websocket(), "1")
+
+        {state, log} =
+          with_log(fn ->
+            assert {:ok, state} =
+                     DeviceSocket.handle_in(frame(["1", "2", "device", "status_update", %{}]), state)
+
+            # Handed to the socket in the order it would get them: a channel
+            # that stops itself sends `:socket_close` before it goes, and the
+            # device is then told `phx_close` instead.
+            message =
+              receive do
+                {:socket_close, _pid, _reason} = message -> message
+                {:DOWN, _ref, :process, _pid, {:shutdown, {:unanswered, _}}} = message -> message
+              after
+                1_000 -> flunk("the channel did not close")
+              end
+
+            assert {:push, {:text, pushed}, state} = DeviceSocket.handle_info(message, state)
+            assert ["1", "1", "device", "phx_error", _payload] = Jason.decode!(pushed)
+
+            state
+          end)
+
+        # Every device does this at once when the platform is slow.
+        refute log =~ "terminating"
+
+        websocket_join(state, "3")
       end
 
       test "refuses the join", %{reason: reason} do
@@ -301,8 +344,36 @@ defmodule NervesHubWeb.UnansweredPlatformTest do
     state
   end
 
+  defp websocket_join(state, join_ref) do
+    assert {:reply, :ok, {:text, reply}, state} =
+             DeviceSocket.handle_in(frame([join_ref, join_ref, "device", "phx_join", %{}]), state)
+
+    assert [^join_ref, ^join_ref, "device", "phx_reply", %{"status" => "ok"}] = Jason.decode!(reply)
+
+    state
+  end
+
+  defp frame(message), do: {Jason.encode!(message), opcode: :text}
+
+  # Unlinked, or its exit would take the test with it.
+  defp join_to_be_closed(socket) do
+    {:ok, _reply, channel} = subscribe_and_join(socket, DeviceChannel, "device:1234", %{})
+    Process.unlink(channel.channel_pid)
+    _ = Process.monitor(channel.channel_pid)
+    channel
+  end
+
+  # The channel exits without telling the socket first, which Phoenix reports to
+  # the device as `phx_error`, and clients rejoin after that. A `:socket_close`
+  # would have been reported as `phx_close`, after which NervesHubLink does not
+  # rejoin.
+  defp assert_closed_for_rejoin(channel, function) do
+    pid = channel.channel_pid
+    assert_receive {:DOWN, _ref, :process, ^pid, {:shutdown, {:unanswered, ^function}}}, 1_000
+    refute_received {:socket_close, ^pid, _reason}
+  end
+
   defp extensions(channel), do: :sys.get_state(channel.channel_pid).assigns.extensions
-  defp session(channel), do: :sys.get_state(channel.channel_pid).assigns.session
 
   defp attach_unanswered() do
     test = self()

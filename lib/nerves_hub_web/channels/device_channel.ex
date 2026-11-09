@@ -11,9 +11,11 @@ defmodule NervesHubWeb.DeviceChannel do
   the platform's code, which is what allows the connection to be held somewhere
   the platform is not.
 
-  When the platform does not answer, what the device said or was sent is dropped
-  and the session stays as it was; see `NervesHubWeb.Channels.Platform`. The
-  device keeps its connection.
+  When the platform does not answer, the channel closes and the device joins it
+  again; see `NervesHubWeb.Channels.Platform`. What the device said or was sent
+  changes its session, so dropping it would leave the two out of step with
+  nothing to bring them back. The join reads the device afresh. The socket, and
+  the device's other channels, stay up.
 
   # Fastlaned Messages
 
@@ -86,9 +88,6 @@ defmodule NervesHubWeb.DeviceChannel do
     advance(socket, :device_broadcast, &DeviceLink.device_broadcast(&1, event, payload))
   end
 
-  # For a timer, `socket` is the one `Effects.timer_fired/2` returned, which has
-  # already re-armed an interval. Keeping it when the platform does not answer
-  # keeps the timer.
   defp advance(socket, function, fun) do
     case Platform.ask(socket, function, fn -> fun.(socket.assigns.session) end) do
       {session, effects} ->
@@ -100,7 +99,20 @@ defmodule NervesHubWeb.DeviceChannel do
         {:noreply, socket}
 
       :unanswered ->
-        {:noreply, socket}
+        rejoin(function)
     end
   end
+
+  # Ends the channel so the device joins it again, which is what brings its
+  # session back in step with whatever was lost.
+  #
+  # Phoenix tells the client `phx_error` when a channel exits, and clients rejoin
+  # after that, with their own backoff. Returning `{:stop, {:shutdown, _},
+  # socket}` would send `phx_close` instead, which NervesHubLink takes as the
+  # channel ended for good, and it does not rejoin. Stopping with any other
+  # reason sends `phx_error` too, but is logged as a crash, and `Platform.ask/3`
+  # has already reported this -- for every device at once, when the platform is
+  # slow. A `{:shutdown, _}` exit is not logged.
+  @spec rejoin(atom()) :: no_return()
+  defp rejoin(function), do: exit({:shutdown, {:unanswered, function}})
 end
