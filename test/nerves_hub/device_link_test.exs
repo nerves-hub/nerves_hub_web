@@ -381,6 +381,28 @@ defmodule NervesHub.DeviceLinkTest do
     end
   end
 
+  describe "connect/3" do
+    test "records the client library the User-Agent names", %{device: device} do
+      device_info = %{to_device_info(device) | org_id: device.org_id}
+
+      assert {:ok, %DeviceInfo{connection_ref: ref}} =
+               DeviceLink.connect(device_info, "203.0.113.7", "NHL/2.13.0 Mint/1.7.1")
+
+      assert %DeviceConnection{id: ^ref, ip_address: "203.0.113.7", lib: "nerves_hub_link", lib_version: "2.13.0"} =
+               Connections.get_latest_for_device(device.id)
+    end
+
+    # What a node holding sockets calls while it is still on a release that
+    # doesn't forward the header.
+    test "records an unknown client library when called without one", %{device: device} do
+      device_info = %{to_device_info(device) | org_id: device.org_id}
+
+      assert {:ok, %DeviceInfo{connection_ref: ref}} = DeviceLink.connect(device_info, "203.0.113.7")
+
+      assert %DeviceConnection{id: ^ref, lib: nil, lib_version: nil} = Connections.get_latest_for_device(device.id)
+    end
+  end
+
   describe "join/2" do
     test "keeps the old firmware on record when the update that installed the new one cannot be recorded", %{
       device: device,
