@@ -125,7 +125,8 @@ So a report is trimmed rather than trusted:
 - Spaces are stripped from names.
 
 In every case the rest of the report is stored, and the product's operators get
-a notification saying what was discarded and by which device.
+a notification saying what was discarded and by which device. A device that
+keeps sending such reports raises at most one notification a minute.
 
 ## What is stored
 
