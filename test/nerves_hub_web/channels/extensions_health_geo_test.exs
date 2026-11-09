@@ -14,6 +14,7 @@ defmodule NervesHubWeb.Extensions.HealthGeoTest do
   alias NervesHubWeb.ExtensionsChannel
   # ---- Helpers ----
   alias Phoenix.Socket.Broadcast
+  alias Phoenix.Socket.Message
 
   defp build_socket(tmp_dir) do
     user = Fixtures.user_fixture()
@@ -94,6 +95,12 @@ defmodule NervesHubWeb.Extensions.HealthGeoTest do
 
   describe "Extensions.Health attach" do
     test "starts a health check timer on attach", %{tmp_dir: tmp_dir} do
+      # The first check fires at a random point in this window. An hour keeps
+      # it from landing inside the test, which a minute does not.
+      original = Application.get_env(:nerves_hub, :extension_config)
+      Application.put_env(:nerves_hub, :extension_config, health: [first_check_window_seconds: 3600])
+      on_exit(fn -> Application.put_env(:nerves_hub, :extension_config, original) end)
+
       {socket, _device} = build_socket(tmp_dir)
       ext_channel = join_extensions(socket, %{"health" => "0.0.1"})
 
@@ -101,6 +108,27 @@ defmodule NervesHubWeb.Extensions.HealthGeoTest do
       state = :sys.get_state(ext_channel.channel_pid)
 
       assert Map.has_key?(state.assigns.link_timers, {"health", :check})
+      # Nobody has the device's page open, so the first report is asked for at
+      # a random point in the window rather than straight away.
+      assert {:send_after, _ref} = state.assigns.link_timers[{"health", :first_check}]
+
+      # An immediate check would be a message the channel sent itself while
+      # attaching. Waiting on the channel again means it has handled that
+      # message, so its push would already be here.
+      :sys.get_state(ext_channel.channel_pid)
+      refute_received %Message{event: "health:check"}
+
+      close_cleanly(ext_channel)
+    end
+
+    test "the first check, when it fires, asks the device for a report", %{tmp_dir: tmp_dir} do
+      {socket, _device} = build_socket(tmp_dir)
+      ext_channel = join_extensions(socket, %{"health" => "0.0.1"})
+      attach_extension(ext_channel, "health")
+
+      send(ext_channel.channel_pid, {Health, :first_check})
+
+      assert_push("health:check", %{})
 
       close_cleanly(ext_channel)
     end
@@ -116,6 +144,7 @@ defmodule NervesHubWeb.Extensions.HealthGeoTest do
       state = :sys.get_state(ext_channel.channel_pid)
 
       refute Map.has_key?(state.assigns.link_timers, {"health", :check})
+      refute Map.has_key?(state.assigns.link_timers, {"health", :first_check})
 
       close_cleanly(ext_channel)
     end
@@ -127,10 +156,6 @@ defmodule NervesHubWeb.Extensions.HealthGeoTest do
       ext_channel = join_extensions(socket, %{"health" => "0.0.1"})
       attach_extension(ext_channel, "health")
 
-      # attach/1 already sends {:Health, :check} to trigger an immediate check — consume it
-      assert_push("health:check", %{})
-
-      # Manually send another :check
       send(ext_channel.channel_pid, {Health, :check})
 
       assert_push("health:check", %{})
@@ -144,9 +169,6 @@ defmodule NervesHubWeb.Extensions.HealthGeoTest do
       {socket, device} = build_socket(tmp_dir)
       ext_channel = join_extensions(socket, %{"health" => "0.0.1"})
       attach_extension(ext_channel, "health")
-
-      # Consume the initial health:check push from attach
-      assert_push("health:check", %{})
 
       # Subscribe to health report broadcasts via the Extension PubSub
       ExtPubSub.subscribe_reports(device.id)
@@ -164,8 +186,6 @@ defmodule NervesHubWeb.Extensions.HealthGeoTest do
       {socket, _device} = build_socket(tmp_dir)
       ext_channel = join_extensions(socket, %{"health" => "0.0.1"})
       attach_extension(ext_channel, "health")
-
-      assert_push("health:check", %{})
 
       push(ext_channel, "health:report", %{"value" => %{}})
       :sys.get_state(ext_channel.channel_pid)

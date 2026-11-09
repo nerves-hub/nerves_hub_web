@@ -11,6 +11,7 @@ defmodule NervesHub.Extensions.HealthReportTest do
   alias NervesHub.Devices.Alarms
   alias NervesHub.Devices.Connections
   alias NervesHub.Devices.DeviceHealth
+  alias NervesHub.Devices.HealthEvaluation.Queue
   alias NervesHub.Extensions.Health
   alias NervesHub.Extensions.State
   alias NervesHub.Fixtures
@@ -35,9 +36,11 @@ defmodule NervesHub.Extensions.HealthReportTest do
     %{device: device, product: product, connection: connection, state: state}
   end
 
+  # Each report is judged before the next, as the queue does when reports are
+  # far enough apart not to be merged.
   defp report(state, value) do
     {_state, []} = Health.handle_in("report", %{"value" => value}, state)
-    :ok
+    Queue.drain(device_id: state.device_info.device_id)
   end
 
   test "stores the status, the alarms and the metadata", %{device: device, state: state} do

@@ -5,8 +5,10 @@ defmodule NervesHubWeb.ExtensionsChannelTest do
   alias NervesHub.Consoles
   alias NervesHub.Devices
   alias NervesHub.Devices.Device
+  alias NervesHub.Devices.HealthEvaluation.Queue
   alias NervesHub.Devices.NetworkIdentities
   alias NervesHub.Devices.PubSub, as: DevicesPubSub
+  alias NervesHub.Extensions.Health
   alias NervesHub.Extensions.PubSub
   alias NervesHub.Firmwares
   alias NervesHub.FirmwareUpdates
@@ -92,12 +94,20 @@ defmodule NervesHubWeb.ExtensionsChannelTest do
              )
 
     push(extensions_channel, "health:attached")
+
+    fire_first_check(extensions_channel)
     assert_push("health:check", _)
 
     :ok = PubSub.subscribe_reports(device.id)
 
     push(extensions_channel, "health:report", %{"value" => dummy_health_report()})
-    assert_receive %Broadcast{event: "health_check_report"}
+
+    # The report queues its evaluation, which saves and broadcasts later, in a
+    # task of its own. Wait for it rather than for a fixed time.
+    :sys.get_state(extensions_channel.channel_pid)
+    :ok = Queue.drain(device_id: device.id)
+
+    assert_received %Broadcast{event: "health_check_report"}
 
     assert Repo.aggregate(Devices.DeviceHealth, :count) == 1
   end
@@ -381,6 +391,8 @@ defmodule NervesHubWeb.ExtensionsChannelTest do
              )
 
     push(socket, "health:attached")
+
+    fire_first_check(socket)
     assert_push("health:check", _)
   end
 
@@ -406,6 +418,8 @@ defmodule NervesHubWeb.ExtensionsChannelTest do
              )
 
     push(socket, "health:attached")
+
+    fire_first_check(socket)
     assert_push("health:check", _)
 
     # What the device Show LiveView does on mount. The whole point of the round
@@ -469,6 +483,7 @@ defmodule NervesHubWeb.ExtensionsChannelTest do
     assert "geo" in attach_list
     push(socket, "health:attached")
     push(socket, "geo:attached")
+    fire_first_check(socket)
     assert_push("geo:location:request", _)
     assert_push("health:check", _)
     product = Products.get_product!(device.product_id)
@@ -506,6 +521,7 @@ defmodule NervesHubWeb.ExtensionsChannelTest do
     assert "geo" in attach_list
     push(socket, "health:attached")
     push(socket, "geo:attached")
+    fire_first_check(socket)
     assert_push("geo:location:request", _)
     assert_push("health:check", _)
     product = Products.get_product!(device.product_id)
@@ -828,6 +844,8 @@ defmodule NervesHubWeb.ExtensionsChannelTest do
              )
 
     push(extensions_channel, "health:attached")
+
+    fire_first_check(extensions_channel)
     assert_push("health:check", _)
 
     push(extensions_channel, "health:error", %{})
@@ -875,4 +893,8 @@ defmodule NervesHubWeb.ExtensionsChannelTest do
 
   defp subscribe_and_join_with_default_device_api_version(socket, channel, topic, payload),
     do: subscribe_and_join(socket, channel, topic, Map.merge(%{"device_api_version" => "2.2.0"}, payload))
+
+  # Attaching health asks for its first report at a random point in a window,
+  # not straight away. Fire that check rather than wait for it.
+  defp fire_first_check(channel), do: send(channel.channel_pid, {Health, :first_check})
 end
