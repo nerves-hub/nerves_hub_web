@@ -1,6 +1,8 @@
 defmodule NervesHubWeb.ErrorHTML do
   use NervesHubWeb, :html
 
+  alias NervesHubWeb.Components.ErrorPage
+
   embed_templates("error_html/*")
 
   # The default is to render a plain text page based on

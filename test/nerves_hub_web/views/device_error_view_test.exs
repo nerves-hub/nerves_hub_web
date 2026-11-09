@@ -6,11 +6,11 @@ defmodule NervesHubWeb.DeviceErrorViewTest do
 
   test "render 500.html" do
     assert render_to_string(NervesHubWeb.ErrorDeviceHTML, "500", "html", []) =~
-             "Sorry, we tried to process your request but something went wrong."
+             "Something on our side blew a fuse."
   end
 
   test "render 400.html" do
     assert render_to_string(NervesHubWeb.ErrorDeviceHTML, "400", "html", []) =~
-             "Sorry, your request was invalid or corrupted."
+             "We couldn’t read that request."
   end
 end
