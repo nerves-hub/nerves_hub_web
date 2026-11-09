@@ -3,6 +3,7 @@ defmodule NervesHub.Extensions.DispatchTest do
 
   alias NervesHub.DeviceLink.DeviceInfo
   alias NervesHub.Extensions.Dispatch
+  alias NervesHub.Extensions.Health
   alias NervesHub.Fixtures
   alias NervesHub.Products.Notification
 
@@ -80,6 +81,27 @@ defmodule NervesHub.Extensions.DispatchTest do
       assert extensions["local_shell"].status == :attached
       assert {:push, "local_shell:request_shell", %{}} in effects
       assert Repo.all(Notification) == []
+    end
+  end
+
+  describe "a one-off timer an extension asks for" do
+    test "is filed under the extension and delivered back to its module" do
+      device_info = %DeviceInfo{
+        device_id: System.unique_integer([:positive]),
+        device_identifier: "first-check",
+        allowed_extensions: [:health]
+      }
+
+      {["health"], extensions} = Dispatch.join(device_info, %{"health" => "0.0.1"})
+
+      {:ok, _extensions, effects} = Dispatch.message(extensions, "health:attached", %{})
+
+      # What health asks for when nobody has the device's page open; see
+      # `NervesHub.DeviceLink.Effect` for who carries it out.
+      assert [{:send_after, {"health", :first_check}, {Health, :first_check}, delay_ms}] =
+               Enum.filter(effects, &match?({:send_after, _, _, _}, &1))
+
+      assert delay_ms in 0..to_timeout(minute: 1)
     end
   end
 end

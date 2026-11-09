@@ -1,25 +1,26 @@
 <Layouts.auth flash={@flash}>
   <:title>
-    We were unable to sign you in.
+    We couldn't sign you in with Google
   </:title>
 
-  <div :if={!Application.get_env(:nerves_hub, :support_email_address)} class="mt-8">
-    <p class="text-sm/6 text-base-300">
-      Sorry, we were unable to log you in with Google.
-    </p>
+  <div class="flex flex-col gap-4 text-sm">
+    <div role="alert" class="flex gap-2.5 rounded-md border border-alert/30 bg-alert-soft p-3 text-alert-content">
+      <span class="mt-0.5 lucide-circle-alert size-4 flex-none" aria-hidden="true"></span>
+      <p>Google didn't confirm who you are, so we couldn't finish signing you in. Try again, or sign in with your email and password.</p>
+    </div>
 
-    <p class="mt-2 text-sm/6 text-base-300">
-      Please contact your platform administrator if you continue to experience issues with Google login.
+    <p :if={!Application.get_env(:nerves_hub, :support_email_address)} class="text-content-muted">
+      If it keeps happening, ask your platform admin for help.
+    </p>
+    <p :if={Application.get_env(:nerves_hub, :support_email_address)} class="text-content-muted">
+      If it keeps happening, email <.link
+        class="font-semibold text-primary hover:text-primary-hover light:text-indigo-600 light:hover:text-indigo-500"
+        href={"mailto:#{Application.get_env(:nerves_hub, :support_email_address)}"}
+      >{Application.get_env(:nerves_hub, :support_email_address)}</.link>.
     </p>
   </div>
 
-  <div :if={Application.get_env(:nerves_hub, :support_email_address)} class="mt-8">
-    <p class="text-sm/6 text-base-300">
-      Sorry, we were unable to log you in with Google.
-    </p>
-
-    <p class="mt-2 text-sm/6 text-base-300">
-      Please contact our <.link class="underline" href={"mailto:#{Application.get_env(:nerves_hub, :support_email_address)}"}>support team</.link> if you continue to experience issues.
-    </p>
-  </div>
+  <:footer>
+    <.link href={~p"/login"} class="font-semibold text-primary hover:text-primary-hover light:text-indigo-600 light:hover:text-indigo-500">Back to sign in</.link>
+  </:footer>
 </Layouts.auth>

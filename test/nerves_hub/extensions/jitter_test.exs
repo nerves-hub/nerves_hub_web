@@ -33,4 +33,28 @@ defmodule NervesHub.Extensions.JitterTest do
       assert_raise FunctionClauseError, fn -> Jitter.start_delay(-5) end
     end
   end
+
+  describe "first_check_delay/1" do
+    @window to_timeout(minute: 1)
+
+    test "stays inside the window, and may be immediate" do
+      delays = for _ <- 1..2_000, do: Jitter.first_check_delay(@window)
+
+      assert Enum.all?(delays, &(&1 in 0..@window))
+    end
+
+    test "spreads a fleet that reconnects together across the window" do
+      # 1,800 devices, roughly production on 2026-11-08, reconnecting at once.
+      delays = for _ <- 1..1_800, do: Jitter.first_check_delay(@window)
+
+      peak = delays |> Enum.frequencies_by(&div(&1, to_timeout(second: 1))) |> Map.values() |> Enum.max()
+
+      # An even spread puts 30 in each second. Unjittered, all 1,800 land in one.
+      assert peak < 90, "#{peak} devices landed in one second"
+    end
+
+    test "a window of zero asks at once" do
+      assert Jitter.first_check_delay(0) == 0
+    end
+  end
 end

@@ -1,24 +1,40 @@
 <Layouts.auth flash={@flash}>
-  <:title>
-    Reset your password
+  <:title :if={!Phoenix.Flash.get(@flash, :reset_link_expired)}>
+    Forgot your password?
+  </:title>
+  <:title :if={Phoenix.Flash.get(@flash, :reset_link_expired)}>
+    Get a new reset link
   </:title>
   <:subheader>
-    You can recover access to your account by resetting your password.
+    We'll email you a link to set a new one.
   </:subheader>
 
-  <div class="mt-6">
-    <div>
-      <.form :let={f} for={@conn.params["user"]} as={:user} action={~p"/password-reset"} class="space-y-6">
-        <div>
-          <.input field={f[:email]} label="Email" placeholder="eg. jane@company.com" />
-        </div>
-
-        <div>
-          <.button style="primary" type="submit" class="flex w-full justify-center">
-            Send password reset instructions
-          </.button>
-        </div>
-      </.form>
+  <div class="flex flex-col gap-5">
+    <div
+      :if={Phoenix.Flash.get(@flash, :reset_link_expired)}
+      id="reset-link-expired"
+      role="status"
+      class="flex gap-2.5 rounded-md border border-warning/40 bg-warning-soft p-3 text-sm text-warning-content"
+    >
+      <span class="mt-0.5 lucide-clock size-4 flex-none" aria-hidden="true"></span>
+      <div>
+        <p class="font-semibold">That reset link no longer works</p>
+        <p>
+          Links work once, for {NervesHub.Accounts.UserToken.password_reset_validity_in_hours()} hours. Enter your email and we'll send a new one.
+        </p>
+      </div>
     </div>
+
+    <.form :let={f} for={@conn.params["user"]} as={:user} action={~p"/password-reset"} class="flex flex-col gap-5">
+      <.input field={f[:email]} type="email" label="Email" autocomplete="email" placeholder="you@company.com" required />
+
+      <.button style="primary" type="submit" class="w-full">
+        Send reset link
+      </.button>
+    </.form>
   </div>
+
+  <:footer>
+    Remembered it? <.link href={~p"/login"} class="font-semibold text-primary hover:text-primary-hover light:text-indigo-600 light:hover:text-indigo-500">Back to sign in</.link>
+  </:footer>
 </Layouts.auth>

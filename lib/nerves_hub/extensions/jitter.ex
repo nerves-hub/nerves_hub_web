@@ -24,6 +24,15 @@ defmodule NervesHub.Extensions.Jitter do
 
   `NervesHubWeb.DeviceSocket` staggers last-seen updates for the same reason,
   which is why those never showed up as a spike.
+
+  ## The first report after a join
+
+  Health and metrics also ask for a report when a device attaches, ahead of the
+  timer. A fleet that reconnects together would answer that together, which on
+  2026-11-08 meant every device in production reporting within seconds of a
+  restart, and each report queueing ClickHouse queries. So that first check is
+  offset too, by `first_check_delay/1`, across a window short enough that a
+  device's numbers are still fresh soon after it connects.
   """
 
   @doc """
@@ -35,5 +44,15 @@ defmodule NervesHub.Extensions.Jitter do
   @spec start_delay(pos_integer()) :: pos_integer()
   def start_delay(interval_ms) when is_integer(interval_ms) and interval_ms > 0 do
     Enum.random(1..interval_ms)
+  end
+
+  @doc """
+  A random delay in `0..window_ms`, for a one-off check after a device attaches.
+
+  Uniform, for the same reason `start_delay/1` is. A window of `0` asks at once.
+  """
+  @spec first_check_delay(non_neg_integer()) :: non_neg_integer()
+  def first_check_delay(window_ms) when is_integer(window_ms) and window_ms >= 0 do
+    Enum.random(0..window_ms)
   end
 end

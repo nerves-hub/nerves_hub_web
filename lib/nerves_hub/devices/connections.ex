@@ -7,6 +7,7 @@ defmodule NervesHub.Devices.Connections do
   alias NervesHub.Analytics.Buffer
   alias NervesHub.AnalyticsRepo
   alias NervesHub.Devices
+  alias NervesHub.Devices.ClientLibrary
   alias NervesHub.Devices.DeviceConnection
   alias NervesHub.Devices.DeviceConnectionHistory
   alias NervesHub.Integrations
@@ -27,10 +28,25 @@ defmodule NervesHub.Devices.Connections do
 
   @doc """
   Creates a device connection, reported from device socket
+
+  Replaces the device's previous connection row. Nothing carries over from it:
+  `ip_address` and the client library (`lib` / `lib_version`, from
+  `client_library`) are recorded as unknown when left out.
   """
-  @spec device_connecting(pos_integer(), pos_integer(), pos_integer(), String.t() | nil) ::
-          {:ok, DeviceConnection.t()} | {:error, Ecto.Changeset.t()}
-  def device_connecting(org_id, product_id, device_id, ip_address \\ nil) do
+  @spec device_connecting(
+          pos_integer(),
+          pos_integer(),
+          pos_integer(),
+          String.t() | nil,
+          ClientLibrary.t()
+        ) :: {:ok, DeviceConnection.t()} | {:error, Ecto.Changeset.t()}
+  def device_connecting(
+        org_id,
+        product_id,
+        device_id,
+        ip_address \\ nil,
+        client_library \\ %{lib: nil, lib_version: nil}
+      ) do
     conflict_query =
       DeviceConnection
       |> update([ldc],
@@ -51,7 +67,7 @@ defmodule NervesHub.Devices.Connections do
         ]
       )
 
-    DeviceConnection.connecting_changeset(org_id, product_id, device_id, ip_address)
+    DeviceConnection.connecting_changeset(org_id, product_id, device_id, ip_address, client_library)
     |> Repo.insert(on_conflict: conflict_query, conflict_target: [:device_id])
     |> case do
       {:ok, device_connection} ->

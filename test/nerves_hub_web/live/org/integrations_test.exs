@@ -24,13 +24,12 @@ defmodule NervesHubWeb.Live.Org.IntegrationsTest do
 
   defp integrations_path(org), do: "/org/#{org.name}/settings/integrations"
 
-  test "is in the organization's sidebar", %{conn: conn, org: org} do
+  test "is a tab of the organization's page", %{conn: conn, org: org} do
     conn
     |> visit("/org/#{org.name}/settings/keys")
     |> click_link("Integrations")
     |> assert_path(integrations_path(org))
-    |> assert_has("div", text: "Webhooks")
-    |> assert_has("p", text: "This organization has no webhooks.")
+    |> assert_has("h2", text: "Integrations")
   end
 
   test "is no longer a tab of the product settings", %{conn: conn, org: org, product: product} do
@@ -39,19 +38,37 @@ defmodule NervesHubWeb.Live.Org.IntegrationsTest do
     |> refute_has("a", text: "Integrations")
   end
 
-  test "keeps the explanation short, with the rest a click away", %{conn: conn, org: org} do
+  test "offers one of each kind when there are none", %{conn: conn, org: org} do
     conn
     |> visit(integrations_path(org))
-    |> assert_has("p", text: "as a signed JSON POST.")
-    |> assert_has("#webhooks-show-more", text: "Show more")
-    |> assert_has("#webhooks-more[style*='display: none']", text: "410 Gone")
-    |> assert_has("#webhooks-more button", text: "Show less")
+    |> assert_has("#integration-choices h3", text: "Slack")
+    |> assert_has("#integration-choices h3", text: "Microsoft Teams")
+    |> assert_has("#integration-choices h3", text: "Discord")
+    |> assert_has("#integration-choices h3", text: "Webhook")
+    |> refute_has("#add-integration-menu-toggle")
+    |> refute_has("#chat-channels[role='table']")
+    |> refute_has("#webhooks")
+  end
+
+  test "lists what can be added in the Add integration menu once there is one", context do
+    %{conn: conn, org: org} = context
+    webhook_fixture(context)
+
+    conn
+    |> visit(integrations_path(org))
+    |> refute_has("#integration-choices")
+    |> assert_has("h2 + span", text: "1")
+    |> assert_has("#add-integration-menu button", text: "Microsoft Teams channel")
+    |> assert_has("#add-integration-menu button", text: "Discord channel")
+    |> assert_has("#add-integration-menu button", text: "Webhook")
+    |> assert_has("#add-integration-menu button", text: "Connect a Slack workspace")
   end
 
   test "adds a webhook", %{conn: conn, org: org} do
     conn
     |> visit(integrations_path(org))
     |> click_button("Add webhook")
+    |> assert_has("#webhook-dialog h2", text: "Add a webhook")
     |> unwrap(fn view ->
       view
       |> form("#webhook-form",
@@ -64,9 +81,11 @@ defmodule NervesHubWeb.Live.Org.IntegrationsTest do
       |> render_submit()
     end)
     |> assert_has("[role='alert']", text: "The webhook was added.")
-    |> assert_has("span", text: "Fleet dashboard")
-    |> assert_has("code", text: "https://hooks.example.com/nerves")
-    |> assert_has("code", text: "device.firmware_update.finished")
+    |> refute_has("#webhook-dialog")
+    |> assert_has("#webhooks h3", text: "Fleet dashboard")
+    |> assert_has("#webhooks code", text: "https://hooks.example.com/nerves")
+    |> assert_has("#webhooks [role='cell']", text: "Every product")
+    |> assert_has("#webhooks [role='cell']", text: "Device connected, Update finished")
 
     assert [
              %Webhook{
@@ -75,6 +94,27 @@ defmodule NervesHubWeb.Live.Org.IntegrationsTest do
                enabled: true
              }
            ] = Webhooks.list_webhooks(org)
+  end
+
+  test "adds another webhook from the Add integration menu", context do
+    %{conn: conn, org: org} = context
+    webhook_fixture(context)
+
+    conn
+    |> visit(integrations_path(org))
+    |> click_button("#add-webhook", "Webhook")
+    |> unwrap(fn view ->
+      view
+      |> form("#webhook-form",
+        webhook: %{url: "https://ingest.example.com/nerves", events: ["", "device.disconnected"]}
+      )
+      |> render_submit()
+    end)
+    |> assert_has("[role='alert']", text: "The webhook was added.")
+    |> assert_has("h2 + span", text: "2")
+    |> assert_has("#webhooks h3", text: "ingest.example.com")
+
+    assert length(Webhooks.list_webhooks(org)) == 2
   end
 
   test "adds a webhook for some of the organization's products", context do
@@ -101,7 +141,7 @@ defmodule NervesHubWeb.Live.Org.IntegrationsTest do
       |> render_submit()
     end)
     |> assert_has("[role='alert']", text: "The webhook was added.")
-    |> assert_has("div", text: "Products: #{product.name}")
+    |> assert_has("#webhooks [role='cell'] span", text: product.name)
 
     assert [%Webhook{all_products: false, products: [%{name: name}]}] = Webhooks.list_webhooks(org)
     assert name == product.name
@@ -143,15 +183,25 @@ defmodule NervesHubWeb.Live.Org.IntegrationsTest do
     assert Webhooks.list_webhooks(org) == []
   end
 
-  test "shows the products each webhook sends events for", context do
-    %{conn: conn, org: org, product: product} = context
-    every = webhook_fixture(context)
-    some = webhook_fixture(context, %{"products" => [product.name]})
+  test "shows the products and events each webhook sends", context do
+    %{conn: conn, org: org, product: product, user: user} = context
+    _other = Fixtures.product_fixture(user, org, %{name: "other"})
+
+    every =
+      webhook_fixture(context, %{
+        "events" => ["device.connected", "device.disconnected", "device.firmware_update.finished"]
+      })
+
+    some = webhook_fixture(context, %{"products" => [product.name, "other"]})
 
     conn
     |> visit(integrations_path(org))
-    |> assert_has("#webhook-#{every.id} div", text: "Products: Every product")
-    |> assert_has("#webhook-#{some.id} div", text: "Products: #{product.name}")
+    |> assert_has("#webhook-#{every.id} [role='cell']", text: "Every product")
+    |> assert_has("#webhook-#{every.id} [role='cell'] span", text: "Device connected", exact: true)
+    |> assert_has("#webhook-#{every.id} [role='cell'] span", text: "+2", exact: true)
+    |> assert_has("#webhook-#{every.id} p", text: "Every product · 3 events")
+    |> assert_has("#webhook-#{some.id} [role='cell'] span", text: "+1", exact: true)
+    |> assert_has("#webhook-#{some.id} p", text: "+1 · 1 event")
   end
 
   test "says what is wrong with an invalid webhook", %{conn: conn, org: org} do
@@ -176,12 +226,14 @@ defmodule NervesHubWeb.Live.Org.IntegrationsTest do
     conn
     |> visit(integrations_path(org))
     |> within("#webhook-#{webhook.id}", &click_button(&1, "Edit"))
+    |> assert_has("#webhook-dialog h2", text: "Edit hooks.example.com")
     |> unwrap(fn view ->
       view
       |> form("#webhook-form", webhook: %{events: ["", "device.disconnected"]})
       |> render_submit()
     end)
     |> assert_has("[role='alert']", text: "The webhook was updated.")
+    |> assert_has("#webhook-#{webhook.id} [role='cell']", text: "Device disconnected")
 
     assert %Webhook{events: ["device.disconnected"]} = Repo.reload!(webhook)
   end
@@ -194,13 +246,13 @@ defmodule NervesHubWeb.Live.Org.IntegrationsTest do
       conn
       |> visit(integrations_path(org))
       |> within("#webhook-#{webhook.id}", &click_button(&1, "Turn off"))
-      |> assert_has("#webhook-#{webhook.id} span", text: "Off")
+      |> assert_has("#webhook-#{webhook.id} span", text: "Off", exact: true)
 
     refute Repo.reload!(webhook).enabled
 
     session
     |> within("#webhook-#{webhook.id}", &click_button(&1, "Turn on"))
-    |> assert_has("#webhook-#{webhook.id} span", text: "On")
+    |> refute_has("#webhook-#{webhook.id} span", text: "Off", exact: true)
 
     assert Repo.reload!(webhook).enabled
   end
@@ -216,8 +268,8 @@ defmodule NervesHubWeb.Live.Org.IntegrationsTest do
     conn
     |> visit(integrations_path(org))
     |> assert_has("#webhook-#{failing.id} span", text: "Failing")
-    |> assert_has("#webhook-#{failing.id} p", text: "HTTP 500")
-    |> assert_has("#webhook-#{gone.id} span", text: "Off")
+    |> assert_has("#webhook-#{failing.id} p", text: "got HTTP 500.")
+    |> assert_has("#webhook-#{gone.id} span", text: "Off", exact: true)
     |> assert_has("#webhook-#{gone.id} p", text: "410 Gone")
   end
 
@@ -227,7 +279,7 @@ defmodule NervesHubWeb.Live.Org.IntegrationsTest do
 
     conn
     |> visit(integrations_path(org))
-    |> within("#webhook-#{webhook.id}", &click_button(&1, "Regenerate"))
+    |> within("#webhook-#{webhook.id}", &click_button(&1, "New signing secret"))
     |> assert_has("[role='alert']", text: "A new signing secret was generated.")
 
     refute Repo.reload!(webhook).secret == webhook.secret
@@ -239,9 +291,10 @@ defmodule NervesHubWeb.Live.Org.IntegrationsTest do
 
     conn
     |> visit(integrations_path(org))
-    |> within("#webhook-#{webhook.id}", &click_button(&1, "Delete"))
+    |> within("#webhook-#{webhook.id}", &click_button(&1, "Delete webhook"))
     |> assert_has("[role='alert']", text: "The webhook to hooks.example.com was removed.")
     |> refute_has("#webhook-#{webhook.id}")
+    |> assert_has("#integration-choices")
 
     assert Webhooks.list_webhooks(org) == []
   end
@@ -293,14 +346,15 @@ defmodule NervesHubWeb.Live.Org.IntegrationsTest do
     assert %Webhook{failing_since: nil} = Repo.reload!(webhook)
   end
 
-  test "hides the add button at the limit", context do
+  test "turns off the menu's Webhook item at the limit", context do
     %{conn: conn, org: org} = context
     for _ <- 1..Webhooks.max_webhooks_per_org(), do: webhook_fixture(context)
 
     conn
     |> visit(integrations_path(org))
-    |> refute_has("button", text: "Add webhook")
-    |> assert_has("p", text: "This organization has the most webhooks it can have")
+    |> assert_has("#add-webhook[disabled]", text: "the most it can have")
+    |> refute_has("#add-teams-channel[disabled]")
+    |> assert_has("#webhooks p", text: "This organization has the most webhooks it can have")
   end
 
   describe "Slack" do
@@ -349,12 +403,14 @@ defmodule NervesHubWeb.Live.Org.IntegrationsTest do
 
       conn
       |> visit(integrations_path(org))
-      |> assert_has("#slack button", text: "Add to Slack")
-      |> assert_has("#slack-connection-#{connection.id} span", text: "Acme Fleet")
-      |> assert_has("#slack-connection-#{connection.id} span", text: "Connected by #{user.name}")
-      |> assert_has("#slack-subscription-#{subscription.id} span", text: "#fleet")
-      |> assert_has("#slack-subscription-#{subscription.id} span", text: "Health status changed")
-      |> assert_has("#slack-subscription-#{subscription.id} div", text: "Products: Every product")
+      |> assert_has("#slack-connection-#{connection.id} p", text: "Acme Fleet Slack workspace")
+      |> assert_has("#slack-connection-#{connection.id} p", text: "connected by #{user.name} in")
+      |> assert_has("#slack-subscription-#{subscription.id} h3", text: "#fleet")
+      |> assert_has("#slack-subscription-#{subscription.id} div", text: "Slack · Acme Fleet workspace")
+      |> assert_has("#slack-subscription-#{subscription.id} [role='cell']", text: "Health status changed")
+      |> assert_has("#slack-subscription-#{subscription.id} [role='cell']", text: "Every product")
+      |> assert_has("#add-slack-channel-#{connection.id}", text: "In the Acme Fleet workspace")
+      |> assert_has("#connect-slack-workspace", text: "Connect another Slack workspace")
     end
 
     test "says a workspace installed before link previews needs installing again", context do
@@ -376,12 +432,20 @@ defmodule NervesHubWeb.Live.Org.IntegrationsTest do
       )
     end
 
-    test "says when no workspace is connected", %{conn: conn, connection: connection, org: org} do
+    test "says when a connected workspace has no channels yet", %{conn: conn, connection: connection, org: org} do
+      conn
+      |> visit(integrations_path(org))
+      |> refute_has("#integration-choices")
+      |> assert_has("#chat-channels p", text: "No channel gets this organization's events yet.")
+      |> assert_has("#slack-connection-#{connection.id}")
+    end
+
+    test "offers to add Slack when no workspace is connected", %{conn: conn, connection: connection, org: org} do
       Repo.delete!(connection)
 
       conn
       |> visit(integrations_path(org))
-      |> assert_has("#slack p", text: "No Slack workspace is connected.")
+      |> assert_has("#integration-choices button", text: "Add to Slack")
     end
 
     test "adds a channel from those Slack lists", context do
@@ -390,8 +454,9 @@ defmodule NervesHubWeb.Live.Org.IntegrationsTest do
 
       conn
       |> visit(integrations_path(org))
-      |> within("#slack-connection-#{connection.id}", &click_button(&1, "Add channel"))
+      |> click_button("#add-slack-channel-#{connection.id}", "Slack channel")
       |> unwrap(&render_async/1)
+      |> assert_has("#slack-dialog h2", text: "Add a Slack channel")
       |> assert_has("#slack-subscription-channel option", text: "#fleet")
       |> assert_has("#slack-subscription-channel option", text: "ops (private)")
       |> unwrap(fn view ->
@@ -411,6 +476,7 @@ defmodule NervesHubWeb.Live.Org.IntegrationsTest do
         |> render_submit()
       end)
       |> assert_has("[role='alert']", text: "NervesHub will post to #ops.")
+      |> assert_has("#chat-channels h3", text: "#ops")
 
       assert [%{subscriptions: [subscription]}] = Slack.list_connections(org)
 
@@ -427,7 +493,7 @@ defmodule NervesHubWeb.Live.Org.IntegrationsTest do
 
       conn
       |> visit(integrations_path(org))
-      |> within("#slack-connection-#{connection.id}", &click_button(&1, "Add channel"))
+      |> click_button("#add-slack-channel-#{connection.id}", "Slack channel")
       |> unwrap(&render_async/1)
       |> unwrap(fn view ->
         view
@@ -451,7 +517,7 @@ defmodule NervesHubWeb.Live.Org.IntegrationsTest do
 
       conn
       |> visit(integrations_path(org))
-      |> within("#slack-connection-#{connection.id}", &click_button(&1, "Add channel"))
+      |> click_button("#add-slack-channel-#{connection.id}", "Slack channel")
       |> unwrap(&render_async/1)
       |> assert_has("#slack-subscription-form", text: "Slack did not list the workspace's channels: missing_scope")
     end
@@ -464,6 +530,7 @@ defmodule NervesHubWeb.Live.Org.IntegrationsTest do
         conn
         |> visit(integrations_path(org))
         |> within("#slack-subscription-#{subscription.id}", &click_button(&1, "Edit"))
+        |> assert_has("#slack-dialog h2", text: "Edit #fleet")
         |> unwrap(fn view ->
           view
           |> form("#slack-subscription-form",
@@ -472,14 +539,14 @@ defmodule NervesHubWeb.Live.Org.IntegrationsTest do
           |> render_submit()
         end)
         |> assert_has("[role='alert']", text: "The channel was updated.")
-        |> assert_has("#slack-subscription-#{subscription.id} span", text: "Product notifications")
+        |> assert_has("#slack-subscription-#{subscription.id} [role='cell']", text: "Product notifications")
         |> within("#slack-subscription-#{subscription.id}", &click_button(&1, "Turn off"))
-        |> assert_has("#slack-subscription-#{subscription.id} span", text: "Off")
+        |> assert_has("#slack-subscription-#{subscription.id} span", text: "Off", exact: true)
 
       refute Repo.reload!(subscription).enabled
 
       session
-      |> within("#slack-subscription-#{subscription.id}", &click_button(&1, "Delete"))
+      |> within("#slack-subscription-#{subscription.id}", &click_button(&1, "Delete channel"))
       |> assert_has("[role='alert']", text: "NervesHub stopped posting to #fleet.")
       |> refute_has("#slack-subscription-#{subscription.id}")
     end
@@ -508,6 +575,7 @@ defmodule NervesHubWeb.Live.Org.IntegrationsTest do
 
       conn
       |> visit(integrations_path(org))
+      |> assert_has("#slack-subscription-#{subscription.id} span", text: "Off", exact: true)
       |> assert_has("#slack-subscription-#{subscription.id} p", text: "the channel was archived")
     end
 
@@ -520,6 +588,7 @@ defmodule NervesHubWeb.Live.Org.IntegrationsTest do
       |> within("#slack-connection-#{connection.id}", &click_button(&1, "Disconnect"))
       |> assert_has("[role='alert']", text: "Disconnected the Acme Fleet Slack workspace.")
       |> refute_has("#slack-connection-#{connection.id}")
+      |> assert_has("#integration-choices")
 
       assert Slack.list_connections(org) == []
     end
@@ -531,8 +600,9 @@ defmodule NervesHubWeb.Live.Org.IntegrationsTest do
       session =
         conn
         |> visit(integrations_path(org))
-        |> assert_has("#slack-connection-#{connection.id} button", text: "Add channel")
-        |> refute_has("#slack button", text: "Add to Slack")
+        |> refute_has("#add-integration-menu-toggle[disabled]")
+        |> refute_has("#add-slack-channel-#{connection.id}[disabled]")
+        |> assert_has("#connect-slack-workspace[disabled]", text: "Admins only")
         |> refute_has("#slack-connection-#{connection.id} button", text: "Disconnect")
 
       Process.flag(:trap_exit, true)
@@ -545,16 +615,16 @@ defmodule NervesHubWeb.Live.Org.IntegrationsTest do
     end
 
     test "a viewer sees the channels, but cannot change them", context do
-      %{conn: conn, connection: connection, org: org} = context
+      %{conn: conn, org: org} = context
       subscription = subscribe(context)
       Repo.update_all(OrgUser, set: [role: :view])
 
       session =
         conn
         |> visit(integrations_path(org))
-        |> assert_has("#slack-subscription-#{subscription.id} span", text: "#fleet")
-        |> refute_has("#slack-connection-#{connection.id} button", text: "Add channel")
-        |> refute_has("#slack-subscription-#{subscription.id} button", text: "Send test message")
+        |> assert_has("#slack-subscription-#{subscription.id} h3", text: "#fleet")
+        |> assert_has("#add-integration-menu-toggle[disabled]")
+        |> refute_has("#slack-subscription-#{subscription.id}-menu-toggle")
 
       Process.flag(:trap_exit, true)
 
@@ -573,7 +643,8 @@ defmodule NervesHubWeb.Live.Org.IntegrationsTest do
       conn
       |> visit(integrations_path(org))
       |> refute_has("#slack")
-      |> assert_has("div", text: "Webhooks")
+      |> refute_has("#integration-choices h3", text: "Slack")
+      |> assert_has("#integration-choices h3", text: "Webhook")
     end
   end
 
@@ -591,18 +662,16 @@ defmodule NervesHubWeb.Live.Org.IntegrationsTest do
       channel
     end
 
-    test "lists the channels, where their webhooks are, and what they get, but never a URL", context do
+    test "lists the channels and what they get, but never a URL", context do
       %{conn: conn, org: org} = context
       channel = teams_channel(context)
 
       conn
       |> visit(integrations_path(org))
-      |> assert_has("#teams-channel-#{channel.id} span", text: "Fleet alerts")
-      |> assert_has("#teams-channel-#{channel.id} span",
-        text: "Workflows webhook on prod-07.westeurope.logic.azure.com"
-      )
-      |> assert_has("#teams-channel-#{channel.id} span", text: "Health status changed")
-      |> assert_has("#teams-channel-#{channel.id} div", text: "Products: Every product")
+      |> assert_has("#teams-channel-#{channel.id} h3", text: "Fleet alerts")
+      |> assert_has("#teams-channel-#{channel.id} div", text: "Microsoft Teams · Workflows webhook")
+      |> assert_has("#teams-channel-#{channel.id} [role='cell']", text: "Health status changed")
+      |> assert_has("#teams-channel-#{channel.id} [role='cell']", text: "Every product")
       |> unwrap(fn view ->
         html = render(view)
         refute html =~ "c2VrcmV0LXNpZw"
@@ -610,16 +679,29 @@ defmodule NervesHubWeb.Live.Org.IntegrationsTest do
       end)
     end
 
-    test "says when no channel gets the organization's events", %{conn: conn, org: org} do
+    test "shows that posting to a channel failed", context do
+      %{conn: conn, org: org} = context
+      channel = teams_channel(context)
+
+      channel
+      |> Ecto.Changeset.change(
+        last_error: "Teams answered 403 Forbidden.",
+        last_error_at: DateTime.truncate(DateTime.utc_now(), :second)
+      )
+      |> Repo.update!()
+
       conn
       |> visit(integrations_path(org))
-      |> assert_has("#teams p", text: "No Microsoft Teams channel gets this organization's events yet.")
+      |> assert_has("#teams-channel-#{channel.id} span", text: "Failing")
+      |> assert_has("#teams-channel-#{channel.id} p", text: "Teams answered 403 Forbidden.")
     end
 
     test "adds a channel from a Workflows webhook's URL", %{conn: conn, org: org} do
       conn
       |> visit(integrations_path(org))
-      |> within("#teams", &click_button(&1, "Add channel"))
+      |> click_button("Add Teams channel")
+      |> assert_has("#teams-dialog h2", text: "Add a Microsoft Teams channel")
+      |> assert_has("#teams-dialog ol li", text: "Send webhook alerts to a channel")
       |> unwrap(fn view ->
         view
         |> form("#teams-channel-form",
@@ -628,15 +710,26 @@ defmodule NervesHubWeb.Live.Org.IntegrationsTest do
         |> render_submit()
       end)
       |> refute_has("#teams-channel-form")
+      |> assert_has("#teams h3", text: "Fleet alerts")
 
       assert [%{name: "Fleet alerts", url: @teams_url, events: ["device.firmware_update.failed"]}] =
                ChatWebhooks.list_channels(org, :teams)
     end
 
+    test "adds another channel from the Add integration menu", context do
+      %{conn: conn, org: org} = context
+      teams_channel(context)
+
+      conn
+      |> visit(integrations_path(org))
+      |> click_button("#add-teams-channel", "Microsoft Teams channel")
+      |> assert_has("#teams-dialog h2", text: "Add a Microsoft Teams channel")
+    end
+
     test "says what is wrong with a URL that is not a Workflows webhook's", %{conn: conn, org: org} do
       conn
       |> visit(integrations_path(org))
-      |> within("#teams", &click_button(&1, "Add channel"))
+      |> click_button("Add Teams channel")
       |> unwrap(fn view ->
         view
         |> form("#teams-channel-form",
@@ -659,10 +752,10 @@ defmodule NervesHubWeb.Live.Org.IntegrationsTest do
 
       conn
       |> visit(integrations_path(org))
-      |> unwrap(fn view ->
-        view |> with_target("#teams") |> render_click("edit-channel", %{"channel_id" => channel.id})
-      end)
+      |> within("#teams-channel-#{channel.id}", &click_button(&1, "Edit"))
+      |> assert_has("#teams-dialog h2", text: "Edit Fleet alerts")
       |> assert_has("#teams-channel-form label", text: "New Workflows webhook URL")
+      |> refute_has("#teams-dialog ol")
       |> unwrap(fn view ->
         refute render(view) =~ "c2VrcmV0LXNpZw"
 
@@ -670,6 +763,7 @@ defmodule NervesHubWeb.Live.Org.IntegrationsTest do
         |> form("#teams-channel-form", teams_channel: %{name: "Renamed", url: ""})
         |> render_submit()
       end)
+      |> assert_has("[role='alert']", text: "The channel was updated.")
 
       assert %{name: "Renamed", url: @teams_url} = Repo.reload!(channel)
     end
@@ -682,9 +776,9 @@ defmodule NervesHubWeb.Live.Org.IntegrationsTest do
       session =
         conn
         |> visit(integrations_path(org))
-        |> assert_has("#teams-channel-#{channel.id} span", text: "Fleet alerts")
-        |> assert_has("#teams button[disabled]", text: "Add channel")
-        |> refute_has("#teams-channel-#{channel.id} button", text: "Send test message")
+        |> assert_has("#teams-channel-#{channel.id} h3", text: "Fleet alerts")
+        |> assert_has("#add-integration-menu-toggle[disabled]")
+        |> refute_has("#teams-channel-#{channel.id}-menu-toggle")
 
       Process.flag(:trap_exit, true)
 
@@ -702,8 +796,8 @@ defmodule NervesHubWeb.Live.Org.IntegrationsTest do
 
       conn
       |> visit(integrations_path(org))
-      |> assert_has("#discord div", text: "Discord")
-      |> within("#discord", &click_button(&1, "Add channel"))
+      |> click_button("Add Discord channel")
+      |> assert_has("#discord-dialog h2", text: "Add a Discord channel")
       |> unwrap(fn view ->
         view
         |> form("#discord-channel-form",
@@ -712,41 +806,45 @@ defmodule NervesHubWeb.Live.Org.IntegrationsTest do
         |> render_submit()
       end)
       |> refute_has("#discord-channel-form")
-      |> assert_has("#discord span", text: "Webhook on discord.com")
+      |> assert_has("#discord h3", text: "#fleet")
+      |> assert_has("#discord div", text: "Discord · Channel webhook")
 
       assert [%{name: "#fleet", provider: :discord, url: ^url}] = ChatWebhooks.list_channels(org, :discord)
       assert ChatWebhooks.list_channels(org, :teams) == []
     end
   end
 
-  describe "a member who cannot manage webhooks" do
-    setup context do
+  describe "a member who cannot manage integrations" do
+    test "sees the choices, but cannot pick one", %{conn: conn, org: org} do
+      Repo.update_all(OrgUser, set: [role: :view])
+
+      conn
+      |> visit(integrations_path(org))
+      |> assert_has("#integration-choices button[disabled]", text: "Add to Slack")
+      |> assert_has("#integration-choices button[disabled]", text: "Add Teams channel")
+      |> assert_has("#integration-choices button[disabled]", text: "Add webhook")
+    end
+
+    test "sees each webhook's host and events, but not its URL or secret", context do
+      %{conn: conn, org: org} = context
       webhook = webhook_fixture(context)
       Repo.update_all(OrgUser, set: [role: :view])
 
-      %{webhook: webhook}
-    end
-
-    test "sees each webhook's host and events, but not its URL or secret", %{
-      conn: conn,
-      org: org,
-      webhook: webhook
-    } do
       conn
       |> visit(integrations_path(org))
       |> assert_has("#webhook-#{webhook.id} code", text: "hooks.example.com")
-      |> assert_has("#webhook-#{webhook.id} code", text: "device.connected")
+      |> assert_has("#webhook-#{webhook.id} [role='cell']", text: "Device connected")
       |> refute_has("#webhook-#{webhook.id} code", text: "sekrit")
       |> refute_has("#webhook-#{webhook.id}-copy-secret")
-      |> refute_has("#webhook-#{webhook.id} button", text: "Send test event")
       |> refute_has("#webhook-#{webhook.id}-menu-toggle")
+      |> assert_has("#add-integration-menu-toggle[disabled]")
     end
 
-    test "cannot change a webhook by sending the event anyway", %{
-      conn: conn,
-      org: org,
-      webhook: webhook
-    } do
+    test "cannot change a webhook by sending the event anyway", context do
+      %{conn: conn, org: org} = context
+      webhook = webhook_fixture(context)
+      Repo.update_all(OrgUser, set: [role: :view])
+
       session = visit(conn, integrations_path(org))
 
       Process.flag(:trap_exit, true)

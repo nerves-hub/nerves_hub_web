@@ -168,11 +168,11 @@ defmodule NervesHubWeb.API.UserControllerTest do
 
       http_conn
       |> visit(~p"/auth/cli/#{token}")
-      |> assert_has("h1", text: "CLI Login")
-      |> assert_has("p", text: "Please confirm that the code below matches the code display by the CLI")
-      |> click_button("Confirm login")
+      |> assert_has("h1", text: "Sign in to the CLI")
+      |> assert_has("p", text: "Check that this code matches the one in your terminal.")
+      |> click_button("Confirm sign in")
       |> assert_path(~p"/auth/cli/#{token}")
-      |> assert_has("h1", text: "You're all set to use the CLI")
+      |> assert_has("h1", text: "You're signed in to the CLI")
     end
 
     test "a user can refresh the verify token page and still see the success message", %{conn: conn, user: user} do
@@ -191,15 +191,15 @@ defmodule NervesHubWeb.API.UserControllerTest do
 
       http_conn
       |> visit(~p"/auth/cli/#{token}")
-      |> assert_has("h1", text: "CLI Login")
-      |> assert_has("p", text: "Please confirm that the code below matches the code display by the CLI")
-      |> click_button("Confirm login")
+      |> assert_has("h1", text: "Sign in to the CLI")
+      |> assert_has("p", text: "Check that this code matches the one in your terminal.")
+      |> click_button("Confirm sign in")
       |> assert_path(~p"/auth/cli/#{token}")
-      |> assert_has("h1", text: "You're all set to use the CLI")
+      |> assert_has("h1", text: "You're signed in to the CLI")
 
       http_conn
       |> visit(~p"/auth/cli/#{token}")
-      |> assert_has("h1", text: "You're all set to use the CLI")
+      |> assert_has("h1", text: "You're signed in to the CLI")
     end
 
     test "a user can refresh the verify token page and still see the success message, but only if they created the token",
@@ -219,11 +219,11 @@ defmodule NervesHubWeb.API.UserControllerTest do
 
       http_conn
       |> visit(~p"/auth/cli/#{token}")
-      |> assert_has("h1", text: "CLI Login")
-      |> assert_has("p", text: "Please confirm that the code below matches the code display by the CLI")
-      |> click_button("Confirm login")
+      |> assert_has("h1", text: "Sign in to the CLI")
+      |> assert_has("p", text: "Check that this code matches the one in your terminal.")
+      |> click_button("Confirm sign in")
       |> assert_path(~p"/auth/cli/#{token}")
-      |> assert_has("h1", text: "You're all set to use the CLI")
+      |> assert_has("h1", text: "You're signed in to the CLI")
 
       other_user_token = NervesHub.Accounts.create_user_session_token(other_user)
 
@@ -231,7 +231,7 @@ defmodule NervesHubWeb.API.UserControllerTest do
 
       http_conn
       |> visit(~p"/auth/cli/#{token}")
-      |> assert_has("h1", text: "CLI authentication failed :(")
+      |> assert_has("h1", text: "The CLI sign-in didn't work")
     end
 
     test "a message confirming a failed handshake is shown if the token is not found", %{user: user} do
@@ -241,7 +241,7 @@ defmodule NervesHubWeb.API.UserControllerTest do
 
       http_conn
       |> visit(~p"/auth/cli/abc")
-      |> assert_has("h1", text: "CLI authentication failed :(")
+      |> assert_has("h1", text: "The CLI sign-in didn't work")
     end
 
     test "cannot share the same token", %{conn: conn} do
