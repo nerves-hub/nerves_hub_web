@@ -262,12 +262,12 @@ defmodule NervesHubWeb.Live.Product.InsightsTest do
 
       # auto refresh polling is started on mount
       assert :sys.get_state(view.pid).socket.assigns.polling_pid
-      assert render(view) =~ "bg-primary"
+      assert has_element?(view, "button[phx-click=toggle-auto-refresh].bg-primary")
 
       render_click(view, "toggle-auto-refresh")
 
       refute :sys.get_state(view.pid).socket.assigns.polling_pid
-      assert render(view) =~ "bg-gray-200"
+      assert has_element?(view, "button[phx-click=toggle-auto-refresh].bg-base-600")
 
       render_click(view, "toggle-auto-refresh")
 

@@ -15,7 +15,7 @@ defmodule NervesHubWeb.Components.CAHelpersTest do
       html = status(DateTime.shift(DateTime.utc_now(), year: 1))
 
       assert html =~ "Current"
-      assert html =~ "text-base-400"
+      assert html =~ "text-content-muted"
     end
 
     test "a CA inside its last three months is expiring soon" do

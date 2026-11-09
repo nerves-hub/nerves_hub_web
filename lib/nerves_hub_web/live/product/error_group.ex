@@ -124,7 +124,7 @@ defmodule NervesHubWeb.Live.Product.ErrorGroup do
   @doc "Tailwind classes for a status pill."
   def status_class(:unresolved), do: "bg-base-800 text-orange-400"
   def status_class(:resolved), do: "bg-base-800 text-success"
-  def status_class(:muted), do: "bg-base-800 text-base-400"
+  def status_class(:muted), do: "bg-base-800 text-content-muted"
 
   @doc "The frames of an occurrence, decoded for rendering."
   def frames(nil), do: []

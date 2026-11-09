@@ -1,42 +1,40 @@
 defmodule NervesHubWeb.Live.Org.Integrations.ChatWebhookSection do
   @moduledoc """
-  A chat service's card on the organization's Integrations page: the
+  A chat service's rows in the Integrations page's chat channels table: the
   Microsoft Teams or Discord channels (`provider`) its device events are
   posted to, each through a webhook made in that channel
-  (`NervesHub.Integrations.ChatWebhooks`).
+  (`NervesHub.Integrations.ChatWebhooks`), and the dialog a channel is added
+  and edited in.
+
+  The page loads the channels (`channels`) and passes them in. After a
+  change it is told (`:integrations_changed`) and loads them again, since its
+  header count, Add integration menu and empty state count them too. It opens
+  the dialog for a new channel from that menu, with the `new-channel` event.
 
   Adding, changing and removing a channel takes the manage role, as webhooks
   and Slack channels do. Everyone in the organization sees each channel's
-  name, events, products and state, and the host its webhook is on, but
-  nobody sees the webhook's URL once it is saved: it is all it takes to post
-  to the channel. Editing a channel leaves the URL as it was unless a new
-  one is pasted in.
+  name, events, products and state, but nobody sees its webhook's URL once
+  it is saved: it is all it takes to post to the channel. Editing a channel
+  leaves the URL as it was unless a new one is pasted in.
 
-  Flash messages go to the parent LiveView (`{:put_flash, kind, message}`):
-  a component's own flash is only shown when it navigates.
+  Flash messages go to the page (`{:put_flash, kind, message}`): a
+  component's own flash is only shown when it navigates.
   """
   use NervesHubWeb, :live_component
+
+  import NervesHubWeb.Live.Org.Integrations.Components
 
   alias NervesHub.Integrations.ChannelEvents
   alias NervesHub.Integrations.ChatWebhooks
   alias NervesHub.Integrations.ChatWebhooks.ChatWebhook
-  alias Phoenix.HTML.Form
   alias Phoenix.LiveView.JS
 
   @impl Phoenix.LiveComponent
   def mount(socket) do
     socket
-    |> assign(:events, ChannelEvents.all())
+    |> assign(:event_columns, channel_event_columns())
     |> assign(:testing, MapSet.new())
     |> close_form()
-    |> ok()
-  end
-
-  @impl Phoenix.LiveComponent
-  def update(assigns, socket) do
-    socket
-    |> assign(assigns)
-    |> assign_channels()
     |> ok()
   end
 
@@ -110,7 +108,7 @@ defmodule NervesHubWeb.Live.Org.Integrations.ChatWebhookSection do
     case ChatWebhooks.update_channel(socket.assigns.current_scope, channel, %{"enabled" => !channel.enabled}) do
       {:ok, updated} ->
         socket
-        |> assign_channels()
+        |> changed()
         |> flash(:info, "Posting to #{updated.name} is #{if updated.enabled, do: "on", else: "off"}.")
         |> noreply()
 
@@ -129,7 +127,7 @@ defmodule NervesHubWeb.Live.Org.Integrations.ChatWebhookSection do
 
     socket
     |> close_form()
-    |> assign_channels()
+    |> changed()
     |> flash(:info, "#{NervesHub.Branding.friendly_platform_name()} stopped posting to #{channel.name}.")
     |> noreply()
   end
@@ -172,7 +170,7 @@ defmodule NervesHubWeb.Live.Org.Integrations.ChatWebhookSection do
   defp saved({:ok, channel}, socket, message) do
     socket
     |> close_form()
-    |> assign_channels()
+    |> changed()
     |> flash(:info, message.(channel))
     |> noreply()
   end
@@ -193,13 +191,10 @@ defmodule NervesHubWeb.Live.Org.Integrations.ChatWebhookSection do
     |> noreply()
   end
 
-  defp assign_channels(socket),
-    do: assign(socket, :channels, ChatWebhooks.list_channels(socket.assigns.org, socket.assigns.provider))
-
   defp new_channel(socket), do: %ChatWebhook{provider: socket.assigns.provider, products: []}
 
-  # The form's fields are named for the chat service, so each card's form
-  # is told apart: `teams_channel[name]`, `discord_channel[name]`.
+  # The form's fields are named for the chat service, so each service's
+  # form is told apart: `teams_channel[name]`, `discord_channel[name]`.
   defp form(socket, changeset), do: to_form(changeset, as: "#{socket.assigns.provider}_channel")
 
   defp channel_params(socket, params), do: Map.get(params, "#{socket.assigns.provider}_channel", %{})
@@ -210,6 +205,11 @@ defmodule NervesHubWeb.Live.Org.Integrations.ChatWebhookSection do
     |> assign(:form, nil)
   end
 
+  defp changed(socket) do
+    send(self(), :integrations_changed)
+    socket
+  end
+
   defp flash(socket, kind, message) do
     send(self(), {:put_flash, kind, message})
     socket
@@ -218,41 +218,15 @@ defmodule NervesHubWeb.Live.Org.Integrations.ChatWebhookSection do
   defp form_subject(%{assigns: %{editing: :new}} = socket), do: new_channel(socket)
   defp form_subject(%{assigns: %{editing: %ChatWebhook{} = channel}}), do: channel
 
-  # The checkboxes post a blank alongside the checked boxes, so that unticking
-  # every box still sends the field and the changeset can say one is needed.
-  defp form_params(params) do
-    params
-    |> Map.update("events", [], &drop_blank/1)
-    |> Map.update("products", [], &drop_blank/1)
-  end
-
-  defp drop_blank(values), do: Enum.reject(List.wrap(values), &(&1 == ""))
-
   # Only what was typed into this form. The saved URL is never put back in
   # the page, so editing a channel shows the field empty.
   defp typed_url(form), do: Ecto.Changeset.get_change(form.source, :url) || form.params["url"] || ""
 
-  defp all_products?(form), do: Form.normalize_value("checkbox", form[:all_products].value)
+  defp status(%ChatWebhook{enabled: false}), do: :off
+  defp status(%ChatWebhook{last_error: error}) when is_binary(error), do: :failing
+  defp status(%ChatWebhook{}), do: :on
 
-  defp selected_products(form) do
-    form.source
-    |> Ecto.Changeset.get_field(:products, [])
-    |> MapSet.new(& &1.name)
-  end
-
-  defp selected_events(form), do: form[:events].value || []
-
-  defp checkbox_errors(form, field) do
-    if Phoenix.Component.used_input?(form[field]) do
-      Enum.map(form[field].errors, &NervesHubWeb.CoreComponents.translate_error/1)
-    else
-      []
-    end
-  end
-
-  defp scope_label(%ChatWebhook{all_products: true}), do: "Every product"
-  defp scope_label(%ChatWebhook{products: []}), do: "No products"
-  defp scope_label(%ChatWebhook{products: products}), do: Enum.map_join(products, ", ", & &1.name)
+  defp event_labels(channel), do: Enum.map(channel.events, &ChannelEvents.label/1)
 
   defp error_message(provider, {:rate_limited, seconds}),
     do: "#{service_name(provider)} asked NervesHub to wait #{seconds} seconds"
@@ -262,56 +236,21 @@ defmodule NervesHubWeb.Live.Org.Integrations.ChatWebhookSection do
 
   defp service_name(provider), do: ChatWebhooks.provider(provider).label()
 
-  defp instructions(:teams) do
-    ~s(Post this organization's device notifications to Microsoft Teams channels, through a Workflows webhook made in each channel. In Teams, open the channel's menu, choose Workflows, then the "Send webhook alerts to a channel" template, and paste the URL it gives you here.)
-  end
-
-  defp instructions(:discord) do
-    "Post this organization's device notifications to Discord channels, through a webhook made in each channel. In Discord, open the channel's settings, choose Integrations, then Webhooks, create one, and paste its URL here."
-  end
-
   defp webhook_kind(:teams), do: "Workflows webhook"
-  defp webhook_kind(:discord), do: "Webhook"
+  defp webhook_kind(:discord), do: "Channel webhook"
+
+  defp dialog_title(provider, :new), do: "Add a #{service_name(provider)} channel"
+  defp dialog_title(_provider, %ChatWebhook{name: name}), do: "Edit #{name}"
 
   defp url_label(:teams, :new), do: "Workflows webhook URL"
   defp url_label(:teams, _editing), do: "New Workflows webhook URL"
   defp url_label(:discord, :new), do: "Webhook URL"
   defp url_label(:discord, _editing), do: "New webhook URL"
 
-  defp toggle_menu(provider, id) do
-    JS.toggle(
-      to: "##{provider}-channel-#{id}-menu",
-      in: {"ease-out duration-150", "opacity-0", "opacity-100"},
-      out: {"ease-out duration-150", "opacity-100", "opacity-0"}
-    )
-  end
+  defp name_placeholder(:teams), do: "Field ops"
+  defp name_placeholder(:discord), do: "#hardware-lab"
 
-  defp hide_menu(js \\ %JS{}, provider, id) do
-    JS.hide(js,
-      to: "##{provider}-channel-#{id}-menu",
-      transition: {"ease-out duration-150", "opacity-100", "opacity-0"}
-    )
-  end
+  defp row_id(provider, channel), do: "#{provider}-channel-#{channel.id}"
 
-  attr(:channel, ChatWebhook, required: true)
-
-  defp status_badge(assigns) do
-    ~H"""
-    <span :if={!@channel.enabled} class="rounded-full border border-base-600 bg-base-800 px-2 py-0.5 text-xs font-medium text-base-400">
-      Off
-    </span>
-    <span
-      :if={@channel.enabled && @channel.last_error}
-      class="rounded-full border border-alert bg-alert-soft px-2 py-0.5 text-xs font-medium text-alert"
-    >
-      Failing
-    </span>
-    <span
-      :if={@channel.enabled && is_nil(@channel.last_error)}
-      class="rounded-full border border-success px-2 py-0.5 text-xs font-medium text-success"
-    >
-      On
-    </span>
-    """
-  end
+  defp dialog_id(provider), do: "#{provider}-dialog"
 end

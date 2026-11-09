@@ -253,7 +253,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
     test "device connecting updates the UI", %{conn: conn, fixture: fixture} do
       conn
       |> visit(device_show_path(fixture))
-      |> assert_has("svg[data-connection-status=unknown]")
+      |> assert_has("span[data-connection-status=unknown]")
       |> unwrap(fn view ->
         {:ok, connection} =
           Connections.device_connecting(fixture.device.org_id, fixture.device.product_id, fixture.device.id)
@@ -261,7 +261,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
         :ok = Connections.device_connected(connection.id)
         render(view)
       end)
-      |> assert_has("svg[data-connection-status=connected]")
+      |> assert_has("span[data-connection-status=connected]")
     end
 
     test "connection:status updates assigns when coming online", %{
@@ -296,7 +296,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
 
       conn
       |> visit(device_show_path(fixture))
-      |> assert_has("svg[data-connection-status=connected]")
+      |> assert_has("span[data-connection-status=connected]")
       |> refute_has("div", text: "Assigned Deployment Group")
       |> refute_has("span", text: "Update available")
       |> refute_has("option", text: "Select a version")
@@ -306,7 +306,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
         :ok = Connections.device_disconnected(connection.id)
         render(view)
       end)
-      |> assert_has("svg[data-connection-status=disconnected]")
+      |> assert_has("span[data-connection-status=disconnected]")
       |> unwrap(fn view ->
         restored_firmware_metadata =
           device.firmware_metadata
@@ -2453,8 +2453,8 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
 
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
-      |> assert_has("span", text: "iroh_console")
-      |> assert_has("span", text: "kiosk_sync")
+      |> assert_has("code", text: "iroh_console")
+      |> assert_has("code", text: "kiosk_sync")
       |> assert_has("span", text: "console-endpoint-key")
       |> assert_has("span", text: "sync-endpoint-key")
     end
