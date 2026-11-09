@@ -1,27 +1,20 @@
 <NervesHubWeb.Layouts.no_sidebar flash={@flash} current_scope={@current_scope}>
   <div class="w-[800px]">
     <div class="flex h-[88px] items-center justify-between py-6">
-      <h1 class="text-xl leading-[30px] font-semibold text-base-50">Delete Account</h1>
-      <.link navigate={~p"/account"} class="rounded border border-base-600 bg-base-800 px-4 py-2 text-sm font-medium text-base-50 transition-colors hover:bg-base-700">
+      <h1 class="text-page-title text-content-strong">Delete Account</h1>
+      <.button type="link" navigate={~p"/account"}>
         Cancel
-      </.link>
+      </.button>
     </div>
 
-    <div class="rounded border border-alert bg-base-900 p-6">
+    <div class="rounded-md border border-alert bg-base-900 p-4">
       <div class="mb-6 flex items-start gap-4">
         <div class="mt-1 shrink-0">
-          <svg class="size-6 text-alert" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
-            />
-          </svg>
+          <span class="lucide-triangle-alert size-6 text-alert" aria-hidden="true"></span>
         </div>
         <div>
-          <h2 class="mb-2 text-lg font-semibold text-alert-content">Are you absolutely sure?</h2>
-          <div class="space-y-2 text-base-300">
+          <h2 class="mb-2 text-section-title text-alert-content">Are you absolutely sure?</h2>
+          <div class="space-y-2 text-content-body">
             <p class="font-semibold">Unexpected bad things will happen if you don't read this!</p>
             <p>This action <span class="font-semibold text-alert-content">cannot be undone</span>. This will permanently delete your account and all associated data.</p>
           </div>
@@ -30,23 +23,23 @@
 
       <.form :let={f} id="delete-account-form" for={@form} phx-submit="delete">
         <div class="mb-6">
-          <label for="email_input" class="mb-2 block text-sm font-medium text-base-300">
-            Please type <span class="rounded bg-base-800 px-2 py-0.5 font-mono text-base-50">{@user.email}</span> to confirm.
+          <label for="email_input" class="mb-2 block text-sm font-medium text-content-body">
+            Please type <span class="rounded bg-base-800 px-2 py-0.5 font-mono text-content-strong">{@user.email}</span> to confirm.
           </label>
           <input
             type="text"
             id="email_input"
             name={f[:confirm_email].name}
             value={f[:confirm_email].value}
-            class="w-full rounded border border-base-600 bg-base-900 px-3 py-2 text-base-50 placeholder-base-500 focus:border-transparent focus:ring-2 focus:ring-alert focus:outline-none"
+            class="w-full rounded border border-line-strong bg-base-900 px-3 py-2 text-content-strong placeholder-base-500 focus:border-transparent focus:ring-2 focus:ring-alert focus:outline-none"
             placeholder="Type your email to confirm"
           />
         </div>
 
         <div class="flex justify-end">
-          <button type="submit" class="cursor-pointer rounded bg-danger px-4 py-2 text-sm font-medium text-danger-content transition-colors hover:bg-danger-hover">
+          <.button style="danger-solid" type="submit">
             I understand the consequences, delete this account
-          </button>
+          </.button>
         </div>
       </.form>
     </div>

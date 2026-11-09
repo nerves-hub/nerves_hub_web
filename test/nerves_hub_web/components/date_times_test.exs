@@ -43,7 +43,9 @@ defmodule NervesHubWeb.Components.DateTimesTest do
 
       assert render_at(Map.put(opts, :format, :date)) =~ ">2026-01-02<"
       assert render_at(Map.put(opts, :format, :long_date)) =~ ">January 2, 2026<"
+      assert render_at(Map.put(opts, :format, :month_year)) =~ ">January 2026<"
       assert render_at(Map.put(opts, :format, :long_datetime)) =~ ">January 2, 2026 6:00 PM<"
+      assert render_at(Map.put(opts, :format, :short_datetime)) =~ ">Jan 2, 6:00 PM<"
       assert render_at(Map.put(opts, :format, :datetime)) =~ ">2026-01-02 at 6:00 PM<"
       assert render_at(Map.put(opts, :format, :datetime_seconds)) =~ ">2026-01-02 at 6:00:00 PM<"
       assert render_at(Map.put(opts, :format, :timestamp)) =~ ">2026-01-02 18:00:00<"

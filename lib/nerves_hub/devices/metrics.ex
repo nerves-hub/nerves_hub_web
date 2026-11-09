@@ -298,17 +298,25 @@ defmodule NervesHub.Devices.Metrics do
   of the device's rows in the longest window, pruned by the table's
   `(product_id, device_id, key, timestamp)` sort key. ClickHouse: callers
   are expected to check that analytics is enabled first.
+
+  `excluded_timestamps` are left out of the count. They are the readings the
+  caller holds in hand and counts itself: they may or may not have been
+  flushed by the time this runs, and leaving them out here is what makes each
+  one count exactly once either way. A report is stored as one row per key at
+  one shared timestamp, so its timestamp leaves out exactly that report.
   """
-  @spec health_breach_counts(DeviceInfo.t() | map(), [struct()], integer()) ::
+  @spec health_breach_counts(DeviceInfo.t() | map(), [struct()], integer(), [DateTime.t()]) ::
           %{
             optional(String.t()) => %{
               warning: {non_neg_integer(), non_neg_integer()},
               alert: {non_neg_integer(), non_neg_integer()}
             }
           }
-  def health_breach_counts(_device_info, [] = _metrics, _now_minute), do: %{}
+  def health_breach_counts(device_info, metrics, now_minute, excluded_timestamps \\ [])
 
-  def health_breach_counts(device_info, metrics, now_minute) do
+  def health_breach_counts(_device_info, [] = _metrics, _now_minute, _excluded_timestamps), do: %{}
+
+  def health_breach_counts(device_info, metrics, now_minute, excluded_timestamps) do
     selects =
       metrics
       |> Enum.flat_map(fn metric ->
@@ -345,6 +353,7 @@ defmodule NervesHub.Devices.Metrics do
       |> where([dm], dm.product_id == ^device_info.product_id and dm.device_id == ^device_info.device_id)
       |> where([dm], dm.key in ^Enum.map(metrics, & &1.key))
       |> where([dm], dm.timestamp >= ^oldest)
+      |> excluding_timestamps(excluded_timestamps)
       |> select([dm], ^selects)
       |> AnalyticsRepo.one()
 
@@ -355,6 +364,17 @@ defmodule NervesHub.Devices.Metrics do
          alert: {row["#{metric.key}:alert:n"], row["#{metric.key}:alert:k"]}
        }}
     end)
+  end
+
+  defp excluding_timestamps(query, []), do: query
+
+  # Padded the way `record/3` pads what it stores, so each one names the
+  # stored instant exactly. That also keeps the array parameter a single type:
+  # the adapter types the array from its first element.
+  defp excluding_timestamps(query, timestamps) do
+    timestamps = timestamps |> Enum.map(&with_microsecond_precision/1) |> Enum.uniq()
+
+    where(query, [dm], dm.timestamp not in ^timestamps)
   end
 
   # Which side of the threshold is unhealthy. `nil` (rows from before the

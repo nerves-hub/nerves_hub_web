@@ -21,9 +21,9 @@ defmodule NervesHubWeb.OAuthControllerTest do
     test "shows google auth button if enabled" do
       build_conn()
       |> visit(~p"/login")
-      |> assert_has("h1", text: "Sign in to your account")
-      |> assert_has("span", text: "Or create a new account with")
-      |> assert_has("span", text: "Google")
+      |> assert_has("h1", text: "Sign in to #{platform_name()}")
+      |> assert_has("a[href='/auth/google']", text: "Continue with Google")
+      |> assert_has("div", text: "or sign in with email")
     end
 
     test "create new account successfully" do
@@ -51,7 +51,7 @@ defmodule NervesHubWeb.OAuthControllerTest do
 
       build_conn()
       |> visit(~p"/auth/google/callback?state=dummy&code=dummy&scope=email+profile&prompt=none")
-      |> assert_has("h1", text: "We were unable to sign you in.")
+      |> assert_has("h1", text: "We couldn't sign you in with Google")
     end
 
     test "shows the failure page if the Google name can't be used for a new account" do
@@ -64,7 +64,7 @@ defmodule NervesHubWeb.OAuthControllerTest do
 
       build_conn()
       |> visit(~p"/auth/google/callback?state=dummy&code=dummy&scope=email+profile&prompt=none")
-      |> assert_has("h1", text: "We were unable to sign you in.")
+      |> assert_has("h1", text: "We couldn't sign you in with Google")
 
       refute Repo.get_by(User, email: "jane@person.com")
 
@@ -83,11 +83,11 @@ defmodule NervesHubWeb.OAuthControllerTest do
 
       build_conn()
       |> visit(~p"/password-reset")
-      |> assert_has("h1", text: "Reset your password")
+      |> assert_has("h1", text: "Forgot your password?")
       |> fill_in("Email", with: user.email)
       |> submit()
       |> assert_path(~p"/password-reset")
-      |> assert_has("h1", text: "Time to check your email")
+      |> assert_has("h1", text: "Check your email")
 
       send_queued_emails()
 
@@ -114,9 +114,11 @@ defmodule NervesHubWeb.OAuthControllerTest do
     test "does not show google auth button if not enabled" do
       build_conn()
       |> visit(~p"/login")
-      |> assert_has("h1", text: "Sign in to your account")
-      |> refute_has("span", text: "Or create a new account with")
-      |> refute_has("span", text: "Google")
+      |> assert_has("h1", text: "Sign in to #{platform_name()}")
+      |> refute_has("a[href='/auth/google']")
+      |> refute_has("div", text: "or sign in with email")
     end
   end
+
+  defp platform_name(), do: Application.get_env(:nerves_hub, :support_email_platform_name)
 end

@@ -27,11 +27,13 @@ defmodule NervesHub.Extensions.State do
   - `{:push, event, payload}` — send a message to the device
   - `{:tick, tag}` — deliver `tag` back to this extension's `handle_info/2` now
   - `{:start_timer, tag, interval_ms}` — deliver `tag` back every `interval_ms`
-  - `{:cancel_timer, tag}` — stop a timer started with `:start_timer`
+  - `{:send_after, tag, delay_ms}` — deliver `tag` back once, after `delay_ms`
+  - `{:cancel_timer, tag}` — stop a timer started with `:start_timer` or
+    `:send_after`
 
-  `:tick` and `:start_timer` exist because an extension can no longer reach for
-  `send(self(), ...)` or `:timer.send_interval/2` — it does not own the process
-  that would receive them.
+  `:tick`, `:start_timer` and `:send_after` exist because an extension can no
+  longer reach for `send(self(), ...)`, `:timer.send_interval/2` or
+  `Process.send_after/3` — it does not own the process that would receive them.
 
   The scrollback effects are for output an extension wants remembered but has no
   use for itself; see `NervesHub.DeviceLink.Effect`. They pass through to the
@@ -42,6 +44,7 @@ defmodule NervesHub.Extensions.State do
           | {:tick, tag :: term()}
           | {:start_timer, tag :: term(), interval_ms :: pos_integer()}
           | {:start_timer, tag :: term(), first_ms :: pos_integer(), interval_ms :: pos_integer()}
+          | {:send_after, tag :: term(), delay_ms :: non_neg_integer()}
           | {:cancel_timer, tag :: term()}
           | {:scrollback_append, data :: binary()}
           | {:scrollback_replay, pid()}

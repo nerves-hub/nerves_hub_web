@@ -280,6 +280,32 @@ defmodule NervesHub.ErrorReportsTest do
     end
   end
 
+  describe "unresolved_counts_by_product/1" do
+    test "counts only unresolved issues, and leaves out products with none", %{
+      device_info: info,
+      org: org,
+      product: product,
+      user: user
+    } do
+      quiet = Fixtures.product_fixture(user, org, %{name: "quiet"})
+
+      {:ok, 3} =
+        ErrorReports.record_batch(info, [
+          report(%{"reason" => "one"}),
+          report(%{"reason" => "two"}),
+          report(%{"reason" => "three"})
+        ])
+
+      settle()
+
+      [first | _rest] = groups(product)
+      {:ok, _muted} = ErrorReports.mute(first, user)
+
+      assert ErrorReports.unresolved_counts_by_product([product.id, quiet.id]) == %{product.id => 2}
+      assert ErrorReports.unresolved_counts_by_product([]) == %{}
+    end
+  end
+
   describe "get_group!/2" do
     test "is scoped to the product", %{device_info: info, product: product, user: user, org: org} do
       {:ok, 1} = ErrorReports.record_batch(info, [report()])

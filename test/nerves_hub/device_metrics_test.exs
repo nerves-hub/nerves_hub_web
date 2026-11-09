@@ -143,6 +143,10 @@ defmodule NervesHub.DeviceMetricsTest do
   end
 
   describe "record/3 with metric names that are too long" do
+    # The notification throttle refills every second, so two reports either
+    # side of a boundary would each raise a notification.
+    setup :freeze_rate_limit_clock
+
     setup do
       %{long_key: String.duplicate("x", Metrics.max_key_bytes() + 1)}
     end

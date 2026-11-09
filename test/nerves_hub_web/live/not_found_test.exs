@@ -129,6 +129,6 @@ defmodule NervesHubWeb.Live.NotFoundTest do
     conn = get(conn, "/this/does/not/exist")
 
     assert conn.status == 404
-    assert conn.resp_body =~ "Sorry, the page you are looking can't be found."
+    assert conn.resp_body =~ "That page doesn’t exist,"
   end
 end

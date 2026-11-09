@@ -41,6 +41,10 @@ asked once — every fifteen minutes while nobody is looking and every minute
 while somebody is. The first interval is offset randomly, so a fleet that
 connected together does not answer together.
 
+A device is also asked once soon after it attaches, ahead of the timer:
+straight away if somebody has its page open, and otherwise at a random point in
+the first minute, for the same reason.
+
 A device may also report without being asked. The rate limit below is what keeps
 that from being expensive.
 
