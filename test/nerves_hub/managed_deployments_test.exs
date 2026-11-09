@@ -1703,4 +1703,18 @@ defmodule NervesHub.ManagedDeploymentsTest do
     {:ok, deployment_group} = ManagedDeployments.get_deployment_group(deployment_group)
     deployment_group.current_release.delta_status
   end
+
+  describe "count_by_product/1" do
+    test "counts each product's deployment groups, leaving out products with none", context do
+      %{product: product, product2: product2, firmware: firmware, user: user} = context
+
+      _second = Fixtures.deployment_group_fixture(firmware, %{user: user})
+
+      assert ManagedDeployments.count_by_product([product.id, product2.id]) == %{product.id => 2}
+    end
+
+    test "is empty for no products" do
+      assert ManagedDeployments.count_by_product([]) == %{}
+    end
+  end
 end

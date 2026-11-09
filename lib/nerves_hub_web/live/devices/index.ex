@@ -1158,8 +1158,8 @@ defmodule NervesHubWeb.Live.Devices.Index do
   defp progress_style(progress_info) do
     """
      background-repeat: no-repeat, no-repeat;
-     background-image: linear-gradient(90deg, rgba(16, 185, 129, 1.00) 0%, rgba(16, 185, 129, 1.0) 100%),
-                        radial-gradient(circle at 0%, rgba(16, 185, 129, 0.12) 0, rgba(16, 185, 129, 0.12) 60%, rgba(16, 185, 129, 0.0) 100%);
+     background-image: linear-gradient(90deg, var(--color-success) 0%, var(--color-success) 100%),
+                        radial-gradient(circle at 0%, color-mix(in oklab, var(--color-success) 12%, transparent) 0, color-mix(in oklab, var(--color-success) 12%, transparent) 60%, transparent 100%);
      background-size: #{progress_info[:percent]}% 1px, #{progress_info[:percent] * 1.1}% 100%;
     """
   end

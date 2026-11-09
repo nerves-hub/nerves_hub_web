@@ -331,9 +331,9 @@ defmodule NervesHubWeb.Components.DevicePage.LogsTab do
       class="tab-content size-full bg-base-950 pb-10 opacity-0 transition-all duration-500 phx-click-loading:opacity-50"
     >
       <div class="size-full">
-        <div class="flex min-h-11 flex-row flex-wrap items-center gap-x-6 gap-y-2 border-b border-base-700 px-12 py-1.5">
+        <div class="flex min-h-11 flex-row flex-wrap items-center gap-x-6 gap-y-2 border-b border-line-default px-12 py-1.5">
           <div>
-            <span class="text-sm text-base-400">Live log streaming :</span>
+            <span class="text-sm text-content-muted">Live log streaming :</span>
             <button
               id="toggle-log-streaming"
               type="button"
@@ -351,7 +351,7 @@ defmodule NervesHubWeb.Components.DevicePage.LogsTab do
                 class={[
                   "pointer-events-none inline-block size-3",
                   (@streaming_enabled && "translate-x-3") || "translate-x-0",
-                  "transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out"
+                  "transform rounded-full bg-white shadow-control ring-0 transition duration-200 ease-in-out"
                 ]}
               ></span>
             </button>
@@ -368,12 +368,12 @@ defmodule NervesHubWeb.Components.DevicePage.LogsTab do
               maxlength={max_search_length()}
               autocomplete="off"
               phx-debounce="300"
-              class="w-56 rounded border border-base-600 bg-base-800 px-2 py-0.5 text-sm text-base-300 placeholder:text-base-500"
+              class="w-56 rounded border border-line-strong bg-base-800 px-2 py-0.5 text-sm text-content-body placeholder:text-content-faint"
             />
 
             <label class="flex items-center gap-2">
-              <span class="text-sm text-base-400">Level :</span>
-              <select name="level" class="rounded border border-base-600 bg-base-800 px-2 py-0.5 text-sm text-base-300">
+              <span class="text-sm text-content-muted">Level :</span>
+              <select name="level" class="rounded border border-line-strong bg-base-800 px-2 py-0.5 text-sm text-content-body">
                 <option :for={{label, value} <- level_options()} value={value} selected={value == @log_filters.level}>
                   {label}
                 </option>
@@ -381,8 +381,8 @@ defmodule NervesHubWeb.Components.DevicePage.LogsTab do
             </label>
 
             <label class="flex items-center gap-2">
-              <span class="text-sm text-base-400">Time :</span>
-              <select name="range" class="rounded border border-base-600 bg-base-800 px-2 py-0.5 text-sm text-base-300">
+              <span class="text-sm text-content-muted">Time :</span>
+              <select name="range" class="rounded border border-line-strong bg-base-800 px-2 py-0.5 text-sm text-content-body">
                 <option :for={{label, value} <- range_options()} value={value} selected={value == @log_filters.range}>
                   {label}
                 </option>
@@ -408,7 +408,7 @@ defmodule NervesHubWeb.Components.DevicePage.LogsTab do
                 <.local_datetime at={line.timestamp} time_zone={@time_zone} format={:log} class="min-w-fit" />
                 <div
                   data-log-level={line.level}
-                  class="data-[log-level=alert]:text-alert data-[log-level=critical]:text-alert data-[log-level=debug]:text-blue-500 data-[log-level=emergency]:text-alert data-[log-level=error]:text-alert data-[log-level=warn]:text-orange-500 data-[log-level=warning]:text-orange-500"
+                  class="data-[log-level=alert]:text-alert-content data-[log-level=critical]:text-alert-content data-[log-level=debug]:text-notice-content data-[log-level=emergency]:text-alert-content data-[log-level=error]:text-alert-content data-[log-level=warn]:text-warning-content data-[log-level=warning]:text-warning-content"
                 >
                   [{line.level}]
                 </div>
@@ -418,7 +418,7 @@ defmodule NervesHubWeb.Components.DevicePage.LogsTab do
 
             <%!-- `data-count` changes with every page, which is what makes the
             hook see an update and check whether this is still on screen. --%>
-            <button
+            <.button
               :if={@more_logs and @log_count < max_lines()}
               id="show-more-logs"
               type="button"
@@ -426,12 +426,12 @@ defmodule NervesHubWeb.Components.DevicePage.LogsTab do
               data-event="load-more-logs"
               data-list="log_lines"
               data-count={@log_count}
-              class="mb-4 rounded border border-base-600 bg-base-800 px-3 py-1 text-sm text-base-300 hover:bg-base-700 data-loading:opacity-50"
+              class="mb-4 data-loading:opacity-50"
             >
               Show more
-            </button>
+            </.button>
 
-            <div :if={@more_logs and @log_count >= max_lines()} id="log-limit-reached" class="mb-4 text-sm font-extralight text-base-400">
+            <div :if={@more_logs and @log_count >= max_lines()} id="log-limit-reached" class="mb-4 text-sm font-extralight text-content-muted">
               Showing the newest {max_lines()} lines. Search, or narrow the time, to look further back.
             </div>
           </div>

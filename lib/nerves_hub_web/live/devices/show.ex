@@ -461,13 +461,13 @@ defmodule NervesHubWeb.Live.Devices.Show do
   end
 
   @doc false
-  def update_mode_icon(:automatic), do: "lucide-refresh-cw--light"
-  def update_mode_icon(:device_managed), do: "lucide-cpu--light"
-  def update_mode_icon(:off), do: "lucide-circle-slash--light"
+  def update_mode_icon(:automatic), do: "lucide-refresh-cw"
+  def update_mode_icon(:device_managed), do: "lucide-cpu"
+  def update_mode_icon(:off), do: "lucide-circle-slash"
 
   @doc false
   def update_mode_color(:automatic), do: "text-success"
-  def update_mode_color(:device_managed), do: "text-base-300"
+  def update_mode_color(:device_managed), do: "text-content-body"
   def update_mode_color(:off), do: "text-alert"
 
   @doc false

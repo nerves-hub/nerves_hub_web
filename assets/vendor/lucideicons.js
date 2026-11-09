@@ -5,14 +5,15 @@ const path = require("path")
 module.exports = plugin(function ({ matchComponents, theme }) {
   let iconsDir = path.join(__dirname, "../../deps/lucide/icons")
   let values = {}
+  // A line icon draws its stroke at 1/16 of its size, and never under 1px:
+  // 1px at 16px, 1.25px at 20px, whatever its source. On Lucide's 24 grid
+  // that is 1.5, the default here. --bold is for a selected nav item and for
+  // icons under 16px (size-3, size-3.5); --thin keeps an icon of 32px or
+  // more from drawing a 2px+ line.
   let weights = [
-    ["--verythin", "0.8"],
-    ["--thin", "1"],
-    ["--light", "1.25"],
-    ["--semilight", "1.5"],
-    ["", ""],
-    ["--semibold", "2.25"],
-    ["--bold", "2.5"],
+    ["", "1.5"],
+    ["--bold", "2"],
+    ["--thin", "0.8"],
   ]
 
   weights.forEach(([suffix, weight]) => {
@@ -55,6 +56,9 @@ module.exports = plugin(function ({ matchComponents, theme }) {
           "background-color": "currentColor",
           "vertical-align": "middle",
           display: "inline-block",
+          // An empty span has no minimum width, so in a crowded flex row it
+          // would shrink and squash the glyph. An SVG of a set size never did.
+          "flex-shrink": "0",
           // "width": size,
           // "height": size
         }

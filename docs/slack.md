@@ -6,7 +6,7 @@ The integration is only shown when the instance has a Slack app configured. Nerv
 
 ## Connecting a workspace
 
-An organization admin clicks **Add to Slack** and approves the install in Slack. Slack sends them back to the Integrations page, where the workspace is listed with who connected it.
+An organization admin clicks **Add to Slack** (or, once the organization has integrations, **Add integration**, then **Connect a Slack workspace**) and approves the install in Slack. Slack sends them back to the Integrations page, where the workspace is listed at the foot of the chat channels, with who connected it.
 
 - A workspace can be connected to more than one organization. Each connection is separate, and disconnecting one leaves the others.
 - Installing again in a connected workspace refreshes its token and scopes, without connecting it twice.
@@ -16,7 +16,7 @@ An organization admin clicks **Add to Slack** and approves the install in Slack.
 
 ## Channel notifications
 
-Under a connected workspace, **Add channel** picks a channel, the products whose events it gets (every product, including ones added later, or a chosen few), and the events. It takes the organization `manage` role, as webhooks do. The channel list is the one Slack gives the app: every public channel, and the private channels the app has been invited to. To post to a private channel, invite the NervesHub app to it first.
+**Add integration**, then **Slack channel** under the workspace's name, picks a channel, the products whose events it gets (every product, including ones added later, or a chosen few), and the events. It takes the organization `manage` role, as webhooks do. The channel list is the one Slack gives the app: every public channel, and the private channels the app has been invited to. To post to a private channel, invite the NervesHub app to it first.
 
 | Event | Posted when |
 | --- | --- |
@@ -93,7 +93,7 @@ A link to a device's page, or a deployment group's, posted in a connected worksp
 
 Everyone in the conversation sees a preview, but Slack only says who posted the link, so the preview is checked against them, as **Share in channel** is: posting a link is sharing what it shows. Their linked NervesHub account must be a member of the organization the link points into, that organization must be connected to the workspace, and their role must let them see the page. A link they may not see gets no preview, and nobody is told why. Someone who has not linked their account is asked to, in a message only they see, and the link gets no preview until they do.
 
-Only links to this instance are previewed, and only once its domain is one of the Slack app's unfurl domains (see the manifest below). A workspace connected before link previews arrived has to install the app again for them, since Slack only grants the new scopes on install. The Integrations page says so under the workspace: an admin clicks **Add to Slack** and chooses the same workspace, which refreshes its token and scopes without connecting it twice.
+Only links to this instance are previewed, and only once its domain is one of the Slack app's unfurl domains (see the manifest below). A workspace connected before link previews arrived has to install the app again for them, since Slack only grants the new scopes on install. The Integrations page says so under the workspace: an admin chooses **Add integration**, then **Connect another Slack workspace**, and picks the same workspace, which refreshes its token and scopes without connecting it twice.
 
 ## What NervesHub keeps
 
@@ -126,7 +126,7 @@ For each linked Slack user, NervesHub keeps their Slack user id and name, the wo
 3. Under **Manage Distribution**, turn on public distribution so that workspaces other than the development one can install the app.
 4. From **Basic Information**, set `SLACK_CLIENT_ID`, `SLACK_CLIENT_SECRET` and `SLACK_SIGNING_SECRET` on the instance, plus a `SECRETS_ENCRYPTION_KEY` (`openssl rand -base64 32`). See [runtime configuration](runtime_configuration.md#slack).
 5. Optionally, set `FRIENDLY_PLATFORM_NAME` to the name your users know the instance by. Slack messages and the Slack pages use it ("Open in NervesHub" by default).
-6. Restart the instance. **Add to Slack** appears on each organization's Integrations page.
+6. Restart the instance. Slack appears on each organization's Integrations page.
 
 ```json
 {

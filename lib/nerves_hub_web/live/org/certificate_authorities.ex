@@ -10,6 +10,9 @@ defmodule NervesHubWeb.Live.Org.CertificateAuthorities do
   alias NervesHubWeb.Components.CAHelpers
   alias NervesHubWeb.Components.DateTimes
   alias NervesHubWeb.Components.Utils
+  alias NervesHubWeb.Mounts.OrgCounts
+
+  on_mount(OrgCounts)
 
   embed_templates("certificate_authority_templates/*")
 
@@ -221,6 +224,48 @@ defmodule NervesHubWeb.Live.Org.CertificateAuthorities do
   end
 
   defp not_before_label(ca_certificate), do: Calendar.strftime(ca_certificate.not_before, "%Y-%m-%d %H:%M UTC")
+
+  # The chip beside a CA's expiry date. A current CA gets none. Expiring means
+  # within three months, as `CAHelpers.certificate_status/1` has it.
+  defp validity(%CACertificate{not_before: not_before, not_after: not_after}) do
+    now = DateTime.utc_now()
+
+    cond do
+      DateTime.after?(now, not_after) ->
+        {:expired, "Expired"}
+
+      DateTime.before?(now, not_before) ->
+        {:not_yet_valid, "Not valid yet"}
+
+      DateTime.after?(DateTime.shift(now, month: 3), not_after) ->
+        {:expiring, expires_in(DateTime.diff(not_after, now, :day))}
+
+      true ->
+        nil
+    end
+  end
+
+  defp expires_in(0), do: "Expires today"
+  defp expires_in(1), do: "Expires in 1 day"
+  defp expires_in(days), do: "Expires in #{days} days"
+
+  defp devices_label(1), do: "1 device"
+  defp devices_label(count), do: "#{Number.Delimit.number_to_delimited(count, precision: 0)} devices"
+
+  defp last_used_label(%CACertificate{last_used: nil}), do: "Never used"
+  defp last_used_label(%CACertificate{last_used: last_used}), do: DateTimes.from_now(last_used)
+
+  attr(:validity, :any, required: true, doc: "a `{kind, label}` from `validity/1`")
+  attr(:class, :any, default: nil)
+
+  defp validity_chip(assigns) do
+    ~H"""
+    <span class={["rounded px-1.5 text-[11px]/4.5 font-medium", validity_class(elem(@validity, 0)), @class]}>{elem(@validity, 1)}</span>
+    """
+  end
+
+  defp validity_class(:expired), do: "bg-alert-soft text-alert-content"
+  defp validity_class(_soon), do: "bg-warning-soft text-warning-content"
 
   defp list_certificates(socket) do
     certificates = CACertificates.get_ca_certificates(socket.assigns.org)
