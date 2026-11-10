@@ -9,7 +9,7 @@ defmodule NervesHubWeb.Components.DeviceUpdateStatus do
       Updates.device_in_penalty_box?(device) ->
         ~H"""
         <.tooltip id={"update-status-#{@device.id}"} placement="top">
-          <span class="z-10 lucide-shield-alert size-4 text-warning" aria-hidden="true"></span>
+          <span class="lucide-shield-alert z-10 size-4 text-warning" aria-hidden="true"></span>
           <:content>
             Updates blocked {friendly_blocked_until(@device.updates_blocked_until, @time_zone)}
           </:content>
