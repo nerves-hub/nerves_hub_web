@@ -764,6 +764,39 @@ defmodule NervesHubWeb.WebsocketTest do
       refute SocketClient.connected?(socket)
     end
 
+    # Deleting an org leaves its devices in place, and a device key belongs to
+    # its device, so nothing about the key itself changes.
+    test "closes the connections of a deleted org's devices, and refuses them afterwards", %{
+      user: user,
+      tmp_dir: tmp_dir
+    } do
+      {device, _firmware} = device_fixture(tmp_dir, user)
+      assert {:ok, auth} = Devices.create_shared_secret_auth(device)
+
+      opts = [
+        mint_opts: [protocols: [:http1]],
+        uri: "ws://127.0.0.1:#{@web_port}/device-socket/websocket",
+        headers: Utils.nh1_key_secret_headers(auth, device.identifier)
+      ]
+
+      subscribe_for_updates(device)
+
+      {:ok, socket} = SocketClient.start_link(with_serializer(opts))
+      SocketClient.join_and_wait(socket, shared_secret_params(device))
+
+      assert_connection_change()
+      assert_online_and_available(device)
+
+      assert {:ok, _org} = device.org_id |> Accounts.get_org!() |> Accounts.soft_delete_org()
+
+      assert_receive %{event: "connection:change", payload: %{status: "offline"}}
+
+      {:ok, socket} = SocketClient.start_link(with_serializer(opts))
+      SocketClient.wait_connect(socket)
+
+      refute SocketClient.connected?(socket)
+    end
+
     test "records the address a trusted balancer announced", %{user: user, tmp_dir: tmp_dir} do
       {device, _firmware} = device_fixture(tmp_dir, user)
       assert {:ok, auth} = Devices.create_shared_secret_auth(device)
