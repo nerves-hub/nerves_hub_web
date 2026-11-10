@@ -103,23 +103,34 @@ defmodule NervesHubWeb.API.DeviceController do
     end
   end
 
+  defp create_device(product, params, user) do
+    device_params = device_params(params)
+
+    with {:ok, shared_secret?} <- cast_shared_secret(params),
+         {:ok, allowed} <- cast_managed_updates_allowed(device_params) do
+      opts = [managed_updates_allowed: allowed]
+
+      if shared_secret? do
+        with {:ok, {device, auth}} <-
+               Devices.create_device_with_shared_secret_auth(product, device_params, user, opts) do
+          {:ok, device, auth}
+        end
+      else
+        with {:ok, device} <- Devices.create_device(product, device_params, user, opts) do
+          {:ok, device, nil}
+        end
+      end
+    end
+  end
+
   # `"shared_secret": true` creates the device's own shared secret in the same
   # transaction, so a provisioner never leaves a device without credentials. It
   # is cast the way the device's own boolean fields are, and any other value is
   # refused rather than quietly creating a device without one.
-  defp create_device(product, params, user) do
-    device_params = device_params(params)
-
+  defp cast_shared_secret(params) do
     case Ecto.Type.cast(:boolean, params["shared_secret"]) do
-      {:ok, true} ->
-        with {:ok, {device, auth}} <- Devices.create_device_with_shared_secret_auth(product, device_params, user) do
-          {:ok, device, auth}
-        end
-
-      {:ok, not_requested} when not_requested in [false, nil] ->
-        with {:ok, device} <- Devices.create_device(product, device_params) do
-          {:ok, device, nil}
-        end
+      {:ok, requested} ->
+        {:ok, requested == true}
 
       :error ->
         {:error, {:shared_secret, "shared_secret must be true or false, got #{inspect(params["shared_secret"])}."}}
@@ -172,10 +183,10 @@ defmodule NervesHubWeb.API.DeviceController do
   defp device_params(%{"device" => %{} = device_params}), do: device_params
   defp device_params(params), do: params
 
-  # Not one of the fields `Device.update_changeset/2` casts: it goes through
-  # `Updates.set_managed_updates_allowed/3`, as the web UI's toggle does, for its
-  # own audit entry. Like `shared_secret`, a value that isn't a boolean is
-  # refused rather than ignored.
+  # Not one of the fields the device changesets cast: on create and update it
+  # goes through `Updates.set_managed_updates_allowed/3`, as the web UI's toggle
+  # does, for its own audit entry. Like `shared_secret`, a value that isn't a
+  # boolean is refused rather than ignored.
   defp cast_managed_updates_allowed(device_params) do
     value = device_params["managed_updates_allowed"]
 

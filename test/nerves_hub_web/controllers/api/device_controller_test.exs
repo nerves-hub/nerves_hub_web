@@ -176,6 +176,7 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
       assert device.description == fields["description"]
       assert device.tags == fields["tags"]
       assert to_string(device.update_mode) == fields["update_mode"]
+      assert device.managed_updates_allowed == fields["managed_updates_allowed"]
     end
 
     test "saves each documented field, from a device object or the top level", %{
@@ -187,7 +188,8 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
         description: "on the bench",
         tags: "bench, rev-b",
         update_mode: "device_managed",
-        connecting_code: "IO.puts(:hello)"
+        connecting_code: "IO.puts(:hello)",
+        managed_updates_allowed: true
       }
 
       for {shape, wrap} <- body_shapes() do
@@ -205,6 +207,7 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
         assert device.tags == ["bench", "rev-b"]
         assert device.update_mode == :device_managed
         assert device.connecting_code == "IO.puts(:hello)"
+        assert device.managed_updates_allowed
       end
     end
 
@@ -228,7 +231,10 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
       org: org,
       product: product
     } do
-      params = %{device: %{identifier: "api-device-object-with-secret"}, shared_secret: true}
+      params = %{
+        device: %{identifier: "api-device-object-with-secret", managed_updates_allowed: true},
+        shared_secret: true
+      }
 
       data =
         conn
@@ -237,13 +243,74 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
         |> Map.fetch!("data")
 
       assert data["identifier"] == "api-device-object-with-secret"
+      assert data["managed_updates_allowed"] == true
       assert %{"key" => "nhd_" <> _ = key} = data["shared_secret"]
       assert {:ok, auth} = Devices.get_shared_secret_auth(key)
       assert auth.device.identifier == "api-device-object-with-secret"
+      assert auth.device.managed_updates_allowed
+    end
+
+    test "sets managed_updates_allowed, auditing it when it isn't the product's default", %{
+      conn: conn,
+      org: org,
+      product: product,
+      user: user
+    } do
+      refute product.default_managed_updates_allowed
+      path = Routes.api_device_path(conn, :create, org.name, product.name)
+
+      conn |> post(path, %{identifier: "api-device-granted", managed_updates_allowed: true}) |> json_response(201)
+      conn |> post(path, %{identifier: "api-device-default", managed_updates_allowed: false}) |> json_response(201)
+
+      granted = Repo.get_by!(Device, identifier: "api-device-granted")
+      assert granted.managed_updates_allowed
+
+      assert [%{actor_id: actor_id, description: description}] = AuditLogs.logs_for(granted)
+      assert actor_id == user.id
+      assert description == "User #{user.name} allowed device-managed updates for device api-device-granted"
+
+      default = Repo.get_by!(Device, identifier: "api-device-default")
+      refute default.managed_updates_allowed
+      assert AuditLogs.logs_for(default) == []
+    end
+
+    test "refuses a managed_updates_allowed that isn't a boolean, and creates no device", %{
+      conn: conn,
+      org: org,
+      product: product
+    } do
+      params = %{identifier: "api-device-sometimes", managed_updates_allowed: "sometimes"}
+
+      assert conn
+             |> post(Routes.api_device_path(conn, :create, org.name, product.name), params)
+             |> json_response(422) ==
+               %{"errors" => %{"detail" => ~s(managed_updates_allowed must be true or false, got "sometimes".)}}
+
+      refute Repo.get_by(Device, identifier: "api-device-sometimes")
+    end
+
+    test "creates no device when managed_updates_allowed can't be saved", %{conn: conn, org: org, product: product} do
+      expect(Updates, :set_managed_updates_allowed, fn device, true, _user ->
+        changeset =
+          device
+          |> Ecto.Changeset.change()
+          |> Ecto.Changeset.add_error(:managed_updates_allowed, "could not be saved")
+
+        {:error, :update_with_audit, changeset, %{}}
+      end)
+
+      params = %{identifier: "api-device-unsaved-grant", managed_updates_allowed: true}
+
+      assert conn
+             |> post(Routes.api_device_path(conn, :create, org.name, product.name), params)
+             |> json_response(422) ==
+               %{"errors" => %{"managed_updates_allowed" => ["could not be saved"]}}
+
+      refute Repo.get_by(Device, identifier: "api-device-unsaved-grant")
     end
 
     # `deployment_group_id` and `updates_enabled` were documented here once but
-    # never saved; `managed_updates_allowed` starts as the product's default.
+    # never saved.
     test "ignores fields a caller may not set, from a device object or the top level", %{
       conn: conn,
       org: org,
@@ -267,7 +334,6 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
           deployment_id: other_deployment_group.id,
           deployment_group_id: other_deployment_group.id,
           updates_enabled: false,
-          managed_updates_allowed: !product.default_managed_updates_allowed,
           status: "provisioned",
           deleted_at: DateTime.to_iso8601(DateTime.utc_now())
         }
@@ -281,7 +347,6 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
         assert device.product_id == product.id
         assert is_nil(device.deployment_id)
         assert device.update_mode == :automatic
-        assert device.managed_updates_allowed == product.default_managed_updates_allowed
         assert device.status == :registered
         assert is_nil(device.deleted_at)
       end

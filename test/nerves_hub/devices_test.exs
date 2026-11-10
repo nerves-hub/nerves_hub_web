@@ -120,6 +120,31 @@ defmodule NervesHub.DevicesTest do
     end
   end
 
+  describe "create_device/4 and the managed updates grant" do
+    test "the :managed_updates_allowed option sets it, in its own audit entry", %{product: product, user: user} do
+      {:ok, device} = Devices.create_device(product, %{identifier: "granted"}, user, managed_updates_allowed: true)
+
+      assert device.managed_updates_allowed
+      assert Repo.reload(device).managed_updates_allowed
+
+      assert [%{description: description}] = AuditLogs.logs_for(device)
+      assert description == "User #{user.name} allowed device-managed updates for device granted"
+    end
+
+    test "a grant equal to the product's default writes no audit entry", %{product: product, user: user} do
+      {:ok, device} = Devices.create_device(product, %{identifier: "default"}, user, managed_updates_allowed: false)
+
+      refute device.managed_updates_allowed
+      assert AuditLogs.logs_for(device) == []
+    end
+
+    test "a grant sent in the params is ignored", %{product: product, user: user} do
+      {:ok, device} = Devices.create_device(product, %{identifier: "asks", managed_updates_allowed: true}, user, [])
+
+      refute device.managed_updates_allowed
+    end
+  end
+
   describe "update_device_settings/4 and the managed updates grant" do
     test "a grant sent in the params is ignored", %{device: device, user: user} do
       {:ok, device} = Devices.update_device_settings(device, %{managed_updates_allowed: true}, user)

@@ -283,8 +283,9 @@ defmodule NervesHubWeb.API.Schemas.DeviceSchemas do
   end
 
   # The fields a request may set on a device, shared by the create and update
-  # bodies. They are what `Device.create_changeset/2` and
-  # `Device.update_changeset/2` cast; anything else in a body is ignored.
+  # bodies: what `Device.create_changeset/2` and `Device.update_changeset/2`
+  # cast, and `managed_updates_allowed`, which the controller sets through
+  # `Updates.set_managed_updates_allowed/3`. Anything else in a body is ignored.
   defmodule DeviceSettings do
     @moduledoc false
 
@@ -308,6 +309,11 @@ defmodule NervesHubWeb.API.Schemas.DeviceSchemas do
           type: :string,
           description:
             "Elixir code the device runs on its console each time it connects, after any from its deployment group and release."
+        },
+        managed_updates_allowed: %Schema{
+          type: :boolean,
+          description:
+            "Whether the device may move itself between automatic and device_managed. A new device starts with its product's default when this isn't given. Each time it is set to a value the device doesn't already have, that is recorded in the audit log. Taking it away does not move a device that is already device_managed; set update_mode for that."
         }
       }
     end
@@ -316,7 +322,7 @@ defmodule NervesHubWeb.API.Schemas.DeviceSchemas do
   defmodule DeviceCreationRequest do
     OpenApiSpex.schema(%{
       description: """
-      POST body for creating a Device. The device belongs to the product in the path and starts with that product's default for whether it may manage its own updates. Fields not listed here are ignored.
+      POST body for creating a Device in the product in the path. Fields not listed here are ignored.
 
       The device's fields are also read from the top level of the body when it has no `device` object.
       """,
@@ -339,7 +345,8 @@ defmodule NervesHubWeb.API.Schemas.DeviceSchemas do
           "identifier" => "abc123",
           "description" => "Example Device",
           "tags" => ["prod", "customerJNK"],
-          "update_mode" => "automatic"
+          "update_mode" => "automatic",
+          "managed_updates_allowed" => true
         }
       }
     })
@@ -356,12 +363,7 @@ defmodule NervesHubWeb.API.Schemas.DeviceSchemas do
       properties: %{
         device: %Schema{
           type: :object,
-          properties:
-            Map.put(DeviceSettings.properties(), :managed_updates_allowed, %Schema{
-              type: :boolean,
-              description:
-                "Whether the device may move itself between automatic and device_managed. A change is recorded in the audit log. Taking it away does not move a device that is already device_managed; set update_mode for that."
-            })
+          properties: DeviceSettings.properties()
         }
       },
       required: [:device],

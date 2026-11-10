@@ -545,12 +545,14 @@ defmodule NervesHub.Devices do
   For provisioning, where a device must never be left registered without the
   credentials it will connect with. When the secret can't be issued, as
   `issue_shared_secret_auth/2` describes, the device isn't created either.
+
+  Takes the same options as `create_device/4`.
   """
-  @spec create_device_with_shared_secret_auth(Product.t(), map(), User.t()) ::
+  @spec create_device_with_shared_secret_auth(Product.t(), map(), User.t(), keyword()) ::
           {:ok, {Device.t(), SharedSecretAuth.t()}} | {:error, Changeset.t() | :shared_secrets_not_enabled}
-  def create_device_with_shared_secret_auth(%Product{} = product, params, user) do
+  def create_device_with_shared_secret_auth(%Product{} = product, params, user, opts \\ []) do
     Repo.transact(fn ->
-      with {:ok, device} <- create_device(product, params),
+      with {:ok, device} <- create_device(product, params, user, opts),
            {:ok, auth} <- issue_shared_secret_auth(device, user) do
         {:ok, {device, auth}}
       end
@@ -589,6 +591,27 @@ defmodule NervesHub.Devices do
     |> Device.create_changeset(params)
     |> Repo.insert()
     |> Repo.maybe_preload(:product)
+  end
+
+  @doc """
+  Add a device to `product` on `user`'s behalf, as `create_device/2` does.
+
+  ## Options
+
+    * `:managed_updates_allowed` - start the device with this grant instead of
+      the product's default. When it differs from the default, it is set
+      through `Updates.set_managed_updates_allowed/3` in the same transaction
+      as the insert, so `user` gets the same audit entry as for changing it
+      later. As with `update_device_settings/4`, it is an option rather than a
+      param so that params a form posts can't set it.
+  """
+  @spec create_device(Product.t(), map(), User.t(), keyword()) :: {:ok, Device.t()} | {:error, Changeset.t()}
+  def create_device(%Product{} = product, params, %User{} = user, opts) do
+    Repo.transact(fn ->
+      with {:ok, device} <- create_device(product, params) do
+        set_managed_updates_allowed(device, opts[:managed_updates_allowed], user)
+      end
+    end)
   end
 
   def set_as_provisioned!(device) do
@@ -1079,9 +1102,10 @@ defmodule NervesHub.Devices do
   end
 
   # `Updates.set_managed_updates_allowed/3` announces the device as updated before
-  # this transaction commits, so a listener can read it unchanged. The
+  # the caller's transaction commits, so a listener can read it unchanged. The
   # announcement `update_device_settings/4` makes after the commit is the one that
   # sees both changes; the device's connection pushes the new grant on that one.
+  # A device `create_device/4` is still creating has no connection to tell.
   defp set_managed_updates_allowed(%Device{managed_updates_allowed: current} = device, allowed, user)
        when is_boolean(allowed) and allowed != current do
     case Updates.set_managed_updates_allowed(device, allowed, user) do
