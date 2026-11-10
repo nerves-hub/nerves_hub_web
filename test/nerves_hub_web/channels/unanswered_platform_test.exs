@@ -47,7 +47,7 @@ defmodule NervesHubWeb.UnansweredPlatformTest.StubPlatform do
   def call(function, args), do: Application.fetch_env!(:nerves_hub, @handler_key).(function, args)
 
   defp default(:authenticate, _args), do: {:ok, device_info()}
-  defp default(:connect, [info, _ip_address]), do: {:ok, %{info | connection_ref: @connection_ref}}
+  defp default(:connect, [info, _ip_address, _user_agent]), do: {:ok, %{info | connection_ref: @connection_ref}}
   defp default(:heartbeat, _args), do: :ok
   defp default(:disconnect, _args), do: :ok
   defp default(:device_join, [info, _params]), do: {:ok, %Session{device_info: info}, []}
