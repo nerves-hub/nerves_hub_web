@@ -1,6 +1,7 @@
 defmodule NervesHubWeb.FirmwareControllerTest do
   use NervesHubWeb.ConnCase.Browser, async: true
 
+  alias NervesHub.Accounts.OrgUser
   alias NervesHub.Fixtures
 
   describe "download firmware" do
@@ -17,6 +18,18 @@ defmodule NervesHubWeb.FirmwareControllerTest do
       conn = get(conn, ~p"/org/#{org}/#{product}/firmware/#{firmware}/download")
 
       assert redirected_to(conn) == firmware.upload_metadata.public_path
+    end
+
+    test "a view member can't download firmware", %{conn: conn, user: user, org: org, tmp_dir: tmp_dir} do
+      product = Fixtures.product_fixture(user, org)
+      org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
+      firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+
+      NervesHub.Repo.update_all(OrgUser, set: [role: :view])
+
+      assert_error_sent(401, fn ->
+        get(conn, ~p"/org/#{org}/#{product}/firmware/#{firmware}/download")
+      end)
     end
 
     test "404s for firmware that does not exist", %{conn: conn, user: user, org: org} do

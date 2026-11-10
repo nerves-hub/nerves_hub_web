@@ -4,7 +4,9 @@ defmodule NervesHubWeb.DownloadController do
   alias NervesHub.Archives
   alias NervesHub.Firmwares
 
-  plug(:validate_role, org: :view)
+  plug(:validate_role, [org: :view] when action in [:archive])
+  # Matches `:"firmware:download"` and the API's firmware download.
+  plug(:validate_role, [org: :manage] when action in [:firmware])
 
   def archive(%{assigns: %{current_scope: scope}} = conn, %{"uuid" => uuid}) do
     case Archives.get(scope.product, uuid) do

@@ -13,8 +13,7 @@ defmodule NervesHubWeb.API.ProductController do
 
   @auth_error_responses SchemaHelpers.auth_error_responses()
 
-  plug(:validate_role, [org: :admin] when action in [:create, :delete])
-  plug(:validate_role, [org: :manage] when action in [:update])
+  plug(:validate_role, [org: :manage] when action in [:create, :update, :delete])
   plug(:validate_role, [org: :view] when action in [:show])
 
   operation(:index,

@@ -14,7 +14,7 @@
       </div>
 
       <div :if={!Firmware.deleted?(@firmware)} class="flex items-center gap-2">
-        <.button type="link" href={~p"/org/#{@current_scope.org}/#{@product}/firmware/#{@firmware}/download"} download>
+        <.button :if={authorized?(:"firmware:download", @current_scope)} type="link" href={~p"/org/#{@current_scope.org}/#{@product}/firmware/#{@firmware}/download"} download>
           <.icon name="download" />Download
         </.button>
 

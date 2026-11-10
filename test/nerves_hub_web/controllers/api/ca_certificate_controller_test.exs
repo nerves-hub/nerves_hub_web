@@ -1,6 +1,7 @@
 defmodule NervesHubWeb.API.CACertificateControllerTest do
   use NervesHubWeb.APIConnCase, async: true
 
+  alias NervesHub.Accounts
   alias NervesHub.Certificate
   alias NervesHub.Devices.CACertificates
   alias NervesHub.Fixtures
@@ -364,6 +365,38 @@ defmodule NervesHubWeb.API.CACertificateControllerTest do
 
       conn = post(conn, ~p"/api/orgs/#{org.name}/ca_certificates", params2)
       assert conn.status in [409, 422, 500]
+    end
+  end
+
+  describe "roles" do
+    setup [:create_ca_certificate]
+
+    test "a manage member can delete one", %{conn2: conn, org: org, user2: user, ca_certificate: ca_certificate} do
+      {:ok, _} = Accounts.add_org_user(org, user, %{role: :manage})
+
+      conn = delete(conn, Routes.api_ca_certificate_path(conn, :delete, org.name, ca_certificate.serial))
+
+      assert response(conn, 204)
+    end
+
+    test "a view member can't create one", %{conn2: conn, org: org, user2: user} do
+      {:ok, _} = Accounts.add_org_user(org, user, %{role: :view})
+
+      assert_error_sent(401, fn ->
+        post(conn, ~p"/api/orgs/#{org.name}/ca_certificates", %{cert: "", verification_cert: ""})
+      end)
+      |> assert_authorization_error(401)
+    end
+
+    test "a view member can't delete one", %{conn2: conn, org: org, user2: user, ca_certificate: ca_certificate} do
+      {:ok, _} = Accounts.add_org_user(org, user, %{role: :view})
+
+      assert_error_sent(401, fn ->
+        delete(conn, Routes.api_ca_certificate_path(conn, :delete, org.name, ca_certificate.serial))
+      end)
+      |> assert_authorization_error(401)
+
+      assert {:ok, _} = CACertificates.get_ca_certificate_by_org_and_serial(org, ca_certificate.serial)
     end
   end
 

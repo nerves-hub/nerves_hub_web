@@ -48,7 +48,7 @@ defmodule NervesHubWeb.API.ProductControllerTest do
       name = "test"
       product = %{name: name}
 
-      Accounts.add_org_user(org, user, %{role: :admin})
+      Accounts.add_org_user(org, user, %{role: :manage})
 
       conn = post(conn, Routes.api_product_path(conn, :create, org.name), product)
       assert json_response(conn, 201)["data"]
@@ -205,7 +205,7 @@ defmodule NervesHubWeb.API.ProductControllerTest do
     setup [:create_product]
 
     test "ok: org delete", %{user2: user, conn2: conn, org: org, product: product} do
-      Accounts.add_org_user(org, user, %{role: :admin})
+      Accounts.add_org_user(org, user, %{role: :manage})
 
       conn = delete(conn, Routes.api_product_path(conn, :delete, org.name, product.name))
       assert response(conn, 204)
