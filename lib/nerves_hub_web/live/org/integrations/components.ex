@@ -174,7 +174,7 @@ defmodule NervesHubWeb.Live.Org.Integrations.Components do
   def status_chip(%{status: :failing} = assigns) do
     ~H"""
     <span class="inline-flex h-4.5 items-center gap-1 rounded bg-alert-soft px-1.5 text-[11px]/3.5 font-medium text-alert-content">
-      <span class="lucide-circle-alert--bold size-3" aria-hidden="true"></span> Failing
+      <span class="lucide-circle-exclamation-point--bold size-3" aria-hidden="true"></span> Failing
     </span>
     """
   end
