@@ -120,6 +120,27 @@ defmodule NervesHub.DevicesTest do
     end
   end
 
+  describe "update_device_settings/4 and the managed updates grant" do
+    test "a grant sent in the params is ignored", %{device: device, user: user} do
+      {:ok, device} = Devices.update_device_settings(device, %{managed_updates_allowed: true}, user)
+
+      refute device.managed_updates_allowed
+      refute Repo.reload(device).managed_updates_allowed
+    end
+
+    test "the :managed_updates_allowed option sets it, in its own audit entry", %{device: device, user: user} do
+      {:ok, device} =
+        Devices.update_device_settings(device, %{description: "granted"}, user, managed_updates_allowed: true)
+
+      assert device.description == "granted"
+      assert device.managed_updates_allowed
+
+      descriptions = device |> AuditLogs.logs_for() |> Enum.map(& &1.description)
+      assert "User #{user.name} updated device #{device.identifier}" in descriptions
+      assert "User #{user.name} allowed device-managed updates for device #{device.identifier}" in descriptions
+    end
+  end
+
   describe "bulk_create/4" do
     test "all valid entries, with format :microchip_trust_and_go", %{org: org, product: product} do
       Repo.delete_all(Device)

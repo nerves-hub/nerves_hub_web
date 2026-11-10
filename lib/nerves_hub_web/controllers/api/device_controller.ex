@@ -108,14 +108,16 @@ defmodule NervesHubWeb.API.DeviceController do
   # is cast the way the device's own boolean fields are, and any other value is
   # refused rather than quietly creating a device without one.
   defp create_device(product, params, user) do
+    device_params = device_params(params)
+
     case Ecto.Type.cast(:boolean, params["shared_secret"]) do
       {:ok, true} ->
-        with {:ok, {device, auth}} <- Devices.create_device_with_shared_secret_auth(product, params, user) do
+        with {:ok, {device, auth}} <- Devices.create_device_with_shared_secret_auth(product, device_params, user) do
           {:ok, device, auth}
         end
 
       {:ok, not_requested} when not_requested in [false, nil] ->
-        with {:ok, device} <- Devices.create_device(product, params) do
+        with {:ok, device} <- Devices.create_device(product, device_params) do
           {:ok, device, nil}
         end
 
@@ -151,12 +153,38 @@ defmodule NervesHubWeb.API.DeviceController do
   end
 
   def update(%{assigns: %{current_scope: %{user: user}, device: device}} = conn, params) do
-    with {:ok, updated_device} <- Devices.update_device_settings(device, params, user) do
+    device_params = device_params(params)
+
+    with {:ok, allowed} <- cast_managed_updates_allowed(device_params),
+         {:ok, updated_device} <-
+           Devices.update_device_settings(device, device_params, user, managed_updates_allowed: allowed) do
       updated_device = Devices.get_by_identifier_with_deployment_and_release!(updated_device.identifier)
 
       conn
       |> put_status(201)
       |> render(:show, device: updated_device)
+    end
+  end
+
+  # The documented body puts the device's fields under "device", but the API has
+  # always read them from the top level as well, and clients send both. When the
+  # body has a "device" object, only its fields are read.
+  defp device_params(%{"device" => %{} = device_params}), do: device_params
+  defp device_params(params), do: params
+
+  # Not one of the fields `Device.update_changeset/2` casts: it goes through
+  # `Updates.set_managed_updates_allowed/3`, as the web UI's toggle does, for its
+  # own audit entry. Like `shared_secret`, a value that isn't a boolean is
+  # refused rather than ignored.
+  defp cast_managed_updates_allowed(device_params) do
+    value = device_params["managed_updates_allowed"]
+
+    case Ecto.Type.cast(:boolean, value) do
+      {:ok, allowed} ->
+        {:ok, allowed}
+
+      :error ->
+        {:error, {:managed_updates_allowed, "managed_updates_allowed must be true or false, got #{inspect(value)}."}}
     end
   end
 

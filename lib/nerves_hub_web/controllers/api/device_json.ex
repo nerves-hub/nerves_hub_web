@@ -41,6 +41,7 @@ defmodule NervesHubWeb.API.DeviceJSON do
       deployment_group: deployment_group(device.deployment_group),
       updates_enabled: device.update_mode != :off,
       update_mode: device.update_mode,
+      managed_updates_allowed: device.managed_updates_allowed,
       updates_blocked_until: device.updates_blocked_until,
       # do we need these?
       org_name: device.org.name,

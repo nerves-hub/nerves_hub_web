@@ -7,12 +7,15 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
 
   alias NervesHub.Accounts
   alias NervesHub.AdvancedQueryFixtures
+  alias NervesHub.AuditLogs
   alias NervesHub.Devices
   alias NervesHub.Devices.Device
+  alias NervesHub.Devices.Updates
   alias NervesHub.Fixtures
   alias NervesHub.Products.Notification
   alias NervesHub.Repo
   alias NervesHub.Scripts.Runner
+  alias NervesHubWeb.API.Schemas.DeviceSchemas
   alias Phoenix.Socket.Broadcast
 
   describe "create devices" do
@@ -161,7 +164,92 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
       assert {:error, :not_found} = Devices.get_device_by(identifier: "api-device-disabled")
     end
 
-    test "ignores fields a caller may not set", %{conn: conn, org: org, product: product, tmp_dir: tmp_dir} do
+    test "creates the device in the documented example", %{conn: conn, org: org, product: product} do
+      %{"device" => fields} = example = DeviceSchemas.DeviceCreationRequest.schema().example
+
+      conn
+      |> post(Routes.api_device_path(conn, :create, org.name, product.name), example)
+      |> json_response(201)
+
+      device = Repo.get_by!(Device, identifier: fields["identifier"])
+      assert device.product_id == product.id
+      assert device.description == fields["description"]
+      assert device.tags == fields["tags"]
+      assert to_string(device.update_mode) == fields["update_mode"]
+    end
+
+    test "saves each documented field, from a device object or the top level", %{
+      conn: conn,
+      org: org,
+      product: product
+    } do
+      fields = %{
+        description: "on the bench",
+        tags: "bench, rev-b",
+        update_mode: "device_managed",
+        connecting_code: "IO.puts(:hello)"
+      }
+
+      for {shape, wrap} <- body_shapes() do
+        identifier = "api-device-#{shape}"
+
+        conn
+        |> post(
+          Routes.api_device_path(conn, :create, org.name, product.name),
+          wrap.(Map.put(fields, :identifier, identifier))
+        )
+        |> json_response(201)
+
+        device = Repo.get_by!(Device, identifier: identifier)
+        assert device.description == "on the bench"
+        assert device.tags == ["bench", "rev-b"]
+        assert device.update_mode == :device_managed
+        assert device.connecting_code == "IO.puts(:hello)"
+      end
+    end
+
+    test "reads only the device object when the body has one", %{conn: conn, org: org, product: product} do
+      params = %{
+        device: %{identifier: "api-device-in-object"},
+        identifier: "api-device-at-top-level",
+        description: "at the top level"
+      }
+
+      conn
+      |> post(Routes.api_device_path(conn, :create, org.name, product.name), params)
+      |> json_response(201)
+
+      assert is_nil(Repo.get_by!(Device, identifier: "api-device-in-object").description)
+      refute Repo.get_by(Device, identifier: "api-device-at-top-level")
+    end
+
+    test "with shared_secret beside a device object, also returns the device's own key and secret", %{
+      conn: conn,
+      org: org,
+      product: product
+    } do
+      params = %{device: %{identifier: "api-device-object-with-secret"}, shared_secret: true}
+
+      data =
+        conn
+        |> post(Routes.api_device_path(conn, :create, org.name, product.name), params)
+        |> json_response(201)
+        |> Map.fetch!("data")
+
+      assert data["identifier"] == "api-device-object-with-secret"
+      assert %{"key" => "nhd_" <> _ = key} = data["shared_secret"]
+      assert {:ok, auth} = Devices.get_shared_secret_auth(key)
+      assert auth.device.identifier == "api-device-object-with-secret"
+    end
+
+    # `deployment_group_id` and `updates_enabled` were documented here once but
+    # never saved; `managed_updates_allowed` starts as the product's default.
+    test "ignores fields a caller may not set, from a device object or the top level", %{
+      conn: conn,
+      org: org,
+      product: product,
+      tmp_dir: tmp_dir
+    } do
       other_user = Fixtures.user_fixture()
       other_org = Fixtures.org_fixture(other_user)
       other_product = Fixtures.product_fixture(other_user, other_org)
@@ -169,22 +257,34 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
       other_firmware = Fixtures.firmware_fixture(other_org_key, other_product, %{dir: tmp_dir})
       other_deployment_group = Fixtures.deployment_group_fixture(other_firmware, %{user: other_user})
 
-      params = %{
-        identifier: "api-device-planted",
-        deployment_id: other_deployment_group.id,
-        status: "provisioned",
-        deleted_at: DateTime.to_iso8601(DateTime.utc_now())
-      }
+      for {shape, wrap} <- body_shapes() do
+        identifier = "api-device-planted-#{shape}"
 
-      conn = post(conn, Routes.api_device_path(conn, :create, org.name, product.name), params)
-      assert json_response(conn, 201)["data"]
+        params = %{
+          identifier: identifier,
+          org_id: other_org.id,
+          product_id: other_product.id,
+          deployment_id: other_deployment_group.id,
+          deployment_group_id: other_deployment_group.id,
+          updates_enabled: false,
+          managed_updates_allowed: !product.default_managed_updates_allowed,
+          status: "provisioned",
+          deleted_at: DateTime.to_iso8601(DateTime.utc_now())
+        }
 
-      device = Repo.get_by!(Device, identifier: "api-device-planted")
-      assert device.org_id == org.id
-      assert device.product_id == product.id
-      assert is_nil(device.deployment_id)
-      assert device.status == :registered
-      assert is_nil(device.deleted_at)
+        conn
+        |> post(Routes.api_device_path(conn, :create, org.name, product.name), wrap.(params))
+        |> json_response(201)
+
+        device = Repo.get_by!(Device, identifier: identifier)
+        assert device.org_id == org.id
+        assert device.product_id == product.id
+        assert is_nil(device.deployment_id)
+        assert device.update_mode == :automatic
+        assert device.managed_updates_allowed == product.default_managed_updates_allowed
+        assert device.status == :registered
+        assert is_nil(device.deleted_at)
+      end
     end
   end
 
@@ -271,6 +371,7 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
                    },
                    "identifier" => device.identifier,
                    "last_communication" => "never",
+                   "managed_updates_allowed" => false,
                    "online" => "not_seen",
                    "org_name" => "AllTheBoops",
                    "product_name" => "auto_boops",
@@ -795,11 +896,16 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
     # `Device.changeset/2` casts the org, product and deployment group, so an
     # update passing the body straight through could move a device into
     # another org or onto another org's deployment group.
-    test "ignores fields a caller may not set", %{conn: conn, user: user, org: org, tmp_dir: tmp_dir} do
+    # `deployment_group_id` and `updates_enabled` were documented here once but
+    # never saved.
+    test "ignores fields a caller may not set, from a device object or the top level", %{
+      conn: conn,
+      user: user,
+      org: org,
+      tmp_dir: tmp_dir
+    } do
       product = Fixtures.product_fixture(user, org)
-      org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
-      firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
-      device = Fixtures.device_fixture(org, product, firmware)
+      device = firmware_device_fixture(user, org, product, tmp_dir)
 
       other_user = Fixtures.user_fixture()
       other_org = Fixtures.org_fixture(other_user)
@@ -808,21 +914,169 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
       other_firmware = Fixtures.firmware_fixture(other_org_key, other_product, %{dir: tmp_dir})
       other_deployment_group = Fixtures.deployment_group_fixture(other_firmware, %{user: other_user})
 
-      conn =
-        put(conn, Routes.api_device_path(conn, :update, org.name, product.name, device.identifier), %{
-          description: "still mine",
+      for {shape, wrap} <- body_shapes() do
+        params = %{
+          description: "still mine, #{shape}",
           org_id: other_org.id,
           product_id: other_product.id,
-          deployment_id: other_deployment_group.id
-        })
+          deployment_id: other_deployment_group.id,
+          deployment_group_id: other_deployment_group.id,
+          updates_enabled: false
+        }
 
-      assert json_response(conn, 201)["data"]
+        conn
+        |> put(Routes.api_device_path(conn, :update, org.name, product.name, device.identifier), wrap.(params))
+        |> json_response(201)
+
+        device = Repo.reload(device)
+        assert device.description == "still mine, #{shape}"
+        assert device.org_id == org.id
+        assert device.product_id == product.id
+        assert is_nil(device.deployment_id)
+        assert device.update_mode == :automatic
+      end
+    end
+
+    test "updates the device in the documented example", %{
+      conn: conn,
+      user: user,
+      org: org,
+      product: product,
+      tmp_dir: tmp_dir
+    } do
+      device = firmware_device_fixture(user, org, product, tmp_dir)
+      %{"device" => fields} = example = DeviceSchemas.DeviceUpdateRequest.schema().example
+
+      conn
+      |> put(Routes.api_device_path(conn, :update, org.name, product.name, device.identifier), example)
+      |> json_response(201)
 
       device = Repo.reload(device)
-      assert device.description == "still mine"
-      assert device.org_id == org.id
-      assert device.product_id == product.id
-      assert is_nil(device.deployment_id)
+      assert device.description == fields["description"]
+      assert device.tags == fields["tags"]
+      assert to_string(device.update_mode) == fields["update_mode"]
+      assert device.managed_updates_allowed == fields["managed_updates_allowed"]
+    end
+
+    test "saves each documented field, from a device object or the top level", %{
+      conn: conn,
+      user: user,
+      org: org,
+      product: product,
+      tmp_dir: tmp_dir
+    } do
+      device = firmware_device_fixture(user, org, product, tmp_dir)
+      path = Routes.api_device_path(conn, :update, org.name, product.name, device.identifier)
+
+      for {shape, wrap} <- body_shapes() do
+        fields = %{
+          description: "on the bench, #{shape}",
+          tags: ["bench", to_string(shape)],
+          update_mode: "off",
+          connecting_code: "IO.puts(:#{shape})"
+        }
+
+        conn |> put(path, wrap.(fields)) |> json_response(201)
+
+        device = Repo.reload(device)
+        assert device.description == "on the bench, #{shape}"
+        assert device.tags == ["bench", to_string(shape)]
+        assert device.update_mode == :off
+        assert device.connecting_code == "IO.puts(:#{shape})"
+      end
+    end
+
+    test "allows and forbids the device managing its own updates, auditing each change", %{
+      conn: conn,
+      user: user,
+      org: org,
+      product: product,
+      tmp_dir: tmp_dir
+    } do
+      device = firmware_device_fixture(user, org, product, tmp_dir)
+      refute device.managed_updates_allowed
+      path = Routes.api_device_path(conn, :update, org.name, product.name, device.identifier)
+
+      data = conn |> put(path, %{managed_updates_allowed: true}) |> json_response(201) |> Map.fetch!("data")
+      assert data["managed_updates_allowed"] == true
+      assert Repo.reload(device).managed_updates_allowed
+
+      conn |> put(path, %{device: %{managed_updates_allowed: false}}) |> json_response(201)
+      refute Repo.reload(device).managed_updates_allowed
+
+      descriptions = device |> AuditLogs.logs_for() |> Enum.map(& &1.description)
+      assert "User #{user.name} allowed device-managed updates for device #{device.identifier}" in descriptions
+      assert "User #{user.name} disallowed device-managed updates for device #{device.identifier}" in descriptions
+    end
+
+    test "writes no managed_updates_allowed audit entry when it doesn't change", %{
+      conn: conn,
+      user: user,
+      org: org,
+      product: product,
+      tmp_dir: tmp_dir
+    } do
+      device = firmware_device_fixture(user, org, product, tmp_dir)
+      refute device.managed_updates_allowed
+
+      conn
+      |> put(Routes.api_device_path(conn, :update, org.name, product.name, device.identifier), %{
+        managed_updates_allowed: false
+      })
+      |> json_response(201)
+
+      refute device |> AuditLogs.logs_for() |> Enum.any?(&(&1.description =~ "device-managed updates"))
+    end
+
+    test "refuses a managed_updates_allowed that isn't a boolean, and changes nothing", %{
+      conn: conn,
+      user: user,
+      org: org,
+      product: product,
+      tmp_dir: tmp_dir
+    } do
+      device = firmware_device_fixture(user, org, product, tmp_dir)
+
+      assert conn
+             |> put(Routes.api_device_path(conn, :update, org.name, product.name, device.identifier), %{
+               description: "changed",
+               managed_updates_allowed: "sometimes"
+             })
+             |> json_response(422) ==
+               %{"errors" => %{"detail" => ~s(managed_updates_allowed must be true or false, got "sometimes".)}}
+
+      assert Repo.reload(device).description == device.description
+      assert AuditLogs.logs_for(device) == []
+    end
+
+    test "saves the other fields only if managed_updates_allowed is saved too", %{
+      conn: conn,
+      user: user,
+      org: org,
+      product: product,
+      tmp_dir: tmp_dir
+    } do
+      device = firmware_device_fixture(user, org, product, tmp_dir)
+
+      expect(Updates, :set_managed_updates_allowed, fn device, true, _user ->
+        changeset =
+          device
+          |> Ecto.Changeset.change()
+          |> Ecto.Changeset.add_error(:managed_updates_allowed, "could not be saved")
+
+        {:error, :update_with_audit, changeset, %{}}
+      end)
+
+      assert conn
+             |> put(Routes.api_device_path(conn, :update, org.name, product.name, device.identifier), %{
+               description: "changed",
+               managed_updates_allowed: true
+             })
+             |> json_response(422) ==
+               %{"errors" => %{"managed_updates_allowed" => ["could not be saved"]}}
+
+      assert Repo.reload(device).description == device.description
+      assert AuditLogs.logs_for(device) == []
     end
   end
 
@@ -1759,5 +2013,15 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
       conn = post(conn, ~p"/api/devices/#{device.identifier}/reboot")
       assert response(conn, 204)
     end
+  end
+
+  # A create or update body carries the device's fields in a "device" object,
+  # or at the top level when it has none.
+  defp body_shapes(), do: [top_level: & &1, device_object: &%{device: &1}]
+
+  defp firmware_device_fixture(user, org, product, tmp_dir) do
+    org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
+    firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+    Fixtures.device_fixture(org, product, firmware)
   end
 end

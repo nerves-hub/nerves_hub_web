@@ -51,6 +51,10 @@ defmodule NervesHubWeb.API.Schemas.DeviceSchemas do
             "How the device receives firmware. automatic: pushed by its deployment group. device_managed: the device asks for updates itself. off: neither, only a manual push.",
           enum: ["off", "automatic", "device_managed"]
         },
+        managed_updates_allowed: %Schema{
+          type: :boolean,
+          description: "Whether the device may move itself between automatic and device_managed."
+        },
         updates_blocked_until: %Schema{
           type: :string,
           description: "Device penalty box expiration timestamp",
@@ -278,19 +282,49 @@ defmodule NervesHubWeb.API.Schemas.DeviceSchemas do
     })
   end
 
+  # The fields a request may set on a device, shared by the create and update
+  # bodies. They are what `Device.create_changeset/2` and
+  # `Device.update_changeset/2` cast; anything else in a body is ignored.
+  defmodule DeviceSettings do
+    @moduledoc false
+
+    def properties() do
+      %{
+        description: %Schema{type: :string},
+        tags: %Schema{
+          description: "A list of tags, or one comma-separated string of them. A tag cannot contain spaces.",
+          oneOf: [
+            %Schema{type: :array, items: %Schema{type: :string}},
+            %Schema{type: :string}
+          ]
+        },
+        update_mode: %Schema{
+          type: :string,
+          description:
+            "How the device receives firmware. automatic: pushed by its deployment group. device_managed: the device asks for updates itself. off: neither, only a manual push.",
+          enum: ["off", "automatic", "device_managed"]
+        },
+        connecting_code: %Schema{
+          type: :string,
+          description:
+            "Elixir code the device runs on its console each time it connects, after any from its deployment group and release."
+        }
+      }
+    end
+  end
+
   defmodule DeviceCreationRequest do
     OpenApiSpex.schema(%{
-      description: "POST body for creating a Device",
+      description: """
+      POST body for creating a Device. The device belongs to the product in the path and starts with that product's default for whether it may manage its own updates. Fields not listed here are ignored.
+
+      The device's fields are also read from the top level of the body when it has no `device` object.
+      """,
       type: :object,
       properties: %{
         device: %Schema{
-          properties: %{
-            identifier: %Schema{type: :string},
-            description: %Schema{type: :string},
-            tags: %Schema{type: :string},
-            deployment_group_id: %Schema{type: :integer},
-            updates_enabled: %Schema{type: :boolean}
-          },
+          type: :object,
+          properties: Map.put(DeviceSettings.properties(), :identifier, %Schema{type: :string}),
           required: [:identifier]
         },
         shared_secret: %Schema{
@@ -304,9 +338,8 @@ defmodule NervesHubWeb.API.Schemas.DeviceSchemas do
         "device" => %{
           "identifier" => "abc123",
           "description" => "Example Device",
-          "tags" => "prod, customerJNK",
-          "deployment_group_id" => 1,
-          "updates_enabled" => false
+          "tags" => ["prod", "customerJNK"],
+          "update_mode" => "automatic"
         }
       }
     })
@@ -314,24 +347,30 @@ defmodule NervesHubWeb.API.Schemas.DeviceSchemas do
 
   defmodule DeviceUpdateRequest do
     OpenApiSpex.schema(%{
-      description: "POST body for updating a Device",
+      description: """
+      PUT body for updating a Device. Only the fields given are changed, and fields not listed here are ignored.
+
+      The device's fields are also read from the top level of the body when it has no `device` object.
+      """,
       type: :object,
       properties: %{
         device: %Schema{
-          properties: %{
-            description: %Schema{type: :string},
-            tags: %Schema{type: :string},
-            deployment_group_id: %Schema{type: :integer},
-            updates_enabled: %Schema{type: :boolean}
-          }
+          type: :object,
+          properties:
+            Map.put(DeviceSettings.properties(), :managed_updates_allowed, %Schema{
+              type: :boolean,
+              description:
+                "Whether the device may move itself between automatic and device_managed. A change is recorded in the audit log. Taking it away does not move a device that is already device_managed; set update_mode for that."
+            })
         }
       },
+      required: [:device],
       example: %{
         "device" => %{
           "description" => "Example Device",
-          "tags" => "prod, customerJNK",
-          "deployment_group_id" => 1,
-          "updates_enabled" => false
+          "tags" => ["prod", "customerJNK"],
+          "update_mode" => "device_managed",
+          "managed_updates_allowed" => true
         }
       }
     })
