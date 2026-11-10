@@ -3,6 +3,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
 
   import Number.Delimit, only: [number_to_delimited: 2]
 
+  alias NervesHub.Accounts
   alias NervesHub.DeviceEvents
   alias NervesHub.Devices
   alias NervesHub.Devices.AdvancedQuery
@@ -83,6 +84,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
     |> assign(:selected_devices, [])
     |> assign(:select_all_matching, false)
     |> assign(:target_product, nil)
+    |> assign(:move_target_org_ids, Accounts.org_ids_with_role(scope.user, :manage))
     |> assign(:progress, %{})
     |> assign(:valid_tags, true)
     |> assign(:device_tags, "")
@@ -371,7 +373,9 @@ defmodule NervesHubWeb.Live.Devices.Index do
   @decorate requires_permission(:"device:update")
   def handle_event("target-product", %{"product_id" => pid_str}, socket) do
     with {product_id, ""} <- Integer.parse(pid_str),
-         {:ok, product} <- Products.get_by_id(socket.assigns.current_scope, product_id) do
+         # Moving hands the devices to the target product's org, so the user
+         # must be able to manage devices there too, as the API's move requires.
+         {:ok, product} <- Products.get_by_id(socket.assigns.current_scope, product_id, :manage) do
       {:noreply, assign(socket, target_product: product)}
     else
       _ ->
@@ -413,10 +417,15 @@ defmodule NervesHubWeb.Live.Devices.Index do
     } = socket.assigns
 
     if socket.assigns.select_all_matching do
-      start_bulk_async(socket, :move_many, [target_product, scope.user])
+      case still_allowed_target(scope, target_product) do
+        {:ok, target_product} -> start_bulk_async(socket, :move_many, [target_product, scope.user])
+        :no_product -> {:noreply, put_flash(socket, :error, "You haven't selected a product")}
+        :not_allowed -> {:noreply, refuse_target_product(socket)}
+      end
     else
       with {:devices_selected, true} <- {:devices_selected, selected_devices != []},
            {:product_selected, true} <- {:product_selected, target_product != nil},
+           {:ok, target_product} <- still_allowed_target(scope, target_product),
            devices when is_list(devices) and devices != [] <- Devices.get_devices_by_id(scope, selected_devices),
            result = BulkActions.move_many(devices, target_product, scope.user),
            {:successful, true} <- {:successful, Enum.any?(result[:ok])},
@@ -432,6 +441,9 @@ defmodule NervesHubWeb.Live.Devices.Index do
 
         {:product_selected, false} ->
           {:noreply, put_flash(socket, :error, "You haven't selected a product")}
+
+        :not_allowed ->
+          {:noreply, refuse_target_product(socket)}
 
         {:successful, false} ->
           {:noreply, put_flash(socket, :error, "No devices were successfully moved to #{target_product.name}")}
@@ -1041,6 +1053,23 @@ defmodule NervesHubWeb.Live.Devices.Index do
   defp tag_action_wording(:tag_devices), do: {"Tags updated on", "Updating tags"}
   defp tag_action_wording(:add_tags_to_devices), do: {"Tags added to", "Adding tags"}
   defp tag_action_wording(:remove_tags_from_devices), do: {"Tags removed from", "Removing tags"}
+
+  # The role in the target org was checked when the product was picked, and
+  # may have changed since, so it is checked again before anything moves.
+  defp still_allowed_target(_scope, nil), do: :no_product
+
+  defp still_allowed_target(scope, target_product) do
+    case Products.get_by_id(scope, target_product.id, :manage) do
+      {:ok, product} -> {:ok, product}
+      {:error, :not_found} -> :not_allowed
+    end
+  end
+
+  defp refuse_target_product(socket) do
+    socket
+    |> assign(:target_product, nil)
+    |> put_flash(:error, "Invalid product selection")
+  end
 
   defp start_bulk_async(socket, name, args) do
     ecto_query = filter_query(socket)

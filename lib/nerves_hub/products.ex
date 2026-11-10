@@ -166,12 +166,13 @@ defmodule NervesHub.Products do
   end
 
   @doc """
-  Gets a single product that a user has access to.
+  Gets a single product in an org where the user holds at least `role`.
 
-  If the product is not found or the user does not have access, returns `{:error, :not_found}`.
+  If the product is not found or the user does not hold that role, returns
+  `{:error, :not_found}`.
   """
-  @spec get_by_id(Scope.t(), pos_integer) :: {:ok, Product.t()} | {:error, :not_found}
-  def get_by_id(%Scope{user: user}, id) do
+  @spec get_by_id(Scope.t(), pos_integer, :view | :manage | :admin) :: {:ok, Product.t()} | {:error, :not_found}
+  def get_by_id(%Scope{user: user}, id, role \\ :view) do
     Product
     |> join(:inner, [p], o in assoc(p, :org))
     |> join(:inner, [_, o], ou in assoc(o, :org_users))
@@ -179,6 +180,7 @@ defmodule NervesHub.Products do
     |> where([_, o], is_nil(o.deleted_at))
     |> where(id: ^id)
     |> where([_, _, ou], ou.user_id == ^user.id)
+    |> where([_, _, ou], ou.role in ^User.role_or_higher(role))
     |> Repo.fetch()
   end
 

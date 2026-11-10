@@ -376,6 +376,23 @@ defmodule NervesHub.Accounts do
     |> Repo.exists?()
   end
 
+  @doc """
+  The ids of the orgs where the user is a current member with at least `role`.
+
+  Deleted orgs are left out, as in `has_org_role?/3`.
+  """
+  @spec org_ids_with_role(User.t(), :view | :manage | :admin) :: [pos_integer()]
+  def org_ids_with_role(%User{id: user_id}, role) do
+    OrgUser
+    |> join(:inner, [ou], o in assoc(ou, :org))
+    |> where(user_id: ^user_id)
+    |> where([ou], ou.role in ^User.role_or_higher(role))
+    |> where([ou], is_nil(ou.deleted_at))
+    |> where([_, o], is_nil(o.deleted_at))
+    |> select([ou], ou.org_id)
+    |> Repo.all()
+  end
+
   def get_user_orgs(%User{} = user, preloads \\ []) do
     from(
       o in Org,

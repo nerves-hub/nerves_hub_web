@@ -90,6 +90,26 @@ defmodule NervesHub.AccountsTest do
     end
   end
 
+  describe "org_ids_with_role/2" do
+    test "lists only current orgs where the member holds the role", %{user: user} do
+      member = Fixtures.user_fixture()
+
+      [managed, viewed, removed, deleted] =
+        for {name, role} <- [{"Managed", :manage}, {"Viewed", :view}, {"Removed", :manage}, {"Deleted", :manage}] do
+          {:ok, org} = Accounts.create_org(user, %{name: name})
+          {:ok, _org_user} = Accounts.add_org_user(org, member, %{role: role})
+          org
+        end
+
+      :ok = Accounts.remove_org_user(removed, member)
+      {:ok, _org} = Accounts.soft_delete_org(deleted)
+
+      assert Accounts.org_ids_with_role(member, :manage) == [managed.id]
+      assert Enum.sort(Accounts.org_ids_with_role(member, :view)) == Enum.sort([managed.id, viewed.id])
+      assert Accounts.org_ids_with_role(member, :admin) == []
+    end
+  end
+
   test "user cannot have two of the same org" do
     params = %{
       name: "Testy Smith  ",

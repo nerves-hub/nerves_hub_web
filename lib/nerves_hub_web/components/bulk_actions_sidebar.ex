@@ -39,7 +39,7 @@ defmodule NervesHubWeb.Components.BulkActionsSidebar do
               <div class="flex gap-2">
                 <select name="product_id" id="move_to" class="sidebar-select" phx-update="ignore">
                   <option value="">Select product</option>
-                  <%= for org <- @current_scope.user.orgs, products = org.products, length(products) > 0 do %>
+                  <%= for org <- @current_scope.user.orgs, org.id in @move_target_org_ids, products = org.products, length(products) > 0 do %>
                     <optgroup label={org.name}>
                       <%= for product <- products, product.id != @product.id do %>
                         <option {target_selected?(@target_product, product.name)} value={product.id}>{product.name}</option>

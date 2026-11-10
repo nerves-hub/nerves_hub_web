@@ -1277,6 +1277,87 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       assert is_nil(state.socket.assigns.target_product)
     end
 
+    test "devices can't be moved to an org where the user only has the :view role", %{conn: conn, fixture: fixture} do
+      %{org: org, product: product, device: device, user: user} = fixture
+
+      other_user = Fixtures.user_fixture()
+      other_org = Fixtures.org_fixture(other_user)
+      other_product = Fixtures.product_fixture(other_user, other_org)
+      {:ok, _} = Accounts.add_org_user(other_org, user, %{role: :view})
+
+      conn
+      |> visit(~p"/org/#{org}/#{product}/devices")
+      |> assert_has("h1", text: "Devices", timeout: 1_000)
+      |> refute_has("#move_to option", text: other_product.name)
+
+      {:ok, view, _html} = live(conn, ~p"/org/#{org}/#{product}/devices")
+
+      render_async(view, 300)
+      render_click(view, :select, %{id: "#{device.id}"})
+
+      assert render_click(view, "target-product", %{"product_id" => "#{other_product.id}"}) =~
+               "Invalid product selection"
+
+      assert render_submit(view, "move-devices-product", %{}) =~ "You haven&#39;t selected a product"
+
+      assert Repo.reload(device).product_id == product.id
+    end
+
+    test "devices aren't moved if the user's role in the target org drops after picking it", %{
+      conn: conn,
+      fixture: fixture
+    } do
+      %{org: org, product: product, device: device, user: user} = fixture
+
+      other_user = Fixtures.user_fixture()
+      other_org = Fixtures.org_fixture(other_user)
+      other_product = Fixtures.product_fixture(other_user, other_org)
+      {:ok, org_user} = Accounts.add_org_user(other_org, user, %{role: :manage})
+
+      {:ok, view, _html} = live(conn, ~p"/org/#{org}/#{product}/devices")
+
+      render_async(view, 300)
+      render_click(view, :select, %{id: "#{device.id}"})
+
+      refute render_click(view, "target-product", %{"product_id" => "#{other_product.id}"}) =~
+               "Invalid product selection"
+
+      {:ok, _} = Accounts.change_org_user_role(org_user, :view)
+
+      assert render_submit(view, "move-devices-product", %{}) =~ "Invalid product selection"
+      assert Repo.reload(device).product_id == product.id
+
+      render_click(view, "select-all-matching", %{})
+      render_click(view, "target-product", %{"product_id" => "#{other_product.id}"})
+
+      assert render_submit(view, "move-devices-product", %{}) =~ "You haven&#39;t selected a product"
+      assert Repo.reload(device).product_id == product.id
+    end
+
+    test "devices can be moved to another org where the user has the :manage role", %{conn: conn, fixture: fixture} do
+      %{org: org, product: product, device: device, user: user} = fixture
+
+      other_user = Fixtures.user_fixture()
+      other_org = Fixtures.org_fixture(other_user)
+      other_product = Fixtures.product_fixture(other_user, other_org)
+      {:ok, _} = Accounts.add_org_user(other_org, user, %{role: :manage})
+
+      conn
+      |> visit(~p"/org/#{org}/#{product}/devices")
+      |> assert_has("h1", text: "Devices", timeout: 1_000)
+      |> check("Select all devices", exact: false)
+      |> within("form#product-move", fn session ->
+        session
+        |> select("Move device(s) to product:", option: other_product.name, exact_option: false)
+        |> submit()
+      end)
+      |> assert_has("div", text: "All selected devices successfully moved to #{other_product.name}")
+
+      assert %{org_id: org_id, product_id: product_id} = Repo.reload(device)
+      assert org_id == other_org.id
+      assert product_id == other_product.id
+    end
+
     test "users with the :view role cannot select products", %{conn: conn, fixture: fixture} do
       %{org: org, product: product, user: user} = fixture
 
