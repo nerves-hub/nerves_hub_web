@@ -80,7 +80,12 @@ when adding or removing one.
   attempt ended, split across both stores: the device's consecutive failure
   count in Postgres, the history itself in ClickHouse), and network identities
   (a device's identity on networks NervesHub doesn't run, such as iroh or
-  NetBird).
+  NetBird). Each connection records the client library and version the device
+  connected with (`lib` / `lib_version`), read from the `User-Agent` of its
+  websocket upgrade by `client_library.ex`: listed clients under a fixed name,
+  any other only if it opts in with a `custom#` prefix. Those rules are a wire
+  contract with device clients; see
+  [docs/device_client_identification.md](docs/device_client_identification.md).
 - `managed_deployments.ex` / `managed_deployments/` — deployment groups and the
   `Distributed.Orchestrator` (one per deployment). A release with a workflow
   is walked a step at a time (`Workflows`, `WorkflowCoordinator`); each step
