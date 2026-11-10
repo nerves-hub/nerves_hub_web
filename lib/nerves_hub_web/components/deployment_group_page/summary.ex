@@ -16,18 +16,6 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
   alias Phoenix.Naming
 
   @impl Phoenix.LiveComponent
-  def mount(socket) do
-    {:ok,
-     socket
-     |> allow_upload(:device_csv,
-       accept: ~w(.csv),
-       max_entries: 1,
-       auto_upload: true,
-       progress: &handle_progress/3
-     )}
-  end
-
-  @impl Phoenix.LiveComponent
   def update(%{event: :update_matched_devices_count}, socket) do
     socket
     |> assign_matched_devices_count()
@@ -82,6 +70,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
 
     socket
     |> assign(assigns)
+    |> allow_csv_import()
     |> assign(
       :deltas,
       Firmwares.get_deltas_by_target_firmware(deployment_group.current_release.firmware)
@@ -99,6 +88,25 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
     |> assign(:update_stats, UpdateStats.stats_by_deployment(deployment_group))
     |> assign_matched_devices_count()
     |> ok()
+  end
+
+  # Importing moves devices into the deployment group, so only members who may
+  # do that get an upload configured at all, and LiveView refuses anyone else's
+  # before any of the file arrives. `handle_progress/3` checks again before
+  # importing.
+  defp allow_csv_import(%{assigns: %{uploads: %{device_csv: _}}} = socket), do: socket
+
+  defp allow_csv_import(socket) do
+    if authorized?(:"device:set-deployment-group", socket.assigns.current_scope) do
+      allow_upload(socket, :device_csv,
+        accept: ~w(.csv),
+        max_entries: 1,
+        auto_upload: true,
+        progress: &handle_progress/3
+      )
+    else
+      socket
+    end
   end
 
   defp assign_matched_devices_count(%{assigns: %{deployment_group: deployment_group}} = socket) do
@@ -129,6 +137,8 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
   end
 
   def handle_event("delete_delta", %{"id" => id}, socket) do
+    authorized!(:"deployment_group:update", socket.assigns.current_scope)
+
     delta_to_delete = Enum.find(socket.assigns.deltas, &(&1.id == String.to_integer(id)))
 
     {:ok, _} = Firmwares.delete_firmware_delta(delta_to_delete)
@@ -144,6 +154,8 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
   end
 
   def handle_event("retry_delta", %{"id" => id}, socket) do
+    authorized!(:"deployment_group:update", socket.assigns.current_scope)
+
     delta = Enum.find(socket.assigns.deltas, &(&1.id == String.to_integer(id)))
 
     {:ok, _} = Firmwares.retry_firmware_delta(delta)
@@ -153,6 +165,8 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
   end
 
   def handle_event("generate-firmware-deltas", _params, %{assigns: %{deployment_group: deployment_group}} = socket) do
+    authorized!(:"deployment_group:update", socket.assigns.current_scope)
+
     {:ok, _} = ManagedDeployments.trigger_delta_generation_for_deployment_group(deployment_group)
 
     socket
@@ -163,6 +177,8 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
   def handle_event("validate-csv", _params, socket), do: {:noreply, socket}
 
   def handle_progress(:device_csv, %{done?: true} = entry, socket) do
+    authorized!(:"device:set-deployment-group", socket.assigns.current_scope)
+
     %{deployment_group: deployment_group, current_scope: %{product: product, user: user}} =
       socket.assigns
 
@@ -248,7 +264,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
   @impl Phoenix.LiveComponent
   def render(assigns) do
     ~H"""
-    <div class="flex w-full flex-col items-start gap-4 p-6">
+    <div id="deployment-group-summary" class="flex w-full flex-col items-start gap-4 p-6">
       <div :if={@flow} class="w-full items-center justify-center rounded-md border border-line-default bg-surface-raised shadow-card">
         <div id="deployment-workflow-fit" phx-hook="WorkflowDiagramFit" class="h-[200px]">
           <.live_component
@@ -481,7 +497,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
                         <td>
                           <div class="relative flex items-center gap-[8px]">
                             <a
-                              :if={delta.status in [:failed, :timed_out, :completed]}
+                              :if={delta.status in [:failed, :timed_out, :completed] and authorized?(:"deployment_group:update", @current_scope)}
                               class="cursor-pointer text-content-body underline"
                               phx-click="delete_delta"
                               data-confirm="Are you sure you want to delete this firmware delta? Warning: If other deployments are also using this delta, this will affect them as well."
@@ -491,7 +507,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
                               Delete
                             </a>
                             <a
-                              :if={delta.status in [:failed, :timed_out]}
+                              :if={delta.status in [:failed, :timed_out] and authorized?(:"deployment_group:update", @current_scope)}
                               class="cursor-pointer text-content-body underline"
                               phx-click="retry_delta"
                               data-confirm="Are you sure you want to retry firmware delta generation? Warning: If other deployments are also using this delta, this will affect them as well."
@@ -514,6 +530,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
                 <span class="text-sm text-content-faint">No firmware deltas are available.</span>
               </div>
               <.button
+                :if={authorized?(:"deployment_group:update", @current_scope)}
                 type="button"
                 aria-label="Generate firmware deltas"
                 phx-target={@myself}
@@ -684,6 +701,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
                     </:content>
                   </.tooltip>
                   <.button
+                    :if={authorized?(:"device:set-deployment-group", @current_scope)}
                     class="w-41"
                     style="danger"
                     phx-click="remove-unmatched-devices-from-deployment-group"
@@ -711,6 +729,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
                     </:content>
                   </.tooltip>
                   <.button
+                    :if={authorized?(:"device:set-deployment-group", @current_scope)}
                     class="w-41"
                     style="secondary"
                     phx-click="move-matched-devices-to-deployment-group"
@@ -721,7 +740,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
                 </div>
               </div>
             </div>
-            <div class="flex items-center justify-between border-t border-line-default pt-3">
+            <div :if={authorized?(:"device:set-deployment-group", @current_scope)} class="flex items-center justify-between border-t border-line-default pt-3">
               <span class="text-sm text-content-faint">Import devices by identifier</span>
               <form id="import-devices-csv-form" phx-change="validate-csv" phx-target={@myself}>
                 <.button type="label" for={@uploads.device_csv.ref} class="w-41">

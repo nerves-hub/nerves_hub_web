@@ -5,6 +5,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
 
   alias NervesHub.Accounts
   alias NervesHub.Accounts.Org
+  alias NervesHub.Accounts.Scope
   alias NervesHub.Accounts.User.DisplayPreferences
   alias NervesHub.AuditLogs.DeviceTemplates
   alias NervesHub.DeviceEvents
@@ -166,6 +167,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
           <.alarms_box :if={box == :alarms} alarms={@alarms} product={@product} device={@device} />
           <.general_info
             :if={box == :general_info}
+            current_scope={@current_scope}
             device={@device}
             addable_tags={@addable_tags}
             metadata_entries={@metadata_entries}
@@ -173,6 +175,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
           />
           <.deployment_box
             :if={box == :deployment}
+            current_scope={@current_scope}
             org={@org}
             product={@product}
             device={@device}
@@ -185,6 +188,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
           />
           <.location_box
             :if={box == :location}
+            current_scope={@current_scope}
             device={@device}
             enable_location_editor={!!assigns[:enable_location_editor]}
             map_style={DisplayPreferences.map_style(@user.display_preferences)}
@@ -231,6 +235,8 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
   end
 
   def hooked_event("clear-manual-location-information", _, socket) do
+    authorized!(:"device:update", socket.assigns.current_scope)
+
     {:ok, device} =
       Devices.update_device(socket.assigns.device, %{
         custom_location_coordinates: nil
@@ -281,6 +287,8 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
   end
 
   def hooked_event("save-location-changes", _, socket) do
+    authorized!(:"device:update", socket.assigns.current_scope)
+
     {:ok, device} =
       Devices.update_device(socket.assigns.device, %{
         custom_location_coordinates: [
@@ -443,6 +451,8 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
   end
 
   def hooked_event("remove-from-deployment-group", _, %{assigns: %{device: device}} = socket) do
+    authorized!(:"device:set-deployment-group", socket.assigns.current_scope)
+
     device = Deployments.clear_deployment_group(device)
 
     send(self(), :reload_device)
@@ -489,6 +499,8 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
   end
 
   def hooked_event("add-tag", %{"tag" => tag}, socket) do
+    authorized!(:"device:update", socket.assigns.current_scope)
+
     Devices.add_tag(socket.assigns.device, socket.assigns.user, tag)
     |> case do
       {:ok, device} ->
@@ -506,6 +518,8 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
   end
 
   def hooked_event("remove-tag", %{"tag" => tag}, socket) do
+    authorized!(:"device:update", socket.assigns.current_scope)
+
     Devices.remove_tag(socket.assigns.device, socket.assigns.user, tag)
     |> case do
       {:ok, device} ->
@@ -895,6 +909,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
 
   attr(:org, Org, required: true)
   attr(:product, Product, required: true)
+  attr(:current_scope, Scope, required: true)
   attr(:device, Device, required: true)
   attr(:device_connection, :any)
   attr(:deployment_groups, :list, required: true)
@@ -925,6 +940,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
             <span class="text-xs tracking-tight text-content-body" class="">{@device.deployment_group.name}</span>
           </.link>
           <button
+            :if={authorized?(:"device:set-deployment-group", @current_scope)}
             class="rounded-full border border-alert bg-base-800 p-1"
             data-confirm="Are you sure you want to remove the device from the deployment?"
             aria-label="Remove device from the assigned deployment group"
@@ -1015,6 +1031,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
     """
   end
 
+  attr(:current_scope, Scope, required: true)
   attr(:device, Device, required: true)
   attr(:enable_location_editor, :boolean, required: true)
   attr(:map_style, :atom, required: true)
@@ -1026,6 +1043,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
         location={extract_location_data(@device)}
         enable_location_editor={@enable_location_editor}
         map_style={@map_style}
+        editable={authorized?(:"device:update", @current_scope)}
       />
     </div>
     """
@@ -1149,6 +1167,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
 
   # Sits at the top of the right-hand column when the location map is hidden
   # and the user hasn't arranged the boxes themselves. See `details_columns/3`.
+  attr(:current_scope, Scope, required: true)
   attr(:device, Device, required: true)
   attr(:addable_tags, :list, required: true)
   attr(:metadata_entries, :list, required: true)
@@ -1223,6 +1242,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
             <span :for={tag <- @device.tags || []} class="flex items-center gap-1 rounded border border-line-subtle bg-base-800 px-2 py-1 text-sm text-content-body">
               {tag}
               <button
+                :if={authorized?(:"device:update", @current_scope)}
                 type="button"
                 phx-click="remove-tag"
                 phx-value-tag={tag}
@@ -1232,78 +1252,80 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
                 <span class="lucide-x--bold size-3" aria-hidden="true"></span>
               </button>
             </span>
-            <button
-              id="add-tag-open"
-              type="button"
-              aria-label="Add tag"
-              class="flex size-7 items-center justify-center rounded border border-line-default bg-base-800 text-content-muted hover:bg-base-700 hover:text-base-200"
-              phx-click={
-                JS.remove_class("hidden", to: "#add-tag-form")
-                |> JS.add_class("inline-flex", to: "#add-tag-form")
-                |> JS.show(to: "#add-tag-close")
-                |> JS.hide(to: "#add-tag-open")
-              }
-            >
-              <span class="lucide-plus--bold size-3.5" />
-            </button>
-            <button
-              id="add-tag-close"
-              type="button"
-              aria-label="Cancel adding tag"
-              style="display: none"
-              class="flex size-7 items-center justify-center rounded border border-line-default bg-base-800 text-content-faint hover:bg-base-700 hover:text-alert-content"
-              phx-click={
-                JS.remove_class("inline-flex", to: "#add-tag-form")
-                |> JS.add_class("hidden", to: "#add-tag-form")
-                |> JS.hide(to: "#add-tag-close")
-                |> JS.show(to: "#add-tag-open")
-              }
-            >
-              <span class="lucide-x--bold size-3.5" />
-            </button>
-            <form
-              id="add-tag-form"
-              phx-submit={
-                JS.push("add-tag")
-                |> JS.remove_class("inline-flex", to: "#add-tag-form")
-                |> JS.add_class("hidden", to: "#add-tag-form")
-                |> JS.hide(to: "#add-tag-close")
-                |> JS.show(to: "#add-tag-open")
-              }
-              class="hidden items-center gap-1"
-            >
-              <label for="add_tag_input" class="hidden">Add tag</label>
-              <div
-                id="add-tag-autocomplete"
-                class="relative"
-                phx-hook="TagAutocomplete"
-                data-single
-                data-available-tags={Jason.encode!(@addable_tags)}
+            <%= if authorized?(:"device:update", @current_scope) do %>
+              <button
+                id="add-tag-open"
+                type="button"
+                aria-label="Add tag"
+                class="flex size-7 items-center justify-center rounded border border-line-default bg-base-800 text-content-muted hover:bg-base-700 hover:text-base-200"
+                phx-click={
+                  JS.remove_class("hidden", to: "#add-tag-form")
+                  |> JS.add_class("inline-flex", to: "#add-tag-form")
+                  |> JS.show(to: "#add-tag-close")
+                  |> JS.hide(to: "#add-tag-open")
+                }
               >
-                <input
-                  type="text"
-                  id="add_tag_input"
-                  name="tag"
-                  placeholder="Add tag..."
-                  autocomplete="off"
-                  data-tag-input
-                  class="w-24 rounded border border-line-strong bg-base-900 px-2 py-1 text-xs text-content-muted focus:outline focus:-outline-offset-1 focus:outline-focus-ring"
-                  phx-debounce="300"
-                />
-                <ul
-                  id="add_tag_input-suggestions"
-                  phx-update="ignore"
-                  data-tag-suggestions
-                  role="listbox"
-                  hidden
-                  class="absolute z-10 mt-1 max-h-56 w-40 overflow-y-auto rounded-md border border-line-strong bg-base-900 py-1 shadow-overlay"
+                <span class="lucide-plus--bold size-3.5" />
+              </button>
+              <button
+                id="add-tag-close"
+                type="button"
+                aria-label="Cancel adding tag"
+                style="display: none"
+                class="flex size-7 items-center justify-center rounded border border-line-default bg-base-800 text-content-faint hover:bg-base-700 hover:text-alert-content"
+                phx-click={
+                  JS.remove_class("inline-flex", to: "#add-tag-form")
+                  |> JS.add_class("hidden", to: "#add-tag-form")
+                  |> JS.hide(to: "#add-tag-close")
+                  |> JS.show(to: "#add-tag-open")
+                }
+              >
+                <span class="lucide-x--bold size-3.5" />
+              </button>
+              <form
+                id="add-tag-form"
+                phx-submit={
+                  JS.push("add-tag")
+                  |> JS.remove_class("inline-flex", to: "#add-tag-form")
+                  |> JS.add_class("hidden", to: "#add-tag-form")
+                  |> JS.hide(to: "#add-tag-close")
+                  |> JS.show(to: "#add-tag-open")
+                }
+                class="hidden items-center gap-1"
+              >
+                <label for="add_tag_input" class="hidden">Add tag</label>
+                <div
+                  id="add-tag-autocomplete"
+                  class="relative"
+                  phx-hook="TagAutocomplete"
+                  data-single
+                  data-available-tags={Jason.encode!(@addable_tags)}
                 >
-                </ul>
-              </div>
-              <.button size="sm" type="submit" aria-label="Add tag">
-                Add
-              </.button>
-            </form>
+                  <input
+                    type="text"
+                    id="add_tag_input"
+                    name="tag"
+                    placeholder="Add tag..."
+                    autocomplete="off"
+                    data-tag-input
+                    class="w-24 rounded border border-line-strong bg-base-900 px-2 py-1 text-xs text-content-muted focus:outline focus:-outline-offset-1 focus:outline-focus-ring"
+                    phx-debounce="300"
+                  />
+                  <ul
+                    id="add_tag_input-suggestions"
+                    phx-update="ignore"
+                    data-tag-suggestions
+                    role="listbox"
+                    hidden
+                    class="absolute z-10 mt-1 max-h-56 w-40 overflow-y-auto rounded-md border border-line-strong bg-base-900 py-1 shadow-overlay"
+                  >
+                  </ul>
+                </div>
+                <.button size="sm" type="submit" aria-label="Add tag">
+                  Add
+                </.button>
+              </form>
+            <% end %>
           </div>
         </div>
 

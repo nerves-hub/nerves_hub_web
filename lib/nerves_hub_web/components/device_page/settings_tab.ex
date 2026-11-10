@@ -23,17 +23,29 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
     |> assign(:shared_secrets_enabled, DeviceLink.shared_secrets_enabled?())
     |> assign(:shared_secrets, Devices.list_shared_secret_auths(socket.assigns.device))
     |> assign(:new_shared_secret, nil)
-    |> allow_upload(:certificate,
-      accept: :any,
-      auto_upload: true,
-      max_entries: 1,
-      progress: &handle_progress/3
-    )
+    |> allow_certificate_upload()
     |> cont()
   end
 
   # Leaving the tab drops the key list, and a new secret not yet dismissed.
   def cleanup(), do: [:shared_secrets, :new_shared_secret]
+
+  # A registered device certificate lets whoever holds its private key connect
+  # as the device. Only members who may update the device get an upload
+  # configured at all, so LiveView refuses anyone else's upload before any of
+  # the file arrives. `handle_progress/3` checks again before saving it.
+  defp allow_certificate_upload(socket) do
+    if authorized?(:"device:update", socket.assigns.current_scope) do
+      allow_upload(socket, :certificate,
+        accept: :any,
+        auto_upload: true,
+        max_entries: 1,
+        progress: &handle_progress/3
+      )
+    else
+      socket
+    end
+  end
 
   def render(assigns) do
     device = Certificates.preload_device_certificates(assigns.device, force: true)
@@ -142,7 +154,7 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
       <div class="flex w-full flex-col rounded-md border border-line-default bg-surface-raised shadow-card">
         <div class="flex h-14 items-center justify-between border-b border-line-default px-4">
           <div class="text-card-title text-content-strong">Certificates</div>
-          <div>
+          <div :if={authorized?(:"device:update", @current_scope)}>
             <form id="upload-certificate" phx-change="validate-cert" phx-drop-target={@uploads.certificate.ref}>
               <.button type="label" for={@uploads.certificate.ref}>
                 <.icon name="save" /> Upload certificate
@@ -192,6 +204,7 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
                 <.icon name="save" />
               </.button>
               <.button
+                :if={authorized?(:"device:update", @current_scope)}
                 style="danger"
                 type="button"
                 square
@@ -449,6 +462,8 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
   def hooked_event("validate-cert", _, socket), do: {:halt, socket}
 
   def hooked_event("delete-certificate", %{"serial" => serial}, %{assigns: %{device: device}} = socket) do
+    authorized!(:"device:update", socket.assigns.current_scope)
+
     device = %{device_certificates: certs} = Certificates.preload_device_certificates(device)
 
     db_cert = Enum.find(certs, &(&1.serial == serial))
@@ -586,6 +601,8 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
   def hooked_async(_name, _async_fun_result, socket), do: {:cont, socket}
 
   def handle_progress(:certificate, %{done?: true} = entry, socket) do
+    authorized!(:"device:update", socket.assigns.current_scope)
+
     socket = consume_uploaded_entry(socket, entry, &import_cert(socket, &1.path))
 
     {:noreply, socket}

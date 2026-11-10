@@ -275,7 +275,7 @@ defmodule NervesHubWeb.Components.DevicePage.DataHistoryTab do
     """
   end
 
-  # Console rows carry a size and no contents, on purpose — see
+  # Console and local shell rows carry a size and no contents, on purpose — see
   # `NervesHub.Devices.DeviceMessages` for why.
   defp payload_text(message) do
     if DeviceMessage.metadata_only?(message) do

@@ -55,23 +55,25 @@ defmodule NervesHubWeb.Live.Devices.Show.DataHistoryTabTest do
     |> assert_has("span", text: "sent")
   end
 
-  test "console contents are never shown, only their size", %{
-    conn: conn,
-    org: org,
-    product: product,
-    device: device
-  } do
-    :ok =
-      DeviceMessages.record_size_only(device, :received, :console, "up", %{
-        "data" => "export SECRET=hunter2"
-      })
+  for {label, topic, event} <- [{"console", :console, "up"}, {"local shell", :extensions, "local_shell:shell_output"}] do
+    test "#{label} contents are never shown, only their size", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device
+    } do
+      :ok =
+        DeviceMessages.record_size_only(device, :received, unquote(topic), unquote(event), %{
+          "data" => "export SECRET=hunter2"
+        })
 
-    :ok = Buffer.flush(DeviceMessage)
+      :ok = Buffer.flush(DeviceMessage)
 
-    conn
-    |> visit(history_path(org, product, device))
-    |> assert_has("td", text: "21 bytes (contents not recorded)")
-    |> refute_has("td", text: "hunter2")
+      conn
+      |> visit(history_path(org, product, device))
+      |> assert_has("td", text: "21 bytes (contents not recorded)")
+      |> refute_has("td", text: "hunter2")
+    end
   end
 
   test "a firmware url is shown without its signature", %{

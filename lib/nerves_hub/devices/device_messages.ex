@@ -14,7 +14,8 @@ defmodule NervesHub.Devices.DeviceMessages do
   body depends on the channel:
 
     * **device** and **extensions** — the payload, redacted and capped by
-      `NervesHub.Devices.DeviceMessages.Payload`.
+      `NervesHub.Devices.DeviceMessages.Payload`, except for the local shell
+      extension, which is a terminal and is treated like the console.
     * **console** — the size only, never the contents. Console traffic is raw
       terminal I/O: it is what a person typed at a prompt and what came back,
       which routinely includes credentials. Its volume is also unlike the
@@ -94,8 +95,8 @@ defmodule NervesHub.Devices.DeviceMessages do
   @doc """
   Records that a message crossed, and how large it was, but not its contents.
 
-  Used for the console, where the contents are neither safe to keep nor useful
-  in bulk. `data` is the raw terminal payload; only its size is read.
+  Used for the console and the local shell, where the contents are neither
+  safe to keep nor useful in bulk. `data` is the raw terminal payload; only its size is read.
   """
   @spec record_size_only(DeviceInfo.t() | Device.t(), direction(), topic(), String.t(), term()) :: :ok
   def record_size_only(device, direction, topic, event, data) do

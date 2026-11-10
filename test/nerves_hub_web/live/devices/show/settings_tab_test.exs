@@ -3,12 +3,17 @@ defmodule NervesHubWeb.Live.Devices.Show.SettingsTabTest do
 
   import Ecto.Query
 
+  alias NervesHub.Accounts.OrgUser
+  alias NervesHub.Accounts.Scope
   alias NervesHub.Accounts.User
   alias NervesHub.Devices
   alias NervesHub.Devices.CACertificates
   alias NervesHub.Fixtures
   alias NervesHub.Repo
+  alias NervesHubWeb.Components.DevicePage.SettingsTab
   alias NervesHubWeb.Components.Utils
+  alias Phoenix.LiveView.Socket
+  alias Phoenix.LiveView.UploadEntry
   alias Phoenix.Socket.Broadcast
 
   describe "device settings" do
@@ -288,6 +293,61 @@ defmodule NervesHubWeb.Live.Devices.Show.SettingsTabTest do
                catch_exit(render_click(session.view, "update-extension", %{"extension" => "geo", "value" => "off"}))
 
       assert Repo.reload(device).extensions.geo
+    end
+  end
+
+  describe "a member with the view role" do
+    setup do
+      Repo.update_all(OrgUser, set: [role: :view])
+
+      :ok
+    end
+
+    test "can't delete a certificate", %{conn: conn, org: org, product: product, device: device} do
+      [cert] = Repo.preload(device, :device_certificates).device_certificates
+
+      session =
+        conn
+        |> visit(~p"/org/#{org}/#{product}/devices/#{device}/settings")
+        |> assert_has("div", text: "Serial: #{Utils.format_serial(cert.serial)}")
+        |> refute_has("button[phx-click=\"delete-certificate\"]")
+
+      Process.flag(:trap_exit, true)
+
+      assert {{%NervesHubWeb.UnauthorizedError{}, _}, _} =
+               catch_exit(render_click(session.view, "delete-certificate", %{"serial" => cert.serial}))
+
+      assert [%{serial: serial}] = Repo.preload(device, :device_certificates, force: true).device_certificates
+      assert serial == cert.serial
+    end
+
+    test "can't upload a certificate", %{conn: conn, org: org, product: product, device: device} do
+      session =
+        conn
+        |> visit(~p"/org/#{org}/#{product}/devices/#{device}/settings")
+        |> refute_has("#upload-certificate")
+
+      # No upload is configured for a viewer, so LiveView refuses one before
+      # any of the file is sent.
+      assert_raise RuntimeError, "no uploads allowed for certificate", fn ->
+        file_input(session.view, "#settings-tab", :certificate, [
+          %{name: "device-test-cert.pem", content: File.read!("test/fixtures/ssl/device-test-cert.pem")}
+        ])
+      end
+
+      assert [_default] = Repo.preload(device, :device_certificates, force: true).device_certificates
+    end
+  end
+
+  # A viewer never gets an upload configured (above), and the scope is fixed
+  # when the page mounts, so no page can reach this. It guards the certificate
+  # being saved if the upload were ever offered to someone it shouldn't be.
+  test "a finished certificate upload is authorized before it is saved" do
+    socket = %Socket{assigns: %{__changed__: %{}, current_scope: %Scope{role: :view}}}
+    entry = %UploadEntry{upload_config: :certificate, done?: true}
+
+    assert_raise NervesHubWeb.UnauthorizedError, fn ->
+      SettingsTab.handle_progress(:certificate, entry, socket)
     end
   end
 

@@ -245,6 +245,71 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
     end
   end
 
+  describe "a member with the view role on the details tab" do
+    setup %{conn: conn, fixture: fixture} do
+      Repo.update_all(Accounts.OrgUser, set: [role: :view])
+
+      {:ok, view, _html} = live(conn, device_show_path(fixture))
+
+      %{view: view}
+    end
+
+    test "doesn't see the tag or deployment group controls", %{conn: conn, fixture: fixture} do
+      {:ok, _device} = Repo.update(Ecto.Changeset.change(fixture.device, deployment_id: fixture.deployment_group.id))
+
+      conn
+      |> visit(device_show_path(fixture))
+      |> assert_has("h1", text: fixture.device.identifier)
+      |> refute_has("button[phx-click=remove-tag]")
+      |> refute_has("#add-tag-open")
+      |> refute_has("#add-tag-form")
+      |> refute_has("button[phx-click=remove-from-deployment-group]")
+    end
+
+    test "can't add a tag", %{view: view, fixture: %{device: device}} do
+      assert_unauthorized(view, "add-tag", %{"tag" => "sneaky"})
+
+      assert Repo.reload(device).tags == device.tags
+    end
+
+    test "can't remove a tag", %{view: view, fixture: %{device: device}} do
+      [tag | _] = device.tags
+
+      assert_unauthorized(view, "remove-tag", %{"tag" => tag})
+
+      assert Repo.reload(device).tags == device.tags
+    end
+
+    test "can't remove the device from its deployment group", %{conn: conn, fixture: fixture} do
+      %{device: device, deployment_group: deployment_group} = fixture
+      {:ok, _device} = Repo.update(Ecto.Changeset.change(device, deployment_id: deployment_group.id))
+
+      {:ok, view, _html} = live(conn, device_show_path(fixture))
+
+      assert_unauthorized(view, "remove-from-deployment-group", %{})
+
+      assert Repo.reload(device).deployment_id == deployment_group.id
+    end
+
+    test "can't set the location by hand", %{view: view, fixture: %{device: device}} do
+      render_click(view, "update-device-location", %{"lat" => 1.0, "lng" => 2.0})
+
+      assert_unauthorized(view, "save-location-changes", %{})
+
+      assert is_nil(Repo.reload(device).custom_location_coordinates)
+    end
+
+    test "can't clear a location set by hand", %{conn: conn, fixture: fixture} do
+      {:ok, device} = Devices.update_device(fixture.device, %{custom_location_coordinates: [1.0, 2.0]})
+
+      {:ok, view, _html} = live(conn, device_show_path(fixture))
+
+      assert_unauthorized(view, "clear-manual-location-information", %{})
+
+      assert Repo.reload(device).custom_location_coordinates == [1.0, 2.0]
+    end
+  end
+
   describe "handle_info" do
     test "device connecting updates the UI", %{conn: conn, fixture: fixture} do
       conn
@@ -2663,6 +2728,12 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
 
   def device_show_path(%{device: device, org: org, product: product}) do
     ~p"/org/#{org}/#{product}/devices/#{device}"
+  end
+
+  defp assert_unauthorized(view, event, params) do
+    Process.flag(:trap_exit, true)
+
+    assert {{%NervesHubWeb.UnauthorizedError{}, _}, _} = catch_exit(render_click(view, event, params))
   end
 
   def to_device_info(device) do

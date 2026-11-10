@@ -2,6 +2,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show.SummaryTabTest do
   use NervesHubWeb.ConnCase.Browser, async: true
   use Mimic
 
+  alias NervesHub.Accounts.OrgUser
   alias NervesHub.AuditLogs
   alias NervesHub.Devices
   alias NervesHub.Devices.Deployments
@@ -631,5 +632,120 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show.SummaryTabTest do
       |> upload("Import from CSV", csv_path)
       |> assert_has("div", text: "0 devices imported from CSV", timeout: 1000)
     end
+  end
+
+  describe "a member with the view role" do
+    setup %{conn: conn, org: org, product: product, deployment_group: deployment_group} do
+      Repo.update_all(OrgUser, set: [role: :view])
+
+      session = visit(conn, "/org/#{org.name}/#{product.name}/deployment_groups/#{deployment_group.name}")
+
+      %{session: session}
+    end
+
+    test "doesn't see the controls that change the group", %{
+      org: org,
+      product: product,
+      fixture: %{firmware: firmware},
+      deployment_group: deployment_group,
+      source_firmware: source_firmware,
+      target_firmware: target_firmware,
+      session: session
+    } do
+      Fixtures.device_fixture(org, product, firmware, %{tags: ["beta"]})
+      Fixtures.device_fixture(org, product, firmware, %{deployment_id: deployment_group.id, tags: ["foo"]})
+      {:ok, delta} = Firmwares.start_firmware_delta(source_firmware.id, target_firmware.id)
+      {:ok, _delta} = Firmwares.fail_firmware_delta(delta)
+
+      session
+      |> visit("/org/#{org.name}/#{product.name}/deployment_groups/#{deployment_group.name}")
+      |> assert_has("#move-devices-to-deployment-group")
+      |> assert_has("#remove-devices-from-deployment-group")
+      |> refute_has("button", text: "Move device")
+      |> refute_has("button", text: "Remove device")
+      |> refute_has("a", text: "Delete")
+      |> refute_has("a", text: "Retry")
+      |> refute_has("#import-devices-csv-form")
+    end
+
+    test "can't move matching devices into the group", %{
+      conn: conn,
+      org: org,
+      product: product,
+      fixture: %{firmware: firmware},
+      deployment_group: deployment_group
+    } do
+      device = Fixtures.device_fixture(org, product, firmware, %{tags: ["beta"]})
+
+      session = visit(conn, "/org/#{org.name}/#{product.name}/deployment_groups/#{deployment_group.name}")
+
+      assert_unauthorized(fn -> render_click(session.view, "move-matched-devices-to-deployment-group", %{}) end)
+
+      refute Repo.reload(device).deployment_id
+    end
+
+    test "can't remove unmatched devices from the group", %{
+      conn: conn,
+      org: org,
+      product: product,
+      fixture: %{firmware: firmware},
+      deployment_group: deployment_group
+    } do
+      device = Fixtures.device_fixture(org, product, firmware, %{deployment_id: deployment_group.id, tags: ["foo"]})
+
+      session = visit(conn, "/org/#{org.name}/#{product.name}/deployment_groups/#{deployment_group.name}")
+
+      assert_unauthorized(fn ->
+        render_click(session.view, "remove-unmatched-devices-from-deployment-group", %{})
+      end)
+
+      assert Repo.reload(device).deployment_id == deployment_group.id
+    end
+
+    test "can't delete, retry or generate firmware deltas", %{
+      conn: conn,
+      org: org,
+      product: product,
+      deployment_group: deployment_group,
+      source_firmware: source_firmware,
+      target_firmware: target_firmware
+    } do
+      {:ok, delta} = Firmwares.start_firmware_delta(source_firmware.id, target_firmware.id)
+      {:ok, delta} = Firmwares.fail_firmware_delta(delta)
+
+      path = "/org/#{org.name}/#{product.name}/deployment_groups/#{deployment_group.name}"
+
+      for {event, params} <- [
+            {"delete_delta", %{"id" => to_string(delta.id)}},
+            {"retry_delta", %{"id" => to_string(delta.id)}},
+            {"generate-firmware-deltas", %{}}
+          ] do
+        session = visit(conn, path)
+
+        assert_unauthorized(fn ->
+          session.view
+          |> with_target("#deployment-group-summary")
+          |> render_click(event, params)
+        end)
+      end
+
+      assert Repo.reload(delta)
+    end
+
+    test "can't import devices from a CSV", %{session: session} do
+      # No upload is configured for a viewer, so LiveView refuses one before
+      # any of the file is sent.
+      assert_raise RuntimeError, "no uploads allowed for device_csv", fn ->
+        file_input(session.view, "#deployment-group-summary", :device_csv, [
+          %{name: "devices.csv", content: "identifier\nanything\n"}
+        ])
+      end
+    end
+  end
+
+  defp assert_unauthorized(fun) do
+    Process.flag(:trap_exit, true)
+
+    assert {{%NervesHubWeb.UnauthorizedError{}, _}, _} = catch_exit(fun.())
   end
 end

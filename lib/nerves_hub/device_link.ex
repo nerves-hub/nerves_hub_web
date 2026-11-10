@@ -1087,6 +1087,13 @@ defmodule NervesHub.DeviceLink do
   # there is nothing the record would be missing.
   defp record(nil, _direction, _topic, _event, _payload), do: :ok
 
+  # The local shell is a terminal, like the console: its output echoes what a
+  # person typed, secrets included, and anyone who can see the device can read
+  # its message history. So only the size is kept.
+  defp record(device_info, direction, :extensions, "local_shell:" <> _ = event, payload) do
+    DeviceMessages.record_size_only(device_info, direction, :extensions, event, payload)
+  end
+
   defp record(device_info, direction, topic, event, payload) do
     DeviceMessages.record(device_info, direction, topic, event, payload)
   end

@@ -52,7 +52,7 @@ defmodule NervesHubWeb.UserLocalShellChannel do
 
     with {:ok, device} <- Devices.get_by_identifier(scope, identifier),
          %OrgUser{} = org_user <- Accounts.find_org_user_with_device(user, device.id),
-         true <- Authorization.authorized?(:"device:console", org_user) do
+         true <- Authorization.authorized?(:"device:extensions:local_shell", org_user) do
       device
     else
       _ ->

@@ -7,6 +7,7 @@ defmodule NervesHubWeb.Components.DeviceLocation do
   attr(:location, :any)
   attr(:enable_location_editor, :boolean)
   attr(:map_style, :atom, default: nil, doc: "the user's map style, or nil to follow the theme")
+  attr(:editable, :boolean, default: false, doc: "whether to offer setting or clearing the location by hand")
 
   # Only rendered when a Mapbox token is configured and the Geo extension is
   # enabled for the product and device. The details tab checks that.
@@ -64,7 +65,7 @@ defmodule NervesHubWeb.Components.DeviceLocation do
         <div class="z-50 flex flex-col items-center gap-4">
           <div class="text-content-body">No location information found.</div>
           <div class="text-content-body">Please check if the Geo extension has been included in your firmware.</div>
-          <div>
+          <div :if={@editable}>
             <.button phx-click="enable-location-editor">Manually set the location</.button>
           </div>
         </div>
@@ -122,7 +123,8 @@ defmodule NervesHubWeb.Components.DeviceLocation do
       zoom: if(String.downcase(location["source"]) == "gps", do: 15, else: 13),
       mapbox_access_token: assigns.mapbox_access_token,
       map_style: assigns.map_style,
-      target: assigns[:target]
+      target: assigns[:target],
+      editable: assigns[:editable]
     }
 
     source_information =
@@ -141,7 +143,7 @@ defmodule NervesHubWeb.Components.DeviceLocation do
           {@source_information}
         </div>
         <.map_style_menu map_style={@map_style} />
-        <div class="relative flex justify-end">
+        <div :if={@editable} class="relative flex justify-end">
           <button
             class="rounded border border-line-strong bg-base-800 p-0.5 hover:bg-base-700 active:bg-primary disabled:bg-base-800"
             id="location-settings-button"
