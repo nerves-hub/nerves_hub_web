@@ -24,10 +24,10 @@ defmodule NervesHubWeb.Components.Icons do
     "settings" => "lucide-settings",
     "trash" => "lucide-trash",
     "undo" => "lucide-rotate-ccw",
-    "unhealthy" => "lucide-circle-alert text-alert",
+    "unhealthy" => "lucide-circle-exclamation-point text-alert",
     "unknown" => "lucide-circle-minus text-base-500",
     "unpinned" => "lucide-pin-off",
-    "warning" => "lucide-triangle-alert text-warning"
+    "warning" => "lucide-triangle-exclamation-point text-warning"
   }
 
   @doc """
