@@ -555,20 +555,41 @@ defmodule NervesHub.Devices.Updates do
   Moving to `:automatic` re-evaluates the device against its deployment group
   straight away, so a device that opts back in does not wait for its next
   reconnect to be considered.
+
+  To set the mode inside a transaction of your own, use `save_update_mode/3`
+  and `update_mode_committed/1` instead.
   """
   @spec set_update_mode(Device.t(), Device.update_mode(), User.t() | :device) ::
           {:ok, Device.t()} | {:error, :not_permitted} | {:error, any(), any(), any()}
-  def set_update_mode(device, mode, actor)
+  def set_update_mode(device, mode, actor) do
+    with {:ok, device} <- save_update_mode(device, mode, actor) do
+      _ = update_mode_committed(device)
+      {:ok, device}
+    end
+  end
+
+  @doc """
+  Save and audit a device's new update mode as `set_update_mode/3` does, but
+  leave the deployment orchestrator alone.
+
+  This is for a caller that sets the mode inside a transaction of its own. When
+  told about a device, the orchestrator reads it from the database. Told before
+  that transaction commits, it would find the old mode and pass the device
+  over. Call `update_mode_committed/1` once the transaction has committed.
+  """
+  @spec save_update_mode(Device.t(), Device.update_mode(), User.t() | :device) ::
+          {:ok, Device.t()} | {:error, :not_permitted} | {:error, any(), any(), any()}
+  def save_update_mode(device, mode, actor)
 
   # Two rules bound what a device may do to itself: :off is the operator's alone,
   # so a device can neither freeze itself out of reach nor unfreeze itself; and
   # :device_managed needs the grant, without which any device could take itself
   # out of its deployment group's rollout unasked.
-  def set_update_mode(%Device{}, :off, :device), do: {:error, :not_permitted}
+  def save_update_mode(%Device{}, :off, :device), do: {:error, :not_permitted}
 
-  def set_update_mode(%Device{managed_updates_allowed: false}, :device_managed, :device), do: {:error, :not_permitted}
+  def save_update_mode(%Device{managed_updates_allowed: false}, :device_managed, :device), do: {:error, :not_permitted}
 
-  def set_update_mode(%Device{} = device, mode, actor) when mode in [:off, :automatic, :device_managed] do
+  def save_update_mode(%Device{} = device, mode, actor) when mode in [:off, :automatic, :device_managed] do
     description =
       case actor do
         :device -> "Device #{device.identifier} set its update mode to #{mode}"
@@ -586,19 +607,24 @@ defmodule NervesHub.Devices.Updates do
     # the log distinguishes a device opting in from a user changing it for them.
     audit_actor = if actor == :device, do: device, else: actor
 
-    case Devices.update_device_with_audit(device, params, audit_actor, description) do
-      {:ok, device} = result ->
-        _ =
-          if mode == :automatic and device.deployment_id do
-            DeploymentOrchestratorEvents.device_updated(device)
-          end
-
-        result
-
-      {:error, _, _, _} = result ->
-        result
-    end
+    Devices.update_device_with_audit(device, params, audit_actor, description)
   end
+
+  @doc """
+  Have the deployment orchestrator consider a device whose new update mode has
+  been committed.
+
+  Only a device moved to `:automatic` in a deployment group needs this. It is
+  how a device that opts back in is considered straight away rather than at its
+  next reconnect.
+  """
+  @spec update_mode_committed(Device.t()) :: :ok
+  def update_mode_committed(%Device{update_mode: :automatic, deployment_id: deployment_id} = device)
+      when not is_nil(deployment_id) do
+    DeploymentOrchestratorEvents.device_updated(device)
+  end
+
+  def update_mode_committed(%Device{}), do: :ok
 
   @doc """
   Return a device to automatic updates because its firmware cannot ask for them.

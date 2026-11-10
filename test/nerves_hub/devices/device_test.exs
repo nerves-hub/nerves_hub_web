@@ -69,7 +69,9 @@ defmodule NervesHub.Devices.DeviceTest do
           "deleted_at" => DateTime.utc_now()
         })
 
-      assert Map.keys(changeset.changes) |> Enum.sort() == [:connecting_code, :description, :tags, :update_mode]
+      # The update mode is left to `cast_update_mode/2`: changing it goes through
+      # `Updates.save_update_mode/3`.
+      assert Map.keys(changeset.changes) |> Enum.sort() == [:connecting_code, :description, :tags]
     end
 
     test "refuses a soft-deleted device", %{device: device} do
@@ -77,6 +79,26 @@ defmodule NervesHub.Devices.DeviceTest do
       changeset = Device.update_changeset(deleted_device, %{"description" => "new description"})
 
       assert {:deleted_at, {"cannot update while marked as deleted", []}} in changeset.errors
+    end
+  end
+
+  describe "cast_update_mode/2" do
+    test "returns the mode asked for", %{device: device} do
+      assert Device.cast_update_mode(device, %{"update_mode" => "device_managed"}) == {:ok, :device_managed}
+    end
+
+    test "returns nil when the params ask for no change", %{device: device} do
+      assert device.update_mode == :automatic
+      assert Device.cast_update_mode(device, %{"description" => "changed"}) == {:ok, nil}
+      assert Device.cast_update_mode(device, %{"update_mode" => "automatic"}) == {:ok, nil}
+    end
+
+    test "refuses a value that isn't a mode", %{device: device} do
+      assert {:error, changeset} = Device.cast_update_mode(device, %{"update_mode" => "sometimes"})
+      assert [update_mode: {"is invalid", _}] = changeset.errors
+
+      assert {:error, changeset} = Device.cast_update_mode(device, %{"update_mode" => nil})
+      assert [update_mode: {"can't be blank", _}] = changeset.errors
     end
   end
 end

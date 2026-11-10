@@ -8,6 +8,7 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
   alias NervesHub.Accounts
   alias NervesHub.AdvancedQueryFixtures
   alias NervesHub.AuditLogs
+  alias NervesHub.DeploymentOrchestratorEvents
   alias NervesHub.Devices
   alias NervesHub.Devices.Device
   alias NervesHub.Devices.Updates
@@ -1143,6 +1144,137 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
       assert Repo.reload(device).description == device.description
       assert AuditLogs.logs_for(device) == []
     end
+
+    test "moving to automatic clears the update attempts, audits the mode, and tells the orchestrator after the commit",
+         %{conn: conn, user: user, org: org, product: product, tmp_dir: tmp_dir} do
+      device =
+        deployed_device_fixture(user, org, product, tmp_dir, %{
+          update_mode: :off,
+          update_attempts: [DateTime.truncate(DateTime.utc_now(), :second)]
+        })
+
+      # The orchestrator reads the device from the database when it is told, so
+      # telling it before the commit would have it find the device still off.
+      expect(DeploymentOrchestratorEvents, :device_updated, fn told ->
+        refute Repo.in_transaction?()
+        assert told.id == device.id
+        assert told.update_mode == :automatic
+        :ok
+      end)
+
+      data =
+        conn
+        |> put(Routes.api_device_path(conn, :update, org.name, product.name, device.identifier), %{
+          device: %{update_mode: "automatic"}
+        })
+        |> json_response(201)
+        |> Map.fetch!("data")
+
+      assert data["update_mode"] == "automatic"
+
+      device = Repo.reload(device)
+      assert device.update_mode == :automatic
+      assert device.update_attempts == []
+
+      descriptions = device |> AuditLogs.logs_for() |> Enum.map(& &1.description)
+      assert "User #{user.name} set the update mode for device #{device.identifier} to automatic" in descriptions
+    end
+
+    test "moving out of automatic audits the mode and leaves the orchestrator alone", %{
+      conn: conn,
+      user: user,
+      org: org,
+      product: product,
+      tmp_dir: tmp_dir
+    } do
+      device = deployed_device_fixture(user, org, product, tmp_dir, %{update_mode: :automatic})
+      reject(DeploymentOrchestratorEvents, :device_updated, 1)
+
+      conn
+      |> put(Routes.api_device_path(conn, :update, org.name, product.name, device.identifier), %{
+        update_mode: "device_managed"
+      })
+      |> json_response(201)
+
+      assert Repo.reload(device).update_mode == :device_managed
+
+      descriptions = device |> AuditLogs.logs_for() |> Enum.map(& &1.description)
+      assert "User #{user.name} set the update mode for device #{device.identifier} to device_managed" in descriptions
+    end
+
+    test "writes no update mode audit entry, and tells the orchestrator nothing, when the mode doesn't change", %{
+      conn: conn,
+      user: user,
+      org: org,
+      product: product,
+      tmp_dir: tmp_dir
+    } do
+      device = deployed_device_fixture(user, org, product, tmp_dir, %{update_mode: :automatic})
+      reject(DeploymentOrchestratorEvents, :device_updated, 1)
+
+      conn
+      |> put(Routes.api_device_path(conn, :update, org.name, product.name, device.identifier), %{
+        update_mode: "automatic"
+      })
+      |> json_response(201)
+
+      refute device |> AuditLogs.logs_for() |> Enum.any?(&(&1.description =~ "update mode"))
+    end
+
+    test "refuses an update_mode that isn't a mode, and changes nothing", %{
+      conn: conn,
+      user: user,
+      org: org,
+      product: product,
+      tmp_dir: tmp_dir
+    } do
+      device = firmware_device_fixture(user, org, product, tmp_dir)
+      path = Routes.api_device_path(conn, :update, org.name, product.name, device.identifier)
+
+      assert conn |> put(path, %{description: "changed", update_mode: "sometimes"}) |> json_response(422) ==
+               %{"errors" => %{"update_mode" => ["is invalid"]}}
+
+      assert conn |> put(path, %{description: "changed", update_mode: nil}) |> json_response(422) ==
+               %{"errors" => %{"update_mode" => ["can't be blank"]}}
+
+      device = Repo.reload(device)
+      assert device.description != "changed"
+      assert device.update_mode == :automatic
+      assert AuditLogs.logs_for(device) == []
+    end
+
+    test "saves the other fields only if the update mode is saved too", %{
+      conn: conn,
+      user: user,
+      org: org,
+      product: product,
+      tmp_dir: tmp_dir
+    } do
+      device = deployed_device_fixture(user, org, product, tmp_dir, %{update_mode: :off})
+      reject(DeploymentOrchestratorEvents, :device_updated, 1)
+
+      expect(Updates, :save_update_mode, fn device, :automatic, _user ->
+        changeset =
+          device
+          |> Ecto.Changeset.change()
+          |> Ecto.Changeset.add_error(:update_mode, "could not be saved")
+
+        {:error, :update_with_audit, changeset, %{}}
+      end)
+
+      assert conn
+             |> put(Routes.api_device_path(conn, :update, org.name, product.name, device.identifier), %{
+               description: "changed",
+               update_mode: "automatic"
+             })
+             |> json_response(422) ==
+               %{"errors" => %{"update_mode" => ["could not be saved"]}}
+
+      device = Repo.reload(device)
+      assert device.description != "changed"
+      assert device.update_mode == :off
+      assert AuditLogs.logs_for(device) == []
+    end
   end
 
   describe "authenticate devices" do
@@ -2088,5 +2220,16 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
     org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
     firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
     Fixtures.device_fixture(org, product, firmware)
+  end
+
+  # A device in a deployment group, which is what the orchestrator is told about.
+  defp deployed_device_fixture(user, org, product, tmp_dir, attrs) do
+    org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
+    firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+    deployment_group = Fixtures.deployment_group_fixture(firmware, %{user: user})
+    device = Fixtures.device_fixture(org, product, firmware)
+
+    {:ok, device} = Devices.update_device(device, Map.put(attrs, :deployment_id, deployment_group.id))
+    device
   end
 end
