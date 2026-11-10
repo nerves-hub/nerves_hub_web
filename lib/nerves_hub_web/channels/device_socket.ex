@@ -5,6 +5,7 @@ defmodule NervesHubWeb.DeviceSocket do
   alias NervesHub.DeviceEvents
   alias NervesHub.DeviceLink.Client, as: DeviceLink
   alias NervesHub.ProductNotifications
+  alias NervesHubWeb.Channels.Platform
   alias NervesHubWeb.Helpers.ClientIP
   alias NervesHubWeb.Helpers.ServerName
   alias Phoenix.Socket.Transport
@@ -35,10 +36,18 @@ defmodule NervesHubWeb.DeviceSocket do
     super(msg, {state, socket})
   end
 
+  # Runs on the socket process itself, so raising here would close the whole
+  # connection. Unanswered or not, it counts as done: the next one is an
+  # interval away, and asking again on every frame would only add load while
+  # the platform is slow.
   @decorate with_span("Channels.DeviceSocket.heartbeat")
   defp heartbeat(%{assigns: %{device_info: device_info}} = socket) do
     if update_heartbeat?(socket) do
-      _ = DeviceLink.heartbeat(device_info.connection_ref)
+      _ =
+        Platform.ask(socket, :heartbeat, fn ->
+          DeviceLink.heartbeat(device_info.connection_ref)
+        end)
+
       update_last_heartbeat(socket)
     else
       socket
@@ -248,8 +257,12 @@ defmodule NervesHubWeb.DeviceSocket do
     })
 
     # its possible that this is a stale connection and the device has already reconnected,
-    # which means the following call might return :error, but we can ignore it
-    _ = DeviceLink.disconnect(device_info.connection_ref)
+    # which means the following call might return :error, but we can ignore it.
+    # The same goes for no answer at all: the connection is closing either way.
+    _ =
+      Platform.ask(socket, :disconnect, fn ->
+        DeviceLink.disconnect(device_info.connection_ref)
+      end)
 
     assign(socket, :disconnection_handled?, true)
   end

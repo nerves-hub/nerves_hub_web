@@ -40,6 +40,8 @@ defmodule NervesHub.Logger do
         [:nerves_hub, :devices, :downloader_network_interface_nil],
         [:nerves_hub, :devices, :update, :automatic],
         [:nerves_hub, :devices, :update, :successful],
+        [:nerves_hub, :device_link, :dispatch_timeout],
+        [:nerves_hub, :device_link, :unanswered],
         [:nerves_hub, :managed_deployments, :set_deployment_group, :none_found],
         [:nerves_hub, :managed_deployments, :set_deployment_group, :one_found],
         [:nerves_hub, :managed_deployments, :set_deployment_group, :multiple_found],
@@ -224,6 +226,32 @@ defmodule NervesHub.Logger do
     Logger.warning("Unhandled handle_in message", extra)
   end
 
+  # The node a DeviceLink call was sent to took it and did not answer in time.
+  # It is most likely still working on it, so this says the platform is slow,
+  # not that it is gone. `call` rather than `function`, which Logger fills with
+  # the caller and would overwrite.
+  def log_event([:nerves_hub, :device_link, :dispatch_timeout], _, metadata, _) do
+    Logger.warning("Platform node did not answer in time",
+      event: "nerves_hub.device_link.dispatch_timeout",
+      node: metadata[:node],
+      call: metadata[:function],
+      timeout: metadata[:timeout]
+    )
+  end
+
+  # A connected device asked for something, or was sent something, and the
+  # platform did not answer: no node could be reached, or the one that took the
+  # call was too slow. The message says what that cost the device.
+  def log_event([:nerves_hub, :device_link, :unanswered], _, metadata, _) do
+    Logger.warning("Platform did not answer, #{unanswered_cost(metadata[:function])}",
+      event: "nerves_hub.device_link.unanswered",
+      call: metadata[:function],
+      reason: metadata[:reason],
+      device_id: metadata[:device_id],
+      detail: unanswered_detail(metadata[:error])
+    )
+  end
+
   def log_event([:nerves_hub, :managed_deployments, :set_deployment_group, :none_found], _, metadata, _) do
     Logger.info("No matching deployment groups",
       event: "nerves_hub.managed_deployments.set_deployment_group.none_found",
@@ -343,4 +371,18 @@ defmodule NervesHub.Logger do
 
   defp peer_ip({:ok, {ip, _port}}), do: ip |> :inet_parse.ntoa() |> to_string()
   defp peer_ip(_peer), do: nil
+
+  # What each caller of `NervesHubWeb.Channels.Platform.ask/3` does when no
+  # answer comes.
+  defp unanswered_cost(function) when function in [:device_join, :extensions_join], do: "join refused"
+
+  defp unanswered_cost(function) when function in [:device_message, :device_notify, :device_broadcast],
+    do: "device channel closed for the device to rejoin"
+
+  defp unanswered_cost(:heartbeat), do: "heartbeat not recorded"
+  defp unanswered_cost(:disconnect), do: "disconnect not recorded"
+  defp unanswered_cost(_function), do: "message dropped"
+
+  defp unanswered_detail(error) when is_exception(error), do: Exception.message(error)
+  defp unanswered_detail(_error), do: nil
 end

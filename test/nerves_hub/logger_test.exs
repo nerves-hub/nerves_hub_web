@@ -3,6 +3,8 @@ defmodule NervesHub.LoggerTest do
 
   import ExUnit.CaptureLog
 
+  alias NervesHub.DeviceLink.Dispatcher.NoHandlersError
+  alias NervesHub.DeviceLink.Dispatcher.TimeoutError
   alias NervesHub.Logger, as: NHLogger
 
   setup do
@@ -258,6 +260,75 @@ defmodule NervesHub.LoggerTest do
       assert log =~ "Device TLS handshake failed"
       refute log =~ "remote_ip="
       refute log =~ "sni="
+    end
+  end
+
+  describe "log_event [:nerves_hub, :device_link, :dispatch_timeout]" do
+    test "names the call, the node and the limit" do
+      metadata = %{function: :extension_message, node: :"web@10.0.0.1", timeout: 5_000}
+
+      log =
+        capture_log([metadata: [:event, :call, :node, :timeout]], fn ->
+          NHLogger.log_event([:nerves_hub, :device_link, :dispatch_timeout], %{count: 1}, metadata, :ok)
+        end)
+
+      assert log =~ "[warning] Platform node did not answer in time"
+      assert log =~ "event=nerves_hub.device_link.dispatch_timeout"
+      assert log =~ "call=extension_message"
+      assert log =~ "node=web@10.0.0.1"
+      assert log =~ "timeout=5000"
+    end
+  end
+
+  describe "log_event [:nerves_hub, :device_link, :unanswered]" do
+    test "says what the device lost, and why" do
+      metadata = %{
+        function: :device_message,
+        reason: :timeout,
+        error: %TimeoutError{function: :device_message, node: :"web@10.0.0.1", timeout: 5_000},
+        device_id: 1234
+      }
+
+      log =
+        capture_log([metadata: [:event, :call, :reason, :device_id, :detail]], fn ->
+          NHLogger.log_event([:nerves_hub, :device_link, :unanswered], %{count: 1}, metadata, :ok)
+        end)
+
+      assert log =~ "[warning] Platform did not answer, device channel closed for the device to rejoin"
+      assert log =~ "event=nerves_hub.device_link.unanswered"
+      assert log =~ "call=device_message"
+      assert log =~ "reason=timeout"
+      assert log =~ "device_id=1234"
+      assert log =~ "detail=DeviceLink device_message did not finish on web@10.0.0.1 within 5000 ms"
+    end
+
+    for {function, cost} <- [
+          device_join: "join refused",
+          extensions_join: "join refused",
+          device_notify: "device channel closed for the device to rejoin",
+          device_broadcast: "device channel closed for the device to rejoin",
+          extension_message: "message dropped",
+          extension_info: "message dropped",
+          heartbeat: "heartbeat not recorded",
+          disconnect: "disconnect not recorded"
+        ] do
+      test "says #{function} cost: #{cost}" do
+        function = unquote(function)
+
+        metadata = %{
+          function: function,
+          reason: :no_handlers,
+          error: %NoHandlersError{function: function},
+          device_id: 1
+        }
+
+        log =
+          capture_log(fn ->
+            NHLogger.log_event([:nerves_hub, :device_link, :unanswered], %{count: 1}, metadata, :ok)
+          end)
+
+        assert log =~ "Platform did not answer, #{unquote(cost)}"
+      end
     end
   end
 
