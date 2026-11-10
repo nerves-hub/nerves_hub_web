@@ -194,6 +194,60 @@ end
 
 # only set this in :prod as not to override the :dev config
 if config_env() == :prod do
+  # The ways anyone can create an account. Someone with a pending invite can
+  # always create one.
+  google_configured? = !is_nil(System.get_env("GOOGLE_CLIENT_ID"))
+
+  sign_up_methods =
+    case System.get_env("SIGN_UP_METHODS") do
+      nil ->
+        # `OPEN_FOR_REGISTRATIONS=true` is the older way of opening sign up, and
+        # opened it to Google sign-in too.
+        if System.get_env("OPEN_FOR_REGISTRATIONS", "false") == "true" do
+          if google_configured?, do: [:password, :google], else: [:password]
+        else
+          if google_configured? do
+            IO.warn(
+              """
+              Google sign-in can no longer create accounts unless SIGN_UP_METHODS \
+              includes `google`. Set SIGN_UP_METHODS=google to let anyone with a \
+              Google account sign up, or SIGN_UP_METHODS=none to keep sign up to \
+              invites and stop this warning.
+              """,
+              []
+            )
+          end
+
+          []
+        end
+
+      value ->
+        value
+        |> String.split(",", trim: true)
+        |> Enum.map(&String.trim/1)
+        |> Enum.flat_map(fn
+          "none" ->
+            []
+
+          "password" ->
+            [:password]
+
+          "google" ->
+            if !google_configured? do
+              raise "SIGN_UP_METHODS includes `google`, which needs GOOGLE_CLIENT_ID to be set"
+            end
+
+            [:google]
+
+          other ->
+            raise """
+            unknown value "#{other}" in SIGN_UP_METHODS
+            supported values are "password", "google" and "none"
+            """
+        end)
+        |> Enum.uniq()
+    end
+
   config :logfmt_ex, :opts,
     message_key: "msg",
     timestamp_key: "ts",
@@ -204,8 +258,7 @@ if config_env() == :prod do
     format: {NervesHub.Logger, :format},
     metadata: :all
 
-  config :nerves_hub,
-    open_for_registrations: System.get_env("OPEN_FOR_REGISTRATIONS", "false") == "true"
+  config :nerves_hub, sign_up_methods: sign_up_methods
 end
 
 if level = System.get_env("LOG_LEVEL") do

@@ -290,6 +290,9 @@ defmodule NervesHubWeb.Router do
 
     get("/logout", SessionController, :delete)
 
+    # Behind sign in so only the account that asked for the change can use it
+    get("/account/confirm-email/:token", AccountController, :confirm_email)
+
     get("/auth/cli", SessionController, :cli)
     post("/auth/cli", SessionController, :cli_code)
     post("/auth/cli/confirm", SessionController, :cli_confirm)

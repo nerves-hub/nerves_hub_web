@@ -10,6 +10,7 @@ defmodule NervesHubWeb.Auth do
   alias NervesHub.Accounts.PubSub, as: AccessPubSub
   alias NervesHub.Accounts.Scope
   alias NervesHub.Accounts.User
+  alias NervesHub.Accounts.UserToken
 
   # Make the remember me cookie valid for 60 days.
   # If you want bump or reduce this value, also change
@@ -44,6 +45,25 @@ defmodule NervesHubWeb.Auth do
     |> put_token_in_session(token)
     |> maybe_write_remember_me_cookie(token, params)
     |> redirect_after_login(user_return_to)
+  end
+
+  @doc """
+  Links the Google account a Google sign-in left in the session, waiting for
+  proof that `user`'s account belongs to whoever is signing in (see
+  `NervesHubWeb.OAuthController`).
+
+  Call it just before `log_in_user/3`, from the sign-ins that prove it: the
+  account's password, or a password reset. Signing in clears the session, so a
+  pending link is only ever tried once.
+  """
+  @spec link_pending_google_account(Plug.Conn.t(), User.t()) :: Plug.Conn.t()
+  def link_pending_google_account(conn, %User{} = user) do
+    with %{} = pending <- get_session(conn, :pending_google_link),
+         {:ok, _user} <- Accounts.link_google_account(user, pending) do
+      put_flash(conn, :info, "Your Google account is now connected.")
+    else
+      _ -> conn
+    end
   end
 
   defp redirect_after_login(conn, return_to) do
@@ -342,7 +362,7 @@ defmodule NervesHubWeb.Auth do
   defp put_token_in_session(conn, token) do
     conn
     |> put_session(:user_token, token)
-    |> put_session(:live_socket_id, "users_sessions:#{Base.url_encode64(token)}")
+    |> put_session(:live_socket_id, UserToken.live_socket_id(token))
   end
 
   defp maybe_store_return_to(%{method: "GET"} = conn) do

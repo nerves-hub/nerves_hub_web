@@ -6,6 +6,7 @@ defmodule NervesHubWeb.Live.Org.Users do
   alias NervesHub.Accounts.Org
   alias NervesHub.Accounts.UserNotifier
   alias NervesHubWeb.Components.Utils
+  alias NervesHubWeb.InviteLinks
   alias NervesHubWeb.Mounts.OrgCounts
 
   on_mount(OrgCounts)
@@ -60,7 +61,9 @@ defmodule NervesHubWeb.Live.Org.Users do
       {:ok, %Invite{} = invite} ->
         has_account? = match?({:ok, _user}, Accounts.get_user_by_email(invite.email))
 
-        _ = UserNotifier.deliver_user_invite(invite.email, org, invited_by, invite_url(invite), has_account?)
+        _ =
+          UserNotifier.deliver_user_invite(invite.email, org, invited_by, InviteLinks.emailed_url(invite), has_account?)
+
         _ = UserNotifier.deliver_all_tell_org_user_invited(org, invited_by, invite.email)
 
         socket
@@ -87,7 +90,7 @@ defmodule NervesHubWeb.Live.Org.Users do
             invite.email,
             org,
             invite.invited_by,
-            invite_url(invite),
+            InviteLinks.emailed_url(invite),
             has_account?
           )
 
@@ -229,7 +232,8 @@ defmodule NervesHubWeb.Live.Org.Users do
 
   # Only ever rendered for someone allowed to manage invites - the token is the
   # invite's credential, so it must not reach anybody else's DOM.
-  defp invite_url(invite), do: url(~p"/invite/#{invite.token}")
+  # The link to copy, which doesn't have the key the emailed one has
+  defp invite_url(invite), do: InviteLinks.shared_url(invite)
 
   # `invited_by_id` predates being required, so old invites can still be orphaned
   defp invited_by_name(%{invited_by: %{name: name}}), do: name

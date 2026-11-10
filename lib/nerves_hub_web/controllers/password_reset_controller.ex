@@ -46,6 +46,7 @@ defmodule NervesHubWeb.PasswordResetController do
       {:ok, updated_user} ->
         conn
         |> put_flash(:info, "Password reset successfully.")
+        |> Auth.link_pending_google_account(updated_user)
         |> Auth.log_in_user(updated_user, user_params)
 
       {:error, changeset} ->

@@ -63,6 +63,8 @@
         <OAuthLinks.render divider="or sign up with email" />
 
         <.form :let={f} for={@changeset} as={:user} action={~p"/invite/#{@token}"} method="post" class="flex flex-col gap-5">
+          <input :if={@key} type="hidden" name="key" value={@key} />
+
           <.input field={f[:name]} label="Name" autocomplete="name" placeholder="Jane Doe" />
           <.input field={f[:password]} type="password" label="Password" autocomplete="new-password" hint="At least 12 characters" required />
 

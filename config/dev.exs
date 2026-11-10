@@ -134,6 +134,6 @@ config :nerves_hub, NervesHubWeb.DeviceSocket,
 config :nerves_hub, firmware_upload: NervesHub.Firmwares.Upload.File
 
 config :nerves_hub,
-  open_for_registrations: true
+  sign_up_methods: [:password, :google]
 
 config :open_api_spex, :cache_adapter, NoneCache

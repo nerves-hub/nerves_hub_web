@@ -51,10 +51,13 @@
     </.form>
   </div>
 
-  <:footer :if={Application.get_env(:nerves_hub, :open_for_registrations)}>
+  <:footer :if={NervesHub.Accounts.sign_up_allowed?(:password)}>
     Don't have an account? <.link href={~p"/register"} class="font-semibold text-primary hover:text-primary-hover light:text-indigo-600 light:hover:text-indigo-500">Create one</.link>
   </:footer>
-  <:footer :if={!Application.get_env(:nerves_hub, :open_for_registrations)}>
+  <:footer :if={!NervesHub.Accounts.sign_up_allowed?(:password) && NervesHub.Accounts.sign_up_allowed?(:google)}>
+    <p>Don't have an account? Sign in with Google to create one.</p>
+  </:footer>
+  <:footer :if={!NervesHub.Accounts.sign_up_allowed?(:password) && !NervesHub.Accounts.sign_up_allowed?(:google)}>
     <p>Don't have an account? Ask your platform admin for an invite.</p>
   </:footer>
 </Layouts.auth>

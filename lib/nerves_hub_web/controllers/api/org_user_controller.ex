@@ -7,6 +7,7 @@ defmodule NervesHubWeb.API.OrgUserController do
   alias NervesHubWeb.API.OpenAPI.SchemaHelpers
   alias NervesHubWeb.API.Schemas.ErrorSchemas
   alias NervesHubWeb.API.Schemas.OrgUserSchemas
+  alias NervesHubWeb.InviteLinks
 
   plug(:validate_role, org: :admin)
 
@@ -89,7 +90,7 @@ defmodule NervesHubWeb.API.OrgUserController do
     # Whether or not the invitee has an account already, they have to accept the
     # invitation before they join the organization.
     with {:ok, invite} <- Accounts.invite(%{"email" => email, "role" => role}, org, invited_by) do
-      invite_url = url(~p"/invite/#{invite.token}")
+      invite_url = InviteLinks.emailed_url(invite)
       has_account? = match?({:ok, _user}, Accounts.get_user_by_email(email))
 
       # Let every other admin in the organization know about this new user.

@@ -314,6 +314,15 @@ defmodule NervesHubWeb.API.FallbackController do
     |> render(:"401", %{reason: "Authentication failed, please check your username and password and try again."})
   end
 
+  def call(conn, {:error, :email_not_confirmed}) do
+    conn
+    |> put_status(401)
+    |> put_view(ErrorJSON)
+    |> render(:"401", %{
+      reason: "Confirm your email address before signing in. Signing in on the web sends a new confirmation link."
+    })
+  end
+
   def call(conn, {:error, reason}) when is_binary(reason) or is_atom(reason) do
     conn
     |> put_status(500)

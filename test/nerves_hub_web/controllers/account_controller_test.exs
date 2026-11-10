@@ -1,5 +1,6 @@
 defmodule NervesHubWeb.AccountControllerTest do
-  use NervesHubWeb.ConnCase.Browser, async: true
+  # Not async: the tests flip the app-wide sign up setting other tests read.
+  use NervesHubWeb.ConnCase.Browser, async: false
 
   import NervesHub.Support.Emails
   import Swoosh.TestAssertions
@@ -8,10 +9,11 @@ defmodule NervesHubWeb.AccountControllerTest do
   alias NervesHub.Accounts.UserToken
   alias NervesHub.Fixtures
   alias NervesHub.Repo
+  alias NervesHubWeb.InviteLinks
 
   describe "new" do
     test "renders registration form when registrations are enabled" do
-      Application.put_env(:nerves_hub, :open_for_registrations, true)
+      Application.put_env(:nerves_hub, :sign_up_methods, [:password, :google])
 
       build_conn()
       |> visit(~p"/register")
@@ -19,18 +21,18 @@ defmodule NervesHubWeb.AccountControllerTest do
     end
 
     test "redirects to /login with a flash when registrations are disabled" do
-      Application.put_env(:nerves_hub, :open_for_registrations, false)
+      Application.put_env(:nerves_hub, :sign_up_methods, [])
 
       build_conn()
       |> visit(~p"/register")
       |> assert_path(~p"/login")
-      |> assert_has("[role='alert']", text: "Please contact support for an invite to this platform.")
+      |> assert_has("[role='alert']", text: "Please contact your platform admin for an invite.")
     end
   end
 
   describe "create" do
     test "registers new account" do
-      Application.put_env(:nerves_hub, :open_for_registrations, true)
+      Application.put_env(:nerves_hub, :sign_up_methods, [:password, :google])
 
       build_conn()
       |> visit(~p"/register")
@@ -54,7 +56,7 @@ defmodule NervesHubWeb.AccountControllerTest do
     end
 
     test "requires name, email, and password, to create a new account" do
-      Application.put_env(:nerves_hub, :open_for_registrations, true)
+      Application.put_env(:nerves_hub, :sign_up_methods, [:password, :google])
 
       build_conn()
       |> visit(~p"/register")
@@ -72,7 +74,7 @@ defmodule NervesHubWeb.AccountControllerTest do
     end
 
     test "doesn't register an account when registrations are disabled" do
-      Application.put_env(:nerves_hub, :open_for_registrations, false)
+      Application.put_env(:nerves_hub, :sign_up_methods, [])
 
       conn =
         post(build_conn(), ~p"/register", %{
@@ -91,8 +93,8 @@ defmodule NervesHubWeb.AccountControllerTest do
       refute_email_sent()
     end
 
-    test "confirm account and be logged in" do
-      Application.put_env(:nerves_hub, :open_for_registrations, true)
+    test "confirm account, then sign in" do
+      Application.put_env(:nerves_hub, :sign_up_methods, [:password, :google])
 
       params = %{
         name: "Sgt Pepper",
@@ -107,6 +109,11 @@ defmodule NervesHubWeb.AccountControllerTest do
 
       build_conn()
       |> visit(~p"/confirm/#{encoded_token}")
+      |> assert_path(~p"/login")
+      |> assert_has("[role='alert']", text: "Your email address is confirmed. Sign in to continue.")
+      |> fill_in("Email", with: "sgtpepper@geocities.com")
+      |> fill_in("Password", with: "JohnRingoPaulGeorge")
+      |> submit()
       |> assert_path(~p"/orgs")
 
       platform_name = Application.get_env(:nerves_hub, :support_email_platform_name)
@@ -121,7 +128,7 @@ defmodule NervesHubWeb.AccountControllerTest do
     end
 
     test "send new confirm account email if the token is older than 1 day" do
-      Application.put_env(:nerves_hub, :open_for_registrations, true)
+      Application.put_env(:nerves_hub, :sign_up_methods, [:password, :google])
 
       params = %{
         name: "Sgt Pepper",
@@ -162,7 +169,27 @@ defmodule NervesHubWeb.AccountControllerTest do
   end
 
   describe "invite" do
-    test "- registering from an invite joins the org and logs the user in", %{org: org, user: user} do
+    test "- registering from the emailed invite link confirms the account", %{org: org, user: user} do
+      {:ok, invite} = Accounts.invite(%{"email" => "joe@example.com", "role" => "view"}, org, user)
+      %URI{path: path, query: query} = URI.parse(InviteLinks.emailed_url(invite))
+
+      build_conn()
+      |> visit("#{path}?#{query}")
+      |> fill_in("Name", with: "Sgt Pepper")
+      |> fill_in("Password", with: "JohnRingoPaulGeorge")
+      |> submit()
+      |> assert_path(~p"/orgs")
+
+      send_queued_emails()
+
+      refute_email_sent(subject: "NervesHub: Confirm your account")
+      assert {:ok, %{confirmed_at: %NaiveDateTime{}}} = Accounts.get_user_by_email("joe@example.com")
+    end
+
+    test "- registering from the copied invite link joins the org, but signs in only once the address is confirmed", %{
+      org: org,
+      user: user
+    } do
       {:ok, invite} =
         Accounts.invite(%{"email" => "joe@example.com", "role" => "view"}, org, user)
 
@@ -175,14 +202,70 @@ defmodule NervesHubWeb.AccountControllerTest do
       |> fill_in("Name", with: "Sgt Pepper")
       |> fill_in("Password", with: "JohnRingoPaulGeorge")
       |> submit()
-      |> assert_path(~p"/orgs")
-      |> assert_has("[role='alert']", text: "Welcome to NervesHub!")
-      |> assert_has("div", text: org.name)
+      |> assert_has("h1", text: "Confirm your email")
+      |> assert_has("span", text: "We sent a link to the address you were invited at.")
+      |> refute_has("body", text: "joe@example.com")
+      |> visit(~p"/orgs")
+      |> assert_path(~p"/login")
 
       send_queued_emails()
 
+      # Admins can see invite links, so the address still has to be confirmed
+      assert_email_sent(to: [{"", "joe@example.com"}], subject: "NervesHub: Confirm your account")
+      assert {:ok, %{confirmed_at: nil} = joe} = Accounts.get_user_by_email("joe@example.com")
+      assert {:ok, _org_user} = Accounts.get_org_user(org, joe)
+
       # don't send email to admin who added the user
       refute_email_sent(subject: "NervesHub: Sgt Pepper has been added to Jeff")
+    end
+
+    # The copied link isn't only the invitee's: an admin can register with it
+    # and choose the password. Neither registering nor following the
+    # confirmation link the invitee is then sent signs anyone in.
+    test "- an account registered from the copied link isn't signed in to by registering or by confirming", %{
+      org: org,
+      user: user
+    } do
+      {:ok, invite} = Accounts.invite(%{"email" => "joe@example.com", "role" => "view"}, org, user)
+
+      build_conn()
+      |> visit(~p"/invite/#{invite.token}")
+      |> fill_in("Name", with: "Not Joe")
+      |> fill_in("Password", with: "chosen-by-the-admin")
+      |> submit()
+      |> visit(~p"/orgs")
+      |> assert_path(~p"/login")
+
+      build_conn()
+      |> visit(confirmation_path("joe@example.com"))
+      |> assert_path(~p"/login")
+      |> assert_has("[role='alert']", text: "Your email address is confirmed. Sign in to continue.")
+      |> visit(~p"/orgs")
+      |> assert_path(~p"/login")
+
+      assert {:ok, %{confirmed_at: %NaiveDateTime{}}} = Accounts.get_user_by_email("joe@example.com")
+    end
+
+    test "- the invitee who registered from the copied link signs in once they confirm", %{
+      org: org,
+      user: user
+    } do
+      {:ok, invite} = Accounts.invite(%{"email" => "joe@example.com", "role" => "view"}, org, user)
+
+      build_conn()
+      |> visit(~p"/invite/#{invite.token}")
+      |> fill_in("Name", with: "Sgt Pepper")
+      |> fill_in("Password", with: "JohnRingoPaulGeorge")
+      |> submit()
+      |> visit(confirmation_path("joe@example.com"))
+      |> assert_path(~p"/login")
+      |> fill_in("Email", with: "joe@example.com")
+      |> fill_in("Password", with: "JohnRingoPaulGeorge")
+      |> submit()
+      |> assert_path(~p"/orgs")
+      |> assert_has("div", text: org.name)
+
+      assert {:ok, %{confirmed_at: %NaiveDateTime{}}} = Accounts.get_user_by_email("joe@example.com")
     end
 
     test "- an invitee with an account is asked to sign in first", %{org: org, user: user} do
@@ -262,6 +345,65 @@ defmodule NervesHubWeb.AccountControllerTest do
       |> assert_path(~p"/login")
       |> assert_has("div", text: "Invalid or expired invite")
     end
+  end
+
+  describe "confirm_email" do
+    test "changes the email of the signed in account that asked for it", %{conn: conn, user: user} do
+      token = request_email_change(user, "ringo@drums.com")
+
+      conn
+      |> visit(~p"/account/confirm-email/#{token}")
+      |> assert_path(~p"/account")
+      |> assert_has("div", text: "Your email address is now ringo@drums.com.")
+
+      assert Repo.reload(user).email == "ringo@drums.com"
+    end
+
+    test "does nothing for a different signed in account", %{conn: conn, user: user} do
+      someone_else = Fixtures.user_fixture()
+      token = request_email_change(someone_else, "ringo@drums.com")
+
+      conn
+      |> visit(~p"/account/confirm-email/#{token}")
+      |> assert_path(~p"/account")
+      |> assert_has("div", text: "That email change link is invalid or has expired.")
+
+      assert Repo.reload(someone_else).email == someone_else.email
+      assert Repo.reload(user).email == user.email
+    end
+
+    test "asks a signed out visitor to sign in first", %{user: user} do
+      token = request_email_change(user, "ringo@drums.com")
+
+      build_conn()
+      |> visit(~p"/account/confirm-email/#{token}")
+      |> assert_path(~p"/login")
+
+      assert Repo.reload(user).email == user.email
+    end
+  end
+
+  defp request_email_change(user, new_email) do
+    test_pid = self()
+
+    {:ok, _user, ^new_email} =
+      Accounts.update_user(user, %{"email" => new_email, "current_password" => "test_password"}, fn token ->
+        send(test_pid, {:token, token})
+        token
+      end)
+
+    assert_received {:token, token}
+    token
+  end
+
+  # The path in the confirmation email sent to `email`.
+  defp confirmation_path(email) do
+    send_queued_emails()
+
+    assert_received {:email, %{to: [{_, ^email}], subject: "NervesHub: Confirm your account", text_body: body}}
+
+    [path] = Regex.run(~r{/confirm/[\w-]+}, body)
+    path
   end
 
   defp signed_in_conn(user) do

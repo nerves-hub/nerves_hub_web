@@ -424,8 +424,9 @@ sent. The addresses and names below are read in every environment.
 
 | Variable | Default | Description |
 | --- | --- | --- |
-| `OPEN_FOR_REGISTRATIONS` | `false` | Allow anyone to create an account. Prod only. |
-| `GOOGLE_CLIENT_ID` | — | Setting it enables "Sign in with Google". |
+| `SIGN_UP_METHODS` | — | Comma-separated ways anyone can create an account: `password` (the sign up form) and `google` (Google sign-in, which needs `GOOGLE_CLIENT_ID`). `none`, or leaving it unset, keeps sign up to people with a pending invite, who can always create an account either way. An unknown value stops the node from starting. Prod only. |
+| `OPEN_FOR_REGISTRATIONS` | `false` | The older way of opening sign up. When `SIGN_UP_METHODS` isn't set, `true` means `password`, plus `google` if `GOOGLE_CLIENT_ID` is set. Prod only. |
+| `GOOGLE_CLIENT_ID` | — | Setting it enables "Sign in with Google". It only accepts an address Google has verified, and only signs in to an existing account once that account is linked to the Google account, which its owner does by signing in with the account's password, or resetting it, after the Google attempt. It creates accounts only when `SIGN_UP_METHODS` includes `google` or the address has a pending invite; while neither `SIGN_UP_METHODS` nor `OPEN_FOR_REGISTRATIONS` is set, the node warns about this when it starts. |
 | `GOOGLE_CLIENT_SECRET` | — | OAuth client secret. |
 | `SESSION_COOKIE_DOMAIN` | — | Scopes the session cookie to a parent domain, e.g. `.example.com`, so a sibling subdomain can read it. Used for shared-session SSO between apps. |
 | `SESSION_COOKIE_KEY` | `_nerves_hub_key` | Name of the session cookie. Set it when another NervesHub on a sibling host scopes its cookie to a shared parent domain: the browser sends both, the server reads the first, and forms fail CSRF with a 403 whenever it picks the other instance's. |

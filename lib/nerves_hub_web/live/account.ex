@@ -59,13 +59,21 @@ defmodule NervesHubWeb.Live.Account do
   end
 
   def handle_event("update-details", %{"user" => params}, socket) do
+    confirm_url = &url(~p"/account/confirm-email/#{&1}")
+
     socket.assigns.current_scope.user
-    |> Accounts.update_user(params)
+    |> Accounts.update_user(params, confirm_url)
     |> case do
-      {:ok, user} ->
+      {:ok, user, nil} ->
         socket
         |> assign(:user, user)
         |> put_flash(:info, "Account updated")
+        |> noreply()
+
+      {:ok, user, new_email} ->
+        socket
+        |> assign(:user, user)
+        |> put_flash(:info, "We've emailed a link to #{new_email}. Your email address will change when you follow it.")
         |> noreply()
 
       {:error, changeset} ->

@@ -20,7 +20,7 @@ defmodule NervesHubWeb.SessionControllerTest do
     end
 
     test "visiting the registration page redirects to the signed in landing page", %{conn: conn} do
-      Application.put_env(:nerves_hub, :open_for_registrations, true)
+      Application.put_env(:nerves_hub, :sign_up_methods, [:password, :google])
 
       conn
       |> visit(~p"/register")
@@ -28,7 +28,7 @@ defmodule NervesHubWeb.SessionControllerTest do
     end
 
     test "confirming an account still works, since a session says nothing about being confirmed" do
-      Application.put_env(:nerves_hub, :open_for_registrations, true)
+      Application.put_env(:nerves_hub, :sign_up_methods, [:password, :google])
 
       {:ok, user} =
         Accounts.create_user(%{
@@ -48,14 +48,19 @@ defmodule NervesHubWeb.SessionControllerTest do
       |> init_test_session(%{"user_token" => session_token})
       |> visit(~p"/confirm/#{encoded_token}")
       |> assert_path(~p"/orgs")
+      # and still as them: following the link doesn't sign in to the account it confirms
+      |> visit(~p"/account/delete")
+      |> assert_has("span", text: someone_else.email)
 
       assert Repo.reload(user).confirmed_at
     end
   end
 
   describe "confirm account" do
-    test "and log in user" do
-      Application.put_env(:nerves_hub, :open_for_registrations, true)
+    # Following the link proves the address, not that whoever follows it chose
+    # the account's password, so it doesn't sign them in.
+    test "and ask the user to sign in" do
+      Application.put_env(:nerves_hub, :sign_up_methods, [:password, :google])
 
       params = %{
         name: "Sgt Pepper",
@@ -70,7 +75,12 @@ defmodule NervesHubWeb.SessionControllerTest do
 
       build_conn()
       |> visit(~p"/confirm/#{encoded_token}")
-      |> assert_path(~p"/orgs")
+      |> assert_path(~p"/login")
+      |> assert_has("[role='alert']", text: "Your email address is confirmed. Sign in to continue.")
+      |> visit(~p"/orgs")
+      |> assert_path(~p"/login")
+
+      assert Repo.reload(user).confirmed_at
 
       platform_name = Application.get_env(:nerves_hub, :support_email_platform_name)
 
@@ -84,7 +94,7 @@ defmodule NervesHubWeb.SessionControllerTest do
     end
 
     test "and send new confirm account email if the token is older than 1 day" do
-      Application.put_env(:nerves_hub, :open_for_registrations, true)
+      Application.put_env(:nerves_hub, :sign_up_methods, [:password, :google])
 
       params = %{
         name: "Sgt Pepper",
@@ -126,18 +136,18 @@ defmodule NervesHubWeb.SessionControllerTest do
 
   describe "login page" do
     setup do
-      previous = Application.fetch_env(:nerves_hub, :open_for_registrations)
+      previous = Application.fetch_env(:nerves_hub, :sign_up_methods)
 
       on_exit(fn ->
         case previous do
-          {:ok, value} -> Application.put_env(:nerves_hub, :open_for_registrations, value)
-          :error -> Application.delete_env(:nerves_hub, :open_for_registrations)
+          {:ok, value} -> Application.put_env(:nerves_hub, :sign_up_methods, value)
+          :error -> Application.delete_env(:nerves_hub, :sign_up_methods)
         end
       end)
     end
 
     test "links to sign up when registrations are open" do
-      Application.put_env(:nerves_hub, :open_for_registrations, true)
+      Application.put_env(:nerves_hub, :sign_up_methods, [:password, :google])
 
       build_conn()
       |> visit(~p"/login")
@@ -145,8 +155,17 @@ defmodule NervesHubWeb.SessionControllerTest do
       |> refute_has("p", text: "Ask your platform admin for an invite.")
     end
 
+    test "points to Google instead of the sign up form when sign up is open to Google only" do
+      Application.put_env(:nerves_hub, :sign_up_methods, [:google])
+
+      build_conn()
+      |> visit(~p"/login")
+      |> assert_has("p", text: "Don't have an account? Sign in with Google to create one.")
+      |> refute_has("a[href='/register']")
+    end
+
     test "points to the platform admin instead of sign up when registrations are closed" do
-      Application.put_env(:nerves_hub, :open_for_registrations, false)
+      Application.put_env(:nerves_hub, :sign_up_methods, [])
 
       build_conn()
       |> visit(~p"/login")

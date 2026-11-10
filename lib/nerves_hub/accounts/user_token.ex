@@ -11,6 +11,7 @@ defmodule NervesHub.Accounts.UserToken do
   @hash_algorithm :sha512
 
   @confirm_validity_in_days 1
+  @change_email_validity_in_days 1
   @password_reset_validity_in_days 1
   @session_validity_in_days 60
 
@@ -24,6 +25,9 @@ defmodule NervesHub.Accounts.UserToken do
     field(:note, :string)
 
     field(:last_used, :utc_datetime)
+
+    # The new address a change of email token was mailed to
+    field(:sent_to, :string)
 
     # This is needed to keep the old token format working.
     # Safe to remove once we only support the new format.
@@ -56,6 +60,13 @@ defmodule NervesHub.Accounts.UserToken do
     token = :crypto.strong_rand_bytes(@rand_size)
     {token, %__MODULE__{token: token, context: "session", user_id: user.id, note: trim(note)}}
   end
+
+  @doc """
+  The id of every socket opened with a session token: the session's
+  `live_socket_id`. Broadcasting `"disconnect"` to it closes them all.
+  """
+  @spec live_socket_id(binary()) :: String.t()
+  def live_socket_id(token), do: "users_sessions:#{Base.url_encode64(token)}"
 
   @doc """
   Builds a token and its hash to be used in instances where a tokens storage is not
@@ -179,6 +190,17 @@ defmodule NervesHub.Accounts.UserToken do
     verify_token_query(token, "reset_password")
   end
 
+  @doc """
+  Checks a change of email token, and returns its lookup query.
+
+  The query returns a tuple of User and UserToken `{user, user_token}`. The
+  token's `sent_to` is the new address, and `context` is `"change:"` followed by
+  the email the account had when the change was asked for.
+  """
+  def verify_change_email_token_query(token, "change:" <> _ = context) do
+    verify_token_query(token, context)
+  end
+
   defp verify_token_query(<<"nhu_", token_with_crc::binary>>, context) do
     with {:ok, <<token::32-bytes, crc::32>>} <- Base62.decode(token_with_crc),
          :ok <- assert_crc(token, crc) do
@@ -205,6 +227,10 @@ defmodule NervesHub.Accounts.UserToken do
 
   def token_still_valid?(:confirm, token) do
     token_still_valid?(@confirm_validity_in_days, token)
+  end
+
+  def token_still_valid?(:change_email, token) do
+    token_still_valid?(@change_email_validity_in_days, token)
   end
 
   def token_still_valid?(:password_reset, token) do

@@ -26,6 +26,7 @@ defmodule NervesHub.Accounts do
   alias NervesHub.Products
   alias NervesHub.Products.Product
   alias NervesHub.Repo
+  alias Phoenix.Channel.Server, as: ChannelServer
 
   @typedoc """
   Why an invite can't be rescinded or resent: it was accepted, it was declined,
@@ -447,12 +448,16 @@ defmodule NervesHub.Accounts do
   end
 
   @doc """
-  Authenticates a user by their email and password. Returns the user if the
-  user is found and the password is correct, otherwise nil.
+  Authenticates a user by their email and password, for the API.
+
+  An account whose email hasn't been confirmed is refused with
+  `:email_not_confirmed`, as signing in on the web is: until it is, nobody has
+  shown the address is theirs. The password is checked first, so only someone
+  who knows it learns the account is unconfirmed.
   """
   @spec authenticate(String.t(), String.t()) ::
           {:ok, User.t()}
-          | {:error, :authentication_failed}
+          | {:error, :authentication_failed | :email_not_confirmed}
   def authenticate(_, nil) do
     Bcrypt.no_user_verify()
     {:error, :authentication_failed}
@@ -462,7 +467,7 @@ defmodule NervesHub.Accounts do
     with {:ok, user} <- get_user_by_email(email),
          true <- is_binary(user.password_hash),
          true <- Bcrypt.verify_pass(password, user.password_hash) do
-      {:ok, user}
+      if user.confirmed_at, do: {:ok, user}, else: {:error, :email_not_confirmed}
     else
       _ ->
         # User wasn't found; do dummy check to make user enumeration more difficult
@@ -951,14 +956,21 @@ defmodule NervesHub.Accounts do
     |> Repo.exists?()
   end
 
-  # An invite is live for 48 hours after it was last sent. Keying off
-  # `updated_at` rather than `inserted_at` is what lets a resend put an expired
-  # invite back in play - an invite that has never been resent has the two
-  # timestamps set to the same value.
+  @invite_validity_hours 48
+
+  @doc """
+  How long an invite stays valid after it was last sent, in seconds.
+  """
+  def invite_validity_seconds(), do: @invite_validity_hours * 60 * 60
+
+  # An invite is live for `@invite_validity_hours` after it was last sent.
+  # Keying off `updated_at` rather than `inserted_at` is what lets a resend put
+  # an expired invite back in play - an invite that has never been resent has
+  # the two timestamps set to the same value.
   defp pending(query) do
     query
     |> unaccepted()
-    |> where([i], i.updated_at >= fragment("NOW() - INTERVAL '48 hours'"))
+    |> where([i], i.updated_at >= fragment("NOW() - (? * INTERVAL '1 hour')", ^@invite_validity_hours))
   end
 
   defp unaccepted(query) do
@@ -1042,54 +1054,205 @@ defmodule NervesHub.Accounts do
   end
 
   @doc """
-  Signs in a Google account, creating its user on first sign-in.
+  Signs a user in with Google, creating their account on their first visit.
 
-  A user is found by their Google account id, which stays the same when the
-  account's email address changes, so the stored email follows Google's.
-  A user who has never signed in with Google is found by email instead.
+  Google vouches for the email address only when it says it has verified it,
+  and even then it only proves who owns the address, not who owns an account
+  with that address on it. So a sign-in succeeds for:
 
-  A user already linked to a different Google account is never matched by
-  email, so an address that has passed to a new Google account doesn't sign
-  in as the user who held it before.
+    * the account already linked to this Google account (`google_id`), whose
+      email and profile follow Google's, so a user whose Google email changes
+      keeps their account
+    * a new account, when `sign_up_allowed?(:google)` or someone has invited
+      the address to an org
+
+  An existing account with the address that isn't linked to this Google
+  account is refused:
+
+    * when it isn't linked to any Google account, with `:link_required`.
+      Anyone could have registered the address without confirming it, or
+      (before email changes needed confirming) moved it onto their own account.
+      Its owner links it by signing in with its password, or resetting it, see
+      `pending_google_link/1` and `link_google_account/2`.
+    * when it's linked to another Google account, with
+      `:google_account_mismatch`, so an address that has passed to a new Google
+      account doesn't sign in as whoever held it before.
   """
   @spec update_or_create_user_from_ueberauth(Ueberauth.Auth.t()) ::
-          {:ok, User.t()} | {:error, Ecto.Changeset.t()}
-  def update_or_create_user_from_ueberauth(%Ueberauth.Auth{uid: google_id, info: info} = auth) do
-    User
-    |> where([u], u.google_id == ^google_id or (u.email == ^info.email and is_nil(u.google_id)))
-    |> Repo.exclude_deleted()
-    |> order_by([u], asc: is_nil(u.google_id))
-    |> limit(1)
-    |> Repo.one()
-    |> case do
-      nil ->
-        with {:ok, user} <-
-               %User{}
-               |> User.oauth_changeset(auth)
-               |> Repo.insert() do
-          {:ok, _} = UserNotifier.deliver_welcome_email(user)
+          {:ok, User.t()}
+          | {:error,
+             :missing_google_account_id
+             | :email_not_verified
+             | :sign_up_closed
+             | :link_required
+             | :google_account_mismatch}
+          | {:error, Ecto.Changeset.t()}
+  def update_or_create_user_from_ueberauth(%Ueberauth.Auth{uid: google_id} = auth) do
+    cond do
+      # Without one, the sign-in can't be tied to a Google account
+      not is_binary(google_id) or google_id == "" -> {:error, :missing_google_account_id}
+      not google_email_verified?(auth) -> {:error, :email_not_verified}
+      true -> sign_in_with_google(auth)
+    end
+  end
 
-          {:ok, user}
-        end
+  defp google_email_verified?(%Ueberauth.Auth{extra: %{raw_info: %{user: %{"email_verified" => true}}}}), do: true
+  defp google_email_verified?(_auth), do: false
 
-      %User{} = user ->
+  defp sign_in_with_google(%Ueberauth.Auth{uid: google_id, info: info} = auth) do
+    case find_google_user(google_id, info.email) do
+      %User{google_id: ^google_id} = user ->
         user
         |> User.oauth_changeset(auth)
         |> Repo.update()
+
+      %User{google_id: nil} ->
+        {:error, :link_required}
+
+      %User{} ->
+        {:error, :google_account_mismatch}
+
+      nil ->
+        if sign_up_allowed?(:google) or invited?(info.email) do
+          create_google_user(auth)
+        else
+          {:error, :sign_up_closed}
+        end
+    end
+  end
+
+  # The account linked to this Google account, whatever its email is now, or
+  # else the account with Google's email.
+  defp find_google_user(google_id, email) do
+    google_user =
+      User
+      |> where(google_id: ^google_id)
+      |> Repo.exclude_deleted()
+      |> Repo.one()
+
+    google_user ||
+      User
+      |> where(email: ^email)
+      |> Repo.exclude_deleted()
+      |> Repo.one()
+  end
+
+  defp create_google_user(auth) do
+    with {:ok, user} <-
+           %User{}
+           |> User.oauth_changeset(auth)
+           |> Repo.insert() do
+      {:ok, _} = UserNotifier.deliver_welcome_email(user)
+
+      {:ok, user}
     end
   end
 
   @doc """
-  Inserts a new user record, creating a org and adding a user to
-  that new org if needed
+  Whether anyone can create an account with `method`: `:password` for the sign
+  up form, `:google` for Google sign-in. `SIGN_UP_METHODS` sets the methods, and
+  with none of them only someone with a pending invite can create an account.
   """
-  @spec create_user_from_invite(Invite.t(), Org.t(), map()) ::
+  @spec sign_up_allowed?(:password | :google) :: boolean()
+  def sign_up_allowed?(method) when method in [:password, :google] do
+    method in Application.get_env(:nerves_hub, :sign_up_methods, [])
+  end
+
+  # Whether an org is waiting on this address to accept an invite. Registering
+  # from the invite page is how an invitee joins a platform that's otherwise
+  # closed, and signing up with Google from there has to work too.
+  defp invited?(email) do
+    Invite
+    |> where([i], i.email == ^email)
+    |> pending()
+    |> Repo.exists?()
+  end
+
+  @pending_google_link_seconds 10 * 60
+
+  @doc """
+  The Google account a sign-in that returned `{:error, :link_required}` was for,
+  to keep in the session until the user signs in with the account's password.
+  `link_google_account/2` then links the two.
+  """
+  @spec pending_google_link(Ueberauth.Auth.t()) :: map()
+  def pending_google_link(%Ueberauth.Auth{} = auth) do
+    %{
+      "google_id" => auth.uid,
+      "google_hd" => auth.extra.raw_info.user["hd"],
+      "email" => auth.info.email,
+      "requested_at" => System.system_time(:second)
+    }
+  end
+
+  @doc """
+  Links a Google account to a user who has just signed in with their password,
+  or reset it.
+
+  `pending` is from `pending_google_link/1`. The password proves the account is
+  theirs, and Google proved the address is, so the link is only made when the
+  account's email is still the one Google verified, the account is confirmed
+  and not linked to a Google account already, and the Google sign-in was in the
+  last ten minutes. The time limit stops a Google sign-in left behind on a
+  shared computer from being claimed by the next person to sign in there.
+  """
+  @spec link_google_account(User.t(), map()) ::
+          {:ok, User.t()}
+          | {:error, :expired | :email_mismatch | :unconfirmed | :already_linked | :invalid | Changeset.t()}
+  def link_google_account(%User{} = user, %{
+        "google_id" => google_id,
+        "google_hd" => google_hd,
+        "email" => email,
+        "requested_at" => requested_at
+      })
+      when is_binary(google_id) and google_id != "" and is_integer(requested_at) do
+    cond do
+      System.system_time(:second) - requested_at > @pending_google_link_seconds ->
+        {:error, :expired}
+
+      String.downcase(email) != String.downcase(user.email) ->
+        {:error, :email_mismatch}
+
+      is_nil(user.confirmed_at) ->
+        {:error, :unconfirmed}
+
+      not is_nil(user.google_id) ->
+        {:error, :already_linked}
+
+      true ->
+        user
+        |> Changeset.change(google_id: google_id, google_hd: google_hd)
+        |> Changeset.unique_constraint(:google_id)
+        |> Repo.update()
+    end
+  end
+
+  # A session written by a different version of `pending_google_link/1`
+  def link_google_account(%User{}, _pending), do: {:error, :invalid}
+
+  @doc """
+  Creates the account of someone who registered from an invite, with the
+  invited address, and adds them to the org.
+
+  The account starts unconfirmed unless `email_confirmed: true` is given, which
+  is only for a registration from the link emailed to the invited address.
+  Admins can copy the invite's other link, so registering from that doesn't
+  prove the address is the invitee's.
+  """
+  @spec create_user_from_invite(Invite.t(), Org.t(), map(), keyword()) ::
           {:ok, OrgUser.t()} | {:error, Ecto.Changeset.t()}
-  def create_user_from_invite(invite, org, user_params) do
+  def create_user_from_invite(invite, org, user_params, opts \\ []) do
     user_params = Map.put(user_params, "email", invite.email)
 
+    changeset =
+      if Keyword.get(opts, :email_confirmed, false) do
+        %User{} |> User.registration_changeset(user_params) |> User.maybe_add_confirmed_at()
+      else
+        User.registration_changeset(%User{}, user_params)
+      end
+
     Repo.transact(fn ->
-      with {:ok, user} <- create_user(user_params),
+      with {:ok, user} <- Repo.insert(changeset),
            {:ok, user} <- add_org_user(org, user, %{role: invite.role}),
            {:ok, _invite} <- set_invite_accepted(invite) do
         {:ok, user}
@@ -1097,14 +1260,83 @@ defmodule NervesHub.Accounts do
     end)
   end
 
-  @spec update_user(User.t(), map) ::
-          {:ok, User.t()}
+  @doc """
+  Updates a user's details from the account page.
+
+  A new name is saved straight away. A new email address isn't: it takes the
+  current password, and then the address is emailed a link (made by
+  `confirm_url_fun` from a token) that changes the account's email when the user
+  follows it, see `update_user_email/2`. Otherwise anyone could claim an address
+  they don't own, and whatever trusts the account's email (invites, Google
+  sign-in) would trust them.
+
+  Returns the address the link was sent to, or `nil` if the email didn't change.
+  """
+  @spec update_user(User.t(), map(), (String.t() -> String.t())) ::
+          {:ok, User.t(), String.t() | nil}
           | {:error, Changeset.t()}
-  def update_user(%User{} = user, user_params) do
-    user
-    |> change_user(user_params)
-    |> Repo.update()
+  def update_user(%User{} = user, user_params, confirm_url_fun) when is_function(confirm_url_fun, 1) do
+    changeset = change_user(user, user_params)
+
+    case Changeset.fetch_change(changeset, :email) do
+      {:ok, new_email} ->
+        request_email_change(changeset, new_email, confirm_url_fun)
+
+      :error ->
+        with {:ok, user} <- Repo.update(changeset) do
+          {:ok, user, nil}
+        end
+    end
   end
+
+  defp request_email_change(changeset, new_email, confirm_url_fun) do
+    changeset =
+      changeset
+      |> User.validate_new_email()
+      |> Changeset.delete_change(:email)
+
+    with {:ok, user} <- Repo.update(changeset) do
+      {encoded_token, user_token} = UserToken.build_hashed_token(user, change_email_context(user), nil)
+      Repo.insert!(%{user_token | sent_to: new_email})
+
+      {:ok, _} = UserNotifier.deliver_update_email_instructions(user, new_email, confirm_url_fun.(encoded_token))
+
+      {:ok, user, new_email}
+    end
+  end
+
+  @doc """
+  Changes a user's email to the address a link from `update_user/3` was sent to.
+
+  `user` is whoever is signed in. The link only works for the account that asked
+  for the change, and only while that account still has the email it had then,
+  so being able to read the new address's mail isn't enough on its own.
+  Following it confirms the account, since the address has now been proven.
+  """
+  @spec update_user_email(User.t(), String.t()) ::
+          {:ok, User.t()} | {:error, :invalid_token | Changeset.t()}
+  def update_user_email(%User{id: user_id} = user, token) do
+    context = change_email_context(user)
+
+    with {:ok, query} <- UserToken.verify_change_email_token_query(token, context),
+         {%User{id: ^user_id}, user_token} <- Repo.one(query),
+         true <- UserToken.token_still_valid?(:change_email, user_token) do
+      Multi.new()
+      |> Multi.update(:user, User.email_changeset(user, user_token.sent_to))
+      |> Multi.delete_all(:tokens, UserToken.by_user_and_contexts_query(user, [context]))
+      |> Repo.transact()
+      |> case do
+        {:ok, %{user: user}} -> {:ok, user}
+        {:error, :user, changeset, _} -> {:error, changeset}
+      end
+    else
+      _ -> {:error, :invalid_token}
+    end
+  end
+
+  # Tying the token to the email it was issued against means changing the email
+  # by any route leaves older links unusable.
+  defp change_email_context(%User{email: email}), do: "change:#{email}"
 
   @doc """
   Accepts an invite on behalf of a user who already has an account.
@@ -1420,7 +1652,13 @@ defmodule NervesHub.Accounts do
   end
 
   @doc """
-  Resets the user password.
+  Resets the user password, and signs the account out everywhere by deleting
+  all its tokens, API tokens included, and closing the pages and consoles
+  already open with them.
+
+  The reset link was mailed to the account's address, so following it proves
+  the user can read mail sent there, and confirms the account if it wasn't
+  already.
 
   ## Examples
 
@@ -1432,12 +1670,15 @@ defmodule NervesHub.Accounts do
 
   """
   def reset_user_password(user, attrs) do
+    tokens = select(UserToken.by_user_and_contexts_query(user, :all), [t], %{context: t.context, token: t.token})
+
     Ecto.Multi.new()
-    |> Ecto.Multi.update(:user, User.password_changeset(user, attrs))
-    |> Ecto.Multi.delete_all(:tokens, UserToken.by_user_and_contexts_query(user, :all))
+    |> Ecto.Multi.update(:user, user |> User.password_changeset(attrs) |> User.maybe_add_confirmed_at())
+    |> Ecto.Multi.delete_all(:tokens, tokens)
     |> Repo.transact()
     |> case do
-      {:ok, %{user: user}} ->
+      {:ok, %{user: user, tokens: {_count, deleted}}} ->
+        disconnect_sockets(user, deleted)
         _ = UserNotifier.deliver_reset_password_confirmation(user)
 
         {:ok, user}
@@ -1445,6 +1686,23 @@ defmodule NervesHub.Accounts do
       {:error, :user, changeset, _} ->
         {:error, changeset}
     end
+  end
+
+  # Pages and consoles opened before the reset stay open on the deleted tokens
+  # until their sockets reconnect, so they are closed now. A session's sockets
+  # share its `live_socket_id`. API sockets are known by the user alone
+  # (`NervesHubWeb.APISocket.id/1`), which is right here, as the reset revokes
+  # every one of the user's API tokens.
+  defp disconnect_sockets(user, deleted_tokens) do
+    for %{context: "session", token: token} <- deleted_tokens do
+      disconnect_socket(UserToken.live_socket_id(token))
+    end
+
+    disconnect_socket("api_socket:#{user.id}")
+  end
+
+  defp disconnect_socket(socket_id) do
+    :ok = ChannelServer.broadcast(NervesHub.PubSub, socket_id, "disconnect", %{})
   end
 
   def verify_cli_session_token(user, token) do

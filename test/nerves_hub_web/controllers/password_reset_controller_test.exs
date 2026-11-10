@@ -8,6 +8,7 @@ defmodule NervesHubWeb.PasswordResetControllerTest do
   alias NervesHub.Accounts.UserToken
   alias NervesHub.Fixtures
   alias NervesHub.Repo
+  alias Phoenix.Socket.Broadcast
 
   describe "new password_reset" do
     test "renders form", %{conn: conn} do
@@ -86,6 +87,39 @@ defmodule NervesHubWeb.PasswordResetControllerTest do
       put(conn, Routes.password_reset_path(conn, :update, encoded_token), second_params)
       {:ok, second_updated_user} = Accounts.get_user(user.id)
       assert second_updated_user.password_hash == updated_user.password_hash
+    end
+
+    # A page or console already open would otherwise keep working until its
+    # socket reconnected
+    test "closes the pages and consoles already open", %{conn: conn, user: user} do
+      signed_in = post(build_conn(), ~p"/login", %{"user" => %{"email" => user.email, "password" => "test_password"}})
+      live_socket_id = get_session(signed_in, :live_socket_id)
+      api_socket_id = "api_socket:#{user.id}"
+      :ok = NervesHubWeb.Endpoint.subscribe(live_socket_id)
+      :ok = NervesHubWeb.Endpoint.subscribe(api_socket_id)
+
+      {encoded_token, user_token} = UserToken.build_hashed_token(user, "reset_password", nil)
+      Repo.insert!(user_token)
+
+      params = %{"user" => %{"password" => "new password", "password_confirmation" => "new password"}}
+      put(conn, Routes.password_reset_path(conn, :update, encoded_token), params)
+
+      assert_receive %Broadcast{topic: ^live_socket_id, event: "disconnect"}
+      assert_receive %Broadcast{topic: ^api_socket_id, event: "disconnect"}
+    end
+
+    # The reset link went to the account's address, which proves it's theirs
+    test "confirms an unconfirmed account", %{conn: conn} do
+      {:ok, user} = Accounts.create_user(%{name: "Jane", email: "jane@person.com", password: "old password"})
+      params = %{"user" => %{"password" => "new password", "password_confirmation" => "new password"}}
+
+      {encoded_token, user_token} = UserToken.build_hashed_token(user, "reset_password", nil)
+      Repo.insert!(user_token)
+
+      reset_conn = put(conn, Routes.password_reset_path(conn, :update, encoded_token), params)
+      assert redirected_to(reset_conn) == ~p"/orgs"
+
+      refute is_nil(Repo.reload(user).confirmed_at)
     end
 
     test "with invalid params", %{conn: conn, user: user} do

@@ -25,6 +25,7 @@ defmodule NervesHub.Accounts.UserNotifier do
   alias NervesHub.Emails.TellOrgUserInvitedTemplate
   alias NervesHub.Emails.TellOrgUserRemovedTemplate
   alias NervesHub.Emails.TellOrgUserRemovedThemselfTemplate
+  alias NervesHub.Emails.UpdateEmailTemplate
   alias NervesHub.Emails.UserInviteTemplate
   alias NervesHub.Emails.WelcomeTemplate
   alias NervesHub.SwooshMailer, as: Mailer
@@ -34,6 +35,19 @@ defmodule NervesHub.Accounts.UserNotifier do
   def deliver_confirmation_instructions(user, confirmation_url) do
     Oban.insert(
       job("confirmation", user, %{
+        user_name: user.name,
+        confirmation_url: confirmation_url
+      })
+    )
+  end
+
+  @doc """
+  Emails the link that confirms a change of email address. It goes to the new
+  address, so following it proves the user can read mail sent there.
+  """
+  def deliver_update_email_instructions(user, new_email, confirmation_url) do
+    Oban.insert(
+      job("update_email", new_email, %{
         user_name: user.name,
         confirmation_url: confirmation_url
       })
@@ -210,6 +224,7 @@ defmodule NervesHub.Accounts.UserNotifier do
   defp template_module("tell_org_user_invited"), do: TellOrgUserInvitedTemplate
   defp template_module("tell_org_user_removed"), do: TellOrgUserRemovedTemplate
   defp template_module("tell_org_user_removed_themself"), do: TellOrgUserRemovedThemselfTemplate
+  defp template_module("update_email"), do: UpdateEmailTemplate
   defp template_module("user_invite"), do: UserInviteTemplate
   defp template_module("welcome"), do: WelcomeTemplate
 
@@ -234,6 +249,8 @@ defmodule NervesHub.Accounts.UserNotifier do
 
   defp subject_for("tell_org_user_removed_themself", %{removed_user_name: removed_user_name, org_name: org_name}),
     do: "#{platform_name()}: #{removed_user_name} has been removed from #{org_name}"
+
+  defp subject_for("update_email", _assigns), do: "#{platform_name()}: Confirm your new email address"
 
   defp subject_for("user_invite", %{org_name: org_name}),
     do: "#{platform_name()}: You have been invited to join #{org_name}"

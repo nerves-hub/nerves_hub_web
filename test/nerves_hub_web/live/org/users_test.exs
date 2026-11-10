@@ -6,9 +6,11 @@ defmodule NervesHubWeb.Live.Org.UsersTest do
   import Swoosh.TestAssertions
 
   alias NervesHub.Accounts
+  alias NervesHub.Accounts.Invite
   alias NervesHub.Accounts.OrgUser
   alias NervesHub.Fixtures
   alias NervesHub.Repo
+  alias NervesHubWeb.InviteLinks
 
   describe "users" do
     test "all users of the org are listed", %{conn: conn, org: org} do
@@ -208,7 +210,15 @@ defmodule NervesHubWeb.Live.Org.UsersTest do
 
       send_queued_emails()
 
-      assert_email_sent(subject: "NervesHub: You have been invited to join Jeff")
+      invite = Repo.get_by!(Invite, email: "josh@mrjosh.com")
+
+      # The email's link has the key that confirms the address, which the
+      # link admins can copy doesn't
+      assert_email_sent(fn email ->
+        assert email.subject == "NervesHub: You have been invited to join Jeff"
+        assert [_, key] = Regex.run(~r{/invite/#{invite.token}\?key=([\w.-]+)}, email.text_body)
+        assert InviteLinks.emailed_key?(invite, key)
+      end)
     end
 
     test "the pending invite lists the role and who sent it", %{conn: conn, org: org, user: user} do

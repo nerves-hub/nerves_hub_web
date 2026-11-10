@@ -3,7 +3,8 @@
     Confirm your email
   </:title>
   <:subheader>
-    We sent a link to <span class="font-semibold text-content-strong">{@email}</span>.
+    <span :if={@email}>We sent a link to <span class="font-semibold text-content-strong">{@email}</span>.</span>
+    <span :if={!@email}>We sent a link to the address you were invited at.</span>
   </:subheader>
 
   <div class="flex items-start gap-3.5">

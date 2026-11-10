@@ -104,13 +104,17 @@ defmodule NervesHub.Accounts.User do
     |> cast_embed(:display_preferences, required: true)
   end
 
-  defp maybe_add_confirmed_at(%{data: %{confirmed_at: confirmed_at}} = changeset) when is_nil(confirmed_at) do
+  @doc """
+  Confirms the account in `changeset` if it isn't confirmed yet, for changes
+  that prove the user can read mail sent to its address.
+  """
+  def maybe_add_confirmed_at(%{data: %{confirmed_at: confirmed_at}} = changeset) when is_nil(confirmed_at) do
     now = NaiveDateTime.utc_now() |> NaiveDateTime.truncate(:second)
 
     put_change(changeset, :confirmed_at, now)
   end
 
-  defp maybe_add_confirmed_at(changeset), do: changeset
+  def maybe_add_confirmed_at(changeset), do: changeset
 
   defp validate_name(changeset, _opts) do
     changeset
@@ -221,6 +225,29 @@ defmodule NervesHub.Accounts.User do
   def confirm_changeset(user) do
     now = NaiveDateTime.utc_now() |> NaiveDateTime.truncate(:second)
     change(user, confirmed_at: now)
+  end
+
+  @doc """
+  Checks the new address in an `update_changeset/2`, before it's emailed a
+  confirmation link: its format, and that no other account has it. Checking
+  here rather than when the link is followed saves mailing an address that
+  couldn't be used.
+  """
+  def validate_new_email(changeset) do
+    changeset
+    |> validate_email([])
+    |> unsafe_validate_unique(:email, Repo, query: Repo.exclude_deleted(User))
+  end
+
+  @doc """
+  Changes the email to an address whose confirmation link the user has
+  followed, which also confirms the account if it wasn't already.
+  """
+  def email_changeset(%User{} = user, email) do
+    user
+    |> cast(%{email: email}, [:email])
+    |> validate_email([])
+    |> maybe_add_confirmed_at()
   end
 
   @doc """

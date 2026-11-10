@@ -40,6 +40,7 @@ defmodule NervesHubWeb.SessionController do
       %User{} = user ->
         conn
         |> put_flash(:info, "Welcome back!")
+        |> Auth.link_pending_google_account(user)
         |> Auth.log_in_user(user, user_params)
 
       _ ->
@@ -61,9 +62,22 @@ defmodule NervesHubWeb.SessionController do
          {:user_confirmed, {:ok, user}, _} <-
            {:user_confirmed, Accounts.confirm_user(user), user},
          {:ok, _} <- UserNotifier.deliver_welcome_email(user) do
-      conn
-      |> put_flash(:info, "Welcome to NervesHub!")
-      |> Auth.log_in_user(user)
+      # Following the link proves whoever followed it reads the address, not
+      # that they chose the account's password. Someone else may have: an org
+      # admin can register an invitee from the invite link the members page
+      # shows. Signing in here would hand the address's owner an account the
+      # other person can still use, so only a session that is already this
+      # account's carries on. Anyone else signs in, and someone who never set
+      # the password resets it, which ends every other session and API token.
+      if signed_in_as?(conn, user) do
+        conn
+        |> put_flash(:info, "Welcome to NervesHub!")
+        |> redirect(to: ~p"/orgs")
+      else
+        conn
+        |> put_flash(:info, "Your email address is confirmed. Sign in to continue.")
+        |> redirect(to: ~p"/login")
+      end
     else
       {:token_valid, false, user} ->
         resend_confirmation_email(
@@ -160,6 +174,10 @@ defmodule NervesHubWeb.SessionController do
     |> assign(:page_title, "Sign in to the CLI")
     |> assign(:error_message, error_message)
     |> render(:cli)
+  end
+
+  defp signed_in_as?(conn, %User{id: id}) do
+    match?(%{user: %User{id: ^id}}, conn.assigns[:current_scope])
   end
 
   defp resend_confirmation_email(conn, user, message) do

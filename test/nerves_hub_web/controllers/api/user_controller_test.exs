@@ -4,6 +4,7 @@ defmodule NervesHubWeb.API.UserControllerTest do
   import NervesHub.Support.PhoenixTestAssertions
   import PhoenixTest, except: [assert_has: 3, assert_has: 4, refute_has: 3, refute_has: 4]
 
+  alias NervesHub.Accounts
   alias NervesHub.Fixtures
   alias NervesHub.PlugAttack.Storage, as: PlugAttackStorage
   alias NervesHub.Repo
@@ -35,6 +36,19 @@ defmodule NervesHubWeb.API.UserControllerTest do
     assert resp["data"]["name"] == user.name
     assert resp["data"]["email"] == user.email
     assert "nhu_" <> _ = resp["data"]["token"]
+  end
+
+  test "refuses an account whose email isn't confirmed" do
+    {:ok, user} =
+      Accounts.create_user(%{name: "New User", email: "account_test@test.com", password: "1234567891011"})
+
+    conn = build_conn()
+    conn = post(conn, Routes.api_user_path(conn, :auth), %{email: user.email, password: "1234567891011"})
+
+    assert json_response(conn, 401)["errors"] == %{
+             "detail" =>
+               "Confirm your email address before signing in. Signing in on the web sends a new confirmation link."
+           }
   end
 
   test "authentication shouldn't blow up if the password isn't included" do
