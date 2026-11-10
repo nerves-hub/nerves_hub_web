@@ -1251,6 +1251,33 @@ defmodule NervesHub.ManagedDeploymentsTest do
       device = ManagedDeployments.verify_deployment_group_membership(device)
       assert device.deployment_id == deployment_group.id
     end
+
+    test "removes a device in another product's deployment group, even when membership is locked", %{
+      org2: org2,
+      product2: product2,
+      firmware2: firmware2,
+      deployment_group: deployment_group
+    } do
+      {:ok, deployment_group} =
+        deployment_group
+        |> Ecto.Changeset.change(%{lock_device_membership: true})
+        |> Repo.update()
+
+      # Set directly, as request params could before the device changesets
+      # stopped casting deployment_id.
+      device =
+        org2
+        |> Fixtures.device_fixture(product2, firmware2)
+        |> Ecto.Changeset.change(%{deployment_id: deployment_group.id})
+        |> Repo.update!()
+
+      device = ManagedDeployments.verify_deployment_group_membership(device)
+      refute device.deployment_id
+      refute Repo.reload!(device).deployment_id
+
+      [audit_log | _] = AuditLogs.logs_for(deployment_group)
+      assert audit_log.description =~ "because of mismatched product"
+    end
   end
 
   describe "matched_devices_count/2" do

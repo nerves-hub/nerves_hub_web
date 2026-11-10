@@ -305,19 +305,15 @@ defmodule NervesHub.AccountsTest do
       {:ok, org} = Accounts.create_org(user, @required_org_params)
 
       {:ok, _} =
-        Accounts.create_org_key(%{
+        Accounts.create_org_key(org, user, %{
           name: "org's key",
-          org_id: org.id,
-          key: "FMBdNKrU3qlyErQtpqxsq50nGAXz03DCeEXPt2iKBe0=",
-          created_by_id: user.id
+          key: "FMBdNKrU3qlyErQtpqxsq50nGAXz03DCeEXPt2iKBe0="
         })
 
       assert {:error, %Ecto.Changeset{errors: [name: {"has already been taken", [_ | _]}]}} =
-               Accounts.create_org_key(%{
+               Accounts.create_org_key(org, user, %{
                  name: "org's key",
-                 org_id: org.id,
-                 key: "FMBdNKrU3qlyErQtpqxsq50nGAXz03DCeEXPt2iKBe0=",
-                 created_by_id: user.id
+                 key: "FMBdNKrU3qlyErQtpqxsq50nGAXz03DCeEXPt2iKBe0="
                })
     end
 
@@ -325,15 +321,13 @@ defmodule NervesHub.AccountsTest do
       {:ok, org} = Accounts.create_org(user, @required_org_params)
 
       {:ok, _} =
-        Accounts.create_org_key(%{
+        Accounts.create_org_key(org, user, %{
           name: "org's key",
-          org_id: org.id,
-          key: "FMBdNKrU3qlyErQtpqxsq50nGAXz03DCeEXPt2iKBe0=",
-          created_by_id: user.id
+          key: "FMBdNKrU3qlyErQtpqxsq50nGAXz03DCeEXPt2iKBe0="
         })
 
       {:error, %Ecto.Changeset{}} =
-        Accounts.create_org_key(%{name: "org's second key", org_id: org.id, key: "foo"})
+        Accounts.create_org_key(org, user, %{name: "org's second key", key: "foo"})
     end
 
     test "cannot change org_id once created", %{user: user} do
@@ -352,11 +346,9 @@ defmodule NervesHub.AccountsTest do
 
       assert {:error,
               %Ecto.Changeset{errors: [key: {"invalid key, please check this is a valid Ed25519 public key", []}]}} =
-               Accounts.create_org_key(%{
+               Accounts.create_org_key(org, user, %{
                  name: "org's key",
-                 org_id: org.id,
-                 key: "foobar",
-                 created_by_id: user.id
+                 key: "foobar"
                })
     end
   end
@@ -665,8 +657,8 @@ defmodule NervesHub.AccountsTest do
     test "counts an org's products, devices, members, signing keys and certificate authorities", %{user: user} do
       org = Fixtures.org_fixture(user)
       product = Fixtures.product_fixture(user, org)
-      {:ok, _} = Devices.create_device(%{org_id: org.id, product_id: product.id, identifier: "counted-1"})
-      {:ok, _} = Devices.create_device(%{org_id: org.id, product_id: product.id, identifier: "counted-2"})
+      {:ok, _} = Devices.create_device(product, %{identifier: "counted-1"})
+      {:ok, _} = Devices.create_device(product, %{identifier: "counted-2"})
       {:ok, _} = Accounts.add_org_user(org, Fixtures.user_fixture(), %{role: :view})
       _ = Fixtures.org_key_fixture(org, user)
       _ = Fixtures.ca_certificate_fixture(org)

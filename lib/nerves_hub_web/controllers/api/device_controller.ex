@@ -90,12 +90,7 @@ defmodule NervesHubWeb.API.DeviceController do
   defp validate_advanced_query(_filters, _product_id), do: :ok
 
   def create(%{assigns: %{current_scope: %{org: org, user: user}, product: product}} = conn, params) do
-    params =
-      params
-      |> Map.put("org_id", org.id)
-      |> Map.put("product_id", product.id)
-
-    with {:ok, device, shared_secret} <- create_device(params, user) do
+    with {:ok, device, shared_secret} <- create_device(product, params, user) do
       device = Devices.get_by_identifier_with_deployment_and_release!(device.identifier)
 
       conn
@@ -112,15 +107,15 @@ defmodule NervesHubWeb.API.DeviceController do
   # transaction, so a provisioner never leaves a device without credentials. It
   # is cast the way the device's own boolean fields are, and any other value is
   # refused rather than quietly creating a device without one.
-  defp create_device(params, user) do
+  defp create_device(product, params, user) do
     case Ecto.Type.cast(:boolean, params["shared_secret"]) do
       {:ok, true} ->
-        with {:ok, {device, auth}} <- Devices.create_device_with_shared_secret_auth(params, user) do
+        with {:ok, {device, auth}} <- Devices.create_device_with_shared_secret_auth(product, params, user) do
           {:ok, device, auth}
         end
 
       {:ok, not_requested} when not_requested in [false, nil] ->
-        with {:ok, device} <- Devices.create_device(params) do
+        with {:ok, device} <- Devices.create_device(product, params) do
           {:ok, device, nil}
         end
 
@@ -155,8 +150,8 @@ defmodule NervesHubWeb.API.DeviceController do
     send_resp(conn, :no_content, "")
   end
 
-  def update(%{assigns: %{device: device}} = conn, params) do
-    with {:ok, updated_device} <- Devices.update_device(device, params) do
+  def update(%{assigns: %{current_scope: %{user: user}, device: device}} = conn, params) do
+    with {:ok, updated_device} <- Devices.update_device_settings(device, params, user) do
       updated_device = Devices.get_by_identifier_with_deployment_and_release!(updated_device.identifier)
 
       conn

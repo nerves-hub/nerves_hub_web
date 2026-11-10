@@ -33,26 +33,31 @@ defmodule NervesHub.ProductsTest do
       assert Products.get_product!(product.id) == product
     end
 
-    test "create_product/1 with valid data creates a product", %{org: org} do
-      params = Enum.into(%{org_id: org.id}, @valid_attrs)
-      assert {:ok, %Product{} = product} = Products.create_product(params)
+    test "create_product/2 with valid data creates a product", %{org: org} do
+      assert {:ok, %Product{} = product} = Products.create_product(org, @valid_attrs)
       assert product.name == "some name"
+      assert product.org_id == org.id
     end
 
-    test "create_product/1 adds user to product", %{org: org} do
-      params = Enum.into(%{org_id: org.id}, @valid_attrs)
-      assert {:ok, %Product{}} = Products.create_product(params)
+    test "create_product/2 adds user to product", %{org: org} do
+      assert {:ok, %Product{}} = Products.create_product(org, @valid_attrs)
     end
 
-    test "create_product/1 defaults require_unique_firmware_version to true for new products",
+    test "create_product/2 puts the product in the given org, whatever the params say", %{org: org} do
+      other_org = Fixtures.org_fixture(Fixtures.user_fixture())
+
+      assert {:ok, product} = Products.create_product(org, Map.put(@valid_attrs, :org_id, other_org.id))
+      assert product.org_id == org.id
+    end
+
+    test "create_product/2 defaults require_unique_firmware_version to true for new products",
          %{org: org} do
-      params = Enum.into(%{org_id: org.id}, @valid_attrs)
-      assert {:ok, %Product{require_unique_firmware_version: true}} = Products.create_product(params)
+      assert {:ok, %Product{require_unique_firmware_version: true}} = Products.create_product(org, @valid_attrs)
     end
 
     test "update_product/2 toggles require_unique_firmware_version", %{org: org} do
       {:ok, product} =
-        Products.create_product(%{name: "toggle me", org_id: org.id, require_unique_firmware_version: false})
+        Products.create_product(org, %{name: "toggle me", require_unique_firmware_version: false})
 
       assert product.require_unique_firmware_version == false
 
@@ -60,14 +65,14 @@ defmodule NervesHub.ProductsTest do
                Products.update_product(product, %{require_unique_firmware_version: true})
     end
 
-    test "create_product/1 with invalid data returns error changeset" do
-      assert {:error, %Ecto.Changeset{}} = Products.create_product(@invalid_attrs)
+    test "create_product/2 with invalid data returns error changeset", %{org: org} do
+      assert {:error, %Ecto.Changeset{}} = Products.create_product(org, @invalid_attrs)
     end
 
-    test "create_product/1 fails with duplicate names", %{org: org} do
-      params = %{org_id: org.id, name: "same name"}
-      {:ok, _product} = Products.create_product(params)
-      assert {:error, %Ecto.Changeset{}} = Products.create_product(params)
+    test "create_product/2 fails with duplicate names", %{org: org} do
+      params = %{name: "same name"}
+      {:ok, _product} = Products.create_product(org, params)
+      assert {:error, %Ecto.Changeset{}} = Products.create_product(org, params)
     end
 
     test "delete_product/1 deletes the product" do

@@ -80,65 +80,37 @@ defmodule NervesHub.DevicesTest do
      }}
   end
 
-  test "create_device with valid parameters", %{
-    org: org,
-    product: product,
-    firmware: firmware
-  } do
-    {:ok, metadata} = Firmwares.metadata_from_firmware(firmware)
+  test "create_device with valid parameters", %{org: org, product: product} do
+    params = %{identifier: "valid identifier", description: "a device", tags: "a, b"}
 
-    params = %{
-      org_id: org.id,
-      product_id: product.id,
-      firmware_metadata: metadata,
-      identifier: "valid identifier"
-    }
+    {:ok, %Devices.Device{} = device} = Devices.create_device(product, params)
 
-    {:ok, %Devices.Device{} = device} = Devices.create_device(params)
-
-    for key <- Map.keys(metadata) do
-      assert Map.get(device.firmware_metadata, key) == Map.get(metadata, key)
-    end
+    assert device.identifier == "valid identifier"
+    assert device.description == "a device"
+    assert device.tags == ["a", "b"]
+    assert device.org_id == org.id
+    assert device.product_id == product.id
   end
 
-  describe "create_device/1 and the product's default managed updates grant" do
-    test "a new device starts without the grant by default", %{org: org, product: product} do
-      {:ok, device} = Devices.create_device(%{org_id: org.id, product_id: product.id, identifier: "no-grant"})
+  describe "create_device/2 and the product's default managed updates grant" do
+    test "a new device starts without the grant by default", %{product: product} do
+      {:ok, device} = Devices.create_device(product, %{identifier: "no-grant"})
 
       refute device.managed_updates_allowed
     end
 
-    test "a new device takes the grant from its product", %{org: org, product: product} do
+    test "a new device takes the grant from its product", %{product: product} do
       {:ok, product} = Products.update_product(product, %{default_managed_updates_allowed: true})
 
-      {:ok, device} = Devices.create_device(%{org_id: org.id, product_id: product.id, identifier: "granted"})
+      {:ok, device} = Devices.create_device(product, %{identifier: "granted"})
 
       assert device.managed_updates_allowed
     end
 
-    test "a grant given explicitly wins over the product's", %{org: org, product: product} do
-      {:ok, product} = Products.update_product(product, %{default_managed_updates_allowed: true})
+    test "a grant sent in the params is ignored", %{product: product} do
+      {:ok, device} = Devices.create_device(product, %{identifier: "asks", managed_updates_allowed: true})
 
-      # `false` is the schema default, so it records no change; the explicit
-      # value has to be noticed in the params, with either kind of key.
-      {:ok, atom_keyed} =
-        Devices.create_device(%{
-          org_id: org.id,
-          product_id: product.id,
-          identifier: "atom-keyed",
-          managed_updates_allowed: false
-        })
-
-      {:ok, string_keyed} =
-        Devices.create_device(%{
-          "org_id" => org.id,
-          "product_id" => product.id,
-          "identifier" => "string-keyed",
-          "managed_updates_allowed" => false
-        })
-
-      refute atom_keyed.managed_updates_allowed
-      refute string_keyed.managed_updates_allowed
+      refute device.managed_updates_allowed
     end
 
     test "changing the product's default moves no existing device", %{device: device, product: product} do
@@ -329,13 +301,10 @@ defmodule NervesHub.DevicesTest do
     # with `nil` for `updated_metadata`, which then crashed inside
     # `Map.from_struct(nil)` and took the channel join down with it.
     test "tolerates a nil updated_metadata on a device with no firmware_metadata", %{
-      org: org,
       product: product
     } do
       {:ok, device} =
-        Devices.create_device(%{
-          org_id: org.id,
-          product_id: product.id,
+        Devices.create_device(product, %{
           identifier: "device-without-firmware-metadata-#{System.unique_integer([:positive])}"
         })
 
@@ -357,13 +326,10 @@ defmodule NervesHub.DevicesTest do
     end
 
     test "raises a product notification when a device connects with no firmware_metadata", %{
-      org: org,
       product: product
     } do
       {:ok, device} =
-        Devices.create_device(%{
-          org_id: org.id,
-          product_id: product.id,
+        Devices.create_device(product, %{
           identifier: "device-without-firmware-metadata-#{System.unique_integer([:positive])}"
         })
 
@@ -383,13 +349,10 @@ defmodule NervesHub.DevicesTest do
     end
 
     test "de-duplicates the missing firmware_metadata notification across repeated connections", %{
-      org: org,
       product: product
     } do
       {:ok, device} =
-        Devices.create_device(%{
-          org_id: org.id,
-          product_id: product.id,
+        Devices.create_device(product, %{
           identifier: "device-without-firmware-metadata-#{System.unique_integer([:positive])}"
         })
 
@@ -410,13 +373,10 @@ defmodule NervesHub.DevicesTest do
     # telemetry payload dereferenced `device.firmware_metadata.uuid`
     # and crashed.
     test "tolerates a device with no firmware_metadata", %{
-      org: org,
       product: product
     } do
       {:ok, device} =
-        Devices.create_device(%{
-          org_id: org.id,
-          product_id: product.id,
+        Devices.create_device(product, %{
           identifier: "device-without-firmware-metadata-#{System.unique_integer([:positive])}"
         })
 
@@ -1477,32 +1437,15 @@ defmodule NervesHub.DevicesTest do
     assert [] = Certificates.get_device_certificates(device)
   end
 
-  test "create_device with invalid parameters", %{firmware: firmware} do
-    params = %{
-      identifier: "valid identifier",
-      architecture: firmware.architecture,
-      platform: firmware.platform
-    }
-
-    assert {:error, %Changeset{}} = Devices.create_device(params)
+  test "create_device with invalid parameters", %{product: product} do
+    assert {:error, %Changeset{}} = Devices.create_device(product, %{description: "no identifier"})
   end
 
-  test "cannot create two devices with the same identifier", %{
-    org: org,
-    product: product,
-    firmware: firmware
-  } do
-    {:ok, metadata} = Firmwares.metadata_from_firmware(firmware)
+  test "cannot create two devices with the same identifier", %{product: product} do
+    params = %{identifier: "valid identifier"}
 
-    params = %{
-      org_id: org.id,
-      product_id: product.id,
-      firmware_metadata: metadata,
-      identifier: "valid identifier"
-    }
-
-    assert {:ok, %Devices.Device{}} = Devices.create_device(params)
-    assert {:error, %Ecto.Changeset{}} = Devices.create_device(params)
+    assert {:ok, %Devices.Device{}} = Devices.create_device(product, params)
+    assert {:error, %Ecto.Changeset{}} = Devices.create_device(product, params)
   end
 
   test "create device certificate", %{device: device, cert: cert} do
@@ -1768,17 +1711,10 @@ defmodule NervesHub.DevicesTest do
     end
   end
 
-  describe "create_device_with_shared_secret_auth/2" do
-    test "creates the device and its shared secret together, and audits it", %{
-      org: org,
-      product: product,
-      user: user
-    } do
+  describe "create_device_with_shared_secret_auth/3" do
+    test "creates the device and its shared secret together, and audits it", %{product: product, user: user} do
       assert {:ok, {device, auth}} =
-               Devices.create_device_with_shared_secret_auth(
-                 %{identifier: "provisioned-device", org_id: org.id, product_id: product.id},
-                 user
-               )
+               Devices.create_device_with_shared_secret_auth(product, %{identifier: "provisioned-device"}, user)
 
       assert auth.device_id == device.id
       assert auth.created_by_id == user.id
@@ -1788,32 +1724,34 @@ defmodule NervesHub.DevicesTest do
       assert actor_id == user.id
     end
 
-    test "creates no secret when the device cannot be created", %{org: org, product: product, user: user} do
-      params = %{identifier: "provisioned-device", org_id: org.id, product_id: product.id}
+    test "creates no secret when the device cannot be created", %{product: product, user: user} do
+      params = %{identifier: "provisioned-device"}
 
-      assert {:ok, _} = Devices.create_device_with_shared_secret_auth(params, user)
-      assert {:error, %Changeset{}} = Devices.create_device_with_shared_secret_auth(params, user)
+      assert {:ok, _} = Devices.create_device_with_shared_secret_auth(product, params, user)
+      assert {:error, %Changeset{}} = Devices.create_device_with_shared_secret_auth(product, params, user)
 
       assert Repo.aggregate(SharedSecretAuth, :count) == 1
     end
 
-    test "creates no device when its secret can't be created", %{org: org, product: product} do
-      params = %{identifier: "provisioned-device", org_id: org.id, product_id: product.id}
+    test "creates no device when its secret can't be created", %{product: product} do
+      params = %{identifier: "provisioned-device"}
       # No such user, so the secret's created_by foreign key fails after the
       # device has been inserted.
       missing_user = %User{id: -1, name: "Missing"}
 
       assert {:error, %Changeset{errors: [created_by_id: _]}} =
-               Devices.create_device_with_shared_secret_auth(params, missing_user)
+               Devices.create_device_with_shared_secret_auth(product, params, missing_user)
 
       assert {:error, :not_found} = Devices.get_device_by(identifier: "provisioned-device")
     end
 
-    test "creates no device when shared secrets aren't enabled", %{org: org, product: product, user: user} do
+    test "creates no device when shared secrets aren't enabled", %{product: product, user: user} do
       stub(NervesHub.DeviceLink, :shared_secrets_enabled?, fn -> false end)
-      params = %{identifier: "provisioned-device", org_id: org.id, product_id: product.id}
+      params = %{identifier: "provisioned-device"}
 
-      assert {:error, :shared_secrets_not_enabled} = Devices.create_device_with_shared_secret_auth(params, user)
+      assert {:error, :shared_secrets_not_enabled} =
+               Devices.create_device_with_shared_secret_auth(product, params, user)
+
       assert {:error, :not_found} = Devices.get_device_by(identifier: "provisioned-device")
     end
   end
@@ -1897,12 +1835,11 @@ defmodule NervesHub.DevicesTest do
 
     test "returns not found for another device's key, and leaves it active", %{
       device: device,
-      org: org,
       product: product,
       user: user
     } do
       {:ok, other_device} =
-        Devices.create_device(%{identifier: "other-device", org_id: org.id, product_id: product.id})
+        Devices.create_device(product, %{identifier: "other-device"})
 
       {:ok, other_auth} = Devices.create_shared_secret_auth(other_device)
 
@@ -2667,9 +2604,7 @@ defmodule NervesHub.DevicesTest do
       mover: mover
     } do
       {:ok, existing} =
-        Accounts.create_org_key(%{
-          org_id: target_org.id,
-          created_by_id: user.id,
+        Accounts.create_org_key(target_org, user, %{
           name: "same-key-other-name",
           key: org_key.key
         })
@@ -2691,9 +2626,7 @@ defmodule NervesHub.DevicesTest do
       {other_public_key, _private_key} = :crypto.generate_key(:eddsa, :ed25519)
 
       {:ok, existing} =
-        Accounts.create_org_key(%{
-          org_id: target_org.id,
-          created_by_id: user.id,
+        Accounts.create_org_key(target_org, user, %{
           name: org_key.name,
           key: Base.encode64(other_public_key)
         })
@@ -3581,15 +3514,13 @@ defmodule NervesHub.DevicesTest do
       # two products with the same name (this test uploads two firmwares sharing
       # a version, so it opts out of the unique-firmware-version requirement)
       {:ok, product_one} =
-        Products.create_product(%{
-          org_id: org_one.id,
+        Products.create_product(org_one, %{
           name: "Same Product Name",
           require_unique_firmware_version: false
         })
 
       {:ok, _product_two} =
-        Products.create_product(%{
-          org_id: org_two.id,
+        Products.create_product(org_two, %{
           name: "Same Product Name",
           require_unique_firmware_version: false
         })

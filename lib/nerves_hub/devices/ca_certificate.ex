@@ -47,15 +47,17 @@ defmodule NervesHub.Devices.CACertificate do
   end
 
   def changeset(%__MODULE__{} = ca_certificate, params) do
-    ca_certificate
-    # A self-signed root CA may leave out its own AKI (RFC 5280, 4.2.1.1), and
-    # nothing reads a CA's AKI, so it is stored when present and not required.
-    |> cast(params, [:aki, :ski] ++ @required_params ++ @optional_params)
-    |> validate_required(@required_params)
-    |> validate_required(:ski, message: @missing_ski_message)
-    |> validate_not_expired_when_checked()
-    |> unique_constraint(:serial, name: :ca_certificates_serial_index)
-    |> cast_assoc(:jitp)
+    changeset =
+      ca_certificate
+      # A self-signed root CA may leave out its own AKI (RFC 5280, 4.2.1.1), and
+      # nothing reads a CA's AKI, so it is stored when present and not required.
+      |> cast(params, [:aki, :ski] ++ @required_params ++ @optional_params)
+      |> validate_required(@required_params)
+      |> validate_required(:ski, message: @missing_ski_message)
+      |> validate_not_expired_when_checked()
+      |> unique_constraint(:serial, name: :ca_certificates_serial_index)
+
+    cast_assoc(changeset, :jitp, with: &JITP.changeset(&1, &2, get_field(changeset, :org_id)))
   end
 
   # With check_expiration on, NervesHub.SSL refuses to register a device
@@ -81,6 +83,6 @@ defmodule NervesHub.Devices.CACertificate do
   def update_changeset(%CACertificate{} = ca_certificate, params) do
     ca_certificate
     |> cast(params, @optional_params)
-    |> cast_assoc(:jitp)
+    |> cast_assoc(:jitp, with: &JITP.changeset(&1, &2, ca_certificate.org_id))
   end
 end

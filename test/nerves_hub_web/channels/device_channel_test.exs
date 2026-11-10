@@ -971,11 +971,10 @@ defmodule NervesHubWeb.DeviceChannelTest do
   # something `fwup --public-key` can use, so neither may reach the device.
   defp seed_other_scheme_keys(device, user) do
     %OrgKey{key: fwup_key} = Repo.get_by!(OrgKey, org_id: device.org_id, scheme: :ed25519)
+    org = Accounts.get_org!(device.org_id)
 
     {:ok, _esp_idf} =
-      Accounts.create_org_key(%{
-        org_id: device.org_id,
-        created_by_id: user.id,
+      Accounts.create_org_key(org, user, %{
         name: "esp-idf",
         key: EspIdf.signing_public_key(),
         scheme: :secure_boot_v2_rsa
@@ -988,9 +987,7 @@ defmodule NervesHubWeb.DeviceChannelTest do
       |> X509.Certificate.to_pem()
 
     {:ok, _rauc} =
-      Accounts.create_org_key(%{
-        org_id: device.org_id,
-        created_by_id: user.id,
+      Accounts.create_org_key(org, user, %{
         name: "rauc",
         key: certificate,
         scheme: :x509_certificate

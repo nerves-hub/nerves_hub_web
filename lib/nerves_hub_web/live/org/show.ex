@@ -84,9 +84,9 @@ defmodule NervesHubWeb.Live.Org.Show do
     authorized!(:"product:create", scope)
 
     extensions = Map.new(Extensions.list(), &{Atom.to_string(&1), "true"})
-    params = %{"name" => params["name"], "org_id" => scope.org.id, "extensions" => extensions}
+    params = %{"name" => params["name"], "extensions" => extensions}
 
-    case Products.create_product(params) do
+    case Products.create_product(scope.org, params) do
       {:ok, product} ->
         socket
         |> put_flash(:info, "Product created successfully.")

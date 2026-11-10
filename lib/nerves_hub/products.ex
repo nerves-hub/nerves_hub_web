@@ -183,12 +183,12 @@ defmodule NervesHub.Products do
   end
 
   @doc """
-  Creates a product, along with its default health profile.
+  Creates a product in `org`, along with its default health profile.
   """
-  @spec create_product(map()) :: {:ok, Product.t()} | {:error, Ecto.Changeset.t()}
-  def create_product(params) do
+  @spec create_product(Org.t(), map()) :: {:ok, Product.t()} | {:error, Ecto.Changeset.t()}
+  def create_product(%Org{} = org, params) do
     Multi.new()
-    |> Multi.insert(:product, Product.changeset(%Product{}, params))
+    |> Multi.insert(:product, Product.create_changeset(org, params))
     |> Multi.run(:health_profile, fn _repo, %{product: product} ->
       HealthProfiles.create_default_profile(product.id)
     end)
@@ -205,8 +205,8 @@ defmodule NervesHub.Products do
         # failure from the profile seeding must not leak a changeset of the
         # wrong schema.
         changeset =
-          %Product{}
-          |> Product.changeset(params)
+          org
+          |> Product.create_changeset(params)
           |> Ecto.Changeset.add_error(:base, "could not create the default health profile")
 
         {:error, changeset}

@@ -10,14 +10,12 @@ defmodule NervesHubWeb.API.DeviceMetricControllerTest do
   alias NervesHub.Devices.DeviceMetric
   alias NervesHub.Devices.Metrics
 
-  setup %{org: org, product: product} do
+  setup %{product: product} do
     {:ok, device} =
-      Devices.create_device(%{
+      Devices.create_device(product, %{
         identifier: "device-1234",
         description: "test device",
-        tags: ["test"],
-        org_id: org.id,
-        product_id: product.id
+        tags: ["test"]
       })
 
     :ok = Buffer.flush(DeviceMetric)
@@ -116,7 +114,7 @@ defmodule NervesHubWeb.API.DeviceMetricControllerTest do
       device: device,
       now: now
     } do
-      {:ok, other} = Devices.create_device(%{identifier: "device-5678", org_id: org.id, product_id: product.id})
+      {:ok, other} = Devices.create_device(product, %{identifier: "device-5678"})
 
       report(other, %{"cpu_temp" => 99.0}, now)
       report(device, %{"cpu_temp" => 41.0}, now)

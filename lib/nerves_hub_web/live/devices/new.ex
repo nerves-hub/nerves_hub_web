@@ -20,11 +20,7 @@ defmodule NervesHubWeb.Live.Devices.New do
 
     %{current_scope: %{org: org, product: product}} = socket.assigns
 
-    device_params
-    |> Map.put("org_id", org.id)
-    |> Map.put("product_id", product.id)
-    |> Devices.create_device()
-    |> case do
+    case Devices.create_device(product, device_params) do
       {:ok, _device} ->
         socket
         |> put_flash(:info, "Device created successfully.")

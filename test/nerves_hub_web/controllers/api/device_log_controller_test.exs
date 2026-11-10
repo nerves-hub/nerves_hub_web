@@ -10,14 +10,12 @@ defmodule NervesHubWeb.API.DeviceLogControllerTest do
   alias NervesHub.Devices.LogLine
   alias NervesHub.Devices.LogLines
 
-  setup %{org: org, product: product} do
+  setup %{product: product} do
     {:ok, device} =
-      Devices.create_device(%{
+      Devices.create_device(product, %{
         identifier: "device-1234",
         description: "test device",
-        tags: ["test"],
-        org_id: org.id,
-        product_id: product.id
+        tags: ["test"]
       })
 
     :ok = Buffer.flush(LogLine)
@@ -104,7 +102,7 @@ defmodule NervesHubWeb.API.DeviceLogControllerTest do
       product: product,
       device: device
     } do
-      {:ok, other} = Devices.create_device(%{identifier: "device-5678", org_id: org.id, product_id: product.id})
+      {:ok, other} = Devices.create_device(product, %{identifier: "device-5678"})
 
       log(other, message: "not yours")
       log(device, message: "yours")

@@ -7,9 +7,9 @@ defmodule NervesHubWeb.API.DeviceSharedSecretControllerTest do
   alias NervesHub.Devices
   alias Phoenix.Socket.Broadcast
 
-  setup %{org: org, product: product} do
+  setup %{product: product} do
     {:ok, device} =
-      Devices.create_device(%{identifier: "device-1234", org_id: org.id, product_id: product.id})
+      Devices.create_device(product, %{identifier: "device-1234"})
 
     [device: device]
   end
@@ -175,7 +175,7 @@ defmodule NervesHubWeb.API.DeviceSharedSecretControllerTest do
 
     test "only reaches the device's own keys", %{conn: conn, org: org, product: product, device: device} do
       {:ok, other_device} =
-        Devices.create_device(%{identifier: "device-5678", org_id: org.id, product_id: product.id})
+        Devices.create_device(product, %{identifier: "device-5678"})
 
       {:ok, other_auth} = Devices.create_shared_secret_auth(other_device)
 

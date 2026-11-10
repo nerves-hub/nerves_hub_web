@@ -160,6 +160,32 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
 
       assert {:error, :not_found} = Devices.get_device_by(identifier: "api-device-disabled")
     end
+
+    test "ignores fields a caller may not set", %{conn: conn, org: org, product: product, tmp_dir: tmp_dir} do
+      other_user = Fixtures.user_fixture()
+      other_org = Fixtures.org_fixture(other_user)
+      other_product = Fixtures.product_fixture(other_user, other_org)
+      other_org_key = Fixtures.org_key_fixture(other_org, other_user, tmp_dir)
+      other_firmware = Fixtures.firmware_fixture(other_org_key, other_product, %{dir: tmp_dir})
+      other_deployment_group = Fixtures.deployment_group_fixture(other_firmware, %{user: other_user})
+
+      params = %{
+        identifier: "api-device-planted",
+        deployment_id: other_deployment_group.id,
+        status: "provisioned",
+        deleted_at: DateTime.to_iso8601(DateTime.utc_now())
+      }
+
+      conn = post(conn, Routes.api_device_path(conn, :create, org.name, product.name), params)
+      assert json_response(conn, 201)["data"]
+
+      device = Repo.get_by!(Device, identifier: "api-device-planted")
+      assert device.org_id == org.id
+      assert device.product_id == product.id
+      assert is_nil(device.deployment_id)
+      assert device.status == :registered
+      assert is_nil(device.deleted_at)
+    end
   end
 
   describe "bulk create devices (async processing)" do
@@ -764,6 +790,39 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
 
       assert json_response(conn, 200)
       assert conn.assigns.device.tags == ["a", "b", "c", "d"]
+    end
+
+    # `Device.changeset/2` casts the org, product and deployment group, so an
+    # update passing the body straight through could move a device into
+    # another org or onto another org's deployment group.
+    test "ignores fields a caller may not set", %{conn: conn, user: user, org: org, tmp_dir: tmp_dir} do
+      product = Fixtures.product_fixture(user, org)
+      org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
+      firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+      device = Fixtures.device_fixture(org, product, firmware)
+
+      other_user = Fixtures.user_fixture()
+      other_org = Fixtures.org_fixture(other_user)
+      other_product = Fixtures.product_fixture(other_user, other_org)
+      other_org_key = Fixtures.org_key_fixture(other_org, other_user, tmp_dir)
+      other_firmware = Fixtures.firmware_fixture(other_org_key, other_product, %{dir: tmp_dir})
+      other_deployment_group = Fixtures.deployment_group_fixture(other_firmware, %{user: other_user})
+
+      conn =
+        put(conn, Routes.api_device_path(conn, :update, org.name, product.name, device.identifier), %{
+          description: "still mine",
+          org_id: other_org.id,
+          product_id: other_product.id,
+          deployment_id: other_deployment_group.id
+        })
+
+      assert json_response(conn, 201)["data"]
+
+      device = Repo.reload(device)
+      assert device.description == "still mine"
+      assert device.org_id == org.id
+      assert device.product_id == product.id
+      assert is_nil(device.deployment_id)
     end
   end
 

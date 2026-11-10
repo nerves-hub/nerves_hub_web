@@ -73,7 +73,7 @@ defmodule NervesHub.Accounts do
     Repo.transact(fn ->
       with {:org, {:ok, org}} <- {:org, create_org(user, org_params)},
            {:product, {:ok, product}} <-
-             {:product, Products.create_product(Map.put(product_params, :org_id, org.id))},
+             {:product, Products.create_product(org, product_params)},
            {:product, {:ok, _auth}} <- {:product, Products.create_shared_secret_auth(product)} do
         {:ok, %{org: org, product: product}}
       else
@@ -688,12 +688,16 @@ defmodule NervesHub.Accounts do
     claimed_by == [] or org_id in claimed_by
   end
 
-  @spec create_org_key(map) ::
+  @doc """
+  Add a signing key to `org` on `user`'s behalf. `params` can set only the
+  key's name, key and scheme.
+  """
+  @spec create_org_key(Org.t(), User.t(), map()) ::
           {:ok, OrgKey.t()}
           | {:error, Changeset.t()}
-  def create_org_key(attrs) do
-    %OrgKey{}
-    |> change_org_key(attrs)
+  def create_org_key(%Org{} = org, %User{} = user, params) do
+    org
+    |> OrgKey.create_changeset(user, params)
     |> Repo.insert()
   end
 

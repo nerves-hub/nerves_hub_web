@@ -50,11 +50,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       product: product
     } do
       {:ok, device} =
-        Devices.create_device(%{
-          org_id: org.id,
-          product_id: product.id,
-          identifier: "no-firmware-device"
-        })
+        Devices.create_device(product, %{identifier: "no-firmware-device"})
 
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")

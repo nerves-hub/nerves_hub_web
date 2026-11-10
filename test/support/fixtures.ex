@@ -115,14 +115,7 @@ defmodule NervesHub.Fixtures do
     Fwup.gen_key_pair(fwup_key_name, dir)
     key = Fwup.get_public_key(fwup_key_name, dir)
 
-    params = %{
-      org_id: org.id,
-      key: key,
-      name: fwup_key_name,
-      created_by_id: user.id
-    }
-
-    {:ok, org_key} = Accounts.create_org_key(params)
+    {:ok, org_key} = Accounts.create_org_key(org, user, %{key: key, name: fwup_key_name})
 
     org_key
   end
@@ -134,14 +127,7 @@ defmodule NervesHub.Fixtures do
   def org_key_fixture_from_existing(%Accounts.Org{} = org, %Accounts.User{} = user, key_name, dir) do
     key = Fwup.get_public_key(key_name, dir)
 
-    params = %{
-      org_id: org.id,
-      key: key,
-      name: key_name,
-      created_by_id: user.id
-    }
-
-    {:ok, org_key} = Accounts.create_org_key(params)
+    {:ok, org_key} = Accounts.create_org_key(org, user, %{key: key, name: key_name})
 
     org_key
   end
@@ -154,14 +140,12 @@ defmodule NervesHub.Fixtures do
   """
   def esp_idf_key_fixture(%Accounts.Org{} = org, %Accounts.User{} = user) do
     params = %{
-      org_id: org.id,
-      created_by_id: user.id,
       name: "esp-idf-key-#{counter()}",
       key: EspIdf.signing_public_key(),
       scheme: :secure_boot_v2_rsa
     }
 
-    {:ok, org_key} = Accounts.create_org_key(params)
+    {:ok, org_key} = Accounts.create_org_key(org, user, params)
 
     org_key
   end
@@ -263,12 +247,9 @@ defmodule NervesHub.Fixtures do
   def product_fixture(_user, _org, params \\ %{})
 
   def product_fixture(%Accounts.User{}, %Accounts.Org{} = org, params) do
-    params =
-      params
-      |> Enum.into(product_params())
-      |> Map.put(:org_id, org.id)
+    params = Enum.into(params, product_params())
 
-    {:ok, product} = Products.create_product(params)
+    {:ok, product} = Products.create_product(org, params)
     product
   end
 
@@ -399,18 +380,23 @@ defmodule NervesHub.Fixtures do
     {:ok, metadata} = Firmwares.metadata_from_firmware(firmware)
     {fwup_version, params} = Map.pop(params, :fwup_version, "1.0.0")
 
-    {:ok, device} =
-      %{
-        org_id: org.id,
-        product_id: product.id,
-        firmware_metadata: Map.put(metadata, :fwup_version, fwup_version),
-        identifier: "device-#{counter()}"
-      }
-      |> Map.merge(params)
-      |> Enum.into(@device_params)
-      |> Devices.create_device()
+    # Fixtures set state a user can't, such as the firmware a device reports or
+    # its deployment group, so this goes through the general changeset rather
+    # than `Devices.create_device/2`. The grant is the product's, as it would be.
+    product = Repo.reload!(product)
 
-    device
+    %{
+      org_id: org.id,
+      product_id: product.id,
+      managed_updates_allowed: product.default_managed_updates_allowed,
+      firmware_metadata: Map.put(metadata, :fwup_version, fwup_version),
+      identifier: "device-#{counter()}"
+    }
+    |> Map.merge(params)
+    |> Enum.into(@device_params)
+    |> then(&Devices.Device.changeset(%Devices.Device{}, &1))
+    |> Repo.insert!()
+    |> Repo.preload(:product)
   end
 
   @doc """

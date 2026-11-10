@@ -33,7 +33,7 @@ defmodule NervesHubWeb.API.IrohEndpointControllerTest do
     end
 
     test "names the device holding one it reported", %{conn: conn, org: org, product: product} do
-      device = device_fixture(org, product)
+      device = device_fixture(product)
       {:ok, _} = NetworkIdentities.report(device.id, "iroh", %{identifier: @endpoint_id})
 
       conn = get(conn, Routes.api_iroh_endpoint_path(conn, :index, org.name))
@@ -58,7 +58,7 @@ defmodule NervesHubWeb.API.IrohEndpointControllerTest do
     end
 
     test "lists only iroh, not every service the table holds", %{conn: conn, org: org, product: product} do
-      device = device_fixture(org, product)
+      device = device_fixture(product)
       {:ok, _} = NetworkIdentities.report(device.id, "iroh", %{identifier: @endpoint_id})
       {:ok, _} = NetworkIdentities.report(device.id, "tailscale", %{identifier: @other_id})
 
@@ -70,7 +70,7 @@ defmodule NervesHubWeb.API.IrohEndpointControllerTest do
 
   describe "index filters" do
     setup %{conn: conn, org: org, product: product, user: user} do
-      device = device_fixture(org, product)
+      device = device_fixture(product)
       {:ok, _} = NetworkIdentities.report(device.id, "iroh", %{identifier: @endpoint_id})
 
       {:ok, _} =
@@ -352,13 +352,9 @@ defmodule NervesHubWeb.API.IrohEndpointControllerTest do
     end
   end
 
-  defp device_fixture(org, product) do
+  defp device_fixture(product) do
     {:ok, device} =
-      Devices.create_device(%{
-        identifier: "device-#{System.unique_integer([:positive])}",
-        org_id: org.id,
-        product_id: product.id
-      })
+      Devices.create_device(product, %{identifier: "device-#{System.unique_integer([:positive])}"})
 
     device
   end

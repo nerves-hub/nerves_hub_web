@@ -49,5 +49,23 @@ defmodule NervesHubWeb.Live.Devices.NewTest do
 
       assert Devices.get_by_identifier!("aaabbbccc111222333").connecting_code == "IO.puts(\"hello\")"
     end
+
+    test "ignores a deployment group sent with the form", %{
+      conn: conn,
+      org: org,
+      product: product,
+      deployment_group: deployment_group
+    } do
+      # Not a field on the form, but a client can send it with the event.
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/new")
+      |> unwrap(fn view ->
+        render_submit(view, "save-device", %{
+          "device" => %{"identifier" => "aaabbbccc111222333", "deployment_id" => deployment_group.id}
+        })
+      end)
+
+      assert is_nil(Devices.get_by_identifier!("aaabbbccc111222333").deployment_id)
+    end
   end
 end

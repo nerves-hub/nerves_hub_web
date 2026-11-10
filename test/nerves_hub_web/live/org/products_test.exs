@@ -6,6 +6,8 @@ defmodule NervesHubWeb.Live.Org.ProductsTest do
   alias NervesHub.Devices.Health
   alias NervesHub.Fixtures
   alias NervesHub.Products
+  alias NervesHub.Products.Product
+  alias NervesHub.Repo
 
   test "user is redirected to login when trying to access an org, but the user isn't logged in" do
     build_conn()
@@ -233,6 +235,22 @@ defmodule NervesHubWeb.Live.Org.ProductsTest do
       |> click_button("Create Product")
       |> assert_path("/org/#{org.name}/MyAmazingProduct/devices")
       |> assert_has("h2", text: "MyAmazingProduct doesn't have any devices yet", timeout: 1000)
+    end
+
+    test "the product always goes to the current org, whatever the form sends", %{conn: conn, org: org} do
+      other_user = Fixtures.user_fixture()
+      other_org = Fixtures.org_fixture(other_user)
+
+      conn
+      |> visit("/org/#{org.name}/new")
+      |> unwrap(fn view ->
+        render_submit(view, "create_product", %{
+          "product" => %{"name" => "Planted", "org_id" => to_string(other_org.id)}
+        })
+      end)
+      |> assert_path("/org/#{org.name}/Planted/devices")
+
+      assert Repo.get_by!(Product, name: "Planted").org_id == org.id
     end
 
     test "product name accepts spaces", %{conn: conn, org: org} do

@@ -9,6 +9,7 @@ defmodule NervesHub.SSL do
   alias NervesHub.Devices.CACertificates
   alias NervesHub.Devices.Certificates
   alias NervesHub.Devices.Device
+  alias NervesHub.Products
   alias X509.Certificate.Extension
 
   # What :public_key's path validation, and the checks :ssl adds to it, say is
@@ -293,22 +294,17 @@ defmodule NervesHub.SSL do
         :ignore_deleted_product
 
       _ ->
-        params = %{
-          identifier: cn,
-          org_id: org_id,
-          product_id: jitp.product_id,
-          tags: jitp.tags,
-          description: jitp.description
-        }
+        params = %{identifier: cn, tags: jitp.tags, description: jitp.description}
 
-        case Devices.create_device(params) do
-          {:ok, device} ->
-            :telemetry.execute([:nerves_hub, :devices, :jitp, :created], %{count: 1})
+        # The product must be in the CA's org. JITP settings saved before that
+        # was checked can still point at another org's product.
+        with {:ok, %{org_id: ^org_id} = product} <- Products.get_product(jitp.product_id),
+             {:ok, device} <- Devices.create_device(product, params) do
+          :telemetry.execute([:nerves_hub, :devices, :jitp, :created], %{count: 1})
 
-            {:ok, device}
-
-          _ ->
-            :device_registration_failed
+          {:ok, device}
+        else
+          _ -> :device_registration_failed
         end
     end
   end

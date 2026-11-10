@@ -26,6 +26,30 @@ defmodule NervesHubWeb.Live.Devices.Show.SettingsTabTest do
       |> assert_has("span", text: "lars")
     end
 
+    test "saves only the form's fields", %{conn: conn, org: org, product: product, device: device} do
+      other_user = Fixtures.user_fixture()
+      other_org = Fixtures.org_fixture(other_user)
+      other_product = Fixtures.product_fixture(other_user, other_org)
+
+      conn
+      |> visit(~p"/org/#{org}/#{product}/devices/#{device}/settings")
+      |> unwrap(fn view ->
+        render_submit(view, "update-device-settings", %{
+          "device" => %{
+            "description" => "still mine",
+            "org_id" => to_string(other_org.id),
+            "product_id" => to_string(other_product.id)
+          }
+        })
+      end)
+      |> assert_has("div", text: "Device updated")
+
+      device = Repo.reload(device)
+      assert device.description == "still mine"
+      assert device.org_id == org.id
+      assert device.product_id == product.id
+    end
+
     test "can add 'first connect code'", %{conn: conn, org: org, product: product, device: device} do
       conn
       |> visit(~p"/org/#{org}/#{product}/devices/#{device}/settings")

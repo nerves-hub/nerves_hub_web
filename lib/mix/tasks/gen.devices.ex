@@ -38,12 +38,7 @@ defmodule Mix.Tasks.NervesHub.Gen.Devices do
       lng = -180..180 |> Enum.random()
       lat = -90..90 |> Enum.random()
 
-      {:ok, device} =
-        Devices.create_device(%{
-          org_id: org.id,
-          product_id: product.id,
-          identifier: "generated-#{i}"
-        })
+      {:ok, device} = Devices.create_device(product, %{identifier: "generated-#{i}"})
 
       %DeviceConnection{
         device_id: device.id,

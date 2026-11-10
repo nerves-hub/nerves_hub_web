@@ -62,12 +62,9 @@ defmodule NervesHubWeb.API.ProductController do
   )
 
   def create(%{assigns: %{current_scope: %{org: org}}} = conn, params) do
-    params =
-      params
-      |> Map.take(["name"])
-      |> Map.put("org_id", org.id)
-
-    with {:ok, product} <- Products.create_product(params) do
+    # The API has only ever taken a name here; the other settings are set
+    # through update.
+    with {:ok, product} <- Products.create_product(org, Map.take(params, ["name"])) do
       conn
       |> put_status(:created)
       |> put_resp_header("location", Routes.api_product_path(conn, :show, org.name, product.name))

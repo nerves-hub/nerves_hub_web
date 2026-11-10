@@ -162,6 +162,32 @@ defmodule NervesHub.SSLTest do
       refute NervesHub.Repo.get_by(Devices.Device, identifier: identifier)
     end
 
+    test "jitp refuses a product in another org", _ do
+      user = Fixtures.user_fixture()
+      org = Fixtures.org_fixture(user, %{name: "jitp_other_org_product"})
+      other_user = Fixtures.user_fixture()
+      other_product = Fixtures.product_fixture(other_user, Fixtures.org_fixture(other_user))
+      ca = Fixtures.ca_certificate_fixture(org)
+      identifier = "jitp_other_org_device"
+
+      otp_cert =
+        X509.PrivateKey.new_ec(:secp256r1)
+        |> X509.PublicKey.derive()
+        |> X509.Certificate.new("/O=#{org.name}/CN=#{identifier}", ca.cert, ca.key)
+
+      # As saved before JITP products were checked against the CA's org.
+      jitp =
+        %JITP{product_id: other_product.id, tags: ["jitp"], description: "jitp"}
+        |> NervesHub.Repo.insert!()
+
+      ca.db_cert
+      |> Ecto.Changeset.change(%{jitp_id: jitp.id})
+      |> NervesHub.Repo.update!()
+
+      assert {:fail, _reason} = run_verify(otp_cert, {:bad_cert, :unknown_ca})
+      assert {:error, :not_found} = Devices.get_device_by(identifier: identifier)
+    end
+
     test "rejects a deleted device", context do
       assert {:ok, device} = Repo.soft_delete(context.device)
       assert device.deleted_at

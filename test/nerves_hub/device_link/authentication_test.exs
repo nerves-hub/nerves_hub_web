@@ -169,6 +169,46 @@ defmodule NervesHub.DeviceLink.AuthenticationTest do
     end
   end
 
+  # Request params could once set a device's product without its org, and a
+  # CA's JITP settings could name another org's product.
+  describe "authenticate/2 for a device in another org's product" do
+    setup %{org: org, user: user, tmp_dir: tmp_dir} do
+      other_user = Fixtures.user_fixture()
+      other_org = Fixtures.org_fixture(other_user)
+      other_product = Fixtures.product_fixture(other_user, other_org)
+      other_key = Fixtures.org_key_fixture(other_org, other_user, tmp_dir)
+      firmware = Fixtures.firmware_fixture(other_key, other_product, %{dir: tmp_dir})
+
+      device = Fixtures.device_fixture(org, other_product, firmware)
+      %{cert: cert} = Fixtures.device_certificate_fixture(device, X509.PrivateKey.new_ec(:secp256r1))
+      {:ok, device_key} = Devices.create_shared_secret_auth(device)
+      {:ok, product_key} = Products.create_shared_secret_auth(other_product)
+
+      %{
+        device: device,
+        credentials: [
+          {:ssl_cert, X509.Certificate.to_der(cert)},
+          {:shared_secret, Map.new(Utils.nh1_key_secret_headers(device_key, device.identifier))},
+          {:shared_secret, Map.new(Utils.nh1_key_secret_headers(product_key, device.identifier))}
+        ]
+      }
+    end
+
+    test "refuses the device however it authenticates, and says why", context do
+      ref = :telemetry_test.attach_event_handlers(self(), [[:nerves_hub, :devices, :invalid_auth]])
+      identifier = context.device.identifier
+
+      for credentials <- context.credentials do
+        assert {:error, :invalid_auth} = Authentication.authenticate(credentials)
+
+        assert_received {[:nerves_hub, :devices, :invalid_auth], ^ref, _,
+                         %{reason: :product_in_other_org, identifier: ^identifier}}
+      end
+
+      assert %{status: :registered} = Repo.reload!(context.device)
+    end
+  end
+
   describe "authenticate/1 with a shared secret" do
     # Every salt carries its signing time, so a cached key is never reused and
     # the table only grows. On a device node that was 150,917 rows in 12 days.

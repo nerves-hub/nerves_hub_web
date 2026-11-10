@@ -1053,22 +1053,23 @@ defmodule NervesHub.ManagedDeployments do
       when not is_nil(deployment_id) do
     deployment_group =
       DeploymentGroup
-      |> select([:id, :org_id, :name, :conditions, :platform, :architecture, :lock_device_membership])
+      |> select([:id, :org_id, :product_id, :name, :conditions, :platform, :architecture, :lock_device_membership])
       |> where([d], d.id == ^deployment_id)
       |> Repo.one!()
 
-    with false <- deployment_group.lock_device_membership,
-         reason when not is_nil(reason) <- membership_mismatch_reason(device, device_version, deployment_group) do
-      device =
+    case membership_mismatch_reason(device, device_version, deployment_group) do
+      nil ->
         device
-        |> Ecto.Changeset.change(%{deployment_id: nil})
-        |> Repo.update!()
 
-      DeploymentGroupTemplates.audit_deployment_mismatch(device, deployment_group, reason)
+      reason ->
+        device =
+          device
+          |> Ecto.Changeset.change(%{deployment_id: nil})
+          |> Repo.update!()
 
-      device
-    else
-      _ -> device
+        DeploymentGroupTemplates.audit_deployment_mismatch(device, deployment_group, reason)
+
+        device
     end
   end
 
@@ -1076,6 +1077,12 @@ defmodule NervesHub.ManagedDeployments do
 
   defp membership_mismatch_reason(device, device_version, deployment_group) do
     cond do
+      # Checked ahead of the lock, which keeps devices whose firmware no longer
+      # matches: a group in another product is never right. Request params
+      # could once set a device's group, including to another org's, which
+      # then sent the device that org's firmware.
+      deployment_group.product_id != device.product_id -> "mismatched product"
+      deployment_group.lock_device_membership -> nil
       version_mismatch?(device_version, deployment_group.conditions.version) -> "mismatched version"
       device.firmware_metadata.platform != deployment_group.platform -> "mismatched platform"
       device.firmware_metadata.architecture != deployment_group.architecture -> "mismatched architecture"

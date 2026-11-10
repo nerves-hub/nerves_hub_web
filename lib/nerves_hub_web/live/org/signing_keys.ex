@@ -36,12 +36,7 @@ defmodule NervesHubWeb.Live.Org.SigningKeys do
   def handle_event("save", %{"org_key" => key_params}, %{assigns: %{current_scope: scope}} = socket) do
     authorized!(:"signing_key:create", scope)
 
-    params =
-      key_params
-      |> Enum.into(%{"org_id" => scope.org.id})
-      |> Enum.into(%{"created_by_id" => scope.user.id})
-
-    case Accounts.create_org_key(params) do
+    case Accounts.create_org_key(scope.org, scope.user, key_params) do
       {:ok, _org_key} ->
         {:noreply,
          socket

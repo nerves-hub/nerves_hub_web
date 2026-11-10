@@ -244,4 +244,46 @@ defmodule NervesHub.Devices.CACertificatesTest do
       params
     )
   end
+
+  describe "JITP product" do
+    setup %{org: org} do
+      other_user = Fixtures.user_fixture()
+      other_org = Fixtures.org_fixture(other_user)
+
+      %{ca: Fixtures.ca_certificate_fixture(org), other_product: Fixtures.product_fixture(other_user, other_org)}
+    end
+
+    test "can't be another org's product when the CA is created", %{org: org, other_product: other_product} do
+      ca_key = X509.PrivateKey.new_ec(:secp256r1)
+      ca = X509.Certificate.self_signed(ca_key, "CN=#{org.name}", template: :root_ca)
+      {not_before, not_after} = NervesHub.Certificate.get_validity(ca)
+
+      params = %{
+        serial: NervesHub.Certificate.get_serial_number(ca),
+        aki: NervesHub.Certificate.get_aki(ca),
+        ski: NervesHub.Certificate.get_ski(ca),
+        not_before: not_before,
+        not_after: not_after,
+        der: X509.Certificate.to_der(ca),
+        jitp: %{description: "jitp", tags: ["a"], product_id: other_product.id}
+      }
+
+      assert {:error, changeset} = CACertificates.create_ca_certificate(org, params)
+      assert %{jitp: %{product_id: ["must be a product in this organization"]}} = errors_on(changeset)
+    end
+
+    test "can't be changed to another org's product", %{ca: ca, other_product: other_product} do
+      params = %{"jitp" => %{"description" => "jitp", "tags" => ["a"], "product_id" => other_product.id}}
+
+      assert {:error, changeset} = CACertificates.update_ca_certificate(ca.db_cert, params)
+      assert %{jitp: %{product_id: ["must be a product in this organization"]}} = errors_on(changeset)
+    end
+
+    test "can be one of the org's products", %{ca: ca, product: product} do
+      params = %{"jitp" => %{"description" => "jitp", "tags" => ["a"], "product_id" => product.id}}
+
+      assert {:ok, updated} = CACertificates.update_ca_certificate(ca.db_cert, params)
+      assert updated.jitp.product_id == product.id
+    end
+  end
 end

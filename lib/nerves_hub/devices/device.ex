@@ -47,6 +47,11 @@ defmodule NervesHub.Devices.Device do
   ]
   @required_params [:org_id, :product_id, :identifier]
 
+  # What a user may set on a device, through the API or the dashboard. Everything
+  # else `changeset/2` casts is either where the device lives (its org, product
+  # and deployment group) or state NervesHub keeps for it.
+  @user_params [:description, :tags, :update_mode, :connecting_code]
+
   @derive {Phoenix.Param, key: :identifier}
   schema "devices" do
     belongs_to(:org, Org)
@@ -125,6 +130,13 @@ defmodule NervesHub.Devices.Device do
     timestamps()
   end
 
+  @doc """
+  Any change to a device, for code that works out the values itself.
+
+  It casts the device's org, product and deployment group, so it must never be
+  given a request's params. Those go through `create_changeset/2` or
+  `update_changeset/2`.
+  """
   def changeset(%Device{} = device, params) do
     device
     |> cast(params, @required_params ++ @optional_params)
@@ -132,13 +144,44 @@ defmodule NervesHub.Devices.Device do
     |> cast_embed(:extensions)
     |> validate_required(@required_params)
     |> unique_constraint(:identifier)
-    |> then(fn changeset ->
-      if device.deleted_at && !Map.has_key?(changeset.changes, :deleted_at) do
-        add_error(changeset, :deleted_at, "cannot update while marked as deleted")
-      else
-        changeset
-      end
-    end)
+    |> validate_not_deleted(device)
+  end
+
+  @doc """
+  A new device in `product`, from what a user may set on it.
+
+  The org and product come from `product`, never from `params`, and the device
+  starts with the product's `default_managed_updates_allowed` as its grant.
+  """
+  @spec create_changeset(Product.t(), map()) :: Ecto.Changeset.t()
+  def create_changeset(%Product{} = product, params) do
+    %Device{
+      org_id: product.org_id,
+      product_id: product.id,
+      managed_updates_allowed: product.default_managed_updates_allowed
+    }
+    |> cast(params, [:identifier | @user_params])
+    |> validate_required(@required_params)
+    |> unique_constraint(:identifier)
+  end
+
+  @doc """
+  A change a user makes to a device: its description, tags, first connect code
+  or update mode. Anything else in `params` is ignored.
+  """
+  @spec update_changeset(t(), map()) :: Ecto.Changeset.t()
+  def update_changeset(%Device{} = device, params) do
+    device
+    |> cast(params, @user_params)
+    |> validate_not_deleted(device)
+  end
+
+  defp validate_not_deleted(changeset, device) do
+    if device.deleted_at && !Map.has_key?(changeset.changes, :deleted_at) do
+      add_error(changeset, :deleted_at, "cannot update while marked as deleted")
+    else
+      changeset
+    end
   end
 
   def update_deployment_group(device, deployment_group) do

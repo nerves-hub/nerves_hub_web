@@ -38,9 +38,7 @@ defmodule NervesHub.Firmwares.RaucUploadTest do
 
   defp register_signer(org, user) do
     {:ok, org_key} =
-      NervesHub.Accounts.create_org_key(%{
-        org_id: org.id,
-        created_by_id: user.id,
+      NervesHub.Accounts.create_org_key(org, user, %{
         name: "rauc-#{System.unique_integer([:positive])}",
         key: File.read!(@signer),
         scheme: :x509_certificate
@@ -146,9 +144,7 @@ defmodule NervesHub.Firmwares.RaucUploadTest do
     stranger = RaucBundle.keypair("stranger")
 
     {:ok, _} =
-      NervesHub.Accounts.create_org_key(%{
-        org_id: org.id,
-        created_by_id: user.id,
+      NervesHub.Accounts.create_org_key(org, user, %{
         name: "stranger-#{System.unique_integer([:positive])}",
         key: stranger.certificate,
         scheme: :x509_certificate
@@ -196,9 +192,7 @@ defmodule NervesHub.Firmwares.RaucUploadTest do
       stranger = RaucBundle.keypair("stranger")
 
       {:ok, _} =
-        NervesHub.Accounts.create_org_key(%{
-          org_id: org.id,
-          created_by_id: user.id,
+        NervesHub.Accounts.create_org_key(org, user, %{
           name: "stranger-#{System.unique_integer([:positive])}",
           key: stranger.certificate,
           scheme: :x509_certificate

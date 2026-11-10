@@ -20,6 +20,14 @@ defmodule NervesHub.Products.Product do
 
   @required_params [:name, :org_id]
 
+  @settings [
+    :require_unique_firmware_version,
+    :allowed_update_tools,
+    :allow_unsigned_esp_idf_firmware,
+    :allow_unsigned_atomvm_firmware,
+    :default_managed_updates_allowed
+  ]
+
   @type t :: %__MODULE__{}
 
   @derive {Phoenix.Param, key: :name}
@@ -83,17 +91,22 @@ defmodule NervesHub.Products.Product do
   @doc false
   def changeset(product, params) do
     product
-    |> cast(
-      params,
-      @required_params ++
-        [
-          :require_unique_firmware_version,
-          :allowed_update_tools,
-          :allow_unsigned_esp_idf_firmware,
-          :allow_unsigned_atomvm_firmware,
-          :default_managed_updates_allowed
-        ]
-    )
+    |> cast(params, @required_params ++ @settings)
+    |> validate()
+  end
+
+  @doc """
+  A new product in `org`. The org comes from `org`, never from `params`.
+  """
+  @spec create_changeset(Org.t(), map()) :: Ecto.Changeset.t()
+  def create_changeset(%Org{} = org, params) do
+    %__MODULE__{org_id: org.id}
+    |> cast(params, [:name | @settings])
+    |> validate()
+  end
+
+  defp validate(changeset) do
+    changeset
     |> cast_embed(:extensions)
     |> update_change(:name, &trim/1)
     |> validate_required(@required_params)

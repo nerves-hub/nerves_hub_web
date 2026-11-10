@@ -4,6 +4,7 @@ defmodule NervesHubWeb.Live.Org.SigningKeysTest do
   alias NervesHub.Accounts.OrgKey
   alias NervesHub.Firmwares.UpdateTool
   alias NervesHub.Fixtures
+  alias NervesHub.Repo
   alias NervesHub.Support.EspIdf
   alias NervesHub.Support.RaucBundle
 
@@ -38,6 +39,29 @@ defmodule NervesHubWeb.Live.Org.SigningKeysTest do
       |> assert_has("h3", text: "my amazing key")
       |> assert_has("div", text: "FMBdNKrU3qlyErQtpqxsq50nGAXz03DCeEXPt2iKBe0=")
       |> assert_has("#signing-keys", text: "by #{user.name}")
+    end
+
+    test "the key always goes to the current org, whatever the form sends", %{conn: conn, org: org, user: user} do
+      other_user = Fixtures.user_fixture()
+      other_org = Fixtures.org_fixture(other_user)
+
+      conn
+      |> visit("/org/#{org.name}/settings/keys/new")
+      |> unwrap(fn view ->
+        render_submit(view, "save", %{
+          "org_key" => %{
+            "name" => "planted",
+            "key" => "FMBdNKrU3qlyErQtpqxsq50nGAXz03DCeEXPt2iKBe0=",
+            "org_id" => to_string(other_org.id),
+            "created_by_id" => to_string(other_user.id)
+          }
+        })
+      end)
+      |> assert_has("div", text: "Signing Key created successfully.")
+
+      assert %OrgKey{org_id: org_id, created_by_id: created_by_id} = Repo.get_by!(OrgKey, name: "planted")
+      assert org_id == org.id
+      assert created_by_id == user.id
     end
 
     test "name is trimmed if there is extra space", %{conn: conn, org: org} do

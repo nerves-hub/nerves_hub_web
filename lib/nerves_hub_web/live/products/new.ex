@@ -25,9 +25,7 @@ defmodule NervesHubWeb.Live.Products.New do
   def handle_event("create_product", %{"product" => product_params}, socket) do
     authorized!(:"product:create", socket.assigns.current_scope)
 
-    params = Enum.into(product_params, %{"org_id" => socket.assigns.current_scope.org.id})
-
-    case Products.create_product(params) do
+    case Products.create_product(socket.assigns.current_scope.org, product_params) do
       {:ok, product} ->
         socket
         |> put_flash(:info, "Product created successfully.")

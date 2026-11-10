@@ -40,7 +40,8 @@ defmodule NervesHub.DeviceLink.Authentication do
   to the caller.
 
   A device that has been deleted is refused, and so is one whose product has
-  been, on its own or along with its org.
+  been, on its own or along with its org. So is a device in another org's
+  product, which would be offered that org's firmware.
 
   `server_name` is the hostname the device asked for in its TLS handshake, if it
   asked for one. A device is refused on a hostname that only other orgs have claimed.
@@ -51,6 +52,7 @@ defmodule NervesHub.DeviceLink.Authentication do
   def authenticate(credentials, server_name \\ nil) do
     with {:ok, device} <- identify(credentials),
          :ok <- check_not_deleted(device),
+         :ok <- check_product_in_org(device),
          :ok <- check_hostname(device, server_name) do
       {:ok, device_info(device)}
     end
@@ -154,6 +156,23 @@ defmodule NervesHub.DeviceLink.Authentication do
   defp check_not_deleted(device) do
     :telemetry.execute([:nerves_hub, :devices, :invalid_auth], %{count: 1}, %{
       reason: :deleted,
+      org_id: device.org_id,
+      product_id: device.product_id,
+      identifier: device.identifier
+    })
+
+    {:error, :invalid_auth}
+  end
+
+  # Nothing makes a device whose org doesn't own its product: creating or moving
+  # one sets both from the product. Request params could once set either on its
+  # own, though, and deployment groups are matched by product alone, so such a
+  # device would be offered the other org's firmware.
+  defp check_product_in_org(%Device{org_id: org_id, product: %{org_id: org_id}}), do: :ok
+
+  defp check_product_in_org(device) do
+    :telemetry.execute([:nerves_hub, :devices, :invalid_auth], %{count: 1}, %{
+      reason: :product_in_other_org,
       org_id: device.org_id,
       product_id: device.product_id,
       identifier: device.identifier

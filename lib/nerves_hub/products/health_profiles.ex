@@ -204,7 +204,7 @@ defmodule NervesHub.Products.HealthProfiles do
   @doc """
   Creates the product's default profile, seeded with `default_metric_attrs/0`.
 
-  Runs inside product creation (see `NervesHub.Products.create_product/1`);
+  Runs inside product creation (see `NervesHub.Products.create_product/2`);
   also the backstop for older products that somehow missed the backfill.
   """
   @spec create_default_profile(pos_integer()) :: {:ok, HealthProfile.t()} | {:error, Ecto.Changeset.t()}

@@ -39,9 +39,7 @@ defmodule NervesHubWeb.Live.FirmwareRaucTest do
 
   defp register_signer(org, user) do
     {:ok, org_key} =
-      NervesHub.Accounts.create_org_key(%{
-        org_id: org.id,
-        created_by_id: user.id,
+      NervesHub.Accounts.create_org_key(org, user, %{
         name: "rauc-#{System.unique_integer([:positive])}",
         key: File.read!(@signer),
         scheme: :x509_certificate

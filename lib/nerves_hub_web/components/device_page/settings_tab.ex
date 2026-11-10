@@ -365,7 +365,7 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
   end
 
   def hooked_event("validate-device-settings", %{"device" => device_params}, socket) do
-    changeset = Device.changeset(socket.assigns.device, device_params)
+    changeset = Device.update_changeset(socket.assigns.device, device_params)
 
     socket
     |> assign(:settings_form, to_form(changeset, action: :validate))
@@ -377,16 +377,14 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
 
     %{device: device, user: user} = socket.assigns
 
-    message = "User #{user.name} updated device #{device.identifier}"
-
-    case Devices.update_device_with_audit(device, device_params, user, message) do
+    case Devices.update_device_settings(device, device_params, user) do
       {:ok, device} ->
         socket
         |> assign(:device, device)
         |> put_flash(:info, "Device updated.")
         |> halt()
 
-      {:error, :update_with_audit, changeset, _} ->
+      {:error, %Ecto.Changeset{data: %Device{}} = changeset} ->
         error =
           if Keyword.has_key?(changeset.errors, :deleted_at) do
             "Device cannot be updated because it has been deleted. Please restore the device to make changes."
@@ -399,7 +397,7 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
         |> assign(:settings_form, to_form(changeset))
         |> halt()
 
-      {:error, _, _, _} ->
+      {:error, _} ->
         socket
         |> put_flash(:error, "An unknown error occurred, please contact support.")
         |> halt()

@@ -6,18 +6,10 @@ defmodule NervesHubWeb.API.DeviceCertificateControllerTest do
   alias NervesHub.Devices.Certificates
   alias NervesHub.Fixtures
 
-  setup %{org: org, product: product} do
-    identifier = "device-1234"
+  setup %{product: product} do
+    {:ok, device} =
+      Devices.create_device(product, %{identifier: "device-1234", description: "test device", tags: ["test"]})
 
-    device = %{
-      identifier: identifier,
-      description: "test device",
-      tags: ["test"],
-      org_id: org.id,
-      product_id: product.id
-    }
-
-    {:ok, device} = Devices.create_device(device)
     [device: device]
   end
 

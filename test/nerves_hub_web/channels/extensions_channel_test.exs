@@ -59,11 +59,7 @@ defmodule NervesHubWeb.ExtensionsChannelTest do
     product = Fixtures.product_fixture(user, org)
 
     {:ok, device} =
-      Devices.create_device(%{
-        product_id: product.id,
-        org_id: org.id,
-        identifier: Ecto.UUID.generate()
-      })
+      Devices.create_device(product, %{identifier: Ecto.UUID.generate()})
 
     %{db_cert: certificate, cert: _cert} = Fixtures.device_certificate_fixture(device)
 

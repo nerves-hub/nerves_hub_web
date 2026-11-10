@@ -8,14 +8,12 @@ defmodule NervesHubWeb.API.NetworkIdentityControllerTest do
   @iroh_app "5f691e39f55415be337b2e4cc0dd7291586ab7c4356bf32bab60f46fc78f95d5"
   @tailscale String.duplicate("ab", 32)
 
-  setup %{org: org, product: product} do
+  setup %{product: product} do
     {:ok, device} =
-      Devices.create_device(%{
+      Devices.create_device(product, %{
         identifier: "device-1234",
         description: "test device",
-        tags: ["test"],
-        org_id: org.id,
-        product_id: product.id
+        tags: ["test"]
       })
 
     [device: device]
@@ -52,7 +50,7 @@ defmodule NervesHubWeb.API.NetworkIdentityControllerTest do
 
     test "does not list another device's", %{conn: conn, org: org, product: product, device: device} do
       {:ok, other} =
-        Devices.create_device(%{identifier: "device-5678", org_id: org.id, product_id: product.id})
+        Devices.create_device(product, %{identifier: "device-5678"})
 
       {:ok, _} = NetworkIdentities.report(other.id, "iroh", %{identifier: @iroh_console})
 

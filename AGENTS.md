@@ -95,7 +95,7 @@ when adding or removing one.
 - `products.ex` / `products/` — products and product settings, including
   health profiles (the per-product thresholds behind device health status,
   evaluated in `devices/health_evaluation.ex`) and the device-managed updates
-  grant new devices start with (applied in `Devices.create_device/1`). Changes
+  grant new devices start with (applied in `Device.create_changeset/2`). Changes
   to a setting on every device in a product, from product settings, live in
   `devices/bulk_actions.ex`.
 - `extensions.ex` / `extensions/` — the device **extension framework**

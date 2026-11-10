@@ -545,11 +545,11 @@ defmodule NervesHub.Devices do
   credentials it will connect with. When the secret can't be issued, as
   `issue_shared_secret_auth/2` describes, the device isn't created either.
   """
-  @spec create_device_with_shared_secret_auth(map(), User.t()) ::
+  @spec create_device_with_shared_secret_auth(Product.t(), map(), User.t()) ::
           {:ok, {Device.t(), SharedSecretAuth.t()}} | {:error, Changeset.t() | :shared_secrets_not_enabled}
-  def create_device_with_shared_secret_auth(params, user) do
+  def create_device_with_shared_secret_auth(%Product{} = product, params, user) do
     Repo.transact(fn ->
-      with {:ok, device} <- create_device(params),
+      with {:ok, device} <- create_device(product, params),
            {:ok, auth} <- issue_shared_secret_auth(device, user) do
         {:ok, {device, auth}}
       end
@@ -563,11 +563,7 @@ defmodule NervesHub.Devices do
            get_active_device(product_id: auth.product_id, identifier: identifier),
          {:ok, product} <-
            Products.get_product(auth.product_id) do
-      create_device(%{
-        org_id: product.org_id,
-        product_id: product.id,
-        identifier: identifier
-      })
+      create_device(product, %{identifier: identifier})
     end
   end
 
@@ -580,31 +576,18 @@ defmodule NervesHub.Devices do
   end
 
   @doc """
-  Create a device.
+  Add a device to `product`.
 
-  The device starts with its product's `default_managed_updates_allowed` as its
-  `managed_updates_allowed` grant, unless `params` sets the grant itself.
+  `params` can set only what `Device.create_changeset/2` allows, which takes
+  the org and product from `product` and starts the device with the product's
+  `default_managed_updates_allowed` as its grant.
   """
-  @spec create_device(map) :: {:ok, Device.t()} | {:error, Changeset.t()}
-  def create_device(params) do
-    %Device{}
-    |> Device.changeset(params)
-    |> put_product_defaults()
+  @spec create_device(Product.t(), map()) :: {:ok, Device.t()} | {:error, Changeset.t()}
+  def create_device(%Product{} = product, params) do
+    product
+    |> Device.create_changeset(params)
     |> Repo.insert()
     |> Repo.maybe_preload(:product)
-  end
-
-  # `cast/4` keeps the params with string keys whichever the caller used, so this
-  # one check covers both. It has to look at the params rather than the changes:
-  # an explicit `false` matches the schema default and so records no change.
-  defp put_product_defaults(%Changeset{params: params} = changeset) do
-    with false <- Map.has_key?(params, "managed_updates_allowed"),
-         product_id when not is_nil(product_id) <- Changeset.get_field(changeset, :product_id),
-         {:ok, product} <- Products.get_product(product_id) do
-      Changeset.put_change(changeset, :managed_updates_allowed, product.default_managed_updates_allowed)
-    else
-      _ -> changeset
-    end
   end
 
   def set_as_provisioned!(device) do
@@ -1054,6 +1037,32 @@ defmodule NervesHub.Devices do
 
       err ->
         err
+    end
+  end
+
+  @doc """
+  Apply a change `user` makes to a device, and record who made it.
+
+  `params` can set only what `Device.update_changeset/2` allows: the device's
+  description, tags, first connect code and update mode.
+  """
+  @spec update_device_settings(Device.t(), map(), User.t()) :: {:ok, Device.t()} | {:error, Changeset.t()}
+  def update_device_settings(%Device{} = device, params, %User{} = user) do
+    description = "User #{user.name} updated device #{device.identifier}"
+
+    Repo.transact(fn ->
+      with {:ok, updated} <- device |> Device.update_changeset(params) |> Repo.update(),
+           {:ok, _audit_log} <- AuditLogs.audit(user, device, description) do
+        {:ok, updated}
+      end
+    end)
+    |> case do
+      {:ok, updated} ->
+        _ = DeviceEvents.updated(updated)
+        {:ok, updated}
+
+      error ->
+        error
     end
   end
 
