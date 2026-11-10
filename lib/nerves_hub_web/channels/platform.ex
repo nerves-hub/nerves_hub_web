@@ -16,7 +16,7 @@ defmodule NervesHubWeb.Channels.Platform do
 
   Every unanswered call emits `[:nerves_hub, :device_link, :unanswered]`, with
   the `function`, a `reason` of `:no_handlers` or `:timeout`, the `error`, and
-  the `device_id`. `NervesHub.Logger` writes each one as a warning.
+  the `device_id`, and each one is logged as a warning.
   """
 
   alias NervesHub.DeviceLink.Dispatcher.NoHandlersError
