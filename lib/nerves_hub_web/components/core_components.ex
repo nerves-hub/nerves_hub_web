@@ -868,7 +868,7 @@ defmodule NervesHubWeb.CoreComponents do
   def error(assigns) do
     ~H"""
     <p class="mt-1 flex gap-2 text-sm/6 text-alert">
-      <span class="mt-0.5 lucide-circle-alert size-4 flex-none text-alert" aria-hidden="true"></span>
+      <span class="mt-0.5 lucide-circle-exclamation-point size-4 flex-none text-alert" aria-hidden="true"></span>
 
       <span class="error-text">{render_slot(@inner_block)}</span>
     </p>

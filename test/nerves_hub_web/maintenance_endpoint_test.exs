@@ -41,6 +41,15 @@ defmodule NervesHubWeb.MaintenanceEndpointTest do
     end
   end
 
+  test "serves the font the page asks for" do
+    assert request("/").resp_body =~ ~s{url("/fonts/inter/InterVariable.woff2")}
+
+    conn = request("/fonts/inter/InterVariable.woff2")
+
+    assert conn.status == 200
+    assert get_resp_header(conn, "content-type") == ["font/woff2"]
+  end
+
   test "leaves the status page out when none is configured" do
     Application.put_env(:nerves_hub, :status_page_url, nil)
 

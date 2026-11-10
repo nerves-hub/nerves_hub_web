@@ -74,7 +74,7 @@ defmodule NervesHubWeb.Components.Navigation do
         badge={@unresolved_errors_count}
         path={~p"/org/#{@scope.org}/#{@scope.product}/errors"}
         selected={:errors == @selected_tab}
-        icon="data-[selected=false]:lucide-circle-alert data-[selected=true]:lucide-circle-alert--bold"
+        icon="data-[selected=false]:lucide-circle-exclamation-point data-[selected=true]:lucide-circle-exclamation-point--bold"
       />
       <.nav_link
         label="Notifications"
