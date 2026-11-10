@@ -80,6 +80,7 @@ instead, and tells the device page when it attaches or detaches.
 | Rate-limit throttle sync, CLI-session cache | `:group`, `"web"` cluster | Web-only state that should not exist on device nodes at all. |
 | `product:<id>:extensions` | `Phoenix.PubSub` | One operator toggle must reach *every* online device in the product. Genuine dense fan-out. |
 | `deployment:<id>` | `Phoenix.PubSub` | Multi-subscriber, not a sparse per-entity topic. |
+| `org_membership:<org_id>:<user_id>` — role changed or member removed | `Phoenix.PubSub` | Members are that user's open pages in the org and their consoles, shells and event streams, so sparse, but it is published only when an admin changes a membership. `:group` would replicate a join and a leave on every org page load to target a handful of messages a day. |
 
 ## Clusters
 
@@ -117,6 +118,7 @@ API:
 | `NervesHub.Consoles.PubSub` | Console and local-shell streams, and finding a device's console or attached shell |
 | `NervesHub.Extensions.PubSub` | Per-device extension traffic, both directions, and the product-wide topic |
 | `NervesHub.Products.PubSub` | `product:<id>` |
+| `NervesHub.Accounts.PubSub` | `org_membership:<org_id>:<user_id>` |
 | `NervesHub.Firmwares.PubSub` | Firmware delta build status |
 | `NervesHub.DeploymentOrchestratorEvents` | Orchestrator events |
 | `NervesHub.ProductNotifications` | Product notifications (in-module) |

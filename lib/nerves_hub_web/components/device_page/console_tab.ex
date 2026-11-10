@@ -170,10 +170,6 @@ defmodule NervesHubWeb.Components.DevicePage.ConsoleTab do
   end
 
   def render(assigns) do
-    token = Phoenix.Token.sign(NervesHubWeb.Endpoint, "user salt", assigns.user.id)
-
-    assigns = Map.put(assigns, :user_token, token)
-
     ~H"""
     <div
       id="console-tab"
@@ -198,7 +194,7 @@ defmodule NervesHubWeb.Components.DevicePage.ConsoleTab do
           </:failed>
           <div id="console-and-chat" class="flex size-full bg-black" style="background-color: rgb(14, 16, 25);">
             <div :if={authorized?(:"device:console", @current_scope) && online?} id="dropzone" class="relative flex grow gap-6 p-12" style="background-color: rgb(14, 16, 25);">
-              <div id="console" phx-hook="Console" phx-update="ignore" data-user-token={@user_token} data-device-identifier={@device.identifier} class="z-10 size-full"></div>
+              <div id="console" phx-hook="Console" phx-update="ignore" data-device-identifier={@device.identifier} class="z-10 size-full"></div>
               <div id="immersive-device" class="pointer-events-none absolute top-4 left-6 z-20 hidden text-base-800">
                 <div class="flex items-center gap-3">
                   <%= if Map.get(@device_connection || %{}, :status) == :connected do %>

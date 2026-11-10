@@ -3,6 +3,7 @@ defmodule NervesHubWeb.UserConsoleChannel do
 
   alias NervesHub.Accounts
   alias NervesHub.Accounts.OrgUser
+  alias NervesHub.Accounts.PubSub, as: AccessPubSub
   alias NervesHub.Accounts.Scope
   alias NervesHub.Consoles.PubSub
   alias NervesHub.Devices
@@ -13,6 +14,7 @@ defmodule NervesHubWeb.UserConsoleChannel do
   def join("user:console:identifier-" <> identifier, _, socket) do
     if device = authorized?(socket.assigns.user, identifier) do
       :ok = PubSub.subscribe_user_console(device.id)
+      :ok = AccessPubSub.subscribe_membership(device.org_id, socket.assigns.user.id)
 
       :ok = PubSub.connect_to_console(device.id, self())
 
@@ -78,6 +80,17 @@ defmodule NervesHubWeb.UserConsoleChannel do
   def handle_info({:cache, lines}, socket) do
     push(socket, "up", %{data: lines})
     {:noreply, socket}
+  end
+
+  # The user's role in the device's org changed, or they were removed from it.
+  # Checked the same way as on join, so a user who couldn't open the console
+  # now doesn't keep it open.
+  def handle_info({:org_membership_changed, _org_id}, socket) do
+    if authorized?(socket.assigns.user, socket.assigns.device.identifier) do
+      {:noreply, socket}
+    else
+      {:stop, {:shutdown, :closed}, socket}
+    end
   end
 
   # This ties in the messages from Device that need to be handled in the console

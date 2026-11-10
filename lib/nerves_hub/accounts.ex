@@ -8,6 +8,7 @@ defmodule NervesHub.Accounts do
   alias NervesHub.Accounts.OrgKey
   alias NervesHub.Accounts.OrgMetric
   alias NervesHub.Accounts.OrgUser
+  alias NervesHub.Accounts.PubSub, as: AccessPubSub
   alias NervesHub.Accounts.RemoveAccount
   alias NervesHub.Accounts.Scope
   alias NervesHub.Accounts.User
@@ -276,8 +277,6 @@ defmodule NervesHub.Accounts do
       org_user = Repo.get_by(Ecto.assoc(org, :org_users), user_id: user.id)
 
       maybe_soft_delete_org_user(org_user)
-
-      :ok
     end
   end
 
@@ -285,18 +284,36 @@ defmodule NervesHub.Accounts do
 
   defp maybe_soft_delete_org_user(org_user), do: soft_delete_org_user(org_user)
 
+  @doc """
+  Removes a member from the org.
+
+  Pages they have open in the org send them back to their list of orgs, and
+  their consoles, local shells and device event streams on its devices close
+  (see `NervesHub.Accounts.PubSub`).
+  """
+  @spec soft_delete_org_user(OrgUser.t()) :: :ok | {:error, Changeset.t()}
   def soft_delete_org_user(org_user) do
     with {:ok, %{org_id: org_id, user_id: user_id}} <-
            Repo.soft_delete(org_user),
          {_, nil} <- Pinning.unpin_org_devices(user_id, org_id) do
+      _ = AccessPubSub.broadcast_membership_changed(org_id, user_id)
       :ok
     end
   end
 
+  @doc """
+  Changes a member's role.
+
+  Pages they have open in the org mount again under the new role, and consoles,
+  local shells and device event streams the new role doesn't allow close (see
+  `NervesHub.Accounts.PubSub`).
+  """
+  @spec change_org_user_role(OrgUser.t(), atom() | String.t()) :: {:ok, OrgUser.t()} | {:error, Changeset.t()}
   def change_org_user_role(%OrgUser{} = ou, role) do
-    ou
-    |> Org.change_user_role(%{role: role})
-    |> Repo.update()
+    with {:ok, org_user} <- ou |> Org.change_user_role(%{role: role}) |> Repo.update() do
+      _ = AccessPubSub.broadcast_membership_changed(org_user.org_id, org_user.user_id)
+      {:ok, org_user}
+    end
   end
 
   def get_org_user!(%Scope{org: org}, %User{} = user) do

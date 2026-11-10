@@ -1,6 +1,6 @@
-import { Socket } from "phoenix"
 import semver from "semver"
 import {
+  connectUserSocket,
   createTerminal,
   debounce,
   setupOptionAsMetaToggle
@@ -13,10 +13,7 @@ const resizeContent = (term, channel) => {
 export default {
   mounted() {
     // socket + channel setup to receive device console data
-    this.socket = new Socket("/socket", {
-      params: { token: this.el.dataset.userToken }
-    })
-    this.socket.connect()
+    this.socket = connectUserSocket()
 
     const deviceIdentifier = this.el.dataset.deviceIdentifier
     const channel = this.socket.channel(

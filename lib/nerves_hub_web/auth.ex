@@ -5,6 +5,9 @@ defmodule NervesHubWeb.Auth do
   import Plug.Conn
 
   alias NervesHub.Accounts
+  alias NervesHub.Accounts.Org
+  alias NervesHub.Accounts.OrgUser
+  alias NervesHub.Accounts.PubSub, as: AccessPubSub
   alias NervesHub.Accounts.Scope
   alias NervesHub.Accounts.User
 
@@ -136,9 +139,7 @@ defmodule NervesHubWeb.Auth do
       # further down the pipeline
       user = Accounts.get_user_with_all_orgs_and_products(user.id)
 
-      conn
-      |> assign(:current_scope, Scope.for_user(user))
-      |> assign(:user_token, Phoenix.Token.sign(conn, "user salt", user.id))
+      assign(conn, :current_scope, Scope.for_user(user))
     else
       nil ->
         assign(conn, :current_scope, Scope.for_user(nil))
@@ -191,7 +192,7 @@ defmodule NervesHubWeb.Auth do
           socket
       end
 
-    {:cont, socket}
+    {:cont, watch_membership(socket)}
   end
 
   def on_mount(:assign_org_to_scope, _params, _session, socket), do: {:cont, socket}
@@ -246,6 +247,49 @@ defmodule NervesHubWeb.Auth do
   end
 
   defp mount_current_scope(socket, _session), do: socket
+
+  # The member's role is read once, when the page mounts, and every permission
+  # check on the page uses that copy. So when an admin changes the role, the
+  # page mounts again, and everything it worked out from the old role is worked
+  # out again from the new one. A member who has been removed is sent back to
+  # their list of orgs.
+  defp watch_membership(%{assigns: %{current_scope: %Scope{org: %Org{} = org, user: %User{} = user}}} = socket) do
+    if Phoenix.LiveView.connected?(socket) do
+      :ok = AccessPubSub.subscribe_membership(org.id, user.id)
+      Phoenix.LiveView.attach_hook(socket, :org_membership, :handle_info, &membership_changed/2)
+    else
+      socket
+    end
+  end
+
+  defp watch_membership(socket), do: socket
+
+  defp membership_changed(
+         {:org_membership_changed, org_id},
+         %{assigns: %{current_scope: %{org: %{id: org_id}}}} = socket
+       ) do
+    %Scope{org: org, user: user, role: role} = socket.assigns.current_scope
+
+    socket =
+      case Accounts.get_org_user(org, user) do
+        {:ok, %OrgUser{role: ^role}} ->
+          socket
+
+        {:ok, %OrgUser{}} ->
+          socket
+          |> Phoenix.LiveView.put_flash(:info, "Your role in #{org.name} has changed.")
+          |> Phoenix.LiveView.push_navigate(to: socket.assigns.current_path)
+
+        {:error, :not_found} ->
+          socket
+          |> Phoenix.LiveView.put_flash(:error, "You're no longer a member of #{org.name}.")
+          |> Phoenix.LiveView.push_navigate(to: ~p"/orgs")
+      end
+
+    {:halt, socket}
+  end
+
+  defp membership_changed(_message, socket), do: {:cont, socket}
 
   @doc """
   Used for routes that require the user to be authenticated.

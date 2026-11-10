@@ -118,10 +118,6 @@ defmodule NervesHubWeb.Components.DevicePage.LocalShellTab do
   end
 
   def render(assigns) do
-    token = Phoenix.Token.sign(NervesHubWeb.Endpoint, "user salt", assigns.user.id)
-
-    assigns = Map.put(assigns, :user_token, token)
-
     ~H"""
     <div
       id="local-shell-tab"
@@ -151,7 +147,7 @@ defmodule NervesHubWeb.Components.DevicePage.LocalShellTab do
               class="relative flex grow gap-6 p-12"
               style="background-color: rgb(14, 16, 25);"
             >
-              <div id="local-shell" phx-hook="LocalShell" phx-update="ignore" data-user-token={@user_token} data-device-identifier={@device.identifier} class="z-10 size-full"></div>
+              <div id="local-shell" phx-hook="LocalShell" phx-update="ignore" data-device-identifier={@device.identifier} class="z-10 size-full"></div>
               <div id="immersive-device" class="pointer-events-none absolute top-4 left-6 z-20 hidden text-base-800">
                 <div class="flex items-center gap-3">
                   <.status_dot

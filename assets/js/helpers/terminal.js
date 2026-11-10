@@ -1,3 +1,4 @@
+import { Socket } from "phoenix"
 import { Terminal } from "@xterm/xterm"
 import { WebglAddon } from "@xterm/addon-webgl"
 import { WebLinksAddon } from "@xterm/addon-web-links"
@@ -58,6 +59,19 @@ const defaultTermOptions = {
     white: "#FFFFFF",
     brightWhite: "#FFFFFF"
   }
+}
+
+// The console and local shell socket signs in with the session cookie, as the
+// LiveView socket does, so it sends the page's CSRF token the same way.
+export const connectUserSocket = () => {
+  const csrfToken = document
+    .querySelector("meta[name='csrf-token']")
+    .getAttribute("content")
+
+  const socket = new Socket("/socket", { params: { _csrf_token: csrfToken } })
+  socket.connect()
+
+  return socket
 }
 
 export const debounce = (func, time = 100) => {
