@@ -11,6 +11,7 @@ defmodule NervesHub.Accounts do
   alias NervesHub.Accounts.PubSub, as: AccessPubSub
   alias NervesHub.Accounts.RemoveAccount
   alias NervesHub.Accounts.Scope
+  alias NervesHub.Accounts.Starring
   alias NervesHub.Accounts.User
   alias NervesHub.Accounts.UserCLISession
   alias NervesHub.Accounts.UserNotifier
@@ -290,13 +291,15 @@ defmodule NervesHub.Accounts do
 
   Pages they have open in the org send them back to their list of orgs, and
   their consoles, local shells and device event streams on its devices close
-  (see `NervesHub.Accounts.PubSub`).
+  (see `NervesHub.Accounts.PubSub`). Their pins on its devices and their star
+  on it go.
   """
   @spec soft_delete_org_user(OrgUser.t()) :: :ok | {:error, Changeset.t()}
   def soft_delete_org_user(org_user) do
     with {:ok, %{org_id: org_id, user_id: user_id}} <-
            Repo.soft_delete(org_user),
-         {_, nil} <- Pinning.unpin_org_devices(user_id, org_id) do
+         {_, nil} <- Pinning.unpin_org_devices(user_id, org_id),
+         {_, nil} <- Starring.unstar_org(user_id, org_id) do
       _ = AccessPubSub.broadcast_membership_changed(org_id, user_id)
       :ok
     end

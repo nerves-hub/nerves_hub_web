@@ -4,8 +4,9 @@ defmodule NervesHubWeb.Live.Orgs.Index do
 
   Most people belong to one organization, so with one the page is that
   organization: its name heads the page and its products follow. With more,
-  each gets a section of its own, largest first. From five up only the four
-  largest get a section, and the rest share a compact table.
+  each gets a section of its own, largest first. From five up the user stars
+  the ones they want in full, and only those get a section; until they star
+  one, the four largest do. The rest share a compact table.
 
   Above the products sit what needs someone's attention across every
   organization (releases waiting for approval, unhealthy devices, devices
@@ -23,6 +24,7 @@ defmodule NervesHubWeb.Live.Orgs.Index do
   import NervesHubWeb.Components.Fleet
 
   alias NervesHub.Accounts
+  alias NervesHub.Accounts.Starring
   alias NervesHub.Devices
   alias NervesHub.Devices.Pinning
   alias NervesHub.Devices.PubSub
@@ -32,7 +34,8 @@ defmodule NervesHubWeb.Live.Orgs.Index do
 
   @pinned_devices_limit 5
 
-  # The most organizations that get a full section. Past this, the rest are
+  # The most organizations that get a full section without the user choosing.
+  # Past this, the user stars the ones they want in full and the rest are
   # listed in one table, so a member of many organizations doesn't scroll past
   # every product they belong to.
   @full_sections 4
@@ -51,6 +54,15 @@ defmodule NervesHubWeb.Live.Orgs.Index do
     socket
     |> assign(:show_all_pinned?, !show_all?)
     |> noreply()
+  end
+
+  # Only an organization on the page can be starred, which is one the user
+  # belongs to.
+  def handle_event("toggle-star", %{"org_id" => org_id}, %{assigns: %{orgs: orgs}} = socket) do
+    case Enum.find(orgs, &(to_string(&1.org.id) == org_id)) do
+      nil -> {:noreply, socket}
+      %{org: org} -> toggle_star(socket, org)
+    end
   end
 
   # Only keeps the address preview in step with the names. Errors come from
@@ -134,6 +146,7 @@ defmodule NervesHubWeb.Live.Orgs.Index do
     |> assign(:page_title, "Organizations")
     |> assign(:onboarding, false)
     |> assign(:orgs, orgs)
+    |> assign(:starred, Starring.starred_org_ids(scope))
     |> assign(:online, %{})
     |> assign(:fleet, nil)
     |> assign(:attention, nil)
@@ -202,9 +215,57 @@ defmodule NervesHubWeb.Live.Orgs.Index do
     limited_devices
   end
 
-  # The organizations that get a section of their own, and the rest.
-  defp split_sections(orgs) when length(orgs) > @full_sections, do: Enum.split(orgs, @full_sections)
-  defp split_sections(orgs), do: {orgs, []}
+  defp toggle_star(%{assigns: %{current_scope: scope, starred: starred}} = socket, org) do
+    if MapSet.member?(starred, org.id) do
+      {_, nil} = Starring.unstar_org(scope.user.id, org.id)
+
+      socket
+      |> assign(:starred, MapSet.delete(starred, org.id))
+      |> noreply()
+    else
+      case Starring.star_org(scope.user.id, org.id) do
+        :ok ->
+          socket
+          |> assign(:starred, MapSet.put(starred, org.id))
+          |> noreply()
+
+        {:error, _changeset} ->
+          socket
+          |> put_flash(:error, "#{org.name} couldn’t be starred. Please try again.")
+          |> noreply()
+      end
+    end
+  end
+
+  # Whether the user picks which organizations get a section, by starring
+  # them. With fewer, every organization gets one.
+  defp stars_offered?(orgs), do: length(orgs) > @full_sections
+
+  defp starred?(starred, entry), do: MapSet.member?(starred, entry.org.id)
+
+  # Whether the user has starred any of their organizations, so the starred
+  # ones are the ones with sections.
+  defp stars_chosen?(orgs, starred), do: stars_offered?(orgs) and Enum.any?(orgs, &starred?(starred, &1))
+
+  # The organizations that get a section of their own, and the rest. Both
+  # keep the largest-first order.
+  defp split_sections(orgs, starred) do
+    cond do
+      not stars_offered?(orgs) -> {orgs, []}
+      stars_chosen?(orgs, starred) -> Enum.split_with(orgs, &starred?(starred, &1))
+      true -> Enum.split(orgs, @full_sections)
+    end
+  end
+
+  # Whether the strip of starred organizations has room for the slot that
+  # asks for another star.
+  defp room_for_star?(starred_entries), do: length(starred_entries) < @full_sections
+
+  # The slot fills the rest of its row: two tiles to a row on a phone, four
+  # from lg up.
+  defp star_slot_span(1), do: "lg:col-span-3"
+  defp star_slot_span(2), do: "col-span-2"
+  defp star_slot_span(_count), do: nil
 
   defp attention_count(nil, _org_id), do: 0
   defp attention_count(attention, org_id), do: Enum.count(attention, &(&1.entry.org.id == org_id))
@@ -301,6 +362,37 @@ defmodule NervesHubWeb.Live.Orgs.Index do
     <.button type="link" square navigate={~p"/org/#{@entry.org}/settings"} aria-label="Settings" title="Settings">
       <span class="lucide-settings size-4" aria-hidden="true"></span>
     </.button>
+    """
+  end
+
+  attr(:entry, :map, required: true)
+  attr(:starred, :boolean, required: true)
+
+  # The star takes the 16px the design gives it, and the negative margin
+  # widens what can be clicked to 24px without moving anything around it. It
+  # sits above a row's stretched link, so clicking it doesn't open the
+  # organization.
+  defp star_toggle(assigns) do
+    ~H"""
+    <button
+      type="button"
+      id={"star-org-#{@entry.org.id}"}
+      phx-click="toggle-star"
+      phx-value-org_id={@entry.org.id}
+      aria-pressed={to_string(@starred)}
+      aria-label={"Star #{@entry.org.name}"}
+      title={if @starred, do: "Unstar", else: "Star"}
+      class="group/star relative z-10 -m-1 flex size-6 shrink-0 items-center justify-center rounded hover:cursor-pointer"
+    >
+      <span
+        class={[
+          "size-4",
+          @starred && "lucide-star--fill text-warning group-hover/star:text-warning-content",
+          !@starred && "lucide-star text-content-faint group-hover/star:text-content-strong"
+        ]}
+        aria-hidden="true"
+      ></span>
+    </button>
     """
   end
 end
