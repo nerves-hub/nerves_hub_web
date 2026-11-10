@@ -34,6 +34,16 @@ defmodule NervesHubWeb.Plugs.Attack do
     end
   end
 
+  # Starting a CLI login has an allowance of its own rather than a share of the
+  # one below. nh polls every two seconds while it waits, which is all thirty a
+  # minute, so a start counted there would cost the first minute of every login
+  # a refused poll.
+  rule "throttle CLI logins by ip", conn do
+    if conn.private[:phoenix_action] == :cli_session do
+      cli_login_throttle(client_ip(conn))
+    end
+  end
+
   rule "throttle by ip", conn do
     ip_throttle(client_ip(conn))
   end
@@ -44,6 +54,43 @@ defmodule NervesHubWeb.Plugs.Attack do
     if !opts[:time], do: RateLimitPubSub.broadcast(key, time)
 
     do_throttle(key, time: time, limit: 30, period: 60_000)
+  end
+
+  @doc """
+  Limits how many CLI logins one address can start: ten every ten minutes.
+
+  Starting one needs no account, and each login waits five minutes in a table
+  that every web node keeps a copy of. Without a limit, one caller could grow
+  that table on every node for as long as they kept asking. Someone at a
+  terminal starts a login or two.
+
+  Counted on this node only, like `cli_code_throttle/2`, so an address gets the
+  limit once per web node. That still bounds it, and a web node still running
+  an older release has nothing to do with a count it has never heard of.
+  """
+  @spec cli_login_throttle(term(), keyword()) :: {:allow | :block, {:throttle, keyword()}}
+  def cli_login_throttle(ip, opts \\ []) do
+    time = opts[:time] || System.system_time(:millisecond)
+
+    do_throttle({:cli_login, ip}, time: time, limit: 10, period: to_timeout(minute: 10))
+  end
+
+  @doc """
+  Limits how many CLI login codes one user can try: ten every ten minutes.
+
+  A login is found by its code alone, so without a limit someone signed in could
+  guess codes until they confirmed somebody else's CLI into their own account.
+  Finding a login and confirming it count one each.
+
+  Counted on this node only. A user's tries spread across the web nodes get the
+  limit once per node, which still leaves guessing one of 90 million codes
+  pointless.
+  """
+  @spec cli_code_throttle(pos_integer(), keyword()) :: {:allow | :block, {:throttle, keyword()}}
+  def cli_code_throttle(user_id, opts \\ []) do
+    time = opts[:time] || System.system_time(:millisecond)
+
+    do_throttle({:cli_code, user_id}, time: time, limit: 10, period: to_timeout(minute: 10))
   end
 
   defp do_throttle(key, opts) do

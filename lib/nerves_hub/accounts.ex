@@ -1434,19 +1434,62 @@ defmodule NervesHub.Accounts do
     end)
   end
 
-  def generate_cli_session_token(note) do
-    token = Ecto.UUID.generate()
+  @cli_code_range 10_000_000..99_999_999
 
-    expires_at =
-      DateTime.utc_now()
-      |> DateTime.add(5, :minute)
-      |> DateTime.to_unix()
+  # The note becomes the API token's note when the login is confirmed, so it has
+  # to fit that column: UTF-8, and no more than 255 characters. Postgres can't
+  # store a NUL either.
+  @cli_note_max_length 255
+
+  # It is also shown, as the CLI wrote it, to whoever confirms the login. Control
+  # and formatting characters, such as the ones that reverse the direction of
+  # text, could make it read as something it isn't there.
+  @cli_note_unprintable ~r/[\p{Cc}\p{Cf}]/u
+
+  @doc """
+  Starts a CLI login, which waits five minutes for someone signed in to the web
+  to confirm it.
+
+  The CLI polls with the session's token and shows its user the confirmation
+  code, which they type in on the web to find the login. The web never sees the
+  token. `requested_from` is the address the CLI's request came from, shown to
+  whoever confirms the login.
+
+  `note` labels the API token the login ends with. A note that isn't a string,
+  is longer than 255 characters, or holds control or formatting characters is
+  refused before anything is stored.
+  """
+  @spec generate_cli_session_token(term(), String.t() | nil) ::
+          {:ok, UserCLISession.t()} | {:error, :invalid_note | :invalid_request}
+  def generate_cli_session_token(note, requested_from \\ nil) do
+    if valid_cli_note?(note) do
+      start_cli_session(note, requested_from)
+    else
+      {:error, :invalid_note}
+    end
+  end
+
+  defp valid_cli_note?(nil), do: true
+
+  # A character is at most four bytes, so a longer note is refused unread.
+  defp valid_cli_note?(note) when is_binary(note) and byte_size(note) <= @cli_note_max_length * 4 do
+    String.valid?(note) and length(String.codepoints(note)) <= @cli_note_max_length and
+      not String.match?(note, @cli_note_unprintable)
+  end
+
+  defp valid_cli_note?(_note), do: false
+
+  defp start_cli_session(note, requested_from) do
+    token = Ecto.UUID.generate()
+    now = DateTime.utc_now()
 
     cli_session = %UserCLISession{
       token: token,
       status: :waiting,
-      expires_at: expires_at,
-      confirmation_code: Enum.random(100_000..999_999),
+      requested_at: DateTime.to_unix(now),
+      requested_from: requested_from,
+      expires_at: now |> DateTime.add(5, :minute) |> DateTime.to_unix(),
+      confirmation_code: unused_cli_confirmation_code(),
       note: note
     }
 
@@ -1456,14 +1499,49 @@ defmodule NervesHub.Accounts do
     end)
   end
 
-  def cli_session_waiting?(user, token) do
-    with {:ok, cli_session} <- CLISessionCache.get(token),
-         %{status: status} when status in [:waiting, :ready] <- cli_session,
-         %{user_id: user_id} when user_id in [user.id, nil] <- cli_session do
+  # Typed in by hand to find the login, so it has to be unpredictable, and
+  # unique among the logins still waiting. Eight digits, because the CLIs already
+  # out there read it as an integer.
+  defp unused_cli_confirmation_code() do
+    random = :binary.decode_unsigned(:crypto.strong_rand_bytes(8))
+    code = @cli_code_range.first + rem(random, Range.size(@cli_code_range))
+
+    case CLISessionCache.with_confirmation_code(code) do
+      [] -> code
+      _in_use -> unused_cli_confirmation_code()
+    end
+  end
+
+  @doc """
+  The CLI login that `code` was shown for, if `user` may confirm it.
+
+  That is a login still waiting for confirmation, or one `user` already
+  confirmed, so that confirming twice isn't an error. Spaces and dashes in the
+  code are ignored. A code shared by two logins finds neither, since there's no
+  telling which one the person typing it started.
+  """
+  @spec find_cli_session_by_code(User.t(), term()) :: {:ok, UserCLISession.t()} | {:error, :not_found}
+  def find_cli_session_by_code(%User{id: user_id}, code) when is_binary(code) do
+    with {:ok, code} <- parse_cli_confirmation_code(code),
+         [cli_session] <- CLISessionCache.with_confirmation_code(code),
+         %{status: status, user_id: confirmed_by} when status == :waiting or confirmed_by == user_id <-
+           cli_session do
       {:ok, cli_session}
     else
-      _ ->
-        {:error, :invalid_request}
+      _ -> {:error, :not_found}
+    end
+  end
+
+  # The code comes straight from the form, which can send a list or a map.
+  def find_cli_session_by_code(%User{}, _code), do: {:error, :not_found}
+
+  defp parse_cli_confirmation_code(code) do
+    code
+    |> String.replace(~r/[\s-]/u, "")
+    |> Integer.parse()
+    |> case do
+      {code, ""} when code in @cli_code_range -> {:ok, code}
+      _ -> :error
     end
   end
 

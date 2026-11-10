@@ -96,6 +96,24 @@ defmodule NervesHubWeb.Helpers.ClientIP do
 
   def remote_ip(conn, nil, _trailing_hops), do: conn.remote_ip
 
+  @doc """
+  Where a request came from, formatted to show to a person, read with the
+  forwarded header settings of the endpoint it arrived on.
+
+  The same reading `resolve/3` records for a device. Where the endpoint is
+  exposed directly but still names a header, the caller can write this
+  themselves, so it suits telling someone where a request seems to come from,
+  not deciding anything on it.
+  """
+  @spec request_address(Plug.Conn.t()) :: String.t() | nil
+  def request_address(conn) do
+    config = Application.get_env(:nerves_hub, conn.private[:phoenix_endpoint] || NervesHubWeb.Endpoint, [])
+
+    conn
+    |> remote_ip(Keyword.get(config, :forwarded_ip_header), Keyword.get(config, :forwarded_ip_trailing_hops, 0))
+    |> format()
+  end
+
   defp peer_address(%{peer_data: %{address: address}}) when is_tuple(address), do: format(address)
   defp peer_address(_connect_info), do: nil
 

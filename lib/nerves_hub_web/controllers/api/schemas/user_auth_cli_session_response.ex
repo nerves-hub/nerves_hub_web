@@ -11,15 +11,21 @@ defmodule NervesHubWeb.API.Schemas.UserAuthCLISessionResponse do
       description: "A new CLI auth exchange session",
       type: :object,
       properties: %{
-        token: %Schema{type: :string, description: "Auth token"},
-        confirmation_code: %Schema{type: :string, description: "Confirmation code to help verify a valid auth exchange"},
-        url: %Schema{type: :string, description: "URL to complete the auth exchange"}
+        token: %Schema{
+          type: :string,
+          description: "Secret the CLI polls the session with. Whoever holds it collects the login's API token."
+        },
+        confirmation_code: %Schema{
+          type: :integer,
+          description: "Eight-digit code the user types in at `url` to confirm the login"
+        },
+        url: %Schema{type: :string, description: "Page where the user enters the confirmation code"}
       },
       required: [:token, :url],
       example: %{
         "token" => "218ed524-eb74-47d7-aedc-11e386961b72",
-        "confirmation_code" => "312812",
-        "url" => "https://manage.nervescloud.com/auth/cli/218ed524-eb74-47d7-aedc-11e386961b72"
+        "confirmation_code" => 31_281_247,
+        "url" => "https://manage.nervescloud.com/auth/cli"
       }
     })
   end
@@ -34,7 +40,8 @@ defmodule NervesHubWeb.API.Schemas.UserAuthCLISessionResponse do
     example: %{
       "data" => %{
         "token" => "218ed524-eb74-47d7-aedc-11e386961b72",
-        "url" => "https://manage.nervescloud.com/auth/cli/218ed524-eb74-47d7-aedc-11e386961b72"
+        "confirmation_code" => 31_281_247,
+        "url" => "https://manage.nervescloud.com/auth/cli"
       }
     }
   })

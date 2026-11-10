@@ -290,8 +290,10 @@ defmodule NervesHubWeb.Router do
 
     get("/logout", SessionController, :delete)
 
-    get("/auth/cli/:token", SessionController, :cli)
-    post("/auth/cli/:token", SessionController, :cli_confirm)
+    get("/auth/cli", SessionController, :cli)
+    post("/auth/cli", SessionController, :cli_code)
+    post("/auth/cli/confirm", SessionController, :cli_confirm)
+    get("/auth/cli/confirmed", SessionController, :cli_confirmed)
   end
 
   # Installing the Slack app in a workspace, and linking a person's Slack

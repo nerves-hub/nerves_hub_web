@@ -1,6 +1,7 @@
 defmodule NervesHub.CLISessionCache do
   use GenServer
 
+  alias NervesHub.Accounts.UserCLISession
   alias NervesHub.DeviceLink.Handlers
 
   @table :cli_session_cache
@@ -129,6 +130,22 @@ defmodule NervesHub.CLISessionCache do
       [{^key, cli_session, _expires_at}] -> {:ok, cli_session}
       [] -> :error
     end
+  end
+
+  @doc """
+  The unexpired sessions showing `code`, normally none or one.
+
+  Sessions are keyed by their token, so this scans the table. It only ever
+  holds the logins started in the last few minutes.
+  """
+  @spec with_confirmation_code(pos_integer()) :: [UserCLISession.t()]
+  def with_confirmation_code(code) do
+    now = DateTime.utc_now() |> DateTime.to_unix()
+
+    :ets.select(@table, [
+      {{:_, %{confirmation_code: code}, :"$1"}, [{:>=, :"$1", now}], [:"$_"]}
+    ])
+    |> Enum.map(fn {_token, cli_session, _expires_at} -> cli_session end)
   end
 
   def delete_expired_sessions() do

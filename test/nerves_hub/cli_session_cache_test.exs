@@ -167,6 +167,130 @@ defmodule NervesHub.CLISessionCacheTest do
     assert is_map(:sys.get_state(CLISessionCache))
   end
 
+  # The note becomes the note on the API token a confirmed login ends with, which
+  # Postgres holds as up to 255 characters of UTF-8. Anyone can start a login,
+  # so the note is checked before the login is stored on every web node.
+  describe "the note on a CLI login" do
+    test "can be anything that fits the token, which a confirmed login then carries" do
+      user = Fixtures.user_fixture()
+
+      notes = [nil, "", "nh 0.1.2 (build-01)", String.duplicate("a", 255), String.duplicate("é", 255)]
+
+      for note <- notes do
+        assert {:ok, %{token: token, note: ^note}} = Accounts.generate_cli_session_token(note)
+        assert :ok = Accounts.verify_cli_session_token(user, token)
+      end
+
+      assert user |> Accounts.get_user_api_tokens() |> Enum.map(& &1.note) |> Enum.sort() == Enum.sort(notes)
+    end
+
+    test "is refused, and nothing stored, when it wouldn't fit" do
+      too_long = [
+        String.duplicate("a", 256),
+        String.duplicate("é", 256),
+        # 200 characters as they're drawn, but 400 to Postgres.
+        String.duplicate("é", 200),
+        String.duplicate("a", 1_000_000)
+      ]
+
+      not_text = [<<0xFF, 0xFE>>, 42, %{"note" => "nh"}, ["nh"]]
+
+      for note <- too_long ++ not_text do
+        assert Accounts.generate_cli_session_token(note, "203.0.113.9") == {:error, :invalid_note}
+      end
+
+      assert CLISessionCache.count() == 0
+    end
+  end
+
+  describe "finding a CLI login by its code" do
+    setup do
+      %{user: Fixtures.user_fixture()}
+    end
+
+    test "a new login records when and where it started, with an eight-digit code" do
+      started = DateTime.to_unix(DateTime.utc_now())
+
+      {:ok, cli_session} = Accounts.generate_cli_session_token("nh 0.1.2 (build-01)", "203.0.113.9")
+
+      assert cli_session.confirmation_code in 10_000_000..99_999_999
+      assert cli_session.requested_from == "203.0.113.9"
+      assert cli_session.requested_at >= started
+      assert cli_session.expires_at == cli_session.requested_at + 300
+    end
+
+    test "ignores spaces and dashes in the code", %{user: user} do
+      {:ok, %{token: token, confirmation_code: code}} = Accounts.generate_cli_session_token("nh")
+      {first, last} = code |> Integer.to_string() |> String.split_at(4)
+
+      for typed <- [Integer.to_string(code), "#{first} #{last}", "#{first}-#{last}", " #{first}  #{last} "] do
+        assert {:ok, %{token: ^token}} = Accounts.find_cli_session_by_code(user, typed)
+      end
+    end
+
+    test "finds nothing with anything but the code", %{user: user} do
+      {:ok, %{token: token, confirmation_code: code}} = Accounts.generate_cli_session_token("nh")
+
+      for typed <- ["", "code", token, Integer.to_string(div(code, 10)), "#{code}0", "#{code}x"] do
+        assert {:error, :not_found} = Accounts.find_cli_session_by_code(user, typed)
+      end
+    end
+
+    test "finds nothing once the login expires", %{user: user} do
+      expired = DateTime.utc_now() |> DateTime.add(-1, :minute) |> DateTime.to_unix()
+
+      :ok =
+        CLISessionCache.put("expired", %UserCLISession{
+          token: "expired",
+          status: :waiting,
+          confirmation_code: 12_345_678,
+          expires_at: expired
+        })
+
+      assert {:error, :not_found} = Accounts.find_cli_session_by_code(user, "12345678")
+    end
+
+    test "finds neither of two logins with the same code", %{user: user} do
+      expires_at = DateTime.utc_now() |> DateTime.add(5, :minute) |> DateTime.to_unix()
+
+      for token <- ["first", "second"] do
+        :ok =
+          CLISessionCache.put(token, %UserCLISession{
+            token: token,
+            status: :waiting,
+            confirmation_code: 12_345_678,
+            expires_at: expires_at
+          })
+      end
+
+      assert {:error, :not_found} = Accounts.find_cli_session_by_code(user, "12345678")
+    end
+
+    test "finds a confirmed login only for the person who confirmed it", %{user: user} do
+      {:ok, %{token: token, confirmation_code: code}} = Accounts.generate_cli_session_token("nh")
+      :ok = Accounts.verify_cli_session_token(user, token)
+
+      assert {:ok, %{status: :ready}} = Accounts.find_cli_session_by_code(user, Integer.to_string(code))
+
+      assert {:error, :not_found} =
+               Accounts.find_cli_session_by_code(Fixtures.user_fixture(), Integer.to_string(code))
+    end
+
+    test "a new login never gets the code of one still waiting" do
+      Mimic.stub(CLISessionCache, :with_confirmation_code, fn _code -> [] end)
+
+      Mimic.expect(CLISessionCache, :with_confirmation_code, fn taken ->
+        send(self(), {:taken, taken})
+        [%UserCLISession{status: :waiting, confirmation_code: taken}]
+      end)
+
+      {:ok, %{confirmation_code: code}} = Accounts.generate_cli_session_token("nh")
+
+      assert_received {:taken, taken}
+      refute code == taken
+    end
+  end
+
   defp create_cli_session(mins_ago) do
     token = Ecto.UUID.generate()
 
