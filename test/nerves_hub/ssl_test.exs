@@ -138,6 +138,30 @@ defmodule NervesHub.SSLTest do
       assert is_nil(device.tags)
     end
 
+    # Deleting an org deletes its products, and leaves its CAs behind.
+    test "jitp creates no device in a product that has been deleted", _ do
+      user = Fixtures.user_fixture()
+      org = Fixtures.org_fixture(user, %{name: "jitp_deleted_org"})
+      product = Fixtures.product_fixture(user, org)
+      ca = Fixtures.ca_certificate_fixture(org)
+      identifier = "jitp_deleted_org_device"
+
+      otp_cert =
+        X509.PrivateKey.new_ec(:secp256r1)
+        |> X509.PublicKey.derive()
+        |> X509.Certificate.new("/O=#{org.name}/CN=#{identifier}", ca.cert, ca.key)
+
+      {:ok, _ca} =
+        ca.db_cert
+        |> NervesHub.Repo.preload(:jitp)
+        |> CACertificates.update_ca_certificate(%{jitp: %{product_id: product.id, tags: "", description: ""}})
+
+      {:ok, _org} = NervesHub.Accounts.soft_delete_org(org)
+
+      assert {:fail, :ignore_deleted_product} = run_verify(otp_cert, {:bad_cert, :unknown_ca})
+      refute NervesHub.Repo.get_by(Devices.Device, identifier: identifier)
+    end
+
     test "rejects a deleted device", context do
       assert {:ok, device} = Repo.soft_delete(context.device)
       assert device.deleted_at
