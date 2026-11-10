@@ -20,6 +20,7 @@ defmodule NervesHub.Devices do
   alias NervesHub.Devices.NetworkIdentity
   alias NervesHub.Devices.PinnedDevice
   alias NervesHub.Devices.SharedSecretAuth
+  alias NervesHub.Devices.Updates
   alias NervesHub.Extensions
   alias NervesHub.Filtering, as: CommonFiltering
   alias NervesHub.Firmwares.FirmwareMetadata
@@ -544,12 +545,14 @@ defmodule NervesHub.Devices do
   For provisioning, where a device must never be left registered without the
   credentials it will connect with. When the secret can't be issued, as
   `issue_shared_secret_auth/2` describes, the device isn't created either.
+
+  Takes the same options as `create_device/4`.
   """
-  @spec create_device_with_shared_secret_auth(Product.t(), map(), User.t()) ::
+  @spec create_device_with_shared_secret_auth(Product.t(), map(), User.t(), keyword()) ::
           {:ok, {Device.t(), SharedSecretAuth.t()}} | {:error, Changeset.t() | :shared_secrets_not_enabled}
-  def create_device_with_shared_secret_auth(%Product{} = product, params, user) do
+  def create_device_with_shared_secret_auth(%Product{} = product, params, user, opts \\ []) do
     Repo.transact(fn ->
-      with {:ok, device} <- create_device(product, params),
+      with {:ok, device} <- create_device(product, params, user, opts),
            {:ok, auth} <- issue_shared_secret_auth(device, user) do
         {:ok, {device, auth}}
       end
@@ -588,6 +591,27 @@ defmodule NervesHub.Devices do
     |> Device.create_changeset(params)
     |> Repo.insert()
     |> Repo.maybe_preload(:product)
+  end
+
+  @doc """
+  Add a device to `product` on `user`'s behalf, as `create_device/2` does.
+
+  ## Options
+
+    * `:managed_updates_allowed` - start the device with this grant instead of
+      the product's default. When it differs from the default, it is set
+      through `Updates.set_managed_updates_allowed/3` in the same transaction
+      as the insert, so `user` gets the same audit entry as for changing it
+      later. As with `update_device_settings/4`, it is an option rather than a
+      param so that params a form posts can't set it.
+  """
+  @spec create_device(Product.t(), map(), User.t(), keyword()) :: {:ok, Device.t()} | {:error, Changeset.t()}
+  def create_device(%Product{} = product, params, %User{} = user, opts) do
+    Repo.transact(fn ->
+      with {:ok, device} <- create_device(product, params) do
+        set_managed_updates_allowed(device, opts[:managed_updates_allowed], user)
+      end
+    end)
   end
 
   def set_as_provisioned!(device) do
@@ -1045,15 +1069,26 @@ defmodule NervesHub.Devices do
 
   `params` can set only what `Device.update_changeset/2` allows: the device's
   description, tags, first connect code and update mode.
+
+  ## Options
+
+    * `:managed_updates_allowed` - also allow (`true`) or forbid (`false`) the
+      device putting itself into `:device_managed`. It goes through
+      `Updates.set_managed_updates_allowed/3` in the same transaction, so it
+      gets that function's own audit entry, and nothing is written when the
+      device already has that value. It is an option rather than a param so
+      that a settings form's params can't set it: the web UI keeps it behind a
+      permission of its own.
   """
-  @spec update_device_settings(Device.t(), map(), User.t()) :: {:ok, Device.t()} | {:error, Changeset.t()}
-  def update_device_settings(%Device{} = device, params, %User{} = user) do
+  @spec update_device_settings(Device.t(), map(), User.t(), keyword()) ::
+          {:ok, Device.t()} | {:error, Changeset.t()}
+  def update_device_settings(%Device{} = device, params, %User{} = user, opts \\ []) do
     description = "User #{user.name} updated device #{device.identifier}"
 
     Repo.transact(fn ->
       with {:ok, updated} <- device |> Device.update_changeset(params) |> Repo.update(),
            {:ok, _audit_log} <- AuditLogs.audit(user, device, description) do
-        {:ok, updated}
+        set_managed_updates_allowed(updated, opts[:managed_updates_allowed], user)
       end
     end)
     |> case do
@@ -1065,6 +1100,21 @@ defmodule NervesHub.Devices do
         error
     end
   end
+
+  # `Updates.set_managed_updates_allowed/3` announces the device as updated before
+  # the caller's transaction commits, so a listener can read it unchanged. The
+  # announcement `update_device_settings/4` makes after the commit is the one that
+  # sees both changes; the device's connection pushes the new grant on that one.
+  # A device `create_device/4` is still creating has no connection to tell.
+  defp set_managed_updates_allowed(%Device{managed_updates_allowed: current} = device, allowed, user)
+       when is_boolean(allowed) and allowed != current do
+    case Updates.set_managed_updates_allowed(device, allowed, user) do
+      {:ok, device} -> {:ok, device}
+      {:error, _step, reason, _changes} -> {:error, reason}
+    end
+  end
+
+  defp set_managed_updates_allowed(device, _allowed, _user), do: {:ok, device}
 
   @spec get_devices_by_id(Scope.t(), [non_neg_integer()]) :: [Device.t()]
   def get_devices_by_id(%Scope{user: user}, ids) when is_list(ids) do
