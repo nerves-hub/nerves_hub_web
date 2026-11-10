@@ -31,6 +31,9 @@
     "rel",
     "test"
   ],
+  "ignoreRegExpList": [
+    "GHSA-[0-9a-z]{4}-[0-9a-z]{4}-[0-9a-z]{4}"
+  ],
   "words": [
     "Consolas",
     "Cuatro",
