@@ -16,7 +16,7 @@ defmodule NervesHub.MixProject do
   def project() do
     [
       app: :nerves_hub,
-      version: "2.5.2+#{build()}",
+      version: "2.5.3+#{build()}",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
       aliases: aliases(),
