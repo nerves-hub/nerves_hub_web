@@ -847,10 +847,8 @@ defmodule NervesHubWeb.Live.Org.IntegrationsTest do
 
       session = visit(conn, integrations_path(org))
 
-      Process.flag(:trap_exit, true)
-
-      assert {{%NervesHubWeb.UnauthorizedError{}, _}, _} =
-               catch_exit(render_click(session.view, "delete", %{"webhook_id" => webhook.id}))
+      assert render_click(session.view, "delete", %{"webhook_id" => webhook.id}) =~
+               "Sorry. You were denied access. Please check your role or contact your support."
 
       assert Repo.reload!(webhook)
     end

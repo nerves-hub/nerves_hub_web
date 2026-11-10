@@ -87,10 +87,8 @@ defmodule NervesHubWeb.Live.Product.NotificationsTest do
       |> assert_has("div", text: "A device failed connecting as the identifier 'abc' already exists.")
       |> refute_has("button", text: "Dismiss all")
 
-    Process.flag(:trap_exit, true)
-
-    assert {{%NervesHubWeb.UnauthorizedError{}, _}, _} =
-             catch_exit(render_click(conn.view, "dismiss-all", %{}))
+    assert render_click(conn.view, "dismiss-all", %{}) =~
+             "Sorry. You were denied access. Please check your role or contact your support."
 
     assert NervesHub.Repo.aggregate(Notification, :count) == 1
   end

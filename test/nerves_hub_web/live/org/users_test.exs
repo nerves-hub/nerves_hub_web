@@ -187,10 +187,8 @@ defmodule NervesHubWeb.Live.Org.UsersTest do
     test "the only admin can't remove themself from the edit page either", %{conn: conn, org: org, user: user} do
       session = visit(conn, "/org/#{org.name}/settings/users/#{user.id}/edit")
 
-      Process.flag(:trap_exit, true)
-
-      assert {{%NervesHubWeb.UnauthorizedError{}, _}, _} =
-               catch_exit(render_click(session.view, "delete_org_user", %{"user_id" => user.id}))
+      assert render_click(session.view, "delete_org_user", %{"user_id" => user.id}) =~
+               "Sorry. You were denied access. Please check your role or contact your support."
 
       assert {:ok, _} = Accounts.get_org_user(org, user)
     end

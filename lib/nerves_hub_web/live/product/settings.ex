@@ -42,6 +42,8 @@ defmodule NervesHubWeb.Live.Product.Settings do
     }
   }
 
+  # Members who can only view see the settings with the controls disabled.
+  @decorate requires_permission(:"product:view")
   def mount(_params, _session, socket) do
     product = Products.load_shared_secret_auth(socket.assigns.current_scope.product)
 
@@ -61,6 +63,7 @@ defmodule NervesHubWeb.Live.Product.Settings do
     {:ok, socket}
   end
 
+  @decorate requires_permission(:"product:update")
   def handle_event("add-shared-secret", _params, socket) do
     authorized!(:"product:update", socket.assigns.current_scope)
 
@@ -75,6 +78,7 @@ defmodule NervesHubWeb.Live.Product.Settings do
     |> noreply()
   end
 
+  @decorate requires_permission(:"product:update")
   def handle_event("deactivate-shared-secret", %{"shared_secret_id" => shared_secret_id}, socket) do
     authorized!(:"product:update", socket.assigns.current_scope)
 
@@ -90,6 +94,7 @@ defmodule NervesHubWeb.Live.Product.Settings do
     |> noreply()
   end
 
+  @decorate requires_permission(:"product:delete")
   def handle_event("delete-product", _params, socket) do
     authorized!(:"product:delete", socket.assigns.current_scope)
 
@@ -111,6 +116,7 @@ defmodule NervesHubWeb.Live.Product.Settings do
     end
   end
 
+  @decorate requires_permission(:"product:update")
   def handle_event("update-require-unique-firmware-version", params, socket) do
     authorized!(:"product:update", socket.assigns.current_scope)
 
@@ -145,6 +151,7 @@ defmodule NervesHubWeb.Live.Product.Settings do
   # Turning a format off leaves its other settings — `allow_unsigned_esp_idf_firmware`,
   # say — as they were. They have no effect while the format is refused, and
   # keeping them means turning it back on restores the setup the product had.
+  @decorate requires_permission(:"product:update")
   def handle_event("update-allowed-update-tool", %{"tool" => tool} = params, socket) do
     authorized!(:"product:update", socket.assigns.current_scope)
 
@@ -165,6 +172,7 @@ defmodule NervesHubWeb.Live.Product.Settings do
     end
   end
 
+  @decorate requires_permission(:"product:update")
   def handle_event("update-allow-unsigned", %{"tool" => tool} = params, socket) do
     authorized!(:"product:update", socket.assigns.current_scope)
 
@@ -192,6 +200,7 @@ defmodule NervesHubWeb.Live.Product.Settings do
     end
   end
 
+  @decorate requires_permission(:"product:update")
   def handle_event("update-default-managed-updates-allowed", params, socket) do
     authorized!(:"product:update", socket.assigns.current_scope)
 
@@ -204,6 +213,7 @@ defmodule NervesHubWeb.Live.Product.Settings do
 
   # The device page gates the same grant on this permission, so changing it for
   # every device at once asks for no less.
+  @decorate requires_permission(:"device:toggle-updates")
   def handle_event("set-managed-updates-allowed-for-devices", %{"enabled" => enabled}, socket) do
     authorized!(:"device:toggle-updates", socket.assigns.current_scope)
 
@@ -218,6 +228,7 @@ defmodule NervesHubWeb.Live.Product.Settings do
     |> noreply()
   end
 
+  @decorate requires_permission(:"device:update")
   def handle_event("set-extension-for-devices", %{"extension" => extension, "enabled" => enabled}, socket) do
     authorized!(:"device:update", socket.assigns.current_scope)
 
@@ -232,6 +243,7 @@ defmodule NervesHubWeb.Live.Product.Settings do
     |> noreply()
   end
 
+  @decorate requires_permission(:"product:update")
   def handle_event("update-extension", %{"extension" => extension} = params, socket) do
     authorized!(:"product:update", socket.assigns.current_scope)
 

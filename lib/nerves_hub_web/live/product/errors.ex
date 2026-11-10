@@ -23,6 +23,7 @@ defmodule NervesHubWeb.Live.Product.Errors do
   @sorts ~w(last_seen first_seen count)
 
   @impl Phoenix.LiveView
+  @decorate requires_permission(:"product:view")
   def mount(_params, _session, %{assigns: %{current_scope: scope}} = socket) do
     socket
     |> assign(:product, scope.product)
@@ -33,6 +34,7 @@ defmodule NervesHubWeb.Live.Product.Errors do
   end
 
   @impl Phoenix.LiveView
+  @decorate requires_permission(:"product:view")
   def handle_params(params, _uri, socket) do
     socket
     |> assign(:status_filter, filter_value(params, "status", @statuses, "unresolved"))
@@ -45,6 +47,7 @@ defmodule NervesHubWeb.Live.Product.Errors do
   end
 
   @impl Phoenix.LiveView
+  @decorate requires_permission(:"product:view")
   def handle_event("filter", params, socket) do
     socket
     |> patch_to(%{
@@ -56,20 +59,25 @@ defmodule NervesHubWeb.Live.Product.Errors do
     |> noreply()
   end
 
+  @decorate requires_permission(:"product:view")
   def handle_event("paginate", %{"page" => page}, socket) do
     socket
     |> patch_to(%{"page_number" => page})
     |> noreply()
   end
 
+  @decorate requires_permission(:"product:view")
   def handle_event("set-paginate-opts", %{"page-size" => page_size}, socket) do
     socket
     |> patch_to(%{"page_size" => page_size, "page_number" => "1"})
     |> noreply()
   end
 
+  @decorate requires_permission(:"error_group:update")
   def handle_event("resolve", %{"id" => id}, socket), do: act(socket, id, :resolve)
+  @decorate requires_permission(:"error_group:update")
   def handle_event("mute", %{"id" => id}, socket), do: act(socket, id, :mute)
+  @decorate requires_permission(:"error_group:update")
   def handle_event("reopen", %{"id" => id}, socket), do: act(socket, id, :reopen)
 
   @impl Phoenix.LiveView

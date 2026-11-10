@@ -18,6 +18,7 @@ defmodule NervesHubWeb.Live.Product.ErrorGroup do
   @periods %{"seven_days" => 7, "fourteen_days" => 14, "four_weeks" => 28}
 
   @impl Phoenix.LiveView
+  @decorate requires_permission(:"product:view")
   def mount(%{"id" => id}, _session, %{assigns: %{current_scope: scope}} = socket) do
     group = ErrorReports.get_group!(scope.product, id)
 
@@ -31,6 +32,7 @@ defmodule NervesHubWeb.Live.Product.ErrorGroup do
   end
 
   @impl Phoenix.LiveView
+  @decorate requires_permission(:"product:view")
   def handle_event("select-period", %{"period" => period}, socket) when is_map_key(@periods, period) do
     socket
     |> assign(:period, period)
@@ -38,14 +40,18 @@ defmodule NervesHubWeb.Live.Product.ErrorGroup do
     |> noreply()
   end
 
+  @decorate requires_permission(:"product:view")
   def handle_event("select-period", _params, socket) do
     socket
     |> put_flash(:error, "Invalid period selected")
     |> noreply()
   end
 
+  @decorate requires_permission(:"error_group:update")
   def handle_event("resolve", _params, socket), do: act(socket, :resolve)
+  @decorate requires_permission(:"error_group:update")
   def handle_event("mute", _params, socket), do: act(socket, :mute)
+  @decorate requires_permission(:"error_group:update")
   def handle_event("reopen", _params, socket), do: act(socket, :reopen)
 
   defp act(%{assigns: %{current_scope: scope, group: group}} = socket, action) do

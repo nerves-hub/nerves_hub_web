@@ -10,6 +10,7 @@ defmodule NervesHubWeb.Live.Archives do
   @pagination_opts ["page_number", "page_size", "sort", "sort_direction"]
 
   @impl Phoenix.LiveView
+  @decorate requires_permission(:"archive:list")
   def mount(_params, _session, socket) do
     socket
     |> assign(:product, socket.assigns.current_scope.product)
@@ -17,6 +18,7 @@ defmodule NervesHubWeb.Live.Archives do
   end
 
   @impl Phoenix.LiveView
+  @decorate requires_permission(:"archive:list")
   def handle_params(params, _url, socket) do
     socket
     |> apply_action(socket.assigns.live_action, params)
@@ -55,9 +57,11 @@ defmodule NervesHubWeb.Live.Archives do
 
   # A phx-change handler is required when using live uploads.
   @impl Phoenix.LiveView
+  @decorate requires_permission(:"archive:list")
   def handle_event("validate-firmware", _, socket), do: {:noreply, socket}
 
   @impl Phoenix.LiveView
+  @decorate requires_permission(:"archive:list")
   def handle_event("paginate", %{"page" => page_num}, socket) do
     params = %{"page_number" => page_num}
 
@@ -67,6 +71,7 @@ defmodule NervesHubWeb.Live.Archives do
   end
 
   @impl Phoenix.LiveView
+  @decorate requires_permission(:"archive:list")
   def handle_event("set-paginate-opts", %{"page-size" => page_size}, socket) do
     params = %{"page_size" => page_size, "page_number" => 1}
 
@@ -78,6 +83,7 @@ defmodule NervesHubWeb.Live.Archives do
   # Handles event of user clicking the same field that is already sorted
   # For this case, we switch the sorting direction of same field
   @impl Phoenix.LiveView
+  @decorate requires_permission(:"archive:list")
   def handle_event("sort", %{"sort" => value}, %{assigns: %{current_sort: current_sort}} = socket)
       when value == current_sort do
     %{sort_direction: sort_direction} = socket.assigns
@@ -93,6 +99,7 @@ defmodule NervesHubWeb.Live.Archives do
 
   # User has clicked a new column to sort
   @impl Phoenix.LiveView
+  @decorate requires_permission(:"archive:list")
   def handle_event("sort", %{"sort" => value}, socket) do
     new_params = %{sort: value}
 
@@ -102,15 +109,15 @@ defmodule NervesHubWeb.Live.Archives do
   end
 
   @impl Phoenix.LiveView
+  @decorate requires_permission(:"archive:list")
   def handle_event("archive-selected", _, socket) do
     {:noreply, socket}
   end
 
   # the delete handler for the list page
   def handle_event("delete-archive", %{"archive_uuid" => uuid}, socket) do
-    authorized!(:"archive:delete", socket.assigns.current_scope)
-
     {:ok, archive} = Archives.get(socket.assigns.product, uuid)
+    socket = authorize!(socket, :"archive:delete", archive)
 
     case Archives.delete_archive(archive) do
       {:ok, _} ->
@@ -126,11 +133,10 @@ defmodule NervesHubWeb.Live.Archives do
   end
 
   def handle_event("delete-archive", _params, socket) do
-    authorized!(:"archive:delete", socket.assigns.current_scope)
-
     %{current_scope: %{org: org}, product: product, archive: archive} = socket.assigns
 
     {:ok, archive} = Archives.get(socket.assigns.product, archive.uuid)
+    socket = authorize!(socket, :"archive:delete", archive)
 
     case Archives.delete_archive(archive) do
       {:ok, _} ->

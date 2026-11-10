@@ -679,7 +679,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show.SummaryTabTest do
 
       session = visit(conn, "/org/#{org.name}/#{product.name}/deployment_groups/#{deployment_group.name}")
 
-      assert_unauthorized(fn -> render_click(session.view, "move-matched-devices-to-deployment-group", %{}) end)
+      assert_denied(fn -> render_click(session.view, "move-matched-devices-to-deployment-group", %{}) end)
 
       refute Repo.reload(device).deployment_id
     end
@@ -695,7 +695,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show.SummaryTabTest do
 
       session = visit(conn, "/org/#{org.name}/#{product.name}/deployment_groups/#{deployment_group.name}")
 
-      assert_unauthorized(fn ->
+      assert_denied(fn ->
         render_click(session.view, "remove-unmatched-devices-from-deployment-group", %{})
       end)
 
@@ -743,6 +743,13 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show.SummaryTabTest do
     end
   end
 
+  # The page's own events are refused with a message.
+  defp assert_denied(fun) do
+    assert fun.() =~ "Sorry. You were denied access. Please check your role or contact your support."
+  end
+
+  # The summary component's events aren't wrapped, so a refusal there still
+  # takes the page down.
   defp assert_unauthorized(fun) do
     Process.flag(:trap_exit, true)
 

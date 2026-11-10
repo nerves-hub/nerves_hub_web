@@ -27,6 +27,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
     %{current_scope: %{org: org, product: product, user: user}} = socket.assigns
 
     deployment_group = ManagedDeployments.get_by_product_and_name!(product, name, true)
+    socket = authorize!(socket, :"deployment_group:view", deployment_group)
 
     Logger.metadata(user_id: user.id, product_id: product.id, deployment_group_id: deployment_group.id)
 
@@ -52,6 +53,8 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
 
   @impl Phoenix.LiveView
   def handle_params(_params, _uri, socket) do
+    socket = authorize!(socket, :"deployment_group:view", socket.assigns.deployment_group)
+
     socket
     |> selected_tab()
     |> noreply()
@@ -68,12 +71,13 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
 
   # Ignore events from LiveFlow
   @impl Phoenix.LiveView
+  @decorate requires_no_permission()
   def handle_event("lf:" <> _, _params, socket) do
     {:noreply, socket}
   end
 
   def handle_event("toggle", _params, socket) do
-    authorized!(:"deployment_group:toggle", socket.assigns.current_scope)
+    socket = authorize!(socket, :"deployment_group:toggle", socket.assigns.deployment_group)
 
     %{deployment_group: deployment_group, user: user} = socket.assigns
 
@@ -92,7 +96,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
   end
 
   def handle_event("approve-workflow-step", _params, socket) do
-    authorized!(:"deployment_group:update", socket.assigns.current_scope)
+    socket = authorize!(socket, :"deployment_group:update", socket.assigns.deployment_group)
 
     %{deployment_group: deployment_group, user: user, awaiting_approval: step} = socket.assigns
 
@@ -123,7 +127,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
   end
 
   def handle_event("delete", _params, socket) do
-    authorized!(:"deployment_group:delete", socket.assigns.current_scope)
+    socket = authorize!(socket, :"deployment_group:delete", socket.assigns.deployment_group)
 
     %{deployment_group: deployment_group, org: org, product: product, user: user} = socket.assigns
 
@@ -140,6 +144,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
   def handle_event("move-matched-devices-to-deployment-group", _params, socket) do
     %{assigns: %{current_scope: scope, deployment_group: deployment_group}} = socket
 
+    socket = authorize!(socket, :"deployment_group:update", deployment_group)
     authorized!(:"device:set-deployment-group", scope)
 
     move_devices = fn ->
@@ -164,6 +169,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
   def handle_event("remove-unmatched-devices-from-deployment-group", _params, socket) do
     %{assigns: %{current_scope: scope, deployment_group: deployment_group}} = socket
 
+    socket = authorize!(socket, :"deployment_group:update", deployment_group)
     authorized!(:"device:set-deployment-group", scope)
 
     matched_device_ids =
@@ -485,7 +491,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
   end
 
   defp workflow_step_action(socket, action, number) do
-    authorized!(:"deployment_group:update", socket.assigns.current_scope)
+    socket = authorize!(socket, :"deployment_group:update", socket.assigns.deployment_group)
 
     %{deployment_group: deployment_group} = socket.assigns
 

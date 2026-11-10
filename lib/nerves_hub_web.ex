@@ -65,13 +65,14 @@ defmodule NervesHubWeb do
       unquote(live_view_setup())
       unquote(live_view_imports())
       unquote(live_view_helper_functions())
-      unquote(auth_decorator())
+      # Must come after live_view_setup() so Phoenix.LiveView is loaded first
+      unquote(authorized_live_view())
     end
   end
 
-  defp auth_decorator() do
+  defp authorized_live_view() do
     quote do
-      use NervesHubWeb.AuthDecorator
+      use NervesHubWeb.Access.AuthorizedLiveView
     end
   end
 

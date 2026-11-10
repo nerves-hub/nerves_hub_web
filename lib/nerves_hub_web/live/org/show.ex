@@ -39,6 +39,7 @@ defmodule NervesHubWeb.Live.Org.Show do
   @update_tool_labels %{"fwup" => "fwup", "esp-idf" => "ESP-IDF", "rauc" => "RAUC", "atomvm" => "AtomVM"}
 
   @impl Phoenix.LiveView
+  @decorate requires_permission(:"organization:view")
   def mount(_params, _session, %{assigns: %{current_scope: scope}} = socket) do
     products = load_products(scope)
 
@@ -61,6 +62,7 @@ defmodule NervesHubWeb.Live.Org.Show do
   end
 
   @impl Phoenix.LiveView
+  @decorate requires_permission(:"organization:view")
   def handle_event("filter", params, socket) do
     sort = if params["sort"] in Enum.map(@sorts, &elem(&1, 1)), do: params["sort"], else: "devices"
 
@@ -72,6 +74,7 @@ defmodule NervesHubWeb.Live.Org.Show do
 
   # Only keeps the address preview in step with the name. Errors come from
   # saving, so typing clears them until the next try.
+  @decorate requires_permission(:"organization:view")
   def handle_event("validate_product", %{"product" => params}, socket) do
     socket
     |> assign(:product_form, to_form(params, as: :product))
@@ -80,6 +83,7 @@ defmodule NervesHubWeb.Live.Org.Show do
 
   # The organization's first product, from the form shown in place of the
   # products. Every device extension starts on, as on the New product page.
+  @decorate requires_permission(:"product:create")
   def handle_event("create_product", %{"product" => params}, %{assigns: %{current_scope: scope}} = socket) do
     authorized!(:"product:create", scope)
 
