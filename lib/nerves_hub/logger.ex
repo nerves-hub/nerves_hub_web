@@ -1,4 +1,6 @@
 defmodule NervesHub.Logger do
+  alias NervesHub.Telemetry.RequestPath
+
   require Logger
 
   @metadata_ignore_list [
@@ -348,10 +350,11 @@ defmodule NervesHub.Logger do
     |> Enum.join()
   end
 
-  defp request_path(%{request_path: request_path, query_string: query_string}) when query_string not in ["", nil],
-    do: request_path <> "?" <> query_string
+  # Without the tokens some paths carry, which work for whoever reads them.
+  defp request_path(%{request_path: _, query_string: query_string} = conn) when query_string not in ["", nil],
+    do: RequestPath.recordable(conn) <> "?" <> query_string
 
-  defp request_path(%{request_path: request_path}), do: request_path
+  defp request_path(%{request_path: _} = conn), do: RequestPath.recordable(conn)
   defp request_path(_), do: nil
 
   defp formatted_ip(conn) do
