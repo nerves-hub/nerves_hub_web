@@ -39,21 +39,37 @@ defmodule NervesHubWeb.DeviceChannel do
   alias NervesHubWeb.Channels.Effects
   alias NervesHubWeb.Channels.Platform
 
+  require Logger
+
   intercept(["updated", "deployment_updated"])
 
+  # A device joins the bare "device" topic, which the serializers turn into
+  # "device:<its own id>". Any other "device:..." topic passes through them as
+  # sent, the socket routes every one of them here, and the channel is
+  # subscribed to whichever topic was joined. So a join for any other id would
+  # hand this device another device's broadcasts: its firmware URLs, support
+  # scripts and local shell input.
   @decorate with_span("Channels.DeviceChannel.join")
-  def join("device:" <> _device_id, params, %{assigns: %{device_info: device_info}} = socket) do
+  def join(topic, params, %{assigns: %{device_info: device_info}} = socket) do
     Logger.metadata(device_id: device_info.device_id, device_identifier: device_info.device_identifier)
 
-    case Platform.ask(socket, :device_join, fn -> DeviceLink.device_join(device_info, params) end) do
-      {:ok, session, effects} ->
-        socket =
-          socket
-          |> assign(:session, session)
-          |> Effects.init()
-          |> Effects.apply_all(effects)
+    # Checked before the platform is asked, so a join to another device's topic
+    # never reaches it.
+    with :ok <- check_own_topic(topic, device_info),
+         {:ok, session, effects} <-
+           Platform.ask(socket, :device_join, fn -> DeviceLink.device_join(device_info, params) end) do
+      socket =
+        socket
+        |> assign(:session, session)
+        |> Effects.init()
+        |> Effects.apply_all(effects)
 
-        {:ok, socket}
+      {:ok, socket}
+    else
+      {:error, :not_own_topic} ->
+        Logger.warning("[DeviceChannel] refused a join to another device's topic #{inspect(topic)}")
+
+        {:error, %{error: "unauthorized"}}
 
       {:error, _error} ->
         {:error, %{error: "could not connect"}}
@@ -115,4 +131,10 @@ defmodule NervesHubWeb.DeviceChannel do
   # slow. A `{:shutdown, _}` exit is not logged.
   @spec rejoin(atom()) :: no_return()
   defp rejoin(function), do: exit({:shutdown, {:unanswered, function}})
+
+  # The topic is a string and `device_id` an integer, so this can't be a
+  # pattern or a guard on `join/3`: neither can turn one into the other.
+  defp check_own_topic(topic, device_info) do
+    if topic == "device:#{device_info.device_id}", do: :ok, else: {:error, :not_own_topic}
+  end
 end

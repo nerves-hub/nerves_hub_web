@@ -94,9 +94,22 @@ defmodule NervesHubWeb.Auth do
 
   def return_to_target(_), do: :default
 
+  # Browsers read a URL differently from `URI.parse/1` when it has a backslash,
+  # whitespace or control characters, or credentials: for
+  # `https://evil.example\@allowed.example/` the browser goes to evil.example
+  # while `URI.parse/1` reports allowed.example as the host. None of those appear
+  # in a real return URL, so any of them rules the URL out.
   defp allowed_external_return_url?(url) do
+    if String.match?(url, ~r/[\\\s\x00-\x1f\x7f]/u) do
+      false
+    else
+      allowed_external_origin?(url)
+    end
+  end
+
+  defp allowed_external_origin?(url) do
     case URI.parse(url) do
-      %URI{scheme: scheme, host: host} = uri when is_binary(scheme) and is_binary(host) ->
+      %URI{scheme: scheme, host: host, userinfo: nil} = uri when is_binary(scheme) and is_binary(host) ->
         Enum.any?(allowed_return_base_urls(), fn base ->
           base = URI.parse(base)
           base.scheme == uri.scheme and base.host == uri.host and base.port == uri.port

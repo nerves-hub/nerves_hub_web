@@ -224,5 +224,36 @@ defmodule NervesHub.DeviceLink.AuthenticationTest do
 
       assert :ets.match_object(Keys, {{auth.secret, :_, :_, :_, :_}, :_}) == []
     end
+
+    test "admits a key derivation up to the limits", %{auth: auth} do
+      identifier = Ecto.UUID.generate()
+
+      headers =
+        Utils.nh1_key_secret_headers(auth, identifier,
+          key_digest: :sha512,
+          key_iterations: 10_000,
+          key_length: 64
+        )
+
+      assert {:ok, %{device_identifier: ^identifier}} =
+               Authentication.authenticate({:shared_secret, Map.new(headers)})
+    end
+
+    # The key is derived before the signature is checked, so these carry a
+    # real key and a signature that can't match, as an attacker's would. The
+    # reason shows they were turned away before any derivation started.
+    test "refuses more key derivation than the limits allow, before deriving it", %{auth: auth} do
+      headers = Map.new(Utils.nh1_key_secret_headers(auth, Ecto.UUID.generate()))
+      ref = :telemetry_test.attach_event_handlers(self(), [[:nerves_hub, :devices, :invalid_auth]])
+
+      for {iterations, key_length} <- [{10_001, 32}, {1000, 65}, {0, 32}, {1000, 0}] do
+        headers = Map.put(headers, "x-nh-alg", "NH1-HMAC-sha256-#{iterations}-#{key_length}")
+
+        assert {:error, :invalid_auth} = Authentication.authenticate({:shared_secret, headers})
+
+        assert_received {[:nerves_hub, :devices, :invalid_auth], ^ref, _,
+                         %{reason: {:error, :key_derivation_out_of_range}}}
+      end
+    end
   end
 end
