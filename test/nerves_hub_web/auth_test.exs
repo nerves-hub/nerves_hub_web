@@ -43,6 +43,16 @@ defmodule NervesHubWeb.AuthTest do
       assert Auth.return_to_target("//evil.example.com/path") == :default
     end
 
+    test "a URL a browser would send somewhere other than its parsed host is rejected" do
+      # Browsers treat `\` as `/`, so these go to evil.example.com, while
+      # `URI.parse/1` sees admin.example.com after the credentials.
+      assert Auth.return_to_target("https://evil.example.com\\@admin.example.com/") == :default
+      assert Auth.return_to_target("https://evil.example.com\\\\@admin.example.com/") == :default
+      assert Auth.return_to_target("https://user@admin.example.com/") == :default
+      assert Auth.return_to_target("https://evil.example.com\t@admin.example.com/") == :default
+      assert Auth.return_to_target("https://admin.example.com/\n") == :default
+    end
+
     test "an allow-listed external URL is honored, verbatim including path and query" do
       url = "https://admin.example.com/oauth/authorize?client_id=abc"
       assert Auth.return_to_target(url) == {:external, url}

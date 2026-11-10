@@ -246,8 +246,7 @@ defmodule NervesHubWeb.API.DeviceController do
         "new_org_name" => org_name,
         "new_product_name" => product_name
       }) do
-    with {:ok, move_to_org} <- Accounts.get_org_by_name(org_name),
-         RoleValidateHelpers.validate_org_user_role(conn, move_to_org, user, :manage),
+    with {:ok, move_to_org} <- org_to_move_to(conn, org_name, user),
          {:ok, product} <- Products.get_product_by_org_id_and_name(move_to_org.id, product_name) do
       case Devices.move(device, product, user) do
         {:ok, device} ->
@@ -263,6 +262,20 @@ defmodule NervesHubWeb.API.DeviceController do
         {:error, _step, changeset, _changes} ->
           {:error, changeset}
       end
+    end
+  end
+
+  # Moving a device needs the manage role in the org it goes to. An org that
+  # doesn't exist gets the same 401 as one the user can't manage, so the answer
+  # doesn't tell anyone which org names are taken.
+  defp org_to_move_to(conn, org_name, user) do
+    case Accounts.get_org_by_name(org_name) do
+      {:ok, org} ->
+        _ = RoleValidateHelpers.validate_org_user_role(conn, org, user, :manage)
+        {:ok, org}
+
+      {:error, :org_not_found} ->
+        raise NervesHubWeb.UnauthorizedError, required_role: "manage"
     end
   end
 

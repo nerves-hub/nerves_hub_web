@@ -2,6 +2,7 @@ defmodule NervesHubWeb.Live.FirmwareTest do
   use NervesHubWeb.ConnCase.Browser, async: false
   use Mimic
 
+  alias NervesHub.Accounts.OrgUser
   alias NervesHub.Firmwares
   alias NervesHub.Fixtures
   alias NervesHub.ManagedDeployments
@@ -237,6 +238,19 @@ defmodule NervesHubWeb.Live.FirmwareTest do
       |> click_button("Delete")
       |> assert_path("/org/#{org.name}/#{product.name}/firmware")
       |> assert_has("div", text: "Firmware successfully deleted")
+    end
+
+    test "a view member isn't offered a download", %{conn: conn, user: user, org: org, tmp_dir: tmp_dir} do
+      product = Fixtures.product_fixture(user, org)
+      org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
+      firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+
+      Repo.update_all(OrgUser, set: [role: :view])
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/firmware/#{firmware.uuid}")
+      |> assert_has("h1", text: firmware.uuid)
+      |> refute_has("a", text: "Download")
     end
 
     test "a deleted firmware's page says who deleted it, and offers no download", %{

@@ -2,6 +2,7 @@ defmodule NervesHubWeb.Live.Org.CertificateAuthoritiesTest do
   use NervesHubWeb.ConnCase.Browser, async: false
   use Mimic
 
+  alias NervesHub.Accounts.OrgUser
   alias NervesHub.Certificate
   alias NervesHub.Devices.CACertificate.CSR
   alias NervesHub.Devices.CACertificate.JITP
@@ -419,6 +420,37 @@ defmodule NervesHubWeb.Live.Org.CertificateAuthoritiesTest do
       |> refute_has("code", text: Utils.format_serial(ca.serial))
 
       assert {:error, :not_found} = CACertificates.get_ca_certificate_by_serial(ca.serial)
+    end
+
+    test "a manage member can delete one", %{conn: conn, org: org} do
+      %{db_cert: ca} = Fixtures.ca_certificate_fixture(org)
+      NervesHub.Repo.update_all(OrgUser, set: [role: :manage])
+
+      conn
+      |> visit("/org/#{org.name}/settings/certificates/#{ca.serial}")
+      |> click_button("Delete")
+      |> assert_has("div", text: "Certificate successfully deleted")
+
+      assert {:error, :not_found} = CACertificates.get_ca_certificate_by_serial(ca.serial)
+    end
+
+    test "a view member can't delete one", %{conn: conn, org: org} do
+      %{db_cert: ca} = Fixtures.ca_certificate_fixture(org)
+      NervesHub.Repo.update_all(OrgUser, set: [role: :view])
+
+      session =
+        conn
+        |> visit("/org/#{org.name}/settings/certificates/#{ca.serial}")
+        |> refute_has("button", text: "Delete")
+
+      Process.flag(:trap_exit, true)
+
+      assert {{%NervesHubWeb.UnauthorizedError{}, _}, _} =
+               catch_exit(
+                 render_click(session.view, "delete-certificate-authority", %{"certificate_serial" => ca.serial})
+               )
+
+      assert {:ok, _} = CACertificates.get_ca_certificate_by_serial(ca.serial)
     end
 
     test "shows error when delete fails", %{conn: conn, org: org} do

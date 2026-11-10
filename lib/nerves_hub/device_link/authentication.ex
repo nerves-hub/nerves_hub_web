@@ -25,6 +25,11 @@ defmodule NervesHub.DeviceLink.Authentication do
   # Default 90 seconds max age for the signature
   @default_max_hmac_age 90
 
+  # The most PBKDF2 work a connecting device may ask for. See
+  # `check_key_derivation/2`.
+  @max_key_iterations 10_000
+  @max_key_length 64
+
   # This config key predates the move out of NervesHubWeb.DeviceSocket. It is a
   # deployment contract (DEVICE_SHARED_SECRETS_ENABLED maps onto it in
   # runtime.exs), so it stays put rather than being renamed to match this module.
@@ -239,6 +244,7 @@ defmodule NervesHub.DeviceLink.Authentication do
          digest = String.to_existing_atom(String.downcase(digest_str)),
          {iterations, ""} <- Integer.parse(iter_str),
          {key_length, ""} <- Integer.parse(key_len_str),
+         :ok <- check_key_derivation(iterations, key_length),
          {signed_at, ""} <- Integer.parse(headers["x-nh-time"]),
          {:ok, key} <- Map.fetch(headers, "x-nh-key") do
       expected_salt = """
@@ -269,6 +275,23 @@ defmodule NervesHub.DeviceLink.Authentication do
   end
 
   defp decode_from_headers(_headers), do: {:error, :headers_decode_failed}
+
+  # The device names its own key derivation in `x-nh-alg`, and the key is
+  # derived before the signature can be checked, so a request naming a real key
+  # gets whatever work it asks for, secret or no secret. Unbounded, one request
+  # could hold a dirty CPU scheduler for minutes, or ask for a key gigabytes
+  # long.
+  #
+  # NervesHubLink, nerves-hub-link-agent and nerves-hub-link-esp32 all send
+  # 1,000 iterations and a 32 byte key. NervesHubLink lets an app change both,
+  # so the limits leave room above that while keeping a derivation to around a
+  # millisecond. A device asking for more is logged as
+  # `:key_derivation_out_of_range` and refused. Raising a limit here lets it
+  # back in, with no change on the device.
+  defp check_key_derivation(iterations, key_length)
+       when iterations in 1..@max_key_iterations//1 and key_length in 1..@max_key_length//1, do: :ok
+
+  defp check_key_derivation(_iterations, _key_length), do: {:error, :key_derivation_out_of_range}
 
   defp get_shared_secret_auth("nhp_" <> _ = key), do: Products.get_shared_secret_auth(key)
   defp get_shared_secret_auth(key), do: Devices.get_shared_secret_auth(key)

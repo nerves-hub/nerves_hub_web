@@ -1334,6 +1334,30 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
       |> assert_authorization_error()
     end
 
+    test "failure: an org that doesn't exist answers the same as one the user can't manage",
+         %{conn: conn, user: user, org: org, tmp_dir: tmp_dir} do
+      product = Fixtures.product_fixture(user, org)
+      org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
+      firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+      device = Fixtures.device_fixture(org, product, firmware)
+
+      assert_error_sent(401, fn ->
+        post(
+          conn,
+          Routes.api_device_path(conn, :move, org.name, product.name, device.identifier),
+          %{
+            "new_org_name" => "no-such-org",
+            "new_product_name" => "product2"
+          }
+        )
+      end)
+      |> assert_authorization_error()
+
+      device = Repo.reload(device)
+      assert device.org_id == org.id
+      assert device.product_id == product.id
+    end
+
     test "success, with short url", %{conn: conn, user: user, org: org, tmp_dir: tmp_dir} do
       product = Fixtures.product_fixture(user, org)
       org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
