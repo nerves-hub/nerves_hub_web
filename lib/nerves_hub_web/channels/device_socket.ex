@@ -169,7 +169,7 @@ defmodule NervesHubWeb.DeviceSocket do
   # answers the device with a 500 and buries the reason in a rendered error page.
   defp authenticate(socket, credentials, connect_info) do
     case DeviceLink.authenticate(credentials, ServerName.recorded()) do
-      {:ok, device_info} -> socket_and_assigns(socket, device_info, ip_address(socket, connect_info))
+      {:ok, device_info} -> socket_and_assigns(socket, device_info, connect_info)
       {:error, reason} -> {:error, reason}
     end
   catch
@@ -182,14 +182,17 @@ defmodule NervesHubWeb.DeviceSocket do
       {:error, :platform_unavailable}
   end
 
-  defp socket_and_assigns(socket, device_info, ip_address) do
+  defp socket_and_assigns(socket, device_info, connect_info) do
     # disconnect devices using the same identifier
     _ = socket.endpoint.broadcast_from(self(), "device_socket:#{device_info.device_id}", "disconnect", %{})
 
+    # The User-Agent names the client library the device connects with; it is
+    # read where the connection is recorded (`NervesHub.DeviceLink.connect/3`).
     socket =
       socket
       |> assign(:device_info, device_info)
-      |> assign(:ip_address, ip_address)
+      |> assign(:ip_address, ip_address(socket, connect_info))
+      |> assign(:user_agent, Map.get(connect_info, :user_agent))
 
     {:ok, socket}
   end
@@ -210,7 +213,7 @@ defmodule NervesHubWeb.DeviceSocket do
   @decorate with_span("Channels.DeviceSocket.on_connect")
   defp on_connect(%{assigns: %{device_info: device_info}} = socket) do
     # Report connection and use connection id as reference
-    {:ok, device_info} = DeviceLink.connect(device_info, socket.assigns[:ip_address])
+    {:ok, device_info} = DeviceLink.connect(device_info, socket.assigns[:ip_address], socket.assigns[:user_agent])
 
     :telemetry.execute([:nerves_hub, :devices, :connect], %{count: 1}, %{
       ref_id: device_info.connection_ref,

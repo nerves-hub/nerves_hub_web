@@ -156,7 +156,7 @@ defmodule NervesHubWeb.API.ArchiveControllerTest do
 
       conn = get(conn, Routes.api_archive_path(conn, :download, org.name, product.name, archive.uuid))
 
-      assert redirected_to(conn) =~ "archives/#{archive.uuid}.fw"
+      assert redirected_to(conn) =~ "archives/#{org.id}/#{product.id}/#{archive.uuid}.fw"
     end
 
     test "user does not have required role to download",

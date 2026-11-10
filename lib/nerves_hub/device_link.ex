@@ -13,6 +13,7 @@ defmodule NervesHub.DeviceLink do
   alias NervesHub.DeviceLink.Effect
   alias NervesHub.DeviceLink.Session
   alias NervesHub.Devices
+  alias NervesHub.Devices.ClientLibrary
   alias NervesHub.Devices.Connections
   alias NervesHub.Devices.Deployments
   alias NervesHub.Devices.Device
@@ -600,15 +601,24 @@ defmodule NervesHub.DeviceLink do
 
   `ip_address` is where the device reached us from, as far as the socket could
   tell; `nil` when that couldn't be established.
+
+  `user_agent` is the `User-Agent` header the device sent with its websocket
+  upgrade, as it arrived. It is read here, by
+  `NervesHub.Devices.ClientLibrary`, rather than where the socket is held, so a
+  node holding sockets elsewhere only has to forward the header. Such a node
+  calls this through `NervesHub.DeviceLink.Dispatcher.Remote`; one still on a
+  release without the header calls `connect/2`, which records the library as
+  unknown.
   """
-  @spec connect(DeviceInfo.t(), ip_address :: String.t() | nil) ::
+  @spec connect(DeviceInfo.t(), ip_address :: String.t() | nil, user_agent :: String.t() | nil) ::
           {:ok, DeviceInfo.t()} | {:error, Ecto.Changeset.t()}
-  def connect(device_info, ip_address \\ nil) do
+  def connect(device_info, ip_address \\ nil, user_agent \\ nil) do
     case Connections.device_connecting(
            device_info.org_id,
            device_info.product_id,
            device_info.device_id,
-           ip_address
+           ip_address,
+           ClientLibrary.from_user_agent(user_agent)
          ) do
       {:ok, %DeviceConnection{id: connection_id}} ->
         {:ok, %{device_info | connection_ref: connection_id}}
