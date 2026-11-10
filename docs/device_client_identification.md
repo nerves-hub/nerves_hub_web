@@ -127,6 +127,6 @@ takes two things:
 - `:user_agent` in its device socket's `connect_info`
 - to pass the header on, through `NervesHub.DeviceLink.Client.connect/3`
 
-`NervesHub.DeviceLink.connect/3` only exists from this release, so the platform
+`NervesHub.DeviceLink.connect/3` only exists from 2.5.2, so the platform
 has to be upgraded before any node starts calling it. A node still calling
 `connect/2` keeps working; its devices are recorded with an unknown library.

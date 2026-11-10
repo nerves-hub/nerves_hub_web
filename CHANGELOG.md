@@ -1,5 +1,52 @@
 # Changelog
 
+## v2.5.2
+
+A device's health and metrics reports no longer wait on health evaluation, and a fleet that reconnects all at once spreads its first reports over a minute. Connections held through `Dispatcher.Remote` stay up when a platform node is slow to answer. Devices of a deleted org or product can no longer connect, and each archive's file is stored under its org and product. The web UI uses one set of design tokens and components, has new sign-in, organization and error pages, and serves its own fonts. Read Upgrading before a rolling deploy.
+
+### Upgrading
+
+- **New archives are stored under their org and product.** Their files go to `/archives/<org id>/<product id>/<uuid>.fw`. Archives uploaded before this keep their files where they are, and the migration only adds a column. During a rolling deploy, an archive uploaded through an upgraded node can't be downloaded through a node still on 2.5.1 until that node is replaced. If another org already overwrote one of your archive files, it stays overwritten, so upload that archive again. (#3233)
+- **Upgrade NervesHub before anything that calls it through `Dispatcher.Remote`.** Such an application can now pass the device's `User-Agent` with `DeviceLink.connect/3`, but a NervesHub node still on 2.5.1 raises `:undef` for that call, and it isn't retried. `connect/2` still works, and records the client library as unknown. (#3234)
+
+### Added
+
+- Record which client library and version each device connects with, from the `User-Agent` of its websocket upgrade. NervesHubLink, nerves-hub-link-agent, nerves-hub-link-esp32 and nerves_hub_link_atomvm_esp32 are recorded by name, and any other client can opt in with a `custom#` prefix. No client sends the header yet, so connections are recorded as unknown until one does. See `docs/device_client_identification.md`. (#3234)
+
+### Changed
+
+- Health and metrics reports queue their health evaluation on the node they arrive at and return straight away. A fixed number of evaluations run at once (`HEALTH_EVALUATION_CONCURRENCY`, by default half the analytics pool and at most 10), and one that has waited more than `HEALTH_EVALUATION_MAX_AGE_SECONDS` (60) is dropped. Before, a slow ClickHouse timed out the report, crashed the device's extensions channel, and the rejoin asked for another report. See Health evaluation in `docs/runtime_configuration.md`. (#3249)
+- A device that connects while nobody has its page open is asked for its first health and metrics reports at a random point in the next minute, not straight away (`FEATURES_HEALTH_FIRST_CHECK_WINDOW_SECONDS`, `FEATURES_METRICS_FIRST_CHECK_WINDOW_SECONDS`). Connection metadata comes with that report, so for such a device it can lag a reconnect by up to a minute. (#3249)
+- Every page of the web UI takes its colours, corners, shadows, card padding, headings, buttons and badges from one set of tokens and components, and every icon is a Lucide glyph (#3242)
+- New design for the sign-in, register, password reset, invite, email confirmation and CLI sign-in pages. An expired or used password reset link now opens the reset page with a notice, instead of the sign-in page. (#3243)
+- New design for the organizations home page: what needs attention first, then pinned devices, then each org's products, with its own layout on phones. On pages without the sidebar, the user menu moves to the top right. (#3245)
+- An organization's pages share one layout, with Products, Users, Signing keys, Certificates, Integrations and Settings as tabs (#3246)
+- New design for the 400, 404 and 500 pages. The 400 and 500 pages show the request ID, and the 500 page links to `STATUS_PAGE_URL` when it's set. (#3247)
+- Serve Inter from NervesHub instead of Google Fonts, and use JetBrains Mono for mono text. An instance that couldn't reach Google fell back to the system font, and each page load sent the viewer's IP address to Google. (#3236)
+
+### Fixed
+
+- Keep device connections up when a platform node is slow to answer through `Dispatcher.Remote`. A timed-out call is no longer retried on the next node, which doubled the work, since the first node is still running it. An unanswered call no longer crashes the extensions channel or closes the socket: the extensions channel drops that one message, and the device channel closes so the device rejoins. Both are logged as warnings. (#3248)
+- The sign-in page's Remember me checkbox keeps you signed in for 60 days. It did nothing before, and the tick was lost after a wrong password. (#3243)
+- Raise at most one product notification a minute per device for metric names that are too long or too many, as documented. The limit was one a second. (#3251)
+- Creating your first org no longer leaves the org behind without a product when the product name is refused (#3245)
+- Text fields lost contrast when focused, Tab skipped the device table's checkboxes, and colours picked for dark mode left icons and text faint in light mode (#3242)
+- The 400, 404 and 500 pages had no logo, showed `#{...}` in the tab title, and ignored the light theme (#3247)
+- The maintenance page is now in Inter for every viewer, not only those who have it installed (#3236)
+
+### Security
+
+- Store each archive's file under its org and product. Files were stored by the UUID in the uploaded archive, so another org could overwrite or delete your archive's file by uploading one with the same UUID. (#3233)
+- Refuse devices whose org or product has been deleted, however they authenticate, and close their connections when the deletion happens, including when removing an account deletes its orgs. Just-in-time provisioning no longer creates devices in a deleted product. Deleting a large org sends all of its connected devices to reconnect at once, and each is refused. (#3235)
+- After a wrong password, the sign-in page no longer writes the password back into its HTML (#3243)
+
+### Dependencies
+
+- **lazy_html**: 0.1.13 -> 0.1.14 (#3240)
+- **lucide**: 1.66.0 -> 1.70.0 (#3252)
+- **mimic**: 2.4.2 -> 2.5.0 (#3237)
+- **process_hub**: 0.7.0 -> 0.8.0 (#3239)
+
 ## v2.5.1
 
 Device nodes can renew their TLS certificate without a restart, nodes can find each other over DNS, and `MAINTENANCE_MODE` takes the whole platform offline behind a maintenance page. A device whose connecting code fails now raises a product notification. The Docker image no longer runs as root and no longer sets a default `SECRET_KEY_BASE`. Read Upgrading before deploying, because either change can stop a node booting.
@@ -58,7 +105,7 @@ Device nodes can renew their TLS certificate without a restart, nodes can find e
 - **hammer**: 7.5.0 -> 7.5.1 (#3211)
 - **libcluster**: 3.5.0 -> 3.6.0 (#3228)
 - **live_flow**: 0.2.3 -> 0.3.2 (#3203)
-- **lucide**: 1.61.0 -> 1.65.0 (#3221)
+- **lucide**: 1.61.0 -> 1.66.0 (#3221, #3226)
 - **phoenix_html**: 4.3.0 -> 4.4.0 (#3217)
 - **phoenix_test**: 0.13.1 -> 0.14.0 (#3222)
 - **sentry**: 14.0.0 -> 14.0.1 (#3219)
