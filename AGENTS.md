@@ -219,6 +219,16 @@ when adding or removing one.
   A `<.button>` holding only an icon sets `square`, or it comes out shorter
   than the text buttons beside it. A file picker is `<.button type="label">`
   with `for` set to the upload's ref.
+- **Fonts:** Inter (the sans) and JetBrains Mono (`--font-mono`) are vendored
+  in `priv/static/fonts/`, each straight from its upstream release with its OFL
+  license, and declared with `@font-face` in `assets/css/app.css`. The
+  maintenance page declares Inter in its own inline CSS (`MaintenanceEndpoint`
+  serves `fonts` for it). JetBrains Mono has no variable woff2, so only the
+  weights mono text uses are there (400, 500, 600); a heavier or italic mono
+  style needs its file added. xterm and chart.js draw on a canvas, so they name
+  the font themselves in `assets/js` and wait for it with `whenFontsLoaded`.
+  Self-hosted instances may have no internet access, so don't load fonts or
+  other assets from a third-party CDN.
 - **Boundaries:** contexts (`lib/nerves_hub/`) hold business logic; web modules
   stay thin and call into them. Match the surrounding module's conventions,
   error handling, and naming rather than importing your own.

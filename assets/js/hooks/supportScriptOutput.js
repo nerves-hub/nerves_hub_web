@@ -2,13 +2,15 @@ import { Terminal } from "@xterm/xterm"
 import { WebglAddon } from "@xterm/addon-webgl"
 import { WebLinksAddon } from "@xterm/addon-web-links"
 import { FitAddon } from "@xterm/addon-fit"
+import { whenFontsLoaded } from "../helpers/fonts.js"
+import { TERMINAL_FONT_FAMILY, TERMINAL_FONTS } from "../helpers/terminal.js"
 
 const defaultTermOptions = {
   disableStdin: true,
   cursorBlink: true,
   cursorStyle: "bar",
   macOptionIsMeta: true,
-  fontFamily: "Ubuntu Mono, courier-new, courier, monospace",
+  fontFamily: TERMINAL_FONT_FAMILY,
   fontSize: 14,
   rows: 20,
   theme: {
@@ -49,8 +51,11 @@ export default {
     term.loadAddon(new WebglAddon())
     term.loadAddon(new WebLinksAddon())
 
-    term.open(this.el)
-
     term.writeln(contentRows.join("\n\r"))
+
+    // Opened once the font has loaded, as in `createTerminal`.
+    whenFontsLoaded(TERMINAL_FONTS, () => {
+      if (this.el.isConnected) term.open(this.el)
+    })
   },
 }
