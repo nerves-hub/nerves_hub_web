@@ -1068,7 +1068,7 @@ defmodule NervesHub.Devices do
   Apply a change `user` makes to a device, and record who made it.
 
   `params` can set only what `Device.update_changeset/2` allows: the device's
-  description, tags, first connect code and update mode.
+  description, tags and first connect code.
 
   ## Options
 
@@ -1079,6 +1079,14 @@ defmodule NervesHub.Devices do
       device already has that value. It is an option rather than a param so
       that a settings form's params can't set it: the web UI keeps it behind a
       permission of its own.
+    * `:update_mode` - also move the device to this update mode. It goes
+      through `Updates.save_update_mode/3` in the same transaction, as the web
+      UI's update mode buttons do: a move to `:automatic` clears the device's
+      update attempts, and the audit entry names the mode. Nothing is written
+      when the device already has that mode. Once the transaction commits, the
+      deployment orchestrator is told about a device moved to `:automatic`, so
+      it is considered straight away. `Device.cast_update_mode/2` turns a
+      request's params into this option.
   """
   @spec update_device_settings(Device.t(), map(), User.t(), keyword()) ::
           {:ok, Device.t()} | {:error, Changeset.t()}
@@ -1087,13 +1095,15 @@ defmodule NervesHub.Devices do
 
     Repo.transact(fn ->
       with {:ok, updated} <- device |> Device.update_changeset(params) |> Repo.update(),
-           {:ok, _audit_log} <- AuditLogs.audit(user, device, description) do
-        set_managed_updates_allowed(updated, opts[:managed_updates_allowed], user)
+           {:ok, _audit_log} <- AuditLogs.audit(user, device, description),
+           {:ok, updated} <- set_managed_updates_allowed(updated, opts[:managed_updates_allowed], user) do
+        set_update_mode(updated, opts[:update_mode], user)
       end
     end)
     |> case do
       {:ok, updated} ->
         _ = DeviceEvents.updated(updated)
+        _ = if updated.update_mode != device.update_mode, do: Updates.update_mode_committed(updated)
         {:ok, updated}
 
       error ->
@@ -1101,11 +1111,12 @@ defmodule NervesHub.Devices do
     end
   end
 
-  # `Updates.set_managed_updates_allowed/3` announces the device as updated before
-  # the caller's transaction commits, so a listener can read it unchanged. The
-  # announcement `update_device_settings/4` makes after the commit is the one that
-  # sees both changes; the device's connection pushes the new grant on that one.
-  # A device `create_device/4` is still creating has no connection to tell.
+  # `Updates.set_managed_updates_allowed/3` and `Updates.save_update_mode/3`
+  # announce the device as updated before the caller's transaction commits, so a
+  # listener can read it unchanged. The announcement `update_device_settings/4`
+  # makes after the commit is the one that sees every change; the device's
+  # connection pushes the new grant and mode on that one. A device
+  # `create_device/4` is still creating has no connection to tell.
   defp set_managed_updates_allowed(%Device{managed_updates_allowed: current} = device, allowed, user)
        when is_boolean(allowed) and allowed != current do
     case Updates.set_managed_updates_allowed(device, allowed, user) do
@@ -1115,6 +1126,15 @@ defmodule NervesHub.Devices do
   end
 
   defp set_managed_updates_allowed(device, _allowed, _user), do: {:ok, device}
+
+  defp set_update_mode(%Device{update_mode: current} = device, mode, user) when not is_nil(mode) and mode != current do
+    case Updates.save_update_mode(device, mode, user) do
+      {:ok, device} -> {:ok, device}
+      {:error, _step, reason, _changes} -> {:error, reason}
+    end
+  end
+
+  defp set_update_mode(device, _mode, _user), do: {:ok, device}
 
   @spec get_devices_by_id(Scope.t(), [non_neg_integer()]) :: [Device.t()]
   def get_devices_by_id(%Scope{user: user}, ids) when is_list(ids) do

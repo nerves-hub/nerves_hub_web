@@ -283,9 +283,10 @@ defmodule NervesHubWeb.API.Schemas.DeviceSchemas do
   end
 
   # The fields a request may set on a device, shared by the create and update
-  # bodies: what `Device.create_changeset/2` and `Device.update_changeset/2`
-  # cast, and `managed_updates_allowed`, which the controller sets through
-  # `Updates.set_managed_updates_allowed/3`. Anything else in a body is ignored.
+  # bodies: what `Device.create_changeset/2` casts, and `managed_updates_allowed`,
+  # which the controller sets through `Updates.set_managed_updates_allowed/3`. An
+  # update saves `update_mode` through `Updates.save_update_mode/3`, not
+  # `Device.update_changeset/2`. Anything else in a body is ignored.
   defmodule DeviceSettings do
     @moduledoc false
 
@@ -363,7 +364,15 @@ defmodule NervesHubWeb.API.Schemas.DeviceSchemas do
       properties: %{
         device: %Schema{
           type: :object,
-          properties: DeviceSettings.properties()
+          properties:
+            Map.update!(DeviceSettings.properties(), :update_mode, fn schema ->
+              %{
+                schema
+                | description:
+                    schema.description <>
+                      " A change is recorded in the audit log. A device moved to automatic is considered by its deployment group straight away, rather than when it next connects."
+              }
+            end)
         }
       },
       required: [:device],

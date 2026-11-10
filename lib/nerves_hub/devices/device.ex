@@ -49,8 +49,10 @@ defmodule NervesHub.Devices.Device do
 
   # What a user may set on a device, through the API or the dashboard. Everything
   # else `changeset/2` casts is either where the device lives (its org, product
-  # and deployment group) or state NervesHub keeps for it.
-  @user_params [:description, :tags, :update_mode, :connecting_code]
+  # and deployment group) or state NervesHub keeps for it. A user sets the update
+  # mode too, but only `create_changeset/2` casts it, because changing an existing
+  # device's mode does more than save it (see `cast_update_mode/2`).
+  @user_params [:description, :tags, :connecting_code]
 
   @derive {Phoenix.Param, key: :identifier}
   schema "devices" do
@@ -160,20 +162,45 @@ defmodule NervesHub.Devices.Device do
       product_id: product.id,
       managed_updates_allowed: product.default_managed_updates_allowed
     }
-    |> cast(params, [:identifier | @user_params])
+    |> cast(params, [:identifier, :update_mode | @user_params])
     |> validate_required(@required_params)
     |> unique_constraint(:identifier)
   end
 
   @doc """
-  A change a user makes to a device: its description, tags, first connect code
-  or update mode. Anything else in `params` is ignored.
+  A change a user makes to a device: its description, tags or first connect
+  code. Anything else in `params` is ignored, the update mode included: see
+  `cast_update_mode/2`.
   """
   @spec update_changeset(t(), map()) :: Ecto.Changeset.t()
   def update_changeset(%Device{} = device, params) do
     device
     |> cast(params, @user_params)
     |> validate_not_deleted(device)
+  end
+
+  @doc """
+  The update mode `params` asks to move `device` to, or `nil` when it asks for
+  no change.
+
+  `update_changeset/2` doesn't cast the update mode, because changing it does
+  more than save it: `NervesHub.Devices.Updates.save_update_mode/3` clears the
+  update attempts of a device moved to `:automatic` and audits the new mode.
+  This casts it on its own, so that a value that isn't a mode gets a changeset
+  error like any other field's.
+  """
+  @spec cast_update_mode(t(), map()) :: {:ok, update_mode() | nil} | {:error, Ecto.Changeset.t()}
+  def cast_update_mode(%Device{} = device, params) do
+    changeset =
+      device
+      |> cast(params, [:update_mode])
+      |> validate_required([:update_mode])
+
+    if changeset.valid? do
+      {:ok, get_change(changeset, :update_mode)}
+    else
+      {:error, changeset}
+    end
   end
 
   defp validate_not_deleted(changeset, device) do

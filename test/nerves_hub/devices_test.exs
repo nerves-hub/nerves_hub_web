@@ -145,6 +145,26 @@ defmodule NervesHub.DevicesTest do
     end
   end
 
+  describe "update_device_settings/4 and the update mode" do
+    test "a mode sent in the params is ignored", %{device: device, user: user} do
+      {:ok, device} = Devices.update_device_settings(device, %{update_mode: :off}, user)
+
+      assert device.update_mode == :automatic
+      assert Repo.reload(device).update_mode == :automatic
+    end
+
+    test "the :update_mode option sets it, in its own audit entry", %{device: device, user: user} do
+      {:ok, device} = Devices.update_device_settings(device, %{description: "frozen"}, user, update_mode: :off)
+
+      assert device.description == "frozen"
+      assert device.update_mode == :off
+
+      descriptions = device |> AuditLogs.logs_for() |> Enum.map(& &1.description)
+      assert "User #{user.name} updated device #{device.identifier}" in descriptions
+      assert "User #{user.name} set the update mode for device #{device.identifier} to off" in descriptions
+    end
+  end
+
   describe "update_device_settings/4 and the managed updates grant" do
     test "a grant sent in the params is ignored", %{device: device, user: user} do
       {:ok, device} = Devices.update_device_settings(device, %{managed_updates_allowed: true}, user)

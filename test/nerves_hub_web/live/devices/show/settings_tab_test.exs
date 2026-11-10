@@ -43,7 +43,8 @@ defmodule NervesHubWeb.Live.Devices.Show.SettingsTabTest do
           "device" => %{
             "description" => "still mine",
             "org_id" => to_string(other_org.id),
-            "product_id" => to_string(other_product.id)
+            "product_id" => to_string(other_product.id),
+            "update_mode" => "off"
           }
         })
       end)
@@ -53,6 +54,8 @@ defmodule NervesHubWeb.Live.Devices.Show.SettingsTabTest do
       assert device.description == "still mine"
       assert device.org_id == org.id
       assert device.product_id == product.id
+      # The update mode is changed with the details tab's buttons, not this form.
+      assert device.update_mode == :automatic
     end
 
     test "can add 'first connect code'", %{conn: conn, org: org, product: product, device: device} do

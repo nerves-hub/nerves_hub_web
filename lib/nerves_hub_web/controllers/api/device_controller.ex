@@ -8,6 +8,7 @@ defmodule NervesHubWeb.API.DeviceController do
   alias NervesHub.Devices.AdvancedQuery
   alias NervesHub.Devices.BulkActions
   alias NervesHub.Devices.Certificates
+  alias NervesHub.Devices.Device
   alias NervesHub.Devices.DeviceCertificate
   alias NervesHub.Devices.Updates
   alias NervesHub.Firmwares
@@ -167,8 +168,12 @@ defmodule NervesHubWeb.API.DeviceController do
     device_params = device_params(params)
 
     with {:ok, allowed} <- cast_managed_updates_allowed(device_params),
+         {:ok, mode} <- Device.cast_update_mode(device, device_params),
          {:ok, updated_device} <-
-           Devices.update_device_settings(device, device_params, user, managed_updates_allowed: allowed) do
+           Devices.update_device_settings(device, device_params, user,
+             managed_updates_allowed: allowed,
+             update_mode: mode
+           ) do
       updated_device = Devices.get_by_identifier_with_deployment_and_release!(updated_device.identifier)
 
       conn
