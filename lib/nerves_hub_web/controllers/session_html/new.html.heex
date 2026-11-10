@@ -8,7 +8,7 @@
 
   <div class="flex flex-col gap-5">
     <div :if={assigns[:error_message]} role="alert" class="flex gap-2.5 rounded-md border border-alert/30 bg-alert-soft p-3 text-sm text-alert-content">
-      <span class="lucide-circle-alert mt-0.5 size-4 flex-none text-alert" aria-hidden="true"></span>
+      <span class="mt-0.5 lucide-circle-exclamation-point size-4 flex-none text-alert" aria-hidden="true"></span>
       <div>
         <p class="font-semibold">{@error_message}</p>
         <p>Check both and try again.</p>

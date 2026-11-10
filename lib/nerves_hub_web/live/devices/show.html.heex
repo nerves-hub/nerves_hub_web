@@ -94,7 +94,7 @@
             <span class="mr-1 ml-2 text-sm text-content-body">N/A</span>
           <% Updates.device_in_penalty_box?(@device) -> %>
             <.tooltip id={"update-status-#{@device.id}"} placement="left">
-              <span class="lucide-shield-alert mx-2 size-4 text-warning" aria-hidden="true"></span>
+              <span class="mx-2 lucide-shield-exclamation-point size-4 text-warning" aria-hidden="true"></span>
               <:content>
                 Updates blocked {DeviceUpdateStatus.friendly_blocked_until(@device.updates_blocked_until, @time_zone)}
               </:content>

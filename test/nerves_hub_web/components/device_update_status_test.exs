@@ -21,7 +21,7 @@ defmodule NervesHubWeb.Components.DeviceUpdateStatusTest do
           DeviceUpdateStatus.render(%{device: device, time_zone: "Pacific/Auckland"})
         )
 
-      assert String.contains?(rendered, "lucide-shield-alert")
+      assert String.contains?(rendered, "lucide-shield-exclamation-point")
     end
 
     test "renders the enabled icon when updates are enabled and not penalized" do
