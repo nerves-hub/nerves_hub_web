@@ -322,6 +322,37 @@ defmodule NervesHubWeb.DeviceChannelTest do
     close_cleanly(device_channel)
   end
 
+  # The socket routes every "device:*" topic to this channel, and the channel is
+  # subscribed to whichever one was joined. A device must not be able to follow
+  # another device's topics, or it receives that device's firmware URLs, support
+  # scripts and local shell input.
+  test "a device cannot join another device's topics, and the platform is never asked", %{tmp_dir: tmp_dir} do
+    user = Fixtures.user_fixture()
+    {device, _firmware, _deployment_group} = device_fixture(user, %{identifier: "123"}, tmp_dir)
+    {other, _firmware, _deployment_group} = device_fixture(user, %{identifier: "456"}, tmp_dir)
+    %{db_cert: certificate, cert: _cert} = Fixtures.device_certificate_fixture(device)
+
+    {:ok, socket} =
+      connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
+
+    {:ok, _, device_channel} = subscribe_and_join(socket, DeviceChannel, "device:#{device.id}")
+
+    Mimic.reject(&NervesHub.DeviceLink.device_join/2)
+
+    for topic <- ["device:#{other.id}", "device:#{other.id}:extensions", "device:#{device.id}:extensions"] do
+      assert {:error, %{error: "unauthorized"}} = Phoenix.ChannelTest.join(socket, DeviceChannel, topic, %{})
+
+      @endpoint.broadcast!(topic, "update", %{"firmware_url" => "for another device"})
+      refute_push("update", %{"firmware_url" => "for another device"})
+    end
+
+    # Its own topic still reaches it.
+    @endpoint.broadcast!("device:#{device.id}", "update", %{"firmware_url" => "for this device"})
+    assert_push("update", %{"firmware_url" => "for this device"})
+
+    close_cleanly(device_channel)
+  end
+
   test "fwup_public_keys requested on connect", %{tmp_dir: tmp_dir} do
     user = Fixtures.user_fixture()
     {device, _firmware, _deployment_group} = device_fixture(user, %{identifier: "123"}, tmp_dir)
