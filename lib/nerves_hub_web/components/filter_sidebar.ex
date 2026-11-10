@@ -28,24 +28,16 @@ defmodule NervesHubWeb.Components.FilterSidebar do
     <div class="pointer-events-none fixed inset-y-0 right-0 z-40 flex max-w-full pl-10 sm:pl-16">
       <div
         id="filter-sidebar"
-        class="pointer-events-auto mt-[55px] hidden h-full w-screen max-w-80 flex-col border-t border-l border-base-700 bg-surface-muted shadow-filter-slider transition-transform"
+        class="pointer-events-auto mt-[55px] hidden h-full w-screen max-w-80 flex-col border-t border-l border-line-default bg-surface-muted shadow-filter-slider transition-transform"
         phx-window-keydown={hide_filter_sidebar()}
         phx-key="escape"
       >
         <div class="h-0 flex-1 overflow-y-auto">
-          <div class="flex h-14 items-center border-b border-base-700 px-4 py-3">
-            <h4 class="text-base font-semibold">Filters</h4>
+          <div class="flex h-14 items-center border-b border-line-default px-4 py-3">
+            <h4 class="text-card-title">Filters</h4>
 
             <button class="ml-auto cursor-pointer p-1.5" type="button" phx-click={hide_filter_sidebar()}>
-              <svg xmlns="http://www.w3.org/2000/svg" class="size-5" viewBox="0 0 20 20" fill="none">
-                <path
-                  d="M10.0002 9.99998L5.8335 5.83331M10.0002 9.99998L14.1668 14.1666M10.0002 9.99998L14.1668 5.83331M10.0002 9.99998L5.8335 14.1666"
-                  stroke="#A1A1AA"
-                  stroke-width="1.2"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                />
-              </svg>
+              <span class="lucide-x size-4 text-content-muted" aria-hidden="true"></span>
             </button>
           </div>
 
@@ -54,13 +46,12 @@ defmodule NervesHubWeb.Components.FilterSidebar do
               <div :for={filter <- @filter} class="mt-6">
                 <div class="flex items-center justify-between gap-2">
                   <label class="sidebar-label" for={"input_#{filter.attr}"}>{filter.label}</label>
-                  <div :if={filter[:hint]} class="relative z-20 flex items-center" id={"filter-hint-#{filter.attr}"} phx-hook="ToolTip" data-placement="left">
-                    <.icon name="info" class="stroke-base-400" />
-                    <div class="tooltip-content absolute top-0 left-0 z-20 hidden w-max max-w-56 rounded border border-base-700 bg-surface-muted px-2 py-1.5 text-xs">
+                  <.tooltip :if={filter[:hint]} id={"filter-hint-#{filter.attr}"} placement="left" class="z-20 flex items-center" content_class="w-max max-w-56">
+                    <.icon name="info" class="text-content-muted" />
+                    <:content>
                       {filter.hint}
-                      <div class="tooltip-arrow absolute size-2 origin-center rotate-45 border-base-700 bg-surface-muted"></div>
-                    </div>
-                  </div>
+                    </:content>
+                  </.tooltip>
                 </div>
                 <%= case filter.type do %>
                   <% :text -> %>
@@ -79,8 +70,8 @@ defmodule NervesHubWeb.Components.FilterSidebar do
           </div>
         </div>
 
-        <div class="mb-14 flex h-16 shrink-0 justify-end border-t border-base-700 p-4">
-          <button class="sidebar-button" type="button" phx-click={@on_reset}>Reset Filters</button>
+        <div class="mb-14 flex h-16 shrink-0 justify-end border-t border-line-default p-4">
+          <.button type="button" phx-click={@on_reset}>Reset Filters</.button>
         </div>
       </div>
     </div>

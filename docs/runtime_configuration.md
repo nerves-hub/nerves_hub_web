@@ -458,8 +458,10 @@ instance-wide intervals.
 | `FEATURES_GEO_INTERVAL_MINUTES` | `0` | How often a device reports its location. `0` means once, on connection. |
 | `FEATURES_HEALTH_INTERVAL_MINUTES` | `60` | How often a device reports health metrics. |
 | `FEATURES_HEALTH_UI_POLLING_SECONDS` | `60` | How often the health pages refresh. |
+| `FEATURES_HEALTH_FIRST_CHECK_WINDOW_SECONDS` | `60` | After a device connects, it is asked for a health report at a random point in this window, so a fleet that reconnects together doesn't report together. A device whose page is open is asked straight away. `0` asks every device straight away. |
 | `FEATURES_METRICS_INTERVAL_MINUTES` | `15` | How often a device on the `metrics` extension reports, while nobody has its page open. |
 | `FEATURES_METRICS_UI_POLLING_SECONDS` | `60` | How often it reports while somebody does. |
+| `FEATURES_METRICS_FIRST_CHECK_WINDOW_SECONDS` | `60` | The same window for the `metrics` extension's first report. |
 | `EXTENSIONS_LOGGING_DAYS_TO_KEEP` | `3` | Days of device logs kept. |
 
 ## Device metrics
@@ -477,6 +479,22 @@ not configurable: it exists to protect a column type, not to express a policy.
 | Variable | Default | Description |
 | --- | --- | --- |
 | `DEVICE_METRICS_MAX_KEYS_PER_REPORT` | `20` | Most metric names stored from one report. Raise it for genuinely wide devices. |
+
+## Health evaluation
+
+Read in every environment. A device's health and metrics reports don't judge its
+health themselves. They queue an evaluation on the node they arrived at, and a
+fixed number of workers run what is queued. See
+`NervesHub.Devices.HealthEvaluation.Queue`.
+
+Each running evaluation holds one analytics connection at a time, so keep the
+concurrency below `ANALYTICS_POOL_SIZE` × `ANALYTICS_POOL_COUNT`. The node logs a
+warning on boot if it isn't.
+
+| Variable | Default | Description |
+| --- | --- | --- |
+| `HEALTH_EVALUATION_CONCURRENCY` | half the analytics pool, at most `10` | Evaluations run at once on each node. |
+| `HEALTH_EVALUATION_MAX_AGE_SECONDS` | `60` | How long an evaluation may wait to start before it is dropped. The readings are stored either way, and the device's next report judges them. |
 
 ## Firmware formats
 

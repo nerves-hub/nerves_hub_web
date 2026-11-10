@@ -214,7 +214,7 @@ defmodule NervesHubWeb.Live.Product.Errors do
   @doc "Tailwind classes for a status pill."
   def status_class(:unresolved), do: "bg-base-800 text-orange-400"
   def status_class(:resolved), do: "bg-base-800 text-success"
-  def status_class(:muted), do: "bg-base-800 text-base-400"
+  def status_class(:muted), do: "bg-base-800 text-content-muted"
 
   @doc "The innermost frame, rendered for a list row."
   def top_frame(%ErrorGroup{top_frame_module: nil}), do: nil

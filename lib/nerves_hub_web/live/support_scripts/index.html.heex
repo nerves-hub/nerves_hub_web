@@ -1,15 +1,15 @@
 <NervesHubWeb.Layouts.sidebar flash={@flash} current_scope={@current_scope} sidebar_tab={@sidebar_tab}>
   <:header>
-    <h1 class="text-xl leading-[30px] font-semibold text-base-50">All Support Scripts</h1>
-    <div class="mr-auto rounded-sm bg-base-800 px-1.5 py-0.5 text-xs text-base-300">
+    <h1 class="text-page-title text-content-strong">All Support Scripts</h1>
+    <.badge class="mr-auto">
       {@pager_meta.total_count}
-    </div>
+    </.badge>
 
     <form id="script-filters-form" class="flex items-center" phx-change="update-filters">
       <div class="grid grid-cols-1">
         <input
           type="text"
-          class="col-start-1 row-start-1 block h-9 w-64 gap-2 rounded border border-base-600 bg-surface-muted px-3 py-1 text-sm font-normal text-base-400"
+          class="col-start-1 row-start-1 block h-9 w-64 gap-2 rounded border border-line-strong bg-surface-muted px-3 py-1 text-sm font-normal text-content-muted"
           name="search"
           id="script_search_top"
           placeholder="Search by name or tags..."
@@ -18,15 +18,7 @@
           phx-debounce="500"
         />
 
-        <svg class="pointer-events-none col-start-1 row-start-1 mr-3 self-center justify-self-end" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="none">
-          <path
-            d="M16.6668 16.6666L13.2916 13.2914M13.2916 13.2914C14.3472 12.2358 15.0002 10.7775 15.0002 9.16665C15.0002 5.94499 12.3885 3.33331 9.16683 3.33331C5.94517 3.33331 3.3335 5.94499 3.3335 9.16665C3.3335 12.3883 5.94517 15 9.16683 15C10.7777 15 12.236 14.3471 13.2916 13.2914Z"
-            stroke="#A1A1AA"
-            stroke-width="1.2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          />
-        </svg>
+        <span class="pointer-events-none col-start-1 row-start-1 mr-3 lucide-search size-4 self-center justify-self-end text-content-muted" aria-hidden="true"></span>
       </div>
     </form>
 
@@ -58,7 +50,7 @@
           </tr>
         </thead>
         <tbody>
-          <tr :for={script <- @scripts} class="border-b border-base-800">
+          <tr :for={script <- @scripts} class="border-b border-line-subtle">
             <td class="h-[52px]">
               <.link class="flex size-full items-center" navigate={~p"/org/#{@current_scope.org}/#{@current_scope.product}/scripts/#{script}/edit"}>
                 {script.name}
@@ -77,7 +69,7 @@
               <div class="flex items-center gap-[4px] text-nowrap">
                 <%= if !is_nil(script.tags) do %>
                   <%= for tag <- script.tags do %>
-                    <span class="tag">{tag}</span>
+                    <.tag>{tag}</.tag>
                   <% end %>
                 <% end %>
               </div>
@@ -88,7 +80,7 @@
     </div>
 
     <div :if={Enum.empty?(@scripts) && @currently_filtering} class="flex h-full items-center justify-center pb-16">
-      <span class="text-xl font-medium text-base-50">No Support Scripts match the current filters.</span>
+      <span class="text-xl font-medium text-content-strong">No Support Scripts match the current filters.</span>
     </div>
 
     <div :if={Enum.empty?(@scripts) && !@currently_filtering} class="flex h-full items-center justify-center pb-16">

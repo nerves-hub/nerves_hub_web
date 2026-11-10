@@ -94,9 +94,12 @@
   --color-surface-raised: #1c1c1f; /* cards, chips, inputs — between surface-muted and zinc-800 */
   --color-surface-overlay: #18181b; /* menus, popovers, modals */
 
-  --color-b-default: #3f3f46; /* zinc-700 — default hairline */
-  --color-b-strong: #52525b; /* zinc-600 — inputs, buttons */
-  --color-b-subtle: #27272a; /* zinc-800 — faint divider */
+  /* Hairlines. Named `line-*` because a `b-*` name reads as Tailwind's
+     bottom-side syntax: `border-b-default` coloured all four sides.
+     Use these for borders, not border-line-strong/700/800. */
+  --color-line-default: var(--color-zinc-700); /* cards, panels, header rules */
+  --color-line-strong: var(--color-zinc-600); /* inputs, selects, buttons, chips */
+  --color-line-subtle: var(--color-zinc-800); /* dividers between rows */
 
   /* Neutral ramp — low = bright text, high = recessed surface; inverts in light */
   --color-base-50: var(--color-zinc-50);
@@ -122,23 +125,26 @@
   ); /* text/icon on a primary fill */
   --color-focus-ring: var(--color-indigo-500);
 
+  /* Scrim behind modals, the command palette and the product picker */
+  --color-backdrop: rgb(9 9 11 / 0.8); /* zinc-950 */
+
   /* State — solid / content (text on the soft tint) / soft (tint background).
      DARK: bright -400 content + a translucent brand tint over the dark canvas. */
   --color-notice: var(--color-indigo-500);
   --color-notice-content: var(--color-indigo-400);
-  --color-notice-soft: rgb(var(--primary-rgb) / 0.15);
+  --color-notice-soft: color-mix(in oklab, var(--color-notice) 15%, transparent);
 
   --color-success: var(--color-emerald-500);
   --color-success-content: var(--color-emerald-400);
-  --color-success-soft: rgb(var(--success-rgb) / 0.15);
+  --color-success-soft: color-mix(in oklab, var(--color-success) 15%, transparent);
 
   --color-warning: var(--color-amber-500);
   --color-warning-content: var(--color-amber-400);
-  --color-warning-soft: rgb(var(--warning-rgb) / 0.15);
+  --color-warning-soft: color-mix(in oklab, var(--color-warning) 15%, transparent);
 
   --color-alert: var(--color-red-500);
   --color-alert-content: var(--color-red-400);
-  --color-alert-soft: rgb(var(--alert-rgb) / 0.15);
+  --color-alert-soft: color-mix(in oklab, var(--color-alert) 15%, transparent);
 
   /* Danger — solid destructive CTAs (e.g. "Delete account"). Distinct from
      `alert` (red-500 feedback/state): a heavier red-600 fill with white text,
@@ -152,22 +158,38 @@
   --color-status-offline: var(--color-zinc-500);
   --color-status-connecting: var(--color-indigo-500);
 
-  --color-content-strong: #fafafa; /* zinc-50  — headings, key values */
-  --color-content-body: #d4d4d8; /* zinc-300 — default body text */
-  --color-content-muted: #a1a1aa; /* zinc-400 — secondary / labels */
-  --color-content-faint: #71717a; /* zinc-500 — placeholder / disabled */
+  /* Text roles. Use these for text, not the base-* ramp they replaced:
+     text-base-50/300/400/500 were the same colours under a second name.
+     The other base-* shades have no text role yet. */
+  --color-content-strong: var(--color-zinc-50); /* headings, key values */
+  --color-content-body: var(--color-zinc-300); /* default body text */
+  --color-content-muted: var(--color-zinc-400); /* secondary / labels */
+  --color-content-faint: var(--color-zinc-500); /* placeholder / disabled */
+
+  /* Headings. Each sets size, line height and weight, so a heading needs
+     only one of these plus a text colour (usually text-content-strong).
+     Pick by role, not by tag: an empty state's h2 is a page title. */
+  --text-page-title: 1.25rem; /* 20px: page h1s and empty-state titles */
+  --text-page-title--line-height: 1.875rem;
+  --text-page-title--font-weight: 600;
+  --text-section-title: 1.125rem; /* 18px: a section of a page */
+  --text-section-title--line-height: 1.75rem;
+  --text-section-title--font-weight: 600;
+  --text-card-title: 1rem; /* 16px: card and sidebar headers */
+  --text-card-title--line-height: 1.5rem;
+  --text-card-title--font-weight: 500;
+  --text-group-title: 0.875rem; /* 14px: a group inside a card */
+  --text-group-title--line-height: 1.25rem;
+  --text-group-title--font-weight: 600;
 }
 
 /*
  * Plain custom properties (NOT @theme tokens). A token lives here when:
  *
- *   • It is a channel token (`--*-rgb`): space-separated RGB channels used in
- *     rgb(var(--x) / <alpha>) for the translucent state tints above and the
- *     gradient utilities below. `--veil-rgb` is the neutral hover veil and
- *     inverts in light; the brand/state channels do not.
- *   • It is a semantic text/border role mirroring the design system's named
- *     foundation, available for var() use / component adoption (templates today
- *     lean on the base-* ramp directly).
+ *   • It is the neutral hover veil (`--veil`), which inverts in light. Like
+ *     the translucent state tints above and the gradient utilities below, it
+ *     is mixed with `color-mix(in oklab, …, transparent)` rather than split
+ *     into RGB channels, so tints use the same v4 colour as the solid fill.
  *   • It is a themed box-shadow: Tailwind inlines @theme --shadow-* values into
  *     the generated utility, so a [data-theme] override would be ignored. The
  *     @utility rules below read these at runtime instead.
@@ -189,15 +211,12 @@
   --color-chart-6: #008300;
   --color-chart-other: #71717a;
 
-  --primary-rgb: 99 102 241;
-  --success-rgb: 16 185 129;
-  --warning-rgb: 245 158 11;
-  --alert-rgb: 239 68 68;
-  --veil-rgb: 63 63 70;
+  /* The neutral hover veil behind sidebar items; flips in light */
+  --veil: var(--color-zinc-700);
 
-  --hover-row: rgb(var(--primary-rgb) / 0.06);
-  --tint-primary-weak: rgb(var(--primary-rgb) / 0.1);
-  --tint-primary-soft: rgb(var(--primary-rgb) / 0.2);
+  /* The dots of the auth pages' perfboard backdrop (the perfboard utility
+     below). Faint in both themes: line-subtle here, line-default in light. */
+  --perfboard-dot: var(--color-line-subtle);
 
   /* Fixed layout rails — semantic dimensions for the app chrome (theme-independent).
      Exposed as w-sidebar / h-topbar / h-header / h-row / h-nav-item utilities below. */
@@ -207,9 +226,15 @@
   --row-height: 52px;
   --nav-item-height: 44px;
 
-  --shadow-filter-slider: -16px 0px 32px -4px #141417, 0px 4px 4px -4px #141417;
-  --shadow-device-details-content:
-    0 16px 32px -4px #141417, 0 14px 4px -4px #141417;
+  /* Elevation, in three steps (see the shadow-* utilities below). Dark
+     shadows are black at a high alpha: one in the canvas colour (#141417)
+     can't be seen against the canvas. */
+  --shadow-card: 0 1px 2px rgb(0 0 0 / 0.3), 0 2px 6px rgb(0 0 0 / 0.3);
+  --shadow-overlay:
+    0 4px 8px -2px rgb(0 0 0 / 0.4), 0 12px 32px -4px rgb(0 0 0 / 0.55);
+  --shadow-control: 0 1px 2px rgb(0 0 0 / 0.4);
+  --shadow-filter-slider:
+    -16px 0 32px -4px rgb(0 0 0 / 0.5), 0 4px 4px -4px rgb(0 0 0 / 0.5);
 }
 
 /* Light mode overrides — invert the neutral ramp, re-point surfaces, and swap
@@ -236,6 +261,8 @@
 
   --color-primary-content: #ffffff;
 
+  --color-backdrop: rgb(24 24 27 / 0.5); /* zinc-900 */
+
   /* Light: deep -900 text on light pastel -50/-100 fills */
   --color-notice-content: var(--color-indigo-900);
   --color-notice-soft: var(--color-indigo-100);
@@ -260,15 +287,25 @@
   --color-content-muted: var(--color-zinc-600); /* zinc-600 */
   --color-content-faint: var(--color-zinc-500); /* zinc-500 (shared) */
 
-  --color-b-default: #e4e4e7; /* zinc-200 */
-  --color-b-strong: #d4d4d8; /* zinc-300 */
-  --color-b-subtle: #ececee;
+  /* Hairlines are set to match dark mode's contrast, not inverted from it.
+     line-strong outlines controls, so it stays at 3:1 or more on every light
+     surface (WCAG 1.4.11); zinc-400 is only 2.3–2.6:1 here. */
+  --color-line-default: var(--color-zinc-300);
+  --color-line-strong: #8c8c95; /* between zinc-400 and zinc-500 */
+  --color-line-subtle: var(--color-zinc-200);
 
-  --veil-rgb: 228 228 231;
+  /* Between zinc-300 and zinc-400: at the hover gradient's 24–48% it gives
+     the light sidebar the same contrast (1.12–1.27:1) zinc-700 gives dark. */
+  --veil: #bdbdc3;
 
-  --shadow-filter-slider: -16px 0px 32px -4px #ebebe8, 0px 4px 4px -4px #ebebe8;
-  --shadow-device-details-content:
-    0 1px 2px rgb(24 24 27 / 0.04), 0 2px 6px rgb(24 24 27 / 0.06);
+  --perfboard-dot: var(--color-line-default);
+
+  --shadow-card: 0 1px 2px rgb(24 24 27 / 0.04), 0 2px 6px rgb(24 24 27 / 0.06);
+  --shadow-overlay:
+    0 4px 8px -2px rgb(24 24 27 / 0.06), 0 12px 32px -4px rgb(24 24 27 / 0.12);
+  --shadow-control: 0 1px 2px rgb(24 24 27 / 0.12);
+  --shadow-filter-slider:
+    -16px 0 32px -4px rgb(24 24 27 / 0.08), 0 4px 4px -4px rgb(24 24 27 / 0.08);
 }
 
 @custom-variant dark (&:where([data-theme=dark], [data-theme=dark] *));
@@ -286,7 +323,6 @@
 @custom-variant phx-click-loading (.phx-click-loading&, .phx-click-loading &);
 @custom-variant phx-submit-loading (.phx-submit-loading&, .phx-submit-loading &);
 @custom-variant phx-change-loading (.phx-change-loading&, .phx-change-loading &);
-@custom-variant phx-no-feedback (.phx-no-feedback&, .phx-no-feedback &);
 /* LiveView sets `phx-drop-target-active` on a `phx-drop-target` element while a
    file is being dragged over it, which is what reveals a drop overlay. */
 @custom-variant phx-drop-target-active (
@@ -294,11 +330,52 @@
   .phx-drop-target-active &
 );
 
+/* Elevation: shadow-card for resting surfaces, shadow-overlay for anything
+   that floats over the page (menus, popovers, tooltips, dialogs), and
+   shadow-control for a control raised within a group, such as a selected
+   segment or a switch knob. Inline alerts and inputs stay flat.
+
+   Each sets --tw-shadow and repeats Tailwind's box-shadow stack, so a ring-*
+   on the same element still draws. */
+@utility shadow-card {
+  --tw-shadow: var(--shadow-card);
+  box-shadow:
+    var(--tw-inset-shadow, 0 0 #0000), var(--tw-inset-ring-shadow, 0 0 #0000),
+    var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000),
+    var(--tw-shadow);
+}
+@utility shadow-overlay {
+  --tw-shadow: var(--shadow-overlay);
+  box-shadow:
+    var(--tw-inset-shadow, 0 0 #0000), var(--tw-inset-ring-shadow, 0 0 #0000),
+    var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000),
+    var(--tw-shadow);
+}
+@utility shadow-control {
+  --tw-shadow: var(--shadow-control);
+  box-shadow:
+    var(--tw-inset-shadow, 0 0 #0000), var(--tw-inset-ring-shadow, 0 0 #0000),
+    var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000),
+    var(--tw-shadow);
+}
+/* The filter panel's shadow casts left, away from the screen edge it slides in from. */
 @utility shadow-filter-slider {
   box-shadow: var(--shadow-filter-slider);
 }
-@utility shadow-device-details-content {
-  box-shadow: var(--shadow-device-details-content);
+/* The auth pages' backdrop: a 20px dot grid, like perfboard, that fades out
+   behind the form so the dots never sit under text. */
+@utility perfboard {
+  background-color: var(--color-surface);
+  background-image:
+    radial-gradient(
+      560px 480px at 50% 48%,
+      var(--color-surface) 35%,
+      transparent 100%
+    ),
+    radial-gradient(circle, var(--perfboard-dot) 1.2px, transparent 1.6px);
+  background-size:
+    100% 100%,
+    20px 20px;
 }
 @utility w-sidebar {
   width: var(--sidebar-width);
@@ -315,73 +392,83 @@
 @utility h-nav-item {
   height: var(--nav-item-height);
 }
-@utility light-sidebar-item-hover {
-  background-image: linear-gradient(
-    90deg,
-    rgba(246, 246, 247, 1) 0%,
-    rgb(var(--primary-rgb) / 0.2) 100%
-  );
+/* Holds a label at the width of its semibold weight, so text that turns
+   semibold when selected doesn't push what follows it. The element needs
+   data-label set to its text and a flex column display; the hidden copy
+   stays out of the accessibility tree. */
+@utility reserve-semibold-width {
+  &::after {
+    content: attr(data-label);
+    height: 0;
+    overflow: hidden;
+    visibility: hidden;
+    font-weight: var(--font-weight-semibold);
+    pointer-events: none;
+    user-select: none;
+  }
 }
-@utility dark-sidebar-item-hover {
+/* Hover is the neutral veil in both themes. Only selected carries the
+   primary tint, so a hovered item never looks selected. */
+@utility sidebar-item-hover {
   background-image: linear-gradient(
     90deg,
-    rgb(var(--veil-rgb) / 0.24) 0%,
-    rgb(var(--veil-rgb) / 0.48) 100%
+    color-mix(in oklab, var(--veil) 24%, transparent) 0%,
+    color-mix(in oklab, var(--veil) 48%, transparent) 100%
   );
 }
 @utility light-sidebar-item-selected {
   background-image: linear-gradient(
     90deg,
     rgba(246, 246, 247, 1) 0%,
-    rgb(var(--primary-rgb) / 0.2) 100%
+    color-mix(in oklab, var(--color-primary) 20%, transparent) 100%
   );
 }
 @utility dark-sidebar-item-selected {
   background-image:
     linear-gradient(
       90deg,
-      rgb(var(--primary-rgb) / 0) 50%,
-      rgb(var(--primary-rgb) / 0.08) 100%
+      transparent 50%,
+      color-mix(in oklab, var(--color-primary) 8%, transparent) 100%
     ),
     linear-gradient(
       90deg,
-      rgb(var(--veil-rgb) / 0.24) 0%,
-      rgb(var(--veil-rgb) / 0.48) 100%
+      color-mix(in oklab, var(--veil) 24%, transparent) 0%,
+      color-mix(in oklab, var(--veil) 48%, transparent) 100%
     );
 }
 @utility tab-selected {
   background-image: linear-gradient(
     180deg,
-    rgba(99, 102, 241, 0) 86.32%,
-    rgba(99, 102, 241, 0.48) 103.41%
+    transparent 86.32%,
+    color-mix(in oklab, var(--color-primary) 48%, transparent) 103.41%
   );
 }
 @utility health-good {
   background-image: linear-gradient(
     180deg,
-    rgba(16, 185, 129, 0) 18.75%,
-    rgba(16, 185, 129, 0.06) 81.25%
+    transparent 18.75%,
+    color-mix(in oklab, var(--color-success) 6%, transparent) 81.25%
   );
 }
 @utility health-warning {
   background-image: linear-gradient(
     180deg,
-    rgba(245, 158, 11, 0) 18.75%,
-    rgba(245, 158, 11, 0.04) 81.25%
+    transparent 18.75%,
+    color-mix(in oklab, var(--color-warning) 4%, transparent) 81.25%
   );
 }
 @utility health-alert {
   background-image: linear-gradient(
     180deg,
-    rgba(239, 68, 68, 0) 18.75%,
-    rgba(239, 68, 68, 0.04) 81.25%
+    transparent 18.75%,
+    color-mix(in oklab, var(--color-alert) 4%, transparent) 81.25%
   );
 }
 @utility health-neutral {
   background-image: linear-gradient(
     180deg,
-    rgba(99, 102, 241, 0) 18.75%,
-    rgba(99, 102, 241, 0.06) 81.25%
+    transparent 18.75%,
+    color-mix(in oklab, var(--color-primary) 6%, transparent) 81.25%
   );
 }
 @utility health-plain {
@@ -395,13 +482,13 @@
   background-image:
     radial-gradient(
       ellipse 80% 80% at 50% -10%,
-      rgba(16, 185, 129, 0.3) 0,
-      rgba(16, 185, 129, 0) 80%
+      color-mix(in oklab, var(--color-success) 30%, transparent) 0,
+      transparent 80%
     ),
     radial-gradient(
       ellipse 50% 50% at 50% -10%,
-      rgba(16, 185, 129, 0.3) 0,
-      rgba(16, 185, 129, 0) 50%
+      color-mix(in oklab, var(--color-success) 30%, transparent) 0,
+      transparent 50%
     );
 }
 @utility example-map {
@@ -423,15 +510,15 @@
 @keyframes pulse {
   0%,
   100% {
-    box-shadow: 0 0 0 0 rgba(99, 102, 241, 1);
+    box-shadow: 0 0 0 0 var(--color-primary);
   }
   50% {
-    box-shadow: 0 0 0 12px rgba(99, 102, 241, 0.85);
+    box-shadow: 0 0 0 12px color-mix(in oklab, var(--color-primary) 85%, transparent);
   }
 }
 
 html {
-  @apply text-base-300;
+  @apply text-content-body;
 }
 
 body {
@@ -439,7 +526,7 @@ body {
 }
 
 .listing {
-  @apply border-base-700 w-full grow;
+  @apply border-line-default w-full grow;
   font-size: 14px;
   font-style: normal;
   font-weight: 400;
@@ -456,7 +543,7 @@ body {
 
 /* Tables within raised boxes should have a slight bottom border */
 .bg-surface-raised .listing thead tr {
-  @apply border-base-700 border-b;
+  @apply border-line-default border-b;
 }
 
 .listing tbody tr {
@@ -464,7 +551,7 @@ body {
 }
 
 .listing th {
-  @apply bg-surface-muted text-base-400 px-4 py-1.5 text-left text-sm font-medium;
+  @apply bg-surface-muted text-content-muted px-4 py-1.5 text-left text-sm font-medium;
 }
 
 /* Table headers within raised divs should use the matching background color */
@@ -493,7 +580,7 @@ body {
 }
 
 .listing .checkbox label {
-  @apply border-base-600 bg-base-800 border;
+  @apply border-line-strong bg-base-800 border;
   display: flex;
   width: 16px;
   height: 16px;
@@ -504,12 +591,6 @@ body {
   border-radius: 4px;
 }
 
-.listing .checkbox label svg {
-  flex-shrink: 0;
-  width: 12px;
-  height: 12px;
-}
-
 .listing .checkbox label:hover {
   @apply bg-base-700;
 }
@@ -518,9 +599,16 @@ body {
   @apply bg-primary;
 }
 
+/* Visually hidden rather than display: none, so the real input stays in the
+   tab order. The label stands in for it, focus ring included. */
 .listing th.checkbox input,
 .listing td.checkbox input {
-  display: none;
+  @apply sr-only;
+}
+
+.listing .checkbox input:focus-visible ~ label {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: 2px;
 }
 
 .listing tbody tr:hover {
@@ -532,39 +620,10 @@ body {
   text-align: left;
 }
 
-.tag {
-  @apply bg-base-800 rounded-md;
-  display: flex;
-  padding: 2px 4px;
-  align-items: center;
-  gap: 8px;
 
-  font-size: 12px;
-  font-weight: 400;
-  line-height: 16px;
-}
-
-.title {
-  font-style: normal;
-  font-weight: 600;
-  line-height: 24px;
-  padding-top: 24px;
-  padding-bottom: 24px;
-}
-
-.subtitle {
-  font-size: 16px;
-  font-style: normal;
-  font-weight: 600;
-}
-
-.badge {
-  @apply bg-base-800 text-base-300 rounded-sm px-1 py-0.5;
-  font-size: 12px;
-}
 
 .pager-button {
-  @apply rounded-sm px-3 py-1.5;
+  @apply rounded px-3 py-1.5;
   font-size: 14px;
   font-weight: 500;
   line-height: 20px;
@@ -574,14 +633,8 @@ body {
   @apply bg-base-800;
 }
 
-.sidebar-slideover {
-  @apply bg-surface-muted;
-  /* #141417 */
-  box-shadow: -8px 0px 16px 0px rgb(20 20 23 / 0.9);
-}
-
 .sidebar-title {
-  @apply text-base-50;
+  @apply text-content-strong;
   font-size: 16px;
   font-weight: 600;
   height: 32px;
@@ -589,44 +642,36 @@ body {
 }
 
 .sidebar-label {
-  @apply text-base-300 text-sm;
+  @apply text-content-body text-sm;
 }
 
 .sidebar-select {
-  @apply bg-surface-muted text-base-400 w-full rounded-sm px-2 py-1.5 text-sm;
+  @apply bg-surface-muted text-content-muted border-line-strong w-full rounded border px-2 py-1.5 text-sm;
 }
 
 .sidebar-text-input {
-  @apply bg-surface-muted text-base-400 w-full rounded-sm px-2 py-1.5 text-sm;
+  @apply bg-surface-muted text-content-muted border-line-strong w-full rounded border px-2 py-1.5 text-sm;
+}
+
+/* Without these the forms plugin's blue focus border and ring show through. */
+.sidebar-select:focus,
+.sidebar-text-input:focus {
+  @apply border-line-strong ring-focus-ring ring-2;
 }
 
 .sidebar-search {
-  @apply bg-surface-muted text-base-400 border-base-600 flex items-center rounded-sm border px-2 py-1.5 text-sm;
+  @apply bg-surface-muted text-content-muted border-line-strong flex items-center rounded border px-2 py-1.5 text-sm;
   gap: 8px;
   padding: 8px 12px;
 }
 
 .sidebar-search input {
-  @apply text-base-400 border-transparent bg-transparent;
+  @apply text-content-muted border-transparent bg-transparent;
   font-size: 14px;
   font-weight: 400;
   line-height: 20px;
   height: 20px;
   padding: 0;
-}
-
-.sidebar-button {
-  @apply bg-base-800 border-base-600 text-base-50 hover:border-base-400 border;
-  display: flex;
-  gap: 8px;
-  padding: 6px 12px;
-  justify-content: center;
-  align-items: center;
-  border-radius: 4px;
-  font-size: 14px;
-  font-weight: 500;
-  line-height: 20px;
-  cursor: pointer;
 }
 
 .org-avatar {
@@ -637,22 +682,22 @@ body {
   text-align: center;
   text-transform: uppercase;
   font-size: 14px;
-  @apply bg-base-800 text-base-500;
+  @apply bg-base-800 text-content-faint;
 }
 
 .menu-box {
-  @apply bg-surface-overlay border-base-700 rounded-md border px-4 py-3;
+  @apply bg-surface-overlay border-line-default rounded-md border px-4 py-3;
 }
 
 .org-selector-title {
-  @apply text-base-50;
+  @apply text-content-strong;
   font-size: 14px;
   font-style: normal;
   font-weight: 600;
   line-height: 20px;
 }
 .product-selector-title {
-  @apply text-base-400;
+  @apply text-content-muted;
   font-size: 14px;
   font-style: normal;
   font-weight: 400;
@@ -665,7 +710,7 @@ body {
 
 .product-picker-product,
 .product-picker-product:link {
-  @apply text-base-300 hover:bg-base-800 ml-7 block rounded px-4 py-1.5;
+  @apply text-content-body hover:bg-base-800 ml-7 block rounded px-4 py-1.5;
   font-size: 14px;
   font-style: normal;
   font-weight: 500;
@@ -689,30 +734,18 @@ body {
   scrollbar-width: none;
 }
 
+/* Fades the tags cell into the pinned devices card's `bg-surface-raised`.
+   Starts 1px down so it doesn't paint over the header row's bottom border. */
 .pinned-device-tag-gradient-mask {
   position: absolute;
-  top: 0;
+  top: 1px;
+  bottom: 0;
   right: 16px;
   width: 50px;
-  height: 100%;
   background-image: linear-gradient(
     to right,
-    rgba(24, 24, 27, 0),
-    rgba(24, 24, 27, 1)
-  );
-}
-
-.device-show-tag-gradient-mask {
-  position: absolute;
-  top: 0;
-  right: 16px;
-  width: 50px;
-  height: 100%;
-  z-index: 1;
-  background-image: linear-gradient(
-    to right,
-    rgba(24, 24, 27, 0),
-    rgba(24, 24, 27, 1)
+    transparent,
+    var(--color-surface-raised)
   );
 }
 
@@ -723,21 +756,11 @@ body {
   width: 50px;
   height: 100%;
   z-index: 1;
-  /* fades to the dark `bg-base-950` log container background */
+  /* fades to the log container's `bg-base-950`, which flips with the theme */
   background-image: linear-gradient(
     to right,
-    rgba(14, 16, 25, 0),
-    rgba(14, 16, 25, 1)
-  );
-}
-
-/* in the light theme the log container's `bg-base-950` is near-white (zinc-50),
-   so the mask needs to fade to that instead of the dark background */
-[data-theme="light"] .device-logs-gradient-mask {
-  background-image: linear-gradient(
-    to right,
-    rgba(250, 250, 250, 0),
-    rgba(250, 250, 250, 1)
+    transparent,
+    var(--color-base-950)
   );
 }
 

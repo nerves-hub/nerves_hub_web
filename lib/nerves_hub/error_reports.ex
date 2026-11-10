@@ -182,6 +182,22 @@ defmodule NervesHub.ErrorReports do
   end
 
   @doc """
+  How many unresolved issues each of `product_ids` has, in one query. A
+  product with none is left out.
+  """
+  @spec unresolved_counts_by_product([pos_integer()]) :: %{pos_integer() => pos_integer()}
+  def unresolved_counts_by_product([]), do: %{}
+
+  def unresolved_counts_by_product(product_ids) do
+    ErrorGroup
+    |> where([g], g.product_id in ^product_ids and g.status == :unresolved)
+    |> group_by([g], g.product_id)
+    |> select([g], {g.product_id, count(g.id)})
+    |> Repo.all()
+    |> Map.new()
+  end
+
+  @doc """
   One issue, scoped to its product.
 
   Scoped rather than fetched by id alone: an id is guessable, and a group from

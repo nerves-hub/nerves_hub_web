@@ -295,7 +295,7 @@ const ROLE_CLASSES = {
     "border-emerald-500/40 bg-emerald-500/10 text-emerald-300 light:border-emerald-300 light:bg-emerald-100 light:text-emerald-800",
   keyword:
     "border-indigo-500/40 bg-indigo-500/10 text-indigo-300 font-semibold light:border-indigo-300 light:bg-indigo-100 light:text-indigo-800 mx-1",
-  paren: "border-base-600 bg-base-800 text-base-300",
+  paren: "border-line-strong bg-base-800 text-content-body",
   error:
     "border-red-500/50 bg-red-500/10 text-red-300 underline light:border-red-300 light:bg-red-100 light:text-red-800",
 }
@@ -647,14 +647,14 @@ export default {
     }
 
     this.suggestionsEl.innerHTML = `
-      <div class="bg-surface-muted border-base-700 absolute left-0 right-0 z-40 mt-1 max-h-48 overflow-auto rounded border shadow-lg">
+      <div class="bg-surface-muted border-line-default absolute left-0 right-0 z-40 mt-1 max-h-48 overflow-auto rounded border shadow-overlay">
         ${this.activeSuggestions
           .map(
             (suggestion, index) => `
               <button
                 type="button"
                 data-index="${index}"
-                class="block w-full px-3 py-1.5 text-left text-sm font-mono ${index === this.activeIndex ? "bg-base-800 text-base-50" : "text-base-300"}"
+                class="block w-full px-3 py-1.5 text-left text-sm font-mono ${index === this.activeIndex ? "bg-base-800 text-content-strong" : "text-content-body"}"
               >${escapeHtml(suggestion.label)}</button>
             `,
           )

@@ -106,7 +106,7 @@ export default {
       li.setAttribute("role", "option")
       li.dataset.tag = tag
       li.className =
-        "cursor-pointer px-2 py-1.5 text-sm text-base-300 hover:bg-base-800"
+        "cursor-pointer px-2 py-1.5 text-sm text-content-body hover:bg-base-800"
       // Use mousedown so the selection happens before the input's blur.
       li.addEventListener("mousedown", (event) => {
         event.preventDefault()

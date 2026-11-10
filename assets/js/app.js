@@ -7,6 +7,7 @@ import "chartjs-adapter-date-fns"
 import TimeAgo from "javascript-time-ago"
 import en from "javascript-time-ago/locale/en"
 
+import ActiveTabInView from "./hooks/activeTabInView.js"
 import AdvancedQueryEditor from "./hooks/advancedQueryEditor.js"
 import BarChart from "./hooks/barChart.js"
 import Chart from "./hooks/chart.js"
@@ -65,6 +66,7 @@ let liveSocket = new LiveSocket("/live", Socket, {
     timezone_offset: timezone_offset,
   },
   hooks: {
+    ActiveTabInView,
     AdvancedQueryEditor,
     BarChart,
     Chart,

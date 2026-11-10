@@ -735,9 +735,35 @@ defmodule NervesHub.Devices.Updates do
     |> Repo.aggregate(:count)
   end
 
-  defp failing_updates_query(%Product{id: product_id}, now) do
+  @doc """
+  How many devices are failing to take their firmware in each of the given
+  products, and when the last of them comes out of the penalty box.
+
+  The same devices `failing_updates/3` lists, counted across products at once
+  for a page that covers several, such as the organizations home page. A
+  product with none is left out of the map.
+  """
+  @spec failing_updates_by_product([pos_integer()], DateTime.t()) :: %{
+          pos_integer() => %{count: pos_integer(), blocked_until: DateTime.t()}
+        }
+  def failing_updates_by_product(product_ids, now \\ DateTime.utc_now())
+
+  def failing_updates_by_product([], _now), do: %{}
+
+  def failing_updates_by_product(product_ids, now) when is_list(product_ids) do
+    product_ids
+    |> failing_updates_query(now)
+    |> group_by([d], d.product_id)
+    |> select([d], {d.product_id, %{count: count(d.id), blocked_until: max(d.updates_blocked_until)}})
+    |> Repo.all()
+    |> Map.new()
+  end
+
+  defp failing_updates_query(%Product{id: product_id}, now), do: failing_updates_query([product_id], now)
+
+  defp failing_updates_query(product_ids, now) when is_list(product_ids) do
     Device
-    |> where([d], d.product_id == ^product_id)
+    |> where([d], d.product_id in ^product_ids)
     |> where([d], not is_nil(d.updates_blocked_until) and d.updates_blocked_until > ^now)
     |> where([d], d.consecutive_failed_updates > 0)
     |> Repo.exclude_deleted()
