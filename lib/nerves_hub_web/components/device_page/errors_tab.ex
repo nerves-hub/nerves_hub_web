@@ -26,7 +26,8 @@ defmodule NervesHubWeb.Components.DevicePage.ErrorsTab do
   alias NervesHub.ErrorReports
   alias NervesHub.ErrorReports.ErrorReport
   alias NervesHub.Firmwares
-  alias NervesHubWeb.Helpers.Timezone
+  alias NervesHubWeb.Components.DateTimes
+  alias NervesHubWeb.Components.DevicePage.TabNotice
 
   @refresh_delay to_timeout(second: 3)
 
@@ -156,19 +157,19 @@ defmodule NervesHubWeb.Components.DevicePage.ErrorsTab do
 
   def render(%{analytics_enabled: false} = assigns) do
     ~H"""
-    <.unavailable title="Analytics aren't enabled for your platform." detail="Check with your Ops team for more information." />
+    <TabNotice.render title="Analytics aren't enabled for your platform." detail="Check with your Ops team for more information." />
     """
   end
 
   def render(%{product: %{extensions: %{error_reports: false}}} = assigns) do
     ~H"""
-    <.unavailable title="Error reports aren't enabled for this product." detail="Please check the product settings." />
+    <TabNotice.render title="Error reports aren't enabled for this product." detail="Please check the product settings." />
     """
   end
 
   def render(%{device: %{extensions: %{error_reports: false}}} = assigns) do
     ~H"""
-    <.unavailable title="Error reports aren't enabled for this device." detail="Please check the device settings." />
+    <TabNotice.render title="Error reports aren't enabled for this device." detail="Please check the device settings." />
     """
   end
 
@@ -251,7 +252,7 @@ defmodule NervesHubWeb.Components.DevicePage.ErrorsTab do
                   </td>
                   <td class="pr-4 text-ui font-medium text-content-strong">{entry.device_occurrence_count}</td>
                   <td class="pr-4 whitespace-nowrap">
-                    <span class="text-ui font-medium text-content-strong">{day_label(entry.last_seen_at, @time_zone)}</span>
+                    <span class="text-ui font-medium text-content-strong">{DateTimes.day_label(entry.last_seen_at, @time_zone)}</span>
                     <.local_datetime
                       at={entry.last_seen_at}
                       time_zone={@time_zone}
@@ -296,20 +297,6 @@ defmodule NervesHubWeb.Components.DevicePage.ErrorsTab do
     """
   end
 
-  attr(:title, :string, required: true)
-  attr(:detail, :string, required: true)
-
-  defp unavailable(assigns) do
-    ~H"""
-    <div class="w-full p-4 sm:p-6">
-      <div class="flex flex-col items-center justify-center gap-1 rounded-card border border-line-default bg-surface-raised p-14 text-center shadow-card">
-        <div class="text-ui font-medium text-content-strong">{@title}</div>
-        <div class="text-xs text-content-faint">{@detail}</div>
-      </div>
-    </div>
-    """
-  end
-
   attr(:status, :atom, required: true)
 
   defp status_badge(assigns) do
@@ -345,7 +332,8 @@ defmodule NervesHubWeb.Components.DevicePage.ErrorsTab do
     <div class="flex flex-col gap-3.5">
       <div class="flex flex-wrap items-center justify-between gap-3">
         <span class="text-xs font-medium text-content-muted">
-          Latest occurrence on this device · {day_label(@occurrence.timestamp, @time_zone)}, <.local_datetime at={@occurrence.timestamp} time_zone={@time_zone} format={:time_seconds} zone_label={false} />
+          Latest occurrence on this device · {DateTimes.day_label(@occurrence.timestamp, @time_zone)},
+          <.local_datetime at={@occurrence.timestamp} time_zone={@time_zone} format={:time_seconds} zone_label={false} />
         </span>
         <.fleet_link group={@group} org={@org} product={@product} />
       </div>
@@ -419,23 +407,6 @@ defmodule NervesHubWeb.Components.DevicePage.ErrorsTab do
 
   defp firmware_label(uuid, nil), do: String.slice(uuid, 0..7)
   defp firmware_label(uuid, version), do: "#{version} (#{String.slice(uuid, 0..7)})"
-
-  # "Today" and "Yesterday" in the viewer's own zone, then the date.
-  defp day_label(at, time_zone) do
-    zone = Timezone.resolve(time_zone)
-    date = at |> to_datetime() |> DateTime.shift_zone!(zone) |> DateTime.to_date()
-    today = DateTime.now!(zone) |> DateTime.to_date()
-
-    case Date.diff(today, date) do
-      0 -> "Today"
-      1 -> "Yesterday"
-      _ when date.year == today.year -> Calendar.strftime(date, "%b %-d")
-      _ -> Calendar.strftime(date, "%b %-d, %Y")
-    end
-  end
-
-  defp to_datetime(%NaiveDateTime{} = at), do: DateTime.from_naive!(at, "Etc/UTC")
-  defp to_datetime(%DateTime{} = at), do: at
 
   # A handful of context keys have conventional names and units, and reading
   # "uptime_ms: 7200000" off a screen is work nobody should have to do. This is

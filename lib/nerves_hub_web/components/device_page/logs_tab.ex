@@ -35,6 +35,9 @@ defmodule NervesHubWeb.Components.DevicePage.LogsTab do
   use NervesHubWeb, tab_component: :logs
 
   alias NervesHub.Devices.LogLines
+  alias NervesHubWeb.Components.DateTimes
+  alias NervesHubWeb.Components.DevicePage.TabNotice
+  alias NervesHubWeb.Helpers.Timezone
   alias Phoenix.LiveView.JS
 
   @page_size 50
@@ -276,34 +279,19 @@ defmodule NervesHubWeb.Components.DevicePage.LogsTab do
 
   def render(%{analytics_enabled: false} = assigns) do
     ~H"""
-    <div class="size-full p-12">
-      <div class="text-medium flex size-full flex-col items-center justify-center gap-6 p-6 font-mono">
-        <div class="font-bold">Analytics aren't enabled for your platform.</div>
-        <div>Check contact your Ops team for more information.</div>
-      </div>
-    </div>
+    <TabNotice.render title="Analytics aren't enabled for your platform." detail="Check with your Ops team for more information." />
     """
   end
 
   def render(%{product: %{extensions: %{logging: false}}} = assigns) do
     ~H"""
-    <div class="size-full p-12">
-      <div class="text-medium flex size-full flex-col items-center justify-center gap-6 p-6 font-mono">
-        <div class="font-bold">Device logs aren't enabled for this product.</div>
-        <div>Please check the product settings.</div>
-      </div>
-    </div>
+    <TabNotice.render title="Device logs aren't enabled for this product." detail="Please check the product settings." />
     """
   end
 
   def render(%{device: %{extensions: %{logging: false}}} = assigns) do
     ~H"""
-    <div class="size-full p-12">
-      <div class="text-medium flex size-full flex-col items-center justify-center gap-6 p-6 font-mono">
-        <div class="font-bold">Device logs aren't enabled.</div>
-        <div>Please check the device settings.</div>
-      </div>
-    </div>
+    <TabNotice.render title="Device logs aren't enabled." detail="Please check the device settings." />
     """
   end
 
@@ -311,14 +299,8 @@ defmodule NervesHubWeb.Components.DevicePage.LogsTab do
   # nothing to search or narrow yet, so none of the controls are shown.
   def render(%{has_logs: false, log_filters: filters} = assigns) when filters == @unfiltered do
     ~H"""
-    <div
-      id="logs-tab"
-      phx-mounted={JS.remove_class("opacity-0")}
-      class="tab-content size-full bg-base-950 pb-10 opacity-0 transition-all duration-500 phx-click-loading:opacity-50"
-    >
-      <div class="text-medium flex size-full items-center justify-center gap-6 p-6 font-mono">
-        <div>No logs have been received yet.</div>
-      </div>
+    <div id="logs-tab" phx-mounted={JS.remove_class("opacity-0")} class="tab-content w-full opacity-0 transition-all duration-500">
+      <TabNotice.render title="No logs have been received yet." detail="Lines appear here as the device sends them." />
     </div>
     """
   end
@@ -328,119 +310,163 @@ defmodule NervesHubWeb.Components.DevicePage.LogsTab do
     <div
       id="logs-tab"
       phx-mounted={JS.remove_class("opacity-0")}
-      class="tab-content size-full bg-base-950 pb-10 opacity-0 transition-all duration-500 phx-click-loading:opacity-50"
+      class="tab-content w-full p-4 opacity-0 transition-all duration-500 sm:p-6 phx-click-loading:opacity-50"
     >
-      <div class="size-full">
-        <div class="flex min-h-11 flex-row flex-wrap items-center gap-x-6 gap-y-2 border-b border-line-default px-12 py-1.5">
-          <div>
-            <span class="text-sm text-content-muted">Live log streaming :</span>
-            <button
-              id="toggle-log-streaming"
-              type="button"
-              phx-click="toggle-log-streaming"
-              class={[
-                "border-1.5 relative inline-flex h-3.5 w-6 shrink-0 cursor-pointer items-center rounded-full border-transparent transition-colors duration-200 ease-in-out focus:ring-0 focus:outline-none",
-                (@streaming_enabled && "bg-success") || "bg-alert"
-              ]}
-              role="switch"
-              aria-checked={to_string(@streaming_enabled)}
-              aria-label="Toggle live streaming of device logs"
+      <div class="flex w-full flex-col overflow-clip rounded-card border border-line-default bg-surface-raised shadow-card">
+        <div class="flex min-h-14 shrink-0 flex-wrap items-center justify-between gap-x-4 gap-y-2 border-b border-line-subtle px-4 py-2.5">
+          <div class="flex flex-wrap items-center gap-2">
+            <span
+              :if={@streaming_enabled}
+              class="flex h-7 items-center gap-1.5 rounded bg-success-soft pr-2.5 pl-2 text-xs font-medium text-success-content"
             >
-              <span
-                aria-hidden="true"
-                class={[
-                  "pointer-events-none inline-block size-3",
-                  (@streaming_enabled && "translate-x-3") || "translate-x-0",
-                  "transform rounded-full bg-white shadow-control ring-0 transition duration-200 ease-in-out"
-                ]}
-              ></span>
-            </button>
+              <span class="size-1.5 rounded-full bg-success"></span>Live
+            </span>
+            <span
+              :if={!@streaming_enabled}
+              class="flex h-7 items-center gap-1.5 rounded border border-line-default pr-2.5 pl-2 text-xs font-medium text-content-muted"
+            >
+              <span class="size-1.5 rounded-full bg-status-offline"></span>Paused
+            </span>
+            <.button id="toggle-log-streaming" size="sm" phx-click="toggle-log-streaming" aria-pressed={to_string(!@streaming_enabled)}>
+              <span class={[if(@streaming_enabled, do: "lucide-pause", else: "lucide-play"), "size-3.5 text-content-muted"]} aria-hidden="true"></span>
+              {if @streaming_enabled, do: "Pause", else: "Resume"}
+            </.button>
+
+            <span class="mx-0.5 hidden h-5 w-px bg-line-default sm:block" aria-hidden="true"></span>
+
+            <form id="log-filters" phx-change="filter-logs" phx-submit="filter-logs" class="flex flex-wrap items-center gap-2">
+              <label class="relative flex w-full items-center sm:w-70">
+                <span class="pointer-events-none absolute left-2.5 lucide-search size-3.5 text-content-faint" aria-hidden="true"></span>
+                <input
+                  id="log-search"
+                  type="search"
+                  name="search"
+                  value={@log_filters.search}
+                  placeholder="Search messages"
+                  aria-label="Search log messages"
+                  maxlength={max_search_length()}
+                  autocomplete="off"
+                  phx-debounce="300"
+                  class="h-7.5 w-full rounded border border-line-control border-b-line-strong bg-surface-raised py-0 pr-2.5 pl-8 text-ui text-content-body placeholder:text-content-faint focus:outline focus:-outline-offset-1 focus:outline-focus-ring"
+                />
+              </label>
+              <.filter_select name="level" label="Level" options={level_options()} value={@log_filters.level} />
+              <.filter_select name="range" label="Time" options={range_options()} value={@log_filters.range} />
+            </form>
           </div>
-
-          <form id="log-filters" phx-change="filter-logs" phx-submit="filter-logs" class="flex flex-row flex-wrap items-center gap-x-4 gap-y-2">
-            <input
-              id="log-search"
-              type="search"
-              name="search"
-              value={@log_filters.search}
-              placeholder="Search messages"
-              aria-label="Search log messages"
-              maxlength={max_search_length()}
-              autocomplete="off"
-              phx-debounce="300"
-              class="w-56 rounded border border-line-strong bg-base-800 px-2 py-0.5 text-sm text-content-body placeholder:text-content-faint"
-            />
-
-            <label class="flex items-center gap-2">
-              <span class="text-sm text-content-muted">Level :</span>
-              <select name="level" class="rounded border border-line-strong bg-base-800 px-2 py-0.5 text-sm text-content-body">
-                <option :for={{label, value} <- level_options()} value={value} selected={value == @log_filters.level}>
-                  {label}
-                </option>
-              </select>
-            </label>
-
-            <label class="flex items-center gap-2">
-              <span class="text-sm text-content-muted">Time :</span>
-              <select name="range" class="rounded border border-line-strong bg-base-800 px-2 py-0.5 text-sm text-content-body">
-                <option :for={{label, value} <- range_options()} value={value} selected={value == @log_filters.range}>
-                  {label}
-                </option>
-              </select>
-            </label>
-          </form>
+          <span :if={@has_logs} class="text-xs text-content-faint">Newest first · {@log_count} lines</span>
         </div>
 
-        <div :if={!@has_logs} class="text-medium flex w-full flex-row items-center justify-center gap-6 p-12 font-mono">
-          <div>No log lines match these filters.</div>
-          <.link id="clear-log-filters" patch={~p"/org/#{@org}/#{@product}/devices/#{@device}/logs"} class="text-sm underline">
+        <div :if={!@has_logs} class="flex flex-col items-center justify-center gap-1 p-14 text-center">
+          <span class="text-ui text-content-faint">No log lines match these filters.</span>
+          <.link
+            id="clear-log-filters"
+            patch={~p"/org/#{@org}/#{@product}/devices/#{@device}/logs"}
+            class="text-xs font-medium text-content-body underline decoration-line-strong underline-offset-4 hover:decoration-content-muted"
+          >
             Clear filters
           </.link>
         </div>
 
-        <div :if={@has_logs} class="relative size-full pb-10">
-          <%!-- The list itself is the stream container, so the "Show more" control
-          cannot be inside it (new lines are appended after whatever else is in
-          there). This is what scrolls, and holds both. --%>
-          <div class="scrollable-inner flex h-full max-w-0 min-w-full flex-col items-start gap-3 overflow-x-auto overflow-y-visible px-12 pt-10">
-            <div id="log_lines" phx-update="stream" class="flex w-full flex-col items-start gap-3">
-              <div :for={{dom_id, line} <- @streams.log_lines} id={dom_id} phx-mounted={@log_inserted && fade_in()} class="flex w-full flex-row gap-2 font-mono text-sm">
-                <.local_datetime at={line.timestamp} time_zone={@time_zone} format={:log} class="min-w-fit" />
-                <div
-                  data-log-level={line.level}
-                  class="data-[log-level=alert]:text-alert-content data-[log-level=critical]:text-alert-content data-[log-level=debug]:text-notice-content data-[log-level=emergency]:text-alert-content data-[log-level=error]:text-alert-content data-[log-level=warn]:text-warning-content data-[log-level=warning]:text-warning-content"
-                >
-                  [{line.level}]
-                </div>
-                <div class="pr-10 whitespace-pre">{line.message}</div>
+        <%!-- The list itself is the stream container, so the "Show older
+              lines" control cannot be inside it (new lines are appended after
+              whatever else is in there). This scrolls sideways, and holds both. --%>
+        <div :if={@has_logs} class="overflow-x-auto p-2">
+          <div id="log_lines" phx-update="stream" phx-hook="LogDayStarts" class="flex min-w-fit flex-col gap-px">
+            <div
+              :for={{dom_id, line} <- @streams.log_lines}
+              id={dom_id}
+              data-day={local_date(line.timestamp, @time_zone)}
+              phx-mounted={@log_inserted && fade_in()}
+              class="group/line flex flex-col gap-px"
+            >
+              <%!-- Shown above the first line of each day; see the
+                    LogDayStarts hook. --%>
+              <div class="hidden h-7 shrink-0 items-center gap-2.5 px-2 group-data-day-start/line:flex">
+                <span class="text-label font-medium whitespace-nowrap text-content-faint uppercase">
+                  {day_heading(line.timestamp, @time_zone)}
+                </span>
+                <span class="h-px grow bg-line-subtle"></span>
+              </div>
+              <div class={["flex items-start gap-4 rounded-[3px] px-2 py-0.75 font-mono text-xs/4.5", alert_level?(line.level) && "bg-alert-soft"]}>
+                <.local_datetime at={line.timestamp} time_zone={@time_zone} format={:log_time} zone_label={false} class="w-23 shrink-0 text-content-faint" />
+                <div data-log-level={line.level} class={["w-14 shrink-0", level_class(line.level)]}>{line.level}</div>
+                <div class={["pr-4 whitespace-pre", if(alert_level?(line.level), do: "text-content-strong", else: "text-content-body")]}>{line.message}</div>
               </div>
             </div>
+          </div>
 
+          <div class="flex flex-wrap items-center justify-center gap-3 pt-4 pb-2">
             <%!-- `data-count` changes with every page, which is what makes the
-            hook see an update and check whether this is still on screen. --%>
+                  hook see an update and check whether this is still on screen. --%>
             <.button
               :if={@more_logs and @log_count < max_lines()}
               id="show-more-logs"
-              type="button"
+              size="sm"
               phx-hook="LoadMoreOnVisible"
               data-event="load-more-logs"
               data-list="log_lines"
               data-count={@log_count}
-              class="mb-4 data-loading:opacity-50"
+              class="data-loading:opacity-50"
             >
-              Show more
+              Show older lines
             </.button>
-
-            <div :if={@more_logs and @log_count >= max_lines()} id="log-limit-reached" class="mb-4 text-sm font-extralight text-content-muted">
+            <span :if={@more_logs and @log_count >= max_lines()} id="log-limit-reached" class="text-xs text-content-muted">
               Showing the newest {max_lines()} lines. Search, or narrow the time, to look further back.
-            </div>
+            </span>
+            <span class="text-xs text-content-faint">Lines are kept for 3 days</span>
           </div>
-          <div class="device-logs-gradient-mask" />
-          <div class="h-10"></div>
         </div>
       </div>
     </div>
     """
+  end
+
+  attr(:name, :string, required: true)
+  attr(:label, :string, required: true)
+  attr(:options, :list, required: true)
+  attr(:value, :string, required: true)
+
+  defp filter_select(assigns) do
+    ~H"""
+    <span class="grid grid-cols-1">
+      <select
+        name={@name}
+        aria-label={@label}
+        class="col-start-1 row-start-1 h-7.5 cursor-pointer appearance-none rounded border border-line-control border-b-line-strong bg-surface-raised bg-none py-0 pr-7 pl-2.5 text-ui text-content-body focus:outline focus:-outline-offset-1 focus:outline-focus-ring"
+      >
+        <option :for={{label, value} <- @options} value={value} selected={value == @value}>{label}</option>
+      </select>
+      <span class="pointer-events-none col-start-1 row-start-1 mr-2 lucide-chevron-down size-3.5 self-center justify-self-end text-content-muted" aria-hidden="true"></span>
+    </span>
+    """
+  end
+
+  @alert_levels ~w(emergency alert critical error)
+
+  defp alert_level?(level), do: level in @alert_levels
+
+  defp level_class(level) when level in @alert_levels, do: "text-alert-content"
+  defp level_class(level) when level in ~w(warning warn), do: "text-warning-content"
+  defp level_class("debug"), do: "text-content-faint"
+  defp level_class(_level), do: "text-content-muted"
+
+  # The day a line was logged in the viewer's zone, which the LogDayStarts hook
+  # compares between neighbouring lines.
+  defp local_date(timestamp, time_zone) do
+    timestamp |> DateTime.shift_zone!(Timezone.resolve(time_zone)) |> DateTime.to_date() |> Date.to_iso8601()
+  end
+
+  # "Today · Nov 6", or just the date for an older day.
+  defp day_heading(timestamp, time_zone) do
+    case DateTimes.day_label(timestamp, time_zone) do
+      relative when relative in ["Today", "Yesterday"] ->
+        date = DateTime.shift_zone!(timestamp, Timezone.resolve(time_zone))
+        "#{relative} · #{Calendar.strftime(date, "%b %-d")}"
+
+      date ->
+        date
+    end
   end
 
   defp level_options(), do: @level_options

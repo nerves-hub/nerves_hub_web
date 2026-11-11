@@ -33,7 +33,7 @@ defmodule NervesHubWeb.Live.Devices.Show.LogsTabTest do
     conn
     |> visit(logs_path(org, product, device))
     |> assert_has("div", text: "Analytics aren't enabled for your platform.")
-    |> assert_has("div", text: "Check contact your Ops team for more information.")
+    |> assert_has("div", text: "Check with your Ops team for more information.")
   end
 
   test "device logs aren't enabled for the product", %{
@@ -344,12 +344,12 @@ defmodule NervesHubWeb.Live.Devices.Show.LogsTabTest do
 
       conn
       |> visit(logs_path(org, product, device) <> "?search=nothing+logged+this")
-      |> assert_has("div", text: "No log lines match these filters.")
+      |> assert_has("span", text: "No log lines match these filters.")
       # The controls stay, so the search can be changed rather than only abandoned.
       |> assert_has("#log-filters")
       |> click_link("Clear filters")
       |> assert_has("div", text: "polling temperature")
-      |> refute_has("div", text: "No log lines match these filters.")
+      |> refute_has("span", text: "No log lines match these filters.")
       |> assert_path(logs_path(org, product, device))
     end
   end
@@ -373,7 +373,7 @@ defmodule NervesHubWeb.Live.Devices.Show.LogsTabTest do
         conn
         |> visit(logs_path(org, product, device))
         |> assert_has("#log_lines > div", count: 9)
-        |> select("Level :", option: "Warning and above")
+        |> select("Level", option: "Warning and above")
         |> assert_has("#log_lines > div", count: 6)
 
       for level <- ~w(warning warn error critical alert emergency) do
@@ -385,13 +385,13 @@ defmodule NervesHubWeb.Live.Devices.Show.LogsTabTest do
       end
 
       session
-      |> select("Level :", option: "Error and above")
+      |> select("Level", option: "Error and above")
       |> assert_has("#log_lines > div", count: 4)
       |> refute_has("div", text: "a warning line")
-      |> select("Level :", option: "Info and above")
+      |> select("Level", option: "Info and above")
       |> assert_has("#log_lines > div", count: 8)
       |> refute_has("div", text: "a debug line")
-      |> select("Level :", option: "All levels")
+      |> select("Level", option: "All levels")
       |> assert_has("#log_lines > div", count: 9)
     end
 
@@ -422,13 +422,13 @@ defmodule NervesHubWeb.Live.Devices.Show.LogsTabTest do
       conn
       |> visit(logs_path(org, product, device))
       |> assert_has("#log_lines > div", count: 3)
-      |> select("Time :", option: "Last 6 hours")
+      |> select("Time", option: "Last 6 hours")
       |> assert_has("#log_lines > div", count: 3)
-      |> select("Time :", option: "Last hour")
+      |> select("Time", option: "Last hour")
       |> assert_has("div", text: "half an hour ago")
       |> assert_has("div", text: "just now")
       |> refute_has("div", text: "two hours ago")
-      |> select("Time :", option: "Last 15 minutes")
+      |> select("Time", option: "Last 15 minutes")
       |> assert_has("div", text: "just now")
       |> refute_has("div", text: "half an hour ago")
       |> assert_path(logs_path(org, product, device), query_params: %{"range" => "15m"})
@@ -526,13 +526,13 @@ defmodule NervesHubWeb.Live.Devices.Show.LogsTabTest do
       session =
         conn
         |> visit(logs_path(org, product, device) <> "?search=sensor")
-        |> assert_has("div", text: "No log lines match these filters.")
+        |> assert_has("span", text: "No log lines match these filters.")
 
       log(device, message: "sensor bus gone")
 
       session
       |> assert_has("div", text: "sensor bus gone")
-      |> refute_has("div", text: "No log lines match these filters.")
+      |> refute_has("span", text: "No log lines match these filters.")
     end
 
     test "changing a filter while paused leaves streaming paused", %{
@@ -550,8 +550,8 @@ defmodule NervesHubWeb.Live.Devices.Show.LogsTabTest do
         |> visit(logs_path(org, product, device))
         |> assert_has("div", text: "sensor bus gone")
         |> click_button("#toggle-log-streaming", "")
-        |> select("Level :", option: "Error and above")
-        |> assert_has("#toggle-log-streaming[aria-checked=false]")
+        |> select("Level", option: "Error and above")
+        |> assert_has("#toggle-log-streaming[aria-pressed=true]")
 
       log(device, level: "error", message: "wifi gone")
 

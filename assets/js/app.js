@@ -24,6 +24,7 @@ import HighlightCode from "./hooks/highlightCode.js"
 import { LiveFlowHook } from "live_flow"
 import LoadMoreOnVisible from "./hooks/loadMoreOnVisible.js"
 import LocalShell from "./hooks/localShell.js"
+import LogDayStarts from "./hooks/logDayStarts.js"
 import PageVisible from "./hooks/pageVisible.js"
 import ScriptAutocomplete from "./hooks/scriptAutocomplete.js"
 import SharedSecretClipboardClick from "./hooks/sharedSecretClipboardClick.js"
@@ -82,6 +83,7 @@ let liveSocket = new LiveSocket("/live", Socket, {
     HighlightCode,
     LiveFlow: LiveFlowHook,
     LoadMoreOnVisible,
+    LogDayStarts,
     LocalShell,
     PageVisible,
     SharedSecretClipboardClick,

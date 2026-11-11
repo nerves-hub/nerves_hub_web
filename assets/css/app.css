@@ -819,21 +819,6 @@ body {
   );
 }
 
-.device-logs-gradient-mask {
-  position: absolute;
-  top: 0;
-  right: 0px;
-  width: 50px;
-  height: 100%;
-  z-index: 1;
-  /* fades to the log container's `bg-base-950`, which flips with the theme */
-  background-image: linear-gradient(
-    to right,
-    transparent,
-    var(--color-base-950)
-  );
-}
-
 .pulsing-div {
   animation:
     fadeIn 1s ease-out 2s forwards,

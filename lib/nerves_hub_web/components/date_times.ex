@@ -35,7 +35,9 @@ defmodule NervesHubWeb.Components.DateTimes do
     # `:log` is finished off by hand in `format/3`; strftime's `%f` prints the
     # microsecond value unpadded, so a timestamp on a whole second would render
     # as ".0" rather than ".000".
-    log: "%Y-%m-%d %H:%M:%S"
+    log: "%Y-%m-%d %H:%M:%S",
+    # `:log` without the date, under a heading that gives the day.
+    log_time: "%H:%M:%S"
   }
 
   @doc """
@@ -133,12 +135,31 @@ defmodule NervesHubWeb.Components.DateTimes do
     end
   end
 
-  defp format(local, :log, zone_label) do
+  @doc """
+  The day `at` falls on in the viewer's zone, as a reader would say it:
+  "Today", "Yesterday", "Nov 5", or "Nov 5, 2025" for an earlier year.
+  """
+  @spec day_label(DateTime.t() | NaiveDateTime.t(), String.t() | nil) :: String.t()
+  def day_label(at, time_zone) do
+    {:ok, utc} = to_utc(at)
+    zone = Timezone.resolve(time_zone)
+    date = utc |> DateTime.shift_zone!(zone) |> DateTime.to_date()
+    today = zone |> DateTime.now!() |> DateTime.to_date()
+
+    case Date.diff(today, date) do
+      0 -> "Today"
+      1 -> "Yesterday"
+      _ when date.year == today.year -> Calendar.strftime(date, "%b %-d")
+      _ -> Calendar.strftime(date, "%b %-d, %Y")
+    end
+  end
+
+  defp format(local, format, zone_label) when format in [:log, :log_time] do
     {microsecond, _precision} = local.microsecond
     milliseconds = microsecond |> div(1000) |> Integer.to_string() |> String.pad_leading(3, "0")
 
     local
-    |> Calendar.strftime(Map.fetch!(@formats, :log))
+    |> Calendar.strftime(Map.fetch!(@formats, format))
     |> Kernel.<>("." <> milliseconds)
     |> label(local, zone_label)
   end
