@@ -406,7 +406,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       |> refute_has("div.progress")
     end
 
-    test "shows information when the update is requested", %{
+    test "shows the update once it's requested", %{
       conn: conn,
       org: org,
       product: product,
@@ -419,11 +419,14 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
 
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
-      |> assert_has("h1", text: device.identifier)
-      |> assert_has("div", text: "Firmware update request sent to the device")
+      |> assert_has("#updating-panel", text: "Updating to #{firmware.version}")
+      |> assert_has("#updating-panel", text: "Waiting for device")
+      |> assert_has("#updating-panel", text: "Sent")
+      |> assert_has("#updating-panel", text: "Then installs and reboots")
+      |> assert_has("#device-header span", text: "Waiting for device")
     end
 
-    test "shows information when the update is received by the device", %{
+    test "shows the update received by the device as starting", %{
       conn: conn,
       org: org,
       product: product,
@@ -438,11 +441,11 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
 
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
-      |> assert_has("h1", text: device.identifier)
-      |> assert_has("div", text: "Firmware update request received by the device")
+      |> assert_has("#updating-panel", text: "Starting")
+      |> assert_has("#updating-panel", text: "Started")
     end
 
-    test "shows information when the update is being downloaded by the device", %{
+    test "shows how far the download has got", %{
       conn: conn,
       org: org,
       product: product,
@@ -457,11 +460,12 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
 
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
-      |> assert_has("h1", text: device.identifier)
-      |> assert_has("div", text: "Downloading firmware : 50%")
+      |> assert_has("#updating-panel", text: "Downloading · 50%")
+      |> assert_has("#updating-panel [role=progressbar][aria-valuenow='50']")
+      |> assert_has("#device-header span", text: "Downloading 50%")
     end
 
-    test "shows information when the update is being applied by the device", %{
+    test "shows the firmware being written as installing", %{
       conn: conn,
       org: org,
       product: product,
@@ -476,11 +480,12 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
 
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
-      |> assert_has("h1", text: device.identifier)
-      |> assert_has("div", text: "Updating firmware : 50%")
+      |> assert_has("#updating-panel", text: "Installing · 50%")
+      |> assert_has("#updating-panel", text: "Then reboots")
+      |> assert_has("#device-header span", text: "Installing 50%")
     end
 
-    test "shows information when the update 'expires'", %{
+    test "shows nothing for an update that has ended", %{
       conn: conn,
       org: org,
       product: product,
@@ -496,10 +501,10 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
       |> assert_has("h1", text: device.identifier)
-      |> assert_has("div", text: "Firmware update aborted - no updates received")
+      |> refute_has("#updating-panel")
     end
 
-    test "shows information when the update completes successfully", %{
+    test "shows a completed update as rebooting", %{
       conn: conn,
       org: org,
       product: product,
@@ -514,52 +519,48 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
 
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
-      |> assert_has("h1", text: device.identifier)
-      |> assert_has("div", text: "Firmware update complete, waiting for device to restart")
+      |> assert_has("#updating-panel", text: "Installed · rebooting")
+      |> assert_has("#updating-panel [role=progressbar][aria-valuenow='100']")
+      |> assert_has("#device-header span", text: "Rebooting")
     end
 
-    test "responds to pubsub updates", %{
+    test "follows the device's progress reports", %{
       conn: conn,
       org: org,
       product: product,
-      device: device
+      device: device,
+      firmware: firmware
     } do
+      {:ok, _inflight_update} =
+        InflightUpdate.manual_requested_changeset(device.id, firmware)
+        |> Repo.insert()
+
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
-      |> assert_has("h1", text: device.identifier)
-      |> unwrap(fn view ->
-        FirmwareUpdates.update_inflight_update(device.id, "requested", nil, false)
-        render(view)
-      end)
-      |> assert_has("div", text: "Firmware update request sent to the device")
+      |> assert_has("#updating-panel", text: "Waiting for device")
       |> unwrap(fn view ->
         FirmwareUpdates.update_inflight_update(device.id, "received", nil, false)
         render(view)
       end)
-      |> assert_has("div", text: "Firmware update request received by the device")
-      |> unwrap(fn view ->
-        FirmwareUpdates.update_inflight_update(device.id, "started", nil, false)
-        render(view)
-      end)
-      |> assert_has("div", text: "Firmware update started...")
+      |> assert_has("#updating-panel", text: "Starting")
       |> unwrap(fn view ->
         FirmwareUpdates.update_inflight_update(device.id, "downloading", 35, false)
         render(view)
       end)
-      |> assert_has("div", text: "Downloading firmware : 35%")
+      |> assert_has("#updating-panel", text: "Downloading · 35%")
       |> unwrap(fn view ->
         FirmwareUpdates.update_inflight_update(device.id, "updating", 70, false)
         render(view)
       end)
-      |> assert_has("div", text: "Updating firmware : 70%")
+      |> assert_has("#updating-panel", text: "Installing · 70%")
       |> unwrap(fn view ->
         FirmwareUpdates.update_inflight_update(device.id, "completed", nil, false)
         render(view)
       end)
-      |> assert_has("div", text: "Firmware update complete, waiting for device to restart")
+      |> assert_has("#updating-panel", text: "Installed · rebooting")
     end
 
-    test "hides banner after the device has restarted", %{
+    test "hides the update after the device has restarted", %{
       conn: conn,
       org: org,
       product: product,
@@ -574,7 +575,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
 
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
-      |> assert_has("div", text: "Firmware update complete, waiting for device to restart")
+      |> assert_has("#updating-panel", text: "Installed · rebooting")
       |> unwrap(fn view ->
         send(view.pid, %Broadcast{
           topic: "internal:device:#{device.id}",
@@ -584,7 +585,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
 
         render(view)
       end)
-      |> assert_has("div", text: "Firmware update complete, waiting for device to restart")
+      |> assert_has("#updating-panel", text: "Installed · rebooting")
       |> unwrap(fn view ->
         Repo.delete_all(InflightUpdate)
 
@@ -596,7 +597,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
 
         render(view)
       end)
-      |> refute_has("div", text: "Firmware update complete, waiting for device to restart")
+      |> refute_has("#updating-panel")
     end
   end
 
@@ -1914,9 +1915,13 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       |> InflightUpdate.manual_requested_changeset(new_firmware)
       |> Repo.insert!()
 
+      # The button gives way to the update under way, so the event is sent
+      # directly, as a page loaded before the update started would send it.
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
-      |> click_button("Skip the queue")
+      |> assert_has("#firmware-updates-card", text: "Installing on this device now")
+      |> refute_has("button", text: "Skip the queue")
+      |> unwrap(&render_click(&1, "push-available-update", %{}))
       |> assert_has("div",
         text: "The device is already updating. Wait for that update to finish before sending another."
       )

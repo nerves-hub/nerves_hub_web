@@ -350,12 +350,17 @@ defmodule NervesHubWeb.Live.Devices.Show do
         |> assign(:firmware_update_progress, nil)
         |> assign(:firmware_update_stage, nil)
         |> assign(:inflight_version, nil)
+        |> assign(:inflight_started_at, nil)
+        |> assign(:inflight_firmware_uuid, nil)
 
       inflight_update ->
         socket
         |> assign(:firmware_update_progress, inflight_update.progress)
-        |> assign(:firmware_update_stage, inflight_update.status)
+        # A string, as progress reports carry it.
+        |> assign(:firmware_update_stage, to_string(inflight_update.status))
         |> assign(:inflight_version, inflight_version(socket.assigns.product, inflight_update))
+        |> assign(:inflight_started_at, inflight_update.inserted_at)
+        |> assign(:inflight_firmware_uuid, inflight_update.firmware_uuid)
     end
   end
 

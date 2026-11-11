@@ -24,7 +24,12 @@
   </:top_bar>
 
   <div class="relative shrink-0">
-    <UpdateProgress.render :if={@firmware_update_stage} stage={@firmware_update_stage} progress={@firmware_update_progress} />
+    <UpdateProgress.line
+      :if={UpdateProgress.updating?(@firmware_update_stage)}
+      stage={@firmware_update_stage}
+      progress={@firmware_update_progress}
+      class="absolute inset-x-0 top-0 z-10"
+    />
 
     <Header.render
       device={@device}

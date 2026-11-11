@@ -29,6 +29,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
   alias NervesHubWeb.Components.DeviceHealth.StatusBadge
   alias NervesHubWeb.Components.DeviceLocation
   alias NervesHubWeb.Components.DeviceNetworkIdentities
+  alias NervesHubWeb.Components.UpdateProgress
   alias NervesHubWeb.Components.Utils
   alias Phoenix.Socket.Broadcast
 
@@ -187,6 +188,11 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
             firmwares={@firmwares}
             selected_firmware={@selected_firmware}
             delta_available?={@delta_available?}
+            stage={@firmware_update_stage}
+            progress={@firmware_update_progress}
+            inflight_version={@inflight_version}
+            inflight_started_at={@inflight_started_at}
+            inflight_firmware_uuid={@inflight_firmware_uuid}
           />
           <.location_box
             :if={box == :location}
@@ -884,11 +890,31 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
   attr(:firmwares, :list, required: true)
   attr(:selected_firmware, :string, required: true)
   attr(:delta_available?, :boolean, required: true)
+  attr(:stage, :string, default: nil, doc: "the in-flight update's stage, nil without one")
+  attr(:progress, :any, default: nil)
+  attr(:inflight_version, :string, default: nil)
+  attr(:inflight_started_at, :any, default: nil)
+  attr(:inflight_firmware_uuid, :string, default: nil)
 
   defp deployment_box(assigns) do
+    assigns =
+      assign(
+        assigns,
+        :installing_release?,
+        installing_release?(assigns.device, assigns.stage, assigns.inflight_firmware_uuid)
+      )
+
     ~H"""
     <.card id="firmware-updates-card">
       <.card_header title="Firmware updates" />
+
+      <.updating_panel
+        :if={UpdateProgress.updating?(@stage)}
+        stage={@stage}
+        progress={@progress}
+        version={@inflight_version}
+        started_at={@inflight_started_at}
+      />
 
       <div class="flex flex-col px-4 pb-1.5">
         <.info_row label="Deployment group">
@@ -930,12 +956,13 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
 
         <.info_row :if={@device.deployment_group && @device.deployment_group.current_release} label="Group release">
           <span class="font-mono text-xs font-semibold text-content-strong">{@device.deployment_group.current_release.firmware.version}</span>
-          <span :if={!@update_information.update_available} class="flex items-center gap-1 text-xs font-medium text-success-content">
+          <span :if={@installing_release?} class="text-xs font-medium text-notice-content">Installing on this device now</span>
+          <span :if={!@installing_release? && !@update_information.update_available} class="flex items-center gap-1 text-xs font-medium text-success-content">
             <span class="lucide-check--bold size-3.25" aria-hidden="true"></span>Device is up to date
           </span>
-          <span :if={@update_information.update_available} class="text-xs font-medium text-notice-content">Update available</span>
+          <span :if={!@installing_release? && @update_information.update_available} class="text-xs font-medium text-notice-content">Update available</span>
           <.button
-            :if={@update_information.update_available}
+            :if={!@installing_release? && @update_information.update_available}
             size="sm"
             class="ml-auto"
             phx-click="push-available-update"
@@ -989,6 +1016,53 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
     </.card>
     """
   end
+
+  attr(:stage, :string, required: true)
+  attr(:progress, :any, required: true)
+  attr(:version, :string, required: true)
+  attr(:started_at, :any, required: true)
+
+  # The update the device is part way through, from the request being sent to
+  # the reboot that finishes it.
+  defp updating_panel(assigns) do
+    assigns = assign(assigns, :percent, UpdateProgress.percent(assigns.stage, assigns.progress))
+
+    ~H"""
+    <div class="flex px-4 pb-1">
+      <div id="updating-panel" class="flex flex-1 flex-col gap-2 rounded bg-notice-soft px-3.5 py-3 text-xs">
+        <div class="flex items-center justify-between gap-3">
+          <div class="flex min-w-0 items-center gap-2">
+            <span class="lucide-download size-3.75 text-notice-content" aria-hidden="true"></span>
+            <span class="truncate font-mono text-ui/4 font-semibold text-content-strong">
+              {if @version, do: "Updating to #{@version}", else: "Updating firmware"}
+            </span>
+          </div>
+          <span class="shrink-0 font-medium text-notice-content">{UpdateProgress.phase(@stage, @progress)}</span>
+        </div>
+        <div
+          class="flex h-1 rounded-full bg-white/10 light:bg-white/70"
+          role="progressbar"
+          aria-label="Update progress"
+          aria-valuemin="0"
+          aria-valuemax="100"
+          aria-valuenow={@percent}
+        >
+          <div class="h-1 rounded-full bg-primary-hover transition-[width] light:bg-indigo-600" style={"width: #{@percent}%"}></div>
+        </div>
+        <div class="flex justify-between gap-3 text-content-muted">
+          <span :if={@started_at}>{if @stage == "requested", do: "Sent", else: "Started"} {RelativeTime.from_now(@started_at)}</span>
+          <span class="ml-auto">{UpdateProgress.next_step(@stage)}</span>
+        </div>
+      </div>
+    </div>
+    """
+  end
+
+  # Whether the update under way is the deployment group's release.
+  defp installing_release?(%{deployment_group: %{current_release: %{firmware: %{uuid: uuid}}}}, stage, uuid),
+    do: UpdateProgress.updating?(stage)
+
+  defp installing_release?(_device, _stage, _inflight_firmware_uuid), do: false
 
   # A native select drawn as the design's control: the chevron is ours, so
   # the browser's arrow and the forms plugin's background chevron are both

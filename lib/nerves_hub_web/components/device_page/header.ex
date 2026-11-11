@@ -17,6 +17,7 @@ defmodule NervesHubWeb.Components.DevicePage.Header do
   alias NervesHub.Devices.Updates
   alias NervesHub.Helpers.RelativeTime
   alias NervesHubWeb.Components.DeviceUpdateStatus
+  alias NervesHubWeb.Components.UpdateProgress
   alias NervesHubWeb.Live.Devices.Show
   alias Phoenix.LiveView.JS
 
@@ -217,18 +218,24 @@ defmodule NervesHubWeb.Components.DevicePage.Header do
   end
 
   defp firmware_fact(%{stage: stage, inflight_version: version} = assigns)
-       when stage in ["downloading", "updating"] and is_binary(version) do
+       when is_binary(version) and is_binary(stage) do
+    firmware_fact_updating(assigns, UpdateProgress.updating?(stage))
+  end
+
+  defp firmware_fact(assigns), do: firmware_fact_updating(assigns, false)
+
+  defp firmware_fact_updating(assigns, true) do
     ~H"""
     <span class="flex items-center gap-2">
       <span class="font-mono text-ui/4 font-semibold text-content-strong">{@device.firmware_metadata.version}</span>
       <span class="lucide-arrow-right size-3.5 text-content-faint" aria-hidden="true"></span>
       <span class="font-mono text-ui/4 text-content-muted">{@inflight_version}</span>
-      <.badge tone="notice">{String.capitalize(@stage)} {@progress}%</.badge>
+      <.badge tone="notice">{UpdateProgress.short_phase(@stage, @progress)}</.badge>
     </span>
     """
   end
 
-  defp firmware_fact(assigns) do
+  defp firmware_fact_updating(assigns, false) do
     ~H"""
     <span class="flex items-center gap-2">
       <.link
