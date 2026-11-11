@@ -16,6 +16,7 @@ defmodule NervesHubWeb.Components.Icons do
     "healthy" => "lucide-circle-check text-success",
     "identify" => "lucide-locate",
     "info" => "lucide-info",
+    "more" => "lucide-ellipsis",
     "mute" => "lucide-bell-off",
     "open" => "lucide-external-link",
     "pinned" => "lucide-pin",

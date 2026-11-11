@@ -32,6 +32,11 @@ defmodule NervesHubWeb.Components.DevicePage.Header do
   attr(:firmware_update_progress, :any, default: nil)
   attr(:inflight_version, :string, default: nil)
 
+  attr(:end_tabs, :list,
+    default: [],
+    doc: "the tabs `tabs/1` puts at the right, which a phone reaches from the More sheet instead"
+  )
+
   def render(assigns) do
     assigns = assign(assigns, :offline?, disconnected?(assigns.device_connection))
 
@@ -74,7 +79,8 @@ defmodule NervesHubWeb.Components.DevicePage.Header do
           </span>
         </div>
 
-        <div class="flex shrink-0 items-center gap-2">
+        <%!-- A phone has the row of buttons under the facts instead. --%>
+        <div class="flex shrink-0 items-center gap-2 max-sm:hidden">
           <.button :if={@pinned?} square aria-label="Unpin device" title="Unpin device" style="primary" phx-click="unpin">
             <.icon name="pinned" />
           </.button>
@@ -99,7 +105,8 @@ defmodule NervesHubWeb.Components.DevicePage.Header do
         </div>
       </div>
 
-      <div id="device-facts" class="flex flex-wrap gap-x-7 gap-y-3 sm:pl-5.5">
+      <%!-- Side by side, or on a phone a row each, the label beside its value. --%>
+      <div id="device-facts" class="flex flex-col border-y border-line-subtle sm:flex-row sm:flex-wrap sm:gap-x-7 sm:gap-y-3 sm:border-y-0 sm:pl-5.5">
         <.fact label="Firmware">
           <.firmware_fact
             device={@device}
@@ -130,8 +137,191 @@ defmodule NervesHubWeb.Components.DevicePage.Header do
           <span :if={!@device.deployment_group} class="text-sm/4.5 text-content-muted">None</span>
         </.fact>
       </div>
+
+      <div id="device-actions-mobile" class="flex gap-2 sm:hidden">
+        <.mobile_action event="identify" icon="identify" label="Identify" aria_label="Identify device" disabled={@offline?} class="flex-1" />
+        <.mobile_action event="reconnect" icon="connection" label="Reconnect" aria_label="Reconnect device" disabled={@offline?} class="flex-1" />
+        <.mobile_action
+          icon="more"
+          label="More"
+          aria_label="More actions"
+          aria-haspopup="dialog"
+          aria-controls="device-more-sheet"
+          phx-click={show_more_sheet()}
+          class="w-22 shrink-0"
+        />
+      </div>
+
+      <.more_sheet device={@device} org={@org} product={@product} pinned?={@pinned?} offline?={@offline?} end_tabs={@end_tabs} />
     </div>
     """
+  end
+
+  attr(:event, :string, default: nil)
+  attr(:icon, :string, required: true)
+  attr(:label, :string, required: true)
+  attr(:aria_label, :string, required: true)
+  attr(:disabled, :boolean, default: false)
+  attr(:class, :any, default: nil)
+  attr(:rest, :global, include: ~w(phx-click))
+
+  # The buttons a phone shows under the facts, full height for a thumb.
+  defp mobile_action(assigns) do
+    ~H"""
+    <button
+      type="button"
+      phx-click={@event}
+      aria-label={@aria_label}
+      disabled={@disabled}
+      class={[
+        "flex h-11 items-center justify-center gap-1.75 rounded-md border border-line-control bg-surface-raised text-sm/4.5 font-medium text-content-body shadow-xs",
+        "enabled:cursor-pointer enabled:active:bg-surface-muted disabled:text-content-faint",
+        @class
+      ]}
+      {@rest}
+    >
+      <.icon name={@icon} class="size-4 text-content-muted" />
+      {@label}
+    </button>
+    """
+  end
+
+  attr(:device, Device, required: true)
+  attr(:org, :any, required: true)
+  attr(:product, :any, required: true)
+  attr(:pinned?, :boolean, required: true)
+  attr(:offline?, :boolean, required: true)
+  attr(:end_tabs, :list, required: true)
+
+  # What doesn't fit on a phone's header: the actions that don't need to be a
+  # tap away, and the tabs that sit at the right on a wider screen. A sheet
+  # from the bottom of the screen, over a scrim.
+  defp more_sheet(assigns) do
+    ~H"""
+    <div
+      id="device-more-sheet"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="device-more-sheet-title"
+      class="fixed inset-0 z-50 sm:hidden"
+      style="display: none"
+      phx-window-keydown={hide_more_sheet()}
+      phx-key="escape"
+    >
+      <div class="absolute inset-0 bg-backdrop" aria-hidden="true" phx-click={hide_more_sheet()}></div>
+      <.focus_wrap
+        id="device-more-sheet-panel"
+        class="absolute inset-x-0 bottom-0 flex max-h-[85vh] flex-col overflow-y-auto rounded-t-2xl bg-surface-raised pb-[max(1.5rem,env(safe-area-inset-bottom))] shadow-overlay"
+      >
+        <div class="flex justify-center pt-2 pb-1" aria-hidden="true">
+          <span class="h-1.25 w-9 rounded-full bg-line-strong"></span>
+        </div>
+
+        <div class="flex items-center justify-between gap-3 px-4 pt-2.5 pb-3.5">
+          <div class="flex min-w-0 flex-col gap-0.5">
+            <h2 id="device-more-sheet-title" class="truncate font-mono text-[0.9375rem]/5 font-semibold text-content-strong">{@device.identifier}</h2>
+            <span class="truncate text-ui/4.5 text-content-muted">{@org.name} / {@product.name}</span>
+          </div>
+          <button
+            type="button"
+            aria-label="Close"
+            phx-click={hide_more_sheet()}
+            class="flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-full bg-surface-muted text-content-muted"
+          >
+            <span class="lucide-x--bold size-3.5" aria-hidden="true"></span>
+          </button>
+        </div>
+
+        <div class="px-4">
+          <div class="flex flex-col overflow-clip rounded-xl border border-line-default">
+            <.sheet_row
+              icon={if @pinned?, do: "unpinned", else: "pinned"}
+              label={if @pinned?, do: "Unpin device", else: "Pin device"}
+              phx-click={JS.push(if(@pinned?, do: "unpin", else: "pin")) |> hide_more_sheet()}
+            />
+            <button
+              id="copy-device-identifier-sheet"
+              type="button"
+              phx-hook="CopyToClipboard"
+              data-copy-value={@device.identifier}
+              class="flex h-row shrink-0 cursor-pointer items-center gap-3 border-t border-line-subtle px-4 text-left active:bg-surface-muted"
+            >
+              <span class="flex w-6 shrink-0 justify-center">
+                <span data-icon="copy" class="lucide-copy size-4.5 text-content-muted" aria-hidden="true"></span>
+                <span data-icon="check" class="lucide-check hidden size-4.5 text-success" aria-hidden="true"></span>
+              </span>
+              <span class="text-base/5 text-content-strong">Copy identifier</span>
+            </button>
+            <button
+              type="button"
+              disabled={@offline?}
+              data-confirm="Are you sure you want to reboot the device?"
+              phx-click={JS.push("reboot") |> hide_more_sheet()}
+              class="group flex h-15 shrink-0 items-center gap-3 border-t border-line-subtle px-4 text-left enabled:cursor-pointer enabled:active:bg-surface-muted"
+            >
+              <span class="flex w-6 shrink-0 justify-center">
+                <span class="lucide-power size-4.5 text-alert-content group-disabled:text-content-faint" aria-hidden="true"></span>
+              </span>
+              <span class="flex flex-col gap-0.5">
+                <span class="text-base/5 font-medium text-alert-content group-disabled:text-content-faint">Reboot…</span>
+                <span class="text-ui/4 text-content-muted">
+                  {if @offline?, do: "Once the device is online", else: "You confirm on the next screen"}
+                </span>
+              </span>
+            </button>
+          </div>
+        </div>
+
+        <div :if={@end_tabs != []} class="flex flex-col gap-2 px-4 pt-5">
+          <span class="px-1 text-label text-content-faint uppercase">Also on this device</span>
+          <div class="flex flex-col overflow-clip rounded-xl border border-line-default">
+            <.link
+              :for={{key, label, path, _opts} <- @end_tabs}
+              patch={path}
+              phx-click={hide_more_sheet()}
+              class="flex h-row shrink-0 items-center gap-3 border-t border-line-subtle pr-3 pl-4 first:border-t-0 active:bg-surface-muted"
+            >
+              <span class="flex w-6 shrink-0 justify-center">
+                <span class={[end_tab_icon(key), "size-4.5 text-content-muted"]} aria-hidden="true"></span>
+              </span>
+              <span class="flex-1 text-base/5 text-content-strong">{label}</span>
+              <span class="lucide-chevron-right size-4 text-content-faint" aria-hidden="true"></span>
+            </.link>
+          </div>
+        </div>
+      </.focus_wrap>
+    </div>
+    """
+  end
+
+  attr(:icon, :string, required: true)
+  attr(:label, :string, required: true)
+  attr(:rest, :global, include: ~w(phx-click))
+
+  defp sheet_row(assigns) do
+    ~H"""
+    <button type="button" class="flex h-row shrink-0 cursor-pointer items-center gap-3 px-4 text-left active:bg-surface-muted" {@rest}>
+      <span class="flex w-6 shrink-0 justify-center">
+        <.icon name={@icon} class="size-4.5 text-content-muted" />
+      </span>
+      <span class="text-base/5 text-content-strong">{@label}</span>
+    </button>
+    """
+  end
+
+  defp end_tab_icon(:data_history), do: "lucide-chart-line"
+  defp end_tab_icon(:settings), do: "lucide-settings"
+  defp end_tab_icon(_tab), do: "lucide-chevron-right"
+
+  defp show_more_sheet(js \\ %JS{}) do
+    js
+    |> JS.show(to: "#device-more-sheet", transition: {"ease-out duration-200", "opacity-0", "opacity-100"})
+    |> JS.transition({"ease-out duration-200", "translate-y-full", "translate-y-0"}, to: "#device-more-sheet-panel")
+    |> JS.focus_first(to: "#device-more-sheet-panel")
+  end
+
+  defp hide_more_sheet(js \\ %JS{}) do
+    JS.hide(js, to: "#device-more-sheet", transition: {"ease-in duration-150", "opacity-100", "opacity-0"})
   end
 
   attr(:connection, :any, required: true)
@@ -195,9 +385,9 @@ defmodule NervesHubWeb.Components.DevicePage.Header do
 
   defp fact(assigns) do
     ~H"""
-    <div class="flex min-w-0 flex-col items-start gap-1">
-      <span class="text-label text-content-faint uppercase">{@label}</span>
-      <div class="flex h-5.5 max-w-full min-w-0 items-center">
+    <div class="flex min-h-11 min-w-0 items-center border-t border-line-subtle first:border-t-0 sm:min-h-0 sm:flex-col sm:items-start sm:gap-1 sm:border-t-0">
+      <span class="w-35 shrink-0 text-label text-content-faint uppercase sm:w-auto">{@label}</span>
+      <div class="flex min-w-0 flex-1 items-center py-2.5 sm:h-5.5 sm:max-w-full sm:flex-none sm:py-0">
         {render_slot(@inner_block)}
       </div>
     </div>
@@ -226,7 +416,7 @@ defmodule NervesHubWeb.Components.DevicePage.Header do
 
   defp firmware_fact_updating(assigns, true) do
     ~H"""
-    <span class="flex items-center gap-2">
+    <span class="flex flex-wrap items-center gap-x-2 gap-y-1">
       <span class="font-mono text-ui/4 font-semibold text-content-strong">{@device.firmware_metadata.version}</span>
       <span class="lucide-arrow-right size-3.5 text-content-faint" aria-hidden="true"></span>
       <span class="font-mono text-ui/4 text-content-muted">{@inflight_version}</span>
@@ -237,7 +427,7 @@ defmodule NervesHubWeb.Components.DevicePage.Header do
 
   defp firmware_fact_updating(assigns, false) do
     ~H"""
-    <span class="flex items-center gap-2">
+    <span class="flex flex-wrap items-center gap-x-2 gap-y-1">
       <.link
         navigate={~p"/org/#{@org}/#{@product}/firmware/#{@device.firmware_metadata.uuid}"}
         title="Open this firmware"
@@ -354,19 +544,36 @@ defmodule NervesHubWeb.Components.DevicePage.Header do
 
   def tabs(assigns) do
     ~H"""
-    <nav id="device-tabs" aria-label="Device" class="flex w-full shrink-0 justify-between gap-6 overflow-x-auto border-b border-line-rule px-1 [scrollbar-width:none] sm:px-3">
-      <div class="flex shrink-0">
-        <.tab :for={tab <- @tabs} tab={tab} selected={@selected} />
+    <div class="relative shrink-0">
+      <nav
+        id="device-tabs"
+        phx-hook="ActiveTabInView"
+        aria-label="Device"
+        class="peer flex w-full shrink-0 justify-between gap-6 overflow-x-auto border-b border-line-rule px-1 [scrollbar-width:none] sm:px-3"
+      >
+        <div class="flex shrink-0">
+          <.tab :for={tab <- @tabs} tab={tab} selected={@selected} />
+        </div>
+        <%!-- A phone reaches these from the More sheet, unless one is open. --%>
+        <div class="flex shrink-0">
+          <.tab :for={{key, _label, _path, _opts} = tab <- @end_tabs} tab={tab} selected={@selected} class={key != @selected && "max-sm:hidden"} />
+        </div>
+      </nav>
+      <%!-- On a phone the strip scrolls, and fades at its right edge while there's
+            more of it. A mask would fade the strip's rule too. ActiveTabInView
+            keeps the selected tab in view and marks the strip's end. --%>
+      <div
+        class="pointer-events-none absolute top-0 right-0 bottom-px w-14 bg-linear-to-r from-transparent to-surface to-75% peer-data-scrolled-to-end:hidden sm:hidden"
+        aria-hidden="true"
+      >
       </div>
-      <div class="flex shrink-0">
-        <.tab :for={tab <- @end_tabs} tab={tab} selected={@selected} />
-      </div>
-    </nav>
+    </div>
     """
   end
 
   attr(:tab, :any, required: true)
   attr(:selected, :atom, required: true)
+  attr(:class, :any, default: nil)
 
   defp tab(%{tab: {key, label, path, opts}} = assigns) do
     assigns = assign(assigns, key: key, label: label, path: path, opts: opts)
@@ -379,7 +586,8 @@ defmodule NervesHubWeb.Components.DevicePage.Header do
       class={[
         "group relative flex h-11 shrink-0 items-center gap-1.5 px-3 text-sm/5 whitespace-nowrap text-content-muted",
         "hover:text-content-strong aria-[current=page]:font-medium aria-[current=page]:text-content-strong",
-        "data-dimmed:text-content-faint"
+        "data-dimmed:text-content-faint",
+        @class
       ]}
     >
       {@label}

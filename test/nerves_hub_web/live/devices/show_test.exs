@@ -2635,6 +2635,75 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
     end
   end
 
+  describe "on a phone" do
+    test "the header's actions are Identify, Reconnect and a More sheet", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device
+    } do
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      |> assert_has("#device-actions-mobile button[aria-label='Identify device'][disabled]")
+      |> assert_has("#device-actions-mobile button[aria-label='Reconnect device'][disabled]")
+      |> assert_has("#device-actions-mobile button[aria-label='More actions'][aria-controls='device-more-sheet']")
+    end
+
+    test "the More sheet holds pinning, copying, rebooting and the end tabs", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device
+    } do
+      base = "/org/#{org.name}/#{product.name}/devices/#{device.identifier}"
+
+      conn
+      |> visit(base)
+      |> within("#device-more-sheet", fn session ->
+        session
+        |> assert_has("h2", text: device.identifier)
+        |> assert_has("button", text: "Pin device")
+        |> assert_has(~s(button#copy-device-identifier-sheet[data-copy-value="#{device.identifier}"]))
+        # An offline device can't be rebooted.
+        |> assert_has("button[disabled]", text: "Reboot…")
+        |> assert_has("button", text: "Once the device is online")
+        |> assert_has(~s(a[href="#{base}/data_history"]), text: "Data History")
+        |> assert_has(~s(a[href="#{base}/settings"]), text: "Settings")
+      end)
+    end
+
+    test "pinning from the More sheet", %{conn: conn, org: org, product: product, device: device, user: user} do
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      |> unwrap(fn view ->
+        view
+        |> element("#device-more-sheet button", "Pin device")
+        |> render_click()
+      end)
+      |> assert_has("#device-more-sheet button", text: "Unpin device")
+
+      assert Pinning.device_pinned?(user.id, device.id)
+    end
+
+    test "the tab strip hides the end tabs, unless one is open", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device
+    } do
+      base = "/org/#{org.name}/#{product.name}/devices/#{device.identifier}"
+
+      conn
+      |> visit(base)
+      |> assert_has(~s(#device-tabs a.max-sm\\:hidden[href="#{base}/data_history"]))
+      |> within("#device-more-sheet", &click_link(&1, "Data History"))
+      |> assert_path("#{base}/data_history")
+      |> assert_has(~s(#device-tabs a[aria-current="page"][href="#{base}/data_history"]))
+      |> refute_has(~s(#device-tabs a.max-sm\\:hidden[href="#{base}/data_history"]))
+      |> assert_has(~s(#device-tabs a.max-sm\\:hidden[href="#{base}/settings"]))
+    end
+  end
+
   describe "device actions" do
     test "reconnect sends flash", %{conn: conn, fixture: fixture} do
       {:ok, view, _html} = live(conn, device_show_path(fixture))
