@@ -100,6 +100,7 @@
   --color-line-default: var(--color-zinc-700); /* cards, panels, header rules */
   --color-line-strong: var(--color-zinc-600); /* inputs, selects, buttons, chips */
   --color-line-subtle: var(--color-zinc-800); /* dividers between rows */
+  --color-line-dashed: var(--color-zinc-600); /* dashed outlines of placeholders and nudges */
 
   /* Neutral ramp — low = bright text, high = recessed surface; inverts in light */
   --color-base-50: var(--color-zinc-50);
@@ -164,23 +165,66 @@
   --color-content-strong: var(--color-zinc-50); /* headings, key values */
   --color-content-body: var(--color-zinc-300); /* default body text */
   --color-content-muted: var(--color-zinc-400); /* secondary / labels */
-  --color-content-faint: var(--color-zinc-500); /* placeholder / disabled */
+  /* Faint text is still text: labels, counts and "Not reported" use it,
+     so it holds 4.5:1 on every dark surface (5.1:1 on a card). zinc-500
+     was 3.5:1. Light keeps zinc-500, which is 4.8:1 on white. */
+  --color-content-faint: #8c8c95; /* labels, placeholder, disabled; between zinc-400 and zinc-500 */
 
   /* Headings. Each sets size, line height and weight, so a heading needs
      only one of these plus a text colour (usually text-content-strong).
      Pick by role, not by tag: an empty state's h2 is a page title. */
+  --text-home-title: 1.75rem; /* 28px: the organizations home page's h1 */
+  --text-home-title--line-height: 2.125rem;
+  --text-home-title--font-weight: 600;
+  --text-home-title--letter-spacing: -0.02em;
   --text-page-title: 1.25rem; /* 20px: page h1s and empty-state titles */
   --text-page-title--line-height: 1.875rem;
   --text-page-title--font-weight: 600;
+  --text-page-title--letter-spacing: -0.01em;
   --text-section-title: 1.125rem; /* 18px: a section of a page */
   --text-section-title--line-height: 1.75rem;
   --text-section-title--font-weight: 600;
+  --text-item-title: 1.0625rem; /* 17px: the name over a card or a group of rows, such as a product card */
+  --text-item-title--line-height: 1.375rem;
+  --text-item-title--font-weight: 600;
+  --text-item-title--letter-spacing: -0.01em;
+  --text-list-title: 0.9375rem; /* 15px: the title over a list or table, on an organization's pages */
+  --text-list-title--line-height: 1.25rem;
+  --text-list-title--font-weight: 600;
+  --text-list-title--letter-spacing: -0.005em;
   --text-card-title: 1rem; /* 16px: card and sidebar headers */
   --text-card-title--line-height: 1.5rem;
   --text-card-title--font-weight: 500;
   --text-group-title: 0.875rem; /* 14px: a group inside a card */
   --text-group-title--line-height: 1.25rem;
   --text-group-title--font-weight: 600;
+
+  /* Figures: a count or measure shown large on a card, such as devices
+     online. Two sizes, one weight. */
+  --text-figure: 1.5rem; /* 24px: a card with the room, such as a product's own card */
+  --text-figure--line-height: 1.75rem;
+  --text-figure--font-weight: 600;
+  --text-figure--letter-spacing: -0.02em;
+  --text-figure-sm: 1.25rem; /* 20px: a card in a grid */
+  --text-figure-sm--line-height: 1.5rem;
+  --text-figure-sm--font-weight: 600;
+  --text-figure-sm--letter-spacing: -0.02em;
+
+  /* Small text, beside Tailwind's xs (12px) and sm (14px). */
+  /* 13px: interface text, such as buttons, menus, table cells and summaries.
+     It sets no line height: add /4 for a line of a control, /4.5 for a
+     sentence, or leave it to inherit. */
+  --text-ui: 0.8125rem;
+  /* 11px: the uppercase label over a table column or a figure. Pair it with
+     `uppercase` and a text colour, usually text-content-faint. */
+  --text-label: 0.6875rem;
+  --text-label--line-height: 0.875rem;
+  --text-label--font-weight: 500;
+  --text-label--letter-spacing: 0.06em;
+
+  /* 4px: every card, panel and dashed placeholder, so their corners match
+     from page to page. Controls (rounded) and menus (rounded-md) have their own. */
+  --radius-card: 0.25rem;
 }
 
 /*
@@ -215,7 +259,7 @@
   --veil: var(--color-zinc-700);
 
   /* The dots of the auth pages' perfboard backdrop (the perfboard utility
-     below). Faint in both themes: line-subtle here, line-default in light. */
+     below). Faint in both themes: line-subtle here, zinc-300 in light. */
   --perfboard-dot: var(--color-line-subtle);
 
   /* Fixed layout rails — semantic dimensions for the app chrome (theme-independent).
@@ -285,22 +329,25 @@
   --color-content-strong: var(--color-zinc-900); /* zinc-900 */
   --color-content-body: var(--color-zinc-700); /* zinc-700 */
   --color-content-muted: var(--color-zinc-600); /* zinc-600 */
-  --color-content-faint: var(--color-zinc-500); /* zinc-500 (shared) */
+  --color-content-faint: var(--color-zinc-500); /* zinc-500, 4.8:1 on white; dark has its own */
 
-  /* Hairlines are set to match dark mode's contrast, not inverted from it.
-     line-strong outlines controls, so it stays at 3:1 or more on every light
-     surface (WCAG 1.4.11); zinc-400 is only 2.3–2.6:1 here. */
-  --color-line-default: var(--color-zinc-300);
+  /* Hairlines follow the design file: cards and rules sit lighter on white
+     than their dark-mode counterparts do on the dark canvas. line-strong
+     outlines controls, so it stays at 3:1 or more on every light surface
+     (WCAG 1.4.11); zinc-400 is only 2.3–2.6:1 here. A control outlined in
+     line-default would fall well short of that, so controls never use it. */
+  --color-line-default: var(--color-zinc-200);
   --color-line-strong: #8c8c95; /* between zinc-400 and zinc-500 */
-  --color-line-subtle: var(--color-zinc-200);
+  --color-line-subtle: #ececee; /* between zinc-100 and zinc-200 */
+  --color-line-dashed: var(--color-zinc-300);
 
   /* Between zinc-300 and zinc-400: at the hover gradient's 24–48% it gives
      the light sidebar the same contrast (1.12–1.27:1) zinc-700 gives dark. */
   --veil: #bdbdc3;
 
-  --perfboard-dot: var(--color-line-default);
+  --perfboard-dot: var(--color-zinc-300);
 
-  --shadow-card: 0 1px 2px rgb(24 24 27 / 0.04), 0 2px 6px rgb(24 24 27 / 0.06);
+  --shadow-card: 0 1px 2px rgb(24 24 27 / 0.04);
   --shadow-overlay:
     0 4px 8px -2px rgb(24 24 27 / 0.06), 0 12px 32px -4px rgb(24 24 27 / 0.12);
   --shadow-control: 0 1px 2px rgb(24 24 27 / 0.12);
@@ -333,7 +380,8 @@
 /* Elevation: shadow-card for resting surfaces, shadow-overlay for anything
    that floats over the page (menus, popovers, tooltips, dialogs), and
    shadow-control for a control raised within a group, such as a selected
-   segment or a switch knob. Inline alerts and inputs stay flat.
+   segment or a switch knob. Inline alerts and inputs stay flat. Outlined
+   buttons take Tailwind's shadow-xs, a hairline that only shows in light.
 
    Each sets --tw-shadow and repeats Tailwind's box-shadow stack, so a ring-*
    on the same element still draws. */
@@ -357,6 +405,15 @@
     var(--tw-inset-shadow, 0 0 #0000), var(--tw-inset-ring-shadow, 0 0 #0000),
     var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000),
     var(--tw-shadow);
+}
+/* The overlay's opaque fill with a colour laid over it, as `overlay-tint-alert-soft`.
+   For something that floats over content, such as a toast: the -soft colours
+   are 15% opaque in dark, so on their own they let the page show through the
+   text. In light they're opaque already, and look the same either way. */
+@utility overlay-tint-* {
+  --overlay-tint: --value(--color-*);
+  background-color: var(--color-surface-overlay);
+  background-image: linear-gradient(var(--overlay-tint), var(--overlay-tint));
 }
 /* The filter panel's shadow casts left, away from the screen edge it slides in from. */
 @utility shadow-filter-slider {

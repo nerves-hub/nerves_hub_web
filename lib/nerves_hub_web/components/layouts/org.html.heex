@@ -1,16 +1,16 @@
 <.no_sidebar flash={@flash} current_scope={@current_scope}>
   <div class="flex w-full flex-col items-center border-b border-line-default bg-surface-raised">
-    <div class="flex w-full max-w-240 flex-col gap-4 px-4 pt-6 md:gap-6 md:pt-10">
+    <div class="flex w-full max-w-248 flex-col gap-4 px-4 pt-6 md:gap-7 md:pt-10">
       <div class="flex items-center gap-4">
         <span
-          class="flex size-12 shrink-0 items-center justify-center rounded-md border border-line-default bg-surface-raised text-lg font-semibold text-content-strong shadow-card"
+          class="flex size-12 shrink-0 items-center justify-center rounded-lg border border-line-default bg-surface-raised text-xl/6 font-semibold text-content-body shadow-card md:size-13 md:rounded-[10px] md:text-[22px]/6.5"
           aria-hidden="true"
         >
           {Fleet.monogram(@current_scope.org.name)}
         </span>
-        <div class="min-w-0 flex-1">
+        <div class="flex min-w-0 flex-1 flex-col gap-0.75">
           <h1 class="truncate text-page-title text-content-strong">{@current_scope.org.name}</h1>
-          <p id="org-summary" class="truncate text-sm text-content-muted">{org_summary(@counts)}</p>
+          <p id="org-summary" class="truncate text-ui/4.5 text-content-muted"><Fleet.separated items={org_summary(@counts)} /></p>
         </div>
         <div :if={@actions != []} class="hidden shrink-0 items-center gap-2 md:flex">
           {render_slot(@actions)}
@@ -26,18 +26,18 @@
         id="org-tabs"
         phx-hook="ActiveTabInView"
         aria-label={"#{@current_scope.org.name} sections"}
-        class="-mx-4 scrollbar-none flex overflow-x-auto mask-r-from-[calc(100%-2.5rem)] px-1 data-scrolled-to-end:mask-none md:mx-0 md:-ml-3 md:mask-none md:px-0"
+        class="-mx-4 scrollbar-none flex gap-1 overflow-x-auto mask-r-from-[calc(100%-2.5rem)] px-1 data-scrolled-to-end:mask-none md:mx-0 md:-ml-3 md:mask-none md:px-0"
       >
         <.link
           :for={tab <- org_tabs(@current_scope.org, @counts)}
           navigate={tab.path}
           aria-current={if tab.key == @tab, do: "page"}
-          class="group relative flex h-11 shrink-0 items-center gap-2 border-b-2 border-transparent px-3 text-sm font-medium whitespace-nowrap text-content-muted hover:text-content-strong aria-[current=page]:border-primary aria-[current=page]:font-semibold aria-[current=page]:text-content-strong"
+          class="group relative flex h-11 shrink-0 items-center gap-1.75 border-b-2 border-transparent px-3 text-sm/4.5 font-medium whitespace-nowrap text-content-muted hover:text-content-strong aria-[current=page]:border-primary aria-[current=page]:font-semibold aria-[current=page]:text-content-strong light:aria-[current=page]:border-indigo-600"
         >
-          <span class={[tab.icon, "size-4 group-aria-[current=page]:hidden"]} aria-hidden="true"></span>
-          <span class={[tab.selected_icon, "hidden size-4 group-aria-[current=page]:block"]} aria-hidden="true"></span>
+          <span class={[tab.icon, "size-3.75 group-aria-[current=page]:hidden"]} aria-hidden="true"></span>
+          <span class={[tab.selected_icon, "hidden size-3.75 group-aria-[current=page]:block"]} aria-hidden="true"></span>
           <span class="reserve-semibold-width flex flex-col" data-label={tab.label}>{tab.label}</span>
-          <span :if={tab.count} class="rounded-full bg-surface-muted px-1.5 text-[11px]/4 font-medium text-content-muted tabular-nums">
+          <span :if={tab.count} class="rounded-full bg-surface-muted px-1.5 py-0.5 text-[11px]/3.5 font-medium text-content-muted tabular-nums">
             {Fleet.delimited(tab.count)}
           </span>
         </.link>
@@ -45,7 +45,7 @@
     </div>
   </div>
 
-  <main class="flex w-full max-w-240 flex-col gap-4 px-4 pt-6 pb-16 md:pt-8">
+  <main class="flex w-full max-w-248 flex-col gap-4 px-4 pt-6 pb-16 md:pt-8">
     {render_slot(@inner_block)}
   </main>
 </.no_sidebar>

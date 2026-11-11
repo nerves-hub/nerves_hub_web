@@ -10,7 +10,7 @@
           id="description_input"
           name={f[:description].name}
           value={f[:description].value}
-          class="w-full rounded border border-line-default bg-base-900 px-3 py-2 text-sm text-content-strong focus:ring-2 focus:ring-focus-ring focus:outline-none"
+          class="w-full rounded border border-line-strong bg-base-900 px-3 py-2 text-sm text-content-strong focus:ring-2 focus:ring-focus-ring focus:outline-none"
         />
         <div class="mt-1 text-sm text-alert-content"><.field_errors field={f[:description]} /></div>
       </div>
@@ -23,7 +23,7 @@
           name={f[:check_expiration].name}
           value="true"
           checked={Phoenix.HTML.Form.normalize_value("checkbox", f[:check_expiration].value)}
-          class="size-4 rounded border-line-default bg-base-900"
+          class="size-4 rounded border-line-strong bg-base-900"
         />
         <label for="check_expiration_input" class="text-sm text-content-body">Check expiration</label>
         <CAHelpers.check_expiration_tooltip />
@@ -41,7 +41,7 @@
               name="ca_certificate[jitp][jitp_toggle]"
               checked={@show_jitp_form}
               phx-click={JS.dispatch("ca:edit:jitp")}
-              class="rounded border-line-default text-content-muted checked:bg-primary focus:ring-0"
+              class="rounded border-line-strong text-content-muted checked:bg-primary focus:ring-0"
             />
             <label for="jitp_toggle_ui" class="text-sm text-content-body">Enable Just In Time Provisioning</label>
           </div>
@@ -56,7 +56,7 @@
                 id="jitp_description_input"
                 name={fp[:description].name}
                 value={fp[:description].value}
-                class="w-full rounded border border-line-default bg-base-900 px-3 py-2 text-sm text-content-strong focus:ring-2 focus:ring-focus-ring focus:outline-none"
+                class="w-full rounded border border-line-strong bg-base-900 px-3 py-2 text-sm text-content-strong focus:ring-2 focus:ring-focus-ring focus:outline-none"
               />
               <div class="mt-1 text-sm text-alert-content"><.field_errors field={fp[:description]} /></div>
             </div>
@@ -70,7 +70,7 @@
                 id="tag_input"
                 name={fp[:tags].name}
                 value={Utils.tags_to_string(fp[:tags].value)}
-                class="w-full rounded border border-line-default bg-base-900 px-3 py-2 text-sm text-content-strong focus:ring-2 focus:ring-focus-ring focus:outline-none"
+                class="w-full rounded border border-line-strong bg-base-900 px-3 py-2 text-sm text-content-strong focus:ring-2 focus:ring-focus-ring focus:outline-none"
               />
               <div class="mt-1 text-sm text-alert-content"><.field_errors field={fp[:tags]} /></div>
             </div>
@@ -82,7 +82,7 @@
               <select
                 id="product_input"
                 name={fp[:product_id].name}
-                class="w-full rounded border border-line-default bg-base-900 px-3 py-2 text-sm text-content-strong focus:ring-2 focus:ring-focus-ring focus:outline-none"
+                class="w-full rounded border border-line-strong bg-base-900 px-3 py-2 text-sm text-content-strong focus:ring-2 focus:ring-focus-ring focus:outline-none"
               >
                 <option value="">Select Product</option>
                 {Phoenix.HTML.Form.options_for_select(Enum.map(@products, &{&1.name, &1.id}), fp[:product_id].value)}

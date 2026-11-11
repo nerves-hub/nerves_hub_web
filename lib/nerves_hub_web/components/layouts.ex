@@ -83,20 +83,17 @@ defmodule NervesHubWeb.Layouts do
   end
 
   # "3 products · 1,204 devices · 5 members", or, before there's a product,
-  # what to do about it.
+  # what to do about it. `Fleet.separated/1` puts the dots between.
   defp org_summary(%{products: 0} = counts) do
-    "No products yet · " <> Fleet.count_noun(counts.members, "member", "members")
+    ["No products yet", Fleet.count_noun(counts.members, "member", "members")]
   end
 
   defp org_summary(counts) do
-    Enum.join(
-      [
-        Fleet.count_noun(counts.products, "product", "products"),
-        Fleet.count_noun(counts.devices, "device", "devices"),
-        Fleet.count_noun(counts.members, "member", "members")
-      ],
-      " · "
-    )
+    [
+      Fleet.count_noun(counts.products, "product", "products"),
+      Fleet.count_noun(counts.devices, "device", "devices"),
+      Fleet.count_noun(counts.members, "member", "members")
+    ]
   end
 
   # Each icon is spelled out in full, regular and bold, so Tailwind finds the

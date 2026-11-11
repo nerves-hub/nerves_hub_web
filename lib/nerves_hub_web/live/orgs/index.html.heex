@@ -17,7 +17,7 @@
             id="onboarding-form"
             phx-change="validate_onboarding"
             phx-submit="save_onboarding"
-            class="flex flex-col gap-6 rounded-md border border-line-default bg-surface-raised p-4 shadow-card sm:p-6"
+            class="flex flex-col gap-6 rounded-card border border-line-default bg-surface-raised p-4 shadow-card sm:p-6"
           >
             <.input field={@onboarding_form[:org_name]} label="Organization name" hint="Usually your company or team name." autocomplete="off" required>
               <:label_action><span class="text-xs text-content-faint">You can rename it later</span></:label_action>
@@ -51,7 +51,7 @@
             </div>
           </.form>
 
-          <div class="flex gap-3 rounded-md border border-dashed border-line-strong p-4">
+          <div class="flex gap-3 rounded-card border border-dashed border-line-dashed p-4">
             <span class="mt-0.5 lucide-users size-4 text-content-muted" aria-hidden="true"></span>
             <p class="text-sm text-content-muted">
               <span class="font-medium text-content-strong">Joining an existing team?</span>
@@ -100,28 +100,33 @@
           <div class="flex min-w-0 items-center gap-4 md:flex-1">
             <.link
               navigate={~p"/org/#{entry.org}"}
-              class="flex size-12 shrink-0 items-center justify-center rounded-md border border-line-default bg-surface-raised text-lg font-semibold text-content-strong shadow-card"
+              class="flex size-12 shrink-0 items-center justify-center rounded-lg border border-line-default bg-surface-raised text-xl/6 font-semibold text-content-body shadow-card"
               aria-hidden="true"
               tabindex="-1"
             >
               {monogram(entry.org.name)}
             </.link>
-            <div class="min-w-0">
-              <.link navigate={~p"/org/#{entry.org}"} class="group flex items-center gap-1.5">
-                <h1 class="truncate text-page-title text-content-strong group-hover:underline">{entry.org.name}</h1>
+            <div class="flex min-w-0 flex-col gap-0.5">
+              <.link navigate={~p"/org/#{entry.org}"} class="group flex items-center gap-1">
+                <h1 class="truncate text-home-title text-content-strong group-hover:underline max-md:text-2xl/7.5">{entry.org.name}</h1>
                 <span class="lucide-chevron-right size-5 text-content-faint" aria-hidden="true"></span>
               </.link>
-              <p class="text-sm text-content-muted">
-                {count_noun(length(entry.products), "product", "products")} · {count_noun(entry.device_count, "device", "devices")} · {count_noun(entry.member_count, "member", "members")}
+              <p class="text-ui/4.5 text-content-muted">
+                <.separated items={[
+                  count_noun(length(entry.products), "product", "products"),
+                  count_noun(entry.device_count, "device", "devices"),
+                  count_noun(entry.member_count, "member", "members")
+                ]} />
               </p>
             </div>
           </div>
           <div class="flex items-center gap-2 whitespace-nowrap md:shrink-0">
             <%!-- One joined group: the buttons share edges, and only the outer corners are rounded.
-                 On a phone it spans the width, three equal buttons. --%>
+                 On a phone it spans the width, three equal buttons. Its icons are a pixel larger
+                 than a lone button's, as the design draws them. --%>
             <nav
               aria-label={"#{entry.org.name} settings"}
-              class="flex flex-1 md:flex-none [&>a]:flex-1 [&>a]:rounded-none md:[&>a]:flex-none [&>a:first-child]:rounded-l [&>a:last-child]:rounded-r [&>a:not(:first-child)]:-ml-px"
+              class="flex flex-1 md:flex-none [&>a]:relative [&>a]:flex-1 [&>a]:gap-1.75 [&>a]:rounded-none md:[&>a]:flex-none [&>a:first-child]:rounded-l [&>a:focus-visible]:z-10 [&>a:hover]:z-10 [&>a:last-child]:rounded-r [&>a:not(:first-child)]:-ml-px [&>a>[class*=lucide-]]:size-3.75"
             >
               <.button type="link" navigate={~p"/org/#{entry.org}/settings/users"}>
                 <span class="lucide-users size-4" aria-hidden="true"></span> Users
@@ -134,7 +139,7 @@
                 <span class="lucide-settings size-4" aria-hidden="true"></span> Settings
               </.button>
             </nav>
-            <span class="mx-1 hidden h-6 w-px bg-line-default md:block" aria-hidden="true"></span>
+            <span class="mx-1 hidden h-5 w-px bg-line-default md:block" aria-hidden="true"></span>
             <.button type="link" navigate={~p"/orgs/new"} class="hidden md:flex">
               <span class="lucide-plus size-4" aria-hidden="true"></span> New organization
             </.button>
@@ -142,14 +147,14 @@
         </header>
       <% else %>
         <header class="flex flex-wrap items-center justify-between gap-6">
-          <div>
-            <h1 class="text-page-title text-content-strong">Organizations</h1>
-            <p class="text-sm text-content-muted">
-              {count_noun(length(@orgs), "organization", "organizations")} · {count_noun(@orgs |> Enum.map(&length(&1.products)) |> Enum.sum(), "product", "products")} · {count_noun(
-                @orgs |> Enum.map(& &1.device_count) |> Enum.sum(),
-                "device",
-                "devices"
-              )}
+          <div class="flex flex-col gap-0.5">
+            <h1 class="text-home-title text-content-strong max-md:text-2xl/7.5">Organizations</h1>
+            <p class="text-ui/4.5 text-content-muted">
+              <.separated items={[
+                count_noun(length(@orgs), "organization", "organizations"),
+                count_noun(@orgs |> Enum.map(&length(&1.products)) |> Enum.sum(), "product", "products"),
+                count_noun(@orgs |> Enum.map(& &1.device_count) |> Enum.sum(), "device", "devices")
+              ]} />
             </p>
           </div>
           <.button type="link" navigate={~p"/orgs/new"} class="hidden md:flex">
@@ -165,19 +170,21 @@
           <a
             :for={entry <- sectioned}
             href={"#org-#{entry.org.id}"}
-            class="flex flex-col rounded-md border border-line-default bg-surface-raised p-4 shadow-card transition-colors hover:border-line-strong"
+            class="flex flex-col gap-2.5 rounded-card border border-line-default bg-surface-raised px-4 pt-3.5 pb-4 shadow-card transition-colors hover:border-line-strong"
           >
             <% counts = org_online(@online, entry.org.id) %>
             <% attention = attention_count(@attention, entry.org.id) %>
-            <span class="flex items-center justify-between gap-2">
-              <span class="truncate text-sm font-medium text-content-strong">{entry.org.name}</span>
-              <.badge :if={attention > 0} tone="warning" title="Needs attention">{attention}</.badge>
+            <span class="flex h-4.5 items-center justify-between gap-2">
+              <span class="truncate text-ui/4.5 font-semibold text-content-strong">{entry.org.name}</span>
+              <.badge :if={attention > 0} tone="warning" count title="Needs attention">{attention}</.badge>
             </span>
-            <span class="pt-3 text-2xl font-medium text-content-strong tabular-nums">{delimited(entry.device_count)}</span>
-            <span class="text-xs text-content-muted">
-              devices{if counts && entry.device_count > 0, do: " · #{online_percent(counts)}% online"}
+            <span class="flex flex-col gap-0.5">
+              <span class="text-figure-sm text-content-strong tabular-nums">{delimited(entry.device_count)}</span>
+              <span class="text-xs text-content-muted">
+                <.separated items={["devices", if(counts && entry.device_count > 0, do: "#{online_percent(counts)}% online")]} />
+              </span>
             </span>
-            <span class="mt-3 h-1 overflow-hidden rounded-full bg-base-800">
+            <span class="h-1 overflow-hidden rounded-full bg-base-800">
               <span :if={counts} class="block h-full rounded-full bg-status-online" style={"width: #{online_percent(counts)}%"}></span>
             </span>
           </a>
@@ -189,19 +196,19 @@
       <div :if={@attention == [] or @pinned_devices == []} class="flex flex-col gap-3">
         <.all_clear :if={@attention == []} />
 
-        <div :if={@pinned_devices == []} id="pin-hint" class="flex items-center gap-3 rounded-md border border-dashed border-line-strong px-4 py-3 text-sm text-content-muted">
+        <div :if={@pinned_devices == []} id="pin-hint" class="flex items-center gap-3 rounded-card border border-dashed border-line-dashed px-4 py-3 text-ui/4.5 text-content-muted">
           <span class="lucide-pin size-4" aria-hidden="true"></span> Pin a device from its page to keep it here
         </div>
       </div>
 
-      <section :if={@pinned_devices != []} id="pinned-devices" aria-labelledby="pinned-title" class="flex flex-col gap-3">
-        <h2 id="pinned-title" class="text-group-title text-content-strong">Pinned devices</h2>
-        <div class="overflow-hidden rounded-md border border-line-default bg-surface-raised shadow-card">
+      <section :if={@pinned_devices != []} id="pinned-devices" aria-labelledby="pinned-title" class="flex flex-col gap-2.5">
+        <h2 id="pinned-title" class="text-list-title text-content-strong">Pinned devices</h2>
+        <div class="overflow-hidden rounded-card border border-line-default bg-surface-raised shadow-card">
           <.link
             :for={device <- if @show_all_pinned?, do: @pinned_devices, else: limit_devices(@pinned_devices)}
             id={"pinned-#{device.id}"}
             navigate={~p"/org/#{device.org}/#{device.product}/devices/#{device.identifier}"}
-            class="flex items-center gap-3 border-b border-line-subtle px-4 py-3 transition-colors last:border-0 hover:bg-surface-muted md:gap-4"
+            class="flex items-center gap-3 border-b border-line-subtle px-4 py-3 transition-colors last:border-0 hover:bg-surface-muted md:h-11 md:gap-4 md:py-0"
           >
             <% online? = @device_statuses[device.identifier] == "online" %>
             <% firmware = (device.firmware_metadata && device.firmware_metadata.version) || "—" %>
@@ -212,17 +219,17 @@
               <.status_dot class={["mt-1.5 md:mt-0", if(online?, do: "bg-status-online", else: "bg-status-offline")]} title={if online?, do: "Online", else: "Offline"} />
               <span class="flex min-w-0 flex-1 flex-col gap-0.5">
                 <span class="flex items-center justify-between gap-3">
-                  <span class="truncate font-mono text-xs/5 text-content-strong">{device.identifier}</span>
-                  <span class={["shrink-0 text-sm md:hidden", color]}>{label}</span>
+                  <span class="truncate font-mono text-xs/5 font-medium text-content-strong">{device.identifier}</span>
+                  <span class={["shrink-0 text-ui/4 md:hidden", color]}>{label}</span>
                 </span>
                 <span class="truncate text-xs text-content-muted md:hidden">
-                  {pinned_place(device, single_org?)} · <span class="font-mono">{firmware}</span>
+                  {pinned_place(device, single_org?)} <span class="text-content-faint">·</span> <span class="font-mono">{firmware}</span>
                 </span>
               </span>
             </span>
-            <span class="hidden w-55 truncate text-sm text-content-muted md:block">{pinned_place(device, single_org?)}</span>
+            <span class="hidden w-55 truncate text-ui/4 text-content-muted md:block">{pinned_place(device, single_org?)}</span>
             <span class="hidden w-35 truncate font-mono text-xs text-content-body md:block">{firmware}</span>
-            <span class={["hidden w-27.5 truncate text-sm md:block", color]}>{label}</span>
+            <span class={["hidden w-27.5 truncate text-ui/4 md:block", color]}>{label}</span>
             <span class="lucide-chevron-right size-4 text-content-faint" aria-hidden="true"></span>
           </.link>
           <button
@@ -238,9 +245,9 @@
 
       <%= if single_org? do %>
         <% [entry] = @orgs %>
-        <section aria-labelledby="products-title" class="flex flex-col gap-3">
+        <section aria-labelledby="products-title" class="flex flex-col gap-2.5">
           <div class="flex items-center justify-between gap-4">
-            <h2 id="products-title" class="text-group-title text-content-strong">Products</h2>
+            <h2 id="products-title" class="text-list-title text-content-strong">Products</h2>
             <.button :if={authorized?(:"product:create", entry.role)} type="link" navigate={~p"/org/#{entry.org}/new"}>
               <span class="lucide-plus size-4" aria-hidden="true"></span> New product
             </.button>
@@ -248,23 +255,25 @@
           <.products_table entry={entry} online={@online} fleet={@fleet} />
         </section>
       <% else %>
-        <section :for={entry <- sectioned} id={"org-#{entry.org.id}"} aria-labelledby={"org-title-#{entry.org.id}"} class="flex scroll-mt-6 flex-col gap-3">
+        <section :for={entry <- sectioned} id={"org-#{entry.org.id}"} aria-labelledby={"org-title-#{entry.org.id}"} class="flex scroll-mt-6 flex-col gap-2.5">
           <div class="flex items-center gap-3">
             <.link
               navigate={~p"/org/#{entry.org}"}
-              class="flex size-8 shrink-0 items-center justify-center rounded border border-line-default bg-surface-raised text-sm font-semibold text-content-strong"
+              class="flex size-8 shrink-0 items-center justify-center rounded-md border border-line-default bg-surface-raised text-sm/4.5 font-semibold text-content-body shadow-card"
               aria-hidden="true"
               tabindex="-1"
             >
               {monogram(entry.org.name)}
             </.link>
             <div class="flex min-w-0 flex-1 flex-col md:flex-row md:items-center md:gap-3">
-              <.link navigate={~p"/org/#{entry.org}"} class="group flex min-w-0 items-center gap-1">
-                <h2 id={"org-title-#{entry.org.id}"} class="truncate text-section-title text-content-strong group-hover:underline">{entry.org.name}</h2>
+              <.link navigate={~p"/org/#{entry.org}"} class="group flex min-w-0 items-center gap-0.5">
+                <h2 id={"org-title-#{entry.org.id}"} class="truncate text-item-title text-content-strong group-hover:underline">
+                  {entry.org.name}
+                </h2>
                 <span class="lucide-chevron-right size-4 text-content-faint" aria-hidden="true"></span>
               </.link>
-              <span class="truncate text-xs text-content-muted md:text-sm">
-                {count_noun(length(entry.products), "product", "products")} · {count_noun(entry.device_count, "device", "devices")}
+              <span class="truncate text-xs text-content-muted md:text-ui/4.5">
+                <.separated items={[count_noun(length(entry.products), "product", "products"), count_noun(entry.device_count, "device", "devices")]} />
               </span>
             </div>
             <div class="flex shrink-0 items-center gap-2 whitespace-nowrap">
@@ -277,12 +286,12 @@
           <.products_table entry={entry} online={@online} fleet={@fleet} new_product_row />
         </section>
 
-        <section :if={others != []} id="other-orgs" aria-labelledby="other-orgs-title" class="flex flex-col gap-3">
-          <h2 id="other-orgs-title" class="text-group-title text-content-strong">Other organizations</h2>
-          <div class="overflow-hidden rounded-md border border-line-default bg-surface-raised shadow-card" role="table" aria-label="Other organizations">
+        <section :if={others != []} id="other-orgs" aria-labelledby="other-orgs-title" class="flex flex-col gap-2.5">
+          <h2 id="other-orgs-title" class="text-list-title text-content-strong">Other organizations</h2>
+          <div class="overflow-hidden rounded-card border border-line-default bg-surface-raised shadow-card" role="table" aria-label="Other organizations">
             <div
               role="row"
-              class="hidden items-center gap-4 border-b border-line-default bg-surface-muted px-4 py-2.5 text-xs font-medium tracking-wide text-content-muted uppercase md:flex"
+              class="hidden h-9 items-center gap-4 border-b border-line-subtle px-4 text-label text-content-faint uppercase md:flex"
             >
               <span role="columnheader" class="flex-1">Organization</span>
               <span role="columnheader" class="w-55">Online</span>
@@ -318,7 +327,7 @@
 
       <.link
         navigate={~p"/orgs/new"}
-        class="flex h-10 items-center justify-center gap-1.5 rounded border border-dashed border-line-strong text-sm font-medium text-content-body hover:text-content-strong md:hidden"
+        class="flex h-10 items-center justify-center gap-1.5 rounded border border-dashed border-line-dashed text-sm font-medium text-content-body hover:text-content-strong md:hidden"
       >
         <span class="lucide-plus size-4" aria-hidden="true"></span> New organization
       </.link>

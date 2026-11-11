@@ -790,7 +790,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
 
   defp health_box(assigns) do
     ~H"""
-    <div :if={!@product.extensions.health || !@device.extensions.health} class="flex flex-col rounded-md border border-line-default bg-surface-raised shadow-card">
+    <div :if={!@product.extensions.health || !@device.extensions.health} class="flex flex-col rounded-card border border-line-default bg-surface-raised shadow-card">
       <div class="flex h-14 items-center justify-between px-4">
         <div class="text-card-title text-content-strong">Health and Alerting</div>
       </div>
@@ -806,7 +806,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
 
     <div
       :if={Enum.any?(@latest_metrics) && @product.extensions.health && @device.extensions.health}
-      class="flex flex-col rounded-md border border-line-default bg-surface-raised shadow-card"
+      class="flex flex-col rounded-card border border-line-default bg-surface-raised shadow-card"
     >
       <div class="flex h-14 items-center justify-between px-4">
         <div class="flex items-center gap-2">
@@ -848,7 +848,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
 
     <div
       :if={Enum.empty?(@latest_metrics) && @product.extensions.health && @device.extensions.health}
-      class="flex flex-col rounded-md border border-line-default bg-surface-raised shadow-card"
+      class="flex flex-col rounded-card border border-line-default bg-surface-raised shadow-card"
     >
       <div class="flex h-14 items-center justify-between px-4">
         <div class="text-card-title text-content-strong">Health</div>
@@ -872,7 +872,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
 
   defp alarms_box(assigns) do
     ~H"""
-    <div :if={@alarms && alarms_reported?(@product, @device)} class="flex flex-col rounded-md border border-line-default bg-surface-raised shadow-card">
+    <div :if={@alarms && alarms_reported?(@product, @device)} class="flex flex-col rounded-card border border-line-default bg-surface-raised shadow-card">
       <div class="flex h-14 items-center justify-between px-4">
         <div class="text-card-title text-content-strong">Alarms</div>
       </div>
@@ -893,7 +893,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
       </div>
     </div>
 
-    <div :if={!@alarms && alarms_reported?(@product, @device)} class="flex flex-col rounded-md border border-line-default bg-surface-raised shadow-card">
+    <div :if={!@alarms && alarms_reported?(@product, @device)} class="flex flex-col rounded-card border border-line-default bg-surface-raised shadow-card">
       <div class="flex h-14 items-center justify-between px-4">
         <div class="text-card-title text-content-strong">No Alarms Received</div>
       </div>
@@ -920,7 +920,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
 
   defp deployment_box(assigns) do
     ~H"""
-    <div class="flex flex-col rounded-md border border-line-default bg-surface-raised shadow-card">
+    <div class="flex flex-col rounded-card border border-line-default bg-surface-raised shadow-card">
       <div class="flex h-14 items-center px-4 text-card-title text-content-strong">
         Deployment Groups
       </div>
@@ -1038,7 +1038,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
 
   defp location_box(assigns) do
     ~H"""
-    <div class="flex flex-col items-start rounded-md border border-line-default bg-surface-raised shadow-card">
+    <div class="flex flex-col items-start rounded-card border border-line-default bg-surface-raised shadow-card">
       <DeviceLocation.render
         location={extract_location_data(@device)}
         enable_location_editor={@enable_location_editor}
@@ -1054,7 +1054,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
 
   defp network_identities_box(assigns) do
     ~H"""
-    <div class="flex flex-col rounded-md border border-line-default bg-surface-raised shadow-card">
+    <div class="flex flex-col rounded-card border border-line-default bg-surface-raised shadow-card">
       <DeviceNetworkIdentities.render
         enabled_product={@product.extensions.network_identity}
         enabled_device={@device.extensions.network_identity}
@@ -1073,7 +1073,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
 
   defp support_scripts_box(assigns) do
     ~H"""
-    <div class="flex flex-col rounded-md border border-line-default bg-surface-raised shadow-card">
+    <div class="flex flex-col rounded-card border border-line-default bg-surface-raised shadow-card">
       <div class="flex h-14 items-center px-4 text-card-title text-content-strong">
         Support Scripts
       </div>
@@ -1175,7 +1175,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
 
   defp general_info(assigns) do
     ~H"""
-    <div class="flex flex-col rounded-md border border-line-default bg-surface-raised pb-4 shadow-card">
+    <div class="flex flex-col rounded-card border border-line-default bg-surface-raised pb-4 shadow-card">
       <div class="flex h-14 items-center px-4 text-card-title text-content-strong">
         General Info
       </div>

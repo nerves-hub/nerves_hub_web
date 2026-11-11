@@ -3,8 +3,8 @@
     <section :if={@invites != []} id="invites" aria-labelledby="invites-title" class="flex flex-col gap-2.5">
       <div class="flex min-h-8 items-center justify-between gap-4">
         <div class="flex items-baseline gap-2">
-          <h2 id="invites-title" class="text-group-title text-content-strong">Waiting to join</h2>
-          <span class="text-[13px] text-content-faint">{length(@invites)}</span>
+          <h2 id="invites-title" class="text-list-title text-content-strong">Waiting to join</h2>
+          <span class="text-ui text-content-faint">{length(@invites)}</span>
         </div>
         <.invite_button org={@org} />
       </div>
@@ -14,9 +14,9 @@
       <div
         :for={invite <- @invites}
         id={"invite-#{invite.id}"}
-        class="flex flex-wrap items-center gap-x-4 gap-y-3 rounded-lg border border-dashed border-line-strong px-4 py-3.5 md:px-5"
+        class="flex flex-wrap items-center gap-x-4 gap-y-3 rounded-card border border-dashed border-line-dashed px-4 py-3.5 md:px-5"
       >
-        <span class="flex size-8 shrink-0 items-center justify-center rounded-full border border-dashed border-line-strong" aria-hidden="true">
+        <span class="flex size-8 shrink-0 items-center justify-center rounded-full border border-dashed border-line-dashed" aria-hidden="true">
           <span class="lucide-mail size-3.5 text-content-muted"></span>
         </span>
         <div class="flex min-w-0 flex-1 basis-56 flex-col gap-0.5">
@@ -57,7 +57,7 @@
             disabled={!can_rescind?}
             title={invite_action_title(can_rescind?, "Withdraw the invitation")}
             data-confirm={"Withdraw the invitation to #{invite.email}?"}
-            class="rounded px-2 py-1 text-xs font-medium text-alert-content hover:cursor-pointer hover:bg-alert-soft disabled:cursor-not-allowed disabled:text-content-faint disabled:hover:bg-transparent"
+            class="flex h-7 items-center rounded px-2.5 text-ui/4 font-medium text-alert-content hover:cursor-pointer hover:bg-alert-soft disabled:cursor-not-allowed disabled:text-content-faint disabled:hover:bg-transparent"
           >
             Rescind
           </button>
@@ -68,8 +68,8 @@
     <section id="members" aria-labelledby="members-title" class="flex flex-col gap-2.5">
       <div class="flex min-h-8 items-center justify-between gap-4">
         <div class="flex items-baseline gap-2">
-          <h2 id="members-title" class="text-group-title text-content-strong">Members</h2>
-          <span class="text-[13px] text-content-faint">{length(@org_users)}</span>
+          <h2 id="members-title" class="text-list-title text-content-strong">Members</h2>
+          <span class="text-ui text-content-faint">{length(@org_users)}</span>
         </div>
         <div class="flex items-center gap-4">
           <p id="members-roles" class="hidden text-xs text-content-muted sm:block">
@@ -82,11 +82,11 @@
       </div>
 
       <% can_update? = authorized?(:"org_user:update", @current_scope) %>
-      <div class="rounded-lg border border-line-default bg-surface-raised shadow-card" role="table" aria-label={"#{@org.name} members"}>
-        <div role="row" class="flex h-9 items-center gap-4 rounded-t-lg border-b border-line-subtle bg-surface px-4 md:px-5">
-          <span role="columnheader" class="flex-1 text-[11px]/3.5 font-medium tracking-[0.06em] text-content-faint uppercase">Name</span>
-          <span role="columnheader" class="w-24 text-[11px]/3.5 font-medium tracking-[0.06em] text-content-faint uppercase md:w-35">Role</span>
-          <span role="columnheader" class="hidden w-35 text-[11px]/3.5 font-medium tracking-[0.06em] text-content-faint uppercase md:block">
+      <div class="rounded-card border border-line-default bg-surface-raised shadow-card" role="table" aria-label={"#{@org.name} members"}>
+        <div role="row" class="flex h-9 items-center gap-4 rounded-t-card border-b border-line-subtle bg-surface px-4 md:px-5">
+          <span role="columnheader" class="flex-1 text-label text-content-faint uppercase">Name</span>
+          <span role="columnheader" class="w-24 text-label text-content-faint uppercase md:w-35">Role</span>
+          <span role="columnheader" class="hidden w-35 text-label text-content-faint uppercase md:block">
             Member since
           </span>
           <span class="w-7" aria-hidden="true"></span>
@@ -118,17 +118,17 @@
                 <select
                   id={"role-#{org_user.user_id}"}
                   name="role"
-                  class="-ml-2 h-7 w-auto rounded border-0 bg-transparent py-0 pr-7 pl-2 text-[13px] text-content-body hover:cursor-pointer hover:bg-surface-muted focus:ring-2 focus:ring-focus-ring"
+                  class="-ml-2 h-7 w-auto rounded border-0 bg-transparent py-0 pr-7 pl-2 text-ui text-content-body hover:cursor-pointer hover:bg-surface-muted focus:ring-2 focus:ring-focus-ring"
                 >
                   {Phoenix.HTML.Form.options_for_select(Utils.role_options(), org_user.role)}
                 </select>
               </form>
             <% else %>
-              <span class="text-[13px] text-content-body">{role_label(org_user.role)}</span>
+              <span class="text-ui text-content-body">{role_label(org_user.role)}</span>
             <% end %>
           </div>
 
-          <div role="cell" class="hidden w-35 shrink-0 text-[13px] text-content-muted md:block">
+          <div role="cell" class="hidden w-35 shrink-0 text-ui text-content-muted md:block">
             {Calendar.strftime(org_user.inserted_at, "%B %Y")}
           </div>
 
@@ -140,7 +140,8 @@
                 phx-click={toggle_menu(org_user.user_id)}
                 aria-haspopup="menu"
                 aria-label={"Actions for #{org_user.user.name}"}
-                class="flex size-7 items-center justify-center rounded text-content-muted hover:cursor-pointer hover:bg-surface-muted hover:text-content-strong"
+                aria-expanded="false"
+                class="flex size-7 items-center justify-center rounded text-content-muted hover:cursor-pointer hover:bg-surface-muted hover:text-content-strong aria-expanded:bg-surface-muted aria-expanded:text-content-strong"
               >
                 <span class="lucide-ellipsis size-4" aria-hidden="true"></span>
               </button>
@@ -151,7 +152,7 @@
                 phx-window-keydown={hide_menu(org_user.user_id)}
                 phx-key="escape"
               >
-                <div role="menu" class="absolute top-8 right-0 z-30 flex w-56 flex-col rounded-md border border-line-default bg-surface-overlay p-1 shadow-overlay">
+                <div role="menu" class="absolute top-8 right-0 z-30 flex w-58 flex-col rounded-md border border-line-default bg-surface-overlay p-1 shadow-overlay">
                   <button
                     type="button"
                     role="menuitem"
@@ -159,10 +160,10 @@
                     phx-click="delete_org_user"
                     phx-value-user_id={org_user.user_id}
                     data-confirm={remove_user_message(org_user, @current_scope)}
-                    class="flex items-center gap-2 rounded px-2 py-1.5 text-left text-sm text-alert-content hover:cursor-pointer hover:bg-alert-soft"
+                    class="flex h-8 items-center gap-2 rounded px-2 text-left text-ui/4 text-alert-content hover:cursor-pointer hover:bg-alert-soft"
                   >
-                    <span :if={you?} class="lucide-log-out size-4" aria-hidden="true"></span>
-                    <span :if={!you?} class="lucide-user-minus size-4" aria-hidden="true"></span>
+                    <span :if={you?} class="lucide-log-out size-3.5" aria-hidden="true"></span>
+                    <span :if={!you?} class="lucide-user-minus size-3.5" aria-hidden="true"></span>
                     {if you?, do: "Leave organization", else: "Remove from organization"}
                   </button>
                 </div>

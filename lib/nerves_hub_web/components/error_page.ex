@@ -241,7 +241,7 @@ defmodule NervesHubWeb.Components.ErrorPage do
   def request_id(assigns) do
     ~H"""
     <span :if={@id}>
-      Request ID <code id="request-id" class="font-mono text-[13px] font-medium break-all text-content-strong">{@id}</code>
+      Request ID <code id="request-id" class="font-mono text-ui font-medium break-all text-content-strong">{@id}</code>
       ·
       <button
         type="button"

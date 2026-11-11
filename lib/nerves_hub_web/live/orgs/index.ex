@@ -240,7 +240,7 @@ defmodule NervesHubWeb.Live.Orgs.Index do
   # online count and meter take the full width under them.
   defp products_table(assigns) do
     ~H"""
-    <div class="overflow-hidden rounded-md border border-line-default bg-surface-raised shadow-card">
+    <div class="overflow-hidden rounded-card border border-line-default bg-surface-raised shadow-card">
       <div :if={@entry.products == []} class="flex items-center justify-between gap-4 p-4">
         <p class="text-sm text-content-muted">No products yet.</p>
         <.button :if={authorized?(:"product:create", @entry.role)} type="link" size="sm" navigate={~p"/org/#{@entry.org}/new"}>
@@ -250,7 +250,7 @@ defmodule NervesHubWeb.Live.Orgs.Index do
       <div :if={@entry.products != []} role="table" aria-label={"#{@entry.org.name} products"}>
         <div
           role="row"
-          class="hidden items-center gap-4 border-b border-line-default bg-surface-muted px-4 py-2.5 text-xs font-medium tracking-wide text-content-muted uppercase md:flex"
+          class="hidden h-9 items-center gap-4 border-b border-line-subtle px-4 text-label text-content-faint uppercase md:flex"
         >
           <span role="columnheader" class="flex-1">Product</span>
           <span role="columnheader" class="w-94">Online</span>
@@ -262,10 +262,10 @@ defmodule NervesHubWeb.Live.Orgs.Index do
           role="row"
           id={"product-#{product.id}"}
           navigate={~p"/org/#{@entry.org}/#{product}/insights"}
-          class="grid grid-cols-[1fr_auto_auto] items-center gap-x-3 gap-y-2.5 border-b border-line-subtle px-4 py-3 transition-colors last:border-0 hover:bg-surface-muted md:flex md:gap-4"
+          class="grid grid-cols-[1fr_auto_auto] items-center gap-x-3 gap-y-2.5 border-b border-line-subtle px-4 py-3 transition-colors last:border-0 hover:bg-surface-muted md:flex md:h-16 md:gap-4 md:py-0"
         >
-          <div role="cell" class="col-start-1 row-start-1 min-w-0 md:flex-1">
-            <p class="truncate text-sm font-medium text-content-strong">{product.name}</p>
+          <div role="cell" class="col-start-1 row-start-1 flex min-w-0 flex-col gap-0.75 md:flex-1">
+            <p class="truncate text-sm/4.5 font-semibold text-content-strong">{product.name}</p>
             <p class="text-xs text-content-muted">{deployment_groups_label(@fleet, product.id) || " "}</p>
           </div>
           <div role="cell" class="col-span-2 col-start-1 row-start-2 md:w-94">
@@ -290,17 +290,24 @@ defmodule NervesHubWeb.Live.Orgs.Index do
 
   attr(:entry, :map, required: true)
 
+  # One joined group, as the single organization's header has: the buttons
+  # share edges, and only the outer corners are rounded.
   defp org_actions(assigns) do
     ~H"""
-    <.button type="link" square navigate={~p"/org/#{@entry.org}/settings/users"} aria-label="Users" title="Users">
-      <span class="lucide-users size-4" aria-hidden="true"></span>
-    </.button>
-    <.button type="link" square navigate={~p"/org/#{@entry.org}/settings/keys"} aria-label="Signing keys" title="Signing keys">
-      <span class="lucide-key-round size-4" aria-hidden="true"></span>
-    </.button>
-    <.button type="link" square navigate={~p"/org/#{@entry.org}/settings"} aria-label="Settings" title="Settings">
-      <span class="lucide-settings size-4" aria-hidden="true"></span>
-    </.button>
+    <nav
+      aria-label={"#{@entry.org.name} settings"}
+      class="flex [&>a]:relative [&>a]:rounded-none [&>a:first-child]:rounded-l [&>a:focus-visible]:z-10 [&>a:hover]:z-10 [&>a:last-child]:rounded-r [&>a:not(:first-child)]:-ml-px"
+    >
+      <.button type="link" square navigate={~p"/org/#{@entry.org}/settings/users"} aria-label="Users" title="Users">
+        <span class="lucide-users" aria-hidden="true"></span>
+      </.button>
+      <.button type="link" square navigate={~p"/org/#{@entry.org}/settings/keys"} aria-label="Signing keys" title="Signing keys">
+        <span class="lucide-key-round" aria-hidden="true"></span>
+      </.button>
+      <.button type="link" square navigate={~p"/org/#{@entry.org}/settings"} aria-label="Settings" title="Settings">
+        <span class="lucide-settings" aria-hidden="true"></span>
+      </.button>
+    </nav>
     """
   end
 end

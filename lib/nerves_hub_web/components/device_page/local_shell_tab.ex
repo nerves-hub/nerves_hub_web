@@ -154,7 +154,7 @@ defmodule NervesHubWeb.Components.DevicePage.LocalShellTab do
                     data-connection-status={Map.get(@device_connection || %{}, :status) || "unknown"}
                     class="data-[connection-status=connected]:bg-status-online data-[connection-status=connecting]:animate-pulse data-[connection-status=connecting]:bg-status-connecting data-[connection-status=disconnected]:bg-status-offline data-[connection-status=unknown]:bg-status-offline"
                   />
-                  <h1 class="font-mono text-page-title text-content-strong">
+                  <h1 class="font-mono text-page-title tracking-normal text-content-strong">
                     System Shell : {@device.identifier}
                   </h1>
                 </div>
@@ -164,7 +164,7 @@ defmodule NervesHubWeb.Components.DevicePage.LocalShellTab do
                   class="hidden cursor-pointer items-center gap-2 rounded-full bg-neutral-900 px-3 py-1.5 text-xs text-neutral-50"
                   title="Send ⌥ (Option) to the device as Meta, for shortcuts such as M-b and M-f. Leave this off to type characters like [ ] { } | on non-US keyboard layouts."
                 >
-                  <input type="checkbox" id="option-as-meta" class="size-3.5 rounded border-line-default text-content-muted checked:bg-primary focus:ring-0" />
+                  <input type="checkbox" id="option-as-meta" class="size-3.5 rounded border-line-strong text-content-muted checked:bg-primary focus:ring-0" />
                   <span>⌥ as Meta</span>
                 </label>
                 <button
