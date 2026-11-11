@@ -247,7 +247,7 @@ defmodule NervesHubWeb.Live.Devices.Show.HealthTabTest do
     |> assert_has("#health-tile-memory", text: "100")
     |> assert_has("#health-tile-memory", text: "MB")
     |> refute_has("#health-tile-memory", text: "%")
-    |> assert_has("#mem_used_mb-chart")
+    |> assert_has("#mem_used_mb-chart", timeout: 100)
   end
 
   test "metrics data is correctly structured for js graphs", %{
@@ -466,6 +466,55 @@ defmodule NervesHubWeb.Live.Devices.Show.HealthTabTest do
     # These two are what the tab used to derive from the metric name.
     for never_an_atom <- [key <> "_chart_data", key <> "_has_chart_data"] do
       assert_raise ArgumentError, fn -> String.to_existing_atom(never_an_atom) end
+    end
+  end
+
+  describe "chart style" do
+    test "draws lines until the user picks scatter, and remembers it", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device,
+      user: user
+    } do
+      assert {:ok, 7} = save_metrics_with_timestamp(device, DateTime.now!("Etc/UTC"))
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}/health")
+      |> assert_has("canvas[data-chart-style=line]", count: length(@charted_keys), timeout: 100)
+      |> assert_has("[aria-label='Chart style'] button[aria-label=Line][aria-pressed=true]")
+      |> click_button("Scatter")
+      |> assert_has("[aria-label='Chart style'] button[aria-label=Scatter][aria-pressed=true]")
+
+      assert Accounts.get_user!(user.id).display_preferences.health_chart_style == :scatter
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}/health")
+      |> assert_has("canvas[data-chart-style=scatter]", count: length(@charted_keys), timeout: 100)
+    end
+  end
+
+  describe "zoom" do
+    test "names the zoomed span and offers to reset it", %{conn: conn, org: org, product: product, device: device} do
+      assert {:ok, 7} = save_metrics_with_timestamp(device, DateTime.now!("Etc/UTC"))
+
+      from = DateTime.add(DateTime.utc_now(), -90, :minute)
+      until = DateTime.add(DateTime.utc_now(), -30, :minute)
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}/health")
+      |> assert_has("#health-history", text: "Drag across a chart to zoom")
+      |> refute_has("button", text: "Reset zoom")
+      |> unwrap(fn view ->
+        render_hook(view, "charts-zoomed", %{
+          "from" => DateTime.to_unix(from, :millisecond),
+          "until" => DateTime.to_unix(until, :millisecond)
+        })
+      end)
+      |> refute_has("#health-history", text: "Drag across a chart to zoom")
+      |> click_button("Reset zoom")
+      |> refute_has("button", text: "Reset zoom")
+      |> assert_has("#health-history", text: "Drag across a chart to zoom")
     end
   end
 

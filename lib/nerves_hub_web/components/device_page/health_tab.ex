@@ -3,7 +3,10 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
 
   import Number.Delimit, only: [number_to_delimited: 2]
 
+  alias NervesHub.Accounts
+  alias NervesHub.Accounts.User.DisplayPreferences
   alias NervesHub.Devices.Alarms
+  alias NervesHub.Devices.Connections
   alias NervesHub.Devices.Metrics
   alias NervesHub.Helpers.RelativeTime
   alias NervesHub.Products
@@ -94,7 +97,10 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
     |> assign(:editing_label_key, nil)
     |> assign(:chart_data, %{})
     |> assign(:has_chart_data, %{})
+    |> assign(:offline_periods, [])
+    |> assign(:zoom, nil)
     |> async_assign_charts()
+    |> load_offline_periods()
     |> cont()
   end
 
@@ -112,7 +118,9 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
       :custom_health_labels,
       :editing_label_key,
       :health_profile,
-      :health_alarms
+      :health_alarms,
+      :offline_periods,
+      :zoom
     ]
   end
 
@@ -135,17 +143,9 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
   end
 
   def hooked_async("update_chart:" <> key, {:ok, results}, socket) do
-    {from, until} = fetch_from_and_until(socket)
-
     socket
     |> put_has_chart_data(key, Enum.any?(results))
-    |> push_event("update-charts", %{
-      key: key,
-      data: results,
-      from: from,
-      until: until,
-      unit: get_time_unit(socket.assigns.time_frame)
-    })
+    |> push_event("update-charts", Map.merge(%{key: key, data: results}, time_frame_bounds(socket)))
     |> halt()
   end
 
@@ -159,6 +159,24 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
     halt(socket)
   end
 
+  def hooked_async("load_offline", {:ok, periods}, socket) do
+    socket
+    |> assign(:offline_periods, periods)
+    |> push_event("offline-periods", %{periods: periods})
+    |> halt()
+  end
+
+  # The charts are still worth showing without the offline spans.
+  def hooked_async("load_offline", {:exit, reason}, socket) do
+    _ =
+      Sentry.capture_message("Unexpected error when loading device offline periods",
+        extra: %{device_id: socket.assigns.device.id, reason: reason},
+        result: :none
+      )
+
+    halt(socket)
+  end
+
   def hooked_async(_name, _async_fun_result, socket), do: {:cont, socket}
 
   def hooked_event("set-time-frame", %{"unit" => unit, "amount" => amount}, socket) do
@@ -166,9 +184,48 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
 
     socket
     |> assign(:time_frame, {validate_time_unit(unit), parsed_amount})
+    |> assign(:zoom, nil)
     |> update_from_and_until_timestamps()
     |> update_charts()
+    |> load_offline_periods()
     |> halt()
+  end
+
+  # Sent by the chart hook when a drag across a chart zooms them all, as unix
+  # milliseconds, so the header can name the span and offer to undo it.
+  def hooked_event("charts-zoomed", %{"from" => from, "until" => until}, socket)
+      when is_number(from) and is_number(until) do
+    zoom = {DateTime.from_unix!(round(from), :millisecond), DateTime.from_unix!(round(until), :millisecond)}
+
+    socket
+    |> assign(:zoom, zoom)
+    |> halt()
+  end
+
+  def hooked_event("reset-zoom", _params, socket) do
+    socket
+    |> assign(:zoom, nil)
+    |> update_from_and_until_timestamps()
+    |> push_time_frame()
+    |> halt()
+  end
+
+  def hooked_event("set-chart-style", %{"style" => style}, socket) do
+    %{user: user, current_scope: scope} = socket.assigns
+
+    case Accounts.update_user_health_chart_style(user, style) do
+      {:ok, user} ->
+        socket
+        |> assign(:user, user)
+        |> assign(:current_scope, %{scope | user: user})
+        |> push_event("chart-style", %{style: DisplayPreferences.health_chart_style(user.display_preferences)})
+        |> halt()
+
+      {:error, _changeset} ->
+        socket
+        |> put_flash(:error, "Your chart style couldn't be saved. Please reload the page and try again.")
+        |> halt()
+    end
   end
 
   def hooked_event("edit-health-label", %{"key" => key}, socket) do
@@ -215,7 +272,7 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
       |> assign(:latest_metrics, latest_metrics)
       |> assign_metadata()
 
-    {from, until} = fetch_from_and_until(socket)
+    bounds = time_frame_bounds(socket)
 
     # No charts yet, so this report is what creates them.
     if Enum.empty?(chart_keys) do
@@ -230,7 +287,7 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
         }
 
         socket
-        |> push_event("add-data-point", %{key: key, data: data, from: from, until: until})
+        |> push_event("add-data-point", Map.merge(%{key: key, data: data}, bounds))
         |> put_has_chart_data(key, true)
       end)
     end
@@ -248,10 +305,8 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
     socket
     |> schedule_tick()
     |> update_from_and_until_timestamps()
-    |> then(fn socket ->
-      {from, until} = fetch_from_and_until(socket)
-      push_event(socket, "update-time-frame", %{from: from, until: until})
-    end)
+    |> push_time_frame()
+    |> load_offline_periods()
     |> halt()
   end
 
@@ -326,10 +381,28 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
         <div class="flex min-h-13 flex-wrap items-center justify-between gap-x-3.5 gap-y-2 px-4 py-2.5 sm:py-0">
           <div class="flex items-baseline gap-2.5">
             <h2 class="text-sm/4.5 font-semibold text-content-strong">History</h2>
-            <span class="text-xs text-content-faint">{time_range(@charts_from_timestamp, @charts_until_timestamp, @time_zone)}</span>
+            <span :if={!@zoom} class="text-xs text-content-faint">{time_range(@charts_from_timestamp, @charts_until_timestamp, @time_zone)}</span>
+            <span :if={@zoom} class="text-xs text-content-faint">{time_range(elem(@zoom, 0), elem(@zoom, 1), @time_zone)}</span>
           </div>
           <div class="flex items-center gap-3.5">
-            <span :if={@analytics_enabled} class="hidden text-xs text-content-faint md:inline">Drag across a chart to zoom</span>
+            <span :if={@analytics_enabled && !@zoom} class="hidden text-xs text-content-faint md:inline">Drag across a chart to zoom</span>
+            <.button :if={@zoom} type="button" size="sm" phx-click="reset-zoom">
+              <span class="lucide-zoom-out text-content-muted" aria-hidden="true"></span> Reset zoom
+            </.button>
+            <div role="group" aria-label="Chart style" class="flex h-7 overflow-clip rounded border border-line-default">
+              <button
+                :for={{style, icon, label} <- [{:line, "lucide-chart-spline", "Line"}, {:scatter, "lucide-chart-scatter", "Scatter"}]}
+                type="button"
+                phx-click="set-chart-style"
+                phx-value-style={style}
+                aria-pressed={to_string(style == DisplayPreferences.health_chart_style(@user.display_preferences))}
+                aria-label={label}
+                title={label}
+                class="flex w-7.5 cursor-pointer items-center justify-center border-l border-line-default text-content-muted first:border-l-0 hover:text-content-strong aria-pressed:bg-surface-muted aria-pressed:text-content-strong"
+              >
+                <span class={[icon, "size-3.5"]} aria-hidden="true"></span>
+              </button>
+            </div>
             <div role="group" aria-label="Time frame" class="flex h-7 overflow-clip rounded border border-line-default">
               <button
                 :for={{unit, amount} <- @time_frame_opts}
@@ -414,6 +487,8 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
                   data-mintime={Jason.encode!(@charts_from_timestamp)}
                   data-maxtime={Jason.encode!(@charts_until_timestamp)}
                   data-time-unit={get_time_unit(@time_frame)}
+                  data-offline={Jason.encode!(@offline_periods)}
+                  data-chart-style={DisplayPreferences.health_chart_style(@user.display_preferences)}
                 ></canvas>
                 <div :if={!@has_chart_data[key] && Enum.empty?(chart_data)} class="absolute inset-0 flex items-center justify-center bg-surface-raised/80 px-6 text-center">
                   <span :if={@analytics_enabled} class="text-xs text-content-faint">No metrics for {key} found for the selected period.</span>
@@ -558,6 +633,21 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
     end)
   end
 
+  # When the device had no connection over the time frame, as
+  # `[[from, until]]` in unix milliseconds, for the charts to shade. Connection
+  # history lives in ClickHouse, so there's nothing to shade without it.
+  defp load_offline_periods(%{assigns: %{analytics_enabled: false}} = socket), do: socket
+
+  defp load_offline_periods(socket) do
+    %{device: device, charts_from_timestamp: from, charts_until_timestamp: until} = socket.assigns
+
+    start_async(socket, "load_offline", fn ->
+      for {from, until} <- Connections.offline_periods(device, from, until) do
+        [DateTime.to_unix(from, :millisecond), DateTime.to_unix(until, :millisecond)]
+      end
+    end)
+  end
+
   defp async_assign_charts(socket) do
     device = socket.assigns.device
     time_frame = socket.assigns.time_frame
@@ -599,13 +689,22 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
     assign(socket, :metadata, Map.drop(metadata, standard_keys(device)))
   end
 
-  defp fetch_from_and_until(socket) do
-    {unit, amount} = socket.assigns.time_frame
+  # Moves the charts along to the time frame's current bounds.
+  defp push_time_frame(socket), do: push_event(socket, "update-time-frame", time_frame_bounds(socket))
 
-    from = DateTime.add(DateTime.utc_now(), -amount, String.to_existing_atom(unit))
-    until = DateTime.utc_now()
+  # The bounds the charts are sent with each update, as unix milliseconds.
+  # None while they're zoomed, so they stay where the user put them until they
+  # reset the zoom.
+  defp time_frame_bounds(%{assigns: %{zoom: {_from, _until}}}), do: %{}
 
-    {from, until}
+  defp time_frame_bounds(socket) do
+    %{charts_from_timestamp: from, charts_until_timestamp: until, time_frame: time_frame} = socket.assigns
+
+    %{
+      from: DateTime.to_unix(from, :millisecond),
+      until: DateTime.to_unix(until, :millisecond),
+      unit: get_time_unit(time_frame)
+    }
   end
 
   defp standard_keys(%{firmware_metadata: nil}), do: []

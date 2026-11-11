@@ -4,8 +4,10 @@ import { format } from "date-fns"
 import { whenFontsLoaded } from "../helpers/fonts.js"
 
 // A metric's history on the device Health tab: one line over the selected
-// time frame, with the device's health profile thresholds drawn across it as
-// dashed lines and the area past the warning threshold tinted. Hovering puts a
+// time frame, or separate readings if the user picked scatter, with the
+// device's health profile thresholds drawn across it as dashed lines and the
+// area past the warning threshold tinted. Spans when the device had no
+// connection are shaded, and the line breaks across them. Hovering puts a
 // crosshair on the nearest reading; dragging across a chart zooms every chart
 // on the tab to that span.
 //
@@ -17,6 +19,8 @@ import { whenFontsLoaded } from "../helpers/fonts.js"
 //   data-value-unit   "%", "°C", "MB" or empty, for the axis and tooltip
 //   data-mintime / data-maxtime   the time frame's bounds
 //   data-time-unit    "minute", "hour" or "day", for the axis ticks
+//   data-offline      when the device had no connection, as [[from, until]] in unix ms
+//   data-chart-style  "line" or "scatter"
 
 Chart.register(zoomPlugin)
 
@@ -94,6 +98,7 @@ function palette() {
     warningContent: token("--color-warning-content"),
     alert: token("--color-alert"),
     alertContent: token("--color-alert-content"),
+    offline: token("--color-content-muted"),
   }
 }
 
@@ -109,6 +114,63 @@ function axisLabel(value, unit) {
   if (unit === "%") return `${value}%`
   if (unit === "°C") return `${value}°`
   return `${value}`
+}
+
+// Each chart's offline spans, by canvas. Kept out of chart.js's options, whose
+// resolver can't iterate an array of arrays.
+const offlinePeriods = new WeakMap()
+
+const periodsFor = (chart) => offlinePeriods.get(chart.canvas) || []
+
+// Whether the device was offline at some point between two readings, so the
+// line between them would draw over a time it reported nothing.
+function offlineBetween(periods, from, to) {
+  return periods.some(([start, stop]) => start < to && stop > from)
+}
+
+// Shades the spans when the device had no connection, under everything else,
+// naming each one along the bottom where it's wide enough to fit.
+const offlinePlugin = {
+  id: "healthOffline",
+
+  beforeDatasetsDraw(chart, _args, options) {
+    const periods = periodsFor(chart)
+    if (periods.length === 0) return
+
+    const { colors } = options
+
+    const { ctx, chartArea: area, scales } = chart
+    const x = scales.x
+
+    ctx.save()
+    ctx.beginPath()
+    ctx.rect(area.left, area.top, area.right - area.left, area.bottom - area.top)
+    ctx.clip()
+
+    for (const [from, until] of periods) {
+      if (until < x.min || from > x.max) continue
+
+      const left = Math.max(x.getPixelForValue(from), area.left)
+      const right = Math.min(x.getPixelForValue(until), area.right)
+      const width = right - left
+      if (width <= 0) continue
+
+      ctx.globalAlpha = 0.08
+      ctx.fillStyle = colors.offline
+      ctx.fillRect(left, area.top, width, area.bottom - area.top)
+      ctx.globalAlpha = 1
+
+      if (width >= 44) {
+        ctx.font = `500 10px ${FONT_FAMILY}`
+        ctx.fillStyle = colors.tick
+        ctx.textAlign = "center"
+        ctx.textBaseline = "alphabetic"
+        ctx.fillText("Offline", left + width / 2, area.bottom - 6)
+      }
+    }
+
+    ctx.restore()
+  },
 }
 
 // Draws the thresholds behind the line: the tint past the warning threshold,
@@ -190,32 +252,45 @@ const crosshairPlugin = {
   },
 }
 
-function config({ metrics, thresholds, max, unit, timeUnit, minTime, maxTime, colors }) {
+// A line hides its points unless there are few enough to read as dots; a
+// scatter is only its points.
+function applyStyle(dataset, style) {
+  const scatter = style === "scatter"
+
+  dataset.showLine = !scatter
+  dataset.pointRadius = scatter ? 2 : (ctx) => (ctx.dataset.data.length < 40 ? 2 : 0)
+}
+
+function config({ metrics, thresholds, max, unit, timeUnit, minTime, maxTime, style, colors }) {
+  const dataset = {
+    data: metrics,
+    parsing: false,
+    borderColor: colors.line,
+    borderWidth: 2,
+    borderCapStyle: "round",
+    borderJoinStyle: "round",
+    tension: 0,
+    // A missed report or two is bridged; a time the device was offline isn't.
+    spanGaps: true,
+    segment: {
+      borderColor: (ctx) =>
+        offlineBetween(periodsFor(ctx.chart), ctx.p0.parsed.x, ctx.p1.parsed.x)
+          ? "transparent"
+          : undefined,
+    },
+    pointBackgroundColor: colors.line,
+    pointBorderWidth: 0,
+    pointHoverRadius: 4,
+    pointHoverBorderWidth: 2,
+    pointHoverBackgroundColor: colors.line,
+    pointHoverBorderColor: colors.surface,
+  }
+
+  applyStyle(dataset, style)
+
   return {
     type: "line",
-    data: {
-      datasets: [
-        {
-          data: metrics,
-          parsing: false,
-          borderColor: colors.line,
-          borderWidth: 2,
-          borderCapStyle: "round",
-          borderJoinStyle: "round",
-          tension: 0,
-          spanGaps: true,
-          // A sparse history, such as an idle device's one report an hour,
-          // reads as dots rather than a line that seems to say more.
-          pointRadius: (ctx) => (ctx.dataset.data.length < 40 ? 2 : 0),
-          pointBackgroundColor: colors.line,
-          pointBorderWidth: 0,
-          pointHoverRadius: 4,
-          pointHoverBorderWidth: 2,
-          pointHoverBackgroundColor: colors.line,
-          pointHoverBorderColor: colors.surface,
-        },
-      ],
-    },
+    data: { datasets: [dataset] },
     options: {
       responsive: true,
       maintainAspectRatio: false,
@@ -225,6 +300,7 @@ function config({ metrics, thresholds, max, unit, timeUnit, minTime, maxTime, co
       plugins: {
         title: { display: false },
         legend: { display: false },
+        healthOffline: { colors },
         healthThresholds: { thresholds, colors, unit },
         healthCrosshair: { color: colors.crosshair },
         tooltip: {
@@ -256,7 +332,7 @@ function config({ metrics, thresholds, max, unit, timeUnit, minTime, maxTime, co
             // Every chart on the tab follows the one that was zoomed.
             onZoomComplete: ({ chart }) => {
               const { min, max } = chart.scales.x
-              window.dispatchEvent(new CustomEvent("chartZoomed", { detail: { min, max } }))
+              window.dispatchEvent(new CustomEvent("chartZoomed", { detail: { min, max, source: chart.canvas.id } }))
             },
           },
         },
@@ -305,7 +381,11 @@ function config({ metrics, thresholds, max, unit, timeUnit, minTime, maxTime, co
   }
 }
 
+// Moves the chart to the time frame's bounds. The server sends none while the
+// charts are zoomed, so a new reading doesn't undo the zoom.
 function setTimeFrame(chart, { from, until, unit }) {
+  if (from === undefined) return
+
   const x = chart.options.scales.x
   x.min = from
   x.max = until
@@ -330,12 +410,15 @@ export default {
       timeUnit: this.el.dataset.timeUnit,
       minTime: JSON.parse(this.el.dataset.mintime),
       maxTime: JSON.parse(this.el.dataset.maxtime),
+      style: this.el.dataset.chartStyle || "line",
     }
+
+    offlinePeriods.set(this.el, JSON.parse(this.el.dataset.offline || "[]"))
 
     const build = (chartOptions) =>
       new Chart(this.el, {
         ...config({ ...chartOptions, colors: palette() }),
-        plugins: [thresholdsPlugin, crosshairPlugin],
+        plugins: [offlinePlugin, thresholdsPlugin, crosshairPlugin],
       })
 
     whenFontsLoaded([FONT], () => {
@@ -367,6 +450,19 @@ export default {
       this.chart.update()
     })
 
+    this.handleEvent("offline-periods", ({ periods }) => {
+      offlinePeriods.set(this.el, periods)
+      this.chart?.update()
+    })
+
+    this.handleEvent("chart-style", ({ style }) => {
+      options.style = style
+      if (!this.chart) return
+
+      applyStyle(this.chart.data.datasets[0], style)
+      this.chart.update()
+    })
+
     // Every colour comes from the theme, so a theme change draws the chart
     // afresh, keeping its readings and the span it shows.
     this.onThemeUpdated = () => {
@@ -383,8 +479,10 @@ export default {
     }
 
     // A zoom shows its span with ticks chart.js picks, rather than the time
-    // frame's.
+    // frame's. The chart that was zoomed tells the server, which names the
+    // span and offers to reset it.
     this.onZoomed = ({ detail }) => {
+      if (detail.source === this.el.id) this.pushEvent("charts-zoomed", { from: detail.min, until: detail.max })
       if (!this.chart) return
 
       const x = this.chart.options.scales.x

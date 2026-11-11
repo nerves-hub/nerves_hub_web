@@ -109,4 +109,17 @@ defmodule NervesHub.Accounts.User.DisplayPreferencesTest do
       refute changeset.valid?
     end
   end
+
+  describe "health chart style" do
+    test "is a line until the user picks scatter" do
+      assert DisplayPreferences.health_chart_style(%DisplayPreferences{}) == :line
+      assert DisplayPreferences.health_chart_style(nil) == :line
+      assert DisplayPreferences.health_chart_style(%DisplayPreferences{health_chart_style: :scatter}) == :scatter
+    end
+
+    test "only takes a style the Health tab draws" do
+      assert DisplayPreferences.changeset(%DisplayPreferences{}, %{health_chart_style: "scatter"}).valid?
+      refute DisplayPreferences.changeset(%DisplayPreferences{}, %{health_chart_style: "bar"}).valid?
+    end
+  end
 end
