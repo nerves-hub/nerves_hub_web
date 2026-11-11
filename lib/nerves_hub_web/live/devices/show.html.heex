@@ -8,171 +8,39 @@
       <:crumb class="hidden lg:block">{@device.identifier}</:crumb>
     </.breadcrumb>
 
-    <div class="mr-6 ml-auto flex items-center gap-2">
-      <div id="present-users" phx-update="stream" class="mr-3 flex h-8 flex-row-reverse -space-x-1 space-x-reverse overflow-hidden border-r border-line-default px-5">
+    <div class="mr-6 ml-auto flex items-center">
+      <div id="present-users" phx-update="stream" class="flex h-7 flex-row-reverse -space-x-1 space-x-reverse">
         <.tooltip :for={{id, %{user: user}} <- @streams.presences} id={id} class="z-10 inline-flex cursor-default items-center justify-center">
-          <span :if={!@user.profile_picture_url} class="inline-flex size-7 items-center justify-center rounded-full bg-base-800 px-1 text-sm font-medium text-content-muted ring-2 ring-line-strong">
+          <span :if={!@user.profile_picture_url} class="inline-flex size-7 items-center justify-center rounded-full bg-base-800 px-1 text-sm font-medium text-content-muted ring-2 ring-surface-muted">
             {String.split(user.name) |> Enum.map(fn w -> String.at(w, 0) |> String.upcase() end)}
           </span>
-          <img :if={@user.profile_picture_url} src={@user.profile_picture_url} alt="User Profile Picture" class="size-full rounded-full object-cover" />
+          <img :if={@user.profile_picture_url} src={@user.profile_picture_url} alt="User Profile Picture" class="size-7 rounded-full object-cover ring-2 ring-surface-muted" />
           <:content>
             {user.name}
           </:content>
         </.tooltip>
       </div>
-      <.button :if={@pinned?} square aria-label="Unpin device" style="primary" phx-click="unpin">
-        <.icon name="pinned" />
-      </.button>
-      <.button :if={!@pinned?} square aria-label="Pin device" style="secondary" phx-click="pin">
-        <.icon name="unpinned" />
-      </.button>
-      <.button aria-label="Reboot device" style="secondary" phx-click="reboot" data-confirm="Are you sure you want to reboot the device?" disabled={disconnected?(@device_connection)}>
-        <.icon name="power" />Reboot
-      </.button>
-
-      <.button aria-label="Reconnect device" style="secondary" phx-click="reconnect" disabled={disconnected?(@device_connection)}>
-        <.icon name="connection" />Reconnect
-      </.button>
-
-      <.button aria-label="Identify device" style="secondary" phx-click="identify" disabled={disconnected?(@device_connection)}>
-        <.icon name="identify" />Identify
-      </.button>
     </div>
   </:top_bar>
 
-  <:big_header>
+  <div class="relative shrink-0">
     <UpdateProgress.render :if={@firmware_update_stage} stage={@firmware_update_stage} progress={@firmware_update_progress} />
 
-    <div class="group/identifier flex shrink-0 items-center gap-3">
-      <.status_dot
-        data-connection-status={Map.get(@device_connection || %{}, :status) || "unknown"}
-        class="data-[connection-status=connected]:bg-status-online data-[connection-status=connecting]:animate-pulse data-[connection-status=connecting]:bg-status-connecting data-[connection-status=disconnected]:bg-status-offline data-[connection-status=unknown]:bg-status-offline"
-      />
-      <h1 class="shrink-0 font-mono text-page-title tracking-normal text-content-strong">
-        {@device.identifier}
-      </h1>
-      <button
-        id="copy-device-identifier"
-        type="button"
-        phx-hook="CopyToClipboard"
-        data-copy-value={@device.identifier}
-        aria-label="Copy device identifier"
-        title="Copy device identifier"
-        class="shrink-0 cursor-pointer text-content-faint opacity-0 transition-opacity group-hover/identifier:opacity-100 hover:text-base-200 focus-visible:opacity-100"
-      >
-        <span data-icon="copy" class="lucide-copy size-4"></span>
-        <span data-icon="check" class="lucide-check hidden size-4 text-success"></span>
-      </button>
-    </div>
+    <Header.render
+      device={@device}
+      device_connection={@device_connection}
+      org={@org}
+      product={@product}
+      current_scope={@current_scope}
+      pinned?={@pinned?}
+      time_zone={@time_zone}
+      firmware_update_stage={@firmware_update_stage}
+      firmware_update_progress={@firmware_update_progress}
+      inflight_version={@inflight_version}
+    />
+  </div>
 
-    <div class="flex items-center gap-2">
-      <div :if={show_firmware_status_box(@device)} class="flex items-center rounded bg-base-800 px-2 py-1">
-        <span class="mr-1 hidden text-sm text-content-muted lg:block">Firmware:</span>
-
-        <span :if={@device.firmware_validation_status == :validated && !@device.firmware_auto_revert_detected} class="font-mono text-sm text-content-body">Validated</span>
-
-        <span :if={@device.firmware_validation_status == :not_validated} class="font-mono text-sm text-alert-content">Not validated</span>
-
-        <span :if={@device.firmware_auto_revert_detected} class="font-mono text-sm text-alert-content">Revert detected</span>
-      </div>
-
-      <div class="flex items-center rounded bg-base-800 px-2 py-1">
-        <span class="mr-1 hidden text-sm text-content-muted lg:block">Version:</span>
-
-        <span :if={is_nil(@device.firmware_metadata)} class="font-mono text-sm text-content-body">Unknown</span>
-
-        <.link :if={@device.firmware_metadata} navigate={~p"/org/#{@org}/#{@product}/firmware/#{@device.firmware_metadata.uuid}"} class="flex items-center">
-          <span class="mr-1 font-mono text-sm text-content-body">{@device.firmware_metadata.version} ({String.slice(@device.firmware_metadata.uuid, 0..7)})</span>
-          <span class="lucide-info size-4 text-content-muted" aria-hidden="true"></span>
-        </.link>
-      </div>
-
-      <div class="flex items-center rounded bg-base-800 px-2 py-1">
-        <span class="hidden text-sm text-content-muted lg:block">Firmware updates:</span>
-        <%= cond do %>
-          <% is_nil(@device.deployment_id) -> %>
-            <span class="mr-1 ml-2 text-sm text-content-body">N/A</span>
-          <% Updates.device_in_penalty_box?(@device) -> %>
-            <.tooltip id={"update-status-#{@device.id}"} placement="left">
-              <span class="mx-2 lucide-shield-exclamation-point size-4 text-warning" aria-hidden="true"></span>
-              <:content>
-                Updates blocked {DeviceUpdateStatus.friendly_blocked_until(@device.updates_blocked_until, @time_zone)}
-              </:content>
-            </.tooltip>
-
-            <%!-- Dismissing the penalty box is a one-way action, not a state to
-                 switch between, so it reads as a button rather than a toggle. --%>
-            <button
-              type="button"
-              phx-click="clear-penalty-box"
-              aria-label="Clear the penalty box"
-              disabled={!authorized?(:"device:clear-penalty-box", @current_scope)}
-              class="flex items-center rounded p-1 text-content-muted hover:bg-primary/20 hover:text-content-strong disabled:pointer-events-none disabled:opacity-60"
-            >
-              <span class="lucide-x size-4" />
-            </button>
-          <% true -> %>
-            <div class="relative ml-2">
-              <button
-                type="button"
-                id="update-mode-toggle"
-                phx-click={toggle_update_mode_menu()}
-                aria-haspopup="menu"
-                aria-label={"Firmware updates: #{update_mode_label(@device.update_mode)}"}
-                disabled={!authorized?(:"device:toggle-updates", @current_scope)}
-                class="flex items-center gap-1 rounded p-1 hover:bg-primary/20 disabled:pointer-events-none disabled:opacity-60"
-              >
-                <span class={[update_mode_icon(@device.update_mode), update_mode_color(@device.update_mode), "size-4"]} />
-                <span class="lucide-chevron-down--bold size-3 text-content-muted" />
-              </button>
-
-              <div
-                id="update-mode-menu-container"
-                class="hidden"
-                phx-click-away={hide_update_mode_menu()}
-                phx-window-keydown={hide_update_mode_menu()}
-                phx-key="escape"
-              >
-                <div
-                  id="update-mode-menu"
-                  role="menu"
-                  class="absolute top-9 right-0 z-30 flex w-80 flex-col rounded-md border border-line-default bg-surface-overlay p-2 shadow-overlay"
-                >
-                  <button
-                    :for={{mode, label, description} <- update_modes()}
-                    type="button"
-                    role="menuitem"
-                    phx-click={JS.push("set-update-mode", value: %{mode: mode}) |> hide_update_mode_menu()}
-                    class="flex items-start gap-2.5 rounded p-2 text-left hover:bg-primary/20"
-                  >
-                    <span class={[update_mode_icon(mode), update_mode_color(mode), "mt-0.5 size-5 shrink-0"]} />
-                    <span class="flex flex-col gap-0.5">
-                      <span class="flex items-center gap-1.5 text-sm font-medium text-content-strong">
-                        {label}
-                        <span :if={@device.update_mode == mode} class="lucide-check size-4 text-primary" />
-                      </span>
-                      <span class="text-xs/snug text-content-muted">{description}</span>
-                    </span>
-                  </button>
-                </div>
-              </div>
-            </div>
-        <% end %>
-      </div>
-    </div>
-  </:big_header>
-
-  <:tabbed_nav path={~p"/org/#{@org}/#{@product}/devices/#{@device}"} selected={@tab == :details} label="Details" />
-  <:tabbed_nav path={~p"/org/#{@org}/#{@product}/devices/#{@device}/health"} selected={@tab == :health} label="Health" />
-  <:tabbed_nav path={~p"/org/#{@org}/#{@product}/devices/#{@device}/firmware_history"} selected={@tab == :firmware_history} label="Firmware History" />
-  <:tabbed_nav path={~p"/org/#{@org}/#{@product}/devices/#{@device}/console"} selected={@tab == :console} label="Console" />
-  <:tabbed_nav path={~p"/org/#{@org}/#{@product}/devices/#{@device}/local_shell"} selected={@tab == :local_shell} label="System Shell" />
-  <:tabbed_nav path={~p"/org/#{@org}/#{@product}/devices/#{@device}/logs"} selected={@tab == :logs} label="Logs" />
-  <:tabbed_nav path={~p"/org/#{@org}/#{@product}/devices/#{@device}/errors"} selected={@tab == :errors} label="Errors" />
-  <:tabbed_nav path={~p"/org/#{@org}/#{@product}/devices/#{@device}/activity"} selected={@tab == :activity} label="Activity" />
-  <:tabbed_nav path={~p"/org/#{@org}/#{@product}/devices/#{@device}/settings"} selected={@tab == :settings} label="Settings" />
-
-  <:tabbed_nav_end path={~p"/org/#{@org}/#{@product}/devices/#{@device}/data_history"} selected={@tab == :data_history} label="Data History" />
+  <Header.tabs tabs={device_tabs(assigns)} end_tabs={device_end_tabs(assigns)} selected={@tab} />
 
   <div class="flex h-0 flex-1 flex-col overflow-y-auto">
     <div :if={@device.deleted_at} class="flex h-[89px] shrink-0 items-center justify-center bg-alert-soft p-4">

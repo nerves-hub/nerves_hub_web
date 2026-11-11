@@ -26,7 +26,7 @@ defmodule NervesHubWeb.Components.DeviceNetworkIdentities do
   def render(%{identities: [], enabled_product: false} = assigns) do
     ~H"""
     <.frame>
-      <div class="flex items-center gap-2 px-4 pt-2 pb-4 text-content-faint">
+      <div class="flex items-center gap-2 px-4 pb-4 text-ui/4.5 text-content-muted">
         External identity reporting is not enabled for your product.
       </div>
     </.frame>
@@ -36,7 +36,7 @@ defmodule NervesHubWeb.Components.DeviceNetworkIdentities do
   def render(%{identities: [], enabled_device: false} = assigns) do
     ~H"""
     <.frame>
-      <div class="flex items-center gap-2 px-4 pt-2 pb-4 text-content-faint">
+      <div class="flex items-center gap-2 px-4 pb-4 text-ui/4.5 text-content-muted">
         External identity reporting is not enabled for this device.
       </div>
     </.frame>
@@ -46,7 +46,7 @@ defmodule NervesHubWeb.Components.DeviceNetworkIdentities do
   def render(%{identities: []} = assigns) do
     ~H"""
     <.frame>
-      <div class="flex items-center gap-2 px-4 pt-2 pb-4 text-content-faint">
+      <div class="flex items-center gap-2 px-4 pb-4 text-ui/4.5 text-content-muted">
         This device hasn't reported any network identities.
       </div>
     </.frame>
@@ -61,7 +61,7 @@ defmodule NervesHubWeb.Components.DeviceNetworkIdentities do
         preload, whose ordering isn't guaranteed. --%>
         <div :for={identity <- Enum.sort_by(@identities, &{&1.service, &1.instance})} class="flex flex-col gap-1.5">
           <div class="flex items-center gap-2">
-            <span class="text-sm font-medium text-content-body">{service_name(identity.service)}</span>
+            <span class="text-ui font-medium text-content-strong">{service_name(identity.service)}</span>
             <%!-- Only worth naming when a device runs more than one endpoint of
             a service; saying "default" on every row is noise. --%>
             <.tag :if={named_instance?(identity)} mono>
@@ -85,8 +85,8 @@ defmodule NervesHubWeb.Components.DeviceNetworkIdentities do
             value={value}
           />
 
-          <div :if={identity.last_reported_at} class="text-xs tracking-wide text-content-faint">
-            <span>Last reported: </span>
+          <div :if={identity.last_reported_at} class="text-xs text-content-faint">
+            <span>Last reported </span>
             <time
               id={"external-identity-#{identity.id}-reported-at"}
               phx-hook="UpdatingTimeAgo"
@@ -105,8 +105,8 @@ defmodule NervesHubWeb.Components.DeviceNetworkIdentities do
 
   defp frame(assigns) do
     ~H"""
-    <div class="flex h-14 items-center px-4 text-card-title text-content-strong">
-      Network Identities
+    <div class="flex h-12 items-center px-4">
+      <h2 class="text-sm/4.5 font-semibold text-content-strong">Network identities</h2>
     </div>
     {render_slot(@inner_block)}
     """
@@ -124,11 +124,11 @@ defmodule NervesHubWeb.Components.DeviceNetworkIdentities do
     <div class="group/identity flex w-full min-w-0 items-center gap-1.5">
       <.tooltip id={@id} placement="top" class="flex min-w-0" content_class="max-w-md" enabled={long_value?(@value)}>
         <div class="flex min-w-0 items-stretch overflow-hidden rounded border border-line-default text-xs">
-          <span class="shrink-0 bg-base-700 px-2 py-0.5 tracking-wide text-content-body">{@label}</span>
-          <span class="min-w-0 truncate bg-base-800 px-2 py-0.5 font-mono text-base-200">{@value}</span>
+          <span class="shrink-0 border-r border-line-default bg-surface-muted px-2 py-0.5 text-content-muted">{@label}</span>
+          <span class="min-w-0 truncate bg-surface-raised px-2 py-0.5 font-mono text-content-strong">{@value}</span>
         </div>
         <:content>
-          <span class="font-mono text-xs break-all text-base-200">{@value}</span>
+          <span class="font-mono text-xs break-all">{@value}</span>
         </:content>
       </.tooltip>
       <button
@@ -138,10 +138,10 @@ defmodule NervesHubWeb.Components.DeviceNetworkIdentities do
         data-copy-value={@value}
         aria-label={"Copy #{@label}"}
         title="Copy value"
-        class="shrink-0 cursor-pointer text-content-faint opacity-0 transition-opacity group-hover/identity:opacity-100 hover:text-base-200 focus:opacity-100"
+        class="shrink-0 cursor-pointer text-content-faint opacity-0 transition-opacity group-hover/identity:opacity-100 hover:text-content-strong focus:opacity-100"
       >
-        <span data-icon="copy" class="lucide-copy size-4"></span>
-        <span data-icon="check" class="lucide-check hidden size-4 text-success"></span>
+        <span data-icon="copy" class="lucide-copy size-3.5"></span>
+        <span data-icon="check" class="lucide-check hidden size-3.5 text-success"></span>
       </button>
     </div>
     """

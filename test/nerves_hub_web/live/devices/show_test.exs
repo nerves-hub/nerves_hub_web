@@ -100,11 +100,11 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       # A click leaves the button focused, so `focus:` would keep it visible
       # after the pointer moves away. `focus-visible:` only matches keyboard
       # focus, which is what we want here.
-      for id <- ["copy-device-identifier", "copy-metadata-serial_number"] do
-        session
-        |> assert_has(~s(button##{id}[class*="focus-visible:opacity-100"]))
-        |> refute_has(~s(button##{id}[class*="focus:opacity-100"]))
-      end
+      # The device identifier's copy button is always shown, so only the
+      # metadata one hides.
+      session
+      |> assert_has(~s(button#copy-metadata-serial_number[class*="focus-visible:opacity-100"]))
+      |> refute_has(~s(button#copy-metadata-serial_number[class*="focus:opacity-100"]))
     end
   end
 
@@ -389,7 +389,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
 
         render(view)
       end)
-      |> assert_has("div", text: "Assigned deployment group:")
+      |> assert_has("#firmware-updates-card a", text: deployment_group.name)
       |> assert_has("span", text: "Update available")
       |> assert_has("option", text: "Select a version")
       |> refute_has("div", text: "No device health information has been received.")
@@ -650,15 +650,15 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
     } do
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
-      |> assert_has("#details-tab > div:first-child div", text: "General Info", exact: true)
-      |> refute_has("#details-tab > div:last-child div", text: "General Info", exact: true)
+      |> assert_has("#details-tab > div:first-child h2", text: "General info", exact: true)
+      |> refute_has("#details-tab > div:last-child h2", text: "General info", exact: true)
 
       {:ok, _device} = Devices.disable_extension_setting(device, "geo")
 
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
-      |> refute_has("#details-tab > div:first-child div", text: "General Info", exact: true)
-      |> assert_has("#details-tab > div:last-child > div:first-child div", text: "General Info", exact: true)
+      |> refute_has("#details-tab > div:first-child h2", text: "General info", exact: true)
+      |> assert_has("#details-tab > div:last-child > div:first-child h2", text: "General info", exact: true)
     end
 
     test "location information is empty", %{
@@ -904,18 +904,22 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
         view
         |> element("#device-details-left")
         |> render_hook("arrange-device-details", %{
-          "left" => ["deployment", "health", "alarms"],
+          "left" => ["deployment", "health"],
           "right" => ["general_info", "location", "network_identities", "support_scripts"]
         })
       end)
       |> assert_has("#device-details-right > #device-details-box-general_info:first-child")
       |> assert_has("#device-details-left > #device-details-box-deployment:first-child")
 
+      # Alarms are a row in the Health card, so the old alarms box isn't on the
+      # page to be dragged and goes back to the place it had.
       assert %{
-               device_details_left: [:deployment, :health, :alarms],
+               device_details_left: [:deployment | _] = left,
                device_details_right: [:general_info, :location | _]
              } =
                Accounts.get_user!(user.id).display_preferences
+
+      assert Enum.sort(left) == [:alarms, :deployment, :health]
     end
 
     test "a hidden box keeps its place in the saved layout", %{
@@ -1111,7 +1115,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
       |> assert_has("h1", text: device.identifier)
       |> assert_has("div", text: "Health")
-      |> assert_has("div", text: "No Alarms Received")
+      |> assert_has("#alarms", text: "None active")
 
       Fixtures.device_alarms_fixture(device, %{})
 
@@ -1119,7 +1123,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
       |> assert_has("h1", text: device.identifier)
       |> assert_has("div", text: "Health")
-      |> assert_has("div", text: "No Alarms Received")
+      |> assert_has("#alarms", text: "None active")
     end
 
     test "alarms appear and clear while the page is open", %{
@@ -1131,7 +1135,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       session =
         conn
         |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
-        |> assert_has("div", text: "No Alarms Received")
+        |> assert_has("#alarms", text: "None active")
 
       :ok = Devices.Alarms.raise_alarm(to_device_info(device), "SomeAlarm", "Some description")
 
@@ -1139,7 +1143,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
 
       :ok = Devices.Alarms.clear_alarm(to_device_info(device), "SomeAlarm")
 
-      assert_has(session, "div", text: "No Alarms Received", timeout: 1000)
+      assert_has(session, "#alarms", text: "None active", timeout: 1000)
     end
 
     test "alarms show when only the alarms extension is on", %{
@@ -1181,9 +1185,9 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
       |> assert_has("h1", text: device.identifier)
       |> assert_has("div", text: "Health")
-      |> assert_has("div", text: "Load avg")
+      |> assert_has("div", text: "Load average")
       |> assert_has("span", text: "0.0", exact: true, count: 3)
-      |> assert_has("div", text: "Memory used")
+      |> assert_has("div", text: "Memory")
       |> assert_has("span", text: "100")
       |> assert_has("span", text: "60")
       |> assert_has("div", text: "CPU")
@@ -1211,14 +1215,14 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
       |> assert_has("h1", text: device.identifier)
       |> assert_has("div", text: "Health")
-      |> assert_has("div", text: "Load avg")
+      |> assert_has("div", text: "Load average")
       |> assert_has("span", text: "1.23")
       |> assert_has("span", text: "4.56")
       |> assert_has("span", text: "7.89")
-      |> assert_has("div", text: "Memory used")
+      |> assert_has("div", text: "Memory")
       |> assert_has("span", text: "100")
       |> assert_has("span", text: "60")
-      |> assert_has("span", text: "Last updated:")
+      |> assert_has("span", text: "Last reported")
       |> assert_has("time", text: "now")
     end
 
@@ -1234,7 +1238,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
 
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
-      |> assert_has("div", text: "Memory used")
+      |> assert_has("div", text: "Memory")
       |> assert_has("span", text: "100")
       |> refute_has("span.text-warning", text: "%")
     end
@@ -1266,8 +1270,8 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
       |> assert_has("h1", text: device.identifier)
-      |> assert_has("div.border-alert span", text: "at or over 90 for 80% of 1h")
-      |> assert_has("div.border-warning span", text: "at or over 70 for 60% of 1h")
+      |> assert_has("span.text-alert-content", text: "at or over 90 for 80% of 1h")
+      |> assert_has("span.text-warning-content", text: "at or over 70 for 60% of 1h")
     end
   end
 
@@ -1720,9 +1724,9 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       |> unwrap(fn view ->
         render_change(view, "set-deployment-group", %{"deployment_id" => deployment_group.id})
       end)
-      |> assert_has("span",
+      |> assert_has("p",
         text:
-          "Please note: The device will be removed from the deployment group upon connection if the arch and platform don't match."
+          "The device will be removed from the deployment group when it connects if its architecture and platform don't match."
       )
     end
 
@@ -1741,7 +1745,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
       |> assert_has("option", text: "Select a deployment group")
-      |> select("Deployment Group", exact_option: false, option: deployment_group.name)
+      |> select("Deployment group", exact_option: false, option: deployment_group.name)
       |> click_button("Assign")
       |> refute_has("div", text: "No assigned deployment group")
 
@@ -1766,7 +1770,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
       |> assert_has("span",
-        text: "No deployment groups match the devices platform and architecture."
+        text: "No deployment groups match the device's platform and architecture."
       )
       |> refute_has("option", text: "Select a deployment group")
     end
@@ -2039,7 +2043,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
 
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
-      |> assert_has("button[disabled]", text: "Send full update")
+      |> assert_has("button[disabled]", text: "Send update…")
 
       Ecto.Changeset.change(%DeviceConnection{}, %{
         device_id: device_id,
@@ -2052,7 +2056,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
 
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
-      |> assert_has("button[disabled]", text: "Send full update")
+      |> assert_has("button[disabled]", text: "Send update…")
     end
 
     test "broadcasts the firmware update request, using the default url config", %{
@@ -2075,7 +2079,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
       |> select("Firmware", option: firmware.version, exact_option: false)
-      |> click_button("Send full update")
+      |> click_button("Send update…")
 
       %{version: version, architecture: architecture, platform: platform} = firmware
 
@@ -2120,7 +2124,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
       |> select("Firmware", option: firmware.version, exact_option: false)
-      |> click_button("Send full update")
+      |> click_button("Send update…")
 
       %{version: version, architecture: architecture, platform: platform} = firmware
 
@@ -2224,7 +2228,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
       |> select("Firmware", option: firmware.version, exact_option: false)
-      |> click_button("Send full update")
+      |> click_button("Send update…")
       |> assert_has("div",
         text: "The device is already updating. Wait for that update to finish before sending another."
       )
@@ -2342,7 +2346,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       |> assert_has("h1", text: device.identifier)
       |> assert_has("span", text: "beta")
       |> fill_in("Add tag", with: "new-tag")
-      |> click_button("Add")
+      |> within("#add-tag-form", &click_button(&1, "Add"))
       |> assert_has("div", text: "Tag \"new-tag\" added successfully.", timeout: 1_000)
       |> assert_has("span", text: "new-tag")
       |> assert_has("span", text: "beta")
@@ -2360,7 +2364,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
       |> assert_has("h1", text: device.identifier)
       |> fill_in("Add tag", with: "new-tag")
-      |> click_button("Add")
+      |> within("#add-tag-form", &click_button(&1, "Add"))
       |> assert_has("div", text: "Tag \"new-tag\" added successfully.", timeout: 1_000)
       |> assert_has("span", text: "new-tag")
 
@@ -2386,7 +2390,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
       |> assert_has("h1", text: device.identifier)
       |> fill_in("Add tag", with: "bad tag")
-      |> click_button("Add")
+      |> within("#add-tag-form", &click_button(&1, "Add"))
       |> assert_has("div", text: "Tags cannot be empty or contain spaces.", timeout: 1_000)
     end
 
@@ -2396,7 +2400,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       |> assert_has("h1", text: device.identifier)
       |> assert_has("span", text: "beta")
       |> fill_in("Add tag", with: "beta")
-      |> click_button("Add")
+      |> within("#add-tag-form", &click_button(&1, "Add"))
       |> assert_has("div", text: "Tag \"beta\" already exists on this device.", timeout: 1_000)
     end
   end
@@ -2410,7 +2414,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
     } do
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
-      |> assert_has("div", text: "Network Identities")
+      |> assert_has("h2", text: "Network identities")
       |> assert_has("div", text: "External identity reporting is not enabled for your product.")
     end
 
