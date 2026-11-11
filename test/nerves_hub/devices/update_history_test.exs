@@ -66,7 +66,7 @@ defmodule NervesHub.Devices.UpdateHistoryTest do
       )
 
       assert latest.status == :succeeded
-      assert latest.target.version == firmware.version
+      assert latest.target == %{uuid: firmware.uuid, version: firmware.version, available?: true}
       assert latest.deployment_group == nil
 
       assert earlier.status == :failed

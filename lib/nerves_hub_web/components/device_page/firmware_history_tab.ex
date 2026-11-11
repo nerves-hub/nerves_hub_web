@@ -161,9 +161,9 @@ defmodule NervesHubWeb.Components.DevicePage.FirmwareHistoryTab do
               <.local_datetime at={attempt.timestamp} time_zone={@time_zone} format={:time} zone_label={false} class="ml-1.5 text-xs text-content-faint" />
             </td>
             <td class="font-mono whitespace-nowrap">
-              <span class="text-content-muted">{version(attempt.source)}</span>
+              <.firmware_version firmware={attempt.source} org={@org} product={@product} class="text-content-muted" />
               <span class="mx-1 lucide-arrow-right size-3 align-[-1px] text-content-faint" aria-label="to"></span>
-              <span class="text-content-strong">{version(attempt.target)}</span>
+              <.firmware_version firmware={attempt.target} org={@org} product={@product} class="text-content-strong" />
             </td>
             <td><.outcome status={attempt.status} /></td>
             <td class="pr-4 text-content-body">{attempt.reason || detail(attempt.status)}</td>
@@ -226,6 +226,28 @@ defmodule NervesHubWeb.Components.DevicePage.FirmwareHistoryTab do
   defp detail(:rescheduled), do: "The device asked for the update later"
   defp detail(:expired), do: "The update stopped making progress"
   defp detail(:abandoned), do: "The device came back still running its old firmware"
+
+  attr(:firmware, :map, default: nil)
+  attr(:org, :any, required: true)
+  attr(:product, :any, required: true)
+  attr(:class, :string, required: true)
+
+  defp firmware_version(%{firmware: %{available?: true}} = assigns) do
+    ~H"""
+    <.link
+      navigate={~p"/org/#{@org}/#{@product}/firmware/#{@firmware.uuid}"}
+      class={[@class, "underline decoration-line-strong underline-offset-4 hover:decoration-content-muted"]}
+    >
+      {version(@firmware)}
+    </.link>
+    """
+  end
+
+  defp firmware_version(assigns) do
+    ~H"""
+    <span class={@class} title={@firmware && @firmware.uuid}>{version(@firmware)}</span>
+    """
+  end
 
   defp version(nil), do: "—"
   defp version(%{version: nil, uuid: uuid}), do: String.slice(uuid, 0..7)

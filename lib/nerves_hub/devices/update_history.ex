@@ -331,10 +331,17 @@ defmodule NervesHub.Devices.UpdateHistory do
           timestamp: DateTime.t(),
           status: status(),
           reason: String.t() | nil,
-          source: %{uuid: String.t(), version: String.t() | nil} | nil,
-          target: %{uuid: String.t(), version: String.t() | nil} | nil,
+          source: firmware_ref() | nil,
+          target: firmware_ref() | nil,
           deployment_group: %{id: pos_integer(), name: String.t()} | nil
         }
+
+  @typedoc """
+  A firmware an attempt names. `version` is nil when this product has no
+  firmware with that UUID, and `available?` is false when it has one but it
+  was deleted, so there is no firmware page to link to.
+  """
+  @type firmware_ref :: %{uuid: String.t(), version: String.t() | nil, available?: boolean()}
 
   @type page :: %{
           current_page: pos_integer(),
@@ -396,7 +403,7 @@ defmodule NervesHub.Devices.UpdateHistory do
       from(f in Firmware,
         where: f.product_id == ^product_id,
         where: f.uuid in ^uuids,
-        select: {f.uuid, f.version}
+        select: {f.uuid, %{version: f.version, available?: is_nil(f.deleted_at)}}
       )
       |> Repo.all()
       |> Map.new()
@@ -425,5 +432,11 @@ defmodule NervesHub.Devices.UpdateHistory do
   end
 
   defp firmware("", _versions), do: nil
-  defp firmware(uuid, versions), do: %{uuid: uuid, version: Map.get(versions, uuid)}
+
+  defp firmware(uuid, versions) do
+    case Map.fetch(versions, uuid) do
+      {:ok, found} -> Map.put(found, :uuid, uuid)
+      :error -> %{uuid: uuid, version: nil, available?: false}
+    end
+  end
 end
