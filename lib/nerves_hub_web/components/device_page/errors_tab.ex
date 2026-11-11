@@ -57,8 +57,14 @@ defmodule NervesHubWeb.Components.DevicePage.ErrorsTab do
     [:refresh_scheduled, :expanded_fingerprint, :expanded_occurrence, :expanded_firmware_version, :error_groups]
   end
 
+  # Also moves the count beside the tab's name, which the page reads once
+  # when it mounts.
   defp fetch_error_groups(socket) do
-    assign(socket, :error_groups, ErrorReports.groups_for_device(socket.assigns.device))
+    device = socket.assigns.device
+
+    socket
+    |> assign(:error_groups, ErrorReports.groups_for_device(device))
+    |> assign(:error_issue_count, ErrorReports.issue_count_for_device(device))
   end
 
   def hooked_async(_name, _async_fun_result, socket), do: {:cont, socket}

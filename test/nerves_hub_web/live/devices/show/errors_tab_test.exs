@@ -139,6 +139,30 @@ defmodule NervesHubWeb.Live.Devices.Show.ErrorsTabTest do
     end
   end
 
+  describe "the count beside the tab" do
+    test "is the number of issues, shown from any tab", %{conn: conn, org: org, product: product, device: device} do
+      product = enable(product)
+
+      record(device, [
+        report("** (RuntimeError) the sensor bus is unreachable"),
+        report("** (RuntimeError) the sensor bus is unreachable"),
+        report("** (MatchError) no match of right hand side value: {:error, :enoent}")
+      ])
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}/activity")
+      |> assert_has("#device-tabs a[href$='/errors']", text: "Errors 2")
+    end
+
+    test "is left off when nothing has been reported", %{conn: conn, org: org, product: product, device: device} do
+      product = enable(product)
+
+      conn
+      |> visit(errors_path(org, product, device))
+      |> assert_has("#device-tabs a[href$='/errors']", text: "Errors", exact: true)
+    end
+  end
+
   describe "expanding a row" do
     setup %{product: product, device: device} do
       product = enable(product)

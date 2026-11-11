@@ -9,6 +9,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
   alias NervesHub.Devices.Pinning
   alias NervesHub.Devices.PubSub
   alias NervesHub.Devices.Updates
+  alias NervesHub.ErrorReports
   alias NervesHub.Extensions
   alias NervesHub.Firmwares
   alias NervesHub.FirmwareUpdates
@@ -66,6 +67,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
     |> watch_paced_extensions()
     |> load_inprogress_firmware_update()
     |> assign(:pinned?, Pinning.device_pinned?(user.id, device.id))
+    |> assign(:error_issue_count, error_issue_count(product, device))
     |> setup_presence_tracking()
     |> setup_tab_components(@tab_components)
     |> ok()
@@ -384,7 +386,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
       {:console, "Console", base <> "/console", [dimmed: offline?]},
       {:local_shell, "System Shell", base <> "/local_shell", [dimmed: offline?]},
       {:logs, "Logs", base <> "/logs", []},
-      {:errors, "Errors", base <> "/errors", []},
+      {:errors, "Errors", base <> "/errors", [count: nonzero(assigns[:error_issue_count])]},
       {:activity, "Activity", base <> "/activity", []}
     ]
   end
@@ -399,6 +401,22 @@ defmodule NervesHubWeb.Live.Devices.Show do
       {:settings, "Settings", base <> "/settings", []}
     ]
   end
+
+  # The Errors tab's count: the issues the device reported in the last 30
+  # days, or nothing where error reports can't be shown. The Errors tab keeps
+  # it current while it is open.
+  # Matches the Errors tab's own gating: on for the product, not turned off for
+  # the device.
+  defp error_issue_count(%{extensions: %{error_reports: true}}, %{extensions: %{error_reports: false}}), do: nil
+
+  defp error_issue_count(%{extensions: %{error_reports: true}}, device) do
+    if analytics_enabled?(), do: ErrorReports.issue_count_for_device(device)
+  end
+
+  defp error_issue_count(_product, _device), do: nil
+
+  defp nonzero(count) when is_integer(count) and count > 0, do: count
+  defp nonzero(_count), do: nil
 
   defp health_engaged?(%{latest_health: %{status: status}}) when status in [:warning, :unhealthy], do: true
   defp health_engaged?(_device), do: false
