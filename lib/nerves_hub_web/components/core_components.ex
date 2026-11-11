@@ -147,7 +147,7 @@ defmodule NervesHubWeb.CoreComponents do
   row.
 
   `count` is for a number on its own, such as the count beside a section's
-  title: an 18px circle that widens for more digits.
+  title: an 18px circle that widens for more digits, outlined when neutral.
 
   ## Examples
 
@@ -166,7 +166,7 @@ defmodule NervesHubWeb.CoreComponents do
 
   def badge(assigns) do
     ~H"""
-    <span class={["rounded-full whitespace-nowrap", badge_size(@count, @size, @dot), badge_tone(@tone), @class]} {@rest}>
+    <span class={["rounded-full whitespace-nowrap", badge_size(@count, @size, @dot), badge_tone(@tone, @count), @class]} {@rest}>
       <.status_dot :if={@dot} class={["size-1.5", badge_dot(@tone)]} />{render_slot(@inner_block)}
     </span>
     """
@@ -174,7 +174,7 @@ defmodule NervesHubWeb.CoreComponents do
 
   # A dot sits 2px closer to the start than the label does to the end.
   defp badge_size(true, _size, _dot),
-    do: "inline-flex h-4.5 min-w-4.5 items-center justify-center px-1.25 text-[11px]/3.5 font-semibold tabular-nums"
+    do: "inline-flex h-4.5 min-w-4.5 items-center justify-center px-1.25 text-[11px]/3.5 font-medium tabular-nums"
 
   defp badge_size(false, "sm", false), do: "px-2 py-0.5 text-xs font-medium"
   defp badge_size(false, "sm", true), do: "inline-flex items-center gap-1.25 py-0.5 pr-2 pl-1.5 text-xs font-medium"
@@ -189,11 +189,16 @@ defmodule NervesHubWeb.CoreComponents do
   defp badge_dot("warning"), do: "bg-warning"
   defp badge_dot("alert"), do: "bg-alert"
 
-  defp badge_tone("neutral"), do: "bg-base-800 text-content-body"
-  defp badge_tone("notice"), do: "bg-notice-soft text-notice-content"
-  defp badge_tone("success"), do: "bg-success-soft text-success-content"
-  defp badge_tone("warning"), do: "bg-warning-soft text-warning-content"
-  defp badge_tone("alert"), do: "bg-alert-soft text-alert-content"
+  # A neutral count is outlined, so it holds its shape beside a label without
+  # reading as a status.
+  defp badge_tone("neutral", true),
+    do: "bg-line-subtle text-content-body ring-1 ring-line-default ring-inset light:bg-surface-muted"
+
+  defp badge_tone("neutral", _count), do: "bg-base-800 text-content-body"
+  defp badge_tone("notice", _count), do: "bg-notice-soft text-notice-content"
+  defp badge_tone("success", _count), do: "bg-success-soft text-success-content"
+  defp badge_tone("warning", _count), do: "bg-warning-soft text-warning-content"
+  defp badge_tone("alert", _count), do: "bg-alert-soft text-alert-content"
 
   @doc """
   Renders a tag: a label a user gave something, such as a device tag, or an
