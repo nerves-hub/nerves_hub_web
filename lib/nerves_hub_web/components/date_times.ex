@@ -21,6 +21,7 @@ defmodule NervesHubWeb.Components.DateTimes do
   @formats %{
     date: "%Y-%m-%d",
     long_date: "%B %-d, %Y",
+    medium_date: "%b %-d, %Y",
     month_year: "%B %Y",
     long_datetime: "%B %-d, %Y %-I:%M %p",
     short_date: "%b %-d",

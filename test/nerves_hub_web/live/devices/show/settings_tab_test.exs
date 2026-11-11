@@ -8,7 +8,9 @@ defmodule NervesHubWeb.Live.Devices.Show.SettingsTabTest do
   alias NervesHub.Accounts.User
   alias NervesHub.Devices
   alias NervesHub.Devices.CACertificates
+  alias NervesHub.Extensions
   alias NervesHub.Fixtures
+  alias NervesHub.Products.Product
   alias NervesHub.Repo
   alias NervesHubWeb.Components.DevicePage.SettingsTab
   alias NervesHubWeb.Components.Utils
@@ -20,7 +22,7 @@ defmodule NervesHubWeb.Live.Devices.Show.SettingsTabTest do
     test "can change tags", %{conn: conn, org: org, product: product, device: device} do
       conn
       |> visit(~p"/org/#{org}/#{product}/devices/#{device}/settings")
-      |> assert_has("div", text: "General settings")
+      |> assert_has("#settings-form h2", text: "General")
       |> fill_in("Tags", with: "josh, lars")
       |> click_button("Save changes")
       |> assert_path("/org/#{org.name}/#{product.name}/devices/#{device.identifier}/settings")
@@ -29,6 +31,47 @@ defmodule NervesHubWeb.Live.Devices.Show.SettingsTabTest do
       |> assert_path("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
       |> assert_has("span", text: "josh")
       |> assert_has("span", text: "lars")
+    end
+
+    test "tags are added and removed in the form, and saved with it", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device
+    } do
+      {:ok, device} = Devices.update_device(device, %{tags: ["alpha", "beta"]})
+
+      conn
+      |> visit(~p"/org/#{org}/#{product}/devices/#{device}/settings")
+      |> assert_has("#settings-form [data-tag]", count: 2)
+      |> unwrap(fn view -> render_hook(view, "settings-add-tag", %{"tag" => "gamma"}) end)
+      |> click_button("[aria-label='Remove alpha']", "")
+      |> assert_has("#settings-form [data-tag='gamma']")
+      |> refute_has("#settings-form [data-tag='alpha']")
+      |> assert_has("#settings-form input[name='device[tags]'][value='beta,gamma']")
+
+      # Nothing is saved until the form is.
+      assert Repo.reload(device).tags == ["alpha", "beta"]
+    end
+
+    test "a tag typed but not added is saved with the form", %{conn: conn, org: org, product: product, device: device} do
+      {:ok, device} = Devices.update_device(device, %{tags: ["alpha"]})
+
+      conn
+      |> visit(~p"/org/#{org}/#{product}/devices/#{device}/settings")
+      |> fill_in("Tags", with: "beta")
+      |> click_button("Save changes")
+      |> assert_has("div", text: "Device updated")
+      |> assert_has("#settings-form [data-tag='beta']")
+
+      assert Repo.reload(device).tags == ["alpha", "beta"]
+    end
+
+    test "a tag with a space is refused", %{conn: conn, org: org, product: product, device: device} do
+      conn
+      |> visit(~p"/org/#{org}/#{product}/devices/#{device}/settings")
+      |> unwrap(fn view -> render_hook(view, "settings-add-tag", %{"tag" => "two words"}) end)
+      |> assert_has("#settings-form .error-text", text: "tags cannot contain spaces")
     end
 
     test "saves only the form's fields", %{conn: conn, org: org, product: product, device: device} do
@@ -61,7 +104,7 @@ defmodule NervesHubWeb.Live.Devices.Show.SettingsTabTest do
     test "can add 'first connect code'", %{conn: conn, org: org, product: product, device: device} do
       conn
       |> visit(~p"/org/#{org}/#{product}/devices/#{device}/settings")
-      |> assert_has("div", text: "General settings")
+      |> assert_has("#settings-form h2", text: "General")
       |> fill_in("First connect code", with: "dbg(\"boo\")")
       |> click_button("Save changes")
       |> assert_path("/org/#{org.name}/#{product.name}/devices/#{device.identifier}/settings")
@@ -83,7 +126,7 @@ defmodule NervesHubWeb.Live.Devices.Show.SettingsTabTest do
         conn
         |> visit(~p"/org/#{org}/#{product}/devices/#{device}/settings")
         # Device has 1 certificate as default
-        |> assert_has("div", text: "Serial: #{Utils.format_serial(cert.serial)}")
+        |> assert_has("[data-certificate]", text: Utils.format_serial(cert.serial))
         |> upload("Upload certificate", "test/fixtures/ssl/device-test-cert.pem")
         |> assert_has("div", text: "Certificate Upload Successful")
         |> assert_path("/org/#{org.name}/#{product.name}/devices/#{device.identifier}/settings")
@@ -93,7 +136,7 @@ defmodule NervesHubWeb.Live.Devices.Show.SettingsTabTest do
       assert Enum.count(device.device_certificates) == 2
 
       Enum.each(device.device_certificates, fn cert ->
-        assert_has(conn, "div", text: "Serial: #{Utils.format_serial(cert.serial)}")
+        assert_has(conn, "[data-certificate]", text: Utils.format_serial(cert.serial))
       end)
     end
 
@@ -105,9 +148,9 @@ defmodule NervesHubWeb.Live.Devices.Show.SettingsTabTest do
       conn
       |> visit(~p"/org/#{org}/#{product}/devices/#{device}/settings")
       # Device has 1 certificate as default
-      |> assert_has("div", text: "Serial: #{Utils.format_serial(cert.serial)}")
+      |> assert_has("[data-certificate]", text: Utils.format_serial(cert.serial))
       |> click_button("button[phx-click=\"delete-certificate\"]", "")
-      |> refute_has("div", text: "Serial: #{Utils.format_serial(cert.serial)}")
+      |> refute_has("[data-certificate]", text: Utils.format_serial(cert.serial))
 
       device = Repo.preload(device, :device_certificates, force: true)
 
@@ -126,8 +169,9 @@ defmodule NervesHubWeb.Live.Devices.Show.SettingsTabTest do
 
       conn
       |> visit(~p"/org/#{org}/#{product}/devices/#{device}/settings")
-      |> assert_has("div", text: "Signer CA:")
-      |> assert_has("a[href='/org/#{org.name}/settings/certificates/#{ca_cert.serial}']", text: "Factory signer")
+      |> assert_has("[data-certificate] a[href='/org/#{org.name}/settings/certificates/#{ca_cert.serial}']",
+        text: "Factory signer"
+      )
     end
 
     test "shows the signer CA as unknown when it was never registered", %{
@@ -139,7 +183,7 @@ defmodule NervesHubWeb.Live.Devices.Show.SettingsTabTest do
       # The fixture device's certificate is signed by a CA which isn't in the DB.
       conn
       |> visit(~p"/org/#{org}/#{product}/devices/#{device}/settings")
-      |> assert_has("div", text: "Signer CA: Unknown")
+      |> assert_has("[data-certificate] span", text: "Signed by an unregistered CA")
     end
 
     test "can download certificate", %{conn: conn, org: org, product: product, device: device} do
@@ -151,7 +195,7 @@ defmodule NervesHubWeb.Live.Devices.Show.SettingsTabTest do
         conn
         |> visit(~p"/org/#{org}/#{product}/devices/#{device}/settings")
         # Device has 1 certificate as default
-        |> assert_has("div", text: "Serial: #{Utils.format_serial(cert.serial)}")
+        |> assert_has("[data-certificate]", text: Utils.format_serial(cert.serial))
         |> click_link("a[download=\"\"]", "")
 
       assert result.conn.resp_body =~ "-----BEGIN CERTIFICATE-----"
@@ -180,7 +224,7 @@ defmodule NervesHubWeb.Live.Devices.Show.SettingsTabTest do
         |> assert_has("#shared-secrets code", text: deactivated.key)
         |> assert_has("#shared-secrets span", text: "Never used")
         |> assert_has("#shared-secrets span", text: "Last used")
-        |> assert_has("#shared-secrets .tooltip-content", text: "Deactivated by #{user.name}")
+        |> assert_has("#shared-secrets [data-shared-secret]", text: "Deactivated by #{user.name}")
 
       for auth <- [used, unused, deactivated] do
         refute session.conn.resp_body =~ auth.secret
@@ -192,8 +236,8 @@ defmodule NervesHubWeb.Live.Devices.Show.SettingsTabTest do
       session =
         conn
         |> visit(~p"/org/#{org}/#{product}/devices/#{device}/settings")
-        |> assert_has("#shared-secrets div", text: "No shared secrets have been created.")
-        |> click_button("Create shared secret")
+        |> assert_has("#shared-secrets p", text: "No shared secrets have been created.")
+        |> click_button("Create secret")
 
       assert [%{key: key}] = Devices.list_shared_secret_auths(device)
       assert {:ok, auth} = Devices.get_shared_secret_auth(key)
@@ -205,7 +249,7 @@ defmodule NervesHubWeb.Live.Devices.Show.SettingsTabTest do
       |> click_button("Done")
       |> refute_has("#shared-secret-new")
       |> assert_has("#shared-secrets code", text: auth.key)
-      |> assert_has("#shared-secrets .tooltip-content", text: "Created by #{user.name}")
+      |> assert_has("#shared-secrets [data-shared-secret]", text: "Created by #{user.name}")
 
       conn
       |> visit(~p"/org/#{org}/#{product}/devices/#{device}/settings")
@@ -221,7 +265,7 @@ defmodule NervesHubWeb.Live.Devices.Show.SettingsTabTest do
       |> visit(~p"/org/#{org}/#{product}/devices/#{device}/settings")
       |> click_button("Deactivate")
       |> assert_has("div", text: "The shared secret has been deactivated, and connections made with it closed.")
-      |> assert_has("#shared-secrets .tooltip-content", text: "Deactivated by")
+      |> assert_has("#shared-secrets [data-shared-secret]", text: "Deactivated by")
       |> assert_has("#shared-secrets span", text: "Deactivated", exact: true)
       |> refute_has("#shared-secrets button", text: "Deactivate")
 
@@ -243,8 +287,8 @@ defmodule NervesHubWeb.Live.Devices.Show.SettingsTabTest do
 
       conn
       |> visit(~p"/org/#{org}/#{product}/devices/#{device}/settings")
-      |> assert_has("#shared-secrets .tooltip-content", text: "Created by Former Teammate")
-      |> assert_has("#shared-secrets .tooltip-content", text: "Deactivated by #{user.name}")
+      |> assert_has("#shared-secrets [data-shared-secret]", text: "Created by Former Teammate")
+      |> assert_has("#shared-secrets [data-shared-secret]", text: "Deactivated by #{user.name}")
     end
 
     test "view-only members can see the keys, but not create or deactivate them", %{
@@ -261,7 +305,7 @@ defmodule NervesHubWeb.Live.Devices.Show.SettingsTabTest do
       conn
       |> visit(~p"/org/#{org}/#{product}/devices/#{device}/settings")
       |> assert_has("#shared-secrets code", text: auth.key)
-      |> refute_has("#shared-secrets button", text: "Create shared secret")
+      |> refute_has("#shared-secrets button", text: "Create secret")
       |> refute_has("#shared-secrets button", text: "Deactivate")
     end
 
@@ -272,12 +316,33 @@ defmodule NervesHubWeb.Live.Devices.Show.SettingsTabTest do
       conn
       |> visit(~p"/org/#{org}/#{product}/devices/#{device}/settings")
       |> assert_has("#shared-secrets code", text: auth.key)
-      |> refute_has("#shared-secrets button", text: "Create shared secret")
+      |> refute_has("#shared-secrets button", text: "Create secret")
       |> refute_has("#shared-secrets button", text: "Deactivate")
     end
   end
 
   describe "device extensions" do
+    test "count those on, and say which the product has turned off", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device
+    } do
+      {:ok, _} = product |> Product.changeset(%{"extensions" => %{"geo" => false}}) |> Repo.update()
+      {:ok, _} = Devices.enable_extension_setting(device, "health")
+
+      device = device |> Repo.reload() |> Repo.preload(:product)
+      total = length(Extensions.list())
+      on = Enum.count(Extensions.list(), &(device.product.extensions[&1] == true and device.extensions[&1] == true))
+
+      conn
+      |> visit(~p"/org/#{org}/#{product}/devices/#{device}/settings")
+      |> assert_has("#extensions", text: "#{on} of #{total} on")
+      |> assert_has("[data-extension='geo'] p", text: "Off for this product")
+      |> assert_has("[data-extension='geo'] input[role=switch][disabled]")
+      |> refute_has("[data-extension='health'] p", text: "Off for this product")
+    end
+
     test "view-only members cannot change them", %{
       conn: conn,
       org: org,
@@ -312,7 +377,7 @@ defmodule NervesHubWeb.Live.Devices.Show.SettingsTabTest do
       session =
         conn
         |> visit(~p"/org/#{org}/#{product}/devices/#{device}/settings")
-        |> assert_has("div", text: "Serial: #{Utils.format_serial(cert.serial)}")
+        |> assert_has("[data-certificate]", text: Utils.format_serial(cert.serial))
         |> refute_has("button[phx-click=\"delete-certificate\"]")
 
       Process.flag(:trap_exit, true)
@@ -377,7 +442,7 @@ defmodule NervesHubWeb.Live.Devices.Show.SettingsTabTest do
     conn
     |> visit(~p"/org/#{org}/#{product}/devices/#{device}/settings")
     |> click_button("Delete device")
-    |> click_button("Permanently delete device")
+    |> click_button("Delete permanently…")
     |> assert_has("div", text: "Device permanently destroyed successfully.")
 
     refute Repo.reload(device)
