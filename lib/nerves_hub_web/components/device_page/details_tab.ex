@@ -25,6 +25,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
   alias NervesHub.Scripts
   alias NervesHub.Scripts.Script
   alias NervesHubWeb.Components.DeviceHealth.MetricLabels
+  alias NervesHubWeb.Components.DeviceHealth.StatusBadge
   alias NervesHubWeb.Components.DeviceLocation
   alias NervesHubWeb.Components.DeviceNetworkIdentities
   alias NervesHubWeb.Components.Utils
@@ -742,16 +743,6 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
     HealthProfiles.featured_keys(device)
   end
 
-  # The engaged metrics of the latest evaluation, alert level first. Reasons
-  # come back from jsonb with string keys.
-  defp engaged_reasons(%{status_reasons: %{} = reasons}) do
-    for level <- ["unhealthy", "warning"],
-        {key, reason} <- Enum.sort(Map.get(reasons, level) || %{}),
-        do: {level, key, reason}
-  end
-
-  defp engaged_reasons(_no_health_or_reasons), do: []
-
   # A gauge per featured metric of the device's health profile. Keys the
   # composite gauges cover collapse into their gauge (featuring
   # cpu_usage_percent or cpu_temp gives the CPU gauge) and any other featured
@@ -845,7 +836,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
 
     <.card :if={Enum.any?(@latest_metrics) && @product.extensions.health && @device.extensions.health} id="health-card">
       <.card_header title="Health">
-        <.health_badge health={@device.latest_health} stale?={disconnected?(@device_connection)} />
+        <StatusBadge.render health={@device.latest_health} stale?={disconnected?(@device_connection)} />
         <:aside>
           <span>
             {if disconnected?(@device_connection), do: "Last reported", else: "Updated"}
@@ -865,7 +856,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
           tile={tile}
           latest_metrics={@latest_metrics}
           custom_labels={@custom_labels}
-          engaged={engaged_for(tile, engaged_reasons(@device.latest_health))}
+          engaged={engaged_for(tile, StatusBadge.engaged_reasons(@device.latest_health))}
         />
         <.gauge
           :for={{level, key, reason} <- uncovered_reasons(@device.latest_health, @featured_keys)}
@@ -880,31 +871,6 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
     </.card>
     """
   end
-
-  attr(:health, :any, required: true)
-  attr(:stale?, :boolean, required: true)
-
-  defp health_badge(assigns) do
-    assigns = assign(assigns, :engaged, engaged_reasons(assigns.health))
-
-    ~H"""
-    <%= cond do %>
-      <% @stale? -> %>
-        <.badge dot>No recent data</.badge>
-      <% @health && @health.status == :unhealthy -> %>
-        <.badge tone="alert" dot>Unhealthy · {metric_count(@engaged)}</.badge>
-      <% @health && @health.status == :warning -> %>
-        <.badge tone="warning" dot>Warning · {metric_count(@engaged)}</.badge>
-      <% @health && @health.status == :healthy -> %>
-        <.badge tone="success" dot>Healthy</.badge>
-      <% true -> %>
-        <.badge dot>Unknown</.badge>
-    <% end %>
-    """
-  end
-
-  defp metric_count([_one]), do: "1 metric"
-  defp metric_count(engaged), do: "#{length(engaged)} metrics"
 
   attr(:alarms, :any)
 
@@ -1417,7 +1383,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
   defp uncovered_reasons(latest_health, featured_keys) do
     tiles = featured_tiles(featured_keys)
 
-    Enum.reject(engaged_reasons(latest_health), fn {_level, key, _reason} -> tile_for(key) in tiles end)
+    Enum.reject(StatusBadge.engaged_reasons(latest_health), fn {_level, key, _reason} -> tile_for(key) in tiles end)
   end
 
   defp tile_for(key) when key in ["cpu_usage_percent", "cpu_temp"], do: :cpu
