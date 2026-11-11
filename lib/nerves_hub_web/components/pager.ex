@@ -59,4 +59,95 @@ defmodule NervesHubWeb.Components.Pager do
     </div>
     """
   end
+
+  @doc """
+  The pager as the design draws it, for the footer of a card: a page size
+  select, then the pages as one segmented control, right aligned.
+
+  Sends the same events as `render_with_page_sizes/1`: `set-paginate-opts`
+  with `page-size`, and `paginate` with `page`.
+  """
+  attr(:id, :string, required: true, doc: "prefixes the page size form's ID, which LiveView needs")
+  attr(:pager, :map, required: true, doc: "with `current_page`, `total_pages`, `page_size` and `total_count`")
+  attr(:page_sizes, :list, default: [25, 50, 100])
+  attr(:rest, :global, include: ~w(phx-target))
+
+  def footer(assigns) do
+    %{current_page: current, total_pages: total} = assigns.pager
+
+    assigns =
+      assign(assigns,
+        pages: page_window(current, total),
+        sizes?: assigns.pager.total_count > hd(assigns.page_sizes)
+      )
+
+    ~H"""
+    <div :if={@sizes? or @pager.total_pages > 1} class="flex h-12 shrink-0 items-center justify-end gap-2 border-t border-line-subtle pr-3 pl-4">
+      <form :if={@sizes?} id={"#{@id}-page-size"} phx-change="set-paginate-opts" {@rest} class="grid grid-cols-1">
+        <select
+          name="page-size"
+          aria-label="Rows per page"
+          class="col-start-1 row-start-1 h-7.5 cursor-pointer appearance-none rounded border border-line-control border-b-line-strong bg-surface-raised bg-none py-0 pr-7 pl-2.5 text-ui text-content-body focus:outline focus:-outline-offset-1 focus:outline-focus-ring"
+        >
+          <option :for={size <- @page_sizes} value={size} selected={size == @pager.page_size}>{size} per page</option>
+        </select>
+        <span class="pointer-events-none col-start-1 row-start-1 mr-2 lucide-chevron-down size-3.5 self-center justify-self-end text-content-muted" aria-hidden="true"></span>
+      </form>
+
+      <nav :if={@pager.total_pages > 1} aria-label="Pages" class="flex h-7 overflow-clip rounded border border-line-control bg-surface-raised shadow-xs">
+        <button
+          type="button"
+          aria-label="Previous page"
+          disabled={@pager.current_page < 2}
+          phx-click="paginate"
+          phx-value-page={@pager.current_page - 1}
+          class="flex items-center px-1.75 text-content-muted enabled:cursor-pointer enabled:hover:bg-surface-muted enabled:hover:text-content-strong disabled:text-content-faint"
+          {@rest}
+        >
+          <span class="lucide-chevron-left size-3.5" aria-hidden="true"></span>
+        </button>
+        <%= for page <- @pages do %>
+          <span :if={page == :gap} class="flex w-7 shrink-0 items-center justify-center border-l border-line-control text-xs text-content-faint">…</span>
+          <button
+            :if={page != :gap}
+            type="button"
+            aria-current={if page == @pager.current_page, do: "page"}
+            phx-click="paginate"
+            phx-value-page={page}
+            class="flex min-w-7 shrink-0 cursor-pointer items-center justify-center border-l border-line-control px-1.5 text-xs font-medium text-content-muted hover:bg-surface-muted hover:text-content-strong aria-[current=page]:bg-surface-muted aria-[current=page]:text-content-strong"
+            {@rest}
+          >
+            {page}
+          </button>
+        <% end %>
+        <button
+          type="button"
+          aria-label="Next page"
+          disabled={@pager.current_page >= @pager.total_pages}
+          phx-click="paginate"
+          phx-value-page={@pager.current_page + 1}
+          class="flex items-center border-l border-line-control px-1.75 text-content-muted enabled:cursor-pointer enabled:hover:bg-surface-muted enabled:hover:text-content-strong disabled:text-content-faint"
+          {@rest}
+        >
+          <span class="lucide-chevron-right size-3.5" aria-hidden="true"></span>
+        </button>
+      </nav>
+    </div>
+    """
+  end
+
+  # Up to five pages around the current one, plus the first and last with a
+  # gap where pages are skipped.
+  defp page_window(_current, total) when total <= 7, do: Enum.to_list(1..max(total, 1))
+
+  defp page_window(current, total) do
+    first = current |> Kernel.-(2) |> max(2) |> min(total - 5)
+    middle = Enum.to_list(first..(first + 4))
+
+    [1] ++
+      if(first > 2, do: [:gap], else: []) ++
+      middle ++
+      if(first + 4 < total - 1, do: [:gap], else: []) ++
+      [total]
+  end
 end

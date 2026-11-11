@@ -105,8 +105,8 @@ defmodule NervesHubWeb.Live.Devices.Show.ActivityTabTest do
 
       # Test changing page size to 50
       view
-      |> element(~s(button[phx-click="set-paginate-opts"][phx-value-page-size="50"]))
-      |> render_click()
+      |> form("#activity-pager-page-size", %{"page-size" => "50"})
+      |> render_change()
 
       # Should redirect to page 1 with page_size=50
       assert_patch(

@@ -80,10 +80,10 @@ defmodule NervesHubWeb.Components.DevicePage.ActivityTab do
               </ul>
             </section>
           </div>
+
+          <Pager.footer id="activity-pager" pager={@audit_pager} />
         </div>
       </div>
-
-      <Pager.render_with_page_sizes pager={@audit_pager} page_sizes={[25, 50, 100]} />
     </div>
     """
   end
