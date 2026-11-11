@@ -8,7 +8,7 @@
     </div>
 
     <div class="flex flex-col gap-6">
-      <div class="rounded-md border border-line-default bg-surface-raised p-4 shadow-card">
+      <div class="rounded-card border border-line-default bg-surface-raised p-4 shadow-card">
         <h2 class="mb-4 text-section-title text-content-strong">Account Details</h2>
         <.form :let={f} id="details-form" for={@form} phx-submit="update-details">
           <div class="flex flex-col gap-4">
@@ -63,7 +63,7 @@
         </.form>
       </div>
 
-      <div class="rounded-md border border-line-default bg-surface-raised p-4 shadow-card">
+      <div class="rounded-card border border-line-default bg-surface-raised p-4 shadow-card">
         <h2 class="mb-4 text-section-title text-content-strong">Change Password</h2>
         <.form :let={f} id="password-form" for={@password_changeset} phx-submit="update-password">
           <div class="flex flex-col gap-4">
@@ -116,7 +116,7 @@
         </.form>
       </div>
 
-      <div class="rounded-md border border-line-default bg-surface-raised p-4 shadow-card">
+      <div class="rounded-card border border-line-default bg-surface-raised p-4 shadow-card">
         <div class="flex justify-between">
           <h2 class="mb-4 text-section-title text-content-strong">Access tokens</h2>
           <div>
@@ -131,7 +131,7 @@
           </div>
         </div>
 
-        <div :if={@new_token} class="flex items-start gap-4 rounded-md border border-primary bg-linear-to-r from-base-800/50 to-base-800 p-4">
+        <div :if={@new_token} class="flex items-start gap-4 rounded-card border border-primary bg-linear-to-r from-base-800/50 to-base-800 p-4">
           <div class="flex min-w-0 gap-4">
             <h3 class="text-group-title text-content-strong">
               New Token:
@@ -147,7 +147,7 @@
         </div>
 
         <div class="space-y-3 pt-4">
-          <div :for={access_token <- @access_tokens} class="flex items-start gap-4 rounded-md border border-line-default bg-linear-to-r from-base-800/50 to-base-800 p-4">
+          <div :for={access_token <- @access_tokens} class="flex items-start gap-4 rounded-card border border-line-default bg-linear-to-r from-base-800/50 to-base-800 p-4">
             <span class="mt-1 lucide-key-round size-6"></span>
             <div class="min-w-0 flex-1">
               <h3 :if={access_token.note != ""} class="mb-2 text-group-title text-content-strong">
@@ -176,7 +176,7 @@
       <div
         :if={@slack_links != []}
         id="slack-links"
-        class="rounded-md border border-line-default bg-surface-raised p-4 shadow-card"
+        class="rounded-card border border-line-default bg-surface-raised p-4 shadow-card"
       >
         <h2 class="mb-2 text-section-title text-content-strong">Slack accounts</h2>
         <p class="mb-4 text-sm text-content-muted">
@@ -187,7 +187,7 @@
           <div
             :for={%{link: link, team_name: team_name} <- @slack_links}
             id={"slack-link-#{link.id}"}
-            class="flex items-center justify-between gap-4 rounded-md border border-line-default bg-linear-to-r from-base-800/50 to-base-800 p-4"
+            class="flex items-center justify-between gap-4 rounded-card border border-line-default bg-linear-to-r from-base-800/50 to-base-800 p-4"
           >
             <div class="min-w-0 text-sm text-content-body">
               <span class="font-semibold text-content-strong">{if link.slack_name, do: link.slack_name, else: link.slack_user_id}</span>

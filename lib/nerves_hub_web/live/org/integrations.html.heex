@@ -3,10 +3,10 @@
     <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-6">
       <div class="flex min-w-0 flex-col gap-1">
         <div class="flex items-baseline gap-2">
-          <h2 id="integrations-title" class="text-group-title text-content-strong">Integrations</h2>
-          <span :if={@count > 0} class="text-[13px] text-content-faint">{@count}</span>
+          <h2 id="integrations-title" class="text-list-title text-content-strong">Integrations</h2>
+          <span :if={@count > 0} class="text-ui text-content-faint">{@count}</span>
         </div>
-        <p class="text-[13px] text-content-muted">Send device events to the chat channels your team watches, or to your own systems.</p>
+        <p class="text-ui/4.5 text-content-muted">Send device events to the chat channels your team watches, or to your own systems.</p>
       </div>
 
       <div class="flex shrink-0 items-center gap-4">
@@ -14,7 +14,7 @@
           href={@webhook_docs}
           target="_blank"
           rel="noopener noreferrer"
-          class="inline-flex items-center gap-1 text-[13px] font-medium text-content-muted hover:text-content-strong"
+          class="inline-flex items-center gap-1 text-ui font-medium text-content-muted hover:text-content-strong"
         >
           Webhook docs <span class="lucide-arrow-up-right size-3.5" aria-hidden="true"></span>
         </a>
@@ -83,13 +83,13 @@
     </div>
 
     <div :if={@empty?} id="integration-choices" class={["grid gap-3 sm:grid-cols-2", if(@slack_configured?, do: "lg:grid-cols-4", else: "lg:grid-cols-3")]}>
-      <div :if={@slack_configured?} class="flex flex-col gap-3.5 rounded-lg border border-line-default bg-surface-raised p-5 shadow-card">
+      <div :if={@slack_configured?} class="flex flex-col gap-3.5 rounded-card border border-line-default bg-surface-raised p-5 shadow-card">
         <span class="flex size-9 items-center justify-center rounded-lg bg-surface-muted"><.service_logo service={:slack} class="size-4.5" /></span>
         <div class="flex flex-1 flex-col gap-1">
           <h3 class="text-sm/4.5 font-semibold text-content-strong">Slack</h3>
-          <p class="text-[13px]/4.5 text-content-muted">Post to channels in your workspace, with buttons to approve rollouts from the message.</p>
+          <p class="text-ui/4.5 text-content-muted">Post to channels in your workspace, with buttons to approve rollouts from the message.</p>
         </div>
-        <.form for={%{}} action={~p"/org/#{@org}/settings/integrations/slack/install"} method="post">
+        <.form for={%{}} action={~p"/org/#{@org}/settings/integrations/slack/install"} method="post" class="self-start">
           <.button type="submit" size="sm" disabled={!authorized?(:"slack_connection:create", @current_scope)}>Add to Slack</.button>
         </.form>
       </div>
@@ -101,23 +101,23 @@
             {:discord, "Discord", "Post to a channel through a webhook you make in its settings.", "Add Discord channel"}
           ]
         }
-        class="flex flex-col gap-3.5 rounded-lg border border-line-default bg-surface-raised p-5 shadow-card"
+        class="flex flex-col gap-3.5 rounded-card border border-line-default bg-surface-raised p-5 shadow-card"
       >
         <span class="flex size-9 items-center justify-center rounded-lg bg-surface-muted"><.service_logo service={provider} class="size-4.5" /></span>
         <div class="flex flex-1 flex-col gap-1">
           <h3 class="text-sm/4.5 font-semibold text-content-strong">{title}</h3>
-          <p class="text-[13px]/4.5 text-content-muted">{description}</p>
+          <p class="text-ui/4.5 text-content-muted">{description}</p>
         </div>
         <.button size="sm" class="self-start" phx-click="new-channel" phx-target={"##{provider}"} disabled={!authorized?(:"chat_webhook:create", @current_scope)}>
           {action}
         </.button>
       </div>
 
-      <div class="flex flex-col gap-3.5 rounded-lg border border-line-default bg-surface-raised p-5 shadow-card">
+      <div class="flex flex-col gap-3.5 rounded-card border border-line-default bg-surface-raised p-5 shadow-card">
         <span class="flex size-9 items-center justify-center rounded-lg bg-surface-muted"><.service_logo service={:webhook} class="size-4.5" /></span>
         <div class="flex flex-1 flex-col gap-1">
           <h3 class="text-sm/4.5 font-semibold text-content-strong">Webhook</h3>
-          <p class="text-[13px]/4.5 text-content-muted">Send each event to your own endpoint as signed JSON.</p>
+          <p class="text-ui/4.5 text-content-muted">Send each event to your own endpoint as signed JSON.</p>
         </div>
         <.button size="sm" class="self-start" phx-click="new" disabled={!authorized?(:"webhook:create", @current_scope)}>Add webhook</.button>
       </div>
@@ -131,7 +131,7 @@
       id="chat-channels"
       role={@chat_table? && "table"}
       aria-label={@chat_table? && "#{@org.name} chat channels"}
-      class={if @chat_table?, do: "rounded-lg border border-line-default bg-surface-raised shadow-card", else: "absolute"}
+      class={if @chat_table?, do: "rounded-card border border-line-default bg-surface-raised shadow-card", else: "absolute"}
     >
       <.table_header :if={@chat_table?} label="Chat channel" />
 
@@ -159,7 +159,7 @@
       />
 
       <div :if={@chat_table? && @chat_count == 0} role="row" class="border-t border-line-subtle px-5 py-6">
-        <p role="cell" class="text-center text-[13px] text-content-muted">
+        <p role="cell" class="text-center text-ui text-content-muted">
           No channel gets this organization's events yet. Add one from Add integration.
         </p>
       </div>
@@ -168,9 +168,9 @@
         :for={connection <- @slack_connections}
         id={"slack-connection-#{connection.id}"}
         role="row"
-        class="flex items-start gap-2.5 border-t border-line-subtle bg-surface px-4 py-3 last:rounded-b-lg md:px-5"
+        class="flex min-h-11 items-center gap-2.5 border-t border-line-subtle bg-surface px-4 py-2.5 last:rounded-b-card md:px-5"
       >
-        <.service_logo service={:slack} class="mt-0.5 size-3.25" />
+        <.service_logo service={:slack} class="size-3.25 shrink-0" />
         <div role="cell" class="flex min-w-0 flex-1 flex-col gap-1 text-xs text-content-muted">
           <p>
             <span class="font-medium text-content-body">{connection.workspace.team_name}</span>
@@ -197,7 +197,7 @@
       </div>
     </div>
 
-    <div :if={@webhooks != []} id="webhooks" role="table" aria-label={"#{@org.name} webhooks"} class="rounded-lg border border-line-default bg-surface-raised shadow-card">
+    <div :if={@webhooks != []} id="webhooks" role="table" aria-label={"#{@org.name} webhooks"} class="rounded-card border border-line-default bg-surface-raised shadow-card">
       <.table_header label="Webhook" />
 
       <.integration_row
@@ -238,7 +238,7 @@
               id={"webhook-#{webhook.id}-copy-secret"}
               phx-hook="CopyToClipboard"
               data-copy-value={webhook.secret}
-              class="flex h-8 shrink-0 items-center gap-2 rounded px-2 text-left text-[13px]/4 text-content-body hover:cursor-pointer hover:bg-surface-muted"
+              class="flex h-8 shrink-0 items-center gap-2 rounded px-2 text-left text-ui/4 text-content-body hover:cursor-pointer hover:bg-surface-muted"
             >
               <span data-icon="copy" class="lucide-copy size-3.5 text-content-muted" aria-hidden="true"></span>
               <span data-icon="check" class="lucide-check hidden size-3.5 text-success" aria-hidden="true"></span> Copy signing secret

@@ -229,6 +229,14 @@ when adding or removing one.
   the font themselves in `assets/js` and wait for it with `whenFontsLoaded`.
   Self-hosted instances may have no internet access, so don't load fonts or
   other assets from a third-party CDN.
+- **Type sizes and card corners:** sizes off Tailwind's scale are named in the
+  `@theme` block of `assets/css/app.css`, so use the name, not a bracketed
+  size: `text-ui` (13px interface text, with `/4` or `/4.5` for its line
+  height), `text-label` (the 11px uppercase label over a column or a figure),
+  `text-item-title` (the name over a card), and `text-figure` /
+  `text-figure-sm` for big numbers. Every card, panel and dashed placeholder
+  is `rounded-card` (4px), along with its `rounded-t-card` header and
+  `rounded-b-card` footer. Controls keep `rounded`, and menus `rounded-md`.
 - **Boundaries:** contexts (`lib/nerves_hub/`) hold business logic; web modules
   stay thin and call into them. Match the surrounding module's conventions,
   error handling, and naming rather than importing your own.

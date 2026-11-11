@@ -6,7 +6,7 @@
 
     <.form :let={f} id="invite-form" for={@form} phx-submit="send_invite">
       <%= if f.action do %>
-        <div class="mb-4 rounded-md border border-alert bg-alert-soft p-4 text-sm text-alert-content">
+        <div class="mb-4 rounded-card border border-alert bg-alert-soft p-4 text-sm text-alert-content">
           <p>Something went wrong, please check the errors below.</p>
         </div>
       <% end %>
@@ -18,7 +18,7 @@
           id="email_input"
           name={f[:email].name}
           value={assigns[:email]}
-          class="w-full rounded border border-line-default bg-base-900 px-3 py-2 text-sm text-content-strong focus:ring-2 focus:ring-focus-ring focus:outline-none"
+          class="w-full rounded border border-line-strong bg-base-900 px-3 py-2 text-sm text-content-strong focus:ring-2 focus:ring-focus-ring focus:outline-none"
         />
         <div class="mt-1 text-sm text-alert-content"><.field_errors field={f[:email]} /></div>
         <div class="mt-1 text-sm text-alert-content"><.field_errors field={f[:org_users]} /></div>
@@ -31,7 +31,7 @@
         <select
           id={f[:role].id}
           name={f[:role].name}
-          class="w-full rounded border border-line-default bg-base-900 px-3 py-2 text-sm text-content-strong focus:ring-2 focus:ring-focus-ring focus:outline-none"
+          class="w-full rounded border border-line-strong bg-base-900 px-3 py-2 text-sm text-content-strong focus:ring-2 focus:ring-focus-ring focus:outline-none"
         >
           {Phoenix.HTML.Form.options_for_select(Utils.role_options(), f.params["role"] || :view)}
         </select>

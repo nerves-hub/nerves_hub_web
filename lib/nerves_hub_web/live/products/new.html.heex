@@ -4,7 +4,7 @@
   <div>
     <div class="flex flex-col items-start justify-between gap-4">
       <.form :let={f} id="new-product-form" for={@form} phx-submit="create_product" class="flex w-full flex-col gap-4">
-        <div class="flex w-full flex-col rounded-md border border-line-default bg-surface-raised">
+        <div class="flex w-full flex-col rounded-card border border-line-default bg-surface-raised">
           <div class="flex h-14 items-center justify-between border-b border-line-default px-4">
             <div class="text-card-title text-content-strong">General settings</div>
           </div>
@@ -15,7 +15,7 @@
           </div>
         </div>
 
-        <div class="flex w-full flex-col rounded-md border border-line-default bg-surface-raised">
+        <div class="flex w-full flex-col rounded-card border border-line-default bg-surface-raised">
           <div class="flex h-14 items-center justify-between border-b border-line-default px-4">
             <div class="text-card-title text-content-strong">Device Extensions</div>
           </div>
@@ -39,7 +39,7 @@
                   id={"extension-#{key}"}
                   name={"product[extensions][#{key}]"}
                   type="checkbox"
-                  class="rounded border-line-default text-content-muted checked:bg-primary focus:ring-0"
+                  class="rounded border-line-strong text-content-muted checked:bg-primary focus:ring-0"
                   checked
                   value="true"
                 />

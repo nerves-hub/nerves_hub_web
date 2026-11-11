@@ -3,22 +3,22 @@
     <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-6">
       <div class="flex min-w-0 flex-col gap-1">
         <div class="flex items-baseline gap-2">
-          <h2 id="cas-title" class="text-group-title text-content-strong">Certificate authorities</h2>
-          <span class="text-[13px] text-content-faint">{length(@certificates)}</span>
+          <h2 id="cas-title" class="text-list-title text-content-strong">Certificate authorities</h2>
+          <span class="text-ui text-content-faint">{length(@certificates)}</span>
         </div>
-        <p class="text-[13px] text-content-muted">Devices can connect with a certificate signed by one of these.</p>
+        <p class="text-ui/4.5 text-content-muted">Devices can connect with a certificate signed by one of these.</p>
       </div>
       <.button type="link" style="primary" navigate={~p"/org/#{@org}/settings/certificates/new"} class="shrink-0 self-start sm:self-auto">
         <span class="lucide-plus size-3.5" aria-hidden="true"></span> Add certificate authority
       </.button>
     </div>
 
-    <div class="overflow-hidden rounded-lg border border-line-default bg-surface-raised shadow-card" role="table" aria-label={"#{@org.name} certificate authorities"}>
+    <div class="overflow-hidden rounded-card border border-line-default bg-surface-raised shadow-card" role="table" aria-label={"#{@org.name} certificate authorities"}>
       <div role="row" class="hidden h-9 items-center gap-4 border-b border-line-subtle bg-surface px-5 md:flex">
-        <span role="columnheader" class="flex-1 text-[11px]/3.5 font-medium tracking-[0.06em] text-content-faint uppercase">Certificate authority</span>
-        <span role="columnheader" class="w-22.5 text-right text-[11px]/3.5 font-medium tracking-[0.06em] text-content-faint uppercase">Devices</span>
-        <span role="columnheader" class="w-32.5 text-[11px]/3.5 font-medium tracking-[0.06em] text-content-faint uppercase">Last used</span>
-        <span role="columnheader" class="w-40 text-[11px]/3.5 font-medium tracking-[0.06em] text-content-faint uppercase">Valid until</span>
+        <span role="columnheader" class="flex-1 text-label text-content-faint uppercase">Certificate authority</span>
+        <span role="columnheader" class="w-22.5 text-right text-label text-content-faint uppercase">Devices</span>
+        <span role="columnheader" class="w-32.5 text-label text-content-faint uppercase">Last used</span>
+        <span role="columnheader" class="w-40 text-label text-content-faint uppercase">Valid until</span>
         <span class="w-4" aria-hidden="true"></span>
       </div>
 
@@ -42,7 +42,7 @@
           <div class="flex min-w-0 flex-1 flex-col gap-1">
             <div class="flex flex-wrap items-center gap-x-2 gap-y-1">
               <h3 :if={cert.description not in [nil, ""]} class="text-sm/4.5 font-medium text-content-strong">{cert.description}</h3>
-              <h3 :if={cert.description in [nil, ""]} class="text-[13px]/4.5 font-medium break-all text-content-strong">
+              <h3 :if={cert.description in [nil, ""]} class="text-ui/4.5 font-medium break-all text-content-strong">
                 <code>{Utils.format_serial(cert.serial)}</code>
               </h3>
               <span
@@ -66,17 +66,17 @@
         <div
           role="cell"
           id={"ca-#{cert.id}-device-count"}
-          class={["hidden w-22.5 shrink-0 text-right text-[13px] tabular-nums md:block", if(devices == 0, do: "text-content-faint", else: "text-content-body")]}
+          class={["hidden w-22.5 shrink-0 text-right text-ui tabular-nums md:block", if(devices == 0, do: "text-content-faint", else: "text-content-body")]}
         >
           {Number.Delimit.number_to_delimited(devices, precision: 0)}
         </div>
 
-        <div role="cell" class={["hidden w-32.5 shrink-0 text-[13px] md:block", if(cert.last_used, do: "text-content-muted", else: "text-content-faint")]}>
+        <div role="cell" class={["hidden w-32.5 shrink-0 text-ui md:block", if(cert.last_used, do: "text-content-muted", else: "text-content-faint")]}>
           {last_used_label(cert)}
         </div>
 
         <div role="cell" class="hidden w-40 shrink-0 flex-col items-start gap-1 md:flex">
-          <span class="text-[13px] text-content-muted">
+          <span class="text-ui text-content-muted">
             <.local_datetime at={cert.not_after} time_zone={@time_zone} format={:long_date} zone_label={false} />
           </span>
           <.validity_chip :if={validity} validity={validity} />

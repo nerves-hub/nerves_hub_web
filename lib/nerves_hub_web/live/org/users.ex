@@ -272,18 +272,19 @@ defmodule NervesHubWeb.Live.Org.Users do
   end
 
   defp toggle_menu(user_id) do
-    JS.toggle(
+    [
       to: "#member-#{user_id}-menu",
       in: {"ease-out duration-150", "opacity-0", "opacity-100"},
       out: {"ease-out duration-150", "opacity-100", "opacity-0"}
-    )
+    ]
+    |> JS.toggle()
+    |> JS.toggle_attribute({"aria-expanded", "true", "false"}, to: "#member-#{user_id}-menu-toggle")
   end
 
   defp hide_menu(js \\ %JS{}, user_id) do
-    JS.hide(js,
-      to: "#member-#{user_id}-menu",
-      transition: {"ease-out duration-150", "opacity-100", "opacity-0"}
-    )
+    js
+    |> JS.hide(to: "#member-#{user_id}-menu", transition: {"ease-out duration-150", "opacity-100", "opacity-0"})
+    |> JS.set_attribute({"aria-expanded", "false"}, to: "#member-#{user_id}-menu-toggle")
   end
 
   ## Components

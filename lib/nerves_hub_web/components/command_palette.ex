@@ -155,7 +155,7 @@ defmodule NervesHubWeb.Components.CommandPalette do
   defp result_group(assigns) do
     ~H"""
     <div class="px-2 pb-2">
-      <div class="px-2 pt-2 pb-1 text-xs font-semibold tracking-wide text-content-faint uppercase">{@title}</div>
+      <div class="px-2 pt-2 pb-1 text-label text-content-faint uppercase">{@title}</div>
       {render_slot(@inner_block)}
     </div>
     """

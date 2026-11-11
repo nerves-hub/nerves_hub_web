@@ -217,18 +217,35 @@ defmodule NervesHubWeb.Live.Org.Show do
   ## Components
 
   attr(:label, :string, required: true)
+
+  attr(:size, :string,
+    default: "lg",
+    values: ~w(lg md),
+    doc: "`lg` on a product's own card, `md` on a card in the grid"
+  )
+
   slot(:inner_block, required: true)
   slot(:detail, doc: "a line under the figure")
 
   defp stat(assigns) do
     ~H"""
-    <div class="flex min-w-0 flex-col gap-1.5 bg-surface-raised p-4 md:px-6">
-      <dt class="text-[11px]/4 font-medium tracking-wide text-content-faint uppercase">{@label}</dt>
-      <dd class="flex min-h-8 items-center text-2xl font-medium text-content-strong tabular-nums">{render_slot(@inner_block)}</dd>
+    <div class={["flex min-w-0 flex-col gap-2 bg-surface-raised", stat_size(@size)]}>
+      <dt class="text-label text-content-faint uppercase">{@label}</dt>
+      <dd class={["flex items-center text-content-strong tabular-nums", stat_figure(@size)]}>{render_slot(@inner_block)}</dd>
       <dd :if={@detail != []} class="text-xs text-content-muted">{render_slot(@detail)}</dd>
     </div>
     """
   end
+
+  defp stat_size("lg"), do: "px-4 py-4.5 md:px-6"
+  defp stat_size("md"), do: "px-5 py-3.5"
+
+  defp stat_figure("lg"), do: "min-h-7 text-figure"
+  defp stat_figure("md"), do: "min-h-6 text-figure-sm"
+
+  # A link set in the primary colour, a step darker in light, where
+  # indigo-500 falls just short of 4.5:1 on white.
+  defp text_link(), do: "text-primary hover:text-primary-hover light:text-indigo-600 light:hover:text-indigo-500"
 
   attr(:org, :map, required: true)
   attr(:product, :map, required: true)
@@ -237,13 +254,13 @@ defmodule NervesHubWeb.Live.Org.Show do
   # What a product with no devices shows in place of its figures.
   defp no_devices(assigns) do
     ~H"""
-    <div class={["flex flex-col items-start gap-3 border-t border-line-subtle p-4", @class]}>
-      <div>
-        <p class="text-sm font-medium text-content-strong">No devices yet</p>
-        <p class="text-sm text-content-muted">Upload firmware, then connect a device with a shared secret or a certificate.</p>
+    <div class={["flex flex-col items-start gap-3 border-t border-line-subtle px-5 py-4.5", @class]}>
+      <div class="flex flex-col gap-1.5">
+        <p class="text-ui/4.5 font-medium text-content-body">No devices yet</p>
+        <p class="text-xs text-content-muted">Upload firmware, then connect a device with a shared secret or a certificate.</p>
       </div>
-      <.link navigate={~p"/org/#{@org}/#{@product}/devices/new"} class="inline-flex items-center gap-1 text-sm font-medium text-primary hover:text-primary-hover">
-        Connect your first device <span class="lucide-arrow-right size-4" aria-hidden="true"></span>
+      <.link navigate={~p"/org/#{@org}/#{@product}/devices/new"} class={["inline-flex items-center gap-1.5 text-ui/4 font-medium", text_link()]}>
+        Connect your first device <span class="lucide-arrow-right size-3.5" aria-hidden="true"></span>
       </.link>
     </div>
     """
@@ -253,15 +270,24 @@ defmodule NervesHubWeb.Live.Org.Show do
   attr(:product, :map, required: true)
   attr(:links, :list, required: true)
 
+  attr(:size, :string,
+    default: "lg",
+    values: ~w(lg md),
+    doc: "`lg` on a product's own card, `md` on a card in the grid, which drops the Go to label"
+  )
+
   # On a phone the links scroll sideways rather than wrap, so the footer
   # stays one row.
   defp product_footer(assigns) do
     ~H"""
     <nav
       aria-label={"#{@product.name} pages"}
-      class="scrollbar-none flex h-12 items-center gap-5 overflow-x-auto border-t border-line-subtle bg-surface px-4 text-sm whitespace-nowrap md:px-6"
+      class={[
+        "scrollbar-none flex items-center overflow-x-auto border-t border-line-subtle bg-surface text-ui/4 font-medium whitespace-nowrap",
+        if(@size == "lg", do: "h-12 gap-6 px-4 md:px-6", else: "h-11 gap-5 px-5")
+      ]}
     >
-      <span class="text-[11px]/4 font-medium tracking-wide text-content-faint uppercase">Go to</span>
+      <span :if={@size == "lg"} class="text-xs font-normal text-content-faint">Go to</span>
       <.link :for={{label, path} <- @links} navigate={path} class="text-content-body hover:text-content-strong">{label}</.link>
     </nav>
     """

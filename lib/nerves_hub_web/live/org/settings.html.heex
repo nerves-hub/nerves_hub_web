@@ -2,8 +2,8 @@
   <div class="flex flex-col gap-7">
     <section id="org-name" class="flex flex-col gap-4 border-b border-line-default pb-7 md:flex-row md:gap-12">
       <div class="flex flex-col gap-1 md:w-70 md:shrink-0">
-        <h2 class="text-group-title text-content-strong"><label for="name_input">Organization name</label></h2>
-        <p class="text-[13px] text-content-muted">Shown across NervesCloud and used in every link to this organization.</p>
+        <h2 class="text-list-title text-content-strong"><label for="name_input">Organization name</label></h2>
+        <p class="text-ui/4.5 text-content-muted">Shown across NervesCloud and used in every link to this organization.</p>
       </div>
 
       <.form :let={f} id="update-organization-form" for={@form} phx-submit="update" class="flex min-w-0 flex-1 flex-col gap-3.5">
@@ -32,11 +32,11 @@
 
     <section id="delete-org" class="flex flex-col gap-4 md:flex-row md:gap-12">
       <div class="flex flex-col gap-1 md:w-70 md:shrink-0">
-        <h2 class="text-group-title text-content-strong">Delete organization</h2>
-        <p class="text-[13px] text-content-muted">Admins only, like renaming.</p>
+        <h2 class="text-list-title text-content-strong">Delete organization</h2>
+        <p class="text-ui/4.5 text-content-muted">Admins only, like renaming.</p>
       </div>
 
-      <div class="flex min-w-0 flex-1 flex-col gap-4 rounded-lg border border-alert/25 bg-alert-soft px-5 py-4.5 sm:flex-row sm:items-center sm:justify-between sm:gap-6">
+      <div class="flex min-w-0 flex-1 flex-col gap-4 rounded-card border border-alert/25 bg-alert-soft px-5 py-4.5 sm:flex-row sm:items-center sm:justify-between sm:gap-6">
         <div class="flex min-w-0 flex-col gap-0.5">
           <p id="delete-org-summary" class="text-sm font-medium text-alert-content">{delete_summary(@org, @product_names)}</p>
           <p class="text-xs text-content-muted">You’ll type the organization name to confirm. This can’t be undone.</p>

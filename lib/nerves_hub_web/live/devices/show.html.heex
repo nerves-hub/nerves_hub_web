@@ -48,7 +48,7 @@
         data-connection-status={Map.get(@device_connection || %{}, :status) || "unknown"}
         class="data-[connection-status=connected]:bg-status-online data-[connection-status=connecting]:animate-pulse data-[connection-status=connecting]:bg-status-connecting data-[connection-status=disconnected]:bg-status-offline data-[connection-status=unknown]:bg-status-offline"
       />
-      <h1 class="shrink-0 font-mono text-page-title text-content-strong">
+      <h1 class="shrink-0 font-mono text-page-title tracking-normal text-content-strong">
         {@device.identifier}
       </h1>
       <button
