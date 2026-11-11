@@ -101,6 +101,10 @@
   --color-line-strong: var(--color-zinc-600); /* inputs, selects, buttons, chips */
   --color-line-subtle: var(--color-zinc-800); /* dividers between rows */
   --color-line-dashed: var(--color-zinc-600); /* dashed outlines of placeholders and nudges */
+  --color-line-rule: var(--color-zinc-600); /* the rule under a row of tabs */
+  /* Buttons, and the sides and top of inputs and selects, whose bottom edge
+     is line-strong. The same as line-strong here; light sets it apart. */
+  --color-line-control: var(--color-zinc-600);
 
   /* Neutral ramp — low = bright text, high = recessed surface; inverts in light */
   --color-base-50: var(--color-zinc-50);
@@ -333,13 +337,19 @@
 
   /* Hairlines follow the design file: cards and rules sit lighter on white
      than their dark-mode counterparts do on the dark canvas. line-strong
-     outlines controls, so it stays at 3:1 or more on every light surface
-     (WCAG 1.4.11); zinc-400 is only 2.3–2.6:1 here. A control outlined in
-     line-default would fall well short of that, so controls never use it. */
+     stays at 3:1 or more on every light surface (WCAG 1.4.11); zinc-400 is
+     only 2.3–2.6:1 here.
+
+     Controls split by what tells you they are one. A button is identified
+     by its label, so it takes the lighter line-control and a shadow-xs. An
+     input or select can be empty, so its edge is what marks it: line-control
+     on the sides and top, line-strong along the bottom for a 3:1 edge. */
   --color-line-default: var(--color-zinc-200);
   --color-line-strong: #8c8c95; /* between zinc-400 and zinc-500 */
   --color-line-subtle: #ececee; /* between zinc-100 and zinc-200 */
   --color-line-dashed: var(--color-zinc-300);
+  --color-line-rule: var(--color-zinc-300); /* not a control, so no 3:1 floor */
+  --color-line-control: var(--color-zinc-300);
 
   /* Between zinc-300 and zinc-400: at the hover gradient's 24–48% it gives
      the light sidebar the same contrast (1.12–1.27:1) zinc-700 gives dark. */
@@ -358,12 +368,13 @@
 @custom-variant dark (&:where([data-theme=dark], [data-theme=dark] *));
 @custom-variant light (&:where([data-theme=light], [data-theme=light] *));
 /* The sidebar collapses to an icon rail when the user toggles it
-   (`data-sidebar="collapsed"`) OR whenever the viewport is below `lg`. */
+   (`data-sidebar="collapsed"`) OR whenever the viewport is below `xl`, so a
+   1024px window keeps room for the device page's two columns. */
 @custom-variant collapsed {
   &:where([data-sidebar="collapsed"], [data-sidebar="collapsed"] *) {
     @slot;
   }
-  @media (width < 64rem) {
+  @media (width < 80rem) {
     @slot;
   }
 }
@@ -574,8 +585,10 @@
   }
 }
 
+/* Grayscale smoothing, as the design file draws text. Without it macOS
+   browsers draw Inter a shade heavier than the design. */
 html {
-  @apply text-content-body;
+  @apply text-content-body antialiased;
 }
 
 body {

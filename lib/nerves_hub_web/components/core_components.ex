@@ -536,14 +536,13 @@ defmodule NervesHubWeb.CoreComponents do
     [
       # Raised like a card: the card's fill and a hairline shadow. Hover tints
       # it toward the text in either theme (zinc-800 dark, zinc-100 light).
-      "border-line-strong bg-surface-raised shadow-xs hover:bg-base-800 light:hover:bg-surface-muted",
+      "border-line-control bg-surface-raised shadow-xs hover:bg-base-800 light:hover:bg-surface-muted",
       "active:border-primary active:bg-primary disabled:bg-surface-raised",
       "text-content-body hover:text-content-strong active:text-primary-content disabled:text-content-faint",
       "[&>[class*=lucide-]]:text-content-muted active:[&>[class*=lucide-]]:text-current disabled:[&>[class*=lucide-]]:text-current",
-      # The design draws this edge in zinc-200, but a white button on a white
-      # card is told apart by its outline alone, so it keeps line-strong, which
-      # clears 3:1 on white as every control outline does. Light only darkens
-      # the edge on hover (zinc-600).
+      # Its label says it is a button, so the edge can be the lighter
+      # line-control (zinc-300 in light) rather than a 3:1 outline. Light
+      # darkens the edge on hover (zinc-600).
       "light:hover:border-base-400"
     ]
   end
@@ -728,7 +727,7 @@ defmodule NervesHubWeb.CoreComponents do
       <select
         id={@id}
         name={@name}
-        class="mt-2 block w-full rounded border border-line-strong bg-base-900 px-2 py-1.5 text-content-muted focus:ring-2 focus:ring-focus-ring sm:text-sm"
+        class="mt-2 block w-full rounded border border-line-control border-b-line-strong bg-base-900 px-2 py-1.5 text-content-muted focus:ring-2 focus:ring-focus-ring sm:text-sm"
         multiple={@multiple}
         {@rest}
       >
@@ -753,7 +752,7 @@ defmodule NervesHubWeb.CoreComponents do
         class={[
           "mt-2 block w-full rounded bg-base-900 px-2 py-1.5 text-content-muted focus:ring-2 sm:text-sm/6",
           @class || "min-h-24",
-          @errors == [] && "border-line-strong focus:ring-focus-ring",
+          @errors == [] && "border-line-control border-b-line-strong focus:ring-focus-ring",
           @errors != [] && "border-alert focus:ring-alert"
         ]}
         {@rest}
@@ -779,7 +778,7 @@ defmodule NervesHubWeb.CoreComponents do
         value={Phoenix.HTML.Form.normalize_value(@type, @value)}
         class={[
           "mt-2 block w-full rounded bg-base-900 px-2 py-1.5 text-content-muted focus:ring-2 sm:text-sm",
-          @errors == [] && "border-line-strong focus:ring-focus-ring",
+          @errors == [] && "border-line-control border-b-line-strong focus:ring-focus-ring",
           @errors != [] && "border-alert focus:ring-alert"
         ]}
         {@rest}
@@ -808,7 +807,7 @@ defmodule NervesHubWeb.CoreComponents do
         value={Phoenix.HTML.Form.normalize_value(@type, @value)}
         class={[
           "mt-2 block w-full rounded bg-base-900 px-2 py-1.5 text-content-muted focus:ring-2 sm:text-sm",
-          @errors == [] && "border-line-strong focus:ring-focus-ring",
+          @errors == [] && "border-line-control border-b-line-strong focus:ring-focus-ring",
           @errors != [] && "border-alert focus:ring-alert"
         ]}
         {@rest}
@@ -871,7 +870,7 @@ defmodule NervesHubWeb.CoreComponents do
           data-tag-input
           class={[
             "block w-full rounded bg-base-900 px-2 py-1.5 text-content-muted focus:ring-2 sm:text-sm",
-            @errors == [] && "border-line-strong focus:ring-focus-ring",
+            @errors == [] && "border-line-control border-b-line-strong focus:ring-focus-ring",
             @errors != [] && "border-alert focus:ring-alert"
           ]}
           {@rest}
