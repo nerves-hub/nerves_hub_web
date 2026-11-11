@@ -175,7 +175,7 @@ defmodule NervesHubWeb.Components.DevicePage.FirmwareHistoryTab do
               >
                 {attempt.deployment_group.name}
               </.link>
-              <span :if={!attempt.deployment_group} class="text-content-muted">By hand</span>
+              <span :if={!attempt.deployment_group} class="text-content-muted">Manual request</span>
             </td>
           </tr>
         </tbody>
