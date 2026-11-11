@@ -743,17 +743,22 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
     HealthProfiles.featured_keys(device)
   end
 
+  @gauge_order [:cpu, :memory, :disk, :load]
+
   # A gauge per featured metric of the device's health profile. Keys the
   # composite gauges cover collapse into their gauge (featuring
   # cpu_usage_percent or cpu_temp gives the CPU gauge) and any other featured
   # key gets a plain value gauge. An engaged metric with no gauge of its own
   # is added after these. With no profile, the pre-profile fixed trio.
+  # Composite gauges come in the Health tab's order, CPU, memory, disk and
+  # load, whatever order the profile lists their keys in.
   defp featured_tiles(nil), do: [:cpu, :memory, :load]
 
   defp featured_tiles(featured_keys) do
     featured_keys
     |> Enum.map(&tile_for/1)
     |> Enum.uniq()
+    |> Enum.sort_by(&(Enum.find_index(@gauge_order, fn tile -> tile == &1 end) || length(@gauge_order)))
   end
 
   # The frame every box on the tab shares, and the header row across its top.
@@ -850,7 +855,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
         </:aside>
       </.card_header>
 
-      <div class="flex flex-wrap items-start gap-x-7 gap-y-4 px-4 pt-1 pb-4.5">
+      <div class="grid grid-cols-[repeat(auto-fill,minmax(9.5rem,1fr))] items-start gap-x-7 gap-y-4 px-4 pt-1 pb-4.5">
         <.gauge
           :for={tile <- featured_tiles(@featured_keys)}
           tile={tile}
@@ -1388,6 +1393,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
 
   defp tile_for(key) when key in ["cpu_usage_percent", "cpu_temp"], do: :cpu
   defp tile_for(key) when key in ["mem_used_percent", "mem_used_mb", "mem_size_mb"], do: :memory
+  defp tile_for(key) when key in ["disk_used_percentage", "disk_total_kb", "disk_available_kb"], do: :disk
   defp tile_for("load_" <> _rest), do: :load
   defp tile_for(key), do: {:metric, key}
 
@@ -1401,17 +1407,17 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
 
   defp gauge(%{tile: :load} = assigns) do
     ~H"""
-    <div class="flex min-w-36 flex-col gap-1">
+    <div class="flex min-w-0 flex-col gap-1.5">
       <span class="text-xs font-medium text-content-muted">Load average</span>
-      <div class="flex items-baseline gap-3">
-        <span class={["w-12.5 text-2xl/7.5 font-medium tracking-[-0.02em]", level_text(@engaged, "text-content-strong")]}>
+      <div class="flex h-7.5 items-baseline gap-3">
+        <span class={["w-12.5 shrink-0 text-2xl/7.5 font-medium tracking-[-0.02em]", level_text(@engaged, "text-content-strong")]}>
           {load_value(@latest_metrics["load_1min"])}
         </span>
-        <span class="w-9.5 text-base text-content-body">{load_value(@latest_metrics["load_5min"])}</span>
-        <span class="w-9.5 text-base text-content-body">{load_value(@latest_metrics["load_15min"])}</span>
+        <span class="w-9.5 shrink-0 text-base font-medium text-content-body">{load_value(@latest_metrics["load_5min"])}</span>
+        <span class="w-9.5 shrink-0 text-base font-medium text-content-body">{load_value(@latest_metrics["load_15min"])}</span>
       </div>
-      <div class="flex gap-3 text-xs text-content-faint">
-        <span class="w-12.5">1 min</span><span class="w-9.5">5 min</span><span class="w-9.5">15 min</span>
+      <div class="flex h-4 items-center gap-3 text-xs text-content-faint">
+        <span class="w-12.5 shrink-0">1 min</span><span class="w-9.5 shrink-0">5 min</span><span class="w-9.5 shrink-0">15 min</span>
       </div>
       <.engaged_reason engaged={@engaged} />
     </div>
@@ -1422,17 +1428,24 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
     assigns = assign(assigns, :reading, reading(assigns.tile, assigns.latest_metrics, assigns.custom_labels))
 
     ~H"""
-    <div class="flex min-w-30 flex-1 flex-col gap-1">
-      <span class="text-xs font-medium text-content-muted">{@reading.label}</span>
-      <div :if={@reading.value} class="flex items-baseline gap-1">
+    <div class="flex min-w-0 flex-col gap-1.5">
+      <span class="truncate text-xs font-medium text-content-muted">
+        {@reading.label}<span :if={@reading.size} class="font-normal"> · {@reading.size}</span>
+      </span>
+      <div :if={@reading.value} class="flex h-7.5 items-baseline gap-1">
         <span class={["text-2xl/7.5 font-medium tracking-[-0.02em]", level_text(@engaged, "text-content-strong")]}>{@reading.value}</span>
         <span :if={@reading.unit} class="text-sm text-content-muted">{@reading.unit}</span>
       </div>
-      <span :if={!@reading.value} class="text-2xl/7.5 font-medium tracking-[-0.02em] text-content-faint">—</span>
-      <div :if={@reading.percent} class="mt-1 h-1 overflow-hidden rounded-full bg-line-default">
-        <div class={["h-full rounded-full", level_bar(@engaged)]} style={"width: #{min(max(@reading.percent, 0), 100)}%"}></div>
+      <span :if={!@reading.value} class="h-7.5 text-2xl/7.5 font-medium tracking-[-0.02em] text-content-faint">—</span>
+      <div :if={@reading.percent || @reading.aside} class="flex h-4 items-center gap-2.5">
+        <div :if={@reading.percent} class="flex h-1 grow rounded-full bg-line-default">
+          <div class={["h-1 rounded-full", level_bar(@engaged)]} style={"width: #{min(max(@reading.percent, 0), 100)}%"}></div>
+        </div>
+        <span :if={@reading.aside} class="flex shrink-0 items-center gap-0.75 text-xs text-content-muted">
+          <span :if={@reading.aside_icon} class={[@reading.aside_icon, "size-3.25 text-content-faint"]} aria-hidden="true"></span>
+          {@reading.aside}
+        </span>
       </div>
-      <span :if={@reading.detail} class="text-xs text-content-muted">{@reading.detail}</span>
       <.engaged_reason engaged={@engaged} />
     </div>
     """
@@ -1454,36 +1467,56 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
   defp level_bar({"warning", _reason}), do: "bg-warning"
   defp level_bar(_not_engaged), do: "bg-content-faint"
 
-  defp load_value(value) when is_number(value), do: value
+  defp load_value(value) when is_number(value), do: Utils.format_number(Float.round(value / 1, 2))
   defp load_value(_not_reported), do: "—"
 
+  # A gauge's reading: the label and the total it's out of, the value with its
+  # unit, a bar for a share, and beside the bar what the value doesn't say.
   defp reading(:cpu, metrics, _labels) do
+    temperature = metrics["cpu_temp"]
+
     %{
       label: "CPU",
-      value: metrics["cpu_usage_percent"] && round(metrics["cpu_usage_percent"]),
+      size: nil,
+      value: is_number(metrics["cpu_usage_percent"]) && round(metrics["cpu_usage_percent"]),
       unit: "%",
-      percent: metrics["cpu_usage_percent"],
-      detail: metrics["cpu_temp"] && "#{round(metrics["cpu_temp"])}°C"
+      percent: number_or_nil(metrics["cpu_usage_percent"]),
+      aside: is_number(temperature) && "#{round(temperature)} °C",
+      aside_icon: "lucide-thermometer"
     }
   end
 
   defp reading(:memory, metrics, _labels) do
-    case {metrics["mem_used_mb"], metrics["mem_used_percent"]} do
-      {mb, percent} when is_number(mb) ->
-        %{
-          label: "Memory",
-          value: number_to_delimited(mb, precision: 0),
-          unit: "MB",
-          percent: percent,
-          detail: percent && "#{round(percent)}% used"
-        }
+    used = metrics["mem_used_mb"]
+    percent = number_or_nil(metrics["mem_used_percent"])
 
-      {nil, percent} when is_number(percent) ->
-        %{label: "Memory", value: round(percent), unit: "%", percent: percent, detail: nil}
+    %{
+      label: "Memory",
+      size: is_number(metrics["mem_size_mb"]) && "#{gigabytes(metrics["mem_size_mb"] / 1024)} GB",
+      value: if(is_number(used), do: number_to_delimited(used, precision: 0), else: percent && round(percent)),
+      unit: if(is_number(used), do: "MB", else: percent && "%"),
+      percent: percent,
+      aside: is_number(used) && percent && "#{round(percent)}%",
+      aside_icon: nil
+    }
+  end
 
-      _not_reported ->
-        %{label: "Memory", value: nil, unit: nil, percent: nil, detail: nil}
-    end
+  defp reading(:disk, metrics, _labels) do
+    %{"disk_total_kb" => total, "disk_available_kb" => available} =
+      Map.merge(%{"disk_total_kb" => nil, "disk_available_kb" => nil}, metrics)
+
+    percent = number_or_nil(metrics["disk_used_percentage"])
+    sizes? = is_number(total) and is_number(available)
+
+    %{
+      label: "Disk",
+      size: is_number(total) && "#{gigabytes(total / 1_048_576)} GB",
+      value: if(sizes?, do: gigabytes((total - available) / 1_048_576), else: percent && round(percent)),
+      unit: if(sizes?, do: "GB", else: percent && "%"),
+      percent: percent,
+      aside: sizes? && percent && "#{round(percent)}%",
+      aside_icon: nil
+    }
   end
 
   defp reading({:metric, key}, metrics, labels) do
@@ -1491,12 +1524,19 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
 
     %{
       label: MetricLabels.label(key, labels),
+      size: nil,
       value: is_number(value) && Utils.nice_round(value),
       unit: nil,
       percent: nil,
-      detail: nil
+      aside: nil,
+      aside_icon: nil
     }
   end
+
+  defp number_or_nil(value) when is_number(value), do: value
+  defp number_or_nil(_not_a_number), do: nil
+
+  defp gigabytes(value), do: Utils.format_number(Float.round(value / 1, 1))
 
   # The dropdown is built from firmware that still exists, so a request naming
   # firmware the lookup cannot find comes from a page left open while someone

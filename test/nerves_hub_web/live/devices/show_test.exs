@@ -1186,12 +1186,12 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       |> assert_has("h1", text: device.identifier)
       |> assert_has("div", text: "Health")
       |> assert_has("div", text: "Load average")
-      |> assert_has("span", text: "0.0", exact: true, count: 3)
+      |> assert_has("span", text: "0", exact: true, count: 3)
       |> assert_has("div", text: "Memory")
       |> assert_has("span", text: "100")
       |> assert_has("span", text: "60")
       |> assert_has("div", text: "CPU")
-      |> assert_has("span", text: "30°")
+      |> assert_has("span", text: "30 °C")
     end
 
     test "cpu temp missing", %{
@@ -1224,6 +1224,34 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       |> assert_has("span", text: "60")
       |> assert_has("span", text: "Last reported")
       |> assert_has("time", text: "now")
+    end
+
+    test "rounds load averages and shows disk as its own gauge", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device
+    } do
+      metrics = %{
+        "load_1min" => 0.3168665579,
+        "load_5min" => 0.2655176992,
+        "load_15min" => 0.1808042,
+        "disk_used_percentage" => 78.2,
+        "disk_total_kb" => 31_457_280,
+        "disk_available_kb" => 6_815_744
+      }
+
+      assert {:ok, 6} = Metrics.record(to_device_info(device), metrics)
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      |> assert_has("#health-card span", text: "0.32", exact: true)
+      |> assert_has("#health-card span", text: "0.27", exact: true)
+      |> assert_has("#health-card span", text: "0.18", exact: true)
+      |> refute_has("#health-card", text: "0.3168")
+      |> assert_has("#health-card span", text: "Disk · 30 GB")
+      |> assert_has("#health-card span", text: "23.5", exact: true)
+      |> assert_has("#health-card span", text: "78%")
     end
 
     # A device over the per-report key cap can have `mem_used_percent` cut
