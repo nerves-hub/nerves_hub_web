@@ -4,15 +4,18 @@ defmodule NervesHubWeb.Access.AuthorizedLiveViewTest do
   alias NervesHub.Accounts
   alias NervesHub.Accounts.Scope
   alias NervesHubWeb.Access.Authorization
+  alias NervesHubWeb.Access.AuthorizedTab
+  alias NervesHubWeb.Mounts.RequireAuthorization
   alias NervesHubWeb.Mounts.RequireAuthorization.AuthorizationFailed
   alias NervesHubWeb.Mounts.RequireAuthorization.AuthorizationNotApplied
   alias Phoenix.LiveView.Socket
 
-  # A LiveView with NO authorization decorator on mount
+  # A LiveView whose mount says it authorizes in its body, and then does not
   defmodule UndecoratedMountLive do
     use Phoenix.LiveView
     use NervesHubWeb.Access.AuthorizedLiveView
 
+    @decorate authorizes_in_body()
     def mount(_params, _session, socket) do
       {:ok, socket}
     end
@@ -59,7 +62,7 @@ defmodule NervesHubWeb.Access.AuthorizedLiveViewTest do
     def render(assigns), do: ~H"<div>test</div>"
   end
 
-  # A LiveView where mount is decorated but an event is NOT
+  # A LiveView where an event says it authorizes in its body, and then does not
   defmodule UndecoratedEventLive do
     use Phoenix.LiveView
     use NervesHubWeb.Access.AuthorizedLiveView
@@ -69,6 +72,7 @@ defmodule NervesHubWeb.Access.AuthorizedLiveViewTest do
       {:ok, socket}
     end
 
+    @decorate authorizes_in_body()
     def handle_event("click", _params, socket) do
       {:noreply, socket}
     end
@@ -99,8 +103,9 @@ defmodule NervesHubWeb.Access.AuthorizedLiveViewTest do
     use Phoenix.LiveView
     use NervesHubWeb.Access.AuthorizedLiveView
 
-    import NervesHubWeb.Mounts.RequireAuthorization, only: [authorize!: 3]
+    import RequireAuthorization, only: [authorize!: 3]
 
+    @decorate authorizes_in_body()
     def mount(_params, _session, socket) do
       socket = authorize!(socket, :"device:view", socket.assigns.device)
       {:ok, socket}
@@ -114,13 +119,14 @@ defmodule NervesHubWeb.Access.AuthorizedLiveViewTest do
     use Phoenix.LiveView
     use NervesHubWeb.Access.AuthorizedLiveView
 
-    import NervesHubWeb.Mounts.RequireAuthorization, only: [authorize!: 3]
+    import RequireAuthorization, only: [authorize!: 3]
 
     @decorate requires_no_permission()
     def mount(_params, _session, socket) do
       {:ok, socket}
     end
 
+    @decorate authorizes_in_body()
     def handle_event("delete", _params, socket) do
       socket = authorize!(socket, :"device:delete", socket.assigns.device)
       {:noreply, socket}
@@ -264,6 +270,73 @@ defmodule NervesHubWeb.Access.AuthorizedLiveViewTest do
     end
 
     def render(assigns), do: ~H"<div>test</div>"
+  end
+
+  # A LiveView that checks a permission against a record in the assigns.
+  defmodule OnAssignLive do
+    use Phoenix.LiveView
+    use NervesHubWeb.Access.AuthorizedLiveView
+
+    @decorate requires_no_permission()
+    def mount(_params, _session, socket) do
+      {:ok, socket}
+    end
+
+    @decorate requires_permission(:"device:delete", on: :device)
+    def handle_event("delete", _params, socket) do
+      {:noreply, Phoenix.Component.assign(socket, :deleted, true)}
+    end
+
+    def render(assigns), do: ~H"<div>test</div>"
+  end
+
+  # A LiveComponent, whose events never reach the LiveView.
+  defmodule EventComponent do
+    use Phoenix.LiveComponent
+    use NervesHubWeb.Access.AuthorizedLiveComponent
+
+    @decorate requires_permission(:"device:delete", on: :device)
+    def handle_event("delete", _params, socket) do
+      {:noreply, Phoenix.Component.assign(socket, :deleted, true)}
+    end
+
+    @decorate authorizes_in_body()
+    def handle_event("forgot", _params, socket) do
+      {:noreply, socket}
+    end
+
+    @decorate requires_no_permission()
+    def handle_event("crash", %{"count" => count}, socket) do
+      {:noreply, Phoenix.Component.assign(socket, :count, String.to_integer(count))}
+    end
+
+    def render(assigns), do: ~H"<div>test</div>"
+  end
+
+  # A device page tab, whose hook halts events before the LiveView sees them.
+  defmodule EventTab do
+    use Phoenix.Component
+    use AuthorizedTab
+
+    @decorate requires_permission(:"device:delete", on: :device)
+    def hooked_event("delete", _params, socket) do
+      {:halt, Phoenix.Component.assign(socket, :deleted, true)}
+    end
+
+    @decorate authorizes_in_body()
+    def hooked_event("forgot", _params, socket) do
+      {:halt, socket}
+    end
+
+    @decorate requires_no_permission()
+    def hooked_event(_event, _params, socket), do: {:cont, socket}
+
+    @decorate requires_permission(:"device:update", on: :device)
+    def handle_progress(:file, _entry, socket) do
+      {:noreply, Phoenix.Component.assign(socket, :uploaded, true)}
+    end
+
+    def progress(), do: authorized_progress(&handle_progress/3)
   end
 
   defp build_socket(extra_assigns \\ %{}) do
@@ -577,6 +650,213 @@ defmodule NervesHubWeb.Access.AuthorizedLiveViewTest do
       assert_raise FunctionClauseError, fn ->
         BrokenParamsLive.handle_params(%{}, "http://localhost/", socket)
       end
+    end
+  end
+
+  describe "a callback that does not state its authorization" do
+    test "does not compile in a LiveView" do
+      assert_raise CompileError, ~r/handle_event\/3 in .* does not state its authorization/, fn ->
+        Code.compile_string("""
+        defmodule NervesHubWeb.Access.AuthorizedLiveViewTest.SilentLive do
+          use Phoenix.LiveView
+          use NervesHubWeb.Access.AuthorizedLiveView
+
+          @decorate requires_no_permission()
+          def mount(_params, _session, socket), do: {:ok, socket}
+
+          @decorate requires_no_permission()
+          def handle_event("open", _params, socket), do: {:noreply, socket}
+
+          def handle_event("delete", _params, socket), do: {:noreply, socket}
+
+          def render(assigns), do: ~H"<div>test</div>"
+        end
+        """)
+      end
+    end
+
+    test "does not compile in a LiveComponent" do
+      assert_raise CompileError, ~r/handle_event\/3 in .* does not state its authorization/, fn ->
+        Code.compile_string("""
+        defmodule NervesHubWeb.Access.AuthorizedLiveViewTest.SilentComponent do
+          use Phoenix.LiveComponent
+          use NervesHubWeb.Access.AuthorizedLiveComponent
+
+          def handle_event("delete", _params, socket), do: {:noreply, socket}
+
+          def render(assigns), do: ~H"<div>test</div>"
+        end
+        """)
+      end
+    end
+
+    test "does not compile in a tab, the clause that passes events on included" do
+      assert_raise CompileError, ~r/hooked_event\/3 in .* does not state its authorization/, fn ->
+        Code.compile_string("""
+        defmodule NervesHubWeb.Access.AuthorizedLiveViewTest.SilentTab do
+          use Phoenix.Component
+          use NervesHubWeb.Access.AuthorizedTab
+
+          def hooked_event(_event, _params, socket), do: {:cont, socket}
+        end
+        """)
+      end
+    end
+
+    test "does not compile for an upload's progress function" do
+      assert_raise CompileError, ~r/handle_progress\/3 in .* does not state its authorization/, fn ->
+        Code.compile_string("""
+        defmodule NervesHubWeb.Access.AuthorizedLiveViewTest.SilentUpload do
+          use Phoenix.Component
+          use NervesHubWeb.Access.AuthorizedTab
+
+          def handle_progress(:file, _entry, socket), do: {:noreply, socket}
+        end
+        """)
+      end
+    end
+  end
+
+  describe "a permission on a record in the assigns" do
+    setup %{user: user, org: org, product: product, device: device} do
+      other_org = NervesHub.Fixtures.org_fixture(NervesHub.Fixtures.user_fixture(), %{name: "elsewhere"})
+
+      %{manager: %{build_scope(user, org, product) | role: :manage}, device: device, other_org: other_org}
+    end
+
+    test "is granted for a record in the user's org", %{manager: manager, device: device} do
+      socket = build_socket(%{current_scope: manager, device: device, flash: %{}})
+
+      assert {:noreply, socket} = OnAssignLive.handle_event("delete", %{}, socket)
+      assert socket.assigns.deleted
+    end
+
+    test "is refused for a record in another org, whatever the role", %{
+      manager: manager,
+      device: device,
+      other_org: other_org
+    } do
+      socket = build_socket(%{current_scope: manager, device: %{device | org_id: other_org.id}, flash: %{}})
+
+      assert {:noreply, socket} = OnAssignLive.handle_event("delete", %{}, socket)
+      refute Map.has_key?(socket.assigns, :deleted)
+      assert socket.assigns.flash["error"] =~ "denied access"
+    end
+  end
+
+  describe "a LiveComponent's events" do
+    setup %{user: user, org: org, product: product, device: device} do
+      scope = build_scope(user, org, product)
+
+      %{viewer: %{scope | role: :view}, manager: %{scope | role: :manage}, device: device}
+    end
+
+    test "run when the user has the permission", %{manager: manager, device: device} do
+      socket = build_socket(%{current_scope: manager, device: device, flash: %{}, myself: 1})
+
+      assert {:noreply, socket} = EventComponent.handle_event("delete", %{}, socket)
+      assert socket.assigns.deleted
+      refute_received _
+    end
+
+    test "are refused without it, and the LiveView is asked to tell the user", %{viewer: viewer, device: device} do
+      socket = build_socket(%{current_scope: viewer, device: device, flash: %{}, myself: 1})
+
+      assert {:noreply, refused} = EventComponent.handle_event("delete", %{}, socket)
+      refute Map.has_key?(refused.assigns, :deleted)
+      assert_received {RequireAuthorization, :denied_in_component}
+    end
+
+    test "raise when the body was meant to authorize and did not", %{manager: manager, device: device} do
+      socket = build_socket(%{current_scope: manager, device: device, flash: %{}, myself: 1})
+
+      assert_raise AuthorizationNotApplied, fn -> EventComponent.handle_event("forgot", %{}, socket) end
+    end
+
+    test "let other exceptions through" do
+      assert_raise ArgumentError, fn ->
+        EventComponent.handle_event("crash", %{"count" => "many"}, build_socket(%{flash: %{}}))
+      end
+    end
+  end
+
+  describe "a tab's events" do
+    setup %{user: user, org: org, product: product, device: device} do
+      scope = build_scope(user, org, product)
+
+      %{viewer: %{scope | role: :view}, manager: %{scope | role: :manage}, device: device}
+    end
+
+    test "run when the user has the permission", %{manager: manager, device: device} do
+      socket = build_socket(%{current_scope: manager, device: device, flash: %{}})
+
+      assert {:halt, socket} = EventTab.authorized_hooked_event("delete", %{}, socket)
+      assert socket.assigns.deleted
+    end
+
+    test "are refused without it: the event stops there and the user is told", %{viewer: viewer, device: device} do
+      socket = build_socket(%{current_scope: viewer, device: device, flash: %{}})
+
+      assert {:halt, refused} = EventTab.authorized_hooked_event("delete", %{}, socket)
+      refute Map.has_key?(refused.assigns, :deleted)
+      assert refused.assigns.flash["error"] =~ "denied access"
+    end
+
+    test "raise when the body was meant to authorize and did not", %{manager: manager, device: device} do
+      socket = build_socket(%{current_scope: manager, device: device, flash: %{}})
+
+      assert_raise AuthorizationNotApplied, fn -> AuthorizedTab.run(EventTab, "forgot", %{}, socket) end
+    end
+
+    test "an event the tab passes on reaches the LiveView unchecked, for it to check", %{
+      manager: manager,
+      device: device
+    } do
+      socket = build_socket(%{current_scope: manager, device: device, flash: %{}})
+
+      assert {:cont, socket} = EventTab.authorized_hooked_event("something-else", %{}, socket)
+      refute socket.private.wrapped_in_authorization?
+
+      assert_raise AuthorizationNotApplied, fn -> UndecoratedEventLive.handle_event("click", %{}, socket) end
+    end
+
+    test "an upload's progress is checked, and a refusal is not softened", %{
+      viewer: viewer,
+      manager: manager,
+      device: device
+    } do
+      socket = build_socket(%{current_scope: manager, device: device, flash: %{}})
+      assert {:noreply, socket} = EventTab.progress().(:file, %{}, socket)
+      assert socket.assigns.uploaded
+
+      socket = build_socket(%{current_scope: viewer, device: device, flash: %{}})
+      assert_raise AuthorizationFailed, fn -> EventTab.progress().(:file, %{}, socket) end
+    end
+  end
+
+  describe "the ways around the check" do
+    @web_sources Path.wildcard("lib/nerves_hub_web/**/*.{ex,heex}") -- ["lib/nerves_hub_web.ex"]
+
+    test "no LiveView or LiveComponent is defined without going through NervesHubWeb" do
+      assert offenders(~r/use Phoenix\.Live(View|Component)\b/) == []
+    end
+
+    test "no event hook is attached other than the checked one the tabs use" do
+      assert offenders(~r/attach_hook\([^\n]*:handle_event/) == []
+
+      assert File.read!("lib/nerves_hub_web.ex") =~
+               "attach_hook(tab_hook_id(), :handle_event, &__MODULE__.authorized_hooked_event/3)"
+    end
+
+    test "every upload's progress function is a checked one" do
+      assert offenders(~r/\bprogress: (?!authorized_progress\(&handle_progress\/3\))[&f]/) == []
+    end
+
+    defp offenders(pattern) do
+      for file <- @web_sources,
+          {line, number} <- file |> File.read!() |> String.split("\n") |> Enum.with_index(1),
+          line =~ pattern,
+          do: "#{file}:#{number}"
     end
   end
 

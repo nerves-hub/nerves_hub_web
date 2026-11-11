@@ -9,20 +9,28 @@ defmodule NervesHubWeb.Access.AuthorizedLiveView do
   the body) or declared that there is nothing to authorize
   (`@decorate requires_no_permission/0`, `@decorate special_permission/1`).
 
-    * A callback that never states its authorization raises
+    * A clause that states nothing does not compile, see
+      `NervesHubWeb.Access.AuthorizationDeclared`.
+    * A callback that said it would authorize in its body
+      (`@decorate authorizes_in_body()`) and then did not raises
       `AuthorizationNotApplied`. This is a programming error and is never
-      rescued. Note that the callback body has already run by then: the check
-      is there to fail tests and crash loudly, not to undo what the body did.
-    * A callback that states it and is refused (`AuthorizationFailed`, or the
-      older `NervesHubWeb.UnauthorizedError`) is turned into a flash message.
+      rescued. Note that the body has already run by then, which is why the
+      decorators that check before the body are preferred.
+    * A callback that is refused (`AuthorizationFailed`, or the older
+      `NervesHubWeb.UnauthorizedError`) is turned into a flash message.
       Events keep the socket as it was before the event. `mount/3` and
       `handle_params/3` have nothing sensible to render, so they redirect.
 
   Any other exception passes through untouched.
 
-  Only the LiveView's own callbacks are covered. Events handled by a
-  LiveComponent, or by an `attach_hook/4` hook that halts, never reach
-  `handle_event/3` and are not checked here.
+  Events that never reach the LiveView's `handle_event/3` are checked the same
+  way where they are handled: LiveComponents by
+  `NervesHubWeb.Access.AuthorizedLiveComponent` and the device page tabs, whose
+  hooks halt the event, by `NervesHubWeb.Access.AuthorizedTab`.
+
+  An upload's `progress:` function is driven by the client too. In all three
+  it has to be `authorized_progress(&handle_progress/3)`, and the clauses of
+  `handle_progress/3` need a decorator like any event.
   """
 
   import Phoenix.LiveView
@@ -37,13 +45,12 @@ defmodule NervesHubWeb.Access.AuthorizedLiveView do
 
   defmacro __using__(_) do
     quote do
-      use NervesHubWeb.Access.AuthDecorator
+      use NervesHubWeb.Access.AuthorizationDeclared, mount: 3, handle_params: 3, handle_event: 3, handle_progress: 3
 
       import NervesHubWeb.Access.AuthorizedLiveView
       import NervesHubWeb.Mounts.RequireAuthorization
 
       alias NervesHubWeb.Access.AuthorizedLiveView
-
       # The decorators handle every callback return shape, but any one module
       # only uses a few of them, which dialyzer reports as pattern_match
       # warnings.
@@ -116,6 +123,30 @@ defmodule NervesHubWeb.Access.AuthorizedLiveView do
   def enforce!({:reply, reply, socket}, module, callback),
     do: {:reply, reply, enforce_socket!(socket, module, callback)}
 
+  def enforce!({:cont, socket}, module, callback), do: {:cont, enforce_socket!(socket, module, callback)}
+  def enforce!({:halt, socket}, module, callback), do: {:halt, enforce_socket!(socket, module, callback)}
+
+  def enforce!({:halt, reply, socket}, module, callback), do: {:halt, reply, enforce_socket!(socket, module, callback)}
+
+  @doc """
+  Wraps the function given to `allow_upload/3` as `progress:`. The client
+  drives it, like an event, so it has to state its authorization like one.
+
+  A refusal is not rescued here. Nobody who may not upload gets an upload
+  configured, so a refusal means the client made the upload up, and there is
+  no entry to leave in a sensible state.
+  """
+  def authorized_progress(fun) when is_function(fun, 3) do
+    {:module, module} = Function.info(fun, :module)
+    {:name, name} = Function.info(fun, :name)
+
+    fn upload, entry, socket ->
+      upload
+      |> fun.(entry, RequireAuthorization.wrap(socket))
+      |> enforce!(module, "#{name}/3 for upload #{inspect(upload)}")
+    end
+  end
+
   defp enforce_socket!(socket, module, callback) do
     case check_socket_authorized(socket) do
       {:ok, socket} ->
@@ -129,7 +160,7 @@ defmodule NervesHubWeb.Access.AuthorizedLiveView do
       {:error, AuthorizationNotApplied} ->
         raise AuthorizationNotApplied,
           message:
-            "No authorization applied in `#{callback}` on #{inspect(module)}.\n\nUse `@decorate` and `requires_permission/1`, `requires_no_permission/0` or `special_permission/1` to ensure authorization or use the functions in `RequireAuthorization` on the socket."
+            "No authorization applied in `#{callback}` on #{inspect(module)}.\n\nA callback decorated with `authorizes_in_body/0` has to call `authorize!/3`. Otherwise use `@decorate` with `requires_permission/1`, `requires_permission/2`, `requires_no_permission/0` or `special_permission/1`."
     end
   end
 
@@ -180,6 +211,21 @@ defmodule NervesHubWeb.Access.AuthorizedLiveView do
     |> put_flash(:error, @denied_message)
     |> redirect(to: "/")
   end
+
+  @doc """
+  The user was refused in a LiveComponent's event. A flash put on a
+  component's socket is not shown, so the LiveView is asked to show it, which
+  the hook attached in `RequireAuthorization.on_mount/4` does.
+  """
+  def deny_in_component(socket, error, module, callback) do
+    log_denied(socket, error, module, callback)
+    send(self(), RequireAuthorization.denied_message())
+
+    socket
+  end
+
+  @doc false
+  def denied_flash(), do: @denied_message
 
   # Unit tests call the callbacks with a bare socket that has no flash to put a
   # message in. Let those see the refusal itself.

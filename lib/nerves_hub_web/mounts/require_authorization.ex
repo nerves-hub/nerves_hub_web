@@ -1,8 +1,9 @@
 defmodule NervesHubWeb.Mounts.RequireAuthorization do
-  import Phoenix.LiveView, only: [put_private: 3]
+  import Phoenix.LiveView, only: [attach_hook: 4, put_flash: 3, put_private: 3]
 
   alias NervesHub.Accounts.Scope
   alias NervesHubWeb.Access.Authorization
+  alias NervesHubWeb.Access.AuthorizedLiveView
   alias Phoenix.LiveView.Socket
 
   defmodule AuthorizationNotApplied do
@@ -13,9 +14,23 @@ defmodule NervesHubWeb.Mounts.RequireAuthorization do
     defexception [:message]
   end
 
+  @denied {__MODULE__, :denied_in_component}
+
   def on_mount(_, _assigns, _session, socket) do
-    {:cont, reset(socket)}
+    {:cont, socket |> reset() |> attach_hook(:authorization_denied, :handle_info, &show_denied/2)}
   end
+
+  @doc """
+  What a LiveComponent sends to its LiveView when it refused an event, so the
+  LiveView can tell the user. A component has no flash of its own to show.
+  """
+  def denied_message(), do: @denied
+
+  defp show_denied(@denied, socket) do
+    {:halt, put_flash(socket, :error, AuthorizedLiveView.denied_flash())}
+  end
+
+  defp show_denied(_message, socket), do: {:cont, socket}
 
   @doc """
   Clears the authorization state and marks the socket as inside the checking

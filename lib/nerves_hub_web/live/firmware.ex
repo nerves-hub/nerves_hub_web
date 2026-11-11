@@ -56,7 +56,7 @@ defmodule NervesHubWeb.Live.Firmware do
       max_entries: 1,
       auto_upload: true,
       max_file_size: max_file_size(),
-      progress: &handle_progress/3,
+      progress: authorized_progress(&handle_progress/3),
       writer: fn _name, _entry, _socket -> {NervesHubWeb.BrieflyUploadWriter, parent: self()} end
     )
     |> assign_firmware_with_pagination()
@@ -160,6 +160,7 @@ defmodule NervesHubWeb.Live.Firmware do
   end
 
   # the delete handler for the list page
+  @decorate authorizes_in_body()
   def handle_event("delete-firmware", %{"firmware_uuid" => uuid}, socket) do
     %{current_scope: scope, product: product} = socket.assigns
 
@@ -187,6 +188,7 @@ defmodule NervesHubWeb.Live.Firmware do
   end
 
   # the delete handler for the show page
+  @decorate authorizes_in_body()
   def handle_event("delete-firmware", _params, socket) do
     %{current_scope: scope, firmware: firmware} = socket.assigns
 
@@ -276,6 +278,7 @@ defmodule NervesHubWeb.Live.Firmware do
     {:noreply, socket}
   end
 
+  @decorate requires_permission(:"firmware:upload")
   def handle_progress(:firmware, entry, socket) do
     authorized!(:"firmware:upload", socket.assigns.current_scope)
 

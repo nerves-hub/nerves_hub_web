@@ -106,6 +106,7 @@ defmodule NervesHubWeb.Components.DevicePage.FirmwareHistoryTab do
     """
   end
 
+  @decorate requires_permission(:"device:view", on: :device)
   def hooked_event("set-paginate-opts", %{"page-size" => page_size}, socket) do
     params = %{"page_size" => page_size, "page_number" => "1"}
 
@@ -119,6 +120,7 @@ defmodule NervesHubWeb.Components.DevicePage.FirmwareHistoryTab do
     |> halt()
   end
 
+  @decorate requires_permission(:"device:view", on: :device)
   def hooked_event("paginate", %{"page" => page_num}, socket) do
     params = %{"page_size" => socket.assigns.device_firmwares_pager.page_size, "page_number" => page_num}
 
@@ -135,6 +137,7 @@ defmodule NervesHubWeb.Components.DevicePage.FirmwareHistoryTab do
     |> halt()
   end
 
+  @decorate requires_no_permission()
   def hooked_event(_name, _params, socket), do: {:cont, socket}
 
   def hooked_info(_name, socket), do: {:cont, socket}

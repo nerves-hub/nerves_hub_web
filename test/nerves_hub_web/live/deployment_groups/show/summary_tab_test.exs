@@ -722,11 +722,13 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show.SummaryTabTest do
           ] do
         session = visit(conn, path)
 
-        assert_unauthorized(fn ->
-          session.view
-          |> with_target("#deployment-group-summary")
-          |> render_click(event, params)
-        end)
+        session.view
+        |> with_target("#deployment-group-summary")
+        |> render_click(event, params)
+
+        # The component asks the page to show the message, so it is there on
+        # the page's next render.
+        assert_denied(fn -> render(session.view) end)
       end
 
       assert Repo.reload(delta)
@@ -743,16 +745,8 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show.SummaryTabTest do
     end
   end
 
-  # The page's own events are refused with a message.
+  # A refused event leaves the page up, with a message.
   defp assert_denied(fun) do
     assert fun.() =~ "Sorry. You were denied access. Please check your role or contact your support."
-  end
-
-  # The summary component's events aren't wrapped, so a refusal there still
-  # takes the page down.
-  defp assert_unauthorized(fun) do
-    Process.flag(:trap_exit, true)
-
-    assert {{%NervesHubWeb.UnauthorizedError{}, _}, _} = catch_exit(fun.())
   end
 end

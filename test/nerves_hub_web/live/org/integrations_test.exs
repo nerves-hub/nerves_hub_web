@@ -605,13 +605,12 @@ defmodule NervesHubWeb.Live.Org.IntegrationsTest do
         |> assert_has("#connect-slack-workspace[disabled]", text: "Admins only")
         |> refute_has("#slack-connection-#{connection.id} button", text: "Disconnect")
 
-      Process.flag(:trap_exit, true)
+      session.view
+      |> with_target("#slack")
+      |> render_click("disconnect", %{"connection_id" => connection.id})
 
-      assert {{%NervesHubWeb.UnauthorizedError{}, _}, _} =
-               session.view
-               |> with_target("#slack")
-               |> render_click("disconnect", %{"connection_id" => connection.id})
-               |> catch_exit()
+      assert render(session.view) =~ "Sorry. You were denied access. Please check your role or contact your support."
+      assert Repo.reload(connection)
     end
 
     test "a viewer sees the channels, but cannot change them", context do
@@ -626,13 +625,12 @@ defmodule NervesHubWeb.Live.Org.IntegrationsTest do
         |> assert_has("#add-integration-menu-toggle[disabled]")
         |> refute_has("#slack-subscription-#{subscription.id}-menu-toggle")
 
-      Process.flag(:trap_exit, true)
+      session.view
+      |> with_target("#slack")
+      |> render_click("delete", %{"subscription_id" => subscription.id})
 
-      assert {{%NervesHubWeb.UnauthorizedError{}, _}, _} =
-               session.view
-               |> with_target("#slack")
-               |> render_click("delete", %{"subscription_id" => subscription.id})
-               |> catch_exit()
+      assert render(session.view) =~ "Sorry. You were denied access. Please check your role or contact your support."
+      assert Repo.reload(subscription)
     end
 
     test "is hidden when the instance has no Slack app", %{conn: conn, org: org} do
@@ -780,13 +778,12 @@ defmodule NervesHubWeb.Live.Org.IntegrationsTest do
         |> assert_has("#add-integration-menu-toggle[disabled]")
         |> refute_has("#teams-channel-#{channel.id}-menu-toggle")
 
-      Process.flag(:trap_exit, true)
+      session.view
+      |> with_target("#teams")
+      |> render_click("delete", %{"channel_id" => channel.id})
 
-      assert {{%NervesHubWeb.UnauthorizedError{}, _}, _} =
-               session.view
-               |> with_target("#teams")
-               |> render_click("delete", %{"channel_id" => channel.id})
-               |> catch_exit()
+      assert render(session.view) =~ "Sorry. You were denied access. Please check your role or contact your support."
+      assert Repo.reload(channel)
     end
   end
 

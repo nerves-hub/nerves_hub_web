@@ -107,6 +107,7 @@ defmodule NervesHubWeb.Live.Org.Integrations do
     |> noreply()
   end
 
+  @decorate authorizes_in_body()
   def handle_event("save", %{"webhook" => params}, socket) do
     %{current_scope: scope, editing: editing} = socket.assigns
 

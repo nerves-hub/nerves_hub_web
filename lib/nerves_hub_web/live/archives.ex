@@ -37,7 +37,7 @@ defmodule NervesHubWeb.Live.Archives do
       max_entries: 1,
       auto_upload: true,
       max_file_size: max_file_size(),
-      progress: &handle_progress/3,
+      progress: authorized_progress(&handle_progress/3),
       writer: fn _name, _entry, _socket -> {NervesHubWeb.BrieflyUploadWriter, parent: self()} end
     )
     |> assign_archives_with_pagination()
@@ -115,6 +115,7 @@ defmodule NervesHubWeb.Live.Archives do
   end
 
   # the delete handler for the list page
+  @decorate authorizes_in_body()
   def handle_event("delete-archive", %{"archive_uuid" => uuid}, socket) do
     {:ok, archive} = Archives.get(socket.assigns.product, uuid)
     socket = authorize!(socket, :"archive:delete", archive)
@@ -132,6 +133,7 @@ defmodule NervesHubWeb.Live.Archives do
     end
   end
 
+  @decorate authorizes_in_body()
   def handle_event("delete-archive", _params, socket) do
     %{current_scope: %{org: org}, product: product, archive: archive} = socket.assigns
 
@@ -155,6 +157,7 @@ defmodule NervesHubWeb.Live.Archives do
     end
   end
 
+  @decorate requires_permission(:"archive:upload")
   def handle_progress(:archive, entry, socket) do
     authorized!(:"archive:upload", socket.assigns.current_scope)
 

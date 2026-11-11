@@ -39,11 +39,24 @@ defmodule NervesHubWeb.Access.Authorization do
   def authorized?(:"webhook:update", %Scope{} = s, %Org{} = subject), do: role_check(:manage, s, subject)
   def authorized?(:"webhook:delete", %Scope{} = s, %Org{} = subject), do: role_check(:manage, s, subject)
 
-  def authorized?(:"certificate_authority:create", %Scope{} = s, %Org{} = subject), do: role_check(:admin, s, subject)
+  def authorized?(:"slack_connection:create", %Scope{} = s, %Org{} = subject), do: role_check(:admin, s, subject)
+  def authorized?(:"slack_connection:delete", %Scope{} = s, %Org{} = subject), do: role_check(:admin, s, subject)
 
-  def authorized?(:"certificate_authority:update", %Scope{} = s, %Org{} = subject), do: role_check(:admin, s, subject)
+  def authorized?(:"slack_subscription:create", %Scope{} = s, %Org{} = subject), do: role_check(:manage, s, subject)
+  def authorized?(:"slack_subscription:update", %Scope{} = s, %Org{} = subject), do: role_check(:manage, s, subject)
+  def authorized?(:"slack_subscription:delete", %Scope{} = s, %Org{} = subject), do: role_check(:manage, s, subject)
 
-  def authorized?(:"certificate_authority:delete", %Scope{} = s, %Org{} = subject), do: role_check(:admin, s, subject)
+  def authorized?(:"chat_webhook:create", %Scope{} = s, %Org{} = subject), do: role_check(:manage, s, subject)
+  def authorized?(:"chat_webhook:update", %Scope{} = s, %Org{} = subject), do: role_check(:manage, s, subject)
+  def authorized?(:"chat_webhook:delete", %Scope{} = s, %Org{} = subject), do: role_check(:manage, s, subject)
+
+  # As in NervesHubWeb.Helpers.Authorization: the API has always allowed manage
+  # here, and registering a CA still needs proof of holding its private key.
+  def authorized?(:"certificate_authority:create", %Scope{} = s, %Org{} = subject), do: role_check(:manage, s, subject)
+
+  def authorized?(:"certificate_authority:update", %Scope{} = s, %Org{} = subject), do: role_check(:manage, s, subject)
+
+  def authorized?(:"certificate_authority:delete", %Scope{} = s, %Org{} = subject), do: role_check(:manage, s, subject)
 
   # Product-level permissions — subject: %Product{} (or %Org{} for create)
   def authorized?(:"product:view", %Scope{} = s, %Product{} = subject), do: role_check(:view, s, subject)

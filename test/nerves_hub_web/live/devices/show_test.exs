@@ -2729,9 +2729,8 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
   end
 
   defp assert_unauthorized(view, event, params) do
-    Process.flag(:trap_exit, true)
-
-    assert {{%NervesHubWeb.UnauthorizedError{}, _}, _} = catch_exit(render_click(view, event, params))
+    assert render_click(view, event, params) =~
+             "Sorry. You were denied access. Please check your role or contact your support."
   end
 
   def to_device_info(device) do

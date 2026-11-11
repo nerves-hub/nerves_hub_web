@@ -124,6 +124,7 @@ defmodule NervesHubWeb.Live.SupportScripts.Index do
   end
 
   @impl Phoenix.LiveView
+  @decorate authorizes_in_body()
   def handle_event("delete-support-script", %{"script_id" => script_id}, socket) do
     %{current_scope: %{product: product, user: user} = scope} = socket.assigns
 

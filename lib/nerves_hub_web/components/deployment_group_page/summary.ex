@@ -102,7 +102,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
         accept: ~w(.csv),
         max_entries: 1,
         auto_upload: true,
-        progress: &handle_progress/3
+        progress: authorized_progress(&handle_progress/3)
       )
     else
       socket
@@ -129,6 +129,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
   end
 
   @impl Phoenix.LiveComponent
+  @decorate requires_permission(:"deployment_group:view", on: :deployment_group)
   def handle_event("select_version_for_stat", %{"version" => version}, socket) do
     update_stat_for_current_firmware =
       Enum.find(socket.assigns.update_stats, fn {_uuid, stats} -> stats.version == version end)
@@ -136,6 +137,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
     {:noreply, assign(socket, :update_stat_for_current_firmware, update_stat_for_current_firmware)}
   end
 
+  @decorate requires_permission(:"deployment_group:update", on: :deployment_group)
   def handle_event("delete_delta", %{"id" => id}, socket) do
     authorized!(:"deployment_group:update", socket.assigns.current_scope)
 
@@ -153,6 +155,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
     {:noreply, socket}
   end
 
+  @decorate requires_permission(:"deployment_group:update", on: :deployment_group)
   def handle_event("retry_delta", %{"id" => id}, socket) do
     authorized!(:"deployment_group:update", socket.assigns.current_scope)
 
@@ -164,6 +167,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
     {:noreply, socket}
   end
 
+  @decorate requires_permission(:"deployment_group:update", on: :deployment_group)
   def handle_event("generate-firmware-deltas", _params, %{assigns: %{deployment_group: deployment_group}} = socket) do
     authorized!(:"deployment_group:update", socket.assigns.current_scope)
 
@@ -174,8 +178,10 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
     |> noreply()
   end
 
+  @decorate requires_permission(:"deployment_group:view", on: :deployment_group)
   def handle_event("validate-csv", _params, socket), do: {:noreply, socket}
 
+  @decorate requires_permission(:"device:set-deployment-group")
   def handle_progress(:device_csv, %{done?: true} = entry, socket) do
     authorized!(:"device:set-deployment-group", socket.assigns.current_scope)
 
@@ -211,6 +217,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
     {:noreply, socket}
   end
 
+  @decorate requires_permission(:"device:set-deployment-group")
   def handle_progress(:device_csv, _entry, socket), do: {:noreply, socket}
 
   @impl Phoenix.LiveComponent
