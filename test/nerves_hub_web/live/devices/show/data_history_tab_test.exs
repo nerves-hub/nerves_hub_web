@@ -29,7 +29,7 @@ defmodule NervesHubWeb.Live.Devices.Show.DataHistoryTabTest do
   test "no messages have been recorded for the device", %{conn: conn, org: org, product: product, device: device} do
     conn
     |> visit(history_path(org, product, device))
-    |> assert_has("div", text: "No messages have been recorded yet.")
+    |> assert_has("#data-history-tab span", text: "No messages have been recorded yet.")
   end
 
   test "shows messages in both directions across channels", %{
@@ -46,13 +46,39 @@ defmodule NervesHubWeb.Live.Devices.Show.DataHistoryTabTest do
 
     conn
     |> visit(history_path(org, product, device))
-    |> assert_has("span", text: "Streaming the last 100 messages.")
-    |> assert_has("td", text: "fwup_progress")
-    |> assert_has("td", text: ~s({"value":42}))
-    |> assert_has("td", text: "reboot")
-    |> assert_has("td", text: "health:check")
-    |> assert_has("span", text: "received")
-    |> assert_has("span", text: "sent")
+    |> assert_has("#data-history-tab span", text: "Newest first · last 4 messages")
+    |> assert_has(row(), count: 4)
+    |> assert_has(row("span"), text: "fwup_progress")
+    |> assert_has(row("span"), text: ~s({"value":42}))
+    |> assert_has(row("span"), text: "reboot")
+    |> assert_has(row("span"), text: "health:check")
+    |> assert_has(row("span"), text: "From device")
+    |> assert_has(row("span"), text: "To device")
+    |> assert_has(row("span"), text: "Extensions")
+  end
+
+  test "a row's details lay its payload out and offer to copy it", %{
+    conn: conn,
+    org: org,
+    product: product,
+    device: device
+  } do
+    :ok = DeviceMessages.record(device, :received, :device, "fwup_progress", %{"value" => 42})
+    :ok = Buffer.flush(DeviceMessage)
+
+    conn
+    |> visit(history_path(org, product, device))
+    |> assert_has(row("div.whitespace-pre"), text: ~s({ "value": 42 }))
+    |> assert_has(row("button[data-copy-value='{\"value\":42}']"), text: "Copy")
+  end
+
+  test "a truncated payload says how much was kept", %{conn: conn, org: org, product: product, device: device} do
+    :ok = DeviceMessages.record(device, :received, :device, "noisy", %{"blob" => String.duplicate("a", 20_000)})
+    :ok = Buffer.flush(DeviceMessage)
+
+    conn
+    |> visit(history_path(org, product, device))
+    |> assert_has(row("span"), text: "Truncated for storage · 19.5 KB were sent, the first 8 KB kept")
   end
 
   for {label, topic, event} <- [{"console", :console, "up"}, {"local shell", :extensions, "local_shell:shell_output"}] do
@@ -71,8 +97,9 @@ defmodule NervesHubWeb.Live.Devices.Show.DataHistoryTabTest do
 
       conn
       |> visit(history_path(org, product, device))
-      |> assert_has("td", text: "21 bytes (contents not recorded)")
-      |> refute_has("td", text: "hunter2")
+      |> assert_has(row("span"), text: "21 bytes (contents not recorded)")
+      |> refute_has("#device-messages", text: "hunter2")
+      |> refute_has(row("button[data-copy-value]"))
     end
   end
 
@@ -91,8 +118,8 @@ defmodule NervesHubWeb.Live.Devices.Show.DataHistoryTabTest do
 
     conn
     |> visit(history_path(org, product, device))
-    |> assert_has("td", text: "https://firmware.example.com/fw.fw?[redacted]")
-    |> refute_has("td", text: "deadbeef")
+    |> assert_has(row("span"), text: "https://firmware.example.com/fw.fw?[redacted]")
+    |> refute_has("#device-messages", text: "deadbeef")
   end
 
   test "filtering by direction narrows the list", %{conn: conn, org: org, product: product, device: device} do
@@ -102,11 +129,25 @@ defmodule NervesHubWeb.Live.Devices.Show.DataHistoryTabTest do
 
     conn
     |> visit(history_path(org, product, device))
-    |> assert_has("td", text: "status_update")
-    |> assert_has("td", text: "reboot")
-    |> select("Direction :", option: "Sent to device")
-    |> assert_has("td", text: "reboot")
-    |> refute_has("td", text: "status_update")
+    |> assert_has(row("span"), text: "status_update")
+    |> assert_has(row("span"), text: "reboot")
+    |> click_button("[role=group] button", "To device")
+    |> assert_has("[role=group] button[aria-pressed=true]", text: "To device")
+    |> assert_path(history_path(org, product, device), query_params: %{direction: "sent", topic: "all"})
+    |> assert_has(row("span"), text: "reboot")
+    |> refute_has(row("span"), text: "status_update")
+  end
+
+  test "filtering by channel narrows the list", %{conn: conn, org: org, product: product, device: device} do
+    :ok = DeviceMessages.record(device, :received, :device, "status_update", %{})
+    :ok = DeviceMessages.record(device, :sent, :extensions, "health:check", %{})
+    :ok = Buffer.flush(DeviceMessage)
+
+    conn
+    |> visit(history_path(org, product, device))
+    |> select("Channel", option: "Extensions")
+    |> assert_has(row("span"), text: "health:check")
+    |> refute_has(row("span"), text: "status_update")
   end
 
   test "a filter in the url is applied on load", %{conn: conn, org: org, product: product, device: device} do
@@ -116,8 +157,8 @@ defmodule NervesHubWeb.Live.Devices.Show.DataHistoryTabTest do
 
     conn
     |> visit(history_path(org, product, device) <> "?topic=extensions")
-    |> assert_has("td", text: "health:check")
-    |> refute_has("td", text: "status_update")
+    |> assert_has(row("span"), text: "health:check")
+    |> refute_has(row("span"), text: "status_update")
   end
 
   test "an unrecognised filter shows everything rather than nothing", %{
@@ -131,7 +172,37 @@ defmodule NervesHubWeb.Live.Devices.Show.DataHistoryTabTest do
 
     conn
     |> visit(history_path(org, product, device) <> "?topic=nonsense")
-    |> assert_has("td", text: "status_update")
+    |> assert_has(row("span"), text: "status_update")
+  end
+
+  test "older messages are shown a page at a time", %{conn: conn, org: org, product: product, device: device} do
+    for n <- 1..105, do: :ok = DeviceMessages.record(device, :sent, :device, "reboot", %{"n" => n})
+    :ok = Buffer.flush(DeviceMessage)
+
+    conn
+    |> visit(history_path(org, product, device))
+    |> assert_has(row(), count: 100)
+    |> assert_has("#show-more-messages", text: "Show older messages")
+    |> refute_has(row("span"), text: ~s({"n":5}))
+    |> unwrap(fn view -> render_hook(view, "load-more-messages", %{}) end)
+    |> assert_has(row(), count: 105)
+    |> assert_has(row("span"), text: ~s({"n":1}))
+    |> refute_has("#show-more-messages")
+  end
+
+  test "no older page is offered when everything is on screen", %{
+    conn: conn,
+    org: org,
+    product: product,
+    device: device
+  } do
+    :ok = DeviceMessages.record(device, :sent, :device, "reboot", %{})
+    :ok = Buffer.flush(DeviceMessage)
+
+    conn
+    |> visit(history_path(org, product, device))
+    |> assert_has(row(), count: 1)
+    |> refute_has("#show-more-messages")
   end
 
   test "a message recorded while the tab is open is streamed in", %{
@@ -146,14 +217,16 @@ defmodule NervesHubWeb.Live.Devices.Show.DataHistoryTabTest do
     session =
       conn
       |> visit(history_path(org, product, device))
-      |> assert_has("td", text: "status_update")
-      |> refute_has("td", text: "fwup_progress")
+      |> assert_has(row("span"), text: "status_update")
+      |> refute_has(row("span"), text: "fwup_progress")
 
     :ok = DeviceMessages.record(device, :received, :device, "fwup_progress", %{"value" => 42})
 
     # Deliberately not flushed: a live message must appear without waiting for
     # its batch to reach ClickHouse.
-    assert_has(session, "td", text: "fwup_progress")
+    session
+    |> assert_has(row("span"), text: "fwup_progress")
+    |> assert_has("#data-history-tab span", text: "last 2 messages")
   end
 
   test "a streamed message that does not match the filter is skipped", %{
@@ -168,11 +241,11 @@ defmodule NervesHubWeb.Live.Devices.Show.DataHistoryTabTest do
     session =
       conn
       |> visit(history_path(org, product, device) <> "?direction=sent")
-      |> assert_has("td", text: "reboot")
+      |> assert_has(row("span"), text: "reboot")
 
     :ok = DeviceMessages.record(device, :received, :device, "status_update", %{})
 
-    refute_has(session, "td", text: "status_update")
+    refute_has(session, row("span"), text: "status_update")
   end
 
   test "pausing stops new messages appearing, resuming catches up", %{
@@ -187,20 +260,25 @@ defmodule NervesHubWeb.Live.Devices.Show.DataHistoryTabTest do
     session =
       conn
       |> visit(history_path(org, product, device))
-      |> assert_has("td", text: "status_update")
-      |> click_button("#toggle-message-streaming", "")
+      |> assert_has(row("span"), text: "status_update")
+      |> click_button("#toggle-message-streaming", "Pause")
+      |> assert_has("#data-history-tab span", text: "Paused")
 
     :ok = DeviceMessages.record(device, :received, :device, "fwup_progress", %{"value" => 42})
 
-    refute_has(session, "td", text: "fwup_progress")
+    refute_has(session, row("span"), text: "fwup_progress")
 
     # Resuming refetches, so the message that arrived while paused is not lost.
     :ok = Buffer.flush(DeviceMessage)
 
     session
-    |> click_button("#toggle-message-streaming", "")
-    |> assert_has("td", text: "fwup_progress")
+    |> click_button("#toggle-message-streaming", "Resume")
+    |> assert_has(row("span"), text: "fwup_progress")
+    |> assert_has("#data-history-tab span", text: "Live")
   end
+
+  defp row(), do: "#device-messages [data-device-message]"
+  defp row(selector), do: "#device-messages [data-device-message] #{selector}"
 
   defp history_path(org, product, device) do
     "/org/#{org.name}/#{product.name}/devices/#{device.identifier}/data_history"

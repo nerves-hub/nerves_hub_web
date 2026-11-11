@@ -154,6 +154,31 @@ defmodule NervesHubWeb.Components.DateTimes do
     end
   end
 
+  @doc """
+  The heading over a day's rows in a list grouped by day: "Today · Nov 6",
+  "Yesterday · Nov 5", or `day_label/2` alone for an earlier day.
+  """
+  @spec day_heading(DateTime.t(), String.t() | nil) :: String.t()
+  def day_heading(at, time_zone) do
+    case day_label(at, time_zone) do
+      relative when relative in ["Today", "Yesterday"] ->
+        "#{relative} · #{at |> DateTime.shift_zone!(Timezone.resolve(time_zone)) |> Calendar.strftime("%b %-d")}"
+
+      date ->
+        date
+    end
+  end
+
+  @doc """
+  The ISO 8601 date `at` falls on in the viewer's zone. Rows carry it in
+  `data-day` for the `LogDayStarts` hook, which compares neighbours to find
+  where each day starts.
+  """
+  @spec day_key(DateTime.t(), String.t() | nil) :: String.t()
+  def day_key(at, time_zone) do
+    at |> DateTime.shift_zone!(Timezone.resolve(time_zone)) |> DateTime.to_date() |> Date.to_iso8601()
+  end
+
   defp format(local, format, zone_label) when format in [:log, :log_time] do
     {microsecond, _precision} = local.microsecond
     milliseconds = microsecond |> div(1000) |> Integer.to_string() |> String.pad_leading(3, "0")

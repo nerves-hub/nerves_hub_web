@@ -37,7 +37,6 @@ defmodule NervesHubWeb.Components.DevicePage.LogsTab do
   alias NervesHub.Devices.LogLines
   alias NervesHubWeb.Components.DateTimes
   alias NervesHubWeb.Components.DevicePage.TabNotice
-  alias NervesHubWeb.Helpers.Timezone
   alias Phoenix.LiveView.JS
 
   @page_size 50
@@ -376,7 +375,7 @@ defmodule NervesHubWeb.Components.DevicePage.LogsTab do
             <div
               :for={{dom_id, line} <- @streams.log_lines}
               id={dom_id}
-              data-day={local_date(line.timestamp, @time_zone)}
+              data-day={DateTimes.day_key(line.timestamp, @time_zone)}
               phx-mounted={@log_inserted && fade_in()}
               class="group/line flex flex-col gap-px"
             >
@@ -384,7 +383,7 @@ defmodule NervesHubWeb.Components.DevicePage.LogsTab do
                     LogDayStarts hook. --%>
               <div class="hidden h-7 shrink-0 items-center gap-2.5 px-2 group-data-day-start/line:flex">
                 <span class="text-label font-medium whitespace-nowrap text-content-faint uppercase">
-                  {day_heading(line.timestamp, @time_zone)}
+                  {DateTimes.day_heading(line.timestamp, @time_zone)}
                 </span>
                 <span class="h-px grow bg-line-subtle"></span>
               </div>
@@ -450,24 +449,6 @@ defmodule NervesHubWeb.Components.DevicePage.LogsTab do
   defp level_class(level) when level in ~w(warning warn), do: "text-warning-content"
   defp level_class("debug"), do: "text-content-faint"
   defp level_class(_level), do: "text-content-muted"
-
-  # The day a line was logged in the viewer's zone, which the LogDayStarts hook
-  # compares between neighbouring lines.
-  defp local_date(timestamp, time_zone) do
-    timestamp |> DateTime.shift_zone!(Timezone.resolve(time_zone)) |> DateTime.to_date() |> Date.to_iso8601()
-  end
-
-  # "Today · Nov 6", or just the date for an older day.
-  defp day_heading(timestamp, time_zone) do
-    case DateTimes.day_label(timestamp, time_zone) do
-      relative when relative in ["Today", "Yesterday"] ->
-        date = DateTime.shift_zone!(timestamp, Timezone.resolve(time_zone))
-        "#{relative} · #{Calendar.strftime(date, "%b %-d")}"
-
-      date ->
-        date
-    end
-  end
 
   defp level_options(), do: @level_options
   defp range_options(), do: @range_options
