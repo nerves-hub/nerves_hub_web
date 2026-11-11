@@ -31,6 +31,7 @@ defmodule NervesHubWeb.Components.DateTimes do
     timestamp: "%Y-%m-%d %H:%M:%S",
     short_timestamp: "%Y-%m-%d %H:%M",
     time: "%-I:%M %p",
+    time_seconds: "%-I:%M:%S %p",
     # `:log` is finished off by hand in `format/3`; strftime's `%f` prints the
     # microsecond value unpadded, so a timestamp on a whole second would render
     # as ".0" rather than ".000".
