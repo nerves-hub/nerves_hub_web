@@ -52,7 +52,9 @@ defmodule NervesHub.Devices.UpdateHistory do
   alias NervesHub.AnalyticsRepo
   alias NervesHub.Devices.Device
   alias NervesHub.Devices.DeviceUpdateHistory
+  alias NervesHub.Firmwares.Firmware
   alias NervesHub.Integrations
+  alias NervesHub.ManagedDeployments.DeploymentGroup
   alias NervesHub.Repo
   alias NervesHub.Webhooks.Payloads
 
@@ -319,4 +321,109 @@ defmodule NervesHub.Devices.UpdateHistory do
 
     AnalyticsRepo.all(query)
   end
+
+  @typedoc """
+  One finished attempt as `device_attempts/3` returns it, with its firmware
+  and deployment group looked up. A firmware this product no longer has, or
+  never had, comes back with a `nil` version.
+  """
+  @type attempt :: %{
+          timestamp: DateTime.t(),
+          status: status(),
+          reason: String.t() | nil,
+          source: %{uuid: String.t(), version: String.t() | nil} | nil,
+          target: %{uuid: String.t(), version: String.t() | nil} | nil,
+          deployment_group: %{id: pos_integer(), name: String.t()} | nil
+        }
+
+  @type page :: %{
+          current_page: pos_integer(),
+          page_size: pos_integer(),
+          total_count: non_neg_integer(),
+          total_pages: non_neg_integer()
+        }
+
+  @doc """
+  One page of a device's finished update attempts, newest first, for the
+  device page's Update attempts view.
+
+  Reads ClickHouse, so it is empty where `:analytics_enabled` is not set, and
+  an attempt that has just ended may take a moment to appear.
+  """
+  @spec device_attempts(device(), pos_integer(), pos_integer()) :: {[attempt()], page()}
+  def device_attempts(device, page, page_size) do
+    base =
+      from h in DeviceUpdateHistory,
+        where: h.org_id == ^device.org_id,
+        where: h.product_id == ^device.product_id,
+        where: h.device_id == ^device.id
+
+    total_count = AnalyticsRepo.one(from(h in base, select: fragment("count()"))) || 0
+
+    rows =
+      from(h in base,
+        order_by: [desc: h.timestamp],
+        limit: ^page_size,
+        offset: ^((page - 1) * page_size),
+        select: %{
+          timestamp: h.timestamp,
+          status: h.status,
+          reason: h.reason,
+          source_firmware_uuid: h.source_firmware_uuid,
+          target_firmware_uuid: h.target_firmware_uuid,
+          deployment_id: h.deployment_id
+        }
+      )
+      |> AnalyticsRepo.all()
+
+    {resolve(rows, device.product_id),
+     %{
+       current_page: page,
+       page_size: page_size,
+       total_count: total_count,
+       total_pages: div(total_count + page_size - 1, page_size)
+     }}
+  end
+
+  defp resolve(rows, product_id) do
+    uuids =
+      rows
+      |> Enum.flat_map(&[&1.source_firmware_uuid, &1.target_firmware_uuid])
+      |> Enum.reject(&(&1 == ""))
+      |> Enum.uniq()
+
+    versions =
+      from(f in Firmware,
+        where: f.product_id == ^product_id,
+        where: f.uuid in ^uuids,
+        select: {f.uuid, f.version}
+      )
+      |> Repo.all()
+      |> Map.new()
+
+    deployment_ids = rows |> Enum.map(& &1.deployment_id) |> Enum.reject(&(&1 == 0)) |> Enum.uniq()
+
+    groups =
+      from(d in DeploymentGroup,
+        where: d.product_id == ^product_id,
+        where: d.id in ^deployment_ids,
+        select: {d.id, %{id: d.id, name: d.name}}
+      )
+      |> Repo.all()
+      |> Map.new()
+
+    Enum.map(rows, fn row ->
+      %{
+        timestamp: row.timestamp,
+        status: String.to_existing_atom(row.status),
+        reason: if(row.reason != "", do: row.reason),
+        source: firmware(row.source_firmware_uuid, versions),
+        target: firmware(row.target_firmware_uuid, versions),
+        deployment_group: Map.get(groups, row.deployment_id)
+      }
+    end)
+  end
+
+  defp firmware("", _versions), do: nil
+  defp firmware(uuid, versions), do: %{uuid: uuid, version: Map.get(versions, uuid)}
 end
