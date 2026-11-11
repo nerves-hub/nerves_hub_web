@@ -24,6 +24,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
   alias NervesHub.Products.Product
   alias NervesHub.Scripts
   alias NervesHub.Scripts.Script
+  alias NervesHubWeb.Components.DeviceHealth.AlarmsRow
   alias NervesHubWeb.Components.DeviceHealth.MetricLabels
   alias NervesHubWeb.Components.DeviceHealth.StatusBadge
   alias NervesHubWeb.Components.DeviceLocation
@@ -731,10 +732,6 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
     Enum.any?([:health, :alarms], &(product.extensions[&1] and device.extensions[&1]))
   end
 
-  defp has_description?(description) do
-    is_binary(description) and byte_size(description) > 0 and description != "[]"
-  end
-
   defp update_mode_label(:automatic), do: "automatic"
   defp update_mode_label(:device_managed), do: "device managed"
   defp update_mode_label(:off), do: "off"
@@ -825,7 +822,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
           Learn more about device health and alert reporting.
         </.link>
       </p>
-      <.alarms_row :if={alarms_reported?(@product, @device)} alarms={@alarms} />
+      <AlarmsRow.render :if={alarms_reported?(@product, @device)} id="alarms" alarms={@alarms} />
     </.card>
 
     <.card :if={Enum.empty?(@latest_metrics) && @product.extensions.health && @device.extensions.health} id="health-card">
@@ -836,7 +833,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
           Learn more about device health reporting.
         </.link>
       </p>
-      <.alarms_row :if={alarms_reported?(@product, @device)} alarms={@alarms} />
+      <AlarmsRow.render :if={alarms_reported?(@product, @device)} id="alarms" alarms={@alarms} />
     </.card>
 
     <.card :if={Enum.any?(@latest_metrics) && @product.extensions.health && @device.extensions.health} id="health-card">
@@ -872,34 +869,8 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
         />
       </div>
 
-      <.alarms_row :if={alarms_reported?(@product, @device)} alarms={@alarms} />
+      <AlarmsRow.render :if={alarms_reported?(@product, @device)} id="alarms" alarms={@alarms} />
     </.card>
-    """
-  end
-
-  attr(:alarms, :any)
-
-  defp alarms_row(assigns) do
-    ~H"""
-    <div class="px-4">
-      <div id="alarms" class="flex flex-col gap-2.5 border-t border-line-subtle pt-3 pb-3.5 text-ui/4">
-        <div class="flex items-center gap-2.5">
-          <span class={["lucide-bell size-3.75", if(@alarms, do: "text-warning", else: "text-content-faint")]} aria-hidden="true"></span>
-          <span class="font-medium text-content-body">Alarms</span>
-          <span :if={!@alarms} class="text-content-muted">None active</span>
-          <span :if={@alarms} class="font-medium text-warning-content">{Enum.count(@alarms)} active</span>
-        </div>
-        <ul :if={@alarms} class="flex flex-col gap-1.5 pl-6.25">
-          <li
-            :for={{alarm, description} <- @alarms}
-            class="flex min-w-0 flex-col gap-0.5 rounded border border-l-2 border-line-default border-l-warning bg-surface-muted px-2.5 py-1.5"
-          >
-            <code class="font-mono text-xs/4 font-semibold break-all text-content-strong">{alarm}</code>
-            <span :if={has_description?(description)} class="font-mono text-xs/4 break-all text-content-muted">{description}</span>
-          </li>
-        </ul>
-      </div>
-    </div>
     """
   end
 

@@ -9,6 +9,7 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
   alias NervesHub.Products
   alias NervesHub.Products.HealthProfiles
   alias NervesHubWeb.Components.DateTimes
+  alias NervesHubWeb.Components.DeviceHealth.AlarmsRow
   alias NervesHubWeb.Components.DeviceHealth.MetricLabels
   alias NervesHubWeb.Components.DeviceHealth.StatusBadge
   alias NervesHubWeb.Components.Utils
@@ -309,7 +310,7 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
           </.link>
         </p>
 
-        <div :if={@health_enabled? && Enum.any?(@latest_metrics)} class="flex flex-wrap items-start gap-x-8 gap-y-5 px-4 pt-1 pb-4.5">
+        <div :if={@health_enabled? && Enum.any?(@latest_metrics)} class="grid grid-cols-[repeat(auto-fit,minmax(10rem,1fr))] items-start gap-x-8 gap-y-5 px-4 pt-1 pb-4.5">
           <.tile
             :for={tile <- tiles(@latest_metrics, @custom_health_labels)}
             tile={tile}
@@ -318,17 +319,7 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
           />
         </div>
 
-        <div :if={alarms_reported?(@product, @device)} class="px-4">
-          <div id="health-alarms" class="flex min-w-0 items-start gap-2.5 border-t border-line-subtle pt-3 pb-3.5 text-ui/4">
-            <span class={["mt-px lucide-bell size-3.75", if(@health_alarms, do: "text-warning-content", else: "text-content-faint")]} aria-hidden="true"></span>
-            <span class="font-medium text-content-body">Alarms</span>
-            <span :if={!@health_alarms} class="text-content-faint">None active</span>
-            <span :if={@health_alarms} class="flex min-w-0 flex-wrap items-baseline gap-x-2.5 gap-y-1 text-content-faint">
-              <span class="font-medium">{length(@health_alarms)} active</span>
-              <code :for={{alarm, description} <- @health_alarms} title={description} class="font-mono text-xs break-all text-content-muted">{alarm}</code>
-            </span>
-          </div>
-        </div>
+        <AlarmsRow.render :if={alarms_reported?(@product, @device)} id="health-alarms" alarms={@health_alarms} />
       </section>
 
       <section :if={Enum.any?(@latest_metrics)} id="health-history" class={card_class()}>
@@ -451,7 +442,7 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
 
   defp tile(%{tile: %{kind: :load}} = assigns) do
     ~H"""
-    <div id={"health-tile-#{@tile.id}"} class="flex min-w-40 grow basis-0 flex-col gap-1.5">
+    <div id={"health-tile-#{@tile.id}"} class="flex min-w-0 flex-col gap-1.5">
       <span class="text-xs font-medium text-content-muted">{@tile.label}</span>
       <div class="flex h-7.5 items-baseline gap-3">
         <span class="w-12.5 shrink-0 text-2xl/7.5 font-medium tracking-[-0.02em] text-content-strong">{load_value(@tile.values["load_1min"])}</span>
@@ -472,7 +463,7 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
     assigns = assign(assigns, :level, breach_level(assigns.tile.percent, assigns.spec))
 
     ~H"""
-    <div id={"health-tile-#{@tile.id}"} class="flex min-w-36 grow basis-0 flex-col gap-1.5">
+    <div id={"health-tile-#{@tile.id}"} class="flex min-w-0 flex-col gap-1.5">
       <span class="truncate text-xs font-medium text-content-muted">
         {@tile.label}<span :if={@tile.detail} class="font-normal"> · {@tile.detail}</span>
       </span>
