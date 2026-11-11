@@ -930,25 +930,29 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
       </div>
 
       <div :if={@device.deployment_group} class="flex flex-col gap-4 px-4 pt-2 pb-6">
-        <div class="flex items-center gap-4 pt-2">
+        <div class="flex flex-wrap items-center gap-x-4 gap-y-2 pt-2">
           <span class="text-sm text-content-faint">Assigned deployment group:</span>
-          <.link
-            navigate={~p"/org/#{@org}/#{@product}/deployment_groups/#{@device.deployment_group}"}
-            class="flex items-center gap-1 rounded-full border border-line-default bg-base-800 py-0.5 pr-2.5 pl-1.5"
-          >
-            <.status_dot class="bg-success" />
-            <span class="text-xs tracking-tight text-content-body" class="">{@device.deployment_group.name}</span>
-          </.link>
-          <button
-            :if={authorized?(:"device:set-deployment-group", @current_scope)}
-            class="rounded-full border border-alert bg-base-800 p-1"
-            data-confirm="Are you sure you want to remove the device from the deployment?"
-            aria-label="Remove device from the assigned deployment group"
-            type="button"
-            phx-click="remove-from-deployment-group"
-          >
-            <span class="lucide-trash--bold size-3 text-alert" aria-hidden="true"></span>
-          </button>
+          <%!-- The chip and its remove button wrap as one, and a long name truncates. --%>
+          <div class="flex min-w-0 items-center gap-4">
+            <.link
+              navigate={~p"/org/#{@org}/#{@product}/deployment_groups/#{@device.deployment_group}"}
+              class="flex min-w-0 items-center gap-1 rounded-full border border-line-default bg-base-800 py-0.5 pr-2.5 pl-1.5"
+            >
+              <.status_dot class="shrink-0 bg-success" />
+              <span class="truncate text-xs tracking-tight text-content-body">{@device.deployment_group.name}</span>
+            </.link>
+            <.button
+              :if={authorized?(:"device:set-deployment-group", @current_scope)}
+              style="danger"
+              size="sm"
+              square
+              data-confirm="Are you sure you want to remove the device from the deployment?"
+              aria-label="Remove device from the assigned deployment group"
+              phx-click="remove-from-deployment-group"
+            >
+              <.icon name="trash" />
+            </.button>
+          </div>
         </div>
       </div>
 
