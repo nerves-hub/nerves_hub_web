@@ -181,6 +181,8 @@
   <div class="flex size-full min-w-0 flex-col">
     <.flash_group flash={@flash} />
 
+    <%!-- Only the device page sets `header-scrolled`: its compact bar puts
+          the menu beside the More button, in the same colour. --%>
     <div class="flex h-12 shrink-0 items-center justify-between border-b border-line-default bg-surface-muted pl-4 sm:h-topbar sm:pl-6">
       <div class="flex h-full min-w-0 flex-1 items-center justify-between">
         {if(assigns[:top_bar], do: render_slot(@top_bar))}
@@ -190,7 +192,7 @@
         aria-label="Open menu"
         aria-controls="sidebar"
         phx-click={show_sidebar()}
-        class="flex size-11 shrink-0 cursor-pointer items-center justify-center text-content-muted sm:hidden"
+        class="flex size-11 shrink-0 cursor-pointer items-center justify-center text-content-muted sm:hidden header-scrolled:text-content-body"
       >
         <span class="lucide-menu size-5" aria-hidden="true"></span>
       </button>

@@ -174,16 +174,17 @@ defmodule NervesHubWeb.Components.DevicePage.Header do
       <.link
         navigate={~p"/org/#{@org}/#{@product}/devices"}
         aria-label="All Devices"
-        class="-ml-3 flex size-11 shrink-0 items-center justify-center text-content-muted"
+        class="-ml-3.5 flex h-11 w-10 shrink-0 items-center justify-center text-content-muted"
       >
         <span class="lucide-chevron-left size-5" aria-hidden="true"></span>
       </.link>
       <span
         data-connection-status={connection_status(@device_connection)}
         class={[
-          "mr-2 size-2 shrink-0 rounded-full bg-status-offline",
-          "data-[connection-status=connected]:bg-status-online",
-          "data-[connection-status=connecting]:animate-pulse data-[connection-status=connecting]:bg-status-connecting"
+          "mr-2 ml-1 size-2 shrink-0 rounded-full bg-status-offline ring-3",
+          "data-[connection-status=connected]:bg-status-online data-[connection-status=connected]:ring-success-soft",
+          "data-[connection-status=connecting]:animate-pulse data-[connection-status=connecting]:bg-status-connecting",
+          "not-data-[connection-status=connected]:ring-line-subtle light:not-data-[connection-status=connected]:ring-surface-muted"
         ]}
       />
       <span class="min-w-0 truncate font-mono text-[0.9375rem]/5 font-semibold text-content-strong">{@device.identifier}</span>
@@ -196,7 +197,7 @@ defmodule NervesHubWeb.Components.DevicePage.Header do
         aria-haspopup="dialog"
         aria-controls="device-more-sheet"
         phx-click={show_more_sheet()}
-        class="ml-auto flex size-11 shrink-0 cursor-pointer items-center justify-center text-content-muted"
+        class="ml-auto flex size-11 shrink-0 cursor-pointer items-center justify-center text-content-body"
       >
         <.icon name="more" class="size-5" />
       </button>
