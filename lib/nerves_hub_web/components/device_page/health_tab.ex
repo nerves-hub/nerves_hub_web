@@ -1107,13 +1107,13 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
   defp time_frame_label(unit, 1), do: "1 #{unit}"
   defp time_frame_label(unit, amount), do: "#{amount} #{unit}s"
 
-  # "Nov 6, 11:15 AM – 2:15 PM PST", naming the day again only when the range
+  # "Nov 6, 11:15 AM – 2:15 PM", naming the day again only when the range
   # crosses one.
   defp time_range(from, until, time_zone) do
     until_format =
       if DateTimes.day_key(from, time_zone) == DateTimes.day_key(until, time_zone), do: :time, else: :short_datetime
 
-    "#{DateTimes.to_local_string(from, time_zone, :short_datetime, false)} – #{DateTimes.to_local_string(until, time_zone, until_format)}"
+    "#{DateTimes.to_local_string(from, time_zone, :short_datetime, false)} – #{DateTimes.to_local_string(until, time_zone, until_format, false)}"
   end
 
   # The profile's name as the health profiles page lists it.

@@ -178,7 +178,7 @@ defmodule NervesHubWeb.Components.DevicePage.FirmwareHistoryTab do
           >
             <td class="whitespace-nowrap max-sm:order-4">
               <.local_datetime at={attempt.timestamp} time_zone={@time_zone} format={:short_date} zone_label={false} class="font-medium text-content-strong" />
-              <.local_datetime at={attempt.timestamp} time_zone={@time_zone} format={:time} zone_label={false} class="ml-1.5 text-xs text-content-faint" />
+              <.local_datetime at={attempt.timestamp} time_zone={@time_zone} format={:time_seconds} zone_label={false} class="ml-1.5 text-xs text-content-faint" />
             </td>
             <td class="font-mono whitespace-nowrap max-sm:order-1 max-sm:text-sm">
               <.firmware_version firmware={attempt.source} org={@org} product={@product} class="text-content-muted" />

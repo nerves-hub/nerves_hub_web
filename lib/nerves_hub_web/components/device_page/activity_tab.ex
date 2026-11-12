@@ -74,7 +74,7 @@ defmodule NervesHubWeb.Components.DevicePage.ActivityTab do
                     time_zone={@time_zone}
                     format={:time}
                     zone_label={false}
-                    class="shrink-0 text-xs text-content-faint"
+                    class="shrink-0 text-xs whitespace-nowrap text-content-faint"
                   />
                 </li>
               </ul>

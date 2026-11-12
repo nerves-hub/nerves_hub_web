@@ -175,6 +175,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
             addable_tags={@addable_tags}
             metadata_entries={@metadata_entries}
             extension_overrides={@extension_overrides}
+            time_zone={@time_zone}
           />
           <.deployment_box
             :if={box == :deployment}
@@ -1240,7 +1241,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
           >
             {RelativeTime.from_now(@device.latest_connection.disconnected_at)}
           </time>
-          <span class="text-content-faint">{Calendar.strftime(@device.latest_connection.disconnected_at, "%b %-d, %H:%M")}</span>
+          <.local_datetime at={@device.latest_connection.disconnected_at} time_zone={@time_zone} format={:short_datetime} zone_label={false} class="text-content-faint" />
         </.info_row>
 
         <.info_row :if={@device.latest_connection && @device.latest_connection.status != :disconnected} label="Connected">
@@ -1252,7 +1253,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
           >
             {RelativeTime.from_now(@device.latest_connection.established_at)}
           </time>
-          <span class="text-content-faint">{Calendar.strftime(@device.latest_connection.established_at, "%b %-d, %H:%M")}</span>
+          <.local_datetime at={@device.latest_connection.established_at} time_zone={@time_zone} format={:short_datetime} zone_label={false} class="text-content-faint" />
         </.info_row>
 
         <.info_row :if={@device.latest_connection && @device.latest_connection.ip_address} label="IP address" class="group/ip">
@@ -1276,7 +1277,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
         </.info_row>
 
         <.info_row label="Added">
-          <span class="font-medium text-content-strong">{Calendar.strftime(@device.inserted_at, "%b %-d, %Y")}</span>
+          <.local_datetime at={@device.inserted_at} time_zone={@time_zone} format={:medium_date} zone_label={false} class="font-medium text-content-strong" />
         </.info_row>
 
         <.info_row label="Tags" class="min-h-11">
