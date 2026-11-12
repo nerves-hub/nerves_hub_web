@@ -181,12 +181,13 @@ defmodule NervesHubWeb.Components.DevicePage.ErrorsTab do
       class="tab-content w-full p-4 opacity-0 transition-all duration-500 sm:p-6 phx-click-loading:opacity-50"
     >
       <div class="flex w-full flex-col overflow-clip rounded-card border border-line-default bg-surface-raised shadow-card">
-        <div class="flex min-h-12 shrink-0 flex-wrap items-center justify-between gap-x-4 gap-y-2 py-2 pr-3 pl-4">
-          <div class="flex flex-wrap items-baseline gap-x-2.5 gap-y-1">
-            <h2 class="text-sm/4.5 font-semibold text-content-strong">Errors</h2>
-            <span class="text-xs text-content-faint">Reported by this device in the last 30 days, grouped into issues</span>
+        <div class="flex min-h-12 shrink-0 flex-wrap items-center justify-between gap-x-4 gap-y-2 py-2 pr-3 pl-4 max-sm:flex-nowrap max-sm:py-3">
+          <div class="flex flex-wrap items-baseline gap-x-2.5 gap-y-1 max-sm:min-w-0 max-sm:flex-col">
+            <h2 class="text-sm/4.5 font-semibold text-content-strong max-sm:text-base/5">Errors</h2>
+            <span class="text-xs text-content-faint max-sm:hidden">Reported by this device in the last 30 days, grouped into issues</span>
+            <span class="text-xs text-content-muted sm:hidden">Last 30 days, grouped into issues</span>
           </div>
-          <div class="flex items-center gap-2">
+          <div class="flex shrink-0 items-center gap-2">
             <span
               :if={@streaming_enabled}
               class="flex h-7 items-center gap-1.5 rounded bg-success-soft pr-2.5 pl-2 text-xs font-medium text-success-content"
@@ -199,9 +200,16 @@ defmodule NervesHubWeb.Components.DevicePage.ErrorsTab do
             >
               <span class="size-1.5 rounded-full bg-status-offline"></span>Paused
             </span>
-            <.button id="toggle-error-streaming" size="sm" phx-click="toggle-error-streaming" aria-pressed={to_string(!@streaming_enabled)}>
-              <span class={[if(@streaming_enabled, do: "lucide-pause", else: "lucide-play"), "size-3.5 text-content-muted"]} aria-hidden="true"></span>
-              {if @streaming_enabled, do: "Pause", else: "Resume"}
+            <%!-- Just the icon on a phone, with its name kept for screen readers. --%>
+            <.button
+              id="toggle-error-streaming"
+              size="sm"
+              phx-click="toggle-error-streaming"
+              aria-pressed={to_string(!@streaming_enabled)}
+              class="max-sm:size-11 max-sm:px-0"
+            >
+              <span class={[if(@streaming_enabled, do: "lucide-pause", else: "lucide-play"), "size-3.5 text-content-muted max-sm:size-4"]} aria-hidden="true"></span>
+              <span class="max-sm:sr-only">{if @streaming_enabled, do: "Pause", else: "Resume"}</span>
             </.button>
           </div>
         </div>
@@ -210,16 +218,18 @@ defmodule NervesHubWeb.Components.DevicePage.ErrorsTab do
           <span class="text-ui text-content-faint">No errors have been reported.</span>
         </div>
 
-        <div :if={@error_groups != []} class="overflow-x-auto px-4 pb-1">
-          <table class="w-full min-w-2xl table-fixed text-left">
-            <colgroup>
+        <%!-- On a phone each issue is a card: status and when on top, the error
+              under them, and the chevron to the right. --%>
+        <div :if={@error_groups != []} class="overflow-x-auto px-4 pb-1 max-sm:overflow-visible max-sm:pb-0">
+          <table class="w-full min-w-2xl table-fixed text-left max-sm:block max-sm:min-w-0">
+            <colgroup class="max-sm:hidden">
               <col class="w-34" />
               <col />
               <col class="w-31.5" />
               <col class="w-41.5" />
               <col class="w-4" />
             </colgroup>
-            <thead class="border-t border-line-subtle">
+            <thead class="border-t border-line-subtle max-sm:hidden">
               <tr class="text-label text-content-faint uppercase">
                 <th class="h-8 pr-4 font-medium">Status</th>
                 <th class="h-8 pr-4 font-medium">Error</th>
@@ -232,7 +242,7 @@ defmodule NervesHubWeb.Components.DevicePage.ErrorsTab do
               <%!-- The shadows carry an open issue's background out to the card's
                   edges, past the table's inset, as the rules stay inset. --%>
               <tbody class={[
-                "border-t border-line-subtle",
+                "border-t border-line-subtle max-sm:block",
                 expanded? &&
                   "bg-surface-muted shadow-[-16px_0_var(--color-surface-muted),16px_0_var(--color-surface-muted)]"
               ]}>
@@ -240,28 +250,41 @@ defmodule NervesHubWeb.Components.DevicePage.ErrorsTab do
                   id={"error-group-#{entry.group.fingerprint}"}
                   phx-click="toggle-error-details"
                   phx-value-fingerprint={entry.group.fingerprint}
-                  class={["h-15 cursor-pointer", !expanded? && "hover:bg-surface-muted"]}
+                  class={[
+                    "h-15 cursor-pointer",
+                    "max-sm:grid max-sm:h-auto max-sm:grid-cols-[auto_auto_minmax(0,1fr)_auto] max-sm:items-center max-sm:gap-1.5 max-sm:py-3",
+                    !expanded? && "hover:bg-surface-muted"
+                  ]}
                 >
-                  <td class="pr-4"><.status_badge status={entry.group.status} /></td>
-                  <td class="py-2.5 pr-4">
-                    <div class="truncate font-mono text-ui/4 text-content-strong" title={entry.group.reason}>{entry.group.reason}</div>
-                    <div :if={entry.group.top_frame_module} class="truncate pt-0.75 font-mono text-xs text-content-faint">
-                      {entry.group.top_frame_module}.{entry.group.top_frame_function}
+                  <td class="pr-4 max-sm:col-start-1 max-sm:row-start-1 max-sm:pr-0.5"><.status_badge status={entry.group.status} /></td>
+                  <td class="py-2.5 pr-4 max-sm:col-span-3 max-sm:col-start-1 max-sm:row-start-2 max-sm:p-0">
+                    <div
+                      class="truncate font-mono text-ui/4 text-content-strong max-sm:line-clamp-2 max-sm:text-ui/4.5 max-sm:wrap-anywhere max-sm:whitespace-normal"
+                      title={entry.group.reason}
+                    >
+                      {entry.group.reason}
+                    </div>
+                    <div :if={entry.group.top_frame_module} class="truncate pt-0.75 font-mono text-xs text-content-faint max-sm:text-content-muted">
+                      <span class="max-sm:hidden">{entry.group.top_frame_module}.{entry.group.top_frame_function}</span>
                       <span :if={entry.group.top_frame_file}>{entry.group.top_frame_file}:{entry.group.top_frame_line}</span>
                     </div>
                   </td>
-                  <td class="pr-4 text-ui font-medium text-content-strong">{entry.device_occurrence_count}</td>
-                  <td class="pr-4 whitespace-nowrap">
-                    <span class="text-ui font-medium text-content-strong">{DateTimes.day_label(entry.last_seen_at, @time_zone)}</span>
+                  <td class="pr-4 text-ui font-medium text-content-strong max-sm:col-start-2 max-sm:row-start-1 max-sm:p-0 max-sm:text-xs max-sm:font-normal max-sm:text-content-muted">
+                    {entry.device_occurrence_count}<span class="sm:hidden" aria-hidden="true"> ·</span>
+                  </td>
+                  <td class="pr-4 whitespace-nowrap max-sm:col-start-3 max-sm:row-start-1 max-sm:truncate max-sm:p-0">
+                    <span class="text-ui font-medium text-content-strong max-sm:text-xs max-sm:font-normal max-sm:text-content-muted">
+                      {DateTimes.day_label(entry.last_seen_at, @time_zone)}
+                    </span>
                     <.local_datetime
                       at={entry.last_seen_at}
                       time_zone={@time_zone}
                       format={:time_seconds}
                       zone_label={false}
-                      class="ml-1.5 text-xs text-content-faint"
+                      class="ml-1.5 text-xs text-content-faint max-sm:ml-1 max-sm:text-content-muted"
                     />
                   </td>
-                  <td>
+                  <td class="max-sm:col-start-4 max-sm:row-span-2 max-sm:row-start-1 max-sm:-mr-3">
                     <%!-- A real button, not just the clickable row: a row with a
                           click handler is unreachable from the keyboard. --%>
                     <button
@@ -269,15 +292,15 @@ defmodule NervesHubWeb.Components.DevicePage.ErrorsTab do
                       phx-click="toggle-error-details"
                       phx-value-fingerprint={entry.group.fingerprint}
                       aria-expanded={to_string(expanded?)}
-                      class="flex cursor-pointer text-content-faint hover:text-content-body aria-expanded:text-content-muted"
+                      class="flex cursor-pointer text-content-faint hover:text-content-body aria-expanded:text-content-muted max-sm:size-11 max-sm:items-center max-sm:justify-center"
                     >
                       <span class={[if(expanded?, do: "lucide-chevron-down", else: "lucide-chevron-right"), "size-4"]} aria-hidden="true"></span>
                       <span class="sr-only">Details for {entry.group.reason}</span>
                     </button>
                   </td>
                 </tr>
-                <tr :if={expanded?}>
-                  <td colspan="5" class="pt-1 pb-4.5 pl-34">
+                <tr :if={expanded?} class="max-sm:block">
+                  <td colspan="5" class="pt-1 pb-4.5 pl-34 max-sm:block max-sm:pt-0 max-sm:pb-4 max-sm:pl-0">
                     <.occurrence_details
                       occurrence={@expanded_occurrence}
                       firmware_version={@expanded_firmware_version}
@@ -335,7 +358,7 @@ defmodule NervesHubWeb.Components.DevicePage.ErrorsTab do
           Latest occurrence on this device · {DateTimes.day_label(@occurrence.timestamp, @time_zone)},
           <.local_datetime at={@occurrence.timestamp} time_zone={@time_zone} format={:time_seconds} zone_label={false} />
         </span>
-        <.fleet_link group={@group} org={@org} product={@product} />
+        <.fleet_link group={@group} org={@org} product={@product} class="max-sm:hidden" />
       </div>
 
       <div class="flex flex-wrap gap-x-5 gap-y-1.5 text-xs">
@@ -347,11 +370,12 @@ defmodule NervesHubWeb.Components.DevicePage.ErrorsTab do
         <.fact :for={{key, value} <- @occurrence.context} label={context_label(key)} value={context_value(key, value)} />
       </div>
 
-      <div class="flex flex-col gap-0.5 overflow-x-auto rounded-card border border-line-subtle bg-surface-raised px-3.5 py-3 font-mono text-xs/4.5">
+      <%!-- On a phone each frame's file goes under its function. --%>
+      <div class="flex flex-col gap-0.5 overflow-x-auto rounded-card border border-line-subtle bg-surface-raised px-3.5 py-3 font-mono text-xs/4.5 max-sm:gap-2 max-sm:px-3">
         <div class="max-h-40 overflow-y-auto whitespace-pre-wrap text-alert-content">{headline(@occurrence)}</div>
         <div :if={@frames != []} class="h-1.5 shrink-0"></div>
-        <div :for={frame <- @frames} class="flex gap-4">
-          <span class={["w-85 shrink-0", if(otp_frame?(frame), do: "text-content-muted", else: "text-content-strong")]}>
+        <div :for={frame <- @frames} class="flex gap-4 max-sm:flex-col max-sm:gap-0 max-sm:wrap-anywhere">
+          <span class={["w-85 shrink-0 max-sm:w-auto", if(otp_frame?(frame), do: "text-content-muted", else: "text-content-strong")]}>
             {frame["module"]}.{frame["function"]}
           </span>
           <span :if={frame["file"]} class="text-content-faint">{frame["file"]}<span :if={frame["line"]}>:{frame["line"]}</span></span>
@@ -361,6 +385,10 @@ defmodule NervesHubWeb.Components.DevicePage.ErrorsTab do
       <div :if={ErrorReport.truncated?(@occurrence)} class="text-xs text-content-faint">
         Truncated for storage — {format_bytes(@occurrence.payload_bytes)} were sent
       </div>
+
+      <.button type="link" navigate={~p"/org/#{@org}/#{@product}/errors/#{@group.id}"} class="max-sm:h-11 max-sm:w-full max-sm:text-sm sm:hidden">
+        See this error across the fleet <span class="lucide-arrow-right size-4 text-content-muted" aria-hidden="true"></span>
+      </.button>
     </div>
     """
   end
@@ -380,12 +408,13 @@ defmodule NervesHubWeb.Components.DevicePage.ErrorsTab do
   attr(:group, :any, required: true)
   attr(:org, :any, required: true)
   attr(:product, :any, required: true)
+  attr(:class, :any, default: nil)
 
   defp fleet_link(assigns) do
     ~H"""
     <.link
       navigate={~p"/org/#{@org}/#{@product}/errors/#{@group.id}"}
-      class="group flex items-center gap-1.5 text-xs font-medium text-content-body"
+      class={["group flex items-center gap-1.5 text-xs font-medium text-content-body", @class]}
     >
       <span class="underline decoration-line-strong underline-offset-4 group-hover:decoration-content-muted">
         See this error across the fleet

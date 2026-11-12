@@ -229,8 +229,10 @@ defmodule NervesHubWeb.Components.DevicePage.DataHistoryTab do
       class="tab-content w-full p-4 opacity-0 transition-all duration-500 sm:p-6 phx-click-loading:opacity-50"
     >
       <div class="flex w-full flex-col overflow-clip rounded-card border border-line-default bg-surface-raised shadow-card">
-        <div class="flex min-h-14 shrink-0 flex-wrap items-center justify-between gap-x-4 gap-y-2 border-b border-line-subtle px-4 py-2.5">
-          <div class="flex flex-wrap items-center gap-2">
+        <%!-- On a phone: Live, the count and Pause on one row, then the
+              direction across the width, then the channel. --%>
+        <div class="flex min-h-14 shrink-0 flex-wrap items-center justify-between gap-x-4 gap-y-2 border-b border-line-subtle px-4 py-2.5 max-sm:gap-2 max-sm:p-3">
+          <div class="flex flex-wrap items-center gap-2 max-sm:contents">
             <span
               :if={@streaming_enabled}
               class="flex h-7 items-center gap-1.5 rounded bg-success-soft pr-2.5 pl-2 text-xs font-medium text-success-content"
@@ -243,14 +245,20 @@ defmodule NervesHubWeb.Components.DevicePage.DataHistoryTab do
             >
               <span class="size-1.5 rounded-full bg-status-offline"></span>Paused
             </span>
-            <.button id="toggle-message-streaming" size="sm" phx-click="toggle-streaming" aria-pressed={to_string(!@streaming_enabled)}>
+            <.button
+              id="toggle-message-streaming"
+              size="sm"
+              phx-click="toggle-streaming"
+              aria-pressed={to_string(!@streaming_enabled)}
+              class="max-sm:order-2 max-sm:ml-auto max-sm:h-11 max-sm:px-3.5 max-sm:text-sm"
+            >
               <span class={[if(@streaming_enabled, do: "lucide-pause", else: "lucide-play"), "size-3.5 text-content-muted"]} aria-hidden="true"></span>
               {if @streaming_enabled, do: "Pause", else: "Resume"}
             </.button>
 
             <span class="mx-0.5 hidden h-5 w-px bg-line-default sm:block" aria-hidden="true"></span>
 
-            <div role="group" aria-label="Direction" class="flex h-7.5 overflow-clip rounded border border-line-control">
+            <div role="group" aria-label="Direction" class="flex h-7.5 overflow-clip rounded border border-line-control max-sm:order-3 max-sm:h-11 max-sm:basis-full max-sm:rounded-md">
               <button
                 :for={{label, value} <- direction_options()}
                 type="button"
@@ -258,26 +266,29 @@ defmodule NervesHubWeb.Components.DevicePage.DataHistoryTab do
                 phx-value-direction={value}
                 phx-value-topic={@topic_filter}
                 aria-pressed={to_string(value == @direction_filter)}
-                class="flex cursor-pointer items-center border-l border-line-control px-3 text-ui text-content-body first:border-l-0 hover:bg-surface-muted aria-pressed:bg-surface-muted aria-pressed:font-medium aria-pressed:text-content-strong"
+                class="flex cursor-pointer items-center border-l border-line-control px-3 text-ui text-content-body first:border-l-0 hover:bg-surface-muted aria-pressed:bg-surface-muted aria-pressed:font-medium aria-pressed:text-content-strong max-sm:flex-1 max-sm:justify-center max-sm:px-2 max-sm:text-sm max-sm:whitespace-nowrap"
               >
                 {label}
               </button>
             </div>
 
-            <form id="data-history-filters" phx-change="filter-messages" class="grid grid-cols-1">
+            <form id="data-history-filters" phx-change="filter-messages" class="grid grid-cols-1 max-sm:order-4 max-sm:basis-full">
               <input type="hidden" name="direction" value={@direction_filter} />
               <select
                 name="topic"
                 aria-label="Channel"
-                class="col-start-1 row-start-1 h-7.5 cursor-pointer appearance-none rounded border border-line-control border-b-line-strong bg-surface-raised bg-none py-0 pr-7 pl-2.5 text-ui text-content-body focus:outline focus:-outline-offset-1 focus:outline-focus-ring"
+                class="col-start-1 row-start-1 h-7.5 cursor-pointer appearance-none rounded border border-line-control border-b-line-strong bg-surface-raised bg-none py-0 pr-7 pl-2.5 text-ui text-content-body focus:outline focus:-outline-offset-1 focus:outline-focus-ring max-sm:h-11 max-sm:rounded-md max-sm:pl-3 max-sm:text-base"
               >
                 <option :for={{label, value} <- topic_options()} value={value} selected={value == @topic_filter}>{label}</option>
               </select>
-              <span class="pointer-events-none col-start-1 row-start-1 mr-2 lucide-chevron-down size-3.5 self-center justify-self-end text-content-muted" aria-hidden="true"></span>
+              <span class="pointer-events-none col-start-1 row-start-1 mr-2 lucide-chevron-down size-3.5 self-center justify-self-end text-content-muted max-sm:mr-3 max-sm:size-4" aria-hidden="true"></span>
             </form>
           </div>
-          <span class="text-xs text-content-faint">
+          <span class="text-xs text-content-faint max-sm:hidden">
             Newest first · last {@message_count} messages · times in {zone_abbr(@time_zone)}
+          </span>
+          <span class="order-1 min-w-0 flex-1 text-xs text-content-muted sm:hidden">
+            Last {@message_count} · times in {zone_abbr(@time_zone)}
           </span>
         </div>
 
@@ -286,8 +297,8 @@ defmodule NervesHubWeb.Components.DevicePage.DataHistoryTab do
         </div>
 
         <div :if={@has_messages} class="overflow-x-auto">
-          <div class="min-w-4xl">
-            <div class="flex h-10 items-center gap-4 border-b border-line-subtle px-4 text-label font-medium text-content-faint uppercase">
+          <div class="min-w-4xl max-sm:min-w-0">
+            <div class="flex h-10 items-center gap-4 border-b border-line-subtle px-4 text-label font-medium text-content-faint uppercase max-sm:hidden">
               <span class="w-28 shrink-0">Time</span>
               <span class="w-28 shrink-0">Direction</span>
               <span class="w-24 shrink-0">Channel</span>
@@ -312,27 +323,48 @@ defmodule NervesHubWeb.Components.DevicePage.DataHistoryTab do
                   <span class="h-px grow bg-line-subtle"></span>
                 </div>
                 <div id={"#{dom_id}-row"} data-device-message aria-expanded="false" class="group/message border-b border-line-subtle aria-expanded:bg-surface-muted">
+                  <%!-- On a phone: the direction's arrow, the event and the time,
+                        then where it went, then the data. --%>
                   <button
                     type="button"
                     phx-click={JS.toggle_attribute({"aria-expanded", "true", "false"}, to: "##{dom_id}-row")}
-                    class="flex h-10 w-full cursor-pointer items-center gap-4 px-4 text-left hover:bg-surface-muted"
+                    class={[
+                      "flex h-10 w-full cursor-pointer items-center gap-4 px-4 text-left hover:bg-surface-muted",
+                      "max-sm:grid max-sm:h-auto max-sm:grid-cols-[auto_minmax(0,1fr)_auto_auto] max-sm:gap-x-2 max-sm:gap-y-0.5 max-sm:py-2.5"
+                    ]}
                   >
-                    <.local_datetime at={message.timestamp} time_zone={@time_zone} format={:log_time} zone_label={false} class="w-28 shrink-0 font-mono text-xs text-content-muted" />
-                    <span class="flex w-28 shrink-0 items-center gap-1.5 text-ui text-content-body">
+                    <.local_datetime
+                      at={message.timestamp}
+                      time_zone={@time_zone}
+                      format={:log_time}
+                      zone_label={false}
+                      class="w-28 shrink-0 font-mono text-xs text-content-muted max-sm:col-start-3 max-sm:row-start-1 max-sm:w-auto"
+                    />
+                    <span class="flex w-28 shrink-0 items-center gap-1.5 text-ui text-content-body max-sm:contents">
                       <span
                         class={[
                           if(message.direction == "sent", do: "lucide-arrow-up-right", else: "lucide-arrow-down-left"),
-                          "size-3.5 text-content-muted"
+                          "size-3.5 text-content-muted max-sm:col-start-1 max-sm:row-start-1"
                         ]}
                         aria-hidden="true"
                       ></span>
-                      {direction_label(message.direction)}
+                      <span class="max-sm:hidden">{direction_label(message.direction)}</span>
                     </span>
-                    <span class="w-24 shrink-0 text-ui text-content-body">{String.capitalize(message.topic)}</span>
-                    <span class="w-44 shrink-0 truncate font-mono text-xs font-medium text-content-strong" title={message.event}>{message.event}</span>
-                    <span class="min-w-0 grow basis-0 truncate font-mono text-xs text-content-muted">{payload_text(message)}</span>
+                    <span class="w-24 shrink-0 text-ui text-content-body max-sm:hidden">{String.capitalize(message.topic)}</span>
                     <span
-                      class="lucide-chevron-right size-4 text-content-faint group-aria-expanded/message:lucide-chevron-down group-aria-expanded/message:text-content-muted"
+                      class="w-44 shrink-0 truncate font-mono text-xs font-medium text-content-strong max-sm:col-start-2 max-sm:row-start-1 max-sm:w-auto max-sm:text-ui max-sm:font-semibold"
+                      title={message.event}
+                    >
+                      {message.event}
+                    </span>
+                    <span class="col-span-3 col-start-1 row-start-2 text-xs text-content-muted sm:hidden">
+                      {direction_label(message.direction)} · {String.capitalize(message.topic)}
+                    </span>
+                    <span class="min-w-0 grow basis-0 truncate font-mono text-xs text-content-muted max-sm:col-span-3 max-sm:col-start-1 max-sm:row-start-3 max-sm:text-content-body">
+                      {payload_text(message)}
+                    </span>
+                    <span
+                      class="lucide-chevron-right size-4 text-content-faint group-aria-expanded/message:lucide-chevron-down group-aria-expanded/message:text-content-muted max-sm:col-start-4 max-sm:row-span-3 max-sm:row-start-1"
                       aria-hidden="true"
                     ></span>
                   </button>
@@ -347,13 +379,16 @@ defmodule NervesHubWeb.Components.DevicePage.DataHistoryTab do
                         type="button"
                         phx-hook="CopyToClipboard"
                         data-copy-value={message.payload}
-                        class="flex h-6.5 cursor-pointer items-center gap-1.5 rounded border border-line-control bg-surface-raised px-2 text-xs font-medium text-content-body shadow-xs hover:bg-surface-muted"
+                        class="flex h-6.5 cursor-pointer items-center gap-1.5 rounded border border-line-control bg-surface-raised px-2 text-xs font-medium text-content-body shadow-xs hover:bg-surface-muted max-sm:h-9 max-sm:rounded-md max-sm:px-3 max-sm:text-sm"
                       >
                         <span data-icon="copy" class="lucide-copy size-3.25 text-content-muted" aria-hidden="true"></span>
                         <span data-icon="check" class="lucide-check hidden size-3.25 text-success-content" aria-hidden="true"></span> Copy
                       </button>
                     </div>
-                    <div phx-no-format class="max-h-96 overflow-auto rounded-card border border-line-default bg-surface-raised px-3.5 py-3 font-mono text-xs/5 whitespace-pre text-content-body">{pretty_payload(message)}</div>
+                    <div
+                      phx-no-format
+                      class="max-h-96 overflow-auto rounded-card border border-line-default bg-surface-raised px-3.5 py-3 font-mono text-xs/5 whitespace-pre text-content-body max-sm:wrap-anywhere max-sm:whitespace-pre-wrap"
+                    >{pretty_payload(message)}</div>
                   </div>
                 </div>
               </div>
@@ -361,7 +396,7 @@ defmodule NervesHubWeb.Components.DevicePage.DataHistoryTab do
           </div>
         </div>
 
-        <div :if={@has_messages} class="flex min-h-14 flex-wrap items-center justify-center gap-3 px-4 py-3">
+        <div :if={@has_messages} class="flex min-h-14 flex-wrap items-center justify-center gap-3 px-4 py-3 max-sm:flex-col max-sm:gap-2 max-sm:p-3 max-sm:text-center">
           <%!-- `data-count` changes with every page, which is what makes the
                 hook see an update and check whether this is still on screen. --%>
           <.button
@@ -372,7 +407,7 @@ defmodule NervesHubWeb.Components.DevicePage.DataHistoryTab do
             data-event="load-more-messages"
             data-list="device-messages"
             data-count={@message_count}
-            class="data-loading:opacity-50"
+            class="data-loading:opacity-50 max-sm:h-11 max-sm:w-full max-sm:text-sm"
           >
             Show older messages
           </.button>

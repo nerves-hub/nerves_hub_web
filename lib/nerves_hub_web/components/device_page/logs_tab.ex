@@ -312,8 +312,10 @@ defmodule NervesHubWeb.Components.DevicePage.LogsTab do
       class="tab-content w-full p-4 opacity-0 transition-all duration-500 sm:p-6 phx-click-loading:opacity-50"
     >
       <div class="flex w-full flex-col overflow-clip rounded-card border border-line-default bg-surface-raised shadow-card">
-        <div class="flex min-h-14 shrink-0 flex-wrap items-center justify-between gap-x-4 gap-y-2 border-b border-line-subtle px-4 py-2.5">
-          <div class="flex flex-wrap items-center gap-2">
+        <%!-- On a phone: Live, the count and Pause on one row, then the search,
+              then the two filters side by side. --%>
+        <div class="flex min-h-14 shrink-0 flex-wrap items-center justify-between gap-x-4 gap-y-2 border-b border-line-subtle px-4 py-2.5 max-sm:gap-2 max-sm:p-3">
+          <div class="flex flex-wrap items-center gap-2 max-sm:contents">
             <span
               :if={@streaming_enabled}
               class="flex h-7 items-center gap-1.5 rounded bg-success-soft pr-2.5 pl-2 text-xs font-medium text-success-content"
@@ -326,15 +328,26 @@ defmodule NervesHubWeb.Components.DevicePage.LogsTab do
             >
               <span class="size-1.5 rounded-full bg-status-offline"></span>Paused
             </span>
-            <.button id="toggle-log-streaming" size="sm" phx-click="toggle-log-streaming" aria-pressed={to_string(!@streaming_enabled)}>
+            <.button
+              id="toggle-log-streaming"
+              size="sm"
+              phx-click="toggle-log-streaming"
+              aria-pressed={to_string(!@streaming_enabled)}
+              class="max-sm:order-2 max-sm:ml-auto max-sm:h-11 max-sm:px-3.5 max-sm:text-sm"
+            >
               <span class={[if(@streaming_enabled, do: "lucide-pause", else: "lucide-play"), "size-3.5 text-content-muted"]} aria-hidden="true"></span>
               {if @streaming_enabled, do: "Pause", else: "Resume"}
             </.button>
 
             <span class="mx-0.5 hidden h-5 w-px bg-line-default sm:block" aria-hidden="true"></span>
 
-            <form id="log-filters" phx-change="filter-logs" phx-submit="filter-logs" class="flex flex-wrap items-center gap-2">
-              <label class="relative flex w-full items-center sm:w-70">
+            <form
+              id="log-filters"
+              phx-change="filter-logs"
+              phx-submit="filter-logs"
+              class="flex flex-wrap items-center gap-2 max-sm:order-3 max-sm:grid max-sm:basis-full max-sm:grid-cols-2"
+            >
+              <label class="relative flex w-full items-center max-sm:col-span-2 sm:w-70">
                 <span class="pointer-events-none absolute left-2.5 lucide-search size-3.5 text-content-faint" aria-hidden="true"></span>
                 <input
                   id="log-search"
@@ -346,14 +359,14 @@ defmodule NervesHubWeb.Components.DevicePage.LogsTab do
                   maxlength={max_search_length()}
                   autocomplete="off"
                   phx-debounce="300"
-                  class="h-7.5 w-full rounded border border-line-control border-b-line-strong bg-surface-raised py-0 pr-2.5 pl-8 text-ui text-content-body placeholder:text-content-faint focus:outline focus:-outline-offset-1 focus:outline-focus-ring"
+                  class="h-7.5 w-full rounded border border-line-control border-b-line-strong bg-surface-raised py-0 pr-2.5 pl-8 text-ui text-content-body placeholder:text-content-faint focus:outline focus:-outline-offset-1 focus:outline-focus-ring max-sm:h-11 max-sm:rounded-md max-sm:text-base"
                 />
               </label>
               <.filter_select name="level" label="Level" options={level_options()} value={@log_filters.level} />
               <.filter_select name="range" label="Time" options={range_options()} value={@log_filters.range} />
             </form>
           </div>
-          <span :if={@has_logs} class="text-xs text-content-faint">Newest first · {@log_count} lines</span>
+          <span :if={@has_logs} class="text-xs text-content-faint max-sm:order-1 max-sm:min-w-0 max-sm:flex-1 max-sm:text-content-muted">Newest first · {@log_count} lines</span>
         </div>
 
         <div :if={!@has_logs} class="flex flex-col items-center justify-center gap-1 p-14 text-center">
@@ -370,32 +383,45 @@ defmodule NervesHubWeb.Components.DevicePage.LogsTab do
         <%!-- The list itself is the stream container, so the "Show older
               lines" control cannot be inside it (new lines are appended after
               whatever else is in there). This scrolls sideways, and holds both. --%>
-        <div :if={@has_logs} class="overflow-x-auto p-2">
-          <div id="log_lines" phx-update="stream" phx-hook="LogDayStarts" class="flex min-w-fit flex-col gap-px">
+        <div :if={@has_logs} class="overflow-x-auto p-2 max-sm:overflow-visible max-sm:p-0">
+          <div id="log_lines" phx-update="stream" phx-hook="LogDayStarts" class="flex min-w-fit flex-col gap-px max-sm:min-w-0 max-sm:gap-0">
             <div
               :for={{dom_id, line} <- @streams.log_lines}
               id={dom_id}
               data-day={DateTimes.day_key(line.timestamp, @time_zone)}
               phx-mounted={@log_inserted && fade_in()}
-              class="group/line flex flex-col gap-px"
+              class="group/line flex flex-col gap-px max-sm:gap-0"
             >
               <%!-- Shown above the first line of each day; see the
                     LogDayStarts hook. --%>
-              <div class="hidden h-7 shrink-0 items-center gap-2.5 px-2 group-data-day-start/line:flex">
-                <span class="text-label font-medium whitespace-nowrap text-content-faint uppercase">
+              <div class="hidden h-7 shrink-0 items-center gap-2.5 px-2 group-data-day-start/line:flex max-sm:h-auto max-sm:px-3 max-sm:pt-3 max-sm:pb-1">
+                <span class="text-label font-medium whitespace-nowrap text-content-faint uppercase max-sm:text-content-muted">
                   {DateTimes.day_heading(line.timestamp, @time_zone)}
                 </span>
-                <span class="h-px grow bg-line-subtle"></span>
+                <span class="h-px grow bg-line-subtle max-sm:hidden"></span>
               </div>
-              <div class={["flex items-start gap-4 rounded-[3px] px-2 py-0.75 font-mono text-xs/4.5", alert_level?(line.level) && "bg-alert-soft"]}>
-                <.local_datetime at={line.timestamp} time_zone={@time_zone} format={:log_time} zone_label={false} class="w-23 shrink-0 text-content-faint" />
-                <div data-log-level={line.level} class={["w-14 shrink-0", level_class(line.level)]}>{line.level}</div>
-                <div class={["pr-4 whitespace-pre", if(alert_level?(line.level), do: "text-content-strong", else: "text-content-body")]}>{line.message}</div>
+              <%!-- On a phone the time and level sit over the message, which
+                    wraps instead of scrolling sideways. --%>
+              <div class={[
+                "flex items-start gap-4 rounded-[3px] px-2 py-0.75 font-mono text-xs/4.5",
+                "max-sm:flex-wrap max-sm:gap-x-2.5 max-sm:gap-y-0.5 max-sm:rounded-none max-sm:border-b max-sm:border-line-subtle max-sm:px-3 max-sm:py-1.75",
+                alert_level?(line.level) && "bg-alert-soft max-sm:border-l-2 max-sm:border-l-alert max-sm:pl-2.5"
+              ]}>
+                <.local_datetime
+                  at={line.timestamp}
+                  time_zone={@time_zone}
+                  format={:log_time}
+                  zone_label={false}
+                  class="w-23 shrink-0 text-content-faint max-sm:w-auto max-sm:text-content-muted"
+                />
+                <div data-log-level={line.level} class={["w-14 shrink-0 max-sm:w-auto", level_class(line.level)]}>{line.level}</div>
+                <%!-- Keep the message on the tag's line: whitespace inside shows. --%>
+                <div class={message_class(line.level)}>{line.message}</div>
               </div>
             </div>
           </div>
 
-          <div class="flex flex-wrap items-center justify-center gap-3 pt-4 pb-2">
+          <div class="flex flex-wrap items-center justify-center gap-3 pt-4 pb-2 max-sm:flex-col max-sm:gap-2 max-sm:p-3">
             <%!-- `data-count` changes with every page, which is what makes the
                   hook see an update and check whether this is still on screen. --%>
             <.button
@@ -406,7 +432,7 @@ defmodule NervesHubWeb.Components.DevicePage.LogsTab do
               data-event="load-more-logs"
               data-list="log_lines"
               data-count={@log_count}
-              class="data-loading:opacity-50"
+              class="data-loading:opacity-50 max-sm:h-11 max-sm:w-full max-sm:text-sm"
             >
               Show older lines
             </.button>
@@ -432,11 +458,11 @@ defmodule NervesHubWeb.Components.DevicePage.LogsTab do
       <select
         name={@name}
         aria-label={@label}
-        class="col-start-1 row-start-1 h-7.5 cursor-pointer appearance-none rounded border border-line-control border-b-line-strong bg-surface-raised bg-none py-0 pr-7 pl-2.5 text-ui text-content-body focus:outline focus:-outline-offset-1 focus:outline-focus-ring"
+        class="col-start-1 row-start-1 h-7.5 cursor-pointer appearance-none rounded border border-line-control border-b-line-strong bg-surface-raised bg-none py-0 pr-7 pl-2.5 text-ui text-content-body focus:outline focus:-outline-offset-1 focus:outline-focus-ring max-sm:h-11 max-sm:rounded-md max-sm:pl-3 max-sm:text-base"
       >
         <option :for={{label, value} <- @options} value={value} selected={value == @value}>{label}</option>
       </select>
-      <span class="pointer-events-none col-start-1 row-start-1 mr-2 lucide-chevron-down size-3.5 self-center justify-self-end text-content-muted" aria-hidden="true"></span>
+      <span class="pointer-events-none col-start-1 row-start-1 mr-2 lucide-chevron-down size-3.5 self-center justify-self-end text-content-muted max-sm:mr-3 max-sm:size-4" aria-hidden="true"></span>
     </span>
     """
   end
@@ -444,6 +470,15 @@ defmodule NervesHubWeb.Components.DevicePage.LogsTab do
   @alert_levels ~w(emergency alert critical error)
 
   defp alert_level?(level), do: level in @alert_levels
+
+  # On a phone the message wraps under the time and level, keeping its own
+  # line breaks and indents, rather than scrolling sideways.
+  defp message_class(level) do
+    [
+      "pr-4 whitespace-pre max-sm:basis-full max-sm:pr-0 max-sm:wrap-anywhere max-sm:whitespace-pre-wrap",
+      if(alert_level?(level), do: "text-content-strong", else: "text-content-body")
+    ]
+  end
 
   defp level_class(level) when level in @alert_levels, do: "text-alert-content"
   defp level_class(level) when level in ~w(warning warn), do: "text-warning-content"
