@@ -592,13 +592,15 @@ defmodule NervesHubWeb.Components.DevicePage.Header do
 
   def tabs(assigns) do
     ~H"""
-    <%!-- On a phone the page scrolls, and the tabs stick to its top. --%>
-    <div class="relative shrink-0 max-sm:sticky max-sm:top-0 max-sm:z-20 max-sm:bg-surface">
+    <%!-- On a phone the page scrolls, and the tabs stick to its top on a raised
+          strip. Once they're stuck, a light shadow lifts them off the content
+          passing under; dark mode has no shadow, as one can't be seen there. --%>
+    <div class="relative shrink-0 max-sm:sticky max-sm:top-0 max-sm:z-20 max-sm:bg-surface-raised max-sm:header-scrolled:light:shadow-[0_2px_6px_rgb(24_24_27/0.05)]">
       <nav
         id="device-tabs"
         phx-hook="ActiveTabInView"
         aria-label="Device"
-        class="peer flex w-full shrink-0 justify-between gap-6 overflow-x-auto border-b border-line-rule px-1 [scrollbar-width:none] sm:px-3"
+        class="peer flex w-full shrink-0 justify-between gap-6 overflow-x-auto border-b border-line-rule px-1 [scrollbar-width:none] max-sm:border-line-default sm:px-3 dark:max-sm:border-line-subtle"
       >
         <div class="flex shrink-0">
           <.tab :for={tab <- @tabs} tab={tab} selected={@selected} />
@@ -612,7 +614,7 @@ defmodule NervesHubWeb.Components.DevicePage.Header do
             more of it. A mask would fade the strip's rule too. ActiveTabInView
             keeps the selected tab in view and marks the strip's end. --%>
       <div
-        class="pointer-events-none absolute top-0 right-0 bottom-px w-14 bg-linear-to-r from-transparent to-surface to-75% peer-data-scrolled-to-end:hidden sm:hidden"
+        class="pointer-events-none absolute top-0 right-0 bottom-px w-14 bg-linear-to-r from-transparent to-surface-raised to-75% peer-data-scrolled-to-end:hidden sm:hidden"
         aria-hidden="true"
       >
       </div>
