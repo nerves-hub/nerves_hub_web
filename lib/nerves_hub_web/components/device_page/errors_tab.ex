@@ -274,14 +274,22 @@ defmodule NervesHubWeb.Components.DevicePage.ErrorsTab do
                   </td>
                   <td class="pr-4 whitespace-nowrap max-sm:col-start-3 max-sm:row-start-1 max-sm:truncate max-sm:p-0">
                     <span class="text-ui font-medium text-content-strong max-sm:text-xs max-sm:font-normal max-sm:text-content-muted">
-                      {DateTimes.day_label(entry.last_seen_at, @time_zone)}
+                      {DateTimes.day_label(entry.last_seen_at, @time_zone)}<span class="sm:hidden">,</span>
                     </span>
+                    <%!-- A phone row is a glance, so it drops the seconds: "Nov 5, 10:41 PM". --%>
                     <.local_datetime
                       at={entry.last_seen_at}
                       time_zone={@time_zone}
                       format={:time_seconds}
                       zone_label={false}
-                      class="ml-1.5 text-xs text-content-faint max-sm:ml-1 max-sm:text-content-muted"
+                      class="ml-1.5 text-xs text-content-faint max-sm:hidden"
+                    />
+                    <.local_datetime
+                      at={entry.last_seen_at}
+                      time_zone={@time_zone}
+                      format={:time}
+                      zone_label={false}
+                      class="ml-1 text-xs text-content-muted sm:hidden"
                     />
                   </td>
                   <td class="max-sm:col-start-4 max-sm:row-span-2 max-sm:row-start-1 max-sm:-mr-3">
