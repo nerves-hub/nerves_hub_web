@@ -2662,6 +2662,23 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       |> assert_has("#sidebar #navigation a", text: "Devices")
     end
 
+    test "the top bar names the device once the header scrolls away", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device
+    } do
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}/health")
+      |> assert_has("#device-page[phx-hook='DevicePageScroll'][data-tab='health']")
+      |> within("#device-compact-bar", fn session ->
+        session
+        |> assert_has(~s(a[aria-label="All Devices"][href="/org/#{org.name}/#{product.name}/devices"]))
+        |> assert_has("span", text: device.identifier)
+        |> assert_has("button[aria-label='More actions'][aria-controls='device-more-sheet']")
+      end)
+    end
+
     test "the More sheet holds pinning, copying, rebooting and the end tabs", %{
       conn: conn,
       org: org,

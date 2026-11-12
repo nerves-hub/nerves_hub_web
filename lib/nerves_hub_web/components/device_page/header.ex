@@ -157,6 +157,53 @@ defmodule NervesHubWeb.Components.DevicePage.Header do
     """
   end
 
+  @doc """
+  The device, in the top bar of a phone once the header has scrolled out of
+  sight: back to the device list, whether it is online, its identifier and
+  the version it runs, and the More sheet. Hidden otherwise, and from `sm` up;
+  the `header-scrolled:` variant shows it (see `devicePageScroll.js`).
+  """
+  attr(:device, Device, required: true)
+  attr(:device_connection, :any, required: true)
+  attr(:org, :any, required: true)
+  attr(:product, :any, required: true)
+
+  def compact_bar(assigns) do
+    ~H"""
+    <div id="device-compact-bar" class="hidden h-full min-w-0 flex-1 items-center header-scrolled:max-sm:flex">
+      <.link
+        navigate={~p"/org/#{@org}/#{@product}/devices"}
+        aria-label="All Devices"
+        class="-ml-3 flex size-11 shrink-0 items-center justify-center text-content-muted"
+      >
+        <span class="lucide-chevron-left size-5" aria-hidden="true"></span>
+      </.link>
+      <span
+        data-connection-status={connection_status(@device_connection)}
+        class={[
+          "mr-2 size-2 shrink-0 rounded-full bg-status-offline",
+          "data-[connection-status=connected]:bg-status-online",
+          "data-[connection-status=connecting]:animate-pulse data-[connection-status=connecting]:bg-status-connecting"
+        ]}
+      />
+      <span class="min-w-0 truncate font-mono text-[0.9375rem]/5 font-semibold text-content-strong">{@device.identifier}</span>
+      <span :if={@device.firmware_metadata} class="ml-2 shrink-0 font-mono text-xs text-content-muted">
+        {@device.firmware_metadata.version}
+      </span>
+      <button
+        type="button"
+        aria-label="More actions"
+        aria-haspopup="dialog"
+        aria-controls="device-more-sheet"
+        phx-click={show_more_sheet()}
+        class="ml-auto flex size-11 shrink-0 cursor-pointer items-center justify-center text-content-muted"
+      >
+        <.icon name="more" class="size-5" />
+      </button>
+    </div>
+    """
+  end
+
   attr(:event, :string, default: nil)
   attr(:icon, :string, required: true)
   attr(:label, :string, required: true)
@@ -544,7 +591,8 @@ defmodule NervesHubWeb.Components.DevicePage.Header do
 
   def tabs(assigns) do
     ~H"""
-    <div class="relative shrink-0">
+    <%!-- On a phone the page scrolls, and the tabs stick to its top. --%>
+    <div class="relative shrink-0 max-sm:sticky max-sm:top-0 max-sm:z-20 max-sm:bg-surface">
       <nav
         id="device-tabs"
         phx-hook="ActiveTabInView"
