@@ -61,8 +61,13 @@ defmodule NervesHubWeb.Components.Pager do
   end
 
   @doc """
-  The pager as the design draws it, for the footer of a card: a page size
-  select, then the pages as one segmented control, right aligned.
+  The pager the device page's tabs share, at the foot of a card: a page size
+  select, then the pages as one segmented control, right aligned. On a phone
+  it is "Page 2 of 4 · 25 per page" between previous and next buttons.
+
+  It shows whenever there is something to page through, even a single page,
+  so the footer doesn't come and go as a list grows. Other paged lists still
+  use `render_with_page_sizes/1`.
 
   Sends the same events as `render_with_page_sizes/1`: `set-paginate-opts`
   with `page-size`, and `paginate` with `page`.
@@ -75,34 +80,27 @@ defmodule NervesHubWeb.Components.Pager do
   def footer(assigns) do
     %{current_page: current, total_pages: total} = assigns.pager
 
-    assigns =
-      assign(assigns,
-        pages: page_window(current, total),
-        sizes?: assigns.pager.total_count > hd(assigns.page_sizes)
-      )
+    assigns = assign(assigns, pages: page_window(current, max(total, 1)), last_page: max(total, 1))
 
     ~H"""
-    <%!-- On a phone: thumb-sized previous and next buttons at either end, and
-          which page this is between them, with the page size. --%>
-    <div
-      :if={@sizes? or @pager.total_pages > 1}
-      class="flex h-12 shrink-0 items-center justify-end gap-2 border-t border-line-subtle pr-3 pl-4 max-sm:h-auto max-sm:py-3 max-sm:pr-4"
-    >
-      <span :if={@pager.total_pages > 1} class={["text-base/5 text-content-muted max-sm:order-2 max-sm:ml-auto sm:hidden", !@sizes? && "max-sm:mr-auto"]}>
-        Page <span class="font-medium text-content-strong">{@pager.current_page}</span> of {@pager.total_pages}
+    <div :if={@pager.total_count > 0} class="flex h-12 shrink-0 items-center justify-end gap-2 border-t border-line-subtle pr-3 pl-4 max-sm:h-auto max-sm:gap-3 max-sm:py-3 max-sm:pr-4">
+      <%!-- A phone has no room for the select or the page numbers, so it
+            says which page this is between the previous and next buttons. --%>
+      <span class="text-ui/4.5 text-content-muted max-sm:order-2 max-sm:mx-auto sm:hidden">
+        <span class="font-medium text-content-strong">Page {@pager.current_page}</span> of {@last_page} · {@pager.page_size} per page
       </span>
-      <form :if={@sizes?} id={"#{@id}-page-size"} phx-change="set-paginate-opts" {@rest} class="grid grid-cols-1 max-sm:order-3 max-sm:mr-auto">
+      <form id={"#{@id}-page-size"} phx-change="set-paginate-opts" {@rest} class="grid grid-cols-1 max-sm:hidden">
         <select
           name="page-size"
           aria-label="Rows per page"
-          class="col-start-1 row-start-1 h-7.5 cursor-pointer appearance-none rounded border border-line-control border-b-line-strong bg-surface-raised bg-none py-0 pr-7 pl-2.5 text-ui text-content-body focus:outline focus:-outline-offset-1 focus:outline-focus-ring max-sm:h-11 max-sm:text-base"
+          class="col-start-1 row-start-1 h-7.5 cursor-pointer appearance-none rounded border border-line-control border-b-line-strong bg-surface-raised bg-none py-0 pr-7 pl-2.5 text-ui text-content-body focus:outline focus:-outline-offset-1 focus:outline-focus-ring"
         >
           <option :for={size <- @page_sizes} value={size} selected={size == @pager.page_size}>{size} per page</option>
         </select>
         <span class="pointer-events-none col-start-1 row-start-1 mr-2 lucide-chevron-down size-3.5 self-center justify-self-end text-content-muted" aria-hidden="true"></span>
       </form>
 
-      <nav :if={@pager.total_pages > 1} aria-label="Pages" class="flex h-7 overflow-clip rounded border border-line-control bg-surface-raised shadow-xs max-sm:contents">
+      <nav aria-label="Pages" class="flex h-7 overflow-clip rounded border border-line-control bg-surface-raised shadow-xs max-sm:contents">
         <button
           type="button"
           aria-label="Previous page"
@@ -111,11 +109,11 @@ defmodule NervesHubWeb.Components.Pager do
           phx-value-page={@pager.current_page - 1}
           class={[
             "flex items-center px-1.75 text-content-muted enabled:cursor-pointer enabled:hover:bg-surface-muted enabled:hover:text-content-strong disabled:text-content-faint",
-            "max-sm:order-1 max-sm:size-11 max-sm:shrink-0 max-sm:justify-center max-sm:rounded-md max-sm:border max-sm:border-line-control max-sm:bg-surface-raised max-sm:shadow-xs"
+            "max-sm:order-1 max-sm:h-10 max-sm:w-11 max-sm:shrink-0 max-sm:justify-center max-sm:rounded-md max-sm:border max-sm:border-line-control max-sm:bg-surface-raised max-sm:shadow-xs"
           ]}
           {@rest}
         >
-          <span class="lucide-chevron-left size-3.5 max-sm:size-4.5" aria-hidden="true"></span>
+          <span class="lucide-chevron-left size-3.5 max-sm:size-4" aria-hidden="true"></span>
         </button>
         <%= for page <- @pages do %>
           <span :if={page == :gap} class="flex w-7 shrink-0 items-center justify-center border-l border-line-control text-xs text-content-faint max-sm:hidden">…</span>
@@ -134,16 +132,16 @@ defmodule NervesHubWeb.Components.Pager do
         <button
           type="button"
           aria-label="Next page"
-          disabled={@pager.current_page >= @pager.total_pages}
+          disabled={@pager.current_page >= @last_page}
           phx-click="paginate"
           phx-value-page={@pager.current_page + 1}
           class={[
             "flex items-center border-l border-line-control px-1.75 text-content-muted enabled:cursor-pointer enabled:hover:bg-surface-muted enabled:hover:text-content-strong disabled:text-content-faint",
-            "max-sm:order-4 max-sm:size-11 max-sm:shrink-0 max-sm:justify-center max-sm:rounded-md max-sm:border max-sm:border-line-control max-sm:bg-surface-raised max-sm:shadow-xs"
+            "max-sm:order-3 max-sm:h-10 max-sm:w-11 max-sm:shrink-0 max-sm:justify-center max-sm:rounded-md max-sm:border max-sm:border-line-control max-sm:bg-surface-raised max-sm:shadow-xs"
           ]}
           {@rest}
         >
-          <span class="lucide-chevron-right size-3.5 max-sm:size-4.5" aria-hidden="true"></span>
+          <span class="lucide-chevron-right size-3.5 max-sm:size-4" aria-hidden="true"></span>
         </button>
       </nav>
     </div>
