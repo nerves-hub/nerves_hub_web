@@ -3,12 +3,12 @@
     <.breadcrumb
       navigate={~p"/org/#{@org}/#{@product}/devices"}
       root_label="All Devices"
-      root_class="hidden whitespace-nowrap md:block"
+      root_class="whitespace-nowrap sm:hidden md:block"
     >
       <:crumb class="hidden lg:block">{@device.identifier}</:crumb>
     </.breadcrumb>
 
-    <div class="mr-6 ml-auto flex items-center">
+    <div class="ml-auto flex items-center sm:mr-6">
       <div id="present-users" phx-update="stream" class="flex h-7 flex-row-reverse -space-x-1 space-x-reverse">
         <.tooltip :for={{id, %{user: user}} <- @streams.presences} id={id} class="z-10 inline-flex cursor-default items-center justify-center">
           <span :if={!@user.profile_picture_url} class="inline-flex size-7 items-center justify-center rounded-full bg-base-800 px-1 text-sm font-medium text-content-muted ring-2 ring-surface-muted">

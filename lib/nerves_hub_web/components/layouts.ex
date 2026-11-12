@@ -24,6 +24,16 @@ defmodule NervesHubWeb.Layouts do
     )
   end
 
+  # On a phone the sidebar is a drawer. An attribute rather than JS.show, so
+  # the classes decide that it only hides below `sm`.
+  defp show_sidebar(js \\ %JS{}) do
+    js
+    |> JS.set_attribute({"data-open", ""}, to: "#sidebar")
+    |> JS.focus_first(to: "#sidebar")
+  end
+
+  defp hide_sidebar(js \\ %JS{}), do: JS.remove_attribute(js, "data-open", to: "#sidebar")
+
   embed_templates("layouts/*")
 
   attr(:flash, :map, required: true)

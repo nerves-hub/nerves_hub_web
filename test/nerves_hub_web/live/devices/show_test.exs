@@ -2649,6 +2649,19 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       |> assert_has("#device-actions-mobile button[aria-label='More actions'][aria-controls='device-more-sheet']")
     end
 
+    test "the sidebar is a drawer the top bar's menu button opens", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device
+    } do
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      |> assert_has("button[aria-label='Open menu'][aria-controls='sidebar']")
+      |> assert_has("#sidebar button[aria-label='Close menu']")
+      |> assert_has("#sidebar #navigation a", text: "Devices")
+    end
+
     test "the More sheet holds pinning, copying, rebooting and the end tabs", %{
       conn: conn,
       org: org,
