@@ -152,7 +152,12 @@ when adding or removing one.
   [docs/discord.md](docs/discord.md).
 - `scripts.ex` / `scripts/` — support scripts run against a device console.
 - `workers/` — Oban workers (e.g. firmware delta building, firmware deletion).
-- Cross-cutting: `audit_logs.ex`, `clustering.ex`, `product_notifications.ex`, `tracker.ex`,
+- `audit_logs.ex` / `audit_logs/` — the audit log, written from the templates
+  in `audit_logs/templates/`. An entry a device's Activity tab shows passes a
+  `kind:` (`AuditLog.kinds/0`), and the tab draws its icon from that, never
+  from the description. A new kind of entry needs a kind and an icon in
+  `NervesHubWeb.Components.DevicePage.ActivityTab`.
+- Cross-cutting: `clustering.ex`, `product_notifications.ex`, `tracker.ex`,
   `rate_limit.ex`, `cli_session_cache.ex`, `device_link.ex`, `repo.ex`,
   `analytics_repo.ex`, `application.ex`.
 

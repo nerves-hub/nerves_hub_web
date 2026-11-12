@@ -113,7 +113,7 @@ defmodule NervesHub.AuditLogs.DeploymentGroupTemplates do
     description =
       "Device no longer matches deployment group #{deployment_group.name}'s requirements because of #{reason}"
 
-    AuditLogs.audit!(device, deployment_group, description)
+    AuditLogs.audit!(device, deployment_group, description, kind: :deployment_group_mismatch)
   end
 
   @spec audit_deployment_group_change(DeploymentGroup.t(), String.t()) :: :ok

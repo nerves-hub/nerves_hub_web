@@ -234,7 +234,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
 
     authorized!(:"device:reconnect", current_scope)
 
-    DeviceTemplates.audit_request_action(user, device, "reconnect")
+    DeviceTemplates.audit_request_action(user, device, :reconnect)
 
     socket.endpoint.broadcast("device_socket:#{device.id}", "disconnect", %{})
 

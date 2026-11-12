@@ -1,7 +1,11 @@
 defmodule NervesHubWeb.Live.Devices.Show.ActivityTabTest do
   use NervesHubWeb.ConnCase.Browser, async: true
 
+  alias NervesHub.AuditLogs
+  alias NervesHub.AuditLogs.AuditLog
   alias NervesHub.AuditLogs.DeviceTemplates
+  alias NervesHub.Devices.Updates
+  alias NervesHubWeb.Components.DevicePage.ActivityTab
 
   test "no audit log history exists for the device", %{
     conn: conn,
@@ -27,6 +31,58 @@ defmodule NervesHubWeb.Live.Devices.Show.ActivityTabTest do
     conn
     |> visit(~p"/org/#{org}/#{product}/devices/#{device}/activity")
     |> assert_has("div", text: "User #{user.name} rebooted device #{device.identifier}")
+  end
+
+  describe "icons" do
+    test "each entry shows the icon for its kind", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device,
+      user: user
+    } do
+      DeviceTemplates.audit_reboot(user, device)
+      DeviceTemplates.audit_firmware_validated(device)
+      DeviceTemplates.audit_firmware_metadata_updated(device)
+      {:ok, _} = Updates.enable_updates(device, user)
+
+      conn
+      |> visit(~p"/org/#{org}/#{product}/devices/#{device}/activity")
+      |> assert_has("div.flex.items-center.gap-6:has(span.lucide-power)", text: "rebooted device")
+      |> assert_has("div.flex.items-center.gap-6:has(span.lucide-shield-check)", text: "has validated its firmware")
+      |> assert_has("div.flex.items-center.gap-6:has(span.lucide-file-text)", text: "updated firmware metadata")
+      |> assert_has("div.flex.items-center.gap-6:has(span.lucide-toggle-right)", text: "enabled updates")
+      |> refute_has("span.lucide-activity")
+    end
+
+    test "an entry with no kind, as older ones have, gets a neutral icon", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device,
+      user: user
+    } do
+      :ok = AuditLogs.audit!(user, device, "Written before entries had kinds")
+
+      conn
+      |> visit(~p"/org/#{org}/#{product}/devices/#{device}/activity")
+      |> assert_has("div.flex.items-center.gap-6:has(span.lucide-activity)", text: "Written before entries had kinds")
+    end
+
+    test "every kind has an icon of its own" do
+      for kind <- AuditLog.kinds() do
+        refute ActivityTab.kind_icon(kind) == ActivityTab.kind_icon(nil), "#{kind} has no icon"
+      end
+    end
+
+    test "the icons are the ones the Paper boards draw" do
+      assert ActivityTab.kind_icon(:device_rebooted) == "lucide-power"
+      assert ActivityTab.kind_icon(:firmware_validated) == "lucide-shield-check"
+      assert ActivityTab.kind_icon(:firmware_updated) == "lucide-refresh-cw"
+      assert ActivityTab.kind_icon(:firmware_metadata_updated) == "lucide-file-text"
+      assert ActivityTab.kind_icon(:deployment_update_sent) == "lucide-download"
+      assert ActivityTab.kind_icon(:updates_enabled) == "lucide-toggle-right"
+    end
   end
 
   describe "pagination" do
