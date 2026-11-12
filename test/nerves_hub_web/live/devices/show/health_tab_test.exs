@@ -441,6 +441,7 @@ defmodule NervesHubWeb.Live.Devices.Show.HealthTabTest do
       session
       |> assert_has("#health-alarms", text: "1 active", timeout: 1000)
       |> assert_has("#health-alarms code", text: "DiskAlmostFull")
+      |> assert_has("#health-alarms li", text: "since")
     end
   end
 

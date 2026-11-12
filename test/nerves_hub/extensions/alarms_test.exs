@@ -64,14 +64,14 @@ defmodule NervesHub.Extensions.AlarmsTest do
       {^state, []} =
         Alarms.handle_in("raised", %{"alarm" => "Elixir.MyApp.HighTemp", "description" => "too hot"}, state)
 
-      assert Store.current_alarms_for_device(device) == [{"MyApp.HighTemp", "too hot"}]
+      assert [{"MyApp.HighTemp", "too hot", %DateTime{}}] = Store.current_alarms_for_device(device)
       assert [%{alarm: "MyApp.HighTemp", event: "raised", description: "too hot"}] = history(device)
     end
 
     test "a raise without a description is stored without one", %{device: device, state: state} do
       {^state, []} = Alarms.handle_in("raised", %{"alarm" => "HighTemp"}, state)
 
-      assert Store.current_alarms_for_device(device) == [{"HighTemp", nil}]
+      assert [{"HighTemp", nil, %DateTime{}}] = Store.current_alarms_for_device(device)
     end
 
     test "a clear removes the alarm, and is recorded as history", %{device: device, state: state} do
@@ -114,7 +114,7 @@ defmodule NervesHub.Extensions.AlarmsTest do
         assert {^state, []} = Alarms.handle_in("snapshot", %{"alarms" => alarms}, state)
       end
 
-      assert Store.current_alarms_for_device(device) == [{"HighTemp", nil}]
+      assert [{"HighTemp", nil, %DateTime{}}] = Store.current_alarms_for_device(device)
 
       # One token spent, on the raise. The rejected snapshots cost nothing.
       for _ <- 1..9, do: assert(Alarms.allow?(state.device_info))
@@ -131,7 +131,7 @@ defmodule NervesHub.Extensions.AlarmsTest do
           state
         )
 
-      assert Store.current_alarms_for_device(device) == [{"LowDisk", nil}]
+      assert [{"LowDisk", nil, %DateTime{}}] = Store.current_alarms_for_device(device)
     end
 
     test "reconcile the stored set with the device's", %{device: device, state: state} do
@@ -140,7 +140,7 @@ defmodule NervesHub.Extensions.AlarmsTest do
       {^state, []} =
         Alarms.handle_in("snapshot", %{"alarms" => [%{"alarm" => "HighTemp", "description" => "too hot"}]}, state)
 
-      assert Store.current_alarms_for_device(device) == [{"HighTemp", "too hot"}]
+      assert [{"HighTemp", "too hot", %DateTime{}}] = Store.current_alarms_for_device(device)
     end
 
     test "an empty snapshot clears everything", %{device: device, state: state} do

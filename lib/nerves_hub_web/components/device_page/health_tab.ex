@@ -380,7 +380,7 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
           />
         </div>
 
-        <AlarmsRow.render :if={alarms_reported?(@product, @device)} id="health-alarms" alarms={@health_alarms} />
+        <AlarmsRow.render :if={alarms_reported?(@product, @device)} id="health-alarms" alarms={@health_alarms} time_zone={@time_zone} />
 
         <div
           :if={@health_enabled? && Enum.any?(@latest_metrics) && @health_profile}

@@ -167,6 +167,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
             featured_keys={@featured_keys}
             device_connection={@device_connection}
             alarms={@alarms}
+            time_zone={@time_zone}
           />
           <.general_info
             :if={box == :general_info}
@@ -818,6 +819,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
   attr(:custom_labels, :map, required: true)
   attr(:featured_keys, :any)
   attr(:alarms, :any)
+  attr(:time_zone, :string, default: "UTC")
 
   defp health_box(assigns) do
     ~H"""
@@ -829,7 +831,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
           Learn more about device health and alert reporting.
         </.link>
       </p>
-      <AlarmsRow.render :if={alarms_reported?(@product, @device)} id="alarms" alarms={@alarms} />
+      <AlarmsRow.render :if={alarms_reported?(@product, @device)} id="alarms" alarms={@alarms} time_zone={@time_zone} />
     </.card>
 
     <.card :if={Enum.empty?(@latest_metrics) && @product.extensions.health && @device.extensions.health} id="health-card">
@@ -840,7 +842,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
           Learn more about device health reporting.
         </.link>
       </p>
-      <AlarmsRow.render :if={alarms_reported?(@product, @device)} id="alarms" alarms={@alarms} />
+      <AlarmsRow.render :if={alarms_reported?(@product, @device)} id="alarms" alarms={@alarms} time_zone={@time_zone} />
     </.card>
 
     <.card :if={Enum.any?(@latest_metrics) && @product.extensions.health && @device.extensions.health} id="health-card">
@@ -876,7 +878,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
         />
       </div>
 
-      <AlarmsRow.render :if={alarms_reported?(@product, @device)} id="alarms" alarms={@alarms} />
+      <AlarmsRow.render :if={alarms_reported?(@product, @device)} id="alarms" alarms={@alarms} time_zone={@time_zone} />
     </.card>
     """
   end

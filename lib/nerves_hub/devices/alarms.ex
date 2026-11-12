@@ -186,18 +186,19 @@ defmodule NervesHub.Devices.Alarms do
   end
 
   @doc """
-  The device's raised alarms as `[{alarm, description}]`, oldest first, or
-  `nil` when it has none — the device details page distinguishes "no alarms"
-  from "alarms" rather than rendering an empty list.
+  The device's raised alarms as `[{alarm, description, raised_at}]`, oldest
+  first, or `nil` when it has none — the device details page distinguishes "no
+  alarms" from "alarms" rather than rendering an empty list.
   """
-  @spec current_alarms_for_device(Device.t() | pos_integer()) :: [{String.t(), String.t() | nil}] | nil
+  @spec current_alarms_for_device(Device.t() | pos_integer()) ::
+          [{String.t(), String.t() | nil, DateTime.t()}] | nil
   def current_alarms_for_device(%Device{id: device_id}), do: current_alarms_for_device(device_id)
 
   def current_alarms_for_device(device_id) when is_integer(device_id) do
     DeviceAlarm
     |> where(device_id: ^device_id)
     |> order_by([a], asc: a.raised_at, asc: a.alarm)
-    |> select([a], {a.alarm, a.description})
+    |> select([a], {a.alarm, a.description, a.raised_at})
     |> Repo.all()
     |> case do
       [] -> nil
