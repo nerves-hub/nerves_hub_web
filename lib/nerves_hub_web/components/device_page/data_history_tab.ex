@@ -14,14 +14,27 @@ defmodule NervesHubWeb.Components.DevicePage.DataHistoryTab do
 
   Filters live in the URL so a particular view of a device's traffic can be
   linked to, which is most of the point when someone is being asked to look at it.
+
+  The first page is the newest messages, and "Show older messages" (or
+  scrolling to it) adds the next page from the oldest one on screen, up to the
+  most the tab will hold. Past that, as on the Logs tab, each new message pushes
+  the oldest out, and paging is already off by then.
+
+  A row opens in the browser alone, with no round trip, to show its payload
+  laid out: a stream's rows are not kept on the server, so there is nothing
+  there to mark as open.
   """
 
   use NervesHubWeb, tab_component: :data_history
 
   alias NervesHub.Devices.DeviceMessage
   alias NervesHub.Devices.DeviceMessages
+  alias NervesHub.Devices.DeviceMessages.Payload
+  alias NervesHubWeb.Components.DateTimes
+  alias NervesHubWeb.Components.DevicePage.TabNotice
 
-  @limit 100
+  @page_size 100
+  @max_messages 1_000
 
   def tab_params(params, _uri, socket) do
     if analytics_enabled?() do
@@ -45,7 +58,7 @@ defmodule NervesHubWeb.Components.DevicePage.DataHistoryTab do
   # another tab sets deletes it out from under whichever of them is active. See
   # `NervesHubWeb.Components.DevicePage.TabCleanupTest`.
   def cleanup() do
-    [:has_messages, :direction_filter, :topic_filter]
+    [:has_messages, :direction_filter, :topic_filter, :message_count, :message_cursor, :more_messages]
   end
 
   defp configure_stream(%{assigns: %{streams: %{messages: _}}} = socket), do: socket
@@ -73,18 +86,53 @@ defmodule NervesHubWeb.Components.DevicePage.DataHistoryTab do
     end
   end
 
-  defp fetch_messages(socket) do
-    messages =
-      DeviceMessages.recent(socket.assigns.device,
-        limit: @limit,
+  # Asks for one more message than a page holds. If it comes back there is
+  # something older to show, so the tab never offers a "Show older messages"
+  # with nothing behind it.
+  defp read_page(socket, size, extra_opts) do
+    opts =
+      [
+        limit: size + 1,
         direction: query_filter(socket.assigns.direction_filter),
         topic: query_filter(socket.assigns.topic_filter)
-      )
+      ] ++ extra_opts
+
+    {page, older} = socket.assigns.device |> DeviceMessages.recent(opts) |> Enum.split(size)
+
+    {page, older != []}
+  end
+
+  defp fetch_messages(socket) do
+    {page, more?} = read_page(socket, @page_size, [])
 
     socket
-    |> stream(:messages, messages, reset: true)
-    |> assign(:has_messages, Enum.any?(messages))
+    |> stream(:messages, page, reset: true)
+    |> assign(:has_messages, page != [])
+    |> assign(:message_count, length(page))
+    |> assign(:message_cursor, oldest_timestamp(page, nil))
+    |> assign(:more_messages, more?)
   end
+
+  # Messages older than the oldest on screen. The cursor is exclusive, so two
+  # messages in the same microsecond that straddle a page boundary lose the
+  # second, as on the Logs tab.
+  defp load_older(
+         %{assigns: %{more_messages: true, message_cursor: %DateTime{} = cursor, message_count: count}} = socket
+       )
+       when count < @max_messages do
+    {page, more?} = read_page(socket, min(@page_size, @max_messages - count), before: cursor)
+
+    socket
+    |> stream(:messages, page, at: -1)
+    |> assign(:message_count, count + length(page))
+    |> assign(:message_cursor, oldest_timestamp(page, cursor))
+    |> assign(:more_messages, more?)
+  end
+
+  defp load_older(socket), do: socket
+
+  defp oldest_timestamp([], fallback), do: fallback
+  defp oldest_timestamp(page, _fallback), do: page |> List.last() |> Map.fetch!(:timestamp)
 
   defp query_filter("all"), do: nil
   defp query_filter(value), do: value
@@ -104,6 +152,12 @@ defmodule NervesHubWeb.Components.DevicePage.DataHistoryTab do
     socket
     |> fetch_messages()
     |> push_patch(to: ~p"/org/#{org}/#{product}/devices/#{device}/data_history?#{query}")
+    |> halt()
+  end
+
+  def hooked_event("load-more-messages", _params, socket) do
+    socket
+    |> load_older()
     |> halt()
   end
 
@@ -139,8 +193,14 @@ defmodule NervesHubWeb.Components.DevicePage.DataHistoryTab do
 
   defp maybe_stream(socket, message) do
     if matches_filters?(socket, message) do
+      %{message_count: count, more_messages: more?} = socket.assigns
+
+      # Once the list is full the oldest is pushed out, so there is history
+      # behind what is on screen whether or not there was before.
       socket
-      |> stream_insert(:messages, message, at: 0, limit: @limit)
+      |> stream_insert(:messages, message, at: 0, limit: @max_messages)
+      |> assign(:message_count, min(count + 1, @max_messages))
+      |> assign(:more_messages, more? or count >= @max_messages)
       |> assign(:has_messages, true)
     else
       socket
@@ -157,12 +217,7 @@ defmodule NervesHubWeb.Components.DevicePage.DataHistoryTab do
 
   def render(%{analytics_enabled: false} = assigns) do
     ~H"""
-    <div class="size-full p-12">
-      <div class="text-medium flex size-full flex-col items-center justify-center gap-6 p-6 font-mono">
-        <div class="font-bold">Analytics aren't enabled for your platform.</div>
-        <div>Check contact your Ops team for more information.</div>
-      </div>
-    </div>
+    <TabNotice.render title="Analytics aren't enabled for your platform." detail="Check with your Ops team for more information." />
     """
   end
 
@@ -171,109 +226,234 @@ defmodule NervesHubWeb.Components.DevicePage.DataHistoryTab do
     <div
       id="data-history-tab"
       phx-mounted={JS.remove_class("opacity-0")}
-      class="tab-content size-full bg-base-950 pb-10 opacity-0 transition-all duration-500 phx-click-loading:opacity-50"
+      class="tab-content w-full p-4 opacity-0 transition-all duration-500 sm:p-6 phx-click-loading:opacity-50"
     >
-      <div class="flex h-11 flex-row items-center justify-between border-b border-line-default px-12">
-        <div class="flex flex-row items-center gap-6">
-          <div>
-            <span class="text-sm text-content-muted">Live streaming :</span>
-            <button
-              id="toggle-message-streaming"
-              type="button"
-              phx-click="toggle-streaming"
-              class={[
-                "border-1.5 relative inline-flex h-3.5 w-6 shrink-0 cursor-pointer items-center rounded-full border-transparent transition-colors duration-200 ease-in-out focus:ring-0 focus:outline-none",
-                (@streaming_enabled && "bg-success") || "bg-alert"
-              ]}
-              role="switch"
-              aria-checked={to_string(@streaming_enabled)}
-              aria-label="Toggle live streaming of device messages"
+      <div class="flex w-full flex-col overflow-clip rounded-card border border-line-default bg-surface-raised shadow-card">
+        <%!-- On a phone: Live, the count and Pause on one row, then the
+              direction across the width, then the channel. --%>
+        <div class="flex min-h-14 shrink-0 flex-wrap items-center justify-between gap-x-4 gap-y-2 border-b border-line-subtle px-4 py-2.5 max-sm:gap-2 max-sm:p-3">
+          <div class="flex flex-wrap items-center gap-2 max-sm:contents">
+            <span
+              :if={@streaming_enabled}
+              class="flex h-7 items-center gap-1.5 rounded bg-success-soft pr-2.5 pl-2 text-xs font-medium text-success-content"
             >
-              <span
-                aria-hidden="true"
-                class={[
-                  "pointer-events-none inline-block size-3",
-                  (@streaming_enabled && "translate-x-3") || "translate-x-0",
-                  "transform rounded-full bg-white shadow-control ring-0 transition duration-200 ease-in-out"
-                ]}
-              ></span>
-            </button>
+              <span class="size-1.5 rounded-full bg-success"></span>Live
+            </span>
+            <span
+              :if={!@streaming_enabled}
+              class="flex h-7 items-center gap-1.5 rounded border border-line-default pr-2.5 pl-2 text-xs font-medium text-content-muted"
+            >
+              <span class="size-1.5 rounded-full bg-status-offline"></span>Paused
+            </span>
+            <.button
+              id="toggle-message-streaming"
+              size="sm"
+              phx-click="toggle-streaming"
+              aria-pressed={to_string(!@streaming_enabled)}
+              class="max-sm:order-2 max-sm:ml-auto max-sm:h-11 max-sm:px-3.5 max-sm:text-sm"
+            >
+              <span class={[if(@streaming_enabled, do: "lucide-pause", else: "lucide-play"), "size-3.5 text-content-muted"]} aria-hidden="true"></span>
+              {if @streaming_enabled, do: "Pause", else: "Resume"}
+            </.button>
+
+            <span class="mx-0.5 hidden h-5 w-px bg-line-default sm:block" aria-hidden="true"></span>
+
+            <div role="group" aria-label="Direction" class="flex h-7.5 overflow-clip rounded border border-line-control max-sm:order-3 max-sm:h-11 max-sm:basis-full max-sm:rounded-md">
+              <button
+                :for={{label, value} <- direction_options()}
+                type="button"
+                phx-click="filter-messages"
+                phx-value-direction={value}
+                phx-value-topic={@topic_filter}
+                aria-pressed={to_string(value == @direction_filter)}
+                class="flex cursor-pointer items-center border-l border-line-control px-3 text-ui text-content-body first:border-l-0 hover:bg-surface-muted aria-pressed:bg-surface-muted aria-pressed:font-medium aria-pressed:text-content-strong max-sm:flex-1 max-sm:justify-center max-sm:px-2 max-sm:text-sm max-sm:whitespace-nowrap"
+              >
+                {label}
+              </button>
+            </div>
+
+            <form id="data-history-filters" phx-change="filter-messages" class="grid grid-cols-1 max-sm:order-4 max-sm:basis-full">
+              <input type="hidden" name="direction" value={@direction_filter} />
+              <select
+                name="topic"
+                aria-label="Channel"
+                class="col-start-1 row-start-1 h-7.5 cursor-pointer appearance-none rounded border border-line-control border-b-line-strong bg-surface-raised bg-none py-0 pr-7 pl-2.5 text-ui text-content-body focus:outline focus:-outline-offset-1 focus:outline-focus-ring max-sm:h-11 max-sm:rounded-md max-sm:pl-3 max-sm:text-base"
+              >
+                <option :for={{label, value} <- topic_options()} value={value} selected={value == @topic_filter}>{label}</option>
+              </select>
+              <span class="pointer-events-none col-start-1 row-start-1 mr-2 lucide-chevron-down size-3.5 self-center justify-self-end text-content-muted max-sm:mr-3 max-sm:size-4" aria-hidden="true"></span>
+            </form>
           </div>
-
-          <form id="data-history-filters" phx-change="filter-messages" class="flex flex-row items-center gap-4">
-            <label class="flex items-center gap-2">
-              <span class="text-sm text-content-muted">Direction :</span>
-              <select name="direction" class="rounded border border-line-strong bg-base-800 px-2 py-0.5 text-sm text-content-body">
-                <option :for={{label, value} <- direction_options()} value={value} selected={value == @direction_filter}>
-                  {label}
-                </option>
-              </select>
-            </label>
-
-            <label class="flex items-center gap-2">
-              <span class="text-sm text-content-muted">Channel :</span>
-              <select name="topic" class="rounded border border-line-strong bg-base-800 px-2 py-0.5 text-sm text-content-body">
-                <option :for={{label, value} <- topic_options()} value={value} selected={value == @topic_filter}>
-                  {label}
-                </option>
-              </select>
-            </label>
-          </form>
+          <span class="text-xs text-content-faint max-sm:hidden">
+            Newest first · last {@message_count} messages · times in {zone_abbr(@time_zone)}
+          </span>
+          <span class="order-1 min-w-0 flex-1 text-xs text-content-muted sm:hidden">
+            Last {@message_count} · times in {zone_abbr(@time_zone)}
+          </span>
         </div>
 
-        <span class="text-sm font-extralight text-content-muted">
-          {(@streaming_enabled && "Streaming the last #{limit()} messages.") || "Paused."}
-        </span>
-      </div>
+        <div :if={!@has_messages} class="flex items-center justify-center p-14">
+          <span class="text-ui text-content-faint">No messages have been recorded yet.</span>
+        </div>
 
-      <div :if={!@has_messages} class="text-medium flex size-full items-center justify-center gap-6 p-6 font-mono">
-        <div>No messages have been recorded yet.</div>
-      </div>
+        <div :if={@has_messages} class="overflow-x-auto">
+          <div class="min-w-4xl max-sm:min-w-0">
+            <div class="flex h-10 items-center gap-4 border-b border-line-subtle px-4 text-label font-medium text-content-faint uppercase max-sm:hidden">
+              <span class="w-28 shrink-0">Time</span>
+              <span class="w-28 shrink-0">Direction</span>
+              <span class="w-24 shrink-0">Channel</span>
+              <span class="w-44 shrink-0">Event</span>
+              <span class="grow">Data</span>
+              <span class="w-4 shrink-0"></span>
+            </div>
 
-      <div :if={@has_messages} class="scrollable-inner size-full overflow-x-auto px-12 pt-6">
-        <table class="w-full table-fixed font-mono text-sm">
-          <colgroup>
-            <col class="w-52" />
-            <col class="w-28" />
-            <col class="w-28" />
-            <col class="w-44" />
-            <col />
-          </colgroup>
-          <thead>
-            <tr class="border-b border-line-default text-left font-extralight text-content-muted">
-              <th class="py-2 pr-6 font-normal">Timestamp ({zone_abbr(@time_zone)})</th>
-              <th class="py-2 pr-6 font-normal">Direction</th>
-              <th class="py-2 pr-6 font-normal">Channel</th>
-              <th class="py-2 pr-6 font-normal">Event</th>
-              <th class="py-2 font-normal">Data</th>
-            </tr>
-          </thead>
-          <tbody id="device-messages" phx-update="stream">
-            <tr :for={{dom_id, message} <- @streams.messages} id={dom_id} class="border-b border-line-subtle align-top hover:bg-base-900">
-              <td class="py-2 pr-6 whitespace-nowrap text-content-body">
-                <.local_datetime at={message.timestamp} time_zone={@time_zone} format={:timestamp} zone_label={false} />
-              </td>
-              <td class="py-2 pr-6">
-                <.badge tone={(message.direction == "sent" && "notice") || "success"}>
-                  {message.direction}
-                </.badge>
-              </td>
-              <td class="py-2 pr-6 text-content-muted">{message.topic}</td>
-              <td class="truncate py-2 pr-6 text-base-200" title={message.event}>{message.event}</td>
-              <td class="py-2 text-content-body">
-                <div class="max-h-24 overflow-y-auto break-all whitespace-pre-wrap">{payload_text(message)}</div>
-                <div :if={DeviceMessage.truncated?(message)} class="pt-1 text-xs text-content-faint">
-                  truncated for storage — {bytes(message.payload_bytes)} were sent
+            <div id="device-messages" phx-update="stream" phx-hook="LogDayStarts">
+              <div
+                :for={{dom_id, message} <- @streams.messages}
+                id={dom_id}
+                data-day={DateTimes.day_key(message.timestamp, @time_zone)}
+                class="group/line"
+              >
+                <%!-- Shown above the first message of each day; see the
+                      LogDayStarts hook. --%>
+                <div class="hidden h-8 items-center gap-2.5 border-b border-line-subtle px-4 group-data-day-start/line:flex">
+                  <span class="text-label font-medium whitespace-nowrap text-content-faint uppercase">
+                    {DateTimes.day_heading(message.timestamp, @time_zone)}
+                  </span>
+                  <span class="h-px grow bg-line-subtle"></span>
                 </div>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-        <div class="h-10"></div>
+                <div id={"#{dom_id}-row"} data-device-message aria-expanded="false" class="group/message border-b border-line-subtle aria-expanded:bg-surface-muted">
+                  <%!-- On a phone: the direction's arrow, the event and the time,
+                        then where it went, then the data. --%>
+                  <button
+                    type="button"
+                    phx-click={JS.toggle_attribute({"aria-expanded", "true", "false"}, to: "##{dom_id}-row")}
+                    class={[
+                      "flex h-10 w-full cursor-pointer items-center gap-4 px-4 text-left hover:bg-surface-muted",
+                      "max-sm:grid max-sm:h-auto max-sm:grid-cols-[auto_minmax(0,1fr)_auto_auto] max-sm:gap-x-2 max-sm:gap-y-0.5 max-sm:py-2.5"
+                    ]}
+                  >
+                    <.local_datetime
+                      at={message.timestamp}
+                      time_zone={@time_zone}
+                      format={:log_time}
+                      zone_label={false}
+                      class="w-28 shrink-0 font-mono text-xs text-content-muted max-sm:col-start-3 max-sm:row-start-1 max-sm:w-auto"
+                    />
+                    <span class="flex w-28 shrink-0 items-center gap-1.5 text-ui text-content-body max-sm:contents">
+                      <span
+                        class={[
+                          if(message.direction == "sent", do: "lucide-arrow-up-right", else: "lucide-arrow-down-left"),
+                          "size-3.5 text-content-muted max-sm:col-start-1 max-sm:row-start-1"
+                        ]}
+                        aria-hidden="true"
+                      ></span>
+                      <span class="max-sm:hidden">{direction_label(message.direction)}</span>
+                    </span>
+                    <span class="w-24 shrink-0 text-ui text-content-body max-sm:hidden">{String.capitalize(message.topic)}</span>
+                    <span
+                      class="w-44 shrink-0 truncate font-mono text-xs font-medium text-content-strong max-sm:col-start-2 max-sm:row-start-1 max-sm:w-auto max-sm:text-ui max-sm:font-semibold"
+                      title={message.event}
+                    >
+                      {message.event}
+                    </span>
+                    <span class="col-span-3 col-start-1 row-start-2 text-xs text-content-muted sm:hidden">
+                      {direction_label(message.direction)} · {String.capitalize(message.topic)}
+                    </span>
+                    <span class="min-w-0 grow basis-0 truncate font-mono text-xs text-content-muted max-sm:col-span-3 max-sm:col-start-1 max-sm:row-start-3 max-sm:text-content-body">
+                      {payload_text(message)}
+                    </span>
+                    <span
+                      class="lucide-chevron-right size-4 text-content-faint group-aria-expanded/message:lucide-chevron-down group-aria-expanded/message:text-content-muted max-sm:col-start-4 max-sm:row-span-3 max-sm:row-start-1"
+                      aria-hidden="true"
+                    ></span>
+                  </button>
+
+                  <%!-- Lined up under the Data column. --%>
+                  <div class="hidden flex-col gap-3 px-4 pt-1 pb-4 group-aria-expanded/message:flex sm:pl-144">
+                    <div class="flex flex-wrap items-center justify-between gap-2">
+                      <span class="text-xs text-content-muted">{payload_note(message)}</span>
+                      <button
+                        :if={!DeviceMessage.metadata_only?(message)}
+                        id={"#{dom_id}-copy"}
+                        type="button"
+                        phx-hook="CopyToClipboard"
+                        data-copy-value={message.payload}
+                        class="flex h-6.5 cursor-pointer items-center gap-1.5 rounded border border-line-control bg-surface-raised px-2 text-xs font-medium text-content-body shadow-xs hover:bg-surface-muted max-sm:h-9 max-sm:rounded-md max-sm:px-3 max-sm:text-sm"
+                      >
+                        <span data-icon="copy" class="lucide-copy size-3.25 text-content-muted" aria-hidden="true"></span>
+                        <span data-icon="check" class="lucide-check hidden size-3.25 text-success-content" aria-hidden="true"></span> Copy
+                      </button>
+                    </div>
+                    <div
+                      phx-no-format
+                      class="max-h-96 overflow-auto rounded-card border border-line-default bg-surface-raised px-3.5 py-3 font-mono text-xs/5 whitespace-pre text-content-body max-sm:wrap-anywhere max-sm:whitespace-pre-wrap"
+                    >{pretty_payload(message)}</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div :if={@has_messages} class="flex min-h-14 flex-wrap items-center justify-center gap-3 px-4 py-3 max-sm:flex-col max-sm:gap-2 max-sm:p-3 max-sm:text-center">
+          <%!-- `data-count` changes with every page, which is what makes the
+                hook see an update and check whether this is still on screen. --%>
+          <.button
+            :if={@more_messages and @message_count < max_messages()}
+            id="show-more-messages"
+            size="sm"
+            phx-hook="LoadMoreOnVisible"
+            data-event="load-more-messages"
+            data-list="device-messages"
+            data-count={@message_count}
+            class="data-loading:opacity-50 max-sm:h-11 max-sm:w-full max-sm:text-sm"
+          >
+            Show older messages
+          </.button>
+          <span :if={@more_messages and @message_count >= max_messages()} class="text-xs text-content-muted">
+            Showing the newest {max_messages()} messages. Narrow by direction or channel to look further back.
+          </span>
+          <span class="text-xs text-content-faint">
+            Payloads over {kilobytes(Payload.max_bytes())} are kept truncated; secrets are redacted
+          </span>
+        </div>
       </div>
     </div>
     """
   end
+
+  defp direction_label("sent"), do: "To device"
+  defp direction_label(_received), do: "From device"
+
+  defp payload_note(message) do
+    cond do
+      DeviceMessage.metadata_only?(message) ->
+        "Only the size is recorded for terminal traffic"
+
+      DeviceMessage.truncated?(message) ->
+        "Truncated for storage · #{kilobytes(message.payload_bytes)} were sent, the first #{kilobytes(byte_size(message.payload))} kept"
+
+      true ->
+        "#{kilobytes(message.payload_bytes)}"
+    end
+  end
+
+  # Laid out when it is JSON, which it is unless it was cut short for storage;
+  # keys keep the order the device sent them in.
+  defp pretty_payload(message) do
+    with false <- DeviceMessage.metadata_only?(message),
+         {:ok, decoded} <- Jason.decode(message.payload, objects: :ordered_objects),
+         {:ok, pretty} <- Jason.encode(decoded, pretty: true) do
+      pretty
+    else
+      _ -> payload_text(message)
+    end
+  end
+
+  defp kilobytes(bytes) when bytes < 1024, do: bytes(bytes)
+  defp kilobytes(bytes) when rem(bytes, 1024) == 0, do: "#{div(bytes, 1024)} KB"
+  defp kilobytes(bytes), do: "#{Float.round(bytes / 1024, 1)} KB"
 
   # Console and local shell rows carry a size and no contents, on purpose — see
   # `NervesHub.Devices.DeviceMessages` for why.
@@ -288,13 +468,13 @@ defmodule NervesHubWeb.Components.DevicePage.DataHistoryTab do
   defp bytes(1), do: "1 byte"
   defp bytes(count), do: "#{count} bytes"
 
-  defp limit(), do: @limit
+  defp max_messages(), do: @max_messages
 
   defp direction_options() do
-    [{"All", "all"}, {"Received from device", "received"}, {"Sent to device", "sent"}]
+    [{"Both ways", "all"}, {"From device", "received"}, {"To device", "sent"}]
   end
 
   defp topic_options() do
-    [{"All", "all"}, {"Device", "device"}, {"Console", "console"}, {"Extensions", "extensions"}]
+    [{"All channels", "all"}, {"Device", "device"}, {"Console", "console"}, {"Extensions", "extensions"}]
   end
 end

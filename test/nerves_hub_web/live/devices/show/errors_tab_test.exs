@@ -90,7 +90,7 @@ defmodule NervesHubWeb.Live.Devices.Show.ErrorsTabTest do
 
       conn
       |> visit(errors_path(org, product, device))
-      |> assert_has("div", text: "No errors have been reported.")
+      |> assert_has("span", text: "No errors have been reported.")
     end
 
     test "shows reported errors, grouped", %{conn: conn, org: org, product: product, device: device} do
@@ -106,7 +106,7 @@ defmodule NervesHubWeb.Live.Devices.Show.ErrorsTabTest do
       |> visit(errors_path(org, product, device))
       |> assert_has("div", text: "** (RuntimeError) the sensor bus is unreachable")
       |> assert_has("div", text: "** (MatchError) no match of right hand side value: {:error, :enoent}")
-      |> assert_has("td", text: "unresolved")
+      |> assert_has("td", text: "Unresolved")
       # Two occurrences of one error is one row saying 2, not two rows.
       |> assert_has("td", text: "2")
     end
@@ -139,6 +139,30 @@ defmodule NervesHubWeb.Live.Devices.Show.ErrorsTabTest do
     end
   end
 
+  describe "the count beside the tab" do
+    test "is the number of issues, shown from any tab", %{conn: conn, org: org, product: product, device: device} do
+      product = enable(product)
+
+      record(device, [
+        report("** (RuntimeError) the sensor bus is unreachable"),
+        report("** (RuntimeError) the sensor bus is unreachable"),
+        report("** (MatchError) no match of right hand side value: {:error, :enoent}")
+      ])
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}/activity")
+      |> assert_has("#device-tabs a[href$='/errors']", text: "Errors 2")
+    end
+
+    test "is left off when nothing has been reported", %{conn: conn, org: org, product: product, device: device} do
+      product = enable(product)
+
+      conn
+      |> visit(errors_path(org, product, device))
+      |> assert_has("#device-tabs a[href$='/errors']", text: "Errors", exact: true)
+    end
+  end
+
   describe "expanding a row" do
     setup %{product: product, device: device} do
       product = enable(product)
@@ -161,21 +185,21 @@ defmodule NervesHubWeb.Live.Devices.Show.ErrorsTabTest do
     } do
       conn
       |> visit(errors_path(org, product, device))
-      |> click_button("+")
+      |> click_button("Details for ** (RuntimeError) boom")
       |> assert_has("div", text: "GenServer MyApp.Worker terminating")
       |> assert_has("span", text: "MyApp.Worker.run/0")
-      |> assert_has("span", text: "queue:")
+      |> assert_has("span", text: "queue", exact: true)
       # A recognised vital key gets a friendly label and unit; the raw
-      # `uptime_ms: 7200000` never reaches the screen.
-      |> assert_has("span", text: "uptime:")
+      # `uptime_ms 7200000` never reaches the screen.
+      |> assert_has("span", text: "uptime", exact: true)
       |> assert_has("span", text: "2h")
-      |> assert_has("span", text: "reboots:")
+      |> assert_has("span", text: "reboots", exact: true)
     end
 
     test "links through to the fleet-wide view", %{conn: conn, org: org, product: product, device: device} do
       conn
       |> visit(errors_path(org, product, device))
-      |> click_button("+")
+      |> click_button("Details for ** (RuntimeError) boom")
       |> assert_has("a", text: "See this error across the fleet")
     end
   end
@@ -187,7 +211,7 @@ defmodule NervesHubWeb.Live.Devices.Show.ErrorsTabTest do
       session =
         conn
         |> visit(errors_path(org, product, device))
-        |> assert_has("div", text: "No errors have been reported.")
+        |> assert_has("span", text: "No errors have been reported.")
 
       record(device, [report("** (RuntimeError) arrived while watching")])
 

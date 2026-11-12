@@ -48,6 +48,12 @@ defmodule NervesHub.Accounts.User.DisplayPreferences do
 
   def map_styles(), do: @all_map_styles
 
+  # How the device Health tab draws a metric's history: joined up as a line,
+  # or as separate readings.
+  @all_health_chart_styles [:line, :scatter]
+
+  def health_chart_styles(), do: @all_health_chart_styles
+
   @type t() :: %__MODULE__{}
 
   embedded_schema do
@@ -81,6 +87,9 @@ defmodule NervesHub.Accounts.User.DisplayPreferences do
     # it no longer knows as nil, so the user's maps go back to following the
     # theme.
     field(:map_style, KnownAtom, values: @all_map_styles, default: nil)
+
+    # How the user has picked to draw the Health tab's charts. Nil draws lines.
+    field(:health_chart_style, KnownAtom, values: @all_health_chart_styles, default: nil)
   end
 
   def changeset(%DisplayPreferences{} = preferences, attrs \\ %{}) do
@@ -90,7 +99,8 @@ defmodule NervesHub.Accounts.User.DisplayPreferences do
       :deployment_group_list_columns,
       :device_details_left,
       :device_details_right,
-      :map_style
+      :map_style,
+      :health_chart_style
     ])
     |> validate_device_details_layout()
   end
@@ -134,6 +144,14 @@ defmodule NervesHub.Accounts.User.DisplayPreferences do
   @spec map_style(t() | nil) :: atom() | nil
   def map_style(%DisplayPreferences{map_style: map_style}), do: map_style
   def map_style(_preferences), do: nil
+
+  @doc """
+  How the user has picked to draw the device Health tab's charts, `:line`
+  unless they've picked `:scatter`.
+  """
+  @spec health_chart_style(t() | nil) :: :line | :scatter
+  def health_chart_style(%DisplayPreferences{health_chart_style: :scatter}), do: :scatter
+  def health_chart_style(_preferences), do: :line
 
   # A box can only be in one place.
   defp validate_device_details_layout(changeset) do

@@ -26,7 +26,7 @@ defmodule NervesHubWeb.Live.Devices.Show.ActivityTabTest do
 
     conn
     |> visit(~p"/org/#{org}/#{product}/devices/#{device}/activity")
-    |> assert_has("div", text: "User #{user.name} rebooted device #{device.identifier}")
+    |> assert_has("li[data-activity-entry]", text: "User #{user.name} rebooted device #{device.identifier}")
   end
 
   describe "pagination" do
@@ -45,20 +45,20 @@ defmodule NervesHubWeb.Live.Devices.Show.ActivityTabTest do
       # Test page 1 with default page_size=25
       conn
       |> visit(~p"/org/#{org}/#{product}/devices/#{device}/activity")
-      |> assert_has("div.flex.items-center.gap-6", count: 25)
+      |> assert_has("li[data-activity-entry]", count: 25)
       |> assert_has("button[phx-value-page=\"2\"]")
 
       # Test page 2 with page_size=25
       conn
       |> visit(~p"/org/#{org}/#{product}/devices/#{device}/activity?page_number=2&page_size=25")
       # Remaining 5 entries
-      |> assert_has("div.flex.items-center.gap-6", count: 5)
+      |> assert_has("li[data-activity-entry]", count: 5)
       |> assert_has("button[phx-value-page=\"1\"]")
 
       # Test custom page_size=10
       conn
       |> visit(~p"/org/#{org}/#{product}/devices/#{device}/activity?page_number=1&page_size=10")
-      |> assert_has("div.flex.items-center.gap-6", count: 10)
+      |> assert_has("li[data-activity-entry]", count: 10)
       |> assert_has("button[phx-value-page=\"2\"]")
       |> assert_has("button[phx-value-page=\"3\"]")
     end
@@ -105,8 +105,8 @@ defmodule NervesHubWeb.Live.Devices.Show.ActivityTabTest do
 
       # Test changing page size to 50
       view
-      |> element(~s(button[phx-click="set-paginate-opts"][phx-value-page-size="50"]))
-      |> render_click()
+      |> form("#activity-pager-page-size", %{"page-size" => "50"})
+      |> render_change()
 
       # Should redirect to page 1 with page_size=50
       assert_patch(

@@ -57,7 +57,7 @@ defmodule NervesHubWeb.Extensions.AlarmsTest do
     push(ext_channel, "alarms:cleared", %{"alarm" => "MyApp.HighTemp"})
     settle(ext_channel)
 
-    assert Alarms.current_alarms_for_device(device) == [{"MyApp.LowDisk", "nearly full"}]
+    assert [{"MyApp.LowDisk", "nearly full", %DateTime{}}] = Alarms.current_alarms_for_device(device)
 
     close_cleanly(ext_channel)
   end

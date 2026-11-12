@@ -490,4 +490,38 @@ defmodule NervesHub.Devices.ConnectionHistoryTest do
              end)
     end
   end
+
+  describe "offline_periods/3" do
+    test "is when the device had no connection, and only for that device", %{
+      device: device,
+      org: org,
+      product: product,
+      firmware: firmware
+    } do
+      other_device = Fixtures.device_fixture(org, product, firmware)
+      now = DateTime.utc_now()
+      ago = fn minutes -> DateTime.add(now, -minutes, :minute) end
+
+      insert_history(device, ago.(200), ago.(100))
+      insert_history(device, ago.(70), nil)
+      insert_history(other_device, ago.(100), ago.(70))
+
+      assert_eventually(Connections.offline_periods(device, ago.(180), now) == [{ago.(100), ago.(70)}])
+    end
+  end
+
+  defp insert_history(device, established_at, disconnected_at) do
+    %DeviceConnection{
+      id: Ecto.UUID.generate(),
+      org_id: device.org_id,
+      product_id: device.product_id,
+      device_id: device.id,
+      established_at: established_at,
+      last_seen_at: disconnected_at || established_at,
+      disconnected_at: disconnected_at
+    }
+    |> DeviceConnectionHistory.from_device_connection_changeset()
+    |> Ecto.Changeset.apply_changes()
+    |> AnalyticsRepo.insert!()
+  end
 end

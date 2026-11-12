@@ -14,11 +14,18 @@
 // Matching is case-insensitive and excludes tags already committed in the
 // input. Selecting a suggestion dispatches an `input` event so LiveView's
 // phx-change validation picks up the new value.
+//
+// Add `data-commit-event` (implies `data-single`) for a field that adds tags
+// one at a time to a list shown beside it, such as tag chips: Enter, a comma or
+// picking a suggestion pushes that event with `{tag}` and empties the field,
+// rather than leaving the tag in it. Enter with something typed doesn't submit
+// the form around it, so adding a tag never saves a half-finished form.
 export default {
   mounted() {
     this.input = this.el.querySelector("[data-tag-input]")
     this.list = this.el.querySelector("[data-tag-suggestions]")
-    this.single = this.el.hasAttribute("data-single")
+    this.commitEvent = this.el.dataset.commitEvent
+    this.single = this.el.hasAttribute("data-single") || !!this.commitEvent
 
     try {
       this.available = JSON.parse(this.el.dataset.availableTags || "[]")
@@ -125,6 +132,7 @@ export default {
   },
 
   handleKeydown(event) {
+    if (this.commitEvent && this.commitKey(event)) return
     if (this.list.hidden) return
 
     const options = Array.from(this.list.children)
@@ -163,7 +171,40 @@ export default {
     }
   },
 
+  // Enter or a comma adds what is typed, unless Enter is choosing a
+  // highlighted suggestion, which `select` adds instead.
+  commitKey(event) {
+    if (event.key !== "Enter" && event.key !== ",") return false
+    if (event.key === "Enter" && !this.list.hidden && this.activeIndex >= 0) {
+      return false
+    }
+
+    const tag = this.currentToken()
+    // With nothing typed, a comma does nothing and Enter submits the form as
+    // usual.
+    if (tag === "") {
+      if (event.key === ",") event.preventDefault()
+      return event.key === ","
+    }
+
+    event.preventDefault()
+    this.commit(tag)
+    return true
+  },
+
+  commit(tag) {
+    this.pushEvent(this.commitEvent, { tag })
+    this.input.value = ""
+    this.hide()
+  },
+
   select(tag) {
+    if (this.commitEvent) {
+      this.commit(tag)
+      this.input.focus()
+      return
+    }
+
     if (this.single) {
       // Single-tag inputs hold exactly one tag, no trailing separator.
       this.input.value = tag

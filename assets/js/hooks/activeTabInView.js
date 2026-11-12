@@ -2,12 +2,16 @@
 // as the organization's tabs do on a phone, and says when the strip is
 // scrolled to its end.
 //
-// Each tab is its own LiveView, so moving to one swaps in a new strip, which
-// starts scrolled to its left edge. Without this, choosing Certificates or
-// Settings on a phone opens a page whose selected tab is off-screen.
+// Each of an organization's tabs is its own LiveView, so moving to one swaps
+// in a new strip, which starts scrolled to its left edge. Without this,
+// choosing Certificates or Settings on a phone opens a page whose selected tab
+// is off-screen. The device page's tabs are patches of one LiveView, so its
+// strip stays mounted and the selected tab changes under it; it is revealed
+// then too, as when the More sheet opens Data History.
 //
-// Only the strip is scrolled, never the page, and only when it is mounted: a
-// strip someone has scrolled by hand is left where they put it.
+// Only the strip is scrolled, never the page, and only when it is mounted or
+// its selected tab changes: a strip someone has scrolled by hand is left where
+// they put it.
 //
 // The strip fades out at its right edge to show there are more tabs. Once it
 // is scrolled to the end there are none, so it carries `data-scrolled-to-end`
@@ -55,12 +59,18 @@ export default {
 
   // A patch drops attributes the server did not render.
   updated() {
+    if (this.selected() !== this.revealed) this.reveal()
     this.markEnd()
+  },
+
+  selected() {
+    return this.el.querySelector('[aria-current="page"]')?.getAttribute("href")
   },
 
   reveal() {
     const strip = this.el
     const tab = strip.querySelector('[aria-current="page"]')
+    this.revealed = this.selected()
 
     // From md up every tab fits, and there is nothing to scroll.
     if (!tab || strip.scrollWidth <= strip.clientWidth) return

@@ -74,15 +74,13 @@ export default {
     this.revealAfter = null
     if (!first) return
 
-    const scroller = this.el.parentElement
-    const offset =
-      first.getBoundingClientRect().top - scroller.getBoundingClientRect().top
     const reduceMotion = window.matchMedia(
       "(prefers-reduced-motion: reduce)",
     ).matches
 
-    scroller.scrollTo({
-      top: scroller.scrollTop + offset,
+    // Whichever element scrolls, the list's own or the page.
+    first.scrollIntoView({
+      block: "start",
       behavior: reduceMotion ? "auto" : "smooth",
     })
   },

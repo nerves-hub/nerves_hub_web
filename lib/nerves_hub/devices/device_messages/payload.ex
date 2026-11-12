@@ -133,7 +133,9 @@ defmodule NervesHub.Devices.DeviceMessages.Payload do
     end
   end
 
-  defp max_bytes(), do: config(:max_payload_bytes, @default_max_bytes)
+  @doc "The most of an encoded payload that is kept; anything longer is truncated."
+  @spec max_bytes() :: pos_integer()
+  def max_bytes(), do: config(:max_payload_bytes, @default_max_bytes)
 
   defp redacted_keys(), do: config(:redacted_keys, @default_redacted_keys)
 

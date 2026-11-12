@@ -4,6 +4,7 @@ import { WebglAddon } from "@xterm/addon-webgl"
 import { WebLinksAddon } from "@xterm/addon-web-links"
 import { FitAddon } from "@xterm/addon-fit"
 import { whenFontsLoaded } from "./fonts.js"
+import { isPhone } from "./terminalKeyboard.js"
 
 // `macOptionIsMeta` is only honoured on a Mac, so mirror xterm's own platform
 // check rather than showing a toggle that does nothing everywhere else.
@@ -22,6 +23,9 @@ export const TERMINAL_FONT_FAMILY =
   '"JetBrains Mono", Ubuntu Mono, courier-new, courier, monospace'
 
 // The faces xterm draws with: regular text, and bold for bold ANSI output.
+// A phone draws them smaller, to fit a usable width of columns.
+const fontSize = () => (isPhone() ? 12 : 14)
+
 export const TERMINAL_FONTS = [
   `14px ${TERMINAL_FONT_FAMILY}`,
   `bold 14px ${TERMINAL_FONT_FAMILY}`
@@ -97,6 +101,7 @@ export const createTerminal = elementId => {
   const term = new Terminal({
     ...defaultTermOptions,
     scrollback,
+    fontSize: fontSize(),
     macOptionIsMeta: optionAsMeta()
   })
 
@@ -113,7 +118,8 @@ export const createTerminal = elementId => {
 
     term.open(container)
     fitAddon.fit()
-    term.focus()
+    // On a phone focus opens the keyboard, so wait to be tapped.
+    if (!isPhone()) term.focus()
   })
 
   return { term, fitAddon }

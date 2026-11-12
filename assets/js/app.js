@@ -17,6 +17,7 @@ import CopyToClipboard from "./hooks/copyToClipboard.js"
 import CrossFadeOnUpdate from "./hooks/crossFadeOnUpdate.js"
 import DeviceDetailsLayout from "./hooks/deviceDetailsLayout.js"
 import DeviceLocationMap from "./hooks/deviceLocationMap.js"
+import DevicePageScroll from "./hooks/devicePageScroll.js"
 import DeviceLocationMapWithGeocoder from "./hooks/deviceLocationMapWithGeocoder.js"
 import DonutChart from "./hooks/donutChart.js"
 import Flash from "./hooks/flash.js"
@@ -24,6 +25,7 @@ import HighlightCode from "./hooks/highlightCode.js"
 import { LiveFlowHook } from "live_flow"
 import LoadMoreOnVisible from "./hooks/loadMoreOnVisible.js"
 import LocalShell from "./hooks/localShell.js"
+import LogDayStarts from "./hooks/logDayStarts.js"
 import PageVisible from "./hooks/pageVisible.js"
 import ScriptAutocomplete from "./hooks/scriptAutocomplete.js"
 import SharedSecretClipboardClick from "./hooks/sharedSecretClipboardClick.js"
@@ -77,11 +79,13 @@ let liveSocket = new LiveSocket("/live", Socket, {
     DeviceDetailsLayout,
     DeviceLocationMap,
     DeviceLocationMapWithGeocoder,
+    DevicePageScroll,
     DonutChart,
     Flash,
     HighlightCode,
     LiveFlow: LiveFlowHook,
     LoadMoreOnVisible,
+    LogDayStarts,
     LocalShell,
     PageVisible,
     SharedSecretClipboardClick,

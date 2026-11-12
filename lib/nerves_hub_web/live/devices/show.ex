@@ -9,7 +9,9 @@ defmodule NervesHubWeb.Live.Devices.Show do
   alias NervesHub.Devices.Pinning
   alias NervesHub.Devices.PubSub
   alias NervesHub.Devices.Updates
+  alias NervesHub.ErrorReports
   alias NervesHub.Extensions
+  alias NervesHub.Firmwares
   alias NervesHub.FirmwareUpdates
   alias NervesHub.Products
   alias NervesHubWeb.Components.DevicePage.ActivityTab
@@ -18,11 +20,11 @@ defmodule NervesHubWeb.Live.Devices.Show do
   alias NervesHubWeb.Components.DevicePage.DetailsTab
   alias NervesHubWeb.Components.DevicePage.ErrorsTab
   alias NervesHubWeb.Components.DevicePage.FirmwareHistoryTab
+  alias NervesHubWeb.Components.DevicePage.Header
   alias NervesHubWeb.Components.DevicePage.HealthTab
   alias NervesHubWeb.Components.DevicePage.LocalShellTab
   alias NervesHubWeb.Components.DevicePage.LogsTab
   alias NervesHubWeb.Components.DevicePage.SettingsTab
-  alias NervesHubWeb.Components.DeviceUpdateStatus
   alias NervesHubWeb.Components.UpdateProgress
   alias NervesHubWeb.Presence
   alias Phoenix.LiveView.JS
@@ -65,6 +67,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
     |> watch_paced_extensions()
     |> load_inprogress_firmware_update()
     |> assign(:pinned?, Pinning.device_pinned?(user.id, device.id))
+    |> assign(:error_issue_count, error_issue_count(product, device))
     |> setup_presence_tracking()
     |> setup_tab_components(@tab_components)
     |> ok()
@@ -145,6 +148,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
       )
       when stage in ["downloading", "updating"] do
     socket
+    |> then(&if(&1.assigns.inflight_version, do: &1, else: load_inprogress_firmware_update(&1)))
     |> assign(:firmware_update_progress, percent)
     |> assign(:firmware_update_stage, stage)
     |> noreply()
@@ -345,13 +349,82 @@ defmodule NervesHubWeb.Live.Devices.Show do
         socket
         |> assign(:firmware_update_progress, nil)
         |> assign(:firmware_update_stage, nil)
+        |> assign(:inflight_version, nil)
+        |> assign(:inflight_started_at, nil)
+        |> assign(:inflight_firmware_uuid, nil)
 
       inflight_update ->
         socket
         |> assign(:firmware_update_progress, inflight_update.progress)
-        |> assign(:firmware_update_stage, inflight_update.status)
+        # A string, as progress reports carry it.
+        |> assign(:firmware_update_stage, to_string(inflight_update.status))
+        |> assign(:inflight_version, inflight_version(socket.assigns.product, inflight_update))
+        |> assign(:inflight_started_at, inflight_update.inserted_at)
+        |> assign(:inflight_firmware_uuid, inflight_update.firmware_uuid)
     end
   end
+
+  # The version an update is taking the device to, for the firmware fact in
+  # the header. Looked up once, when the update is found, not on each progress
+  # report.
+  defp inflight_version(product, inflight_update) do
+    case Firmwares.get_firmware_by_product_and_uuid(product, inflight_update.firmware_uuid) do
+      {:ok, firmware} -> firmware.version
+      _not_found -> nil
+    end
+  end
+
+  # The tabs from the left, as `{key, label, path, opts}`. Console and System
+  # Shell dim while the device is offline, since neither has anything to show
+  # until it connects, and Health carries a dot while the device's health
+  # profile has engaged.
+  @doc false
+  def device_tabs(assigns) do
+    %{org: org, product: product, device: device, device_connection: connection} = assigns
+    base = ~p"/org/#{org}/#{product}/devices/#{device}"
+    offline? = disconnected?(connection)
+
+    [
+      {:details, "Details", base, []},
+      {:health, "Health", base <> "/health", [dot: health_engaged?(device)]},
+      {:firmware_history, "Firmware History", base <> "/firmware_history", []},
+      {:console, "Console", base <> "/console", [dimmed: offline?]},
+      {:local_shell, "System Shell", base <> "/local_shell", [dimmed: offline?]},
+      {:logs, "Logs", base <> "/logs", []},
+      {:errors, "Errors", base <> "/errors", [count: nonzero(assigns[:error_issue_count])]},
+      {:activity, "Activity", base <> "/activity", []}
+    ]
+  end
+
+  @doc false
+  def device_end_tabs(assigns) do
+    %{org: org, product: product, device: device} = assigns
+    base = ~p"/org/#{org}/#{product}/devices/#{device}"
+
+    [
+      {:data_history, "Data History", base <> "/data_history", []},
+      {:settings, "Settings", base <> "/settings", []}
+    ]
+  end
+
+  # The Errors tab's count: the issues the device reported in the last 30
+  # days, or nothing where error reports can't be shown. The Errors tab keeps
+  # it current while it is open.
+  # Matches the Errors tab's own gating: on for the product, not turned off for
+  # the device.
+  defp error_issue_count(%{extensions: %{error_reports: true}}, %{extensions: %{error_reports: false}}), do: nil
+
+  defp error_issue_count(%{extensions: %{error_reports: true}}, device) do
+    if analytics_enabled?(), do: ErrorReports.issue_count_for_device(device)
+  end
+
+  defp error_issue_count(_product, _device), do: nil
+
+  defp nonzero(count) when is_integer(count) and count > 0, do: count
+  defp nonzero(_count), do: nil
+
+  defp health_engaged?(%{latest_health: %{status: status}}) when status in [:warning, :unhealthy], do: true
+  defp health_engaged?(_device), do: false
 
   defp setup_presence_tracking(%{assigns: %{device: device, user: user}} = socket) do
     topic = "device-#{device.identifier}"
@@ -395,10 +468,6 @@ defmodule NervesHubWeb.Live.Devices.Show do
 
   defp extension_enabled?(product, device, extension) do
     product.extensions[extension] and device.extensions[extension]
-  end
-
-  defp show_firmware_status_box(device) do
-    device.firmware_validation_status in [:validated, :not_validated] or device.firmware_auto_revert_detected
   end
 
   defp disconnected?(connection) do
@@ -474,22 +543,5 @@ defmodule NervesHubWeb.Live.Devices.Show do
   def update_mode_label(mode) do
     {_mode, label, _description} = Enum.find(update_modes(), &(elem(&1, 0) == mode))
     label
-  end
-
-  defp toggle_update_mode_menu(js \\ %JS{}) do
-    JS.toggle(js,
-      to: "#update-mode-menu-container",
-      in: {"ease-out duration-150", "opacity-0", "opacity-100"},
-      out: {"ease-out duration-150", "opacity-100", "opacity-0"}
-    )
-  end
-
-  # Only ever closes, so Escape and click-away cannot open it the way JS.toggle
-  # would, and are no-ops when it is already closed.
-  defp hide_update_mode_menu(js \\ %JS{}) do
-    JS.hide(js,
-      to: "#update-mode-menu-container",
-      transition: {"ease-out duration-150", "opacity-100", "opacity-0"}
-    )
   end
 end

@@ -5,6 +5,7 @@ import {
   debounce,
   setupOptionAsMetaToggle
 } from "../helpers/terminal.js"
+import { isPhone, setupPhoneKeyboard } from "../helpers/terminalKeyboard.js"
 
 const resizeContent = (term, channel) => {
   channel.push("window_size", { height: term.rows, width: term.cols })
@@ -25,10 +26,17 @@ export default {
 
     this.teardownOptionAsMetaToggle = setupOptionAsMetaToggle(term)
 
+    this.keyboard = setupPhoneKeyboard({
+      term,
+      fitAddon,
+      frame: this.el.closest("[data-terminal-frame]")
+    })
+
     this.resizeEventListener = () => {
       fitAddon.fit()
       term.scrollToBottom()
-      term.focus()
+      // On a phone focus opens the keyboard, and the page resizes as you scroll.
+      if (!isPhone()) term.focus()
     }
 
     // resize terminal on window resize
@@ -52,7 +60,7 @@ export default {
       })
     // Stream all events straight to the device
     term.onData(data => {
-      channel.push("dn", { data })
+      channel.push("dn", { data: this.keyboard.transform(data) })
     })
 
     // Write data from device to console
@@ -142,6 +150,39 @@ export default {
       }
     })
 
+    // Sends a file to the device, a chunk at a time.
+    const sendFile = file => {
+      const reader = file.stream().getReader()
+
+      channel.push("file-data/start", { filename: file.name })
+
+      reader.read().then(function process({ done, value }) {
+        if (done) {
+          channel.push("file-data/stop", { filename: file.name })
+          return
+        }
+
+        const chunkSize = 1024
+        let chunkNum = 0
+
+        for (let i = 0; i < value.length; i += chunkSize) {
+          const chunk = value.slice(i, i + chunkSize)
+
+          const encoded = btoa(String.fromCharCode.apply(null, chunk))
+
+          channel.push("file-data", {
+            filename: file.name,
+            chunk: chunkNum,
+            data: encoded
+          })
+
+          chunkNum += 1
+        }
+
+        return reader.read().then(process)
+      })
+    }
+
     dropzone.addEventListener(
       "drop",
       e => {
@@ -149,45 +190,25 @@ export default {
         e.stopPropagation()
         if (e.dataTransfer.items) {
           for (const item of e.dataTransfer.items) {
-            const file = item.getAsFile()
-            const reader = file.stream().getReader()
-
-            channel.push("file-data/start", { filename: file.name })
-
-            reader.read().then(function process({ done, value }) {
-              if (done) {
-                channel.push("file-data/stop", { filename: file.name })
-                return
-              }
-
-              const chunkSize = 1024
-              let chunkNum = 0
-
-              for (let i = 0; i < value.length; i += chunkSize) {
-                const chunk = value.slice(i, i + chunkSize)
-
-                const encoded = btoa(String.fromCharCode.apply(null, chunk))
-
-                channel.push("file-data", {
-                  filename: file.name,
-                  chunk: chunkNum,
-                  data: encoded
-                })
-
-                chunkNum += 1
-              }
-
-              return reader.read().then(process)
-            })
+            sendFile(item.getAsFile())
           }
         }
       },
       false
     )
+
+    // A phone can't drop a file, so it picks one instead.
+    const filePicker = document.getElementById("console-file")
+
+    filePicker?.addEventListener("change", () => {
+      for (const file of filePicker.files) sendFile(file)
+      filePicker.value = ""
+    })
   },
   destroyed() {
     window.removeEventListener("resize", this.resizeEventListener)
     this.teardownOptionAsMetaToggle()
+    this.keyboard.teardown()
     this.socket.disconnect()
   }
 }

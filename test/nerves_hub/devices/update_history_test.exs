@@ -36,6 +36,47 @@ defmodule NervesHub.Devices.UpdateHistoryTest do
 
   defp reload(device), do: Devices.get_device(device.id)
 
+  describe "device_attempts/3" do
+    test "pages a device's attempts newest first, naming the firmware and deployment group", %{
+      device: device,
+      firmware: firmware,
+      org: org,
+      product: product,
+      user: user
+    } do
+      deployment_group = Fixtures.deployment_group_fixture(firmware, %{name: "beta", user: user})
+      now = DateTime.utc_now()
+
+      :ok =
+        UpdateHistory.record(device, :failed,
+          deployment_id: deployment_group.id,
+          target_firmware_uuid: firmware.uuid,
+          reason: "fwup error",
+          timestamp: DateTime.add(now, -60)
+        )
+
+      :ok = UpdateHistory.record(device, :succeeded, target_firmware_uuid: firmware.uuid, timestamp: now)
+
+      other = Fixtures.device_fixture(org, product, firmware)
+      :ok = UpdateHistory.record(other, :failed)
+      :ok = Buffer.flush(DeviceUpdateHistory)
+
+      assert_eventually(
+        {[latest, earlier], %{total_count: 2, total_pages: 1}} = UpdateHistory.device_attempts(device, 1, 25)
+      )
+
+      assert latest.status == :succeeded
+      assert latest.target == %{uuid: firmware.uuid, version: firmware.version, available?: true}
+      assert latest.deployment_group == nil
+
+      assert earlier.status == :failed
+      assert earlier.reason == "fwup error"
+      assert earlier.deployment_group == %{id: deployment_group.id, name: "beta"}
+
+      assert {[^earlier], %{current_page: 2}} = UpdateHistory.device_attempts(device, 2, 1)
+    end
+  end
+
   describe "record/3" do
     test "writes a history row carrying the deployment, firmware and reason", %{
       device: device,
