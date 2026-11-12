@@ -9,7 +9,7 @@ defmodule NervesHubWeb.Live.Orgs.IndexTest do
   alias NervesHub.Fixtures
   alias NervesHub.ManagedDeployments
   alias NervesHub.ManagedDeployments.Workflows
-  alias Phoenix.Socket.Broadcast
+  alias NervesHub.Tracker
 
   test "user is redirected to login when trying to list their orgs, but the user isn't logged in" do
     build_conn()
@@ -296,11 +296,7 @@ defmodule NervesHubWeb.Live.Orgs.IndexTest do
       |> visit("/orgs")
       |> assert_has("#pinned-#{device.id}", text: "Offline")
       |> unwrap(fn view ->
-        send(view.pid, %Broadcast{
-          topic: "internal:device:#{device.id}",
-          event: "connection:change",
-          payload: %{device_id: device.identifier, status: "online"}
-        })
+        :ok = Tracker.online(device)
 
         render(view)
       end)

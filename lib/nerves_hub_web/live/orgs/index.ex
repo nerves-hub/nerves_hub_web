@@ -87,8 +87,8 @@ defmodule NervesHubWeb.Live.Orgs.Index do
   end
 
   @impl Phoenix.LiveView
-  def handle_info(%Broadcast{event: "connection:change", payload: payload}, socket) do
-    update_device_statuses(socket, payload)
+  def handle_info(%Broadcast{topic: topic, event: "connection:change", payload: %{status: status}}, socket) do
+    update_device_statuses(socket, topic, status)
   end
 
   # Ignore unknown broadcasts
@@ -187,13 +187,23 @@ defmodule NervesHubWeb.Live.Orgs.Index do
     socket
   end
 
-  defp update_device_statuses(
-         %{assigns: %{device_statuses: statuses}} = socket,
-         %{device_id: identifier, status: status} = _payload
-       ) do
-    socket
-    |> assign(:device_statuses, Map.put(statuses, identifier, status))
-    |> noreply()
+  # The broadcast carries only the status; which device it is for comes from
+  # the topic (`"internal:device:<id>"`, see `NervesHub.Devices.PubSub`).
+  # Statuses are keyed by identifier, so look the device up among the pinned
+  # ones. A device unpinned since mount is ignored.
+  defp update_device_statuses(%{assigns: %{pinned_devices: devices}} = socket, topic, status) do
+    "internal:device:" <> id = topic
+    device_id = String.to_integer(id)
+
+    case Enum.find(devices, &(&1.id == device_id)) do
+      nil ->
+        noreply(socket)
+
+      device ->
+        socket
+        |> update(:device_statuses, &Map.put(&1, device.identifier, status))
+        |> noreply()
+    end
   end
 
   defp limit_devices(devices) do
