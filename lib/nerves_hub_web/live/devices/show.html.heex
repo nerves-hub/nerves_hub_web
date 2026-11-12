@@ -28,7 +28,7 @@
 
   <%!-- On a phone the header scrolls away with the tab, under tabs that stick
         to the top; from sm up only the tab's content scrolls. --%>
-  <div id="device-page" phx-hook="DevicePageScroll" data-tab={@tab} class="flex h-0 flex-1 flex-col max-sm:overflow-y-auto">
+  <div id="device-page" phx-hook="DevicePageScroll" data-tab={@tab} class="flex h-0 flex-1 flex-col max-sm:overflow-y-auto terminal-typing:overflow-hidden">
     <div class="relative shrink-0">
       <UpdateProgress.line
         :if={UpdateProgress.updating?(@firmware_update_stage)}

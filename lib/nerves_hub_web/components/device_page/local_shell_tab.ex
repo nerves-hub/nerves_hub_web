@@ -91,19 +91,20 @@ defmodule NervesHubWeb.Components.DevicePage.LocalShellTab do
     >
       <.async_result :let={online?} assign={@local_shell_active?}>
         <:loading>
-          <TerminalFrame.frame terminal_id="local-shell" status={:checking} identifier={@device.identifier}>
+          <TerminalFrame.frame terminal_id="local-shell" name="System Shell" status={:checking} identifier={@device.identifier}>
             <TerminalFrame.message :if={authorized?(:"device:extensions:local_shell", @current_scope)}>
               Checking if the device's local shell is available…
             </TerminalFrame.message>
           </TerminalFrame.frame>
         </:loading>
         <:failed :let={_failure}>
-          <TerminalFrame.frame terminal_id="local-shell" status={:unavailable} identifier={@device.identifier}>
+          <TerminalFrame.frame terminal_id="local-shell" name="System Shell" status={:unavailable} identifier={@device.identifier}>
             <TerminalFrame.message>There was an error checking if the device was online.</TerminalFrame.message>
           </TerminalFrame.frame>
         </:failed>
         <TerminalFrame.frame
           terminal_id="local-shell"
+          name="System Shell"
           status={if(@shell_enabled? and authorized?(:"device:extensions:local_shell", @current_scope) and online?, do: :connected, else: :unavailable)}
           identifier={@device.identifier}
           note="Shared session · everyone on this tab sees the same shell"

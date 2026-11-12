@@ -4,6 +4,7 @@ import {
   debounce,
   setupOptionAsMetaToggle
 } from "../helpers/terminal.js"
+import { isPhone, setupPhoneKeyboard } from "../helpers/terminalKeyboard.js"
 
 const resizeContent = (term, channel) => {
   channel.push("window_size", { rows: term.rows, cols: term.cols })
@@ -24,10 +25,17 @@ export default {
 
     this.teardownOptionAsMetaToggle = setupOptionAsMetaToggle(term)
 
+    this.keyboard = setupPhoneKeyboard({
+      term,
+      fitAddon,
+      frame: this.el.closest("[data-terminal-frame]")
+    })
+
     this.resizeEventListener = () => {
       fitAddon.fit()
       term.scrollToBottom()
-      term.focus()
+      // On a phone focus opens the keyboard, and the page resizes as you scroll.
+      if (!isPhone()) term.focus()
     }
 
     // resize terminal on window resize
@@ -51,7 +59,7 @@ export default {
       })
     // Stream all events straight to the device
     term.onData(data => {
-      channel.push("input", { data })
+      channel.push("input", { data: this.keyboard.transform(data) })
     })
 
     // Write data from device to console
@@ -76,6 +84,7 @@ export default {
   destroyed() {
     window.removeEventListener("resize", this.resizeEventListener)
     this.teardownOptionAsMetaToggle()
+    this.keyboard.teardown()
     this.socket.disconnect()
   }
 }

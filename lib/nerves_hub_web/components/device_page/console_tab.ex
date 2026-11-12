@@ -142,19 +142,21 @@ defmodule NervesHubWeb.Components.DevicePage.ConsoleTab do
     >
       <.async_result :let={online?} assign={@console_active?}>
         <:loading>
-          <TerminalFrame.frame terminal_id="console" status={:checking} identifier={@device.identifier}>
+          <TerminalFrame.frame terminal_id="console" name="Console" status={:checking} identifier={@device.identifier}>
             <TerminalFrame.message :if={authorized?(:"device:console", @current_scope)}>
               Checking if the device is online…
             </TerminalFrame.message>
           </TerminalFrame.frame>
         </:loading>
         <:failed :let={_failure}>
-          <TerminalFrame.frame terminal_id="console" status={:unavailable} identifier={@device.identifier}>
+          <TerminalFrame.frame terminal_id="console" name="Console" status={:unavailable} identifier={@device.identifier}>
             <TerminalFrame.message>There was an error checking if the device was online.</TerminalFrame.message>
           </TerminalFrame.frame>
         </:failed>
         <TerminalFrame.frame
           terminal_id="console"
+          name="Console"
+          file_input="console-file"
           status={if(authorized?(:"device:console", @current_scope) && online?, do: :connected, else: :unavailable)}
           identifier={@device.identifier}
           note="Shared session · everyone on this tab sees the same console"

@@ -164,7 +164,12 @@ when adding or removing one.
   - User-facing counterparts: `UserConsoleChannel`, `UserLocalShellChannel`.
 - `live/` — LiveViews (the dashboard). `live/devices/show.ex` is the device
   page; its tabs live in `components/device_page/*` as tab components that hook
-  into the LiveView. An organization's pages (`live/org/`, plus
+  into the LiveView. Below `sm` the device page scrolls as one, under tabs
+  that stick to the top, and each tab has its own `max-sm:` layout (a table
+  becomes a card per row by restyling its rows, not by rendering them twice).
+  Two states on a phone are marked on `<html>`, which a patch never touches,
+  and read by the `header-scrolled:` and `terminal-typing:` variants in
+  `app.css`. An organization's pages (`live/org/`, plus
   `live/products/new.ex`) have no sidebar: they render inside `Layouts.org/1`,
   a centered column under the organization's name, counts and tabs, and mount
   `NervesHubWeb.Mounts.OrgCounts` for the counts. Product pages keep the
