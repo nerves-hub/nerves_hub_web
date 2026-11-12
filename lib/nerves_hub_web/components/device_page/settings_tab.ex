@@ -81,7 +81,10 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
                   value={@settings_form[:description].value}
                   placeholder="eg. sensor hub at customer X"
                   phx-debounce="blur"
-                  class={["h-9 w-full bg-surface-raised px-3 text-sm text-content-strong placeholder:text-content-faint", control_class(@settings_form[:description])]}
+                  class={[
+                    "h-9 w-full bg-surface-raised px-3 text-sm text-content-strong placeholder:text-content-faint max-sm:h-11 max-sm:text-base",
+                    control_class(@settings_form[:description])
+                  ]}
                 />
                 <.field_errors field={@settings_form[:description]} />
               </div>
@@ -90,13 +93,13 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
                 <label for="settings-new-tag" class={field_label_class()}>Tags</label>
                 <input type="hidden" name={@settings_form[:tags].name} value={@settings_form[:tags].value |> form_tags() |> Enum.join(",")} />
                 <div class={[
-                  "flex min-h-9 flex-wrap items-center gap-1.5 bg-surface-raised px-1.5 py-1 focus-within:outline focus-within:-outline-offset-1 focus-within:outline-focus-ring",
+                  "flex min-h-9 flex-wrap items-center gap-1.5 bg-surface-raised px-1.5 py-1 focus-within:outline focus-within:-outline-offset-1 focus-within:outline-focus-ring max-sm:min-h-11 max-sm:p-1.5",
                   control_class(@settings_form[:tags])
                 ]}>
                   <span
                     :for={tag <- form_tags(@settings_form[:tags].value)}
                     data-tag={tag}
-                    class="flex h-6 items-center gap-1 rounded border border-line-default bg-surface-muted pr-1 pl-2 text-xs font-medium text-content-body"
+                    class="flex h-6 items-center gap-1 rounded border border-line-default bg-surface-muted pr-1 pl-2 text-xs font-medium text-content-body max-sm:h-8 max-sm:pr-0.5 max-sm:text-sm"
                   >
                     {tag}
                     <button
@@ -104,7 +107,7 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
                       phx-click="settings-remove-tag"
                       phx-value-tag={tag}
                       aria-label={"Remove #{tag}"}
-                      class="flex cursor-pointer rounded-sm text-content-faint hover:text-content-strong"
+                      class="flex cursor-pointer rounded-sm text-content-faint hover:text-content-strong max-sm:p-1.5"
                     >
                       <span class="lucide-x size-3" aria-hidden="true"></span>
                     </button>
@@ -124,7 +127,7 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
                       placeholder="Add a tag"
                       autocomplete="off"
                       data-tag-input
-                      class="h-6 w-full border-0 bg-transparent p-0 pl-1 text-sm text-content-strong placeholder:text-content-faint focus:ring-0"
+                      class="h-6 w-full border-0 bg-transparent p-0 pl-1 text-sm text-content-strong placeholder:text-content-faint focus:ring-0 max-sm:h-8 max-sm:text-base"
                     />
                     <ul
                       id="settings-new-tag-suggestions"
@@ -152,7 +155,10 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
                   rows="4"
                   spellcheck="false"
                   phx-debounce="2000"
-                  class={["min-h-18 w-full bg-surface-muted px-3 py-2.5 font-mono text-xs/5 text-content-body", control_class(@settings_form[:connecting_code])]}
+                  class={[
+                    "min-h-18 w-full bg-surface-muted px-3 py-2.5 font-mono text-xs/5 text-content-body max-sm:text-base/6",
+                    control_class(@settings_form[:connecting_code])
+                  ]}
                 ><%= Phoenix.HTML.Form.normalize_value("textarea", @settings_form[:connecting_code].value) %></textarea>
                 <p class="text-xs text-content-muted">
                   Runs on the device each time it connects, together with any code its deployment group sets. If it fails, you get a notification.
@@ -160,30 +166,35 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
                 <.field_errors field={@settings_form[:connecting_code]} />
               </div>
             </div>
-            <div :if={authorized?(:"device:update", @current_scope)} class="flex h-14 shrink-0 items-center justify-end gap-2 border-t border-line-subtle bg-surface-muted px-4">
-              <.button style="primary" type="submit">Save changes</.button>
+            <div
+              :if={authorized?(:"device:update", @current_scope)}
+              class="flex h-14 shrink-0 items-center justify-end gap-2 border-t border-line-subtle bg-surface-muted px-4 max-sm:h-auto max-sm:py-4"
+            >
+              <.button style="primary" type="submit" class="max-sm:h-11 max-sm:w-full max-sm:text-sm">Save changes</.button>
             </div>
           </.form>
 
           <div id="certificates" class={card_class()}>
             <.card_header title="Certificates" subtitle="Used to authenticate the device">
-              <form :if={authorized?(:"device:update", @current_scope)} id="upload-certificate" phx-change="validate-cert" phx-drop-target={@uploads.certificate.ref}>
-                <.button type="label" size="sm" for={@uploads.certificate.ref}>
-                  <span class="lucide-upload" aria-hidden="true"></span> Upload certificate
-                </.button>
-                <.live_file_input upload={@uploads.certificate} class="hidden" />
-              </form>
+              <:action :if={authorized?(:"device:update", @current_scope)}>
+                <form id="upload-certificate" phx-change="validate-cert" phx-drop-target={@uploads.certificate.ref}>
+                  <.button type="label" size="sm" for={@uploads.certificate.ref} class="max-sm:h-11 max-sm:w-full max-sm:text-sm">
+                    <span class="lucide-upload" aria-hidden="true"></span> Upload certificate
+                  </.button>
+                  <.live_file_input upload={@uploads.certificate} class="hidden" />
+                </form>
+              </:action>
             </.card_header>
             <p :if={Enum.empty?(@device.device_certificates)} class="border-t border-line-subtle px-4 py-3.5 text-xs text-content-muted">
               No certificates have been uploaded.
             </p>
-            <div :for={certificate <- @device.device_certificates} data-certificate class="flex items-start gap-4 border-t border-line-subtle px-4 py-3.5">
+            <div :for={certificate <- @device.device_certificates} data-certificate class="flex items-start gap-4 border-t border-line-subtle px-4 py-3.5 max-sm:flex-col max-sm:gap-3">
               <div class="flex min-w-0 grow basis-0 flex-col gap-2">
                 <div class="flex items-baseline gap-2">
                   <span class="text-ui/4 text-content-muted">Serial</span>
                   <span class="font-mono text-xs font-medium break-all text-content-strong">{Utils.format_serial(certificate.serial)}</span>
                 </div>
-                <div class="flex flex-wrap gap-x-5 gap-y-1 text-xs text-content-muted">
+                <div class="flex flex-wrap gap-x-5 gap-y-1 text-xs text-content-muted max-sm:flex-col max-sm:text-ui">
                   <span>Signed by <.signer_ca signer_ca={@signer_cas[certificate.aki]} org={@org} /></span>
                   <span>
                     Valid
@@ -204,6 +215,7 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
                   href={~p"/org/#{@org}/#{@product}/devices/#{@device}/certificate/#{certificate}/download"}
                   download
                   aria-label="Download certificate"
+                  class="max-sm:size-11"
                 >
                   <span class="lucide-download" aria-hidden="true"></span>
                 </.button>
@@ -212,6 +224,7 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
                   size="sm"
                   square
                   aria-label="Delete certificate"
+                  class="max-sm:size-11"
                   phx-click="delete-certificate"
                   phx-value-serial={certificate.serial}
                   data-confirm="Are you sure you want to delete this certificate?"
@@ -224,9 +237,11 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
 
           <div :if={@shared_secrets_enabled} id="shared-secrets" class={card_class()}>
             <.card_header title="Shared secrets" subtitle="For devices that connect without a certificate">
-              <.button :if={is_nil(@device.deleted_at) && authorized?(:"device:update", @current_scope)} size="sm" phx-click="create-shared-secret">
-                <span class="lucide-plus" aria-hidden="true"></span> Create secret
-              </.button>
+              <:action :if={is_nil(@device.deleted_at) && authorized?(:"device:update", @current_scope)}>
+                <.button size="sm" phx-click="create-shared-secret" class="max-sm:h-11 max-sm:w-full max-sm:text-sm">
+                  <span class="lucide-plus" aria-hidden="true"></span> Create secret
+                </.button>
+              </:action>
             </.card_header>
             <div :if={@new_shared_secret} class="flex flex-col items-start gap-3 border-t border-line-subtle bg-warning-soft px-4 py-3.5">
               <p class="text-xs font-medium text-warning-content">
@@ -236,23 +251,24 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
                 Key <code class="font-mono font-medium break-all text-content-strong">{@new_shared_secret.key}</code>
               </div>
               <input type="hidden" id="shared-secret-new" value={@new_shared_secret.secret} />
-              <div class="flex gap-2">
-                <.button id="shared-secret-new-button" size="sm" value="new" phx-hook="SharedSecretClipboardClick">
+              <div class="flex gap-2 max-sm:w-full">
+                <.button id="shared-secret-new-button" size="sm" value="new" phx-hook="SharedSecretClipboardClick" class="max-sm:h-11 max-sm:flex-1 max-sm:text-sm">
                   <span class="lucide-copy" aria-hidden="true"></span> Copy secret
                 </.button>
-                <.button size="sm" phx-click="dismiss-shared-secret">Done</.button>
+                <.button size="sm" phx-click="dismiss-shared-secret" class="max-sm:h-11 max-sm:flex-1 max-sm:text-sm">Done</.button>
               </div>
             </div>
             <p :if={Enum.empty?(@shared_secrets)} class="border-t border-line-subtle px-4 py-3.5 text-xs text-content-muted">
               No shared secrets have been created.
             </p>
-            <div :if={Enum.any?(@shared_secrets)} class="flex h-8 shrink-0 items-center gap-4 border-t border-line-subtle px-4 text-label font-medium text-content-faint uppercase">
+            <div :if={Enum.any?(@shared_secrets)} class="flex h-8 shrink-0 items-center gap-4 border-t border-line-subtle px-4 text-label font-medium text-content-faint uppercase max-sm:hidden">
               <span class="w-50 shrink-0">Key</span>
               <span class="grow">History</span>
               <span class="w-23 shrink-0"></span>
             </div>
-            <div :for={auth <- @shared_secrets} data-shared-secret class="flex min-h-13 items-center gap-4 border-t border-line-subtle px-4 py-2">
-              <div class="flex w-50 shrink-0 flex-col gap-0.5">
+            <%!-- On a phone: the key and its button, then its history under them. --%>
+            <div :for={auth <- @shared_secrets} data-shared-secret class="flex min-h-13 items-center gap-4 border-t border-line-subtle px-4 py-2 max-sm:flex-wrap max-sm:gap-y-2 max-sm:py-3">
+              <div class="flex w-50 shrink-0 flex-col gap-0.5 max-sm:w-auto max-sm:min-w-0 max-sm:flex-1">
                 <code
                   title={auth.key}
                   class={[
@@ -270,7 +286,7 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
               </div>
               <%!-- The latest change first; a deactivated key keeps who made
                     it on a quieter line underneath. --%>
-              <div class="flex min-w-0 grow flex-col gap-0.5 text-xs text-content-muted">
+              <div class="flex min-w-0 grow flex-col gap-0.5 text-xs text-content-muted max-sm:order-last max-sm:basis-full">
                 <.shared_secret_change :if={auth.deactivated_at} action="Deactivated" user={auth.deactivated_by} at={auth.deactivated_at} time_zone={@time_zone} />
                 <.shared_secret_change
                   action="Created"
@@ -280,10 +296,11 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
                   class={auth.deactivated_at && "text-content-faint"}
                 />
               </div>
-              <div class="flex w-23 shrink-0 justify-end">
+              <div class="flex w-23 shrink-0 justify-end max-sm:w-auto">
                 <.button
                   :if={is_nil(auth.deactivated_at) && is_nil(@device.deleted_at) && authorized?(:"device:update", @current_scope)}
                   size="sm"
+                  class="max-sm:h-10 max-sm:text-sm"
                   phx-click="deactivate-shared-secret"
                   phx-value-key={auth.key}
                   data-confirm="Are you sure you want to deactivate this shared secret? Connections made with it will be closed, and the device can no longer connect with it."
@@ -362,7 +379,7 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
         <.button
           phx-click="delete-device"
           data-confirm="Are you sure you want to delete this device? It will be disconnected and removed from its deployment group, and any certificates associated with it will be deleted."
-          class="text-alert-content! *:[[class*=lucide-]]:text-alert-content!"
+          class="text-alert-content! max-sm:h-11 max-sm:w-full max-sm:text-sm *:[[class*=lucide-]]:text-alert-content!"
         >
           <span class="lucide-trash" aria-hidden="true"></span> Delete device…
         </.button>
@@ -375,14 +392,14 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
             It can't connect to NervesHub until it's restored. Deleting it permanently removes it for good.
           </p>
         </div>
-        <div class="flex shrink-0 gap-2">
-          <.button phx-click="restore-device" data-confirm="Are you sure you want to restore this device?">
+        <div class="flex shrink-0 gap-2 max-sm:w-full max-sm:flex-col">
+          <.button phx-click="restore-device" data-confirm="Are you sure you want to restore this device?" class="max-sm:h-11 max-sm:text-sm">
             <span class="lucide-rotate-ccw" aria-hidden="true"></span> Restore device
           </.button>
           <.button
             phx-click="destroy-device"
             data-confirm="Are you sure you want to permanently delete this device?"
-            class="text-alert-content! *:[[class*=lucide-]]:text-alert-content!"
+            class="text-alert-content! max-sm:h-11 max-sm:text-sm *:[[class*=lucide-]]:text-alert-content!"
           >
             <span class="lucide-trash" aria-hidden="true"></span> Delete permanently…
           </.button>
@@ -434,18 +451,24 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
 
   attr(:title, :string, required: true)
   attr(:subtitle, :string, default: nil)
-  slot(:inner_block, doc: "actions at the end of the row")
+  slot(:action, doc: "actions at the end of the row")
   slot(:aside, doc: "a quiet note at the end of the row")
 
+  # On a phone the actions leave the header for the foot of the card, across
+  # its width: the header turns into its parts, and the actions sort last.
   defp card_header(assigns) do
     ~H"""
-    <div class="flex min-h-12 shrink-0 items-center justify-between gap-3 px-4 py-2">
-      <div class="flex min-w-0 flex-wrap items-baseline gap-x-2">
-        <h2 class="text-sm/4.5 font-semibold text-content-strong">{@title}</h2>
-        <span :if={@subtitle} class="text-xs text-content-faint">{@subtitle}</span>
+    <div class="flex min-h-12 shrink-0 items-center justify-between gap-3 px-4 py-2 max-sm:contents">
+      <div class="flex min-w-0 flex-1 items-center justify-between gap-3 max-sm:min-h-12 max-sm:px-4 max-sm:py-2">
+        <div class="flex min-w-0 flex-wrap items-baseline gap-x-2">
+          <h2 class="text-sm/4.5 font-semibold text-content-strong">{@title}</h2>
+          <span :if={@subtitle} class="text-xs text-content-faint">{@subtitle}</span>
+        </div>
+        <div :if={@aside != []} class="shrink-0 text-xs text-content-faint">{render_slot(@aside)}</div>
       </div>
-      <div :if={@aside != []} class="shrink-0 text-xs text-content-faint">{render_slot(@aside)}</div>
-      {render_slot(@inner_block)}
+      <div :if={@action != []} class="flex shrink-0 max-sm:order-last max-sm:border-t max-sm:border-line-subtle max-sm:p-4 max-sm:*:w-full">
+        {render_slot(@action)}
+      </div>
     </div>
     """
   end

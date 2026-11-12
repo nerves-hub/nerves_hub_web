@@ -82,39 +82,50 @@ defmodule NervesHubWeb.Components.Pager do
       )
 
     ~H"""
-    <div :if={@sizes? or @pager.total_pages > 1} class="flex h-12 shrink-0 items-center justify-end gap-2 border-t border-line-subtle pr-3 pl-4">
-      <form :if={@sizes?} id={"#{@id}-page-size"} phx-change="set-paginate-opts" {@rest} class="grid grid-cols-1">
+    <%!-- On a phone: thumb-sized previous and next buttons at either end, and
+          which page this is between them, with the page size. --%>
+    <div
+      :if={@sizes? or @pager.total_pages > 1}
+      class="flex h-12 shrink-0 items-center justify-end gap-2 border-t border-line-subtle pr-3 pl-4 max-sm:h-auto max-sm:py-3 max-sm:pr-4"
+    >
+      <span :if={@pager.total_pages > 1} class={["text-base/5 text-content-muted max-sm:order-2 max-sm:ml-auto sm:hidden", !@sizes? && "max-sm:mr-auto"]}>
+        Page <span class="font-medium text-content-strong">{@pager.current_page}</span> of {@pager.total_pages}
+      </span>
+      <form :if={@sizes?} id={"#{@id}-page-size"} phx-change="set-paginate-opts" {@rest} class="grid grid-cols-1 max-sm:order-3 max-sm:mr-auto">
         <select
           name="page-size"
           aria-label="Rows per page"
-          class="col-start-1 row-start-1 h-7.5 cursor-pointer appearance-none rounded border border-line-control border-b-line-strong bg-surface-raised bg-none py-0 pr-7 pl-2.5 text-ui text-content-body focus:outline focus:-outline-offset-1 focus:outline-focus-ring"
+          class="col-start-1 row-start-1 h-7.5 cursor-pointer appearance-none rounded border border-line-control border-b-line-strong bg-surface-raised bg-none py-0 pr-7 pl-2.5 text-ui text-content-body focus:outline focus:-outline-offset-1 focus:outline-focus-ring max-sm:h-11 max-sm:text-base"
         >
           <option :for={size <- @page_sizes} value={size} selected={size == @pager.page_size}>{size} per page</option>
         </select>
         <span class="pointer-events-none col-start-1 row-start-1 mr-2 lucide-chevron-down size-3.5 self-center justify-self-end text-content-muted" aria-hidden="true"></span>
       </form>
 
-      <nav :if={@pager.total_pages > 1} aria-label="Pages" class="flex h-7 overflow-clip rounded border border-line-control bg-surface-raised shadow-xs">
+      <nav :if={@pager.total_pages > 1} aria-label="Pages" class="flex h-7 overflow-clip rounded border border-line-control bg-surface-raised shadow-xs max-sm:contents">
         <button
           type="button"
           aria-label="Previous page"
           disabled={@pager.current_page < 2}
           phx-click="paginate"
           phx-value-page={@pager.current_page - 1}
-          class="flex items-center px-1.75 text-content-muted enabled:cursor-pointer enabled:hover:bg-surface-muted enabled:hover:text-content-strong disabled:text-content-faint"
+          class={[
+            "flex items-center px-1.75 text-content-muted enabled:cursor-pointer enabled:hover:bg-surface-muted enabled:hover:text-content-strong disabled:text-content-faint",
+            "max-sm:order-1 max-sm:size-11 max-sm:shrink-0 max-sm:justify-center max-sm:rounded-md max-sm:border max-sm:border-line-control max-sm:bg-surface-raised max-sm:shadow-xs"
+          ]}
           {@rest}
         >
-          <span class="lucide-chevron-left size-3.5" aria-hidden="true"></span>
+          <span class="lucide-chevron-left size-3.5 max-sm:size-4.5" aria-hidden="true"></span>
         </button>
         <%= for page <- @pages do %>
-          <span :if={page == :gap} class="flex w-7 shrink-0 items-center justify-center border-l border-line-control text-xs text-content-faint">…</span>
+          <span :if={page == :gap} class="flex w-7 shrink-0 items-center justify-center border-l border-line-control text-xs text-content-faint max-sm:hidden">…</span>
           <button
             :if={page != :gap}
             type="button"
             aria-current={if page == @pager.current_page, do: "page"}
             phx-click="paginate"
             phx-value-page={page}
-            class="flex min-w-7 shrink-0 cursor-pointer items-center justify-center border-l border-line-control px-1.5 text-xs font-medium text-content-muted hover:bg-surface-muted hover:text-content-strong aria-[current=page]:bg-surface-muted aria-[current=page]:text-content-strong"
+            class="flex min-w-7 shrink-0 cursor-pointer items-center justify-center border-l border-line-control px-1.5 text-xs font-medium text-content-muted hover:bg-surface-muted hover:text-content-strong aria-[current=page]:bg-surface-muted aria-[current=page]:text-content-strong max-sm:hidden"
             {@rest}
           >
             {page}
@@ -126,10 +137,13 @@ defmodule NervesHubWeb.Components.Pager do
           disabled={@pager.current_page >= @pager.total_pages}
           phx-click="paginate"
           phx-value-page={@pager.current_page + 1}
-          class="flex items-center border-l border-line-control px-1.75 text-content-muted enabled:cursor-pointer enabled:hover:bg-surface-muted enabled:hover:text-content-strong disabled:text-content-faint"
+          class={[
+            "flex items-center border-l border-line-control px-1.75 text-content-muted enabled:cursor-pointer enabled:hover:bg-surface-muted enabled:hover:text-content-strong disabled:text-content-faint",
+            "max-sm:order-4 max-sm:size-11 max-sm:shrink-0 max-sm:justify-center max-sm:rounded-md max-sm:border max-sm:border-line-control max-sm:bg-surface-raised max-sm:shadow-xs"
+          ]}
           {@rest}
         >
-          <span class="lucide-chevron-right size-3.5" aria-hidden="true"></span>
+          <span class="lucide-chevron-right size-3.5 max-sm:size-4.5" aria-hidden="true"></span>
         </button>
       </nav>
     </div>

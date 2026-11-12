@@ -53,20 +53,24 @@ defmodule NervesHubWeb.Components.DevicePage.FirmwareHistoryTab do
       <div class="w-full p-4 sm:p-6">
         <div class="flex w-full flex-col overflow-clip rounded-card border border-line-default bg-surface-raised shadow-card">
           <div class="flex min-h-12 shrink-0 flex-wrap items-center gap-x-3 gap-y-2 px-4 py-2">
-            <nav aria-label="Firmware history" class="flex h-7 overflow-clip rounded border border-line-control">
+            <%!-- Across the card on a phone, a thumb's height. --%>
+            <nav aria-label="Firmware history" class="flex h-7 overflow-clip rounded border border-line-control max-sm:h-10 max-sm:w-full">
               <.link
                 :for={{view, label} <- [installed: "Installed firmware", attempts: "Update attempts"]}
                 patch={view_path(@org, @product, @device, view)}
                 aria-current={if @history_view == view, do: "page"}
-                class="flex items-center border-l border-line-control px-2.5 text-xs font-medium text-content-muted first:border-l-0 hover:text-content-strong aria-[current=page]:bg-surface-muted aria-[current=page]:text-content-strong"
+                class="flex items-center border-l border-line-control px-2.5 text-xs font-medium text-content-muted first:border-l-0 hover:text-content-strong aria-[current=page]:bg-surface-muted aria-[current=page]:text-content-strong max-sm:flex-1 max-sm:justify-center max-sm:text-sm"
               >
                 {label}
               </.link>
             </nav>
-            <span class="text-xs text-content-faint">
+            <span class="text-xs text-content-faint max-sm:basis-full">
               {if @history_view == :attempts, do: "How each update sent to this device ended", else: "Each firmware the device reported, newest first"}
             </span>
-            <span :if={@history_view == :attempts} class={["ml-auto text-xs", if(@device.consecutive_failed_updates > 0, do: "text-warning-content", else: "text-content-faint")]}>
+            <span
+              :if={@history_view == :attempts}
+              class={["ml-auto text-xs max-sm:ml-0 max-sm:basis-full", if(@device.consecutive_failed_updates > 0, do: "text-warning-content", else: "text-content-faint")]}
+            >
               {failures_in_a_row(@device.consecutive_failed_updates)}
             </span>
           </div>
@@ -101,30 +105,40 @@ defmodule NervesHubWeb.Components.DevicePage.FirmwareHistoryTab do
     <div :if={@entries == []} class="flex items-center justify-center border-t border-line-subtle p-14">
       <span class="text-ui text-content-faint">No firmware history found for the device.</span>
     </div>
+    <%!-- On a phone each row is a card of two or three lines: the version
+          and its validation, then when it was reported. --%>
     <div :if={@entries != []} class="overflow-x-auto px-4">
-      <table class="w-full min-w-xl text-left">
-        <thead class="border-t border-line-subtle">
+      <table class="w-full text-left max-sm:block sm:min-w-xl">
+        <thead class="border-t border-line-subtle max-sm:hidden">
           <tr class="text-label text-content-faint uppercase">
             <th class="h-8.5 pt-1.5 font-medium">Version</th>
             <th class="h-8.5 w-46 pt-1.5 font-medium">Validation</th>
             <th class="h-8.5 w-70 pt-1.5 font-medium">Reported</th>
           </tr>
         </thead>
-        <tbody>
-          <tr :for={{entry, index} <- Enum.with_index(@entries)} id={"device-firmware-#{entry.id}"} class="h-12 border-t border-line-subtle">
-            <td>
-              <span class="flex items-center gap-2.5">
-                <span class="font-mono text-ui text-content-strong">{entry.firmware_metadata.version}</span>
+        <tbody class="max-sm:block">
+          <tr
+            :for={{entry, index} <- Enum.with_index(@entries)}
+            id={"device-firmware-#{entry.id}"}
+            class="h-12 border-t border-line-subtle max-sm:grid max-sm:h-auto max-sm:grid-cols-[minmax(0,1fr)_auto] max-sm:items-start max-sm:gap-x-3 max-sm:gap-y-1.5 max-sm:py-3"
+          >
+            <td class="max-sm:min-w-0">
+              <span class="flex items-center gap-2.5 max-sm:flex-wrap max-sm:gap-y-1">
+                <span class="font-mono text-ui text-content-strong max-sm:text-sm max-sm:font-semibold">{entry.firmware_metadata.version}</span>
                 <.firmware_uuid device_firmware={entry} org={@org} product={@product} />
-                <span :if={@first_page? and index == 0 and running?(@device, entry)} class="flex items-center gap-1.5 text-xs font-medium text-success-content">
+                <span :if={@first_page? and index == 0 and running?(@device, entry)} class="flex items-center gap-1.5 text-xs font-medium text-success-content max-sm:hidden">
                   <span class="size-1.5 rounded-full bg-success"></span>Running now
                 </span>
               </span>
             </td>
             <td><.validation entry={entry} /></td>
-            <td class="whitespace-nowrap">
+            <td class="whitespace-nowrap max-sm:col-span-2 max-sm:whitespace-normal">
+              <%!-- A phone puts Running now on this line, with when. --%>
+              <span :if={@first_page? and index == 0 and running?(@device, entry)} class="mr-1 inline-flex items-center gap-1.5 text-ui font-medium text-success-content sm:hidden">
+                <span class="size-1.5 rounded-full bg-success"></span>Running now<span class="font-normal text-content-faint">·</span>
+              </span>
               <span class="text-ui text-content-strong">{RelativeTime.from_now(entry.inserted_at)}</span>
-              <.local_datetime at={entry.inserted_at} time_zone={@time_zone} format={:short_datetime_seconds} zone_label={false} class="ml-1.5 text-xs text-content-faint" />
+              <.local_datetime at={entry.inserted_at} time_zone={@time_zone} format={:short_datetime_seconds} zone_label={false} class="ml-1.5 text-xs whitespace-nowrap text-content-faint" />
             </td>
           </tr>
         </tbody>
@@ -143,9 +157,11 @@ defmodule NervesHubWeb.Components.DevicePage.FirmwareHistoryTab do
     <div :if={@attempts == []} class="flex items-center justify-center border-t border-line-subtle p-14">
       <span class="text-ui text-content-faint">No update attempts recorded for the device.</span>
     </div>
+    <%!-- On a phone each attempt is a card: the update and how it ended, why,
+          then when and who sent it. --%>
     <div :if={@attempts != []} class="overflow-x-auto px-4">
-      <table class="w-full min-w-2xl text-left">
-        <thead class="border-t border-line-subtle">
+      <table class="w-full text-left max-sm:block sm:min-w-2xl">
+        <thead class="border-t border-line-subtle max-sm:hidden">
           <tr class="text-label text-content-faint uppercase">
             <th class="h-8.5 w-41 pt-1.5 font-medium">When</th>
             <th class="h-8.5 w-49 pt-1.5 font-medium">Update</th>
@@ -154,20 +170,26 @@ defmodule NervesHubWeb.Components.DevicePage.FirmwareHistoryTab do
             <th class="h-8.5 w-38 pt-1.5 font-medium">Sent by</th>
           </tr>
         </thead>
-        <tbody>
-          <tr :for={attempt <- @attempts} data-update-attempt class="h-12 border-t border-line-subtle text-ui">
-            <td class="whitespace-nowrap">
+        <tbody class="max-sm:block">
+          <tr
+            :for={attempt <- @attempts}
+            data-update-attempt
+            class="h-12 border-t border-line-subtle text-ui max-sm:grid max-sm:h-auto max-sm:grid-cols-[minmax(0,1fr)_auto] max-sm:items-center max-sm:gap-x-3 max-sm:gap-y-1.5 max-sm:py-3"
+          >
+            <td class="whitespace-nowrap max-sm:order-4">
               <.local_datetime at={attempt.timestamp} time_zone={@time_zone} format={:short_date} zone_label={false} class="font-medium text-content-strong" />
               <.local_datetime at={attempt.timestamp} time_zone={@time_zone} format={:time} zone_label={false} class="ml-1.5 text-xs text-content-faint" />
             </td>
-            <td class="font-mono whitespace-nowrap">
+            <td class="font-mono whitespace-nowrap max-sm:order-1 max-sm:text-sm">
               <.firmware_version firmware={attempt.source} org={@org} product={@product} class="text-content-muted" />
               <span class="mx-1 lucide-arrow-right size-3 align-[-1px] text-content-faint" aria-label="to"></span>
               <.firmware_version firmware={attempt.target} org={@org} product={@product} class="text-content-strong" />
             </td>
-            <td><.outcome status={attempt.status} /></td>
-            <td class="pr-4 text-content-body">{attempt.reason || detail(attempt.status)}</td>
-            <td class="whitespace-nowrap">
+            <td class="max-sm:order-2"><.outcome status={attempt.status} /></td>
+            <td class={["pr-4 text-content-body max-sm:order-3 max-sm:col-span-2 max-sm:pr-0", !attempt.reason && attempt.status == :succeeded && "max-sm:hidden"]}>
+              {attempt.reason || detail(attempt.status)}
+            </td>
+            <td class="whitespace-nowrap max-sm:order-5 max-sm:min-w-0 max-sm:justify-self-end max-sm:truncate">
               <.link
                 :if={attempt.deployment_group}
                 navigate={~p"/org/#{@org}/#{@product}/deployment_groups/#{attempt.deployment_group.name}"}
