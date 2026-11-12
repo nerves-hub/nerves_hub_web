@@ -156,7 +156,7 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
                   spellcheck="false"
                   phx-debounce="2000"
                   class={[
-                    "min-h-18 w-full bg-surface-muted px-3 py-2.5 font-mono text-xs/5 text-content-body max-sm:text-base/6",
+                    "min-h-18 w-full bg-surface-raised px-3 py-2.5 font-mono text-xs/5 text-content-body max-sm:text-base/6",
                     control_class(@settings_form[:connecting_code])
                   ]}
                 ><%= Phoenix.HTML.Form.normalize_value("textarea", @settings_form[:connecting_code].value) %></textarea>
