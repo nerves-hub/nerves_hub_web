@@ -68,7 +68,10 @@ defmodule NervesHubWeb.Components.DevicePage.ActivityTab do
                   <span class="flex size-7 shrink-0 items-center justify-center rounded-full border border-line-subtle bg-surface-muted">
                     <span class="lucide-activity size-3.5 text-content-muted" aria-hidden="true"></span>
                   </span>
-                  <span class="min-w-0 grow text-ui/4.5 text-content-body">{entry.description}</span>
+                  <%!-- A description can hold an unbroken token (a shared secret's
+                        key, a firmware UUID), which breaks rather than running
+                        under the time. --%>
+                  <span class="min-w-0 grow text-ui/4.5 wrap-break-word text-content-body">{entry.description}</span>
                   <.local_datetime
                     at={entry.inserted_at}
                     time_zone={@time_zone}
