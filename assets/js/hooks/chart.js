@@ -328,6 +328,8 @@ function config({ metrics, thresholds, max, unit, timeUnit, minTime, maxTime, st
               backgroundColor: "rgba(113, 113, 122, 0.12)",
               borderWidth: 0,
             },
+            // Pinching zooms on a touch screen, where a drag scrolls the page.
+            pinch: { enabled: true },
             mode: "x",
             // Every chart on the tab follows the one that was zoomed.
             onZoomComplete: ({ chart }) => {

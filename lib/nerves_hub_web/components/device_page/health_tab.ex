@@ -339,7 +339,7 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
               </time>
             </span>
             <span :if={@latest_metrics["timestamp"] && @health_profile} class="hidden h-3.5 w-px bg-line-default sm:block" aria-hidden="true"></span>
-            <span :if={@health_profile} class="text-content-muted">
+            <span :if={@health_profile} class="text-content-muted max-sm:hidden">
               Thresholds from
               <.link
                 navigate={~p"/org/#{@org}/#{@product}/settings/health"}
@@ -365,9 +365,15 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
           </.link>
         </p>
 
-        <div :if={@health_enabled? && Enum.any?(@latest_metrics)} class="grid grid-cols-[repeat(auto-fit,minmax(10rem,1fr))] items-start gap-x-8 gap-y-5 px-4 pt-1 pb-4.5">
+        <%!-- On a phone a reading with a bar takes a row of its own, and the
+              rest go two to a row, all ruled apart: the gap shows the
+              grid's background through as the rules. --%>
+        <div
+          :if={@health_enabled? && Enum.any?(@latest_metrics)}
+          class="grid grid-cols-[repeat(auto-fit,minmax(10rem,1fr))] items-start gap-x-8 gap-y-5 px-4 pt-1 pb-4.5 max-sm:grid-cols-2 max-sm:items-stretch max-sm:gap-px max-sm:border-t max-sm:border-line-subtle max-sm:bg-line-subtle max-sm:p-0"
+        >
           <.tile
-            :for={tile <- tiles(@latest_metrics, @custom_health_labels)}
+            :for={tile <- phone_spans(tiles(@latest_metrics, @custom_health_labels))}
             tile={tile}
             spec={@threshold_specs[tile.key]}
             engaged={Enum.find(@engaged, fn {_level, key, _reason} -> key in tile.keys end)}
@@ -375,6 +381,19 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
         </div>
 
         <AlarmsRow.render :if={alarms_reported?(@product, @device)} id="health-alarms" alarms={@health_alarms} />
+
+        <div
+          :if={@health_enabled? && Enum.any?(@latest_metrics) && @health_profile}
+          class="flex min-h-11 items-center justify-between gap-3 border-t border-line-subtle bg-surface-muted px-4 text-xs text-content-muted sm:hidden"
+        >
+          Thresholds from
+          <.link
+            navigate={~p"/org/#{@org}/#{@product}/settings/health"}
+            class="font-medium text-content-strong underline decoration-1 underline-offset-3 hover:decoration-content-muted"
+          >
+            {profile_name(@health_profile)}
+          </.link>
+        </div>
       </section>
 
       <section :if={Enum.any?(@latest_metrics)} id="health-history" class={card_class()}>
@@ -384,12 +403,17 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
             <span :if={!@zoom} class="text-xs text-content-faint">{time_range(@charts_from_timestamp, @charts_until_timestamp, @time_zone)}</span>
             <span :if={@zoom} class="text-xs text-content-faint">{time_range(elem(@zoom, 0), elem(@zoom, 1), @time_zone)}</span>
           </div>
-          <div class="flex items-center gap-3.5">
+          <%!-- On a phone the time frame takes the width, beside the chart
+                style, with how to zoom under them. --%>
+          <div class="flex items-center gap-3.5 max-sm:basis-full max-sm:flex-wrap max-sm:gap-2">
             <span :if={@analytics_enabled && !@zoom} class="hidden text-xs text-content-faint md:inline">Drag across a chart to zoom</span>
-            <.button :if={@zoom} type="button" size="sm" phx-click="reset-zoom">
+            <span :if={@analytics_enabled && !@zoom} class="order-last basis-full text-xs text-content-muted sm:hidden">
+              Pinch a chart to zoom · tap for a reading
+            </span>
+            <.button :if={@zoom} type="button" size="sm" phx-click="reset-zoom" class="max-sm:order-last max-sm:h-10 max-sm:basis-full max-sm:text-sm">
               <span class="lucide-zoom-out text-content-muted" aria-hidden="true"></span> Reset zoom
             </.button>
-            <div role="group" aria-label="Chart style" class="flex h-7 overflow-clip rounded border border-line-default">
+            <div role="group" aria-label="Chart style" class="flex h-7 overflow-clip rounded border border-line-default max-sm:order-2 max-sm:h-10 max-sm:rounded-md">
               <button
                 :for={{style, icon, label} <- [{:line, "lucide-chart-spline", "Line"}, {:scatter, "lucide-chart-scatter", "Scatter"}]}
                 type="button"
@@ -398,12 +422,12 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
                 aria-pressed={to_string(style == DisplayPreferences.health_chart_style(@user.display_preferences))}
                 aria-label={label}
                 title={label}
-                class="flex w-7.5 cursor-pointer items-center justify-center border-l border-line-default text-content-muted first:border-l-0 hover:text-content-strong aria-pressed:bg-surface-muted aria-pressed:text-content-strong"
+                class="flex w-7.5 cursor-pointer items-center justify-center border-l border-line-default text-content-muted first:border-l-0 hover:text-content-strong aria-pressed:bg-surface-muted aria-pressed:text-content-strong max-sm:w-10"
               >
-                <span class={[icon, "size-3.5"]} aria-hidden="true"></span>
+                <span class={[icon, "size-3.5 max-sm:size-4"]} aria-hidden="true"></span>
               </button>
             </div>
-            <div role="group" aria-label="Time frame" class="flex h-7 overflow-clip rounded border border-line-default">
+            <div role="group" aria-label="Time frame" class="flex h-7 overflow-clip rounded border border-line-default max-sm:order-1 max-sm:h-10 max-sm:flex-1 max-sm:rounded-md">
               <button
                 :for={{unit, amount} <- @time_frame_opts}
                 type="button"
@@ -411,7 +435,7 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
                 phx-value-unit={unit}
                 phx-value-amount={amount}
                 aria-pressed={to_string({unit, amount} == @time_frame)}
-                class="flex cursor-pointer items-center border-l border-line-default px-2.5 text-xs font-medium text-content-muted first:border-l-0 hover:text-content-strong aria-pressed:bg-surface-muted aria-pressed:text-content-strong"
+                class="flex cursor-pointer items-center border-l border-line-default px-2.5 text-xs font-medium text-content-muted first:border-l-0 hover:text-content-strong aria-pressed:bg-surface-muted aria-pressed:text-content-strong max-sm:flex-1 max-sm:justify-center max-sm:text-sm"
               >
                 {time_frame_label(unit, amount)}
               </button>
@@ -517,16 +541,19 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
 
   defp tile(%{tile: %{kind: :load}} = assigns) do
     ~H"""
-    <div id={"health-tile-#{@tile.id}"} class="flex min-w-0 flex-col gap-1.5">
-      <span class="text-xs font-medium text-content-muted">{@tile.label}</span>
-      <div class="flex h-7.5 items-baseline gap-3">
-        <span class="w-12.5 shrink-0 text-2xl/7.5 font-medium tracking-[-0.02em] text-content-strong">{load_value(@tile.values["load_1min"])}</span>
-        <span class="w-9.5 shrink-0 text-base font-medium text-content-body">{load_value(@tile.values["load_5min"])}</span>
-        <span class="w-9.5 shrink-0 text-base font-medium text-content-body">{load_value(@tile.values["load_15min"])}</span>
+    <div id={"health-tile-#{@tile.id}"} class={["flex min-w-0 flex-col gap-1.5", phone_tile_class(@tile)]}>
+      <span class="text-xs font-medium text-content-muted max-sm:text-sm max-sm:font-normal max-sm:text-content-body">{@tile.label}</span>
+      <div class="flex h-7.5 items-baseline gap-3 max-sm:h-6 max-sm:gap-2">
+        <span class="w-12.5 shrink-0 text-2xl/7.5 font-medium tracking-[-0.02em] text-content-strong max-sm:w-auto max-sm:text-xl/6">
+          {load_value(@tile.values["load_1min"])}
+        </span>
+        <span class="w-9.5 shrink-0 text-base font-medium text-content-body max-sm:w-auto max-sm:text-sm">{load_value(@tile.values["load_5min"])}</span>
+        <span class="w-9.5 shrink-0 text-base font-medium text-content-body max-sm:w-auto max-sm:text-sm">{load_value(@tile.values["load_15min"])}</span>
       </div>
-      <div class="flex h-4 items-center gap-3 text-xs text-content-faint">
+      <div class="flex h-4 items-center gap-3 text-xs text-content-faint max-sm:hidden">
         <span class="w-12.5 shrink-0">1 min</span><span class="w-9.5 shrink-0">5 min</span><span class="w-9.5 shrink-0">15 min</span>
       </div>
+      <span class="text-xs text-content-faint sm:hidden">1 · 5 · 15 min</span>
       <.tile_footnote spec={@spec} engaged={@engaged} prefix="15 min: " />
     </div>
     """
@@ -538,15 +565,24 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
     assigns = assign(assigns, :level, breach_level(assigns.tile.percent, assigns.spec))
 
     ~H"""
-    <div id={"health-tile-#{@tile.id}"} class="flex min-w-0 flex-col gap-1.5">
-      <span class="truncate text-xs font-medium text-content-muted">
-        {@tile.label}<span :if={@tile.detail} class="font-normal"> · {@tile.detail}</span>
+    <%!-- On a phone a reading with a bar puts its value at the end of its
+          label's line. --%>
+    <div
+      id={"health-tile-#{@tile.id}"}
+      class={[
+        "flex min-w-0 flex-col gap-1.5",
+        @tile.percent && "max-sm:grid max-sm:grid-cols-[minmax(0,1fr)_auto] max-sm:items-baseline max-sm:gap-x-3 max-sm:gap-y-1",
+        phone_tile_class(@tile)
+      ]}
+    >
+      <span class="truncate text-xs font-medium text-content-muted max-sm:text-sm max-sm:font-normal max-sm:text-content-body">
+        {@tile.label}<span :if={@tile.detail} class="font-normal max-sm:text-xs max-sm:text-content-faint"> · {@tile.detail}</span>
       </span>
-      <div class="flex h-7.5 items-baseline gap-0.5">
-        <span class="text-2xl/7.5 font-medium tracking-[-0.02em] text-content-strong">{@tile.value}</span>
+      <div class="flex h-7.5 items-baseline gap-0.5 max-sm:h-6">
+        <span class="text-2xl/7.5 font-medium tracking-[-0.02em] text-content-strong max-sm:text-xl/6">{@tile.value}</span>
         <span :if={@tile.unit} class="text-sm text-content-muted">{@tile.unit}</span>
       </div>
-      <div :if={@tile.percent} class="relative flex h-4 items-center" aria-hidden="true">
+      <div :if={@tile.percent} class="relative flex h-4 items-center max-sm:col-span-2" aria-hidden="true">
         <div class={["flex h-1 grow rounded-full", level_track(@level)]}>
           <div class={["h-1 rounded-full", level_fill(@level)]} style={"width: #{clamp_percent(@tile.percent)}%"}></div>
         </div>
@@ -556,8 +592,8 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
           style={"left: #{threshold}%"}
         ></span>
       </div>
-      <div :if={!@tile.percent} class="h-4"></div>
-      <.tile_footnote spec={@spec} engaged={@engaged} unit={@tile.unit} prefix="" />
+      <div :if={!@tile.percent} class="h-4 max-sm:hidden"></div>
+      <.tile_footnote spec={@spec} engaged={@engaged} unit={@tile.unit} prefix="" class={@tile.percent && "max-sm:col-span-2"} />
     </div>
     """
   end
@@ -566,16 +602,17 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
   attr(:engaged, :any)
   attr(:unit, :string, default: nil)
   attr(:prefix, :string, default: "")
+  attr(:class, :any, default: nil)
 
   defp tile_footnote(assigns) do
     ~H"""
     <%= cond do %>
       <% @engaged -> %>
-        <span class={["text-xs", level_text(@engaged)]}>{breach_text(elem(@engaged, 2), @unit)}</span>
+        <span class={["text-xs", level_text(@engaged), @class]}>{breach_text(elem(@engaged, 2), @unit)}</span>
       <% @spec -> %>
-        <span class="text-xs text-content-faint">{@prefix}{thresholds_text(@spec, @unit)}</span>
+        <span class={["text-xs text-content-faint", @class]}>{@prefix}{thresholds_text(@spec, @unit)}</span>
       <% true -> %>
-        <span class="text-xs text-content-faint">No thresholds set</span>
+        <span class={["text-xs text-content-faint", @class]}>No thresholds set</span>
     <% end %>
     """
   end
@@ -777,6 +814,27 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
 
   # The Now card's readings in the design's order, each only when the device
   # reports it, then any other metric the device reports.
+  # On a phone, readings with a bar take a row each and the rest pair up. A
+  # reading left without a partner takes the row, so no empty cell shows.
+  defp phone_spans(tiles) do
+    halves = Enum.count(tiles, &is_nil(&1[:percent]))
+
+    {tiles, _index} =
+      Enum.map_reduce(tiles, 0, fn tile, index ->
+        if is_nil(tile[:percent]) do
+          {Map.put(tile, :phone_full?, rem(halves, 2) == 1 and index == halves - 1), index + 1}
+        else
+          {Map.put(tile, :phone_full?, true), index}
+        end
+      end)
+
+    tiles
+  end
+
+  defp phone_tile_class(tile) do
+    ["max-sm:bg-surface-raised max-sm:px-4 max-sm:py-3", Map.get(tile, :phone_full?, true) && "max-sm:col-span-2"]
+  end
+
   defp tiles(metrics, labels) do
     well_known =
       Enum.reject(
