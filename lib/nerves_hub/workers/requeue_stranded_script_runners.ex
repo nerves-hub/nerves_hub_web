@@ -4,8 +4,9 @@ defmodule NervesHub.Workers.RequeueStrandedScriptRunners do
 
   A run's `NervesHub.Workers.ScriptRunnerDispatch` job is inserted once, in the
   transaction that creates the run, and keeps itself alive by snoozing. If it is
-  discarded — attempts exhausted, or rescued by `Oban.Lifeline` after a node died
-  holding it — nothing else would ever insert another, and the run would sit
+  discarded — attempts exhausted, or rescued by `Oban.Lifeline` (the `lifeline:`
+  setting in the Oban config) after a node died holding it — nothing else would
+  ever insert another, and the run would sit
   unfinished with no devices being dispatched.
 
   That also costs every other run: an unfinished run still counts towards the

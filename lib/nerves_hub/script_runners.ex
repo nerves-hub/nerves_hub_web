@@ -627,7 +627,8 @@ defmodule NervesHub.ScriptRunners do
   A run's pacer is inserted once, inside the transaction that creates the run, and
   `NervesHub.Workers.ScriptRunnerDispatch` keeps itself alive by snoozing. Nothing
   re-creates it: if that job is discarded — five failed attempts, or `Oban.Lifeline`
-  rescuing an attempt-exhausted job — the run stops being worked through entirely.
+  (the `lifeline:` setting in the Oban config) rescuing an attempt-exhausted job —
+  the run stops being worked through entirely.
 
   Left alone it does not merely stall. An unfinished run keeps counting towards
   `active_run_count/0`, which is what every other run's share of the ceiling is
@@ -753,10 +754,14 @@ defmodule NervesHub.ScriptRunners do
   A device is left at `:running` when the node executing it dies between claiming
   the row and recording an answer. Nothing else recovers that row: the device
   worker is `max_attempts: 1`, so Oban does not retry it, and `Oban.Lifeline`
-  marks an attempt-exhausted job `discarded` rather than making it available
-  again. The row is what `claim_pending_devices/2` looks at, so until it goes back
-  to `:pending` the device is never picked up again and the run never reaches
-  `:completed`.
+  (the `lifeline:` setting in the Oban config) marks an attempt-exhausted job
+  `discarded` rather than making it available again. The row is what
+  `claim_pending_devices/2` looks at, so until it goes back to `:pending` the
+  device is never picked up again and the run never reaches `:completed`.
+
+  Lifeline only discards a job once it has been `executing` for its
+  `rescue_after`, so a device orphaned this way waits that long before it is
+  released here. Until then its job still counts as live, below.
 
   Only rows older than `older_than` are touched, so devices genuinely mid-script
   are left alone. The default is a wide margin over the ~31s a device job can
