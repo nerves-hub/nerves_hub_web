@@ -78,7 +78,7 @@
                 aria-label="Edit the description"
                 phx-click="edit-description"
               >
-                <span class="lucide-pencil--light size-4 shrink-0 text-base-400"></span>
+                <span class="lucide-pencil size-4 text-base-400"></span>
               </button>
             </div>
           </div>
@@ -212,7 +212,7 @@
           aria-label="Export the device results as a CSV"
           title="Export the device results as a CSV"
         >
-          <.icon name="export" /> Export
+          <.icon name="download" /> Export
         </.button>
 
         <form id="device-results-filters-form" class="flex items-center gap-2" phx-change="update-filters">
@@ -280,7 +280,7 @@
                         the output, up to put it away. --%>
                   <span class={[
                     "size-5 shrink-0 text-base-400",
-                    if(@expanded_device_id == result.id, do: "lucide-chevron-up--light", else: "lucide-chevron-down--light")
+                    if(@expanded_device_id == result.id, do: "lucide-chevron-up", else: "lucide-chevron-down")
                   ]}></span>
                   {result.device.identifier}
                 </div>
