@@ -160,6 +160,20 @@ defmodule NervesHubWeb.Live.Org.RolesTest do
       assert {:ok, %{name: "Restarter", permissions: ["device:reboot"]}} = OrgRoles.get_org_role(org, role.id)
     end
 
+    test "shows an error for a cleared name rather than crashing", %{conn: conn, org: org} do
+      role = Fixtures.org_role_fixture(org, %{name: "Rebooter"})
+
+      conn
+      |> visit("/org/#{org.name}/settings/roles/#{role.id}/edit")
+      |> fill_in("Name", with: "")
+      |> assert_has("div", text: "can't be blank")
+      |> click_button("Save role")
+      |> assert_has("div", text: "can't be blank")
+      |> assert_path("/org/#{org.name}/settings/roles/#{role.id}/edit")
+
+      assert {:ok, %{name: "Rebooter"}} = OrgRoles.get_org_role(org, role.id)
+    end
+
     test "offers the org's other roles to copy from, but not the role itself", %{conn: conn, org: org} do
       role = Fixtures.org_role_fixture(org, %{name: "Rebooter"})
       Fixtures.org_role_fixture(org, %{name: "Uploader"})

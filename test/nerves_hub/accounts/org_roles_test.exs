@@ -15,6 +15,20 @@ defmodule NervesHub.Accounts.OrgRolesTest do
     %{user: user, org: org}
   end
 
+  describe "update_org_role/2" do
+    test "refuses clearing the name, instead of raising", %{org: org} do
+      role = Fixtures.org_role_fixture(org, %{name: "Rebooter"})
+
+      for blank <- ["", "   "] do
+        {:error, changeset} = OrgRoles.update_org_role(role, %{"name" => blank})
+
+        assert %{name: ["can't be blank"]} = errors_on(changeset)
+      end
+
+      assert {:ok, %{name: "Rebooter"}} = OrgRoles.get_org_role(org, role.id)
+    end
+  end
+
   describe "create_org_role/2" do
     test "saves the picked permissions, sorted and without blanks", %{org: org} do
       {:ok, role} =
@@ -38,6 +52,12 @@ defmodule NervesHub.Accounts.OrgRolesTest do
       {:error, changeset} = OrgRoles.create_org_role(org, %{"name" => "Admin"})
 
       assert %{name: ["is the name of a built-in role"]} = errors_on(changeset)
+    end
+
+    test "refuses a blank name", %{org: org} do
+      {:error, changeset} = OrgRoles.create_org_role(org, %{"name" => "   "})
+
+      assert %{name: ["can't be blank"]} = errors_on(changeset)
     end
 
     test "refuses a name another of the org's roles has, whatever its case", %{org: org} do

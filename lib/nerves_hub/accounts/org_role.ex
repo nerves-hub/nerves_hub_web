@@ -37,7 +37,7 @@ defmodule NervesHub.Accounts.OrgRole do
   def changeset(%__MODULE__{} = role, params) do
     role
     |> cast(params, [:name, :description, :permissions])
-    |> update_change(:name, &String.trim/1)
+    |> update_change(:name, &trim/1)
     |> update_change(:permissions, &normalize_permissions/1)
     |> validate_required([:name])
     |> validate_length(:name, max: 50)
@@ -74,6 +74,10 @@ defmodule NervesHub.Accounts.OrgRole do
     |> foreign_key_constraint(:org_role_id)
     |> check_constraint(:role, name: "#{changeset.data.__meta__.source}_one_kind_of_role")
   end
+
+  # Ecto casts a blank name to `nil`, which `validate_required/2` then reports.
+  defp trim(nil), do: nil
+  defp trim(name), do: String.trim(name)
 
   # The form posts an empty string so a role can be saved with nothing picked.
   defp normalize_permissions(permissions) do
