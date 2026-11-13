@@ -7,6 +7,7 @@ defmodule NervesHub.ScriptRunnersTest do
   alias NervesHub.ScriptRunners
   alias NervesHub.ScriptRunners.ScriptRunner
   alias NervesHub.ScriptRunners.ScriptRunnerDevice
+  alias NervesHub.Workers.ScriptRunnerDevice, as: ScriptRunnerDeviceWorker
   alias NervesHub.Workers.ScriptRunnerDispatch
 
   setup do
@@ -642,6 +643,25 @@ defmodule NervesHub.ScriptRunnersTest do
       {:ok, _deleted} = ScriptRunners.delete(doomed, ctx.user, ctx.product)
 
       assert device_row_count(kept.id) == 2
+    end
+
+    # A queued device job carries the script's text, so leaving it behind would
+    # still send the script to a device after the run that chose it is gone.
+    test "the run's queued device jobs are cancelled, and another run's are not", ctx do
+      for _ <- 1..2, do: device(ctx, %{tags: ["production"]})
+
+      {:ok, doomed, []} = create(ctx, %{filter_type: :tags, filter: tag_filter()})
+      {:ok, kept, []} = create(ctx, %{filter_type: :tags, filter: tag_filter()})
+
+      for runner <- [doomed, kept] do
+        assert {:snooze, _} = perform_job(ScriptRunnerDispatch, %{"script_runner_id" => runner.id})
+      end
+
+      {:ok, _deleted} = ScriptRunners.delete(doomed, ctx.user, ctx.product)
+
+      remaining = Enum.map(all_enqueued(worker: ScriptRunnerDeviceWorker), & &1.args["script_runner_id"])
+
+      assert remaining == [kept.id, kept.id]
     end
 
     test "the deletion is recorded in the audit log", ctx do

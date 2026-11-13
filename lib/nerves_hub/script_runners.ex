@@ -417,13 +417,24 @@ defmodule NervesHub.ScriptRunners do
   -- a run can be tens of thousands of devices wide, and the database does that in
   one statement.
 
+  The run's device jobs are cancelled in the same transaction. Each one carries
+  the script's text, so a job left queued would still send the script to its
+  device after the run is gone, with nowhere left to record what came back. One
+  already executing is killed by the cancel too, though its script may already be
+  on the device.
+
   Any dispatch job still queued for the run finds nothing to work on and stops;
   see `NervesHub.Workers.ScriptRunnerDispatch`.
   """
   @spec delete(ScriptRunner.t(), User.t(), Product.t()) ::
           {:ok, ScriptRunner.t()} | {:error, Changeset.t()}
   def delete(%ScriptRunner{} = runner, %User{} = user, %Product{} = product) do
-    case Repo.delete(runner) do
+    Repo.transact(fn ->
+      {:ok, _cancelled} = Oban.cancel_all_jobs(device_jobs(runner.id))
+
+      Repo.delete(runner)
+    end)
+    |> case do
       {:ok, deleted} ->
         :ok = ProductTemplates.audit_script_runner_deleted(user, product, deleted)
 
@@ -432,6 +443,15 @@ defmodule NervesHub.ScriptRunners do
       error ->
         error
     end
+  end
+
+  # Every device job for one run, whatever its state; `Oban.cancel_all_jobs/1`
+  # skips the ones already finished.
+  defp device_jobs(runner_id) do
+    from(j in Oban.Job,
+      where: j.worker == ^@device_worker,
+      where: fragment("(? ->> 'script_runner_id')::bigint = ?", j.args, ^runner_id)
+    )
   end
 
   @doc """
@@ -637,8 +657,13 @@ defmodule NervesHub.ScriptRunners do
 
   Returns how many runs were given a new pacer. Which runs need one is asked of
   the database rather than inferred from what `Oban.insert/1` gives back, so the
-  count means what it says; the dispatch worker's own uniqueness is what stops a
-  duplicate if a run gains a pacer between the query and the insert.
+  count means what it says.
+
+  The jobs go in through `Oban.insert_all/1`, which does not apply the dispatch
+  worker's `unique` option on the basic engine. Nothing here stops a duplicate if
+  a run gains a pacer between the query and the insert. Nothing is expected to:
+  a run's only other pacer is inserted with the run itself, and this function's
+  cron job is unique, so two of these never run at once.
   """
   @spec requeue_stranded_runs() :: non_neg_integer()
   def requeue_stranded_runs() do
