@@ -7,6 +7,7 @@ import "chartjs-adapter-date-fns"
 import TimeAgo from "javascript-time-ago"
 import en from "javascript-time-ago/locale/en"
 
+import ActiveTabInView from "./hooks/activeTabInView.js"
 import AdvancedQueryEditor from "./hooks/advancedQueryEditor.js"
 import BarChart from "./hooks/barChart.js"
 import Chart from "./hooks/chart.js"
@@ -21,6 +22,7 @@ import DonutChart from "./hooks/donutChart.js"
 import Flash from "./hooks/flash.js"
 import HighlightCode from "./hooks/highlightCode.js"
 import { LiveFlowHook } from "live_flow"
+import LoadMoreOnVisible from "./hooks/loadMoreOnVisible.js"
 import LocalShell from "./hooks/localShell.js"
 import PageVisible from "./hooks/pageVisible.js"
 import ScriptAutocomplete from "./hooks/scriptAutocomplete.js"
@@ -64,6 +66,7 @@ let liveSocket = new LiveSocket("/live", Socket, {
     timezone_offset: timezone_offset,
   },
   hooks: {
+    ActiveTabInView,
     AdvancedQueryEditor,
     BarChart,
     Chart,
@@ -78,6 +81,7 @@ let liveSocket = new LiveSocket("/live", Socket, {
     Flash,
     HighlightCode,
     LiveFlow: LiveFlowHook,
+    LoadMoreOnVisible,
     LocalShell,
     PageVisible,
     SharedSecretClipboardClick,

@@ -1,5 +1,6 @@
 import Chart from "chart.js/auto"
-import { MONO_FONT_FAMILY, timeAxis } from "../helpers/timeAxis.js"
+import { whenFontsLoaded } from "../helpers/fonts.js"
+import { MONO_FONT, MONO_FONT_FAMILY, timeAxis } from "../helpers/timeAxis.js"
 
 const valueLabels = {
   id: "valueLabels",
@@ -160,8 +161,8 @@ export default {
       plugins: [valueLabels],
     }
 
-    const chart = new Chart(this.el, areaChartDataset)
-
-    this.el.chart = chart
+    whenFontsLoaded([MONO_FONT], () => {
+      if (this.el.isConnected) this.el.chart = new Chart(this.el, areaChartDataset)
+    })
   },
 }

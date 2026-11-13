@@ -5,6 +5,7 @@ defmodule NervesHubWeb.Endpoint do
   alias NervesHub.Helpers.WebsocketConnectionError
   alias NervesHubWeb.Channels.DeviceJSONSerializer
   alias NervesHubWeb.Channels.DeviceMsgPackSerializer
+  alias NervesHubWeb.Plugs.CacheRawBody
   alias NervesHubWeb.Plugs.ConfigureUploads
   alias NervesHubWeb.Plugs.ImAlive
   alias Phoenix.LiveDashboard.RequestLogger
@@ -63,7 +64,7 @@ defmodule NervesHubWeb.Endpoint do
     "/device-socket",
     NervesHubWeb.DeviceSocket,
     websocket: [
-      connect_info: [:peer_data, :x_headers],
+      connect_info: [:peer_data, :x_headers, :user_agent],
       compress: true,
       timeout: 180_000,
       fullsweep_after: 0,
@@ -115,7 +116,9 @@ defmodule NervesHubWeb.Endpoint do
     Plug.Parsers,
     parsers: [:urlencoded, NervesHubWeb.DynamicConfigMultipart, :json],
     pass: ["*/*"],
-    json_decoder: Phoenix.json_library()
+    json_decoder: Phoenix.json_library(),
+    # Keeps the raw body of requests to /integrations/, whose signatures cover it.
+    body_reader: {CacheRawBody, :read_body, []}
   )
 
   plug(Sentry.PlugContext)

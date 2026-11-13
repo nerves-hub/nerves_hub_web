@@ -197,6 +197,29 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show.SettingsTabTest do
     refute Repo.reload(deployment_group).lock_device_membership
   end
 
+  test "can configure the priority queue", %{conn: conn, deployment_group: deployment_group} do
+    conn
+    |> check("Enable priority queue")
+    |> fill_in("Priority Queue Concurrent Updates", with: "3")
+    |> fill_in("Firmware Version Threshold", with: "1.2.0")
+    |> submit()
+
+    deployment_group = Repo.reload(deployment_group)
+    assert deployment_group.priority_queue_enabled
+    assert deployment_group.priority_queue_concurrent_updates == 3
+    assert deployment_group.priority_queue_firmware_version_threshold == "1.2.0"
+  end
+
+  test "an invalid priority queue threshold shows an error", %{conn: conn, deployment_group: deployment_group} do
+    conn
+    |> check("Enable priority queue")
+    |> fill_in("Firmware Version Threshold", with: "not-a-version")
+    |> submit()
+    |> assert_has("p", text: "must be a valid semantic version")
+
+    refute Repo.reload(deployment_group).priority_queue_enabled
+  end
+
   test "you can delete a deployment group with devices attached to it", %{
     conn: conn,
     org: org,

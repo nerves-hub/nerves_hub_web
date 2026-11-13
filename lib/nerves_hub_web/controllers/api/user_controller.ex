@@ -9,9 +9,10 @@ defmodule NervesHubWeb.API.UserController do
   alias NervesHubWeb.API.Schemas.UserAuthCLISessionStatusResponse
   alias NervesHubWeb.API.Schemas.UserAuthWithNoteRequest
   alias NervesHubWeb.API.Schemas.UserResponse
+  alias NervesHubWeb.Helpers.ClientIP
   alias NervesHubWeb.Plugs.Attack
 
-  plug(Attack when action in [:check_cli_session])
+  plug(Attack when action in [:cli_session, :check_cli_session])
 
   tags(["Auth"])
 
@@ -71,15 +72,23 @@ defmodule NervesHubWeb.API.UserController do
     security: []
   )
 
+  # The URL is the same for every login and the user types the code in there, so
+  # a link can't confirm a login on its own. A link with the token in it let
+  # anyone who started a login send it to someone signed in, and collect a token
+  # for their account when they clicked Confirm.
   def cli_session(conn, params) do
-    Accounts.generate_cli_session_token(params["note"])
+    params["note"]
+    |> Accounts.generate_cli_session_token(ClientIP.request_address(conn))
     |> case do
       {:ok, cli_session} ->
         render(conn,
           token: cli_session.token,
-          url: url(conn, ~p"/auth/cli/#{cli_session.token}"),
+          url: url(conn, ~p"/auth/cli"),
           confirmation_code: cli_session.confirmation_code
         )
+
+      {:error, :invalid_note} ->
+        raise NervesHubWeb.InvalidRequestError, info: "note must be at most 255 characters of printable text"
 
       {:error, :invalid_request} ->
         raise NervesHubWeb.InvalidRequestError, info: "token invalid"

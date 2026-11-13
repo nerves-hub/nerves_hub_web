@@ -6,6 +6,7 @@ alias NervesHub.Workers.CleanUpSoftDeletedDevices
 alias NervesHub.Workers.DeleteExpiredCLISessionRecords
 alias NervesHub.Workers.ExpireInflightUpdates
 alias NervesHub.Workers.FirmwareDeltaTimeout
+alias NervesHub.Workers.QueueStrandedChatEvents
 alias NervesHub.Workers.ScheduleOrgAuditLogTruncation
 alias NervesHubWeb.API.ErrorJSON
 alias Phoenix.LiveView.Engine
@@ -14,6 +15,10 @@ alias Ueberauth.Strategy.Google
 
 # Used by spellweaver
 config :bun, :version, "1.2.18"
+
+# Timestamps render in the viewer's time zone, which needs a real time zone
+# database rather than Elixir's UTC-only default.
+config :elixir, :time_zone_database, Tzdata.TimeZoneDatabase
 
 # Configure esbuild (the version is required)
 config :esbuild,
@@ -57,6 +62,11 @@ config :nerves_hub, NervesHub.Repo,
   queue_target: 500,
   queue_interval: 5_000,
   migration_lock: :pg_advisory_lock
+
+# Webhooks deliver only to public addresses unless this is set; see
+# `NervesHub.Webhooks.Destination`. `WEBHOOKS_ALLOW_PRIVATE_DESTINATIONS`
+# overrides it at runtime.
+config :nerves_hub, NervesHub.Webhooks, allow_private_destinations: false
 
 config :nerves_hub, NervesHubWeb.DeviceEndpoint,
   # Deliberately trusts no forwarding header, unlike the web endpoint: TLS
@@ -109,7 +119,8 @@ config :nerves_hub, Oban,
       {"*/1 * * * *", CleanStaleDeviceConnections},
       {"* * * * *", FirmwareDeltaTimeout},
       {"*/5 * * * *", ExpireInflightUpdates},
-      {"*/15 * * * *", CleanUpSoftDeletedDevices}
+      {"*/15 * * * *", CleanUpSoftDeletedDevices},
+      {"* * * * *", QueueStrandedChatEvents}
     ]
   ],
   queues: [
@@ -125,7 +136,10 @@ config :nerves_hub, Oban,
     firmware_delta_builder: 2,
     firmware_delta_timeout: 1,
     truncate: 1,
-    truncation: 1
+    truncation: 1,
+    slack: 5,
+    chat_webhooks: 5,
+    webhooks: 10
   ]
 
 # How much of a metric report NervesHub will store. Metric names are

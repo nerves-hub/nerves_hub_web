@@ -4,8 +4,14 @@ import { format } from "date-fns"
 // the connection history and the update history read as one chart drawn twice
 // rather than two charts that happen to sit near each other.
 
+// JetBrains Mono is the app's `--font-mono` (see app.css). chart.js draws on a
+// canvas, so it is named here too, ahead of the system fallbacks.
 export const MONO_FONT_FAMILY =
-  "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace"
+  "'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace"
+
+// The face the charts' tick labels, value labels and tooltips draw with. Each
+// chart waits for it before drawing (see `whenFontsLoaded`).
+export const MONO_FONT = `11px ${MONO_FONT_FAMILY}`
 
 // First letter of each weekday, indexed by `Date#getDay()` (0 = Sunday).
 const WEEKDAY_INITIALS = ["S", "M", "T", "W", "T", "F", "S"]

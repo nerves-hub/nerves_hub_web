@@ -31,6 +31,7 @@ defmodule NervesHub.DevicesTest do
   alias NervesHub.Devices.Updates
   alias NervesHub.Firmwares
   alias NervesHub.Firmwares.Firmware
+  alias NervesHub.Firmwares.FirmwareDelta
   alias NervesHub.FirmwareUpdates
   alias NervesHub.Fixtures
   alias NervesHub.ManagedDeployments
@@ -39,6 +40,7 @@ defmodule NervesHub.DevicesTest do
   alias NervesHub.Products
   alias NervesHub.Products.Notification
   alias NervesHub.Repo
+  alias NervesHub.Support.EspIdf
   alias NervesHub.Support.Fwup
   alias NervesHub.Workers.FirmwareDeltaBuilder
   alias Phoenix.Socket.Broadcast
@@ -78,24 +80,109 @@ defmodule NervesHub.DevicesTest do
      }}
   end
 
-  test "create_device with valid parameters", %{
-    org: org,
-    product: product,
-    firmware: firmware
-  } do
-    {:ok, metadata} = Firmwares.metadata_from_firmware(firmware)
+  test "create_device with valid parameters", %{org: org, product: product} do
+    params = %{identifier: "valid identifier", description: "a device", tags: "a, b"}
 
-    params = %{
-      org_id: org.id,
-      product_id: product.id,
-      firmware_metadata: metadata,
-      identifier: "valid identifier"
-    }
+    {:ok, %Devices.Device{} = device} = Devices.create_device(product, params)
 
-    {:ok, %Devices.Device{} = device} = Devices.create_device(params)
+    assert device.identifier == "valid identifier"
+    assert device.description == "a device"
+    assert device.tags == ["a", "b"]
+    assert device.org_id == org.id
+    assert device.product_id == product.id
+  end
 
-    for key <- Map.keys(metadata) do
-      assert Map.get(device.firmware_metadata, key) == Map.get(metadata, key)
+  describe "create_device/2 and the product's default managed updates grant" do
+    test "a new device starts without the grant by default", %{product: product} do
+      {:ok, device} = Devices.create_device(product, %{identifier: "no-grant"})
+
+      refute device.managed_updates_allowed
+    end
+
+    test "a new device takes the grant from its product", %{product: product} do
+      {:ok, product} = Products.update_product(product, %{default_managed_updates_allowed: true})
+
+      {:ok, device} = Devices.create_device(product, %{identifier: "granted"})
+
+      assert device.managed_updates_allowed
+    end
+
+    test "a grant sent in the params is ignored", %{product: product} do
+      {:ok, device} = Devices.create_device(product, %{identifier: "asks", managed_updates_allowed: true})
+
+      refute device.managed_updates_allowed
+    end
+
+    test "changing the product's default moves no existing device", %{device: device, product: product} do
+      {:ok, _product} = Products.update_product(product, %{default_managed_updates_allowed: true})
+
+      refute Repo.reload(device).managed_updates_allowed
+    end
+  end
+
+  describe "create_device/4 and the managed updates grant" do
+    test "the :managed_updates_allowed option sets it, in its own audit entry", %{product: product, user: user} do
+      {:ok, device} = Devices.create_device(product, %{identifier: "granted"}, user, managed_updates_allowed: true)
+
+      assert device.managed_updates_allowed
+      assert Repo.reload(device).managed_updates_allowed
+
+      assert [%{description: description}] = AuditLogs.logs_for(device)
+      assert description == "User #{user.name} allowed device-managed updates for device granted"
+    end
+
+    test "a grant equal to the product's default writes no audit entry", %{product: product, user: user} do
+      {:ok, device} = Devices.create_device(product, %{identifier: "default"}, user, managed_updates_allowed: false)
+
+      refute device.managed_updates_allowed
+      assert AuditLogs.logs_for(device) == []
+    end
+
+    test "a grant sent in the params is ignored", %{product: product, user: user} do
+      {:ok, device} = Devices.create_device(product, %{identifier: "asks", managed_updates_allowed: true}, user, [])
+
+      refute device.managed_updates_allowed
+    end
+  end
+
+  describe "update_device_settings/4 and the update mode" do
+    test "a mode sent in the params is ignored", %{device: device, user: user} do
+      {:ok, device} = Devices.update_device_settings(device, %{update_mode: :off}, user)
+
+      assert device.update_mode == :automatic
+      assert Repo.reload(device).update_mode == :automatic
+    end
+
+    test "the :update_mode option sets it, in its own audit entry", %{device: device, user: user} do
+      {:ok, device} = Devices.update_device_settings(device, %{description: "frozen"}, user, update_mode: :off)
+
+      assert device.description == "frozen"
+      assert device.update_mode == :off
+
+      descriptions = device |> AuditLogs.logs_for() |> Enum.map(& &1.description)
+      assert "User #{user.name} updated device #{device.identifier}" in descriptions
+      assert "User #{user.name} set the update mode for device #{device.identifier} to off" in descriptions
+    end
+  end
+
+  describe "update_device_settings/4 and the managed updates grant" do
+    test "a grant sent in the params is ignored", %{device: device, user: user} do
+      {:ok, device} = Devices.update_device_settings(device, %{managed_updates_allowed: true}, user)
+
+      refute device.managed_updates_allowed
+      refute Repo.reload(device).managed_updates_allowed
+    end
+
+    test "the :managed_updates_allowed option sets it, in its own audit entry", %{device: device, user: user} do
+      {:ok, device} =
+        Devices.update_device_settings(device, %{description: "granted"}, user, managed_updates_allowed: true)
+
+      assert device.description == "granted"
+      assert device.managed_updates_allowed
+
+      descriptions = device |> AuditLogs.logs_for() |> Enum.map(& &1.description)
+      assert "User #{user.name} updated device #{device.identifier}" in descriptions
+      assert "User #{user.name} allowed device-managed updates for device #{device.identifier}" in descriptions
     end
   end
 
@@ -138,6 +225,18 @@ defmodule NervesHub.DevicesTest do
       assert {5, 2} == BulkActions.bulk_create(org.id, product.id, json_import_data, "microchip_trust_and_go")
 
       assert Repo.aggregate(Device, :count) == 5
+    end
+
+    test "imported devices take the product's default grant", %{org: org, product: product} do
+      Repo.delete_all(Device)
+
+      {:ok, product} = Products.update_product(product, %{default_managed_updates_allowed: true})
+
+      json_import_data = File.read!("test/fixtures/devices_bulk_create/microchip_trust_and_go_manifest.json")
+
+      assert {5, 0} == BulkActions.bulk_create(org.id, product.id, json_import_data, "microchip_trust_and_go")
+
+      assert Repo.all(Device) |> Enum.all?(& &1.managed_updates_allowed)
     end
   end
 
@@ -210,7 +309,7 @@ defmodule NervesHub.DevicesTest do
       {:ok, device} =
         Devices.update_firmware_metadata(
           device,
-          %{metadata | uuid: UUIDv7.autogenerate()},
+          %{metadata | uuid: Ecto.UUID.generate(version: 7)},
           :unknown,
           false
         )
@@ -232,7 +331,7 @@ defmodule NervesHub.DevicesTest do
       {:ok, device} =
         Devices.update_firmware_metadata(
           device,
-          %{metadata | uuid: UUIDv7.autogenerate()},
+          %{metadata | uuid: Ecto.UUID.generate(version: 7)},
           :unknown,
           false
         )
@@ -268,13 +367,10 @@ defmodule NervesHub.DevicesTest do
     # with `nil` for `updated_metadata`, which then crashed inside
     # `Map.from_struct(nil)` and took the channel join down with it.
     test "tolerates a nil updated_metadata on a device with no firmware_metadata", %{
-      org: org,
       product: product
     } do
       {:ok, device} =
-        Devices.create_device(%{
-          org_id: org.id,
-          product_id: product.id,
+        Devices.create_device(product, %{
           identifier: "device-without-firmware-metadata-#{System.unique_integer([:positive])}"
         })
 
@@ -296,13 +392,10 @@ defmodule NervesHub.DevicesTest do
     end
 
     test "raises a product notification when a device connects with no firmware_metadata", %{
-      org: org,
       product: product
     } do
       {:ok, device} =
-        Devices.create_device(%{
-          org_id: org.id,
-          product_id: product.id,
+        Devices.create_device(product, %{
           identifier: "device-without-firmware-metadata-#{System.unique_integer([:positive])}"
         })
 
@@ -322,13 +415,10 @@ defmodule NervesHub.DevicesTest do
     end
 
     test "de-duplicates the missing firmware_metadata notification across repeated connections", %{
-      org: org,
       product: product
     } do
       {:ok, device} =
-        Devices.create_device(%{
-          org_id: org.id,
-          product_id: product.id,
+        Devices.create_device(product, %{
           identifier: "device-without-firmware-metadata-#{System.unique_integer([:positive])}"
         })
 
@@ -349,13 +439,10 @@ defmodule NervesHub.DevicesTest do
     # telemetry payload dereferenced `device.firmware_metadata.uuid`
     # and crashed.
     test "tolerates a device with no firmware_metadata", %{
-      org: org,
       product: product
     } do
       {:ok, device} =
-        Devices.create_device(%{
-          org_id: org.id,
-          product_id: product.id,
+        Devices.create_device(product, %{
           identifier: "device-without-firmware-metadata-#{System.unique_integer([:positive])}"
         })
 
@@ -368,6 +455,32 @@ defmodule NervesHub.DevicesTest do
     {:ok, _device} = Devices.delete_device(device)
 
     assert {:error, _} = Devices.get_device_by_org(org, device.id)
+  end
+
+  test "delete_device takes a connected device out of its deployment group and disconnects it", %{
+    device: device,
+    deployment_group: deployment_group
+  } do
+    Fixtures.device_connection_fixture(device)
+
+    # On other firmware than the deployment group's release, so it has an update to take
+    {:ok, device} =
+      Devices.update_firmware_metadata(device, %{"uuid" => Ecto.UUID.generate()}, :validated, false)
+
+    {:ok, device} = Devices.update_device(device, %{deployment_id: deployment_group.id})
+
+    device_id = device.id
+    assert [%Device{id: ^device_id}] = Updates.available_for_update(deployment_group, 10)
+
+    Phoenix.PubSub.subscribe(NervesHub.PubSub, "device_socket:#{device.id}")
+
+    assert {:ok, deleted} = Devices.delete_device(device)
+
+    assert deleted.deleted_at
+    refute deleted.deployment_id
+    refute Repo.reload(deleted).deployment_id
+    assert_receive %Broadcast{event: "disconnect"}
+    assert Updates.available_for_update(deployment_group, 10) == []
   end
 
   test "destroy_device", %{device: device} do
@@ -958,6 +1071,24 @@ defmodule NervesHub.DevicesTest do
       refute_receive %Broadcast{topic: ^topic, event: "update"}, 200
     end
 
+    # Skipping the queue, or the orchestrator scheduling a device that got an
+    # update some other way in the meantime, used to crash on the inflight row's
+    # unique index.
+    test "schedule_update is refused while the device is already updating", %{
+      device: device,
+      deployment_group: deployment_group,
+      user: user
+    } do
+      topic = "device:#{device.id}"
+
+      assert :ok = DeviceEvents.device_requested_update(device)
+      Phoenix.PubSub.subscribe(NervesHub.PubSub, topic)
+
+      assert {:error, :already_updating} = DeviceEvents.schedule_update(device.id, deployment_group, user: user)
+      assert {:error, :already_updating} = DeviceEvents.schedule_update(device.id, deployment_group)
+      refute_receive %Broadcast{topic: ^topic, event: "update"}, 200
+    end
+
     # The row survives the reboot, so the device is not given a second update
     # while it is on its way back up.
     test "device_requested_update is refused while the device is rebooting", %{device: device} do
@@ -1016,7 +1147,7 @@ defmodule NervesHub.DevicesTest do
 
       devices = for _ <- 1..3, do: Fixtures.device_fixture(org, product, firmware)
 
-      %{devices: devices, bulk_user: user}
+      %{devices: devices, bulk_user: user, bulk_product: product}
     end
 
     test "set_update_mode_for_devices/3 accepts a list", %{devices: devices, bulk_user: user} do
@@ -1057,6 +1188,139 @@ defmodule NervesHub.DevicesTest do
         assert [audit_log] = AuditLogs.logs_for(device)
         assert audit_log.description =~ "allowed device-managed updates"
       end
+    end
+
+    test "set_managed_updates_allowed_for_product/3 changes every device in the product, audited per device", %{
+      devices: devices,
+      bulk_product: product,
+      bulk_user: user,
+      device: other_products_device
+    } do
+      assert %{ok: 3, error: 0} = BulkActions.set_managed_updates_allowed_for_product(product, true, user)
+
+      for device <- devices do
+        assert Repo.reload(device).managed_updates_allowed
+        assert [audit_log] = AuditLogs.logs_for(device)
+        assert audit_log.description =~ "allowed device-managed updates"
+      end
+
+      refute Repo.reload(other_products_device).managed_updates_allowed
+
+      assert %{ok: 3, error: 0} = BulkActions.set_managed_updates_allowed_for_product(product, false, user)
+
+      refute Enum.any?(devices, &Repo.reload(&1).managed_updates_allowed)
+    end
+
+    test "set_managed_updates_allowed_for_product/3 counts only devices that change, and skips deleted ones", %{
+      devices: [already_granted, ungranted, deleted],
+      bulk_product: product,
+      bulk_user: user
+    } do
+      {:ok, _} = Updates.set_managed_updates_allowed(already_granted, true, user)
+      {:ok, _} = Devices.delete_device(deleted)
+
+      assert %{ok: 1, error: 0} = BulkActions.set_managed_updates_allowed_for_product(product, true, user)
+
+      assert Repo.reload(ungranted).managed_updates_allowed
+      refute Repo.reload(deleted).managed_updates_allowed
+    end
+
+    test "set_managed_updates_allowed_for_product/3 tells each device's connection", %{
+      devices: devices,
+      bulk_product: product,
+      bulk_user: user
+    } do
+      for device <- devices, do: Phoenix.PubSub.subscribe(NervesHub.PubSub, "device:#{device.id}")
+
+      %{ok: 3} = BulkActions.set_managed_updates_allowed_for_product(product, true, user)
+
+      for device <- devices do
+        topic = "device:#{device.id}"
+        assert_receive %Broadcast{topic: ^topic, event: "updated"}
+      end
+    end
+
+    test "set_extension_for_product/4 changes one extension on every device in the product", %{
+      devices: devices,
+      bulk_product: product,
+      bulk_user: user,
+      device: other_products_device
+    } do
+      assert {:ok, 3} = BulkActions.set_extension_for_product(product, "geo", false, user)
+
+      for device <- devices do
+        extensions = Repo.reload(device).extensions
+        refute extensions.geo
+        assert extensions.health
+        assert extensions.logging
+      end
+
+      assert Repo.reload(other_products_device).extensions.geo
+
+      assert {:ok, 3} = BulkActions.set_extension_for_product(product, :geo, true, user)
+
+      assert Enum.all?(devices, &Repo.reload(&1).extensions.geo)
+    end
+
+    test "set_extension_for_product/4 counts only devices that change, and skips deleted ones", %{
+      devices: [already_off, on, deleted],
+      bulk_product: product,
+      bulk_user: user
+    } do
+      {:ok, _} = Devices.disable_extension_setting(already_off, "geo")
+      {:ok, _} = Devices.delete_device(deleted)
+
+      assert {:ok, 1} = BulkActions.set_extension_for_product(product, "geo", false, user)
+
+      refute Repo.reload(on).extensions.geo
+      assert Repo.reload(deleted).extensions.geo
+    end
+
+    test "set_extension_for_product/4 is audited once, against the product", %{
+      devices: devices,
+      bulk_product: product,
+      bulk_user: user
+    } do
+      {:ok, 3} = BulkActions.set_extension_for_product(product, "geo", false, user)
+      # Nothing left to change, so nothing to audit.
+      {:ok, 0} = BulkActions.set_extension_for_product(product, "geo", false, user)
+
+      assert [audit_log] = Enum.filter(AuditLogs.logs_for(product), &(&1.description =~ "extension"))
+      assert audit_log.description =~ "disabled the geo extension on 3 device(s)"
+
+      for device <- devices, do: assert(AuditLogs.logs_for(device) == [])
+    end
+
+    test "set_extension_for_product/4 is announced only while the product allows the extension", %{
+      bulk_product: product,
+      bulk_user: user
+    } do
+      {:ok, _} = Products.disable_extension_setting(product, "geo")
+      :ok = NervesHub.Extensions.PubSub.subscribe_product(product.id)
+
+      # The product-wide fan-out skips the process that sends it, as a device's
+      # own change does, so the change is made from another one.
+      set_extension = fn enabled ->
+        Task.await(Task.async(fn -> BulkActions.set_extension_for_product(product, "geo", enabled, user) end))
+      end
+
+      {:ok, 3} = set_extension.(false)
+      refute_receive %Broadcast{event: "detach"}
+
+      {:ok, _} = Products.enable_extension_setting(product, "geo")
+
+      {:ok, 3} = set_extension.(true)
+      assert_receive %Broadcast{event: "attach", payload: %{"extensions" => ["geo"]}}
+
+      {:ok, 0} = set_extension.(true)
+      refute_receive %Broadcast{event: "attach"}
+    end
+
+    test "set_extension_for_product/4 refuses an extension the platform doesn't have", %{
+      bulk_product: product,
+      bulk_user: user
+    } do
+      assert {:error, :unknown_extension} = BulkActions.set_extension_for_product(product, "teleport", true, user)
     end
   end
 
@@ -1239,32 +1503,15 @@ defmodule NervesHub.DevicesTest do
     assert [] = Certificates.get_device_certificates(device)
   end
 
-  test "create_device with invalid parameters", %{firmware: firmware} do
-    params = %{
-      identifier: "valid identifier",
-      architecture: firmware.architecture,
-      platform: firmware.platform
-    }
-
-    assert {:error, %Changeset{}} = Devices.create_device(params)
+  test "create_device with invalid parameters", %{product: product} do
+    assert {:error, %Changeset{}} = Devices.create_device(product, %{description: "no identifier"})
   end
 
-  test "cannot create two devices with the same identifier", %{
-    org: org,
-    product: product,
-    firmware: firmware
-  } do
-    {:ok, metadata} = Firmwares.metadata_from_firmware(firmware)
+  test "cannot create two devices with the same identifier", %{product: product} do
+    params = %{identifier: "valid identifier"}
 
-    params = %{
-      org_id: org.id,
-      product_id: product.id,
-      firmware_metadata: metadata,
-      identifier: "valid identifier"
-    }
-
-    assert {:ok, %Devices.Device{}} = Devices.create_device(params)
-    assert {:error, %Ecto.Changeset{}} = Devices.create_device(params)
+    assert {:ok, %Devices.Device{}} = Devices.create_device(product, params)
+    assert {:error, %Ecto.Changeset{}} = Devices.create_device(product, params)
   end
 
   test "create device certificate", %{device: device, cert: cert} do
@@ -1436,6 +1683,28 @@ defmodule NervesHub.DevicesTest do
     assert {:error, :not_found} = Devices.get_by_identifier(scope, "non existing identifier")
   end
 
+  test "get_device_by_identifier by membership alone leaves out a deleted org's devices", %{
+    user: user,
+    org: org,
+    device: device
+  } do
+    scope = Scope.for_user(user)
+    assert {:ok, _device} = Devices.get_by_identifier(scope, device.identifier)
+
+    {:ok, _org} = Accounts.soft_delete_org(org)
+
+    assert {:error, :not_found} = Devices.get_by_identifier(scope, device.identifier)
+  end
+
+  test "get_devices_by_id leaves out a deleted org's devices", %{user: user, org: org, device: device} do
+    scope = Scope.for_user(user)
+    assert [%Device{}] = Devices.get_devices_by_id(scope, [device.id])
+
+    {:ok, _org} = Accounts.soft_delete_org(org)
+
+    assert [] = Devices.get_devices_by_id(scope, [device.id])
+  end
+
   test "matches_deployment_group? works when device and/or deployment tags are nil", %{
     deployment_group: deployment_group,
     device: device
@@ -1461,6 +1730,189 @@ defmodule NervesHub.DevicesTest do
              })
 
     assert auth.product_shared_secret_auth_id == product_ssa_id
+  end
+
+  describe "issue_shared_secret_auth/2" do
+    test "creates a key, records who created it, and audits it", %{device: device, user: user} do
+      assert {:ok, auth} = Devices.issue_shared_secret_auth(device, user)
+
+      assert auth.created_by_id == user.id
+      assert [%{id: id, created_by: %{id: created_by_id}}] = Devices.list_shared_secret_auths(device)
+      assert {id, created_by_id} == {auth.id, user.id}
+      assert [audit_log] = AuditLogs.logs_for(device)
+      assert audit_log.actor_id == user.id
+
+      assert audit_log.description ==
+               "User #{user.name} created shared secret #{auth.key} for device #{device.identifier}"
+    end
+
+    test "lists the device's keys without their secrets", %{device: device, user: user} do
+      {:ok, auth} = Devices.issue_shared_secret_auth(device, user)
+
+      assert [%{key: key, secret: nil, created_by: %{id: created_by_id}}] = Devices.list_shared_secret_auths(device)
+      assert {key, created_by_id} == {auth.key, user.id}
+    end
+
+    test "never shows a secret when inspected", %{device: device, user: user} do
+      {:ok, auth} = Devices.issue_shared_secret_auth(device, user)
+
+      refute inspect(auth) =~ auth.secret
+    end
+
+    test "refuses when shared secrets aren't enabled, and creates nothing", %{device: device, user: user} do
+      stub(NervesHub.DeviceLink, :shared_secrets_enabled?, fn -> false end)
+
+      assert {:error, :shared_secrets_not_enabled} = Devices.issue_shared_secret_auth(device, user)
+      assert Devices.list_shared_secret_auths(device) == []
+      assert AuditLogs.logs_for(device) == []
+    end
+  end
+
+  test "a user who issued a key keeps it attributed to them, so they cannot be hard deleted", %{device: device} do
+    user = Fixtures.user_fixture()
+    {:ok, _auth} = Devices.issue_shared_secret_auth(device, user)
+
+    assert_raise Postgrex.Error, ~r/device_shared_secret_auths_created_by_id_fkey/, fn ->
+      Repo.delete_all(from(u in User, where: u.id == ^user.id))
+    end
+  end
+
+  describe "create_device_with_shared_secret_auth/3" do
+    test "creates the device and its shared secret together, and audits it", %{product: product, user: user} do
+      assert {:ok, {device, auth}} =
+               Devices.create_device_with_shared_secret_auth(product, %{identifier: "provisioned-device"}, user)
+
+      assert auth.device_id == device.id
+      assert auth.created_by_id == user.id
+      assert [%{id: id}] = Devices.list_shared_secret_auths(device)
+      assert id == auth.id
+      assert [%{actor_id: actor_id}] = AuditLogs.logs_for(device)
+      assert actor_id == user.id
+    end
+
+    test "creates no secret when the device cannot be created", %{product: product, user: user} do
+      params = %{identifier: "provisioned-device"}
+
+      assert {:ok, _} = Devices.create_device_with_shared_secret_auth(product, params, user)
+      assert {:error, %Changeset{}} = Devices.create_device_with_shared_secret_auth(product, params, user)
+
+      assert Repo.aggregate(SharedSecretAuth, :count) == 1
+    end
+
+    test "creates no device when its secret can't be created", %{product: product} do
+      params = %{identifier: "provisioned-device"}
+      # No such user, so the secret's created_by foreign key fails after the
+      # device has been inserted.
+      missing_user = %User{id: -1, name: "Missing"}
+
+      assert {:error, %Changeset{errors: [created_by_id: _]}} =
+               Devices.create_device_with_shared_secret_auth(product, params, missing_user)
+
+      assert {:error, :not_found} = Devices.get_device_by(identifier: "provisioned-device")
+    end
+
+    test "creates no device when shared secrets aren't enabled", %{product: product, user: user} do
+      stub(NervesHub.DeviceLink, :shared_secrets_enabled?, fn -> false end)
+      params = %{identifier: "provisioned-device"}
+
+      assert {:error, :shared_secrets_not_enabled} =
+               Devices.create_device_with_shared_secret_auth(product, params, user)
+
+      assert {:error, :not_found} = Devices.get_device_by(identifier: "provisioned-device")
+    end
+  end
+
+  describe "mark_last_used/1" do
+    test "records when a key was last used, without touching updated_at", %{device: device} do
+      {:ok, auth} = Devices.create_shared_secret_auth(device)
+
+      assert :ok = Devices.mark_last_used(auth)
+
+      reloaded = Repo.reload(auth)
+      assert %DateTime{} = reloaded.last_used
+      assert reloaded.updated_at == auth.updated_at
+    end
+
+    test "leaves a recent mark alone", %{device: device} do
+      {:ok, auth} = Devices.create_shared_secret_auth(device)
+      recent = DateTime.add(DateTime.utc_now(:second), -60, :second)
+      {:ok, auth} = auth |> Changeset.change(last_used: recent) |> Repo.update()
+
+      assert :ok = Devices.mark_last_used(auth)
+
+      assert Repo.reload(auth).last_used == recent
+    end
+
+    test "replaces a mark older than 15 minutes", %{device: device} do
+      {:ok, auth} = Devices.create_shared_secret_auth(device)
+      stale = DateTime.add(DateTime.utc_now(:second), -16 * 60, :second)
+      {:ok, auth} = auth |> Changeset.change(last_used: stale) |> Repo.update()
+
+      assert :ok = Devices.mark_last_used(auth)
+
+      assert DateTime.after?(Repo.reload(auth).last_used, stale)
+    end
+  end
+
+  describe "deactivate_shared_secret_auth/3" do
+    test "stops the key from authenticating, keeps it on the device, and audits it", %{
+      device: device,
+      user: user
+    } do
+      {:ok, auth} = Devices.create_shared_secret_auth(device)
+
+      assert {:ok, %{deactivated_at: %DateTime{}}} = Devices.deactivate_shared_secret_auth(device, auth.key, user)
+      assert {:error, :not_found} = Devices.get_shared_secret_auth(auth.key)
+      assert [%{deactivated_at: %DateTime{}, deactivated_by: deactivated_by}] = Devices.list_shared_secret_auths(device)
+      assert deactivated_by.id == user.id
+
+      assert [audit_log] = AuditLogs.logs_for(device)
+      assert audit_log.actor_id == user.id
+
+      assert audit_log.description ==
+               "User #{user.name} deactivated shared secret #{auth.key} for device #{device.identifier}"
+    end
+
+    test "closes the connections made with the key, and no others", %{device: device, user: user} do
+      {:ok, auth} = Devices.create_shared_secret_auth(device)
+      Phoenix.PubSub.subscribe(NervesHub.PubSub, DeviceEvents.shared_secret_topic(auth.key))
+      Phoenix.PubSub.subscribe(NervesHub.PubSub, "device_socket:#{device.id}")
+
+      assert {:ok, _} = Devices.deactivate_shared_secret_auth(device, auth.key, user)
+
+      shared_secret_topic = DeviceEvents.shared_secret_topic(auth.key)
+      assert_receive %Broadcast{event: "disconnect", topic: ^shared_secret_topic}
+      refute_receive %Broadcast{event: "disconnect"}
+    end
+
+    test "returns not found for an already deactivated key, and leaves it as it was", %{
+      device: device,
+      user: user
+    } do
+      {:ok, auth} = Devices.create_shared_secret_auth(device)
+      {:ok, deactivated} = Devices.deactivate_shared_secret_auth(device, auth.key, user)
+      Phoenix.PubSub.subscribe(NervesHub.PubSub, DeviceEvents.shared_secret_topic(auth.key))
+
+      assert {:error, :not_found} = Devices.deactivate_shared_secret_auth(device, auth.key, user)
+      assert Repo.get!(SharedSecretAuth, auth.id).deactivated_at == deactivated.deactivated_at
+      assert [_] = AuditLogs.logs_for(device)
+      refute_receive %Broadcast{event: "disconnect"}
+    end
+
+    test "returns not found for another device's key, and leaves it active", %{
+      device: device,
+      product: product,
+      user: user
+    } do
+      {:ok, other_device} =
+        Devices.create_device(product, %{identifier: "other-device"})
+
+      {:ok, other_auth} = Devices.create_shared_secret_auth(other_device)
+
+      assert {:error, :not_found} = Devices.deactivate_shared_secret_auth(device, other_auth.key, user)
+      assert {:ok, _} = Devices.get_shared_secret_auth(other_auth.key)
+      assert AuditLogs.logs_for(other_device) == []
+    end
   end
 
   describe "tracking update attempts and verifying eligibility" do
@@ -1915,6 +2367,47 @@ defmodule NervesHub.DevicesTest do
         args: %{"source_id" => device_firmware.id, "target_id" => target_firmware.id}
       )
     end
+
+    # Devices joining together each start the group's missing deltas in their
+    # own transaction. Each insert locks its row until commit, so two joins
+    # taking the same rows in different orders deadlock. Starting them in one
+    # order, whatever order the devices are found in, is what prevents it.
+    test "starts the group's deltas in one order", %{
+      org: org,
+      org_key: org_key,
+      product: product,
+      user: user,
+      tmp_dir: tmp_dir
+    } do
+      target = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+
+      deployment_group =
+        Fixtures.deployment_group_fixture(target, %{is_active: true, delta_updatable: true, user: user})
+
+      # Already in the group, on firmware with no delta started yet
+      sources =
+        for _ <- 1..6 do
+          source = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+          _ = Fixtures.device_fixture(org, product, source, %{deployment_id: deployment_group.id})
+          source
+        end
+
+      # A handful of rows gets a sorting plan, which returns them in order by
+      # chance. A larger group gets a hashing one, which does not; force that.
+      _ = Repo.query!("SET LOCAL enable_sort = off")
+
+      _ =
+        Fixtures.device_fixture(org, product, List.first(sources))
+        |> Deployments.update_deployment_group(deployment_group)
+
+      started =
+        FirmwareDelta
+        |> order_by(:id)
+        |> select([fd], {fd.source_id, fd.target_id})
+        |> Repo.all()
+
+      assert started == Enum.sort(for source <- sources, do: {source.id, target.id})
+    end
   end
 
   describe "move_many_to_deployment_group/3" do
@@ -2077,6 +2570,144 @@ defmodule NervesHub.DevicesTest do
     end
   end
 
+  describe "move/3 and signing keys" do
+    setup %{user: user} do
+      target_org = Fixtures.org_fixture(user, %{name: "key-receiving-org"})
+      target_product = Fixtures.product_fixture(user, target_org)
+
+      # Not the user who registered the key, so the copy can be seen to record
+      # who moved the device rather than carry the original creator over.
+      mover = Fixtures.user_fixture()
+
+      %{target_org: target_org, target_product: target_product, mover: mover}
+    end
+
+    test "a move to another org copies the key the device's firmware is signed with", %{
+      device: device,
+      org_key: org_key,
+      target_org: target_org,
+      target_product: target_product,
+      mover: mover
+    } do
+      {:ok, _} = Devices.move(device, target_product, mover)
+
+      assert [copied] = Accounts.list_org_keys(target_org.id, false)
+      assert copied.name == org_key.name
+      assert copied.key == org_key.key
+      assert copied.scheme == :ed25519
+      assert copied.created_by_id == mover.id
+    end
+
+    test "the copied key keeps its scheme", %{
+      org: org,
+      user: user,
+      target_org: target_org,
+      mover: mover,
+      tmp_dir: tmp_dir
+    } do
+      esp_product = Fixtures.esp_idf_product_fixture(user, org)
+      esp_key = Fixtures.esp_idf_key_fixture(org, user)
+      {:ok, path} = EspIdf.create_firmware(esp_product.name, dir: tmp_dir)
+      {:ok, esp_firmware} = Firmwares.create_firmware(org, path)
+      esp_device = Fixtures.device_fixture(org, esp_product, esp_firmware)
+
+      target_product = Fixtures.esp_idf_product_fixture(user, target_org)
+
+      {:ok, _} = Devices.move(esp_device, target_product, mover)
+
+      assert [copied] = Accounts.list_org_keys(target_org.id, false)
+      assert copied.key == esp_key.key
+      assert copied.scheme == :secure_boot_v2_rsa
+    end
+
+    # A firmware's uuid is only unique within a product, so the lookup can find
+    # the device's firmware more than once in the org it is leaving.
+    test "firmware held by more than one product is copied once", %{
+      device: device,
+      firmware: firmware,
+      org: org,
+      org_key: org_key,
+      user: user,
+      target_org: target_org,
+      target_product: target_product,
+      mover: mover,
+      tmp_dir: tmp_dir
+    } do
+      other_product = Fixtures.product_fixture(user, org)
+      other_firmware = Fixtures.firmware_fixture(org_key, other_product, %{dir: tmp_dir})
+
+      {1, _} =
+        Firmware
+        |> where(id: ^other_firmware.id)
+        |> Repo.update_all(set: [uuid: firmware.uuid])
+
+      {:ok, _} = Devices.move(device, target_product, mover)
+
+      assert [copied] = Accounts.list_org_keys(target_org.id, false)
+      assert copied.key == org_key.key
+    end
+
+    test "a move that fails copies nothing", %{
+      device: device,
+      target_org: target_org,
+      target_product: target_product,
+      mover: mover
+    } do
+      # A soft deleted device refuses the update the move is made of.
+      {:ok, deleted} = Devices.delete_device(device)
+
+      assert {:error, :move, _changeset, _} = Devices.move(deleted, target_product, mover)
+
+      assert Accounts.list_org_keys(target_org.id, false) == []
+    end
+
+    test "a target org that already has the key gets no second copy", %{
+      device: device,
+      org_key: org_key,
+      user: user,
+      target_org: target_org,
+      target_product: target_product,
+      mover: mover
+    } do
+      {:ok, existing} =
+        Accounts.create_org_key(target_org, user, %{
+          name: "same-key-other-name",
+          key: org_key.key
+        })
+
+      {:ok, _} = Devices.move(device, target_product, mover)
+
+      assert [kept] = Accounts.list_org_keys(target_org.id, false)
+      assert kept.id == existing.id
+    end
+
+    test "a key whose name the target org already uses is skipped, and the move goes ahead", %{
+      device: device,
+      org_key: org_key,
+      user: user,
+      target_org: target_org,
+      target_product: target_product,
+      mover: mover
+    } do
+      {other_public_key, _private_key} = :crypto.generate_key(:eddsa, :ed25519)
+
+      {:ok, existing} =
+        Accounts.create_org_key(target_org, user, %{
+          name: org_key.name,
+          key: Base.encode64(other_public_key)
+        })
+
+      # The copy runs in the move's transaction, so a unique violation raised
+      # here would abort the move rather than skip the key.
+      assert {:ok, moved} = Devices.move(device, target_product, mover)
+      assert moved.org_id == target_org.id
+
+      assert [kept] = Accounts.list_org_keys(target_org.id, false)
+      assert kept.id == existing.id
+      assert kept.key == existing.key
+    end
+  end
+
   describe "move_many/3" do
     test "many devices can be moved to a product", %{
       org: org,
@@ -2166,7 +2797,7 @@ defmodule NervesHub.DevicesTest do
             device,
             Map.from_struct(%{
               device.firmware_metadata
-              | uuid: UUIDv7.autogenerate()
+              | uuid: Ecto.UUID.generate(version: 7)
             }),
             :unknown,
             false
@@ -2230,7 +2861,7 @@ defmodule NervesHub.DevicesTest do
             device,
             Map.from_struct(%{
               device.firmware_metadata
-              | uuid: UUIDv7.autogenerate()
+              | uuid: Ecto.UUID.generate(version: 7)
             }),
             :unknown,
             false
@@ -2286,7 +2917,7 @@ defmodule NervesHub.DevicesTest do
             device,
             Map.from_struct(%{
               device.firmware_metadata
-              | uuid: UUIDv7.autogenerate()
+              | uuid: Ecto.UUID.generate(version: 7)
             }),
             :unknown,
             false
@@ -2336,7 +2967,7 @@ defmodule NervesHub.DevicesTest do
             device,
             Map.from_struct(%{
               device.firmware_metadata
-              | uuid: UUIDv7.autogenerate()
+              | uuid: Ecto.UUID.generate(version: 7)
             }),
             :unknown,
             false
@@ -2394,7 +3025,7 @@ defmodule NervesHub.DevicesTest do
             device,
             Map.from_struct(%{
               device.firmware_metadata
-              | uuid: UUIDv7.autogenerate()
+              | uuid: Ecto.UUID.generate(version: 7)
             }),
             :unknown,
             false
@@ -2444,7 +3075,7 @@ defmodule NervesHub.DevicesTest do
             device,
             Map.from_struct(%{
               device.firmware_metadata
-              | uuid: UUIDv7.autogenerate()
+              | uuid: Ecto.UUID.generate(version: 7)
             }),
             :unknown,
             false
@@ -2512,7 +3143,7 @@ defmodule NervesHub.DevicesTest do
             device,
             Map.from_struct(%{
               device.firmware_metadata
-              | uuid: UUIDv7.autogenerate()
+              | uuid: Ecto.UUID.generate(version: 7)
             }),
             :unknown,
             false
@@ -2839,7 +3470,7 @@ defmodule NervesHub.DevicesTest do
       {:ok, device} =
         Devices.update_firmware_metadata(
           device,
-          %{"uuid" => UUIDv7.autogenerate()},
+          %{"uuid" => Ecto.UUID.generate(version: 7)},
           :unknown,
           false
         )
@@ -2849,6 +3480,39 @@ defmodule NervesHub.DevicesTest do
       available = Updates.available_for_update(deployment_group, 10)
       assert length(available) == 1
       assert hd(available).id == device.id
+    end
+
+    test "is not misled by deleted firmware sharing a uuid with what a device runs", %{
+      deployment_group: deployment_group,
+      org: org,
+      org_key: org_key,
+      product: product,
+      tmp_dir: tmp_dir
+    } do
+      current_firmware = deployment_group.current_release.firmware
+      old_firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+      _ = Fixtures.deleted_firmware_twin_fixture(current_firmware)
+      _ = Fixtures.deleted_firmware_twin_fixture(old_firmware)
+
+      # Already on the current release, so there is nothing to offer it
+      on_current = Fixtures.device_fixture(org, product, current_firmware, %{deployment_id: deployment_group.id})
+
+      # Behind, and offered the update once
+      %{id: behind_id} =
+        behind = Fixtures.device_fixture(org, product, old_firmware, %{deployment_id: deployment_group.id})
+
+      for device <- [on_current, behind] do
+        %DeviceConnection{}
+        |> Ecto.Changeset.change(%{
+          device_id: device.id,
+          established_at: DateTime.utc_now(),
+          last_seen_at: DateTime.utc_now(),
+          status: :connected
+        })
+        |> Repo.insert!()
+      end
+
+      assert [%{id: ^behind_id}] = Updates.available_for_update(deployment_group, 10)
     end
   end
 
@@ -2916,15 +3580,13 @@ defmodule NervesHub.DevicesTest do
       # two products with the same name (this test uploads two firmwares sharing
       # a version, so it opts out of the unique-firmware-version requirement)
       {:ok, product_one} =
-        Products.create_product(%{
-          org_id: org_one.id,
+        Products.create_product(org_one, %{
           name: "Same Product Name",
           require_unique_firmware_version: false
         })
 
       {:ok, _product_two} =
-        Products.create_product(%{
-          org_id: org_two.id,
+        Products.create_product(org_two, %{
           name: "Same Product Name",
           require_unique_firmware_version: false
         })
@@ -3092,6 +3754,34 @@ defmodule NervesHub.DevicesTest do
       assert Enum.member?(pairs, {firmware3.id, firmware.id})
       assert Enum.member?(pairs, {firmware4.id, firmware.id})
     end
+
+    test "leaves out deleted firmware", %{
+      org_key: org_key,
+      product: product,
+      org: org,
+      user: user,
+      deployment_group: deployment_group,
+      firmware: firmware,
+      tmp_dir: tmp_dir
+    } do
+      # Already on the release's firmware, whose uuid a deleted row also carries
+      _ = Fixtures.deleted_firmware_twin_fixture(firmware)
+
+      _ =
+        Fixtures.device_fixture(org, product, firmware)
+        |> Deployments.update_deployment_group(deployment_group)
+
+      # On firmware that has since been deleted, with no file left to build from
+      deleted_firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+
+      _ =
+        Fixtures.device_fixture(org, product, deleted_firmware)
+        |> Deployments.update_deployment_group(deployment_group)
+
+      {:ok, _} = Firmwares.delete_firmware(deleted_firmware, user)
+
+      assert Deployments.get_device_firmware_for_delta_generation_by_deployment_group(deployment_group.id) == []
+    end
   end
 
   describe "delta_ready?/2" do
@@ -3146,6 +3836,22 @@ defmodule NervesHub.DevicesTest do
       %{status: :completed} = Fixtures.firmware_delta_fixture(firmware, firmware2)
 
       assert Firmwares.delta_ready?(device, firmware2)
+    end
+
+    test "finds the delta when a deleted firmware shares the device's firmware uuid", %{
+      device: device,
+      firmware: firmware,
+      org_key: org_key,
+      product: product,
+      tmp_dir: tmp_dir
+    } do
+      _ = Fixtures.deleted_firmware_twin_fixture(firmware)
+      firmware2 = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+      delta = Fixtures.firmware_delta_fixture(firmware, firmware2)
+
+      assert Firmwares.delta_ready?(device, firmware2)
+      assert {:ok, found} = Firmwares.get_delta(device, firmware2)
+      assert found.id == delta.id
     end
   end
 
@@ -3477,5 +4183,20 @@ defmodule NervesHub.DevicesTest do
       org_id: device.org_id,
       product_id: device.product_id
     }
+  end
+
+  describe "count_by_product/1" do
+    test "counts each product's devices, leaving out deleted ones", context do
+      %{user: user, org: org, product: product, device: device} = context
+
+      other_product = Fixtures.product_fixture(user, org)
+      {:ok, _} = Devices.delete_device(device)
+
+      assert Devices.count_by_product([product.id, other_product.id]) == %{product.id => 2}
+    end
+
+    test "is empty for no products" do
+      assert Devices.count_by_product([]) == %{}
+    end
   end
 end

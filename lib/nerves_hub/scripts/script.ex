@@ -64,6 +64,7 @@ defmodule NervesHub.Scripts.Script do
     |> cast(params, @required ++ @optional)
     |> validate_required(@required)
     |> validate_length(:name, lte: 255)
+    |> unique_constraint(:name, name: :scripts_product_id_name_index)
     |> validate_syntax()
   end
 

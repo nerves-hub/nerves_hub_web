@@ -3,6 +3,7 @@ defmodule NervesHubWeb.UserLocalShellChannel do
 
   alias NervesHub.Accounts
   alias NervesHub.Accounts.OrgUser
+  alias NervesHub.Accounts.PubSub, as: AccessPubSub
   alias NervesHub.Accounts.Scope
   alias NervesHub.Consoles
   alias NervesHub.Devices
@@ -12,10 +13,11 @@ defmodule NervesHubWeb.UserLocalShellChannel do
   def join("user:local_shell:identifier-" <> identifier, _, socket) do
     if device = authorized?(socket.assigns.user, identifier) do
       :ok = Consoles.PubSub.subscribe_user_local_shell(device.id)
+      :ok = AccessPubSub.subscribe_membership(device.org_id, socket.assigns.user.id)
 
-      _ = Consoles.PubSub.connect_to_local_shell(device.id, self())
+      :ok = Consoles.PubSub.connect_to_local_shell(device.id, self())
 
-      {:ok, assign(socket, :device_id, device.id)}
+      {:ok, socket |> assign(:device_id, device.id) |> assign(:identifier, identifier)}
     else
       {:error, %{reason: "unauthorized"}}
     end
@@ -24,12 +26,12 @@ defmodule NervesHubWeb.UserLocalShellChannel do
   def handle_in("input", payload, socket) do
     # Key presses are coming in here raw
     # Send them to the device
-    Consoles.PubSub.broadcast_to_local_shell(socket.assigns.device_id, "local_shell:shell_input", payload)
+    :ok = Consoles.PubSub.broadcast_to_local_shell(socket.assigns.device_id, "local_shell:shell_input", payload)
     {:noreply, socket}
   end
 
   def handle_in("window_size", payload, socket) do
-    Consoles.PubSub.broadcast_to_local_shell(socket.assigns.device_id, "local_shell:window_size", payload)
+    :ok = Consoles.PubSub.broadcast_to_local_shell(socket.assigns.device_id, "local_shell:window_size", payload)
     {:noreply, socket}
   end
 
@@ -43,6 +45,17 @@ defmodule NervesHubWeb.UserLocalShellChannel do
     {:noreply, socket}
   end
 
+  # The user's role in the device's org changed, or they were removed from it.
+  # Checked the same way as on join, so a user who couldn't open the shell now
+  # doesn't keep it open.
+  def handle_info({:org_membership_changed, _org_id}, socket) do
+    if authorized?(socket.assigns.user, socket.assigns.identifier) do
+      {:noreply, socket}
+    else
+      {:stop, {:shutdown, :closed}, socket}
+    end
+  end
+
   def handle_info(_msg, socket) do
     {:noreply, socket}
   end
@@ -52,7 +65,7 @@ defmodule NervesHubWeb.UserLocalShellChannel do
 
     with {:ok, device} <- Devices.get_by_identifier(scope, identifier),
          %OrgUser{} = org_user <- Accounts.find_org_user_with_device(user, device.id),
-         true <- Authorization.authorized?(:"device:console", org_user) do
+         true <- Authorization.authorized?(:"device:extensions:local_shell", org_user) do
       device
     else
       _ ->

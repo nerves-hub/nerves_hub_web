@@ -11,6 +11,7 @@ defmodule NervesHub.Extensions.HealthReportTest do
   alias NervesHub.Devices.Alarms
   alias NervesHub.Devices.Connections
   alias NervesHub.Devices.DeviceHealth
+  alias NervesHub.Devices.HealthEvaluation.Queue
   alias NervesHub.Extensions.Health
   alias NervesHub.Extensions.State
   alias NervesHub.Fixtures
@@ -35,9 +36,11 @@ defmodule NervesHub.Extensions.HealthReportTest do
     %{device: device, product: product, connection: connection, state: state}
   end
 
+  # Each report is judged before the next, as the queue does when reports are
+  # far enough apart not to be merged.
   defp report(state, value) do
     {_state, []} = Health.handle_in("report", %{"value" => value}, state)
-    :ok
+    Queue.drain(device_id: state.device_info.device_id)
   end
 
   test "stores the status, the alarms and the metadata", %{device: device, state: state} do
@@ -75,6 +78,21 @@ defmodule NervesHub.Extensions.HealthReportTest do
 
     assert %{metadata: %{"serial_number" => "SN-1234", "firmware" => "1.2.3"}} =
              Connections.get_latest_for_device(device.id)
+  end
+
+  test "a report whose alarms are not a map leaves stored alarms alone", %{device: device, state: state} do
+    :ok = report(state, %{"alarms" => %{"HighTemp" => "too hot"}})
+    :ok = report(state, %{"alarms" => ["HighTemp"]})
+
+    assert Alarms.current_alarms_for_device(device) == [{"HighTemp", "too hot"}]
+  end
+
+  test "a report without an alarms key leaves stored alarms alone", %{device: device, state: state} do
+    # What a device sends once the alarms extension carries its alarms.
+    :ok = report(state, %{"alarms" => %{"HighTemp" => "too hot"}})
+    :ok = report(state, %{"metrics" => %{"cpu_usage_percent" => 12.0}})
+
+    assert Alarms.current_alarms_for_device(device) == [{"HighTemp", "too hot"}]
   end
 
   test "a report carrying neither alarms nor metadata still records status", %{device: device, state: state} do

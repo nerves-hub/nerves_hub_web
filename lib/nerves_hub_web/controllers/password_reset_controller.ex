@@ -26,7 +26,7 @@ defmodule NervesHubWeb.PasswordResetController do
           nil
       end
 
-    render(conn, :instructions_sent)
+    render(conn, :instructions_sent, email: email)
   end
 
   def create(conn, _params) do
@@ -46,6 +46,7 @@ defmodule NervesHubWeb.PasswordResetController do
       {:ok, updated_user} ->
         conn
         |> put_flash(:info, "Password reset successfully.")
+        |> Auth.link_pending_google_account(updated_user)
         |> Auth.log_in_user(updated_user, user_params)
 
       {:error, changeset} ->
@@ -59,9 +60,11 @@ defmodule NervesHubWeb.PasswordResetController do
     if user = Accounts.get_user_by_reset_password_token(token) do
       conn |> assign(:user, user) |> assign(:token, token)
     else
+      # Back to the request form, which explains why and asks for the email again.
+      # Under its own flash key so it shows there rather than as a toast.
       conn
-      |> put_flash(:error, "Reset password link is invalid or it has expired.")
-      |> redirect(to: ~p"/login")
+      |> put_flash(:reset_link_expired, true)
+      |> redirect(to: ~p"/password-reset")
       |> halt()
     end
   end

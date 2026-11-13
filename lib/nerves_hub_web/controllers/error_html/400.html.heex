@@ -1,39 +1,20 @@
-<!DOCTYPE html>
-<html lang="en" class="bg-surface h-full">
-  <head>
-    <meta charset="utf-8" />
-    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="description" content="" />
-    <meta name="author" content="" />
-
-    <meta name="csrf-token" content={get_csrf_token()} />
-
-    <meta name="description" content="" />
-    <meta name="author" content="" />
-
-    <link rel="icon" type="image/png" href="/images/favicon-96x96.png" sizes="96x96" />
-    <link rel="icon" type="image/svg+xml" href="/images/favicon.svg" />
-    <link rel="shortcut icon" href="/images/favicon.ico" />
-
-    <title>Invalid request · #{Application.get_env(:nerves_hub, :web_title_suffix)}</title>
-    <link rel="stylesheet" href={static_path("/assets/css/app.css")} />
-    <script defer phx-track-static type="text/javascript" src={static_path("/assets/js/app.js")}>
-    </script>
-  </head>
-
-  <body class="h-full">
-    <div class="flex h-full flex-col items-center justify-center gap-8">
-      <div class="flex flex-col items-center justify-center">
-        <img src="/images/product.svg" alt="" />
-        <p class="pt-4 text-lg font-semibold">Sorry, your request was invalid or corrupted.</p>
-        <p class="pt-2">We have sent an error report to the team and they are looking into it.</p>
-      </div>
-
-      <div class="">
-        If this continues to happen, please <a href="https://github.com/nerves-hub/nerves_hub_web/issues" target="_blank" rel="noopener noreferrer" class="text-primary underline">report an issue</a>
-      </div>
-    </div>
-  </body>
-</html>
+<ErrorPage.page
+  title="Invalid request"
+  code="400"
+  label="Bad request"
+  css_path={static_path("/assets/css/app.css")}
+  js_path={static_path("/assets/js/app.js")}
+>
+  <:drawing>
+    <ErrorPage.footprint ref="U400" note="ERR" />
+  </:drawing>
+  <:headline>We couldn’t read that request.</:headline>
+  Something in it was malformed or incomplete. Going back and trying again usually works.
+  <:actions>
+    <ErrorPage.back_button style="primary" />
+    <.button type="link" href="/orgs">Back to your organizations</.button>
+  </:actions>
+  <:note>
+    <ErrorPage.request_id id={ErrorPage.request_id_of(assigns[:conn])} />
+  </:note>
+</ErrorPage.page>

@@ -209,16 +209,21 @@ defmodule NervesHub.Devices.UpdateStats do
         ) ::
           FirmwareDelta.t() | nil
   defp get_delta_from_metadata(product_id, source_uuid, target_uuid) do
+    # Live firmware only: a build deleted and uploaded again has two rows with
+    # its uuid, and each subquery has to return one. Deleting firmware deletes
+    # its deltas too, so a deleted row could not match one anyway.
     source_query =
       Firmware
       |> where([f], f.uuid == ^source_uuid)
       |> where([f], f.product_id == ^product_id)
+      |> Repo.exclude_deleted()
       |> select([f], f.id)
 
     target_query =
       Firmware
       |> where([f], f.uuid == ^target_uuid)
       |> where([f], f.product_id == ^product_id)
+      |> Repo.exclude_deleted()
       |> select([f], f.id)
 
     FirmwareDelta

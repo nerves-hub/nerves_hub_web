@@ -1,5 +1,0 @@
-<p>Hi</p>
-
-<p><strong><%= @user.name %></strong> has been removed from the <strong><%= @org.name %></strong> organization by <%= @instigator.name %>.</p>
-
-<%= raw(closing()) %>

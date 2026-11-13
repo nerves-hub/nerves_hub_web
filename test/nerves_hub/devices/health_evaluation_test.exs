@@ -42,15 +42,19 @@ defmodule NervesHub.Devices.HealthEvaluationTest do
   # Readings land in ClickHouse the way production writes them: through
   # `Metrics.record/3`, flushed so the assertions don't race the buffer.
   defp insert_metric(device, key, value, minutes_ago \\ 0) do
-    device_info = %DeviceInfo{
+    {:ok, 1} =
+      Metrics.record(device_info(device), %{key => value}, DateTime.add(DateTime.utc_now(), -minutes_ago, :minute))
+
+    :ok = Buffer.flush(DeviceMetric)
+  end
+
+  defp device_info(device) do
+    %DeviceInfo{
       device_id: device.id,
       device_identifier: device.identifier,
       org_id: device.org_id,
       product_id: device.product_id
     }
-
-    {:ok, 1} = Metrics.record(device_info, %{key => value}, DateTime.add(DateTime.utc_now(), -minutes_ago, :minute))
-    :ok = Buffer.flush(DeviceMetric)
   end
 
   describe "against the default profile" do
@@ -126,6 +130,21 @@ defmodule NervesHub.Devices.HealthEvaluationTest do
 
       assert {:unhealthy, %{unhealthy: %{"cpu_usage_percent" => %{value: 100}}}} =
                HealthEvaluation.evaluate(device_info, in_hand)
+    end
+
+    test "readings already flushed are counted once, not again in hand", %{device: device, device_info: device_info} do
+      insert_metric(device, "cpu_usage_percent", 20.0, 20)
+      insert_metric(device, "cpu_usage_percent", 20.0, 10)
+
+      # The report's reading has reached ClickHouse before its evaluation runs,
+      # as it does once evaluation is queued behind a flush.
+      now = DateTime.utc_now()
+      {:ok, 1} = Metrics.record(device_info(device), %{"cpu_usage_percent" => 95.0}, now)
+      :ok = Buffer.flush(DeviceMetric)
+
+      # One high reading of three is short of a majority. Counted twice, it
+      # would be two of four, which engages.
+      assert {:healthy, nil} = HealthEvaluation.evaluate(device_info, [{"cpu_usage_percent", now, 95.0}])
     end
 
     test "metrics outside the profile do not affect the status", %{device: device, device_info: device_info} do
@@ -249,7 +268,7 @@ defmodule NervesHub.Devices.HealthEvaluationTest do
 
       for offset <- 1..count do
         connection = %DeviceConnection{
-          id: UUIDv7.generate(),
+          id: Ecto.UUID.generate(version: 7),
           org_id: device.org_id,
           product_id: device.product_id,
           device_id: device.id,

@@ -1,110 +1,91 @@
 <Layouts.auth flash={@flash}>
   <:title>
-    {"You've been invited to join #{@org.name} on #{platform_name()}"}
+    Join {@org.name} on {platform_name()}
   </:title>
   <:subheader :if={@mode != :wrong_account}>
-    {@invite.invited_by.name} sent this invitation for the <span>{NervesHubWeb.Components.Utils.role_name(@invite)}</span> role. It expires 48 hours after it was sent.
+    {@invite.invited_by.name} invited you as <span class="font-semibold text-content-strong">{NervesHubWeb.Components.Utils.role_name(@invite)}</span>.
+    The invitation expires 48 hours after it was sent.
   </:subheader>
 
-  <div class="mt-6">
-    <%= case @mode do %>
-      <% :accept -> %>
-        <p class="text-base-300 text-sm/6">
-          Joining will give the {@org.name} organization's admins the ability to manage your membership.
+  <%= case @mode do %>
+    <% :accept -> %>
+      <div class="flex flex-col gap-5">
+        <p class="text-sm text-content-body">
+          Joining lets the admins of {@org.name} manage your membership.
         </p>
 
-        <div class="mt-6 flex gap-3">
-          <.form for={%{}} action={~p"/invite/#{@token}/accept"} method="post">
-            <.button style="primary" type="submit" id="accept-invite">
-              Join {@org.name}
-            </.button>
-          </.form>
+        <.form for={%{}} action={~p"/invite/#{@token}/accept"} method="post">
+          <.button style="primary" type="submit" id="accept-invite" class="w-full">
+            Join {@org.name}
+          </.button>
+        </.form>
 
-          <.form for={%{}} action={~p"/invite/#{@token}/decline"} method="post">
-            <.button
-              style="secondary"
-              type="submit"
-              id="decline-invite"
-              data-confirm={"Are you sure you want to decline the invitation to join #{@org.name}?"}
-            >
-              Decline
-            </.button>
-          </.form>
-        </div>
-      <% :wrong_account -> %>
-        <div role="alert" class="bg-alert-soft fill-alert ring-alert text-alert-content mr-2 w-full rounded-sm p-3 shadow-md ring-1">
-          <p class="mt-1 text-sm/5">
+        <.form for={%{}} action={~p"/invite/#{@token}/decline"} method="post">
+          <.button
+            type="submit"
+            id="decline-invite"
+            class="w-full"
+            data-confirm={"Are you sure you want to decline the invitation to join #{@org.name}?"}
+          >
+            Decline
+          </.button>
+        </.form>
+      </div>
+    <% :wrong_account -> %>
+      <div class="flex flex-col gap-5">
+        <div role="alert" class="flex gap-2.5 rounded-md border border-alert/30 bg-alert-soft p-3 text-sm text-alert-content">
+          <span class="mt-0.5 lucide-circle-exclamation-point size-4 flex-none" aria-hidden="true"></span>
+          <p>
             This invitation was sent to a different email address. You're signed in as {@current_scope.user.email}.
           </p>
         </div>
 
-        <p class="text-base-300 mt-6 text-sm/6">
-          Sign out and sign back in with the invited account to accept it.
+        <p class="text-sm text-content-body">
+          Sign out, then sign back in with the invited account to accept it.
         </p>
 
-        <div class="mt-6">
-          <.button style="secondary" type="link" href={~p"/logout"}>
-            Sign out
-          </.button>
-        </div>
-      <% :sign_in -> %>
-        <p class="text-base-300 text-sm/6">
+        <.button type="link" href={~p"/logout"} class="w-full">
+          Sign out
+        </.button>
+      </div>
+    <% :sign_in -> %>
+      <div class="flex flex-col gap-5">
+        <p class="text-sm text-content-body">
           You already have a {platform_name()} account. Sign in with the invited email address to accept this invitation.
         </p>
 
-        <div class="mt-6 flex gap-3">
-          <.button style="primary" type="link" href={~p"/login"} id="sign-in-to-accept">
-            Sign in
+        <.button style="primary" type="link" href={~p"/login"} id="sign-in-to-accept" class="w-full">
+          Sign in to accept
+        </.button>
+      </div>
+    <% :register -> %>
+      <div class="flex flex-col gap-5">
+        <OAuthLinks.render divider="or sign up with email" />
+
+        <.form :let={f} for={@changeset} as={:user} action={~p"/invite/#{@token}"} method="post" class="flex flex-col gap-5">
+          <input :if={@key} type="hidden" name="key" value={@key} />
+
+          <.input field={f[:name]} label="Name" autocomplete="name" placeholder="Jane Doe" />
+          <.input field={f[:password]} type="password" label="Password" autocomplete="new-password" hint="At least 12 characters" required />
+
+          <.button style="primary" type="submit" class="w-full">
+            Join {@org.name}
           </.button>
+        </.form>
+      </div>
+  <% end %>
 
-          <.form for={%{}} action={~p"/invite/#{@token}/decline"} method="post">
-            <.button
-              style="secondary"
-              type="submit"
-              id="decline-invite"
-              data-confirm={"Are you sure you want to decline the invitation to join #{@org.name}?"}
-            >
-              Decline
-            </.button>
-          </.form>
-        </div>
-      <% :register -> %>
-        <div :if={Enum.any?(@changeset.errors)} role="alert" class="bg-alert-soft fill-alert ring-alert text-alert-content mr-2 mb-6 w-full rounded-sm p-3 shadow-md ring-1">
-          <p class="mt-1 text-sm/5">Oops, we couldn't save your account details.</p>
-        </div>
-
-        <div>
-          <.form :let={f} for={@changeset} as={:user} action={~p"/invite/#{@token}"} method="post" class="space-y-6">
-            <div>
-              <.input field={f[:name]} label="Name" placeholder="eg. Jane Doe" />
-            </div>
-
-            <div>
-              <.input field={f[:password]} label="Password" type="password" autocomplete="current-password" required />
-            </div>
-
-            <div>
-              <.button style="primary" type="submit" class="flex w-full justify-center">
-                Register
-              </.button>
-            </div>
-          </.form>
-        </div>
-
-        <OAuthLinks.render />
-
-        <div class="mt-6">
-          <.form for={%{}} action={~p"/invite/#{@token}/decline"} method="post">
-            <button
-              type="submit"
-              id="decline-invite"
-              class="hover:text-base-200 text-base-400 text-sm/6 underline hover:cursor-pointer"
-              data-confirm={"Are you sure you want to decline the invitation to join #{@org.name}?"}
-            >
-              Decline this invitation
-            </button>
-          </.form>
-        </div>
-    <% end %>
-  </div>
+  <:footer :if={@mode in [:sign_in, :register]}>
+    <.form for={%{}} action={~p"/invite/#{@token}/decline"} method="post">
+      Not expecting this?
+      <button
+        type="submit"
+        id="decline-invite"
+        class="cursor-pointer font-semibold text-primary hover:text-primary-hover light:text-indigo-600 light:hover:text-indigo-500"
+        data-confirm={"Are you sure you want to decline the invitation to join #{@org.name}?"}
+      >
+        Decline the invitation
+      </button>
+    </.form>
+  </:footer>
 </Layouts.auth>

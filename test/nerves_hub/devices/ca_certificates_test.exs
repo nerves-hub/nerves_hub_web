@@ -1,9 +1,11 @@
 defmodule NervesHub.Devices.CACertificatesTest do
   use NervesHub.DataCase, async: true
 
+  alias NervesHub.Certificate
   alias NervesHub.Devices
   alias NervesHub.Devices.CACertificates
   alias NervesHub.Fixtures
+  alias X509.Certificate.Validity
 
   setup do
     user = Fixtures.user_fixture()
@@ -197,6 +199,91 @@ defmodule NervesHub.Devices.CACertificatesTest do
       other_ca = Fixtures.ca_certificate_fixture(other_org)
 
       assert CACertificates.by_ski(org, [other_ca.db_cert.ski]) == %{}
+    end
+  end
+
+  describe "create_ca_certificate/2 with check_expiration" do
+    test "registers an expired CA when it is off", %{org: org} do
+      assert {:ok, %{check_expiration: false}} =
+               CACertificates.create_ca_certificate(org, ca_params(expired_ca(), %{check_expiration: false}))
+    end
+
+    test "refuses an expired CA when it is on", %{org: org} do
+      assert {:error, changeset} =
+               CACertificates.create_ca_certificate(org, ca_params(expired_ca(), %{check_expiration: true}))
+
+      assert %{check_expiration: [message]} = errors_on(changeset)
+      assert message =~ "expired on 2025-01-01"
+    end
+
+    test "can still be turned on for an expired CA later", %{org: org} do
+      {:ok, ca} = CACertificates.create_ca_certificate(org, ca_params(expired_ca()))
+
+      assert {:ok, %{check_expiration: true}} = CACertificates.update_ca_certificate(ca, %{check_expiration: true})
+    end
+  end
+
+  defp expired_ca() do
+    validity = Validity.new(~U[2020-01-01 00:00:00Z], ~U[2025-01-01 00:00:00Z])
+
+    X509.PrivateKey.new_ec(:secp256r1)
+    |> X509.Certificate.self_signed("CN=Expired Root CA", template: :root_ca, validity: validity)
+  end
+
+  defp ca_params(ca_cert, params \\ %{}) do
+    {not_before, not_after} = Certificate.get_validity(ca_cert)
+
+    Map.merge(
+      %{
+        serial: Certificate.get_serial_number(ca_cert),
+        ski: Certificate.get_ski(ca_cert),
+        not_before: not_before,
+        not_after: not_after,
+        der: X509.Certificate.to_der(ca_cert)
+      },
+      params
+    )
+  end
+
+  describe "JITP product" do
+    setup %{org: org} do
+      other_user = Fixtures.user_fixture()
+      other_org = Fixtures.org_fixture(other_user)
+
+      %{ca: Fixtures.ca_certificate_fixture(org), other_product: Fixtures.product_fixture(other_user, other_org)}
+    end
+
+    test "can't be another org's product when the CA is created", %{org: org, other_product: other_product} do
+      ca_key = X509.PrivateKey.new_ec(:secp256r1)
+      ca = X509.Certificate.self_signed(ca_key, "CN=#{org.name}", template: :root_ca)
+      {not_before, not_after} = NervesHub.Certificate.get_validity(ca)
+
+      params = %{
+        serial: NervesHub.Certificate.get_serial_number(ca),
+        aki: NervesHub.Certificate.get_aki(ca),
+        ski: NervesHub.Certificate.get_ski(ca),
+        not_before: not_before,
+        not_after: not_after,
+        der: X509.Certificate.to_der(ca),
+        jitp: %{description: "jitp", tags: ["a"], product_id: other_product.id}
+      }
+
+      assert {:error, changeset} = CACertificates.create_ca_certificate(org, params)
+      assert %{jitp: %{product_id: ["must be a product in this organization"]}} = errors_on(changeset)
+    end
+
+    test "can't be changed to another org's product", %{ca: ca, other_product: other_product} do
+      params = %{"jitp" => %{"description" => "jitp", "tags" => ["a"], "product_id" => other_product.id}}
+
+      assert {:error, changeset} = CACertificates.update_ca_certificate(ca.db_cert, params)
+      assert %{jitp: %{product_id: ["must be a product in this organization"]}} = errors_on(changeset)
+    end
+
+    test "can be one of the org's products", %{ca: ca, product: product} do
+      params = %{"jitp" => %{"description" => "jitp", "tags" => ["a"], "product_id" => product.id}}
+
+      assert {:ok, updated} = CACertificates.update_ca_certificate(ca.db_cert, params)
+      assert updated.jitp.product_id == product.id
     end
   end
 end

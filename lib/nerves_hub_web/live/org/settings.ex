@@ -3,6 +3,10 @@ defmodule NervesHubWeb.Live.Org.Settings do
 
   alias NervesHub.Accounts
   alias NervesHub.Accounts.Org
+  alias NervesHub.Products
+  alias NervesHubWeb.Mounts.OrgCounts
+
+  on_mount(OrgCounts)
 
   @impl Phoenix.LiveView
   def mount(_params, _session, %{assigns: %{current_scope: scope}} = socket) do
@@ -10,6 +14,10 @@ defmodule NervesHubWeb.Live.Org.Settings do
     |> page_title("Settings - #{scope.org.name}")
     |> assign(:org, scope.org)
     |> assign(:form, to_form(Org.changeset(scope.org)))
+    |> assign(
+      :product_names,
+      scope |> Products.get_products() |> Enum.map(& &1.name) |> Enum.sort_by(&String.downcase/1)
+    )
     |> sidebar_tab(:settings)
     |> ok()
   end
@@ -31,4 +39,16 @@ defmodule NervesHubWeb.Live.Org.Settings do
         |> noreply()
     end
   end
+
+  # What deleting takes with it. A few products are named so it's clear which;
+  # past that the count says enough.
+  defp delete_summary(org, []), do: "Deletes #{org.name}. It has no products."
+  defp delete_summary(org, [name]), do: "Deletes #{org.name} and its 1 product, #{name}"
+
+  defp delete_summary(org, names) when length(names) <= 3 do
+    {rest, [last]} = Enum.split(names, -1)
+    "Deletes #{org.name} and its #{length(names)} products: #{Enum.join(rest, ", ")} and #{last}"
+  end
+
+  defp delete_summary(org, names), do: "Deletes #{org.name} and its #{length(names)} products"
 end

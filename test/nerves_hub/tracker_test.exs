@@ -93,16 +93,4 @@ defmodule NervesHub.TrackerTest do
       assert Tracker.connection_status(device) == "offline"
     end
   end
-
-  describe "console_active?/1" do
-    test "accepts a Device struct and returns a boolean", %{device: device} do
-      result = Tracker.console_active?(device)
-      assert is_boolean(result)
-    end
-
-    test "accepts a device_id and returns a boolean", %{device: device} do
-      result = Tracker.console_active?(device.id)
-      assert is_boolean(result)
-    end
-  end
 end

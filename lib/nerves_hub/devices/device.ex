@@ -47,12 +47,19 @@ defmodule NervesHub.Devices.Device do
   ]
   @required_params [:org_id, :product_id, :identifier]
 
+  # What a user may set on a device, through the API or the dashboard. Everything
+  # else `changeset/2` casts is either where the device lives (its org, product
+  # and deployment group) or state NervesHub keeps for it. A user sets the update
+  # mode too, but only `create_changeset/2` casts it, because changing an existing
+  # device's mode does more than save it (see `cast_update_mode/2`).
+  @user_params [:description, :tags, :connecting_code]
+
   @derive {Phoenix.Param, key: :identifier}
   schema "devices" do
     belongs_to(:org, Org)
     belongs_to(:product, Product)
     belongs_to(:deployment_group, DeploymentGroup, foreign_key: :deployment_id)
-    belongs_to(:current_device_firmware, DeviceFirmware, type: UUIDv7)
+    belongs_to(:current_device_firmware, DeviceFirmware, type: Ecto.UUID)
 
     # One row per device, so the association finds it directly. It used to be a
     # `belongs_to` through `latest_health_id`, which only existed to pick the
@@ -125,6 +132,13 @@ defmodule NervesHub.Devices.Device do
     timestamps()
   end
 
+  @doc """
+  Any change to a device, for code that works out the values itself.
+
+  It casts the device's org, product and deployment group, so it must never be
+  given a request's params. Those go through `create_changeset/2` or
+  `update_changeset/2`.
+  """
   def changeset(%Device{} = device, params) do
     device
     |> cast(params, @required_params ++ @optional_params)
@@ -132,13 +146,69 @@ defmodule NervesHub.Devices.Device do
     |> cast_embed(:extensions)
     |> validate_required(@required_params)
     |> unique_constraint(:identifier)
-    |> then(fn changeset ->
-      if device.deleted_at && !Map.has_key?(changeset.changes, :deleted_at) do
-        add_error(changeset, :deleted_at, "cannot update while marked as deleted")
-      else
-        changeset
-      end
-    end)
+    |> validate_not_deleted(device)
+  end
+
+  @doc """
+  A new device in `product`, from what a user may set on it.
+
+  The org and product come from `product`, never from `params`, and the device
+  starts with the product's `default_managed_updates_allowed` as its grant.
+  """
+  @spec create_changeset(Product.t(), map()) :: Ecto.Changeset.t()
+  def create_changeset(%Product{} = product, params) do
+    %Device{
+      org_id: product.org_id,
+      product_id: product.id,
+      managed_updates_allowed: product.default_managed_updates_allowed
+    }
+    |> cast(params, [:identifier, :update_mode | @user_params])
+    |> validate_required(@required_params)
+    |> unique_constraint(:identifier)
+  end
+
+  @doc """
+  A change a user makes to a device: its description, tags or first connect
+  code. Anything else in `params` is ignored, the update mode included: see
+  `cast_update_mode/2`.
+  """
+  @spec update_changeset(t(), map()) :: Ecto.Changeset.t()
+  def update_changeset(%Device{} = device, params) do
+    device
+    |> cast(params, @user_params)
+    |> validate_not_deleted(device)
+  end
+
+  @doc """
+  The update mode `params` asks to move `device` to, or `nil` when it asks for
+  no change.
+
+  `update_changeset/2` doesn't cast the update mode, because changing it does
+  more than save it: `NervesHub.Devices.Updates.save_update_mode/3` clears the
+  update attempts of a device moved to `:automatic` and audits the new mode.
+  This casts it on its own, so that a value that isn't a mode gets a changeset
+  error like any other field's.
+  """
+  @spec cast_update_mode(t(), map()) :: {:ok, update_mode() | nil} | {:error, Ecto.Changeset.t()}
+  def cast_update_mode(%Device{} = device, params) do
+    changeset =
+      device
+      |> cast(params, [:update_mode])
+      |> validate_required([:update_mode])
+
+    if changeset.valid? do
+      {:ok, get_change(changeset, :update_mode)}
+    else
+      {:error, changeset}
+    end
+  end
+
+  defp validate_not_deleted(changeset, device) do
+    if device.deleted_at && !Map.has_key?(changeset.changes, :deleted_at) do
+      add_error(changeset, :deleted_at, "cannot update while marked as deleted")
+    else
+      changeset
+    end
   end
 
   def update_deployment_group(device, deployment_group) do

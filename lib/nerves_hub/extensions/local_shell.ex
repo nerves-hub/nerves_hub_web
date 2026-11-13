@@ -31,18 +31,21 @@ defmodule NervesHub.Extensions.LocalShell do
     true
   end
 
+  # The device page learns of attach and detach from these broadcasts, and asks
+  # with `{:locate, from, ref}` when it opens; see `NervesHub.Consoles.PubSub`
+  # for why nothing holds a membership for the shell instead.
   @impl NervesHub.Extensions
   def attach(state) do
-    key = Consoles.PubSub.local_shell_key(state.device_info.device_id)
+    :ok = Consoles.PubSub.broadcast_local_shell_attached(state.device_info.device_id)
 
-    {state, [{:group_join, key}, {:push, "local_shell:request_shell", %{}}, {:scrollback_clear}]}
+    {state, [{:push, "local_shell:request_shell", %{}}, {:scrollback_clear}]}
   end
 
   @impl NervesHub.Extensions
   def detach(state) do
-    key = Consoles.PubSub.local_shell_key(state.device_info.device_id)
+    :ok = Consoles.PubSub.broadcast_local_shell_detached(state.device_info.device_id)
 
-    {state, [{:group_leave, key}, {:scrollback_clear}]}
+    {state, [{:scrollback_clear}]}
   end
 
   @impl NervesHub.Extensions
@@ -81,6 +84,14 @@ defmodule NervesHub.Extensions.LocalShell do
 
   def handle_info({:connect, pid}, state) do
     {state, [{:scrollback_replay, pid}]}
+  end
+
+  # A device page asking whether the shell is attached. `Extensions.Dispatch`
+  # only hands messages to an attached extension, so being asked is the answer.
+  def handle_info({:locate, from, ref}, state) do
+    send(from, {:local_shell_located, ref})
+
+    {state, []}
   end
 
   @impl NervesHub.Extensions

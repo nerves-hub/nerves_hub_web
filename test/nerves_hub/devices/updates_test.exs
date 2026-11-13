@@ -2,7 +2,11 @@ defmodule NervesHub.Devices.UpdatesTest do
   use NervesHub.DataCase, async: true
   use Mimic
 
+  import ExUnit.CaptureLog
+
+  alias NervesHub.AuditLogs
   alias NervesHub.DeploymentOrchestratorEvents
+  alias NervesHub.DeviceEvents
   alias NervesHub.DeviceLink.DeviceInfo
   alias NervesHub.Devices
   alias NervesHub.Devices.PubSub
@@ -42,6 +46,50 @@ defmodule NervesHub.Devices.UpdatesTest do
 
       assert {:error, :updates_blocked, ^device} =
                Updates.verify_update_eligibility(device, deployment_group)
+    end
+  end
+
+  describe "enforce_failure_limits/2" do
+    test "lets a device under its limits through", %{device: device, deployment_group: deployment_group} do
+      assert {:ok, ^device} = Updates.enforce_failure_limits(device, deployment_group)
+    end
+
+    test "penalty boxes a device that has met its failure threshold and clears its attempts", %{
+      device: device,
+      deployment_group: deployment_group
+    } do
+      {:ok, device} = Devices.update_device(device, %{update_attempts: attempts_days_apart(3)})
+
+      # Only now, so the broadcast from the update above is not the one seen
+      topic = DeviceEvents.topic(device)
+      :ok = Phoenix.PubSub.subscribe(NervesHub.PubSub, topic)
+
+      assert {:error, :updates_blocked, device} = Updates.enforce_failure_limits(device, deployment_group)
+
+      assert Updates.device_in_penalty_box?(device)
+      assert Repo.reload(device).update_attempts == []
+
+      assert Enum.any?(AuditLogs.logs_for(device), &(&1.description =~ "automatically blocked"))
+      assert_receive %Broadcast{topic: ^topic, event: "updated"}, 500
+    end
+
+    test "doesn't let a device update when its penalty can't be recorded", %{
+      device: device,
+      deployment_group: deployment_group
+    } do
+      {:ok, device} = Devices.update_device(device, %{update_attempts: attempts_days_apart(3)})
+      {:ok, device} = Devices.delete_device(device)
+
+      log =
+        capture_log(fn ->
+          assert {:error, :updates_blocked, _device} = Updates.enforce_failure_limits(device, deployment_group)
+        end)
+
+      assert log =~ "could not be put in the penalty box"
+      refute Repo.reload(device).updates_blocked_until
+
+      # Nor is a penalty that was never recorded audited as one.
+      refute Enum.any?(AuditLogs.logs_for(device), &(&1.description =~ "automatically blocked"))
     end
   end
 
@@ -192,6 +240,13 @@ defmodule NervesHub.Devices.UpdatesTest do
 
   # ---- helpers ----
 
+  # Far enough apart that only the failure threshold is met, never the rate
+  defp attempts_days_apart(count) do
+    now = DateTime.utc_now(:second)
+
+    for days <- 1..count, do: DateTime.add(now, -days * 86_400, :second)
+  end
+
   defp set_different_firmware_uuid(device) do
     firmware_metadata = %{
       architecture: "x86_64",
@@ -211,5 +266,46 @@ defmodule NervesHub.Devices.UpdatesTest do
       org_id: device.org_id,
       product_id: device.product_id
     }
+  end
+
+  describe "failing_updates_by_product/2" do
+    test "counts a product's blocked devices that have failed, with the latest block", %{device: device} do
+      now = DateTime.utc_now(:second)
+      until = DateTime.add(now, 30, :minute)
+
+      {:ok, _} = Devices.update_device(device, %{updates_blocked_until: until, consecutive_failed_updates: 3})
+
+      assert Updates.failing_updates_by_product([device.product_id], now) == %{
+               device.product_id => %{count: 1, blocked_until: until}
+             }
+    end
+
+    test "leaves out a device that asked to be rescheduled", %{device: device} do
+      now = DateTime.utc_now(:second)
+
+      {:ok, _} =
+        Devices.update_device(device, %{
+          updates_blocked_until: DateTime.add(now, 30, :minute),
+          consecutive_failed_updates: 0
+        })
+
+      assert Updates.failing_updates_by_product([device.product_id], now) == %{}
+    end
+
+    test "leaves out a device whose block has ended", %{device: device} do
+      now = DateTime.utc_now(:second)
+
+      {:ok, _} =
+        Devices.update_device(device, %{
+          updates_blocked_until: DateTime.add(now, -1, :minute),
+          consecutive_failed_updates: 3
+        })
+
+      assert Updates.failing_updates_by_product([device.product_id], now) == %{}
+    end
+
+    test "is empty for no products" do
+      assert Updates.failing_updates_by_product([]) == %{}
+    end
   end
 end

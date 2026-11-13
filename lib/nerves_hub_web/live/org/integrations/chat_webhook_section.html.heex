@@ -1,0 +1,93 @@
+<div id={@id}>
+  <.integration_row
+    :for={channel <- @channels}
+    id={row_id(@provider, channel)}
+    service={@provider}
+    name={channel.name}
+    status={status(channel)}
+    products={products_scope(channel)}
+    events={event_labels(channel)}
+  >
+    <:subline>{service_name(@provider)} · {webhook_kind(@provider)}</:subline>
+    <:problem :if={channel.disabled_reason}>{channel.disabled_reason}</:problem>
+    <:problem :if={channel.enabled && channel.last_error}>
+      Posting failed at <.local_datetime at={channel.last_error_at} time_zone={@time_zone} format={:time} zone_label={false} />: {channel.last_error}
+    </:problem>
+    <:menu :if={authorized?(:"chat_webhook:update", @current_scope)}>
+      <.row_menu id={row_id(@provider, channel)} label={"Actions for #{channel.name}"}>
+        <.menu_item
+          icon="lucide-send"
+          phx-click={JS.push("send-test", value: %{channel_id: channel.id}, target: @myself) |> hide_menu(row_id(@provider, channel))}
+          disabled={MapSet.member?(@testing, channel.id)}
+        >
+          {if MapSet.member?(@testing, channel.id), do: "Sending…", else: "Send test message"}
+        </.menu_item>
+        <.menu_item icon="lucide-pencil" phx-click={JS.push("edit-channel", value: %{channel_id: channel.id}, target: @myself) |> hide_menu(row_id(@provider, channel))}>
+          Edit
+        </.menu_item>
+        <.menu_divider />
+        <.menu_item
+          icon={if channel.enabled, do: "lucide-power-off", else: "lucide-power"}
+          phx-click={JS.push("toggle", value: %{channel_id: channel.id}, target: @myself) |> hide_menu(row_id(@provider, channel))}
+        >
+          {if channel.enabled, do: "Turn off", else: "Turn on"}
+        </.menu_item>
+        <.menu_item
+          :if={authorized?(:"chat_webhook:delete", @current_scope)}
+          icon="lucide-trash"
+          danger
+          phx-click={JS.push("delete", value: %{channel_id: channel.id}, target: @myself) |> hide_menu(row_id(@provider, channel))}
+          data-confirm={"Stop posting to #{channel.name}? Events held for it are dropped."}
+        >
+          Delete channel
+        </.menu_item>
+      </.row_menu>
+    </:menu>
+  </.integration_row>
+
+  <.dialog
+    :if={@form}
+    id={dialog_id(@provider)}
+    service={@provider}
+    title={dialog_title(@provider, @editing)}
+    on_cancel={JS.push("cancel", target: @myself)}
+  >
+    <.form for={@form} id={"#{@provider}-channel-form"} phx-change="validate" phx-submit="save" phx-target={@myself}>
+      <.dialog_body>
+        <.steps :if={@editing == :new && @provider == :teams} title="In Teams">
+          <:step>Open the channel’s ⋯ menu and choose <strong class="font-medium text-content-body">Workflows</strong>.</:step>
+          <:step>Pick the <strong class="font-medium text-content-body">Send webhook alerts to a channel</strong> template.</:step>
+          <:step>Copy the URL it gives you and paste it below.</:step>
+        </.steps>
+        <.steps :if={@editing == :new && @provider == :discord} title="In Discord">
+          <:step>Open the channel’s settings and choose <strong class="font-medium text-content-body">Integrations</strong>.</:step>
+          <:step>Choose <strong class="font-medium text-content-body">Webhooks</strong>, then <strong class="font-medium text-content-body">New Webhook</strong>.</:step>
+          <:step>Copy the webhook’s URL and paste it below.</:step>
+        </.steps>
+
+        <div class="flex flex-col gap-4">
+          <.text_field field={@form[:url]} value={typed_url(@form)} label={url_label(@provider, @editing)} mono placeholder="https://…" autocomplete="off">
+            <:hint :if={@editing == :new}>
+              <span class="mt-0.5 lucide-lock size-3" aria-hidden="true"></span> Anyone with this URL can post to the channel, so it’s stored encrypted and not shown again.
+            </:hint>
+            <:hint :if={@editing != :new}>
+              Leave it empty to keep posting through the webhook the channel has. A URL pasted here replaces it.
+            </:hint>
+          </.text_field>
+          <.text_field field={@form[:name]} label="Name" placeholder={name_placeholder(@provider)}>
+            <:hint>What to call it here. {service_name(@provider)} doesn’t tell us the channel’s name.</:hint>
+          </.text_field>
+        </div>
+
+        <.products_field form={@form} id={"#{@provider}"} products={@products} />
+        <.events_field form={@form} id={"#{@provider}"} columns={@event_columns} />
+      </.dialog_body>
+
+      <.dialog_footer dialog={dialog_id(@provider)}>
+        <.button style="primary" type="submit" phx-disable-with="Saving…">
+          {if @editing == :new, do: "Add channel", else: "Save channel"}
+        </.button>
+      </.dialog_footer>
+    </.form>
+  </.dialog>
+</div>

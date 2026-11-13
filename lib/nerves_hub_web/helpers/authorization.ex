@@ -6,6 +6,7 @@ defmodule NervesHubWeb.Helpers.Authorization do
   `NervesHub.Accounts.Permissions`.
   """
 
+  alias NervesHub.Accounts.OrgRole
   alias NervesHub.Accounts.OrgUser
   alias NervesHub.Accounts.Permissions
   alias NervesHub.Accounts.Scope
@@ -19,8 +20,8 @@ defmodule NervesHubWeb.Helpers.Authorization do
 
   `subject` is a `Scope` with an org (its permissions were worked out when the
   role was put on it), an `OrgUser` (with its custom role preloaded, if it has
-  one), or a built-in role. Raises `ArgumentError` for a permission that
-  doesn't exist.
+  one), or a role: a built-in one or a custom `OrgRole`. Raises
+  `ArgumentError` for a permission that doesn't exist.
   """
   def authorized?(permission, %Scope{permissions: permissions}) do
     Permissions.granted?(permissions, permission)
@@ -30,7 +31,7 @@ defmodule NervesHubWeb.Helpers.Authorization do
     Permissions.granted?(Permissions.for_role(OrgUser.assigned_role(org_user)), permission)
   end
 
-  def authorized?(permission, role) when is_atom(role) do
+  def authorized?(permission, role) when is_atom(role) or is_struct(role, OrgRole) do
     Permissions.granted?(Permissions.for_role(role), permission)
   end
 end

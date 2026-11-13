@@ -27,7 +27,10 @@ A production cluster is **asymmetric**, and this shapes a lot of the code:
 Key runtime pieces:
 
 - **Phoenix endpoints** — `NervesHubWeb.Endpoint` (dashboard/API), plus a
-  device socket endpoint and a health-check endpoint.
+  device socket endpoint and a health-check endpoint. With `MAINTENANCE_MODE` set,
+  a node starts `NervesHubWeb.MaintenanceEndpoint` and nothing else: no database,
+  no cluster, no other endpoints (see
+  [docs/runtime_configuration.md](docs/runtime_configuration.md)).
 - **Two data stores:**
   - **PostgreSQL** via `NervesHub.Repo` — core domain data (accounts, devices,
     firmware, deployments, …). Migrations in `priv/repo/`.
@@ -38,6 +41,9 @@ Key runtime pieces:
 - **Background jobs** — Oban (`lib/nerves_hub/workers/`).
 - **Deployment orchestration** — one singleton `Orchestrator` process per
   deployment group, owned by ProcessHub (`NervesHub.ManagedDeployments.Distributed`).
+- **Node discovery** — libcluster topologies from `NervesHub.Clustering`:
+  Postgres `LISTEN/NOTIFY` by default, or DNS (`CLUSTER_STRATEGY`). See
+  [Clustering](docs/runtime_configuration.md#clustering).
 - **Presence/liveness** — `NervesHub.Tracker` + Phoenix Presence.
 - **Cross-node messaging** — two transports. `Phoenix.PubSub` for dense
   fan-out, and the `group` library for per-entity topics whose consumers are
@@ -75,29 +81,87 @@ when adding or removing one.
   unknown permission raises rather than quietly denying. The JSON API still
   checks built-in role levels (`plug(:validate_role, org: :manage)`), where a
   custom role counts only as `view`.
-- `devices.ex` / `devices/` — device lifecycle, connections, health status,
-  metrics, firmware update history (`update_history.ex` — how each update
+- `devices.ex` / `devices/` — device lifecycle, connections, health status
+  (judged off the report path: reports queue an evaluation per device on a
+  per-node `HealthEvaluation.Queue` with a fixed number of workers, so a slow
+  ClickHouse never holds up a device's message), metrics, firmware update
+  history (`update_history.ex` — how each update
   attempt ended, split across both stores: the device's consecutive failure
   count in Postgres, the history itself in ClickHouse), and network identities
   (a device's identity on networks NervesHub doesn't run, such as iroh or
-  NetBird).
+  NetBird). Each connection records the client library and version the device
+  connected with (`lib` / `lib_version`), read from the `User-Agent` of its
+  websocket upgrade by `client_library.ex`: listed clients under a fixed name,
+  any other only if it opts in with a `custom#` prefix. Those rules are a wire
+  contract with device clients; see
+  [docs/device_client_identification.md](docs/device_client_identification.md).
 - `managed_deployments.ex` / `managed_deployments/` — deployment groups and the
-  `Distributed.Orchestrator` (one per deployment).
+  `Distributed.Orchestrator` (one per deployment). A release with a workflow
+  is walked a step at a time (`Workflows`, `WorkflowCoordinator`); each step
+  transition is announced to webhooks and Slack (`WorkflowEvents`).
 - `firmwares.ex` / `firmwares/` and `archives.ex` / `archives/` — firmware and
   archive artifacts, uploads, and firmware **delta** building.
 - `products.ex` / `products/` — products and product settings, including
   health profiles (the per-product thresholds behind device health status,
-  evaluated in `devices/health_evaluation.ex`).
+  evaluated in `devices/health_evaluation.ex`) and the device-managed updates
+  grant new devices start with (applied in `Device.create_changeset/2`). Changes
+  to a setting on every device in a product, from product settings, live in
+  `devices/bulk_actions.ex`.
 - `extensions.ex` / `extensions/` — the device **extension framework**
-  (`health`, `geo`, `local_shell`, `logging`, `network_identity`,
-  `error_reports`); extensions attach per-device and exchange messages over the
-  extensions channel.
+  (`health`, `metrics`, `alarms`, `geo`, `local_shell`, `logging`,
+  `network_identity`, `error_reports`); extensions attach per-device and
+  exchange messages over the extensions channel.
 - `error_reports.ex` / `error_reports/` — exceptions devices report, grouped
   into issues. Split across both stores: the group in Postgres, the
   occurrences in ClickHouse. See [docs/error_reports.md](docs/error_reports.md).
+- `webhooks.ex` / `webhooks/` — webhooks: device events POSTed to endpoints
+  an organization configures, for every product or a chosen few (org
+  Integrations page, or `API.WebhookController`). Events arrive through
+  `Integrations.dispatch/3`. Deliveries are Oban jobs
+  (`Workers.DeliverWebhook`), signed per Standard Webhooks, and only reach
+  public addresses unless the instance allows otherwise. Event types and
+  payloads are a published contract; see [docs/webhooks.md](docs/webhooks.md).
+- `integrations.ex` / `integrations/` — where device events leave NervesHub.
+  Code where an event happens calls `Integrations.dispatch/3` with the
+  product, which costs one ETS read (`Integrations.Cache`) for a product
+  nothing hears, and otherwise hands the event to the webhooks, Slack
+  channels, and Teams and Discord channels that want it. `ProductScope` is the "every
+  product, or these products" they share, and `ChannelEvents` the events a
+  chat channel can be sent.
+- `integrations/slack.ex` / `integrations/slack/` — the Slack integration: workspaces an organization
+  connects by installing the instance's Slack app (`NervesHubWeb.Integrations.Slack.OAuthController`
+  runs the OAuth flow), and the events Slack sends to `/integrations/slack/`,
+  which must be signed (`Integrations.Slack.VerifyRequest`). One bot token per
+  workspace, encrypted at rest with `Types.Encrypted`. `Slack.Subscriptions`
+  posts device events to channels, held 15 seconds and rolled up into one
+  message per kind (`Workers.PostSlackEvents`, `Slack.Messages`). Buttons on
+  those messages are carried out by `NervesHubWeb.Integrations.Slack.Actions` as the
+  NervesHub user the Slack user linked (`Slack.Users`), with that user's
+  permissions checked at click time; `NervesHubWeb.Integrations.Slack.Commands` answers
+  `/nerveshub` with the same checks (`Integrations.Slack.Actions.authorize/5`), and
+  `NervesHubWeb.Integrations.Slack.WorkflowSteps` approves, retries or skips a deployment
+  workflow step (`Integrations.Slack.Actions.authorize_in/6`), and
+  `Slack.WorkflowMessages` edits the messages with those buttons once the
+  step is dealt with, by any route. An instance Slack cannot reach sets
+  `SLACK_APP_TOKEN` and gets the same events, clicks and commands over
+  Socket Mode (`NervesHubWeb.Integrations.Slack.Socket`, two connections
+  per web node) instead of at `/integrations/slack/`. `NervesHubWeb.Integrations.Slack.Unfurls`
+  previews device and deployment group links posted in Slack, checked
+  against whoever posted them. Hidden unless the instance has a Slack app;
+  see [docs/slack.md](docs/slack.md).
+- `integrations/chat_webhooks.ex` / `integrations/chat_webhooks/` — chat
+  channels posted to through the incoming webhook their service gave: a
+  Microsoft Teams Workflows webhook or a Discord channel webhook
+  (`ChatWebhook`, one table, `provider` saying which). The webhook URL is the
+  only credential, so it is encrypted and never shown again. Events are held
+  and rolled up as Slack's are (`Workers.PostChatWebhookEvents`). Each
+  service is a `ChatWebhooks.Provider`: `integrations/teams.ex` (URL checks,
+  Adaptive Cards in `Teams.Cards`) and `integrations/discord.ex` (URL checks,
+  embeds in `Discord.Embeds`). See [docs/teams.md](docs/teams.md) and
+  [docs/discord.md](docs/discord.md).
 - `scripts.ex` / `scripts/` — support scripts run against a device console.
 - `workers/` — Oban workers (e.g. firmware delta building, firmware deletion).
-- Cross-cutting: `audit_logs.ex`, `product_notifications.ex`, `tracker.ex`,
+- Cross-cutting: `audit_logs.ex`, `clustering.ex`, `product_notifications.ex`, `tracker.ex`,
   `rate_limit.ex`, `cli_session_cache.ex`, `device_link.ex`, `repo.ex`,
   `analytics_repo.ex`, `application.ex`.
 
@@ -109,8 +173,15 @@ when adding or removing one.
   - User-facing counterparts: `UserConsoleChannel`, `UserLocalShellChannel`.
 - `live/` — LiveViews (the dashboard). `live/devices/show.ex` is the device
   page; its tabs live in `components/device_page/*` as tab components that hook
-  into the LiveView.
-- `components/` — shared function/live components.
+  into the LiveView. An organization's pages (`live/org/`, plus
+  `live/products/new.ex`) have no sidebar: they render inside `Layouts.org/1`,
+  a centered column under the organization's name, counts and tabs, and mount
+  `NervesHubWeb.Mounts.OrgCounts` for the counts. Product pages keep the
+  sidebar layout.
+- `components/` — shared function/live components. `components/fleet.ex`
+  sums up how a set of products is doing (Needs attention, online meters,
+  health chips), for the organizations home page and an organization's
+  Products tab.
 - `controllers/` — JSON API (`controllers/api/`) and others.
 - `plugs/`, `router.ex`, `endpoint.ex`, `device_endpoint.ex`,
   `health_check_endpoint.ex`, `auth*.ex`.
@@ -143,6 +214,30 @@ when adding or removing one.
   - `mix credo --min-priority low`
   - `mix spellweaver.check` — spell check (cspell). New proper nouns / technical
     terms go in `.cspell.json`.
+- **Icons:** `lucide-<icon>[--<weight>]` classes come from
+  `assets/vendor/lucideicons.js`, which only generates a class for each SVG in
+  `deps/lucide/icons`. Lucide renames icons between releases, and a class whose
+  icon is gone renders as nothing, so `NervesHubWeb.LucideIconsTest` fails on
+  any class with no SVG behind it. A line icon draws its stroke at 1/16 of its
+  size and never under 1px: plain `lucide-<icon>` is that weight, `--bold` is
+  for a selected nav item or an icon under 16px, and `--thin` for 32px and up.
+  Every icon is a Lucide glyph, either a `lucide-*` span or `<.icon name="…">`
+  (`NervesHubWeb.Components.Icons`, which names the ones used across pages).
+  The glyph is a mask filled with `currentColor`, so a `text-*` class colours
+  it, never `stroke-*` or `fill-*`. Inline SVG is for logos and illustrations.
+  A `<.button>` holding only an icon sets `square`, or it comes out shorter
+  than the text buttons beside it. A file picker is `<.button type="label">`
+  with `for` set to the upload's ref.
+- **Fonts:** Inter (the sans) and JetBrains Mono (`--font-mono`) are vendored
+  in `priv/static/fonts/`, each straight from its upstream release with its OFL
+  license, and declared with `@font-face` in `assets/css/app.css`. The
+  maintenance page declares Inter in its own inline CSS (`MaintenanceEndpoint`
+  serves `fonts` for it). JetBrains Mono has no variable woff2, so only the
+  weights mono text uses are there (400, 500, 600); a heavier or italic mono
+  style needs its file added. xterm and chart.js draw on a canvas, so they name
+  the font themselves in `assets/js` and wait for it with `whenFontsLoaded`.
+  Self-hosted instances may have no internet access, so don't load fonts or
+  other assets from a third-party CDN.
 - **Boundaries:** contexts (`lib/nerves_hub/`) hold business logic; web modules
   stay thin and call into them. Match the surrounding module's conventions,
   error handling, and naming rather than importing your own.
@@ -232,6 +327,17 @@ moment a consumer changed.
   don't get.
 - **Dependency Review** — read-only review of a PR's dependency changes;
   `pull_request` only, so it works for outside contributors.
+
+`.github/workflows/image-scan.yml` runs Trivy over the published image every day
+and fails on a fixable critical or high finding. It doesn't block pull requests.
+
+## Container image
+
+The runtime image runs as uid 65532, not root. The app can only write to
+`/app/tmp` and the system temp directory, so anything new that writes to disk has
+to use one of those. It can't bind a port below 1024 unless the container runtime
+allows it (see `DEVICE_PORT` in
+[docs/runtime_configuration.md](docs/runtime_configuration.md)).
 
 ## Working here as an agent
 

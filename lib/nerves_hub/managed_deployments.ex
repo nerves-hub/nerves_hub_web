@@ -16,6 +16,7 @@ defmodule NervesHub.ManagedDeployments do
   alias NervesHub.ManagedDeployments.DeploymentRelease
   alias NervesHub.ManagedDeployments.DeploymentWorkflowStep
   alias NervesHub.ManagedDeployments.Orchestrator
+  alias NervesHub.ManagedDeployments.WorkflowEvents
   alias NervesHub.Products.Product
   alias NervesHub.Repo
   alias Phoenix.Channel.Server, as: PhoenixChannelServer
@@ -55,6 +56,22 @@ defmodule NervesHub.ManagedDeployments do
     |> order_by(:name)
     |> where([deployment_group: d], d.product_id == ^product_id)
     |> Repo.all()
+  end
+
+  @doc """
+  How many deployment groups each of the given products has. A product with
+  none is left out of the map.
+  """
+  @spec count_by_product([pos_integer()]) :: %{pos_integer() => pos_integer()}
+  def count_by_product([]), do: %{}
+
+  def count_by_product(product_ids) when is_list(product_ids) do
+    DeploymentGroup
+    |> where([d], d.product_id in ^product_ids)
+    |> group_by([d], d.product_id)
+    |> select([d], {d.product_id, count(d.id)})
+    |> Repo.all()
+    |> Map.new()
   end
 
   @doc """
@@ -315,7 +332,10 @@ defmodule NervesHub.ManagedDeployments do
       deployment_group = lock_current_release(deployment_group)
       dr_changeset = DeploymentRelease.new_changeset(deployment_group, firmware, archive, params, user)
 
+      previous_release_id = deployment_group.current_deployment_release_id
+
       with {:ok, release} <- Repo.insert(dr_changeset),
+           :ok <- WorkflowEvents.release_replaced(previous_release_id, release),
            {:ok, deployment_group} = recalculate_current_release(deployment_group),
            deployment_group = load_current_release(deployment_group, force: true),
            :ok <- maybe_audit_new_deployment_release(user, deployment_group, opts),
@@ -561,13 +581,20 @@ defmodule NervesHub.ManagedDeployments do
 
   # Every device in the group, with the firmware it is running and the release it
   # is headed for.
+  #
+  # Only live firmware counts as what a device is running. A delta can only be
+  # built from live firmware, so a device on deleted firmware takes the full
+  # image and needs no delta. A delta left over from a deleted source would
+  # otherwise keep the release waiting on a build that can never run.
   defp group_device_firmware_query(%DeploymentGroup{id: deployment_group_id}) do
     Device
     |> from(as: :device)
     |> join(:inner, [device: d], dg in DeploymentGroup, on: dg.id == d.deployment_id, as: :deployment_group)
     |> where([deployment_group: dg], dg.id == ^deployment_group_id)
     |> join(:inner, [device: d], f in Firmware,
-      on: f.product_id == d.product_id and f.uuid == fragment("?->>'uuid'", d.firmware_metadata),
+      on:
+        f.product_id == d.product_id and f.uuid == fragment("?->>'uuid'", d.firmware_metadata) and
+          is_nil(f.deleted_at),
       as: :firmware
     )
     |> join_target_release(deployment_group_id)
@@ -1026,22 +1053,23 @@ defmodule NervesHub.ManagedDeployments do
       when not is_nil(deployment_id) do
     deployment_group =
       DeploymentGroup
-      |> select([:id, :org_id, :name, :conditions, :platform, :architecture, :lock_device_membership])
+      |> select([:id, :org_id, :product_id, :name, :conditions, :platform, :architecture, :lock_device_membership])
       |> where([d], d.id == ^deployment_id)
       |> Repo.one!()
 
-    with false <- deployment_group.lock_device_membership,
-         reason when not is_nil(reason) <- membership_mismatch_reason(device, device_version, deployment_group) do
-      device =
+    case membership_mismatch_reason(device, device_version, deployment_group) do
+      nil ->
         device
-        |> Ecto.Changeset.change(%{deployment_id: nil})
-        |> Repo.update!()
 
-      DeploymentGroupTemplates.audit_deployment_mismatch(device, deployment_group, reason)
+      reason ->
+        device =
+          device
+          |> Ecto.Changeset.change(%{deployment_id: nil})
+          |> Repo.update!()
 
-      device
-    else
-      _ -> device
+        DeploymentGroupTemplates.audit_deployment_mismatch(device, deployment_group, reason)
+
+        device
     end
   end
 
@@ -1049,6 +1077,12 @@ defmodule NervesHub.ManagedDeployments do
 
   defp membership_mismatch_reason(device, device_version, deployment_group) do
     cond do
+      # Checked ahead of the lock, which keeps devices whose firmware no longer
+      # matches: a group in another product is never right. Request params
+      # could once set a device's group, including to another org's, which
+      # then sent the device that org's firmware.
+      deployment_group.product_id != device.product_id -> "mismatched product"
+      deployment_group.lock_device_membership -> nil
       version_mismatch?(device_version, deployment_group.conditions.version) -> "mismatched version"
       device.firmware_metadata.platform != deployment_group.platform -> "mismatched platform"
       device.firmware_metadata.architecture != deployment_group.architecture -> "mismatched architecture"

@@ -56,11 +56,12 @@ defmodule NervesHub.Accounts.Permissions do
        {:"org_role:update", :admin, :never, "Edit custom roles"},
        {:"org_role:delete", :admin, :never, "Delete custom roles"}
      ]},
+    # Registering a CA still needs proof of holding its private key.
     {"Certificate authorities",
      [
-       {:"certificate_authority:create", :admin, :optional, "Add certificate authorities"},
-       {:"certificate_authority:update", :admin, :optional, "Edit certificate authorities"},
-       {:"certificate_authority:delete", :admin, :optional, "Delete certificate authorities"}
+       {:"certificate_authority:create", :manage, :optional, "Add certificate authorities"},
+       {:"certificate_authority:update", :manage, :optional, "Edit certificate authorities"},
+       {:"certificate_authority:delete", :manage, :optional, "Delete certificate authorities"}
      ]},
     {"Signing keys",
      [
@@ -83,6 +84,27 @@ defmodule NervesHub.Accounts.Permissions do
        {:"product:notifications:dismiss", :manage, :optional, "Dismiss product notifications"},
        {:"error_group:update", :manage, :optional, "Resolve and reopen reported errors"}
      ]},
+    # A webhook or chat channel can send any product's device events outside
+    # NervesHub, so they take the role that can change every product.
+    {"Integrations",
+     [
+       {:"webhook:create", :manage, :optional, "Add webhooks"},
+       {:"webhook:update", :manage, :optional, "Edit webhooks"},
+       {:"webhook:delete", :manage, :optional, "Delete webhooks"},
+       {:"slack_subscription:create", :manage, :optional, "Choose which Slack channels hear which events"},
+       {:"slack_subscription:update", :manage, :optional, "Edit Slack channel subscriptions"},
+       {:"slack_subscription:delete", :manage, :optional, "Remove Slack channel subscriptions"},
+       {:"chat_webhook:create", :manage, :optional, "Add Teams and Discord channels"},
+       {:"chat_webhook:update", :manage, :optional, "Edit Teams and Discord channels"},
+       {:"chat_webhook:delete", :manage, :optional, "Remove Teams and Discord channels"}
+     ]},
+    # Connecting a Slack workspace lets the people in it hear about the whole
+    # organization's devices, and later act on them, so it is an admin's call.
+    {"Slack workspaces",
+     [
+       {:"slack_connection:create", :admin, :never, "Connect a Slack workspace"},
+       {:"slack_connection:delete", :admin, :never, "Disconnect a Slack workspace"}
+     ]},
     {"Devices",
      [
        {:"device:view", :view, :always, "View devices and stream their events"},
@@ -103,6 +125,9 @@ defmodule NervesHub.Accounts.Permissions do
      ]},
     {"Firmware and archives",
      [
+       # Firmware images can carry secrets, so downloading one takes more than
+       # being able to see the product.
+       {:"firmware:download", :manage, :optional, "Download firmware"},
        {:"firmware:upload", :manage, :optional, "Upload firmware"},
        {:"firmware:delete", :manage, :optional, "Delete firmware"},
        {:"archive:upload", :manage, :optional, "Upload archives"},

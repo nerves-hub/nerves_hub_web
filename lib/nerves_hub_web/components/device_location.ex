@@ -1,10 +1,13 @@
 defmodule NervesHubWeb.Components.DeviceLocation do
   use NervesHubWeb, :component
 
+  alias NervesHub.Accounts.User.DisplayPreferences
   alias Phoenix.LiveView.JS
 
   attr(:location, :any)
   attr(:enable_location_editor, :boolean)
+  attr(:map_style, :atom, default: nil, doc: "the user's map style, or nil to follow the theme")
+  attr(:editable, :boolean, default: false, doc: "whether to offer setting or clearing the location by hand")
 
   # Only rendered when a Mapbox token is configured and the Geo extension is
   # enabled for the product and device. The details tab checks that.
@@ -22,11 +25,12 @@ defmodule NervesHubWeb.Components.DeviceLocation do
   def render(%{enable_location_editor: true} = assigns) do
     ~H"""
     <div class="flex h-[450px] w-full flex-col gap-4 p-4">
-      <div class="flex items-end justify-between">
-        <div class="text-base-50 leading-6 font-medium">Location</div>
-        <div class="text-base-400 text-xs font-normal">
+      <div class="flex items-end justify-between gap-2">
+        <div class="leading-6 font-medium text-content-strong">Location</div>
+        <div class="ml-auto text-xs font-normal text-content-muted">
           Please select the devices location.
         </div>
+        <.map_style_menu map_style={@map_style} />
       </div>
 
       <div
@@ -35,6 +39,7 @@ defmodule NervesHubWeb.Components.DeviceLocation do
         phx-hook="DeviceLocationMapWithGeocoder"
         phx-update="ignore"
         data-access-token={@mapbox_access_token}
+        data-map-style={@map_style}
       >
       </div>
 
@@ -51,16 +56,16 @@ defmodule NervesHubWeb.Components.DeviceLocation do
     ~H"""
     <div class="flex h-[450px] w-full flex-col gap-4 p-4">
       <div class="flex items-end justify-between">
-        <div class="text-base-50 leading-6 font-medium">Location</div>
-        <div class="text-base-400 text-xs font-normal">The devices location is announced by the device after it connects.</div>
+        <div class="leading-6 font-medium text-content-strong">Location</div>
+        <div class="text-xs font-normal text-content-muted">The devices location is announced by the device after it connects.</div>
       </div>
 
       <div class="relative flex size-full flex-col items-center justify-center">
         <div class="bg-example-map-dark absolute bottom-0 left-0 z-10 size-full bg-cover bg-center blur-sm"></div>
         <div class="z-50 flex flex-col items-center gap-4">
-          <div class="text-base-300">No location information found.</div>
-          <div class="text-base-300">Please check if the Geo extension has been included in your firmware.</div>
-          <div>
+          <div class="text-content-body">No location information found.</div>
+          <div class="text-content-body">Please check if the Geo extension has been included in your firmware.</div>
+          <div :if={@editable}>
             <.button phx-click="enable-location-editor">Manually set the location</.button>
           </div>
         </div>
@@ -77,14 +82,14 @@ defmodule NervesHubWeb.Components.DeviceLocation do
     <div class="flex h-[450px] w-full flex-col gap-4 p-4">
       <div class="flex items-end justify-between">
         <div class="disabled:border-gray-300 disabled:bg-gray-100 disabled:checked:bg-gray-100">Location</div>
-        <div class="text-base-400 text-xs font-normal">The devices location is announced by the device after it connects.</div>
+        <div class="text-xs font-normal text-content-muted">The devices location is announced by the device after it connects.</div>
       </div>
 
       <div class="relative flex size-full flex-col items-center justify-center">
         <div class="bg-example-map-dark absolute bottom-0 left-0 z-10 size-full bg-cover bg-center blur-sm"></div>
         <div class="z-50 flex flex-col items-center gap-4">
-          <div class="text-base-300">An error occurred during location resolution : {@location["error_code"]}</div>
-          <div :if={@location["error_description"]} class="text-base-300">{@location["error_description"]}</div>
+          <div class="text-content-body">An error occurred during location resolution : {@location["error_code"]}</div>
+          <div :if={@location["error_description"]} class="text-content-body">{@location["error_description"]}</div>
         </div>
       </div>
     </div>
@@ -96,13 +101,13 @@ defmodule NervesHubWeb.Components.DeviceLocation do
     ~H"""
     <div class="flex h-[450px] w-full flex-col gap-4 p-4">
       <div class="flex items-end justify-between">
-        <div class="text-base-50 leading-6 font-medium">Location</div>
+        <div class="leading-6 font-medium text-content-strong">Location</div>
       </div>
 
       <div class="relative flex size-full flex-col items-center justify-center">
         <div class="bg-example-map-dark absolute bottom-0 left-0 z-10 size-full bg-cover bg-center blur-sm"></div>
         <div class="z-50 flex flex-col items-center gap-4">
-          <div class="text-base-300">The location coordinates are invalid and can't be displayed.</div>
+          <div class="text-content-body">The location coordinates are invalid and can't be displayed.</div>
         </div>
       </div>
     </div>
@@ -117,7 +122,9 @@ defmodule NervesHubWeb.Components.DeviceLocation do
       source: location["source"],
       zoom: if(String.downcase(location["source"]) == "gps", do: 15, else: 13),
       mapbox_access_token: assigns.mapbox_access_token,
-      target: assigns[:target]
+      map_style: assigns.map_style,
+      target: assigns[:target],
+      editable: assigns[:editable]
     }
 
     source_information =
@@ -131,13 +138,14 @@ defmodule NervesHubWeb.Components.DeviceLocation do
     ~H"""
     <div class="flex h-[450px] w-full flex-col gap-4 p-4">
       <div class="flex items-end justify-between gap-2">
-        <div class="text-base-50 leading-6 font-medium">Location</div>
-        <div class="text-base-400 ml-auto text-xs font-normal">
+        <div class="leading-6 font-medium text-content-strong">Location</div>
+        <div class="ml-auto text-xs font-normal text-content-muted">
           {@source_information}
         </div>
-        <div class="relative flex justify-end">
+        <.map_style_menu map_style={@map_style} />
+        <div :if={@editable} class="relative flex justify-end">
           <button
-            class="active:bg-primary bg-base-800 border-base-600 disabled:bg-base-800 hover:bg-base-700 rounded-sm border p-0.5"
+            class="rounded border border-line-strong bg-base-800 p-0.5 hover:bg-base-700 active:bg-primary disabled:bg-base-800"
             id="location-settings-button"
             aria-expanded="true"
             aria-haspopup="true"
@@ -162,12 +170,12 @@ defmodule NervesHubWeb.Components.DeviceLocation do
             }
             phx-key="Escape"
           >
-            <.icon name="settings" class="fill-base-400 size-3" />
+            <span class="lucide-settings--bold size-3 text-content-muted" aria-hidden="true"></span>
           </button>
 
           <div
             id="location-settings-menu"
-            class="bg-surface-overlay border-base-700 absolute right-0 z-10 mt-6 w-48 origin-top-right rounded border shadow-lg ring-1 ring-black/5 focus:outline-none"
+            class="absolute right-0 z-10 mt-6 w-48 origin-top-right rounded-md border border-line-default bg-surface-overlay shadow-overlay ring-1 ring-black/5 focus:outline-none"
             role="menu"
             style="display: none;"
             aria-orientation="vertical"
@@ -175,13 +183,13 @@ defmodule NervesHubWeb.Components.DeviceLocation do
             tabindex="-1"
           >
             <div role="none">
-              <button phx-click="enable-location-editor" class="hover:bg-base-700 text-base-300 block w-full px-4 pt-2 pb-3 text-left text-xs" role="menuitem" tabindex="-1">
+              <button phx-click="enable-location-editor" class="block w-full px-4 pt-2 pb-3 text-left text-xs text-content-body hover:bg-base-700" role="menuitem" tabindex="-1">
                 Manually update location
               </button>
               <button
                 :if={@source == "manual"}
                 phx-click="clear-manual-location-information"
-                class="hover:bg-base-700 text-base-300 block w-full px-4 pt-2 pb-3 text-left text-xs"
+                class="block w-full px-4 pt-2 pb-3 text-left text-xs text-content-body hover:bg-base-700"
                 role="menuitem"
                 tabindex="-1"
               >
@@ -202,9 +210,86 @@ defmodule NervesHubWeb.Components.DeviceLocation do
         data-center-lat={@lat}
         data-zoom={@zoom}
         data-source={@source}
+        data-map-style={@map_style}
       >
       </div>
     </div>
     """
   end
+
+  attr(:map_style, :atom, required: true)
+
+  # Picking a style saves it to the user's display preferences. The map hook
+  # sees the new `data-map-style` when the page re-renders and restyles the map
+  # in place, keeping its position and marker.
+  defp map_style_menu(assigns) do
+    assigns = assign(assigns, :options, [nil | DisplayPreferences.map_styles()])
+
+    ~H"""
+    <div class="relative flex justify-end">
+      <button
+        type="button"
+        class="rounded border border-line-strong bg-base-800 p-0.5 hover:bg-base-700 active:bg-primary"
+        id="map-style-button"
+        title="Map style"
+        aria-label="Map style"
+        aria-haspopup="true"
+        phx-click={
+          JS.toggle(
+            to: "#map-style-menu",
+            in: {"ease-out duration-100", "opacity-0 scale-95", "opacity-100 scale-100"},
+            out: {"ease-out duration-75", "opacity-100 scale-100", "opacity-0 scale-95"}
+          )
+        }
+        phx-click-away={
+          JS.hide(
+            to: "#map-style-menu",
+            transition: {"ease-out duration-75", "opacity-100 scale-100", "opacity-0 scale-95"}
+          )
+        }
+        phx-window-keydown={
+          JS.hide(
+            to: "#map-style-menu",
+            transition: {"ease-out duration-75", "opacity-100 scale-100", "opacity-0 scale-95"}
+          )
+        }
+        phx-key="Escape"
+      >
+        <span class="lucide-layers--bold block size-3 text-content-muted" />
+      </button>
+
+      <div
+        id="map-style-menu"
+        class="absolute right-0 z-10 mt-6 w-48 origin-top-right rounded-md border border-line-default bg-surface-overlay py-1 shadow-overlay ring-1 ring-black/5 focus:outline-none"
+        role="menu"
+        style="display: none;"
+        aria-orientation="vertical"
+        aria-labelledby="map-style-button"
+        tabindex="-1"
+      >
+        <button
+          :for={option <- @options}
+          type="button"
+          phx-click="set-map-style"
+          phx-value-style={to_string(option)}
+          class="flex w-full items-center justify-between gap-2 px-4 py-2 text-left text-xs text-content-body hover:bg-base-700"
+          role="menuitemradio"
+          aria-checked={to_string(option == @map_style)}
+          tabindex="-1"
+        >
+          {map_style_label(option)}
+          <span :if={option == @map_style} class="lucide-check--bold size-3.5 text-primary" />
+        </button>
+      </div>
+    </div>
+    """
+  end
+
+  defp map_style_label(nil), do: "Match theme"
+  defp map_style_label(:streets), do: "Streets"
+  defp map_style_label(:outdoors), do: "Outdoors"
+  defp map_style_label(:light), do: "Light"
+  defp map_style_label(:dark), do: "Dark"
+  defp map_style_label(:satellite), do: "Satellite"
+  defp map_style_label(:satellite_streets), do: "Satellite with streets"
 end

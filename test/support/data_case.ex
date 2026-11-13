@@ -48,6 +48,32 @@ defmodule NervesHub.DataCase do
   end
 
   @doc """
+  Stops the rate limiters' clock moving, for the rest of the test.
+
+  The `Hammer` token buckets behind `NervesHub.RateLimit.*` refill from
+  `System.system_time(:second)`, in whole seconds. A test that spends a bucket
+  and then expects the next hit to be denied fails whenever the two hits land
+  either side of a second boundary, because a token arrives in between. With
+  the second held, a denial comes from the limit and never from when the test
+  happened to run.
+
+  Use it as `setup :freeze_rate_limit_clock`. Only `System.system_time(:second)`
+  is held, and only in the test process: other units, `DateTime.utc_now/0` and
+  every other process keep the real clock. `NervesHub.RateLimit.FrozenClockTest`
+  fails if Hammer stops reading the time from there.
+  """
+  def freeze_rate_limit_clock(_context) do
+    now = System.system_time(:second)
+
+    Mimic.stub(System, :system_time, fn
+      :second -> now
+      unit -> Mimic.call_original(System, :system_time, [unit])
+    end)
+
+    :ok
+  end
+
+  @doc """
   A helper that transform changeset errors to a map of messages.
 
       assert {:error, changeset} = Accounts.create_user(%{password: "short"})

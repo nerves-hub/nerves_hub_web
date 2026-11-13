@@ -97,6 +97,23 @@ defmodule NervesHub.Devices.UpdateStatsTest do
       assert stat.type == "fwup_delta"
     end
 
+    test "finds the delta when deleted firmware shares a uuid with either end of it", %{
+      device: device,
+      source_firmware: source_firmware,
+      target_firmware: target_firmware,
+      source_firmware_metadata: source_firmware_metadata
+    } do
+      delta = Fixtures.firmware_delta_fixture(source_firmware, target_firmware)
+      _ = Fixtures.deleted_firmware_twin_fixture(source_firmware)
+      _ = Fixtures.deleted_firmware_twin_fixture(target_firmware)
+
+      assert :ok = UpdateStats.log_update(device, source_firmware_metadata)
+
+      assert [stat] = Repo.all(UpdateStat)
+      assert stat.update_bytes == delta.size
+      assert stat.type == "fwup_delta"
+    end
+
     test "deployment group isn't set when device has no deployment group", %{
       device: device,
       source_firmware: source_firmware

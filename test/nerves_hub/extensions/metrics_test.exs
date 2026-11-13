@@ -14,6 +14,7 @@ defmodule NervesHub.Extensions.MetricsTest do
   alias NervesHub.AnalyticsRepo
   alias NervesHub.DeviceLink.DeviceInfo
   alias NervesHub.Devices.DeviceMetric
+  alias NervesHub.Devices.HealthEvaluation.Queue
   alias NervesHub.Extensions.Metrics
   alias NervesHub.Extensions.PubSub
   alias NervesHub.Extensions.State
@@ -63,9 +64,10 @@ defmodule NervesHub.Extensions.MetricsTest do
       ]
 
       {_state, []} = Metrics.handle_in("report", %{"reports" => reports}, state)
+      :ok = Queue.drain(device_id: device.id)
 
       # Two of three readings at or over the alert threshold: the batch's own
-      # readings are judged in hand, before any buffer flush.
+      # readings are judged in hand, flushed or not.
       device = Repo.preload(Repo.reload(device), :latest_health)
       assert device.latest_health.status == :unhealthy
       assert %{"cpu_usage_percent" => %{"value" => 67}} = device.latest_health.status_reasons["unhealthy"]
@@ -73,12 +75,19 @@ defmodule NervesHub.Extensions.MetricsTest do
   end
 
   describe "attaching" do
-    test "asks straight away and settles into the platform interval", %{device: device, state: state} do
+    test "asks within the first check window and settles into the platform interval", %{state: state} do
       {state, effects} = Metrics.attach(state)
 
       assert State.get(state, :mode) == :idle
-      assert {:group_join, "device:metrics/#{device.id}"} in effects
-      assert {:tick, :check} in effects
+
+      # Not straight away: a fleet that reconnects together would answer
+      # together. A tag of its own, so the interval keeps its own offset.
+      refute {:tick, :check} in effects
+      assert [{:send_after, :first_check, first_check_ms}] = Enum.filter(effects, &match?({:send_after, _, _}, &1))
+      assert first_check_ms in 0..to_timeout(minute: 1)
+      # A page announces itself on the device's extensions topic, so attaching
+      # takes no membership that every node would have to hold.
+      refute Enum.any?(effects, &match?({:group_join, _}, &1))
       assert {:start_timer, :check, first_ms, @idle_ms} = timer(effects)
 
       # Offset so a fleet attaching together does not answer together.
@@ -92,16 +101,38 @@ defmodule NervesHub.Extensions.MetricsTest do
 
       assert State.get(state, :mode) == :watched
       assert {:start_timer, :check, @watched_ms} = timer(effects)
+
+      # Somebody is looking, so the first report is asked for at once.
+      assert {:tick, :check} in effects
+      refute Enum.any?(effects, &match?({:send_after, _, _}, &1))
     end
 
-    test "detaching gives up the timer and the group", %{device: device, state: state} do
+    test "with no first check window, asks straight away", %{state: state} do
+      original = Application.get_env(:nerves_hub, :extension_config)
+      Application.put_env(:nerves_hub, :extension_config, metrics: [first_check_window_seconds: 0])
+      on_exit(fn -> Application.put_env(:nerves_hub, :extension_config, original) end)
+
+      {_state, effects} = Metrics.attach(state)
+
+      assert {:tick, :check} in effects
+      refute Enum.any?(effects, &match?({:send_after, _, _}, &1))
+    end
+
+    test "the first check is a check", %{state: state} do
+      {state, _effects} = Metrics.attach(state)
+
+      {_state, effects} = Metrics.handle_info(:first_check, state)
+
+      assert {:push, "metrics:check", %{}} in effects
+    end
+
+    test "detaching gives up the timers", %{state: state} do
       {state, _effects} = Metrics.attach(state)
 
       {state, effects} = Metrics.detach(state)
 
       assert State.get(state, :mode) == nil
-      assert {:cancel_timer, :check} in effects
-      assert {:group_leave, "device:metrics/#{device.id}"} in effects
+      assert effects == [{:cancel_timer, :check}, {:cancel_timer, :first_check}]
     end
 
     test "a page open on health does not speed metrics up", %{device: device, state: state} do
@@ -229,6 +260,10 @@ defmodule NervesHub.Extensions.MetricsTest do
   end
 
   describe "rate limiting" do
+    # The bucket refills every second, so a test that empties it and expects
+    # a denial would otherwise fail whenever a second ticks over in between.
+    setup :freeze_rate_limit_clock
+
     test "one message costs one token, whatever it carries", %{state: state} do
       report = %{"timestamp" => iso(at(-1)), "metrics" => %{"cpu_temp" => 1.0}}
 

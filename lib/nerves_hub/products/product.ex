@@ -20,6 +20,14 @@ defmodule NervesHub.Products.Product do
 
   @required_params [:name, :org_id]
 
+  @settings [
+    :require_unique_firmware_version,
+    :allowed_update_tools,
+    :allow_unsigned_esp_idf_firmware,
+    :allow_unsigned_atomvm_firmware,
+    :default_managed_updates_allowed
+  ]
+
   @type t :: %__MODULE__{}
 
   @derive {Phoenix.Param, key: :name}
@@ -59,6 +67,12 @@ defmodule NervesHub.Products.Product do
     # setting changes that.
     field(:allow_unsigned_esp_idf_firmware, :boolean, default: false)
     field(:allow_unsigned_atomvm_firmware, :boolean, default: false)
+
+    # The `managed_updates_allowed` grant a device created in this product starts
+    # with. A default only: it gates nothing, and changing it moves no existing
+    # device.
+    field(:default_managed_updates_allowed, :boolean, default: false)
+
     embeds_one(:extensions, ProductExtensionsSetting, on_replace: :update)
 
     field(:device_count, :integer, virtual: true)
@@ -77,16 +91,22 @@ defmodule NervesHub.Products.Product do
   @doc false
   def changeset(product, params) do
     product
-    |> cast(
-      params,
-      @required_params ++
-        [
-          :require_unique_firmware_version,
-          :allowed_update_tools,
-          :allow_unsigned_esp_idf_firmware,
-          :allow_unsigned_atomvm_firmware
-        ]
-    )
+    |> cast(params, @required_params ++ @settings)
+    |> validate()
+  end
+
+  @doc """
+  A new product in `org`. The org comes from `org`, never from `params`.
+  """
+  @spec create_changeset(Org.t(), map()) :: Ecto.Changeset.t()
+  def create_changeset(%Org{} = org, params) do
+    %__MODULE__{org_id: org.id}
+    |> cast(params, [:name | @settings])
+    |> validate()
+  end
+
+  defp validate(changeset) do
+    changeset
     |> cast_embed(:extensions)
     |> update_change(:name, &trim/1)
     |> validate_required(@required_params)

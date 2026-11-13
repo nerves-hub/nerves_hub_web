@@ -3,7 +3,7 @@ defmodule NervesHubWeb.DynamicConfigMultipart do
   A wrapper around `Plug.Parsers.MULTIPART` which allows for the `:length` opt (max file size)
   to be set during runtime.
 
-  This also restricts large file uploads to the firmware upload api route.
+  This also restricts large file uploads to the firmware and archive upload api routes.
 
   This can later be expanded to allow for different file size limits based on the organization.
 
@@ -40,12 +40,18 @@ defmodule NervesHubWeb.DynamicConfigMultipart do
   end
 
   defp max_file_size(conn) do
-    with ["api", "orgs", _org_name, "products", _product_name, "firmwares"] <- conn.path_info,
-         size = Application.get_env(:nerves_hub, Upload)[:max_size],
-         true <- is_integer(size) do
-      size
-    else
-      _ -> 1_000_000
-    end
+    size =
+      case conn.path_info do
+        ["api", "orgs", _org_name, "products", _product_name, "firmwares"] ->
+          Application.get_env(:nerves_hub, Upload)[:max_size]
+
+        ["api", "orgs", _org_name, "products", _product_name, "archives"] ->
+          Application.get_env(:nerves_hub, NervesHub.Uploads)[:max_size]
+
+        _ ->
+          nil
+      end
+
+    if is_integer(size), do: size, else: 1_000_000
   end
 end

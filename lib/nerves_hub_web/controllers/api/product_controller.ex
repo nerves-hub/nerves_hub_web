@@ -13,8 +13,7 @@ defmodule NervesHubWeb.API.ProductController do
 
   @auth_error_responses SchemaHelpers.auth_error_responses()
 
-  plug(:validate_role, [org: :admin] when action in [:create, :delete])
-  plug(:validate_role, [org: :manage] when action in [:update])
+  plug(:validate_role, [org: :manage] when action in [:create, :update, :delete])
   plug(:validate_role, [org: :view] when action in [:show])
 
   operation(:index,
@@ -62,12 +61,9 @@ defmodule NervesHubWeb.API.ProductController do
   )
 
   def create(%{assigns: %{current_scope: %{org: org}}} = conn, params) do
-    params =
-      params
-      |> Map.take(["name"])
-      |> Map.put("org_id", org.id)
-
-    with {:ok, product} <- Products.create_product(params) do
+    # The API has only ever taken a name here; the other settings are set
+    # through update.
+    with {:ok, product} <- Products.create_product(org, Map.take(params, ["name"])) do
       conn
       |> put_status(:created)
       |> put_resp_header("location", Routes.api_product_path(conn, :show, org.name, product.name))
@@ -102,7 +98,7 @@ defmodule NervesHubWeb.API.ProductController do
     render(conn, :show, product: product)
   end
 
-  @settable_params ~w(require_unique_firmware_version allowed_update_tools allow_unsigned_esp_idf_firmware allow_unsigned_atomvm_firmware)
+  @settable_params ~w(require_unique_firmware_version allowed_update_tools allow_unsigned_esp_idf_firmware allow_unsigned_atomvm_firmware default_managed_updates_allowed)
 
   operation(:update,
     summary: "Update a Product's settings",

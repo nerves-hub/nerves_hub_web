@@ -16,6 +16,7 @@ defmodule NervesHub.Archives.Archive do
           platform: String.t(),
           product: Ecto.Association.NotLoaded.t() | Product.t(),
           size: pos_integer(),
+          storage_key: String.t() | nil,
           uuid: Ecto.UUID.t(),
           vcs_identifier: String.t() | nil,
           version: Version.build()
@@ -27,6 +28,10 @@ defmodule NervesHub.Archives.Archive do
     belongs_to(:org_key, OrgKey)
 
     field(:size, :integer)
+
+    # Where the file is stored. `nil` for an archive uploaded before archives
+    # were stored under their org and product: see `NervesHub.Archives`.
+    field(:storage_key, :string)
 
     field(:architecture, :string)
     field(:author, :string)
@@ -68,6 +73,9 @@ defmodule NervesHub.Archives.Archive do
     ])
     |> validate_semver_version()
     |> unique_constraint(:uuid, name: :archives_product_id_uuid_index)
+    # The storage key is made from the product and UUID, so a clash there is
+    # the same archive again.
+    |> unique_constraint(:uuid, name: :archives_storage_key_index)
     |> foreign_key_constraint(:products)
   end
 

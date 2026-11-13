@@ -15,6 +15,7 @@ defmodule NervesHub.Fixtures do
   alias NervesHub.Devices.InflightUpdate
   alias NervesHub.Devices.NetworkIdentity
   alias NervesHub.Firmwares
+  alias NervesHub.Integrations.Slack
   alias NervesHub.ManagedDeployments
   alias NervesHub.Products
   alias NervesHub.Products.Product
@@ -122,14 +123,7 @@ defmodule NervesHub.Fixtures do
     Fwup.gen_key_pair(fwup_key_name, dir)
     key = Fwup.get_public_key(fwup_key_name, dir)
 
-    params = %{
-      org_id: org.id,
-      key: key,
-      name: fwup_key_name,
-      created_by_id: user.id
-    }
-
-    {:ok, org_key} = Accounts.create_org_key(params)
+    {:ok, org_key} = Accounts.create_org_key(org, user, %{key: key, name: fwup_key_name})
 
     org_key
   end
@@ -141,14 +135,7 @@ defmodule NervesHub.Fixtures do
   def org_key_fixture_from_existing(%Accounts.Org{} = org, %Accounts.User{} = user, key_name, dir) do
     key = Fwup.get_public_key(key_name, dir)
 
-    params = %{
-      org_id: org.id,
-      key: key,
-      name: key_name,
-      created_by_id: user.id
-    }
-
-    {:ok, org_key} = Accounts.create_org_key(params)
+    {:ok, org_key} = Accounts.create_org_key(org, user, %{key: key, name: key_name})
 
     org_key
   end
@@ -161,14 +148,12 @@ defmodule NervesHub.Fixtures do
   """
   def esp_idf_key_fixture(%Accounts.Org{} = org, %Accounts.User{} = user) do
     params = %{
-      org_id: org.id,
-      created_by_id: user.id,
       name: "esp-idf-key-#{counter()}",
       key: EspIdf.signing_public_key(),
       scheme: :secure_boot_v2_rsa
     }
 
-    {:ok, org_key} = Accounts.create_org_key(params)
+    {:ok, org_key} = Accounts.create_org_key(org, user, params)
 
     org_key
   end
@@ -194,6 +179,36 @@ defmodule NervesHub.Fixtures do
 
     {:ok, db_cert} = CACertificates.create_ca_certificate(org, params)
     %{cert: ca, key: ca_key, db_cert: db_cert}
+  end
+
+  @doc """
+  An organization connected to a Slack workspace, without going through
+  Slack's OAuth flow. Workspaces are shared by team id, as in
+  `NervesHub.Integrations.Slack.connect/3`.
+  """
+  def slack_connection_fixture(org, user, params \\ %{}) do
+    params =
+      Map.merge(
+        %{
+          team_id: "T#{counter()}",
+          team_name: "Acme Fleet",
+          app_id: "A0KRD7HC3",
+          bot_user_id: "U0KRQLJ9H",
+          bot_token: "xoxb-test-bot-token",
+          scopes: Slack.scopes()
+        },
+        Map.new(params)
+      )
+
+    workspace =
+      %Slack.Workspace{}
+      |> Slack.Workspace.changeset(params)
+      |> Repo.insert!(on_conflict: {:replace, [:team_name]}, conflict_target: :team_id, returning: true)
+
+    org
+    |> Slack.Connection.create_changeset(workspace, user)
+    |> Repo.insert!()
+    |> Repo.preload([:workspace, :connected_by])
   end
 
   def user_fixture(params \\ %{}) do
@@ -240,12 +255,9 @@ defmodule NervesHub.Fixtures do
   def product_fixture(_user, _org, params \\ %{})
 
   def product_fixture(%Accounts.User{}, %Accounts.Org{} = org, params) do
-    params =
-      params
-      |> Enum.into(product_params())
-      |> Map.put(:org_id, org.id)
+    params = Enum.into(params, product_params())
 
-    {:ok, product} = Products.create_product(params)
+    {:ok, product} = Products.create_product(org, params)
     product
   end
 
@@ -275,6 +287,18 @@ defmodule NervesHub.Fixtures do
   def firmware_fixture_from_file(%Accounts.Org{} = org, fw_path) do
     {:ok, firmware} = Firmwares.create_firmware(org, fw_path)
     firmware
+  end
+
+  # The row a firmware leaves behind when it is deleted and the same build is
+  # uploaded again: same uuid, same product, marked deleted. Only live firmware
+  # is held to one row per uuid, so the two sit side by side.
+  def deleted_firmware_twin_fixture(%Firmwares.Firmware{} = firmware) do
+    fields = Firmwares.Firmware.__schema__(:fields) -- [:id]
+
+    Firmwares.Firmware
+    |> struct(Map.take(firmware, fields))
+    |> Map.put(:deleted_at, DateTime.utc_now(:second))
+    |> Repo.insert!()
   end
 
   def firmware_delta_fixture(
@@ -364,18 +388,23 @@ defmodule NervesHub.Fixtures do
     {:ok, metadata} = Firmwares.metadata_from_firmware(firmware)
     {fwup_version, params} = Map.pop(params, :fwup_version, "1.0.0")
 
-    {:ok, device} =
-      %{
-        org_id: org.id,
-        product_id: product.id,
-        firmware_metadata: Map.put(metadata, :fwup_version, fwup_version),
-        identifier: "device-#{counter()}"
-      }
-      |> Map.merge(params)
-      |> Enum.into(@device_params)
-      |> Devices.create_device()
+    # Fixtures set state a user can't, such as the firmware a device reports or
+    # its deployment group, so this goes through the general changeset rather
+    # than `Devices.create_device/2`. The grant is the product's, as it would be.
+    product = Repo.reload!(product)
 
-    device
+    %{
+      org_id: org.id,
+      product_id: product.id,
+      managed_updates_allowed: product.default_managed_updates_allowed,
+      firmware_metadata: Map.put(metadata, :fwup_version, fwup_version),
+      identifier: "device-#{counter()}"
+    }
+    |> Map.merge(params)
+    |> Enum.into(@device_params)
+    |> then(&Devices.Device.changeset(%Devices.Device{}, &1))
+    |> Repo.insert!()
+    |> Repo.preload(:product)
   end
 
   @doc """
@@ -528,6 +557,38 @@ defmodule NervesHub.Fixtures do
       |> X509.Certificate.new("/CN=#{device.identifier}", ca_cert, ca_key)
 
     device_certificate_fixture(device, otp_cert)
+  end
+
+  @doc """
+  A self-signed device certificate and its key, shaped like the ones
+  `nh device certificates generate --self-signed` makes: a P-256 key, the
+  identifier as the common name, a client certificate that is not a CA, and an
+  AKI equal to its SKI. Nothing is stored; `device_certificate_fixture/2`
+  uploads it.
+
+  Pass `validity:` (an `X509.Certificate.Validity`) to make one that has
+  expired or is not yet valid.
+  """
+  def self_signed_device_certificate(identifier, opts \\ []) do
+    key = X509.PrivateKey.new_ec(:secp256r1)
+
+    cert =
+      X509.Certificate.self_signed(key, "/O=tester/CN=#{identifier}",
+        template: %Template{
+          serial: {:random, 16},
+          validity: Keyword.get_lazy(opts, :validity, fn -> Validity.days_from_now(365, 60 * 60) end),
+          hash: :sha256,
+          extensions: [
+            basic_constraints: Extension.basic_constraints(false),
+            key_usage: Extension.key_usage([:digitalSignature]),
+            ext_key_usage: Extension.ext_key_usage([:clientAuth]),
+            subject_key_identifier: true,
+            authority_key_identifier: true
+          ]
+        }
+      )
+
+    %{cert: cert, key: key}
   end
 
   def device_certificate_fixture_without_der(%Devices.Device{} = device, cert) do

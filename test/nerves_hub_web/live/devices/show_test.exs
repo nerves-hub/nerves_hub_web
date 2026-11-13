@@ -50,11 +50,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       product: product
     } do
       {:ok, device} =
-        Devices.create_device(%{
-          org_id: org.id,
-          product_id: product.id,
-          identifier: "no-firmware-device"
-        })
+        Devices.create_device(product, %{identifier: "no-firmware-device"})
 
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
@@ -249,11 +245,76 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
     end
   end
 
+  describe "a member with the view role on the details tab" do
+    setup %{conn: conn, fixture: fixture} do
+      Repo.update_all(Accounts.OrgUser, set: [role: :view])
+
+      {:ok, view, _html} = live(conn, device_show_path(fixture))
+
+      %{view: view}
+    end
+
+    test "doesn't see the tag or deployment group controls", %{conn: conn, fixture: fixture} do
+      {:ok, _device} = Repo.update(Ecto.Changeset.change(fixture.device, deployment_id: fixture.deployment_group.id))
+
+      conn
+      |> visit(device_show_path(fixture))
+      |> assert_has("h1", text: fixture.device.identifier)
+      |> refute_has("button[phx-click=remove-tag]")
+      |> refute_has("#add-tag-open")
+      |> refute_has("#add-tag-form")
+      |> refute_has("button[phx-click=remove-from-deployment-group]")
+    end
+
+    test "can't add a tag", %{view: view, fixture: %{device: device}} do
+      assert_unauthorized(view, "add-tag", %{"tag" => "sneaky"})
+
+      assert Repo.reload(device).tags == device.tags
+    end
+
+    test "can't remove a tag", %{view: view, fixture: %{device: device}} do
+      [tag | _] = device.tags
+
+      assert_unauthorized(view, "remove-tag", %{"tag" => tag})
+
+      assert Repo.reload(device).tags == device.tags
+    end
+
+    test "can't remove the device from its deployment group", %{conn: conn, fixture: fixture} do
+      %{device: device, deployment_group: deployment_group} = fixture
+      {:ok, _device} = Repo.update(Ecto.Changeset.change(device, deployment_id: deployment_group.id))
+
+      {:ok, view, _html} = live(conn, device_show_path(fixture))
+
+      assert_unauthorized(view, "remove-from-deployment-group", %{})
+
+      assert Repo.reload(device).deployment_id == deployment_group.id
+    end
+
+    test "can't set the location by hand", %{view: view, fixture: %{device: device}} do
+      render_click(view, "update-device-location", %{"lat" => 1.0, "lng" => 2.0})
+
+      assert_unauthorized(view, "save-location-changes", %{})
+
+      assert is_nil(Repo.reload(device).custom_location_coordinates)
+    end
+
+    test "can't clear a location set by hand", %{conn: conn, fixture: fixture} do
+      {:ok, device} = Devices.update_device(fixture.device, %{custom_location_coordinates: [1.0, 2.0]})
+
+      {:ok, view, _html} = live(conn, device_show_path(fixture))
+
+      assert_unauthorized(view, "clear-manual-location-information", %{})
+
+      assert Repo.reload(device).custom_location_coordinates == [1.0, 2.0]
+    end
+  end
+
   describe "handle_info" do
     test "device connecting updates the UI", %{conn: conn, fixture: fixture} do
       conn
       |> visit(device_show_path(fixture))
-      |> assert_has("svg[data-connection-status=unknown]")
+      |> assert_has("span[data-connection-status=unknown]")
       |> unwrap(fn view ->
         {:ok, connection} =
           Connections.device_connecting(fixture.device.org_id, fixture.device.product_id, fixture.device.id)
@@ -261,7 +322,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
         :ok = Connections.device_connected(connection.id)
         render(view)
       end)
-      |> assert_has("svg[data-connection-status=connected]")
+      |> assert_has("span[data-connection-status=connected]")
     end
 
     test "connection:status updates assigns when coming online", %{
@@ -296,7 +357,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
 
       conn
       |> visit(device_show_path(fixture))
-      |> assert_has("svg[data-connection-status=connected]")
+      |> assert_has("span[data-connection-status=connected]")
       |> refute_has("div", text: "Assigned Deployment Group")
       |> refute_has("span", text: "Update available")
       |> refute_has("option", text: "Select a version")
@@ -306,7 +367,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
         :ok = Connections.device_disconnected(connection.id)
         render(view)
       end)
-      |> assert_has("svg[data-connection-status=disconnected]")
+      |> assert_has("span[data-connection-status=disconnected]")
       |> unwrap(fn view ->
         restored_firmware_metadata =
           device.firmware_metadata
@@ -691,6 +752,139 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
     end
   end
 
+  describe "map style" do
+    setup %{device: device} do
+      Application.put_env(:nerves_hub, :mapbox_access_token, "abc")
+
+      {:ok, connection} = Connections.device_connecting(device.org_id, device.product_id, device.id)
+      :ok = Connections.device_connected(connection.id)
+
+      :ok =
+        Connections.merge_update_metadata(connection.id, %{
+          "location" => %{"latitude" => "-41.3159", "longitude" => "174.8185", "source" => "geoip"}
+        })
+    end
+
+    test "the map follows the theme until the user picks a style", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device
+    } do
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      |> assert_has("div#device-location-map")
+      |> refute_has("div#device-location-map[data-map-style]")
+      |> assert_has(~s(#map-style-menu button[aria-checked="true"]), text: "Match theme")
+    end
+
+    test "picking a style saves it and restyles the map", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device,
+      user: user
+    } do
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      |> click_button(~s(#map-style-menu button[phx-value-style="satellite"]), "Satellite")
+      |> assert_has(~s(div#device-location-map[data-map-style="satellite"]))
+      |> assert_has(~s(#map-style-menu button[aria-checked="true"]), text: "Satellite")
+
+      assert %{map_style: :satellite} = Accounts.get_user!(user.id).display_preferences
+    end
+
+    test "picking Match theme goes back to following the theme", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device,
+      user: user
+    } do
+      {:ok, _user} = Accounts.update_user_map_style(user, :outdoors)
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      |> assert_has(~s(div#device-location-map[data-map-style="outdoors"]))
+      |> click_button("#map-style-menu button", "Match theme")
+      |> refute_has("div#device-location-map[data-map-style]")
+
+      assert %{map_style: nil} = Accounts.get_user!(user.id).display_preferences
+    end
+
+    test "picking a style keeps the user's other preferences", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device,
+      user: user
+    } do
+      {:ok, user} = Accounts.update_user_default_columns(user, :device_list_columns, [:health, :tags])
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      |> click_button(~s(#map-style-menu button[phx-value-style="streets"]), "Streets")
+
+      assert %{map_style: :streets, device_list_columns: [:health, :tags]} =
+               Accounts.get_user!(user.id).display_preferences
+    end
+
+    test "the location editor uses the user's style", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device,
+      user: user
+    } do
+      {:ok, _user} = Accounts.update_user_map_style(user, :satellite_streets)
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      |> click_button("Manually update location")
+      |> assert_has(~s(div#device-location-map-with-geocoder[data-map-style="satellite_streets"]))
+      |> click_button(~s(#map-style-menu button[phx-value-style="dark"]), "Dark")
+      |> assert_has(~s(div#device-location-map-with-geocoder[data-map-style="dark"]))
+    end
+
+    test "an unknown style isn't saved", %{conn: conn, org: org, product: product, device: device, user: user} do
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      |> unwrap(fn view ->
+        view
+        |> element(~s(#map-style-menu button[phx-value-style="streets"]))
+        |> render_click(%{"style" => "watercolor"})
+      end)
+      |> assert_has("#flash-error", text: "Your map style couldn't be saved.")
+
+      assert is_nil(Accounts.get_user!(user.id).display_preferences)
+    end
+
+    test "a style that's no longer known loads as following the theme", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device,
+      user: user
+    } do
+      # As if a style had been removed after the user picked it.
+      {1, _} =
+        Repo.update_all(
+          from(u in User,
+            where: u.id == ^user.id,
+            update: [set: [display_preferences: fragment(~s|jsonb_build_object('map_style', 'watercolor')|)]]
+          ),
+          []
+        )
+
+      assert %{map_style: nil} = Accounts.get_user!(user.id).display_preferences
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      |> assert_has("div#device-location-map")
+      |> refute_has("div#device-location-map[data-map-style]")
+    end
+  end
+
   describe "arranging the details boxes" do
     setup do
       Application.put_env(:nerves_hub, :mapbox_access_token, "abc")
@@ -928,6 +1122,43 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       |> assert_has("div", text: "No Alarms Received")
     end
 
+    test "alarms appear and clear while the page is open", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device
+    } do
+      session =
+        conn
+        |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+        |> assert_has("div", text: "No Alarms Received")
+
+      :ok = Devices.Alarms.raise_alarm(to_device_info(device), "SomeAlarm", "Some description")
+
+      session = assert_has(session, "code", text: "SomeAlarm", timeout: 1000)
+
+      :ok = Devices.Alarms.clear_alarm(to_device_info(device), "SomeAlarm")
+
+      assert_has(session, "div", text: "No Alarms Received", timeout: 1000)
+    end
+
+    test "alarms show when only the alarms extension is on", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device
+    } do
+      {:ok, _} = Products.disable_extension_setting(product, "health")
+      {:ok, _} = Products.enable_extension_setting(product, "alarms")
+
+      Fixtures.device_alarms_fixture(device, %{"SomeAlarm" => "Some description"})
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      |> assert_has("div", text: "Alarms")
+      |> assert_has("code", text: "SomeAlarm")
+    end
+
     test "full set of metrics", %{
       conn: conn,
       org: org,
@@ -989,6 +1220,23 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       |> assert_has("span", text: "60")
       |> assert_has("span", text: "Last updated:")
       |> assert_has("time", text: "now")
+    end
+
+    # A device over the per-report key cap can have `mem_used_percent` cut
+    # while `mem_used_mb` survives, since the cap keeps keys in sorted order.
+    test "memory used without a percentage", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device
+    } do
+      assert {:ok, 2} = Metrics.record(to_device_info(device), %{"mem_size_mb" => 7892, "mem_used_mb" => 100})
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      |> assert_has("div", text: "Memory used")
+      |> assert_has("span", text: "100")
+      |> refute_has("span.text-warning", text: "%")
     end
   end
 
@@ -1607,6 +1855,43 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       assert Repo.reload(device).update_mode == :automatic
     end
 
+    test "refuses to skip the queue while the device is already updating", %{
+      conn: conn,
+      user: user,
+      org: org,
+      org_key: org_key,
+      product: product,
+      device: device,
+      deployment_group: deployment_group,
+      tmp_dir: tmp_dir
+    } do
+      device = Deployments.update_deployment_group(device, deployment_group)
+      {:ok, connection} = Connections.device_connecting(device.org_id, device.product_id, device.id)
+      :ok = Connections.device_connected(connection.id)
+      device = Devices.set_as_provisioned!(device)
+
+      new_firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+
+      {:ok, {_release, deployment_group}} =
+        ManagedDeployments.create_deployment_release(deployment_group, new_firmware, nil, user, %{})
+
+      {:ok, _deployment_group} =
+        ManagedDeployments.update_deployment_group(deployment_group, %{is_active: true}, user)
+
+      device.id
+      |> InflightUpdate.manual_requested_changeset(new_firmware)
+      |> Repo.insert!()
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      |> click_button("Skip the queue")
+      |> assert_has("div",
+        text: "The device is already updating. Wait for that update to finish before sending another."
+      )
+
+      refute_receive %Broadcast{event: "update"}, 200
+    end
+
     test "allows a device to be sent the available update immediately, using the available Org `firmware_proxy_url` setting",
          %{
            conn: conn,
@@ -1916,6 +2201,38 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
 
       assert Repo.reload(device).update_mode == :off
     end
+
+    test "is refused while the device is already updating", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device,
+      fixture: %{firmware: firmware}
+    } do
+      Ecto.Changeset.change(%DeviceConnection{}, %{
+        device_id: device.id,
+        established_at: DateTime.utc_now(),
+        last_seen_at: DateTime.utc_now(),
+        status: :connected
+      })
+      |> Repo.insert!()
+
+      device.id
+      |> InflightUpdate.manual_requested_changeset(firmware)
+      |> Repo.insert!()
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      |> select("Firmware", option: firmware.version, exact_option: false)
+      |> click_button("Send full update")
+      |> assert_has("div",
+        text: "The device is already updating. Wait for that update to finish before sending another."
+      )
+
+      refute_receive %Broadcast{event: "update"}, 200
+
+      assert Repo.reload(device).update_mode == :automatic
+    end
   end
 
   describe "firmware validation and revert detection" do
@@ -2197,8 +2514,8 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
 
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
-      |> assert_has("span", text: "iroh_console")
-      |> assert_has("span", text: "kiosk_sync")
+      |> assert_has("code", text: "iroh_console")
+      |> assert_has("code", text: "kiosk_sync")
       |> assert_has("span", text: "console-endpoint-key")
       |> assert_has("span", text: "sync-endpoint-key")
     end
@@ -2411,6 +2728,12 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
 
   def device_show_path(%{device: device, org: org, product: product}) do
     ~p"/org/#{org}/#{product}/devices/#{device}"
+  end
+
+  defp assert_unauthorized(view, event, params) do
+    Process.flag(:trap_exit, true)
+
+    assert {{%NervesHubWeb.UnauthorizedError{}, _}, _} = catch_exit(render_click(view, event, params))
   end
 
   def to_device_info(device) do

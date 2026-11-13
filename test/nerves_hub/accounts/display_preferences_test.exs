@@ -81,4 +81,32 @@ defmodule NervesHub.Accounts.User.DisplayPreferencesTest do
       refute changeset.valid?
     end
   end
+
+  describe "map style" do
+    test "is nil, following the theme, until the user picks one" do
+      assert DisplayPreferences.map_style(nil) == nil
+      assert DisplayPreferences.map_style(%DisplayPreferences{}) == nil
+      assert DisplayPreferences.map_style(%DisplayPreferences{map_style: :satellite}) == :satellite
+    end
+
+    test "changeset/2 casts a known style" do
+      changeset = DisplayPreferences.changeset(%DisplayPreferences{}, %{map_style: "outdoors"})
+
+      assert changeset.valid?
+      assert Ecto.Changeset.get_change(changeset, :map_style) == :outdoors
+    end
+
+    test "changeset/2 treats an empty style as following the theme" do
+      changeset = DisplayPreferences.changeset(%DisplayPreferences{map_style: :dark}, %{map_style: ""})
+
+      assert changeset.valid?
+      assert Ecto.Changeset.get_field(changeset, :map_style) == nil
+    end
+
+    test "changeset/2 rejects an unknown style" do
+      changeset = DisplayPreferences.changeset(%DisplayPreferences{}, %{map_style: "watercolor"})
+
+      refute changeset.valid?
+    end
+  end
 end

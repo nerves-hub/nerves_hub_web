@@ -1,6 +1,7 @@
 import Config
 
 alias NervesHub.DeviceLink.PeerVerification
+alias NervesHub.Types.Encrypted
 alias OpenApiSpex.Plug.NoneCache
 alias Swoosh.Adapters.Local
 
@@ -104,6 +105,10 @@ else
   config :nerves_hub, analytics_enabled: false
 end
 
+# Encrypts the secrets NervesHub holds for others (Slack bot tokens) in the
+# dev database. Not a secret: production sets its own.
+config :nerves_hub, Encrypted, key: Base.decode64!("ZGV2LWtleS1kZXYta2V5LWRldi1rZXktZGV2LWtleS0=")
+
 config :nerves_hub, NervesHub.Firmwares.Upload.File,
   enabled: true,
   local_path: Path.expand("tmp/firmware"),
@@ -118,6 +123,9 @@ config :nerves_hub, NervesHub.Uploads.File,
   local_path: Path.expand("tmp/uploads"),
   public_path: "/uploads"
 
+# So a receiver running on this machine can be pointed at.
+config :nerves_hub, NervesHub.Webhooks, allow_private_destinations: true
+
 config :nerves_hub, NervesHubWeb.DeviceSocket,
   shared_secrets: [
     enabled: true
@@ -126,6 +134,6 @@ config :nerves_hub, NervesHubWeb.DeviceSocket,
 config :nerves_hub, firmware_upload: NervesHub.Firmwares.Upload.File
 
 config :nerves_hub,
-  open_for_registrations: true
+  sign_up_methods: [:password, :google]
 
 config :open_api_spex, :cache_adapter, NoneCache

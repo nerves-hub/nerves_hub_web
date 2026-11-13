@@ -2,10 +2,16 @@ import Config
 
 alias NervesHub.DeviceLink.PeerVerification
 alias NervesHub.Devices.DeviceMessages
+alias NervesHub.Devices.HealthEvaluation.Queue
+alias NervesHub.DeviceTLS.Cluster
+alias NervesHub.DeviceTLS.Reloader
 alias NervesHub.Firmwares.Upload
 alias NervesHub.Firmwares.Upload.S3
+alias NervesHub.Integrations.Slack
 alias NervesHub.Repo
 alias NervesHub.Telemetry.FilteredSampler
+alias NervesHub.Types.Encrypted
+alias NervesHub.Workers.SentryFilter
 alias Sentry.OpenTelemetry.Sampler
 alias Sentry.OpenTelemetry.SpanProcessor
 alias Swoosh.Adapters.SMTP
@@ -19,6 +25,40 @@ if !Enum.member?(["all", "web", "device"], nerves_hub_app) do
   supported values are \"all\", \"web\", and \"device\"
   """
 end
+
+# MAINTENANCE_MODE=true starts only NervesHubWeb.MaintenanceEndpoint, in place of
+# everything else NervesHub.Application would start. It listens where load
+# balancers and health checks already expect this role to answer. The device
+# endpoint stays closed: its TLS handshake looks devices up in the database.
+maintenance_mode = System.get_env("MAINTENANCE_MODE", "false") == "true"
+
+if maintenance_mode do
+  maintenance_port =
+    if nerves_hub_app == "device" do
+      System.get_env("DEVICE_HOST_STATUS_PORT", "4040")
+    else
+      System.get_env("HTTP_PORT") || System.get_env("PORT") || "4000"
+    end
+
+  config :nerves_hub, NervesHubWeb.MaintenanceEndpoint,
+    adapter: Bandit.PhoenixAdapter,
+    http: [port: String.to_integer(maintenance_port)],
+    server: true
+end
+
+status_page_url = System.get_env("STATUS_PAGE_URL")
+
+if status_page_url not in [nil, ""] and not String.starts_with?(status_page_url, ["https://", "http://"]) do
+  raise """
+  STATUS_PAGE_URL was set to #{inspect(status_page_url)}, and it has to start with
+  "https://" or "http://". Without one, the maintenance page's link would be read
+  as a path on this host, and lead straight back to the maintenance page.
+  """
+end
+
+config :nerves_hub,
+  maintenance_mode: maintenance_mode,
+  status_page_url: if(status_page_url != "", do: status_page_url)
 
 # Shared-session SSO, read at BOOT so it works in dev without
 # recompiling. SESSION_COOKIE_DOMAIN scopes the session cookie to a parent domain
@@ -34,6 +74,45 @@ end
 if key = System.get_env("SESSION_COOKIE_KEY") do
   config :nerves_hub, session_cookie_key: key
 end
+
+# Self-hosted instances often deliver webhooks to receivers on their own
+# network. Left unset, the compile-time default stands: off, except in dev.
+if allow_private = System.get_env("WEBHOOKS_ALLOW_PRIVATE_DESTINATIONS") do
+  config :nerves_hub, NervesHub.Webhooks, allow_private_destinations: allow_private == "true"
+end
+
+# A Slack app for this instance (docs/slack.md). The integration stays hidden
+# unless the client id and secret are set, with a signing secret for Slack's
+# requests, an app token for Socket Mode, or both.
+if System.get_env("SLACK_CLIENT_ID") do
+  config :nerves_hub, Slack,
+    client_id: System.get_env("SLACK_CLIENT_ID"),
+    client_secret: System.get_env("SLACK_CLIENT_SECRET"),
+    signing_secret: System.get_env("SLACK_SIGNING_SECRET"),
+    app_token: System.get_env("SLACK_APP_TOKEN")
+end
+
+# Encrypts the secrets NervesHub holds on others' behalf, such as Slack bot
+# tokens (`NervesHub.Types.Encrypted`).
+if encoded_key = System.get_env("SECRETS_ENCRYPTION_KEY") do
+  case Base.decode64(encoded_key) do
+    {:ok, <<_::binary-32>> = key} ->
+      config :nerves_hub, Encrypted, key: key
+
+    _ ->
+      raise "SECRETS_ENCRYPTION_KEY must be 32 bytes, base64 encoded, such as the output of `openssl rand -base64 32`"
+  end
+else
+  if System.get_env("SLACK_CLIENT_ID") && config_env() == :prod do
+    raise "SLACK_CLIENT_ID is set, so SECRETS_ENCRYPTION_KEY must be too: Slack bot tokens are encrypted with it"
+  end
+end
+
+# Health evaluations a device's reports queue, rather than run in the call that
+# delivered them. See `NervesHub.Devices.HealthEvaluation.Queue`. Unset, the
+# concurrency is half the analytics pool, and at most 10.
+config :nerves_hub, Queue,
+  max_age: to_timeout(second: String.to_integer(System.get_env("HEALTH_EVALUATION_MAX_AGE_SECONDS", "60")))
 
 config :nerves_hub, :device_socket_drainer,
   batch_size: String.to_integer(System.get_env("DEVICE_SOCKET_DRAINER_BATCH_SIZE", "1000")),
@@ -51,6 +130,7 @@ config :nerves_hub,
   deploy_env: System.get_env("DEPLOY_ENV", to_string(config_env())),
   log_include_mfa: System.get_env("LOG_INCLUDE_MFA", "false") == "true",
   web_title_suffix: System.get_env("WEB_TITLE_SUFFIX", "NervesHub"),
+  friendly_platform_name: System.get_env("FRIENDLY_PLATFORM_NAME", "NervesHub"),
   esp_idf_firmware_enabled: System.get_env("ESP_IDF_FIRMWARE_ENABLED", "false") == "true",
   atomvm_firmware_enabled: System.get_env("ATOMVM_FIRMWARE_ENABLED", "false") == "true",
   rauc_firmware_enabled: System.get_env("RAUC_FIRMWARE_ENABLED", "false") == "true",
@@ -78,11 +158,15 @@ config :nerves_hub,
     ],
     health: [
       interval_minutes: System.get_env("FEATURES_HEALTH_INTERVAL_MINUTES", "60") |> String.to_integer(),
-      ui_polling_seconds: System.get_env("FEATURES_HEALTH_UI_POLLING_SECONDS", "60") |> String.to_integer()
+      ui_polling_seconds: System.get_env("FEATURES_HEALTH_UI_POLLING_SECONDS", "60") |> String.to_integer(),
+      first_check_window_seconds:
+        System.get_env("FEATURES_HEALTH_FIRST_CHECK_WINDOW_SECONDS", "60") |> String.to_integer()
     ],
     metrics: [
       interval_minutes: System.get_env("FEATURES_METRICS_INTERVAL_MINUTES", "15") |> String.to_integer(),
-      ui_polling_seconds: System.get_env("FEATURES_METRICS_UI_POLLING_SECONDS", "60") |> String.to_integer()
+      ui_polling_seconds: System.get_env("FEATURES_METRICS_UI_POLLING_SECONDS", "60") |> String.to_integer(),
+      first_check_window_seconds:
+        System.get_env("FEATURES_METRICS_FIRST_CHECK_WINDOW_SECONDS", "60") |> String.to_integer()
     ],
     logging: [
       days_to_keep: String.to_integer(System.get_env("EXTENSIONS_LOGGING_DAYS_TO_KEEP", "3"))
@@ -104,8 +188,66 @@ config :nerves_hub,
   logo_url_light: System.get_env("LOGO_URL_LIGHT"),
   logo_url_dark: System.get_env("LOGO_URL_DARK")
 
+if concurrency = System.get_env("HEALTH_EVALUATION_CONCURRENCY") do
+  config :nerves_hub, Queue, concurrency: String.to_integer(concurrency)
+end
+
 # only set this in :prod as not to override the :dev config
 if config_env() == :prod do
+  # The ways anyone can create an account. Someone with a pending invite can
+  # always create one.
+  google_configured? = !is_nil(System.get_env("GOOGLE_CLIENT_ID"))
+
+  sign_up_methods =
+    case System.get_env("SIGN_UP_METHODS") do
+      nil ->
+        # `OPEN_FOR_REGISTRATIONS=true` is the older way of opening sign up, and
+        # opened it to Google sign-in too.
+        if System.get_env("OPEN_FOR_REGISTRATIONS", "false") == "true" do
+          if google_configured?, do: [:password, :google], else: [:password]
+        else
+          if google_configured? do
+            IO.warn(
+              """
+              Google sign-in can no longer create accounts unless SIGN_UP_METHODS \
+              includes `google`. Set SIGN_UP_METHODS=google to let anyone with a \
+              Google account sign up, or SIGN_UP_METHODS=none to keep sign up to \
+              invites and stop this warning.
+              """,
+              []
+            )
+          end
+
+          []
+        end
+
+      value ->
+        value
+        |> String.split(",", trim: true)
+        |> Enum.map(&String.trim/1)
+        |> Enum.flat_map(fn
+          "none" ->
+            []
+
+          "password" ->
+            [:password]
+
+          "google" ->
+            if !google_configured? do
+              raise "SIGN_UP_METHODS includes `google`, which needs GOOGLE_CLIENT_ID to be set"
+            end
+
+            [:google]
+
+          other ->
+            raise """
+            unknown value "#{other}" in SIGN_UP_METHODS
+            supported values are "password", "google" and "none"
+            """
+        end)
+        |> Enum.uniq()
+    end
+
   config :logfmt_ex, :opts,
     message_key: "msg",
     timestamp_key: "ts",
@@ -116,8 +258,7 @@ if config_env() == :prod do
     format: {NervesHub.Logger, :format},
     metadata: :all
 
-  config :nerves_hub,
-    open_for_registrations: System.get_env("OPEN_FOR_REGISTRATIONS", "false") == "true"
+  config :nerves_hub, sign_up_methods: sign_up_methods
 end
 
 if level = System.get_env("LOG_LEVEL") do
@@ -270,6 +411,8 @@ if config_env() == :prod do
 
     https_port = String.to_integer(System.get_env("DEVICE_PORT", "443"))
 
+    # Each of these is nil when it is not given, so that a TLS provider can
+    # stand in for both.
     keyfile =
       if System.get_env("DEVICE_SSL_KEY") do
         ssl_key = System.fetch_env!("DEVICE_SSL_KEY") |> Base.decode64!()
@@ -278,12 +421,7 @@ if config_env() == :prod do
         "/app/tmp/ssl_key.crt"
       else
         ssl_keyfile = System.get_env("DEVICE_SSL_KEYFILE", "/etc/ssl/#{host}-key.pem")
-
-        if File.exists?(ssl_keyfile) do
-          ssl_keyfile
-        else
-          raise "Could not find keyfile"
-        end
+        if File.exists?(ssl_keyfile), do: ssl_keyfile
       end
 
     certfile =
@@ -294,12 +432,50 @@ if config_env() == :prod do
         "/app/tmp/ssl_cert.crt"
       else
         ssl_certfile = System.get_env("DEVICE_SSL_CERTFILE", "/etc/ssl/#{host}.pem")
+        if File.exists?(ssl_certfile), do: ssl_certfile
+      end
 
-        if File.exists?(ssl_certfile) do
-          ssl_certfile
-        else
+    # DEVICE_TLS_FROM_CLUSTER=true takes the keypair from a TLS provider in the
+    # cluster, and NervesHub.DeviceTLS.Reloader installs each renewal into the
+    # running listener -- a renewal never needs a restart, which would drop
+    # every device on the node. See NervesHub.DeviceTLS.Cluster for what a
+    # provider has to answer.
+    #
+    # The listener then reads key and chain from one file, which the reloader
+    # replaces whole. DEVICE_SSL_KEY and DEVICE_SSL_CERT become optional: given,
+    # they seed that file so the listener can start without waiting for a
+    # provider; without them, it waits for one before it starts listening.
+    tls_files =
+      cond do
+        System.get_env("DEVICE_TLS_FROM_CLUSTER", "false") == "true" ->
+          pemfile = System.get_env("DEVICE_TLS_PEMFILE", "/app/tmp/device_tls.pem")
+
+          if keyfile && certfile && not File.exists?(pemfile) do
+            File.mkdir_p!(Path.dirname(pemfile))
+            File.write!(pemfile, [File.read!(keyfile), "\n", File.read!(certfile)])
+            File.chmod!(pemfile, 0o600)
+          end
+
+          config :nerves_hub, Reloader,
+            source: {Cluster, []},
+            certfile: pemfile,
+            host: host,
+            interval: to_timeout(second: String.to_integer(System.get_env("DEVICE_TLS_POLL_INTERVAL", "300"))),
+            boot_timeout: to_timeout(second: String.to_integer(System.get_env("DEVICE_TLS_BOOT_TIMEOUT", "120")))
+
+          # The same file as both: :ssl takes the key from the one and the chain
+          # from the other. Plug.SSL, which Bandit checks these with, refuses to
+          # start without a keyfile, even though :ssl would manage without.
+          [keyfile: pemfile, certfile: pemfile]
+
+        is_nil(keyfile) ->
+          raise "Could not find keyfile"
+
+        is_nil(certfile) ->
           raise "Could not find certfile"
-        end
+
+        true ->
+          [keyfile: keyfile, certfile: certfile]
       end
 
     cacertfile =
@@ -313,15 +489,58 @@ if config_env() == :prod do
         CAStore.file_path()
       end
 
-    transport_options = [
-      verify: :verify_peer,
-      verify_fun: {&PeerVerification.verify_fun/3, nil},
-      fail_if_no_peer_cert: false,
-      keyfile: keyfile,
-      certfile: certfile,
-      cacertfile: cacertfile,
-      hibernate_after: 15_000
-    ]
+    transport_options =
+      [
+        verify: :verify_peer,
+        verify_fun: {&PeerVerification.verify_fun/3, nil},
+        fail_if_no_peer_cert: false,
+        cacertfile: cacertfile,
+        hibernate_after: 15_000
+      ] ++ tls_files
+
+    # TLS 1.3 session tickets, so a reconnecting device can resume rather than
+    # repeat the full handshake. A resumed handshake never reaches verify_fun, so
+    # a check that lives only there is skipped for that device. What keeps a
+    # deleted device or certificate out is DeviceSocket's authenticate, which
+    # runs on every connection and needs the certificate to do it. Only the
+    # _with_cert modes carry it over: without, a resumed socket has no peer
+    # certificate and the device is refused.
+    #
+    # Stateless: the ticket is the session itself, encrypted, with the device's
+    # certificate inside. Nothing is kept on the node, and a ticket can be
+    # presented more than once while it lasts. Each node makes its own key
+    # unless DEVICE_TLS_SESSION_TICKET_SEED gives them one in common, so by
+    # default a device only resumes on the node that issued its ticket, and not
+    # once that node restarts.
+    #
+    # With the seed, any node resumes any node's tickets, across deploys -- so a
+    # device that keeps reconnecting may not do a full handshake again until the
+    # seed changes. And whoever holds the seed can mint a ticket for any device's
+    # certificate and connect as that device without its key; certificates are
+    # not secret. Keep it with the most sensitive secrets. Changing it voids
+    # every ticket, and devices fall back to a full handshake.
+    #
+    # anti_replay and early_data are left unset on purpose. Anti-replay only
+    # matters for early data, which stays off, and a shared seed defeats it
+    # across nodes anyway.
+    session_ticket_options = fn ->
+      case System.get_env("DEVICE_TLS_SESSION_TICKET_SEED", "") do
+        "" ->
+          [session_tickets: :stateless_with_cert]
+
+        seed when byte_size(seed) < 64 ->
+          raise """
+          DEVICE_TLS_SESSION_TICKET_SEED is #{byte_size(seed)} bytes long, and it has to be at least 64.
+
+          Every node holding it can decrypt, and mint, session tickets, so it has
+          to be impossible to guess. Generate one with `mix phx.gen.secret`, or
+          unset it for each node to make its own.
+          """
+
+        seed ->
+          [session_tickets: :stateless_with_cert, stateless_tickets_seed: seed]
+      end
+    end
 
     # Older versions of OTP 25 may break using using devices
     # that support TLS 1.3 or 1.2 negotiation. To mitigate that
@@ -332,7 +551,7 @@ if config_env() == :prod do
     # See https://github.com/erlang/otp/issues/6492#issuecomment-1323874205
     transport_options =
       if System.get_env("DEVICE_ENABLE_TLS_13", "false") == "true" do
-        transport_options ++ [certificate_authorities: false]
+        transport_options ++ [certificate_authorities: false] ++ session_ticket_options.()
       else
         transport_options ++ [versions: [:"tlsv1.2"]]
       end
@@ -398,7 +617,7 @@ if config_env() == :prod do
 end
 
 ##
-# Database and Libcluster connection settings
+# Database connection settings, which Postgres clustering connects with too
 #
 
 database_ssl_opts =
@@ -448,6 +667,76 @@ if config_env() == :prod do
   config :nerves_hub,
     database_auto_migrator: System.get_env("DATABASE_AUTO_MIGRATOR", "true") == "true"
 end
+
+##
+# Clustering
+#
+# How nodes find each other. NervesHub.Clustering turns this into libcluster
+# topologies; "Clustering" in docs/runtime_configuration.md covers the choice.
+# Read in every environment, so dev can try DNS discovery too.
+#
+
+cluster_strategies =
+  "CLUSTER_STRATEGY"
+  |> System.get_env("")
+  |> String.split(",", trim: true)
+  |> Enum.map(&String.trim/1)
+  |> Enum.reject(&(&1 == ""))
+  |> Enum.uniq()
+  |> case do
+    [] -> ["postgres"]
+    strategies -> strategies
+  end
+
+if cluster_strategies -- ["postgres", "dns"] != [] do
+  raise """
+  CLUSTER_STRATEGY was set to #{inspect(System.get_env("CLUSTER_STRATEGY"))}, and the
+  supported values are "postgres", "dns", or "postgres,dns" to run both at once.
+  """
+end
+
+# Comma separated. Each entry is a name to look up, which connects to nodes with
+# this node's basename, or basename@name for nodes with another basename.
+dns_cluster_queries =
+  "DNS_CLUSTER_QUERY"
+  |> System.get_env("")
+  |> String.split(",", trim: true)
+  |> Enum.map(&String.trim/1)
+  |> Enum.reject(&(&1 == ""))
+  |> Enum.map(fn entry ->
+    case String.split(entry, "@") do
+      [hostname] ->
+        {nil, hostname}
+
+      [basename, hostname] when basename != "" and hostname != "" ->
+        {basename, hostname}
+
+      _ ->
+        raise """
+        DNS_CLUSTER_QUERY has the entry #{inspect(entry)}, which should be a name to
+        look up, such as "nerves-hub.internal", or basename@name for nodes whose
+        basename differs from this one's, such as "nerves-hub-device@nerves-hub-device.internal".
+        """
+    end
+  end)
+
+if "dns" in cluster_strategies and dns_cluster_queries == [] do
+  raise """
+  CLUSTER_STRATEGY includes "dns", so DNS_CLUSTER_QUERY has to say which names to
+  look up for the other nodes.
+  """
+end
+
+if "dns" not in cluster_strategies and dns_cluster_queries != [] do
+  raise """
+  DNS_CLUSTER_QUERY is set, but CLUSTER_STRATEGY doesn't include "dns", so it would
+  be ignored. Set CLUSTER_STRATEGY=dns, or postgres,dns to run both at once.
+  """
+end
+
+config :nerves_hub, NervesHub.Clustering,
+  strategies: Enum.map(cluster_strategies, &String.to_atom/1),
+  dns_queries: dns_cluster_queries
 
 if config_env() == :prod do
   if clickhouse_url = System.get_env("CLICKHOUSE_URL") do
@@ -667,12 +956,13 @@ config :sentry,
   environment_name: System.get_env("DEPLOY_ENV", to_string(config_env())),
   before_send: {NervesHubWeb.SentryEventFilter, :filter_non_500},
   release: "nerves_hub@#{Application.spec(:nerves_hub, :vsn)}",
-  enable_logs: System.get_env("SENTRY_ENABLE_LOGGING", "false") == "true",
   before_send_log: fn log_event ->
     updated_attributes = Map.put(log_event.attributes, :nerves_hub_app, nerves_hub_app)
     %{log_event | attributes: updated_attributes}
   end,
   logs: [
+    # Structured logs are sent only when a level is set; nil leaves them off.
+    level: if(System.get_env("SENTRY_ENABLE_LOGGING", "false") == "true", do: :info),
     metadata: :all
   ],
   tags: %{
@@ -682,6 +972,8 @@ config :sentry,
     oban: [
       # Capture errors:
       capture_errors: true,
+      # Report some workers' errors on their final attempt only
+      should_report_error_callback: &SentryFilter.report_error?/2,
       # Monitor cron jobs:
       cron: [enabled: true]
     ]

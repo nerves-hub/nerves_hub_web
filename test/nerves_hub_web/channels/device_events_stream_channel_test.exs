@@ -67,6 +67,47 @@ defmodule NervesHubWeb.DeviceEventsStreamChannelTest do
     end
   end
 
+  describe "membership changes" do
+    setup %{tmp_dir: tmp_dir} do
+      user = Fixtures.user_fixture()
+      device = device_fixture(user, %{identifier: "stream-membership-device"}, tmp_dir)
+      org = Accounts.get_org!(device.org_id)
+
+      # Another admin, so the org still has one whatever happens to this member.
+      {:ok, _} = Accounts.add_org_user(org, Fixtures.user_fixture(), %{role: :admin})
+
+      user_token = Accounts.create_user_api_token(user, "test-token")
+      {:ok, socket} = connect(EventStreamSocket, %{"token" => user_token})
+
+      {:ok, _reply, channel} =
+        subscribe_and_join(socket, DeviceEventsStreamChannel, "device:#{device.identifier}")
+
+      # The channel closing is the point of these tests, so it mustn't take the
+      # test process with it.
+      Process.unlink(channel.channel_pid)
+      ref = Process.monitor(channel.channel_pid)
+
+      %{org: org, user: user, ref: ref}
+    end
+
+    test "a member removed from the org stops receiving the device's events", %{org: org, user: user, ref: ref} do
+      :ok = Accounts.remove_org_user(org, user)
+
+      assert_receive {:DOWN, ^ref, :process, _pid, {:shutdown, :closed}}
+    end
+
+    test "a member whose role changes but can still view the device stays subscribed", %{
+      org: org,
+      user: user,
+      ref: ref
+    } do
+      {:ok, org_user} = Accounts.get_org_user(org, user)
+      {:ok, _} = Accounts.change_org_user_role(org_user, :manage)
+
+      refute_receive {:DOWN, ^ref, :process, _pid, _reason}, 100
+    end
+  end
+
   defp device_fixture(user, device_params, tmp_dir) do
     org = Fixtures.org_fixture(user)
     {:ok, org_user} = Accounts.get_org_user(org, user)

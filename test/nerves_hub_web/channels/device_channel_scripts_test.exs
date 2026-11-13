@@ -86,7 +86,9 @@ defmodule NervesHubWeb.DeviceChannelScriptsTest do
       close_cleanly(device_channel)
     end
 
-    test "fires connecting_code_failure telemetry when return is 'nil'", %{device_channel: device_channel} do
+    # How nerves_hub_link reports code that raised: a nil return, with the
+    # exception appended to the output.
+    test "fires connecting_code_failure telemetry when the code raised", %{device_channel: device_channel} do
       test_pid = self()
       handler_id = {__MODULE__, :failure_nil, make_ref()}
 
@@ -101,12 +103,39 @@ defmodule NervesHubWeb.DeviceChannelScriptsTest do
 
       push(device_channel, "scripts/run", %{
         "ref" => "connecting_code",
-        "result" => "ok",
+        "result" => "completed",
         "return" => "nil",
-        "output" => "unexpected"
+        "output" => "\n** (RuntimeError) unexpected"
       })
 
       assert_receive :telemetry_failure
+
+      close_cleanly(device_channel)
+    end
+
+    test "fires connecting_code_success telemetry when the code returned nil without raising", %{
+      device_channel: device_channel
+    } do
+      test_pid = self()
+      handler_id = {__MODULE__, :success_nil, make_ref()}
+
+      :telemetry.attach(
+        handler_id,
+        [:nerves_hub, :devices, :connecting_code_success],
+        fn _event, _measurements, _metadata, _config -> send(test_pid, :telemetry_success) end,
+        nil
+      )
+
+      on_exit(fn -> :telemetry.detach(handler_id) end)
+
+      push(device_channel, "scripts/run", %{
+        "ref" => "connecting_code",
+        "result" => "completed",
+        "return" => "nil",
+        "output" => ""
+      })
+
+      assert_receive :telemetry_success
 
       close_cleanly(device_channel)
     end

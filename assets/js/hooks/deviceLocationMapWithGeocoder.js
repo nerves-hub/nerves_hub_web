@@ -1,5 +1,6 @@
 import mapboxgl from "mapbox-gl"
 import MapboxGeocoder from "@mapbox/mapbox-gl-geocoder"
+import { mapboxStyleUrl, trackMapStyle } from "../helpers/mapStyle.js"
 
 export default {
   mounted() {
@@ -7,18 +8,9 @@ export default {
     this.marker = undefined
     mapboxgl.accessToken = this.el.dataset.accessToken
 
-    let theme = document.documentElement.getAttribute("data-theme")
-
-    let style
-    if (theme === "dark") {
-      style = "mapbox://styles/mapbox/dark-v11"
-    } else if (theme === "light") {
-      style = "mapbox://styles/mapbox/light-v11"
-    }
-
     this.map = new mapboxgl.Map({
       container: this.el,
-      style: style,
+      style: mapboxStyleUrl(this.el.dataset.mapStyle),
       center: [-97.35967815000978, 39.45158853193135],
       zoom: 1,
     })
@@ -51,18 +43,12 @@ export default {
       this.updateMarkerAndMoveMap(e.result["center"][0], e.result["center"][1])
     })
 
-    window.addEventListener("themeUpdated", () => {
-      let theme = document.documentElement.getAttribute("data-theme")
+    this.mapStyle = trackMapStyle(this.el, this.map)
+  },
 
-      let style
-      if (theme === "dark") {
-        style = "mapbox://styles/mapbox/dark-v11"
-      } else if (theme === "light") {
-        style = "mapbox://styles/mapbox/light-v11"
-      }
-
-      this.map.setStyle(style)
-    })
+  // The page re-renders `data-map-style` when the user picks a map style.
+  updated() {
+    this.mapStyle.apply()
   },
 
   updateMarkerAndMoveMap(lng, lat) {
@@ -97,6 +83,7 @@ export default {
   },
 
   destroyed() {
+    this.mapStyle.stop()
     this.map.remove()
   },
 }

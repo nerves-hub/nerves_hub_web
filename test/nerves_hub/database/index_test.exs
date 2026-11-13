@@ -24,7 +24,6 @@ defmodule NervesHub.Database.IndexTest do
     "deployments.org_id",
     "device_certificates.org_id",
     "device_firmwares.firmware_id",
-    "device_shared_secret_auths.device_id",
     "device_shared_secret_auths.product_shared_secret_auth_id",
     "devices.current_device_firmware_id",
     "devices.org_id",

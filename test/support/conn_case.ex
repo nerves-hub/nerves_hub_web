@@ -34,17 +34,17 @@ defmodule NervesHubWeb.ConnCase do
   end
 
   setup tags do
+    # The connection belongs to a process of its own rather than the test's, so
+    # a LiveView still handling a message when the test ends keeps it until
+    # `on_exit` stops the owner, instead of crashing on a dead one.
     # credo:disable-for-next-line
-    :ok = Ecto.Adapters.SQL.Sandbox.checkout(NervesHub.Repo)
+    pid = Ecto.Adapters.SQL.Sandbox.start_owner!(NervesHub.Repo, shared: not tags[:async])
+    # credo:disable-for-next-line
+    on_exit(fn -> Ecto.Adapters.SQL.Sandbox.stop_owner(pid) end)
 
     # The profile cache outlives the sandbox transaction that is about to be
     # rolled back underneath it.
     :ok = Cache.reset()
-
-    if !tags[:async] do
-      # credo:disable-for-next-line
-      Ecto.Adapters.SQL.Sandbox.mode(NervesHub.Repo, {:shared, self()})
-    end
 
     {:ok, conn: Phoenix.ConnTest.build_conn()}
   end

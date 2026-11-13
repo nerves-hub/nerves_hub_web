@@ -5,6 +5,12 @@ defmodule NervesHubWeb.Components.Utils do
   alias NervesHub.Accounts.Permissions
   alias Phoenix.HTML.FormField
 
+  @tib :math.pow(2, 40)
+  @gib :math.pow(2, 30)
+  @mib :math.pow(2, 20)
+  @kib :math.pow(2, 10)
+  @precision 2
+
   @doc """
   Options for a role select: the built-in roles, then the org's custom roles
   when it has any. Read the chosen value back with `role_choice/1`'s format:
@@ -124,4 +130,18 @@ defmodule NervesHubWeb.Components.Utils do
   def tags_to_string(%{tags: tags}), do: tags_to_string(tags)
   def tags_to_string(tags) when is_list(tags), do: Enum.join(tags, ", ")
   def tags_to_string(tags), do: tags
+
+  @doc """
+  Note that results are in multiples of unit bytes: KiB, MiB, GiB
+  [Wikipedia](https://en.wikipedia.org/wiki/Binary_prefix)
+  """
+  def humanize_size(bytes) do
+    cond do
+      bytes > @tib -> "#{Float.round(bytes / @tib, @precision)} TB"
+      bytes > @gib -> "#{Float.round(bytes / @gib, @precision)} GB"
+      bytes > @mib -> "#{Float.round(bytes / @mib, @precision)} MB"
+      bytes > @kib -> "#{Float.round(bytes / @kib, @precision)} KB"
+      true -> "#{bytes} bytes"
+    end
+  end
 end

@@ -1,6 +1,7 @@
 defmodule NervesHubWeb.Live.Product.Notifications do
   use NervesHubWeb, :live_view
 
+  alias NervesHub.Helpers.RelativeTime
   alias NervesHub.ProductNotifications
   alias Phoenix.Socket.Broadcast
 

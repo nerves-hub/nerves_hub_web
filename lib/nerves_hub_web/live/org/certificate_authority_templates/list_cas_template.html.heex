@@ -1,62 +1,89 @@
-<NervesHubWeb.Layouts.sidebar flash={@flash} current_scope={@current_scope} sidebar_tab={@sidebar_tab}>
-  <:header>
-    <h1 class="text-base-50 text-xl leading-[30px] font-semibold">Certificate Authorities</h1>
-    <div class="mr-auto"></div>
-    <.button type="link" navigate={~p"/org/#{@org}/settings/certificates/new"} aria-label="Add certificate authority">
-      <.icon name="add" /> Add Certificate Authority
-    </.button>
-  </:header>
+<NervesHubWeb.Layouts.org flash={@flash} current_scope={@current_scope} tab={@sidebar_tab} counts={@org_counts}>
+  <section id="certificate-authorities" aria-labelledby="cas-title" class="flex flex-col gap-3">
+    <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-6">
+      <div class="flex min-w-0 flex-col gap-1">
+        <div class="flex items-baseline gap-2">
+          <h2 id="cas-title" class="text-group-title text-content-strong">Certificate authorities</h2>
+          <span class="text-[13px] text-content-faint">{length(@certificates)}</span>
+        </div>
+        <p class="text-[13px] text-content-muted">Devices can connect with a certificate signed by one of these.</p>
+      </div>
+      <.button type="link" style="primary" navigate={~p"/org/#{@org}/settings/certificates/new"} class="shrink-0 self-start sm:self-auto">
+        <span class="lucide-plus size-3.5" aria-hidden="true"></span> Add certificate authority
+      </.button>
+    </div>
 
-  <div class="listing">
-    <table>
-      <thead>
-        <tr>
-          <th>Serial</th>
-          <th>Description</th>
-          <th>Devices</th>
-          <th>Last used</th>
-          <th>Not before</th>
-          <th>Not after</th>
-          <th>Status</th>
-        </tr>
-      </thead>
-      <tbody>
-        <%= for cert <- @certificates do %>
-          <tr class="border-base-800 isolate border-b">
-            <td>
-              <.link navigate={~p"/org/#{@org}/settings/certificates/#{cert}"}>
-                <code class="bg-base-800 hover:text-base-50 text-base-300 rounded px-2 py-1 font-mono text-xs break-all">{Utils.format_serial(cert.serial)}</code>
-              </.link>
-            </td>
-            <td>
-              <%= if is_nil(cert.description) do %>
-                <span class="text-base-400">-</span>
-              <% else %>
-                {cert.description}
-              <% end %>
-            </td>
-            <td id={"ca-#{cert.id}-device-count"} class="text-base-400">
-              {Number.Delimit.number_to_delimited(Map.get(@device_counts, cert.ski, 0), precision: 0)}
-            </td>
-            <td class="text-base-400">
-              <%= if !is_nil(cert.last_used) do %>
-                {DateTimeFormat.from_now(cert.last_used)}
-              <% else %>
-                <span class="text-base-400">Never</span>
-              <% end %>
-            </td>
-            <td class="text-base-400">
-              <div><.local_datetime at={cert.not_before} time_zone={@time_zone} format={:long_date} zone_label={false} /></div>
-            </td>
-            <td class="text-base-400">
-              <div><.local_datetime at={cert.not_after} time_zone={@time_zone} format={:long_date} zone_label={false} /></div>
-            </td>
-            <td>
-              <CAHelpers.certificate_status not_after={cert.not_after} />
-            </td>
-          </tr>
-        <% end %>
-      </tbody>
-    </table>
-  </div>
-</NervesHubWeb.Layouts.sidebar>
+    <div class="overflow-hidden rounded-lg border border-line-default bg-surface-raised shadow-card" role="table" aria-label={"#{@org.name} certificate authorities"}>
+      <div role="row" class="hidden h-9 items-center gap-4 border-b border-line-subtle bg-surface px-5 md:flex">
+        <span role="columnheader" class="flex-1 text-[11px]/3.5 font-medium tracking-[0.06em] text-content-faint uppercase">Certificate authority</span>
+        <span role="columnheader" class="w-22.5 text-right text-[11px]/3.5 font-medium tracking-[0.06em] text-content-faint uppercase">Devices</span>
+        <span role="columnheader" class="w-32.5 text-[11px]/3.5 font-medium tracking-[0.06em] text-content-faint uppercase">Last used</span>
+        <span role="columnheader" class="w-40 text-[11px]/3.5 font-medium tracking-[0.06em] text-content-faint uppercase">Valid until</span>
+        <span class="w-4" aria-hidden="true"></span>
+      </div>
+
+      <p :if={@certificates == []} id="no-certificate-authorities" class="px-5 py-8 text-center text-sm text-content-muted">
+        No certificate authorities yet. Add one to let devices connect with the certificates it signed.
+      </p>
+
+      <.link
+        :for={cert <- @certificates}
+        role="row"
+        id={"ca-#{cert.id}"}
+        navigate={~p"/org/#{@org}/settings/certificates/#{cert}"}
+        class="flex items-start gap-4 border-b border-line-subtle px-4 py-3.5 transition-colors last:border-0 hover:bg-surface-muted md:items-center md:px-5"
+      >
+        <% devices = Map.get(@device_counts, cert.ski, 0) %>
+        <% validity = validity(cert) %>
+        <div role="cell" class="flex min-w-0 flex-1 items-start gap-3">
+          <span class="flex size-7.5 shrink-0 items-center justify-center rounded-md bg-surface-muted" aria-hidden="true">
+            <span class="lucide-shield-check size-3.5 text-content-muted"></span>
+          </span>
+          <div class="flex min-w-0 flex-1 flex-col gap-1">
+            <div class="flex flex-wrap items-center gap-x-2 gap-y-1">
+              <h3 :if={cert.description not in [nil, ""]} class="text-sm/4.5 font-medium text-content-strong">{cert.description}</h3>
+              <h3 :if={cert.description in [nil, ""]} class="text-[13px]/4.5 font-medium break-all text-content-strong">
+                <code>{Utils.format_serial(cert.serial)}</code>
+              </h3>
+              <span
+                :if={cert.jitp}
+                class="inline-flex items-center gap-1 rounded bg-notice-soft px-1.5 text-[11px]/4.5 font-medium text-notice-content"
+              >
+                <span class="lucide-plus size-3" aria-hidden="true"></span> Adds new devices to {cert.jitp.product.name}
+              </span>
+            </div>
+            <p :if={cert.description not in [nil, ""]} class="truncate text-xs text-content-muted">
+              <code>{Utils.format_serial(cert.serial)}</code>
+            </p>
+            <p :if={cert.description in [nil, ""]} class="text-xs text-content-faint">No description</p>
+            <p class="text-xs text-content-faint md:hidden">
+              {devices_label(devices)} · {last_used_label(cert)} · Valid until <.local_datetime at={cert.not_after} time_zone={@time_zone} format={:long_date} zone_label={false} />
+            </p>
+            <.validity_chip :if={validity} validity={validity} class="self-start md:hidden" />
+          </div>
+        </div>
+
+        <div
+          role="cell"
+          id={"ca-#{cert.id}-device-count"}
+          class={["hidden w-22.5 shrink-0 text-right text-[13px] tabular-nums md:block", if(devices == 0, do: "text-content-faint", else: "text-content-body")]}
+        >
+          {Number.Delimit.number_to_delimited(devices, precision: 0)}
+        </div>
+
+        <div role="cell" class={["hidden w-32.5 shrink-0 text-[13px] md:block", if(cert.last_used, do: "text-content-muted", else: "text-content-faint")]}>
+          {last_used_label(cert)}
+        </div>
+
+        <div role="cell" class="hidden w-40 shrink-0 flex-col items-start gap-1 md:flex">
+          <span class="text-[13px] text-content-muted">
+            <.local_datetime at={cert.not_after} time_zone={@time_zone} format={:long_date} zone_label={false} />
+          </span>
+          <.validity_chip :if={validity} validity={validity} />
+        </div>
+
+        <span class="mt-2 lucide-chevron-right size-4 text-content-faint md:mt-0" aria-hidden="true"></span>
+      </.link>
+    </div>
+  </section>
+</NervesHubWeb.Layouts.org>

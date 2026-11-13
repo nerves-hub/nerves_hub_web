@@ -1,15 +1,21 @@
 defmodule NervesHub.AccountsTest do
   use NervesHub.DataCase, async: true
 
+  import NervesHub.Support.Emails
+  import Swoosh.TestAssertions
+
   alias Ecto.Changeset
   alias NervesHub.Accounts
   alias NervesHub.Accounts.Invite
   alias NervesHub.Accounts.Org
   alias NervesHub.Accounts.OrgKey
   alias NervesHub.Accounts.OrgUser
+  alias NervesHub.Accounts.Scope
   alias NervesHub.Accounts.User
   alias NervesHub.Accounts.UserToken
+  alias NervesHub.Devices
   alias NervesHub.Fixtures
+  alias NervesHub.Products
   alias NervesHub.Support.Utils
   alias NervesHub.Utils.Base62
 
@@ -56,6 +62,55 @@ defmodule NervesHub.AccountsTest do
 
     assert {:ok, _org} = Accounts.soft_delete_org(org)
     refute is_nil(Repo.reload(org).deleted_at)
+  end
+
+  describe "has_org_role?/3" do
+    setup %{user: user} do
+      {:ok, org} = Accounts.create_org(user, %{name: "An_Org"})
+      member = Fixtures.user_fixture()
+      {:ok, _org_user} = Accounts.add_org_user(org, member, %{role: :manage})
+
+      %{org: org, member: member}
+    end
+
+    test "holds up to the member's role", %{org: org, member: member} do
+      assert Accounts.has_org_role?(org, member, :view)
+      assert Accounts.has_org_role?(org, member, :manage)
+      refute Accounts.has_org_role?(org, member, :admin)
+    end
+
+    test "is false for a removed member", %{org: org, member: member} do
+      :ok = Accounts.remove_org_user(org, member)
+
+      refute Accounts.has_org_role?(org, member, :view)
+    end
+
+    test "is false once the org is deleted, though the membership remains", %{org: org, member: member} do
+      {:ok, _org} = Accounts.soft_delete_org(org)
+
+      assert {:ok, %OrgUser{}} = Accounts.get_org_user(org, member)
+      refute Accounts.has_org_role?(org, member, :view)
+    end
+  end
+
+  describe "org_ids_with_role/2" do
+    test "lists only current orgs where the member holds the role", %{user: user} do
+      member = Fixtures.user_fixture()
+
+      [managed, viewed, removed, deleted] =
+        for {name, role} <- [{"Managed", :manage}, {"Viewed", :view}, {"Removed", :manage}, {"Deleted", :manage}] do
+          {:ok, org} = Accounts.create_org(user, %{name: name})
+          {:ok, _org_user} = Accounts.add_org_user(org, member, %{role: role})
+          org
+        end
+
+      :ok = Accounts.remove_org_user(removed, member)
+      {:ok, _org} = Accounts.soft_delete_org(deleted)
+
+      assert Accounts.org_ids_with_role(member, :manage) == [managed.id]
+      assert Enum.sort(Accounts.org_ids_with_role(member, :view)) == Enum.sort([managed.id, viewed.id])
+      assert Accounts.org_ids_with_role(member, :admin) == []
+    end
   end
 
   test "user cannot have two of the same org" do
@@ -147,6 +202,77 @@ defmodule NervesHub.AccountsTest do
     assert [] = Accounts.fetch_firmware_signing_keys(device.id, :x509_certificate)
   end
 
+  describe "update_or_create_user_from_ueberauth/1" do
+    # Google sign-in creates an account only when sign up is open to it or the
+    # address has a pending invite. Inviting the addresses keeps these tests off
+    # the app-wide sign up setting.
+    setup %{user: admin} do
+      org = Fixtures.org_fixture(admin)
+
+      for email <- ["jane@person.com", "jane@person.example"] do
+        {:ok, _invite} = Accounts.invite(%{"email" => email, "role" => "view"}, org, admin)
+      end
+
+      %{auth: Fixtures.ueberauth_google_success_fixture()}
+    end
+
+    test "creates a user on the first sign-in", %{auth: auth} do
+      assert {:ok, %User{} = user} = Accounts.update_or_create_user_from_ueberauth(auth)
+      assert user.email == "jane@person.com"
+      assert user.google_id == auth.uid
+    end
+
+    test "follows the Google account when its email address changes", %{auth: auth} do
+      {:ok, user} = Accounts.update_or_create_user_from_ueberauth(auth)
+
+      renamed = put_in(auth.info.email, "jane@person.example")
+
+      assert {:ok, %User{} = signed_in} = Accounts.update_or_create_user_from_ueberauth(renamed)
+      assert signed_in.id == user.id
+      assert signed_in.email == "jane@person.example"
+    end
+
+    # Anyone could have put the address on the account without owning it, so
+    # its password has to be given before the two are linked.
+    test "asks for the password of a user who hasn't signed in with Google before, instead of linking them by email",
+         %{auth: auth} do
+      user = Fixtures.user_fixture(%{email: auth.info.email})
+
+      assert Accounts.update_or_create_user_from_ueberauth(auth) == {:error, :link_required}
+      assert is_nil(Repo.reload(user).google_id)
+    end
+
+    test "doesn't sign in as a user linked to a different Google account", %{auth: auth} do
+      {:ok, user} = Accounts.update_or_create_user_from_ueberauth(auth)
+
+      other_account = put_in(auth.uid, "100000000000000000001")
+
+      assert Accounts.update_or_create_user_from_ueberauth(other_account) == {:error, :google_account_mismatch}
+      assert Repo.reload(user).google_id == auth.uid
+    end
+
+    test "refuses an email address change to one another user holds", %{auth: auth} do
+      {:ok, _user} = Accounts.update_or_create_user_from_ueberauth(auth)
+      other = Fixtures.user_fixture()
+
+      renamed = put_in(auth.info.email, other.email)
+
+      assert {:error, %Changeset{} = changeset} = Accounts.update_or_create_user_from_ueberauth(renamed)
+      assert "has already been taken" in errors_on(changeset).email
+    end
+
+    test "creates a new user for a Google account whose user was deleted", %{auth: auth} do
+      {:ok, user} = Accounts.update_or_create_user_from_ueberauth(auth)
+      {:ok, _} = user |> Changeset.change(deleted_at: DateTime.utc_now(:second)) |> Repo.update()
+
+      auth = put_in(auth.info.email, "jane@person.example")
+
+      assert {:ok, %User{} = signed_in} = Accounts.update_or_create_user_from_ueberauth(auth)
+      refute signed_in.id == user.id
+      assert signed_in.google_id == auth.uid
+    end
+  end
+
   describe "authenticate" do
     setup do
       user_params = %{
@@ -157,6 +283,7 @@ defmodule NervesHub.AccountsTest do
       }
 
       {:ok, user} = Accounts.create_user(user_params)
+      {:ok, user} = Accounts.confirm_user(user)
 
       {:ok, %{user: user}}
     end
@@ -187,6 +314,14 @@ defmodule NervesHub.AccountsTest do
       assert {:error, :authentication_failed} =
                Accounts.authenticate("non existent email", "wrong password")
     end
+
+    # Nobody has shown the address is theirs, so it can't be used to sign in yet
+    test "with an unconfirmed email" do
+      {:ok, user} = Accounts.create_user(%{name: "Jane", email: "jane@person.com", password: "test_password"})
+
+      assert Accounts.authenticate(user.email, "test_password") == {:error, :email_not_confirmed}
+      assert Accounts.authenticate(user.email, "wrong password") == {:error, :authentication_failed}
+    end
   end
 
   test "authenticate with an email address with a capital letter" do
@@ -200,6 +335,7 @@ defmodule NervesHub.AccountsTest do
     }
 
     {:ok, %User{} = user} = Accounts.create_user(params)
+    {:ok, user} = Accounts.confirm_user(user)
 
     assert user.email == expected_email
 
@@ -212,19 +348,15 @@ defmodule NervesHub.AccountsTest do
       {:ok, org} = Accounts.create_org(user, @required_org_params)
 
       {:ok, _} =
-        Accounts.create_org_key(%{
+        Accounts.create_org_key(org, user, %{
           name: "org's key",
-          org_id: org.id,
-          key: "FMBdNKrU3qlyErQtpqxsq50nGAXz03DCeEXPt2iKBe0=",
-          created_by_id: user.id
+          key: "FMBdNKrU3qlyErQtpqxsq50nGAXz03DCeEXPt2iKBe0="
         })
 
       assert {:error, %Ecto.Changeset{errors: [name: {"has already been taken", [_ | _]}]}} =
-               Accounts.create_org_key(%{
+               Accounts.create_org_key(org, user, %{
                  name: "org's key",
-                 org_id: org.id,
-                 key: "FMBdNKrU3qlyErQtpqxsq50nGAXz03DCeEXPt2iKBe0=",
-                 created_by_id: user.id
+                 key: "FMBdNKrU3qlyErQtpqxsq50nGAXz03DCeEXPt2iKBe0="
                })
     end
 
@@ -232,15 +364,13 @@ defmodule NervesHub.AccountsTest do
       {:ok, org} = Accounts.create_org(user, @required_org_params)
 
       {:ok, _} =
-        Accounts.create_org_key(%{
+        Accounts.create_org_key(org, user, %{
           name: "org's key",
-          org_id: org.id,
-          key: "FMBdNKrU3qlyErQtpqxsq50nGAXz03DCeEXPt2iKBe0=",
-          created_by_id: user.id
+          key: "FMBdNKrU3qlyErQtpqxsq50nGAXz03DCeEXPt2iKBe0="
         })
 
       {:error, %Ecto.Changeset{}} =
-        Accounts.create_org_key(%{name: "org's second key", org_id: org.id, key: "foo"})
+        Accounts.create_org_key(org, user, %{name: "org's second key", key: "foo"})
     end
 
     test "cannot change org_id once created", %{user: user} do
@@ -259,11 +389,9 @@ defmodule NervesHub.AccountsTest do
 
       assert {:error,
               %Ecto.Changeset{errors: [key: {"invalid key, please check this is a valid Ed25519 public key", []}]}} =
-               Accounts.create_org_key(%{
+               Accounts.create_org_key(org, user, %{
                  name: "org's key",
-                 org_id: org.id,
-                 key: "foobar",
-                 created_by_id: user.id
+                 key: "foobar"
                })
     end
   end
@@ -324,6 +452,15 @@ defmodule NervesHub.AccountsTest do
       assert {:ok, %OrgUser{}} = Accounts.get_org_user(org, new_user)
 
       assert Repo.reload(invite).accepted
+    end
+
+    test "an address the mailer can't send to can't be invited", %{user: user} do
+      org = Fixtures.org_fixture(user)
+
+      assert {:error, changeset} =
+               Accounts.invite(%{"email" => "jane..doe@example.com", "role" => "view"}, org, user)
+
+      assert errors_on(changeset).email == ["is not a valid email address"]
     end
 
     test "an invite can only be accepted by the user it was sent to", %{user: user} do
@@ -477,6 +614,177 @@ defmodule NervesHub.AccountsTest do
     end
   end
 
+  describe "Google sign-in" do
+    test "refuses an email address Google hasn't verified" do
+      google_auth = Fixtures.ueberauth_google_success_fixture()
+
+      unverified = put_in(google_auth.extra.raw_info.user["email_verified"], false)
+      assert Accounts.update_or_create_user_from_ueberauth(unverified) == {:error, :email_not_verified}
+
+      unsaid = update_in(google_auth.extra.raw_info.user, &Map.delete(&1, "email_verified"))
+      assert Accounts.update_or_create_user_from_ueberauth(unsaid) == {:error, :email_not_verified}
+    end
+
+    # A missing uid must not match every account that has no Google account yet
+    test "refuses a sign-in without a Google account id" do
+      user = Fixtures.user_fixture(%{email: "jane@person.com"})
+      google_auth = %{Fixtures.ueberauth_google_success_fixture() | uid: nil}
+
+      assert Accounts.update_or_create_user_from_ueberauth(google_auth) == {:error, :missing_google_account_id}
+      assert is_nil(Repo.reload(user).google_id)
+    end
+
+    test "a pending link doesn't connect an account that's linked to a Google account already" do
+      user = Fixtures.user_fixture(%{email: "jane@person.com"})
+      {:ok, user} = user |> Changeset.change(google_id: "100000000000000000001") |> Repo.update()
+      pending = Accounts.pending_google_link(Fixtures.ueberauth_google_success_fixture())
+
+      assert Accounts.link_google_account(user, pending) == {:error, :already_linked}
+      assert Repo.reload(user).google_id == "100000000000000000001"
+    end
+
+    test "a pending link connects the account with the address Google verified" do
+      user = Fixtures.user_fixture(%{email: "Jane@Person.com"})
+      google_auth = Fixtures.ueberauth_google_success_fixture()
+
+      assert {:ok, user} = Accounts.link_google_account(user, Accounts.pending_google_link(google_auth))
+      assert user.google_id == google_auth.uid
+      assert user.google_hd == "person.com"
+    end
+
+    test "a pending link doesn't connect an account with another address" do
+      user = Fixtures.user_fixture()
+      pending = Accounts.pending_google_link(Fixtures.ueberauth_google_success_fixture())
+
+      assert Accounts.link_google_account(user, pending) == {:error, :email_mismatch}
+      assert is_nil(Repo.reload(user).google_id)
+    end
+
+    test "a pending link doesn't connect an unconfirmed account" do
+      {:ok, user} = Accounts.create_user(%{name: "Jane", email: "jane@person.com", password: "test_password"})
+      pending = Accounts.pending_google_link(Fixtures.ueberauth_google_success_fixture())
+
+      assert Accounts.link_google_account(user, pending) == {:error, :unconfirmed}
+    end
+
+    test "a pending link it doesn't recognise is ignored" do
+      user = Fixtures.user_fixture(%{email: "jane@person.com"})
+
+      assert Accounts.link_google_account(user, %{"uid" => "735086597857067149793"}) == {:error, :invalid}
+    end
+
+    test "a pending link expires after ten minutes" do
+      user = Fixtures.user_fixture(%{email: "jane@person.com"})
+      pending = Accounts.pending_google_link(Fixtures.ueberauth_google_success_fixture())
+      pending = Map.update!(pending, "requested_at", &(&1 - 10 * 60 - 1))
+
+      assert Accounts.link_google_account(user, pending) == {:error, :expired}
+    end
+  end
+
+  describe "changing email" do
+    test "a new address only takes effect once the link emailed to it is followed", %{user: user} do
+      assert {:ok, updated, "new@example.com"} =
+               Accounts.update_user(
+                 user,
+                 %{"email" => "new@example.com", "current_password" => "test_password"},
+                 &confirm_url/1
+               )
+
+      assert updated.email == user.email
+      assert_received {:confirm_email_token, token}
+
+      send_queued_emails()
+      assert_email_sent(to: "new@example.com", subject: "NervesHub: Confirm your new email address")
+
+      assert {:ok, %User{email: "new@example.com"}} = Accounts.update_user_email(updated, token)
+
+      # used up
+      user = Repo.reload(user)
+      assert Accounts.update_user_email(user, token) == {:error, :invalid_token}
+    end
+
+    test "the link only works for the account that asked for the change", %{user: user} do
+      other = Fixtures.user_fixture()
+
+      {:ok, _user, _email} =
+        Accounts.update_user(
+          user,
+          %{"email" => "new@example.com", "current_password" => "test_password"},
+          &confirm_url/1
+        )
+
+      assert_received {:confirm_email_token, token}
+
+      assert Accounts.update_user_email(other, token) == {:error, :invalid_token}
+      assert Repo.reload(other).email == other.email
+      assert Repo.reload(user).email == user.email
+    end
+
+    test "a link stops working once the email has changed", %{user: user} do
+      params = %{"current_password" => "test_password"}
+
+      {:ok, _user, _email} = Accounts.update_user(user, Map.put(params, "email", "first@example.com"), &confirm_url/1)
+      assert_received {:confirm_email_token, first_token}
+
+      {:ok, _user, _email} = Accounts.update_user(user, Map.put(params, "email", "second@example.com"), &confirm_url/1)
+      assert_received {:confirm_email_token, second_token}
+
+      assert {:ok, user} = Accounts.update_user_email(user, second_token)
+      assert Accounts.update_user_email(user, first_token) == {:error, :invalid_token}
+      assert Repo.reload(user).email == "second@example.com"
+    end
+
+    test "a link expires after a day", %{user: user} do
+      {:ok, _user, _email} =
+        Accounts.update_user(
+          user,
+          %{"email" => "new@example.com", "current_password" => "test_password"},
+          &confirm_url/1
+        )
+
+      assert_received {:confirm_email_token, token}
+
+      Repo.update_all(UserToken, set: [inserted_at: NaiveDateTime.add(NaiveDateTime.utc_now(), -2, :day)])
+
+      assert Accounts.update_user_email(user, token) == {:error, :invalid_token}
+    end
+
+    test "an address another account has is refused without emailing it", %{user: user} do
+      other = Fixtures.user_fixture()
+
+      assert {:error, changeset} =
+               Accounts.update_user(
+                 user,
+                 %{"email" => other.email, "current_password" => "test_password"},
+                 &confirm_url/1
+               )
+
+      assert {"has already been taken", _opts} = changeset.errors[:email]
+      refute_received {:confirm_email_token, _token}
+    end
+
+    test "following the link confirms an unconfirmed account" do
+      {:ok, user} = Accounts.create_user(%{name: "Jane", email: "jane@person.com", password: "test_password"})
+
+      {:ok, _user, _email} =
+        Accounts.update_user(
+          user,
+          %{"email" => "new@example.com", "current_password" => "test_password"},
+          &confirm_url/1
+        )
+
+      assert_received {:confirm_email_token, token}
+
+      assert {:ok, %User{confirmed_at: %NaiveDateTime{}}} = Accounts.update_user_email(user, token)
+    end
+  end
+
+  defp confirm_url(token) do
+    send(self(), {:confirm_email_token, token})
+    "http://localhost/account/confirm-email/#{token}"
+  end
+
   def setup_org_metric(%{user: user, tmp_dir: tmp_dir}) do
     org = Fixtures.org_fixture(user)
     product = Fixtures.product_fixture(user, org)
@@ -500,5 +808,126 @@ defmodule NervesHub.AccountsTest do
       })
 
     firmware_transfer
+  end
+
+  describe "set_org_device_hostnames/2" do
+    setup %{user: user} do
+      %{org: Fixtures.org_fixture(user, %{name: "hostname_org"})}
+    end
+
+    test "normalizes them, and drops repeats", %{org: org} do
+      assert {:ok, %{device_hostnames: ["link.example.com", "b.example.com"]}} =
+               Accounts.set_org_device_hostnames(org, [
+                 " Link.Example.com. ",
+                 "link.example.com",
+                 "b.example.com"
+               ])
+    end
+
+    for bad <- ["localhost", "*.example.com", "a b.example.com", "https://link.example.com"] do
+      test "refuses #{inspect(bad)}", %{org: org} do
+        assert {:error, changeset} = Accounts.set_org_device_hostnames(org, [unquote(bad)])
+        assert %{device_hostnames: [_]} = errors_on(changeset)
+      end
+    end
+
+    test "can't be reached through an org's own settings", %{org: org} do
+      {:ok, org} = Accounts.update_org(org, %{device_hostnames: ["link.example.com"]})
+
+      assert org.device_hostnames == []
+    end
+  end
+
+  describe "get_orgs_with_roles/1" do
+    test "lists the user's orgs with their role in each, products preloaded", %{user: user} do
+      own = Fixtures.org_fixture(user, %{name: "Beta"})
+      product = Fixtures.product_fixture(user, own)
+
+      other_user = Fixtures.user_fixture()
+      joined = Fixtures.org_fixture(other_user, %{name: "Alpha"})
+      {:ok, _} = Accounts.add_org_user(joined, user, %{role: :view})
+
+      _not_a_member = Fixtures.org_fixture(other_user)
+
+      assert [{alpha, :view}, {beta, :admin}] = Accounts.get_orgs_with_roles(Scope.for_user(user))
+      assert alpha.id == joined.id
+      assert beta.id == own.id
+      assert Enum.map(beta.products, & &1.id) == [product.id]
+    end
+  end
+
+  describe "count_org_users_by_org/1" do
+    test "counts each org's members", %{user: user} do
+      org = Fixtures.org_fixture(user)
+      {:ok, _} = Accounts.add_org_user(org, Fixtures.user_fixture(), %{role: :view})
+      solo = Fixtures.org_fixture(user)
+
+      assert Accounts.count_org_users_by_org([org.id, solo.id]) == %{org.id => 2, solo.id => 1}
+      assert Accounts.count_org_users_by_org([]) == %{}
+    end
+  end
+
+  describe "org_counts/1" do
+    test "counts an org's products, devices, members, signing keys and certificate authorities", %{user: user} do
+      org = Fixtures.org_fixture(user)
+      product = Fixtures.product_fixture(user, org)
+      {:ok, _} = Devices.create_device(product, %{identifier: "counted-1"})
+      {:ok, _} = Devices.create_device(product, %{identifier: "counted-2"})
+      {:ok, _} = Accounts.add_org_user(org, Fixtures.user_fixture(), %{role: :view})
+      _ = Fixtures.org_key_fixture(org, user)
+      _ = Fixtures.ca_certificate_fixture(org)
+
+      other = Fixtures.org_fixture(user)
+      _ = Fixtures.product_fixture(user, other)
+
+      assert Accounts.org_counts(org) == %{products: 1, devices: 2, members: 2, signing_keys: 1, certificates: 1}
+    end
+  end
+
+  describe "org_key_usage/1" do
+    @tag :tmp_dir
+    test "counts the firmware and archives each of an org's keys signed", %{user: user, tmp_dir: tmp_dir} do
+      org = Fixtures.org_fixture(user)
+      product = Fixtures.product_fixture(user, org)
+      used = Fixtures.org_key_fixture(org, user, tmp_dir)
+      unused = Fixtures.org_key_fixture(org, user, tmp_dir)
+      _ = Fixtures.firmware_fixture(used, product, %{dir: tmp_dir})
+      _ = Fixtures.firmware_fixture(used, product, %{dir: tmp_dir})
+      _ = Fixtures.archive_fixture(used, product, %{dir: tmp_dir})
+
+      other = Fixtures.org_fixture(user)
+      other_key = Fixtures.org_key_fixture(other, user, tmp_dir)
+      _ = Fixtures.firmware_fixture(other_key, Fixtures.product_fixture(user, other), %{dir: tmp_dir})
+
+      usage = Accounts.org_key_usage(org)
+
+      assert usage == %{used.id => %{firmware: 2, archives: 1}}
+      refute Map.has_key?(usage, unused.id)
+    end
+  end
+
+  describe "create_org_with_product/3" do
+    test "creates the org with the user as admin, and a product with a shared secret", %{user: user} do
+      assert {:ok, %{org: org, product: product}} =
+               Accounts.create_org_with_product(user, %{name: "Doggos"}, %{name: "Ball"})
+
+      assert org.name == "Doggos"
+      assert product.org_id == org.id
+      assert {:ok, %OrgUser{role: :admin}} = Accounts.get_org_user(org, user)
+      assert [_secret] = Products.load_shared_secret_auth(product).shared_secret_auths
+    end
+
+    test "leaves no org behind when the product is refused", %{user: user} do
+      assert {:error, :product, changeset} = Accounts.create_org_with_product(user, %{name: "Doggos"}, %{name: ""})
+
+      assert %{name: ["can't be blank"]} = errors_on(changeset)
+      assert {:error, :org_not_found} = Accounts.get_org_by_name("Doggos")
+    end
+
+    test "says when the org is the one refused", %{user: user} do
+      assert {:error, :org, changeset} = Accounts.create_org_with_product(user, %{name: ""}, %{name: "Ball"})
+
+      assert %{name: ["can't be blank"]} = errors_on(changeset)
+    end
   end
 end

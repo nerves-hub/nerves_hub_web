@@ -6,6 +6,10 @@ defmodule NervesHubWeb.SessionController do
   alias NervesHub.Accounts.UserNotifier
   alias NervesHub.Accounts.UserToken
   alias NervesHubWeb.Auth
+  alias NervesHubWeb.Helpers.ClientIP
+  alias NervesHubWeb.Plugs.Attack
+
+  plug(:limit_cli_code_attempts when action in [:cli_code, :cli_confirm])
 
   def new(conn, params) do
     conn = maybe_store_external_return_to(conn, params["return_to"])
@@ -36,14 +40,16 @@ defmodule NervesHubWeb.SessionController do
       %User{} = user ->
         conn
         |> put_flash(:info, "Welcome back!")
+        |> Auth.link_pending_google_account(user)
         |> Auth.log_in_user(user, user_params)
 
       _ ->
-        form = Phoenix.Component.to_form(user_params, as: "user")
+        # Keep the email and the remember-me tick, but never send the password back.
+        form = Phoenix.Component.to_form(Map.delete(user_params, "password"), as: "user")
 
         # In order to prevent user enumeration attacks, don't disclose whether the email is registered.
         conn
-        |> assign(:error_message, "Invalid email or password")
+        |> assign(:error_message, "That email and password don't match")
         |> render(:new, form: form)
     end
   end
@@ -56,9 +62,22 @@ defmodule NervesHubWeb.SessionController do
          {:user_confirmed, {:ok, user}, _} <-
            {:user_confirmed, Accounts.confirm_user(user), user},
          {:ok, _} <- UserNotifier.deliver_welcome_email(user) do
-      conn
-      |> put_flash(:info, "Welcome to NervesHub!")
-      |> Auth.log_in_user(user)
+      # Following the link proves whoever followed it reads the address, not
+      # that they chose the account's password. Someone else may have: an org
+      # admin can register an invitee from the invite link the members page
+      # shows. Signing in here would hand the address's owner an account the
+      # other person can still use, so only a session that is already this
+      # account's carries on. Anyone else signs in, and someone who never set
+      # the password resets it, which ends every other session and API token.
+      if signed_in_as?(conn, user) do
+        conn
+        |> put_flash(:info, "Welcome to NervesHub!")
+        |> redirect(to: ~p"/orgs")
+      else
+        conn
+        |> put_flash(:info, "Your email address is confirmed. Sign in to continue.")
+        |> redirect(to: ~p"/login")
+      end
     else
       {:token_valid, false, user} ->
         resend_confirmation_email(
@@ -81,37 +100,84 @@ defmodule NervesHubWeb.SessionController do
     end
   end
 
-  def cli(conn, %{"token" => token}) do
-    conn.assigns.current_scope.user
-    |> Accounts.cli_session_waiting?(token)
-    |> case do
-      {:ok, %{status: :ready}} ->
-        conn
-        |> assign(:page_title, "CLI Session Confirmed")
-        |> render(:cli_confirmed)
+  # CLI login. The CLI shows its user a code and this page's address, and they
+  # type the code in here. Nothing in a link can find a login, so someone who
+  # starts one can't send a link to a person signed in and have them confirm it
+  # with a click. The confirmation page says when and where the login started,
+  # for anyone who was handed a code to type in anyway.
 
-      {:ok, cli_session} ->
-        conn
-        |> assign(:page_title, "CLI Session Confirmation")
-        |> assign(:token, token)
-        |> assign(:confirmation_code, cli_session.confirmation_code)
-        |> render(:cli)
+  @cli_code_not_found "That code doesn't match a sign-in waiting to be confirmed. Check it against the code in your terminal. Codes last five minutes."
 
-      {:error, _} ->
-        render(conn, :cli_invalid)
+  def cli(conn, _params) do
+    render_cli_code(conn)
+  end
+
+  def cli_code(conn, %{"code" => code}) do
+    case Accounts.find_cli_session_by_code(conn.assigns.current_scope.user, code) do
+      {:ok, %{status: :waiting} = cli_session} ->
+        requested_from = cli_session.requested_from
+        browser_address = ClientIP.request_address(conn)
+
+        conn
+        |> assign(:page_title, "Confirm the CLI sign-in")
+        |> assign(:code, code)
+        |> assign(:note, cli_session.note)
+        |> assign(:requested_at, DateTime.from_unix!(cli_session.requested_at))
+        |> assign(:requested_from, requested_from)
+        |> assign(:browser_address, browser_address)
+        |> assign(:other_address?, requested_from not in [nil, browser_address])
+        |> render(:cli_confirm)
+
+      {:ok, _already_confirmed} ->
+        redirect(conn, to: ~p"/auth/cli/confirmed")
+
+      {:error, :not_found} ->
+        render_cli_code(conn, @cli_code_not_found)
     end
   end
 
-  def cli_confirm(conn, %{"token" => token}) do
-    conn.assigns.current_scope.user
-    |> Accounts.verify_cli_session_token(token)
-    |> case do
-      :ok ->
-        redirect(conn, to: ~p"/auth/cli/#{token}")
+  def cli_confirm(conn, %{"code" => code}) do
+    user = conn.assigns.current_scope.user
 
-      {:error, :not_found} ->
-        raise NervesHubWeb.NotFoundError
+    with {:ok, cli_session} <- Accounts.find_cli_session_by_code(user, code),
+         :ok <- confirm_cli_session(user, cli_session) do
+      redirect(conn, to: ~p"/auth/cli/confirmed")
+    else
+      {:error, _reason} -> render_cli_code(conn, @cli_code_not_found)
     end
+  end
+
+  def cli_confirmed(conn, _params) do
+    conn
+    |> assign(:page_title, "Signed in to the CLI")
+    |> render(:cli_confirmed)
+  end
+
+  defp confirm_cli_session(user, %{status: :waiting, token: token}), do: Accounts.verify_cli_session_token(user, token)
+
+  defp confirm_cli_session(_user, _already_confirmed), do: :ok
+
+  defp limit_cli_code_attempts(conn, _opts) do
+    case Attack.cli_code_throttle(conn.assigns.current_scope.user.id) do
+      {:allow, _data} ->
+        conn
+
+      {:block, _data} ->
+        conn
+        |> render_cli_code("Too many codes tried. Wait ten minutes, then run the login command in your terminal again.")
+        |> halt()
+    end
+  end
+
+  defp render_cli_code(conn, error_message \\ nil) do
+    conn
+    |> assign(:page_title, "Sign in to the CLI")
+    |> assign(:error_message, error_message)
+    |> render(:cli)
+  end
+
+  defp signed_in_as?(conn, %User{id: id}) do
+    match?(%{user: %User{id: ^id}}, conn.assigns[:current_scope])
   end
 
   defp resend_confirmation_email(conn, user, message) do

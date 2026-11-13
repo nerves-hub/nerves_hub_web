@@ -132,6 +132,17 @@ defmodule NervesHub.Devices.PinnedDevicesTest do
              |> Pinning.get_pinned_devices()
   end
 
+  test "Leave out devices in a deleted org", %{user: user, device: device, org: org} do
+    assert {:ok, _} =
+             Pinning.pin_device(user.id, device.id)
+
+    {:ok, _org} = Accounts.soft_delete_org(org)
+
+    assert [] =
+             Scope.for_user(user)
+             |> Pinning.get_pinned_devices()
+  end
+
   test "Remove entries when device is (soft)deleted", %{user: user, device: device} do
     assert {:ok, _} =
              Pinning.pin_device(user.id, device.id)

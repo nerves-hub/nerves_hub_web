@@ -3,8 +3,9 @@ defmodule NervesHubWeb.Live.Account do
 
   alias NervesHub.Accounts
   alias NervesHub.Accounts.UserToken
+  alias NervesHub.Integrations.Slack.Users, as: SlackUsers
+  alias NervesHubWeb.Components.DateTimes
   alias NervesHubWeb.CoreComponents
-  alias NervesHubWeb.LayoutView.DateTimeFormat
 
   embed_templates("account_templates/*")
 
@@ -16,6 +17,7 @@ defmodule NervesHubWeb.Live.Account do
     |> assign(:access_token_form, to_form(Ecto.Changeset.change(%UserToken{})))
     |> assign(:user, scope.user)
     |> assign(:new_token, nil)
+    |> assign(:slack_links, SlackUsers.list_links(scope.user))
     |> ok()
   end
 
@@ -41,14 +43,37 @@ defmodule NervesHubWeb.Live.Account do
   end
 
   @impl Phoenix.LiveView
+  def handle_event("unlink-slack", %{"link_id" => id}, socket) do
+    user = socket.assigns.current_scope.user
+
+    # An id that is not a number names no link of theirs.
+    _ =
+      with {:ok, id} <- Ecto.Type.cast(:id, id) do
+        SlackUsers.unlink(user, id)
+      end
+
+    socket
+    |> assign(:slack_links, SlackUsers.list_links(user))
+    |> put_flash(:info, "The Slack account was unlinked.")
+    |> noreply()
+  end
+
   def handle_event("update-details", %{"user" => params}, socket) do
+    confirm_url = &url(~p"/account/confirm-email/#{&1}")
+
     socket.assigns.current_scope.user
-    |> Accounts.update_user(params)
+    |> Accounts.update_user(params, confirm_url)
     |> case do
-      {:ok, user} ->
+      {:ok, user, nil} ->
         socket
         |> assign(:user, user)
         |> put_flash(:info, "Account updated")
+        |> noreply()
+
+      {:ok, user, new_email} ->
+        socket
+        |> assign(:user, user)
+        |> put_flash(:info, "We've emailed a link to #{new_email}. Your email address will change when you follow it.")
         |> noreply()
 
       {:error, changeset} ->

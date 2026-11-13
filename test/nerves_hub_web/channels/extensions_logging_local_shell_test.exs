@@ -175,7 +175,7 @@ defmodule NervesHubWeb.Extensions.LoggingLocalShellTest do
   # ---- Extensions.LocalShell ----
 
   describe "Extensions.LocalShell attach" do
-    test "pushes local_shell:request_shell and joins the local-shell group", %{tmp_dir: tmp_dir} do
+    test "pushes local_shell:request_shell and answers a locate", %{tmp_dir: tmp_dir} do
       {socket, device} = build_connected_socket(tmp_dir, enable_local_shell: true)
       ext_channel = join_extensions(socket, %{"local_shell" => "0.0.1"})
 
@@ -183,7 +183,9 @@ defmodule NervesHubWeb.Extensions.LoggingLocalShellTest do
       :sys.get_state(ext_channel.channel_pid)
 
       assert_push("local_shell:request_shell", %{})
-      assert ConsolePubSub.local_shell_active?(device.id)
+
+      ref = ConsolePubSub.locate_local_shell(device.id)
+      assert_receive {:local_shell_located, ^ref}, 500
 
       close_cleanly(ext_channel)
     end
@@ -203,7 +205,7 @@ defmodule NervesHubWeb.Extensions.LoggingLocalShellTest do
   end
 
   describe "Extensions.LocalShell detach" do
-    test "leaves the local-shell group and nils the assigns", %{tmp_dir: tmp_dir} do
+    test "stops answering a locate and clears the scrollback", %{tmp_dir: tmp_dir} do
       {socket, device} = build_connected_socket(tmp_dir, enable_local_shell: true)
       ext_channel = join_extensions(socket, %{"local_shell" => "0.0.1"})
       attach_extension(ext_channel, "local_shell")
@@ -211,7 +213,8 @@ defmodule NervesHubWeb.Extensions.LoggingLocalShellTest do
       push(ext_channel, "local_shell:detached", %{})
       :sys.get_state(ext_channel.channel_pid)
 
-      refute ConsolePubSub.local_shell_active?(device.id)
+      ref = ConsolePubSub.locate_local_shell(device.id)
+      refute_receive {:local_shell_located, ^ref}, 200
 
       state = :sys.get_state(ext_channel.channel_pid)
       assert state.assigns.link_scrollback.current_line == ""

@@ -10,6 +10,7 @@ defmodule NervesHub.ManagedDeploymentsTest do
   alias NervesHub.Devices
   alias NervesHub.Devices.Deployments
   alias NervesHub.Devices.Device
+  alias NervesHub.Firmwares
   alias NervesHub.Firmwares.FirmwareDelta
   alias NervesHub.Fixtures
   alias NervesHub.ManagedDeployments
@@ -452,6 +453,59 @@ defmodule NervesHub.ManagedDeploymentsTest do
         ManagedDeployments.create_deployment_release(deployment_group, new_firmware, nil, user, %{})
 
       assert delta_status(deployment_group) == :preparing
+    end
+
+    test "doesn't wait on a delta from deleted firmware when a new release is created", %{
+      user: user,
+      org: org,
+      org_key: org_key,
+      product: product,
+      tmp_dir: tmp_dir
+    } do
+      current_firmware = Fixtures.firmware_fixture(org_key, product, %{version: "1.0.0", dir: tmp_dir})
+      deleted_firmware = Fixtures.firmware_fixture(org_key, product, %{version: "0.9.0", dir: tmp_dir})
+      new_firmware = Fixtures.firmware_fixture(org_key, product, %{version: "1.0.1", dir: tmp_dir})
+
+      deployment_group =
+        Fixtures.deployment_group_fixture(current_firmware, %{
+          name: "Delta Time",
+          is_active: true,
+          delta_updatable: true,
+          user: user
+        })
+
+      _device = Fixtures.device_fixture(org, product, deleted_firmware, %{deployment_id: deployment_group.id})
+      {:ok, _} = Firmwares.delete_firmware(deleted_firmware, user)
+
+      {:ok, {_release, deployment_group}} =
+        ManagedDeployments.create_deployment_release(deployment_group, new_firmware, nil, user, %{})
+
+      # The deleted firmware's file is gone, so the device takes the full image
+      refute_enqueued(worker: FirmwareDeltaBuilder, args: %{source_id: deleted_firmware.id})
+      assert delta_status(deployment_group) == :ready
+    end
+
+    test "a delta left over from deleted firmware doesn't hold its release back", %{
+      user: user,
+      org: org,
+      deployment_group: deployment_group,
+      org_key: org_key,
+      product: product,
+      tmp_dir: tmp_dir
+    } do
+      deleted_firmware = Fixtures.firmware_fixture(org_key, product, %{version: "0.9.0", dir: tmp_dir})
+      _device = Fixtures.device_fixture(org, product, deleted_firmware, %{deployment_id: deployment_group.id})
+      {:ok, _} = Firmwares.delete_firmware(deleted_firmware, user)
+
+      # Started after the delete, so the delete had no delta to take with it, and
+      # its build is cancelled for want of a source file
+      _ =
+        Fixtures.firmware_delta_fixture(deleted_firmware, deployment_group.current_release.firmware, %{
+          status: :processing
+        })
+
+      assert {:ok, %{delta_status: :ready}} =
+               ManagedDeployments.recalculate_release_delta_status(deployment_group.current_release)
     end
 
     test "doesn't set its release's delta status to :preparing when deltas are enabled and other information is updated, but no release is created",
@@ -1197,6 +1251,33 @@ defmodule NervesHub.ManagedDeploymentsTest do
       device = ManagedDeployments.verify_deployment_group_membership(device)
       assert device.deployment_id == deployment_group.id
     end
+
+    test "removes a device in another product's deployment group, even when membership is locked", %{
+      org2: org2,
+      product2: product2,
+      firmware2: firmware2,
+      deployment_group: deployment_group
+    } do
+      {:ok, deployment_group} =
+        deployment_group
+        |> Ecto.Changeset.change(%{lock_device_membership: true})
+        |> Repo.update()
+
+      # Set directly, as request params could before the device changesets
+      # stopped casting deployment_id.
+      device =
+        org2
+        |> Fixtures.device_fixture(product2, firmware2)
+        |> Ecto.Changeset.change(%{deployment_id: deployment_group.id})
+        |> Repo.update!()
+
+      device = ManagedDeployments.verify_deployment_group_membership(device)
+      refute device.deployment_id
+      refute Repo.reload!(device).deployment_id
+
+      [audit_log | _] = AuditLogs.logs_for(deployment_group)
+      assert audit_log.description =~ "because of mismatched product"
+    end
   end
 
   describe "matched_devices_count/2" do
@@ -1648,5 +1729,19 @@ defmodule NervesHub.ManagedDeploymentsTest do
   defp delta_status(deployment_group) do
     {:ok, deployment_group} = ManagedDeployments.get_deployment_group(deployment_group)
     deployment_group.current_release.delta_status
+  end
+
+  describe "count_by_product/1" do
+    test "counts each product's deployment groups, leaving out products with none", context do
+      %{product: product, product2: product2, firmware: firmware, user: user} = context
+
+      _second = Fixtures.deployment_group_fixture(firmware, %{user: user})
+
+      assert ManagedDeployments.count_by_product([product.id, product2.id]) == %{product.id => 2}
+    end
+
+    test "is empty for no products" do
+      assert ManagedDeployments.count_by_product([]) == %{}
+    end
   end
 end

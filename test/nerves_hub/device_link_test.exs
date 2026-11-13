@@ -2,6 +2,8 @@ defmodule NervesHub.DeviceLinkTest do
   use NervesHub.DataCase, async: true
   use Mimic
 
+  import ExUnit.CaptureLog
+
   alias NervesHub.AuditLogs.AuditLog
   alias NervesHub.Consoles
   alias NervesHub.DeviceLink
@@ -11,7 +13,11 @@ defmodule NervesHub.DeviceLinkTest do
   alias NervesHub.Devices.Connections
   alias NervesHub.Devices.DeviceConnection
   alias NervesHub.Devices.InflightUpdate
+  alias NervesHub.FirmwareUpdates
   alias NervesHub.Fixtures
+  alias NervesHub.ManagedDeployments
+  alias NervesHub.ProductNotifications
+  alias NervesHub.Products.Notification
   alias NervesHub.Repo
   alias Phoenix.Socket.Broadcast
 
@@ -210,15 +216,17 @@ defmodule NervesHub.DeviceLinkTest do
       inflight_update = Repo.reload!(inflight_update)
       refute inflight_update.progress == 30
 
+      # update to some reasonable time before 15s
       {1, _} =
-        Repo.update_all(InflightUpdate, set: [updated_at: NaiveDateTime.utc_now() |> NaiveDateTime.add(-14, :second)])
+        Repo.update_all(InflightUpdate, set: [updated_at: NaiveDateTime.utc_now() |> NaiveDateTime.add(-10, :second)])
 
       :ok = DeviceLink.status_update(to_device_info(device), %{"status" => "downloading", "progress" => 30})
       inflight_update = Repo.reload!(inflight_update)
       refute inflight_update.progress == 30
 
+      # update to some reasonable time after 15s
       {1, _} =
-        Repo.update_all(InflightUpdate, set: [updated_at: NaiveDateTime.utc_now() |> NaiveDateTime.add(-16, :second)])
+        Repo.update_all(InflightUpdate, set: [updated_at: NaiveDateTime.utc_now() |> NaiveDateTime.add(-20, :second)])
 
       :ok = DeviceLink.status_update(to_device_info(device), %{"status" => "downloading", "progress" => 30})
       inflight_update = Repo.reload!(inflight_update)
@@ -256,7 +264,7 @@ defmodule NervesHub.DeviceLinkTest do
       {1, _} =
         Repo.update_all(InflightUpdate, set: [updated_at: NaiveDateTime.utc_now() |> NaiveDateTime.add(-20, :second)])
 
-      :ok = DeviceLink.status_update(to_device_info(device), %{"status" => "downloading", "progress" => 30})
+      :ok = DeviceLink.status_update(to_device_info(device), %{"status" => "updating", "progress" => 30})
       inflight_update = Repo.reload!(inflight_update)
       assert inflight_update.progress == 30
     end
@@ -373,6 +381,54 @@ defmodule NervesHub.DeviceLinkTest do
     end
   end
 
+  describe "connect/3" do
+    test "records the client library the User-Agent names", %{device: device} do
+      device_info = %{to_device_info(device) | org_id: device.org_id}
+
+      assert {:ok, %DeviceInfo{connection_ref: ref}} =
+               DeviceLink.connect(device_info, "203.0.113.7", "NHL/2.13.0 Mint/1.7.1")
+
+      assert %DeviceConnection{id: ^ref, ip_address: "203.0.113.7", lib: "nerves_hub_link", lib_version: "2.13.0"} =
+               Connections.get_latest_for_device(device.id)
+    end
+
+    # What a node holding sockets calls while it is still on a release that
+    # doesn't forward the header.
+    test "records an unknown client library when called without one", %{device: device} do
+      device_info = %{to_device_info(device) | org_id: device.org_id}
+
+      assert {:ok, %DeviceInfo{connection_ref: ref}} = DeviceLink.connect(device_info, "203.0.113.7")
+
+      assert %DeviceConnection{id: ^ref, lib: nil, lib_version: nil} = Connections.get_latest_for_device(device.id)
+    end
+  end
+
+  describe "join/2" do
+    test "keeps the old firmware on record when the update that installed the new one cannot be recorded", %{
+      device: device,
+      org_key: org_key,
+      product: product,
+      tmp_dir: tmp_dir
+    } do
+      previous_uuid = device.firmware_metadata.uuid
+      new_firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+      {:ok, _inflight_update} = Fixtures.inflight_update(device, new_firmware)
+
+      stub(FirmwareUpdates, :firmware_update_successful, fn _device, _previous_metadata ->
+        {:error, :unavailable}
+      end)
+
+      params = %{"nerves_fw_uuid" => new_firmware.uuid, "device_api_version" => "2.2.0"}
+
+      assert {:error, {:error, :unavailable}} = DeviceLink.join(connected_device_info(device), params)
+
+      # Had the new firmware been kept, the next join would see nothing new and
+      # end this update as abandoned rather than finish it.
+      assert Repo.reload!(device).firmware_metadata.uuid == previous_uuid
+      assert Repo.get_by(InflightUpdate, device_id: device.id)
+    end
+  end
+
   describe "device_message/3 progress events" do
     setup %{device: device, firmware: firmware} do
       {:ok, inflight_update} = Fixtures.inflight_update(device, firmware)
@@ -431,7 +487,7 @@ defmodule NervesHub.DeviceLinkTest do
 
       # Stand in for the device-side console channel, which is what carries the
       # echo down to the device.
-      :ok = Consoles.PubSub.join_console(device.id)
+      :ok = Consoles.PubSub.subscribe_console(device.id)
 
       session = %Session{device_info: connected_device_info(device), device_api_version: "2.0.0"}
       params = %{"device_api_version" => "2.0.0"}
@@ -445,7 +501,7 @@ defmodule NervesHub.DeviceLinkTest do
     test "pushes a script instead of echoing when the device can run scripts", %{device: device} do
       {:ok, device} = Devices.update_device(device, %{connecting_code: ~s/dbg("boo")/})
 
-      :ok = Consoles.PubSub.join_console(device.id)
+      :ok = Consoles.PubSub.subscribe_console(device.id)
 
       session = %Session{device_info: connected_device_info(device), device_api_version: "2.1.0"}
       params = %{"device_api_version" => "2.1.0"}
@@ -454,6 +510,150 @@ defmodule NervesHub.DeviceLinkTest do
 
       assert [{:push, "scripts/run", %{"text" => ~s/dbg("boo")/}}] = effects
       refute_receive %Broadcast{event: "dn"}, 200
+    end
+  end
+
+  describe "device_message/3 answering the connecting code" do
+    setup %{device: device} do
+      {:ok, device} = Devices.update_device(device, %{connecting_code: ~s/raise "boom"/})
+
+      test_pid = self()
+      handler_id = {__MODULE__, make_ref()}
+
+      :ok =
+        :telemetry.attach_many(
+          handler_id,
+          [
+            [:nerves_hub, :devices, :connecting_code_failure],
+            [:nerves_hub, :devices, :connecting_code_success]
+          ],
+          fn event, _measurements, metadata, _config -> send(test_pid, {:telemetry, event, metadata}) end,
+          nil
+        )
+
+      on_exit(fn -> :telemetry.detach(handler_id) end)
+
+      %{device: device, session: %Session{device_info: to_device_info(device), device_api_version: "2.1.0"}}
+    end
+
+    test "a script nerves_hub_link could not run raises a notification", %{device: device, session: session} do
+      payload = %{
+        "ref" => "connecting_code",
+        "result" => "error",
+        "reason" => "timeout",
+        "output" => "Error running script: timeout exceeded",
+        "return" => ""
+      }
+
+      assert {_session, []} = DeviceLink.device_message(session, "scripts/run", payload)
+
+      identifier = device.identifier
+
+      assert_receive {:telemetry, [:nerves_hub, :devices, :connecting_code_failure],
+                      %{identifier: ^identifier, output: "Error running script: timeout exceeded"}}
+
+      assert [notification] = Repo.all(Notification)
+      assert notification.product_id == device.product_id
+      assert notification.metadata["reason"] == "Error running script: timeout exceeded"
+    end
+
+    test "a non-zero exit from the Linux agent raises a notification with the status", %{session: session} do
+      payload = %{
+        "ref" => "connecting_code",
+        "result" => "error",
+        "return" => "exited with status 127",
+        "output" => "sh: frobnicate: not found\n"
+      }
+
+      _ = DeviceLink.device_message(session, "scripts/run", payload)
+
+      assert [notification] = Repo.all(Notification)
+      assert notification.metadata["reason"] == "exited with status 127: sh: frobnicate: not found"
+    end
+
+    # nerves_hub_link catches the exception and reports the run as completed.
+    test "code that raised is a failure, reported by its exception", %{session: session} do
+      payload = %{
+        "ref" => "connecting_code",
+        "result" => "completed",
+        "return" => "nil",
+        "output" => "starting\n\n** (RuntimeError) boom"
+      }
+
+      _ = DeviceLink.device_message(session, "scripts/run", payload)
+
+      assert_receive {:telemetry, [:nerves_hub, :devices, :connecting_code_failure], _}
+      assert [notification] = Repo.all(Notification)
+      assert notification.metadata["reason"] == "** (RuntimeError) boom"
+    end
+
+    # Releases from before `"result"` existed send the same answer without it.
+    test "code that raised on an older nerves_hub_link is a failure", %{session: session} do
+      payload = %{"ref" => "connecting_code", "return" => "nil", "output" => "\n** (RuntimeError) boom"}
+
+      _ = DeviceLink.device_message(session, "scripts/run", payload)
+
+      assert_receive {:telemetry, [:nerves_hub, :devices, :connecting_code_failure], _}
+      assert [notification] = Repo.all(Notification)
+      assert notification.metadata["reason"] == "** (RuntimeError) boom"
+    end
+
+    test "a notification that cannot be written does not raise", %{session: session} do
+      stub(ProductNotifications, :create_connecting_code_failure_notification!, fn _device_info, _code, _reason ->
+        raise DBConnection.ConnectionError, "connection not available"
+      end)
+
+      payload = %{"ref" => "connecting_code", "result" => "error", "return" => "", "output" => "boom"}
+
+      log =
+        capture_log(fn ->
+          assert {_session, []} = DeviceLink.device_message(session, "scripts/run", payload)
+        end)
+
+      assert log =~ "Could not record the connecting code failure"
+      assert log =~ "connection not available"
+    end
+
+    test "code that returned nil without raising succeeded", %{session: session} do
+      payload = %{"ref" => "connecting_code", "result" => "completed", "return" => "nil", "output" => "hello\n"}
+
+      _ = DeviceLink.device_message(session, "scripts/run", payload)
+
+      assert_receive {:telemetry, [:nerves_hub, :devices, :connecting_code_success], _}
+      assert Repo.all(Notification) == []
+    end
+
+    test "code that has been removed since it was sent raises no notification", %{device: device, session: session} do
+      {:ok, _device} = Devices.update_device(device, %{connecting_code: nil})
+
+      payload = %{"ref" => "connecting_code", "result" => "error", "return" => "", "output" => "boom"}
+      _ = DeviceLink.device_message(session, "scripts/run", payload)
+
+      assert_receive {:telemetry, [:nerves_hub, :devices, :connecting_code_failure], _}
+      assert Repo.all(Notification) == []
+    end
+
+    test "devices failing on their deployment group's code share one notification", %{
+      user: user,
+      org: org,
+      product: product,
+      firmware: firmware,
+      deployment_group: deployment_group
+    } do
+      {:ok, deployment_group} =
+        ManagedDeployments.update_deployment_group(deployment_group, %{connecting_code: ~s/raise "group"/}, user)
+
+      payload = %{"ref" => "connecting_code", "result" => "error", "return" => "", "output" => "boom"}
+
+      for _ <- 1..2 do
+        device = Fixtures.device_fixture(org, product, firmware, %{deployment_id: deployment_group.id})
+        session = %Session{device_info: to_device_info(device), device_api_version: "2.1.0"}
+
+        _ = DeviceLink.device_message(session, "scripts/run", payload)
+      end
+
+      assert [notification] = Repo.all(Notification)
+      assert notification.occurrence_count == 2
     end
   end
 

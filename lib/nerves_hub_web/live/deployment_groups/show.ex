@@ -5,7 +5,6 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
   alias LiveFlow.Handle
   alias LiveFlow.Node
   alias LiveFlow.State
-  alias NervesHub.AuditLogs
   alias NervesHub.AuditLogs.DeploymentGroupTemplates
   alias NervesHub.Devices.BulkActions
   alias NervesHub.Devices.Deployments
@@ -13,7 +12,6 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
   alias NervesHub.FirmwareUpdates
   alias NervesHub.Helpers.Logging
   alias NervesHub.ManagedDeployments
-  alias NervesHub.ManagedDeployments.DeploymentWorkflowStep
   alias NervesHub.ManagedDeployments.Workflows
   alias NervesHub.Products
   alias NervesHubWeb.Components.DeploymentGroupPage.Activity, as: ActivityTab
@@ -98,29 +96,21 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
 
     %{deployment_group: deployment_group, user: user, awaiting_approval: step} = socket.assigns
 
-    case step do
-      nil ->
-        # Somebody else approved it between the page rendering and the click.
-        socket |> assign(:awaiting_approval, nil) |> noreply()
+    with %{} <- step,
+         {:ok, _step} <- Workflows.approve_step(deployment_group, step, user) do
+      # Approving only clears the block. The orchestrator is what completes the
+      # step and starts the next one, so nudge it rather than leaving the page
+      # looking unchanged until its next periodic run.
+      :ok = ManagedDeployments.broadcast(deployment_group, "deployments/update")
 
-      step ->
-        step = Workflows.approve_step(step, user)
-
-        AuditLogs.audit!(
-          user,
-          deployment_group,
-          "User #{user.name} approved workflow step #{step.number} (#{DeploymentWorkflowStep.label(step)}) for deployment group #{deployment_group.name}"
-        )
-
-        # Approving only clears the block. The orchestrator is what completes the
-        # step and starts the next one, so nudge it rather than leaving the page
-        # looking unchanged until its next periodic run.
-        :ok = ManagedDeployments.broadcast(deployment_group, "deployments/update")
-
-        socket
-        |> assign(:awaiting_approval, nil)
-        |> put_flash(:info, "Step approved. The deployment will carry on with the next step.")
-        |> noreply()
+      socket
+      |> assign(:awaiting_approval, nil)
+      |> put_flash(:info, "Step approved. The deployment will carry on with the next step.")
+      |> noreply()
+    else
+      # Somebody else approved or skipped it between the page rendering and the
+      # click.
+      _ -> socket |> assign(:awaiting_approval, nil) |> noreply()
     end
   end
 
@@ -150,6 +140,8 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
   def handle_event("move-matched-devices-to-deployment-group", _params, socket) do
     %{assigns: %{current_scope: scope, deployment_group: deployment_group}} = socket
 
+    authorized!(:"device:set-deployment-group", scope)
+
     move_devices = fn ->
       devices = ManagedDeployments.matched_device_ids(deployment_group, in_deployment: false)
 
@@ -170,7 +162,9 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
   end
 
   def handle_event("remove-unmatched-devices-from-deployment-group", _params, socket) do
-    %{assigns: %{deployment_group: deployment_group}} = socket
+    %{assigns: %{current_scope: scope, deployment_group: deployment_group}} = socket
+
+    authorized!(:"device:set-deployment-group", scope)
 
     matched_device_ids =
       ManagedDeployments.matched_device_ids(deployment_group, in_deployment: true)
@@ -513,14 +507,8 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
   defp apply_step_action(socket, :skip, step) do
     %{deployment_group: deployment_group, user: user} = socket.assigns
 
-    case Workflows.skip_step(step, user) do
-      {:ok, skipped} ->
-        AuditLogs.audit!(
-          user,
-          deployment_group,
-          "User #{user.name} skipped workflow step #{skipped.number} (#{DeploymentWorkflowStep.label(skipped)}) for deployment group #{deployment_group.name}"
-        )
-
+    case Workflows.skip_step(deployment_group, step, user) do
+      {:ok, _skipped} ->
         # Skipping only clears the way; the orchestrator is what moves the
         # workflow on to the next step.
         :ok = ManagedDeployments.broadcast(deployment_group, "deployments/update")
@@ -536,13 +524,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
     %{deployment_group: deployment_group, user: user} = socket.assigns
 
     case Workflows.retry_step(deployment_group, step, user) do
-      {:ok, retried} ->
-        AuditLogs.audit!(
-          user,
-          deployment_group,
-          "User #{user.name} retried workflow step #{retried.number} (#{DeploymentWorkflowStep.label(retried)}) for deployment group #{deployment_group.name}"
-        )
-
+      {:ok, _retried} ->
         :ok = ManagedDeployments.broadcast(deployment_group, "deployments/update")
 
         put_flash(socket, :info, "Step restarted. Its devices will be offered the update again.")

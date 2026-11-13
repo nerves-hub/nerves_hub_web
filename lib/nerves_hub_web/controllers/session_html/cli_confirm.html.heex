@@ -1,0 +1,50 @@
+<Layouts.auth flash={@flash}>
+  <:title>
+    Confirm the CLI sign-in
+  </:title>
+  <:subheader>
+    Confirming signs the CLI in to your {platform_name()} account, with everything you can do.
+  </:subheader>
+
+  <div class="flex flex-col gap-5">
+    <dl class="flex flex-col gap-2 rounded-md border border-line-default bg-surface p-3 text-sm">
+      <div class="flex gap-3">
+        <dt class="w-32 flex-none text-content-muted">Started</dt>
+        <dd id="cli_requested_at" class="text-content-strong">{RelativeTime.from_now(@requested_at)}</dd>
+      </div>
+      <div class="flex gap-3">
+        <dt class="w-32 flex-none text-content-muted">From</dt>
+        <dd id="cli_requested_from" class="font-mono text-content-strong">{@requested_from || "unknown"}</dd>
+      </div>
+      <div :if={@note} class="flex gap-3">
+        <dt class="w-32 flex-none text-content-muted">CLI's description</dt>
+        <dd id="cli_note" class="break-all text-content-body">{@note}</dd>
+      </div>
+    </dl>
+
+    <div role="alert" class="flex gap-2.5 rounded-md border border-alert/30 bg-alert-soft p-3 text-sm text-alert-content">
+      <span class="mt-0.5 lucide-circle-exclamation-point size-4 flex-none text-alert" aria-hidden="true"></span>
+      <div class="flex flex-col gap-2">
+        <p :if={@other_address?} id="cli_other_address">
+          This sign-in started at a different address from your browser's, which is <span class="font-mono">{@browser_address}</span>. Unless you ran the CLI on another machine yourself, over SSH for example, don't confirm it.
+        </p>
+        <p>
+          Only confirm a sign-in you started yourself. If someone sent you the code, or asked you to enter it, stop here: confirming gives them access to your account.
+        </p>
+      </div>
+    </div>
+
+    <form id="cli_confirm" method="post" action={~p"/auth/cli/confirm"}>
+      <input type="hidden" name="_csrf_token" value={Plug.CSRFProtection.get_csrf_token()} />
+      <input type="hidden" name="code" value={@code} />
+
+      <.button style="primary" type="submit" class="w-full">
+        Confirm sign in
+      </.button>
+    </form>
+  </div>
+
+  <:footer>
+    <.link href={~p"/auth/cli"} class="font-semibold text-primary hover:text-primary-hover light:text-indigo-600 light:hover:text-indigo-500">Cancel</.link>
+  </:footer>
+</Layouts.auth>

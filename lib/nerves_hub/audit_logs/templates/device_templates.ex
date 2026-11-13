@@ -8,22 +8,49 @@ defmodule NervesHub.AuditLogs.DeviceTemplates do
   alias NervesHub.AuditLogs
   alias NervesHub.DeviceLink.DeviceInfo
   alias NervesHub.Devices.Device
+  alias NervesHub.Devices.SharedSecretAuth
   alias NervesHub.Firmwares.Firmware
+  alias NervesHub.Helpers.RelativeTime
   alias NervesHub.ManagedDeployments.DeploymentGroup
 
   @reason_max_length 200
 
   ## General
 
-  @spec audit_reboot(User.t(), Device.t()) :: :ok
-  def audit_reboot(user, device) do
-    description = "User #{user.name} rebooted device #{device.identifier}"
+  # `via` names where a request came from when it was not the dashboard or
+  # the API, such as Slack.
+  @spec audit_reboot(User.t(), Device.t(), String.t() | nil) :: :ok
+  def audit_reboot(user, device, via \\ nil) do
+    description = "User #{user.name} rebooted device #{device.identifier}#{via(via)}"
     AuditLogs.audit!(user, device, description)
   end
 
-  @spec audit_request_action(User.t(), Device.t(), String.t()) :: :ok
-  def audit_request_action(user, device, action) do
-    description = "User #{user.name} requested the device (#{device.identifier}) #{action}"
+  @spec audit_request_action(User.t(), Device.t(), String.t(), String.t() | nil) :: :ok
+  def audit_request_action(user, device, action, via \\ nil) do
+    description = "User #{user.name} requested the device (#{device.identifier}) #{action}#{via(via)}"
+    AuditLogs.audit!(user, device, description)
+  end
+
+  @spec audit_script_run(User.t(), Device.t(), String.t(), String.t() | nil) :: :ok
+  def audit_script_run(user, device, script_name, via \\ nil) do
+    description = "User #{user.name} ran support script #{script_name} on device #{device.identifier}#{via(via)}"
+    AuditLogs.audit!(user, device, description)
+  end
+
+  defp via(nil), do: ""
+  defp via(source), do: " from #{source}"
+
+  ## Shared secrets
+
+  @spec audit_shared_secret_created(User.t(), Device.t(), SharedSecretAuth.t()) :: :ok
+  def audit_shared_secret_created(user, device, auth) do
+    description = "User #{user.name} created shared secret #{auth.key} for device #{device.identifier}"
+    AuditLogs.audit!(user, device, description)
+  end
+
+  @spec audit_shared_secret_deactivated(User.t(), Device.t(), SharedSecretAuth.t()) :: :ok
+  def audit_shared_secret_deactivated(user, device, auth) do
+    description = "User #{user.name} deactivated shared secret #{auth.key} for device #{device.identifier}"
     AuditLogs.audit!(user, device, description)
   end
 
@@ -114,7 +141,7 @@ defmodule NervesHub.AuditLogs.DeviceTemplates do
     reason = truncate_reason(reason)
 
     description = """
-    During an update request from \"#{deployment_group.name}\", device #{device.identifier} requested firmware upgrades be rescheduled #{Timex.from_now(blocked_until)} time #{reason && "because \"#{reason}\""}.
+    During an update request from \"#{deployment_group.name}\", device #{device.identifier} requested firmware upgrades be rescheduled #{RelativeTime.from_now(blocked_until)} time #{reason && "because \"#{reason}\""}.
     """
 
     AuditLogs.audit!(deployment_group, device, description)
@@ -124,7 +151,7 @@ defmodule NervesHub.AuditLogs.DeviceTemplates do
     reason = truncate_reason(reason)
 
     description = """
-    During a manual firmware update request, device #{device.identifier} requested firmware upgrades be rescheduled #{Timex.from_now(blocked_until)} time #{reason && "because \"#{reason}\""}.
+    During a manual firmware update request, device #{device.identifier} requested firmware upgrades be rescheduled #{RelativeTime.from_now(blocked_until)} time #{reason && "because \"#{reason}\""}.
     The update will not be automatically retried.
     """
 
@@ -218,7 +245,7 @@ defmodule NervesHub.AuditLogs.DeviceTemplates do
     )
   end
 
-  @spec audit_device_archive_update_triggered(Device.t(), Archive.t(), UUIDv7.t()) :: :ok
+  @spec audit_device_archive_update_triggered(Device.t(), Archive.t(), Ecto.UUID.t()) :: :ok
   def audit_device_archive_update_triggered(device, archive, reference_id) do
     description =
       "Archive update triggered for #{device.identifier}. Sending archive #{archive.uuid}."

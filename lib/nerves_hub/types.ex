@@ -140,4 +140,58 @@ defmodule NervesHub.Types do
     defp known_atom(value, known) when is_atom(value) or is_binary(value), do: known[to_string(value)]
     defp known_atom(_value, _known), do: nil
   end
+
+  defmodule KnownAtom do
+    @moduledoc """
+    A single atom drawn from the `:values` option, stored as a string.
+
+    The single-value counterpart of `KnownAtoms`. Casting is as strict as
+    `Ecto.Enum`: any value not in `:values` makes the cast fail. Loading is
+    lenient: a stored value that is no longer in `:values` loads as nil instead
+    of failing the load. The stale string stays in the database until the field
+    is next written.
+    """
+    use Ecto.ParameterizedType
+
+    @impl Ecto.ParameterizedType
+    def init(opts) do
+      values = Keyword.fetch!(opts, :values)
+      %{known: Map.new(values, &{Atom.to_string(&1), &1})}
+    end
+
+    @impl Ecto.ParameterizedType
+    def type(_params), do: :string
+
+    @impl Ecto.ParameterizedType
+    def cast(nil, _params), do: {:ok, nil}
+
+    def cast(value, %{known: known}) when is_atom(value) or is_binary(value) do
+      case known[to_string(value)] do
+        nil -> :error
+        atom -> {:ok, atom}
+      end
+    end
+
+    def cast(_value, _params), do: :error
+
+    @impl Ecto.ParameterizedType
+    def load(nil, _loader, _params), do: {:ok, nil}
+    def load(value, _loader, %{known: known}) when is_binary(value), do: {:ok, known[value]}
+    def load(_value, _loader, _params), do: :error
+
+    @impl Ecto.ParameterizedType
+    def dump(nil, _dumper, _params), do: {:ok, nil}
+
+    def dump(value, _dumper, params) do
+      with {:ok, atom} <- cast(value, params), do: {:ok, Atom.to_string(atom)}
+    end
+
+    # `:dump` for the same reason as `KnownAtoms`: so a value read from an
+    # embed goes through `load/3`, which tolerates a stale value.
+    @impl Ecto.ParameterizedType
+    def embed_as(_format, _params), do: :dump
+
+    @impl Ecto.ParameterizedType
+    def equal?(term1, term2, _params), do: term1 == term2
+  end
 end

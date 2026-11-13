@@ -2,6 +2,7 @@ defmodule NervesHub.ProductNotificationsTest do
   use NervesHub.DataCase, async: true
 
   alias NervesHub.Accounts.Scope
+  alias NervesHub.DeviceLink.DeviceInfo
   alias NervesHub.Devices.Device
   alias NervesHub.Fixtures
   alias NervesHub.Products.Notification
@@ -103,5 +104,62 @@ defmodule NervesHub.ProductNotificationsTest do
     assert notification.metadata == %{identifier: device.identifier}
     assert notification.event_key == "missing_firmware_metadata-#{device.identifier}"
     assert notification.occurrence_count == 1
+  end
+
+  describe "create_connecting_code_failure_notification!/3" do
+    test "names the device and the reason", %{product: product} do
+      device_info = %DeviceInfo{product_id: product.id, device_identifier: "connecting-code-1"}
+
+      notification =
+        NervesHub.ProductNotifications.create_connecting_code_failure_notification!(
+          device_info,
+          ~s/raise "boom"/,
+          "** (RuntimeError) boom"
+        )
+
+      assert notification.level == :warning
+      assert notification.title == "A device could not run its connecting code."
+      assert notification.message =~ "'connecting-code-1'"
+      assert notification.message =~ ": ** (RuntimeError) boom."
+      assert notification.metadata == %{identifier: "connecting-code-1", reason: "** (RuntimeError) boom"}
+    end
+
+    # A deployment group's code that is wrong fails on every device in the group.
+    test "devices failing on the same code share one notification", %{product: product} do
+      for identifier <- ["connecting-code-1", "connecting-code-2"] do
+        NervesHub.ProductNotifications.create_connecting_code_failure_notification!(
+          %DeviceInfo{product_id: product.id, device_identifier: identifier},
+          ~s/raise "boom"/,
+          "** (RuntimeError) boom"
+        )
+      end
+
+      assert [notification] = Repo.all(Notification)
+      assert notification.occurrence_count == 2
+      assert notification.message =~ "'connecting-code-1'"
+    end
+
+    test "different code is a different notification", %{product: product} do
+      device_info = %DeviceInfo{product_id: product.id, device_identifier: "connecting-code-1"}
+
+      for code <- [~s/raise "boom"/, ~s/raise "bang"/] do
+        NervesHub.ProductNotifications.create_connecting_code_failure_notification!(device_info, code, nil)
+      end
+
+      assert Repo.aggregate(Notification, :count) == 2
+    end
+
+    test "caps a long reason", %{product: product} do
+      device_info = %DeviceInfo{product_id: product.id, device_identifier: "connecting-code-1"}
+
+      notification =
+        NervesHub.ProductNotifications.create_connecting_code_failure_notification!(
+          device_info,
+          "IO.puts(:loud)",
+          String.duplicate("a", 1_000)
+        )
+
+      assert String.length(notification.metadata.reason) == 200
+    end
   end
 end

@@ -44,8 +44,19 @@ whatever its mode.
 ## The grant
 
 `update_mode` carries the state. `managed_updates_allowed` carries the
-capability: whether a device may put *itself* into `device_managed`. It defaults
-to `false`, so self-management is opted into rather than arrived with.
+capability: whether a device may put *itself* into `device_managed`.
+
+A new device starts with its product's `default_managed_updates_allowed`,
+unless it was created through the device API with `managed_updates_allowed`
+set. That product setting defaults to `false`, so self-management is opted into
+rather than arrived with. It is only a starting value: changing it moves no
+existing device, and a device moved to another product keeps the grant it had.
+After that, the grant is changed on the device's own page or with
+`managed_updates_allowed` in a device API update. Every grant that differs from
+what the device had, at creation or later, has its own audit entry.
+Product settings can also allow or disallow the grant on every device already
+in the product, which goes through each device as if it were changed on its own
+page: audited per device, and announced to its connection.
 
 Two rules bound what a device may do to itself, and it needs to pass both:
 

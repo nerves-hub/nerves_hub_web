@@ -3,8 +3,10 @@ defmodule NervesHub.Devices.HealthEvaluation do
   Judges a device's health against its product's profile, as each metric
   report arrives — on the `metrics` extension or the `health` extension,
   both of which store through `NervesHub.Devices.Metrics.record/3` and
-  judge through here. Stateless, per report, in the channel process: no
-  cache, no process, no state anywhere.
+  judge through here. The judgement itself is stateless, and runs per
+  report, but not in the call that delivered the report: that call is what
+  the process holding the device's connection waits on, so the report queues
+  its evaluation on `NervesHub.Devices.HealthEvaluation.Queue` and returns.
 
   ## The counting semantic
 
@@ -33,6 +35,11 @@ defmodule NervesHub.Devices.HealthEvaluation do
   timestamps and are bucketed where they belong, so a device reporting late
   lands its catch-up data in the right minutes.
 
+  Whether the buffer has flushed them by the time the store is asked is not
+  something this module can know: evaluation is queued, and may run well
+  after the report. So the stored count leaves out the in-hand readings'
+  timestamps, and each reading counts exactly once, from the hand.
+
   Without ClickHouse there is no history to window, so evaluation falls
   back to the legacy instantaneous check against the report itself, in
   `NervesHub.Devices.HealthStatus` — as does a device whose product has no
@@ -48,9 +55,11 @@ defmodule NervesHub.Devices.HealthEvaluation do
   alias NervesHub.Devices.Metrics
   alias NervesHub.Extensions.PubSub, as: ExtensionsPubSub
   alias NervesHub.Helpers.Logging
+  alias NervesHub.Integrations
   alias NervesHub.Products.HealthProfile
   alias NervesHub.Products.HealthProfileMetric
   alias NervesHub.Products.HealthProfiles
+  alias NervesHub.Webhooks.Payloads
 
   require Logger
 
@@ -82,9 +91,13 @@ defmodule NervesHub.Devices.HealthEvaluation do
       now_minute = minute(DateTime.utc_now())
       regular = Enum.reject(profile.metrics, & &1.built_in)
 
+      # The in-hand readings are left out of the stored count and counted from
+      # the hand, so each one counts once whether or not it has been flushed.
+      in_hand_timestamps = for {_key, timestamp, _value} <- in_hand_samples, uniq: true, do: timestamp
+
       counts =
         merge_counts(
-          Metrics.health_breach_counts(device_info, regular, now_minute),
+          Metrics.health_breach_counts(device_info, regular, now_minute, in_hand_timestamps),
           count_samples(regular, in_hand_samples, now_minute)
         )
 
@@ -117,12 +130,16 @@ defmodule NervesHub.Devices.HealthEvaluation do
       "status_reasons" => reasons
     }
 
+    previous = previous_status_if_wanted(device_info)
+
     case Health.save_device_health(device_health) do
       {:ok, saved} ->
         # A row rather than `:unchanged` means the verdict actually moved, or
         # this is the device's first — which is exactly the edge the history
         # records.
         :ok = record_transition(device_info, saved)
+
+        :ok = dispatch_status_change(device_info, previous, saved)
 
         # Broadcast either way: this says a report landed, not that the verdict
         # moved. It is what refreshes the readings, the charts and the metadata
@@ -291,6 +308,31 @@ defmodule NervesHub.Devices.HealthEvaluation do
     end
 
     :ok
+  end
+
+  # The save replaces the row and says only that it did, so the status it
+  # replaced has to be read first. Only for a product with an integration
+  # that wants to know: every other product would pay a query per report to
+  # learn nothing. `:not_wanted` is distinct from `{:ok, nil}`, a device with no
+  # verdict yet.
+  defp previous_status_if_wanted(device_info) do
+    if Integrations.subscribed?(device_info.product_id, "device.health_status_changed") do
+      {:ok, Health.current_status(device_info.device_id)}
+    else
+      :not_wanted
+    end
+  end
+
+  # The row is also rewritten when only the reasons move (warning on one
+  # metric, then warning on another), which is not a change of status.
+  defp dispatch_status_change(_device_info, :not_wanted, _saved), do: :ok
+  defp dispatch_status_change(_device_info, _previous, :unchanged), do: :ok
+  defp dispatch_status_change(_device_info, {:ok, status}, %DeviceHealth{status: status}), do: :ok
+
+  defp dispatch_status_change(device_info, {:ok, previous}, %DeviceHealth{} = health) do
+    Integrations.dispatch(device_info.product_id, "device.health_status_changed", fn ->
+      Payloads.health_status_changed(device_info, previous, health)
+    end)
   end
 
   defp encode_reasons(nil), do: ""

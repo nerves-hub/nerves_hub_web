@@ -72,6 +72,15 @@ jobs:
       - name: Install tailwindcss
         run: mix tailwind.install
 
+      # app.css imports from node_modules; the tailwind class formatter loads it
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+
+      - name: Install JS dependencies
+        run: npm ci --prefix assets
+
       - name: Check Formatting
         run: mix format --check-formatted
 
@@ -168,7 +177,7 @@ jobs:
         partition: [1, 2, 3]
 
     env:
-      FWUP_VERSION: "1.16.0"
+      FWUP_VERSION: "1.17.1"
       MIX_ENV: "test"
       DATABASE_URL: postgres://postgres:postgres@localhost:5432/nerves_hub_test
       CLICKHOUSE_URL: http://default:@localhost:8123/default
@@ -287,3 +296,6 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+          # A cached layer would keep the packages from whenever it was built,
+          # because `apt-get upgrade` only runs when its layer does.
+          no-cache-filters: app

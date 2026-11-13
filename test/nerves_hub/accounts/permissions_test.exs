@@ -11,9 +11,12 @@ defmodule NervesHub.Accounts.PermissionsTest do
   @built_in_minimums %{
     "archive:delete": :manage,
     "archive:upload": :manage,
-    "certificate_authority:create": :admin,
-    "certificate_authority:delete": :admin,
-    "certificate_authority:update": :admin,
+    "certificate_authority:create": :manage,
+    "certificate_authority:delete": :manage,
+    "certificate_authority:update": :manage,
+    "chat_webhook:create": :manage,
+    "chat_webhook:delete": :manage,
+    "chat_webhook:update": :manage,
     "deployment_group:create": :manage,
     "deployment_group:delete": :manage,
     "deployment_group:toggle": :manage,
@@ -36,6 +39,7 @@ defmodule NervesHub.Accounts.PermissionsTest do
     "device:view": :view,
     "error_group:update": :manage,
     "firmware:delete": :manage,
+    "firmware:download": :manage,
     "firmware:upload": :manage,
     "network_identity:create": :manage,
     "network_identity:delete": :manage,
@@ -55,10 +59,18 @@ defmodule NervesHub.Accounts.PermissionsTest do
     "product:update": :manage,
     "signing_key:create": :manage,
     "signing_key:delete": :manage,
+    "slack_connection:create": :admin,
+    "slack_connection:delete": :admin,
+    "slack_subscription:create": :manage,
+    "slack_subscription:delete": :manage,
+    "slack_subscription:update": :manage,
     "support_script:create": :manage,
     "support_script:delete": :manage,
     "support_script:run": :view,
-    "support_script:update": :manage
+    "support_script:update": :manage,
+    "webhook:create": :manage,
+    "webhook:delete": :manage,
+    "webhook:update": :manage
   }
 
   @higher_or_equal %{admin: [:admin], manage: [:admin, :manage], view: [:admin, :manage, :view]}
@@ -89,7 +101,9 @@ defmodule NervesHub.Accounts.PermissionsTest do
     end
 
     test "never grant an admin-only permission, even one saved on the role" do
-      role = %OrgRole{permissions: ["org_user:update", "org_role:create", "organization:delete"]}
+      role = %OrgRole{
+        permissions: ["org_user:update", "org_role:create", "organization:delete", "slack_connection:create"]
+      }
 
       assert Permissions.for_role(role) == MapSet.new([:"device:view"])
     end

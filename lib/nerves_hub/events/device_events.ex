@@ -3,6 +3,7 @@ defmodule NervesHub.DeviceEvents do
   Encapsulation of events to be sent to devices or the device channel
   """
 
+  alias NervesHub.Accounts.User
   alias NervesHub.AuditLogs.DeviceTemplates
   alias NervesHub.Devices
   alias NervesHub.Devices.Device
@@ -11,9 +12,13 @@ defmodule NervesHub.DeviceEvents do
   alias NervesHub.Devices.UpdatePayload
   alias NervesHub.Devices.Updates
   alias NervesHub.Firmwares
+  alias NervesHub.Firmwares.Firmware
   alias NervesHub.FirmwareUpdates
+  alias NervesHub.Integrations
   alias NervesHub.ManagedDeployments
+  alias NervesHub.ManagedDeployments.DeploymentGroup
   alias NervesHub.Repo
+  alias NervesHub.Webhooks.Payloads
   alias Phoenix.Channel.Server, as: ChannelServer
 
   def updated(device) do
@@ -29,13 +34,61 @@ defmodule NervesHub.DeviceEvents do
   end
 
   def moved_product(device) do
-    :ok =
-      ChannelServer.broadcast(NervesHub.PubSub, "device_socket:#{device.id}", "disconnect", %{})
+    disconnect(device)
   end
 
-  def identify(device, user) do
+  @doc """
+  Closes the connection of a device that has just been deleted.
+
+  It is refused when it tries again: certificate authentication rejects a
+  deleted device, a device key stops authenticating with it, and a product key
+  cannot create a new device under its identifier.
+  """
+  def deleted(device) do
+    disconnect(device)
+  end
+
+  @doc """
+  Closes the connections of the devices in products that have just been
+  deleted, on their own or along with their org.
+
+  They are refused when they try again: `NervesHub.DeviceLink.Authentication`
+  turns away a device whose product has been deleted, however it authenticates.
+  """
+  @spec products_deleted([pos_integer()]) :: :ok
+  def products_deleted(product_ids) do
+    product_ids
+    |> Devices.connected_device_ids()
+    |> Enum.each(&disconnect(%{id: &1}))
+  end
+
+  defp disconnect(%{id: device_id}) do
+    :ok =
+      ChannelServer.broadcast(NervesHub.PubSub, "device_socket:#{device_id}", "disconnect", %{})
+  end
+
+  @doc """
+  The topic a device connection authenticating with a shared secret key
+  subscribes to, before the key is looked up, to hear that it was deactivated.
+  """
+  @spec shared_secret_topic(String.t()) :: String.t()
+  def shared_secret_topic(key), do: "shared_secret:#{key}"
+
+  @doc """
+  Closes the connections authenticated with a device key that has just been
+  deactivated, and only those.
+  """
+  def shared_secret_deactivated(%{key: key}) do
+    :ok = ChannelServer.broadcast(NervesHub.PubSub, shared_secret_topic(key), "disconnect", %{})
+  end
+
+  @doc """
+  Asks the device to identify itself, as `user`. `via:` names where the
+  request came from, for the audit log, when it was not the dashboard or API.
+  """
+  def identify(device, user, opts \\ []) do
     Repo.transact(fn ->
-      DeviceTemplates.audit_request_action(user, device, "identify itself")
+      DeviceTemplates.audit_request_action(user, device, "identify itself", opts[:via])
 
       broadcast(device, "identify", %{})
 
@@ -43,9 +96,13 @@ defmodule NervesHub.DeviceEvents do
     end)
   end
 
-  def reboot(device, user) do
+  @doc """
+  Asks the device to reboot, as `user`. `via:` names where the request came
+  from, for the audit log, when it was not the dashboard or API.
+  """
+  def reboot(device, user, opts \\ []) do
     Repo.transact(fn ->
-      DeviceTemplates.audit_reboot(user, device)
+      DeviceTemplates.audit_reboot(user, device, opts[:via])
 
       broadcast(device, "reboot", %{})
 
@@ -53,6 +110,16 @@ defmodule NervesHub.DeviceEvents do
     end)
   end
 
+  @doc """
+  Sends the device the deployment group's target firmware.
+
+  Refused with `{:error, :already_updating}` when the device has an update in
+  progress. The orchestrator only picks devices without one, but a person
+  skipping the queue, a manual push or the device asking for itself can get
+  there first.
+  """
+  @spec schedule_update(integer(), DeploymentGroup.t(), keyword()) ::
+          {:ok, InflightUpdate.t()} | {:error, :already_updating}
   def schedule_update(device_id, deployment_group, opts \\ []) do
     Logger.metadata(device_id: device_id)
 
@@ -71,49 +138,62 @@ defmodule NervesHub.DeviceEvents do
       inflight_changeset =
         InflightUpdate.deployment_requested_changeset(deployment_group, device_id, priority_queue, target_release)
 
-      # we might need to do an upsert here
-      {:ok, inflight_update} = Repo.insert(inflight_changeset)
+      with {:ok, inflight_update} <- insert_inflight_update(inflight_changeset) do
+        send_scheduled_update(device, deployment_group, target_release, inflight_update, opts)
+      end
+    end)
+  end
 
-      update_opts =
-        if proxy_url = get_in(deployment_group.org.settings.firmware_proxy_url) do
-          [firmware_proxy_url: proxy_url, target_release: target_release]
-        else
-          [target_release: target_release]
-        end
-
-      update_payload = Updates.resolve_update(device, deployment_group, update_opts)
-
-      device = %{device | deployment_group: deployment_group}
-
-      cond do
-        opts[:user] ->
-          DeviceTemplates.audit_pushed_available_update(opts[:user], device, target_release.firmware)
-
-        opts[:initiated_by] == :device ->
-          DeviceTemplates.audit_device_requested_update(device, deployment_group, target_release.firmware)
-
-        true ->
-          DeviceTemplates.audit_device_deployment_group_update_triggered(
-            device,
-            deployment_group,
-            target_release.firmware
-          )
+  defp send_scheduled_update(device, deployment_group, target_release, inflight_update, opts) do
+    update_opts =
+      if proxy_url = get_in(deployment_group.org.settings.firmware_proxy_url) do
+        [firmware_proxy_url: proxy_url, target_release: target_release]
+      else
+        [target_release: target_release]
       end
 
-      broadcast(device, "update", update_payload)
+    update_payload = Updates.resolve_update(device, deployment_group, update_opts)
 
-      # A device asking for firmware and a deployment group sending it are the
-      # same delivery but not the same event, and conflating them would hide how
-      # much of a fleet is driving its own updates.
-      event = if opts[:initiated_by] == :device, do: :device_requested, else: :automatic
+    device = %{device | deployment_group: deployment_group}
 
-      :telemetry.execute([:nerves_hub, :devices, :update, event], %{count: 1}, %{
-        identifier: device.identifier,
-        firmware_uuid: inflight_update.firmware_uuid
-      })
+    cond do
+      opts[:user] ->
+        DeviceTemplates.audit_pushed_available_update(opts[:user], device, target_release.firmware)
 
-      {:ok, inflight_update}
-    end)
+      opts[:initiated_by] == :device ->
+        DeviceTemplates.audit_device_requested_update(device, deployment_group, target_release.firmware)
+
+      true ->
+        DeviceTemplates.audit_device_deployment_group_update_triggered(
+          device,
+          deployment_group,
+          target_release.firmware
+        )
+    end
+
+    broadcast(device, "update", update_payload)
+
+    # The broadcast goes out even when there is nothing to send (the device is
+    # blocked, or already running the target), and only a real update is an
+    # event worth telling anyone about.
+    if update_payload.update_available do
+      :ok =
+        Integrations.dispatch(device.product_id, "device.firmware_update.scheduled", fn ->
+          Payloads.firmware_update_scheduled(device, target_release.firmware, initiated_by(opts), deployment_group)
+        end)
+    end
+
+    # A device asking for firmware and a deployment group sending it are the
+    # same delivery but not the same event, and conflating them would hide how
+    # much of a fleet is driving its own updates.
+    event = if opts[:initiated_by] == :device, do: :device_requested, else: :automatic
+
+    :telemetry.execute([:nerves_hub, :devices, :update, event], %{count: 1}, %{
+      identifier: device.identifier,
+      firmware_uuid: inflight_update.firmware_uuid
+    })
+
+    {:ok, inflight_update}
   end
 
   @doc """
@@ -152,48 +232,28 @@ defmodule NervesHub.DeviceEvents do
         {:error, :already_updating}
 
       true ->
-        {:ok, _inflight} = schedule_update(device.id, deployment_group, initiated_by: :device)
-        :ok
+        with {:ok, _inflight} <- schedule_update(device.id, deployment_group, initiated_by: :device), do: :ok
     end
   end
 
+  @doc """
+  A person sent firmware to the device.
+
+  Refused with `{:error, :already_updating}` when the device has an update in
+  progress, for the reason `device_requested_update/1` gives: the device would
+  turn the second update down and carry on with the first, and the progress it
+  reports would be recorded against the wrong request. The firmware can be sent
+  again once the running update ends, or once
+  `NervesHub.Workers.ExpireInflightUpdates` clears it.
+  """
+  @spec manual_update(Device.t(), Firmware.t(), User.t(), keyword()) ::
+          {:ok, Device.t()} | {:error, :already_updating}
   def manual_update(device, firmware, user, opts \\ []) do
     Repo.transact(fn ->
-      # When a delta is being sent it is the delta that the device downloads, so
-      # it is the delta that describes the download.
-      {:ok, firmware_or_delta} =
-        if opts[:delta], do: Firmwares.get_delta(device, firmware), else: {:ok, firmware}
-
-      {:ok, url} = Firmwares.get_firmware_url(firmware_or_delta)
-
-      firmware_url =
-        if opts[:firmware_proxy_url] do
-          opts[:firmware_proxy_url] <> "?firmware=#{Base.url_encode64(url, padding: false)}"
-        else
-          url
-        end
-
-      {:ok, _inflight_update} =
-        InflightUpdate.manual_requested_changeset(device.id, firmware)
-        |> Repo.insert()
-
-      {:ok, meta} = Firmwares.metadata_from_firmware(firmware)
-      {:ok, device} = Updates.pause_automatic_updates(device, user)
-
-      DeviceTemplates.audit_firmware_pushed(user, device, firmware)
-
-      payload = %UpdatePayload{
-        update_available: true,
-        firmware_url: firmware_url,
-        firmware_meta: meta,
-        size: firmware_or_delta.size,
-        checksum: firmware_or_delta.checksum,
-        partials_checksums: firmware_or_delta.partials_checksums
-      }
-
-      :telemetry.execute([:nerves_hub, :devices, :update, :manual], %{count: 1})
-
-      {:ok, {device, payload}}
+      with {:ok, _inflight_update} <-
+             insert_inflight_update(InflightUpdate.manual_requested_changeset(device.id, firmware)) do
+        send_manual_update(device, firmware, user, opts)
+      end
     end)
     |> case do
       {:ok, {device, payload}} ->
@@ -202,6 +262,68 @@ defmodule NervesHub.DeviceEvents do
 
       res ->
         res
+    end
+  end
+
+  # There is one inflight row per device, so the unique index is what says the
+  # device is already updating. Checking for a row first would leave a gap for
+  # two requests to race through.
+  defp insert_inflight_update(changeset) do
+    changeset
+    |> Repo.insert()
+    |> case do
+      {:error, %Ecto.Changeset{errors: [device_id: {_, [constraint: :unique, constraint_name: _]}]}} ->
+        {:error, :already_updating}
+
+      result ->
+        result
+    end
+  end
+
+  defp send_manual_update(device, firmware, user, opts) do
+    # When a delta is being sent it is the delta that the device downloads, so
+    # it is the delta that describes the download.
+    {:ok, firmware_or_delta} =
+      if opts[:delta], do: Firmwares.get_delta(device, firmware), else: {:ok, firmware}
+
+    {:ok, url} = Firmwares.get_firmware_url(firmware_or_delta)
+
+    firmware_url =
+      if opts[:firmware_proxy_url] do
+        opts[:firmware_proxy_url] <> "?firmware=#{Base.url_encode64(url, padding: false)}"
+      else
+        url
+      end
+
+    {:ok, meta} = Firmwares.metadata_from_firmware(firmware)
+    {:ok, device} = Updates.pause_automatic_updates(device, user)
+
+    DeviceTemplates.audit_firmware_pushed(user, device, firmware)
+
+    :ok =
+      Integrations.dispatch(device.product_id, "device.firmware_update.scheduled", fn ->
+        Payloads.firmware_update_scheduled(device, firmware, "user", nil)
+      end)
+
+    payload = %UpdatePayload{
+      update_available: true,
+      firmware_url: firmware_url,
+      firmware_meta: meta,
+      size: firmware_or_delta.size,
+      checksum: firmware_or_delta.checksum,
+      partials_checksums: firmware_or_delta.partials_checksums
+    }
+
+    :telemetry.execute([:nerves_hub, :devices, :update, :manual], %{count: 1})
+
+    {:ok, {device, payload}}
+  end
+
+  defp initiated_by(opts) do
+    cond do
+      opts[:user] -> "user"
+      opts[:initiated_by] == :device -> "device"
+      true -> "deployment_group"
     end
   end
 

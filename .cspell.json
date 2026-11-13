@@ -31,6 +31,9 @@
     "rel",
     "test"
   ],
+  "ignoreRegExpList": [
+    "GHSA-[0-9a-z]{4}-[0-9a-z]{4}-[0-9a-z]{4}"
+  ],
   "words": [
     "Consolas",
     "Cuatro",
@@ -41,6 +44,7 @@
     "Scaleway",
     "UIHTML",
     "animatedelay",
+    "approvable",
     "artusdev",
     "atomvm",
     "autosuggests",
@@ -57,8 +61,10 @@
     "clipcopy",
     "comeonin",
     "configurator",
+    "contex",
     "conzole",
     "detools",
+    "discordapp",
     "doerayme",
     "dontroute",
     "erpc",
@@ -87,6 +93,7 @@
     "healthcheck",
     "healthz",
     "heatshrink",
+    "hlclock",
     "hljs",
     "hostable",
     "hsqs",
@@ -117,7 +124,9 @@
     "nomnomnom",
     "overscroll",
     "packbeam",
+    "packbeams",
     "patoilo",
+    "perfboard",
     "pettit",
     "phoenixframework",
     "pubcert",
@@ -146,12 +155,18 @@
     "upsert",
     "upserting",
     "upserts",
+    "uuidv",
     "validtoken",
     "verythin",
     "webgl",
+    "whsec",
     "wireguard",
+    "xapp",
     "xdelta",
     "xtensa",
-    "xtermjs"
+    "xtermjs",
+    "OTPTBS",
+    "PEMFILE",
+    "rdns"
   ]
 }

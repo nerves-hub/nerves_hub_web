@@ -1,38 +1,310 @@
-<NervesHubWeb.Layouts.sidebar flash={@flash} current_scope={@current_scope} sidebar_tab={@sidebar_tab}>
-  <:header>
-    <h1 class="text-base-50 text-xl leading-[30px] font-semibold">Products</h1>
-    <div class="mr-auto"></div>
-    <.button type="link" navigate={~p"/org/#{@org}/new"} aria-label="Create new product">
-      <.icon name="add" /> Create New
+<NervesHubWeb.Layouts.org flash={@flash} current_scope={@current_scope} tab={@sidebar_tab} counts={@org_counts}>
+  <:actions :if={@entry.products != [] && authorized?(:"product:create", @current_scope)}>
+    <.button type="link" navigate={~p"/org/#{@org}/new"}>
+      <span class="lucide-plus size-4" aria-hidden="true"></span> New product
     </.button>
-  </:header>
+  </:actions>
 
-  <div class="grid grid-cols-2 gap-4 p-4">
-    <div :if={@products == []}>
-      <div class="m-4">
-        <h2 class="text-base-50 text-xl leading-[30px] font-semibold">{@org.name} doesn't have any products yet</h2>
-        <p class="text-base-400 text-sm">Create a new product to get started.</p>
-      </div>
-    </div>
-    <div :for={product <- @products} class="border-base-700 from-base-800/50 to-base-800 flex w-full justify-between gap-[16px] rounded border bg-linear-to-r p-4">
-      <div class="text-base-50 text-sm font-semibold">
-        <.link navigate={~p"/org/#{@org}/#{product}/insights"}>{product.name}</.link>
-      </div>
-      <% product_counts = Map.get(assigns, :"product_counts_#{product.id}") %>
-      <% {connected, disconnected} =
-        if product_counts && product_counts.ok?,
-          do: product_counts.result,
-          else: {nil, nil} %>
-      <div class="flex gap-4 text-sm font-medium">
-        <div class="flex items-center gap-1.5">
-          <div class="bg-status-online size-2 rounded-full"></div>
-          <span class="product-connected-devices-count text-base-300">{if connected, do: connected, else: "—"}</span>
+  <%= if @entry.products == [] do %>
+    <%= if authorized?(:"product:create", @current_scope) do %>
+      <% name = @product_form[:name].value || "" %>
+      <div class="flex flex-col gap-8 lg:flex-row lg:items-start">
+        <div class="flex w-full max-w-133 flex-col gap-4">
+          <.form
+            for={@product_form}
+            id="first-product-form"
+            phx-change="validate_product"
+            phx-submit="create_product"
+            class="flex flex-col gap-6 rounded-md border border-line-default bg-surface-raised p-4 shadow-card sm:p-6"
+          >
+            <div class="flex flex-col gap-2">
+              <h2 class="text-page-title text-content-strong">Create your first product</h2>
+              <p class="text-sm/6 text-content-body">
+                A product is a group of devices that run the same firmware, like one hardware model. Each has its own devices, firmware, deployments and settings.
+              </p>
+            </div>
+
+            <div class="flex flex-col gap-2">
+              <.input field={@product_form[:name]} label="Product name" autocomplete="off" required>
+                <:label_action>
+                  <span class="flex items-center gap-1 text-xs text-content-faint">
+                    <span class="lucide-lock size-3" aria-hidden="true"></span> Can’t be changed later
+                  </span>
+                </:label_action>
+              </.input>
+              <p id="first-product-url" class="flex items-start gap-2 rounded bg-surface-muted px-3 py-2 font-mono text-xs text-content-muted sm:items-center">
+                <span class="mt-0.5 lucide-link size-3.5 sm:mt-0" aria-hidden="true"></span>
+                <span class="min-w-0 wrap-anywhere sm:truncate">/org/{@org.name}/<span class="text-content-strong">{name}</span></span>
+              </p>
+            </div>
+
+            <div class="flex flex-col items-stretch gap-2 sm:flex-row sm:items-center sm:gap-4">
+              <.button style="primary" type="submit" phx-disable-with="Creating…" class="w-full shrink-0 whitespace-nowrap sm:w-auto">
+                Create product <span class="lucide-arrow-right size-4" aria-hidden="true"></span>
+              </.button>
+              <p class="text-center text-xs text-content-muted sm:text-left">Device extensions are all on to start. Change them in the product’s settings.</p>
+            </div>
+          </.form>
+
+          <div class="flex gap-3 rounded-md border border-dashed border-line-strong p-4">
+            <span class="mt-0.5 lucide-users size-4 text-content-muted" aria-hidden="true"></span>
+            <p class="text-sm text-content-muted">
+              <span class="font-medium text-content-strong">Working with others?</span>
+              Invite them from the <.link navigate={~p"/org/#{@org}/settings/users"} class="font-medium text-content-body underline hover:text-content-strong">Users</.link>
+              tab whenever you’re ready.
+            </p>
+          </div>
         </div>
-        <div class="flex items-center gap-1.5">
-          <div class="bg-status-offline size-2 rounded-full"></div>
-          <span class="product-disconnected-devices-count text-base-400">{if disconnected, do: disconnected, else: "—"}</span>
-        </div>
+
+        <section aria-labelledby="first-device-title" class="flex w-full flex-col gap-4.5 lg:w-75 lg:shrink-0 lg:pt-5">
+          <h2 id="first-device-title" class="text-xs font-medium tracking-wide text-content-faint uppercase">Your first device, online</h2>
+          <ol class="flex flex-col gap-4.5">
+            <li
+              :for={
+                {number, title, body} <- [
+                  {1, "Create a product", "Pick a name. It’s part of every address under the product, so it can’t change."},
+                  {2, "Add a signing key", "Firmware has to be signed by one of the organization’s keys before it can be uploaded."},
+                  {3, "Upload signed firmware", "Sign a build with that key and upload it to the product."},
+                  {4, "Connect a device", "Add NervesHubLink to your firmware. The Devices page shows the settings to copy."}
+                ]
+              }
+              class="flex items-start gap-3"
+            >
+              <span class={[
+                "flex size-5.5 shrink-0 items-center justify-center rounded-full text-xs font-semibold",
+                number == 1 && "bg-primary text-primary-content light:bg-indigo-600",
+                number != 1 && "border border-line-strong bg-surface-raised text-content-muted"
+              ]}>
+                {number}
+              </span>
+              <div class="flex flex-col gap-0.5 pt-0.5">
+                <p class={["text-sm font-medium", if(number == 1, do: "text-content-strong", else: "text-content-body")]}>
+                  <%= if number == 2 do %>
+                    Add a <.link navigate={~p"/org/#{@org}/settings/keys"} class="underline hover:text-content-strong">signing key</.link>
+                  <% else %>
+                    {title}
+                  <% end %>
+                </p>
+                <p class="text-xs/[17px] text-content-muted">{body}</p>
+              </div>
+            </li>
+          </ol>
+        </section>
       </div>
-    </div>
-  </div>
-</NervesHubWeb.Layouts.sidebar>
+    <% else %>
+      <div id="no-products" class="flex flex-col gap-1 rounded-md border border-line-default bg-surface-raised p-6 shadow-card">
+        <h2 class="text-page-title text-content-strong">{@org.name} doesn’t have any products yet</h2>
+        <p class="text-sm text-content-muted">Ask an admin of the organization to create one.</p>
+      </div>
+    <% end %>
+  <% else %>
+    <.attention_section :if={@attention not in [nil, []]} items={@attention} single_org?={true} />
+    <.all_clear :if={@attention == [] and total_devices(@entry) > 0} />
+
+    <%= cond do %>
+      <% match?([_], @entry.products) -> %>
+        <% [%{product: product, device_count: total}] = @entry.products %>
+        <% online = product_online(@online, @org.id, product.id) %>
+        <% errors = unresolved_errors(product, @errors) %>
+        <article id={"product-#{product.id}"} class="product-card flex flex-col overflow-hidden rounded-md border border-line-default bg-surface-raised shadow-card">
+          <div class="flex flex-col gap-4 p-4 sm:flex-row sm:items-start sm:justify-between md:p-6">
+            <div class="min-w-0">
+              <h2 class="truncate text-page-title text-content-strong">
+                <.link navigate={~p"/org/#{@org}/#{product}/insights"} class="hover:underline">{product.name}</.link>
+              </h2>
+              <p class="text-sm text-content-muted">{update_tools(product)} firmware · created {created(product)}</p>
+            </div>
+            <.button type="link" style="primary" navigate={~p"/org/#{@org}/#{product}/insights"} class="shrink-0">
+              Open product <span class="lucide-arrow-right size-4" aria-hidden="true"></span>
+            </.button>
+          </div>
+
+          <%= if total == 0 do %>
+            <.no_devices org={@org} product={product} class="md:px-6" />
+          <% else %>
+            <dl class="grid grid-cols-2 gap-px border-t border-line-subtle bg-line-subtle md:grid-cols-4">
+              <.stat label="Online">
+                <span class="online-count">{delimited(online && elem(online, 0))}</span>
+                <span class="ml-1.5 text-sm font-normal text-content-muted">of {delimited(total)}</span>
+                <:detail>
+                  <span class="block h-1 overflow-hidden rounded-full bg-base-800">
+                    <span :if={online} class="block h-full rounded-full bg-status-online" style={"width: #{online_percent(online)}%"}></span>
+                  </span>
+                </:detail>
+              </.stat>
+              <.stat label="Health">
+                <.health_chip health={product_health(@fleet, product.id)} />
+              </.stat>
+              <.stat label="Deployment groups">
+                {delimited(deployment_groups_count(@fleet, product.id))}
+                <:detail>{approvals_label(approvals_count(@fleet, product.id))}</:detail>
+              </.stat>
+              <.stat label="Errors">
+                <span :if={errors == :off} class="text-sm font-normal text-content-muted">Off</span>
+                <span :if={errors != :off} class="unresolved-errors">{delimited(errors)}</span>
+                <:detail>{if errors == :off, do: "Turn on in the product’s settings", else: errors && "unresolved"}</:detail>
+              </.stat>
+            </dl>
+          <% end %>
+
+          <.product_footer org={@org} product={product} links={product_links(@org, product, :full)} />
+        </article>
+
+        <div
+          :if={authorized?(:"product:create", @current_scope)}
+          id="new-product-nudge"
+          class="flex flex-col items-start gap-3 rounded-md border border-dashed border-line-strong p-4 sm:flex-row sm:items-center sm:justify-between"
+        >
+          <p class="text-sm text-content-muted">
+            <span class="font-medium text-content-strong">Shipping a second kind of device?</span> Give it a product of its own, with its own firmware, deployments and settings.
+          </p>
+          <.button type="link" size="sm" navigate={~p"/org/#{@org}/new"} class="shrink-0">
+            <span class="lucide-plus size-3.5" aria-hidden="true"></span> New product
+          </.button>
+        </div>
+      <% length(@entry.products) <= @card_limit -> %>
+        <section aria-labelledby="products-title" class="flex flex-col gap-3">
+          <h2 id="products-title" class="text-group-title text-content-strong">Products</h2>
+          <div class="grid gap-4 md:grid-cols-2">
+            <article
+              :for={%{product: product, device_count: total} <- @entry.products}
+              id={"product-#{product.id}"}
+              class="product-card flex flex-col overflow-hidden rounded-md border border-line-default bg-surface-raised shadow-card"
+            >
+              <% online = product_online(@online, @org.id, product.id) %>
+              <.link navigate={~p"/org/#{@org}/#{product}/insights"} class="group flex items-start justify-between gap-3 p-4">
+                <div class="min-w-0">
+                  <h3 class="truncate text-section-title text-content-strong group-hover:underline">{product.name}</h3>
+                  <p class="truncate text-sm text-content-muted">
+                    {update_tools(product)}{if label = deployment_groups_label(@fleet, product.id), do: " · #{String.downcase(label)}"}
+                  </p>
+                </div>
+                <span class="mt-1 lucide-chevron-right size-4 text-content-faint" aria-hidden="true"></span>
+              </.link>
+
+              <%= if total == 0 do %>
+                <.no_devices org={@org} product={product} class="flex-1" />
+              <% else %>
+                <dl class="grid flex-1 grid-cols-2 gap-px border-t border-line-subtle bg-line-subtle">
+                  <.stat label="Online">
+                    <span class="online-count">{delimited(online && elem(online, 0))}</span>
+                    <span class="ml-1.5 text-sm font-normal text-content-muted">of {delimited(total)}</span>
+                    <:detail>
+                      <span class="block h-1 overflow-hidden rounded-full bg-base-800">
+                        <span :if={online} class="block h-full rounded-full bg-status-online" style={"width: #{online_percent(online)}%"}></span>
+                      </span>
+                    </:detail>
+                  </.stat>
+                  <.stat label="Health">
+                    <.health_chip health={product_health(@fleet, product.id)} />
+                    <:detail>{errors_label(unresolved_errors(product, @errors))}</:detail>
+                  </.stat>
+                </dl>
+              <% end %>
+
+              <.product_footer org={@org} product={product} links={product_links(@org, product, :short)} />
+            </article>
+
+            <.link
+              :if={authorized?(:"product:create", @current_scope)}
+              id="new-product-tile"
+              navigate={~p"/org/#{@org}/new"}
+              class="flex min-h-40 flex-col items-center justify-center gap-1 rounded-md border border-dashed border-line-strong p-4 text-center text-sm text-content-muted hover:border-content-faint hover:text-content-strong"
+            >
+              <span class="flex items-center gap-1.5 font-medium text-content-body">
+                <span class="lucide-plus size-4" aria-hidden="true"></span> New product
+              </span>
+              <span class="text-xs">For a different kind of device</span>
+            </.link>
+          </div>
+        </section>
+      <% true -> %>
+        <% visible = visible_products(@entry.products, @filter, @sort) %>
+        <section aria-labelledby="products-title" class="flex flex-col gap-3">
+          <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div class="flex items-center gap-2">
+              <h2 id="products-title" class="text-group-title text-content-strong">Products</h2>
+              <.badge>{length(@entry.products)}</.badge>
+            </div>
+            <form id="products-filter" phx-change="filter" phx-submit="filter" class="flex gap-2">
+              <label for="products-filter-input" class="sr-only">Filter products</label>
+              <div class="relative flex-1 sm:w-56 sm:flex-none">
+                <span class="pointer-events-none absolute top-1/2 left-2.5 lucide-search size-4 -translate-y-1/2 text-content-faint" aria-hidden="true"></span>
+                <input
+                  id="products-filter-input"
+                  type="search"
+                  name="filter"
+                  value={@filter}
+                  placeholder="Filter products"
+                  autocomplete="off"
+                  phx-debounce="150"
+                  class="h-8 w-full rounded border border-line-default bg-surface-raised pr-3 pl-8 text-sm text-content-strong placeholder:text-content-faint focus:ring-2 focus:ring-focus-ring"
+                />
+              </div>
+              <label for="products-sort" class="sr-only">Sort products</label>
+              <select
+                id="products-sort"
+                name="sort"
+                class="h-8 rounded border border-line-default bg-surface-raised py-0 pr-8 pl-3 text-sm text-content-body focus:ring-2 focus:ring-focus-ring"
+              >
+                {Phoenix.HTML.Form.options_for_select(@sorts, @sort)}
+              </select>
+            </form>
+          </div>
+
+          <div class="overflow-hidden rounded-md border border-line-default bg-surface-raised shadow-card" role="table" aria-label={"#{@org.name} products"}>
+            <div
+              role="row"
+              class="hidden items-center gap-4 border-b border-line-default bg-surface-muted px-4 py-2.5 text-xs font-medium tracking-wide text-content-muted uppercase md:flex"
+            >
+              <span role="columnheader" class="flex-1">Product</span>
+              <span role="columnheader" class="w-50">Online</span>
+              <span role="columnheader" class="w-27.5">Health</span>
+              <span role="columnheader" class="w-40">Deployment groups</span>
+              <span role="columnheader" class="w-20">Errors</span>
+              <span class="w-4" aria-hidden="true"></span>
+            </div>
+            <p :if={visible == []} class="px-4 py-6 text-center text-sm text-content-muted">No products match “{@filter}”.</p>
+            <.link
+              :for={%{product: product, device_count: total} <- visible}
+              role="row"
+              id={"product-#{product.id}"}
+              navigate={~p"/org/#{@org}/#{product}/insights"}
+              class="grid grid-cols-[1fr_auto_auto] items-center gap-x-3 gap-y-2.5 border-b border-line-subtle px-4 py-3 transition-colors last:border-0 hover:bg-surface-muted md:flex md:gap-4"
+            >
+              <% errors = unresolved_errors(product, @errors) %>
+              <% approvals = approvals_count(@fleet, product.id) %>
+              <div role="cell" class="col-start-1 row-start-1 min-w-0 md:flex-1">
+                <p class="truncate text-sm font-medium text-content-strong">{product.name}</p>
+                <p class="truncate text-xs text-content-muted">{update_tools(product)}</p>
+              </div>
+              <div role="cell" class="col-span-2 col-start-1 row-start-3 md:w-50">
+                <.online_meter counts={product_online(@online, @org.id, product.id)} total={total} />
+              </div>
+              <div role="cell" class="col-start-2 row-start-1 md:w-27.5">
+                <.health_chip :if={total > 0} health={product_health(@fleet, product.id)} />
+              </div>
+              <div role="cell" class="col-span-2 col-start-1 row-start-2 text-xs text-content-muted md:w-40 md:text-sm">
+                <span class="md:hidden">{deployment_groups_label(@fleet, product.id)}</span>
+                <span class="hidden text-content-body md:inline">{delimited(deployment_groups_count(@fleet, product.id))}</span>
+                <span :if={approvals && approvals > 0} class="block text-xs text-notice-content">{approvals_label(approvals)}</span>
+              </div>
+              <div role="cell" class="hidden w-20 text-sm md:block">
+                <span :if={errors == :off} class="text-content-faint">Off</span>
+                <span :if={errors != :off} class={if errors && errors > 0, do: "text-alert-content", else: "text-content-body"}>{delimited(errors)}</span>
+              </div>
+              <span class="col-start-3 row-span-3 row-start-1 lucide-chevron-right size-4 text-content-faint" aria-hidden="true"></span>
+            </.link>
+          </div>
+        </section>
+    <% end %>
+
+    <.link
+      :if={authorized?(:"product:create", @current_scope) && length(@entry.products) > @card_limit}
+      navigate={~p"/org/#{@org}/new"}
+      class="flex h-10 items-center justify-center gap-1.5 rounded border border-dashed border-line-strong text-sm font-medium text-content-body hover:text-content-strong md:hidden"
+    >
+      <span class="lucide-plus size-4" aria-hidden="true"></span> New product
+    </.link>
+  <% end %>
+</NervesHubWeb.Layouts.org>

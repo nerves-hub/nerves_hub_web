@@ -13,6 +13,7 @@ defmodule NervesHub.DeviceLink do
   alias NervesHub.DeviceLink.Effect
   alias NervesHub.DeviceLink.Session
   alias NervesHub.Devices
+  alias NervesHub.Devices.ClientLibrary
   alias NervesHub.Devices.Connections
   alias NervesHub.Devices.Deployments
   alias NervesHub.Devices.Device
@@ -25,8 +26,10 @@ defmodule NervesHub.DeviceLink do
   alias NervesHub.Firmwares.UpdateTool
   alias NervesHub.Firmwares.UpdateTool.Fwup
   alias NervesHub.FirmwareUpdates
+  alias NervesHub.Helpers.Logging
   alias NervesHub.ManagedDeployments
   alias NervesHub.ProductNotifications
+  alias NervesHub.Repo
   alias Phoenix.Channel.Server, as: ChannelServer
   alias Phoenix.Socket.Broadcast
 
@@ -228,23 +231,21 @@ defmodule NervesHub.DeviceLink do
 
   defp do_device_message(session, "rebooting", _payload), do: {session, []}
 
-  defp do_device_message(session, "scripts/run", %{
-         "ref" => "connecting_code",
-         "result" => result,
-         "return" => return,
-         "output" => output
-       })
-       when result == "error" or return == "nil" do
-    :telemetry.execute([:nerves_hub, :devices, :connecting_code_failure], %{
-      output: output,
-      identifier: session.device_info.device_identifier
-    })
+  # How the connecting code pushed after the device joined went.
+  defp do_device_message(session, "scripts/run", %{"ref" => "connecting_code"} = payload) do
+    case connecting_code_outcome(payload) do
+      :ok ->
+        :telemetry.execute([:nerves_hub, :devices, :connecting_code_success], %{count: 1})
 
-    {session, []}
-  end
+      {:error, reason} ->
+        :telemetry.execute([:nerves_hub, :devices, :connecting_code_failure], %{count: 1}, %{
+          identifier: session.device_info.device_identifier,
+          output: payload["output"]
+        })
 
-  defp do_device_message(session, "scripts/run", %{"ref" => "connecting_code"}) do
-    :telemetry.execute([:nerves_hub, :devices, :connecting_code_success], %{count: 1})
+        :ok = notify_connecting_code_failure(session.device_info, reason)
+    end
+
     {session, []}
   end
 
@@ -311,7 +312,7 @@ defmodule NervesHub.DeviceLink do
 
     effects =
       session.device_info
-      |> fetch_connecting_code()
+      |> connecting_code_text()
       |> connecting_code_effects(session)
 
     {session, effects ++ current_update_mode_effects(session)}
@@ -418,11 +419,17 @@ defmodule NervesHub.DeviceLink do
   defp deployment_topic(%{deployment_id: nil}), do: nil
   defp deployment_topic(%{deployment_id: id}), do: "deployment:#{id}"
 
+  # The connecting code as one script, the way the device is sent it.
+  defp connecting_code_text(device_info) do
+    case fetch_connecting_code(device_info) do
+      nil -> nil
+      connecting_code -> Enum.join(connecting_code, "\n")
+    end
+  end
+
   defp connecting_code_effects(nil, _session), do: []
 
-  defp connecting_code_effects(connecting_code, session) when is_list(connecting_code) do
-    connecting_code = Enum.join(connecting_code, "\n")
-
+  defp connecting_code_effects(connecting_code, session) do
     if safe_to_run_scripts?(session) do
       # connecting code first in the case it attempts to change things before the other messages
       [{:push, "scripts/run", %{"text" => connecting_code, "ref" => "connecting_code"}}]
@@ -433,6 +440,72 @@ defmodule NervesHub.DeviceLink do
 
       []
     end
+  end
+
+  # Clients report a failure in different ways. nerves_hub_link answers a
+  # timeout or a crashed task with `"result" => "error"`, and so does the Linux
+  # agent for a non-zero exit. But nerves_hub_link runs the code with
+  # `Code.eval_string/1` and catches whatever it raises, throws or exits with,
+  # answering with a `nil` return and the exception's banner appended to the
+  # output. A `nil` return on its own is fine (code that ends in an `if` with no
+  # `else` returns one), so the banner is what tells the two apart.
+  #
+  # nerves_hub_link releases from before `"result"` existed answer code that
+  # raised the same way, without the key, so the banner catches it for them too.
+  # They had no timeout, though: code that hangs on one is never answered, so it
+  # is never reported.
+  defp connecting_code_outcome(%{"result" => "error"} = payload) do
+    {:error, connecting_code_failure_reason(payload)}
+  end
+
+  defp connecting_code_outcome(%{"return" => "nil", "output" => output}) when is_binary(output) do
+    # Exits from a `GenServer.call` carry a nested `** (EXIT)`, but indented, so
+    # splitting on an unindented one finds only the banner.
+    case String.split(output, "\n** (") do
+      [_no_exception] -> :ok
+      parts -> {:error, "** (" <> List.last(parts)}
+    end
+  end
+
+  defp connecting_code_outcome(_payload), do: :ok
+
+  # What the device printed, after the return value when there is one worth
+  # reading, such as the Linux agent's "exited with status 1".
+  defp connecting_code_failure_reason(payload) do
+    [payload["return"], payload["output"]]
+    |> Enum.filter(&is_binary/1)
+    |> Enum.map(&String.trim/1)
+    |> Enum.reject(&(&1 in ["", "nil"]))
+    |> case do
+      [] -> nil
+      parts -> Enum.join(parts, ": ")
+    end
+  end
+
+  # The device answers with how its code went, not with the code, so the code
+  # is read again to key the notification on. That is what it was sent, unless
+  # someone edited it in the seconds since; code that has been removed in that
+  # time leaves nothing to fix, and nothing to notify about.
+  #
+  # A notification that cannot be written is logged and dropped. Raising would
+  # take the device's connection down with it, and the device would reconnect,
+  # be sent the same code, and fail the same way.
+  defp notify_connecting_code_failure(device_info, reason) do
+    case connecting_code_text(device_info) do
+      nil ->
+        :ok
+
+      connecting_code ->
+        _ = ProductNotifications.create_connecting_code_failure_notification!(device_info, connecting_code, reason)
+        :ok
+    end
+  rescue
+    error ->
+      Logger.warning(
+        "Could not record the connecting code failure of #{device_info.device_identifier} - #{inspect(error)}"
+      )
+
+      Logging.log_to_sentry(device_info, error)
   end
 
   defp safe_to_run_scripts?(session), do: Version.match?(session.device_api_version, ">= 2.1.0")
@@ -502,8 +575,9 @@ defmodule NervesHub.DeviceLink do
   See `NervesHub.DeviceLink.Authentication`. Failures are flattened to
   `:invalid_auth`; the detail is recorded as telemetry where it is known.
   """
-  @spec authenticate(Authentication.credentials()) :: {:ok, DeviceInfo.t()} | {:error, :invalid_auth}
-  defdelegate authenticate(credentials), to: Authentication
+  @spec authenticate(Authentication.credentials(), server_name :: String.t() | nil) ::
+          {:ok, DeviceInfo.t()} | {:error, :invalid_auth}
+  defdelegate authenticate(credentials, server_name \\ nil), to: Authentication
 
   @doc "Whether devices may authenticate with an HMAC shared secret."
   @spec shared_secrets_enabled?() :: boolean()
@@ -527,15 +601,24 @@ defmodule NervesHub.DeviceLink do
 
   `ip_address` is where the device reached us from, as far as the socket could
   tell; `nil` when that couldn't be established.
+
+  `user_agent` is the `User-Agent` header the device sent with its websocket
+  upgrade, as it arrived. It is read here, by
+  `NervesHub.Devices.ClientLibrary`, rather than where the socket is held, so a
+  node holding sockets elsewhere only has to forward the header. Such a node
+  calls this through `NervesHub.DeviceLink.Dispatcher.Remote`; one still on a
+  release without the header calls `connect/2`, which records the library as
+  unknown.
   """
-  @spec connect(DeviceInfo.t(), ip_address :: String.t() | nil) ::
+  @spec connect(DeviceInfo.t(), ip_address :: String.t() | nil, user_agent :: String.t() | nil) ::
           {:ok, DeviceInfo.t()} | {:error, Ecto.Changeset.t()}
-  def connect(device_info, ip_address \\ nil) do
+  def connect(device_info, ip_address \\ nil, user_agent \\ nil) do
     case Connections.device_connecting(
            device_info.org_id,
            device_info.product_id,
            device_info.device_id,
-           ip_address
+           ip_address,
+           ClientLibrary.from_user_agent(user_agent)
          ) do
       {:ok, %DeviceConnection{id: connection_id}} ->
         {:ok, %{device_info | connection_ref: connection_id}}
@@ -910,17 +993,22 @@ defmodule NervesHub.DeviceLink do
       if same_firmware?(previous_metadata, metadata) do
         Devices.update_firmware_metadata(device, nil, validation_status, auto_revert_detected?)
       else
-        with {:ok, device} <-
-               Devices.update_firmware_metadata(
-                 device,
-                 metadata,
-                 validation_status,
-                 auto_revert_detected?
-               ) do
-          FirmwareUpdates.firmware_update_successful(device, previous_metadata)
-        end
+        record_new_firmware(device, metadata, previous_metadata, validation_status, auto_revert_detected?)
       end
     end
+  end
+
+  # The new firmware and the update that installed it are recorded together or
+  # not at all. Recorded apart, a failure between the two left the new firmware
+  # on record with its update still inflight, and the next join, seeing nothing
+  # new, ended that update as abandoned.
+  defp record_new_firmware(device, metadata, previous_metadata, validation_status, auto_revert_detected?) do
+    Repo.transact(fn ->
+      with {:ok, device} <-
+             Devices.update_firmware_metadata(device, metadata, validation_status, auto_revert_detected?) do
+        FirmwareUpdates.firmware_update_successful(device, previous_metadata)
+      end
+    end)
   end
 
   # A device with no resolvable firmware, or one we have nothing on record for,
@@ -998,6 +1086,13 @@ defmodule NervesHub.DeviceLink do
   # `DeviceInfo` to attribute traffic to. Nothing is dispatched for it either, so
   # there is nothing the record would be missing.
   defp record(nil, _direction, _topic, _event, _payload), do: :ok
+
+  # The local shell is a terminal, like the console: its output echoes what a
+  # person typed, secrets included, and anyone who can see the device can read
+  # its message history. So only the size is kept.
+  defp record(device_info, direction, :extensions, "local_shell:" <> _ = event, payload) do
+    DeviceMessages.record_size_only(device_info, direction, :extensions, event, payload)
+  end
 
   defp record(device_info, direction, topic, event, payload) do
     DeviceMessages.record(device_info, direction, topic, event, payload)

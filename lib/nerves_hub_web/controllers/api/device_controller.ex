@@ -8,11 +8,13 @@ defmodule NervesHubWeb.API.DeviceController do
   alias NervesHub.Devices.AdvancedQuery
   alias NervesHub.Devices.BulkActions
   alias NervesHub.Devices.Certificates
+  alias NervesHub.Devices.Device
   alias NervesHub.Devices.DeviceCertificate
   alias NervesHub.Devices.Updates
   alias NervesHub.Firmwares
   alias NervesHub.Products
   alias NervesHubWeb.API.PaginationHelpers
+  alias NervesHubWeb.API.Plugs.RefuseDeletedDevice
   alias NervesHubWeb.Endpoint
   alias NervesHubWeb.Helpers.RoleValidateHelpers
 
@@ -36,6 +38,8 @@ defmodule NervesHubWeb.API.DeviceController do
   )
 
   plug(:validate_role, [org: :view] when action in [:index, :show, :auth])
+
+  plug(RefuseDeletedDevice when action in [:reboot, :reconnect, :upgrade, :penalty, :code])
 
   def index(%{assigns: %{current_scope: %{org: org}, product: product}} = conn, params) do
     filters = Map.get(params, "filters", %{}) |> Map.new(fn {k, v} -> {String.to_existing_atom(k), v} end)
@@ -86,13 +90,8 @@ defmodule NervesHubWeb.API.DeviceController do
 
   defp validate_advanced_query(_filters, _product_id), do: :ok
 
-  def create(%{assigns: %{current_scope: %{org: org}, product: product}} = conn, params) do
-    params =
-      params
-      |> Map.put("org_id", org.id)
-      |> Map.put("product_id", product.id)
-
-    with {:ok, device} <- Devices.create_device(params) do
+  def create(%{assigns: %{current_scope: %{org: org, user: user}, product: product}} = conn, params) do
+    with {:ok, device, shared_secret} <- create_device(product, params, user) do
       device = Devices.get_by_identifier_with_deployment_and_release!(device.identifier)
 
       conn
@@ -101,7 +100,41 @@ defmodule NervesHubWeb.API.DeviceController do
         "location",
         Routes.api_device_path(conn, :show, org.name, product.name, device.identifier)
       )
-      |> render(:show, device: device)
+      |> render(:show, device: device, shared_secret: shared_secret)
+    end
+  end
+
+  defp create_device(product, params, user) do
+    device_params = device_params(params)
+
+    with {:ok, shared_secret?} <- cast_shared_secret(params),
+         {:ok, allowed} <- cast_managed_updates_allowed(device_params) do
+      opts = [managed_updates_allowed: allowed]
+
+      if shared_secret? do
+        with {:ok, {device, auth}} <-
+               Devices.create_device_with_shared_secret_auth(product, device_params, user, opts) do
+          {:ok, device, auth}
+        end
+      else
+        with {:ok, device} <- Devices.create_device(product, device_params, user, opts) do
+          {:ok, device, nil}
+        end
+      end
+    end
+  end
+
+  # `"shared_secret": true` creates the device's own shared secret in the same
+  # transaction, so a provisioner never leaves a device without credentials. It
+  # is cast the way the device's own boolean fields are, and any other value is
+  # refused rather than quietly creating a device without one.
+  defp cast_shared_secret(params) do
+    case Ecto.Type.cast(:boolean, params["shared_secret"]) do
+      {:ok, requested} ->
+        {:ok, requested == true}
+
+      :error ->
+        {:error, {:shared_secret, "shared_secret must be true or false, got #{inspect(params["shared_secret"])}."}}
     end
   end
 
@@ -131,13 +164,43 @@ defmodule NervesHubWeb.API.DeviceController do
     send_resp(conn, :no_content, "")
   end
 
-  def update(%{assigns: %{device: device}} = conn, params) do
-    with {:ok, updated_device} <- Devices.update_device(device, params) do
+  def update(%{assigns: %{current_scope: %{user: user}, device: device}} = conn, params) do
+    device_params = device_params(params)
+
+    with {:ok, allowed} <- cast_managed_updates_allowed(device_params),
+         {:ok, mode} <- Device.cast_update_mode(device, device_params),
+         {:ok, updated_device} <-
+           Devices.update_device_settings(device, device_params, user,
+             managed_updates_allowed: allowed,
+             update_mode: mode
+           ) do
       updated_device = Devices.get_by_identifier_with_deployment_and_release!(updated_device.identifier)
 
       conn
       |> put_status(201)
       |> render(:show, device: updated_device)
+    end
+  end
+
+  # The documented body puts the device's fields under "device", but the API has
+  # always read them from the top level as well, and clients send both. When the
+  # body has a "device" object, only its fields are read.
+  defp device_params(%{"device" => %{} = device_params}), do: device_params
+  defp device_params(params), do: params
+
+  # Not one of the fields the device changesets cast: on create and update it
+  # goes through `Updates.set_managed_updates_allowed/3`, as the web UI's toggle
+  # does, for its own audit entry. Like `shared_secret`, a value that isn't a
+  # boolean is refused rather than ignored.
+  defp cast_managed_updates_allowed(device_params) do
+    value = device_params["managed_updates_allowed"]
+
+    case Ecto.Type.cast(:boolean, value) do
+      {:ok, allowed} ->
+        {:ok, allowed}
+
+      :error ->
+        {:error, {:managed_updates_allowed, "managed_updates_allowed must be true or false, got #{inspect(value)}."}}
     end
   end
 
@@ -207,9 +270,9 @@ defmodule NervesHubWeb.API.DeviceController do
           []
         end
 
-      {:ok, _device} = DeviceEvents.manual_update(device, firmware, scope.user, opts)
-
-      send_resp(conn, :no_content, "")
+      with {:ok, _device} <- DeviceEvents.manual_update(device, firmware, scope.user, opts) do
+        send_resp(conn, :no_content, "")
+      end
     end
   end
 
@@ -227,8 +290,7 @@ defmodule NervesHubWeb.API.DeviceController do
         "new_org_name" => org_name,
         "new_product_name" => product_name
       }) do
-    with {:ok, move_to_org} <- Accounts.get_org_by_name(org_name),
-         RoleValidateHelpers.validate_org_user_role(conn, move_to_org, user, :manage),
+    with {:ok, move_to_org} <- org_to_move_to(conn, org_name, user),
          {:ok, product} <- Products.get_product_by_org_id_and_name(move_to_org.id, product_name) do
       case Devices.move(device, product, user) do
         {:ok, device} ->
@@ -238,10 +300,26 @@ defmodule NervesHubWeb.API.DeviceController do
           |> assign(:device, device)
           |> render(:show)
 
-        {:error, changeset} ->
-          # fallback controller will render this
+        # `Devices.move/3` runs a Multi, so a failed step, such as updating a
+        # deleted device, comes back as a 4-tuple. The fallback controller
+        # renders the changeset.
+        {:error, _step, changeset, _changes} ->
           {:error, changeset}
       end
+    end
+  end
+
+  # Moving a device needs the manage role in the org it goes to. An org that
+  # doesn't exist gets the same 401 as one the user can't manage, so the answer
+  # doesn't tell anyone which org names are taken.
+  defp org_to_move_to(conn, org_name, user) do
+    case Accounts.get_org_by_name(org_name) do
+      {:ok, org} ->
+        _ = RoleValidateHelpers.validate_org_user_role(conn, org, user, :manage)
+        {:ok, org}
+
+      {:error, :org_not_found} ->
+        raise NervesHubWeb.UnauthorizedError, required_role: "manage"
     end
   end
 

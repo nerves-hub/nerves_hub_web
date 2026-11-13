@@ -365,6 +365,11 @@ defmodule NervesHubWeb.Live.Firmware do
     "Firmware corrupt, signature invalid, or missing public key"
   end
 
+  defp upload_error({:fwup_too_old, required, installed}) do
+    "This firmware requires fwup #{required} or newer, and NervesHub has fwup #{installed}. " <>
+      "Please contact support to have NervesHub's fwup updated."
+  end
+
   defp upload_error({:product_mismatch, declared, expected}) do
     "This firmware is built for the product #{inspect(declared)}, but was uploaded to " <>
       "#{inspect(expected)}. Check the product name in your firmware build."

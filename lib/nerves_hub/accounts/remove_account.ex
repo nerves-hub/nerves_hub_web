@@ -9,6 +9,7 @@ defmodule NervesHub.Accounts.RemoveAccount do
   alias NervesHub.Accounts.OrgMetric
   alias NervesHub.Accounts.OrgUser
   alias NervesHub.Accounts.User
+  alias NervesHub.DeviceEvents
   alias NervesHub.Devices.CACertificate
   alias NervesHub.Devices.Device
   alias NervesHub.Devices.DeviceCertificate
@@ -24,6 +25,12 @@ defmodule NervesHub.Accounts.RemoveAccount do
   alias NervesHub.Scripts.Script
   alias NervesHub.Workers.DeleteFirmware
 
+  @doc """
+  Closes a user's account, along with every org it is the last member of.
+
+  Those orgs' products and devices are deleted with them, and the connections
+  their devices have open are closed once the account is.
+  """
   def remove_account(user_id) do
     Multi.new()
     |> Multi.run(:user_id, fn _, _ -> {:ok, user_id} end)
@@ -44,7 +51,7 @@ defmodule NervesHub.Accounts.RemoveAccount do
     |> Multi.merge(&delete_firmwares/1)
     |> Multi.delete_all(:org_keys, &query_by_org_id(OrgKey, &1))
     |> Multi.delete_all(:org_metrics, &query_by_org_id(OrgMetric, &1))
-    |> Multi.update_all(:soft_delete_products, &soft_delete_by_org_id(Product, &1), [])
+    |> Multi.update_all(:soft_delete_products, &soft_delete_products/1, [])
     |> Multi.update_all(:soft_delete_devices, &soft_delete_by_org_id(Device, &1), [])
     |> Multi.update_all(:soft_delete_org_users, &soft_delete_by_org_id(OrgUser, &1), [])
     |> Multi.update_all(:soft_delete_orgs, &soft_delete_orgs/1, [])
@@ -52,6 +59,14 @@ defmodule NervesHub.Accounts.RemoveAccount do
     |> Multi.update_all(:nilify_script_edits, &nilify_script_edits/1, [])
     |> Multi.update(:soft_delete_user, &soft_delete_user/1)
     |> Repo.transact()
+    |> case do
+      {:ok, %{soft_delete_products: {_count, product_ids}}} = result ->
+        :ok = DeviceEvents.products_deleted(product_ids)
+        result
+
+      error ->
+        error
+    end
   end
 
   defp query_org_users() do
@@ -139,6 +154,12 @@ defmodule NervesHub.Accounts.RemoveAccount do
     queryable
     |> query_by_org_id(org_ids)
     |> update(set: [deleted_at: ^truncated_utc_now()])
+  end
+
+  defp soft_delete_products(changes) do
+    Product
+    |> soft_delete_by_org_id(changes)
+    |> select([p], p.id)
   end
 
   defp soft_delete_orgs(%{org_ids: ids}) do

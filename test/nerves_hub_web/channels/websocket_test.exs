@@ -2,10 +2,12 @@ defmodule NervesHubWeb.WebsocketTest do
   # Run the entire suite against both the JSON (`~> 2.0.0`) and MessagePack
   # (`~> 3.0.0`) device serializers to assure both wire formats work end to end.
   use NervesHubWeb.ChannelCase, parameterize: [%{serializer: :json}, %{serializer: :msgpack}]
+  use Mimic
 
   import Ecto.Query
   import TrackerHelper
 
+  alias NervesHub.Accounts
   alias NervesHub.AuditLogs
   alias NervesHub.AuditLogs.AuditLog
   alias NervesHub.DeviceEvents
@@ -145,6 +147,49 @@ defmodule NervesHubWeb.WebsocketTest do
       close_socket_cleanly(socket)
     end
 
+    test "records the client library a device names in its User-Agent", %{user: user, tmp_dir: tmp_dir} do
+      {device, _firmware} = device_fixture(tmp_dir, user, %{identifier: @valid_serial})
+
+      Fixtures.device_certificate_fixture(device)
+
+      subscribe_for_updates(device)
+
+      opts = Keyword.put(@socket_config, :headers, [{"user-agent", "NHL/2.13.0"}])
+
+      {:ok, socket} = SocketClient.start_link(with_serializer(opts))
+      SocketClient.join_and_wait(socket)
+
+      assert_online_and_available(device)
+
+      assert %DeviceConnection{lib: "nerves_hub_link", lib_version: "2.13.0"} =
+               Connections.get_latest_for_device(device.id)
+
+      close_socket_cleanly(socket)
+    end
+
+    # The test client is Slipstream over Mint, like NervesHubLink. Mint sends
+    # `mint/<vsn>` when the client sets no User-Agent, which is what every
+    # NervesHubLink that doesn't send its own token looks like.
+    test "records an unknown client library when only the HTTP library names itself", %{
+      user: user,
+      tmp_dir: tmp_dir
+    } do
+      {device, _firmware} = device_fixture(tmp_dir, user, %{identifier: @valid_serial})
+
+      Fixtures.device_certificate_fixture(device)
+
+      subscribe_for_updates(device)
+
+      {:ok, socket} = SocketClient.start_link(with_serializer(@socket_config))
+      SocketClient.join_and_wait(socket)
+
+      assert_online_and_available(device)
+
+      assert %DeviceConnection{lib: nil, lib_version: nil} = Connections.get_latest_for_device(device.id)
+
+      close_socket_cleanly(socket)
+    end
+
     test "Can connect and authenticate to channel using client ssl certificate with TLS 1.3", %{
       user: user,
       tmp_dir: tmp_dir
@@ -182,6 +227,134 @@ defmodule NervesHubWeb.WebsocketTest do
       close_socket_cleanly(socket)
     end
 
+    test "an uploaded self-signed certificate can connect", %{user: user, tmp_dir: tmp_dir} do
+      {device, _firmware} = device_fixture(tmp_dir, user, %{identifier: @valid_serial})
+
+      # What `nh device certificates generate --self-signed --upload` leaves
+      # behind: a certificate that signed itself, on file for the device.
+      %{cert: cert, key: key} = Fixtures.self_signed_device_certificate(device.identifier)
+      _ = Fixtures.device_certificate_fixture(device, cert)
+
+      config = [
+        uri: "wss://127.0.0.1:#{@device_port}/socket/websocket",
+        json_parser: Jason,
+        reconnect_after_msec: [500],
+        rejoin_after_msec: [500],
+        mint_opts: [
+          protocols: [:http1],
+          transport_opts: [
+            verify: :verify_peer,
+            versions: [:"tlsv1.2"],
+            cert: X509.Certificate.to_der(cert),
+            key: {:ECPrivateKey, X509.PrivateKey.to_der(key)},
+            cacertfile: Path.expand("test/fixtures/ssl/ca.pem") |> to_charlist(),
+            server_name_indication: ~c"device.nerves-hub.org"
+          ]
+        ]
+      ]
+
+      subscribe_for_updates(device)
+
+      {:ok, socket} = SocketClient.start_link(with_serializer(config))
+      SocketClient.join_and_wait(socket)
+
+      assert_connection_change()
+      assert_online_and_available(device)
+
+      close_socket_cleanly(socket)
+    end
+
+    test "an uploaded self-signed certificate can connect after it expires", %{user: user, tmp_dir: tmp_dir} do
+      {device, _firmware} = device_fixture(tmp_dir, user, %{identifier: @valid_serial})
+
+      # A certificate on file is never checked for expiration, so one that
+      # signed itself is allowed after it expires, as a CA-signed one is.
+      not_before = DateTime.add(DateTime.utc_now(), -2, :day)
+      not_after = DateTime.add(DateTime.utc_now(), -1, :day)
+
+      %{cert: cert, key: key} =
+        Fixtures.self_signed_device_certificate(device.identifier, validity: Validity.new(not_before, not_after))
+
+      _ = Fixtures.device_certificate_fixture(device, cert)
+
+      config = [
+        uri: "wss://127.0.0.1:#{@device_port}/socket/websocket",
+        json_parser: Jason,
+        reconnect_after_msec: [500],
+        rejoin_after_msec: [500],
+        mint_opts: [
+          protocols: [:http1],
+          transport_opts: [
+            verify: :verify_peer,
+            versions: [:"tlsv1.2"],
+            cert: X509.Certificate.to_der(cert),
+            key: {:ECPrivateKey, X509.PrivateKey.to_der(key)},
+            cacertfile: Path.expand("test/fixtures/ssl/ca.pem") |> to_charlist(),
+            server_name_indication: ~c"device.nerves-hub.org"
+          ]
+        ]
+      ]
+
+      subscribe_for_updates(device)
+
+      {:ok, socket} = SocketClient.start_link(with_serializer(config))
+      SocketClient.join_and_wait(socket)
+
+      assert_connection_change()
+      assert_online_and_available(device)
+
+      close_socket_cleanly(socket)
+    end
+
+    test "a device is refused on a hostname only another org has claimed", %{user: user, tmp_dir: tmp_dir} do
+      {device, _firmware} = device_fixture(tmp_dir, user, %{identifier: @valid_serial})
+      Fixtures.device_certificate_fixture(device)
+
+      other_org = Fixtures.org_fixture(user, %{name: "other_org"})
+      {:ok, _} = Accounts.set_org_device_hostnames(other_org, ["device.nerves-hub.org"])
+
+      {:ok, socket} = SocketClient.start_link(with_serializer(@socket_config))
+      SocketClient.wait_connect(socket)
+
+      refute SocketClient.connected?(socket)
+    end
+
+    test "a device connects on a hostname its org shares with another", %{user: user, tmp_dir: tmp_dir} do
+      {device, _firmware} = device_fixture(tmp_dir, user, %{identifier: @valid_serial})
+      Fixtures.device_certificate_fixture(device)
+
+      other_org = Fixtures.org_fixture(user, %{name: "other_org"})
+      {:ok, _} = Accounts.set_org_device_hostnames(other_org, ["device.nerves-hub.org"])
+      {:ok, _} = Accounts.set_org_device_hostnames(device.org, ["device.nerves-hub.org"])
+
+      subscribe_for_updates(device)
+
+      {:ok, socket} = SocketClient.start_link(with_serializer(@socket_config))
+      SocketClient.join_and_wait(socket)
+
+      close_socket_cleanly(socket)
+    end
+
+    test "a device that asks for no hostname isn't held to one", %{user: user, tmp_dir: tmp_dir} do
+      {device, _firmware} = device_fixture(tmp_dir, user, %{identifier: @valid_serial})
+      Fixtures.device_certificate_fixture(device)
+
+      other_org = Fixtures.org_fixture(user, %{name: "other_org"})
+      {:ok, _} = Accounts.set_org_device_hostnames(other_org, ["device.nerves-hub.org"])
+
+      config =
+        update_in(@socket_config, [:mint_opts, :transport_opts], fn opts ->
+          Keyword.merge(opts, verify: :verify_none, server_name_indication: :disable)
+        end)
+
+      subscribe_for_updates(device)
+
+      {:ok, socket} = SocketClient.start_link(with_serializer(config))
+      SocketClient.join_and_wait(socket)
+
+      close_socket_cleanly(socket)
+    end
+
     test "authentication rejected to channel using incorrect client ssl certificate" do
       {:ok, socket} = SocketClient.start_link(with_serializer(@bad_socket_config))
       SocketClient.wait_connect(socket)
@@ -205,8 +378,8 @@ defmodule NervesHubWeb.WebsocketTest do
 
       key = X509.PrivateKey.new_ec(:secp256r1)
 
-      not_before = DateTime.utc_now() |> Timex.shift(days: -2)
-      not_after = DateTime.utc_now() |> Timex.shift(days: -1)
+      not_before = DateTime.add(DateTime.utc_now(), -2, :day)
+      not_after = DateTime.add(DateTime.utc_now(), -1, :day)
 
       cert =
         key
@@ -264,8 +437,8 @@ defmodule NervesHubWeb.WebsocketTest do
       org = Fixtures.org_fixture(user, %{name: "custom_ca_test"})
       {device, _firmware} = device_fixture(tmp_dir, user, %{identifier: @valid_serial}, org)
 
-      not_before = DateTime.utc_now() |> Timex.shift(days: -3)
-      not_after = DateTime.utc_now() |> Timex.shift(days: -1)
+      not_before = DateTime.add(DateTime.utc_now(), -3, :day)
+      not_after = DateTime.add(DateTime.utc_now(), -1, :day)
       validity = Validity.new(not_before, not_after)
 
       ca_key = X509.PrivateKey.new_ec(:secp256r1)
@@ -458,7 +631,170 @@ defmodule NervesHubWeb.WebsocketTest do
       assert_connection_change()
       assert_online_and_available(device)
 
+      assert %{last_used: %DateTime{}} = Repo.reload(auth)
+
       close_socket_cleanly(socket)
+    end
+
+    test "rejects a deactivated device key/secret", %{user: user, tmp_dir: tmp_dir} do
+      {device, _firmware} = device_fixture(tmp_dir, user)
+      assert {:ok, auth} = Devices.create_shared_secret_auth(device)
+      assert {:ok, _} = Devices.deactivate_shared_secret_auth(device, auth.key, user)
+
+      opts = [
+        mint_opts: [protocols: [:http1]],
+        uri: "ws://127.0.0.1:#{@web_port}/device-socket/websocket",
+        headers: Utils.nh1_key_secret_headers(auth, device.identifier)
+      ]
+
+      {:ok, socket} = SocketClient.start_link(with_serializer(opts))
+      SocketClient.wait_connect(socket)
+
+      refute SocketClient.connected?(socket)
+    end
+
+    test "closes an open connection when its key is deactivated", %{user: user, tmp_dir: tmp_dir} do
+      {device, _firmware} = device_fixture(tmp_dir, user)
+      assert {:ok, auth} = Devices.create_shared_secret_auth(device)
+
+      opts = [
+        mint_opts: [protocols: [:http1]],
+        uri: "ws://127.0.0.1:#{@web_port}/device-socket/websocket",
+        headers: Utils.nh1_key_secret_headers(auth, device.identifier)
+      ]
+
+      subscribe_for_updates(device)
+
+      {:ok, socket} = SocketClient.start_link(with_serializer(opts))
+      SocketClient.join_and_wait(socket, shared_secret_params(device))
+
+      assert_connection_change()
+      assert_online_and_available(device)
+
+      assert {:ok, _} = Devices.deactivate_shared_secret_auth(device, auth.key, user)
+
+      assert_receive %{event: "connection:change", payload: %{status: "offline"}}
+    end
+
+    test "leaves a connection made with another key open", %{user: user, tmp_dir: tmp_dir} do
+      {device, _firmware} = device_fixture(tmp_dir, user)
+      assert {:ok, auth} = Devices.create_shared_secret_auth(device)
+      assert {:ok, other_auth} = Devices.create_shared_secret_auth(device)
+
+      opts = [
+        mint_opts: [protocols: [:http1]],
+        uri: "ws://127.0.0.1:#{@web_port}/device-socket/websocket",
+        headers: Utils.nh1_key_secret_headers(auth, device.identifier)
+      ]
+
+      subscribe_for_updates(device)
+
+      {:ok, socket} = SocketClient.start_link(with_serializer(opts))
+      SocketClient.join_and_wait(socket, shared_secret_params(device))
+
+      assert_connection_change()
+      assert_online_and_available(device)
+
+      assert {:ok, _} = Devices.deactivate_shared_secret_auth(device, other_auth.key, user)
+
+      refute_receive %{event: "connection:change", payload: %{status: "offline"}}, 500
+      assert SocketClient.connected?(socket)
+
+      close_socket_cleanly(socket)
+    end
+
+    test "closes a connection whose key is deactivated while it authenticates", %{user: user, tmp_dir: tmp_dir} do
+      {device, _firmware} = device_fixture(tmp_dir, user)
+      assert {:ok, auth} = Devices.create_shared_secret_auth(device)
+
+      # Deactivate the key once authentication has accepted it, so the
+      # disconnect deactivating sends goes out before the connection is a
+      # socket.
+      set_mimic_global()
+
+      stub(NervesHub.DeviceLink, :authenticate, fn credentials, server_name ->
+        result = call_original(NervesHub.DeviceLink, :authenticate, [credentials, server_name])
+        {:ok, _} = Devices.deactivate_shared_secret_auth(device, auth.key, user)
+        result
+      end)
+
+      opts = [
+        mint_opts: [protocols: [:http1]],
+        uri: "ws://127.0.0.1:#{@web_port}/device-socket/websocket",
+        headers: Utils.nh1_key_secret_headers(auth, device.identifier)
+      ]
+
+      {:ok, socket} = SocketClient.start_link(with_serializer(opts))
+      SocketClient.wait_connect(socket)
+
+      eventually(refute(SocketClient.connected?(socket)))
+      eventually(refute(Repo.exists?(where(DeviceConnection, device_id: ^device.id, status: :connected))))
+    end
+
+    test "closes the connection of a device that is deleted, and refuses it afterwards", %{
+      user: user,
+      tmp_dir: tmp_dir
+    } do
+      {device, _firmware} = device_fixture(tmp_dir, user)
+      assert {:ok, auth} = Devices.create_shared_secret_auth(device)
+
+      opts = [
+        mint_opts: [protocols: [:http1]],
+        uri: "ws://127.0.0.1:#{@web_port}/device-socket/websocket",
+        headers: Utils.nh1_key_secret_headers(auth, device.identifier)
+      ]
+
+      subscribe_for_updates(device)
+
+      {:ok, socket} = SocketClient.start_link(with_serializer(opts))
+      SocketClient.join_and_wait(socket, shared_secret_params(device))
+
+      assert_connection_change()
+      assert_online_and_available(device)
+
+      assert {:ok, _device} = Devices.delete_device(device)
+
+      assert_receive %{event: "connection:change", payload: %{status: "offline"}}
+
+      # Same key and signature, still inside its max age, so only the deletion
+      # can be what refuses it.
+      {:ok, socket} = SocketClient.start_link(with_serializer(opts))
+      SocketClient.wait_connect(socket)
+
+      refute SocketClient.connected?(socket)
+    end
+
+    # Deleting an org leaves its devices in place, and a device key belongs to
+    # its device, so nothing about the key itself changes.
+    test "closes the connections of a deleted org's devices, and refuses them afterwards", %{
+      user: user,
+      tmp_dir: tmp_dir
+    } do
+      {device, _firmware} = device_fixture(tmp_dir, user)
+      assert {:ok, auth} = Devices.create_shared_secret_auth(device)
+
+      opts = [
+        mint_opts: [protocols: [:http1]],
+        uri: "ws://127.0.0.1:#{@web_port}/device-socket/websocket",
+        headers: Utils.nh1_key_secret_headers(auth, device.identifier)
+      ]
+
+      subscribe_for_updates(device)
+
+      {:ok, socket} = SocketClient.start_link(with_serializer(opts))
+      SocketClient.join_and_wait(socket, shared_secret_params(device))
+
+      assert_connection_change()
+      assert_online_and_available(device)
+
+      assert {:ok, _org} = device.org_id |> Accounts.get_org!() |> Accounts.soft_delete_org()
+
+      assert_receive %{event: "connection:change", payload: %{status: "offline"}}
+
+      {:ok, socket} = SocketClient.start_link(with_serializer(opts))
+      SocketClient.wait_connect(socket)
+
+      refute SocketClient.connected?(socket)
     end
 
     test "records the address a trusted balancer announced", %{user: user, tmp_dir: tmp_dir} do
@@ -486,6 +822,30 @@ defmodule NervesHubWeb.WebsocketTest do
       assert_online_and_available(device)
 
       assert %DeviceConnection{ip_address: "203.0.113.7"} = Connections.get_latest_for_device(device.id)
+
+      close_socket_cleanly(socket)
+    end
+
+    test "records the client library a device names in its User-Agent", %{user: user, tmp_dir: tmp_dir} do
+      {device, _firmware} = device_fixture(tmp_dir, user)
+      assert {:ok, auth} = Devices.create_shared_secret_auth(device)
+
+      opts = [
+        mint_opts: [protocols: [:http1]],
+        uri: "ws://127.0.0.1:#{@web_port}/device-socket/websocket",
+        headers: [{"user-agent", "custom#acme-link/1.4.0"} | Utils.nh1_key_secret_headers(auth, device.identifier)]
+      ]
+
+      subscribe_for_updates(device)
+
+      {:ok, socket} = SocketClient.start_link(with_serializer(opts))
+      SocketClient.join_and_wait(socket, shared_secret_params(device))
+
+      assert_connection_change()
+      assert_online_and_available(device)
+
+      assert %DeviceConnection{lib: "custom#acme-link", lib_version: "1.4.0"} =
+               Connections.get_latest_for_device(device.id)
 
       close_socket_cleanly(socket)
     end
@@ -1246,8 +1606,8 @@ defmodule NervesHubWeb.WebsocketTest do
       org = Fixtures.org_fixture(user, %{name: "custom_ca_test"})
       {device, _firmware} = device_fixture(tmp_dir, user, %{identifier: @valid_serial}, org)
 
-      not_before = DateTime.utc_now() |> Timex.shift(days: -1)
-      not_after = DateTime.utc_now() |> Timex.shift(seconds: -1)
+      not_before = DateTime.add(DateTime.utc_now(), -1, :day)
+      not_after = DateTime.add(DateTime.utc_now(), -1)
 
       template =
         Template.new(:root_ca,

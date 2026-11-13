@@ -36,7 +36,7 @@ defmodule NervesHub.Fwup do
   defp parse_metadata(metadata) do
     known = Map.new(Metadata.keys(), &{Atom.to_string(&1), &1})
 
-    Regex.scan(~r/meta-(?<key>[^\n]+)=\"?(?<value>[^\"\n]+)/, metadata)
+    Regex.scan(~r/meta-(?<key>[^=\n]+)=\"?(?<value>[^\"\n]+)/, metadata)
     |> Enum.reduce(%{}, fn [_, key, value], acc ->
       case Map.fetch(known, String.replace(key, "-", "_")) do
         {:ok, key} -> Map.put(acc, key, value)

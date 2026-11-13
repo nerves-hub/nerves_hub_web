@@ -42,7 +42,7 @@ defmodule NervesHub.AuditLogs.AuditLog do
       description: description,
       resource_id: resource.id,
       resource_type: resource_type,
-      org_id: resource.org_id
+      org_id: org_id(resource)
     }
   end
 
@@ -53,10 +53,14 @@ defmodule NervesHub.AuditLogs.AuditLog do
       description: description,
       resource_id: resource.id,
       resource_type: resource_type,
-      org_id: resource.org_id,
+      org_id: org_id(resource),
       reference_id: reference_id
     }
   end
+
+  # Most resources belong to an organization; an organization is its own.
+  defp org_id(%Org{id: id}), do: id
+  defp org_id(resource), do: resource.org_id
 
   def changeset(params) do
     changeset(%__MODULE__{}, params)

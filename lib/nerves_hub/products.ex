@@ -10,6 +10,7 @@ defmodule NervesHub.Products do
   alias NervesHub.Accounts.OrgUser
   alias NervesHub.Accounts.Scope
   alias NervesHub.Accounts.User
+  alias NervesHub.DeviceEvents
   alias NervesHub.Devices.Device
   alias NervesHub.Extensions
   alias NervesHub.Products.CustomHealthMetricsLabel
@@ -165,12 +166,13 @@ defmodule NervesHub.Products do
   end
 
   @doc """
-  Gets a single product that a user has access to.
+  Gets a single product in an org where the user holds at least `role`.
 
-  If the product is not found or the user does not have access, returns `{:error, :not_found}`.
+  If the product is not found or the user does not hold that role, returns
+  `{:error, :not_found}`.
   """
-  @spec get_by_id(Scope.t(), pos_integer) :: {:ok, Product.t()} | {:error, :not_found}
-  def get_by_id(%Scope{user: user}, id) do
+  @spec get_by_id(Scope.t(), pos_integer, :view | :manage | :admin) :: {:ok, Product.t()} | {:error, :not_found}
+  def get_by_id(%Scope{user: user}, id, role \\ :view) do
     Product
     |> join(:inner, [p], o in assoc(p, :org))
     |> join(:inner, [_, o], ou in assoc(o, :org_users))
@@ -178,16 +180,17 @@ defmodule NervesHub.Products do
     |> where([_, o], is_nil(o.deleted_at))
     |> where(id: ^id)
     |> where([_, _, ou], ou.user_id == ^user.id)
+    |> where([_, _, ou], ou.role in ^User.role_or_higher(role))
     |> Repo.fetch()
   end
 
   @doc """
-  Creates a product, along with its default health profile.
+  Creates a product in `org`, along with its default health profile.
   """
-  @spec create_product(map()) :: {:ok, Product.t()} | {:error, Ecto.Changeset.t()}
-  def create_product(params) do
+  @spec create_product(Org.t(), map()) :: {:ok, Product.t()} | {:error, Ecto.Changeset.t()}
+  def create_product(%Org{} = org, params) do
     Multi.new()
-    |> Multi.insert(:product, Product.changeset(%Product{}, params))
+    |> Multi.insert(:product, Product.create_changeset(org, params))
     |> Multi.run(:health_profile, fn _repo, %{product: product} ->
       HealthProfiles.create_default_profile(product.id)
     end)
@@ -204,8 +207,8 @@ defmodule NervesHub.Products do
         # failure from the profile seeding must not leak a changeset of the
         # wrong schema.
         changeset =
-          %Product{}
-          |> Product.changeset(params)
+          org
+          |> Product.create_changeset(params)
           |> Ecto.Changeset.add_error(:base, "could not create the default health profile")
 
         {:error, changeset}
@@ -225,6 +228,9 @@ defmodule NervesHub.Products do
   @doc """
   Deletes a Product.
 
+  Its devices stay, but can't connect, and the connections they have open are
+  closed once the product is deleted.
+
   ## Examples
 
       iex> delete_product(product)
@@ -236,9 +242,10 @@ defmodule NervesHub.Products do
   """
   @spec delete_product(Product.t()) :: {:ok, Product.t()} | {:error, Ecto.Changeset.t()}
   def delete_product(%Product{} = product) do
-    product
-    |> Product.delete_changeset()
-    |> Repo.update()
+    with {:ok, product} <- product |> Product.delete_changeset() |> Repo.update() do
+      :ok = DeviceEvents.products_deleted([product.id])
+      {:ok, product}
+    end
   end
 
   @doc """

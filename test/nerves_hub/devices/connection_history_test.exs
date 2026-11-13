@@ -42,6 +42,33 @@ defmodule NervesHub.Devices.ConnectionHistoryTest do
       assert is_nil(history.disconnected_at)
     end
 
+    test "records the client library the device connected with", %{device: device} do
+      {:ok, connection} =
+        Connections.device_connecting(device.org_id, device.product_id, device.id, nil, %{
+          lib: "nerves_hub_link",
+          lib_version: "2.13.0"
+        })
+
+      assert_eventually(
+        [%DeviceConnectionHistory{lib: "nerves_hub_link", lib_version: "2.13.0"}] = history_for(connection.id)
+      )
+
+      # the rows after it are copied from the connection, so they keep it
+      :ok = Connections.device_connected(connection.id)
+      :ok = Connections.device_disconnected(connection.id)
+
+      assert_eventually(
+        [%DeviceConnectionHistory{lib: "nerves_hub_link", lib_version: "2.13.0", disconnected_at: %DateTime{}}] =
+          history_for(connection.id)
+      )
+    end
+
+    test "records an unknown client library as empty", %{device: device} do
+      {:ok, connection} = Connections.device_connecting(device.org_id, device.product_id, device.id)
+
+      assert_eventually([%DeviceConnectionHistory{lib: "", lib_version: ""}] = history_for(connection.id))
+    end
+
     test "device_connected/1 records a history row", %{device: device} do
       {:ok, connection} = Connections.device_connecting(device.org_id, device.product_id, device.id)
       assert_eventually([_] = history_for(connection.id))
@@ -126,7 +153,7 @@ defmodule NervesHub.Devices.ConnectionHistoryTest do
   describe "clean_stale_connections_from_analytics/0" do
     # an open connection is one whose latest history row has no disconnected_at
     defp insert_open_connection(device, last_seen_at) do
-      ref = UUIDv7.generate()
+      ref = Ecto.UUID.generate(version: 7)
 
       connection = %DeviceConnection{
         id: ref,
@@ -191,7 +218,7 @@ defmodule NervesHub.Devices.ConnectionHistoryTest do
     end
 
     test "ignores connections that are already disconnected", %{device: device} do
-      ref = UUIDv7.generate()
+      ref = Ecto.UUID.generate(version: 7)
       now = DateTime.utc_now()
 
       connection = %DeviceConnection{
@@ -233,7 +260,7 @@ defmodule NervesHub.Devices.ConnectionHistoryTest do
       last_seen_at = disconnected_at || DateTime.utc_now()
 
       connection = %DeviceConnection{
-        id: UUIDv7.generate(),
+        id: Ecto.UUID.generate(version: 7),
         org_id: device.org_id,
         product_id: device.product_id,
         device_id: device.id,

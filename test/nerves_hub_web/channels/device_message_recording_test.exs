@@ -18,8 +18,10 @@ defmodule NervesHubWeb.DeviceMessageRecordingTest do
   alias NervesHub.Devices.DeviceMessages
   alias NervesHub.Extensions
   alias NervesHub.Fixtures
+  alias NervesHub.Products
   alias NervesHubWeb.DeviceChannel
   alias NervesHubWeb.DeviceSocket
+  alias NervesHubWeb.ExtensionsChannel
 
   setup do
     :ok = Buffer.flush(DeviceMessage)
@@ -93,6 +95,48 @@ defmodule NervesHubWeb.DeviceMessageRecordingTest do
 
       close_cleanly(channel)
     end
+  end
+
+  describe "the local shell" do
+    # A terminal, like the console: its output echoes whatever was typed at it,
+    # and anyone who can see the device can read its message history.
+    test "records the size of shell output but not its contents", %{tmp_dir: tmp_dir} do
+      %{device: device, channel: channel} = join_local_shell(tmp_dir)
+
+      push(channel, "local_shell:shell_output", %{"data" => "export SECRET=hunter2\n"})
+      _ = :sys.get_state(channel.channel_pid)
+
+      assert %{direction: "received", topic: "extensions", payload: "", payload_bytes: bytes} =
+               find(recorded(device), "local_shell:shell_output")
+
+      assert bytes == byte_size("export SECRET=hunter2\n")
+
+      close_cleanly(channel)
+    end
+  end
+
+  defp join_local_shell(tmp_dir) do
+    user = Fixtures.user_fixture()
+    org = Fixtures.org_fixture(user)
+    product = Fixtures.product_fixture(user, org)
+    {:ok, _product} = Products.enable_extension_setting(product, "local_shell")
+    org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
+    firmware = Fixtures.firmware_fixture(org_key, product, %{version: "0.0.1", dir: tmp_dir})
+    device = Fixtures.device_fixture(org, product, firmware, %{identifier: "recording-shell-123"})
+
+    %{db_cert: certificate} = Fixtures.device_certificate_fixture(device)
+
+    {:ok, socket} = connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
+    params = %{"device_api_version" => "2.2.0"}
+    {:ok, _, _device_channel} = subscribe_and_join(socket, DeviceChannel, "device:#{device.id}", params)
+
+    {:ok, _attach_list, channel} =
+      subscribe_and_join(socket, ExtensionsChannel, "extensions", Map.put(params, "local_shell", "0.0.1"))
+
+    push(channel, "local_shell:attached", %{})
+    _ = :sys.get_state(channel.channel_pid)
+
+    %{device: device, channel: channel}
   end
 
   defp join_device(tmp_dir) do

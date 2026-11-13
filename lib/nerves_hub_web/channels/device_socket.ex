@@ -2,9 +2,12 @@ defmodule NervesHubWeb.DeviceSocket do
   use Phoenix.Socket
   use OpenTelemetryDecorator
 
+  alias NervesHub.DeviceEvents
   alias NervesHub.DeviceLink.Client, as: DeviceLink
   alias NervesHub.ProductNotifications
+  alias NervesHubWeb.Channels.Platform
   alias NervesHubWeb.Helpers.ClientIP
+  alias NervesHubWeb.Helpers.ServerName
   alias Phoenix.Socket.Transport
 
   channel("console", NervesHubWeb.ConsoleChannel)
@@ -33,10 +36,18 @@ defmodule NervesHubWeb.DeviceSocket do
     super(msg, {state, socket})
   end
 
+  # Runs on the socket process itself, so raising here would close the whole
+  # connection. Unanswered or not, it counts as done: the next one is an
+  # interval away, and asking again on every frame would only add load while
+  # the platform is slow.
   @decorate with_span("Channels.DeviceSocket.heartbeat")
   defp heartbeat(%{assigns: %{device_info: device_info}} = socket) do
     if update_heartbeat?(socket) do
-      _ = DeviceLink.heartbeat(device_info.connection_ref)
+      _ =
+        Platform.ask(socket, :heartbeat, fn ->
+          DeviceLink.heartbeat(device_info.connection_ref)
+        end)
+
       update_last_heartbeat(socket)
     else
       socket
@@ -115,7 +126,23 @@ defmodule NervesHubWeb.DeviceSocket do
   @decorate with_span("Channels.DeviceSocket.connect:shared_secrets")
   defp do_connect(_params, socket, %{x_headers: x_headers} = connect_info)
        when is_list(x_headers) and x_headers != [] do
-    authenticate(socket, {:shared_secret, Map.new(x_headers)}, connect_info)
+    headers = Map.new(x_headers)
+
+    # Deactivating a key broadcasts a disconnect to its topic once it commits,
+    # so subscribing before the key is looked up leaves no gap: either the lookup
+    # sees the deactivation, or this process hears the disconnect. It hears it
+    # as the socket too, since Bandit runs the socket in this same process.
+    topic = DeviceEvents.shared_secret_topic(headers["x-nh-key"])
+    :ok = socket.endpoint.subscribe(topic)
+
+    case authenticate(socket, {:shared_secret, headers}, connect_info) do
+      {:ok, _socket} = ok ->
+        ok
+
+      error ->
+        :ok = socket.endpoint.unsubscribe(topic)
+        error
+    end
   end
 
   defp do_connect(_params, _socket, _connect_info) do
@@ -141,8 +168,8 @@ defmodule NervesHubWeb.DeviceSocket do
   # finished joining the cluster. Refusing is correct; raising is not, because it
   # answers the device with a 500 and buries the reason in a rendered error page.
   defp authenticate(socket, credentials, connect_info) do
-    case DeviceLink.authenticate(credentials) do
-      {:ok, device_info} -> socket_and_assigns(socket, device_info, ip_address(socket, connect_info))
+    case DeviceLink.authenticate(credentials, ServerName.recorded()) do
+      {:ok, device_info} -> socket_and_assigns(socket, device_info, connect_info)
       {:error, reason} -> {:error, reason}
     end
   catch
@@ -155,14 +182,17 @@ defmodule NervesHubWeb.DeviceSocket do
       {:error, :platform_unavailable}
   end
 
-  defp socket_and_assigns(socket, device_info, ip_address) do
+  defp socket_and_assigns(socket, device_info, connect_info) do
     # disconnect devices using the same identifier
     _ = socket.endpoint.broadcast_from(self(), "device_socket:#{device_info.device_id}", "disconnect", %{})
 
+    # The User-Agent names the client library the device connects with; it is
+    # read where the connection is recorded (`NervesHub.DeviceLink.connect/3`).
     socket =
       socket
       |> assign(:device_info, device_info)
-      |> assign(:ip_address, ip_address)
+      |> assign(:ip_address, ip_address(socket, connect_info))
+      |> assign(:user_agent, Map.get(connect_info, :user_agent))
 
     {:ok, socket}
   end
@@ -183,7 +213,7 @@ defmodule NervesHubWeb.DeviceSocket do
   @decorate with_span("Channels.DeviceSocket.on_connect")
   defp on_connect(%{assigns: %{device_info: device_info}} = socket) do
     # Report connection and use connection id as reference
-    {:ok, device_info} = DeviceLink.connect(device_info, socket.assigns[:ip_address])
+    {:ok, device_info} = DeviceLink.connect(device_info, socket.assigns[:ip_address], socket.assigns[:user_agent])
 
     :telemetry.execute([:nerves_hub, :devices, :connect], %{count: 1}, %{
       ref_id: device_info.connection_ref,
@@ -227,8 +257,12 @@ defmodule NervesHubWeb.DeviceSocket do
     })
 
     # its possible that this is a stale connection and the device has already reconnected,
-    # which means the following call might return :error, but we can ignore it
-    _ = DeviceLink.disconnect(device_info.connection_ref)
+    # which means the following call might return :error, but we can ignore it.
+    # The same goes for no answer at all: the connection is closing either way.
+    _ =
+      Platform.ask(socket, :disconnect, fn ->
+        DeviceLink.disconnect(device_info.connection_ref)
+      end)
 
     assign(socket, :disconnection_handled?, true)
   end

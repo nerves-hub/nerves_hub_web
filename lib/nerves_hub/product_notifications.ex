@@ -2,13 +2,19 @@ defmodule NervesHub.ProductNotifications do
   import Ecto.Query
 
   alias NervesHub.Accounts.Scope
+  alias NervesHub.Branding
   alias NervesHub.DeviceLink.DeviceInfo
   alias NervesHub.Devices.Device
+  alias NervesHub.Integrations
+  alias NervesHub.Integrations.ChatWebhooks
+  alias NervesHub.Integrations.ChatWebhooks.ChatWebhook
+  alias NervesHub.Integrations.Slack.Subscription
   alias NervesHub.ManagedDeployments.DeploymentWorkflowStep
   alias NervesHub.Products
   alias NervesHub.Products.Notification
   alias NervesHub.Products.Product
   alias NervesHub.Repo
+  alias NervesHub.Webhooks.Webhook
   alias Phoenix.Socket.Broadcast
 
   # Failure reasons arrive in a device's message payload, so they are whatever
@@ -224,8 +230,12 @@ defmodule NervesHub.ProductNotifications do
   Raised to the operator because nothing else will notice. A halted workflow is
   quiet: devices carry on connecting, the deployment group still says it is
   active, and the only sign is a diagram nobody is looking at.
+
+  Pass `broadcast: false` when raising it inside a transaction, and call
+  `broadcast/2` once that commits. Told sooner, the notifications page reads
+  the list back without it.
   """
-  def create_workflow_halted_notification!(deployment_group, step, reason) do
+  def create_workflow_halted_notification!(deployment_group, step, reason, opts \\ []) do
     {title, message, level} = workflow_halted_copy(deployment_group, step, reason)
 
     %Product{id: deployment_group.product_id}
@@ -242,7 +252,7 @@ defmodule NervesHub.ProductNotifications do
       # stops twice at different stages says so twice.
       event_key: workflow_halted_key(deployment_group.id, step.id)
     })
-    |> insert_and_notify!()
+    |> insert_and_notify!(opts)
   end
 
   @doc """
@@ -287,6 +297,41 @@ defmodule NervesHub.ProductNotifications do
   end
 
   @doc """
+  A device could not run the connecting code it was sent when it connected.
+
+  Raised because nothing else shows it. The device stays connected and nothing
+  on its page changes, so before this the only trace was a log line.
+
+  Connecting code is usually set on a deployment group, so code that is wrong
+  fails on every device in the group, every time one connects. That is why this
+  is deduplicated on `connecting_code`, the code as the device was sent it,
+  rather than on the device. A whole group failing on the same code makes one
+  notification, named for the first device to fail, with every later failure in
+  its count. Code that is changed and fails again makes a new notification
+  carrying the new reason. The conflict clause in `insert_and_notify!/1` would
+  keep the old one.
+  """
+  @spec create_connecting_code_failure_notification!(DeviceInfo.t(), String.t(), String.t() | nil) ::
+          Notification.t()
+  def create_connecting_code_failure_notification!(%DeviceInfo{} = device_info, connecting_code, reason) do
+    reason = truncate_reason(reason)
+
+    %Product{id: device_info.product_id}
+    |> Notification.new_changeset(%{
+      title: "A device could not run its connecting code.",
+      message:
+        "The device with the identifier '#{device_info.device_identifier}' could not run the " <>
+          "connecting code it was sent when it connected#{reason_clause(reason)}. A device's connecting " <>
+          "code combines its own, its deployment group's and its release's. Every device sent the " <>
+          "same code adds to this notification's count.",
+      level: :warning,
+      metadata: %{identifier: device_info.device_identifier, reason: reason},
+      event_key: "connecting_code_failure-#{:erlang.phash2(connecting_code)}"
+    })
+    |> insert_and_notify!()
+  end
+
+  @doc """
   A device reported more metrics in one report than will be stored.
 
   The report is kept, trimmed to the first `max_keys` names in sorted order --
@@ -314,32 +359,127 @@ defmodule NervesHub.ProductNotifications do
   end
 
   @doc """
+  A webhook was turned off because of how its endpoint answered. One
+  notification for each product in `product_ids`, the products whose events
+  the webhook was sending.
+
+  Raised to the operator because nothing else will notice: the receiving
+  system simply stops hearing about devices. Webhooks belong to the
+  organization, which has no notifications of its own, so the products whose
+  events stopped carry it. Names the endpoint by its host, since some
+  receivers carry credentials in the URL itself.
+  """
+  @spec create_webhook_disabled_notifications!(Webhook.t(), [pos_integer()], String.t()) :: [Notification.t()]
+  def create_webhook_disabled_notifications!(%Webhook{} = webhook, product_ids, reason) do
+    host = URI.parse(webhook.url).host
+
+    for product_id <- product_ids do
+      %Product{id: product_id}
+      |> Notification.new_changeset(%{
+        title: "A webhook was turned off.",
+        message:
+          "#{Branding.friendly_platform_name()} stopped sending events to #{host} because #{reason}. Once the endpoint is " <>
+            "fixed, turn the webhook back on from the organization's Integrations settings.",
+        level: :error,
+        metadata: %{webhook_id: webhook.id, host: host},
+        event_key: "webhook_disabled-#{webhook.id}"
+      })
+      |> insert_and_notify!()
+    end
+  end
+
+  @doc """
+  A Slack channel subscription was turned off because the channel could not
+  be posted to. One notification for each product in `product_ids`, the
+  products whose events the channel was getting.
+  """
+  @spec create_slack_subscription_disabled_notifications!(Subscription.t(), [pos_integer()], String.t()) ::
+          [Notification.t()]
+  def create_slack_subscription_disabled_notifications!(%Subscription{} = subscription, product_ids, reason) do
+    for product_id <- product_ids do
+      %Product{id: product_id}
+      |> Notification.new_changeset(%{
+        title: "Slack notifications were turned off.",
+        message:
+          "#{Branding.friendly_platform_name()} stopped posting to ##{subscription.channel_name} because #{reason}. Once that is fixed, " <>
+            "turn the channel back on from the organization's Integrations settings.",
+        level: :error,
+        metadata: %{slack_subscription_id: subscription.id, channel: subscription.channel_name},
+        event_key: "slack_subscription_disabled-#{subscription.id}"
+      })
+      |> insert_and_notify!()
+    end
+  end
+
+  @doc """
+  NervesHub stopped posting to a Teams or Discord channel because the chat
+  service refused its webhook, one notification per product the channel
+  heard.
+  """
+  def create_chat_webhook_disabled_notifications!(%ChatWebhook{} = channel, product_ids, reason) do
+    service = ChatWebhooks.provider(channel.provider).label()
+
+    for product_id <- product_ids do
+      %Product{id: product_id}
+      |> Notification.new_changeset(%{
+        title: "#{service} notifications were turned off.",
+        message:
+          "#{Branding.friendly_platform_name()} stopped posting to the #{service} channel #{channel.name} because #{reason}. Once the webhook is fixed, " <>
+            "turn the channel back on from the organization's Integrations settings, or give it the webhook's new URL.",
+        level: :error,
+        metadata: %{chat_webhook_id: channel.id, channel: channel.name},
+        event_key: "chat_webhook_disabled-#{channel.id}"
+      })
+      |> insert_and_notify!()
+    end
+  end
+
+  @doc """
   Take back the notice that a workflow had stopped.
 
   Raised when a workflow stops and cleared when it starts again, so the list
   reflects what needs attention now rather than everything that ever did. The
   same key the notice was raised under finds it, whether it was raised once or
   coalesced from several.
+
+  Returns `{:ok, :resolved}` when there was a notice to take back, and
+  `{:ok, :none}` when there was not. `broadcast: false` leaves telling the
+  notifications page to `broadcast/2`, as for
+  `create_workflow_halted_notification!/4`.
   """
-  @spec resolve_workflow_halted_notification!(pos_integer(), pos_integer(), pos_integer()) :: :ok
-  def resolve_workflow_halted_notification!(product_id, deployment_group_id, step_id) do
-    resolve!(product_id, workflow_halted_key(deployment_group_id, step_id))
+  @spec resolve_workflow_halted_notification!(pos_integer(), pos_integer(), pos_integer(), keyword()) ::
+          {:ok, :resolved | :none}
+  def resolve_workflow_halted_notification!(product_id, deployment_group_id, step_id, opts \\ []) do
+    resolve!(product_id, workflow_halted_key(deployment_group_id, step_id), opts)
   end
 
-  defp resolve!(product_id, event_key) do
+  defp resolve!(product_id, event_key, opts) do
     {deleted, _} =
       Notification
       |> where([n], n.product_id == ^product_id and n.event_key == ^event_key)
       |> Repo.delete_all()
 
     if deleted > 0 do
-      _ =
-        Group.dispatch(NervesHub.Group, key(product_id), %Broadcast{
-          topic: topic(product_id),
-          event: "resolved",
-          payload: %{}
-        })
+      if Keyword.get(opts, :broadcast, true), do: :ok = broadcast(product_id, "resolved")
+
+      {:ok, :resolved}
+    else
+      {:ok, :none}
     end
+  end
+
+  @doc """
+  Tells the product's notifications page that a notification was `"created"`
+  or `"resolved"`, for a caller that changed one with `broadcast: false`.
+  """
+  @spec broadcast(pos_integer(), String.t()) :: :ok
+  def broadcast(product_id, event) when event in ~w(created resolved) do
+    _ =
+      Group.dispatch(NervesHub.Group, key(product_id), %Broadcast{
+        topic: topic(product_id),
+        event: event,
+        payload: %{}
+      })
 
     :ok
   end
@@ -375,7 +515,7 @@ defmodule NervesHub.ProductNotifications do
 
   defp truncate_reason(reason), do: truncate_reason(inspect(reason))
 
-  defp insert_and_notify!(changeset) do
+  defp insert_and_notify!(changeset, opts \\ []) do
     conflict_query =
       Notification
       |> update([n],
@@ -388,15 +528,30 @@ defmodule NervesHub.ProductNotifications do
     notification =
       Repo.insert!(changeset,
         on_conflict: conflict_query,
-        conflict_target: [:product_id, :event_key]
+        conflict_target: [:product_id, :event_key],
+        # Only the count, which tells a new notification from a recurrence.
+        # Reading back the rest would hand callers string-keyed metadata.
+        returning: [:occurrence_count]
       )
 
-    _ =
-      Group.dispatch(NervesHub.Group, key(notification.product_id), %Broadcast{
-        topic: topic(notification.product_id),
-        event: "created",
-        payload: %{}
-      })
+    # Only a new notification is news. The same one occurring again only
+    # bumps its count, and would otherwise post the same thing to Slack each
+    # time.
+    if notification.occurrence_count == 1 do
+      :ok =
+        Integrations.dispatch(notification.product_id, "product.notification_created", fn ->
+          %{
+            notification: %{
+              id: notification.id,
+              title: notification.title,
+              message: notification.message,
+              level: to_string(notification.level)
+            }
+          }
+        end)
+    end
+
+    if Keyword.get(opts, :broadcast, true), do: :ok = broadcast(notification.product_id, "created")
 
     notification
   end

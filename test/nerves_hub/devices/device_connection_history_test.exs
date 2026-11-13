@@ -10,7 +10,7 @@ defmodule NervesHub.Devices.DeviceConnectionHistoryTest do
       established_at = ~U[2026-06-20 10:00:00.000000Z]
       last_seen_at = ~U[2026-06-20 10:05:00.000000Z]
       disconnected_at = ~U[2026-06-20 10:10:00.000000Z]
-      ref = UUIDv7.generate()
+      ref = Ecto.UUID.generate(version: 7)
 
       connection = %DeviceConnection{
         id: ref,
@@ -43,7 +43,7 @@ defmodule NervesHub.Devices.DeviceConnectionHistoryTest do
     end
 
     test "the ref points back to the originating connection's id" do
-      ref = UUIDv7.generate()
+      ref = Ecto.UUID.generate(version: 7)
 
       changes =
         %DeviceConnection{
@@ -62,7 +62,7 @@ defmodule NervesHub.Devices.DeviceConnectionHistoryTest do
 
     test "the version is set from the insert time so the most recently written row wins" do
       connection = %DeviceConnection{
-        id: UUIDv7.generate(),
+        id: Ecto.UUID.generate(version: 7),
         org_id: 1,
         product_id: 2,
         device_id: 3,
@@ -84,7 +84,7 @@ defmodule NervesHub.Devices.DeviceConnectionHistoryTest do
 
     test "successive rows for the same connection get strictly increasing versions" do
       connection = %DeviceConnection{
-        id: UUIDv7.generate(),
+        id: Ecto.UUID.generate(version: 7),
         org_id: 1,
         product_id: 2,
         device_id: 3,
@@ -106,7 +106,7 @@ defmodule NervesHub.Devices.DeviceConnectionHistoryTest do
 
     test "the version does not depend on last_seen_at" do
       base = %DeviceConnection{
-        id: UUIDv7.generate(),
+        id: Ecto.UUID.generate(version: 7),
         org_id: 1,
         product_id: 2,
         device_id: 3,
@@ -128,7 +128,7 @@ defmodule NervesHub.Devices.DeviceConnectionHistoryTest do
     end
 
     test "mark_as_stale_and_disconnected_changeset bumps the version past the row it carries forward" do
-      ref = UUIDv7.generate()
+      ref = Ecto.UUID.generate(version: 7)
 
       # version the carried forward row the way the writer would have, so the
       # bump has to beat it even when both land in the same microsecond

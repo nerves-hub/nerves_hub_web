@@ -55,6 +55,25 @@ defmodule NervesHubWeb.Live.AccountTest do
       )
     end
 
+    test "a new email only takes effect once the link emailed to it is followed", %{conn: conn, user: user} do
+      conn
+      |> visit("/account")
+      |> within("#details-form", fn session ->
+        session
+        |> fill_in("Email", with: "ringo@drums.com")
+        |> fill_in("Password", with: "test_password", exact: false)
+        |> submit()
+      end)
+      |> assert_path("/account")
+      |> assert_has("div", text: "We've emailed a link to ringo@drums.com.")
+
+      assert Accounts.get_user(user.id) |> elem(1) |> Map.fetch!(:email) == user.email
+
+      send_queued_emails()
+
+      assert_email_sent(to: "ringo@drums.com", subject: "NervesHub: Confirm your new email address")
+    end
+
     test "requires valid current password to update password", %{conn: conn} do
       conn
       |> visit("/account")
@@ -90,6 +109,23 @@ defmodule NervesHubWeb.Live.AccountTest do
       send_queued_emails()
 
       assert_email_sent(subject: "NervesHub: Your password has been updated")
+    end
+
+    # The details form has no password field, but nothing stops a request
+    # adding one.
+    test "won't change the password through the details form", %{conn: conn, user: user} do
+      conn
+      |> visit("/account")
+      |> unwrap(fn view ->
+        view
+        |> element("#details-form")
+        |> render_submit(%{"user" => %{"password" => "x"}})
+      end)
+      |> assert_has("div", text: "Account updated")
+
+      {:ok, updated_user} = Accounts.get_user(user.id)
+
+      assert updated_user.password_hash == user.password_hash
     end
   end
 

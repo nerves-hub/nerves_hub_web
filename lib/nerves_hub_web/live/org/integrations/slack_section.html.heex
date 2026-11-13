@@ -1,0 +1,89 @@
+<div id={@id}>
+  <%= for connection <- @connections, subscription <- connection.subscriptions do %>
+    <.integration_row
+      id={row_id(subscription)}
+      service={:slack}
+      name={"##{subscription.channel_name}"}
+      status={status(subscription)}
+      products={products_scope(subscription)}
+      events={event_labels(subscription)}
+    >
+      <:subline>Slack · {connection.workspace.team_name} workspace</:subline>
+      <:problem :if={subscription.disabled_reason}>{subscription.disabled_reason}</:problem>
+      <:problem :if={subscription.enabled && subscription.last_error}>
+        Posting failed at <.local_datetime at={subscription.last_error_at} time_zone={@time_zone} format={:time} zone_label={false} />: {subscription.last_error}
+      </:problem>
+      <:menu :if={authorized?(:"slack_subscription:update", @current_scope)}>
+        <.row_menu id={row_id(subscription)} label={"Actions for ##{subscription.channel_name}"}>
+          <.menu_item
+            icon="lucide-send"
+            phx-click={JS.push("send-test", value: %{subscription_id: subscription.id}, target: @myself) |> hide_menu(row_id(subscription))}
+            disabled={MapSet.member?(@testing, subscription.id)}
+          >
+            {if MapSet.member?(@testing, subscription.id), do: "Sending…", else: "Send test message"}
+          </.menu_item>
+          <.menu_item
+            icon="lucide-pencil"
+            phx-click={JS.push("edit-channel", value: %{subscription_id: subscription.id}, target: @myself) |> hide_menu(row_id(subscription))}
+          >
+            Edit
+          </.menu_item>
+          <.menu_divider />
+          <.menu_item
+            icon={if subscription.enabled, do: "lucide-power-off", else: "lucide-power"}
+            phx-click={JS.push("toggle", value: %{subscription_id: subscription.id}, target: @myself) |> hide_menu(row_id(subscription))}
+          >
+            {if subscription.enabled, do: "Turn off", else: "Turn on"}
+          </.menu_item>
+          <.menu_item
+            :if={authorized?(:"slack_subscription:delete", @current_scope)}
+            icon="lucide-trash"
+            danger
+            phx-click={JS.push("delete", value: %{subscription_id: subscription.id}, target: @myself) |> hide_menu(row_id(subscription))}
+            data-confirm={"Stop posting to ##{subscription.channel_name}? Events held for it are dropped."}
+          >
+            Delete channel
+          </.menu_item>
+        </.row_menu>
+      </:menu>
+    </.integration_row>
+  <% end %>
+
+  <.dialog :if={@form} id="slack-dialog" service={:slack} title={dialog_title(@editing)} on_cancel={JS.push("cancel", target: @myself)}>
+    <.form for={@form} id="slack-subscription-form" phx-change="validate" phx-submit="save" phx-target={@myself}>
+      <.dialog_body>
+        <div :if={match?({:new, _}, @editing)} class="flex flex-col gap-1.5">
+          <label for="slack-subscription-channel" class="text-[13px]/4 font-medium text-content-body">Channel</label>
+          <div :if={@channels.loading} class="flex h-9 items-center gap-2 text-[13px] text-content-muted">
+            <span class="lucide-loader-circle size-3.5 animate-spin" aria-hidden="true"></span> Loading channels from Slack…
+          </div>
+          <p :if={@channels.failed} class="text-[13px] text-alert-content">
+            Slack did not list the workspace's channels: {error_message(@channels.failed)}
+          </p>
+          <select
+            :if={@channels.ok?}
+            id="slack-subscription-channel"
+            name="slack_subscription[channel_id]"
+            aria-describedby="slack-subscription-channel-hint"
+            class="h-9 w-full rounded-md border border-line-strong bg-surface-raised px-2.5 text-[13px] text-content-strong focus:border-primary focus:ring-3 focus:ring-primary/20 focus:outline-none"
+          >
+            <option value="">Choose a channel</option>
+            {Phoenix.HTML.Form.options_for_select(channel_options(@channels.result), @selected_channel)}
+          </select>
+          <p id="slack-subscription-channel-hint" class="text-xs text-content-faint">
+            In the {elem(@editing, 1).workspace.team_name} workspace. Every public channel is listed; to post to a private one, invite the {Branding.friendly_platform_name()} app to it first.
+          </p>
+        </div>
+
+        <.products_field form={@form} id="slack" products={@products} />
+        <.events_field form={@form} id="slack" columns={@event_columns} />
+      </.dialog_body>
+
+      <.dialog_footer dialog="slack-dialog">
+        <.button style="primary" type="submit" phx-disable-with="Saving…">
+          {if match?({:new, _}, @editing), do: "Add channel", else: "Save channel"}
+        </.button>
+      </.dialog_footer>
+    </.form>
+  </.dialog>
+</div>

@@ -1,4 +1,6 @@
 defmodule NervesHub.Logger do
+  alias NervesHub.Telemetry.RequestPath
+
   require Logger
 
   @metadata_ignore_list [
@@ -33,12 +35,15 @@ defmodule NervesHub.Logger do
         [:nerves_hub, :devices, :connecting_code_failure],
         [:nerves_hub, :devices, :disconnect],
         [:nerves_hub, :devices, :duplicate_connection],
+        [:nerves_hub, :devices, :handshake_failed],
         [:nerves_hub, :devices, :network_interface_mismatch],
         [:nerves_hub, :devices, :wrong_websocket_host],
         [:nerves_hub, :devices, :update_mode_revert_failed],
         [:nerves_hub, :devices, :downloader_network_interface_nil],
         [:nerves_hub, :devices, :update, :automatic],
         [:nerves_hub, :devices, :update, :successful],
+        [:nerves_hub, :device_link, :dispatch_timeout],
+        [:nerves_hub, :device_link, :unanswered],
         [:nerves_hub, :managed_deployments, :set_deployment_group, :none_found],
         [:nerves_hub, :managed_deployments, :set_deployment_group, :one_found],
         [:nerves_hub, :managed_deployments, :set_deployment_group, :multiple_found],
@@ -83,7 +88,8 @@ defmodule NervesHub.Logger do
         org_id: metadata[:org_id],
         product_id: metadata[:product_id],
         shared_key: metadata[:shared_key],
-        identifier: metadata[:device_identifier]
+        identifier: metadata[:identifier],
+        server_name: metadata[:server_name]
       }
       |> Map.reject(fn {_key, val} -> is_nil(val) end)
 
@@ -222,6 +228,32 @@ defmodule NervesHub.Logger do
     Logger.warning("Unhandled handle_in message", extra)
   end
 
+  # The node a DeviceLink call was sent to took it and did not answer in time.
+  # It is most likely still working on it, so this says the platform is slow,
+  # not that it is gone. `call` rather than `function`, which Logger fills with
+  # the caller and would overwrite.
+  def log_event([:nerves_hub, :device_link, :dispatch_timeout], _, metadata, _) do
+    Logger.warning("Platform node did not answer in time",
+      event: "nerves_hub.device_link.dispatch_timeout",
+      node: metadata[:node],
+      call: metadata[:function],
+      timeout: metadata[:timeout]
+    )
+  end
+
+  # A connected device asked for something, or was sent something, and the
+  # platform did not answer: no node could be reached, or the one that took the
+  # call was too slow. The message says what that cost the device.
+  def log_event([:nerves_hub, :device_link, :unanswered], _, metadata, _) do
+    Logger.warning("Platform did not answer, #{unanswered_cost(metadata[:function])}",
+      event: "nerves_hub.device_link.unanswered",
+      call: metadata[:function],
+      reason: metadata[:reason],
+      device_id: metadata[:device_id],
+      detail: unanswered_detail(metadata[:error])
+    )
+  end
+
   def log_event([:nerves_hub, :managed_deployments, :set_deployment_group, :none_found], _, metadata, _) do
     Logger.info("No matching deployment groups",
       event: "nerves_hub.managed_deployments.set_deployment_group.none_found",
@@ -243,6 +275,24 @@ defmodule NervesHub.Logger do
       identifier: metadata[:device].identifier,
       deployment_id: metadata[:deployment_group].id
     )
+  end
+
+  # A TLS handshake on the device endpoint ended in an alert, sent by either side.
+  # OTP logs the alert as well, but without the client's address or the host it
+  # asked for, which are what tell a device dialling a name the certificate does
+  # not cover apart from a scanner. `sni` is absent when the client sent none.
+  def log_event([:nerves_hub, :devices, :handshake_failed], _, metadata, _) do
+    extra =
+      %{
+        event: "nerves_hub.devices.handshake_failed",
+        alert: metadata[:alert],
+        remote_ip: peer_ip(metadata[:peer]),
+        sni: metadata[:sni],
+        reason: metadata[:description] |> to_string() |> String.trim()
+      }
+      |> Map.reject(fn {_key, val} -> is_nil(val) end)
+
+    Logger.info("Device TLS handshake failed", extra)
   end
 
   def log_event([:nerves_hub, :ssl, :fail], _, metadata, _) do
@@ -300,10 +350,11 @@ defmodule NervesHub.Logger do
     |> Enum.join()
   end
 
-  defp request_path(%{request_path: request_path, query_string: query_string}) when query_string not in ["", nil],
-    do: request_path <> "?" <> query_string
+  # Without the tokens some paths carry, which work for whoever reads them.
+  defp request_path(%{request_path: _, query_string: query_string} = conn) when query_string not in ["", nil],
+    do: RequestPath.recordable(conn) <> "?" <> query_string
 
-  defp request_path(%{request_path: request_path}), do: request_path
+  defp request_path(%{request_path: _} = conn), do: RequestPath.recordable(conn)
   defp request_path(_), do: nil
 
   defp formatted_ip(conn) do
@@ -320,4 +371,21 @@ defmodule NervesHub.Logger do
         |> to_string()
     end
   end
+
+  defp peer_ip({:ok, {ip, _port}}), do: ip |> :inet_parse.ntoa() |> to_string()
+  defp peer_ip(_peer), do: nil
+
+  # What each caller of `NervesHubWeb.Channels.Platform.ask/3` does when no
+  # answer comes.
+  defp unanswered_cost(function) when function in [:device_join, :extensions_join], do: "join refused"
+
+  defp unanswered_cost(function) when function in [:device_message, :device_notify, :device_broadcast],
+    do: "device channel closed for the device to rejoin"
+
+  defp unanswered_cost(:heartbeat), do: "heartbeat not recorded"
+  defp unanswered_cost(:disconnect), do: "disconnect not recorded"
+  defp unanswered_cost(_function), do: "message dropped"
+
+  defp unanswered_detail(error) when is_exception(error), do: Exception.message(error)
+  defp unanswered_detail(_error), do: nil
 end

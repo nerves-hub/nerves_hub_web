@@ -19,7 +19,12 @@ defmodule NervesHubWeb.API.Schemas.FirmwareSchemas do
           type: :string,
           description: "The update tool that handles this firmware, determined from the uploaded file",
           enum: ["fwup", "esp-idf"]
-        }
+        },
+        description: %Schema{type: :string, nullable: true},
+        misc: %Schema{type: :string, nullable: true},
+        vcs_identifier: %Schema{type: :string, nullable: true},
+        size: %Schema{type: :integer, description: "Size in bytes"},
+        inserted_at: %Schema{type: :string, format: :"date-time"}
       },
       example: %{
         "uuid" => "d9f8c63a-1234-5678-abcd-ef0123456789",
@@ -28,7 +33,12 @@ defmodule NervesHubWeb.API.Schemas.FirmwareSchemas do
         "platform" => "rpi0",
         "author" => "NervesHub",
         "product" => "MyProduct",
-        "tool" => "fwup"
+        "tool" => "fwup",
+        "description" => "Main firmware",
+        "misc" => nil,
+        "vcs_identifier" => "a1b2c3d",
+        "size" => 104_857_600,
+        "inserted_at" => "2026-01-15T09:34:27"
       }
     })
   end
@@ -48,7 +58,12 @@ defmodule NervesHubWeb.API.Schemas.FirmwareSchemas do
           "platform" => "rpi0",
           "author" => "NervesHub",
           "product" => "MyProduct",
-          "tool" => "fwup"
+          "tool" => "fwup",
+          "description" => "Main firmware",
+          "misc" => nil,
+          "vcs_identifier" => "a1b2c3d",
+          "size" => 104_857_600,
+          "inserted_at" => "2026-01-15T09:34:27"
         }
       }
     })

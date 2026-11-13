@@ -9,8 +9,10 @@ defmodule NervesHub.DeviceLink.PeerVerificationTest do
 
   use ExUnit.Case, async: false
 
+  alias NervesHub.Certificate
   alias NervesHub.DeviceLink.Dispatcher
   alias NervesHub.DeviceLink.PeerVerification
+  alias NervesHub.Fixtures
   alias NervesHub.SSL
 
   setup do
@@ -107,6 +109,34 @@ defmodule NervesHub.DeviceLink.PeerVerificationTest do
     end
   end
 
+  # Which event a certificate arrives as is up to :ssl, so this takes a real
+  # handshake. A certificate that signed itself, sent on its own, arrives as
+  # {:bad_cert, :selfsigned_peer}, not as an unknown CA.
+  describe "a self-signed certificate sent on its own" do
+    test "is asked about as {:bad_cert, :selfsigned_peer}, and the answer admits it" do
+      test = self()
+      %{cert: cert, key: key} = Fixtures.self_signed_device_certificate("peer-verification-device")
+
+      stub(fn :verify_peer, [der, event] ->
+        send(test, {:asked, der, event})
+        :valid
+      end)
+
+      assert {:ok, _socket} = handshake([cert], key)
+
+      assert_receive {:asked, der, {:bad_cert, :selfsigned_peer}}
+      assert X509.Certificate.from_der!(der) == cert
+    end
+
+    test "is refused when the platform refuses it" do
+      %{cert: cert, key: key} = Fixtures.self_signed_device_certificate("peer-verification-device")
+
+      stub(fn :verify_peer, _args -> {:fail, :unknown_device_certificate} end)
+
+      assert {:error, _reason} = handshake([cert], key)
+    end
+  end
+
   describe "when the platform cannot be reached" do
     test "the handshake is refused rather than allowed through" do
       stub(fn :verify_peer, _args -> raise "no handler nodes available" end)
@@ -142,6 +172,99 @@ defmodule NervesHub.DeviceLink.PeerVerificationTest do
 
       assert_received {:unavailable, %{kind: :exit, reason: :noconnection}}
     end
+  end
+
+  # Over a real handshake, since which event a problem arrives as is up to :ssl.
+  # A device that sends the wrong CA certificate with its own, one with its
+  # issuer's name but not the key that signed it, is asked about as
+  # {:bad_cert, :invalid_signature}. The platform answers, not a stub: a
+  # platform with no answer for an event raises, which this module can only
+  # report as the platform being unavailable. It answers twice, and neither
+  # answer needs the database: the CA is a root, let through on its own key
+  # identifiers, and the device certificate is refused before anything is
+  # looked up.
+  describe "a chain :ssl finds something wrong with" do
+    test "is refused for what is wrong with it, not as the platform being unavailable" do
+      ref = make_ref()
+      test = self()
+      handler = "peer-verification-#{inspect(ref)}"
+
+      :telemetry.attach(
+        handler,
+        [:nerves_hub, :ssl, :fail],
+        fn _event, _measure, meta, _config -> send(test, {:fail, meta}) end,
+        nil
+      )
+
+      on_exit(fn -> :telemetry.detach(handler) end)
+
+      ca_key = X509.PrivateKey.new_ec(:secp256r1)
+      ca = X509.Certificate.self_signed(ca_key, "/CN=Peer Verification Test CA", template: :root_ca)
+
+      wrong_ca =
+        X509.PrivateKey.new_ec(:secp256r1)
+        |> X509.Certificate.self_signed("/CN=Peer Verification Test CA", template: :root_ca)
+
+      device_key = X509.PrivateKey.new_ec(:secp256r1)
+
+      cert =
+        device_key
+        |> X509.PublicKey.derive()
+        |> X509.Certificate.new("/CN=peer-verification-device", ca, ca_key)
+
+      serial = Certificate.get_serial_number(cert)
+
+      assert {:error, {:tls_alert, {:bad_certificate, _}}} = handshake([cert, wrong_ca], device_key)
+      assert_receive {:fail, %{reason: :invalid_signature, cert_serial: ^serial}}
+    end
+  end
+
+  # One TLS handshake from a device presenting `chain`, its own certificate
+  # first, against a listener that verifies clients with PeerVerification as the
+  # device endpoint does. Returns how the handshake ended on the listener's side.
+  defp handshake(chain, key) do
+    ssl_dir = Path.join(Fixtures.path(), "ssl")
+
+    {:ok, listen} =
+      :ssl.listen(0,
+        versions: [:"tlsv1.2"],
+        verify: :verify_peer,
+        verify_fun: {&PeerVerification.verify_fun/3, nil},
+        fail_if_no_peer_cert: true,
+        certfile: ssl_dir |> Path.join("device.nerves-hub.org.pem") |> to_charlist(),
+        keyfile: ssl_dir |> Path.join("device.nerves-hub.org-key.pem") |> to_charlist(),
+        cacertfile: ssl_dir |> Path.join("ca.pem") |> to_charlist()
+      )
+
+    {:ok, {_address, port}} = :ssl.sockname(listen)
+
+    server =
+      Task.async(fn ->
+        {:ok, socket} = :ssl.transport_accept(listen, 5_000)
+        :ssl.handshake(socket, 5_000)
+      end)
+
+    client =
+      :ssl.connect(
+        ~c"127.0.0.1",
+        port,
+        [
+          versions: [:"tlsv1.2"],
+          verify: :verify_peer,
+          cacertfile: ssl_dir |> Path.join("ca.pem") |> to_charlist(),
+          server_name_indication: ~c"device.nerves-hub.org",
+          cert: Enum.map(chain, &X509.Certificate.to_der/1),
+          key: {:ECPrivateKey, X509.PrivateKey.to_der(key)}
+        ],
+        5_000
+      )
+
+    result = Task.await(server)
+
+    with {:ok, socket} <- client, do: :ssl.close(socket)
+    :ssl.close(listen)
+
+    result
   end
 
   # A dispatcher that answers from `fun`, installed the way the real one is.

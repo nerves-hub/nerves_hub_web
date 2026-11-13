@@ -53,7 +53,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show.WorkflowApprovalTest do
     release: release
   } do
     [step, _catch_all] = Workflows.release_steps(release.id)
-    _ = Workflows.start_step(step)
+    {:ok, _} = Workflows.start_step(deployment_group, step)
 
     conn
     |> visit_group(org, product, deployment_group)
@@ -74,10 +74,11 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show.WorkflowApprovalTest do
   } do
     [step, _catch_all] = Workflows.release_steps(release.id)
 
-    step
-    |> Ecto.Changeset.change(%{name: nil})
-    |> Repo.update!()
-    |> Workflows.start_step()
+    {:ok, _} =
+      step
+      |> Ecto.Changeset.change(%{name: nil})
+      |> Repo.update!()
+      |> then(&Workflows.start_step(deployment_group, &1))
 
     conn
     |> visit_group(org, product, deployment_group)
@@ -94,7 +95,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show.WorkflowApprovalTest do
     release: release
   } do
     [step, _catch_all] = Workflows.release_steps(release.id)
-    _ = Workflows.start_step(step)
+    {:ok, _} = Workflows.start_step(deployment_group, step)
 
     conn
     |> visit_group(org, product, deployment_group)
@@ -118,9 +119,8 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show.WorkflowApprovalTest do
   } do
     [step, _catch_all] = Workflows.release_steps(release.id)
 
-    step
-    |> Workflows.start_step()
-    |> Workflows.approve_step(user)
+    {:ok, started} = Workflows.start_step(deployment_group, step)
+    {:ok, _} = Workflows.approve_step(deployment_group, started, user)
 
     conn
     |> visit_group(org, product, deployment_group)

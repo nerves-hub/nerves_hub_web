@@ -9,21 +9,45 @@ defmodule NervesHub.Application do
   alias NervesHub.Devices.DeviceMessage
   alias NervesHub.Devices.DeviceMetric
   alias NervesHub.Devices.DeviceUpdateHistory
+  alias NervesHub.Devices.HealthEvaluation.Queue, as: HealthEvaluationQueue
   alias NervesHub.Devices.LogLine
+  alias NervesHub.DeviceTLS.Reloader
   alias NervesHub.ErrorReports.ErrorReport
   alias NervesHub.ErrorReports.GroupBuffer
   alias NervesHub.ManagedDeployments.OrchestratorRegistration
   alias NervesHub.PlugAttack.Storage, as: PlugAttackStorage
   alias NervesHub.Products.HealthProfiles.Cache
+  alias NervesHub.ProxyProtocol.Peers
+  alias NervesHub.RateLimit.Alarms, as: AlarmsLimit
   alias NervesHub.RateLimit.ErrorReports, as: ErrorReportLimit
   alias NervesHub.RateLimit.LogLines
   alias NervesHub.RateLimit.Metrics, as: MetricsLimit
   alias NervesHub.Telemetry.Customizations
+  alias NervesHubWeb.Integrations.Slack.Socket
   alias PlugAttack.Storage.Ets, as: PlugAttackEts
 
   require Logger
 
   def start(_type, _args) do
+    if Application.get_env(:nerves_hub, :maintenance_mode) do
+      start_maintenance_mode()
+    else
+      start_platform()
+    end
+  end
+
+  # The whole platform is down on purpose, usually because what it depends on is
+  # being worked on. So nothing here may reach for Postgres, ClickHouse or the rest
+  # of the cluster, or a node would crash at boot instead of showing the page.
+  defp start_maintenance_mode() do
+    _ = setup_logging()
+
+    Logger.warning("MAINTENANCE_MODE is set: serving only the maintenance page")
+
+    Supervisor.start_link([NervesHubWeb.MaintenanceEndpoint], strategy: :one_for_one, name: NervesHub.Supervisor)
+  end
+
+  defp start_platform() do
     case System.cmd("fwup", ["--version"], env: []) do
       {_, 0} ->
         Logger.debug("fwup was found")
@@ -41,7 +65,11 @@ defmodule NervesHub.Application do
         NervesHub.StatsdMetricsReporter.config() ++
         [
           NervesHub.MetricsPoller.child_spec(),
-          NervesHub.RateLimit
+          NervesHub.RateLimit,
+          # Holds the address each PROXY header gave until its connection
+          # closes. Must be running before the device endpoint accepts anything
+          # behind a balancer.
+          Peers
         ] ++
         ecto_repos() ++
         [
@@ -49,21 +77,30 @@ defmodule NervesHub.Application do
           # Reads the profile every metric report needs; see the module for why
           # this cache is not the state health evaluation does without.
           Cache,
+          # Answers "does anyone want this event?" on every device event.
+          NervesHub.Integrations.Cache,
           # Ahead of the group tree: `RateLimitPubSub` applies peer throttle
           # increments into this storage the moment it joins its group.
           {PlugAttackEts, name: PlugAttackStorage, clean_period: 60_000},
           NervesHub.GroupSupervisor,
-          {Cluster.Supervisor, [libcluster_topology()]},
+          {Cluster.Supervisor, [NervesHub.Clustering.topologies()]},
           {Task.Supervisor, name: NervesHub.TaskSupervisor},
+          # Runs its evaluations under the task supervisor above, and has to
+          # be up before `device_link_handlers()` lets this node take device
+          # reports, which queue evaluations here.
+          HealthEvaluationQueue,
           {Oban, oban_opts()},
           NervesHubWeb.Presence,
           {LogLines, [clean_period: to_timeout(minute: 5), key_older_than: to_timeout(hour: 1)]},
           {ErrorReportLimit, [clean_period: to_timeout(minute: 5), key_older_than: to_timeout(hour: 1)]},
-          {MetricsLimit, [clean_period: to_timeout(minute: 5), key_older_than: to_timeout(hour: 1)]}
+          {MetricsLimit, [clean_period: to_timeout(minute: 5), key_older_than: to_timeout(hour: 1)]},
+          {AlarmsLimit, [clean_period: to_timeout(minute: 5), key_older_than: to_timeout(hour: 1)]}
         ] ++
         analytics_buffers() ++
         device_link_handlers() ++
         deployments_orchestrator(deploy_env()) ++
+        slack_sockets(deploy_env()) ++
+        device_tls_children() ++
         endpoints(deploy_env())
 
     opts = [strategy: :one_for_one, name: NervesHub.Supervisor]
@@ -71,12 +108,9 @@ defmodule NervesHub.Application do
   end
 
   defp setup_logging() do
-    # Sentrys duplicate log handler checking (in their lib) runs before our application
-    # has started, so instead, lets just remove the handler if it exists
-    _ =
-      if Application.get_env(:sentry, :enable_logs, false) do
-        :logger.remove_handler(:sentry_log_handler)
-      end
+    # Sentry attaches its own :sentry_log_handler when it starts with `:logs`
+    # set, before ours exists for its duplicate check to find, so remove it here.
+    _ = :logger.remove_handler(:sentry_log_handler)
 
     :ok =
       :logger.add_handler(:sentry_handler, Sentry.LoggerHandler, %{
@@ -124,21 +158,6 @@ defmodule NervesHub.Application do
   def config_change(changed, _new, removed) do
     NervesHubWeb.Endpoint.config_change(changed, removed)
     :ok
-  end
-
-  defp libcluster_topology() do
-    repo_config =
-      NervesHub.Repo.config()
-      |> Keyword.take([:hostname, :username, :password, :database, :port, :ssl])
-      |> Keyword.put(:parameters, [])
-      |> Keyword.put(:channel_name, "nerves_hub_clustering")
-
-    [
-      app: [
-        strategy: LibclusterPostgres.Strategy,
-        config: repo_config
-      ]
-    ]
   end
 
   defp oban_opts() do
@@ -218,6 +237,33 @@ defmodule NervesHub.Application do
         [
           ProcessHub.child_spec(%ProcessHub{hub_id: :deployment_orchestrators}),
           OrchestratorRegistration
+        ]
+    end
+  end
+
+  # Socket Mode connections to Slack, for an instance Slack cannot reach. On
+  # web nodes, which run what Slack's events, clicks and commands lead to.
+  defp slack_sockets("test"), do: []
+
+  defp slack_sockets(_) do
+    case Application.get_env(:nerves_hub, :app) do
+      "device" -> []
+      _ -> Socket.child_specs()
+    end
+  end
+
+  # Only when the device endpoint's keypair comes from a TLS provider in the
+  # cluster. Ahead of the endpoint, which cannot listen until the reloader has
+  # one in place.
+  defp device_tls_children() do
+    case Application.get_env(:nerves_hub, Reloader) do
+      nil ->
+        []
+
+      opts ->
+        [
+          NervesHub.DeviceTLS.Cluster,
+          {Reloader, opts}
         ]
     end
   end

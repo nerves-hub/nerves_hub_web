@@ -3,24 +3,24 @@
     <div></div>
     <div class="mr-6 flex gap-2">
       <.button type="link" navigate={~p"/org/#{@current_scope.org}/#{@current_scope.product}/devices/new"} aria-label="Add new device">
-        <span class="lucide-plus--light text-base-300 size-5" /> Add Device
+        <.icon name="add" /> Add Device
       </.button>
-      <.button :if={has_results?(@devices, @currently_filtering)} type="link" aria-label="Export devices" href={~p"/org/#{@org}/#{@product}/devices/export?#{@params}"} download>
-        <span class="lucide-download--light text-base-300 size-5" />
+      <.button :if={has_results?(@devices, @currently_filtering)} type="link" square aria-label="Export devices" href={~p"/org/#{@org}/#{@product}/devices/export?#{@params}"} download>
+        <span class="lucide-download size-4" aria-hidden="true"></span>
       </.button>
     </div>
   </:top_bar>
 
   <:header>
-    <h1 :if={!@devices.ok?} class="text-base-50 text-xl leading-[30px] font-semibold">Loading...</h1>
-    <h1 :if={@devices.ok?} id="devices-header" class="text-base-50 hidden text-xl leading-[30px] font-semibold" phx-mounted={fade_in("#devices-header")}>
+    <h1 :if={!@devices.ok?} class="text-page-title text-content-strong">Loading...</h1>
+    <h1 :if={@devices.ok?} id="devices-header" class="hidden text-page-title text-content-strong" phx-mounted={fade_in("#devices-header")}>
       All Devices
     </h1>
 
     <div class="mr-auto">
-      <div :if={@devices.ok?} id="device-count" class="bg-base-800 text-base-300 mr-auto hidden rounded-sm px-1.5 py-0.5 text-xs" phx-mounted={fade_in("#device-count")}>
+      <.badge :if={@devices.ok?} id="device-count" phx-mounted={fade_in("#device-count")} class="mr-auto hidden">
         {Number.Delimit.number_to_delimited(@total_entries, precision: 0)}
-      </div>
+      </.badge>
     </div>
 
     <div class="flex justify-center gap-4">
@@ -31,11 +31,18 @@
         schema_json={@advanced_query_schema_json}
       />
 
-      <.button :if={has_results?(@devices, @currently_filtering) || @soft_deleted_devices_exist} id="sidebar-filter-button" type="button" phx-click={FilterSidebar.show_filter_sidebar()}>
+      <.button
+        :if={has_results?(@devices, @currently_filtering) || @soft_deleted_devices_exist}
+        id="sidebar-filter-button"
+        type="button"
+        square
+        aria-label="Filter devices"
+        phx-click={FilterSidebar.show_filter_sidebar()}
+      >
         <.icon name="filter" />
       </.button>
-      <.button type="button" phx-click={ListSettingsSidebar.show_settings_sidebar()}>
-        <span class="lucide-settings--light text-base-300 size-5" />
+      <.button type="button" square aria-label="List settings" phx-click={ListSettingsSidebar.show_settings_sidebar()}>
+        <.icon name="settings" />
       </.button>
     </div>
   </:header>
@@ -62,42 +69,40 @@
               </tr>
             </thead>
             <tbody>
-              <tr :for={_ <- 1..25} class="border-base-800 clickable-table-row isolate animate-pulse border-b">
-                <td class="checkbox"><input class="checkbox opacity-50" type="checkbox" /></td>
+              <tr :for={_ <- 1..25} class="clickable-table-row isolate animate-pulse border-b border-line-subtle">
+                <td class="checkbox"><input class="checkbox opacity-50" disabled type="checkbox" /></td>
                 <td>
                   <div class="flex items-center gap-2">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="6" height="6" viewBox="0 0 6 6" fill="none">
-                      <circle cx="3" cy="3" r="3" fill="#71717A" />
-                    </svg>
-                    <div class="h-2.5 w-[200px] rounded-full bg-gray-200 dark:bg-gray-700"></div>
+                    <.status_dot class="bg-status-offline" />
+                    <div class="h-2.5 w-[200px] rounded-full bg-base-700"></div>
                   </div>
                 </td>
 
                 <td>
                   <div class="flex items-center justify-center gap-2">
-                    <div class="size-4 rounded-full bg-gray-200 dark:bg-gray-700"></div>
+                    <div class="size-4 rounded-full bg-base-700"></div>
                   </div>
                 </td>
 
                 <td>
-                  <div class="h-2.5 w-20 rounded-full bg-gray-200 dark:bg-gray-700"></div>
+                  <div class="h-2.5 w-20 rounded-full bg-base-700"></div>
                 </td>
 
                 <td>
-                  <div class="h-2.5 max-w-20 rounded-full bg-gray-200 dark:bg-gray-700"></div>
+                  <div class="h-2.5 max-w-20 rounded-full bg-base-700"></div>
                 </td>
 
                 <td>
-                  <div class="h-2.5 max-w-20 rounded-full bg-gray-200 dark:bg-gray-700"></div>
+                  <div class="h-2.5 max-w-20 rounded-full bg-base-700"></div>
                 </td>
 
                 <td>
-                  <div class="h-2.5 max-w-20 rounded-full bg-gray-200 dark:bg-gray-700"></div>
+                  <div class="h-2.5 max-w-20 rounded-full bg-base-700"></div>
                 </td>
 
                 <td>
                   <div class="flex items-center gap-1">
-                    <div class="tag h-2.5 w-[30px] rounded-full bg-gray-200 dark:bg-gray-700"></div>
+                    <div class="h-2.5 w-[30px] rounded-full bg-base-700"></div>
                   </div>
                 </td>
               </tr>
@@ -107,29 +112,29 @@
       </:loading>
       <:failed :let={_failure}>
         <div class="flex h-full items-center justify-center pb-16">
-          <span class="text-base-50 text-xl font-medium">There was an error loading the device list, please contact support.</span>
+          <span class="text-xl font-medium text-content-strong">There was an error loading the device list, please contact support.</span>
         </div>
       </:failed>
 
       <%= cond do %>
         <% Enum.empty?(devices) && @currently_filtering -> %>
           <div class="flex h-full items-center justify-center pb-16">
-            <span class="text-base-50 text-xl font-medium">No devices match the current filters.</span>
+            <span class="text-xl font-medium text-content-strong">No devices match the current filters.</span>
           </div>
         <% Enum.empty?(devices) -> %>
           <div class="flex h-full items-center justify-center pb-16">
             <div class="w-full max-w-2xl px-6">
-              <h2 class="text-base-50 mb-4 text-xl font-semibold">{@product.name} doesn't have any devices yet.</h2>
-              <p class="text-base-400 mb-6 text-sm">Get started by adding <code class="text-base-300">nerves_hub_link</code> to your Nerves project.</p>
+              <h2 class="mb-4 text-page-title text-content-strong">{@product.name} doesn't have any devices yet.</h2>
+              <p class="mb-6 text-sm text-content-muted">Get started by adding <code class="text-content-body">nerves_hub_link</code> to your Nerves project.</p>
               <% active_secret = Enum.find(@product.shared_secret_auths, &is_nil(&1.deactivated_at)) %>
               <%!-- The secret lets a device connect and register itself, so only members who could manage it are shown it. --%>
               <%= if active_secret && authorized?(:"product:update", @current_scope) do %>
-                <div class="bg-surface-raised border-base-700 rounded-lg border p-4">
-                  <h3 class="text-base-300 mb-3 text-sm font-semibold">1. Add the dependency to your <code>mix.exs</code></h3>
-                  <pre class="bg-base-950 mb-4 overflow-x-auto rounded p-3 font-mono text-sm text-green-400"><code>&#123;:nerves_hub_link, "~&gt; 2.0"&#125;</code></pre>
+                <div class="rounded-md border border-line-default bg-surface-raised p-4">
+                  <h3 class="mb-3 text-group-title text-content-strong">1. Add the dependency to your <code>mix.exs</code></h3>
+                  <pre class="mb-4 overflow-x-auto rounded bg-base-950 p-3 font-mono text-sm text-success-content"><code>&#123;:nerves_hub_link, "~&gt; 2.0"&#125;</code></pre>
 
-                  <h3 class="text-base-300 mb-3 text-sm font-semibold">2. Add this to your <code>config/config.exs</code></h3>
-                  <pre class="bg-base-950 overflow-x-auto rounded p-3 font-mono text-sm text-green-400"><code>config :nerves_hub_link,
+                  <h3 class="mb-3 text-group-title text-content-strong">2. Add this to your <code>config/config.exs</code></h3>
+                  <pre class="overflow-x-auto rounded bg-base-950 p-3 font-mono text-sm text-success-content"><code>config :nerves_hub_link,
   host: "{onboarding_nhl_host()}",
   remote_iex: true,
   shared_secret: [
@@ -137,27 +142,28 @@
     product_secret: "{active_secret.secret}"
   ]</code></pre>
 
-                  <p class="text-base-500 mt-4 text-xs">
-                    See the <a class="hover:text-base-300 text-base-400 underline" href="https://hexdocs.pm/nerves_hub_link" target="_blank">nerves_hub_link documentation</a> for more details.
+                  <p class="mt-4 text-xs text-content-faint">
+                    See the <a class="text-content-muted underline hover:text-content-body" href="https://hexdocs.pm/nerves_hub_link" target="_blank">nerves_hub_link documentation</a>
+                    for more details.
                   </p>
                 </div>
               <% else %>
-                <p class="text-base-400 text-sm">
-                  Check the <a class="hover:text-base-200 text-base-300 underline" href="https://hexdocs.pm/nerves_hub_link" target="_blank">nerves_hub_link documentation</a>
+                <p class="text-sm text-content-muted">
+                  Check the <a class="text-content-body underline hover:text-base-200" href="https://hexdocs.pm/nerves_hub_link" target="_blank">nerves_hub_link documentation</a>
                   for how to connect your first device.
                 </p>
               <% end %>
 
-              <div class="bg-surface-muted border-base-800 mt-6 rounded-lg border p-4">
-                <h3 class="text-base-300 mb-2 text-sm font-semibold">Production authentication</h3>
-                <p class="text-base-400 text-xs">
+              <div class="mt-6 rounded-md border border-line-subtle bg-surface-muted p-4">
+                <h3 class="mb-2 text-group-title text-content-strong">Production authentication</h3>
+                <p class="text-xs text-content-muted">
                   For production applications, we recommend mTLS authentication using a local certificate or dedicated secure hardware.
                 </p>
                 <div class="mt-2 flex gap-4">
-                  <a class="hover:text-base-300 text-base-400 text-xs underline" href="https://hexdocs.pm/nerves_hub_link/NervesHubLink.Configurator.LocalCert.html" target="_blank">
+                  <a class="text-xs text-content-muted underline hover:text-content-body" href="https://hexdocs.pm/nerves_hub_link/NervesHubLink.Configurator.LocalCert.html" target="_blank">
                     LocalCert configurator
                   </a>
-                  <a class="hover:text-base-300 text-base-400 text-xs underline" href="https://hexdocs.pm/nerves_hub_link/NervesHubLink.Configurator.NervesKey.html" target="_blank">
+                  <a class="text-xs text-content-muted underline hover:text-content-body" href="https://hexdocs.pm/nerves_hub_link/NervesHubLink.Configurator.NervesKey.html" target="_blank">
                     NervesKey configurator
                   </a>
                 </div>
@@ -180,11 +186,9 @@
                       phx-click="select-all"
                       disabled={not authorized?(:"device:update", @current_scope)}
                     />
-                    <label for="toggle-all" class="peer-disabled:hover:bg-base-800 peer-disabled:opacity-40">
+                    <label for="toggle-all" class="peer-disabled:opacity-40 peer-disabled:hover:bg-base-800">
                       <span class="hidden">Select all devices</span>
-                      <svg :if={Enum.any?(@selected_devices)} xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 12 12" fill="none">
-                        <path d="M2 6H6H10" stroke="#F4F4F5" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" />
-                      </svg>
+                      <span :if={Enum.any?(@selected_devices)} class="lucide-minus--bold size-3 text-primary-content" aria-hidden="true"></span>
                     </label>
                   </th>
                   <th phx-click="sort" phx-value-sort="identifier" class="cursor-pointer">
@@ -214,7 +218,7 @@
               <tbody>
                 <tr
                   :for={device <- devices}
-                  class={["border-base-800 clickable-table-row isolate border-b", device.id in @selected_devices && "selected-row"]}
+                  class={["clickable-table-row isolate border-b border-line-subtle", device.id in @selected_devices && "selected-row"]}
                   style={progress_style(@progress[device.id])}
                 >
                   <td class="checkbox">
@@ -224,62 +228,40 @@
                       {if device.id in @selected_devices, do: [checked: true], else: []}
                       type="checkbox"
                       id={"#{device.id}-select"}
+                      aria-label={"Select #{device.identifier}"}
                       phx-value-id={device.id}
                       phx-click="select"
                       disabled={not authorized?(:"device:update", @current_scope)}
                     />
-                    <label for={"checkbox-device-#{device.id}"} class="peer-disabled:hover:bg-base-800 relative z-20 peer-disabled:opacity-40">
-                      <svg :if={device.id in @selected_devices} xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 12 12" fill="none">
-                        <path d="M2.5 6.5L4.5 8.5L10 3" stroke="#F4F4F5" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" />
-                      </svg>
+                    <label for={"checkbox-device-#{device.id}"} class="relative z-20 peer-disabled:opacity-40 peer-disabled:hover:bg-base-800">
+                      <span :if={device.id in @selected_devices} class="lucide-check--bold size-3 text-primary-content" aria-hidden="true"></span>
                     </label>
                   </td>
                   <td>
                     <div class="flex items-center gap-2">
                       <span title={connection_established_at_status(device.latest_connection)}>
                         <%= if @device_statuses.result[device.id] == "online" do %>
-                          <svg xmlns="http://www.w3.org/2000/svg" width="6" height="6" viewBox="0 0 6 6" fill="none">
-                            <circle cx="3" cy="3" r="3" fill="#10B981" />
-                          </svg>
+                          <.status_dot class="bg-status-online" />
                           <!-- use this when we have connection type information -->
-                          <%!-- <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none">
-                          <path
-                            d="M10.8573 9.17153C10.1261 8.44767 9.11595 7.99996 8.00016 7.99996C6.88438 7.99996 5.87423 8.44767 5.14302 9.17153M12.7621 7.28591C11.5434 6.07948 9.8598 5.33329 8.00016 5.33329C6.14052 5.33329 4.45694 6.07948 3.23826 7.28591M14.6668 5.4003C12.9607 3.71129 10.6037 2.66663 8.00016 2.66663C5.39667 2.66663 3.03964 3.71129 1.3335 5.4003M9.34703 12C9.34703 12.7363 8.74402 13.3333 8.00016 13.3333C7.25631 13.3333 6.65329 12.7363 6.65329 12C6.65329 11.6318 6.80405 11.2984 7.04778 11.0572C7.29152 10.8159 7.62823 10.6666 8.00016 10.6666C8.37209 10.6666 8.70881 10.8159 8.95254 11.0572C9.19628 11.2984 9.34703 11.6318 9.34703 12Z"
-                            stroke="#10B981"
-                            stroke-width="1.2"
-                            stroke-linecap="round"
-                            stroke-linejoin="round"
-                          />
-                        </svg> --%>
+                          <%!-- <span class="lucide-wifi size-4 text-success" aria-hidden="true"></span> --%>
                         <% else %>
-                          <svg xmlns="http://www.w3.org/2000/svg" width="6" height="6" viewBox="0 0 6 6" fill="none">
-                            <circle cx="3" cy="3" r="3" fill="#71717A" />
-                          </svg>
+                          <.status_dot class="bg-status-offline" />
                           <!-- use this when we have connection type information -->
-                          <%!-- <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none">
-                          <path
-                            d="M8.00016 5.33333C9.8598 5.33333 11.5434 6.07953 12.7621 7.28596M14.6668 5.40034C12.9607 3.71134 10.6037 2.66667 8.00016 2.66667C7.3139 2.66667 6.64477 2.73925 6.00016 2.87709M5.14302 9.17157C5.87423 8.44772 6.88438 8 8.00016 8M3.23826 7.28595C3.91937 6.61169 4.7457 6.08118 5.66683 5.74436M1.3335 5.40034C2.0158 4.72489 2.8022 4.15249 3.66683 3.70874M2.00016 2L14.0002 14M9.34703 12C9.34703 12.7364 8.74402 13.3333 8.00016 13.3333C7.25631 13.3333 6.65329 12.7364 6.65329 12C6.65329 11.6318 6.80405 11.2985 7.04778 11.0572C7.29152 10.8159 7.62823 10.6667 8.00016 10.6667C8.37209 10.6667 8.70881 10.8159 8.95254 11.0572C9.19628 11.2985 9.34703 11.6318 9.34703 12Z"
-                            stroke="#EF4444"
-                            stroke-width="1.2"
-                            stroke-linecap="round"
-                            stroke-linejoin="round"
-                          />
-                        </svg> --%>
+                          <%!-- <span class="lucide-wifi-off size-4 text-alert" aria-hidden="true"></span> --%>
                         <% end %>
                       </span>
                       <.link navigate={~p"/org/#{@org}/#{@product}/devices/#{device}"} class="ff-m font-mono">
                         {device.identifier}
-                        <div :if={device.deleted_at} class="relative z-50 inline-block align-middle" id={"health-tooltip-#{device.identifier}"} phx-hook="ToolTip" data-placement="right">
-                          <.icon name="info" class="stroke-base-400" />
-                          <div class="bg-surface-muted border-base-700 tooltip-content absolute top-0 left-0 z-20 hidden w-max rounded border px-2 py-1.5 text-xs">
+                        <.tooltip :if={device.deleted_at} id={"health-tooltip-#{device.identifier}"} placement="right" class="z-50 inline-block align-middle">
+                          <.icon name="info" class="text-content-muted" />
+                          <:content>
                             This device has been deleted. <br /> You can destroy or restore it in the device's settings.
-                            <div class="bg-surface-muted border-base-700 tooltip-arrow absolute size-2 origin-center rotate-45"></div>
-                          </div>
-                        </div>
+                          </:content>
+                        </.tooltip>
                         <span class="clickable-table-row-mask" />
                       </.link>
-                      <span class={["bg-base-800 border-base-700 ml-2 flex items-center gap-1 rounded-full border px-2.5 py-0.5", !@progress[device.id] && "invisible"]}>
-                        <span class="text-base-300 text-xs tracking-tight">{@progress[device.id][:stage]}</span>
+                      <span class={["ml-2 flex items-center gap-1 rounded-full border border-line-default bg-base-800 px-2.5 py-0.5", !@progress[device.id] && "invisible"]}>
+                        <span class="text-xs tracking-tight text-content-body">{@progress[device.id][:stage]}</span>
                       </span>
                     </div>
                   </td>
@@ -320,11 +302,9 @@
                   </td>
 
                   <td :if={show_column?(@current_scope.user, :deployment_group)}>
-                    <span :if={device.deployment_id} class="bg-base-800 border-base-700 flex w-fit items-center gap-1 rounded-full border py-0.5 pr-2.5 pl-1.5">
-                      <svg class="size-1.5" viewBox="0 0 6 6" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <circle cx="3" cy="3" r="3" fill="#10B981" />
-                      </svg>
-                      <span class="text-base-300 text-xs tracking-tight">{device.deployment_group.name}</span>
+                    <span :if={device.deployment_id} class="flex w-fit items-center gap-1 rounded-full border border-line-default bg-base-800 py-0.5 pr-2.5 pl-1.5">
+                      <.status_dot class="bg-success" />
+                      <span class="text-xs tracking-tight text-content-body">{device.deployment_group.name}</span>
                     </span>
                   </td>
 
@@ -332,7 +312,7 @@
                     <div class="flex items-center gap-1 text-nowrap">
                       <%= if !is_nil(device.tags) do %>
                         <%= for tag <- device.tags do %>
-                          <span class="tag">{tag}</span>
+                          <.tag>{tag}</.tag>
                         <% end %>
                       <% end %>
                     </div>
@@ -468,6 +448,7 @@
     total_entries={@total_entries}
     current_scope={@current_scope}
     target_product={@target_product}
+    move_target_org_ids={@move_target_org_ids}
     product={@product}
     selected_have_deployment_groups={@selected_have_deployment_groups}
     valid_deployment_groups_for_selected={@valid_deployment_groups_for_selected}

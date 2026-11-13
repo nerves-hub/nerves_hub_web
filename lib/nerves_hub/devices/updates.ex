@@ -15,6 +15,7 @@ defmodule NervesHub.Devices.Updates do
   alias NervesHub.Accounts.User
   alias NervesHub.AuditLogs.DeviceTemplates
   alias NervesHub.DeploymentOrchestratorEvents
+  alias NervesHub.DeviceEvents
   alias NervesHub.DeviceLink.DeviceInfo
   alias NervesHub.Devices
   alias NervesHub.Devices.Device
@@ -26,12 +27,14 @@ defmodule NervesHub.Devices.Updates do
   alias NervesHub.Firmwares.Firmware
   alias NervesHub.Firmwares.FirmwareDelta
   alias NervesHub.FirmwareUpdates
+  alias NervesHub.Integrations
   alias NervesHub.ManagedDeployments
   alias NervesHub.ManagedDeployments.DeploymentGroup
   alias NervesHub.ManagedDeployments.DeploymentWorkflowStep
   alias NervesHub.ManagedDeployments.Workflows
   alias NervesHub.Products.Product
   alias NervesHub.Repo
+  alias NervesHub.Webhooks.Payloads
 
   require Logger
 
@@ -42,7 +45,11 @@ defmodule NervesHub.Devices.Updates do
            {:ok, device} <- Repo.update(device_changeset),
            device_firmware_changeset = DeviceFirmware.firmware_validated(device),
            {:ok, _device_firmware} <- Repo.update(device_firmware_changeset),
-           :ok <- DeviceTemplates.audit_firmware_validated(device_info) do
+           :ok <- DeviceTemplates.audit_firmware_validated(device_info),
+           :ok <-
+             Integrations.dispatch(device_info.product_id, "device.firmware_validated", fn ->
+               Payloads.firmware_validated(device_info)
+             end) do
         {:ok, device}
       end
     end)
@@ -62,12 +69,12 @@ defmodule NervesHub.Devices.Updates do
   - not be running the same firmware version associated with the deployment
   - not in the penalty box (based on `updates_blocked_until`)
 
-  If the deployment group has `enable_priority_updates` set to false (the default),
-  devices are ordered by their `latest_connection`: devices connected the longest will
-  be updated first.
+  If the deployment group's `queue_management` is `:FIFO` (the default), devices
+  are ordered by their `latest_connection`: devices connected the longest will be
+  updated first.
 
-  If the deployment group has `enable_priority_updates` set to true,
-  devices are ordered by most recently connected for the first time (`device.first_seen_at`)
+  If it is `:LIFO`, devices are ordered by most recently connected for the first
+  time (`device.first_seen_at`).
   """
   @spec available_for_update(DeploymentGroup.t(), non_neg_integer()) :: [Device.t()]
   def available_for_update(deployment_group, count) do
@@ -186,9 +193,14 @@ defmodule NervesHub.Devices.Updates do
     |> where([deployment_group: dg, target_release: tr], tr.id == dg.current_deployment_release_id)
   end
 
+  # Live firmware only. A build deleted and uploaded again has two rows with its
+  # uuid, and joining both lists the device twice, once through a row that never
+  # matches the current release.
   defp join_firmware(query) do
     join(query, :left, [d], f in Firmware,
-      on: f.product_id == d.product_id and f.uuid == fragment("(? #>> '{\"uuid\"}')", d.firmware_metadata),
+      on:
+        f.product_id == d.product_id and f.uuid == fragment("(? #>> '{\"uuid\"}')", d.firmware_metadata) and
+          is_nil(f.deleted_at),
       as: :firmware
     )
   end
@@ -359,7 +371,7 @@ defmodule NervesHub.Devices.Updates do
   @spec failure_rate_met?(Device.t(), DeploymentGroup.t()) :: boolean()
   def failure_rate_met?(%Device{} = device, %DeploymentGroup{} = deployment_group) do
     seconds_ago =
-      Timex.shift(DateTime.utc_now(), seconds: -deployment_group.device_failure_rate_seconds)
+      DateTime.add(DateTime.utc_now(), -deployment_group.device_failure_rate_seconds)
 
     attempts =
       Enum.filter(device.update_attempts, fn attempt ->
@@ -417,15 +429,32 @@ defmodule NervesHub.Devices.Updates do
 
         {:error, :updates_blocked, device}
 
-      failure_rate_met?(device, deployment_group) ->
-        {:ok, device} = put_device_in_penalty_box(device, deployment_group, :exceeded_failure_rate)
+      true ->
+        enforce_failure_limits(device, deployment_group)
+    end
+  end
 
-        {:error, :updates_blocked, device}
+  @doc """
+  Put the device in the penalty box if it has failed to update too often, by the
+  deployment group's failure rate or its failure threshold.
+
+  The penalty clears the device's update attempts, so once it ends the device has
+  a full set of tries again. This is the one place a device is penalized for its
+  failures, whether the orchestrator is about to send it an update or
+  `verify_update_eligibility/3` is about to hand one out.
+
+  A device over its limits is never updated, even when recording the penalty
+  fails; the failure is logged instead.
+  """
+  @spec enforce_failure_limits(Device.t(), DeploymentGroup.t()) ::
+          {:ok, Device.t()} | {:error, :updates_blocked, Device.t()}
+  def enforce_failure_limits(device, deployment_group) do
+    cond do
+      failure_rate_met?(device, deployment_group) ->
+        put_device_in_penalty_box(device, deployment_group, :exceeded_failure_rate)
 
       failure_threshold_met?(device, deployment_group) ->
-        {:ok, device} = put_device_in_penalty_box(device, deployment_group, :exceeded_failure_threshold)
-
-        {:error, :updates_blocked, device}
+        put_device_in_penalty_box(device, deployment_group, :exceeded_failure_threshold)
 
       true ->
         {:ok, device}
@@ -442,22 +471,51 @@ defmodule NervesHub.Devices.Updates do
     # make something other than the current release's.
     target_release = ManagedDeployments.target_release(deployment_group, device)
 
-    :ok = DeviceTemplates.audit_firmware_upgrade_blocked(deployment_group, device, target_release.firmware)
-    _ = FirmwareUpdates.clear_inflight_update(device)
-
     device = Repo.preload(device, [:org, :product, :current_device_firmware])
 
-    Logger.info("Device #{device.identifier} put in penalty box until #{blocked_until}", %{
-      identifier: device.identifier,
-      org: device.org.name,
-      product: device.product.name,
-      platform: deployment_group.platform,
-      current_firmware_version: device.current_device_firmware.firmware_metadata.version,
-      upgrading_firmware_version: target_release.firmware.version,
-      reason: reason
-    })
+    # The penalty, its audit and the cleared inflight update go together or not
+    # at all. A Multi checks its changeset before it opens a transaction, so a
+    # penalty that cannot be recorded does not abort the one
+    # `DeviceEvents.schedule_update/3` has open.
+    Multi.new()
+    |> Multi.update(:device, Device.changeset(device, %{updates_blocked_until: blocked_until, update_attempts: []}))
+    |> Multi.run(:audit, fn _repo, %{device: device} ->
+      {:ok, DeviceTemplates.audit_firmware_upgrade_blocked(deployment_group, device, target_release.firmware)}
+    end)
+    |> Multi.run(:inflight_update, fn _repo, %{device: device} ->
+      {:ok, FirmwareUpdates.clear_inflight_update(device)}
+    end)
+    |> Repo.transact()
+    |> case do
+      {:ok, %{device: device}} ->
+        Logger.info("Device #{device.identifier} put in penalty box until #{blocked_until}", %{
+          identifier: device.identifier,
+          org: device.org.name,
+          product: device.product.name,
+          platform: deployment_group.platform,
+          # A device that has not reported its firmware since device firmwares were
+          # introduced has none on record
+          current_firmware_version: get_in(device.current_device_firmware.firmware_metadata.version),
+          upgrading_firmware_version: target_release.firmware.version,
+          reason: reason
+        })
 
-    Devices.update_device(device, %{updates_blocked_until: blocked_until, update_attempts: []})
+        DeviceEvents.updated(device)
+
+        {:error, :updates_blocked, device}
+
+      {:error, :device, changeset, _changes} ->
+        Logger.warning("Device #{device.identifier} could not be put in the penalty box", %{
+          identifier: device.identifier,
+          errors: inspect(changeset.errors)
+        })
+
+        # Refused all the same, as a device with updates off is, so whatever
+        # was inflight goes.
+        _ = FirmwareUpdates.clear_inflight_update(device)
+
+        {:error, :updates_blocked, device}
+    end
   end
 
   @spec update_attempted(DeviceInfo.t(), DateTime.t()) :: :ok | {:error, Changeset.t()}
@@ -497,20 +555,41 @@ defmodule NervesHub.Devices.Updates do
   Moving to `:automatic` re-evaluates the device against its deployment group
   straight away, so a device that opts back in does not wait for its next
   reconnect to be considered.
+
+  To set the mode inside a transaction of your own, use `save_update_mode/3`
+  and `update_mode_committed/1` instead.
   """
   @spec set_update_mode(Device.t(), Device.update_mode(), User.t() | :device) ::
           {:ok, Device.t()} | {:error, :not_permitted} | {:error, any(), any(), any()}
-  def set_update_mode(device, mode, actor)
+  def set_update_mode(device, mode, actor) do
+    with {:ok, device} <- save_update_mode(device, mode, actor) do
+      _ = update_mode_committed(device)
+      {:ok, device}
+    end
+  end
+
+  @doc """
+  Save and audit a device's new update mode as `set_update_mode/3` does, but
+  leave the deployment orchestrator alone.
+
+  This is for a caller that sets the mode inside a transaction of its own. When
+  told about a device, the orchestrator reads it from the database. Told before
+  that transaction commits, it would find the old mode and pass the device
+  over. Call `update_mode_committed/1` once the transaction has committed.
+  """
+  @spec save_update_mode(Device.t(), Device.update_mode(), User.t() | :device) ::
+          {:ok, Device.t()} | {:error, :not_permitted} | {:error, any(), any(), any()}
+  def save_update_mode(device, mode, actor)
 
   # Two rules bound what a device may do to itself: :off is the operator's alone,
   # so a device can neither freeze itself out of reach nor unfreeze itself; and
   # :device_managed needs the grant, without which any device could take itself
   # out of its deployment group's rollout unasked.
-  def set_update_mode(%Device{}, :off, :device), do: {:error, :not_permitted}
+  def save_update_mode(%Device{}, :off, :device), do: {:error, :not_permitted}
 
-  def set_update_mode(%Device{managed_updates_allowed: false}, :device_managed, :device), do: {:error, :not_permitted}
+  def save_update_mode(%Device{managed_updates_allowed: false}, :device_managed, :device), do: {:error, :not_permitted}
 
-  def set_update_mode(%Device{} = device, mode, actor) when mode in [:off, :automatic, :device_managed] do
+  def save_update_mode(%Device{} = device, mode, actor) when mode in [:off, :automatic, :device_managed] do
     description =
       case actor do
         :device -> "Device #{device.identifier} set its update mode to #{mode}"
@@ -528,19 +607,24 @@ defmodule NervesHub.Devices.Updates do
     # the log distinguishes a device opting in from a user changing it for them.
     audit_actor = if actor == :device, do: device, else: actor
 
-    case Devices.update_device_with_audit(device, params, audit_actor, description) do
-      {:ok, device} = result ->
-        _ =
-          if mode == :automatic and device.deployment_id do
-            DeploymentOrchestratorEvents.device_updated(device)
-          end
-
-        result
-
-      {:error, _, _, _} = result ->
-        result
-    end
+    Devices.update_device_with_audit(device, params, audit_actor, description)
   end
+
+  @doc """
+  Have the deployment orchestrator consider a device whose new update mode has
+  been committed.
+
+  Only a device moved to `:automatic` in a deployment group needs this. It is
+  how a device that opts back in is considered straight away rather than at its
+  next reconnect.
+  """
+  @spec update_mode_committed(Device.t()) :: :ok
+  def update_mode_committed(%Device{update_mode: :automatic, deployment_id: deployment_id} = device)
+      when not is_nil(deployment_id) do
+    DeploymentOrchestratorEvents.device_updated(device)
+  end
+
+  def update_mode_committed(%Device{}), do: :ok
 
   @doc """
   Return a device to automatic updates because its firmware cannot ask for them.
@@ -677,9 +761,35 @@ defmodule NervesHub.Devices.Updates do
     |> Repo.aggregate(:count)
   end
 
-  defp failing_updates_query(%Product{id: product_id}, now) do
+  @doc """
+  How many devices are failing to take their firmware in each of the given
+  products, and when the last of them comes out of the penalty box.
+
+  The same devices `failing_updates/3` lists, counted across products at once
+  for a page that covers several, such as the organizations home page. A
+  product with none is left out of the map.
+  """
+  @spec failing_updates_by_product([pos_integer()], DateTime.t()) :: %{
+          pos_integer() => %{count: pos_integer(), blocked_until: DateTime.t()}
+        }
+  def failing_updates_by_product(product_ids, now \\ DateTime.utc_now())
+
+  def failing_updates_by_product([], _now), do: %{}
+
+  def failing_updates_by_product(product_ids, now) when is_list(product_ids) do
+    product_ids
+    |> failing_updates_query(now)
+    |> group_by([d], d.product_id)
+    |> select([d], {d.product_id, %{count: count(d.id), blocked_until: max(d.updates_blocked_until)}})
+    |> Repo.all()
+    |> Map.new()
+  end
+
+  defp failing_updates_query(%Product{id: product_id}, now), do: failing_updates_query([product_id], now)
+
+  defp failing_updates_query(product_ids, now) when is_list(product_ids) do
     Device
-    |> where([d], d.product_id == ^product_id)
+    |> where([d], d.product_id in ^product_ids)
     |> where([d], not is_nil(d.updates_blocked_until) and d.updates_blocked_until > ^now)
     |> where([d], d.consecutive_failed_updates > 0)
     |> Repo.exclude_deleted()
@@ -689,18 +799,5 @@ defmodule NervesHub.Devices.Updates do
     description = "User #{user.name} removed device #{device.identifier} from the penalty box"
     params = %{updates_blocked_until: nil, update_attempts: []}
     Devices.update_device_with_audit(device, params, user, description)
-  end
-
-  def update_blocked_until(device, deployment) do
-    blocked_until =
-      DateTime.utc_now()
-      |> DateTime.truncate(:second)
-      |> DateTime.add(deployment.penalty_timeout_minutes * 60, :second)
-
-    target_release = ManagedDeployments.target_release(deployment, device)
-
-    DeviceTemplates.audit_firmware_upgrade_blocked(deployment, device, target_release.firmware)
-
-    Devices.update_device(device, %{updates_blocked_until: blocked_until})
   end
 end

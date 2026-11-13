@@ -13,14 +13,14 @@ defmodule NervesHubWeb.Live.Org.RolesTest do
 
       conn
       |> visit("/org/#{org.name}/settings/roles")
-      |> assert_has("h1", text: "Roles")
-      |> assert_has("#role-admin td", text: "Admin")
-      |> assert_has("#role-manage td", text: "Manage")
-      |> assert_has("#role-view td", text: "View")
-      |> assert_has("#role-admin td", text: "1")
-      |> assert_has("#role-#{role.id} td", text: "Release Manager")
-      |> assert_has("#role-#{role.id} td", text: "Ships firmware")
-      |> assert_has("#role-#{role.id} td", text: "1")
+      |> assert_has("h2", text: "Roles")
+      |> assert_has("#role-admin [role=cell]", text: "Admin")
+      |> assert_has("#role-manage [role=cell]", text: "Manage")
+      |> assert_has("#role-view [role=cell]", text: "View")
+      |> assert_has("#role-admin [role=cell]", text: "1")
+      |> assert_has("#role-#{role.id} [role=cell]", text: "Release Manager")
+      |> assert_has("#role-#{role.id} [role=cell]", text: "Ships firmware")
+      |> assert_has("#role-#{role.id} [role=cell]", text: "1")
     end
 
     test "only offers built-in roles for viewing", %{conn: conn, org: org} do
@@ -35,7 +35,7 @@ defmodule NervesHubWeb.Live.Org.RolesTest do
     test "a built-in role lists what it can and can't do", %{conn: conn, org: org} do
       conn
       |> visit("/org/#{org.name}/settings/roles/view")
-      |> assert_has("h1", text: "View")
+      |> assert_has("h2", text: "View")
       |> assert_has(~s(li[id="permission-support_script:run"] span[aria-label="Granted"]))
       |> assert_has(~s(li[id="permission-device:reboot"] span[aria-label="Not granted"]))
     end
@@ -45,7 +45,7 @@ defmodule NervesHubWeb.Live.Org.RolesTest do
 
       conn
       |> visit("/org/#{org.name}/settings/roles/#{role.id}")
-      |> assert_has("h1", text: "Rebooter")
+      |> assert_has("h2", text: "Rebooter")
       |> assert_has(~s(li[id="permission-device:reboot"] span[aria-label="Granted"]))
       |> assert_has(~s(li[id="permission-device:view"] span[aria-label="Granted"]))
       |> assert_has(~s(li[id="permission-device:console"] span[aria-label="Not granted"]))
@@ -65,16 +65,16 @@ defmodule NervesHubWeb.Live.Org.RolesTest do
     test "with picked permissions", %{conn: conn, org: org} do
       conn
       |> visit("/org/#{org.name}/settings/roles")
-      |> click_link("Add Role")
-      |> assert_has("h1", text: "New Role")
+      |> click_link("Add role")
+      |> assert_has("h2", text: "New role")
       |> fill_in("Name", with: "Release Manager")
       |> fill_in("Description", with: "Ships firmware", exact: false)
       |> check("Upload firmware")
       |> check("Edit deployment groups and their releases")
-      |> click_button("Create Role")
+      |> click_button("Create role")
       |> assert_path("/org/#{org.name}/settings/roles")
       |> assert_has("div", text: "Role Release Manager created")
-      |> assert_has("td", text: "Release Manager")
+      |> assert_has("#roles", text: "Release Manager")
 
       assert [role] = OrgRoles.list_org_roles(org)
       assert role.description == "Ships firmware"
@@ -88,7 +88,7 @@ defmodule NervesHubWeb.Live.Org.RolesTest do
       |> fill_in("Name", with: "Almost Manage")
       |> select("Copy permissions from", option: "Manage")
       |> uncheck("Open a device's remote console")
-      |> click_button("Create Role")
+      |> click_button("Create role")
       |> assert_has("div", text: "Role Almost Manage created")
 
       [role] = OrgRoles.list_org_roles(org)
@@ -112,7 +112,7 @@ defmodule NervesHubWeb.Live.Org.RolesTest do
       |> fill_in("Name", with: "Release Manager with Console")
       |> select("Copy permissions from", option: "Release Manager")
       |> check("Open a device's remote console")
-      |> click_button("Create Role")
+      |> click_button("Create role")
       |> assert_has("div", text: "Role Release Manager with Console created")
 
       role = Enum.find(OrgRoles.list_org_roles(org), &(&1.name == "Release Manager with Console"))
@@ -124,7 +124,7 @@ defmodule NervesHubWeb.Live.Org.RolesTest do
       conn
       |> visit("/org/#{org.name}/settings/roles/new")
       |> fill_in("Name", with: "Admin")
-      |> click_button("Create Role")
+      |> click_button("Create role")
       |> assert_has("div", text: "is the name of a built-in role")
 
       assert OrgRoles.list_org_roles(org) == []
@@ -150,10 +150,10 @@ defmodule NervesHubWeb.Live.Org.RolesTest do
       conn
       |> visit("/org/#{org.name}/settings/roles")
       |> within("#role-#{role.id}", &click_link(&1, "Edit"))
-      |> assert_has("h1", text: "Edit Rebooter")
+      |> assert_has("h2", text: "Edit Rebooter")
       |> fill_in("Name", with: "Restarter")
       |> uncheck("Reconnect devices")
-      |> click_button("Save Role")
+      |> click_button("Save role")
       |> assert_path("/org/#{org.name}/settings/roles")
       |> assert_has("div", text: "Role Restarter updated")
 
@@ -185,7 +185,7 @@ defmodule NervesHubWeb.Live.Org.RolesTest do
       |> visit("/org/#{org.name}/settings/roles")
       |> click_button("#delete-role-#{role.id}", "Delete")
       |> assert_has("div", text: "Role Unused deleted")
-      |> refute_has("td", text: "Unused")
+      |> refute_has("#roles", text: "Unused")
     end
 
     test "keeps a role someone holds", %{conn: conn, org: org} do
@@ -196,7 +196,7 @@ defmodule NervesHubWeb.Live.Org.RolesTest do
       |> visit("/org/#{org.name}/settings/roles")
       |> click_button("#delete-role-#{role.id}", "Delete")
       |> assert_has("div", text: "This role is still in use")
-      |> assert_has("td", text: "Held")
+      |> assert_has("#roles", text: "Held")
     end
   end
 
@@ -213,8 +213,8 @@ defmodule NervesHubWeb.Live.Org.RolesTest do
 
       conn
       |> visit("/org/#{org.name}/settings/roles")
-      |> assert_has("td", text: "Rebooter")
-      |> refute_has("a", text: "Add Role")
+      |> assert_has("#roles", text: "Rebooter")
+      |> refute_has("a", text: "Add role")
       |> refute_has("#role-#{role.id} a", text: "Edit")
       |> refute_has("#delete-role-#{role.id}")
     end
@@ -248,18 +248,19 @@ defmodule NervesHubWeb.Live.Org.RolesTest do
       {:ok, org_user} = Accounts.get_org_user(org, user)
       role = Fixtures.org_role_fixture(org, %{permissions: ["signing_key:delete"]})
       {:ok, _} = Accounts.change_org_user_role(org_user, role)
+      key = Fixtures.org_key_fixture(org, user)
 
       conn
       |> visit("/org/#{org.name}/settings/keys")
-      |> assert_has("button:not([disabled])", text: "Delete")
+      |> assert_has("#delete-key-#{key.id}:not([disabled])")
       |> visit("/org/#{org.name}/settings/roles")
-      |> refute_has("a", text: "Add Role")
+      |> refute_has("a", text: "Add role")
 
       {:ok, _} = OrgRoles.update_org_role(role, %{"permissions" => []})
 
       conn
       |> visit("/org/#{org.name}/settings/keys")
-      |> assert_has("button[disabled]", text: "Delete")
+      |> assert_has("#delete-key-#{key.id}[disabled]", text: "Your role doesn't let you delete signing keys.")
     end
 
     test "sees the org's products", %{conn: conn, org: org, user: user, product: product} do

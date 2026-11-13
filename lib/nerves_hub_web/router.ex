@@ -5,8 +5,10 @@ defmodule NervesHubWeb.Router do
   import Oban.Web.Router
   import Phoenix.LiveDashboard.Router
 
+  alias Live.Account.SlackLink
   alias Live.Org.CertificateAuthorities
   alias Live.Org.Delete
+  alias Live.Org.Integrations
   alias Live.Org.IrohEndpoints
   alias Live.Org.Roles
   alias Live.Org.Settings
@@ -26,6 +28,8 @@ defmodule NervesHubWeb.Router do
   alias NervesHubWeb.API.Plugs.Product
   alias NervesHubWeb.API.Plugs.RequireAuthenticatedUser
   alias NervesHubWeb.API.UI
+  alias NervesHubWeb.Integrations.Slack
+  alias NervesHubWeb.Integrations.Slack.VerifyRequest
   alias NervesHubWeb.Mounts.CurrentPath
   alias NervesHubWeb.Mounts.EnrichSentryContext
   alias NervesHubWeb.Mounts.SetUsersTimezone
@@ -74,6 +78,13 @@ defmodule NervesHubWeb.Router do
     plug(Device)
   end
 
+  # Requests from Slack: signed rather than authenticated, and without a
+  # session or CSRF token.
+  pipeline :slack do
+    plug(:accepts, ["json"])
+    plug(VerifyRequest)
+  end
+
   scope "/api" do
     pipe_through(:api)
     get("/openapi", OpenApiSpec, [])
@@ -104,6 +115,7 @@ defmodule NervesHubWeb.Router do
       post("/scripts/:name_or_id", ScriptController, :send)
 
       get("/logs", DeviceLogController, :index)
+      get("/metrics", DeviceMetricController, :index)
     end
 
     scope "/" do
@@ -136,6 +148,17 @@ defmodule NervesHubWeb.Router do
             post("/", IrohEndpointController, :create)
             get("/:identifier", IrohEndpointController, :show)
             delete("/:identifier", IrohEndpointController, :delete)
+          end
+
+          scope "/webhooks" do
+            get("/", WebhookController, :index)
+            post("/", WebhookController, :create)
+            get("/:id", WebhookController, :show)
+            put("/:id", WebhookController, :update)
+            patch("/:id", WebhookController, :update)
+            delete("/:id", WebhookController, :delete)
+            post("/:id/regenerate_secret", WebhookController, :regenerate_secret)
+            post("/:id/test", WebhookController, :send_test)
           end
 
           scope "/ca_certificates" do
@@ -186,6 +209,10 @@ defmodule NervesHubWeb.Router do
                     get("/", DeviceLogController, :index)
                   end
 
+                  scope "/metrics" do
+                    get("/", DeviceMetricController, :index)
+                  end
+
                   scope "/network_identities" do
                     get("/", NetworkIdentityController, :index)
                   end
@@ -196,6 +223,12 @@ defmodule NervesHubWeb.Router do
                     post("/", DeviceCertificateController, :create)
                     delete("/:serial", DeviceCertificateController, :delete)
                   end
+
+                  scope "/shared_secrets" do
+                    get("/", DeviceSharedSecretController, :index)
+                    post("/", DeviceSharedSecretController, :create)
+                    delete("/:key", DeviceSharedSecretController, :delete)
+                  end
                 end
               end
 
@@ -205,6 +238,13 @@ defmodule NervesHubWeb.Router do
                 post("/", FirmwareController, :create)
                 delete("/:uuid", FirmwareController, :delete)
                 get("/:uuid/download", FirmwareController, :download)
+              end
+
+              scope "/archives" do
+                get("/", ArchiveController, :index)
+                get("/:uuid", ArchiveController, :show)
+                post("/", ArchiveController, :create)
+                get("/:uuid/download", ArchiveController, :download)
               end
 
               scope "/deployments" do
@@ -251,8 +291,37 @@ defmodule NervesHubWeb.Router do
 
     get("/logout", SessionController, :delete)
 
-    get("/auth/cli/:token", SessionController, :cli)
-    post("/auth/cli/:token", SessionController, :cli_confirm)
+    # Behind sign in so only the account that asked for the change can use it
+    get("/account/confirm-email/:token", AccountController, :confirm_email)
+
+    get("/auth/cli", SessionController, :cli)
+    post("/auth/cli", SessionController, :cli_code)
+    post("/auth/cli/confirm", SessionController, :cli_confirm)
+    get("/auth/cli/confirmed", SessionController, :cli_confirmed)
+  end
+
+  # Installing the Slack app in a workspace, and linking a person's Slack
+  # account: both for somebody signed in.
+  scope "/", Slack, as: :slack do
+    pipe_through([:browser, :require_authenticated_user])
+
+    # Where Slack sends someone back after they install the app. Slack has
+    # one redirect URL for every install, so it names no organization.
+    get("/integrations/slack/oauth/callback", OAuthController, :callback)
+    # Sign in with Slack, which links a person's Slack account.
+    post("/integrations/slack/link/start", OAuthController, :start_link)
+    get("/integrations/slack/link/callback", OAuthController, :link_callback)
+    post("/org/:org_name/settings/integrations/slack/install", OAuthController, :install)
+  end
+
+  # The URLs Slack calls, grouped under /integrations with those of any other
+  # chat service that comes later.
+  scope "/integrations/slack", Slack, as: :slack do
+    pipe_through(:slack)
+
+    post("/events", EventsController, :create)
+    post("/interactivity", InteractionsController, :create)
+    post("/commands", CommandsController, :create)
   end
 
   scope "/", NervesHubWeb do
@@ -326,6 +395,9 @@ defmodule NervesHubWeb.Router do
       ] do
       live("/account", Live.Account, :edit)
       live("/account/delete", Live.Account, :delete)
+      # Where a Slack user confirms which NervesHub account they are. Under
+      # /integrations with the rest of Slack, but a page for a signed in person.
+      live("/integrations/slack/link", SlackLink)
 
       live("/orgs", Index)
       live("/orgs/new", New)
@@ -345,6 +417,7 @@ defmodule NervesHubWeb.Router do
       # Gated as well as hidden from the sidebar: a hidden link still leaves the
       # URL typeable, so the LiveView refuses to mount when the flag is off.
       live("/org/:org_name/settings/iroh-endpoints", IrohEndpoints)
+      live("/org/:org_name/settings/integrations", Integrations)
 
       live("/org/:org_name/settings/certificates", CertificateAuthorities, :index)
       live("/org/:org_name/settings/certificates/new", CertificateAuthorities, :new)

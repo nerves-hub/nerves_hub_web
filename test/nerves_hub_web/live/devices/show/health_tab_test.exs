@@ -1,6 +1,5 @@
 defmodule NervesHubWeb.Live.Devices.Show.HealthTabTest do
   use NervesHubWeb.ConnCase.Browser, async: true
-  use PhoenixHTMLHelpers
 
   import Phoenix.HTML
 
@@ -230,6 +229,21 @@ defmodule NervesHubWeb.Live.Devices.Show.HealthTabTest do
         refute_has(socket, "span", text: "No metrics for #{key} found for the selected period.", timeout: 100)
       end)
     end)
+  end
+
+  test "memory used is shown without a percentage", %{
+    conn: conn,
+    org: org,
+    product: product,
+    device: device
+  } do
+    assert {:ok, 1} = record_metrics(device, %{"mem_used_mb" => 100}, DateTime.now!("Etc/UTC"))
+
+    conn
+    |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}/health")
+    |> assert_has("div", text: "Memory used")
+    |> assert_has("span", text: "100MB")
+    |> refute_has("span.text-warning", text: "%")
   end
 
   test "metrics data is correctly structured for js graphs", %{

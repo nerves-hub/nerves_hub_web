@@ -15,9 +15,9 @@ defmodule NervesHub.Devices.DeviceMessages.Payload do
        bloat a row. The original size is kept alongside, so the UI can say
        how much was dropped rather than silently showing a fragment.
 
-  Console traffic never comes through here. It is raw terminal I/O and can
-  contain anything a person typed at a prompt, including secrets, so only
-  its size is recorded — see `NervesHub.Devices.DeviceMessages`.
+  Console and local shell traffic never comes through here. It is raw
+  terminal I/O and can contain anything a person typed at a prompt, including
+  secrets, so only its size is recorded — see `NervesHub.Devices.DeviceMessages`.
   """
 
   alias NervesHub.Devices.DeviceMessages

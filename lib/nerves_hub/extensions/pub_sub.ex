@@ -27,12 +27,12 @@ defmodule NervesHub.Extensions.PubSub do
   because the churn scales with the fleet rather than with the number of open
   pages. A `Phoenix.PubSub` subscribe is node-local and costs nothing to hold.
 
-  `device:<extension>/<id>` is the one exception, and it earns it: a paced
-  extension needs a message from an open page (see `watch/2`), and there is no
-  `Phoenix.PubSub` topic that reaches one device's connection without every node
-  in the cluster hearing about it. The join is per *attached extension* rather
-  than per connection, and it buys targeted delivery for something that would
-  otherwise be fleet-wide fan-out.
+  The announcement a paced extension needs from an open page (see `watch/2`)
+  goes the same way. It once had a `:group` key of its own, joined for as long as
+  the extension was attached, so that it reached only the node holding the
+  device. `Health` is attached on nearly every connection, so that was a row per
+  connected device on every node, to deliver one message per page opened.
+  Broadcasting it costs a message per node per page instead.
 
   Reports are delivered as `%Phoenix.Socket.Broadcast{}` structs identical to
   what `Phoenix.PubSub` delivered, so existing `handle_info(%Broadcast{...})` /
@@ -117,23 +117,7 @@ defmodule NervesHub.Extensions.PubSub do
     Group.dispatch(@group, reports_key(device_id), message)
   end
 
-  # -- Health: who is watching a device right now -----------------------------
-
-  @doc """
-  The group key a device's extensions channel joins while a paced extension is
-  attached, so an open page can tell it to report more often.
-
-  `Health` and `Metrics` both use it, each with its own key, so a page open on a
-  device speeds up whichever of them that device is running.
-
-  Public because the join cannot happen here: `Group.join/4` joins the calling
-  process, and the process that has to be a member is the one holding the
-  device's connection. An extension therefore returns a `{:group_join, key}`
-  effect and lets the connection carry it out -- the same reason
-  `NervesHub.Consoles.PubSub.local_shell_key/1` is public.
-  """
-  @spec watch_key(integer(), Extensions.extension()) :: String.t()
-  def watch_key(device_id, extension), do: "device:#{extension}/#{device_id}"
+  # -- Paced extensions: who is watching a device right now -------------------
 
   @doc """
   Watch a device's `extension` from the calling process (a device Show LiveView).
@@ -148,12 +132,17 @@ defmodule NervesHub.Extensions.PubSub do
   exactly as long as the process that took it, which is exactly as long as
   somebody is looking.
 
-  The dispatch is what makes the *speed up* immediate. The extension could read
+  The broadcast is what makes the *speed up* immediate. The extension could read
   the membership instead, but that read runs wherever the extension runs, which
   is not necessarily the node this join was made on, and group state is
   eventually consistent -- a read in that gap would miss the page that just
   opened and nothing further would arrive to correct it. Announcing needs no
   read at all.
+
+  It goes out on the device's extensions topic, which reaches the connection
+  the same way `broadcast_to_device/3` does, and is dropped there unless
+  `extension` is attached. `Health` and `Metrics` are both paced, so a page open
+  on a device speeds up whichever of them that device is running.
   """
   @spec watch(integer(), Extensions.extension()) :: :ok
   def watch(device_id, extension) do
@@ -161,7 +150,7 @@ defmodule NervesHub.Extensions.PubSub do
 
     # The extensions channel routes `{module, msg}` to the matching attached
     # extension, so the tuple has to carry the module.
-    Group.dispatch(@group, watch_key(device_id, extension), {Extensions.module(extension), :watching})
+    Phoenix.PubSub.broadcast!(NervesHub.PubSub, topic(device_id), {Extensions.module(extension), :watching})
   end
 
   @doc "Is anybody watching this device's `extension` right now?"

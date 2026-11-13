@@ -43,7 +43,9 @@ defmodule NervesHubWeb.Components.DateTimesTest do
 
       assert render_at(Map.put(opts, :format, :date)) =~ ">2026-01-02<"
       assert render_at(Map.put(opts, :format, :long_date)) =~ ">January 2, 2026<"
+      assert render_at(Map.put(opts, :format, :month_year)) =~ ">January 2026<"
       assert render_at(Map.put(opts, :format, :long_datetime)) =~ ">January 2, 2026 6:00 PM<"
+      assert render_at(Map.put(opts, :format, :short_datetime)) =~ ">Jan 2, 6:00 PM<"
       assert render_at(Map.put(opts, :format, :datetime)) =~ ">2026-01-02 at 6:00 PM<"
       assert render_at(Map.put(opts, :format, :datetime_seconds)) =~ ">2026-01-02 at 6:00:00 PM<"
       assert render_at(Map.put(opts, :format, :timestamp)) =~ ">2026-01-02 18:00:00<"
@@ -97,6 +99,18 @@ defmodule NervesHubWeb.Components.DateTimesTest do
 
     test "returns nil when there is no timestamp" do
       assert DateTimes.to_local_string(nil, "Pacific/Auckland") == nil
+    end
+  end
+
+  describe "from_now/1" do
+    test "describes a DateTime or NaiveDateTime relative to now" do
+      assert DateTimes.from_now(DateTime.add(DateTime.utc_now(), -3, :hour)) == "3 hours ago"
+      assert DateTimes.from_now(NaiveDateTime.add(NaiveDateTime.utc_now(), -2, :day)) == "2 days ago"
+    end
+
+    test "passes anything else through" do
+      assert DateTimes.from_now(nil) == nil
+      assert DateTimes.from_now("never") == "never"
     end
   end
 end

@@ -86,6 +86,29 @@ defmodule NervesHub.Accounts.OrgKeyTest do
     end
   end
 
+  describe "create_changeset/3" do
+    test "takes the org and creator from the arguments, whatever the params say" do
+      user = Fixtures.user_fixture()
+      org = Fixtures.org_fixture(user)
+      other_user = Fixtures.user_fixture()
+      other_org = Fixtures.org_fixture(other_user)
+
+      changeset =
+        OrgKey.create_changeset(org, user, %{
+          "name" => "esp-key",
+          "key" => EspIdf.signing_public_key(),
+          "scheme" => "secure_boot_v2_rsa",
+          "org_id" => other_org.id,
+          "created_by_id" => other_user.id
+        })
+
+      assert changeset.valid?
+      assert Ecto.Changeset.get_field(changeset, :org_id) == org.id
+      assert Ecto.Changeset.get_field(changeset, :created_by_id) == user.id
+      assert Ecto.Changeset.get_field(changeset, :scheme) == :secure_boot_v2_rsa
+    end
+  end
+
   describe "schemes/0" do
     test "returns the list of supported schemes" do
       assert [:ed25519, :secure_boot_v2_rsa, :x509_certificate] = OrgKey.schemes()

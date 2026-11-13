@@ -2,14 +2,24 @@
   <:title>
     {assigns[:error_title] || "We've sent you a new link"}
   </:title>
-  <div class="mt-8">
-    <p class="text-base-300 mt-2 text-sm/6">
-      {@error_message}
-    </p>
 
-    <p :if={Application.get_env(:nerves_hub, :support_email_address)} class="text-base-300 mt-2 text-sm/6">
-      Please contact us at <.link class="underline" href={"mailto:#{Application.get_env(:nerves_hub, :support_email_address)}"}>{Application.get_env(:nerves_hub, :support_email_address)}</.link>
-      if you continue to experience issues confirming your account.
+  <div class="flex flex-col gap-4 text-sm">
+    <div class="flex items-start gap-3.5">
+      <span class="flex size-10 flex-none items-center justify-center rounded-full bg-notice-soft text-notice-content" aria-hidden="true">
+        <span class="lucide-mail size-5"></span>
+      </span>
+      <p class="text-content-body">{@error_message}</p>
+    </div>
+
+    <p :if={Application.get_env(:nerves_hub, :support_email_address)} class="text-content-muted">
+      Still can't confirm your account? Email <.link
+        class="font-semibold text-primary hover:text-primary-hover light:text-indigo-600 light:hover:text-indigo-500"
+        href={"mailto:#{Application.get_env(:nerves_hub, :support_email_address)}"}
+      >{Application.get_env(:nerves_hub, :support_email_address)}</.link>.
     </p>
   </div>
+
+  <:footer>
+    <.link href={~p"/login"} class="font-semibold text-primary hover:text-primary-hover light:text-indigo-600 light:hover:text-indigo-500">Back to sign in</.link>
+  </:footer>
 </Layouts.auth>

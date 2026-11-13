@@ -1,24 +1,25 @@
-<NervesHubWeb.Layouts.sidebar flash={@flash} current_scope={@current_scope} sidebar_tab={@sidebar_tab}>
-  <:header>
-    <h1 class="text-base-50 text-xl leading-[30px] font-semibold">Delete Organization</h1>
-  </:header>
+<NervesHubWeb.Layouts.org flash={@flash} current_scope={@current_scope} tab={@sidebar_tab} counts={@org_counts}>
+  <NervesHubWeb.Layouts.org_heading title="Delete Organization" back={~p"/org/#{@org}/settings"} />
 
-  <div class="max-w-[650px] px-6 py-4">
-    <div class="bg-alert-soft border-alert mb-6 rounded border p-4">
-      <h3 class="text-alert-content mb-2 text-base font-semibold">Are you absolutely sure?</h3>
-      <p class="text-alert-content mb-2 text-sm">Unexpected bad things will happen if you don't read this!</p>
-      <p class="text-alert-content text-sm">This action cannot be undone. This will permanently delete the <strong>{@org.name}</strong> organization.</p>
+  <div class="max-w-[650px]">
+    <div class="mb-6 rounded-md border border-alert bg-alert-soft p-4">
+      <h3 class="mb-2 text-card-title text-alert-content">Are you absolutely sure?</h3>
+      <p class="mb-2 text-sm text-alert-content">Unexpected bad things will happen if you don't read this!</p>
+      <p class="text-sm text-alert-content">This action cannot be undone. This will permanently delete the <strong>{@org.name}</strong> organization.</p>
     </div>
 
     <.form :let={f} id="delete-org-form" for={@form} phx-submit="delete">
       <div class="mb-6">
-        <label for="org_name_input" class="text-base-300 mb-2 block text-sm font-medium">
+        <label for="org_name_input" class="mb-2 block text-sm font-medium text-content-body">
           Please type <strong>{@org.name}</strong> to confirm.
         </label>
-        {text_input(f, :confirm_name,
-          class: "w-full px-3 py-2 text-sm bg-base-900 border border-base-700 rounded text-base-50 focus:outline-none focus:ring-2 focus:ring-alert",
-          id: "org_name_input"
-        )}
+        <input
+          type="text"
+          id="org_name_input"
+          name={f[:confirm_name].name}
+          value={f[:confirm_name].value}
+          class="w-full rounded border border-line-default bg-base-900 px-3 py-2 text-sm text-content-strong focus:ring-2 focus:ring-alert focus:outline-none"
+        />
       </div>
 
       <div class="flex gap-3">
@@ -31,4 +32,4 @@
       </div>
     </.form>
   </div>
-</NervesHubWeb.Layouts.sidebar>
+</NervesHubWeb.Layouts.org>

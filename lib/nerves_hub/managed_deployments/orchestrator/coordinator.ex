@@ -26,29 +26,20 @@ defmodule NervesHub.ManagedDeployments.Orchestrator.Coordinator do
       alias NervesHub.ManagedDeployments.DeploymentGroup
 
       @doc """
-      Given a list of devices, confirm they haven't had too many update failures, then
-      message the devices to schedule their updates, or update their `blocked_until`.
+      Given a list of devices, message the ones that haven't had too many update
+      failures to schedule their updates, and put the rest in the penalty box (see
+      `Updates.enforce_failure_limits/2`).
 
       Returns the number of devices that were allowed to update.
       """
       @spec schedule_devices!([Device.t()], DeploymentGroup.t(), boolean()) :: non_neg_integer()
       def schedule_devices!(available, deployment_group, priority_queue \\ false) do
         Enum.count(available, fn device ->
-          case can_device_update?(device, deployment_group) do
-            true ->
-              tell_device_to_update(device.id, deployment_group, priority_queue)
-
-            false ->
-              _ = Updates.update_blocked_until(device, deployment_group)
-              false
+          case Updates.enforce_failure_limits(device, deployment_group) do
+            {:ok, _device} -> tell_device_to_update(device.id, deployment_group, priority_queue)
+            {:error, :updates_blocked, _device} -> false
           end
         end)
-      end
-
-      @spec can_device_update?(Device.t(), DeploymentGroup.t()) :: boolean()
-      defp can_device_update?(device, deployment_group) do
-        not (Updates.failure_rate_met?(device, deployment_group) or
-               Updates.failure_threshold_met?(device, deployment_group))
       end
 
       @spec tell_device_to_update(integer(), DeploymentGroup.t(), boolean()) :: boolean()

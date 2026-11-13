@@ -39,9 +39,29 @@ defmodule NervesHub.Accounts.OrgKey do
     timestamps()
   end
 
+  @doc """
+  A key with its org and creator in `params`, for code that works those out
+  itself. A key a user adds goes through `create_changeset/3`.
+  """
   def changeset(%OrgKey{} = org, params) do
     org
     |> cast(params, @required_params ++ @optional_params)
+    |> validate_new_key()
+  end
+
+  @doc """
+  A key `user` adds to `org`. The org and creator come from the arguments,
+  never from `params`.
+  """
+  @spec create_changeset(Org.t(), User.t(), map()) :: Ecto.Changeset.t()
+  def create_changeset(%Org{} = org, %User{} = user, params) do
+    %OrgKey{org_id: org.id, created_by_id: user.id}
+    |> cast(params, [:name, :key | @optional_params])
+    |> validate_new_key()
+  end
+
+  defp validate_new_key(changeset) do
+    changeset
     |> update_change(:name, &trim/1)
     |> validate_required(@required_params)
     |> validate_key()

@@ -64,9 +64,9 @@ defmodule NervesHub.Extensions.PubSubTest do
 
   describe "health watchers" do
     test "watching announces itself to the device's extensions channel", %{device_id: device_id} do
-      # Standing in for the extensions channel, which joins this group for as
-      # long as the health extension is attached.
-      :ok = Group.join(NervesHub.Group, PubSub.watch_key(device_id, :health), %{})
+      # Standing in for the extensions channel, which subscribes to its
+      # device's extensions topic for as long as it is connected.
+      :ok = PubSub.subscribe_device(device_id)
 
       task = Task.async(fn -> PubSub.watch(device_id, :health) end)
       :ok = Task.await(task)

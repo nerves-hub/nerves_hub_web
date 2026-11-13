@@ -2,6 +2,7 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
   use NervesHubWeb, tab_component: :health
 
   alias NervesHub.Devices.Metrics
+  alias NervesHub.Helpers.RelativeTime
   alias NervesHub.Products
   alias NervesHub.Products.HealthProfiles
   alias NervesHubWeb.Components.DeviceHealth.MetricLabels
@@ -213,92 +214,85 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
     <div
       id="health-tab"
       phx-mounted={JS.remove_class("opacity-0")}
-      class="phx-click-loading:opacity-50 tab-content size-full p-6 opacity-0 transition-all duration-500"
+      class="tab-content size-full p-6 opacity-0 transition-all duration-500 phx-click-loading:opacity-50"
     >
-      <div :if={Enum.any?(@latest_metrics) && @health_enabled?} class="bg-surface-raised border-base-700 shadow-device-details-content mb-6 flex w-full flex-col rounded border">
+      <div :if={Enum.any?(@latest_metrics) && @health_enabled?} class="mb-6 flex w-full flex-col rounded-md border border-line-default bg-surface-raised shadow-card">
         <div class="flex flex-col">
           <div class="flex flex-wrap items-center justify-items-stretch gap-2 px-4 pt-2 pb-4">
-            <div class="border-success health-good flex h-16 grow flex-col rounded border-b px-3 py-2">
-              <span class="text-base-400 text-xs tracking-wide">CPU</span>
+            <div class="flex h-16 grow flex-col rounded border-b border-success health-good px-3 py-2">
+              <span class="text-xs tracking-wide text-content-muted">CPU</span>
               <div :if={@latest_metrics["cpu_usage_percent"] && @latest_metrics["cpu_temp"]} class="flex items-end justify-between">
-                <span class="text-base-50 text-xl leading-[30px]">{round(@latest_metrics["cpu_usage_percent"])}%</span>
-                <span class="text-success text-base">{round(@latest_metrics["cpu_temp"])}°</span>
+                <span class="text-xl leading-[30px] text-content-strong">{round(@latest_metrics["cpu_usage_percent"])}%</span>
+                <span class="text-base text-success">{round(@latest_metrics["cpu_temp"])}°</span>
               </div>
               <div :if={@latest_metrics["cpu_usage_percent"] && !@latest_metrics["cpu_temp"]} class="flex items-end justify-between">
-                <span class="text-base-50 text-xl leading-[30px]">{round(@latest_metrics["cpu_usage_percent"])}%</span>
+                <span class="text-xl leading-[30px] text-content-strong">{round(@latest_metrics["cpu_usage_percent"])}%</span>
               </div>
               <div :if={!@latest_metrics["cpu_usage_percent"] && @latest_metrics["cpu_temp"]} class="flex items-end justify-between">
-                <span class="text-base-50 text-xl leading-[30px]">{round(@latest_metrics["cpu_temp"])}°</span>
+                <span class="text-xl leading-[30px] text-content-strong">{round(@latest_metrics["cpu_temp"])}°</span>
               </div>
-              <span :if={!@latest_metrics["cpu_usage_percent"] && !@latest_metrics["cpu_temp"]} class="text-base-500 text-xl leading-[30px]">NA</span>
+              <span :if={!@latest_metrics["cpu_usage_percent"] && !@latest_metrics["cpu_temp"]} class="text-xl leading-[30px] text-content-faint">NA</span>
             </div>
-            <div class="border-warning health-warning flex h-16 grow flex-col rounded border-b px-3 py-2">
-              <span class="text-base-400 text-xs tracking-wide">Memory used</span>
+            <div class="flex h-16 grow flex-col rounded border-b border-warning health-warning px-3 py-2">
+              <span class="text-xs tracking-wide text-content-muted">Memory used</span>
               <div :if={@latest_metrics["mem_used_mb"]} class="flex items-end justify-between">
-                <span class="text-base-50 text-xl leading-[30px]">{round(@latest_metrics["mem_used_mb"])}MB</span>
-                <span class="text-warning text-base">{round(@latest_metrics["mem_used_percent"])}%</span>
+                <span class="text-xl leading-[30px] text-content-strong">{round(@latest_metrics["mem_used_mb"])}MB</span>
+                <span :if={@latest_metrics["mem_used_percent"]} class="text-base text-warning">{round(@latest_metrics["mem_used_percent"])}%</span>
               </div>
               <div :if={!@latest_metrics["mem_used_mb"]} class="flex items-end justify-between">
-                <span class="text-base-500 text-xl leading-[30px]">Not reported</span>
+                <span class="text-xl leading-[30px] text-content-faint">Not reported</span>
               </div>
             </div>
-            <div class="border-primary health-neutral flex h-16 grow flex-col rounded border-b px-3 py-2">
-              <span class="text-base-400 text-xs tracking-wide">Load avg</span>
+            <div class="flex h-16 grow flex-col rounded border-b border-primary health-neutral px-3 py-2">
+              <span class="text-xs tracking-wide text-content-muted">Load avg</span>
               <div :if={@latest_metrics["load_1min"] || @latest_metrics["load_5min"] || @latest_metrics["load_15min"]} class="flex items-center justify-between">
-                <span :if={@latest_metrics["load_1min"]} class="text-base-50 text-xl leading-[30px]">{@latest_metrics["load_1min"]}</span>
-                <span :if={!@latest_metrics["load_1min"]} class="text-base-500 text-xl leading-[30px]">NA</span>
-                <span class="bg-base-700 h-4 w-px"></span>
-                <span :if={@latest_metrics["load_5min"]} class="text-base-50 text-xl leading-[30px]">{@latest_metrics["load_5min"]}</span>
-                <span :if={!@latest_metrics["load_5min"]} class="text-base-500 text-xl leading-[30px]">NA</span>
-                <span class="bg-base-700 h-4 w-px"></span>
-                <span :if={@latest_metrics["load_15min"]} class="text-base-50 text-xl leading-[30px]">{@latest_metrics["load_15min"]}</span>
-                <span :if={!@latest_metrics["load_15min"]} class="text-base-500 text-xl leading-[30px]">NA</span>
+                <span :if={@latest_metrics["load_1min"]} class="text-xl leading-[30px] text-content-strong">{@latest_metrics["load_1min"]}</span>
+                <span :if={!@latest_metrics["load_1min"]} class="text-xl leading-[30px] text-content-faint">NA</span>
+                <span class="h-4 w-px bg-base-700"></span>
+                <span :if={@latest_metrics["load_5min"]} class="text-xl leading-[30px] text-content-strong">{@latest_metrics["load_5min"]}</span>
+                <span :if={!@latest_metrics["load_5min"]} class="text-xl leading-[30px] text-content-faint">NA</span>
+                <span class="h-4 w-px bg-base-700"></span>
+                <span :if={@latest_metrics["load_15min"]} class="text-xl leading-[30px] text-content-strong">{@latest_metrics["load_15min"]}</span>
+                <span :if={!@latest_metrics["load_15min"]} class="text-xl leading-[30px] text-content-faint">NA</span>
               </div>
               <div :if={!@latest_metrics["load_1min"] && !@latest_metrics["load_5min"] && !@latest_metrics["load_15min"]} class="flex items-center">
-                <span class="text-base-500 text-xl leading-[30px]">Not reported</span>
+                <span class="text-xl leading-[30px] text-content-faint">Not reported</span>
               </div>
             </div>
-            <div :for={{key, value} <- custom_metrics(@latest_metrics)} class="health-plain flex h-16 grow flex-col rounded border-b border-neutral-500 px-3 py-2">
-              <span class="text-base-400 text-xs tracking-wide">{label_for(key, @custom_health_labels)}</span>
-              <span class="text-base-50 text-xl leading-[30px]">{nice_round(value)}</span>
+            <div :for={{key, value} <- custom_metrics(@latest_metrics)} class="flex h-16 grow flex-col rounded border-b border-base-500 health-plain px-3 py-2">
+              <span class="text-xs tracking-wide text-content-muted">{label_for(key, @custom_health_labels)}</span>
+              <span class="text-xl leading-[30px] text-content-strong">{nice_round(value)}</span>
             </div>
           </div>
         </div>
       </div>
 
-      <div :if={Enum.any?(Map.keys(@latest_metrics))} class="bg-surface-raised border-base-700 shadow-device-details-content flex w-full flex-col rounded border">
-        <div class="border-base-700 flex h-14 items-center justify-between border-b px-4">
+      <div :if={Enum.any?(Map.keys(@latest_metrics))} class="flex w-full flex-col rounded-md border border-line-default bg-surface-raised shadow-card">
+        <div class="flex h-14 items-center justify-between border-b border-line-default px-4">
           <div class="flex items-end gap-3">
-            <div class="text-base-50 text-base font-medium">Health over time</div>
-            <div :if={@latest_metrics["timestamp"]} class="text-base-500 mr-auto pb-0.5 text-xs tracking-wide">
+            <div class="text-card-title text-content-strong">Health over time</div>
+            <div :if={@latest_metrics["timestamp"]} class="mr-auto pb-0.5 text-xs tracking-wide text-content-faint">
               <span>Last updated: </span>
               <time id="health-last-updated" phx-hook="UpdatingTimeAgo" datetime={String.replace(DateTime.to_string(DateTime.truncate(@latest_metrics["timestamp"], :second)), " ", "T")}>
-                {Timex.from_now(@latest_metrics["timestamp"])}
+                {RelativeTime.from_now(@latest_metrics["timestamp"])}
               </time>
             </div>
           </div>
-          <div class="inline-flex rounded-md shadow-sm" role="group">
-            <button
+          <.segmented_control label="Metrics time frame">
+            <:segment
               :for={{unit, amount} <- @time_frame_opts}
-              type="button"
-              class={[
-                "border-base-600 hover:bg-base-700 hover:text-base-200 cursor-pointer border px-4 py-2 text-sm font-medium first:rounded-s-lg last:rounded-e-lg focus:z-10 focus:ring-0",
-                {unit, amount} != @time_frame && "bg-base-800 text-base-300",
-                {unit, amount} == @time_frame && "bg-base-700 text-base-200"
-              ]}
-              aria-label={Integer.to_string(amount) <> " " <> unit <> if amount > 1, do: "s", else: ""}
-              type="button"
+              selected={{unit, amount} == @time_frame}
               phx-click="set-time-frame"
               phx-value-unit={unit}
               phx-value-amount={amount}
             >
               {Integer.to_string(amount) <> " " <> unit <> if amount > 1, do: "s", else: ""}
-            </button>
-          </div>
+            </:segment>
+          </.segmented_control>
         </div>
 
-        <div class="divide-b-subtle flex flex-col divide-y">
-          <div :for={key <- metrics_to_chart(@latest_metrics)} class="flex flex-col gap-1 p-6">
+        <div class="flex flex-col divide-y divide-line-subtle">
+          <div :for={key <- metrics_to_chart(@latest_metrics)} class="flex flex-col gap-1 p-4">
             <div class="group/label flex h-7 items-center gap-2">
               <form :if={@editing_label_key == key} phx-submit="save-health-label" class="flex items-center gap-2">
                 <input type="hidden" name="key" value={key} />
@@ -309,39 +303,39 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
                   phx-mounted={JS.focus()}
                   autocomplete="off"
                   maxlength="255"
-                  class="bg-base-900 border-base-600 focus:border-base-400 text-base-50 rounded border px-2 py-1 text-base font-medium focus:ring-0"
+                  class="rounded border border-line-strong bg-base-900 px-2 py-1 text-base font-medium text-content-strong focus:border-base-400 focus:ring-0"
                 />
-                <button type="submit" aria-label="Save label" class="hover:text-success text-base-400 cursor-pointer">
-                  <span class="lucide-check--light size-5"></span>
+                <button type="submit" aria-label="Save label" class="cursor-pointer text-content-muted hover:text-success">
+                  <span class="lucide-check size-5"></span>
                 </button>
-                <button type="button" phx-click="cancel-health-label" aria-label="Cancel editing label" class="hover:text-alert text-base-400 cursor-pointer">
-                  <span class="lucide-x--light size-5"></span>
+                <button type="button" phx-click="cancel-health-label" aria-label="Cancel editing label" class="cursor-pointer text-content-muted hover:text-alert">
+                  <span class="lucide-x size-5"></span>
                 </button>
               </form>
               <div :if={@editing_label_key != key} class="flex items-center gap-2">
-                <span class="text-base-50 text-base font-medium">{label_for(key, @custom_health_labels)}</span>
+                <span class="text-base font-medium text-content-strong">{label_for(key, @custom_health_labels)}</span>
                 <button
                   :if={authorized?(:"product:update", @current_scope)}
                   type="button"
                   phx-click="edit-health-label"
                   phx-value-key={key}
                   aria-label={"Edit label for #{label_for(key, @custom_health_labels)}"}
-                  class="hover:text-base-300 text-base-500 cursor-pointer opacity-0 transition-opacity group-hover/label:opacity-100"
+                  class="cursor-pointer text-content-faint opacity-0 transition-opacity group-hover/label:opacity-100 hover:text-content-body"
                 >
-                  <span class="lucide-pencil--light size-4"></span>
+                  <span class="lucide-pencil size-4"></span>
                 </button>
               </div>
             </div>
             <div class="relative flex h-[200px] w-full">
               <.async_result :let={chart_data} assign={@chart_data[key]}>
                 <:loading>
-                  <div class="bg-base-900/70 absolute inset-0 flex items-center justify-center">
-                    <span class="text-base-500 font-extralight">Loading history for {key}...</span>
+                  <div class="absolute inset-0 flex items-center justify-center bg-base-900/70">
+                    <span class="font-extralight text-content-faint">Loading history for {key}...</span>
                   </div>
                 </:loading>
                 <:failed :let={_failure}>
-                  <div class="bg-base-900/70 absolute inset-0 flex items-center justify-center">
-                    <span class="text-base-500 font-extralight">Sorry, there was an error loading the history for {key}.</span>
+                  <div class="absolute inset-0 flex items-center justify-center bg-base-900/70">
+                    <span class="font-extralight text-content-faint">Sorry, there was an error loading the history for {key}.</span>
                   </div>
                 </:failed>
                 <canvas
@@ -357,9 +351,9 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
                   data-maxtime={Jason.encode!(@charts_until_timestamp)}
                   data-unit="minute"
                 ></canvas>
-                <div :if={!@has_chart_data[key] && Enum.empty?(chart_data)} class="bg-base-900/70 absolute inset-0 flex items-center justify-center">
-                  <span :if={@analytics_enabled} class="text-base-500 font-extralight">No metrics for {key} found for the selected period.</span>
-                  <span :if={!@analytics_enabled} class="text-base-500 font-extralight">
+                <div :if={!@has_chart_data[key] && Enum.empty?(chart_data)} class="absolute inset-0 flex items-center justify-center bg-base-900/70">
+                  <span :if={@analytics_enabled} class="font-extralight text-content-faint">No metrics for {key} found for the selected period.</span>
+                  <span :if={!@analytics_enabled} class="font-extralight text-content-faint">
                     Metric history needs analytics, which isn't enabled for your platform. The current values above are up to date.
                   </span>
                 </div>
@@ -369,34 +363,27 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
         </div>
       </div>
 
-      <div :if={Enum.empty?(Map.keys(@latest_metrics))} class="bg-surface-raised border-base-700 shadow-device-details-content flex size-full flex-col rounded border">
-        <div class="border-base-700 flex h-14 shrink-0 items-center justify-between border-b px-4">
+      <div :if={Enum.empty?(Map.keys(@latest_metrics))} class="flex size-full flex-col rounded-md border border-line-default bg-surface-raised shadow-card">
+        <div class="flex h-14 shrink-0 items-center justify-between border-b border-line-default px-4">
           <div class="flex items-end gap-3">
-            <div class="text-base-50 text-base font-medium">Health over time</div>
+            <div class="text-card-title text-content-strong">Health over time</div>
           </div>
-          <div class="inline-flex rounded-md shadow-sm" role="group">
-            <button
+          <.segmented_control label="Metrics time frame">
+            <:segment
               :for={{unit, amount} <- @time_frame_opts}
-              type="button"
-              class={[
-                "border-base-600 border px-4 py-2 text-sm font-medium first:rounded-s-lg last:rounded-e-lg focus:z-10 focus:ring-0",
-                {unit, amount} != @time_frame && "bg-base-800 text-base-300",
-                {unit, amount} == @time_frame && "bg-base-700 text-base-200"
-              ]}
-              aria-label={Integer.to_string(amount) <> " " <> unit <> if amount > 1, do: "s", else: ""}
-              type="button"
+              selected={{unit, amount} == @time_frame}
               disabled
               phx-click="set-time-frame"
               phx-value-unit={unit}
               phx-value-amount={amount}
             >
               {Integer.to_string(amount) <> " " <> unit <> if amount > 1, do: "s", else: ""}
-            </button>
-          </div>
+            </:segment>
+          </.segmented_control>
         </div>
 
         <div class="flex h-full flex-col items-center justify-center gap-10 p-10">
-          <div class="text-base-500 flex flex-col gap-3">
+          <div class="flex flex-col gap-3 text-content-faint">
             No health metrics have been received from the device
           </div>
         </div>

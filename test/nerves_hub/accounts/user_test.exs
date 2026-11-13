@@ -56,6 +56,34 @@ defmodule NervesHub.Accounts.UserTest do
     end
   end
 
+  describe "registration_changeset/3 - email" do
+    test "rejects an address the mailer can't send to" do
+      changeset = registration_changeset_for("lil.i.a.n...lec.a.ros@gmail.com")
+
+      refute changeset.valid?
+      assert errors_on(changeset).email == ["is not a valid email address"]
+    end
+
+    test "gives one error for an address without an @ sign" do
+      changeset = registration_changeset_for("jane.example.com")
+
+      assert errors_on(changeset).email == ["must have the @ sign and no spaces"]
+    end
+
+    defp registration_changeset_for(email) do
+      User.registration_changeset(%User{}, %{name: "Jane Doe", email: email, password: "supersecretpassword"})
+    end
+  end
+
+  test "update_changeset/2 rejects changing to an address the mailer can't send to" do
+    user = Fixtures.user_fixture()
+
+    changeset =
+      User.update_changeset(user, %{"email" => "jane..doe@example.com", "current_password" => "test_password"})
+
+    assert errors_on(changeset) == %{email: ["is not a valid email address"]}
+  end
+
   test "maybe_add_confirmed_at skips already-confirmed user" do
     user = Fixtures.user_fixture()
     google_auth = Fixtures.ueberauth_google_success_fixture()
@@ -122,6 +150,16 @@ defmodule NervesHub.Accounts.UserTest do
       User.update_changeset(user, %{"email" => "changed@example.com"})
 
     assert changeset.errors[:current_password] != nil
+  end
+
+  test "update_changeset/2 ignores a password, which only password_changeset/2 may change" do
+    user = Fixtures.user_fixture()
+
+    changeset = User.update_changeset(user, %{"name" => "New Name", "password" => "x"})
+
+    assert changeset.valid?
+    refute Map.has_key?(changeset.changes, :password)
+    refute Map.has_key?(changeset.changes, :password_hash)
   end
 
   test "update_changeset/2 no email/password change with current_password does not add error" do

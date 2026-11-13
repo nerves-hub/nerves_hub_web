@@ -42,6 +42,46 @@ orchestrators. `NERVES_HUB_APP` picks which supervision tree a node starts.
 | `NERVES_HUB_APP` | `all` | One of `all`, `web`, `device`. Any other value raises at boot. `all` runs both roles in one node, which is the usual choice for a self-hosted instance. |
 | `DEPLOY_ENV` | the Mix env | Free-form name for the deployment. Used as the Sentry environment name. |
 
+## Maintenance mode
+
+For taking the whole platform offline on purpose. Set `MAINTENANCE_MODE=true` on
+every node and restart them. Leave the rest of the environment as it is: it is
+still read at boot, it just isn't connected to anything. Unset the variable and
+restart to come back.
+
+A node in this mode starts only `NervesHubWeb.MaintenanceEndpoint`. It doesn't
+connect to PostgreSQL or ClickHouse, run migrations or background jobs, join the
+cluster, or start the deployment orchestrators.
+
+| Variable | Default | Description |
+| --- | --- | --- |
+| `MAINTENANCE_MODE` | `false` | Serve only the maintenance page. |
+| `STATUS_PAGE_URL` | — | Where the page and the API's error send people for progress. Without it, the link is left out. Anything not starting `https://` or `http://` raises at boot. |
+
+What each role listens on:
+
+| `NERVES_HUB_APP` | Port | Serves |
+| --- | --- | --- |
+| `all`, `web` | `HTTP_PORT`, then `PORT`, then `4000` | The maintenance page. |
+| `device` | `DEVICE_HOST_STATUS_PORT`, default `4040` | The same responses, on the port its health checks already use. |
+
+The device endpoint doesn't listen in any role, since its TLS handshake needs
+the database. Devices find it closed and keep retrying, and those connecting to
+the web host get a 503.
+
+What comes back, on every path and method:
+
+- `/status/alive` and the other health check paths return 200, without checking
+  the database. A load balancer would otherwise stop sending traffic to the node,
+  and nobody would see the page. Any alert or readiness check that relies on these
+  paths to detect a lost database can't while this is set.
+- `/api/*`, and any request whose `Accept` header mentions JSON, gets a 503 with
+  the API's error shape.
+- Everything else gets a 503 with the maintenance page, which needs nothing but
+  the node itself. It uses `FRIENDLY_PLATFORM_NAME` and `WEB_TITLE_SUFFIX`.
+
+Every 503 carries `Retry-After: 300`.
+
 ## Web endpoint
 
 Prod only. Configures `NervesHubWeb.Endpoint`, and is only read when
@@ -76,19 +116,55 @@ is how a device's own address survives the hop.
 | Variable | Default | Description |
 | --- | --- | --- |
 | `DEVICE_HOST` | `WEB_HOST`, then `HOST` | Hostname devices connect to, e.g. `device.mynerveshub.com`. Boot raises if none of the three is set. |
-| `DEVICE_PORT` | `443` | Port the device HTTPS listener binds to. |
+| `DEVICE_PORT` | `443` | Port the device HTTPS listener binds to. The Docker image runs as a non-root user, so the default only works where the container runtime sets `net.ipv4.ip_unprivileged_port_start` to allow it, as Docker does. Elsewhere the node fails to boot, so set a port of 1024 or above and map 443 to it. |
 | `DEVICE_SSL_KEY` | — | Base64-encoded private key. Written to `/app/tmp/ssl_key.crt` at boot. |
-| `DEVICE_SSL_KEYFILE` | `/etc/ssl/$DEVICE_HOST-key.pem` | Path to the private key, used when `DEVICE_SSL_KEY` is unset. Boot raises if the file does not exist. |
+| `DEVICE_SSL_KEYFILE` | `/etc/ssl/$DEVICE_HOST-key.pem` | Path to the private key, used when `DEVICE_SSL_KEY` is unset. Boot raises if the file does not exist, unless `DEVICE_TLS_FROM_CLUSTER` is true. |
 | `DEVICE_SSL_CERT` | — | Base64-encoded certificate. Written to `/app/tmp/ssl_cert.crt` at boot. |
-| `DEVICE_SSL_CERTFILE` | `/etc/ssl/$DEVICE_HOST.pem` | Path to the certificate, used when `DEVICE_SSL_CERT` is unset. Boot raises if the file does not exist. |
+| `DEVICE_SSL_CERTFILE` | `/etc/ssl/$DEVICE_HOST.pem` | Path to the certificate, used when `DEVICE_SSL_CERT` is unset. Boot raises if the file does not exist, unless `DEVICE_TLS_FROM_CLUSTER` is true. |
 | `DEVICE_SSL_CACERTFILE` | the `castore` CA bundle | Path to a CA bundle. Boot raises if the file does not exist. |
-| `DEVICE_ENABLE_TLS_13` | `false` | When false, the endpoint enforces TLS 1.2. Turn it on only if every device runs OTP >= 25.1 — older OTP 25 releases can break negotiating 1.3 or 1.2. See [erlang/otp#6492](https://github.com/erlang/otp/issues/6492#issuecomment-1323874205). |
-| `DEVICE_SHARED_SECRETS_ENABLED` | `false` | Allow devices to authenticate with a shared secret instead of a certificate. Easier onboarding, weaker authentication. |
+| `DEVICE_TLS_FROM_CLUSTER` | `false` | Take the endpoint's key and certificate from a TLS provider in the cluster, and install each renewal without a restart. See [Renewing the certificate without a restart](#renewing-the-certificate-without-a-restart). |
+| `DEVICE_TLS_PEMFILE` | `/app/tmp/device_tls.pem` | The one file the listener reads its key and chain from when `DEVICE_TLS_FROM_CLUSTER` is true. Seeded from the `DEVICE_SSL_*` keypair at boot when it does not exist yet. |
+| `DEVICE_TLS_POLL_INTERVAL` | `300` | Seconds between asking the provider for the keypair. A provider can also announce a new one, which is fetched straight away. |
+| `DEVICE_TLS_BOOT_TIMEOUT` | `120` | Seconds to wait at boot for a provider's first keypair when there is none to start with. Boot fails once it passes. |
+| `DEVICE_ENABLE_TLS_13` | `false` | When false, the endpoint enforces TLS 1.2. Turn it on only if every device runs OTP >= 25.1 — older OTP 25 releases can break negotiating 1.3 or 1.2. See [erlang/otp#6492](https://github.com/erlang/otp/issues/6492#issuecomment-1323874205). When true, the endpoint also issues TLS 1.3 session tickets that carry the device's certificate, so a reconnecting device can resume instead of repeating the full handshake. A resumed handshake skips `verify_fun`; the certificate is still checked against the database when the socket connects. |
+| `DEVICE_TLS_SESSION_TICKET_SEED` | — | Session ticket key shared by every device endpoint node, so any node can resume a ticket another issued, including across deploys. At least 64 bytes; generate one with `mix phx.gen.secret`. Unset, each node makes its own and a device only resumes on the node that issued its ticket. **Whoever holds it can mint a ticket for any device's certificate and connect as that device without its key**, so keep it with the most sensitive secrets. Changing it voids every ticket, and devices fall back to a full handshake. Only read when `DEVICE_ENABLE_TLS_13` is true. |
+| `DEVICE_SHARED_SECRETS_ENABLED` | `false` | Allow devices to authenticate with a shared secret instead of a certificate. Easier onboarding, weaker authentication. A device may ask for at most 10,000 PBKDF2 iterations and a 64 byte key in `x-nh-alg`; NervesHubLink sends 1,000 and 32 unless its app sets otherwise. A device asking for more is refused and logged as `:key_derivation_out_of_range`. |
 | `DEVICE_HOST_STATUS_PORT` | `4040` | Port for the plain-HTTP health check endpoint. Only started when `NERVES_HUB_APP=device`. |
 | `DEVICES_WEBSOCKET_HOST` | `DEVICE_HOST`, then `WEB_HOST`, then `HOST` | Host shown in the UI's device connection instructions. Read in every environment. |
 | `DEVICE_ENDPOINT_REDIRECT` | `https://docs.nerves-hub.org/` | Where a plain browser request to the device endpoint is redirected. |
 | `DEVICE_CONNECT_RATE_LIMIT` | `100` | Maximum device connections accepted per second. Read in every environment. |
-| `DEVICE_PROXY_PROTOCOL` | — | Set to `v2` when a load balancer passes TLS through to this endpoint and announces the device with a PROXY protocol v2 header, which is read before the TLS handshake. Only `v2` is supported; version 1 cannot be read without risking a read into the handshake that follows it, and any other value raises at boot. Turning it on is a flag day: a balancer sending the header to a listener that is not expecting it looks like a malformed ClientHello, and a listener expecting one that never arrives waits until it times out. On Fly.io keep it in `fly.toml` `[env]` beside the `proxy_proto` handler so each machine picks up the pair together — `fly secrets set` without `--stage` restarts the fleet before the handler exists. |
+| `DEVICE_PROXY_PROTOCOL` | — | Set to `v2` when a load balancer passes TLS through to this endpoint and announces the device with a PROXY protocol v2 header, which is read underneath `:ssl` before the TLS handshake, so session tickets work behind the balancer too. Only `v2` is supported; version 1 cannot be read without risking a read into the handshake that follows it, and any other value raises at boot. Turning it on is a flag day: a balancer sending the header to a listener that is not expecting it looks like a malformed ClientHello, and a listener expecting one that never arrives waits until it times out. On Fly.io keep it in `fly.toml` `[env]` beside the `proxy_proto` handler so each machine picks up the pair together — `fly secrets set` without `--stage` restarts the fleet before the handler exists. |
+
+### Renewing the certificate without a restart
+
+Restarting a device node to pick up a renewed certificate disconnects every
+device on it. With `DEVICE_TLS_FROM_CLUSTER=true` it does not have to: the
+listener reads its key and chain from `DEVICE_TLS_PEMFILE`, and
+`NervesHub.DeviceTLS.Reloader` replaces that file and clears `:ssl`'s PEM cache
+whenever there is a new keypair. New handshakes get the new certificate, and
+connected devices keep the one they negotiated until they next reconnect.
+
+The keypair comes from a TLS provider: a separate application that joins the
+same cluster and knows where certificates come from, whether that is an ACME
+client, a certificate manager's agent or a secrets store. Every keypair is
+checked before it is installed -- that the key matches, the chain is in order,
+the certificate is in date and covers `DEVICE_HOST` -- and one that fails is
+logged and left out, keeping the one already installed.
+
+Both sides join the `:pg` scope `:nerves_hub_device_tls`:
+
+| Message | From | To | Reply |
+| --- | --- | --- | --- |
+| `{:nerves_hub_device_tls, 1, :fetch, installed_sha1}` | each device node, by `GenServer.call` | a member of `:providers` | `{:ok, %{key_pem: binary, chain_pem: binary}}`, `:unchanged`, or `{:error, reason}` |
+| `{:nerves_hub_device_tls, 1, :changed, sha1}` | a provider | every member of `:consumers` | none; the node fetches |
+
+`installed_sha1` is the lowercase hex SHA-1 of the DER of the leaf the node
+serves, or `nil`. A provider that does not speak version `1` replies
+`{:error, {:unsupported_version, versions}}`. See `NervesHub.DeviceTLS.Cluster`
+for the details.
+
+The keypair crosses Erlang distribution, which is no wider than the cluster's
+trust already is: anything holding the cookie can run code on a device node.
 
 ### Websocket compression
 
@@ -143,6 +219,133 @@ environment.
 | `DATABASE_INET6` | `false` | Connect over IPv6. |
 | `DATABASE_AUTO_MIGRATOR` | `true` | Run pending Postgres migrations on boot. |
 
+## Clustering
+
+Every node joins one Erlang cluster: web and device nodes, and any other
+application that works alongside NervesHub. A single node needs none of this.
+Each node needs a name, the cluster's shared cookie, and a way to find the other
+nodes.
+
+### Node names and the cookie
+
+The release's start script ([`rel/env.sh.eex`](../rel/env.sh.eex)) reads these,
+not `config/runtime.exs`. A node is named `$APP_NAME@<address>`. Without
+`APP_NAME` and an address, it starts without distribution and joins no cluster.
+
+| Variable | Default | Description |
+| --- | --- | --- |
+| `APP_NAME` | — | The node's basename, shared by the nodes of one deployment, such as `nerves-hub-web` for web nodes and `nerves-hub-device` for device nodes. |
+| `PRIVATE_IP` | — | The address other nodes reach this one at. |
+| `POD_IP` | — | Used when `PRIVATE_IP` is unset. On Kubernetes, set it from the downward API (`status.podIP`). |
+| `RELEASE_COOKIE` | random, fixed when the release is built | The shared secret that lets nodes connect. Every node built from the same image shares the default. Set it when something built separately, such as another application, joins the cluster. |
+
+Anything holding the cookie can run code on every node, and Erlang distribution
+traffic isn't encrypted. Keep it on a private network, or one with an encrypted
+overlay.
+
+### Finding the other nodes
+
+| Variable | Default | Description |
+| --- | --- | --- |
+| `CLUSTER_STRATEGY` | `postgres` | `postgres`, `dns`, or `postgres,dns` to run both. Any other value raises at boot. |
+| `DNS_CLUSTER_QUERY` | — | Names to look up, comma separated, when `CLUSTER_STRATEGY` includes `dns`. An entry is a name, such as `nerves-hub.internal`, or `basename@name` for nodes whose basename differs from this node's. Boot raises if `dns` is chosen without it, if it is set without `dns`, or if an entry is malformed. |
+
+Neither strategy disconnects a node because discovery stopped seeing it. A node
+leaves the cluster when it stops or when Erlang distribution loses it. A node
+that is shutting down still needs the cluster: it hands its deployment
+orchestrators to another node, and keeps serving devices while it drains their
+connections.
+
+#### Postgres
+
+The default, and the one to start with. Every 5 seconds, each node announces its
+name with `NOTIFY` on the channel `nerves_hub_clustering`, using the
+[database](#database) settings, and connects to every name it hears. Nodes with
+different basenames find each other without being told about them, and another
+application joins by listening on the same channel.
+
+Each node holds two extra database connections for this. `LISTEN` doesn't work
+through a connection pooler in transaction mode, such as PgBouncer, so
+`DATABASE_URL` must reach Postgres directly. If it can't, use DNS.
+
+#### DNS
+
+Every 5 seconds, each node looks up the names in `DNS_CLUSTER_QUERY` and
+connects to `basename@address` for each IPv4 and IPv6 address it gets back. The
+basename comes from the entry, or is this node's own. This suits a platform that
+keeps a name resolving to every node:
+
+- **Kubernetes**: a headless Service for each deployment.
+- **Fly.io**: `<app>.internal`, which resolves to every running Machine in the
+  app.
+
+Names are looked up exactly as written, without the search domains in
+`/etc/resolv.conf`, so on Kubernetes use the Service's full name.
+
+On Kubernetes, give each deployment a headless Service of its own. Keep it
+separate from the Service that routes traffic, which shouldn't send requests to
+pods that aren't ready:
+
+```yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: nerves-hub-web-cluster
+  namespace: nerves-hub
+spec:
+  clusterIP: None
+  # Starting and terminating pods stay in DNS, so a node is found before it is
+  # ready and kept while it shuts down.
+  publishNotReadyAddresses: true
+  selector:
+    app: nerves-hub-web
+  ports:
+    - name: epmd
+      port: 4369
+```
+
+and set, on the pods:
+
+```yaml
+env:
+  - name: APP_NAME
+    value: nerves-hub-web
+  - name: POD_IP
+    valueFrom:
+      fieldRef:
+        fieldPath: status.podIP
+  - name: CLUSTER_STRATEGY
+    value: dns
+  - name: DNS_CLUSTER_QUERY
+    value: nerves-hub-web-cluster.nerves-hub.svc.cluster.local
+```
+
+When deployments have different basenames, list each one on every node, with
+its basename:
+
+```
+DNS_CLUSTER_QUERY=nerves-hub-web@nerves-hub-web-cluster.nerves-hub.svc.cluster.local,nerves-hub-device@nerves-hub-device-cluster.nerves-hub.svc.cluster.local
+```
+
+A hidden node (one started with `-hidden`) is only connected to the nodes it
+finds itself, not to the nodes they're connected to. So list every deployment it
+needs to reach.
+
+#### Moving from Postgres to DNS
+
+Run both while the cluster moves over, so that no node loses sight of the rest:
+
+1. Create the DNS names, then deploy every node with `CLUSTER_STRATEGY=postgres,dns`
+   and `DNS_CLUSTER_QUERY`. Nodes still on Postgres alone find the new ones over
+   Postgres.
+2. Check that every node lists the others: `Node.list()` (and
+   `Node.list(:hidden)` for hidden nodes) from a remote console.
+3. Deploy with `CLUSTER_STRATEGY=dns`. Nodes from step 1 and step 3 find each
+   other over DNS.
+
+Every application in the cluster has to finish step 1 before any of them takes
+step 3. A node that only uses Postgres can't find one that only uses DNS.
+
 ## Analytics (ClickHouse)
 
 Prod only. Analytics — device connection history, metric history, error
@@ -183,7 +386,7 @@ environment.
 
 | Variable | Default | Description |
 | --- | --- | --- |
-| `FIRMWARE_UPLOAD_PATH` | — | Directory firmware and archives are written to. Must be on storage that persists across restarts, and shared between nodes if you run more than one. |
+| `FIRMWARE_UPLOAD_PATH` | — | Directory firmware and archives are written to. Must be on storage that persists across restarts, and shared between nodes if you run more than one. The Docker image runs as uid 65532, which has to be able to write here, so a volume written by an older image needs `chown -R 65532:65532`. |
 
 ### S3 backend
 
@@ -221,8 +424,9 @@ sent. The addresses and names below are read in every environment.
 
 | Variable | Default | Description |
 | --- | --- | --- |
-| `OPEN_FOR_REGISTRATIONS` | `false` | Allow anyone to create an account. Prod only. |
-| `GOOGLE_CLIENT_ID` | — | Setting it enables "Sign in with Google". |
+| `SIGN_UP_METHODS` | — | Comma-separated ways anyone can create an account: `password` (the sign up form) and `google` (Google sign-in, which needs `GOOGLE_CLIENT_ID`). `none`, or leaving it unset, keeps sign up to people with a pending invite, who can always create an account either way. An unknown value stops the node from starting. Prod only. |
+| `OPEN_FOR_REGISTRATIONS` | `false` | The older way of opening sign up. When `SIGN_UP_METHODS` isn't set, `true` means `password`, plus `google` if `GOOGLE_CLIENT_ID` is set. Prod only. |
+| `GOOGLE_CLIENT_ID` | — | Setting it enables "Sign in with Google". It only accepts an address Google has verified, and only signs in to an existing account once that account is linked to the Google account, which its owner does by signing in with the account's password, or resetting it, after the Google attempt. It creates accounts only when `SIGN_UP_METHODS` includes `google` or the address has a pending invite; while neither `SIGN_UP_METHODS` nor `OPEN_FOR_REGISTRATIONS` is set, the node warns about this when it starts. |
 | `GOOGLE_CLIENT_SECRET` | — | OAuth client secret. |
 | `SESSION_COOKIE_DOMAIN` | — | Scopes the session cookie to a parent domain, e.g. `.example.com`, so a sibling subdomain can read it. Used for shared-session SSO between apps. |
 | `SESSION_COOKIE_KEY` | `_nerves_hub_key` | Name of the session cookie. Set it when another NervesHub on a sibling host scopes its cookie to a shared parent domain: the browser sends both, the server reads the first, and forms fail CSRF with a 403 whenever it picks the other instance's. |
@@ -255,8 +459,10 @@ instance-wide intervals.
 | `FEATURES_GEO_INTERVAL_MINUTES` | `0` | How often a device reports its location. `0` means once, on connection. |
 | `FEATURES_HEALTH_INTERVAL_MINUTES` | `60` | How often a device reports health metrics. |
 | `FEATURES_HEALTH_UI_POLLING_SECONDS` | `60` | How often the health pages refresh. |
+| `FEATURES_HEALTH_FIRST_CHECK_WINDOW_SECONDS` | `60` | After a device connects, it is asked for a health report at a random point in this window, so a fleet that reconnects together doesn't report together. A device whose page is open is asked straight away. `0` asks every device straight away. |
 | `FEATURES_METRICS_INTERVAL_MINUTES` | `15` | How often a device on the `metrics` extension reports, while nobody has its page open. |
 | `FEATURES_METRICS_UI_POLLING_SECONDS` | `60` | How often it reports while somebody does. |
+| `FEATURES_METRICS_FIRST_CHECK_WINDOW_SECONDS` | `60` | The same window for the `metrics` extension's first report. |
 | `EXTENSIONS_LOGGING_DAYS_TO_KEEP` | `3` | Days of device logs kept. |
 
 ## Device metrics
@@ -275,6 +481,22 @@ not configurable: it exists to protect a column type, not to express a policy.
 | --- | --- | --- |
 | `DEVICE_METRICS_MAX_KEYS_PER_REPORT` | `20` | Most metric names stored from one report. Raise it for genuinely wide devices. |
 
+## Health evaluation
+
+Read in every environment. A device's health and metrics reports don't judge its
+health themselves. They queue an evaluation on the node they arrived at, and a
+fixed number of workers run what is queued. See
+`NervesHub.Devices.HealthEvaluation.Queue`.
+
+Each running evaluation holds one analytics connection at a time, so keep the
+concurrency below `ANALYTICS_POOL_SIZE` × `ANALYTICS_POOL_COUNT`. The node logs a
+warning on boot if it isn't.
+
+| Variable | Default | Description |
+| --- | --- | --- |
+| `HEALTH_EVALUATION_CONCURRENCY` | half the analytics pool, at most `10` | Evaluations run at once on each node. |
+| `HEALTH_EVALUATION_MAX_AGE_SECONDS` | `60` | How long an evaluation may wait to start before it is dropped. The readings are stored either way, and the device's next report judges them. |
+
 ## Firmware formats
 
 Read in every environment. Both formats are experimental, and each also has to
@@ -291,6 +513,26 @@ be enabled per product once the instance allows it.
 | --- | --- | --- |
 | `DEFAULT_LIFO_DEPLOYMENT_QUEUE` | `false` | New deployment groups default to a last-in-first-out update queue, so the most recently connected devices are updated first. |
 
+## Webhooks
+
+Read in every environment. See [Webhooks](webhooks.md).
+
+| Variable | Default | Description |
+| --- | --- | --- |
+| `WEBHOOKS_ALLOW_PRIVATE_DESTINATIONS` | `false` (`true` in dev) | Whether webhooks may deliver to loopback, private, link-local and other non-public addresses. Off, a webhook can only reach public addresses: a URL with a literal private address is refused when saved, and a host name is resolved at delivery and refused if any address it resolves to is private. That is what stops a member of any organization pointing a webhook at the cloud metadata service or another internal service. Turn it on for a self-hosted instance whose receivers are on its own network, and only if every member of every organization on the instance is trusted to reach that network. |
+
+## Slack
+
+Read in every environment. See [Slack](slack.md) for creating the Slack app these come from. The integration is hidden unless `SLACK_CLIENT_ID` and `SLACK_CLIENT_SECRET` are set, along with `SLACK_SIGNING_SECRET`, `SLACK_APP_TOKEN`, or both.
+
+| Variable | Default | Description |
+| --- | --- | --- |
+| `SLACK_CLIENT_ID` | — | The Slack app's client ID, from its **Basic Information** page. |
+| `SLACK_CLIENT_SECRET` | — | The Slack app's client secret, used to exchange an install's code for its bot token. |
+| `SLACK_SIGNING_SECRET` | — | The Slack app's signing secret. Requests to `/integrations/slack/` without a valid signature are refused, and without it those URLs answer 404. |
+| `SLACK_APP_TOKEN` | — | An app-level token (`xapp-…`, with the `connections:write` scope), for an instance Slack cannot reach. When set, each web node opens two Socket Mode connections to Slack and gets Slack's events, button clicks and slash commands over them, instead of at `/integrations/slack/`. See [Slack](slack.md#an-instance-slack-cannot-reach-socket-mode). |
+| `SECRETS_ENCRYPTION_KEY` | — (a fixed key in dev and test) | 32 random bytes, base64 encoded (`openssl rand -base64 32`). Encrypts secrets NervesHub holds for others, such as Slack bot tokens, before they are stored. Required in prod when `SLACK_CLIENT_ID` is set. Changing it makes the stored secrets unreadable, so connected workspaces would have to be connected again. |
+
 ## Branding and UI
 
 Read in every environment.
@@ -298,6 +540,7 @@ Read in every environment.
 | Variable | Default | Description |
 | --- | --- | --- |
 | `WEB_TITLE_SUFFIX` | `NervesHub` | Suffix on browser page titles. |
+| `FRIENDLY_PLATFORM_NAME` | `NervesHub` | The name the instance uses for itself in what it tells people, such as Slack messages ("Open in NervesHub") and the Slack pages. |
 | `LOGO_URL` | — | Logo used in the UI. |
 | `LOGO_URL_LIGHT` | `LOGO_URL` | Logo for light mode. |
 | `LOGO_URL_DARK` | `LOGO_URL` | Logo for dark mode. Set both light and dark to serve a different image per theme. |
@@ -333,7 +576,7 @@ Read in every environment.
 | Variable | Default | Description |
 | --- | --- | --- |
 | `SENTRY_DSN_URL` | — | Sentry DSN. Without it, nothing is sent. |
-| `SENTRY_ENABLE_LOGGING` | `false` | Forward logs to Sentry, not just exceptions. |
+| `SENTRY_ENABLE_LOGGING` | `false` | Forward logs at `info` and above to Sentry, not just exceptions. |
 | `SENTRY_ENABLE_TRACING` | `false` | Send traces to Sentry via OpenTelemetry. |
 | `SENTRY_TRACING_RATE` | `0.05` | Fraction of transactions sampled. Oban's own polling queries are sampled at 1% regardless. |
 | `OTLP_ENDPOINT` | — | Send traces to an OTLP collector over HTTP instead. Only used when `SENTRY_ENABLE_TRACING` is off; with neither set, trace export is disabled entirely. |

@@ -11,6 +11,7 @@ defmodule NervesHub.Devices do
   alias NervesHub.AuditLogs
   alias NervesHub.AuditLogs.DeviceTemplates
   alias NervesHub.DeviceEvents
+  alias NervesHub.DeviceLink
   alias NervesHub.Devices.AdvancedQuery
   alias NervesHub.Devices.Device
   alias NervesHub.Devices.DeviceCertificate
@@ -19,6 +20,7 @@ defmodule NervesHub.Devices do
   alias NervesHub.Devices.NetworkIdentity
   alias NervesHub.Devices.PinnedDevice
   alias NervesHub.Devices.SharedSecretAuth
+  alias NervesHub.Devices.Updates
   alias NervesHub.Extensions
   alias NervesHub.Filtering, as: CommonFiltering
   alias NervesHub.Firmwares.FirmwareMetadata
@@ -135,7 +137,9 @@ defmodule NervesHub.Devices do
 
     flop = %Flop{page: pagination[:page], page_size: pagination[:page_size]}
 
+    # Named for the alarm filters, as in `common_filter_query/1`.
     Device
+    |> from(as: :device)
     |> where([d], d.org_id == ^org_id)
     |> where([d], d.product_id == ^product_id)
     |> join(:left, [d], o in assoc(d, :org))
@@ -225,6 +229,23 @@ defmodule NervesHub.Devices do
     |> Repo.one!()
   end
 
+  @doc """
+  How many devices each of the given products has. A product with none is left
+  out of the map.
+  """
+  @spec count_by_product([pos_integer()]) :: %{pos_integer() => pos_integer()}
+  def count_by_product([]), do: %{}
+
+  def count_by_product(product_ids) when is_list(product_ids) do
+    Device
+    |> where([d], d.product_id in ^product_ids)
+    |> Repo.exclude_deleted()
+    |> group_by([d], d.product_id)
+    |> select([d], {d.product_id, count(d.id)})
+    |> Repo.all()
+    |> Map.new()
+  end
+
   defp device_by_org_query(org_id, device_id) do
     from(
       d in Device,
@@ -292,10 +313,18 @@ defmodule NervesHub.Devices do
     |> join(:left, [d, o], u in assoc(o, :users), as: :users)
     |> where(identifier: ^identifier)
     |> where([users: u], u.id == ^user.id)
+    |> where_org_not_deleted()
     |> scope_to_product(scope)
     |> preload([org: o], org: o)
     |> join_and_preload_deployment_group_and_current_release()
     |> join_and_preload(preload_assoc)
+  end
+
+  # Deleting an org leaves its memberships in place, and `org.users` only drops
+  # removed members, so a lookup that reaches the device through the user's
+  # membership has to rule the deleted org out itself.
+  defp where_org_not_deleted(query) do
+    where(query, [org: o], is_nil(o.deleted_at))
   end
 
   # A route carrying a :product_name segment puts the product on the scope, and
@@ -386,6 +415,12 @@ defmodule NervesHub.Devices do
     |> Repo.fetch()
   end
 
+  @doc """
+  Creates a shared secret for a device, without auditing it.
+
+  Code acting on a user's behalf uses `issue_shared_secret_auth/2`, which
+  records who created the secret and audits it.
+  """
   @spec create_shared_secret_auth(Device.t()) ::
           {:ok, SharedSecretAuth.t()} | {:error, Changeset.t()}
   @spec create_shared_secret_auth(Device.t(), map()) ::
@@ -396,6 +431,134 @@ defmodule NervesHub.Devices do
     |> Repo.insert()
   end
 
+  @doc """
+  Lists every shared secret a device has been given, deactivated ones included,
+  oldest first.
+
+  The secrets themselves are left out, as `nil`. A secret is only returned when
+  it is created, and listing them shouldn't load them into whatever holds the
+  list, such as a LiveView.
+  """
+  @spec list_shared_secret_auths(Device.t()) :: [SharedSecretAuth.t()]
+  def list_shared_secret_auths(%Device{id: device_id}) do
+    SharedSecretAuth
+    |> where([ssa], ssa.device_id == ^device_id)
+    |> order_by([ssa], asc: ssa.id)
+    |> select([ssa], struct(ssa, ^(SharedSecretAuth.__schema__(:fields) -- [:secret])))
+    |> preload([:created_by, :deactivated_by])
+    |> Repo.all()
+  end
+
+  @last_used_interval_seconds 15 * 60
+
+  @doc """
+  Records that a device has just connected with this shared secret.
+
+  A device connects on every reconnect, and a whole fleet can reconnect at once
+  after a deploy, so this skips the write when the key was marked in the last
+  15 minutes, judged by the `last_used` already loaded. It also leaves
+  `updated_at` alone, which marks changes to the key rather than its use.
+  """
+  @spec mark_last_used(SharedSecretAuth.t()) :: :ok
+  def mark_last_used(%SharedSecretAuth{id: id, last_used: last_used}) do
+    now = DateTime.utc_now(:second)
+    cutoff = DateTime.add(now, -@last_used_interval_seconds, :second)
+
+    if is_nil(last_used) or DateTime.before?(last_used, cutoff) do
+      _ =
+        SharedSecretAuth
+        |> where([ssa], ssa.id == ^id)
+        |> where([ssa], is_nil(ssa.last_used) or ssa.last_used < ^cutoff)
+        |> Repo.update_all(set: [last_used: now])
+    end
+
+    :ok
+  end
+
+  @doc """
+  Creates a shared secret for a device on a user's behalf, recording who
+  created it, and audits it.
+
+  Returns `{:error, :shared_secrets_not_enabled}` when this platform doesn't
+  accept shared secrets, since the device could never connect with one.
+  """
+  @spec issue_shared_secret_auth(Device.t(), User.t()) ::
+          {:ok, SharedSecretAuth.t()} | {:error, Changeset.t() | :shared_secrets_not_enabled}
+  def issue_shared_secret_auth(device, user) do
+    if DeviceLink.shared_secrets_enabled?() do
+      Repo.transact(fn ->
+        with {:ok, auth} <- create_shared_secret_auth(device, %{created_by_id: user.id}) do
+          DeviceTemplates.audit_shared_secret_created(user, device, auth)
+          {:ok, auth}
+        end
+      end)
+    else
+      {:error, :shared_secrets_not_enabled}
+    end
+  end
+
+  @doc """
+  Deactivates one of a device's active shared secrets on a user's behalf, so
+  the device can no longer connect with it, recording who deactivated it, and
+  audits it.
+
+  A single update, so the key's ownership, that it is still active, and the
+  change itself can't be split by a concurrent request. Returns
+  `{:error, :not_found}` when the device has no active key by that value.
+
+  Connections authenticated with the key are then closed. The device's other
+  connections, made with a certificate or another key, stay up.
+  """
+  @spec deactivate_shared_secret_auth(Device.t(), String.t(), User.t()) ::
+          {:ok, SharedSecretAuth.t()} | {:error, :not_found}
+  def deactivate_shared_secret_auth(%Device{id: device_id} = device, key, user) do
+    now = DateTime.truncate(DateTime.utc_now(), :second)
+
+    Repo.transact(fn ->
+      SharedSecretAuth
+      |> where([ssa], ssa.device_id == ^device_id and ssa.key == ^key and is_nil(ssa.deactivated_at))
+      |> select([ssa], ssa)
+      |> Repo.update_all(set: [deactivated_at: now, deactivated_by_id: user.id, updated_at: DateTime.to_naive(now)])
+      |> case do
+        {1, [auth]} ->
+          DeviceTemplates.audit_shared_secret_deactivated(user, device, auth)
+          {:ok, auth}
+
+        {0, []} ->
+          {:error, :not_found}
+      end
+    end)
+    |> case do
+      {:ok, auth} ->
+        DeviceEvents.shared_secret_deactivated(auth)
+        {:ok, auth}
+
+      error ->
+        error
+    end
+  end
+
+  @doc """
+  Creates a device together with a shared secret for it on a user's behalf, in
+  one transaction.
+
+  For provisioning, where a device must never be left registered without the
+  credentials it will connect with. When the secret can't be issued, as
+  `issue_shared_secret_auth/2` describes, the device isn't created either.
+
+  Takes the same options as `create_device/4`.
+  """
+  @spec create_device_with_shared_secret_auth(Product.t(), map(), User.t(), keyword()) ::
+          {:ok, {Device.t(), SharedSecretAuth.t()}} | {:error, Changeset.t() | :shared_secrets_not_enabled}
+  def create_device_with_shared_secret_auth(%Product{} = product, params, user, opts \\ []) do
+    Repo.transact(fn ->
+      with {:ok, device} <- create_device(product, params, user, opts),
+           {:ok, auth} <- issue_shared_secret_auth(device, user) do
+        {:ok, {device, auth}}
+      end
+    end)
+  end
+
   @spec get_or_create_device(Products.SharedSecretAuth.t(), String.t()) ::
           {:ok, Device.t()} | {:error, Ecto.Changeset.t()}
   def get_or_create_device(%Products.SharedSecretAuth{} = auth, identifier) do
@@ -403,11 +566,7 @@ defmodule NervesHub.Devices do
            get_active_device(product_id: auth.product_id, identifier: identifier),
          {:ok, product} <-
            Products.get_product(auth.product_id) do
-      create_device(%{
-        org_id: product.org_id,
-        product_id: product.id,
-        identifier: identifier
-      })
+      create_device(product, %{identifier: identifier})
     end
   end
 
@@ -419,12 +578,40 @@ defmodule NervesHub.Devices do
     end
   end
 
-  @spec create_device(map) :: {:ok, Device.t()} | {:error, Changeset.t()}
-  def create_device(params) do
-    %Device{}
-    |> Device.changeset(params)
+  @doc """
+  Add a device to `product`.
+
+  `params` can set only what `Device.create_changeset/2` allows, which takes
+  the org and product from `product` and starts the device with the product's
+  `default_managed_updates_allowed` as its grant.
+  """
+  @spec create_device(Product.t(), map()) :: {:ok, Device.t()} | {:error, Changeset.t()}
+  def create_device(%Product{} = product, params) do
+    product
+    |> Device.create_changeset(params)
     |> Repo.insert()
     |> Repo.maybe_preload(:product)
+  end
+
+  @doc """
+  Add a device to `product` on `user`'s behalf, as `create_device/2` does.
+
+  ## Options
+
+    * `:managed_updates_allowed` - start the device with this grant instead of
+      the product's default. When it differs from the default, it is set
+      through `Updates.set_managed_updates_allowed/3` in the same transaction
+      as the insert, so `user` gets the same audit entry as for changing it
+      later. As with `update_device_settings/4`, it is an option rather than a
+      param so that params a form posts can't set it.
+  """
+  @spec create_device(Product.t(), map(), User.t(), keyword()) :: {:ok, Device.t()} | {:error, Changeset.t()}
+  def create_device(%Product{} = product, params, %User{} = user, opts) do
+    Repo.transact(fn ->
+      with {:ok, device} <- create_device(product, params) do
+        set_managed_updates_allowed(device, opts[:managed_updates_allowed], user)
+      end
+    end)
   end
 
   def set_as_provisioned!(device) do
@@ -433,6 +620,16 @@ defmodule NervesHub.Devices do
     |> Repo.update!()
   end
 
+  @doc """
+  Soft delete a device, which `restore_device/1` can undo.
+
+  The device leaves its deployment group in the same transaction, and a
+  connection it has open is closed once that commits. Left in the group and
+  connected, it would still be picked by the orchestrator, which cannot penalty
+  box a deleted device and so would pick it again on every run. A restored device
+  is matched to a deployment group again when it next connects, as any device
+  without one is.
+  """
   def delete_device(%Device{} = device) do
     device_certificates_query = from(dc in DeviceCertificate, where: dc.device_id == ^device.id)
     pinned_devices_query = from(p in PinnedDevice, where: p.device_id == ^device.id)
@@ -442,7 +639,10 @@ defmodule NervesHub.Devices do
     # the same hardware collides with the identity of the device just deleted.
     network_identities_query = from(ei in NetworkIdentity, where: ei.device_id == ^device.id)
 
-    changeset = Repo.soft_delete_changeset(device)
+    changeset =
+      device
+      |> Device.clear_deployment_group()
+      |> Repo.soft_delete_changeset()
 
     Multi.new()
     |> Multi.delete_all(:device_certificates, device_certificates_query)
@@ -451,8 +651,12 @@ defmodule NervesHub.Devices do
     |> Multi.update(:device, changeset)
     |> Repo.transact()
     |> case do
-      {:ok, %{device: device}} -> {:ok, device}
-      error -> error
+      {:ok, %{device: device}} ->
+        DeviceEvents.deleted(device)
+        {:ok, %{device | deployment_group: nil}}
+
+      error ->
+        error
     end
   end
 
@@ -486,19 +690,49 @@ defmodule NervesHub.Devices do
     Device
     |> where([d], d.deleted_at < ^twelve_days_ago)
     |> Repo.all()
-    |> Enum.each(fn device ->
-      Repo.transact(fn ->
-        case destroy_device(device) do
-          {:ok, device} ->
-            _ = ProductNotifications.create_soft_deleted_device_removed!(device)
-            {:ok, device}
-
-          error ->
-            {:error, "Error removing soft-deleted device: #{inspect(error)}"}
-        end
-      end)
-    end)
+    |> Enum.each(&clean_up_soft_deleted_device/1)
   end
+
+  # A device that cannot be removed is reported and left for the next run, so
+  # it doesn't stop the devices after it from being removed.
+  defp clean_up_soft_deleted_device(device) do
+    Repo.transact(fn ->
+      case destroy_device(device) do
+        {:ok, device} ->
+          _ = ProductNotifications.create_soft_deleted_device_removed!(device)
+          {:ok, device}
+
+        error ->
+          {:error, error}
+      end
+    end)
+    |> case do
+      {:ok, device} ->
+        {:ok, device}
+
+      {:error, error} ->
+        _ =
+          Sentry.capture_message("Error removing soft-deleted device",
+            extra: %{error: inspect(error)},
+            tags: soft_deleted_device_tags(device),
+            result: :none
+          )
+
+        {:error, error}
+    end
+  rescue
+    exception ->
+      _ =
+        Sentry.capture_exception(exception,
+          stacktrace: __STACKTRACE__,
+          tags: soft_deleted_device_tags(device),
+          result: :none
+        )
+
+      {:error, exception}
+  end
+
+  defp soft_deleted_device_tags(device), do: %{device_id: device.id, product_id: device.product_id}
 
   @spec update_firmware_metadata(
           device :: Device.t(),
@@ -601,9 +835,13 @@ defmodule NervesHub.Devices do
   @doc """
   Move a device to a different product
 
-  If the new target product is in a different organization, this will
-  attempt to also copy any signing keys the device might be expecting
-  to the new organization. However, it is best effort only.
+  If the new target product is in a different organization, the signing keys
+  the device's current firmware was signed with are copied to that
+  organization, recorded as created by `user`. The copy is part of the move's
+  transaction, so a failed move leaves nothing behind in the target
+  organization. It is best effort: a key the target organization cannot take,
+  such as one whose name it already uses for a different key, is skipped and
+  the move still succeeds.
 
   Moving a device will also trigger a deployment check to see if there
   is an update available from the new product/org for the device. It is
@@ -621,8 +859,6 @@ defmodule NervesHub.Devices do
       deployment_id: nil
     }
 
-    _ = Accounts.maybe_copy_firmware_keys(device, product.org)
-
     description =
       "User #{user.name} moved device #{device.identifier} to #{product.org.name} : #{product.name}"
 
@@ -632,7 +868,10 @@ defmodule NervesHub.Devices do
     }
 
     Multi.new()
-    |> Multi.run(:move, fn _, _ -> update_device(device, attrs) end)
+    # No "updated" broadcast: sent from inside the transaction, the device's
+    # connection would re-read the row before the move committed. The
+    # disconnect below is what tells it, and it reads the moved row on rejoin.
+    |> Multi.run(:move, fn _, _ -> update_device(device, attrs, broadcast: false) end)
     |> Multi.delete_all(:pinned_devices, &unpin_unauthorized_users_query/1)
     # The device's identities on other networks name an organisation of their
     # own, and that is what those networks resolve a key to. Left behind, this
@@ -644,6 +883,12 @@ defmodule NervesHub.Devices do
       from(ei in NetworkIdentity, where: ei.device_id == ^device.id),
       set: [org_id: product.org_id, updated_at: DateTime.utc_now(:second)]
     )
+    # From the device as it was before the move, whose org the keys come from.
+    # Committed before `DeviceEvents.moved_product/1` below disconnects the
+    # device, which is sent its new org's keys when it reconnects.
+    |> Multi.run(:signing_keys, fn _, _ ->
+      Accounts.maybe_copy_firmware_keys(device, product.org, user)
+    end)
     |> Multi.run(:audit_device, fn _, _ ->
       AuditLogs.audit(user, device, description)
     end)
@@ -819,6 +1064,78 @@ defmodule NervesHub.Devices do
     end
   end
 
+  @doc """
+  Apply a change `user` makes to a device, and record who made it.
+
+  `params` can set only what `Device.update_changeset/2` allows: the device's
+  description, tags and first connect code.
+
+  ## Options
+
+    * `:managed_updates_allowed` - also allow (`true`) or forbid (`false`) the
+      device putting itself into `:device_managed`. It goes through
+      `Updates.set_managed_updates_allowed/3` in the same transaction, so it
+      gets that function's own audit entry, and nothing is written when the
+      device already has that value. It is an option rather than a param so
+      that a settings form's params can't set it: the web UI keeps it behind a
+      permission of its own.
+    * `:update_mode` - also move the device to this update mode. It goes
+      through `Updates.save_update_mode/3` in the same transaction, as the web
+      UI's update mode buttons do: a move to `:automatic` clears the device's
+      update attempts, and the audit entry names the mode. Nothing is written
+      when the device already has that mode. Once the transaction commits, the
+      deployment orchestrator is told about a device moved to `:automatic`, so
+      it is considered straight away. `Device.cast_update_mode/2` turns a
+      request's params into this option.
+  """
+  @spec update_device_settings(Device.t(), map(), User.t(), keyword()) ::
+          {:ok, Device.t()} | {:error, Changeset.t()}
+  def update_device_settings(%Device{} = device, params, %User{} = user, opts \\ []) do
+    description = "User #{user.name} updated device #{device.identifier}"
+
+    Repo.transact(fn ->
+      with {:ok, updated} <- device |> Device.update_changeset(params) |> Repo.update(),
+           {:ok, _audit_log} <- AuditLogs.audit(user, device, description),
+           {:ok, updated} <- set_managed_updates_allowed(updated, opts[:managed_updates_allowed], user) do
+        set_update_mode(updated, opts[:update_mode], user)
+      end
+    end)
+    |> case do
+      {:ok, updated} ->
+        _ = DeviceEvents.updated(updated)
+        _ = if updated.update_mode != device.update_mode, do: Updates.update_mode_committed(updated)
+        {:ok, updated}
+
+      error ->
+        error
+    end
+  end
+
+  # `Updates.set_managed_updates_allowed/3` and `Updates.save_update_mode/3`
+  # announce the device as updated before the caller's transaction commits, so a
+  # listener can read it unchanged. The announcement `update_device_settings/4`
+  # makes after the commit is the one that sees every change; the device's
+  # connection pushes the new grant and mode on that one. A device
+  # `create_device/4` is still creating has no connection to tell.
+  defp set_managed_updates_allowed(%Device{managed_updates_allowed: current} = device, allowed, user)
+       when is_boolean(allowed) and allowed != current do
+    case Updates.set_managed_updates_allowed(device, allowed, user) do
+      {:ok, device} -> {:ok, device}
+      {:error, _step, reason, _changes} -> {:error, reason}
+    end
+  end
+
+  defp set_managed_updates_allowed(device, _allowed, _user), do: {:ok, device}
+
+  defp set_update_mode(%Device{update_mode: current} = device, mode, user) when not is_nil(mode) and mode != current do
+    case Updates.save_update_mode(device, mode, user) do
+      {:ok, device} -> {:ok, device}
+      {:error, _step, reason, _changes} -> {:error, reason}
+    end
+  end
+
+  defp set_update_mode(device, _mode, _user), do: {:ok, device}
+
   @spec get_devices_by_id(Scope.t(), [non_neg_integer()]) :: [Device.t()]
   def get_devices_by_id(%Scope{user: user}, ids) when is_list(ids) do
     Device
@@ -826,6 +1143,7 @@ defmodule NervesHub.Devices do
     |> join(:left, [d, o], u in assoc(o, :users), as: :users)
     |> where([d], d.id in ^ids)
     |> where([users: u], u.id == ^user.id)
+    |> where_org_not_deleted()
     |> Repo.all()
   end
 
@@ -957,6 +1275,19 @@ defmodule NervesHub.Devices do
       where: not is_nil(d.deleted_at)
     )
     |> Repo.exists?()
+  end
+
+  @doc """
+  The ids of the devices in these products whose connection is open.
+  """
+  @spec connected_device_ids([pos_integer()]) :: [pos_integer()]
+  def connected_device_ids(product_ids) do
+    Device
+    |> join(:inner, [d], lc in assoc(d, :latest_connection))
+    |> where([d], d.product_id in ^product_ids)
+    |> where([_, lc], lc.status == :connected)
+    |> select([d], d.id)
+    |> Repo.all()
   end
 
   def online_count(product) do

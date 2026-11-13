@@ -1,71 +1,65 @@
 <Layouts.auth flash={@flash}>
   <:title>
-    Sign in to your account
+    Sign in to {platform_name()}
   </:title>
-  <:subheader :if={Application.get_env(:nerves_hub, :open_for_registrations)}>
-    Don't have an account? <.link href="/register" class="hover:text-primary-hover text-primary font-semibold">Sign up for free</.link>
-  </:subheader>
-  <:subheader :if={!Application.get_env(:nerves_hub, :open_for_registrations)}>
-    Don't have an account? Please contact your platform admin.
+  <:subheader>
+    Welcome back. Your devices missed you.
   </:subheader>
 
-  <div :if={assigns[:error_message]} role="alert" class="bg-alert-soft fill-alert ring-alert text-alert-content mt-4 mr-2 w-full rounded-sm p-3 shadow-md ring-1">
-    <p class="mt-1 text-sm/5">{@error_message}</p>
-  </div>
-
-  <div class="mt-6">
-    <div>
-      <.form
-        :let={f}
-        for={@form}
-        as={:user}
-        id="login_form_password"
-        action={~p"/login"}
-        class="space-y-6"
-      >
-        <div>
-          <.input field={f[:email]} label="Email address" placeholder="eg. person@company.com" />
-        </div>
-
-        <div>
-          <.input field={f[:password]} label="Password" type="password" autocomplete="current-password" required />
-        </div>
-
-        <div class="flex items-center justify-between">
-          <div class="flex gap-3">
-            <div class="flex h-6 shrink-0 items-center">
-              <input
-                id="remember-me"
-                name="remember-me"
-                type="checkbox"
-                class=""
-              />
-            </div>
-            <label for="remember-me" class="text-base-300 block text-sm/6">Remember me</label>
-          </div>
-
-          <div class="text-sm/6">
-            <a href="/password-reset" class="hover:text-primary-hover text-primary font-semibold">Forgot password?</a>
-          </div>
-        </div>
-
-        <div>
-          <button
-            id="login-submit"
-            type="submit"
-            class="bg-primary focus-visible:outline-focus-ring hover:bg-primary-hover text-primary-content relative flex w-full justify-center rounded-md px-3 py-1.5 text-sm/6 font-semibold shadow-sm focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-75"
-          >
-            <span id="login-submit-spinner" class="absolute inset-0 hidden items-center justify-center">
-              <span class="lucide-loader-circle size-5 animate-spin" />
-            </span>
-            <span id="login-submit-text">Sign in</span>
-          </button>
-        </div>
-      </.form>
+  <div class="flex flex-col gap-5">
+    <div :if={assigns[:error_message]} role="alert" class="flex gap-2.5 rounded-md border border-alert/30 bg-alert-soft p-3 text-sm text-alert-content">
+      <span class="mt-0.5 lucide-circle-exclamation-point size-4 flex-none text-alert" aria-hidden="true"></span>
+      <div>
+        <p class="font-semibold">{@error_message}</p>
+        <p>Check both and try again.</p>
+      </div>
     </div>
 
-    <OAuthLinks.render />
+    <OAuthLinks.render divider="or sign in with email" />
+
+    <.form :let={f} for={@form} as={:user} id="login_form_password" action={~p"/login"} class="flex flex-col gap-5">
+      <.input field={f[:email]} type="email" label="Email" autocomplete="email" placeholder="you@company.com" required />
+
+      <.input field={f[:password]} type="password" label="Password" autocomplete="current-password" required>
+        <:label_action>
+          <.link href={~p"/password-reset"} class="text-sm font-medium text-primary hover:text-primary-hover light:text-indigo-600 light:hover:text-indigo-500">
+            Forgot password?
+          </.link>
+        </:label_action>
+      </.input>
+
+      <div class="flex items-center gap-2.5">
+        <input
+          id="remember-me"
+          name={f[:remember_me].name}
+          type="checkbox"
+          value="true"
+          checked={f[:remember_me].value == "true"}
+          class="rounded border-line-strong bg-base-800 checked:bg-primary focus:ring-0 focus:ring-offset-0 focus-visible:ring-2 focus-visible:ring-focus-ring light:checked:bg-indigo-600"
+        />
+        <label for="remember-me" class="text-sm text-content-body">
+          Keep me signed in for {NervesHubWeb.Auth.remember_me_days()} days
+        </label>
+      </div>
+
+      <.button style="primary" id="login-submit" type="submit" class="relative w-full">
+        <span id="login-submit-spinner" class="absolute inset-0 hidden items-center justify-center">
+          <span class="lucide-loader-circle size-5 animate-spin" />
+        </span>
+        <span id="login-submit-text">Sign in</span>
+      </.button>
+    </.form>
   </div>
+
+  <:footer :if={NervesHub.Accounts.sign_up_allowed?(:password)}>
+    Don't have an account? <.link href={~p"/register"} class="font-semibold text-primary hover:text-primary-hover light:text-indigo-600 light:hover:text-indigo-500">Create one</.link>
+  </:footer>
+  <:footer :if={!NervesHub.Accounts.sign_up_allowed?(:password) && NervesHub.Accounts.sign_up_allowed?(:google)}>
+    <p>Don't have an account? Sign in with Google to create one.</p>
+  </:footer>
+  <:footer :if={!NervesHub.Accounts.sign_up_allowed?(:password) && !NervesHub.Accounts.sign_up_allowed?(:google)}>
+    <p>Don't have an account? Ask your platform admin for an invite.</p>
+  </:footer>
 </Layouts.auth>
 
 <script>
@@ -74,5 +68,6 @@
     btn.disabled = true;
     document.getElementById("login-submit-text").classList.add("invisible");
     document.getElementById("login-submit-spinner").classList.remove("hidden");
+    document.getElementById("login-submit-spinner").classList.add("flex");
   });
 </script>

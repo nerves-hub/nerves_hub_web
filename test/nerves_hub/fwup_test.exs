@@ -25,6 +25,24 @@ defmodule NervesHub.FwupTest do
     assert nil == metadata.misc
   end
 
+  test "keeps metadata values that contain an equals sign", %{tmp_dir: tmp_dir} do
+    user = Fixtures.user_fixture()
+    org = Fixtures.org_fixture(user)
+    product = Fixtures.product_fixture(user, org)
+    org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
+
+    filepath =
+      Fixtures.firmware_file_fixture(org_key, product, %{
+        dir: tmp_dir,
+        misc: "e=mc^2",
+        vcs_identifier: "4f104e8"
+      })
+
+    assert {:ok, metadata} = Fwup.metadata(filepath)
+    assert "e=mc^2" == metadata.misc
+    assert "4f104e8" == metadata.vcs_identifier
+  end
+
   test "returns :invalid_metadata", %{tmp_dir: tmp_dir} do
     user = Fixtures.user_fixture()
     org = Fixtures.org_fixture(user)

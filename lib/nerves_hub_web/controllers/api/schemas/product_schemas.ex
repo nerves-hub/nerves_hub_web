@@ -50,6 +50,16 @@ defmodule NervesHubWeb.API.Schemas.ProductSchemas do
           does carry one is always verified against the organization's
           registered signing keys.
           """
+        },
+        default_managed_updates_allowed: %Schema{
+          type: :boolean,
+          description: """
+          The `managed_updates_allowed` grant a device created in this product
+          starts with: whether it may put itself into `device_managed` update
+          mode. A device created with its own value keeps that instead.
+
+          Changing this moves no existing device.
+          """
         }
       },
       example: %{
@@ -57,7 +67,8 @@ defmodule NervesHubWeb.API.Schemas.ProductSchemas do
         "require_unique_firmware_version" => true,
         "allowed_update_tools" => ["fwup"],
         "allow_unsigned_esp_idf_firmware" => false,
-        "allow_unsigned_atomvm_firmware" => false
+        "allow_unsigned_atomvm_firmware" => false,
+        "default_managed_updates_allowed" => false
       }
     })
   end
@@ -75,7 +86,8 @@ defmodule NervesHubWeb.API.Schemas.ProductSchemas do
           "require_unique_firmware_version" => true,
           "allowed_update_tools" => ["fwup"],
           "allow_unsigned_esp_idf_firmware" => false,
-          "allow_unsigned_atomvm_firmware" => false
+          "allow_unsigned_atomvm_firmware" => false,
+          "default_managed_updates_allowed" => false
         }
       }
     })
@@ -95,7 +107,8 @@ defmodule NervesHubWeb.API.Schemas.ProductSchemas do
             "require_unique_firmware_version" => true,
             "allowed_update_tools" => ["fwup"],
             "allow_unsigned_esp_idf_firmware" => false,
-            "allow_unsigned_atomvm_firmware" => false
+            "allow_unsigned_atomvm_firmware" => false,
+            "default_managed_updates_allowed" => false
           },
           %{
             "name" => "Another Example Product",
@@ -146,7 +159,8 @@ defmodule NervesHubWeb.API.Schemas.ProductSchemas do
           items: %Schema{type: :string, enum: ["fwup", "esp-idf", "atomvm"]}
         },
         allow_unsigned_esp_idf_firmware: %Schema{type: :boolean},
-        allow_unsigned_atomvm_firmware: %Schema{type: :boolean}
+        allow_unsigned_atomvm_firmware: %Schema{type: :boolean},
+        default_managed_updates_allowed: %Schema{type: :boolean}
       },
       example: %{
         "allowed_update_tools" => ["fwup", "atomvm"],

@@ -14,6 +14,7 @@ defmodule NervesHubWeb.Components.DeviceNetworkIdentities do
   use NervesHubWeb, :component
 
   alias NervesHub.Devices.NetworkIdentity
+  alias NervesHub.Helpers.RelativeTime
 
   attr(:identities, :list, default: [])
   attr(:enabled_device, :any, default: true)
@@ -25,7 +26,7 @@ defmodule NervesHubWeb.Components.DeviceNetworkIdentities do
   def render(%{identities: [], enabled_product: false} = assigns) do
     ~H"""
     <.frame>
-      <div class="text-base-500 flex items-center gap-2 px-4 pt-2 pb-4">
+      <div class="flex items-center gap-2 px-4 pt-2 pb-4 text-content-faint">
         External identity reporting is not enabled for your product.
       </div>
     </.frame>
@@ -35,7 +36,7 @@ defmodule NervesHubWeb.Components.DeviceNetworkIdentities do
   def render(%{identities: [], enabled_device: false} = assigns) do
     ~H"""
     <.frame>
-      <div class="text-base-500 flex items-center gap-2 px-4 pt-2 pb-4">
+      <div class="flex items-center gap-2 px-4 pt-2 pb-4 text-content-faint">
         External identity reporting is not enabled for this device.
       </div>
     </.frame>
@@ -45,7 +46,7 @@ defmodule NervesHubWeb.Components.DeviceNetworkIdentities do
   def render(%{identities: []} = assigns) do
     ~H"""
     <.frame>
-      <div class="text-base-500 flex items-center gap-2 px-4 pt-2 pb-4">
+      <div class="flex items-center gap-2 px-4 pt-2 pb-4 text-content-faint">
         This device hasn't reported any network identities.
       </div>
     </.frame>
@@ -60,15 +61,15 @@ defmodule NervesHubWeb.Components.DeviceNetworkIdentities do
         preload, whose ordering isn't guaranteed. --%>
         <div :for={identity <- Enum.sort_by(@identities, &{&1.service, &1.instance})} class="flex flex-col gap-1.5">
           <div class="flex items-center gap-2">
-            <span class="text-base-300 text-sm font-medium">{service_name(identity.service)}</span>
+            <span class="text-sm font-medium text-content-body">{service_name(identity.service)}</span>
             <%!-- Only worth naming when a device runs more than one endpoint of
             a service; saying "default" on every row is noise. --%>
-            <span :if={named_instance?(identity)} class="bg-base-800 border-base-700 text-base-400 rounded border px-1.5 py-0.5 font-mono text-xs">
+            <.tag :if={named_instance?(identity)} mono>
               {identity.instance}
-            </span>
-            <span :if={identity.source == :operator} class="bg-base-800 border-base-700 text-base-400 rounded border px-1.5 py-0.5 text-xs">
+            </.tag>
+            <.tag :if={identity.source == :operator}>
               set by operator
-            </span>
+            </.tag>
           </div>
 
           <.value_pill
@@ -84,14 +85,14 @@ defmodule NervesHubWeb.Components.DeviceNetworkIdentities do
             value={value}
           />
 
-          <div :if={identity.last_reported_at} class="text-base-500 text-xs tracking-wide">
+          <div :if={identity.last_reported_at} class="text-xs tracking-wide text-content-faint">
             <span>Last reported: </span>
             <time
               id={"external-identity-#{identity.id}-reported-at"}
               phx-hook="UpdatingTimeAgo"
               datetime={String.replace(DateTime.to_string(DateTime.truncate(identity.last_reported_at, :second)), " ", "T")}
             >
-              {Timex.from_now(identity.last_reported_at)}
+              {RelativeTime.from_now(identity.last_reported_at)}
             </time>
           </div>
         </div>
@@ -104,7 +105,7 @@ defmodule NervesHubWeb.Components.DeviceNetworkIdentities do
 
   defp frame(assigns) do
     ~H"""
-    <div class="text-base-50 flex h-14 items-center pr-3 pl-4 leading-6 font-medium">
+    <div class="flex h-14 items-center px-4 text-card-title text-content-strong">
       Network Identities
     </div>
     {render_slot(@inner_block)}
@@ -121,16 +122,15 @@ defmodule NervesHubWeb.Components.DeviceNetworkIdentities do
   defp value_pill(assigns) do
     ~H"""
     <div class="group/identity flex w-full min-w-0 items-center gap-1.5">
-      <div id={@id} class="relative flex min-w-0" phx-hook={long_value?(@value) && "ToolTip"} data-placement="top">
-        <div class="border-base-700 flex min-w-0 items-stretch overflow-hidden rounded border text-xs">
-          <span class="bg-base-700 text-base-300 shrink-0 px-2 py-0.5 tracking-wide">{@label}</span>
-          <span class="bg-base-800 text-base-200 min-w-0 truncate px-2 py-0.5 font-mono">{@value}</span>
+      <.tooltip id={@id} placement="top" class="flex min-w-0" content_class="max-w-md" enabled={long_value?(@value)}>
+        <div class="flex min-w-0 items-stretch overflow-hidden rounded border border-line-default text-xs">
+          <span class="shrink-0 bg-base-700 px-2 py-0.5 tracking-wide text-content-body">{@label}</span>
+          <span class="min-w-0 truncate bg-base-800 px-2 py-0.5 font-mono text-base-200">{@value}</span>
         </div>
-        <div :if={long_value?(@value)} role="tooltip" class="bg-surface-overlay border-base-700 tooltip-content absolute top-0 left-0 z-20 hidden max-w-md rounded border px-2 py-1.5 shadow-lg">
-          <span class="text-base-200 font-mono text-xs break-all">{@value}</span>
-          <div class="bg-surface-overlay border-base-700 tooltip-arrow absolute size-2 origin-center rotate-45"></div>
-        </div>
-      </div>
+        <:content>
+          <span class="font-mono text-xs break-all text-base-200">{@value}</span>
+        </:content>
+      </.tooltip>
       <button
         id={"copy-#{@id}"}
         type="button"
@@ -138,10 +138,10 @@ defmodule NervesHubWeb.Components.DeviceNetworkIdentities do
         data-copy-value={@value}
         aria-label={"Copy #{@label}"}
         title="Copy value"
-        class="hover:text-base-200 text-base-500 shrink-0 cursor-pointer opacity-0 transition-opacity group-hover/identity:opacity-100 focus:opacity-100"
+        class="shrink-0 cursor-pointer text-content-faint opacity-0 transition-opacity group-hover/identity:opacity-100 hover:text-base-200 focus:opacity-100"
       >
-        <span data-icon="copy" class="lucide-copy--light size-4"></span>
-        <span data-icon="check" class="lucide-check--light text-success hidden size-4"></span>
+        <span data-icon="copy" class="lucide-copy size-4"></span>
+        <span data-icon="check" class="lucide-check hidden size-4 text-success"></span>
       </button>
     </div>
     """

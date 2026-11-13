@@ -10,19 +10,25 @@ defmodule NervesHub.Accounts do
   alias NervesHub.Accounts.OrgRole
   alias NervesHub.Accounts.OrgRoles
   alias NervesHub.Accounts.OrgUser
+  alias NervesHub.Accounts.PubSub, as: AccessPubSub
   alias NervesHub.Accounts.RemoveAccount
   alias NervesHub.Accounts.Scope
   alias NervesHub.Accounts.User
   alias NervesHub.Accounts.UserCLISession
   alias NervesHub.Accounts.UserNotifier
   alias NervesHub.Accounts.UserToken
+  alias NervesHub.Archives.Archive
   alias NervesHub.CLISessionCache
+  alias NervesHub.DeviceEvents
+  alias NervesHub.Devices.CACertificate
   alias NervesHub.Devices.Device
   alias NervesHub.Devices.DeviceConnection
   alias NervesHub.Devices.Pinning
   alias NervesHub.Firmwares.Firmware
+  alias NervesHub.Products
   alias NervesHub.Products.Product
   alias NervesHub.Repo
+  alias Phoenix.Channel.Server, as: ChannelServer
 
   @typedoc """
   Why an invite can't be rescinded or resent: it was accepted, it was declined,
@@ -55,16 +61,53 @@ defmodule NervesHub.Accounts do
     end
   end
 
+  @doc """
+  Sets up a new user's first organization: the org, with the user as its
+  admin, and its first product with a shared secret, so a device can connect
+  straight away.
+
+  All or nothing. A product name that fails validation leaves no org behind,
+  so the user is still offered the form rather than an org with no product.
+  The error says which of the two was refused.
+  """
+  @spec create_org_with_product(User.t(), map(), map()) ::
+          {:ok, %{org: Org.t(), product: Product.t()}}
+          | {:error, :org | :product, Changeset.t()}
+  def create_org_with_product(%User{} = user, org_params, product_params) do
+    Repo.transact(fn ->
+      with {:org, {:ok, org}} <- {:org, create_org(user, org_params)},
+           {:product, {:ok, product}} <-
+             {:product, Products.create_product(org, product_params)},
+           {:product, {:ok, _auth}} <- {:product, Products.create_shared_secret_auth(product)} do
+        {:ok, %{org: org, product: product}}
+      else
+        {step, {:error, changeset}} -> {:error, {step, changeset}}
+      end
+    end)
+    |> case do
+      {:ok, created} -> {:ok, created}
+      {:error, {step, changeset}} -> {:error, step, changeset}
+    end
+  end
+
+  @doc """
+  Deletes an org, and its products with it.
+
+  Its devices stay, but can't connect, and the connections they have open are
+  closed once the org is deleted.
+  """
   @spec soft_delete_org(Org.t()) :: {:ok, Org.t()} | {:error, Changeset.t()}
   def soft_delete_org(%Org{} = org) do
     deleted_at = DateTime.truncate(DateTime.utc_now(), :second)
+    products = org |> Ecto.assoc(:products) |> select([p], p.id)
 
     Multi.new()
-    |> Multi.update_all(:soft_delete_products, Ecto.assoc(org, :products), set: [deleted_at: deleted_at])
+    |> Multi.update_all(:soft_delete_products, products, set: [deleted_at: deleted_at])
     |> Multi.update(:soft_delete_org, Org.delete_changeset(org))
     |> Repo.transact()
     |> case do
-      {:ok, _result} ->
+      {:ok, %{soft_delete_products: {_count, product_ids}}} ->
+        :ok = DeviceEvents.products_deleted(product_ids)
         {:ok, org}
 
       {:error, _, changeset, _} ->
@@ -101,6 +144,19 @@ defmodule NervesHub.Accounts do
   def update_user_device_details_layout(%User{} = user, left, right) do
     user
     |> User.display_preferences_changeset(%{device_details_left: left, device_details_right: right})
+    |> Repo.update()
+  end
+
+  @doc """
+  Saves the style a user has picked for location maps, one of
+  `NervesHub.Accounts.User.DisplayPreferences.map_styles/0`. Nil (or an empty
+  string) goes back to following the light or dark theme.
+  """
+  @spec update_user_map_style(User.t(), atom() | String.t() | nil) ::
+          {:ok, User.t()} | {:error, Ecto.Changeset.t()}
+  def update_user_map_style(%User{} = user, map_style) do
+    user
+    |> User.display_preferences_changeset(%{map_style: map_style})
     |> Repo.update()
   end
 
@@ -230,8 +286,6 @@ defmodule NervesHub.Accounts do
       org_user = Repo.get_by(Ecto.assoc(org, :org_users), user_id: user.id)
 
       maybe_soft_delete_org_user(org_user)
-
-      :ok
     end
   end
 
@@ -239,10 +293,19 @@ defmodule NervesHub.Accounts do
 
   defp maybe_soft_delete_org_user(org_user), do: soft_delete_org_user(org_user)
 
+  @doc """
+  Removes a member from the org.
+
+  Pages they have open in the org send them back to their list of orgs, and
+  their consoles, local shells and device event streams on its devices close
+  (see `NervesHub.Accounts.PubSub`).
+  """
+  @spec soft_delete_org_user(OrgUser.t()) :: :ok | {:error, Changeset.t()}
   def soft_delete_org_user(org_user) do
     with {:ok, %{org_id: org_id, user_id: user_id}} <-
            Repo.soft_delete(org_user),
          {_, nil} <- Pinning.unpin_org_devices(user_id, org_id) do
+      _ = AccessPubSub.broadcast_membership_changed(org_id, user_id)
       :ok
     end
   end
@@ -250,6 +313,10 @@ defmodule NervesHub.Accounts do
   @doc """
   Gives a member a different role: a built-in role, by name or atom, or one of
   their org's custom roles.
+
+  Pages they have open in the org mount again under the new role, and consoles,
+  local shells and device event streams the new role doesn't allow close (see
+  `NervesHub.Accounts.PubSub`).
   """
   @spec change_org_user_role(OrgUser.t(), atom() | String.t() | OrgRole.t()) ::
           {:ok, OrgUser.t()} | {:error, Changeset.t()}
@@ -259,6 +326,7 @@ defmodule NervesHub.Accounts do
     |> OrgRoles.validate_org_role()
     |> Repo.update()
     |> preload_org_role()
+    |> broadcast_membership_changed()
   end
 
   def change_org_user_role(%OrgUser{} = ou, role) do
@@ -266,7 +334,15 @@ defmodule NervesHub.Accounts do
     |> Org.change_user_role(%{role: role, org_role_id: nil})
     |> Repo.update()
     |> preload_org_role()
+    |> broadcast_membership_changed()
   end
+
+  defp broadcast_membership_changed({:ok, org_user}) do
+    _ = AccessPubSub.broadcast_membership_changed(org_user.org_id, org_user.user_id)
+    {:ok, org_user}
+  end
+
+  defp broadcast_membership_changed(error), do: error
 
   defp preload_org_role({:ok, org_user}), do: {:ok, Repo.preload(org_user, :org_role, force: true)}
   defp preload_org_role(error), do: error
@@ -331,18 +407,24 @@ defmodule NervesHub.Accounts do
   end
 
   @doc """
-  Whether `user` holds `role` or a higher built-in role in `org`.
+  Whether the user is a current member of the org with at least `role`.
 
   A custom role counts only as `:view` here: it makes someone a member, but
   role-level checks can't tell what else it grants, so they refuse it rather
   than guess.
+
+  A deleted org grants no role: deleting an org leaves its memberships in
+  place, so the org's own `deleted_at` is checked alongside the membership's.
   """
+  @spec has_org_role?(Org.t(), User.t(), :view | :manage | :admin) :: boolean()
   def has_org_role?(org, user, role) do
     OrgUser
+    |> join(:inner, [ou], o in assoc(ou, :org))
     |> where(org_id: ^org.id)
     |> where(user_id: ^user.id)
     |> where_role_or_higher(role)
     |> where([ou], is_nil(ou.deleted_at))
+    |> where([_, o], is_nil(o.deleted_at))
     |> Repo.exists?()
   end
 
@@ -352,6 +434,23 @@ defmodule NervesHub.Accounts do
 
   defp where_role_or_higher(query, role) do
     where(query, [ou], ou.role in ^User.role_or_higher(role))
+  end
+
+  @doc """
+  The ids of the orgs where the user is a current member with at least `role`.
+
+  Custom roles count as in `has_org_role?/3`, and deleted orgs are left out.
+  """
+  @spec org_ids_with_role(User.t(), :view | :manage | :admin) :: [pos_integer()]
+  def org_ids_with_role(%User{id: user_id}, role) do
+    OrgUser
+    |> join(:inner, [ou], o in assoc(ou, :org))
+    |> where(user_id: ^user_id)
+    |> where_role_or_higher(role)
+    |> where([ou], is_nil(ou.deleted_at))
+    |> where([_, o], is_nil(o.deleted_at))
+    |> select([ou], ou.org_id)
+    |> Repo.all()
   end
 
   def get_user_orgs(%User{} = user, preloads \\ []) do
@@ -393,12 +492,16 @@ defmodule NervesHub.Accounts do
   end
 
   @doc """
-  Authenticates a user by their email and password. Returns the user if the
-  user is found and the password is correct, otherwise nil.
+  Authenticates a user by their email and password, for the API.
+
+  An account whose email hasn't been confirmed is refused with
+  `:email_not_confirmed`, as signing in on the web is: until it is, nobody has
+  shown the address is theirs. The password is checked first, so only someone
+  who knows it learns the account is unconfirmed.
   """
   @spec authenticate(String.t(), String.t()) ::
           {:ok, User.t()}
-          | {:error, :authentication_failed}
+          | {:error, :authentication_failed | :email_not_confirmed}
   def authenticate(_, nil) do
     Bcrypt.no_user_verify()
     {:error, :authentication_failed}
@@ -408,7 +511,7 @@ defmodule NervesHub.Accounts do
     with {:ok, user} <- get_user_by_email(email),
          true <- is_binary(user.password_hash),
          true <- Bcrypt.verify_pass(password, user.password_hash) do
-      {:ok, user}
+      if user.confirmed_at, do: {:ok, user}, else: {:error, :email_not_confirmed}
     else
       _ ->
         # User wasn't found; do dummy check to make user enumeration more difficult
@@ -465,13 +568,63 @@ defmodule NervesHub.Accounts do
     |> Repo.one!()
   end
 
-  def get_orgs_without_counts(%Scope{user: user}) do
-    Org
-    |> from(as: :org)
+  @doc """
+  The organizations the scope's user belongs to, each with the user's role in
+  it (as `NervesHub.Accounts.OrgUser.assigned_role/1` gives it), and with the
+  products preloaded.
+  """
+  @spec get_orgs_with_roles(Scope.t()) :: [{Org.t(), :admin | :manage | :view | OrgRole.t() | nil}]
+  def get_orgs_with_roles(%Scope{user: user}) do
+    rows =
+      Org
+      |> Repo.exclude_deleted()
+      |> join(:inner, [o], ou in assoc(o, :org_users), on: ou.user_id == ^user.id)
+      |> preload([o], :products)
+      |> order_by([o], asc: o.name)
+      |> select([o, ou], {o, ou})
+      |> Repo.all()
+
+    org_users = rows |> Enum.map(&elem(&1, 1)) |> Repo.preload(:org_role)
+
+    Enum.zip_with(rows, org_users, fn {org, _}, org_user -> {org, OrgUser.assigned_role(org_user)} end)
+  end
+
+  @doc """
+  How many members each of the given organizations has.
+  """
+  @spec count_org_users_by_org([pos_integer()]) :: %{pos_integer() => pos_integer()}
+  def count_org_users_by_org([]), do: %{}
+
+  def count_org_users_by_org(org_ids) when is_list(org_ids) do
+    OrgUser
+    |> where([ou], ou.org_id in ^org_ids)
     |> Repo.exclude_deleted()
-    |> join(:inner, [o], u in assoc(o, :users), on: u.id == ^user.id)
-    |> preload([o], :products)
+    |> group_by([ou], ou.org_id)
+    |> select([ou], {ou.org_id, count(ou.id)})
     |> Repo.all()
+    |> Map.new()
+  end
+
+  @doc """
+  How many products, devices, members, signing keys and certificate
+  authorities an organization has. Every organization page shows these in its
+  header and tabs.
+  """
+  @spec org_counts(Org.t()) :: %{
+          products: non_neg_integer(),
+          devices: non_neg_integer(),
+          members: non_neg_integer(),
+          signing_keys: non_neg_integer(),
+          certificates: non_neg_integer()
+        }
+  def org_counts(%Org{id: org_id}) do
+    %{
+      products: Product |> where(org_id: ^org_id) |> Repo.exclude_deleted() |> Repo.aggregate(:count),
+      devices: Device |> where(org_id: ^org_id) |> Repo.exclude_deleted() |> Repo.aggregate(:count),
+      members: OrgUser |> where(org_id: ^org_id) |> Repo.exclude_deleted() |> Repo.aggregate(:count),
+      signing_keys: OrgKey |> where(org_id: ^org_id) |> Repo.aggregate(:count),
+      certificates: CACertificate |> where(org_id: ^org_id) |> Repo.aggregate(:count)
+    }
   end
 
   def get_org_device_counts(%Scope{}, org_id) do
@@ -592,12 +745,48 @@ defmodule NervesHub.Accounts do
     |> Repo.update()
   end
 
-  @spec create_org_key(map) ::
+  @doc """
+  Sets the hostnames an org's devices connect to.
+
+  Whoever calls this decides which org gets a hostname, so it's for a server admin
+  and not for an org's own users.
+  """
+  @spec set_org_device_hostnames(Org.t(), [String.t()]) ::
+          {:ok, Org.t()} | {:error, Changeset.t()}
+  def set_org_device_hostnames(%Org{} = org, hostnames) do
+    org
+    |> Org.device_hostnames_changeset(hostnames)
+    |> Repo.update()
+  end
+
+  @doc """
+  Whether a device of this org may connect on this hostname. Claimed by no org is
+  anyone's, which is what keeps the platform's own hostnames working for every org.
+  """
+  @spec device_hostname_allowed?(Org.id(), String.t()) :: boolean()
+  def device_hostname_allowed?(org_id, hostname) do
+    hostnames = [Org.normalize_hostname(hostname)]
+
+    claimed_by =
+      Org
+      |> where([o], is_nil(o.deleted_at))
+      |> where([o], fragment("? @> ?", o.device_hostnames, type(^hostnames, {:array, :string})))
+      |> select([o], o.id)
+      |> Repo.all()
+
+    claimed_by == [] or org_id in claimed_by
+  end
+
+  @doc """
+  Add a signing key to `org` on `user`'s behalf. `params` can set only the
+  key's name, key and scheme.
+  """
+  @spec create_org_key(Org.t(), User.t(), map()) ::
           {:ok, OrgKey.t()}
           | {:error, Changeset.t()}
-  def create_org_key(attrs) do
-    %OrgKey{}
-    |> change_org_key(attrs)
+  def create_org_key(%Org{} = org, %User{} = user, params) do
+    org
+    |> OrgKey.create_changeset(user, params)
     |> Repo.insert()
   end
 
@@ -619,27 +808,75 @@ defmodule NervesHub.Accounts do
 
   @doc """
   When a device moves orgs, copy the signing keys for its current firmware into
-  the target org if they are not already present.
+  the target org if they are not already present, recorded as created by `user`.
+
+  `device` is the device as it was before the move, since its `org_id` is where
+  the keys are copied from. Returns the keys copied.
+
+  Best effort: a key the target org cannot take, because it already has a
+  different key under the same name, is skipped. The insert skips conflicts
+  rather than raising, because `Devices.move/3` runs this in the move's
+  transaction, and a unique violation would abort it.
   """
-  def maybe_copy_firmware_keys(%{firmware_metadata: %{uuid: uuid}, org_id: source}, %Org{id: target}) do
+  @spec maybe_copy_firmware_keys(Device.t(), Org.t(), User.t()) :: {:ok, [OrgKey.t()]}
+  def maybe_copy_firmware_keys(%{firmware_metadata: %{uuid: uuid}, org_id: source}, %Org{id: target}, %User{} = user) do
     existing_target_keys = from(k in OrgKey, where: [org_id: ^target], select: k.key)
 
+    # More than one firmware can carry the uuid, one per product it was
+    # uploaded to, and each may have been signed with a different key.
     from(
       k in OrgKey,
       join: f in Firmware,
       on: [org_key_id: k.id],
       where: f.uuid == ^uuid and k.org_id == ^source,
       where: k.key not in subquery(existing_target_keys),
-      select: %{name: k.name, key: k.key, org_id: type(^target, :integer)}
+      distinct: true,
+      select: %{name: k.name, key: k.key, scheme: k.scheme}
     )
-    |> Repo.one()
-    |> case do
-      %{} = attrs -> create_org_key(attrs)
-      _ -> :ignore
-    end
+    |> Repo.all()
+    |> Enum.flat_map(fn attrs ->
+      %OrgKey{}
+      |> OrgKey.changeset(Map.merge(attrs, %{org_id: target, created_by_id: user.id}))
+      |> Repo.insert(on_conflict: :nothing)
+      |> case do
+        # A conflict inserts nothing, and leaves the returned key without an id.
+        {:ok, %OrgKey{id: id} = key} when not is_nil(id) -> [key]
+        _ -> []
+      end
+    end)
+    |> then(&{:ok, &1})
   end
 
-  def maybe_copy_firmware_keys(_old, _updated), do: :ignore
+  def maybe_copy_firmware_keys(_device, _target, _user), do: {:ok, []}
+
+  @doc """
+  How many firmware and archives name each of an organization's signing keys,
+  keyed by key id. Keys nothing names are left out.
+
+  A key with anything here can't be deleted. Deleted firmware counts too: the
+  rows stay, and still hold the key.
+  """
+  @spec org_key_usage(Org.t()) :: %{pos_integer() => %{firmware: non_neg_integer(), archives: non_neg_integer()}}
+  def org_key_usage(%Org{id: org_id}) do
+    firmware = count_by_org_key(Firmware, org_id)
+    archives = count_by_org_key(Archive, org_id)
+
+    (Map.keys(firmware) ++ Map.keys(archives))
+    |> Enum.uniq()
+    |> Map.new(&{&1, %{firmware: Map.get(firmware, &1, 0), archives: Map.get(archives, &1, 0)}})
+  end
+
+  defp count_by_org_key(schema, org_id) do
+    from(s in schema,
+      join: k in OrgKey,
+      on: k.id == s.org_key_id,
+      where: k.org_id == ^org_id,
+      group_by: s.org_key_id,
+      select: {s.org_key_id, count(s.id)}
+    )
+    |> Repo.all()
+    |> Map.new()
+  end
 
   @spec list_org_keys(Scope.t() | pos_integer(), boolean()) :: [OrgKey.t()]
   def list_org_keys(scope_or_org_id, load_created_by \\ true)
@@ -770,14 +1007,21 @@ defmodule NervesHub.Accounts do
     |> Repo.exists?()
   end
 
-  # An invite is live for 48 hours after it was last sent. Keying off
-  # `updated_at` rather than `inserted_at` is what lets a resend put an expired
-  # invite back in play - an invite that has never been resent has the two
-  # timestamps set to the same value.
+  @invite_validity_hours 48
+
+  @doc """
+  How long an invite stays valid after it was last sent, in seconds.
+  """
+  def invite_validity_seconds(), do: @invite_validity_hours * 60 * 60
+
+  # An invite is live for `@invite_validity_hours` after it was last sent.
+  # Keying off `updated_at` rather than `inserted_at` is what lets a resend put
+  # an expired invite back in play - an invite that has never been resent has
+  # the two timestamps set to the same value.
   defp pending(query) do
     query
     |> unaccepted()
-    |> where([i], i.updated_at >= fragment("NOW() - INTERVAL '48 hours'"))
+    |> where([i], i.updated_at >= fragment("NOW() - (? * INTERVAL '1 hour')", ^@invite_validity_hours))
   end
 
   defp unaccepted(query) do
@@ -860,42 +1104,206 @@ defmodule NervesHub.Accounts do
     end
   end
 
+  @doc """
+  Signs a user in with Google, creating their account on their first visit.
+
+  Google vouches for the email address only when it says it has verified it,
+  and even then it only proves who owns the address, not who owns an account
+  with that address on it. So a sign-in succeeds for:
+
+    * the account already linked to this Google account (`google_id`), whose
+      email and profile follow Google's, so a user whose Google email changes
+      keeps their account
+    * a new account, when `sign_up_allowed?(:google)` or someone has invited
+      the address to an org
+
+  An existing account with the address that isn't linked to this Google
+  account is refused:
+
+    * when it isn't linked to any Google account, with `:link_required`.
+      Anyone could have registered the address without confirming it, or
+      (before email changes needed confirming) moved it onto their own account.
+      Its owner links it by signing in with its password, or resetting it, see
+      `pending_google_link/1` and `link_google_account/2`.
+    * when it's linked to another Google account, with
+      `:google_account_mismatch`, so an address that has passed to a new Google
+      account doesn't sign in as whoever held it before.
+  """
   @spec update_or_create_user_from_ueberauth(Ueberauth.Auth.t()) ::
-          {:ok, User.t()} | {:error, Ecto.Changeset.t()}
-  def update_or_create_user_from_ueberauth(%Ueberauth.Auth{info: info} = auth) do
-    User
-    |> where(email: ^info.email)
-    |> Repo.exclude_deleted()
-    |> Repo.one()
-    |> case do
-      nil ->
-        {:ok, user} =
-          %User{}
-          |> User.oauth_changeset(auth)
-          |> Repo.insert()
+          {:ok, User.t()}
+          | {:error,
+             :missing_google_account_id
+             | :email_not_verified
+             | :sign_up_closed
+             | :link_required
+             | :google_account_mismatch}
+          | {:error, Ecto.Changeset.t()}
+  def update_or_create_user_from_ueberauth(%Ueberauth.Auth{uid: google_id} = auth) do
+    cond do
+      # Without one, the sign-in can't be tied to a Google account
+      not is_binary(google_id) or google_id == "" -> {:error, :missing_google_account_id}
+      not google_email_verified?(auth) -> {:error, :email_not_verified}
+      true -> sign_in_with_google(auth)
+    end
+  end
 
-        {:ok, _} = UserNotifier.deliver_welcome_email(user)
+  defp google_email_verified?(%Ueberauth.Auth{extra: %{raw_info: %{user: %{"email_verified" => true}}}}), do: true
+  defp google_email_verified?(_auth), do: false
 
-        {:ok, user}
-
-      %User{} = user ->
+  defp sign_in_with_google(%Ueberauth.Auth{uid: google_id, info: info} = auth) do
+    case find_google_user(google_id, info.email) do
+      %User{google_id: ^google_id} = user ->
         user
         |> User.oauth_changeset(auth)
         |> Repo.update()
+
+      %User{google_id: nil} ->
+        {:error, :link_required}
+
+      %User{} ->
+        {:error, :google_account_mismatch}
+
+      nil ->
+        if sign_up_allowed?(:google) or invited?(info.email) do
+          create_google_user(auth)
+        else
+          {:error, :sign_up_closed}
+        end
+    end
+  end
+
+  # The account linked to this Google account, whatever its email is now, or
+  # else the account with Google's email.
+  defp find_google_user(google_id, email) do
+    google_user =
+      User
+      |> where(google_id: ^google_id)
+      |> Repo.exclude_deleted()
+      |> Repo.one()
+
+    google_user ||
+      User
+      |> where(email: ^email)
+      |> Repo.exclude_deleted()
+      |> Repo.one()
+  end
+
+  defp create_google_user(auth) do
+    with {:ok, user} <-
+           %User{}
+           |> User.oauth_changeset(auth)
+           |> Repo.insert() do
+      {:ok, _} = UserNotifier.deliver_welcome_email(user)
+
+      {:ok, user}
     end
   end
 
   @doc """
-  Inserts a new user record, creating a org and adding a user to
-  that new org if needed
+  Whether anyone can create an account with `method`: `:password` for the sign
+  up form, `:google` for Google sign-in. `SIGN_UP_METHODS` sets the methods, and
+  with none of them only someone with a pending invite can create an account.
   """
-  @spec create_user_from_invite(Invite.t(), Org.t(), map()) ::
+  @spec sign_up_allowed?(:password | :google) :: boolean()
+  def sign_up_allowed?(method) when method in [:password, :google] do
+    method in Application.get_env(:nerves_hub, :sign_up_methods, [])
+  end
+
+  # Whether an org is waiting on this address to accept an invite. Registering
+  # from the invite page is how an invitee joins a platform that's otherwise
+  # closed, and signing up with Google from there has to work too.
+  defp invited?(email) do
+    Invite
+    |> where([i], i.email == ^email)
+    |> pending()
+    |> Repo.exists?()
+  end
+
+  @pending_google_link_seconds 10 * 60
+
+  @doc """
+  The Google account a sign-in that returned `{:error, :link_required}` was for,
+  to keep in the session until the user signs in with the account's password.
+  `link_google_account/2` then links the two.
+  """
+  @spec pending_google_link(Ueberauth.Auth.t()) :: map()
+  def pending_google_link(%Ueberauth.Auth{} = auth) do
+    %{
+      "google_id" => auth.uid,
+      "google_hd" => auth.extra.raw_info.user["hd"],
+      "email" => auth.info.email,
+      "requested_at" => System.system_time(:second)
+    }
+  end
+
+  @doc """
+  Links a Google account to a user who has just signed in with their password,
+  or reset it.
+
+  `pending` is from `pending_google_link/1`. The password proves the account is
+  theirs, and Google proved the address is, so the link is only made when the
+  account's email is still the one Google verified, the account is confirmed
+  and not linked to a Google account already, and the Google sign-in was in the
+  last ten minutes. The time limit stops a Google sign-in left behind on a
+  shared computer from being claimed by the next person to sign in there.
+  """
+  @spec link_google_account(User.t(), map()) ::
+          {:ok, User.t()}
+          | {:error, :expired | :email_mismatch | :unconfirmed | :already_linked | :invalid | Changeset.t()}
+  def link_google_account(%User{} = user, %{
+        "google_id" => google_id,
+        "google_hd" => google_hd,
+        "email" => email,
+        "requested_at" => requested_at
+      })
+      when is_binary(google_id) and google_id != "" and is_integer(requested_at) do
+    cond do
+      System.system_time(:second) - requested_at > @pending_google_link_seconds ->
+        {:error, :expired}
+
+      String.downcase(email) != String.downcase(user.email) ->
+        {:error, :email_mismatch}
+
+      is_nil(user.confirmed_at) ->
+        {:error, :unconfirmed}
+
+      not is_nil(user.google_id) ->
+        {:error, :already_linked}
+
+      true ->
+        user
+        |> Changeset.change(google_id: google_id, google_hd: google_hd)
+        |> Changeset.unique_constraint(:google_id)
+        |> Repo.update()
+    end
+  end
+
+  # A session written by a different version of `pending_google_link/1`
+  def link_google_account(%User{}, _pending), do: {:error, :invalid}
+
+  @doc """
+  Creates the account of someone who registered from an invite, with the
+  invited address, and adds them to the org.
+
+  The account starts unconfirmed unless `email_confirmed: true` is given, which
+  is only for a registration from the link emailed to the invited address.
+  Admins can copy the invite's other link, so registering from that doesn't
+  prove the address is the invitee's.
+  """
+  @spec create_user_from_invite(Invite.t(), Org.t(), map(), keyword()) ::
           {:ok, OrgUser.t()} | {:error, Ecto.Changeset.t()}
-  def create_user_from_invite(invite, org, user_params) do
+  def create_user_from_invite(invite, org, user_params, opts \\ []) do
     user_params = Map.put(user_params, "email", invite.email)
 
+    changeset =
+      if Keyword.get(opts, :email_confirmed, false) do
+        %User{} |> User.registration_changeset(user_params) |> User.maybe_add_confirmed_at()
+      else
+        User.registration_changeset(%User{}, user_params)
+      end
+
     Repo.transact(fn ->
-      with {:ok, user} <- create_user(user_params),
+      with {:ok, user} <- Repo.insert(changeset),
            {:ok, user} <- add_org_user(org, user, invited_role(invite)),
            {:ok, _invite} <- set_invite_accepted(invite) do
         {:ok, user}
@@ -905,14 +1313,83 @@ defmodule NervesHub.Accounts do
 
   defp invited_role(%Invite{role: role, org_role_id: org_role_id}), do: %{role: role, org_role_id: org_role_id}
 
-  @spec update_user(User.t(), map) ::
-          {:ok, User.t()}
+  @doc """
+  Updates a user's details from the account page.
+
+  A new name is saved straight away. A new email address isn't: it takes the
+  current password, and then the address is emailed a link (made by
+  `confirm_url_fun` from a token) that changes the account's email when the user
+  follows it, see `update_user_email/2`. Otherwise anyone could claim an address
+  they don't own, and whatever trusts the account's email (invites, Google
+  sign-in) would trust them.
+
+  Returns the address the link was sent to, or `nil` if the email didn't change.
+  """
+  @spec update_user(User.t(), map(), (String.t() -> String.t())) ::
+          {:ok, User.t(), String.t() | nil}
           | {:error, Changeset.t()}
-  def update_user(%User{} = user, user_params) do
-    user
-    |> change_user(user_params)
-    |> Repo.update()
+  def update_user(%User{} = user, user_params, confirm_url_fun) when is_function(confirm_url_fun, 1) do
+    changeset = change_user(user, user_params)
+
+    case Changeset.fetch_change(changeset, :email) do
+      {:ok, new_email} ->
+        request_email_change(changeset, new_email, confirm_url_fun)
+
+      :error ->
+        with {:ok, user} <- Repo.update(changeset) do
+          {:ok, user, nil}
+        end
+    end
   end
+
+  defp request_email_change(changeset, new_email, confirm_url_fun) do
+    changeset =
+      changeset
+      |> User.validate_new_email()
+      |> Changeset.delete_change(:email)
+
+    with {:ok, user} <- Repo.update(changeset) do
+      {encoded_token, user_token} = UserToken.build_hashed_token(user, change_email_context(user), nil)
+      Repo.insert!(%{user_token | sent_to: new_email})
+
+      {:ok, _} = UserNotifier.deliver_update_email_instructions(user, new_email, confirm_url_fun.(encoded_token))
+
+      {:ok, user, new_email}
+    end
+  end
+
+  @doc """
+  Changes a user's email to the address a link from `update_user/3` was sent to.
+
+  `user` is whoever is signed in. The link only works for the account that asked
+  for the change, and only while that account still has the email it had then,
+  so being able to read the new address's mail isn't enough on its own.
+  Following it confirms the account, since the address has now been proven.
+  """
+  @spec update_user_email(User.t(), String.t()) ::
+          {:ok, User.t()} | {:error, :invalid_token | Changeset.t()}
+  def update_user_email(%User{id: user_id} = user, token) do
+    context = change_email_context(user)
+
+    with {:ok, query} <- UserToken.verify_change_email_token_query(token, context),
+         {%User{id: ^user_id}, user_token} <- Repo.one(query),
+         true <- UserToken.token_still_valid?(:change_email, user_token) do
+      Multi.new()
+      |> Multi.update(:user, User.email_changeset(user, user_token.sent_to))
+      |> Multi.delete_all(:tokens, UserToken.by_user_and_contexts_query(user, [context]))
+      |> Repo.transact()
+      |> case do
+        {:ok, %{user: user}} -> {:ok, user}
+        {:error, :user, changeset, _} -> {:error, changeset}
+      end
+    else
+      _ -> {:error, :invalid_token}
+    end
+  end
+
+  # Tying the token to the email it was issued against means changing the email
+  # by any route leaves older links unusable.
+  defp change_email_context(%User{email: email}), do: "change:#{email}"
 
   @doc """
   Accepts an invite on behalf of a user who already has an account.
@@ -1228,7 +1705,13 @@ defmodule NervesHub.Accounts do
   end
 
   @doc """
-  Resets the user password.
+  Resets the user password, and signs the account out everywhere by deleting
+  all its tokens, API tokens included, and closing the pages and consoles
+  already open with them.
+
+  The reset link was mailed to the account's address, so following it proves
+  the user can read mail sent there, and confirms the account if it wasn't
+  already.
 
   ## Examples
 
@@ -1240,12 +1723,15 @@ defmodule NervesHub.Accounts do
 
   """
   def reset_user_password(user, attrs) do
+    tokens = select(UserToken.by_user_and_contexts_query(user, :all), [t], %{context: t.context, token: t.token})
+
     Ecto.Multi.new()
-    |> Ecto.Multi.update(:user, User.password_changeset(user, attrs))
-    |> Ecto.Multi.delete_all(:tokens, UserToken.by_user_and_contexts_query(user, :all))
+    |> Ecto.Multi.update(:user, user |> User.password_changeset(attrs) |> User.maybe_add_confirmed_at())
+    |> Ecto.Multi.delete_all(:tokens, tokens)
     |> Repo.transact()
     |> case do
-      {:ok, %{user: user}} ->
+      {:ok, %{user: user, tokens: {_count, deleted}}} ->
+        disconnect_sockets(user, deleted)
         _ = UserNotifier.deliver_reset_password_confirmation(user)
 
         {:ok, user}
@@ -1253,6 +1739,23 @@ defmodule NervesHub.Accounts do
       {:error, :user, changeset, _} ->
         {:error, changeset}
     end
+  end
+
+  # Pages and consoles opened before the reset stay open on the deleted tokens
+  # until their sockets reconnect, so they are closed now. A session's sockets
+  # share its `live_socket_id`. API sockets are known by the user alone
+  # (`NervesHubWeb.APISocket.id/1`), which is right here, as the reset revokes
+  # every one of the user's API tokens.
+  defp disconnect_sockets(user, deleted_tokens) do
+    for %{context: "session", token: token} <- deleted_tokens do
+      disconnect_socket(UserToken.live_socket_id(token))
+    end
+
+    disconnect_socket("api_socket:#{user.id}")
+  end
+
+  defp disconnect_socket(socket_id) do
+    :ok = ChannelServer.broadcast(NervesHub.PubSub, socket_id, "disconnect", %{})
   end
 
   def verify_cli_session_token(user, token) do
@@ -1280,19 +1783,62 @@ defmodule NervesHub.Accounts do
     end)
   end
 
-  def generate_cli_session_token(note) do
-    token = Ecto.UUID.generate()
+  @cli_code_range 10_000_000..99_999_999
 
-    expires_at =
-      DateTime.utc_now()
-      |> DateTime.add(5, :minute)
-      |> DateTime.to_unix()
+  # The note becomes the API token's note when the login is confirmed, so it has
+  # to fit that column: UTF-8, and no more than 255 characters. Postgres can't
+  # store a NUL either.
+  @cli_note_max_length 255
+
+  # It is also shown, as the CLI wrote it, to whoever confirms the login. Control
+  # and formatting characters, such as the ones that reverse the direction of
+  # text, could make it read as something it isn't there.
+  @cli_note_unprintable ~r/[\p{Cc}\p{Cf}]/u
+
+  @doc """
+  Starts a CLI login, which waits five minutes for someone signed in to the web
+  to confirm it.
+
+  The CLI polls with the session's token and shows its user the confirmation
+  code, which they type in on the web to find the login. The web never sees the
+  token. `requested_from` is the address the CLI's request came from, shown to
+  whoever confirms the login.
+
+  `note` labels the API token the login ends with. A note that isn't a string,
+  is longer than 255 characters, or holds control or formatting characters is
+  refused before anything is stored.
+  """
+  @spec generate_cli_session_token(term(), String.t() | nil) ::
+          {:ok, UserCLISession.t()} | {:error, :invalid_note | :invalid_request}
+  def generate_cli_session_token(note, requested_from \\ nil) do
+    if valid_cli_note?(note) do
+      start_cli_session(note, requested_from)
+    else
+      {:error, :invalid_note}
+    end
+  end
+
+  defp valid_cli_note?(nil), do: true
+
+  # A character is at most four bytes, so a longer note is refused unread.
+  defp valid_cli_note?(note) when is_binary(note) and byte_size(note) <= @cli_note_max_length * 4 do
+    String.valid?(note) and length(String.codepoints(note)) <= @cli_note_max_length and
+      not String.match?(note, @cli_note_unprintable)
+  end
+
+  defp valid_cli_note?(_note), do: false
+
+  defp start_cli_session(note, requested_from) do
+    token = Ecto.UUID.generate()
+    now = DateTime.utc_now()
 
     cli_session = %UserCLISession{
       token: token,
       status: :waiting,
-      expires_at: expires_at,
-      confirmation_code: Enum.random(100_000..999_999),
+      requested_at: DateTime.to_unix(now),
+      requested_from: requested_from,
+      expires_at: now |> DateTime.add(5, :minute) |> DateTime.to_unix(),
+      confirmation_code: unused_cli_confirmation_code(),
       note: note
     }
 
@@ -1302,14 +1848,49 @@ defmodule NervesHub.Accounts do
     end)
   end
 
-  def cli_session_waiting?(user, token) do
-    with {:ok, cli_session} <- CLISessionCache.get(token),
-         %{status: status} when status in [:waiting, :ready] <- cli_session,
-         %{user_id: user_id} when user_id in [user.id, nil] <- cli_session do
+  # Typed in by hand to find the login, so it has to be unpredictable, and
+  # unique among the logins still waiting. Eight digits, because the CLIs already
+  # out there read it as an integer.
+  defp unused_cli_confirmation_code() do
+    random = :binary.decode_unsigned(:crypto.strong_rand_bytes(8))
+    code = @cli_code_range.first + rem(random, Range.size(@cli_code_range))
+
+    case CLISessionCache.with_confirmation_code(code) do
+      [] -> code
+      _in_use -> unused_cli_confirmation_code()
+    end
+  end
+
+  @doc """
+  The CLI login that `code` was shown for, if `user` may confirm it.
+
+  That is a login still waiting for confirmation, or one `user` already
+  confirmed, so that confirming twice isn't an error. Spaces and dashes in the
+  code are ignored. A code shared by two logins finds neither, since there's no
+  telling which one the person typing it started.
+  """
+  @spec find_cli_session_by_code(User.t(), term()) :: {:ok, UserCLISession.t()} | {:error, :not_found}
+  def find_cli_session_by_code(%User{id: user_id}, code) when is_binary(code) do
+    with {:ok, code} <- parse_cli_confirmation_code(code),
+         [cli_session] <- CLISessionCache.with_confirmation_code(code),
+         %{status: status, user_id: confirmed_by} when status == :waiting or confirmed_by == user_id <-
+           cli_session do
       {:ok, cli_session}
     else
-      _ ->
-        {:error, :invalid_request}
+      _ -> {:error, :not_found}
+    end
+  end
+
+  # The code comes straight from the form, which can send a list or a map.
+  def find_cli_session_by_code(%User{}, _code), do: {:error, :not_found}
+
+  defp parse_cli_confirmation_code(code) do
+    code
+    |> String.replace(~r/[\s-]/u, "")
+    |> Integer.parse()
+    |> case do
+      {code, ""} when code in @cli_code_range -> {:ok, code}
+      _ -> :error
     end
   end
 

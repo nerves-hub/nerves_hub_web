@@ -207,6 +207,24 @@ defmodule NervesHubWeb.API.ScriptControllerTest do
       assert "can't be blank" in errors["text"]
     end
 
+    test "422 error if another script in the product has the name", %{
+      conn: conn,
+      org: org,
+      product: product,
+      user: user
+    } do
+      Fixtures.support_script_fixture(product, user, %{name: "test-script"})
+
+      conn =
+        post(conn, ~p"/api/orgs/#{org.name}/products/#{product.name}/scripts", %{
+          name: "test-script",
+          text: "Boop.snoot()"
+        })
+
+      assert %{"errors" => errors} = json_response(conn, 422)
+      assert "has already been taken" in errors["name"]
+    end
+
     test "raises an NervesHubWeb.UnauthorizedError when user has :view role", %{
       conn2: conn,
       user2: user,
@@ -298,6 +316,16 @@ defmodule NervesHubWeb.API.ScriptControllerTest do
       assert %{"errors" => errors} = json_response(conn, 422)
       assert "can't be blank" in errors["name"]
       assert "can't be blank" in errors["text"]
+    end
+
+    test "cannot take another script's name", %{conn: conn, org: org, product: product, user: user} do
+      Fixtures.support_script_fixture(product, user, %{name: "test-script"})
+      script = Fixtures.support_script_fixture(product, user, %{name: "other-script"})
+
+      conn = put(conn, ~p"/api/orgs/#{org.name}/products/#{product.name}/scripts/#{script.id}", %{name: "test-script"})
+
+      assert %{"errors" => errors} = json_response(conn, 422)
+      assert "has already been taken" in errors["name"]
     end
 
     test "raises an NervesHubWeb.UnauthorizedError when user has :view role", %{

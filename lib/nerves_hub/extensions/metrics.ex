@@ -54,22 +54,29 @@ defmodule NervesHub.Extensions.Metrics do
       `NervesHub.Extensions.Jitter`.
     * `:watched` -- at least one device Show LiveView is open. Report every
       `ui_polling_seconds` (a minute by default).
+
+  Attaching asks for a report ahead of the timer: straight away while watched,
+  and within `first_check_window_seconds` (a minute by default) otherwise, so a
+  fleet reconnecting together does not report together.
   """
 
   @behaviour NervesHub.Extensions
 
   alias NervesHub.DeviceLink.DeviceInfo
-  alias NervesHub.Devices.HealthEvaluation
+  alias NervesHub.Devices.HealthEvaluation.Queue, as: HealthEvaluationQueue
   alias NervesHub.Devices.Metrics, as: Store
   alias NervesHub.Extensions.Jitter
   alias NervesHub.Extensions.PubSub
   alias NervesHub.Extensions.State
+  alias NervesHub.Integrations
   alias NervesHub.RateLimit.Metrics, as: RateLimit
+  alias NervesHub.Webhooks.Payloads
 
   require Logger
 
   @default_interval_minutes 15
   @default_ui_polling_seconds 60
+  @default_first_check_window_seconds 60
 
   @max_reports_per_message 60
   @max_clock_skew_hours 24
@@ -104,14 +111,12 @@ defmodule NervesHub.Extensions.Metrics do
   def attach(state) do
     mode = current_mode(state)
 
-    {State.assign(state, :mode, mode),
-     [{:group_join, PubSub.watch_key(device_id(state), :metrics)}, {:tick, :check}, timer(mode)]}
+    {State.assign(state, :mode, mode), [first_check(mode), timer(mode)]}
   end
 
   @impl NervesHub.Extensions
   def detach(state) do
-    {State.assign(state, :mode, nil),
-     [{:cancel_timer, :check}, {:group_leave, PubSub.watch_key(device_id(state), :metrics)}]}
+    {State.assign(state, :mode, nil), [{:cancel_timer, :check}, {:cancel_timer, :first_check}]}
   end
 
   @impl NervesHub.Extensions
@@ -130,8 +135,11 @@ defmodule NervesHub.Extensions.Metrics do
       # The readings just recorded are still in the write buffer, so the
       # health judgement takes them in hand rather than expecting to read
       # them back. One judgement per message, however many batched reports
-      # it carried.
-      _ = HealthEvaluation.evaluate_and_save(state.device_info, in_hand_samples(reports))
+      # it carried, and queued rather than run here, for the reason
+      # `NervesHub.Devices.HealthEvaluation.Queue` gives.
+      :ok = HealthEvaluationQueue.enqueue(state.device_info, in_hand_samples(reports))
+
+      :ok = dispatch_event(state.device_info, reports)
     end
 
     {state, []}
@@ -154,13 +162,16 @@ defmodule NervesHub.Extensions.Metrics do
     {state, [{:push, "metrics:check", %{}} | effects]}
   end
 
+  # The one-off check after attaching, which is any other check.
+  def handle_info(:first_check, state), do: handle_info(:check, state)
+
   # A device Show LiveView has opened on this device. Announced rather than
   # discovered, for the reason `NervesHub.Extensions.PubSub.watch/2` gives.
   def handle_info(:watching, state) do
     if State.get(state, :mode) == :watched do
       {state, []}
     else
-      {State.assign(state, :mode, :watched), [{:tick, :check}, timer(:watched)]}
+      {State.assign(state, :mode, :watched), [{:cancel_timer, :first_check}, {:tick, :check}, timer(:watched)]}
     end
   end
 
@@ -214,6 +225,30 @@ defmodule NervesHub.Extensions.Metrics do
         do: {key, timestamp, value}
   end
 
+  # Checked before building, rather than leaving it to `dispatch/3`, because a
+  # batch whose every report was skipped is not worth an event.
+  defp dispatch_event(device_info, reports) do
+    with true <- Integrations.subscribed?(device_info.product_id, "device.metrics_reported"),
+         [_ | _] = stored <- stored_reports(reports) do
+      Integrations.dispatch(device_info.product_id, "device.metrics_reported", fn ->
+        Payloads.metrics_reported(device_info, stored)
+      end)
+    else
+      _nothing_to_send -> :ok
+    end
+  end
+
+  # The batch as the event carries it: the reports `record/2` stored, each with
+  # the readings it kept.
+  defp stored_reports(reports) do
+    for %{"metrics" => metrics} = report <- reports,
+        is_map(metrics),
+        {:ok, timestamp} <- [timestamp(report)],
+        readings <- [Store.storable(metrics)],
+        readings != %{},
+        do: %{timestamp: timestamp, metrics: readings}
+  end
+
   # A reading is only worth what its timestamp is worth. A device whose clock
   # has not caught up with NTP yet would otherwise write a chart that stretches
   # to 1970 or into next year, and the reading it names is unrecoverable either
@@ -249,6 +284,16 @@ defmodule NervesHub.Extensions.Metrics do
     if PubSub.watched?(device_id(state), :metrics), do: :watched, else: :idle
   end
 
+  # As `NervesHub.Extensions.Health` does it, and for the same reasons.
+  defp first_check(:watched), do: {:tick, :check}
+
+  defp first_check(:idle) do
+    case first_check_window_ms() do
+      0 -> {:tick, :check}
+      window -> {:send_after, :first_check, Jitter.first_check_delay(window)}
+    end
+  end
+
   defp timer(:watched) do
     {:start_timer, :check, to_timeout(second: ui_polling_seconds())}
   end
@@ -272,6 +317,13 @@ defmodule NervesHub.Extensions.Metrics do
     case config([:metrics, :ui_polling_seconds]) do
       i when is_integer(i) and i > 0 -> i
       _ -> @default_ui_polling_seconds
+    end
+  end
+
+  defp first_check_window_ms() do
+    case config([:metrics, :first_check_window_seconds]) do
+      i when is_integer(i) and i >= 0 -> to_timeout(second: i)
+      _ -> to_timeout(second: @default_first_check_window_seconds)
     end
   end
 

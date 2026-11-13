@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex" />
+    <meta name="color-scheme" content="dark light" />
+    <title>Back soon · {@page_title}</title>
+    <style>
+      :root {
+        --surface: #141417;
+        --board: #1c1c1f;
+        --line: #71717a;
+        --track: #27272a;
+        --text: #fafafa;
+        --text-muted: #a1a1aa;
+        --accent: #818cf8;
+        --action: #4f46e5;
+        --action-hover: #4338ca;
+        --led: #34d399;
+      }
+
+      @media (prefers-color-scheme: light) {
+        :root {
+          --surface: #fafafa;
+          --board: #f4f4f5;
+          --line: #a1a1aa;
+          --track: #e4e4e7;
+          --text: #18181b;
+          --text-muted: #52525b;
+          --accent: #4f46e5;
+          --led: #059669;
+        }
+      }
+
+      @property --percent {
+        syntax: "<integer>";
+        inherits: false;
+        initial-value: 99;
+      }
+
+      /* The dashboard's Inter (see app.css), which MaintenanceEndpoint serves too. */
+      @font-face {
+        font-family: "Inter";
+        font-style: normal;
+        font-weight: 100 900;
+        font-display: swap;
+        src: url("/fonts/inter/InterVariable.woff2") format("woff2");
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      ::selection {
+        background: var(--action);
+        color: #fff;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        min-height: 100dvh;
+        display: grid;
+        place-items: center;
+        padding: 2.5rem 1rem;
+        background: var(--surface);
+        color: var(--text);
+        font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+        font-size: 1.0625rem;
+        line-height: 1.6;
+      }
+
+      main {
+        width: 100%;
+        max-width: 35rem;
+      }
+
+      .device {
+        display: block;
+        width: 13rem;
+        max-width: 100%;
+        height: auto;
+        margin-bottom: 2.5rem;
+      }
+
+      .device .outline {
+        fill: var(--board);
+        stroke: var(--line);
+        stroke-width: 1.5;
+      }
+
+      .device .chip {
+        fill: var(--surface);
+        stroke: var(--line);
+        stroke-width: 1.5;
+      }
+
+      .device .wire {
+        fill: none;
+        stroke: var(--line);
+        stroke-width: 1.5;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+
+      .device .trace,
+      .device .face {
+        fill: none;
+        stroke: var(--accent);
+        stroke-width: 1.5;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+
+      .device .face {
+        stroke-width: 2.5;
+      }
+
+      .device .pin {
+        fill: var(--line);
+      }
+
+      .device .led {
+        fill: var(--led);
+        animation: breathe 4s ease-in-out infinite;
+      }
+
+      h1 {
+        margin: 0 0 1rem;
+        font-size: clamp(2rem, 1.5rem + 2.5vw, 3rem);
+        font-weight: 700;
+        line-height: 1.1;
+        letter-spacing: -0.025em;
+        text-wrap: balance;
+      }
+
+      p {
+        margin: 0;
+      }
+
+      .lead {
+        font-size: 1.1875rem;
+      }
+
+      .update {
+        margin: 2.25rem 0;
+      }
+
+      .update-label {
+        display: flex;
+        justify-content: space-between;
+        gap: 1rem;
+        margin-bottom: 0.5rem;
+        font-size: 0.9375rem;
+        font-weight: 500;
+      }
+
+      .percent {
+        font-variant-numeric: tabular-nums;
+        animation: count 9s cubic-bezier(0.16, 1, 0.3, 1) both;
+        counter-reset: percent var(--percent);
+      }
+
+      .percent::after {
+        content: counter(percent) "%";
+      }
+
+      .track {
+        height: 0.5rem;
+        overflow: hidden;
+        border-radius: 0.25rem;
+        background: var(--track);
+      }
+
+      .fill {
+        width: 99%;
+        height: 100%;
+        border-radius: 0.25rem;
+        background: var(--accent);
+        transform-origin: left;
+        animation: fill 9s cubic-bezier(0.16, 1, 0.3, 1) both;
+      }
+
+      .note {
+        margin-top: 0.625rem;
+        color: var(--text-muted);
+        font-size: 0.9375rem;
+      }
+
+      .devices {
+        color: var(--text-muted);
+      }
+
+      .status {
+        display: inline-block;
+        margin-top: 2rem;
+        padding: 0.75rem 1.25rem;
+        border-radius: 0.5rem;
+        background: var(--action);
+        color: #fff;
+        font-weight: 600;
+        text-decoration: none;
+        transition: background-color 150ms ease-out;
+      }
+
+      .status:hover {
+        background: var(--action-hover);
+      }
+
+      .status:focus-visible {
+        outline: 2px solid var(--accent);
+        outline-offset: 3px;
+      }
+
+      @keyframes fill {
+        from {
+          transform: scaleX(0.04);
+        }
+      }
+
+      @keyframes count {
+        from {
+          --percent: 4;
+        }
+      }
+
+      @keyframes breathe {
+        50% {
+          opacity: 0.25;
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        .device .led,
+        .percent,
+        .fill {
+          animation: none;
+        }
+      }
+    </style>
+  </head>
+
+  <body>
+    <main>
+      <svg class="device" viewBox="0 0 240 140" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
+        <rect class="outline" x="6" y="6" width="214" height="128" rx="10" />
+        <rect class="chip" x="214" y="52" width="24" height="30" rx="3" />
+        <circle class="chip" cx="20" cy="20" r="4" />
+        <circle class="chip" cx="206" cy="20" r="4" />
+        <circle class="chip" cx="20" cy="120" r="4" />
+        <circle class="chip" cx="206" cy="120" r="4" />
+
+        <path class="trace" d="M150 60h28v7h36M150 74h64M84 60H54V44M84 74H54" />
+        <path class="trace" d="M100 100v16M117 100v16M134 100v16" />
+
+        <g class="pin">
+          <rect x="94" y="114" width="12" height="8" rx="1.5" />
+          <rect x="111" y="114" width="12" height="8" rx="1.5" />
+          <rect x="128" y="114" width="12" height="8" rx="1.5" />
+        </g>
+
+        <circle class="led" cx="54" cy="40" r="5" />
+        <circle class="pin" cx="50" cy="74" r="4" />
+
+        <path class="wire" d="M94 40v8M108 40v8M122 40v8M136 40v8" />
+        <rect class="chip" x="84" y="48" width="66" height="52" rx="6" />
+        <path class="face" d="M98 69q5 5 10 0M126 69q5 5 10 0M110 84q7 5 14 0" />
+
+        <path class="trace" d="M162 34h10l-10 12h10M180 18h7l-7 8h7" />
+      </svg>
+
+      <h1>We're installing an update on ourselves.</h1>
+
+      <p class="lead">
+        Most days we ship firmware to your devices. This time it's our turn, so {@platform_name} is offline for planned maintenance.
+      </p>
+
+      <div class="update">
+        <div class="update-label" aria-hidden="true">
+          <span>Updating {@platform_name}</span>
+          <span class="percent"></span>
+        </div>
+        <div class="track" aria-hidden="true">
+          <div class="fill"></div>
+        </div>
+        <p :if={@status_page_url} class="note">This bar is purely for morale. The status page has the real progress.</p>
+        <p :if={!@status_page_url} class="note">This bar is purely for morale. We'll be back as soon as we can.</p>
+      </div>
+
+      <p class="devices">
+        Your devices keep running the firmware they already have and reconnect on their own once we're back, so there's nothing you need to do. The dashboard, API and CLI are offline until then.
+      </p>
+
+      <a :if={@status_page_url} class="status" href={@status_page_url}>Check the status page</a>
+    </main>
+  </body>
+</html>

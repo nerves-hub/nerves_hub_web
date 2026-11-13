@@ -19,59 +19,48 @@
 
   <:big_header>
     <div class="flex items-center gap-3">
-      <svg
-        data-is-active={(@deployment_group.is_active && "true") || "false"}
-        class="data-[is-active=false]:fill-base-500 data-[is-active=true]:fill-success size-3"
-        xmlns="http://www.w3.org/2000/svg"
-        viewBox="0 0 6 6"
-        fill="currentColor"
-      >
-        <circle cx="3" cy="3" r="3" />
-      </svg>
-      <h1 class="text-base-50 text-xl leading-[30px] font-semibold">
+      <.status_dot data-is-active={(@deployment_group.is_active && "true") || "false"} class="data-[is-active=false]:bg-base-500 data-[is-active=true]:bg-success" />
+      <h1 class="text-page-title text-content-strong">
         {@deployment_group.name}
       </h1>
       <div
         :if={@deployment_group.current_release.delta_status == :preparing}
         phx-remove={JS.hide(transition: {"ease-in duration-1000", "opacity-100", "opacity-0"}, blocking: false)}
-        class="bg-notice border-base-700 pulsing-div flex items-center gap-1 rounded-full border py-0.5 pr-3 pl-2.5"
+        class="pulsing-div flex items-center gap-1 rounded-full border border-line-default bg-notice py-0.5 pr-3 pl-2.5"
       >
-        <span class="text-base-50 text-xs">Preparing: Generating Deltas</span>
+        <span class="text-xs text-content-strong">Preparing: Generating Deltas</span>
       </div>
 
-      <div
-        :if={@deployment_group.current_release.delta_status == :failed}
-        class="bg-base-800 border-alert text-alert rounded border px-2 py-1 text-xs"
-      >
+      <.badge :if={@deployment_group.current_release.delta_status == :failed} tone="alert">
         Error: Deltas failed to generate
-      </div>
+      </.badge>
     </div>
 
     <div class="flex items-center gap-2">
       <.link
         navigate={~p"/org/#{@org}/#{@product}/devices?deployment_id=#{@deployment_group.id}"}
-        class="bg-base-800 hover:bg-base-700 flex h-7 cursor-pointer items-center rounded px-2 py-1 transition-colors"
+        class="flex h-7 cursor-pointer items-center rounded bg-base-800 px-2 py-1 transition-colors hover:bg-base-700"
       >
-        <span class="text-base-400 mr-1 text-sm">Devices:</span>
+        <span class="mr-1 text-sm text-content-muted">Devices:</span>
 
         <div class="flex items-center">
-          <span class="text-base-300 mr-1 text-sm">{@deployment_group.device_count || 0}</span>
+          <span class="mr-1 text-sm text-content-body">{@deployment_group.device_count || 0}</span>
         </div>
       </.link>
 
-      <div class="bg-base-800 flex h-7 items-center rounded px-2 py-1">
-        <span class="text-base-400 mr-1 text-sm">Platform:</span>
+      <div class="flex h-7 items-center rounded bg-base-800 px-2 py-1">
+        <span class="mr-1 text-sm text-content-muted">Platform:</span>
 
         <div class="flex items-center">
-          <span class="text-base-300 mr-1 font-mono text-sm">{@deployment_group.current_release.firmware.platform}</span>
+          <span class="mr-1 font-mono text-sm text-content-body">{@deployment_group.current_release.firmware.platform}</span>
         </div>
       </div>
 
-      <div class="bg-base-800 flex h-7 items-center rounded px-2 py-1">
-        <span class="text-base-400 mr-1 text-sm">Arch:</span>
+      <div class="flex h-7 items-center rounded bg-base-800 px-2 py-1">
+        <span class="mr-1 text-sm text-content-muted">Arch:</span>
 
         <div class="flex items-center">
-          <span class="text-base-300 mr-1 font-mono text-sm">{@deployment_group.current_release.firmware.architecture}</span>
+          <span class="mr-1 font-mono text-sm text-content-body">{@deployment_group.current_release.firmware.architecture}</span>
         </div>
       </div>
     </div>

@@ -28,6 +28,17 @@ defmodule NervesHubWeb.Plugs.ImAliveTest do
     end
   end
 
+  describe "with check_database: false" do
+    test "answers on the status paths" do
+      conn = %{build_conn(:get, "/status/alive") | request_path: "/status/alive"}
+      result = ImAlive.call(conn, check_database: false)
+
+      assert result.halted
+      assert result.status == 200
+      assert result.resp_body == "Hello, Friend!"
+    end
+  end
+
   describe "non-health-check paths" do
     test "passes the conn through untouched for non-status paths" do
       conn = %{build_conn(:get, "/some/other/path") | request_path: "/some/other/path"}

@@ -6,6 +6,7 @@ defmodule NervesHubWeb.API.ScriptController do
   alias NervesHubWeb.API.ErrorJSON
   alias NervesHubWeb.API.OpenAPI.SchemaHelpers
   alias NervesHubWeb.API.PaginationHelpers
+  alias NervesHubWeb.API.Plugs.RefuseDeletedDevice
   alias NervesHubWeb.API.Schemas.ErrorSchemas
   alias NervesHubWeb.API.Schemas.SupportScriptSchemas.SupportScriptCreationRequest
   alias NervesHubWeb.API.Schemas.SupportScriptSchemas.SupportScriptShowResponse
@@ -18,6 +19,8 @@ defmodule NervesHubWeb.API.ScriptController do
 
   plug(:validate_role, [org: :view] when action in [:index, :send])
   plug(:validate_role, [org: :manage] when action in [:create, :update, :delete])
+
+  plug(RefuseDeletedDevice when action in [:send])
 
   # OpenAPI specs for :index can be found in SupportScriptControllerSpecs
   operation(:index, [])

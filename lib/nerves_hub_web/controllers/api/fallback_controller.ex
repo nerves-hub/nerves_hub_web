@@ -7,6 +7,7 @@ defmodule NervesHubWeb.API.FallbackController do
   use NervesHubWeb, :api_controller
 
   alias NervesHub.Firmwares.UpdateTool
+  alias NervesHub.Webhooks
   alias NervesHubWeb.API.ChangesetJSON
   alias NervesHubWeb.API.ErrorJSON
   alias NervesHubWeb.Helpers.FirmwareDeletion
@@ -55,6 +56,49 @@ defmodule NervesHubWeb.API.FallbackController do
       reason:
         "These fields cannot be set on a product: #{Enum.map_join(params, ", ", &inspect/1)}. " <>
           "A product cannot be renamed; its name identifies it in every URL."
+    })
+  end
+
+  def call(conn, {:error, {:fwup_too_old, required, installed}}) do
+    conn
+    |> put_status(:unprocessable_entity)
+    |> put_view(ErrorJSON)
+    |> render(:"422", %{
+      reason:
+        "This firmware requires fwup #{required} or newer, and NervesHub has fwup #{installed}. " <>
+          "Please contact support to have NervesHub's fwup updated."
+    })
+  end
+
+  def call(conn, {:error, :invalid_signature}) do
+    conn
+    |> put_status(:unprocessable_entity)
+    |> put_view(ErrorJSON)
+    |> render(:"422", %{
+      reason: "The signature does not match any of this organization's signing keys, or the file is corrupt."
+    })
+  end
+
+  def call(conn, {:error, :no_public_keys}) do
+    conn
+    |> put_status(:unprocessable_entity)
+    |> put_view(ErrorJSON)
+    |> render(:"422", %{reason: "This organization has no signing keys. Register one before uploading."})
+  end
+
+  def call(conn, {:error, :invalid_fwup_file}) do
+    conn
+    |> put_status(:unprocessable_entity)
+    |> put_view(ErrorJSON)
+    |> render(:"422", %{reason: "The file is not a readable fwup archive."})
+  end
+
+  def call(conn, {:error, :invalid_metadata}) do
+    conn
+    |> put_status(:unprocessable_entity)
+    |> put_view(ErrorJSON)
+    |> render(:"422", %{
+      reason: "The file's metadata must include meta-product, meta-platform, meta-architecture and meta-version."
     })
   end
 
@@ -149,6 +193,13 @@ defmodule NervesHubWeb.API.FallbackController do
     |> render(:"422", %{reason: reason})
   end
 
+  def call(conn, {:error, {:analytics_not_enabled, reason}}) do
+    conn
+    |> put_status(:not_implemented)
+    |> put_view(ErrorJSON)
+    |> render(:"501", %{reason: reason})
+  end
+
   def call(conn, {:error, :analytics_not_enabled}) do
     conn
     |> put_status(:not_implemented)
@@ -156,6 +207,17 @@ defmodule NervesHubWeb.API.FallbackController do
     |> render(:"501", %{
       reason:
         "This platform has no analytics database configured, so device logs are not stored. " <>
+          "Contact your Ops team for more information."
+    })
+  end
+
+  def call(conn, {:error, :shared_secrets_not_enabled}) do
+    conn
+    |> put_status(:unprocessable_entity)
+    |> put_view(ErrorJSON)
+    |> render(:"422", %{
+      reason:
+        "Device shared secrets are not enabled on this platform, so a device could not connect with one. " <>
           "Contact your Ops team for more information."
     })
   end
@@ -206,6 +268,15 @@ defmodule NervesHubWeb.API.FallbackController do
     })
   end
 
+  def call(conn, {:error, :already_updating}) do
+    conn
+    |> put_status(:conflict)
+    |> put_view(ErrorJSON)
+    |> render(:"409", %{
+      reason: "The device is already updating. Wait for that update to finish before sending another."
+    })
+  end
+
   def call(conn, {:error, :invalid_member}) do
     conn
     |> put_status(422)
@@ -227,11 +298,29 @@ defmodule NervesHubWeb.API.FallbackController do
     |> render(:"422", %{reason: "That is not a service this NervesHub knows about."})
   end
 
+  def call(conn, {:error, :too_many_webhooks}) do
+    conn
+    |> put_status(422)
+    |> put_view(ErrorJSON)
+    |> render(:"422", %{
+      reason: "An organization can have at most #{Webhooks.max_webhooks_per_org()} webhooks. Delete one to add another."
+    })
+  end
+
   def call(conn, {:error, :authentication_failed}) do
     conn
     |> put_status(401)
     |> put_view(ErrorJSON)
     |> render(:"401", %{reason: "Authentication failed, please check your username and password and try again."})
+  end
+
+  def call(conn, {:error, :email_not_confirmed}) do
+    conn
+    |> put_status(401)
+    |> put_view(ErrorJSON)
+    |> render(:"401", %{
+      reason: "Confirm your email address before signing in. Signing in on the web sends a new confirmation link."
+    })
   end
 
   def call(conn, {:error, reason}) when is_binary(reason) or is_atom(reason) do
@@ -260,17 +349,10 @@ defmodule NervesHubWeb.API.FallbackController do
     put_status(conn, status)
   end
 
-  defp status_from_changeset_errors(errors) do
-    [{error, _} | _] = errors
+  defp status_from_changeset_errors([{error, _} | _]) when error in [:deployment_groups, :firmwares, :devices],
+    do: :conflict
 
-    if conflict_error?(error) do
-      :conflict
-    else
-      :unprocessable_entity
-    end
-  end
-
-  defp conflict_error?(error) do
-    error in [:deployment_groups, :firmwares, :devices]
-  end
+  # An invalid changeset can have no errors of its own when they are all on a
+  # nested changeset, such as the JITP cast onto a CA certificate.
+  defp status_from_changeset_errors(_errors), do: :unprocessable_entity
 end

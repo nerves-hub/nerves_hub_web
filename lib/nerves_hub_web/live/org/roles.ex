@@ -9,6 +9,9 @@ defmodule NervesHubWeb.Live.Org.Roles do
   alias NervesHub.Accounts.OrgRoles
   alias NervesHub.Accounts.Permissions
   alias NervesHubWeb.Components.Utils
+  alias NervesHubWeb.Mounts.OrgCounts
+
+  on_mount(OrgCounts)
 
   embed_templates("role_templates/*")
 
@@ -191,7 +194,7 @@ defmodule NervesHubWeb.Live.Org.Roles do
   defp built_in_description(:admin), do: "Everything, including managing the organization, its members and its roles."
 
   defp built_in_description(:manage),
-    do: "Everything except managing the organization, its members, its roles and its certificate authorities."
+    do: "Everything except managing the organization, its members, its roles and its Slack workspaces."
 
   defp built_in_description(:view), do: "Can view everything and run support scripts, but can't change anything."
 

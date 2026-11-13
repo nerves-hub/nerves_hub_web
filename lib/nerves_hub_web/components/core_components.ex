@@ -22,7 +22,6 @@ defmodule NervesHubWeb.CoreComponents do
   alias Phoenix.HTML.Form
   alias Phoenix.HTML.FormField
   alias Phoenix.LiveView.JS
-  alias Phoenix.LiveView.LiveStream
 
   @doc """
   Renders the application logo.
@@ -90,11 +89,11 @@ defmodule NervesHubWeb.CoreComponents do
     <div
       :if={!@user.profile_picture_url}
       class={[
-        "bg-base-800 dark:bg-base-600 relative inline-flex size-8 items-center justify-center overflow-hidden rounded-full pt-0.5",
+        "relative inline-flex size-8 items-center justify-center overflow-hidden rounded-full bg-base-800 pt-0.5 dark:bg-base-600",
         @class
       ]}
     >
-      <span class="dark:text-base-300 text-base-400 font-medium">{user_initials(@user.name)}</span>
+      <span class="font-medium text-content-muted dark:text-content-body">{user_initials(@user.name)}</span>
     </div>
     <div
       :if={@user.profile_picture_url}
@@ -109,6 +108,142 @@ defmodule NervesHubWeb.CoreComponents do
     name
     |> String.split()
     |> Enum.map_join(&String.at(&1, 0))
+  end
+
+  @doc """
+  Renders a status dot, such as a device's connection state.
+
+  Every status dot is the same size, whether it sits in a table row or beside
+  a page title. Give it a colour with `class`, either fixed or as `data-*`
+  variants keyed on an attribute passed through.
+
+  Chart legend keys are not status dots and keep their own size.
+
+  ## Examples
+
+      <.status_dot class="bg-status-online" />
+      <.status_dot data-level={@level} class="data-[level=error]:bg-alert data-[level=info]:bg-notice" />
+  """
+  attr(:class, :any, default: nil)
+  attr(:rest, :global)
+
+  def status_dot(assigns) do
+    ~H"""
+    <span class={["inline-block size-2 shrink-0 rounded-full", @class]} {@rest}></span>
+    """
+  end
+
+  @doc """
+  Renders a badge: a short status or count, such as "Deleted", "Failing" or
+  the number beside a page title.
+
+  `tone` picks the colour, each a tinted fill with matching text: `neutral`
+  (the default), `notice`, `success`, `warning` or `alert`. For a label a user
+  gave something, such as a device tag, use `tag/1`.
+
+  ## Examples
+
+      <.badge>{@device_count}</.badge>
+      <.badge tone="alert">Failing</.badge>
+  """
+  attr(:tone, :string, default: "neutral", values: ~w(neutral notice success warning alert))
+  attr(:class, :any, default: nil)
+  attr(:rest, :global)
+
+  slot(:inner_block, required: true)
+
+  def badge(assigns) do
+    ~H"""
+    <span class={["rounded-full px-2 py-0.5 text-xs font-medium whitespace-nowrap", badge_tone(@tone), @class]} {@rest}>
+      {render_slot(@inner_block)}
+    </span>
+    """
+  end
+
+  defp badge_tone("neutral"), do: "bg-base-800 text-content-body"
+  defp badge_tone("notice"), do: "bg-notice-soft text-notice-content"
+  defp badge_tone("success"), do: "bg-success-soft text-success-content"
+  defp badge_tone("warning"), do: "bg-warning-soft text-warning-content"
+  defp badge_tone("alert"), do: "bg-alert-soft text-alert-content"
+
+  @doc """
+  Renders a tag: a label a user gave something, such as a device tag, or an
+  identifier shown as a value.
+
+  `mono` sets it in the monospace face inside a `<code>`, for identifiers
+  such as a serial or an event type. For a status or a count, use `badge/1`.
+
+  ## Examples
+
+      <.tag :for={tag <- @device.tags}>{tag}</.tag>
+      <.tag mono>{@certificate.serial}</.tag>
+  """
+  attr(:mono, :boolean, default: false)
+  attr(:class, :any, default: nil)
+  attr(:rest, :global)
+
+  slot(:inner_block, required: true)
+
+  def tag(%{mono: true} = assigns) do
+    ~H"""
+    <code class={["rounded border border-line-default bg-base-800 px-1.5 py-0.5 font-mono text-xs text-content-body", @class]} {@rest}>{render_slot(@inner_block)}</code>
+    """
+  end
+
+  def tag(assigns) do
+    ~H"""
+    <span class={["rounded border border-line-default bg-base-800 px-1.5 py-0.5 text-xs text-content-body", @class]} {@rest}>{render_slot(@inner_block)}</span>
+    """
+  end
+
+  @doc """
+  Renders a trigger that shows a tooltip on hover.
+
+  The inner block is the trigger and the `:content` slot is the tooltip. The
+  `ToolTip` hook positions the tooltip and its arrow with Floating UI, so every
+  tooltip needs a unique `id`.
+
+  `class` sets the wrapper's layout and stacking (it is always `relative`, and
+  defaults to `z-20`). `content_class` sizes the tooltip: `w-max` for a short
+  label, or a width such as `w-72` or `max-w-md` for a sentence.
+
+  With `enabled={false}` only the trigger renders, without the hook, for a
+  tooltip that only sometimes has something to say.
+
+  ## Examples
+
+      <.tooltip id="firmware-versions-help" placement="top" content_class="w-64">
+        <span class="lucide-info size-4" />
+        <:content>Devices grouped by the firmware they last reported.</:content>
+      </.tooltip>
+  """
+  attr(:id, :string, required: true)
+  attr(:placement, :string, default: "bottom", values: ~w(top right bottom left))
+  attr(:enabled, :boolean, default: true)
+  attr(:class, :any, default: "z-20")
+  attr(:content_class, :any, default: "w-max")
+  attr(:rest, :global)
+
+  slot(:inner_block, required: true)
+  slot(:content, required: true)
+
+  def tooltip(assigns) do
+    ~H"""
+    <div id={@id} class={["relative", @class]} phx-hook={@enabled && "ToolTip"} data-placement={@placement} {@rest}>
+      {render_slot(@inner_block)}
+      <div
+        :if={@enabled}
+        role="tooltip"
+        class={[
+          "tooltip-content absolute top-0 left-0 z-20 hidden rounded border border-line-default bg-surface-overlay px-2 py-1.5 text-xs shadow-overlay",
+          @content_class
+        ]}
+      >
+        {render_slot(@content)}
+        <div class="tooltip-arrow absolute size-2 origin-center rotate-45 border-line-default bg-surface-overlay"></div>
+      </div>
+    </div>
+    """
   end
 
   @doc """
@@ -140,7 +275,7 @@ defmodule NervesHubWeb.CoreComponents do
   def modal(assigns) do
     ~H"""
     <div id={@id} phx-mounted={@show && show_modal(@id)} phx-remove={hide_modal(@id)} data-cancel={JS.exec(@on_cancel, "phx-remove")} class="absolute z-50 hidden">
-      <div id={"#{@id}-bg"} class="bg-base-200/90 fixed inset-0 transition-opacity" aria-hidden="true" />
+      <div id={"#{@id}-bg"} class="fixed inset-0 bg-backdrop transition-opacity" aria-hidden="true" />
       <div class="fixed inset-0 overflow-y-auto" aria-labelledby={"#{@id}-title"} aria-describedby={"#{@id}-description"} role="dialog" aria-modal="true" tabindex="0">
         <div class="flex min-h-full items-center justify-center">
           <div class="w-full max-w-3xl p-4 sm:p-6 lg:py-8">
@@ -149,11 +284,11 @@ defmodule NervesHubWeb.CoreComponents do
               phx-window-keydown={JS.exec("data-cancel", to: "##{@id}")}
               phx-key="escape"
               phx-click-away={JS.exec("data-cancel", to: "##{@id}")}
-              class="bg-base-900 ring-base-700/10 shadow-base-700/10 relative hidden rounded-2xl p-4 shadow-lg ring-1 transition"
+              class="relative hidden rounded-md bg-base-900 p-4 shadow-overlay ring-1 ring-line-default/10 transition"
             >
               <div class="absolute top-6 right-5">
                 <button phx-click={JS.exec("data-cancel", to: "##{@id}")} type="button" class="-m-3 flex-none p-3 opacity-20 hover:opacity-40" aria-label={gettext("close")}>
-                  <.icon name="close" class="stroke-base-200 size-8" />
+                  <.icon name="close" class="size-6 text-base-200" />
                 </button>
               </div>
               <div id={"#{@id}-content"}>
@@ -193,7 +328,7 @@ defmodule NervesHubWeb.CoreComponents do
       phx-click={JS.push("lv:clear-flash", value: %{key: @kind}) |> hide("##{@id}")}
       role="alert"
       data-kind={@kind}
-      class="data-[kind=error]:bg-alert-soft data-[kind=error]:ring-alert data-[kind=error]:text-alert-content data-[kind=info]:bg-success-soft data-[kind=info]:ring-success data-[kind=info]:text-success-content data-[kind=notice]:bg-notice-soft data-[kind=notice]:ring-notice data-[kind=notice]:text-notice fixed right-2 bottom-4 z-50 mr-2 w-80 rounded-sm p-3 ring-1 sm:w-96"
+      class="fixed right-2 bottom-4 z-50 mr-2 w-80 rounded-md p-3 ring-1 data-[kind=error]:bg-alert-soft data-[kind=error]:text-alert-content data-[kind=error]:ring-alert data-[kind=info]:bg-success-soft data-[kind=info]:text-success-content data-[kind=info]:ring-success data-[kind=notice]:bg-notice-soft data-[kind=notice]:text-notice data-[kind=notice]:ring-notice sm:w-96"
       {@rest}
     >
       <p :if={@title} class="flex items-center gap-1.5 text-sm/6 font-semibold">
@@ -204,7 +339,7 @@ defmodule NervesHubWeb.CoreComponents do
         <.icon
           name="close"
           data-kind={@kind}
-          class="data-[kind=error]:stroke-alert data-[kind=info]:stroke-success data-[kind=notice]:stroke-notice opacity-40 group-hover:opacity-70"
+          class="opacity-40 group-hover:opacity-70 data-[kind=error]:text-alert data-[kind=info]:text-success data-[kind=notice]:text-notice"
         />
       </button>
     </div>
@@ -259,194 +394,180 @@ defmodule NervesHubWeb.CoreComponents do
   end
 
   @doc """
-  Renders a simple form.
+  Renders a button, a link that looks like one with `type="link"`, or a
+  `<label>` that looks like one with `type="label"`.
 
-  ## Examples
+  A label is for a file picker: pass `for` the upload's ref, and the hidden
+  `live_file_input` opens wherever the button is clicked.
 
-      <.simple_form for={@form} phx-change="validate" phx-submit="save">
-        <.input field={@form[:email]} label="Email"/>
-        <.input field={@form[:username]} label="Username" />
-        <:actions>
-          <.button>Save</.button>
-        </:actions>
-      </.simple_form>
-  """
-  attr(:for, :any, required: true, doc: "the data structure for the form")
-  attr(:as, :any, default: nil, doc: "the server side parameter to collect all input under")
+  ## Styles
 
-  attr(:rest, :global,
-    include: ~w(autocomplete name rel action enctype method novalidate target multipart),
-    doc: "the arbitrary HTML attributes to apply to the form tag"
-  )
+    * `secondary` (the default): an everyday action.
+    * `primary`: the one main action on a page or in a form.
+    * `danger`: an outlined destructive action, such as one that asks for
+      confirmation first or leads to a page that does.
+    * `danger-solid`: the last step of something that can't be undone, such as
+      deleting an account.
 
-  slot(:inner_block, required: true)
-  slot(:actions, doc: "the slot for form actions, such as a submit button")
+  ## Sizes
 
-  def simple_form(assigns) do
-    ~H"""
-    <.form :let={f} for={@for} as={@as} {@rest}>
-      <div class="mt-10 space-y-8 bg-white">
-        {render_slot(@inner_block, f)}
-        <div :for={action <- @actions} class="mt-2 flex items-center justify-between gap-6">
-          {render_slot(action, f)}
-        </div>
-      </div>
-    </.form>
-    """
-  end
+  `md` (the default) for page and form actions, and `sm` for a compact action
+  inside a row, card or toolbar.
 
-  @doc """
-  Renders a button.
+  A button that holds only an icon sets `square`. It is then as wide as it is
+  tall, and the height of a text button of the same size, which a 16px icon
+  alone would fall short of. Give it an `aria-label`.
 
   ## Examples
 
       <.button>Send!</.button>
-      <.button phx-click="go" class="ml-2">Send!</.button>
+      <.button style="primary" type="submit">Save</.button>
+      <.button type="link" navigate={~p"/orgs"}>Back</.button>
+      <.button style="danger" size="sm" phx-click="remove">Remove</.button>
+      <.button square aria-label="Pin device" phx-click="pin"><.icon name="unpinned" /></.button>
+      <.button type="label" for={@uploads.csv.ref}><.icon name="add" /> Import</.button>
   """
-  attr(:style, :string, default: "secondary")
+  attr(:style, :string, default: "secondary", values: ~w(primary secondary danger danger-solid))
+  attr(:size, :string, default: "md", values: ~w(sm md))
+  attr(:square, :boolean, default: false)
   attr(:type, :string, default: "button")
-  attr(:class, :string, default: nil)
-  attr(:rest, :global, include: ~w(disabled form name value href navigate download patch))
+  attr(:class, :any, default: nil)
+  attr(:rest, :global, include: ~w(disabled form name value href navigate download patch method replace for))
 
   slot(:inner_block, required: true)
 
-  def button(%{type: "link", style: "secondary"} = assigns) do
+  def button(%{type: "link"} = assigns) do
     ~H"""
-    <.link
-      class={[
-        "phx-submit-loading:opacity-75 flex items-center justify-center gap-2 rounded px-3 py-1.5",
-        "active:bg-primary bg-base-800 disabled:bg-base-800 hover:bg-base-700",
-        "active:border-primary border-base-600 rounded border",
-        "active:stroke-primary-content disabled:stroke-base-600 stroke-base-400",
-        "active:text-primary-content disabled:text-base-500 hover:text-base-50 text-base-300 text-sm font-medium",
-        @class
-      ]}
-      {@rest}
-    >
+    <.link class={button_classes(@style, @size, @square, @class)} {@rest}>
       {render_slot(@inner_block)}
     </.link>
     """
   end
 
-  def button(%{type: "link", style: "primary"} = assigns) do
+  def button(%{type: "label"} = assigns) do
     ~H"""
-    <.link
-      class={[
-        "phx-submit-loading:opacity-75 flex items-center justify-center gap-2 rounded px-3 py-1.5",
-        "focus-visible:outline-focus-ring focus-visible:outline-2 focus-visible:outline-offset-2",
-        "active:bg-primary-active bg-primary hover:bg-primary-hover",
-        "stroke-primary-content text-primary-content text-sm font-medium",
-        "light:active:bg-indigo-700 light:bg-indigo-600 light:hover:bg-indigo-500",
-        @class
-      ]}
-      {@rest}
-    >
+    <label class={button_classes(@style, @size, @square, @class)} {@rest}>
       {render_slot(@inner_block)}
-    </.link>
-    """
-  end
-
-  def button(%{type: "link", style: "danger"} = assigns) do
-    ~H"""
-    <.link
-      class={[
-        "flex items-center",
-        "phx-submit-loading:opacity-75 flex gap-2 rounded px-3 py-1.5",
-        "active:bg-base-600 bg-base-800 hover:bg-base-700",
-        "border-alert rounded border",
-        "stroke-alert",
-        "text-alert text-sm font-medium",
-        @class
-      ]}
-      {@rest}
-    >
-      {render_slot(@inner_block)}
-    </.link>
-    """
-  end
-
-  def button(%{style: "primary"} = assigns) do
-    ~H"""
-    <button
-      type={@type}
-      class={
-        [
-          "phx-submit-loading:opacity-75 flex gap-2 rounded px-3 py-1.5 hover:cursor-pointer",
-          "focus-visible:outline-focus-ring focus-visible:outline-2 focus-visible:outline-offset-2",
-          "active:bg-primary-active bg-primary disabled:bg-base-800 hover:bg-primary-hover",
-          "disabled:bg-base-800 disabled:border-base-600 disabled:rounded disabled:border",
-          "disabled:stroke-base-500 stroke-primary-content",
-          "disabled:text-base-500 text-primary-content text-sm font-medium",
-          # Light-theme contrast: indigo-500 sits at the AA floor on white, so the design system
-          # darkens the fill to indigo-600 (hover 500 / active 700); disabled stays grey.
-          "light:active:bg-indigo-700 light:bg-indigo-600 light:disabled:bg-base-800 light:hover:bg-indigo-500",
-          @class
-        ]
-      }
-      {@rest}
-    >
-      {render_slot(@inner_block)}
-    </button>
-    """
-  end
-
-  def button(%{style: "secondary"} = assigns) do
-    ~H"""
-    <button
-      type={@type}
-      class={
-        [
-          "phx-submit-loading:opacity-75 flex gap-2 rounded px-3 py-1.5 hover:cursor-pointer",
-          "focus-visible:outline-focus-ring focus-visible:outline-2 focus-visible:outline-offset-2",
-          "active:bg-primary bg-base-800 disabled:bg-base-800 hover:bg-base-700",
-          "active:border-primary border-base-600 rounded border",
-          "active:stroke-primary-content disabled:stroke-base-600 stroke-base-400",
-          "active:text-primary-content disabled:text-base-500 hover:text-base-50 text-base-300 text-sm font-medium",
-          # Light-theme contrast: the grey border is too faint on white, so the design system
-          # gives it a defined ~zinc-500 edge (zinc-600 on hover).
-          "light:border-base-500 light:hover:border-base-400",
-          @class
-        ]
-      }
-      {@rest}
-    >
-      {render_slot(@inner_block)}
-    </button>
-    """
-  end
-
-  def button(%{style: "danger"} = assigns) do
-    ~H"""
-    <button
-      type={@type}
-      class={[
-        "phx-submit-loading:opacity-75 flex gap-2 rounded px-3 py-1.5 hover:cursor-pointer",
-        "active:bg-base-600 bg-base-800 hover:bg-base-700",
-        "border-alert rounded border",
-        "stroke-alert",
-        "text-alert text-sm font-medium",
-        @class
-      ]}
-      {@rest}
-    >
-      {render_slot(@inner_block)}
-    </button>
+    </label>
     """
   end
 
   def button(assigns) do
     ~H"""
-    <button
-      type={@type}
-      class={[
-        "bg-base-900 hover:bg-base-700 phx-submit-loading:opacity-75 rounded-lg px-3 py-2",
-        "text-sm/6 font-semibold text-white active:text-white/80",
-        @class
-      ]}
-      {@rest}
-    >
+    <button type={@type} class={button_classes(@style, @size, @square, @class)} {@rest}>
       {render_slot(@inner_block)}
     </button>
+    """
+  end
+
+  defp button_classes(style, size, square, class) do
+    [
+      "flex items-center justify-center rounded border font-medium hover:cursor-pointer disabled:cursor-not-allowed phx-submit-loading:opacity-75",
+      "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring",
+      button_size(size, square),
+      button_style(style),
+      class
+    ]
+  end
+
+  # A text button's height is its line height plus padding and border: 20 + 12
+  # + 2 for md, 16 + 8 + 2 for sm. A square button is fixed at that height.
+  defp button_size("md", false), do: "gap-2 px-3 py-1.5 text-sm"
+  defp button_size("md", true), do: "size-8.5 shrink-0 text-sm"
+  defp button_size("sm", false), do: "gap-1.5 px-2 py-1 text-xs"
+  defp button_size("sm", true), do: "size-6.5 shrink-0 text-xs"
+
+  defp button_style("primary") do
+    [
+      # The transparent border keeps it the height of a secondary button, and
+      # lets disabled recolour the edge rather than add one.
+      "border-transparent bg-primary hover:bg-primary-hover active:bg-primary-active",
+      "disabled:border-line-strong disabled:bg-base-800",
+      "text-primary-content disabled:text-content-faint",
+      # Light-theme contrast: indigo-500 sits at the AA floor on white, so the design system
+      # darkens the fill to indigo-600 (hover 500 / active 700); disabled stays grey.
+      "light:bg-indigo-600 light:hover:bg-indigo-500 light:active:bg-indigo-700 light:disabled:bg-base-800"
+    ]
+  end
+
+  defp button_style("secondary") do
+    [
+      "border-line-strong bg-base-800 hover:bg-base-700 active:border-primary active:bg-primary disabled:bg-base-800",
+      "text-content-body hover:text-content-strong active:text-primary-content disabled:text-content-faint",
+      # line-strong already clears 3:1 on white, as every control outline does,
+      # so light only darkens the edge on hover (zinc-600).
+      "light:hover:border-base-400"
+    ]
+  end
+
+  defp button_style("danger") do
+    [
+      "border-alert bg-base-800 hover:bg-base-700 active:bg-base-600 disabled:border-line-strong disabled:bg-base-800",
+      "text-alert disabled:text-content-faint"
+    ]
+  end
+
+  defp button_style("danger-solid") do
+    [
+      "border-transparent bg-danger hover:bg-danger-hover disabled:border-line-strong disabled:bg-base-800",
+      "text-danger-content disabled:text-content-faint"
+    ]
+  end
+
+  @doc """
+  Renders a segmented control: a few mutually exclusive options that act as
+  soon as one is picked, such as a chart's time range.
+
+  Each `:segment` is a button, and `selected` marks the current one (as
+  `aria-pressed`). Any other attribute on a segment, such as `phx-click`,
+  `phx-value-*` or `disabled`, is passed to its button.
+
+  ## Examples
+
+      <.segmented_control id="chart-period" label="Time range">
+        <:segment :for={{label, value} <- @periods} selected={@period == value} phx-click="select-period" phx-value-period={value}>
+          {label}
+        </:segment>
+      </.segmented_control>
+  """
+  attr(:id, :string, default: nil)
+  attr(:label, :string, required: true, doc: "names the group for assistive technology")
+  attr(:class, :any, default: nil)
+  attr(:rest, :global)
+
+  # Every attribute but `selected` passes through to the segment's button, so
+  # the slot's attributes aren't validated.
+  slot(:segment,
+    required: true,
+    validate_attrs: false,
+    doc: "an option; `selected` marks the current one, and other attributes go to its button"
+  )
+
+  def segmented_control(assigns) do
+    ~H"""
+    <div
+      id={@id}
+      role="group"
+      aria-label={@label}
+      class={["inline-flex gap-0.5 rounded-md border border-line-default bg-surface-muted p-0.5", @class]}
+      {@rest}
+    >
+      <button
+        :for={segment <- @segment}
+        type="button"
+        aria-pressed={to_string(segment[:selected] || false)}
+        class={[
+          "rounded px-3 py-1.5 text-xs leading-none font-medium whitespace-nowrap text-content-muted transition-colors duration-120",
+          "focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-focus-ring",
+          "enabled:cursor-pointer disabled:opacity-50",
+          "aria-[pressed=false]:enabled:hover:bg-primary/80 aria-[pressed=false]:enabled:hover:text-primary-content",
+          "aria-pressed:bg-primary aria-pressed:text-primary-content aria-pressed:shadow-control light:aria-pressed:bg-indigo-600"
+        ]}
+        {assigns_to_attributes(segment, [:selected])}
+      >
+        {render_slot(segment)}
+      </button>
+    </div>
     """
   end
 
@@ -504,6 +625,10 @@ defmodule NervesHubWeb.CoreComponents do
   slot(:inner_block)
   slot(:rich_hint)
 
+  slot(:label_action,
+    doc: "a link at the far end of the label's row, such as \"Forgot password?\" (text inputs only)"
+  )
+
   def input(%{field: %FormField{} = field} = assigns) do
     errors = if Phoenix.Component.used_input?(field), do: field.errors, else: []
 
@@ -522,13 +647,21 @@ defmodule NervesHubWeb.CoreComponents do
       end)
 
     ~H"""
-    <div phx-feedback-for={@name}>
-      <span class="text-base-300 flex items-center gap-4 text-sm/6 font-medium">
+    <div>
+      <span class="flex items-center gap-4 text-sm/6 font-medium text-content-body">
         <input type="hidden" name={@name} value="false" />
-        <input type="checkbox" id={@name} name={@name} value="true" checked={@checked} class="border-base-700 checked:bg-primary text-base-400 rounded focus:ring-0" {@rest} />
+        <input
+          type="checkbox"
+          id={@name}
+          name={@name}
+          value="true"
+          checked={@checked}
+          class="rounded border-line-strong bg-base-800 text-content-muted checked:bg-primary focus:ring-0 focus:ring-offset-0 focus-visible:ring-2 focus-visible:ring-focus-ring"
+          {@rest}
+        />
         <label for={@name}>{@label}</label>
       </span>
-      <div :if={assigns[:hint] || assigns[:rich_hint]} class="text-base-400 text-xs">
+      <div :if={assigns[:hint] || assigns[:rich_hint]} class="text-xs text-content-muted">
         {assigns[:hint] || render_slot(assigns[:rich_hint])}
       </div>
       <.error :for={msg <- @errors}>{msg}</.error>
@@ -538,19 +671,19 @@ defmodule NervesHubWeb.CoreComponents do
 
   def input(%{type: "select"} = assigns) do
     ~H"""
-    <div phx-feedback-for={@name} class="flex flex-col">
+    <div class="flex flex-col">
       <.label for={@id} hide={@hide_label}>{@label}</.label>
       <select
         id={@id}
         name={@name}
-        class="bg-base-900 border-base-600 focus:border-base-400 text-base-400 mt-2 block w-full rounded border px-2 py-1 shadow-sm focus:ring-0 sm:text-sm"
+        class="mt-2 block w-full rounded border border-line-strong bg-base-900 px-2 py-1.5 text-content-muted focus:ring-2 focus:ring-focus-ring sm:text-sm"
         multiple={@multiple}
         {@rest}
       >
         <option :if={@prompt} value="">{@prompt}</option>
         {Phoenix.HTML.Form.options_for_select(@options, @value)}
       </select>
-      <div :if={assigns[:hint] || assigns[:rich_hint]} class="text-base-400 mt-2 text-xs">
+      <div :if={assigns[:hint] || assigns[:rich_hint]} class="mt-2 text-xs text-content-muted">
         {assigns[:hint] || render_slot(assigns[:rich_hint])}
       </div>
       <.error :for={msg <- @errors}>{msg}</.error>
@@ -560,21 +693,20 @@ defmodule NervesHubWeb.CoreComponents do
 
   def input(%{type: "textarea"} = assigns) do
     ~H"""
-    <div phx-feedback-for={@name}>
+    <div>
       <.label for={@id}>{@label}</.label>
       <textarea
         id={@id}
         name={@name}
         class={[
-          "bg-base-900 text-base-400 mt-2 block w-full rounded focus:ring-0 sm:text-sm/6",
-          "phx-no-feedback:border-base-600 phx-no-feedback:focus:border-base-700",
+          "mt-2 block w-full rounded bg-base-900 px-2 py-1.5 text-content-muted focus:ring-2 sm:text-sm/6",
           @class || "min-h-24",
-          @errors == [] && "border-base-600 focus:border-base-700",
-          @errors != [] && "border-alert focus:border-alert"
+          @errors == [] && "border-line-strong focus:ring-focus-ring",
+          @errors != [] && "border-alert focus:ring-alert"
         ]}
         {@rest}
       ><%= Phoenix.HTML.Form.normalize_value("textarea", @value) %></textarea>
-      <div :if={assigns[:hint] || assigns[:rich_hint]} class="text-base-400 flex flex-col gap-1 pt-1 text-xs">
+      <div :if={assigns[:hint] || assigns[:rich_hint]} class="flex flex-col gap-1 pt-1 text-xs text-content-muted">
         {assigns[:hint] || render_slot(assigns[:rich_hint])}
       </div>
       <.error :for={msg <- @errors}>{msg}</.error>
@@ -584,7 +716,7 @@ defmodule NervesHubWeb.CoreComponents do
 
   def input(%{type: "number"} = assigns) do
     ~H"""
-    <div phx-feedback-for={@name}>
+    <div>
       <span class="flex items-end">
         <.label for={@id}>{@label}</.label>
       </span>
@@ -594,14 +726,13 @@ defmodule NervesHubWeb.CoreComponents do
         id={@id}
         value={Phoenix.HTML.Form.normalize_value(@type, @value)}
         class={[
-          "bg-base-900 text-base-400 mt-2 block w-full rounded px-2 py-1.5 focus:ring-0 sm:text-sm",
-          "phx-no-feedback:border-base-600 phx-no-feedback:focus:border-base-700",
-          @errors == [] && "border-base-600 focus:border-base-700",
-          @errors != [] && "border-alert focus:border-alert"
+          "mt-2 block w-full rounded bg-base-900 px-2 py-1.5 text-content-muted focus:ring-2 sm:text-sm",
+          @errors == [] && "border-line-strong focus:ring-focus-ring",
+          @errors != [] && "border-alert focus:ring-alert"
         ]}
         {@rest}
       />
-      <div :if={assigns[:hint] || assigns[:rich_hint]} class="text-base-400 flex flex-col gap-1 pt-1 text-xs">
+      <div :if={assigns[:hint] || assigns[:rich_hint]} class="flex flex-col gap-1 pt-1 text-xs text-content-muted">
         {assigns[:hint] || render_slot(assigns[:rich_hint])}
       </div>
       <.error :for={msg <- @errors}>{msg}</.error>
@@ -612,22 +743,25 @@ defmodule NervesHubWeb.CoreComponents do
   # All other inputs text, datetime-local, url, password, etc. are handled here...
   def input(assigns) do
     ~H"""
-    <div phx-feedback-for={@name}>
-      <.label for={@id}>{@label}</.label>
+    <div>
+      <.label :if={@label_action == []} for={@id}>{@label}</.label>
+      <div :if={@label_action != []} class="flex items-center justify-between gap-3">
+        <.label for={@id}>{@label}</.label>
+        {render_slot(@label_action)}
+      </div>
       <input
         type={@type}
         name={@name}
         id={@id}
         value={Phoenix.HTML.Form.normalize_value(@type, @value)}
         class={[
-          "bg-base-900 text-base-400 mt-2 block w-full rounded px-2 py-1.5 focus:ring-0 sm:text-sm",
-          "phx-no-feedback:border-base-600 phx-no-feedback:focus:border-base-700",
-          @errors == [] && "border-base-600 focus:border-base-700",
-          @errors != [] && "border-alert focus:border-alert"
+          "mt-2 block w-full rounded bg-base-900 px-2 py-1.5 text-content-muted focus:ring-2 sm:text-sm",
+          @errors == [] && "border-line-strong focus:ring-focus-ring",
+          @errors != [] && "border-alert focus:ring-alert"
         ]}
         {@rest}
       />
-      <p :if={assigns[:hint]} class="text-base-400 mt-1 text-xs">{@hint}</p>
+      <p :if={assigns[:hint]} class="mt-1 text-xs text-content-muted">{@hint}</p>
       <.error :for={msg <- @errors}>{msg}</.error>
     </div>
     """
@@ -668,7 +802,7 @@ defmodule NervesHubWeb.CoreComponents do
     assigns = assign(assigns, :value, tag_value_to_string(assigns.value))
 
     ~H"""
-    <div phx-feedback-for={@name}>
+    <div>
       <.label for={@id}>{@label}</.label>
       <div
         id={"#{@id}-autocomplete"}
@@ -684,10 +818,9 @@ defmodule NervesHubWeb.CoreComponents do
           autocomplete="off"
           data-tag-input
           class={[
-            "bg-base-900 text-base-400 block w-full rounded px-2 py-1.5 focus:ring-0 sm:text-sm",
-            "phx-no-feedback:border-base-600 phx-no-feedback:focus:border-base-700",
-            @errors == [] && "border-base-600 focus:border-base-700",
-            @errors != [] && "border-alert focus:border-alert"
+            "block w-full rounded bg-base-900 px-2 py-1.5 text-content-muted focus:ring-2 sm:text-sm",
+            @errors == [] && "border-line-strong focus:ring-focus-ring",
+            @errors != [] && "border-alert focus:ring-alert"
           ]}
           {@rest}
         />
@@ -697,7 +830,7 @@ defmodule NervesHubWeb.CoreComponents do
           data-tag-suggestions
           role="listbox"
           hidden
-          class="bg-base-900 border-base-600 absolute z-10 mt-1 max-h-56 w-full overflow-y-auto rounded border py-1 shadow-lg"
+          class="absolute z-10 mt-1 max-h-56 w-full overflow-y-auto rounded-md border border-line-strong bg-base-900 py-1 shadow-overlay"
         >
         </ul>
       </div>
@@ -718,7 +851,7 @@ defmodule NervesHubWeb.CoreComponents do
 
   def label(assigns) do
     ~H"""
-    <label for={@for} class={["text-base-300 block text-sm font-medium", @hide && "hidden"]}>
+    <label for={@for} class={["block text-sm font-medium text-content-body", @hide && "hidden"]}>
       {render_slot(@inner_block)}
     </label>
     """
@@ -734,10 +867,8 @@ defmodule NervesHubWeb.CoreComponents do
 
   def error(assigns) do
     ~H"""
-    <p class="phx-no-feedback:hidden text-alert mt-1 flex gap-2 text-sm/6">
-      <svg class="stroke-alert mt-0.5 size-5 flex-none" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <path d="M12 5V13M12 19.001V19" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />
-      </svg>
+    <p class="mt-1 flex gap-2 text-sm/6 text-alert">
+      <span class="mt-0.5 lucide-circle-exclamation-point size-4 flex-none text-alert" aria-hidden="true"></span>
 
       <span class="error-text">{render_slot(@inner_block)}</span>
     </p>
@@ -745,143 +876,17 @@ defmodule NervesHubWeb.CoreComponents do
   end
 
   @doc """
-  Renders a header with title.
+  Renders a field's errors as plain text, one `<span>` each, for forms that
+  style their own inputs rather than using `input/1`.
+
+  Unlike `input/1`, it shows the errors whether or not the field has been
+  touched, as the form helpers it replaces did.
   """
-  attr(:class, :string, default: nil)
+  attr(:field, FormField, required: true)
 
-  slot(:inner_block, required: true)
-  slot(:subtitle)
-  slot(:actions)
-
-  def header(assigns) do
+  def field_errors(assigns) do
     ~H"""
-    <header class={[@actions != [] && "flex items-center justify-between gap-6", @class]}>
-      <div>
-        <h1 class="text-base-800 text-lg/8 font-semibold">
-          {render_slot(@inner_block)}
-        </h1>
-        <p :if={@subtitle != []} class="text-base-600 mt-2 text-sm/6">
-          {render_slot(@subtitle)}
-        </p>
-      </div>
-      <div class="flex-none">{render_slot(@actions)}</div>
-    </header>
-    """
-  end
-
-  @doc ~S"""
-  Renders a table with generic styling.
-
-  ## Examples
-
-      <.table id="users" rows={@users}>
-        <:col :let={user} label="id"><%= user.id %></:col>
-        <:col :let={user} label="username"><%= user.username %></:col>
-      </.table>
-  """
-  attr(:id, :string, required: true)
-  attr(:rows, :list, required: true)
-  attr(:row_id, :any, default: nil, doc: "the function for generating the row id")
-  attr(:row_click, :any, default: nil, doc: "the function for handling phx-click on each row")
-
-  attr(:row_item, :any,
-    default: &Function.identity/1,
-    doc: "the function for mapping each row before calling the :col and :action slots"
-  )
-
-  slot :col, required: true do
-    attr(:label, :string)
-  end
-
-  slot(:action, doc: "the slot for showing user actions in the last table column")
-
-  def table(assigns) do
-    assigns =
-      with %{rows: %LiveStream{}} <- assigns do
-        assign(assigns, row_id: assigns.row_id || fn {id, _item} -> id end)
-      end
-
-    ~H"""
-    <div class="overflow-y-auto px-4 sm:overflow-visible sm:px-0">
-      <table class="mt-11 w-160 sm:w-full">
-        <thead class="text-base-500 text-left text-sm/6">
-          <tr>
-            <th :for={col <- @col} class="p-0 pr-6 pb-4 font-normal">{col[:label]}</th>
-            <th :if={@action != []} class="relative p-0 pb-4">
-              <span class="sr-only">{gettext("Actions")}</span>
-            </th>
-          </tr>
-        </thead>
-        <tbody id={@id} phx-update={match?(%Phoenix.LiveView.LiveStream{}, @rows) && "stream"} class="border-base-200 divide-base-100 text-base-700 relative divide-y border-t text-sm/6">
-          <tr :for={row <- @rows} id={@row_id && @row_id.(row)} class="group hover:bg-base-50">
-            <td :for={{col, i} <- Enum.with_index(@col)} phx-click={@row_click && @row_click.(row)} class={["relative p-0", @row_click && "hover:cursor-pointer"]}>
-              <div class="block py-4 pr-6">
-                <span class="group-hover:bg-base-50 absolute -inset-y-px right-0 -left-4 sm:rounded-l-xl" />
-                <span class={["relative", i == 0 && "text-base-900 font-semibold"]}>
-                  {render_slot(col, @row_item.(row))}
-                </span>
-              </div>
-            </td>
-            <td :if={@action != []} class="relative w-14 p-0">
-              <div class="relative py-4 text-right text-sm font-medium whitespace-nowrap">
-                <span class="group-hover:bg-base-50 absolute -inset-y-px -right-4 left-0 sm:rounded-r-xl" />
-                <span :for={action <- @action} class="hover:text-base-700 text-base-900 relative ml-4 leading-6 font-semibold">
-                  {render_slot(action, @row_item.(row))}
-                </span>
-              </div>
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-    """
-  end
-
-  @doc """
-  Renders a data list.
-
-  ## Examples
-
-      <.list>
-        <:item title="Title"><%= @post.title %></:item>
-        <:item title="Views"><%= @post.views %></:item>
-      </.list>
-  """
-  slot :item, required: true do
-    attr(:title, :string, required: true)
-  end
-
-  def list(assigns) do
-    ~H"""
-    <div class="mt-14">
-      <dl class="divide-base-100 -my-4 divide-y">
-        <div :for={item <- @item} class="flex gap-4 py-4 text-sm/6 sm:gap-8">
-          <dt class="text-base-500 w-1/4 flex-none">{item.title}</dt>
-          <dd class="text-base-700">{render_slot(item)}</dd>
-        </div>
-      </dl>
-    </div>
-    """
-  end
-
-  @doc """
-  Renders a back navigation link.
-
-  ## Examples
-
-      <.back navigate={~p"/posts"}>Back to posts</.back>
-  """
-  attr(:navigate, :any, required: true)
-  slot(:inner_block, required: true)
-
-  def back(assigns) do
-    ~H"""
-    <div class="mt-16">
-      <.link navigate={@navigate} class="hover:text-base-700 text-base-900 text-sm/6 font-semibold">
-        <.icon name="hero-arrow-left-solid" class="size-3" />
-        {render_slot(@inner_block)}
-      </.link>
-    </div>
+    <span :for={msg <- @field.errors} class="help-block">{translate_error(msg)}</span>
     """
   end
 

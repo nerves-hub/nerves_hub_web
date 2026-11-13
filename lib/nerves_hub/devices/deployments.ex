@@ -37,8 +37,13 @@ defmodule NervesHub.Devices.Deployments do
     |> from(as: :device)
     |> join(:inner, [device: d], dg in DeploymentGroup, on: dg.id == d.deployment_id, as: :deployment_group)
     |> where([deployment_group: dg], dg.id == ^deployment_id)
+    # Deleted firmware has no file left to build a delta from. Its row can also
+    # share a uuid with the live firmware a device is already on, which would
+    # pair the device with the firmware it is running.
     |> join(:inner, [device: d], f in Firmware,
-      on: f.product_id == d.product_id and f.uuid == fragment("?->>'uuid'", d.firmware_metadata),
+      on:
+        f.product_id == d.product_id and f.uuid == fragment("?->>'uuid'", d.firmware_metadata) and
+          is_nil(f.deleted_at),
       as: :firmware
     )
     |> ManagedDeployments.join_target_release(deployment_id)
@@ -46,6 +51,10 @@ defmodule NervesHub.Devices.Deployments do
     |> where([firmware: f, target_release: tr], f.id != tr.firmware_id)
     |> select([firmware: f, target_release: tr], {f.id, tr.firmware_id})
     |> distinct(true)
+    # Devices joining together start these deltas in concurrent transactions.
+    # Taken in different orders, their inserts lock each other's rows and
+    # deadlock, so every caller takes them in this one.
+    |> order_by([firmware: f, target_release: tr], [f.id, tr.firmware_id])
     |> Repo.all()
   end
 

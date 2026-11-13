@@ -22,7 +22,6 @@ defmodule NervesHubWeb.DeviceChannelTest do
   alias NervesHubWeb.DeviceChannel
   alias NervesHubWeb.DeviceSocket
   alias NervesHubWeb.ExtensionsChannel
-  alias Phoenix.Socket.Broadcast
 
   describe "firmware_validation_status" do
     test "if the param is missing, then status is marked as :unknown", %{tmp_dir: tmp_dir} do
@@ -323,6 +322,37 @@ defmodule NervesHubWeb.DeviceChannelTest do
     close_cleanly(device_channel)
   end
 
+  # The socket routes every "device:*" topic to this channel, and the channel is
+  # subscribed to whichever one was joined. A device must not be able to follow
+  # another device's topics, or it receives that device's firmware URLs, support
+  # scripts and local shell input.
+  test "a device cannot join another device's topics, and the platform is never asked", %{tmp_dir: tmp_dir} do
+    user = Fixtures.user_fixture()
+    {device, _firmware, _deployment_group} = device_fixture(user, %{identifier: "123"}, tmp_dir)
+    {other, _firmware, _deployment_group} = device_fixture(user, %{identifier: "456"}, tmp_dir)
+    %{db_cert: certificate, cert: _cert} = Fixtures.device_certificate_fixture(device)
+
+    {:ok, socket} =
+      connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
+
+    {:ok, _, device_channel} = subscribe_and_join(socket, DeviceChannel, "device:#{device.id}")
+
+    Mimic.reject(&NervesHub.DeviceLink.device_join/2)
+
+    for topic <- ["device:#{other.id}", "device:#{other.id}:extensions", "device:#{device.id}:extensions"] do
+      assert {:error, %{error: "unauthorized"}} = Phoenix.ChannelTest.join(socket, DeviceChannel, topic, %{})
+
+      @endpoint.broadcast!(topic, "update", %{"firmware_url" => "for another device"})
+      refute_push("update", %{"firmware_url" => "for another device"})
+    end
+
+    # Its own topic still reaches it.
+    @endpoint.broadcast!("device:#{device.id}", "update", %{"firmware_url" => "for this device"})
+    assert_push("update", %{"firmware_url" => "for this device"})
+
+    close_cleanly(device_channel)
+  end
+
   test "fwup_public_keys requested on connect", %{tmp_dir: tmp_dir} do
     user = Fixtures.user_fixture()
     {device, _firmware, _deployment_group} = device_fixture(user, %{identifier: "123"}, tmp_dir)
@@ -429,18 +459,23 @@ defmodule NervesHubWeb.DeviceChannelTest do
   end
 
   test "if archive is sent when an archive updates an audit log is created", %{tmp_dir: tmp_dir} do
-    %{device: device, certificate: certificate, params: params} = archive_setup(tmp_dir)
+    %{
+      device: device,
+      certificate: certificate,
+      params: params,
+      deployment_group: deployment_group,
+      archive: archive
+    } = archive_setup(tmp_dir)
 
     {:ok, socket} =
       connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
 
     {:ok, %{}, device_channel} = subscribe_and_join(socket, DeviceChannel, "device:#{device.id}", params)
 
-    Phoenix.PubSub.broadcast(
-      NervesHub.PubSub,
-      "device:#{device.id}",
-      %Broadcast{event: "archives/updated"}
-    )
+    # Sent on the deployment group's topic, as the platform does. A raw
+    # %Broadcast{} on the channel's own topic is fastlaned to the transport and
+    # never reaches the channel.
+    ManagedDeployments.broadcast(deployment_group, "archives/updated", %{archive_id: archive.id})
 
     _ = :sys.get_state(device_channel.channel_pid)
 
@@ -967,11 +1002,10 @@ defmodule NervesHubWeb.DeviceChannelTest do
   # something `fwup --public-key` can use, so neither may reach the device.
   defp seed_other_scheme_keys(device, user) do
     %OrgKey{key: fwup_key} = Repo.get_by!(OrgKey, org_id: device.org_id, scheme: :ed25519)
+    org = Accounts.get_org!(device.org_id)
 
     {:ok, _esp_idf} =
-      Accounts.create_org_key(%{
-        org_id: device.org_id,
-        created_by_id: user.id,
+      Accounts.create_org_key(org, user, %{
         name: "esp-idf",
         key: EspIdf.signing_public_key(),
         scheme: :secure_boot_v2_rsa
@@ -984,9 +1018,7 @@ defmodule NervesHubWeb.DeviceChannelTest do
       |> X509.Certificate.to_pem()
 
     {:ok, _rauc} =
-      Accounts.create_org_key(%{
-        org_id: device.org_id,
-        created_by_id: user.id,
+      Accounts.create_org_key(org, user, %{
         name: "rauc",
         key: certificate,
         scheme: :x509_certificate
@@ -1029,6 +1061,13 @@ defmodule NervesHubWeb.DeviceChannelTest do
           into: %{"device_api_version" => "2.0.1"},
           do: {"nerves_fw_#{k}", v}
 
-    %{device: device, certificate: certificate, params: params, archive_uuid: archive_uuid}
+    %{
+      device: device,
+      certificate: certificate,
+      params: params,
+      archive: archive,
+      archive_uuid: archive_uuid,
+      deployment_group: deployment_group
+    }
   end
 end

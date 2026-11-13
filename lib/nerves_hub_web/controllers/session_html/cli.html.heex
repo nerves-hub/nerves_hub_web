@@ -1,29 +1,27 @@
 <Layouts.auth flash={@flash}>
   <:title>
-    CLI Login
+    Sign in to the CLI
   </:title>
   <:subheader>
-    Please confirm that the code below matches the code display by the CLI.
+    Type in the code your terminal shows.
   </:subheader>
 
-  <div class="mt-6">
-    <div>
-      <form id="cli_session" method="post" action={~p"/auth/cli/#{@token}"}>
-        <input type="hidden" name="_csrf_token" value={Plug.CSRFProtection.get_csrf_token()} />
+  <form id="cli_code" method="post" action={~p"/auth/cli"} class="flex flex-col gap-5">
+    <input type="hidden" name="_csrf_token" value={Plug.CSRFProtection.get_csrf_token()} />
 
-        <div class="mb-5">
-          <span class="font-semibold">Confirmation Code</span>: <span :for={char <- confirmation_code_list(@confirmation_code)} class="pl-1 font-mono text-xl">{char}</span>
-        </div>
-
-        <div>
-          <button
-            type="submit"
-            class="bg-primary focus-visible:outline-focus-ring hover:bg-primary-hover text-primary-content flex w-40 cursor-pointer justify-center rounded-md px-3 py-1.5 text-sm/6 font-semibold shadow-sm focus-visible:outline-2 focus-visible:outline-offset-2"
-          >
-            Confirm login
-          </button>
-        </div>
-      </form>
+    <div :if={@error_message} role="alert" class="flex gap-2.5 rounded-md border border-alert/30 bg-alert-soft p-3 text-sm text-alert-content">
+      <span class="mt-0.5 lucide-circle-exclamation-point size-4 flex-none text-alert" aria-hidden="true"></span>
+      <p>{@error_message}</p>
     </div>
-  </div>
+
+    <.input id="code" name="code" value="" label="Code" autocomplete="off" inputmode="numeric" autofocus required />
+
+    <.button style="primary" type="submit" class="w-full">
+      Continue
+    </.button>
+
+    <p class="text-center text-[0.8125rem] text-content-muted">
+      Only type in a code from a sign-in you started yourself. If someone sent you a code, don't enter it.
+    </p>
+  </form>
 </Layouts.auth>

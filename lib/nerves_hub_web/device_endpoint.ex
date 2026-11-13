@@ -9,6 +9,7 @@ defmodule NervesHubWeb.DeviceEndpoint do
 
   alias NervesHubWeb.Channels.DeviceJSONSerializer
   alias NervesHubWeb.Channels.DeviceMsgPackSerializer
+  alias NervesHubWeb.Helpers.ServerName
   alias NervesHubWeb.Plugs.DeviceEndpointRedirect
   alias NervesHubWeb.Plugs.ImAlive
 
@@ -16,7 +17,7 @@ defmodule NervesHubWeb.DeviceEndpoint do
     "/socket",
     NervesHubWeb.DeviceSocket,
     websocket: [
-      connect_info: [:peer_data, :x_headers],
+      connect_info: [:peer_data, :x_headers, :user_agent],
       compress: true,
       timeout: 180_000,
       fullsweep_after: 0,
@@ -30,7 +31,7 @@ defmodule NervesHubWeb.DeviceEndpoint do
     "/device-socket",
     NervesHubWeb.DeviceSocket,
     websocket: [
-      connect_info: [:peer_data, :x_headers],
+      connect_info: [:peer_data, :x_headers, :user_agent],
       compress: true,
       timeout: 180_000,
       fullsweep_after: 0,
@@ -45,4 +46,10 @@ defmodule NervesHubWeb.DeviceEndpoint do
   plug(Sentry.PlugContext)
 
   plug(DeviceEndpointRedirect)
+
+  # Sockets are dispatched ahead of any plug here, so this can't be one.
+  def call(conn, opts) do
+    ServerName.record(conn)
+    super(conn, opts)
+  end
 end

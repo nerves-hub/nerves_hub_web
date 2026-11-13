@@ -7,6 +7,7 @@ defmodule NervesHub.Extensions.LocalShellTest do
   alias NervesHub.Extensions.State
   alias NervesHub.Fixtures
   alias NervesHub.Products.Notification
+  alias Phoenix.Socket.Broadcast
 
   defp state(device_id) do
     State.new(%DeviceInfo{device_id: device_id, org_id: 1, product_id: 1})
@@ -29,42 +30,44 @@ defmodule NervesHub.Extensions.LocalShellTest do
   defp device_id(), do: System.unique_integer([:positive])
 
   describe "attach/1" do
-    # `Group.join/4` joins the calling process, and the process that has to be a
-    # member is the one holding the device's connection. Those are the same
-    # process only when `NervesHub.DeviceLink` runs in the connection's own
-    # process; where it is reached over `:erpc` they are on different nodes, and
-    # joining here would bind the membership to a transient RPC handler that
-    # exits as soon as the call returns.
-    test "asks the connection to join rather than joining itself" do
+    test "tells the device page, asks the device for a shell and clears the scrollback" do
       id = device_id()
+      :ok = Consoles.PubSub.subscribe_console_watcher(id)
 
       {_state, effects} = LocalShell.attach(state(id))
 
-      assert {:group_join, Consoles.PubSub.local_shell_key(id)} in effects
-      refute Consoles.PubSub.local_shell_active?(id)
-    end
-
-    test "still asks the device for a shell and clears the scrollback" do
-      {_state, effects} = LocalShell.attach(state(device_id()))
-
-      assert {:push, "local_shell:request_shell", %{}} in effects
-      assert {:scrollback_clear} in effects
+      assert_receive %Broadcast{event: "local_shell_attached"}, 500
+      assert effects == [{:push, "local_shell:request_shell", %{}}, {:scrollback_clear}]
     end
   end
 
   describe "detach/1" do
-    test "asks the connection to leave" do
+    test "tells the device page the shell detached and clears the scrollback" do
       id = device_id()
+      :ok = Consoles.PubSub.subscribe_console_watcher(id)
 
       {_state, effects} = LocalShell.detach(state(id))
 
-      assert {:group_leave, Consoles.PubSub.local_shell_key(id)} in effects
-      assert {:scrollback_clear} in effects
+      assert_receive %Broadcast{event: "local_shell_detached"}, 500
+      assert effects == [{:scrollback_clear}]
+    end
+  end
+
+  describe "handle_info/2 locate" do
+    # Only an attached extension is handed messages, so answering is all there is
+    # to it; `Extensions.Dispatch` is what keeps a detached shell quiet.
+    test "answers the page that asked" do
+      ref = make_ref()
+
+      {_state, effects} = LocalShell.handle_info({:locate, self(), ref}, state(device_id()))
+
+      assert_received {:local_shell_located, ^ref}
+      assert effects == []
     end
   end
 
   # The device answers `request_shell` with how it went, and a failure leaves the
-  # extension attached -- so `local_shell_active?/1` stays true and the UI offers
+  # extension attached -- so the shell still reads as available and the UI offers
   # a shell that cannot work. Nothing else records it: before this, the reply hit
   # the catch-all below and was logged as an unknown message.
   describe "handle_in/3 request_status" do

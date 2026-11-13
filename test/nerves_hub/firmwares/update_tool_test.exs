@@ -384,6 +384,26 @@ defmodule NervesHub.Firmwares.UpdateToolTest do
     end
 
     @tag :tmp_dir
+    test "a file that cannot be extracted is named along with the reason", %{tmp_dir: dir} do
+      fwup_conf_path = Path.join(dir, "fwup.conf")
+      File.write!(fwup_conf_path, @raw)
+
+      data_path = Path.join(dir, "data")
+      File.write!(data_path, <<0::size(32 * 8)>>)
+
+      fw_a = build_fw!(Path.join(dir, "a.fw"), fwup_conf_path, data_path)
+      fw_b = build_fw!(Path.join(dir, "b.fw"), fwup_conf_path, data_path)
+
+      # A directory where meta.conf belongs fails the open, which `:zip`
+      # reports in the same shape as a write to a full disk.
+      work_dir = Path.join(dir, "work")
+      File.mkdir_p!(Path.join([work_dir, "source", "meta.conf"]))
+
+      assert {:error, {:extract_failed, "source/meta.conf", :eisdir}} =
+               Fwup.do_delta_file({"aaa", fw_a}, {"bbb", fw_b}, work_dir)
+    end
+
+    @tag :tmp_dir
     test "generate valid delta for raw with non-existant new file fwup config", %{tmp_dir: dir} do
       source_conf_path = Path.join(dir, "fwup.conf")
       File.write!(source_conf_path, @raw)

@@ -13,6 +13,10 @@
   {"lib/nerves_hub/devices/updates.ex", :call_without_opaque},
   {"lib/nerves_hub/products.ex", :call_without_opaque},
   {"lib/nerves_hub/products/health_profiles.ex", :call_without_opaque},
-  {"lib/nerves_hub_web/components/layouts.ex", :call},
-  {"lib/nerves_hub_web/components/layouts.ex", :no_return}
+  # `Mint.WebSocket.t()` is opaque: its success typing returns the concrete
+  # struct, which Dialyzer won't match against the opaque type at a call site,
+  # so it drops the `{:ok, conn, websocket}` result of `Mint.WebSocket.new/4`
+  # and says the pattern can never match. Any caller gets it; the upgrade
+  # succeeds, as the Socket Mode tests show.
+  {"lib/nerves_hub_web/integrations/slack/socket.ex", :pattern_match}
 ]

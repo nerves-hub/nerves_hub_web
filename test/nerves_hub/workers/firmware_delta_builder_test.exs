@@ -4,8 +4,10 @@ defmodule NervesHub.Workers.FirmwareDeltaBuilderTest do
 
   alias NervesHub.Firmwares
   alias NervesHub.Firmwares.UpdateTool.Fwup
+  alias NervesHub.Firmwares.Upload.File, as: UploadFile
   alias NervesHub.Fixtures
   alias NervesHub.Repo
+  alias NervesHub.Workers.DeleteFirmware
   alias NervesHub.Workers.FirmwareDeltaBuilder
 
   defp capture_xdelta3_args() do
@@ -455,6 +457,40 @@ defmodule NervesHub.Workers.FirmwareDeltaBuilderTest do
 
       assert {:cancel, reason} = FirmwareDeltaBuilder.perform(job.())
       assert reason =~ "deleted while building"
+    end
+
+    test "removes the uploaded file when the delta goes mid-upload", %{
+      source: source,
+      target: target,
+      job: job,
+      user: user,
+      tmp_dir: tmp_dir
+    } do
+      {:ok, _delta} = Firmwares.start_firmware_delta(source.id, target.id)
+
+      delta_dir = Path.join(tmp_dir, "delta")
+      delta_path = Path.join(delta_dir, "delta.fw")
+      :ok = File.mkdir_p(delta_dir)
+      :ok = File.write(delta_path, "delta")
+
+      expect(Fwup, :create_firmware_delta_file, fn _s, _t, _wd ->
+        {:ok, %{filepath: delta_path, size: 5, source_size: 10, target_size: 15, tool: "fwup", tool_metadata: %{}}}
+      end)
+
+      # The firmware is deleted while the delta file uploads. The row does not
+      # point at the file yet, so that delete queues no removal for it.
+      expect(UploadFile, :upload_file, fn _path, upload_metadata ->
+        {:ok, _} = Firmwares.delete_firmware(target, user)
+        send(self(), {:uploaded, upload_metadata})
+        :ok
+      end)
+
+      assert {:cancel, reason} = FirmwareDeltaBuilder.perform(job.())
+      assert reason =~ "deleted while building"
+
+      assert_received {:uploaded, upload_metadata}
+      assert_enqueued(worker: DeleteFirmware, args: upload_metadata)
+      refute File.exists?(delta_dir)
     end
   end
 end

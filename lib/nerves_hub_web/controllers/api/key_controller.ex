@@ -72,12 +72,7 @@ defmodule NervesHubWeb.API.KeyController do
   )
 
   def create(%{assigns: %{current_scope: %{user: user, org: org}}} = conn, params) do
-    params =
-      Map.take(params, ["name", "key", "scheme"])
-      |> Map.put("org_id", org.id)
-      |> Map.put("created_by_id", user.id)
-
-    with {:ok, key} <- Accounts.create_org_key(params) do
+    with {:ok, key} <- Accounts.create_org_key(org, user, params) do
       conn
       |> put_status(:created)
       |> render(:show, key: key)

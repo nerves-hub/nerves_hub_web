@@ -4,6 +4,7 @@ defmodule NervesHub.Accounts.User.DisplayPreferences do
   import Ecto.Changeset
 
   alias NervesHub.Accounts.User.DisplayPreferences
+  alias NervesHub.Types.KnownAtom
   alias NervesHub.Types.KnownAtoms
 
   @all_device_list_columns [
@@ -35,11 +36,17 @@ defmodule NervesHub.Accounts.User.DisplayPreferences do
 
   @all_device_details_boxes Enum.flat_map(@default_device_details_layout, &elem(&1, 1))
 
+  # The base map styles the user can pick for location maps. The web layer
+  # maps each to a Mapbox style.
+  @all_map_styles [:streets, :outdoors, :light, :dark, :satellite, :satellite_streets]
+
   def device_list_columns(), do: @all_device_list_columns
 
   def device_details_boxes(), do: @all_device_details_boxes
 
   def deployment_group_list_columns(), do: @all_deployment_group_list_columns
+
+  def map_styles(), do: @all_map_styles
 
   @type t() :: %__MODULE__{}
 
@@ -66,6 +73,14 @@ defmodule NervesHub.Accounts.User.DisplayPreferences do
     # away, add an update to the PR that removes the box.
     field(:device_details_left, KnownAtoms, values: @all_device_details_boxes, default: nil)
     field(:device_details_right, KnownAtoms, values: @all_device_details_boxes, default: nil)
+
+    # The style the user has picked for location maps. Nil follows the light
+    # or dark theme.
+    #
+    # Removing a style from `@all_map_styles` is safe: `KnownAtom` loads a name
+    # it no longer knows as nil, so the user's maps go back to following the
+    # theme.
+    field(:map_style, KnownAtom, values: @all_map_styles, default: nil)
   end
 
   def changeset(%DisplayPreferences{} = preferences, attrs \\ %{}) do
@@ -74,7 +89,8 @@ defmodule NervesHub.Accounts.User.DisplayPreferences do
       :device_list_columns,
       :deployment_group_list_columns,
       :device_details_left,
-      :device_details_right
+      :device_details_right,
+      :map_style
     ])
     |> validate_device_details_layout()
   end
@@ -110,6 +126,14 @@ defmodule NervesHub.Accounts.User.DisplayPreferences do
     do: is_list(left) and is_list(right)
 
   def custom_device_details_layout?(_preferences), do: false
+
+  @doc """
+  The style the user has picked for location maps, or nil to follow the light
+  or dark theme.
+  """
+  @spec map_style(t() | nil) :: atom() | nil
+  def map_style(%DisplayPreferences{map_style: map_style}), do: map_style
+  def map_style(_preferences), do: nil
 
   # A box can only be in one place.
   defp validate_device_details_layout(changeset) do

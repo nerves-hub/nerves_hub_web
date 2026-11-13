@@ -7,11 +7,14 @@ defmodule NervesHub.Devices.Connections do
   alias NervesHub.Analytics.Buffer
   alias NervesHub.AnalyticsRepo
   alias NervesHub.Devices
+  alias NervesHub.Devices.ClientLibrary
   alias NervesHub.Devices.DeviceConnection
   alias NervesHub.Devices.DeviceConnectionHistory
+  alias NervesHub.Integrations
   alias NervesHub.Products.Product
   alias NervesHub.Repo
   alias NervesHub.Tracker
+  alias NervesHub.Webhooks.Payloads
 
   @doc """
   Get latest inserted connection for a device.
@@ -25,10 +28,25 @@ defmodule NervesHub.Devices.Connections do
 
   @doc """
   Creates a device connection, reported from device socket
+
+  Replaces the device's previous connection row. Nothing carries over from it:
+  `ip_address` and the client library (`lib` / `lib_version`, from
+  `client_library`) are recorded as unknown when left out.
   """
-  @spec device_connecting(pos_integer(), pos_integer(), pos_integer(), String.t() | nil) ::
-          {:ok, DeviceConnection.t()} | {:error, Ecto.Changeset.t()}
-  def device_connecting(org_id, product_id, device_id, ip_address \\ nil) do
+  @spec device_connecting(
+          pos_integer(),
+          pos_integer(),
+          pos_integer(),
+          String.t() | nil,
+          ClientLibrary.t()
+        ) :: {:ok, DeviceConnection.t()} | {:error, Ecto.Changeset.t()}
+  def device_connecting(
+        org_id,
+        product_id,
+        device_id,
+        ip_address \\ nil,
+        client_library \\ %{lib: nil, lib_version: nil}
+      ) do
     conflict_query =
       DeviceConnection
       |> update([ldc],
@@ -49,7 +67,7 @@ defmodule NervesHub.Devices.Connections do
         ]
       )
 
-    DeviceConnection.connecting_changeset(org_id, product_id, device_id, ip_address)
+    DeviceConnection.connecting_changeset(org_id, product_id, device_id, ip_address, client_library)
     |> Repo.insert(on_conflict: conflict_query, conflict_target: [:device_id])
     |> case do
       {:ok, device_connection} ->
@@ -85,7 +103,10 @@ defmodule NervesHub.Devices.Connections do
 
         Tracker.online(device_id)
 
-        :ok
+        :ok =
+          Integrations.dispatch(device_connection.product_id, "device.connected", fn ->
+            Payloads.device_connected(device_connection)
+          end)
 
       _ ->
         :error
@@ -95,7 +116,7 @@ defmodule NervesHub.Devices.Connections do
   @doc """
   Updates the `last_seen_at`field for a device connection with current timestamp
   """
-  @spec device_heartbeat(UUIDv7.t()) :: :ok | :error
+  @spec device_heartbeat(Ecto.UUID.t()) :: :ok | :error
   def device_heartbeat(id) do
     DeviceConnection
     |> where([dc], dc.id == ^id)
@@ -124,7 +145,7 @@ defmodule NervesHub.Devices.Connections do
   Updates `status` and relevant timestamps for a device connection record,
   and stores the reason for disconnection if provided.
   """
-  @spec device_disconnected(UUIDv7.t(), String.t() | nil) :: :ok | {:error, any()}
+  @spec device_disconnected(Ecto.UUID.t(), String.t() | nil) :: :ok | {:error, any()}
   def device_disconnected(ref_id, reason \\ nil) do
     now = DateTime.utc_now()
 
@@ -145,7 +166,10 @@ defmodule NervesHub.Devices.Connections do
 
         Tracker.offline(device_id)
 
-        :ok
+        :ok =
+          Integrations.dispatch(device_connection.product_id, "device.disconnected", fn ->
+            Payloads.device_disconnected(device_connection)
+          end)
 
       res ->
         {:error, res}
@@ -196,7 +220,7 @@ defmodule NervesHub.Devices.Connections do
   @doc """
   Updates the connection `metadata` by merging in new metadata.
   """
-  @spec merge_update_metadata(UUIDv7.t(), map()) :: :ok | {:error, any()}
+  @spec merge_update_metadata(Ecto.UUID.t(), map()) :: :ok | {:error, any()}
   def merge_update_metadata(ref_id, new_metadata) do
     DeviceConnection
     |> where(id: ^ref_id)
@@ -370,6 +394,8 @@ defmodule NervesHub.Devices.Connections do
         {_count, device_connections} = results ->
           async_device_connection_history_insert(device_connections)
 
+          :ok = dispatch_stale_disconnects(device_connections)
+
           results
       end
 
@@ -385,6 +411,27 @@ defmodule NervesHub.Devices.Connections do
       Process.sleep(2000)
       clean_stale_connections()
     end
+  end
+
+  # A swept connection never went through `device_disconnected/2`, so this is
+  # the only place its disconnect is raised. A node that crashed or was cut off
+  # leaves all of its connections to this sweep, so a batch can be large: the
+  # device lookups are one query per product with a subscribed integration,
+  # and none for products without one.
+  defp dispatch_stale_disconnects(device_connections) do
+    device_connections
+    |> Enum.group_by(& &1.product_id)
+    |> Enum.filter(fn {product_id, _connections} -> Integrations.subscribed?(product_id, "device.disconnected") end)
+    |> Enum.each(fn {product_id, connections} ->
+      devices = connections |> Enum.map(& &1.device_id) |> Payloads.devices()
+
+      Enum.each(connections, fn connection ->
+        :ok =
+          Integrations.dispatch(product_id, "device.disconnected", fn ->
+            Payloads.device_disconnected(connection, devices)
+          end)
+      end)
+    end)
   end
 
   def clean_stale_connections_from_analytics() do

@@ -53,7 +53,7 @@ defmodule NervesHubWeb.ConsoleChannelTest do
       close_cleanly(console_channel)
     end
 
-    test "registers device in console group (console_active?)", %{tmp_dir: tmp_dir} do
+    test "answers a locate with its own pid", %{tmp_dir: tmp_dir} do
       {socket, device} = build_socket(tmp_dir)
 
       {:ok, %{}, console_channel} =
@@ -62,7 +62,25 @@ defmodule NervesHubWeb.ConsoleChannelTest do
       # Wait for after_join to complete
       _state = :sys.get_state(console_channel.channel_pid)
 
-      assert ConsolePubSub.console_active?(device.id)
+      ref = ConsolePubSub.locate_console(device.id)
+
+      assert_receive {:console_located, ^ref, pid}, 500
+      assert pid == console_channel.channel_pid
+
+      close_cleanly(console_channel)
+    end
+
+    test "receives input broadcast to its device", %{tmp_dir: tmp_dir} do
+      {socket, device} = build_socket(tmp_dir)
+
+      {:ok, %{}, console_channel} =
+        subscribe_and_join(socket, ConsoleChannel, "console", %{"console_version" => "1.0.0"})
+
+      _state = :sys.get_state(console_channel.channel_pid)
+
+      :ok = ConsolePubSub.broadcast_to_console(device.id, "dn", %{"data" => "ls\r"})
+
+      assert_push("dn", %{"data" => "ls\r"})
 
       close_cleanly(console_channel)
     end
@@ -175,7 +193,7 @@ defmodule NervesHubWeb.ConsoleChannelTest do
   end
 
   describe "handle_info :connect" do
-    test "sends {:metadata, metadata} and {:cache, lines} to connecting pid", %{tmp_dir: tmp_dir} do
+    test "sends {:metadata, pid, metadata} and {:cache, lines} to connecting pid", %{tmp_dir: tmp_dir} do
       {socket, _device} = build_socket(tmp_dir)
 
       {:ok, %{}, console_channel} =
@@ -186,7 +204,8 @@ defmodule NervesHubWeb.ConsoleChannelTest do
 
       send(console_channel.channel_pid, {:connect, self()})
 
-      assert_receive {:metadata, %{version: "2.0.0"}}, 500
+      assert_receive {:metadata, pid, %{version: "2.0.0"}}, 500
+      assert pid == console_channel.channel_pid
       assert_receive {:cache, _lines}, 500
 
       close_cleanly(console_channel)

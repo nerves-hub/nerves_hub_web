@@ -52,29 +52,32 @@ defmodule NervesHub.Firmwares.UpdateTool.Fwup do
   end
 
   defp find_signing_key(filepath, keys) do
-    signed_key =
-      Enum.find(keys, fn %{key: key} ->
-        case System.cmd("fwup", ["--verify", "--public-key", key, "-i", filepath], env: []) do
-          {_, 0} ->
-            true
+    Enum.reduce_while(keys, {:error, :invalid_signature}, fn %OrgKey{} = org_key, error ->
+      case verify_with_key(filepath, org_key.key) do
+        :ok -> {:halt, {:ok, org_key}}
+        :mismatch -> {:cont, error}
+        {:error, _} = fwup_too_old -> {:halt, fwup_too_old}
+      end
+    end)
+  end
 
-          # fwup returns a 1 for invalid signatures
-          {_, 1} ->
-            false
+  # fwup exits 1 both for a signature that doesn't match this key and for
+  # firmware requiring a newer fwup, and only says which in its output. The
+  # second fails the same way for every key.
+  defp verify_with_key(filepath, key) do
+    case System.cmd("fwup", ["--verify", "--public-key", key, "-i", filepath], env: [], stderr_to_stdout: true) do
+      {_, 0} ->
+        :ok
 
-          {text, code} ->
-            Logger.warning("fwup returned code #{code} with #{text}")
+      {output, code} ->
+        case Regex.run(~r/fwup version '([^']+)' required\. This is fwup version '([^']+)'/, output) do
+          [_, required, installed] ->
+            {:error, {:fwup_too_old, required, installed}}
 
-            false
+          nil ->
+            if code != 1, do: Logger.warning("fwup returned code #{code} with #{output}")
+            :mismatch
         end
-      end)
-
-    case signed_key do
-      %OrgKey{} = key ->
-        {:ok, key}
-
-      nil ->
-        {:error, :invalid_signature}
     end
   end
 
@@ -236,8 +239,8 @@ defmodule NervesHub.Firmwares.UpdateTool.Fwup do
          :ok <- File.mkdir_p(output_work_dir),
          {:ok, %{size: source_size}} <- File.stat(source_path),
          {:ok, %{size: target_size}} <- File.stat(target_path),
-         {:ok, _} <- :zip.extract(to_charlist(source_path), cwd: to_charlist(source_work_dir)),
-         {:ok, _} <- :zip.extract(to_charlist(target_path), cwd: to_charlist(target_work_dir)),
+         {:ok, _} <- extract_archive(source_path, source_work_dir),
+         {:ok, _} <- extract_archive(target_path, target_work_dir),
          {:ok, source_meta_conf} <- File.read(Path.join(source_work_dir, "meta.conf")),
          {:ok, target_meta_conf} <- File.read(Path.join(target_work_dir, "meta.conf")),
          {:ok, tool_metadata} <- get_tool_metadata(Path.join(target_work_dir, "meta.conf")),
@@ -300,6 +303,21 @@ defmodule NervesHub.Firmwares.UpdateTool.Fwup do
         {false, :changes_in_delta} -> {:error, :no_changes_in_delta}
         {false, :delta_smaller} -> {:error, :delta_larger_than_target}
       end
+    end
+  end
+
+  # `:zip` reports a failed file operation along with the arguments it was
+  # called with, so a failed write carries the chunk of data being written.
+  # Inspecting that runs out of room long before the reason at the end, leaving
+  # logs and Sentry without the one part that says what went wrong (usually a
+  # full disk). Keep the file, relative to the work dir, and the reason.
+  defp extract_archive(archive_path, cwd) do
+    case :zip.extract(to_charlist(archive_path), cwd: to_charlist(cwd)) do
+      {:error, {path, {{:file, _operation, _args}, reason}}} ->
+        {:error, {:extract_failed, path |> to_string() |> Path.relative_to(Path.dirname(cwd)), reason}}
+
+      result ->
+        result
     end
   end
 

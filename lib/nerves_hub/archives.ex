@@ -1,20 +1,34 @@
 defmodule NervesHub.Archives do
   @moduledoc """
   Archives are extra fwup files that will be delivered to the device on connect
+
+  ## Where the files are stored
+
+  An archive's file is stored at `/archives/<org id>/<product id>/<uuid>.fw`,
+  and the archive keeps that path as its `storage_key`. The UUID comes from the
+  uploaded file, so whoever builds an archive chooses it. Only the org and
+  product in the path keep one org's archive from landing on another's.
+
+  Archives uploaded before that have no `storage_key`. Their files stay at
+  `/archives/<uuid>.fw`, where they were uploaded, and are served and deleted
+  from there. Two of these with the same UUID share one file. Nothing new is
+  ever written to that path.
+
+  A file is only deleted once no archive uses its path, which also covers an
+  archive deleted and uploaded again before its old file was removed.
   """
 
   import Ecto.Query
 
   alias NervesHub.Archives.Archive
   alias NervesHub.Firmwares.Firmware
+  alias NervesHub.Firmwares.UpdateTool
   alias NervesHub.Fwup
   alias NervesHub.ManagedDeployments.DeploymentGroup
   alias NervesHub.ManagedDeployments.DeploymentRelease
   alias NervesHub.Products.Product
   alias NervesHub.Repo
   alias NervesHub.Workers.DeleteArchive
-
-  require Logger
 
   @spec get_by_id(Product.t(), pos_integer()) :: Archive.t() | nil
   def get_by_id(_product, archive_id) when archive_id in [nil, ""], do: nil
@@ -108,12 +122,14 @@ defmodule NervesHub.Archives do
   @spec create(Product.t(), String.t()) ::
           {:ok, Archive.t()}
           | {:error, :invalid_signature}
+          | {:error, :no_public_keys}
+          | {:error, {:fwup_too_old, required :: String.t(), installed :: String.t()}}
           | {:error, any()}
           | {:error, {any(), :not_found}}
   def create(product, file_path) do
     product = Repo.preload(product, org: [:org_keys])
 
-    with {:ok, org_key} <- validate_signature(product.org, file_path),
+    with {:ok, org_key} <- UpdateTool.Fwup.verify_signature(file_path, product.org.org_keys),
          {:ok, metadata} <- Fwup.metadata(file_path),
          {:ok, archive} <-
            product
@@ -121,6 +137,7 @@ defmodule NervesHub.Archives do
            |> Map.put(:org_key_id, org_key.id)
            |> Map.put(:size, :filelib.file_size(file_path))
            |> Archive.create_changeset(metadata)
+           |> put_storage_key(product)
            |> Repo.insert() do
       NervesHub.Uploads.upload(file_path, archive_path(archive))
 
@@ -149,34 +166,45 @@ defmodule NervesHub.Archives do
     NervesHub.Uploads.url(archive_path(archive), signed: [expires_in: 3600])
   end
 
-  defp archive_path(archive) do
-    "/archives/#{archive.uuid}.fw"
+  @doc """
+  Whether any archive's file is stored at `path`, so deleting it would take the
+  file from under that archive.
+
+  Asked when the file is about to be deleted, rather than when its archive was,
+  so an archive uploaded again in between keeps its file.
+  """
+  @spec file_in_use?(String.t()) :: boolean()
+  def file_in_use?(path) when is_binary(path) do
+    query = where(Archive, [a], a.storage_key == ^path)
+
+    query =
+      case legacy_uuid(path) do
+        {:ok, uuid} -> or_where(query, [a], is_nil(a.storage_key) and a.uuid == ^uuid)
+        :error -> query
+      end
+
+    Repo.exists?(query)
   end
 
-  defp validate_signature(org, file_path) do
-    signed_key =
-      Enum.find(org.org_keys, fn %{key: key} ->
-        case System.cmd("fwup", ["--verify", "--public-key", key, "-i", file_path], env: []) do
-          {_, 0} ->
-            true
-
-          # fwup returns a 1 for invalid signatures
-          {_, 1} ->
-            false
-
-          {text, code} ->
-            Logger.warning("fwup returned code #{code} with #{text}")
-
-            false
-        end
-      end)
-
-    case signed_key do
-      key when is_map(key) ->
-        {:ok, key}
-
-      nil ->
-        {:error, :invalid_signature}
+  defp put_storage_key(changeset, product) do
+    case Ecto.Changeset.get_field(changeset, :uuid) do
+      nil -> changeset
+      uuid -> Ecto.Changeset.put_change(changeset, :storage_key, "/archives/#{product.org_id}/#{product.id}/#{uuid}.fw")
     end
   end
+
+  defp archive_path(%Archive{storage_key: nil, uuid: uuid}), do: legacy_path(uuid)
+  defp archive_path(%Archive{storage_key: storage_key}), do: storage_key
+
+  defp legacy_path(uuid), do: "/archives/#{uuid}.fw"
+
+  defp legacy_uuid("/archives/" <> name) do
+    if String.ends_with?(name, ".fw") do
+      name |> String.trim_trailing(".fw") |> Ecto.UUID.cast()
+    else
+      :error
+    end
+  end
+
+  defp legacy_uuid(_path), do: :error
 end

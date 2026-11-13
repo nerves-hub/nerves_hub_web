@@ -5,6 +5,7 @@ defmodule NervesHubWeb.API.OrgUserControllerTest do
   import Swoosh.TestAssertions
 
   alias NervesHub.Accounts
+  alias NervesHub.Accounts.Invite
   alias NervesHub.Fixtures
 
   setup context do
@@ -104,7 +105,13 @@ defmodule NervesHubWeb.API.OrgUserControllerTest do
 
       send_queued_emails()
 
-      assert_email_sent()
+      invite = NervesHub.Repo.get_by!(Invite, email: "bogus@example.com")
+
+      # The email's link has the key that confirms the address
+      assert_email_sent(fn email ->
+        assert [_, key] = Regex.run(~r{/invite/#{invite.token}\?key=([\w.-]+)}, email.text_body)
+        assert NervesHubWeb.InviteLinks.emailed_key?(invite, key)
+      end)
     end
 
     for role <- [:manage, :view] do

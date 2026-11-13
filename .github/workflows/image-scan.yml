@@ -1,0 +1,36 @@
+name: Image Scan
+
+# New vulnerabilities turn up in an image that has not changed, so this scans
+# what is published rather than what a pull request builds. A failed run means
+# rebuild or fix; it does not block anyone's pull request.
+#
+# The scan cannot see into fwup's static binary, jemalloc or the release's Hex
+# dependencies. See the Dockerfile for libarchive, and Dependency Review in ci.yml
+# for Hex.
+
+on:
+  schedule:
+    - cron: "0 6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  trivy:
+    name: "Scan published image"
+
+    runs-on: ubuntu-latest
+
+    steps:
+      # Pinned by commit because this action's tags were hijacked in March 2026
+      # (CVE-2026-33634).
+      - name: Scan with Trivy
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          version: v0.76.1
+          image-ref: ghcr.io/nerves-hub/nerves-hub:latest
+          scanners: vuln
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+          exit-code: 1

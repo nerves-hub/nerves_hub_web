@@ -6,6 +6,7 @@ defmodule NervesHubWeb.Live.Product.Insights do
   alias NervesHub.Devices.Health
   alias NervesHub.Devices.UpdateHistory
   alias NervesHub.Devices.Updates
+  alias NervesHub.Helpers.RelativeTime
   alias NervesHub.ProductNotifications
   alias NervesHub.Products
 

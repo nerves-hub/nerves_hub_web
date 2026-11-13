@@ -54,9 +54,8 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show.WorkflowDiagramTest do
     setup %{deployment_group: deployment_group} do
       [canary | _] = Workflows.release_steps(deployment_group.current_deployment_release_id)
 
-      canary
-      |> Workflows.start_step()
-      |> Workflows.fail_step()
+      {:ok, started} = Workflows.start_step(deployment_group, canary)
+      {:ok, _} = Workflows.fail_step(deployment_group, started, 1)
 
       :ok
     end
@@ -157,7 +156,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show.WorkflowDiagramTest do
       {:ok, view, _html} = live(conn, "/org/#{org.name}/#{product.name}/deployment_groups/#{deployment_group.name}")
 
       [canary | _] = Workflows.release_steps(deployment_group.current_deployment_release_id)
-      _ = Workflows.start_step(canary)
+      {:ok, _} = Workflows.start_step(deployment_group, canary)
 
       _ =
         view
@@ -173,6 +172,15 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show.WorkflowDiagramTest do
       assert canary.status == :skipped
       assert canary.skipped_by_id == user.id
     end
+  end
+
+  # The options LiveFlow passes its hook, as the JSON `data-config` attribute.
+  defp flow_config(html) do
+    html
+    |> LazyHTML.from_document()
+    |> LazyHTML.query("#deployment-workflow")
+    |> LazyHTML.attribute("data-config")
+    |> then(fn [config] -> Jason.decode!(config) end)
   end
 
   defp edge_endpoints(html) do
@@ -195,9 +203,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show.WorkflowDiagramTest do
   } do
     {:ok, _view, html} = live(conn, "/org/#{org.name}/#{product.name}/deployment_groups/#{deployment_group.name}")
 
-    assert [[_, max_zoom]] = Regex.scan(~r/data-max-zoom="([0-9.]+)"/, html)
-
-    max_zoom = String.to_float(max_zoom)
+    %{"maxZoom" => max_zoom} = flow_config(html)
 
     assert max_zoom > 1.0, "the diagram should be able to grow into the space it has"
     assert max_zoom <= 2.0, "a short workflow should not be magnified without limit"
@@ -215,7 +221,19 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show.WorkflowDiagramTest do
     {:ok, _view, html} = live(conn, "/org/#{org.name}/#{product.name}/deployment_groups/#{deployment_group.name}")
 
     assert html =~ ~s(phx-hook="WorkflowDiagramFit")
-    refute html =~ "data-fit-view-on-init"
+    assert %{"fitViewOnInit" => false} = flow_config(html)
+  end
+
+  # The diagram is a picture of the workflow, not a canvas to explore.
+  test "the diagram can't be panned or zoomed", %{
+    conn: conn,
+    org: org,
+    product: product,
+    deployment_group: deployment_group
+  } do
+    {:ok, _view, html} = live(conn, "/org/#{org.name}/#{product.name}/deployment_groups/#{deployment_group.name}")
+
+    assert %{"panOnDrag" => false, "zoomOnScroll" => false} = flow_config(html)
   end
 
   test "arrows run level and leave each node on its right", %{

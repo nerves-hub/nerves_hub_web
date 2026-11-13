@@ -68,10 +68,11 @@ defmodule NervesHub.Devices.DeviceMessage do
   @doc """
   True when only the size of the message was recorded, not its contents.
 
-  Console traffic is raw terminal I/O and is recorded this way — see
-  `NervesHub.Devices.DeviceMessages`.
+  Console and local shell traffic is raw terminal I/O and is recorded this
+  way — see `NervesHub.Devices.DeviceMessages`.
   """
   @spec metadata_only?(t()) :: boolean()
   def metadata_only?(%__MODULE__{topic: "console"}), do: true
+  def metadata_only?(%__MODULE__{topic: "extensions", event: "local_shell:" <> _}), do: true
   def metadata_only?(%__MODULE__{}), do: false
 end

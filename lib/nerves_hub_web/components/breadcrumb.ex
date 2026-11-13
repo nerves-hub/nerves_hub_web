@@ -39,26 +39,12 @@ defmodule NervesHubWeb.Components.Breadcrumb do
     ~H"""
     <div class={["flex items-center gap-2.5", @class]}>
       <.link class="back-link flex items-center gap-2.5" {@rest}>
-        <svg
-          class="stroke-base-400"
-          xmlns="http://www.w3.org/2000/svg"
-          width="20"
-          height="20"
-          viewBox="0 0 20 20"
-          fill="none"
-        >
-          <path
-            d="M4.16671 10L9.16671 5M4.16671 10L9.16671 15M4.16671 10H15.8334"
-            stroke-width="1.2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          />
-        </svg>
-        <span class={["text-base-400", @root_class]}>{@root_label}</span>
+        <span class="lucide-arrow-left size-4 text-content-muted" aria-hidden="true"></span>
+        <span class={["text-content-muted", @root_class]}>{@root_label}</span>
       </.link>
       <span :for={crumb <- @crumb} class="contents">
-        <span class={["text-base-400", crumb[:class]]}>/</span>
-        <span class={["text-base-50 font-semibold", crumb[:class]]}>{render_slot(crumb)}</span>
+        <span class={["text-content-muted", crumb[:class]]}>/</span>
+        <span class={["font-semibold text-content-strong", crumb[:class]]}>{render_slot(crumb)}</span>
       </span>
     </div>
     """

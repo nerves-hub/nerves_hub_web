@@ -392,7 +392,7 @@ defmodule NervesHub.ManagedDeployments.RequiredReleaseTest do
     test "names the required release's firmware when the orchestrator blocks a device", context do
       %{deployment_group: deployment_group, device: device} = context
 
-      assert {:ok, _device} = Updates.update_blocked_until(device, deployment_group)
+      assert {:error, :updates_blocked, _device} = Updates.enforce_failure_limits(device, deployment_group)
 
       assert [audit_log | _] = AuditLogs.logs_for(device)
       assert audit_log.description =~ "Device failure rate met for firmware #{context.fw2.uuid}"

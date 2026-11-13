@@ -3,6 +3,7 @@ defmodule NervesHubWeb.ApiSpec do
 
   alias NervesHubWeb.API.OpenAPI.DeviceControllerSpecs
   alias NervesHubWeb.API.OpenAPI.DeviceLogControllerSpecs
+  alias NervesHubWeb.API.OpenAPI.DeviceMetricControllerSpecs
   alias NervesHubWeb.API.OpenAPI.SupportScriptControllerSpecs
   alias NervesHubWeb.Endpoint
   alias NervesHubWeb.Plugs.ImAlive
@@ -60,6 +61,10 @@ defmodule NervesHubWeb.ApiSpec do
       ],
       tags: [
         %Tag{
+          name: "Archives",
+          description: "Archive uploading and downloading"
+        },
+        %Tag{
           name: "Auth",
           description: "User authentication and API token creation"
         },
@@ -76,12 +81,20 @@ defmodule NervesHubWeb.ApiSpec do
           description: "Log lines Devices have sent over the logging extension"
         },
         %Tag{
+          name: "Device Metrics",
+          description: "Metric history Devices have reported over the health or metrics extension"
+        },
+        %Tag{
           name: "Devices (short URL)",
           description: "Device management, including action requests eg. upgrade, reboot, reconnect"
         },
         %Tag{
           name: "Device Certificates",
           description: "Device Certificate management"
+        },
+        %Tag{
+          name: "Device Shared Secrets",
+          description: "Keys and secrets a Device can connect with instead of a certificate"
         },
         %Tag{
           name: "Network Identities",
@@ -120,6 +133,10 @@ defmodule NervesHubWeb.ApiSpec do
           description: "Product Support Script management"
         },
         %Tag{
+          name: "Webhooks",
+          description: "Endpoints an Organization sends its Products' Device events to"
+        },
+        %Tag{
           name: "Platform Status",
           description: "Platform healthcheck"
         }
@@ -127,6 +144,7 @@ defmodule NervesHubWeb.ApiSpec do
     }
     |> DeviceControllerSpecs.add_operations()
     |> DeviceLogControllerSpecs.add_operations()
+    |> DeviceMetricControllerSpecs.add_operations()
     |> SupportScriptControllerSpecs.add_operations()
     # Discover request/response schemas from path specs
     |> OpenApiSpex.resolve_schema_modules()

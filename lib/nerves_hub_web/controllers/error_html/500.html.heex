@@ -1,39 +1,25 @@
-<!DOCTYPE html>
-<html lang="en" class="bg-surface h-full">
-  <head>
-    <meta charset="utf-8" />
-    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="description" content="" />
-    <meta name="author" content="" />
-
-    <meta name="csrf-token" content={get_csrf_token()} />
-
-    <meta name="description" content="" />
-    <meta name="author" content="" />
-
-    <link rel="icon" type="image/png" href="/images/favicon-96x96.png" sizes="96x96" />
-    <link rel="icon" type="image/svg+xml" href="/images/favicon.svg" />
-    <link rel="shortcut icon" href="/images/favicon.ico" />
-
-    <title>Unexpected error · #{Application.get_env(:nerves_hub, :web_title_suffix)}</title>
-    <link rel="stylesheet" href={static_path("/assets/css/app.css")} />
-    <script defer phx-track-static type="text/javascript" src={static_path("/assets/js/app.js")}>
-    </script>
-  </head>
-
-  <body class="h-full">
-    <div class="flex h-full flex-col items-center justify-center gap-8">
-      <div class="flex flex-col items-center justify-center">
-        <img src="/images/product.svg" alt="" />
-        <p class="pt-4 text-lg font-semibold">Sorry, we tried to process your request but something went wrong.</p>
-        <p class="pt-2">We have sent an error report to the team and they are looking into it.</p>
-      </div>
-
-      <div class="">
-        If this continues to happen, please <a href="https://github.com/nerves-hub/nerves_hub_web/issues" target="_blank" rel="noopener noreferrer" class="text-primary underline">report an issue</a>
-      </div>
-    </div>
-  </body>
-</html>
+<ErrorPage.page
+  title="Unexpected error"
+  code="500"
+  label="Server error"
+  tone={:alert}
+  css_path={static_path("/assets/css/app.css")}
+  js_path={static_path("/assets/js/app.js")}
+>
+  <:drawing>
+    <ErrorPage.fuse ref="F500" note="OPEN" />
+  </:drawing>
+  <:headline>Something on our side blew a fuse.</:headline>
+  That one’s on us, not you. It has been logged and the team has been told. Trying again in a minute usually works.
+  <:actions>
+    <%= if ErrorPage.reloadable?(assigns[:conn]) do %>
+      <.button style="primary" data-reload>Try again</.button>
+    <% else %>
+      <ErrorPage.back_button style="primary" />
+    <% end %>
+    <.button :if={ErrorPage.status_page_url()} type="link" href={ErrorPage.status_page_url()}>Check status</.button>
+  </:actions>
+  <:note>
+    <ErrorPage.request_id id={ErrorPage.request_id_of(assigns[:conn])} />
+  </:note>
+</ErrorPage.page>

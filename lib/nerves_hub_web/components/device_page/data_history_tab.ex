@@ -171,12 +171,12 @@ defmodule NervesHubWeb.Components.DevicePage.DataHistoryTab do
     <div
       id="data-history-tab"
       phx-mounted={JS.remove_class("opacity-0")}
-      class="bg-base-950 phx-click-loading:opacity-50 tab-content size-full pb-10 opacity-0 transition-all duration-500"
+      class="tab-content size-full bg-base-950 pb-10 opacity-0 transition-all duration-500 phx-click-loading:opacity-50"
     >
-      <div class="border-base-700 flex h-11 flex-row items-center justify-between border-b px-12">
+      <div class="flex h-11 flex-row items-center justify-between border-b border-line-default px-12">
         <div class="flex flex-row items-center gap-6">
           <div>
-            <span class="text-base-400 text-sm">Live streaming :</span>
+            <span class="text-sm text-content-muted">Live streaming :</span>
             <button
               id="toggle-message-streaming"
               type="button"
@@ -194,7 +194,7 @@ defmodule NervesHubWeb.Components.DevicePage.DataHistoryTab do
                 class={[
                   "pointer-events-none inline-block size-3",
                   (@streaming_enabled && "translate-x-3") || "translate-x-0",
-                  "transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out"
+                  "transform rounded-full bg-white shadow-control ring-0 transition duration-200 ease-in-out"
                 ]}
               ></span>
             </button>
@@ -202,8 +202,8 @@ defmodule NervesHubWeb.Components.DevicePage.DataHistoryTab do
 
           <form id="data-history-filters" phx-change="filter-messages" class="flex flex-row items-center gap-4">
             <label class="flex items-center gap-2">
-              <span class="text-base-400 text-sm">Direction :</span>
-              <select name="direction" class="bg-base-800 border-base-600 text-base-300 rounded border px-2 py-0.5 text-sm">
+              <span class="text-sm text-content-muted">Direction :</span>
+              <select name="direction" class="rounded border border-line-strong bg-base-800 px-2 py-0.5 text-sm text-content-body">
                 <option :for={{label, value} <- direction_options()} value={value} selected={value == @direction_filter}>
                   {label}
                 </option>
@@ -211,8 +211,8 @@ defmodule NervesHubWeb.Components.DevicePage.DataHistoryTab do
             </label>
 
             <label class="flex items-center gap-2">
-              <span class="text-base-400 text-sm">Channel :</span>
-              <select name="topic" class="bg-base-800 border-base-600 text-base-300 rounded border px-2 py-0.5 text-sm">
+              <span class="text-sm text-content-muted">Channel :</span>
+              <select name="topic" class="rounded border border-line-strong bg-base-800 px-2 py-0.5 text-sm text-content-body">
                 <option :for={{label, value} <- topic_options()} value={value} selected={value == @topic_filter}>
                   {label}
                 </option>
@@ -221,7 +221,7 @@ defmodule NervesHubWeb.Components.DevicePage.DataHistoryTab do
           </form>
         </div>
 
-        <span class="text-base-400 text-sm font-extralight">
+        <span class="text-sm font-extralight text-content-muted">
           {(@streaming_enabled && "Streaming the last #{limit()} messages.") || "Paused."}
         </span>
       </div>
@@ -240,7 +240,7 @@ defmodule NervesHubWeb.Components.DevicePage.DataHistoryTab do
             <col />
           </colgroup>
           <thead>
-            <tr class="border-base-700 text-base-400 border-b text-left font-extralight">
+            <tr class="border-b border-line-default text-left font-extralight text-content-muted">
               <th class="py-2 pr-6 font-normal">Timestamp ({zone_abbr(@time_zone)})</th>
               <th class="py-2 pr-6 font-normal">Direction</th>
               <th class="py-2 pr-6 font-normal">Channel</th>
@@ -249,23 +249,20 @@ defmodule NervesHubWeb.Components.DevicePage.DataHistoryTab do
             </tr>
           </thead>
           <tbody id="device-messages" phx-update="stream">
-            <tr :for={{dom_id, message} <- @streams.messages} id={dom_id} class="border-base-800 hover:bg-base-900 border-b align-top">
-              <td class="text-base-300 py-2 pr-6 whitespace-nowrap">
+            <tr :for={{dom_id, message} <- @streams.messages} id={dom_id} class="border-b border-line-subtle align-top hover:bg-base-900">
+              <td class="py-2 pr-6 whitespace-nowrap text-content-body">
                 <.local_datetime at={message.timestamp} time_zone={@time_zone} format={:timestamp} zone_label={false} />
               </td>
               <td class="py-2 pr-6">
-                <span class={[
-                  "rounded px-1.5 py-0.5 text-xs",
-                  (message.direction == "sent" && "bg-base-800 text-blue-400") || "bg-base-800 text-success"
-                ]}>
+                <.badge tone={(message.direction == "sent" && "notice") || "success"}>
                   {message.direction}
-                </span>
+                </.badge>
               </td>
-              <td class="text-base-400 py-2 pr-6">{message.topic}</td>
-              <td class="text-base-200 truncate py-2 pr-6" title={message.event}>{message.event}</td>
-              <td class="text-base-300 py-2">
+              <td class="py-2 pr-6 text-content-muted">{message.topic}</td>
+              <td class="truncate py-2 pr-6 text-base-200" title={message.event}>{message.event}</td>
+              <td class="py-2 text-content-body">
                 <div class="max-h-24 overflow-y-auto break-all whitespace-pre-wrap">{payload_text(message)}</div>
-                <div :if={DeviceMessage.truncated?(message)} class="text-base-500 pt-1 text-xs">
+                <div :if={DeviceMessage.truncated?(message)} class="pt-1 text-xs text-content-faint">
                   truncated for storage — {bytes(message.payload_bytes)} were sent
                 </div>
               </td>
@@ -278,7 +275,7 @@ defmodule NervesHubWeb.Components.DevicePage.DataHistoryTab do
     """
   end
 
-  # Console rows carry a size and no contents, on purpose — see
+  # Console and local shell rows carry a size and no contents, on purpose — see
   # `NervesHub.Devices.DeviceMessages` for why.
   defp payload_text(message) do
     if DeviceMessage.metadata_only?(message) do

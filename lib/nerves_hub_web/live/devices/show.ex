@@ -12,7 +12,6 @@ defmodule NervesHubWeb.Live.Devices.Show do
   alias NervesHub.Extensions
   alias NervesHub.FirmwareUpdates
   alias NervesHub.Products
-  alias NervesHub.Tracker
   alias NervesHubWeb.Components.DevicePage.ActivityTab
   alias NervesHubWeb.Components.DevicePage.ConsoleTab
   alias NervesHubWeb.Components.DevicePage.DataHistoryTab
@@ -26,7 +25,6 @@ defmodule NervesHubWeb.Live.Devices.Show do
   alias NervesHubWeb.Components.DeviceUpdateStatus
   alias NervesHubWeb.Components.UpdateProgress
   alias NervesHubWeb.Presence
-  alias Phoenix.LiveView.AsyncResult
   alias Phoenix.LiveView.JS
   alias Phoenix.Socket.Broadcast
 
@@ -115,20 +113,11 @@ defmodule NervesHubWeb.Live.Devices.Show do
     |> assign(:device, device)
     |> assign(:device_connection, device.latest_connection)
     |> load_inprogress_firmware_update()
-    |> async_console_status_check()
     |> assign(:update_information, Updates.resolve_update(device))
     |> then(fn socket ->
       if(payload.status == "online", do: clear_flash(socket), else: socket)
     end)
     |> maybe_send_metadata_updated_message(previous_device)
-    |> noreply()
-  end
-
-  def handle_info(%Broadcast{event: "console_joined"}, socket) do
-    status = socket.assigns.console_online
-
-    socket
-    |> assign(:console_online, AsyncResult.ok(status, true))
     |> noreply()
   end
 
@@ -420,7 +409,6 @@ defmodule NervesHubWeb.Live.Devices.Show do
     socket
     |> assign(:device, device)
     |> assign(:device_connection, device.latest_connection)
-    |> async_console_status_check()
   end
 
   defp maybe_send_metadata_updated_message(socket, previous_device) do
@@ -433,14 +421,6 @@ defmodule NervesHubWeb.Live.Devices.Show do
     end
 
     socket
-  end
-
-  def async_console_status_check(socket) do
-    device_id = socket.assigns.device.id
-
-    assign_async(socket, :console_online, fn ->
-      {:ok, %{console_online: Tracker.console_active?(device_id)}}
-    end)
   end
 
   def show_menu(id, js \\ %JS{}) do
@@ -481,13 +461,13 @@ defmodule NervesHubWeb.Live.Devices.Show do
   end
 
   @doc false
-  def update_mode_icon(:automatic), do: "lucide-refresh-cw--light"
-  def update_mode_icon(:device_managed), do: "lucide-cpu--light"
-  def update_mode_icon(:off), do: "lucide-circle-slash--light"
+  def update_mode_icon(:automatic), do: "lucide-refresh-cw"
+  def update_mode_icon(:device_managed), do: "lucide-cpu"
+  def update_mode_icon(:off), do: "lucide-circle-slash"
 
   @doc false
   def update_mode_color(:automatic), do: "text-success"
-  def update_mode_color(:device_managed), do: "text-base-300"
+  def update_mode_color(:device_managed), do: "text-content-body"
   def update_mode_color(:off), do: "text-alert"
 
   @doc false

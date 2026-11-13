@@ -32,9 +32,7 @@ defmodule NervesHub.Firmwares.UpdateTool.EspIdfSignatureTest do
     pem = pem || File.read!("#{@fixtures}/signing_key_public.pem")
 
     {:ok, key} =
-      Accounts.create_org_key(%{
-        org_id: org.id,
-        created_by_id: user.id,
+      Accounts.create_org_key(org, user, %{
         name: "esp-#{System.unique_integer([:positive])}",
         key: pem,
         scheme: :secure_boot_v2_rsa

@@ -9,6 +9,9 @@ defmodule NervesHubWeb.SessionControllerTest do
   alias NervesHub.Fixtures
   alias NervesHub.Repo
 
+  @remember_me_cookie "_nerves_hub_user_remember_me"
+  @remember_me_label "Keep me signed in for #{NervesHubWeb.Auth.remember_me_days()} days"
+
   describe "already signed in" do
     test "visiting the login page redirects to the signed in landing page", %{conn: conn} do
       conn
@@ -17,7 +20,7 @@ defmodule NervesHubWeb.SessionControllerTest do
     end
 
     test "visiting the registration page redirects to the signed in landing page", %{conn: conn} do
-      Application.put_env(:nerves_hub, :open_for_registrations, true)
+      Application.put_env(:nerves_hub, :sign_up_methods, [:password, :google])
 
       conn
       |> visit(~p"/register")
@@ -25,7 +28,7 @@ defmodule NervesHubWeb.SessionControllerTest do
     end
 
     test "confirming an account still works, since a session says nothing about being confirmed" do
-      Application.put_env(:nerves_hub, :open_for_registrations, true)
+      Application.put_env(:nerves_hub, :sign_up_methods, [:password, :google])
 
       {:ok, user} =
         Accounts.create_user(%{
@@ -45,14 +48,19 @@ defmodule NervesHubWeb.SessionControllerTest do
       |> init_test_session(%{"user_token" => session_token})
       |> visit(~p"/confirm/#{encoded_token}")
       |> assert_path(~p"/orgs")
+      # and still as them: following the link doesn't sign in to the account it confirms
+      |> visit(~p"/account/delete")
+      |> assert_has("span", text: someone_else.email)
 
       assert Repo.reload(user).confirmed_at
     end
   end
 
   describe "confirm account" do
-    test "and log in user" do
-      Application.put_env(:nerves_hub, :open_for_registrations, true)
+    # Following the link proves the address, not that whoever follows it chose
+    # the account's password, so it doesn't sign them in.
+    test "and ask the user to sign in" do
+      Application.put_env(:nerves_hub, :sign_up_methods, [:password, :google])
 
       params = %{
         name: "Sgt Pepper",
@@ -67,7 +75,12 @@ defmodule NervesHubWeb.SessionControllerTest do
 
       build_conn()
       |> visit(~p"/confirm/#{encoded_token}")
-      |> assert_path(~p"/orgs")
+      |> assert_path(~p"/login")
+      |> assert_has("[role='alert']", text: "Your email address is confirmed. Sign in to continue.")
+      |> visit(~p"/orgs")
+      |> assert_path(~p"/login")
+
+      assert Repo.reload(user).confirmed_at
 
       platform_name = Application.get_env(:nerves_hub, :support_email_platform_name)
 
@@ -81,7 +94,7 @@ defmodule NervesHubWeb.SessionControllerTest do
     end
 
     test "and send new confirm account email if the token is older than 1 day" do
-      Application.put_env(:nerves_hub, :open_for_registrations, true)
+      Application.put_env(:nerves_hub, :sign_up_methods, [:password, :google])
 
       params = %{
         name: "Sgt Pepper",
@@ -123,31 +136,40 @@ defmodule NervesHubWeb.SessionControllerTest do
 
   describe "login page" do
     setup do
-      previous = Application.fetch_env(:nerves_hub, :open_for_registrations)
+      previous = Application.fetch_env(:nerves_hub, :sign_up_methods)
 
       on_exit(fn ->
         case previous do
-          {:ok, value} -> Application.put_env(:nerves_hub, :open_for_registrations, value)
-          :error -> Application.delete_env(:nerves_hub, :open_for_registrations)
+          {:ok, value} -> Application.put_env(:nerves_hub, :sign_up_methods, value)
+          :error -> Application.delete_env(:nerves_hub, :sign_up_methods)
         end
       end)
     end
 
     test "links to sign up when registrations are open" do
-      Application.put_env(:nerves_hub, :open_for_registrations, true)
+      Application.put_env(:nerves_hub, :sign_up_methods, [:password, :google])
 
       build_conn()
       |> visit(~p"/login")
-      |> assert_has("a[href='/register']", text: "Sign up for free")
-      |> refute_has("p", text: "Please contact your platform admin.")
+      |> assert_has("a[href='/register']", text: "Create one")
+      |> refute_has("p", text: "Ask your platform admin for an invite.")
+    end
+
+    test "points to Google instead of the sign up form when sign up is open to Google only" do
+      Application.put_env(:nerves_hub, :sign_up_methods, [:google])
+
+      build_conn()
+      |> visit(~p"/login")
+      |> assert_has("p", text: "Don't have an account? Sign in with Google to create one.")
+      |> refute_has("a[href='/register']")
     end
 
     test "points to the platform admin instead of sign up when registrations are closed" do
-      Application.put_env(:nerves_hub, :open_for_registrations, false)
+      Application.put_env(:nerves_hub, :sign_up_methods, [])
 
       build_conn()
       |> visit(~p"/login")
-      |> assert_has("p", text: "Don't have an account? Please contact your platform admin.")
+      |> assert_has("p", text: "Don't have an account? Ask your platform admin for an invite.")
       |> refute_has("a[href='/register']")
     end
   end
@@ -164,8 +186,8 @@ defmodule NervesHubWeb.SessionControllerTest do
 
       build_conn()
       |> visit(~p"/login")
-      |> assert_has("h1", text: "Sign in to your account")
-      |> fill_in("Email address", with: "sgtpepper@geocities.com")
+      |> assert_has("h1", text: "Sign in to #{platform_name()}")
+      |> fill_in("Email", with: "sgtpepper@geocities.com")
       |> fill_in("Password", with: "JohnRingoPaulGeorge")
       |> submit()
       |> assert_path(~p"/orgs")
@@ -182,11 +204,73 @@ defmodule NervesHubWeb.SessionControllerTest do
 
       build_conn()
       |> visit(~p"/orgs/new")
-      |> assert_has("h1", text: "Sign in to your account")
-      |> fill_in("Email address", with: "sgtpepper@geocities.com")
+      |> assert_has("h1", text: "Sign in to #{platform_name()}")
+      |> fill_in("Email", with: "sgtpepper@geocities.com")
       |> fill_in("Password", with: "JohnRingoPaulGeorge")
       |> submit()
       |> assert_path(~p"/orgs/new")
+    end
+  end
+
+  describe "remember me" do
+    setup do
+      %{
+        name: "Sgt Pepper",
+        email: "sgtpepper@geocities.com",
+        password: "JohnRingoPaulGeorge"
+      }
+      |> Fixtures.user_fixture()
+      |> Fixtures.org_fixture(%{name: "LonelyHeartsClubBand"})
+
+      :ok
+    end
+
+    test "ticking it keeps the user signed in once the session cookie is gone" do
+      session =
+        build_conn()
+        |> visit(~p"/login")
+        |> fill_in("Email", with: "sgtpepper@geocities.com")
+        |> fill_in("Password", with: "JohnRingoPaulGeorge")
+        |> check(@remember_me_label)
+        |> submit()
+        |> assert_path(~p"/orgs")
+
+      # PhoenixTest carries each response's cookies into the next request, as a
+      # browser does, so the cookie set by the login POST is on the request that
+      # followed its redirect.
+      remember_me = session.conn.req_cookies[@remember_me_cookie]
+      assert remember_me
+
+      # A new browser session: no session cookie, only the remember-me one.
+      build_conn()
+      |> Phoenix.ConnTest.put_req_cookie(@remember_me_cookie, remember_me)
+      |> visit(~p"/orgs")
+      |> assert_path(~p"/orgs")
+    end
+
+    test "leaving it unticked sets no remember-me cookie" do
+      session =
+        build_conn()
+        |> visit(~p"/login")
+        |> fill_in("Email", with: "sgtpepper@geocities.com")
+        |> fill_in("Password", with: "JohnRingoPaulGeorge")
+        |> submit()
+        |> assert_path(~p"/orgs")
+
+      refute Map.has_key?(session.conn.req_cookies, @remember_me_cookie)
+    end
+
+    test "stays ticked when the password is wrong" do
+      build_conn()
+      |> visit(~p"/login")
+      |> fill_in("Email", with: "sgtpepper@geocities.com")
+      |> fill_in("Password", with: "not the password")
+      |> check(@remember_me_label)
+      |> submit()
+      |> assert_has("[role='alert'] p", text: "That email and password don't match")
+      |> assert_has("#remember-me[checked]")
+      |> assert_has("input[type='email'][value='sgtpepper@geocities.com']")
+      |> refute_has("input[type='password'][value]")
     end
   end
 
@@ -277,4 +361,6 @@ defmodule NervesHubWeb.SessionControllerTest do
       assert redirected_to(conn) == return_to
     end
   end
+
+  defp platform_name(), do: Application.get_env(:nerves_hub, :support_email_platform_name)
 end

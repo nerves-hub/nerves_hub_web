@@ -55,9 +55,15 @@ defmodule NervesHub.Devices.Metrics do
   # One notification per device per minute, whatever the report. The budget is
   # per device rather than per product: a single broken device in a large fleet
   # should not stop its neighbours' problems being reported.
+  #
+  # Hammer's token bucket refills a whole number of tokens a second, so a minute
+  # is a bucket that takes sixty seconds to fill and a notification that empties
+  # it. That spaces notifications a minute after the last one raised, where a
+  # fixed one-minute window would let one through either side of the minute
+  # boundary, seconds apart.
   @rate_limit_tokens_per_sec 1
-  @rate_limit_max_capacity 1
-  @rate_limit_token_cost 1
+  @rate_limit_max_capacity 60
+  @rate_limit_token_cost 60
 
   @default_metrics [
     "cpu_temp",
@@ -103,6 +109,110 @@ defmodule NervesHub.Devices.Metrics do
     else
       []
     end
+  end
+
+  @default_report_limit 100
+
+  @typedoc """
+  How to narrow a device's metric history in `reports_for_device/2`.
+
+  - `:keys` — only these metric names. Matched as given; a name the device has
+    never reported matches nothing.
+  - `:since` — reports taken at or after this time (inclusive).
+  - `:before` — reports taken strictly before this time (exclusive), so the
+    timestamp of the oldest report in a page can be passed straight back as the
+    next page's `:before` without repeating it.
+  - `:limit` — how many reports to return. Defaults to #{@default_report_limit}.
+  - `:order` — `:desc` (newest first, the default) or `:asc`.
+  """
+  @type report_opt ::
+          {:keys, [String.t()] | nil}
+          | {:since, DateTime.t() | nil}
+          | {:before, DateTime.t() | nil}
+          | {:limit, pos_integer()}
+          | {:order, :asc | :desc}
+
+  @typedoc """
+  One stored report: its readings keyed by name, when the device took them, and
+  the firmware it was running (`nil` if the device had reported none).
+  """
+  @type report :: %{
+          timestamp: DateTime.t(),
+          firmware_uuid: String.t() | nil,
+          metrics: %{String.t() => float()}
+        }
+
+  @doc """
+  A device's stored metric history as reports, newest first, narrowed by `opts`
+  (see `t:report_opt/0`).
+
+  History is a row per reading, but the readings of one report share a
+  timestamp, so they are put back together here: a report comes back in the
+  shape the device sent it. `:limit` counts reports, not readings, which is
+  what lets a caller page by timestamp without a page ever ending partway
+  through a report. With `:keys`, each report carries only those readings, and
+  a report that carried none of them is left out.
+
+  Reads ClickHouse unconditionally; a caller on a deployment without one should
+  check `:analytics_enabled` first, as the API does.
+  """
+  @spec reports_for_device(Device.t(), [report_opt()]) :: [report()]
+  def reports_for_device(%Device{} = device, opts \\ []) do
+    order = Keyword.get(opts, :order, :desc)
+    limit = Keyword.get(opts, :limit, @default_report_limit)
+
+    readings =
+      DeviceMetric
+      |> where(product_id: ^device.product_id)
+      |> where(device_id: ^device.id)
+      |> filter_keys(Keyword.get(opts, :keys))
+      |> filter_since(Keyword.get(opts, :since))
+      |> filter_before(Keyword.get(opts, :before))
+
+    # Two reads: which reports are in the page, then their readings. Limiting
+    # the readings directly would cut the last report short.
+    timestamps =
+      readings
+      |> group_by([m], m.timestamp)
+      |> select([m], m.timestamp)
+      |> order_by([m], [{^order, m.timestamp}])
+      |> limit(^limit)
+      |> AnalyticsRepo.all()
+
+    case timestamps do
+      [] ->
+        []
+
+      [first | _] ->
+        last = List.last(timestamps)
+        {oldest, newest} = if order == :asc, do: {first, last}, else: {last, first}
+
+        readings
+        |> where([m], m.timestamp >= ^oldest and m.timestamp <= ^newest)
+        |> order_by([m], [{^order, m.timestamp}, asc: m.key])
+        |> select([m], %{timestamp: m.timestamp, key: m.key, value: m.value, firmware_uuid: m.firmware_uuid})
+        |> AnalyticsRepo.all()
+        |> Enum.chunk_by(& &1.timestamp)
+        |> Enum.map(&to_report/1)
+    end
+  end
+
+  defp filter_keys(query, nil), do: query
+  defp filter_keys(query, []), do: query
+  defp filter_keys(query, keys), do: where(query, [m], m.key in ^keys)
+
+  defp filter_since(query, nil), do: query
+  defp filter_since(query, %DateTime{} = since), do: where(query, [m], m.timestamp >= ^since)
+
+  defp filter_before(query, nil), do: query
+  defp filter_before(query, %DateTime{} = before), do: where(query, [m], m.timestamp < ^before)
+
+  defp to_report([%{timestamp: timestamp, firmware_uuid: firmware_uuid} | _] = readings) do
+    %{
+      timestamp: timestamp,
+      firmware_uuid: if(firmware_uuid != "", do: firmware_uuid),
+      metrics: Map.new(readings, &{&1.key, &1.value})
+    }
   end
 
   @doc """
@@ -188,17 +298,25 @@ defmodule NervesHub.Devices.Metrics do
   of the device's rows in the longest window, pruned by the table's
   `(product_id, device_id, key, timestamp)` sort key. ClickHouse: callers
   are expected to check that analytics is enabled first.
+
+  `excluded_timestamps` are left out of the count. They are the readings the
+  caller holds in hand and counts itself: they may or may not have been
+  flushed by the time this runs, and leaving them out here is what makes each
+  one count exactly once either way. A report is stored as one row per key at
+  one shared timestamp, so its timestamp leaves out exactly that report.
   """
-  @spec health_breach_counts(DeviceInfo.t() | map(), [struct()], integer()) ::
+  @spec health_breach_counts(DeviceInfo.t() | map(), [struct()], integer(), [DateTime.t()]) ::
           %{
             optional(String.t()) => %{
               warning: {non_neg_integer(), non_neg_integer()},
               alert: {non_neg_integer(), non_neg_integer()}
             }
           }
-  def health_breach_counts(_device_info, [] = _metrics, _now_minute), do: %{}
+  def health_breach_counts(device_info, metrics, now_minute, excluded_timestamps \\ [])
 
-  def health_breach_counts(device_info, metrics, now_minute) do
+  def health_breach_counts(_device_info, [] = _metrics, _now_minute, _excluded_timestamps), do: %{}
+
+  def health_breach_counts(device_info, metrics, now_minute, excluded_timestamps) do
     selects =
       metrics
       |> Enum.flat_map(fn metric ->
@@ -235,6 +353,7 @@ defmodule NervesHub.Devices.Metrics do
       |> where([dm], dm.product_id == ^device_info.product_id and dm.device_id == ^device_info.device_id)
       |> where([dm], dm.key in ^Enum.map(metrics, & &1.key))
       |> where([dm], dm.timestamp >= ^oldest)
+      |> excluding_timestamps(excluded_timestamps)
       |> select([dm], ^selects)
       |> AnalyticsRepo.one()
 
@@ -245,6 +364,17 @@ defmodule NervesHub.Devices.Metrics do
          alert: {row["#{metric.key}:alert:n"], row["#{metric.key}:alert:k"]}
        }}
     end)
+  end
+
+  defp excluding_timestamps(query, []), do: query
+
+  # Padded the way `record/3` pads what it stores, so each one names the
+  # stored instant exactly. That also keeps the array parameter a single type:
+  # the adapter types the array from its first element.
+  defp excluding_timestamps(query, timestamps) do
+    timestamps = timestamps |> Enum.map(&with_microsecond_precision/1) |> Enum.uniq()
+
+    where(query, [dm], dm.timestamp not in ^timestamps)
   end
 
   # Which side of the threshold is unhealthy. `nil` (rows from before the
@@ -299,6 +429,25 @@ defmodule NervesHub.Devices.Metrics do
 
     {:ok, length(readings)}
   end
+
+  @doc """
+  The readings `record/3` keeps from `metrics`, as `%{name => float}`.
+
+  Records nothing and raises none of the notifications `record/3` raises for
+  what it drops: this is for passing a report on (to a webhook) as it was
+  stored.
+  """
+  @spec storable(term()) :: %{optional(String.t()) => float()}
+  def storable(metrics) when is_map(metrics) do
+    metrics
+    |> Enum.flat_map(&normalize/1)
+    |> Enum.filter(fn {key, _value} -> byte_size(key) <= @max_key_bytes end)
+    |> Enum.sort_by(&elem(&1, 0))
+    |> Enum.take(max_keys_per_report())
+    |> Map.new()
+  end
+
+  def storable(_not_a_map), do: %{}
 
   # Both PostgreSQL columns are `:utc_datetime_usec`, and the rows are written
   # with `insert_all`/`insert!`, which dump straight to the database rather than

@@ -1,10 +1,22 @@
-ARG ELIXIR_VERSION=1.20.3
-ARG OTP_VERSION=29.0.5
-ARG DISTRO=resolute-20260724.1
+ARG ELIXIR_VERSION=1.20.4
+ARG OTP_VERSION=29.1.2
+# The builder pins a snapshot because hexpm publishes one tag per snapshot. The
+# runner follows Ubuntu's release tag, so each build starts from the newest
+# snapshot and nobody has to remember to bump it. Keep both on the same release:
+# the release ships an ERTS linked against that release's glibc and OpenSSL.
+ARG DISTRO=resolute-20261024.1
 ARG NODE_VERSION=24.13.1
+# Firmware that requires a newer fwup than this one is rejected on upload, so
+# keep this at or above the fwup that Nerves systems build with.
+ARG FWUP_VERSION=1.17.1
+# fwup links libarchive statically and reads customer uploads with it, and no
+# image scanner can see a version inside that binary. fwup 1.17.1 pins 3.8.9,
+# which later security releases fix, so override it until fwup catches up.
+ARG LIBARCHIVE_VERSION=3.8.11
+ARG LIBARCHIVE_SHA256=900fe9fc7237c2b04f090f3c3648de8fe597525771f5035016537ce2d667d12b
 
 ARG BUILDER_IMAGE="hexpm/elixir:${ELIXIR_VERSION}-erlang-${OTP_VERSION}-ubuntu-${DISTRO}"
-ARG RUNNER_IMAGE="ubuntu:${DISTRO}"
+ARG RUNNER_IMAGE="ubuntu:resolute"
 ARG DEBIAN_FRONTEND=noninteractive
 
 ###
@@ -105,14 +117,18 @@ RUN apt-get update -y && \
     apt-get upgrade -y && \
     apt-get install -y git curl build-essential autoconf pkg-config libtool mtools unzip zip help2man libconfuse-dev libarchive-dev xdelta3 dosfstools
 
-RUN git clone https://github.com/fwup-home/fwup /tmp/fwup
+ARG FWUP_VERSION
+ARG LIBARCHIVE_VERSION
+ARG LIBARCHIVE_SHA256
+
+# The version is in the clone itself, so a cached clone from before the tag
+# can't be reused.
+RUN git clone --depth 1 --branch v${FWUP_VERSION} https://github.com/fwup-home/fwup /tmp/fwup
 
 WORKDIR /tmp/fwup
 
-# pin to a fwup commit which fixes the flakey zlib download
-# https://github.com/fwup-home/fwup/commit/df840f192cfbb0d6bca0df7e9873753082f139b9
-
-RUN git checkout df840f1 && \
+RUN sed -i "s/^LIBARCHIVE_VERSION=.*/LIBARCHIVE_VERSION=${LIBARCHIVE_VERSION}/" scripts/third_party_versions.sh && \
+    sed -i "s/^.*libarchive-.*$/${LIBARCHIVE_SHA256}  libarchive-${LIBARCHIVE_VERSION}.tar.gz/" scripts/third_party.sha256 && \
     ./scripts/download_deps.sh && \
     ./scripts/build_deps.sh && \
     ./autogen.sh && \
@@ -133,12 +149,14 @@ RUN apt-get update -y && \
     apt-get install -y git autoconf cmake make gcc-14 g++-14 && \
     update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-14 14 --slave /usr/bin/g++ g++ /usr/bin/g++-14
 
-RUN git clone https://github.com/jemalloc/jemalloc /tmp/jemalloc
+# The version is part of the clone, so bumping it changes this layer. A clone
+# in a layer of its own is cached by its command alone and goes stale, and the
+# checkout after it then cannot find a newer tag.
+RUN git clone --depth 1 --branch 5.4.0 https://github.com/jemalloc/jemalloc /tmp/jemalloc
 
 WORKDIR /tmp/jemalloc
 
-RUN git checkout 5.3.1 && \
-    autoconf && \
+RUN autoconf && \
     ./configure && \
     make && \
     make install
@@ -179,12 +197,19 @@ FROM ${RUNNER_IMAGE} AS app
 
 RUN apt-get update -y && \
     apt-get upgrade -y && \
-    apt-get install -y openssl ca-certificates locales bash xdelta3 zip unzip libsctp1 python3 && \
+    apt-get install -y --no-install-recommends openssl ca-certificates locales bash xdelta3 zip libsctp1 python3 && \
     apt-get autoremove -y && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
-
+# Pebble is the service manager Ubuntu's image is built with. Nothing here runs
+# it, and no package owns it, so apt can never patch it. Setuid binaries are only
+# useful for changing user, which a container has no reason to do. The user has a
+# fixed numeric id so that Kubernetes' runAsNonRoot can check it.
+RUN rm -f /usr/bin/pebble && \
+    find / -xdev -type f -perm /6000 -exec chmod a-s {} + && \
+    groupadd --gid 65532 nerveshub && \
+    useradd --uid 65532 --gid 65532 --home-dir /app --no-create-home --shell /usr/sbin/nologin nerveshub
 
 # Set the locale
 RUN sed -i '/en_US.UTF-8/s/^# //g' /etc/locale.gen && locale-gen
@@ -208,12 +233,19 @@ RUN ln -s /opt/detools/bin/detools /usr/local/bin/detools
 # Copy over NervesHub
 WORKDIR /app
 
+# Root keeps ownership so that the app can read its own code but not rewrite it.
+# The app writes TLS files and crash dumps to /app/tmp, the only place under /app
+# it can write.
 COPY --from=build /build/_build/prod/rel/nerves_hub ./
+RUN mkdir tmp && \
+    chown 65532:65532 tmp
 
 ENV HOME=/app
 ENV MIX_ENV=prod
-ENV SECRET_KEY_BASE=nokey
 ENV PORT=4000
+ENV ERL_CRASH_DUMP=/app/tmp/erl_crash.dump
+
+USER 65532:65532
 
 ENTRYPOINT ["bin/nerves_hub"]
 

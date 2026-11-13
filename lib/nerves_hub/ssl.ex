@@ -9,8 +9,12 @@ defmodule NervesHub.SSL do
   alias NervesHub.Devices.CACertificates
   alias NervesHub.Devices.Certificates
   alias NervesHub.Devices.Device
+  alias NervesHub.Products
   alias X509.Certificate.Extension
 
+  # What :public_key's path validation, and the checks :ssl adds to it, say is
+  # wrong with a certificate. The list is open: OTP's own type, included last,
+  # ends in atom(), and decide/2 passes on a reason it has no answer for as it is.
   @type pkix_path_validation_reason ::
           :cert_expired
           | :invalid_issuer
@@ -19,6 +23,8 @@ defmodule NervesHub.SSL do
           | :missing_basic_constraint
           | :invalid_key_usage
           | {:revoked, any()}
+          | {:invalid_ext_keyusage | :ca_invalid_ext_keyusage, [:public_key.oid()]}
+          | :public_key.bad_cert_reason()
   @type reason ::
           :unknown_ca
           | :unknown_server_error
@@ -30,7 +36,7 @@ defmodule NervesHub.SSL do
           | :device_not_registered
           | pkix_path_validation_reason()
   @type event ::
-          {:bad_cert, reason()}
+          {:bad_cert, reason() | :selfsigned_peer}
           | {:extension, Extension.t()}
           | :valid
           | :valid_peer
@@ -87,10 +93,11 @@ defmodule NervesHub.SSL do
     ski = Certificate.get_ski(otp_cert)
 
     cond do
-      aki == ski ->
+      is_binary(aki) and aki == ski ->
         # If the signer CA is also the root, then AKI == SKI. We can skip
         # checking as it will be validated later on if the device needs
-        # registration
+        # registration. A root without an AKI falls through to the SKI
+        # lookup below, and a certificate with neither is not a root.
         :valid
 
       is_binary(ski) and CACertificates.known_ca_ski?(ski) ->
@@ -110,12 +117,30 @@ defmodule NervesHub.SSL do
     end
   end
 
+  # A certificate that signed itself, sent on its own, such as one made by
+  # `nh device certificates generate --self-signed`. Its signer is itself, so
+  # there is no CA to register it through: it is accepted only if it was
+  # uploaded for the device. Registering it would let a CA's own certificate,
+  # sent by whoever holds the CA's key, become a device named after the CA.
+  def decide(otp_cert, {:bad_cert, :selfsigned_peer}) do
+    do_verify(otp_cert, register: false)
+  end
+
   def decide(_certificate, {:extension, _}) do
     :valid
   end
 
-  defp do_verify(otp_cert) do
-    case verify_cert(otp_cert) do
+  # Anything else :ssl found wrong with a certificate in the chain: a signature
+  # that does not verify, an intermediate CA without basicConstraints, an
+  # extended key usage that leaves out clientAuth, and so on. Each is refused
+  # with the reason :ssl gave. Raising instead would reach
+  # NervesHub.DeviceLink.PeerVerification as the platform being unavailable.
+  def decide(otp_cert, {:bad_cert, reason}) do
+    verify_failed(reason, otp_cert)
+  end
+
+  defp do_verify(otp_cert, opts \\ []) do
+    case verify_cert(otp_cert, Keyword.get(opts, :register, true)) do
       {:ok, _db_cert} ->
         :telemetry.execute([:nerves_hub, :ssl, :success], %{count: 1})
 
@@ -135,7 +160,7 @@ defmodule NervesHub.SSL do
     end
   end
 
-  defp verify_cert(otp_cert) do
+  defp verify_cert(otp_cert, register?) do
     # TODO: Maybe check for cert expiration
     #
     # We have always been ignoring expiration if we already have
@@ -148,8 +173,11 @@ defmodule NervesHub.SSL do
       {:ok, _db_cert} ->
         :ignore_deleted_device
 
-      _ ->
+      _ when register? ->
         maybe_register(otp_cert)
+
+      _ ->
+        :unknown_device_certificate
     end
   end
 
@@ -227,15 +255,15 @@ defmodule NervesHub.SSL do
   end
 
   defp check_known_ca(otp_cert) do
-    Certificate.get_aki(otp_cert)
-    |> CACertificates.get_ca_certificate_by_ski()
-    |> case do
-      {:ok, db_ca} ->
-        # Mark that this CA cert was used
-        CACertificates.update_ca_certificate(db_ca, %{last_used: DateTime.utc_now()})
-
-      _ ->
-        :unknown_ca
+    # A device certificate names its signer by its AKI, which is the signing
+    # CA's SKI. Its own SKI is the device's key. Without an AKI there is
+    # nothing to look up.
+    with aki when is_binary(aki) <- Certificate.get_aki(otp_cert),
+         {:ok, db_ca} <- CACertificates.get_ca_certificate_by_ski(aki) do
+      # Mark that this CA cert was used
+      CACertificates.update_ca_certificate(db_ca, %{last_used: DateTime.utc_now()})
+    else
+      _ -> :unknown_ca
     end
   end
 
@@ -260,23 +288,23 @@ defmodule NervesHub.SSL do
       {:ok, _deleted} ->
         :ignore_deleted_device
 
+      # Deleting an org deletes its products, so this covers a CA left behind in
+      # a deleted org too.
+      _ when not is_nil(jitp.product.deleted_at) ->
+        :ignore_deleted_product
+
       _ ->
-        params = %{
-          identifier: cn,
-          org_id: org_id,
-          product_id: jitp.product_id,
-          tags: jitp.tags,
-          description: jitp.description
-        }
+        params = %{identifier: cn, tags: jitp.tags, description: jitp.description}
 
-        case Devices.create_device(params) do
-          {:ok, device} ->
-            :telemetry.execute([:nerves_hub, :devices, :jitp, :created], %{count: 1})
+        # The product must be in the CA's org. JITP settings saved before that
+        # was checked can still point at another org's product.
+        with {:ok, %{org_id: ^org_id} = product} <- Products.get_product(jitp.product_id),
+             {:ok, device} <- Devices.create_device(product, params) do
+          :telemetry.execute([:nerves_hub, :devices, :jitp, :created], %{count: 1})
 
-            {:ok, device}
-
-          _ ->
-            :device_registration_failed
+          {:ok, device}
+        else
+          _ -> :device_registration_failed
         end
     end
   end
