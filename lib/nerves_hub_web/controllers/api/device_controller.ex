@@ -16,28 +16,21 @@ defmodule NervesHubWeb.API.DeviceController do
   alias NervesHubWeb.API.PaginationHelpers
   alias NervesHubWeb.API.Plugs.RefuseDeletedDevice
   alias NervesHubWeb.Endpoint
-  alias NervesHubWeb.Helpers.RoleValidateHelpers
+  alias NervesHubWeb.Helpers.Authorization
 
   require Logger
 
-  plug(
-    :validate_role,
-    [org: :manage]
-    when action in [
-           :create,
-           :update,
-           :delete,
-           :reboot,
-           :reconnect,
-           :upgrade,
-           :penalty,
-           :move,
-           :code,
-           :bulk_import
-         ]
-  )
-
-  plug(:validate_role, [org: :view] when action in [:index, :show, :auth])
+  plug(:require_membership when action in [:index, :show, :auth])
+  plug(:require_permission, :"device:create" when action in [:create, :bulk_import])
+  plug(:require_permission, :"device:update" when action in [:update, :move])
+  plug(:require_tags_permission when action in [:update])
+  plug(:require_permission, :"device:delete" when action in [:delete])
+  plug(:require_permission, :"device:reboot" when action in [:reboot])
+  plug(:require_permission, :"device:reconnect" when action in [:reconnect])
+  plug(:require_permission, :"device:push-update" when action in [:upgrade])
+  plug(:require_permission, :"device:clear-penalty-box" when action in [:penalty])
+  # Sends keystrokes to the device's console, as someone at the console would.
+  plug(:require_permission, :"device:console" when action in [:code])
 
   plug(RefuseDeletedDevice when action in [:reboot, :reconnect, :upgrade, :penalty, :code])
 
@@ -52,7 +45,8 @@ defmodule NervesHubWeb.API.DeviceController do
   defp list_devices(conn, org, product, params, filters) do
     opts = %{
       pagination: PaginationHelpers.atomize_pagination_params(Map.get(params, "pagination", %{})),
-      filters: filters
+      filters: filters,
+      visible_to: conn.assigns.current_scope.user
     }
 
     opts =
@@ -204,12 +198,15 @@ defmodule NervesHubWeb.API.DeviceController do
     end
   end
 
-  def auth(%{assigns: %{current_scope: %{org: org}}} = conn, %{"certificate" => cert64}) do
+  def auth(%{assigns: %{current_scope: %{org: org} = scope}} = conn, %{"certificate" => cert64}) do
     with {:ok, cert_pem} <- Base.decode64(cert64),
          {:ok, cert} <- X509.Certificate.from_pem(cert_pem),
          {:ok, %DeviceCertificate{device_id: device_id}} <-
            Certificates.get_device_certificate_by_x509(cert),
-         {:ok, device} <- Devices.get_device_by_org(org, device_id) do
+         {:ok, device} <- Devices.get_device_by_org(org, device_id),
+         # A role limited to tagged devices gets the same 403 for a device it
+         # can't see as for an unknown certificate.
+         [_visible] <- Devices.get_devices_by_id(scope, [device.id]) do
       device = Devices.get_by_identifier_with_deployment_and_release!(device.identifier)
 
       conn
@@ -290,7 +287,7 @@ defmodule NervesHubWeb.API.DeviceController do
         "new_org_name" => org_name,
         "new_product_name" => product_name
       }) do
-    with {:ok, move_to_org} <- org_to_move_to(conn, org_name, user),
+    with {:ok, move_to_org} <- org_to_move_to(org_name, user),
          {:ok, product} <- Products.get_product_by_org_id_and_name(move_to_org.id, product_name) do
       case Devices.move(device, product, user) do
         {:ok, device} ->
@@ -309,20 +306,6 @@ defmodule NervesHubWeb.API.DeviceController do
     end
   end
 
-  # Moving a device needs the manage role in the org it goes to. An org that
-  # doesn't exist gets the same 401 as one the user can't manage, so the answer
-  # doesn't tell anyone which org names are taken.
-  defp org_to_move_to(conn, org_name, user) do
-    case Accounts.get_org_by_name(org_name) do
-      {:ok, org} ->
-        _ = RoleValidateHelpers.validate_org_user_role(conn, org, user, :manage)
-        {:ok, org}
-
-      {:error, :org_not_found} ->
-        raise NervesHubWeb.UnauthorizedError, required_role: "manage"
-    end
-  end
-
   # `sort_direction` arrives as a raw query param — the OpenAPI spec types it as
   # a free-form string and nothing casts it before we get here. Running it
   # through `String.to_atom/1` minted a permanent atom per distinct value, so
@@ -333,6 +316,26 @@ defmodule NervesHubWeb.API.DeviceController do
     case Map.get(params, "sort_direction") do
       "desc" -> :desc
       _ -> :asc
+    end
+  end
+
+  # Tags decide which deployment groups a device can join, and which members
+  # see it, so changing them needs its own permission.
+  defp require_tags_permission(%{params: params} = conn, _opts) do
+    if Map.has_key?(params, "tags"), do: require_permission(conn, :"device:tags"), else: conn
+  end
+
+  # Moving a device into another org adds a device there, so the user has to be
+  # able to add devices in that org too. An org that doesn't exist, or that was
+  # deleted, gets the same 401 as one the user can't add devices to, so the
+  # answer doesn't tell anyone which org names are taken.
+  defp org_to_move_to(org_name, user) do
+    with {:ok, org} <- Accounts.get_org_by_name(org_name),
+         {:ok, org_user} <- Accounts.get_org_user(org, user) do
+      Authorization.authorized!(:"device:create", org_user)
+      {:ok, org}
+    else
+      {:error, _reason} -> raise NervesHubWeb.UnauthorizedError
     end
   end
 end

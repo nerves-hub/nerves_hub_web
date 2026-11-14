@@ -3,7 +3,9 @@ defmodule NervesHubWeb.UserConsoleChannelTest do
   use AssertEventually, timeout: 1000, interval: 20
 
   alias NervesHub.Accounts
+  alias NervesHub.Accounts.OrgRoles
   alias NervesHub.Consoles.PubSub
+  alias NervesHub.Devices
   alias NervesHub.Fixtures
   alias NervesHubWeb.APISocket
   alias NervesHubWeb.UserConsoleChannel
@@ -43,6 +45,114 @@ defmodule NervesHubWeb.UserConsoleChannelTest do
                  UserConsoleChannel,
                  "user:console:identifier-#{device.identifier}"
                )
+    end
+  end
+
+  describe "a member with a custom role" do
+    test "can open a console if the role grants it", %{tmp_dir: tmp_dir} do
+      {socket, device, _role} = custom_role_member(["device:console"], tmp_dir)
+
+      assert {:ok, _reply, _channel} =
+               subscribe_and_join(socket, UserConsoleChannel, "user:console:identifier-#{device.identifier}")
+    end
+
+    test "loses an open console when the role stops granting it", %{tmp_dir: tmp_dir} do
+      {socket, device, role} = custom_role_member(["device:console", "device:reboot"], tmp_dir)
+
+      {:ok, _reply, channel} =
+        subscribe_and_join(socket, UserConsoleChannel, "user:console:identifier-#{device.identifier}")
+
+      Process.unlink(channel.channel_pid)
+      ref = Process.monitor(channel.channel_pid)
+
+      {:ok, _} = OrgRoles.update_org_role(role, %{"permissions" => ["device:reboot"]})
+
+      assert_receive {:DOWN, ^ref, :process, _pid, {:shutdown, :closed}}
+    end
+
+    test "keeps an open console when the role is edited but still grants it", %{tmp_dir: tmp_dir} do
+      {socket, device, role} = custom_role_member(["device:console"], tmp_dir)
+
+      {:ok, _reply, channel} =
+        subscribe_and_join(socket, UserConsoleChannel, "user:console:identifier-#{device.identifier}")
+
+      Process.unlink(channel.channel_pid)
+      ref = Process.monitor(channel.channel_pid)
+
+      {:ok, _} = OrgRoles.update_org_role(role, %{"name" => "Renamed"})
+
+      refute_receive {:DOWN, ^ref, :process, _pid, _reason}, 100
+    end
+
+    test "can't open a console on a device the role's tags don't match", %{tmp_dir: tmp_dir} do
+      {socket, device, _role} = custom_role_member(["device:console"], tmp_dir, %{device_tags: ["support"]})
+
+      assert {:error, %{reason: "unauthorized"}} =
+               subscribe_and_join(socket, UserConsoleChannel, "user:console:identifier-#{device.identifier}")
+    end
+
+    test "can't open a console otherwise", %{tmp_dir: tmp_dir} do
+      {socket, device, _role} = custom_role_member(["device:reboot"], tmp_dir)
+
+      assert {:error, %{reason: "unauthorized"}} =
+               subscribe_and_join(socket, UserConsoleChannel, "user:console:identifier-#{device.identifier}")
+    end
+  end
+
+  describe "when access changes while the console is open" do
+    setup %{tmp_dir: tmp_dir} do
+      user = Fixtures.user_fixture()
+      device = device_fixture(user, %{identifier: "watched-device", tags: ["support"]}, tmp_dir)
+      {:ok, org} = Accounts.get_org(device.org_id)
+      role = Fixtures.org_role_fixture(org, %{device_tags: ["support"], permissions: ["device:console"]})
+      {:ok, org_user} = Accounts.get_org_user(org, user)
+      {:ok, org_user} = Accounts.change_org_user_role(org_user, role)
+      {:ok, socket} = connect(APISocket, %{"token" => Accounts.create_user_api_token(user, "test-token")})
+
+      {:ok, _reply, channel} =
+        subscribe_and_join(socket, UserConsoleChannel, "user:console:identifier-#{device.identifier}")
+
+      # The channel stops itself; the test only wants to see it go.
+      Process.unlink(channel.channel_pid)
+      ref = Process.monitor(channel.channel_pid)
+
+      %{device: device, role: role, org_user: org_user, ref: ref}
+    end
+
+    test "closes when the device's tags stop matching the role", %{device: device, ref: ref} do
+      {:ok, _} = Devices.update_device(device, %{tags: ["production"]})
+
+      assert_receive {:DOWN, ^ref, :process, _pid, {:shutdown, :closed}}, 1_000
+    end
+
+    test "closes when the tags change through the device's settings", %{device: device, ref: ref} do
+      {:ok, _} = Devices.update_device_settings(device, %{"tags" => "production"}, Fixtures.user_fixture())
+
+      assert_receive {:DOWN, ^ref, :process, _pid, {:shutdown, :closed}}, 1_000
+    end
+
+    test "stays open when the device still matches", %{device: device, ref: ref} do
+      {:ok, _} = Devices.update_device(device, %{tags: ["support", "bench"]})
+
+      refute_receive {:DOWN, ^ref, :process, _pid, _reason}, 300
+    end
+
+    test "closes when the role stops covering the device", %{role: role, ref: ref} do
+      {:ok, _} = Accounts.OrgRoles.update_org_role(role, %{"device_tags" => "eu"})
+
+      assert_receive {:DOWN, ^ref, :process, _pid, {:shutdown, :closed}}, 1_000
+    end
+
+    test "closes when the role loses the console permission", %{role: role, ref: ref} do
+      {:ok, _} = Accounts.OrgRoles.update_org_role(role, %{"permissions" => ["device:reboot"]})
+
+      assert_receive {:DOWN, ^ref, :process, _pid, {:shutdown, :closed}}, 1_000
+    end
+
+    test "closes when the member is given a role without it", %{org_user: org_user, ref: ref} do
+      {:ok, _} = Accounts.change_org_user_role(org_user, :view)
+
+      assert_receive {:DOWN, ^ref, :process, _pid, {:shutdown, :closed}}, 1_000
     end
   end
 
@@ -203,6 +313,19 @@ defmodule NervesHubWeb.UserConsoleChannelTest do
 
       refute_receive {:DOWN, ^ref, :process, _pid, _reason}, 100
     end
+  end
+
+  defp custom_role_member(permissions, tmp_dir, role_params \\ %{}) do
+    user = Fixtures.user_fixture()
+    device = device_fixture(user, %{identifier: "custom-role-device"}, tmp_dir)
+    {:ok, org} = Accounts.get_org(device.org_id)
+    role = Fixtures.org_role_fixture(org, Map.put(role_params, :permissions, permissions))
+    {:ok, org_user} = Accounts.get_org_user(org, user)
+    {:ok, _} = Accounts.change_org_user_role(org_user, role)
+
+    {:ok, socket} = connect(APISocket, %{"token" => Accounts.create_user_api_token(user, "test-token")})
+
+    {socket, device, role}
   end
 
   defp device_fixture(user, device_params, tmp_dir) do

@@ -37,6 +37,7 @@ defmodule NervesHubWeb.Integrations.Slack.Actions do
   alias NervesHub.Branding
   alias NervesHub.DeviceEvents
   alias NervesHub.Devices.Device
+  alias NervesHub.Devices.Visibility
   alias NervesHub.Integrations.Slack.Claims
   alias NervesHub.Integrations.Slack.Client
   alias NervesHub.Integrations.Slack.Connection
@@ -217,8 +218,9 @@ defmodule NervesHubWeb.Integrations.Slack.Actions do
 
   The checks, made fresh each time: the Slack user linked a NervesHub
   account, the device exists, its organization is connected to the
-  workspace the request came from, and the NervesHub user is a member there
-  whose role has `permission`. Shared by buttons and slash commands
+  workspace the request came from, the NervesHub user is a member there
+  whose role has `permission`, and the role lets them see the device (see
+  `NervesHub.Devices.Visibility`). Shared by buttons and slash commands
   (`NervesHubWeb.Integrations.Slack.Commands`).
   """
   @spec authorize(String.t(), String.t(), String.t(), atom(), String.t()) ::
@@ -226,12 +228,20 @@ defmodule NervesHubWeb.Integrations.Slack.Actions do
   def authorize(team_id, slack_user_id, identifier, permission, what) do
     with {:user, %Accounts.User{} = user} <- {:user, Users.use_link(team_id, slack_user_id)},
          {:device, %Device{} = device} <- {:device, device(identifier)},
-         :ok <- authorize_in(team_id, user, device.org, permission, what, escape(identifier)) do
+         :ok <- authorize_in(team_id, user, device.org, permission, what, escape(identifier)),
+         {:device, true} <- {:device, visible?(device, user)} do
       {:ok, user, device}
     else
-      {:user, nil} -> {:error, :not_linked, link_message(team_id)}
-      {:device, nil} -> {:error, :no_device, "#{escape(identifier)} is not in #{platform()}."}
-      {:error, _reason, _message} = error -> error
+      {:user, nil} ->
+        {:error, :not_linked, link_message(team_id)}
+
+      # A device the member's role is limited away from answers as one that
+      # doesn't exist.
+      {:device, missing} when missing in [nil, false] ->
+        {:error, :no_device, "#{escape(identifier)} is not in #{platform()}."}
+
+      {:error, _reason, _message} = error ->
+        error
     end
   end
 
@@ -248,7 +258,7 @@ defmodule NervesHubWeb.Integrations.Slack.Actions do
   def authorize_in(team_id, %Accounts.User{} = user, %Org{} = org, permission, what, subject) do
     with {:connected, true} <- {:connected, connected?(org.id, team_id)},
          {:member, {:ok, org_user}} <- {:member, Accounts.get_org_user(org, user)},
-         {:allowed, true} <- {:allowed, is_nil(permission) or Authorization.authorized?(permission, org_user.role)} do
+         {:allowed, true} <- {:allowed, is_nil(permission) or Authorization.authorized?(permission, org_user)} do
       :ok
     else
       {:connected, false} ->
@@ -310,6 +320,13 @@ defmodule NervesHubWeb.Integrations.Slack.Actions do
     |> join(:inner, [d], o in Org, on: o.id == d.org_id and is_nil(o.deleted_at))
     |> preload([:latest_connection, :org])
     |> Repo.one()
+  end
+
+  defp visible?(device, user) do
+    Device
+    |> where(id: ^device.id)
+    |> Visibility.where_visible(user)
+    |> Repo.exists?()
   end
 
   defp connected?(org_id, team_id) do

@@ -14,7 +14,7 @@
       </div>
 
       <div class="flex items-center gap-2">
-        <.button type="link" href={~p"/org/#{@current_scope.org}/#{@product}/archives/#{@archive}/download"} download>
+        <.button :if={authorized?(:"archive:download", @current_scope)} type="link" href={~p"/org/#{@current_scope.org}/#{@product}/archives/#{@archive}/download"} download>
           <.icon name="download" />Download
         </.button>
 

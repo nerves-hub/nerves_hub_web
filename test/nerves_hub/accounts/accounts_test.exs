@@ -64,35 +64,6 @@ defmodule NervesHub.AccountsTest do
     refute is_nil(Repo.reload(org).deleted_at)
   end
 
-  describe "has_org_role?/3" do
-    setup %{user: user} do
-      {:ok, org} = Accounts.create_org(user, %{name: "An_Org"})
-      member = Fixtures.user_fixture()
-      {:ok, _org_user} = Accounts.add_org_user(org, member, %{role: :manage})
-
-      %{org: org, member: member}
-    end
-
-    test "holds up to the member's role", %{org: org, member: member} do
-      assert Accounts.has_org_role?(org, member, :view)
-      assert Accounts.has_org_role?(org, member, :manage)
-      refute Accounts.has_org_role?(org, member, :admin)
-    end
-
-    test "is false for a removed member", %{org: org, member: member} do
-      :ok = Accounts.remove_org_user(org, member)
-
-      refute Accounts.has_org_role?(org, member, :view)
-    end
-
-    test "is false once the org is deleted, though the membership remains", %{org: org, member: member} do
-      {:ok, _org} = Accounts.soft_delete_org(org)
-
-      assert {:ok, %OrgUser{}} = Accounts.get_org_user(org, member)
-      refute Accounts.has_org_role?(org, member, :view)
-    end
-  end
-
   describe "org_ids_with_role/2" do
     test "lists only current orgs where the member holds the role", %{user: user} do
       member = Fixtures.user_fixture()
@@ -867,7 +838,7 @@ defmodule NervesHub.AccountsTest do
     end
   end
 
-  describe "org_counts/1" do
+  describe "org_counts/2" do
     test "counts an org's products, devices, members, signing keys and certificate authorities", %{user: user} do
       org = Fixtures.org_fixture(user)
       product = Fixtures.product_fixture(user, org)
@@ -880,7 +851,21 @@ defmodule NervesHub.AccountsTest do
       other = Fixtures.org_fixture(user)
       _ = Fixtures.product_fixture(user, other)
 
-      assert Accounts.org_counts(org) == %{products: 1, devices: 2, members: 2, signing_keys: 1, certificates: 1}
+      assert Accounts.org_counts(org, user) == %{products: 1, devices: 2, members: 2, signing_keys: 1, certificates: 1}
+    end
+
+    test "counts only the devices a role limited to tags can see", %{user: user} do
+      org = Fixtures.org_fixture(user)
+      product = Fixtures.product_fixture(user, org)
+      {:ok, _} = Devices.create_device(product, %{identifier: "tagged", tags: ["support"]})
+      {:ok, _} = Devices.create_device(product, %{identifier: "untagged"})
+
+      member = Fixtures.user_fixture()
+      role = Fixtures.org_role_fixture(org, %{device_tags: ["support"]})
+      {:ok, _} = Accounts.add_org_user(org, member, %{org_role_id: role.id})
+
+      assert %{devices: 1} = Accounts.org_counts(org, member)
+      assert %{devices: 2} = Accounts.org_counts(org, user)
     end
   end
 

@@ -72,7 +72,24 @@ when adding or removing one.
 ### `lib/nerves_hub/` (contexts)
 
 - `accounts.ex` / `accounts/` — users, orgs, org-users, tokens, scopes, and
-  the orgs each user stars on the home page (`Accounts.Starring`).
+  roles, and the orgs each user stars on the home page (`Accounts.Starring`).
+  `accounts/permissions.ex` is the catalog of every permission a member
+  can hold and which built-in role (`admin`, `manage`, `view`) first gets it.
+  An org can also define its own roles (`OrgRole`, managed through
+  `accounts/org_roles.ex`), each a set of permissions from that catalog; a
+  member holds a built-in role or a custom one, never both. A new
+  `authorized?/2` check needs its permission added to the catalog first — an
+  unknown permission raises rather than quietly denying. Controllers check the
+  same permissions with `plug(:require_permission, :"firmware:upload" when
+  action in [:create])`, and read-only actions with `plug(:require_membership)`
+  (`helpers/permission_plugs.ex`).
+- A custom role can be limited to devices with certain tags. Its members see
+  only those devices, so **every device query a user can reach must go through
+  `NervesHub.Devices.Visibility.where_visible/2`**, which checks the member's
+  role in SQL. Pages and endpoints built from all of a product's devices
+  (Insights, deployment groups, firmware, ...) are closed to them instead:
+  `on_mount(NervesHubWeb.Mounts.RequireEveryDevice)` for LiveViews,
+  `plug(:require_every_device)` for controllers.
 - `devices.ex` / `devices/` — device lifecycle, connections, health status
   (judged off the report path: reports queue an evaluation per device on a
   per-node `HealthEvaluation.Queue` with a fixed number of workers, so a slow

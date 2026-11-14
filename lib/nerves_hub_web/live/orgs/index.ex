@@ -24,6 +24,7 @@ defmodule NervesHubWeb.Live.Orgs.Index do
   import NervesHubWeb.Components.Fleet
 
   alias NervesHub.Accounts
+  alias NervesHub.Accounts.Scope
   alias NervesHub.Accounts.Starring
   alias NervesHub.Devices
   alias NervesHub.Devices.Pinning
@@ -134,7 +135,16 @@ defmodule NervesHubWeb.Live.Orgs.Index do
 
   defp assign_home(%{assigns: %{current_scope: scope}} = socket) do
     orgs = load_orgs(scope)
-    product_ids = for entry <- orgs, %{product: product} <- entry.products, do: product.id
+
+    # Health, updates, deployment groups and approvals are figures over all of
+    # a product's devices, so products in an org where the user's role is
+    # limited to tagged devices are left out of them.
+    product_ids =
+      for entry <- orgs,
+          not Scope.devices_limited?(Scope.put_role(scope, entry.role)),
+          %{product: product} <- entry.products,
+          do: product.id
+
     pinned_devices = Pinning.get_pinned_devices(scope)
 
     statuses =
@@ -169,7 +179,7 @@ defmodule NervesHubWeb.Live.Orgs.Index do
   defp load_orgs(scope) do
     orgs_with_roles = Accounts.get_orgs_with_roles(scope)
     product_ids = for {org, _role} <- orgs_with_roles, product <- org.products, do: product.id
-    device_counts = Devices.count_by_product(product_ids)
+    device_counts = Devices.count_by_product(product_ids, scope.user)
     member_counts = Accounts.count_org_users_by_org(Enum.map(orgs_with_roles, fn {org, _} -> org.id end))
 
     orgs_with_roles

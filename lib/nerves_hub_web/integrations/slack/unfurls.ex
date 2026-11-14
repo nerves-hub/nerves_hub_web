@@ -28,6 +28,7 @@ defmodule NervesHubWeb.Integrations.Slack.Unfurls do
   """
 
   alias NervesHub.Accounts
+  alias NervesHub.Accounts.OrgUser
   alias NervesHub.Accounts.Scope
   alias NervesHub.Accounts.User
   alias NervesHub.Devices
@@ -163,6 +164,10 @@ defmodule NervesHubWeb.Integrations.Slack.Unfurls do
   defp preview(team_id, user, {:deployment_group, org_name, product_name, name}) do
     with {:ok, org} <- Accounts.get_org_by_name(org_name),
          :ok <- Actions.authorize_in(team_id, user, org, nil, "see deployment groups", "the link"),
+         # Deployment group pages are closed to a role limited to tagged
+         # devices, so their previews are too.
+         {:ok, org_user} <- Accounts.get_org_user(org, user),
+         false <- Scope.devices_limited?(Scope.put_role(Scope.for_user(user), OrgUser.assigned_role(org_user))),
          {:ok, product} <- Products.get_product_by_org_id_and_name(org.id, product_name),
          {:ok, deployment_group} <- ManagedDeployments.get_deployment_group_by_name(product, name) do
       {:ok, %{blocks: deployment_group_blocks(deployment_group)}}

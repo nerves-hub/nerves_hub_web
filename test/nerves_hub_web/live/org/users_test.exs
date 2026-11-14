@@ -196,6 +196,76 @@ defmodule NervesHubWeb.Live.Org.UsersTest do
     end
   end
 
+  describe "custom roles" do
+    test "a member can be given one of the org's roles", %{conn: conn, org: org} do
+      Fixtures.org_role_fixture(org, %{name: "Release Manager"})
+      {:ok, org_user} = Accounts.add_org_user(org, Fixtures.user_fixture(), %{role: :view})
+
+      conn
+      |> visit("/org/#{org.name}/settings/users/#{org_user.user_id}/edit")
+      |> select("Role", option: "Release Manager")
+      |> click_button("Update")
+      |> assert_has("div", text: "Role updated")
+      |> assert_has("#member-#{org_user.user_id} option[selected]", text: "Release Manager")
+
+      assert {:ok, %{role: nil, org_role: %{name: "Release Manager"}}} = Accounts.get_org_user(org, org_user.user_id)
+    end
+
+    test "the edit form starts on the member's custom role", %{conn: conn, org: org} do
+      role = Fixtures.org_role_fixture(org, %{name: "Release Manager"})
+      {:ok, org_user} = Accounts.add_org_user(org, Fixtures.user_fixture(), %{org_role_id: role.id})
+
+      conn
+      |> visit("/org/#{org.name}/settings/users/#{org_user.user_id}/edit")
+      |> assert_has("option[selected]", text: "Release Manager")
+    end
+
+    test "an invite can offer one of the org's roles", %{conn: conn, org: org} do
+      role = Fixtures.org_role_fixture(org, %{name: "Release Manager"})
+
+      conn
+      |> visit("/org/#{org.name}/settings/users/invite")
+      |> fill_in("Email", with: "josh@mrjosh.com")
+      |> select("Role", option: "Release Manager", exact: false)
+      |> click_button("Send Invitation")
+      |> assert_has("div", text: "User has been invited")
+      |> assert_has("#invites", text: "Invited as Release Manager")
+
+      assert [%{role: nil, org_role_id: org_role_id}] = Accounts.get_invites_for_org(org)
+      assert org_role_id == role.id
+    end
+
+    test "the members list's role menu can give one of the org's roles", %{conn: conn, org: org} do
+      role = Fixtures.org_role_fixture(org, %{name: "Release Manager"})
+      {:ok, org_user} = Accounts.add_org_user(org, Fixtures.user_fixture(), %{role: :view})
+
+      conn
+      |> visit("/org/#{org.name}/settings/users")
+      |> within("#role-form-#{org_user.user_id}", fn session ->
+        select(session, "Role for #{org_user.user.name}", option: "Release Manager")
+      end)
+      |> assert_has("div", text: "#{org_user.user.name} is now Release Manager")
+
+      assert {:ok, %{role: nil, org_role_id: org_role_id}} = Accounts.get_org_user(org, org_user.user_id)
+      assert org_role_id == role.id
+    end
+
+    test "the members list's role menu can't give another org's role", %{conn: conn, org: org} do
+      other_org = Fixtures.org_fixture(Fixtures.user_fixture(), %{name: "OtherOrg"})
+      other_role = Fixtures.org_role_fixture(other_org, %{name: "Elsewhere"})
+      {:ok, org_user} = Accounts.add_org_user(org, Fixtures.user_fixture(), %{role: :view})
+
+      conn
+      |> visit("/org/#{org.name}/settings/users")
+      |> unwrap(
+        &render_change(&1, "change_role", %{"user_id" => org_user.user_id, "role" => "custom:#{other_role.id}"})
+      )
+      |> assert_has("div", text: "Error updating role")
+
+      assert {:ok, %{role: :view, org_role_id: nil}} = Accounts.get_org_user(org, org_user.user_id)
+    end
+  end
+
   describe "invites" do
     test "sends invite to user if they aren't registered", %{conn: conn, org: org} do
       conn
