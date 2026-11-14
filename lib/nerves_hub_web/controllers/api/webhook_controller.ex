@@ -26,7 +26,11 @@ defmodule NervesHubWeb.API.WebhookController do
 
   @auth_error_responses SchemaHelpers.auth_error_responses()
 
-  plug(:validate_role, org: :manage)
+  # A webhook's URL can carry a token, so, as in the web UI, only members who
+  # can edit webhooks see them.
+  plug(:require_permission, :"webhook:update" when action in [:index, :show, :update, :regenerate_secret, :send_test])
+  plug(:require_permission, :"webhook:create" when action in [:create])
+  plug(:require_permission, :"webhook:delete" when action in [:delete])
 
   @org_path_parameters [
     org_name: [in: :path, description: "Organization Name", type: :string, example: "example_org"]
