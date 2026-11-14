@@ -238,15 +238,16 @@ defmodule NervesHub.Devices do
   end
 
   @doc """
-  How many devices each of the given products has. A product with none is left
-  out of the map.
+  How many of the given products' devices `user` can see, by product. A
+  product with none is left out of the map.
   """
-  @spec count_by_product([pos_integer()]) :: %{pos_integer() => pos_integer()}
-  def count_by_product([]), do: %{}
+  @spec count_by_product([pos_integer()], User.t()) :: %{pos_integer() => pos_integer()}
+  def count_by_product([], _user), do: %{}
 
-  def count_by_product(product_ids) when is_list(product_ids) do
+  def count_by_product(product_ids, %User{} = user) when is_list(product_ids) do
     Device
     |> where([d], d.product_id in ^product_ids)
+    |> Visibility.where_visible(user)
     |> Repo.exclude_deleted()
     |> group_by([d], d.product_id)
     |> select([d], {d.product_id, count(d.id)})

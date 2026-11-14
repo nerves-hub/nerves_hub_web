@@ -838,7 +838,7 @@ defmodule NervesHub.AccountsTest do
     end
   end
 
-  describe "org_counts/1" do
+  describe "org_counts/2" do
     test "counts an org's products, devices, members, signing keys and certificate authorities", %{user: user} do
       org = Fixtures.org_fixture(user)
       product = Fixtures.product_fixture(user, org)
@@ -851,7 +851,21 @@ defmodule NervesHub.AccountsTest do
       other = Fixtures.org_fixture(user)
       _ = Fixtures.product_fixture(user, other)
 
-      assert Accounts.org_counts(org) == %{products: 1, devices: 2, members: 2, signing_keys: 1, certificates: 1}
+      assert Accounts.org_counts(org, user) == %{products: 1, devices: 2, members: 2, signing_keys: 1, certificates: 1}
+    end
+
+    test "counts only the devices a role limited to tags can see", %{user: user} do
+      org = Fixtures.org_fixture(user)
+      product = Fixtures.product_fixture(user, org)
+      {:ok, _} = Devices.create_device(product, %{identifier: "tagged", tags: ["support"]})
+      {:ok, _} = Devices.create_device(product, %{identifier: "untagged"})
+
+      member = Fixtures.user_fixture()
+      role = Fixtures.org_role_fixture(org, %{device_tags: ["support"]})
+      {:ok, _} = Accounts.add_org_user(org, member, %{org_role_id: role.id})
+
+      assert %{devices: 1} = Accounts.org_counts(org, member)
+      assert %{devices: 2} = Accounts.org_counts(org, user)
     end
   end
 

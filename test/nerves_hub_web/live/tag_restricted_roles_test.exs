@@ -76,6 +76,17 @@ defmodule NervesHubWeb.Live.TagRestrictedRolesTest do
     assert products[product.id] == {0, 1}
   end
 
+  test "the organization's pages count only the devices the role can see", %{conn: conn, org: org} do
+    conn
+    |> visit("/org/#{org.name}")
+    |> assert_has("#org-summary", text: "1 device")
+    |> refute_has("#org-summary", text: "2 devices")
+
+    conn
+    |> visit("/orgs")
+    |> refute_has("*", text: "2 devices")
+  end
+
   test "the command palette offers only visible devices, and no deployment groups or firmware", %{
     user: user,
     org: org,

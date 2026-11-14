@@ -4185,18 +4185,28 @@ defmodule NervesHub.DevicesTest do
     }
   end
 
-  describe "count_by_product/1" do
+  describe "count_by_product/2" do
     test "counts each product's devices, leaving out deleted ones", context do
       %{user: user, org: org, product: product, device: device} = context
 
       other_product = Fixtures.product_fixture(user, org)
       {:ok, _} = Devices.delete_device(device)
 
-      assert Devices.count_by_product([product.id, other_product.id]) == %{product.id => 2}
+      assert Devices.count_by_product([product.id, other_product.id], user) == %{product.id => 2}
     end
 
-    test "is empty for no products" do
-      assert Devices.count_by_product([]) == %{}
+    test "counts only the devices a role limited to tags can see", %{org: org, product: product, device: device} do
+      {:ok, _} = Devices.update_device(device, %{tags: ["support"]})
+
+      member = Fixtures.user_fixture()
+      role = Fixtures.org_role_fixture(org, %{device_tags: ["support"]})
+      {:ok, _} = Accounts.add_org_user(org, member, %{org_role_id: role.id})
+
+      assert Devices.count_by_product([product.id], member) == %{product.id => 1}
+    end
+
+    test "is empty for no products", %{user: user} do
+      assert Devices.count_by_product([], user) == %{}
     end
   end
 end

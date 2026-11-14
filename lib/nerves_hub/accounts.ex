@@ -578,18 +578,26 @@ defmodule NervesHub.Accounts do
   How many products, devices, members, signing keys and certificate
   authorities an organization has. Every organization page shows these in its
   header and tabs.
+
+  Only the devices `user` can see are counted, so a role limited to tagged
+  devices isn't told how many others there are.
   """
-  @spec org_counts(Org.t()) :: %{
+  @spec org_counts(Org.t(), User.t()) :: %{
           products: non_neg_integer(),
           devices: non_neg_integer(),
           members: non_neg_integer(),
           signing_keys: non_neg_integer(),
           certificates: non_neg_integer()
         }
-  def org_counts(%Org{id: org_id}) do
+  def org_counts(%Org{id: org_id}, %User{} = user) do
     %{
       products: Product |> where(org_id: ^org_id) |> Repo.exclude_deleted() |> Repo.aggregate(:count),
-      devices: Device |> where(org_id: ^org_id) |> Repo.exclude_deleted() |> Repo.aggregate(:count),
+      devices:
+        Device
+        |> where(org_id: ^org_id)
+        |> Visibility.where_visible(user)
+        |> Repo.exclude_deleted()
+        |> Repo.aggregate(:count),
       members: OrgUser |> where(org_id: ^org_id) |> Repo.exclude_deleted() |> Repo.aggregate(:count),
       signing_keys: OrgKey |> where(org_id: ^org_id) |> Repo.aggregate(:count),
       certificates: CACertificate |> where(org_id: ^org_id) |> Repo.aggregate(:count)
