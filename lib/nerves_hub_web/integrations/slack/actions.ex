@@ -248,7 +248,7 @@ defmodule NervesHubWeb.Integrations.Slack.Actions do
   def authorize_in(team_id, %Accounts.User{} = user, %Org{} = org, permission, what, subject) do
     with {:connected, true} <- {:connected, connected?(org.id, team_id)},
          {:member, {:ok, org_user}} <- {:member, Accounts.get_org_user(org, user)},
-         {:allowed, true} <- {:allowed, is_nil(permission) or Authorization.authorized?(permission, org_user.role)} do
+         {:allowed, true} <- {:allowed, is_nil(permission) or Authorization.authorized?(permission, org_user)} do
       :ok
     else
       {:connected, false} ->

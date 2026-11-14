@@ -22,7 +22,7 @@
         <div class="flex min-w-0 flex-1 basis-56 flex-col gap-0.5">
           <p class="truncate text-sm font-medium text-content-strong">{invite.email}</p>
           <p class="text-xs text-content-muted">
-            Invited as {role_label(invite.role)}<span :if={invited_by_name(invite)}> by {invited_by_name(invite)}</span>
+            Invited as {Utils.role_name(invite)}<span :if={invited_by_name(invite)}> by {invited_by_name(invite)}</span>
             <span class="text-content-faint">·</span> {from_now(invite.inserted_at)}
           </p>
         </div>
@@ -120,11 +120,11 @@
                   name="role"
                   class="-ml-2 h-7 w-auto rounded border-0 bg-transparent py-0 pr-7 pl-2 text-[13px] text-content-body hover:cursor-pointer hover:bg-surface-muted focus:ring-2 focus:ring-focus-ring"
                 >
-                  {Phoenix.HTML.Form.options_for_select(Utils.role_options(), org_user.role)}
+                  {Phoenix.HTML.Form.options_for_select(Utils.role_options(@custom_roles), Utils.role_choice(org_user))}
                 </select>
               </form>
             <% else %>
-              <span class="text-[13px] text-content-body">{role_label(org_user.role)}</span>
+              <span class="text-[13px] text-content-body">{Utils.role_name(org_user)}</span>
             <% end %>
           </div>
 

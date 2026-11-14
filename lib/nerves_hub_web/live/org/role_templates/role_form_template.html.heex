@@ -1,0 +1,104 @@
+<NervesHubWeb.Layouts.org flash={@flash} current_scope={@current_scope} tab={@sidebar_tab} counts={@org_counts}>
+  <div class="flex max-w-[750px] flex-col gap-6">
+    <NervesHubWeb.Layouts.org_heading
+      title={if @live_action == :new, do: "New role", else: "Edit #{@role.name}"}
+      back={~p"/org/#{@org}/settings/roles"}
+      back_label="Back to roles"
+    />
+
+    <.form :let={f} id="role-form" for={@form} phx-change="validate" phx-submit="save">
+      <div class="mb-4">
+        <label for="name_input" class="mb-2 block text-sm font-medium text-content-body">Name</label>
+        <input
+          type="text"
+          id="name_input"
+          name={f[:name].name}
+          value={f[:name].value}
+          phx-debounce="blur"
+          class="w-60 rounded border border-line-default bg-base-900 px-3 py-2 text-sm text-content-strong focus:ring-2 focus:ring-focus-ring focus:outline-none"
+        />
+        <div class="mt-1 text-sm text-alert-content"><.field_errors field={f[:name]} /></div>
+      </div>
+
+      <div class="mb-6">
+        <label for="description_input" class="mb-2 block text-sm font-medium text-content-body">
+          Description <span class="ml-2 text-xs text-content-faint">(Optional)</span>
+        </label>
+        <input
+          type="text"
+          id="description_input"
+          name={f[:description].name}
+          value={f[:description].value}
+          phx-debounce="blur"
+          class="w-full rounded border border-line-default bg-base-900 px-3 py-2 text-sm text-content-strong focus:ring-2 focus:ring-focus-ring focus:outline-none"
+        />
+        <div class="mt-1 text-sm text-alert-content"><.field_errors field={f[:description]} /></div>
+      </div>
+
+      <div class="mb-4 flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <h3 class="text-group-title text-content-strong">Permissions</h3>
+          <p class="text-sm text-content-muted">
+            Every member can view the organization's products, devices and network identities.
+          </p>
+          <p class="text-sm text-content-muted">
+            Pick what this role can change.
+          </p>
+        </div>
+        <div>
+          <label for="copy_from_input" class="mb-1 block text-xs font-medium text-content-body">Copy permissions from</label>
+          <select
+            id="copy_from_input"
+            name="org_role[copy_from]"
+            class="rounded border border-line-default bg-base-900 px-3 py-1.5 text-sm text-content-strong focus:ring-2 focus:ring-focus-ring focus:outline-none"
+          >
+            <option value="">Choose a role</option>
+            <optgroup label="Built-in roles">
+              <option value="manage">Manage</option>
+            </optgroup>
+            <optgroup :if={@roles_to_copy != []} label="Custom roles">
+              <option :for={role <- @roles_to_copy} value={"custom:#{role.id}"}>{role.name}</option>
+            </optgroup>
+          </select>
+        </div>
+      </div>
+      <div class="mb-2 text-sm text-alert-content"><.field_errors field={f[:permissions]} /></div>
+
+      <input type="hidden" name="org_role[permissions][]" value="" />
+
+      <fieldset :for={{group, permissions} <- offered_groups()} class="mb-6">
+        <legend class="mb-2 text-sm font-semibold text-content-strong">{group}</legend>
+        <div class="overflow-hidden rounded-lg border border-line-default bg-surface-raised shadow-card">
+          <label
+            :for={permission <- permissions}
+            for={"permission-#{permission.name}"}
+            class="flex cursor-pointer items-center gap-3 border-b border-line-subtle px-4 py-2.5 text-sm last:border-0"
+          >
+            <input
+              type="checkbox"
+              id={"permission-#{permission.name}"}
+              name="org_role[permissions][]"
+              value={permission.name}
+              checked={checked?(f, permission.name)}
+              class="rounded border-line-strong text-primary focus:ring-0"
+            />
+            <span class="text-content-body">{permission.description}</span>
+          </label>
+        </div>
+      </fieldset>
+
+      <p class="mb-6 text-sm text-content-faint">
+        Managing the organization, its members, its roles and its Slack workspaces stays with the built-in Admin role.
+      </p>
+
+      <div class="flex gap-3">
+        <.button style="primary" type="submit">
+          {if @live_action == :new, do: "Create role", else: "Save role"}
+        </.button>
+        <.button type="link" navigate={~p"/org/#{@org}/settings/roles"}>
+          Cancel
+        </.button>
+      </div>
+    </.form>
+  </div>
+</NervesHubWeb.Layouts.org>

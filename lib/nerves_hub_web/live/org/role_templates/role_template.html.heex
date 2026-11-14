@@ -1,0 +1,25 @@
+<NervesHubWeb.Layouts.org flash={@flash} current_scope={@current_scope} tab={@sidebar_tab} counts={@org_counts}>
+  <div class="flex max-w-[750px] flex-col gap-6">
+    <NervesHubWeb.Layouts.org_heading title={Utils.role_name(@role)} back={~p"/org/#{@org}/settings/roles"} back_label="Back to roles">
+      {if is_atom(@role), do: built_in_description(@role), else: @role.description}
+      <:actions>
+        <span :if={is_atom(@role)} class="inline-flex items-center rounded bg-surface-muted px-1.5 text-[11px]/4.5 font-medium text-content-muted">Built-in</span>
+        <.button :if={is_struct(@role, OrgRole) && authorized?(:"org_role:update", @current_scope)} type="link" navigate={~p"/org/#{@org}/settings/roles/#{@role.id}/edit"}>
+          <span class="lucide-pencil size-3.5" aria-hidden="true"></span> Edit role
+        </.button>
+      </:actions>
+    </NervesHubWeb.Layouts.org_heading>
+
+    <section :for={{group, permissions} <- Permissions.grouped()} class="flex flex-col gap-2">
+      <h3 class="text-sm font-semibold text-content-strong">{group}</h3>
+      <ul class="overflow-hidden rounded-lg border border-line-default bg-surface-raised shadow-card">
+        <li :for={permission <- permissions} id={"permission-#{permission.name}"} class="flex items-center gap-3 border-b border-line-subtle px-4 py-2.5 text-sm last:border-0">
+          <span :if={permission.name in @granted} class="lucide-check size-4 text-success" aria-label="Granted"></span>
+          <span :if={permission.name not in @granted} class="lucide-minus size-4 text-content-faint" aria-label="Not granted"></span>
+          <span class={if permission.name in @granted, do: "text-content-body", else: "text-content-faint"}>{permission.description}</span>
+          <span :if={permission.custom_roles == :never && is_struct(@role, OrgRole)} class="ml-auto text-xs text-content-faint">Admin only</span>
+        </li>
+      </ul>
+    </section>
+  </div>
+</NervesHubWeb.Layouts.org>

@@ -3,10 +3,12 @@ defmodule NervesHubWeb.DownloadController do
 
   alias NervesHub.Archives
   alias NervesHub.Firmwares
+  alias NervesHubWeb.Helpers.Authorization
 
-  plug(:validate_role, [org: :view] when action in [:archive])
-  # Matches `:"firmware:download"` and the API's firmware download.
-  plug(:validate_role, [org: :manage] when action in [:firmware])
+  # The permissions the archive and firmware pages' download buttons check,
+  # so a custom role that grants one can use its button.
+  plug(:require_permission, [permission: :"archive:download"] when action in [:archive])
+  plug(:require_permission, [permission: :"firmware:download"] when action in [:firmware])
 
   def archive(%{assigns: %{current_scope: scope}} = conn, %{"uuid" => uuid}) do
     case Archives.get(scope.product, uuid) do
@@ -28,6 +30,11 @@ defmodule NervesHubWeb.DownloadController do
       {:error, :not_found} ->
         raise NervesHubWeb.NotFoundError
     end
+  end
+
+  defp require_permission(%{assigns: %{current_scope: scope}} = conn, permission: permission) do
+    Authorization.authorized!(permission, scope)
+    conn
   end
 
   defp firmware_uploader(), do: Application.get_env(:nerves_hub, :firmware_upload)

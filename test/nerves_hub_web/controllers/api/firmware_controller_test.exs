@@ -15,6 +15,25 @@ defmodule NervesHubWeb.API.FirmwareControllerTest do
       conn = get(conn, path)
       assert json_response(conn, 200)["data"] == []
     end
+
+    # The API checks built-in role levels rather than permissions, so a custom
+    # role counts as a member there and no more, whatever it grants.
+    test "a member with a custom role can list firmware, but not upload it", %{
+      conn2: conn2,
+      org: org,
+      product: product,
+      user2: user2
+    } do
+      role = Fixtures.org_role_fixture(org, %{permissions: ["firmware:upload"]})
+      {:ok, _} = Accounts.add_org_user(org, user2, %{org_role_id: role.id})
+
+      conn = get(conn2, Routes.api_firmware_path(conn2, :index, org.name, product.name))
+      assert json_response(conn, 200)["data"] == []
+
+      assert_error_sent(401, fn ->
+        post(conn2, Routes.api_firmware_path(conn2, :create, org.name, product.name))
+      end)
+    end
   end
 
   describe "create firmware - error paths" do

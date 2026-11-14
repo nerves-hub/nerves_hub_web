@@ -1,0 +1,88 @@
+<NervesHubWeb.Layouts.org flash={@flash} current_scope={@current_scope} tab={@sidebar_tab} counts={@org_counts}>
+  <section id="roles" aria-labelledby="roles-title" class="flex flex-col gap-3">
+    <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-6">
+      <div class="flex min-w-0 flex-col gap-1">
+        <div class="flex items-baseline gap-2">
+          <h2 id="roles-title" class="text-group-title text-content-strong">Roles</h2>
+          <span class="text-[13px] text-content-faint">{length(Permissions.built_in_roles()) + length(@custom_roles)}</span>
+        </div>
+        <p class="text-[13px] text-content-muted">
+          A member's role decides what they can change in {@org.name}. Every member can view its products, devices and settings.
+        </p>
+      </div>
+      <.button
+        :if={authorized?(:"org_role:create", @current_scope)}
+        type="link"
+        style="primary"
+        navigate={~p"/org/#{@org}/settings/roles/new"}
+        class="shrink-0 self-start sm:self-auto"
+      >
+        <span class="lucide-plus size-3.5" aria-hidden="true"></span> Add role
+      </.button>
+    </div>
+
+    <div class="overflow-hidden rounded-lg border border-line-default bg-surface-raised shadow-card" role="table" aria-label={"#{@org.name} roles"}>
+      <div role="row" class="hidden h-9 items-center gap-4 border-b border-line-subtle bg-surface px-5 md:flex">
+        <span role="columnheader" class="flex-1 text-[11px]/3.5 font-medium tracking-[0.06em] text-content-faint uppercase">Role</span>
+        <span role="columnheader" class="w-22.5 text-right text-[11px]/3.5 font-medium tracking-[0.06em] text-content-faint uppercase">Members</span>
+        <span class="w-36" aria-hidden="true"></span>
+      </div>
+
+      <div
+        :for={role <- Permissions.built_in_roles()}
+        role="row"
+        id={"role-#{role}"}
+        class="flex items-start gap-4 border-b border-line-subtle px-4 py-3.5 last:border-0 md:items-center md:px-5"
+      >
+        <div role="cell" class="flex min-w-0 flex-1 flex-col gap-1">
+          <div class="flex flex-wrap items-center gap-x-2 gap-y-1">
+            <.link navigate={role_path(@org, role)} class="text-sm/4.5 font-medium text-content-strong hover:underline">
+              {Utils.role_name(role)}
+            </.link>
+            <span class="inline-flex items-center rounded bg-surface-muted px-1.5 text-[11px]/4.5 font-medium text-content-muted">Built-in</span>
+          </div>
+          <p class="text-xs text-content-muted">{built_in_description(role)}</p>
+        </div>
+        <div role="cell" class="w-22.5 shrink-0 text-right text-[13px] text-content-body tabular-nums">
+          {member_count(@member_counts, role)}
+        </div>
+        <div role="cell" class="hidden w-36 shrink-0 md:block"></div>
+      </div>
+
+      <div
+        :for={role <- @custom_roles}
+        role="row"
+        id={"role-#{role.id}"}
+        class="flex items-start gap-4 border-b border-line-subtle px-4 py-3.5 last:border-0 md:items-center md:px-5"
+      >
+        <div role="cell" class="flex min-w-0 flex-1 flex-col gap-1">
+          <.link navigate={role_path(@org, role)} class="text-sm/4.5 font-medium wrap-anywhere text-content-strong hover:underline">
+            {role.name}
+          </.link>
+          <p :if={role.description not in [nil, ""]} class="text-xs wrap-anywhere text-content-muted">{role.description}</p>
+          <p :if={role.description in [nil, ""]} class="text-xs text-content-faint">No description</p>
+        </div>
+        <div role="cell" class="w-22.5 shrink-0 text-right text-[13px] text-content-body tabular-nums">
+          {member_count(@member_counts, role)}
+        </div>
+        <div role="cell" class="flex w-36 shrink-0 justify-end gap-2">
+          <.button :if={authorized?(:"org_role:update", @current_scope)} size="sm" type="link" navigate={~p"/org/#{@org}/settings/roles/#{role.id}/edit"}>
+            Edit
+          </.button>
+          <.button
+            :if={authorized?(:"org_role:delete", @current_scope)}
+            id={"delete-role-#{role.id}"}
+            size="sm"
+            style="danger"
+            type="button"
+            phx-click="delete"
+            phx-value-role_id={role.id}
+            data-confirm={"Delete the #{role.name} role? This can not be undone."}
+          >
+            Delete
+          </.button>
+        </div>
+      </div>
+    </div>
+  </section>
+</NervesHubWeb.Layouts.org>

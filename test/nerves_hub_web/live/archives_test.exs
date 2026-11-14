@@ -2,6 +2,7 @@ defmodule NervesHubWeb.Live.ArchivesTest do
   use NervesHubWeb.ConnCase.Browser, async: false
   use Mimic
 
+  alias NervesHub.Accounts.OrgUser
   alias NervesHub.Archives
   alias NervesHub.Fixtures
   alias NervesHub.Support
@@ -37,6 +38,34 @@ defmodule NervesHubWeb.Live.ArchivesTest do
       conn
       |> visit("/org/#{org.name}/#{product.name}/archives/#{archive.uuid}")
       |> assert_has("h1", text: archive.uuid)
+    end
+
+    test "offers a download to a member who can download archives", %{
+      conn: conn,
+      user: user,
+      org: org,
+      tmp_dir: tmp_dir
+    } do
+      product = Fixtures.product_fixture(user, org)
+      org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
+      archive = Fixtures.archive_fixture(org_key, product, %{dir: tmp_dir})
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/archives/#{archive.uuid}")
+      |> assert_has("a", text: "Download")
+    end
+
+    test "a view member isn't offered a download", %{conn: conn, user: user, org: org, tmp_dir: tmp_dir} do
+      product = Fixtures.product_fixture(user, org)
+      org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
+      archive = Fixtures.archive_fixture(org_key, product, %{dir: tmp_dir})
+
+      NervesHub.Repo.update_all(OrgUser, set: [role: :view])
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/archives/#{archive.uuid}")
+      |> assert_has("h1", text: archive.uuid)
+      |> refute_has("a", text: "Download")
     end
 
     test "delete archive", %{conn: conn, user: user, org: org, tmp_dir: tmp_dir} do

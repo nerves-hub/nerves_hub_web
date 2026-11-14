@@ -120,6 +120,14 @@ defmodule NervesHubWeb.Layouts do
         count: counts.members
       },
       %{
+        key: :roles,
+        label: "Roles",
+        path: ~p"/org/#{org}/settings/roles",
+        icon: "lucide-shield-user",
+        selected_icon: "lucide-shield-user--bold",
+        count: nil
+      },
+      %{
         key: :signing_keys,
         label: "Signing keys",
         path: ~p"/org/#{org}/settings/keys",

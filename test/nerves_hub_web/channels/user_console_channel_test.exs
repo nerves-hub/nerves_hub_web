@@ -3,6 +3,7 @@ defmodule NervesHubWeb.UserConsoleChannelTest do
   use AssertEventually, timeout: 1000, interval: 20
 
   alias NervesHub.Accounts
+  alias NervesHub.Accounts.OrgRoles
   alias NervesHub.Consoles.PubSub
   alias NervesHub.Fixtures
   alias NervesHubWeb.APISocket
@@ -43,6 +44,50 @@ defmodule NervesHubWeb.UserConsoleChannelTest do
                  UserConsoleChannel,
                  "user:console:identifier-#{device.identifier}"
                )
+    end
+  end
+
+  describe "a member with a custom role" do
+    test "can open a console if the role grants it", %{tmp_dir: tmp_dir} do
+      {socket, device, _role} = custom_role_member(["device:console"], tmp_dir)
+
+      assert {:ok, _reply, _channel} =
+               subscribe_and_join(socket, UserConsoleChannel, "user:console:identifier-#{device.identifier}")
+    end
+
+    test "loses an open console when the role stops granting it", %{tmp_dir: tmp_dir} do
+      {socket, device, role} = custom_role_member(["device:console", "device:reboot"], tmp_dir)
+
+      {:ok, _reply, channel} =
+        subscribe_and_join(socket, UserConsoleChannel, "user:console:identifier-#{device.identifier}")
+
+      Process.unlink(channel.channel_pid)
+      ref = Process.monitor(channel.channel_pid)
+
+      {:ok, _} = OrgRoles.update_org_role(role, %{"permissions" => ["device:reboot"]})
+
+      assert_receive {:DOWN, ^ref, :process, _pid, {:shutdown, :closed}}
+    end
+
+    test "keeps an open console when the role is edited but still grants it", %{tmp_dir: tmp_dir} do
+      {socket, device, role} = custom_role_member(["device:console"], tmp_dir)
+
+      {:ok, _reply, channel} =
+        subscribe_and_join(socket, UserConsoleChannel, "user:console:identifier-#{device.identifier}")
+
+      Process.unlink(channel.channel_pid)
+      ref = Process.monitor(channel.channel_pid)
+
+      {:ok, _} = OrgRoles.update_org_role(role, %{"name" => "Renamed"})
+
+      refute_receive {:DOWN, ^ref, :process, _pid, _reason}, 100
+    end
+
+    test "can't open a console otherwise", %{tmp_dir: tmp_dir} do
+      {socket, device, _role} = custom_role_member(["device:reboot"], tmp_dir)
+
+      assert {:error, %{reason: "unauthorized"}} =
+               subscribe_and_join(socket, UserConsoleChannel, "user:console:identifier-#{device.identifier}")
     end
   end
 
@@ -203,6 +248,19 @@ defmodule NervesHubWeb.UserConsoleChannelTest do
 
       refute_receive {:DOWN, ^ref, :process, _pid, _reason}, 100
     end
+  end
+
+  defp custom_role_member(permissions, tmp_dir) do
+    user = Fixtures.user_fixture()
+    device = device_fixture(user, %{identifier: "custom-role-device"}, tmp_dir)
+    {:ok, org} = Accounts.get_org(device.org_id)
+    role = Fixtures.org_role_fixture(org, %{permissions: permissions})
+    {:ok, org_user} = Accounts.get_org_user(org, user)
+    {:ok, _} = Accounts.change_org_user_role(org_user, role)
+
+    {:ok, socket} = connect(APISocket, %{"token" => Accounts.create_user_api_token(user, "test-token")})
+
+    {socket, device, role}
   end
 
   defp device_fixture(user, device_params, tmp_dir) do

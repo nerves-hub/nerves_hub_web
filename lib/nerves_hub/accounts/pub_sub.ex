@@ -4,9 +4,10 @@ defmodule NervesHub.Accounts.PubSub do
 
   A member's role is read when a page mounts, and when a console, local shell
   or device event stream joins, and nothing reads it again on its own. So
-  `NervesHub.Accounts.change_org_user_role/2` and
-  `NervesHub.Accounts.soft_delete_org_user/1` publish here once the change is
-  saved, and each subscriber checks the membership again: a page mounts again
+  `NervesHub.Accounts.change_org_user_role/2`,
+  `NervesHub.Accounts.soft_delete_org_user/1` and
+  `NervesHub.Accounts.OrgRoles.update_org_role/2` (to every member holding the
+  custom role) publish here once the change is saved, and each subscriber checks the membership again: a page mounts again
   under the new role, and a channel the member may no longer open closes.
 
   The message says only that the membership changed, never what to. Each
