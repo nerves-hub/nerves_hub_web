@@ -87,9 +87,17 @@ defmodule NervesHubWeb.Live.Orgs.Index do
     end
   end
 
+  # The broadcast carries only the status. Which device it is for comes from
+  # the topic (`"internal:device:<id>"`, see `NervesHub.Devices.PubSub`), so
+  # statuses are keyed by device id.
   @impl Phoenix.LiveView
-  def handle_info(%Broadcast{event: "connection:change", payload: payload}, socket) do
-    update_device_statuses(socket, payload)
+  def handle_info(
+        %Broadcast{topic: "internal:device:" <> id, event: "connection:change", payload: %{status: status}},
+        socket
+      ) do
+    socket
+    |> update(:device_statuses, &Map.put(&1, String.to_integer(id), status))
+    |> noreply()
   end
 
   # Ignore unknown broadcasts
@@ -137,7 +145,7 @@ defmodule NervesHubWeb.Live.Orgs.Index do
 
     statuses =
       Map.new(pinned_devices, fn device ->
-        {device.identifier, Tracker.connection_status(device)}
+        {device.id, Tracker.connection_status(device)}
       end)
 
     socket
@@ -195,15 +203,6 @@ defmodule NervesHubWeb.Live.Orgs.Index do
     end
 
     socket
-  end
-
-  defp update_device_statuses(
-         %{assigns: %{device_statuses: statuses}} = socket,
-         %{device_id: identifier, status: status} = _payload
-       ) do
-    socket
-    |> assign(:device_statuses, Map.put(statuses, identifier, status))
-    |> noreply()
   end
 
   defp limit_devices(devices) do
