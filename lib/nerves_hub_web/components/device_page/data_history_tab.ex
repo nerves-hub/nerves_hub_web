@@ -91,6 +91,7 @@ defmodule NervesHubWeb.Components.DevicePage.DataHistoryTab do
 
   def hooked_async(_name, _async_fun_result, socket), do: {:cont, socket}
 
+  @decorate requires_permission(:"device:view", on: :device)
   def hooked_event("filter-messages", params, socket) do
     %{org: org, product: product, device: device} = socket.assigns
 
@@ -110,6 +111,7 @@ defmodule NervesHubWeb.Components.DevicePage.DataHistoryTab do
   # Resuming refetches rather than picking up from the next broadcast, so the
   # gap that opened while paused is closed instead of being left as a silent
   # hole in the middle of the list.
+  @decorate requires_permission(:"device:view", on: :device)
   def hooked_event("toggle-streaming", _params, %{assigns: %{streaming_enabled: false}} = socket) do
     socket
     |> assign(:streaming_enabled, true)
@@ -117,12 +119,14 @@ defmodule NervesHubWeb.Components.DevicePage.DataHistoryTab do
     |> halt()
   end
 
+  @decorate requires_permission(:"device:view", on: :device)
   def hooked_event("toggle-streaming", _params, socket) do
     socket
     |> assign(:streaming_enabled, false)
     |> halt()
   end
 
+  @decorate requires_no_permission()
   def hooked_event(_event, _params, socket), do: {:cont, socket}
 
   def hooked_info(%Broadcast{event: event, payload: message}, socket) do

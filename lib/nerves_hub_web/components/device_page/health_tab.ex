@@ -116,6 +116,7 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
 
   def hooked_async(_name, _async_fun_result, socket), do: {:cont, socket}
 
+  @decorate requires_permission(:"device:view", on: :device)
   def hooked_event("set-time-frame", %{"unit" => unit, "amount" => amount}, socket) do
     {parsed_amount, ""} = Integer.parse(amount)
 
@@ -126,18 +127,21 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
     |> halt()
   end
 
+  @decorate requires_permission(:"device:view", on: :device)
   def hooked_event("edit-health-label", %{"key" => key}, socket) do
     socket
     |> assign(:editing_label_key, key)
     |> halt()
   end
 
+  @decorate requires_permission(:"device:view", on: :device)
   def hooked_event("cancel-health-label", _params, socket) do
     socket
     |> assign(:editing_label_key, nil)
     |> halt()
   end
 
+  @decorate requires_permission(:"product:update")
   def hooked_event("save-health-label", %{"key" => key, "label" => label}, socket) do
     authorized!(:"product:update", socket.assigns.current_scope)
 
@@ -157,6 +161,7 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
     end
   end
 
+  @decorate requires_no_permission()
   def hooked_event(_event, _params, socket), do: {:cont, socket}
 
   def hooked_info(%Broadcast{event: "health_check_report"}, %{assigns: %{device: device}} = socket) do

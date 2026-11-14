@@ -40,6 +40,7 @@ defmodule NervesHubWeb.Live.Org.IrohEndpoints do
   ]
 
   @impl Phoenix.LiveView
+  @decorate requires_permission(:"network_identity:view")
   def mount(_params, _session, %{assigns: %{current_scope: scope}} = socket) do
     if org_iroh_endpoints_ui_enabled?() do
       {:ok,
@@ -61,6 +62,7 @@ defmodule NervesHubWeb.Live.Org.IrohEndpoints do
   end
 
   @impl Phoenix.LiveView
+  @decorate requires_permission(:"network_identity:view")
   def handle_params(_params, _url, socket) do
     {:noreply,
      socket
@@ -69,14 +71,17 @@ defmodule NervesHubWeb.Live.Org.IrohEndpoints do
   end
 
   @impl Phoenix.LiveView
+  @decorate requires_permission(:"network_identity:view")
   def handle_event("search", %{"search" => search}, socket) do
     {:noreply, socket |> assign(:search, search) |> load_identities()}
   end
 
+  @decorate requires_permission(:"network_identity:view")
   def handle_event("filter", %{"owner" => owner}, socket) do
     {:noreply, socket |> assign(:owner_filter, cast_owner(owner)) |> load_identities()}
   end
 
+  @decorate requires_permission(:"network_identity:view")
   def handle_event("toggle-registration", _params, socket) do
     {:noreply,
      socket
@@ -84,6 +89,7 @@ defmodule NervesHubWeb.Live.Org.IrohEndpoints do
      |> assign(:form, registration_form())}
   end
 
+  @decorate requires_permission(:"network_identity:create")
   def handle_event("register", %{"identity" => params}, %{assigns: %{current_scope: scope}} = socket) do
     authorized!(:"network_identity:create", scope)
 
@@ -117,6 +123,7 @@ defmodule NervesHubWeb.Live.Org.IrohEndpoints do
     end
   end
 
+  @decorate requires_permission(:"network_identity:delete")
   def handle_event("delete", %{"id" => id}, %{assigns: %{current_scope: scope}} = socket) do
     authorized!(:"network_identity:delete", scope)
 

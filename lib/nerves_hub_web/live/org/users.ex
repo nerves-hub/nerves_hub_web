@@ -15,11 +15,13 @@ defmodule NervesHubWeb.Live.Org.Users do
   embed_templates("user_templates/*")
 
   @impl Phoenix.LiveView
+  @decorate requires_permission(:"organization:view")
   def mount(_params, _session, socket) do
     {:ok, assign(socket, :org, socket.assigns.current_scope.org)}
   end
 
   @impl Phoenix.LiveView
+  @decorate requires_permission(:"organization:view")
   def handle_params(params, _url, socket) do
     {:noreply, apply_action(socket, socket.assigns.live_action, params)}
   end
@@ -57,6 +59,7 @@ defmodule NervesHubWeb.Live.Org.Users do
   end
 
   @impl Phoenix.LiveView
+  @decorate requires_permission(:"org_user:invite")
   def handle_event("send_invite", %{"invite" => invite_params}, socket) do
     %{org: org, current_scope: %{user: invited_by} = scope} = socket.assigns
 
@@ -84,6 +87,7 @@ defmodule NervesHubWeb.Live.Org.Users do
     end
   end
 
+  @decorate requires_permission(:"org_user:invite:resend")
   def handle_event("resend_invite", %{"invite_token" => invite_token}, socket) do
     %{org: org, current_scope: scope} = socket.assigns
 
@@ -118,6 +122,7 @@ defmodule NervesHubWeb.Live.Org.Users do
     end
   end
 
+  @decorate requires_permission(:"org_user:invite:rescind")
   def handle_event("rescind_invite", %{"invite_token" => invite_token}, socket) do
     authorized!(:"org_user:invite:rescind", socket.assigns.current_scope)
 
@@ -139,6 +144,7 @@ defmodule NervesHubWeb.Live.Org.Users do
     end
   end
 
+  @decorate requires_permission(:"org_user:update")
   def handle_event("update-org-user", %{"org_user" => params}, socket) do
     authorized!(:"org_user:update", socket.assigns.current_scope)
 
@@ -158,6 +164,7 @@ defmodule NervesHubWeb.Live.Org.Users do
 
   # The role menu on a member's row. Your own role isn't offered, so an admin
   # can't demote themselves out of the page that would let them undo it.
+  @decorate requires_permission(:"org_user:update")
   def handle_event("change_role", %{"user_id" => user_id, "role" => role}, %{assigns: %{current_scope: scope}} = socket) do
     authorized!(:"org_user:update", scope)
 
@@ -178,6 +185,7 @@ defmodule NervesHubWeb.Live.Org.Users do
     end
   end
 
+  @decorate special_permission(:enforced_by_can_remove)
   def handle_event("delete_org_user", %{"user_id" => user_id}, %{assigns: %{current_scope: scope}} = socket) do
     {:ok, org_user_to_remove} = Accounts.get_org_user(socket.assigns.org, user_id)
 

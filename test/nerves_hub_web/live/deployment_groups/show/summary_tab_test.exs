@@ -679,7 +679,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show.SummaryTabTest do
 
       session = visit(conn, "/org/#{org.name}/#{product.name}/deployment_groups/#{deployment_group.name}")
 
-      assert_unauthorized(fn -> render_click(session.view, "move-matched-devices-to-deployment-group", %{}) end)
+      assert_denied(fn -> render_click(session.view, "move-matched-devices-to-deployment-group", %{}) end)
 
       refute Repo.reload(device).deployment_id
     end
@@ -695,7 +695,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show.SummaryTabTest do
 
       session = visit(conn, "/org/#{org.name}/#{product.name}/deployment_groups/#{deployment_group.name}")
 
-      assert_unauthorized(fn ->
+      assert_denied(fn ->
         render_click(session.view, "remove-unmatched-devices-from-deployment-group", %{})
       end)
 
@@ -722,11 +722,13 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show.SummaryTabTest do
           ] do
         session = visit(conn, path)
 
-        assert_unauthorized(fn ->
-          session.view
-          |> with_target("#deployment-group-summary")
-          |> render_click(event, params)
-        end)
+        session.view
+        |> with_target("#deployment-group-summary")
+        |> render_click(event, params)
+
+        # The component asks the page to show the message, so it is there on
+        # the page's next render.
+        assert_denied(fn -> render(session.view) end)
       end
 
       assert Repo.reload(delta)
@@ -743,9 +745,8 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show.SummaryTabTest do
     end
   end
 
-  defp assert_unauthorized(fun) do
-    Process.flag(:trap_exit, true)
-
-    assert {{%NervesHubWeb.UnauthorizedError{}, _}, _} = catch_exit(fun.())
+  # A refused event leaves the page up, with a message.
+  defp assert_denied(fun) do
+    assert fun.() =~ "Sorry. You were denied access. Please check your role or contact your support."
   end
 end

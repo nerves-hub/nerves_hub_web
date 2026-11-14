@@ -39,6 +39,7 @@ defmodule NervesHubWeb.Live.Orgs.Index do
   @full_sections 4
 
   @impl Phoenix.LiveView
+  @decorate requires_no_permission()
   def mount(_params, _session, %{assigns: %{current_scope: scope}} = socket) do
     if scope.user.orgs == [] do
       {:ok, assign_onboarding(socket)}
@@ -48,6 +49,7 @@ defmodule NervesHubWeb.Live.Orgs.Index do
   end
 
   @impl Phoenix.LiveView
+  @decorate requires_no_permission()
   def handle_event("toggle-expand-devices", _, %{assigns: %{show_all_pinned?: show_all?}} = socket) do
     socket
     |> assign(:show_all_pinned?, !show_all?)
@@ -56,12 +58,14 @@ defmodule NervesHubWeb.Live.Orgs.Index do
 
   # Only keeps the address preview in step with the names. Errors come from
   # saving, so typing clears them until the next try.
+  @decorate requires_no_permission()
   def handle_event("validate_onboarding", %{"onboarding" => params}, socket) do
     socket
     |> assign(:onboarding_form, to_form(params, as: :onboarding))
     |> noreply()
   end
 
+  @decorate requires_no_permission()
   def handle_event("save_onboarding", %{"onboarding" => params}, socket) do
     user = socket.assigns.current_scope.user
     org_params = %{name: params["org_name"]}

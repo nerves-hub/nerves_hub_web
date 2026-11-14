@@ -3,6 +3,7 @@ defmodule NervesHubWeb.Live.Orgs.New do
 
   alias NervesHub.Accounts
 
+  @decorate requires_no_permission()
   def mount(_params, _session, socket) do
     changeset = Accounts.Org.creation_changeset(%Accounts.Org{}, %{})
 
@@ -14,6 +15,7 @@ defmodule NervesHubWeb.Live.Orgs.New do
     {:ok, socket}
   end
 
+  @decorate requires_no_permission()
   def handle_event("save_org", %{"org" => org_params}, socket) do
     socket.assigns.current_scope.user
     |> Accounts.create_org(org_params)

@@ -332,17 +332,13 @@ defmodule NervesHubWeb.Live.Product.SettingsTest do
         |> visit("/org/#{org.name}/#{product.name}/settings")
         |> assert_has("#disable-extension-geo-on-devices[disabled]")
 
-      Process.flag(:trap_exit, true)
-
-      assert {{%NervesHubWeb.UnauthorizedError{}, _}, _} =
-               catch_exit(render_click(session.view, "update-extension", %{"extension" => "geo", "value" => "off"}))
+      assert render_click(session.view, "update-extension", %{"extension" => "geo", "value" => "off"}) =~
+               "Sorry. You were denied access. Please check your role or contact your support."
 
       session = visit(conn, "/org/#{org.name}/#{product.name}/settings")
 
-      assert {{%NervesHubWeb.UnauthorizedError{}, _}, _} =
-               catch_exit(
-                 render_click(session.view, "set-extension-for-devices", %{"extension" => "geo", "enabled" => "false"})
-               )
+      assert render_click(session.view, "set-extension-for-devices", %{"extension" => "geo", "enabled" => "false"}) =~
+               "Sorry. You were denied access. Please check your role or contact your support."
 
       assert Repo.reload(product).extensions.geo
       assert Repo.reload(device).extensions.geo
@@ -420,15 +416,13 @@ defmodule NervesHubWeb.Live.Product.SettingsTest do
         |> assert_has("#default-managed-updates-allowed[disabled]")
         |> assert_has("#allow-managed-updates-on-devices[disabled]")
 
-      Process.flag(:trap_exit, true)
-
-      assert {{%NervesHubWeb.UnauthorizedError{}, _}, _} =
-               catch_exit(render_click(session.view, "update-default-managed-updates-allowed", %{"value" => "on"}))
+      assert render_click(session.view, "update-default-managed-updates-allowed", %{"value" => "on"}) =~
+               "Sorry. You were denied access. Please check your role or contact your support."
 
       session = visit(conn, "/org/#{org.name}/#{product.name}/settings")
 
-      assert {{%NervesHubWeb.UnauthorizedError{}, _}, _} =
-               catch_exit(render_click(session.view, "set-managed-updates-allowed-for-devices", %{"enabled" => "true"}))
+      assert render_click(session.view, "set-managed-updates-allowed-for-devices", %{"enabled" => "true"}) =~
+               "Sorry. You were denied access. Please check your role or contact your support."
 
       refute Repo.reload(product).default_managed_updates_allowed
       refute Repo.reload(device).managed_updates_allowed
