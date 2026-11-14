@@ -56,7 +56,7 @@ defmodule NervesHubWeb.Components.DevicePage.ActivityTab do
           <div :if={Enum.any?(@activity)} class="flex flex-col gap-1 px-4 py-2">
             <div :for={entry <- @activity} class="flex h-16 items-center gap-6 p-2">
               <div class="flex h-8 items-center rounded-full border border-line-default bg-base-800 px-2 py-1">
-                <span class="lucide-pencil size-4 text-content-muted" aria-hidden="true"></span>
+                <span class={[kind_icon(entry.kind), "size-4 text-content-muted"]} aria-hidden="true"></span>
               </div>
               <div class="grow">
                 <div class="text-content-body">{entry.description}</div>
@@ -83,6 +83,47 @@ defmodule NervesHubWeb.Components.DevicePage.ActivityTab do
     </div>
     """
   end
+
+  # One glyph per kind of entry (`NervesHub.AuditLogs.AuditLog.kinds/0`), as
+  # the Activity tab boards in Paper draw them. Whole class names, so Tailwind
+  # finds them. Entries written before kinds existed have none and get the
+  # neutral glyph.
+  @icons %{
+    archive_sent: "lucide-archive",
+    deployment_group_mismatch: "lucide-unlink",
+    deployment_group_set: "lucide-rocket",
+    deployment_update_sent: "lucide-download",
+    device_moved: "lucide-arrow-right-left",
+    device_rebooted: "lucide-power",
+    device_updated: "lucide-pencil",
+    firmware_metadata_updated: "lucide-file-text",
+    firmware_pushed: "lucide-download",
+    firmware_updated: "lucide-refresh-cw",
+    firmware_validated: "lucide-shield-check",
+    identify_requested: "lucide-locate",
+    managed_updates_changed: "lucide-cpu",
+    penalty_box_cleared: "lucide-lock-open",
+    reconnect_requested: "lucide-wifi",
+    script_run: "lucide-file-code-corner",
+    shared_secret_created: "lucide-key-round",
+    shared_secret_deactivated: "lucide-key-round",
+    tags_changed: "lucide-tag",
+    update_attempted: "lucide-hard-drive-download",
+    update_failed: "lucide-triangle-exclamation-point",
+    update_ignored: "lucide-circle-slash",
+    update_mode_changed: "lucide-sliders-horizontal",
+    update_requested: "lucide-download",
+    update_rescheduled: "lucide-calendar-clock",
+    updates_blocked: "lucide-ban",
+    updates_disabled: "lucide-toggle-left",
+    updates_enabled: "lucide-toggle-right"
+  }
+
+  @doc false
+  # The glyph class for an entry's kind; public so the tests can check every
+  # kind has one.
+  @spec kind_icon(atom() | nil) :: String.t()
+  def kind_icon(kind), do: Map.get(@icons, kind, "lucide-activity")
 
   def hooked_event("set-paginate-opts", %{"page-size" => page_size}, socket) do
     params = %{"page_size" => page_size, "page_number" => "1"}

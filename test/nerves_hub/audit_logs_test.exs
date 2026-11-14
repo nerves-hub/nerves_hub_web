@@ -43,4 +43,41 @@ defmodule NervesHub.AuditLogsTest do
       assert Repo.aggregate(AuditLog, :count) == 13
     end
   end
+
+  describe "kind" do
+    setup do
+      user = Fixtures.user_fixture()
+      org = Fixtures.org_fixture(user)
+
+      %{user: user, org: org}
+    end
+
+    test "is stored when given", %{user: user, org: org} do
+      :ok = AuditLogs.audit!(user, org, "rebooted", kind: :device_rebooted)
+
+      assert [%AuditLog{kind: :device_rebooted}] = AuditLogs.logs_for(org)
+    end
+
+    test "is nil when not given, as on rows written before kinds", %{user: user, org: org} do
+      :ok = AuditLogs.audit!(user, org, "did something")
+
+      assert [%AuditLog{kind: nil}] = AuditLogs.logs_for(org)
+    end
+
+    test "is kept beside a reference id", %{user: user, org: org} do
+      ref = Ecto.UUID.generate()
+
+      AuditLogs.audit_with_ref!(user, org, "sent an archive", ref, kind: :archive_sent)
+
+      assert [%AuditLog{kind: :archive_sent, reference_id: ^ref}] = AuditLogs.logs_for(org)
+    end
+
+    test "rejects a kind it doesn't know", %{user: user, org: org} do
+      changeset = user |> AuditLog.build(org, "did something", kind: :made_up) |> AuditLog.changeset()
+
+      refute changeset.valid?
+      assert {_, error} = changeset.errors[:kind]
+      assert error[:validation] == :inclusion
+    end
+  end
 end
