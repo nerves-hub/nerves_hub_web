@@ -10,6 +10,7 @@ defmodule NervesHub.Accounts.PermissionsTest do
   # (`network_identity:view` was dropped then too: nothing ever checked it.)
   @built_in_minimums %{
     "archive:delete": :manage,
+    "archive:download": :manage,
     "archive:upload": :manage,
     "certificate_authority:create": :manage,
     "certificate_authority:delete": :manage,

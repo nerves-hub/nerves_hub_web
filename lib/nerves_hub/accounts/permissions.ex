@@ -125,11 +125,12 @@ defmodule NervesHub.Accounts.Permissions do
      ]},
     {"Firmware and archives",
      [
-       # Firmware images can carry secrets, so downloading one takes more than
-       # being able to see the product.
+       # Firmware images and archives can carry secrets, so downloading one
+       # takes more than being able to see the product.
        {:"firmware:download", :manage, :optional, "Download firmware"},
        {:"firmware:upload", :manage, :optional, "Upload firmware"},
        {:"firmware:delete", :manage, :optional, "Delete firmware"},
+       {:"archive:download", :manage, :optional, "Download archives"},
        {:"archive:upload", :manage, :optional, "Upload archives"},
        {:"archive:delete", :manage, :optional, "Delete archives"}
      ]},
