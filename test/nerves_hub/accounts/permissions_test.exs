@@ -35,6 +35,7 @@ defmodule NervesHub.Accounts.PermissionsTest do
     "device:reconnect": :manage,
     "device:restore": :manage,
     "device:set-deployment-group": :manage,
+    "device:tags": :manage,
     "device:toggle-updates": :manage,
     "device:update": :manage,
     "device:view": :view,

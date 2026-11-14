@@ -24,6 +24,7 @@ defmodule NervesHub.Accounts do
   alias NervesHub.Devices.Device
   alias NervesHub.Devices.DeviceConnection
   alias NervesHub.Devices.Pinning
+  alias NervesHub.Devices.Visibility
   alias NervesHub.Firmwares.Firmware
   alias NervesHub.Products
   alias NervesHub.Products.Product
@@ -459,18 +460,6 @@ defmodule NervesHub.Accounts do
     |> Repo.one()
   end
 
-  def find_org_user_with_device_identifier(user, device_identifier) do
-    OrgUser
-    |> join(:left, [ou], o in assoc(ou, :org))
-    |> join(:left, [ou, o], p in assoc(o, :products))
-    |> join(:left, [ou, o, p], d in assoc(p, :devices))
-    |> where([_, _, _, d], d.identifier == ^device_identifier)
-    |> where([ou], ou.user_id == ^user.id)
-    |> where([ou], is_nil(ou.deleted_at))
-    |> preload(:org_role)
-    |> Repo.one()
-  end
-
   @doc """
   Authenticates a user by their email and password, for the API.
 
@@ -589,26 +578,34 @@ defmodule NervesHub.Accounts do
   How many products, devices, members, signing keys and certificate
   authorities an organization has. Every organization page shows these in its
   header and tabs.
+
+  Only the devices `user` can see are counted, so a role limited to tagged
+  devices isn't told how many others there are.
   """
-  @spec org_counts(Org.t()) :: %{
+  @spec org_counts(Org.t(), User.t()) :: %{
           products: non_neg_integer(),
           devices: non_neg_integer(),
           members: non_neg_integer(),
           signing_keys: non_neg_integer(),
           certificates: non_neg_integer()
         }
-  def org_counts(%Org{id: org_id}) do
+  def org_counts(%Org{id: org_id}, %User{} = user) do
     %{
       products: Product |> where(org_id: ^org_id) |> Repo.exclude_deleted() |> Repo.aggregate(:count),
-      devices: Device |> where(org_id: ^org_id) |> Repo.exclude_deleted() |> Repo.aggregate(:count),
+      devices:
+        Device
+        |> where(org_id: ^org_id)
+        |> Visibility.where_visible(user)
+        |> Repo.exclude_deleted()
+        |> Repo.aggregate(:count),
       members: OrgUser |> where(org_id: ^org_id) |> Repo.exclude_deleted() |> Repo.aggregate(:count),
       signing_keys: OrgKey |> where(org_id: ^org_id) |> Repo.aggregate(:count),
       certificates: CACertificate |> where(org_id: ^org_id) |> Repo.aggregate(:count)
     }
   end
 
-  def get_org_device_counts(%Scope{}, org_id) do
-    products = products_subquery()
+  def get_org_device_counts(%Scope{user: user}, org_id) do
+    products = products_subquery(user)
 
     rows =
       Product
@@ -629,18 +626,21 @@ defmodule NervesHub.Accounts do
     %{org: {connected, disconnected}, products: product_counts}
   end
 
-  defp products_subquery() do
+  # Counts only the devices `user` can see.
+  defp products_subquery(user) do
     connected_devices_count =
-      DeviceConnection
-      |> join(:inner, [dc], d in Device, on: d.id == dc.device_id)
-      |> where([dc, _d], dc.product_id == parent_as(:product).id)
-      |> where([dc, _d], dc.status == :connected)
-      |> where([_dc, d], is_nil(d.deleted_at))
-      |> select([dc], %{count: count()})
+      Device
+      |> Visibility.where_visible(user)
+      |> join(:inner, [d], dc in DeviceConnection, on: d.id == dc.device_id)
+      |> where([_d, dc], dc.product_id == parent_as(:product).id)
+      |> where([_d, dc], dc.status == :connected)
+      |> where([d], is_nil(d.deleted_at))
+      |> select([d], %{count: count()})
 
     # Must join from Device so devices with no connection row are counted as disconnected
     disconnected_devices_count =
       Device
+      |> Visibility.where_visible(user)
       |> join(:left, [d], lc in assoc(d, :latest_connection))
       |> where([d], d.product_id == parent_as(:product).id)
       |> where([_d, lc], is_nil(lc) or lc.status != :connected)

@@ -16,6 +16,7 @@ defmodule NervesHubWeb.API.DeploymentGroupController do
   @auth_error_responses SchemaHelpers.auth_error_responses()
 
   plug(:require_membership when action in [:index, :show])
+  plug(:require_every_device)
   plug(:require_permission, :"deployment_group:create" when action in [:create])
   plug(:require_permission, :"deployment_group:update" when action in [:update])
   plug(:require_toggle_permissions when action in [:update])

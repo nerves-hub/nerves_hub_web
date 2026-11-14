@@ -27,7 +27,7 @@ defmodule NervesHubWeb.Mounts.OrgCounts do
 
   @doc "Counts the current organization's products, devices, members, keys and certificates again."
   @spec refresh(Socket.t()) :: Socket.t()
-  def refresh(%{assigns: %{current_scope: %{org: org}}} = socket) do
-    assign(socket, :org_counts, Accounts.org_counts(org))
+  def refresh(%{assigns: %{current_scope: %{org: org, user: user}}} = socket) do
+    assign(socket, :org_counts, Accounts.org_counts(org, user))
   end
 end

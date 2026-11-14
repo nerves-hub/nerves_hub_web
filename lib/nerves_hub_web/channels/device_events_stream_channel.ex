@@ -9,7 +9,9 @@ defmodule NervesHubWeb.DeviceEventsStreamChannel do
   use Phoenix.Channel
 
   alias NervesHub.Accounts
+  alias NervesHub.Accounts.OrgUser
   alias NervesHub.Accounts.PubSub, as: AccessPubSub
+  alias NervesHub.Accounts.Scope
   alias NervesHub.Devices
   alias NervesHub.Devices.PubSub
   alias NervesHubWeb.Helpers.Authorization
@@ -20,14 +22,15 @@ defmodule NervesHubWeb.DeviceEventsStreamChannel do
   @impl Phoenix.Channel
   def join("device:" <> device_identifier, _params, socket) do
     # Socket already has authenticated user, just validate device access
-    if authorized?(socket.assigns.user, device_identifier) do
-      device = Devices.get_by_identifier!(device_identifier)
-      :ok = PubSub.subscribe(device.id)
-      :ok = AccessPubSub.subscribe_membership(device.org_id, socket.assigns.user.id)
+    case authorized_device(socket.assigns.user, device_identifier) do
+      {:ok, device} ->
+        :ok = PubSub.subscribe(device.id)
+        :ok = AccessPubSub.subscribe_membership(device.org_id, socket.assigns.user.id)
 
-      {:ok, assign(socket, :device_identifier, device_identifier)}
-    else
-      {:error, %{reason: "unauthorized"}}
+        {:ok, assign(socket, :device_identifier, device_identifier)}
+
+      :error ->
+        {:error, %{reason: "unauthorized"}}
     end
   end
 
@@ -47,10 +50,9 @@ defmodule NervesHubWeb.DeviceEventsStreamChannel do
   # Checked the same way as on join, so a user who couldn't subscribe now
   # doesn't stay subscribed.
   def handle_info({:org_membership_changed, _org_id}, socket) do
-    if authorized?(socket.assigns.user, socket.assigns.device_identifier) do
-      {:noreply, socket}
-    else
-      {:stop, {:shutdown, :closed}, socket}
+    case authorized_device(socket.assigns.user, socket.assigns.device_identifier) do
+      {:ok, _device} -> {:noreply, socket}
+      :error -> {:stop, {:shutdown, :closed}, socket}
     end
   end
 
@@ -60,13 +62,14 @@ defmodule NervesHubWeb.DeviceEventsStreamChannel do
     {:noreply, socket}
   end
 
-  defp authorized?(user, device_identifier) do
-    case Accounts.find_org_user_with_device_identifier(user, device_identifier) do
-      nil ->
-        false
-
-      org_user ->
-        Authorization.authorized?(:"device:view", org_user)
+  # Looked up through the user, so a device their role can't see isn't found.
+  defp authorized_device(user, device_identifier) do
+    with {:ok, device} <- Devices.get_by_identifier(Scope.for_user(user), device_identifier),
+         %OrgUser{} = org_user <- Accounts.find_org_user_with_device(user, device.id),
+         true <- Authorization.authorized?(:"device:view", org_user) do
+      {:ok, device}
+    else
+      _ -> :error
     end
   end
 end

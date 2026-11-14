@@ -10,6 +10,10 @@
       </:actions>
     </NervesHubWeb.Layouts.org_heading>
 
+    <p :if={device_scope_label(@role)} id="device-scope" class="text-sm text-content-body">
+      {device_scope_label(@role)}.
+    </p>
+
     <section :for={{group, permissions} <- Permissions.grouped()} class="flex flex-col gap-2">
       <h3 class="text-sm font-semibold text-content-strong">{group}</h3>
       <ul class="overflow-hidden rounded-lg border border-line-default bg-surface-raised shadow-card">

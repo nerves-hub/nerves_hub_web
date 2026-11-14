@@ -16,9 +16,12 @@ defmodule NervesHub.CommandPalette do
 
   import Ecto.Query
 
+  alias NervesHub.Accounts.OrgRole
   alias NervesHub.Accounts.OrgUser
   alias NervesHub.Accounts.Scope
+  alias NervesHub.Accounts.User
   alias NervesHub.Devices.Device
+  alias NervesHub.Devices.Visibility
   alias NervesHub.Firmwares.Firmware
   alias NervesHub.ManagedDeployments.DeploymentGroup
   alias NervesHub.Products.Product
@@ -56,10 +59,12 @@ defmodule NervesHub.CommandPalette do
           empty()
 
         product_ids ->
+          open_product_ids = products_with_every_device(product_ids, scope.user)
+
           %{
-            devices: search_devices(product_ids, term, limit),
-            deployment_groups: search_deployment_groups(product_ids, term, limit),
-            firmware: search_firmware(product_ids, term, limit)
+            devices: search_devices(product_ids, scope.user, term, limit),
+            deployment_groups: search_deployment_groups(open_product_ids, term, limit),
+            firmware: search_firmware(open_product_ids, term, limit)
           }
       end
     end
@@ -71,8 +76,9 @@ defmodule NervesHub.CommandPalette do
 
   # Devices: identifier substring. Backed by the `devices_identifier_trgm_index`
   # GIN trigram index, so ILIKE '%...%' stays fast even across many products.
-  defp search_devices(product_ids, term, limit) do
+  defp search_devices(product_ids, user, term, limit) do
     Device
+    |> Visibility.where_visible(user)
     |> where([d], d.product_id in ^product_ids)
     |> where([d], is_nil(d.deleted_at))
     |> where([d], ilike(d.identifier, ^"%#{term}%"))
@@ -141,6 +147,18 @@ defmodule NervesHub.CommandPalette do
     |> where([p, ou], ou.user_id == ^user_id and is_nil(ou.deleted_at))
     |> where([p], is_nil(p.deleted_at))
     |> maybe_filter_org(org_id)
+    |> select([p], p.id)
+    |> Repo.all()
+  end
+
+  # Deployment groups and firmware are closed to a member whose role only sees
+  # tagged devices, so the palette doesn't offer them to one either.
+  defp products_with_every_device(product_ids, %User{id: user_id}) do
+    Product
+    |> where([p], p.id in ^product_ids)
+    |> join(:inner, [p], ou in OrgUser, on: ou.org_id == p.org_id and ou.user_id == ^user_id and is_nil(ou.deleted_at))
+    |> join(:left, [p, ou], r in OrgRole, on: r.id == ou.org_role_id and is_nil(r.deleted_at))
+    |> where([p, ou, r], is_nil(ou.org_role_id) or (not is_nil(r.id) and fragment("cardinality(?) = 0", r.device_tags)))
     |> select([p], p.id)
     |> Repo.all()
   end
