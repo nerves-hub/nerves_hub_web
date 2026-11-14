@@ -15,6 +15,7 @@ defmodule NervesHubWeb.UserConsoleChannel do
     if device = authorized?(socket.assigns.user, identifier) do
       :ok = PubSub.subscribe_user_console(device.id)
       :ok = AccessPubSub.subscribe_membership(device.org_id, socket.assigns.user.id)
+      :ok = AccessPubSub.subscribe_device_access(device.id)
 
       :ok = PubSub.connect_to_console(device.id, self())
 
@@ -82,10 +83,11 @@ defmodule NervesHubWeb.UserConsoleChannel do
     {:noreply, socket}
   end
 
-  # The user's role in the device's org changed, or they were removed from it.
+  # The user's role in the device's org changed, they were removed from it, or
+  # the device's tags changed.
   # Checked the same way as on join, so a user who couldn't open the console
   # now doesn't keep it open.
-  def handle_info({:org_membership_changed, _org_id}, socket) do
+  def handle_info({event, _id}, socket) when event in [:org_membership_changed, :device_access_changed] do
     if authorized?(socket.assigns.user, socket.assigns.device.identifier) do
       {:noreply, socket}
     else
