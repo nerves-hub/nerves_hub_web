@@ -15,7 +15,8 @@ defmodule NervesHubWeb.LucideIconsTest do
   @app_css Path.join(@root, "assets/css/app.css")
 
   # The weight suffixes assets/vendor/lucideicons.js generates, besides none.
-  @weights ~w(bold thin)
+  # --fill isn't a weight, but it's a suffix the plugin generates all the same.
+  @weights ~w(bold thin fill)
 
   @class ~r/(?<![a-z0-9-])lucide-([a-z0-9]+(?:-[a-z0-9]+)*)(?:--([a-z0-9]+))?/
 
