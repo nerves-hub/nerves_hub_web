@@ -3,7 +3,7 @@
     Join {@org.name} on {platform_name()}
   </:title>
   <:subheader :if={@mode != :wrong_account}>
-    {@invite.invited_by.name} invited you as <span class="font-semibold text-content-strong capitalize">{@invite.role}</span>.
+    {@invite.invited_by.name} invited you as <span class="font-semibold text-content-strong">{NervesHubWeb.Components.Utils.role_name(@invite)}</span>.
     The invitation expires 48 hours after it was sent.
   </:subheader>
 

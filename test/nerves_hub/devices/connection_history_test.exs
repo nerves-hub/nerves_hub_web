@@ -131,6 +131,33 @@ defmodule NervesHub.Devices.ConnectionHistoryTest do
       )
     end
 
+    test "clean_stale_connections/0 leaves connections only ClickHouse has open", %{device: device} do
+      # Open in ClickHouse, with no Postgres row: a disconnect that was lost
+      # before reaching ClickHouse. The hourly analytics pass closes these.
+      ref = Ecto.UUID.generate(version: 7)
+      last_seen_at = stale_time()
+
+      {:ok, _} =
+        %DeviceConnection{
+          id: ref,
+          org_id: device.org_id,
+          product_id: device.product_id,
+          device_id: device.id,
+          established_at: DateTime.add(last_seen_at, -1, :hour),
+          last_seen_at: last_seen_at,
+          disconnected_at: nil
+        }
+        |> DeviceConnectionHistory.from_device_connection_changeset()
+        |> AnalyticsRepo.insert()
+
+      :ok = Connections.clean_stale_connections()
+
+      # allow any (incorrectly) spawned insert to run before asserting absence
+      Process.sleep(200)
+
+      refute Enum.any?(history_for(ref), fn h -> not is_nil(h.disconnected_at) end)
+    end
+
     test "no history is recorded when analytics is disabled", %{device: device} do
       original = Application.get_env(:nerves_hub, :analytics_enabled)
 

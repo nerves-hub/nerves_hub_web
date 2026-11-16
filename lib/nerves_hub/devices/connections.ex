@@ -404,8 +404,7 @@ defmodule NervesHub.Devices.Connections do
     end
 
     if update_count < update_limit do
-      # Once the DB is cleaned, we can clean Analytics
-      clean_stale_connections_from_analytics()
+      :ok
     else
       # relax stress on Ecto pool and go again
       Process.sleep(2000)
@@ -434,6 +433,19 @@ defmodule NervesHub.Devices.Connections do
     end)
   end
 
+  @doc """
+  Writes a disconnected history row for every connection ClickHouse still
+  has open but that hasn't been seen within the stale window.
+
+  A safety net, run hourly by `NervesHub.Workers.CleanStaleDeviceConnectionHistory`.
+  `clean_stale_connections/0` already writes a history row for each
+  connection it closes, so this only finds disconnects that were lost before
+  reaching ClickHouse, such as rows still buffered in
+  `NervesHub.Analytics.Buffer` when a node died. It is kept off the
+  every-minute sweep because the query is a `FINAL` scan of the whole
+  `device_connection_history` table. Does nothing unless analytics is enabled.
+  """
+  @spec clean_stale_connections_from_analytics() :: :ok
   def clean_stale_connections_from_analytics() do
     _ =
       if Application.get_env(:nerves_hub, :analytics_enabled) do

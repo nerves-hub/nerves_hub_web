@@ -213,6 +213,19 @@ defmodule NervesHubWeb.Integrations.Slack.UnfurlsTest do
       refute Map.has_key?(unfurls, "https://example.com/")
     end
 
+    test "a role limited to tagged devices doesn't get deployment group previews", context do
+      %{firmware: firmware, org: org, user: user} = context
+      _deployment_group = Fixtures.deployment_group_fixture(firmware, %{user: user, name: "production"})
+
+      member = Fixtures.user_fixture()
+      role = Fixtures.org_role_fixture(org, %{device_tags: ["support"]})
+      {:ok, _} = Accounts.add_org_user(org, member, %{org_role_id: role.id})
+      :ok = link!(member)
+
+      assert :nothing = Unfurls.unfurl("T0ACME", shared([url("/org/acme/thermostat/deployment_groups/production")]))
+      refute_received {:slack, _, _}
+    end
+
     test "a missing device is not previewed", %{user: user} do
       :ok = link!(user)
 
