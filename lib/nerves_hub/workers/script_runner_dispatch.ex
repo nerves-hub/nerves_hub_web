@@ -96,9 +96,21 @@ defmodule NervesHub.Workers.ScriptRunnerDispatch do
   end
 
   defp dispatch(runner) do
-    # A device left at `:running` by a node that died would otherwise hold its
-    # place forever, and the run would never finish.
-    _ = ScriptRunners.release_stale_devices(runner.id)
+    # A device left at `:running` by a job that ended without an answer would
+    # otherwise hold its place forever, and the run would never finish.
+    %{abandoned: abandoned} = ScriptRunners.release_stale_devices(runner.id)
+
+    if abandoned > 0 do
+      # One event per device, like the device worker's own: the StatsD metric is a
+      # `counter`, which counts events rather than summing `count`.
+      for _device <- 1..abandoned//1 do
+        :telemetry.execute([:nerves_hub, :script_runners, :device], %{count: 1}, %{status: :abandoned})
+      end
+
+      # One event for the lot: a watching page reloads its counts on any of them,
+      # rather than reading the payload.
+      :ok = ScriptRunners.broadcast_progress(runner.id, :device_finished, %{status: :abandoned})
+    end
 
     case ScriptRunners.unfinished_device_count(runner.id) do
       0 -> finish(runner)

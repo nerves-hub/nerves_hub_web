@@ -763,8 +763,8 @@ defmodule NervesHub.ScriptRunners do
   # Output is the device's to choose, and a msgpack client can send any bytes at
   # all. PostgreSQL refuses a `text` value holding invalid UTF-8 or a NUL byte,
   # and the write failing here crashes the device job -- which leaves the row at
-  # `:running` for `release_stale_devices/2` to hand back to the dispatcher, so
-  # the script is sent to the device again. Scrubbed the same way as
+  # `:running` until `release_stale_devices/2` marks it `:abandoned`, losing an
+  # answer the device did send. Scrubbed the same way as
   # `NervesHub.Integrations` scrubs event payloads.
   #
   # Capped too: nothing limits the size of a device's websocket frame, and a run
@@ -897,19 +897,51 @@ defmodule NervesHub.ScriptRunners do
   end
 
   @doc """
-  Put a run's stuck devices back in the queue.
+  Record that a device's script is about to be handed to it.
 
-  A device is left at `:running` when the node executing it dies between claiming
-  the row and recording an answer. Nothing else recovers that row: the device
-  worker is `max_attempts: 1`, so Oban does not retry it, and `Oban.Lifeline`
-  (the `lifeline:` setting in the Oban config) marks an attempt-exhausted job
-  `discarded` rather than making it available again. The row is what
-  `claim_pending_devices/2` looks at, so until it goes back to `:pending` the
-  device is never picked up again and the run never reaches `:completed`.
+  Called by the device job immediately before the script is sent, so a row whose
+  job later ends without an outcome says whether the script may have run there.
+  See `release_stale_devices/2`, which re-sends only when it cannot have.
+
+  Returns `0` when the row is no longer `:running` -- its run has been deleted --
+  and the script must not be sent.
+  """
+  @spec mark_sent(integer(), integer()) :: non_neg_integer()
+  def mark_sent(runner_id, device_id) do
+    {count, nil} =
+      ScriptRunnerDevice
+      |> where([srd], srd.script_runner_id == ^runner_id and srd.device_id == ^device_id)
+      |> where([srd], srd.status == :running)
+      |> Repo.update_all(set: [sent_at: DateTime.utc_now(), updated_at: naive_now()])
+
+    count
+  end
+
+  @doc """
+  Settle a run's stuck devices: back in the queue if their script was never sent,
+  `:abandoned` if it was.
+
+  A device is left at `:running` when its job ends without recording an answer:
+  the job raised, or the node executing it died. Nothing else recovers that row:
+  the device worker is `max_attempts: 1`, so Oban does not retry it, and
+  `Oban.Lifeline` (the `lifeline:` setting in the Oban config) marks an
+  attempt-exhausted job `discarded` rather than making it available again. The
+  row is what `claim_pending_devices/2` looks at, so until it leaves `:running`
+  the run never reaches `:completed`.
+
+  Which way it leaves depends on `sent_at` (see `mark_sent/2`):
+
+    * not sent -- back to `:pending`, to be dispatched again. Nothing reached the
+      device, so this is the first time the script runs there.
+    * sent -- `:abandoned`, and finished. The script may have run, and running an
+      operator's script a second time without being asked is what
+      `max_attempts: 1` on the device worker exists to prevent. A job that
+      crashed after sending would otherwise send it again on every pass, without
+      end.
 
   Lifeline only discards a job once it has been `executing` for its
   `rescue_after`, so a device orphaned this way waits that long before it is
-  released here. Until then its job still counts as live, below.
+  settled here. Until then its job still counts as live, below.
 
   Only rows older than `older_than` are touched, so devices genuinely mid-script
   are left alone. The default is a wide margin over the ~31s a device job can
@@ -920,22 +952,37 @@ defmodule NervesHub.ScriptRunners do
   queue before it runs, and on a saturated queue — or one paused through a deploy
   — that wait can outlast the cutoff while the job is perfectly healthy.
   Releasing such a row would put a second job in the queue for a device that
-  already has one, and the operator's script would run on it twice. So a row is
-  released only when no job is left to run it, which is what "abandoned" actually
-  means.
+  already has one. So a row is settled only when no job is left to run it.
   """
-  @spec release_stale_devices(integer(), pos_integer()) :: non_neg_integer()
+  @spec release_stale_devices(integer(), pos_integer()) :: %{
+          released: non_neg_integer(),
+          abandoned: non_neg_integer()
+        }
   def release_stale_devices(runner_id, older_than \\ to_timeout(minute: 5)) do
     cutoff = DateTime.add(DateTime.utc_now(), -older_than, :millisecond)
 
-    {count, nil} =
+    stale =
       ScriptRunnerDevice
       |> where([srd], srd.script_runner_id == ^runner_id and srd.status == :running)
       |> where([srd], srd.started_at < ^cutoff)
       |> where([srd], srd.device_id not in subquery(live_job_device_ids(runner_id)))
-      |> Repo.update_all(set: [status: :pending, started_at: nil, updated_at: naive_now()])
 
-    count
+    {:ok, counts} =
+      Repo.transact(fn ->
+        {released, nil} =
+          stale
+          |> where([srd], is_nil(srd.sent_at))
+          |> Repo.update_all(set: [status: :pending, started_at: nil, updated_at: naive_now()])
+
+        {abandoned, nil} =
+          stale
+          |> where([srd], not is_nil(srd.sent_at))
+          |> Repo.update_all(set: [status: :abandoned, finished_at: DateTime.utc_now(), updated_at: naive_now()])
+
+        {:ok, %{released: released, abandoned: abandoned}}
+      end)
+
+    counts
   end
 
   # The devices this run still has a job for, in any state that can yet run it.

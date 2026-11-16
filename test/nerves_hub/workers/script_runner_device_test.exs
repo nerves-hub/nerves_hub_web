@@ -14,6 +14,7 @@ defmodule NervesHub.Workers.ScriptRunnerDeviceTest do
   alias NervesHub.ScriptRunners
   alias NervesHub.Scripts.Runner
   alias NervesHub.Workers.ScriptRunnerDevice
+  alias NervesHub.Workers.ScriptRunnerDispatch
 
   setup :set_mimic_global
 
@@ -37,6 +38,10 @@ defmodule NervesHub.Workers.ScriptRunnerDeviceTest do
         filter_type: :tags,
         filter: %{tags: ["run"], tag_operator: :or}
       })
+
+    # What dispatch does before inserting the job: a device job only ever runs for
+    # a row it holds at `:running`.
+    [_device_id] = ScriptRunners.claim_pending_devices(runner.id, 1)
 
     %{device: device, runner: runner}
   end
@@ -238,6 +243,53 @@ defmodule NervesHub.Workers.ScriptRunnerDeviceTest do
     reject(&Runner.send/3)
 
     assert {:cancel, _reason} = perform(runner, device)
+  end
+
+  test "a job whose device row is gone sends nothing", ctx do
+    %{device: device, runner: runner} = run_for(ctx, %{})
+    _ = Fixtures.device_connection_fixture(device)
+
+    Repo.delete_all(from(srd in NervesHub.ScriptRunners.ScriptRunnerDevice, where: srd.script_runner_id == ^runner.id))
+
+    reject(&Runner.send/3)
+
+    assert {:cancel, _reason} = perform(runner, device)
+  end
+
+  # Review finding #4. A job that crashes after the script was sent used to have
+  # its row released and the script sent again on every dispatch pass, forever.
+  test "a job that crashes after sending is abandoned, not sent again", ctx do
+    %{device: device, runner: runner} = run_for(ctx, %{})
+    _ = Fixtures.device_connection_fixture(device)
+    test_pid = self()
+
+    # A shape `classify/1` has no clause for: the job raises after the send.
+    stub(Runner, :send, fn _device, _command, _opts ->
+      send(test_pid, :sent)
+      {:error, :something_new}
+    end)
+
+    assert_raise FunctionClauseError, fn -> perform(runner, device) end
+    assert_received :sent
+
+    # The five minutes `release_stale_devices/2` waits before touching a row.
+    # `perform_job/2` inserts no job row, so nothing counts as live.
+    Repo.update_all(
+      from(srd in NervesHub.ScriptRunners.ScriptRunnerDevice, where: srd.script_runner_id == ^runner.id),
+      set: [started_at: DateTime.add(DateTime.utc_now(), -6, :minute)]
+    )
+
+    :ok = ScriptRunners.subscribe(runner)
+
+    # Abandoning the device leaves nothing unfinished, so the same pass completes
+    # the run rather than snoozing.
+    assert :ok = perform_job(ScriptRunnerDispatch, %{"script_runner_id" => runner.id})
+
+    assert result(runner).status == :abandoned
+    assert all_enqueued(worker: ScriptRunnerDevice) == [], "the script must not be dispatched a second time"
+    refute_received :sent
+    assert_received {:script_runner, :device_finished, %{status: :abandoned}}
+    assert Repo.reload!(runner).status == :completed
   end
 
   test "tells subscribers the device finished", ctx do

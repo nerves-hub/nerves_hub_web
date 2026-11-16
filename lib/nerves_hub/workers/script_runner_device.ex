@@ -50,7 +50,20 @@ defmodule NervesHub.Workers.ScriptRunnerDevice do
     end
   end
 
+  # Marked sent first, so if this job ends without recording an outcome the row
+  # is `:abandoned` rather than dispatched again -- the script may have run. See
+  # `NervesHub.ScriptRunners.release_stale_devices/2`.
+  #
+  # Nothing to mark means the row has gone with its run, deleted since the text
+  # was read, so nothing is sent.
   defp run(runner_id, device_id, text) do
+    case ScriptRunners.mark_sent(runner_id, device_id) do
+      0 -> {:cancel, "script runner #{runner_id} no longer has device #{device_id}"}
+      _marked -> send_script(runner_id, device_id, text)
+    end
+  end
+
+  defp send_script(runner_id, device_id, text) do
     # Only `id` is read off the device, and the connection was just checked.
     %{id: device_id}
     |> Runner.send(%{text: text}, timeout: @timeout, console_fallback?: false)
@@ -83,9 +96,10 @@ defmodule NervesHub.Workers.ScriptRunnerDevice do
   # The last clause over `Runner.send/3`'s three results, deliberately with
   # nothing after it: anything else would mean that contract changed, and a
   # catch-all would quietly record the new shape as a device failure. Failing here
-  # instead frees the row (see `NervesHub.ScriptRunners.release_stale_devices/2`)
-  # and says which device it was, rather than writing `inspect/1` output into a
-  # column an operator reads as their script's own.
+  # instead leaves the row to be marked `:abandoned` (see
+  # `NervesHub.ScriptRunners.release_stale_devices/2`) and says which device it
+  # was, rather than writing `inspect/1` output into a column an operator reads
+  # as their script's own.
   defp classify({:error, message}) when is_binary(message) do
     if String.contains?(message, "did not respond") do
       {:timed_out, nil}

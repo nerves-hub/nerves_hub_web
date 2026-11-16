@@ -836,7 +836,7 @@ defmodule NervesHub.ScriptRunnersTest do
         set: [started_at: DateTime.add(DateTime.utc_now(), -10, :minute)]
       )
 
-      assert ScriptRunners.release_stale_devices(ctx.runner.id) == 2
+      assert ScriptRunners.release_stale_devices(ctx.runner.id) == %{released: 2, abandoned: 0}
       assert ScriptRunners.status_counts(ctx.runner) == %{pending: 2}
 
       # Released means claimable again, which is what lets another node finish the
@@ -847,7 +847,7 @@ defmodule NervesHub.ScriptRunnersTest do
     test "leaves a device that is genuinely mid-script alone", ctx do
       _ = ScriptRunners.claim_pending_devices(ctx.runner.id, 2)
 
-      assert ScriptRunners.release_stale_devices(ctx.runner.id) == 0
+      assert ScriptRunners.release_stale_devices(ctx.runner.id) == %{released: 0, abandoned: 0}
       assert ScriptRunners.status_counts(ctx.runner) == %{running: 2}
     end
 
@@ -855,7 +855,7 @@ defmodule NervesHub.ScriptRunnersTest do
       [result | _] = ScriptRunners.device_results(ctx.runner)
       _ = ScriptRunners.record_device_result(ctx.runner.id, result.device_id, :completed, "done")
 
-      assert ScriptRunners.release_stale_devices(ctx.runner.id) == 0
+      assert ScriptRunners.release_stale_devices(ctx.runner.id) == %{released: 0, abandoned: 0}
       assert ScriptRunners.status_counts(ctx.runner)[:completed] == 1
     end
 
@@ -884,7 +884,7 @@ defmodule NervesHub.ScriptRunnersTest do
         set: [started_at: DateTime.add(DateTime.utc_now(), -10, :minute)]
       )
 
-      assert ScriptRunners.release_stale_devices(ctx.runner.id) == 0
+      assert ScriptRunners.release_stale_devices(ctx.runner.id) == %{released: 0, abandoned: 0}
       assert ScriptRunners.status_counts(ctx.runner)[:running] == 1
     end
 
@@ -900,8 +900,54 @@ defmodule NervesHub.ScriptRunnersTest do
         set: [started_at: DateTime.add(DateTime.utc_now(), -10, :minute)]
       )
 
-      assert ScriptRunners.release_stale_devices(ctx.runner.id) == 1
+      assert ScriptRunners.release_stale_devices(ctx.runner.id) == %{released: 1, abandoned: 0}
       assert ScriptRunners.status_counts(ctx.runner)[:pending] == 2
+    end
+
+    # The script may already have run on the device, so it is not sent again: a
+    # job that crashed after sending would otherwise re-send on every pass.
+    test "abandons a device whose script was sent before its job ended", ctx do
+      [sent_id, unsent_id] = ScriptRunners.claim_pending_devices(ctx.runner.id, 2)
+      assert ScriptRunners.mark_sent(ctx.runner.id, sent_id) == 1
+
+      Repo.update_all(
+        from(srd in ScriptRunnerDevice, where: srd.script_runner_id == ^ctx.runner.id),
+        set: [started_at: DateTime.add(DateTime.utc_now(), -10, :minute)]
+      )
+
+      assert ScriptRunners.release_stale_devices(ctx.runner.id) == %{released: 1, abandoned: 1}
+
+      results = Map.new(ScriptRunners.device_results(ctx.runner), &{&1.device_id, &1})
+
+      assert results[sent_id].status == :abandoned
+      assert results[sent_id].finished_at
+      assert results[unsent_id].status == :pending
+
+      assert ScriptRunners.claim_pending_devices(ctx.runner.id, 2) == [unsent_id]
+      assert ScriptRunners.unfinished_device_count(ctx.runner.id) == 1
+    end
+  end
+
+  describe "mark_sent/2" do
+    setup ctx do
+      device = device(ctx, %{tags: ["production"]})
+
+      {:ok, runner, []} =
+        create(ctx, %{filter_type: :tags, filter: %{tags: ["production"], tag_operator: :or}})
+
+      %{runner: runner, device: device}
+    end
+
+    test "marks a claimed device sent", ctx do
+      [device_id] = ScriptRunners.claim_pending_devices(ctx.runner.id, 1)
+
+      assert ScriptRunners.mark_sent(ctx.runner.id, device_id) == 1
+      assert [%{sent_at: %DateTime{}}] = ScriptRunners.device_results(ctx.runner)
+    end
+
+    test "marks nothing for a device that is not running", ctx do
+      assert ScriptRunners.mark_sent(ctx.runner.id, ctx.device.id) == 0
+      assert [%{sent_at: nil}] = ScriptRunners.device_results(ctx.runner)
     end
   end
 end

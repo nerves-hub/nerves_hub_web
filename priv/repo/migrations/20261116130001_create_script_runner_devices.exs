@@ -14,6 +14,12 @@ defmodule NervesHub.Repo.Migrations.CreateScriptRunnerDevices do
       add(:output, :text)
 
       add(:started_at, :utc_datetime_usec)
+
+      # When the script was handed to the device. A row whose job ended without
+      # recording an outcome is only safe to dispatch again if this is null --
+      # otherwise the script may already have run there, and is not sent twice.
+      add(:sent_at, :utc_datetime_usec)
+
       add(:finished_at, :utc_datetime_usec)
 
       # When `output` was cleared for outliving its retention period. Set
