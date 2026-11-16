@@ -12,6 +12,7 @@ defmodule NervesHubWeb.DeviceEventsStreamChannel do
   alias NervesHub.Accounts.OrgUser
   alias NervesHub.Accounts.PubSub, as: AccessPubSub
   alias NervesHub.Accounts.Scope
+  alias NervesHub.Accounts.TwoFactor
   alias NervesHub.Devices
   alias NervesHub.Devices.PubSub
   alias NervesHubWeb.Helpers.Authorization
@@ -47,8 +48,8 @@ defmodule NervesHubWeb.DeviceEventsStreamChannel do
     {:noreply, socket}
   end
 
-  # The user's role in the device's org changed, they were removed from it, or
-  # the device's tags changed.
+  # The user's role in the device's org changed, they were removed from it,
+  # the org started requiring two-factor, or the device's tags changed.
   # Checked the same way as on join, so a user who couldn't subscribe now
   # doesn't stay subscribed.
   def handle_info({event, _id}, socket) when event in [:org_membership_changed, :device_access_changed] do
@@ -68,7 +69,8 @@ defmodule NervesHubWeb.DeviceEventsStreamChannel do
   defp authorized_device(user, device_identifier) do
     with {:ok, device} <- Devices.get_by_identifier(Scope.for_user(user), device_identifier),
          %OrgUser{} = org_user <- Accounts.find_org_user_with_device(user, device.id),
-         true <- Authorization.authorized?(:"device:view", org_user) do
+         true <- Authorization.authorized?(:"device:view", org_user),
+         true <- TwoFactor.meets_org_requirement?(device.org_id, user) do
       {:ok, device}
     else
       _ -> :error

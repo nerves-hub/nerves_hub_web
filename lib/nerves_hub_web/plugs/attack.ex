@@ -111,6 +111,25 @@ defmodule NervesHubWeb.Plugs.Attack do
     do_throttle({:two_factor, user_id}, time: time, limit: 5, period: to_timeout(minute: 10))
   end
 
+  @doc """
+  Limits how many times one user can try a code, or their password, on their
+  account's two-factor page: five every ten minutes.
+
+  Turning two-factor off and making new recovery codes ask for a code so that
+  a signed in browser alone can't do either. Without a limit, whoever holds
+  that browser could guess codes until one worked. Turning it on asks for the
+  password, which could be guessed the same way.
+
+  Counted apart from `two_factor_throttle/2`, so tries here can't lock the
+  user out of signing in, and on this node only, like it.
+  """
+  @spec two_factor_change_throttle(pos_integer(), keyword()) :: {:allow | :block, {:throttle, keyword()}}
+  def two_factor_change_throttle(user_id, opts \\ []) do
+    time = opts[:time] || System.system_time(:millisecond)
+
+    do_throttle({:two_factor_change, user_id}, time: time, limit: 5, period: to_timeout(minute: 10))
+  end
+
   defp do_throttle(key, opts) do
     limit = Keyword.fetch!(opts, :limit)
     period = Keyword.fetch!(opts, :period)

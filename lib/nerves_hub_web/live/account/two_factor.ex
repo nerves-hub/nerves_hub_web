@@ -9,13 +9,18 @@ defmodule NervesHubWeb.Live.Account.TwoFactor do
   """
   use NervesHubWeb, :live_view
 
+  alias NervesHub.Accounts
   alias NervesHub.Accounts.TwoFactor
   alias NervesHub.Accounts.User
+  alias NervesHubWeb.Plugs.Attack
 
   @impl Phoenix.LiveView
-  def mount(_params, _session, socket) do
+  def mount(_params, session, socket) do
     socket
     |> page_title("Two-factor authentication")
+    # The session this page is open in, which stays signed in when turning
+    # two-factor on signs the others out.
+    |> assign(:session_token, session["user_token"])
     |> assign(:setup_secret, nil)
     |> assign(:recovery_codes, nil)
     |> assign(:error, nil)
@@ -51,14 +56,19 @@ defmodule NervesHubWeb.Live.Account.TwoFactor do
     # Turning it on shuts out anyone without the app, so a signed in browser
     # alone isn't enough: the password is asked for too, from accounts that
     # have one.
-    with :ok <- check_password(user, params["password"]),
+    with :ok <- check_attempts(user),
+         :ok <- check_password(user, params["password"]),
          {:ok, codes} <- TwoFactor.enable(user, secret, params["code"] || "") do
+      # Whoever holds another of the user's sessions never typed a code, and
+      # may be someone who got in with a stolen password before now.
+      :ok = Accounts.delete_other_user_session_tokens(user, socket.assigns.session_token)
+
       socket
       |> assign(:setup_secret, nil)
       |> assign(:recovery_codes, codes)
       |> assign(:error, nil)
       |> load()
-      |> put_flash(:info, "Two-factor authentication is on.")
+      |> put_flash(:info, "Two-factor authentication is on. Your other browser sessions were signed out.")
       |> noreply()
     else
       {:error, reason} -> socket |> assign(:error, error_message(reason)) |> noreply()
@@ -68,37 +78,48 @@ defmodule NervesHubWeb.Live.Account.TwoFactor do
   def handle_event("enable", _params, socket), do: noreply(socket)
 
   def handle_event("regenerate", %{"code" => code}, socket) do
-    case TwoFactor.regenerate_recovery_codes(socket.assigns.current_scope.user, code) do
-      {:ok, codes} ->
-        socket
-        |> assign(:recovery_codes, codes)
-        |> assign(:error, nil)
-        |> load()
-        |> put_flash(:info, "New recovery codes made. The old ones no longer work.")
-        |> noreply()
+    user = socket.assigns.current_scope.user
 
-      {:error, reason} ->
-        socket |> assign(:error, error_message(reason)) |> noreply()
+    with :ok <- check_attempts(user),
+         {:ok, codes} <- TwoFactor.regenerate_recovery_codes(user, code) do
+      socket
+      |> assign(:recovery_codes, codes)
+      |> assign(:error, nil)
+      |> load()
+      |> put_flash(:info, "New recovery codes made. The old ones no longer work.")
+      |> noreply()
+    else
+      {:error, reason} -> socket |> assign(:error, error_message(reason)) |> noreply()
     end
   end
 
   def handle_event("disable", %{"code" => code}, socket) do
-    case TwoFactor.disable(socket.assigns.current_scope.user, code) do
-      :ok ->
-        socket
-        |> assign(:recovery_codes, nil)
-        |> assign(:error, nil)
-        |> load()
-        |> put_flash(:info, "Two-factor authentication is off.")
-        |> noreply()
+    user = socket.assigns.current_scope.user
 
-      {:error, reason} ->
-        socket |> assign(:error, error_message(reason)) |> noreply()
+    with :ok <- check_attempts(user),
+         :ok <- TwoFactor.disable(user, code) do
+      socket
+      |> assign(:recovery_codes, nil)
+      |> assign(:error, nil)
+      |> load()
+      |> put_flash(:info, "Two-factor authentication is off.")
+      |> noreply()
+    else
+      {:error, reason} -> socket |> assign(:error, error_message(reason)) |> noreply()
     end
   end
 
   def handle_event("hide-recovery-codes", _params, socket) do
     socket |> assign(:recovery_codes, nil) |> noreply()
+  end
+
+  # A code, or the password, is what stops a signed in browser alone from
+  # changing any of this, so how often one can be tried is limited.
+  defp check_attempts(%User{id: user_id}) do
+    case Attack.two_factor_change_throttle(user_id) do
+      {:allow, _data} -> :ok
+      {:block, _data} -> {:error, :too_many_attempts}
+    end
   end
 
   # Accounts that only sign in with Google have no password to ask for.
@@ -110,6 +131,13 @@ defmodule NervesHubWeb.Live.Account.TwoFactor do
 
   defp error_message(:invalid_password), do: "That password isn't right."
   defp error_message(:invalid_code), do: "That code didn't work. Check your authenticator app and try again."
+
+  defp error_message(:too_many_attempts),
+    do: "Too many tries. To keep your account safe, wait ten minutes, then try again."
+
+  defp error_message(:secret_unreadable),
+    do: "Codes from your authenticator app can't be checked on this server right now. Use a recovery code instead."
+
   defp error_message(:already_enabled), do: "Two-factor authentication is already on."
   defp error_message(:unavailable), do: "Two-factor authentication isn't available on this server."
 

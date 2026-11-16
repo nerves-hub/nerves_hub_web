@@ -14,12 +14,11 @@ defmodule NervesHubWeb.Auth do
   alias NervesHub.Accounts.TwoFactor
   alias NervesHub.Accounts.User
   alias NervesHub.Accounts.UserToken
+  alias NervesHubWeb.API.ErrorJSON
 
   # Make the remember me cookie valid for 60 days.
   # If you want bump or reduce this value, also change
   # the token expiry itself in UserToken.
-  alias NervesHubWeb.API.ErrorJSON
-
   @max_age 60 * 60 * 24 * 60
   @remember_me_cookie "_nerves_hub_user_remember_me"
   @remember_me_options [sign: true, max_age: @max_age, same_site: "Lax"]
@@ -415,7 +414,8 @@ defmodule NervesHubWeb.Auth do
   # check on the page uses that copy. So when an admin changes the role, the
   # page mounts again, and everything it worked out from the old role is worked
   # out again from the new one. A member who has been removed is sent back to
-  # their list of orgs.
+  # their list of orgs, and one the org now turns away for not having
+  # two-factor on is sent to set it up.
   defp watch_membership(%{assigns: %{current_scope: %Scope{org: %Org{} = org, user: %User{} = user}}} = socket) do
     if Phoenix.LiveView.connected?(socket) do
       :ok = AccessPubSub.subscribe_membership(org.id, user.id)
@@ -436,12 +436,22 @@ defmodule NervesHubWeb.Auth do
     socket =
       case Accounts.get_org_user(org, user) do
         {:ok, %OrgUser{} = org_user} ->
-          if same_role?(scope, OrgUser.assigned_role(org_user)) do
-            socket
-          else
-            socket
-            |> Phoenix.LiveView.put_flash(:info, "Your role in #{org.name} has changed.")
-            |> Phoenix.LiveView.push_navigate(to: socket.assigns.current_path)
+          cond do
+            # By id, as the org on the scope is from before the change: the
+            # org may have started requiring two-factor since, or the user
+            # turned theirs off.
+            not TwoFactor.meets_org_requirement?(org.id, user) ->
+              socket
+              |> Phoenix.LiveView.put_flash(:error, two_factor_required_message(org))
+              |> Phoenix.LiveView.redirect(to: ~p"/account/two-factor")
+
+            same_role?(scope, OrgUser.assigned_role(org_user)) ->
+              socket
+
+            true ->
+              socket
+              |> Phoenix.LiveView.put_flash(:info, "Your role in #{org.name} has changed.")
+              |> Phoenix.LiveView.push_navigate(to: socket.assigns.current_path)
           end
 
         {:error, :not_found} ->

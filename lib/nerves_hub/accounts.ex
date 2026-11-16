@@ -1758,6 +1758,23 @@ defmodule NervesHub.Accounts do
     disconnect_socket("api_socket:#{user.id}")
   end
 
+  @doc """
+  Signs `user` out of every browser session but the one holding `keep_token`
+  (all of them when it is `nil`), and closes the pages and consoles those
+  sessions have open. API tokens are left alone.
+  """
+  @spec delete_other_user_session_tokens(User.t(), binary() | nil) :: :ok
+  def delete_other_user_session_tokens(%User{} = user, keep_token) do
+    query = UserToken.by_user_and_contexts_query(user, ["session"])
+    query = if is_binary(keep_token), do: where(query, [t], t.token != ^keep_token), else: query
+
+    {_count, deleted} = Repo.delete_all(select(query, [t], t.token))
+
+    for token <- deleted, do: disconnect_socket(UserToken.live_socket_id(token))
+
+    :ok
+  end
+
   defp disconnect_socket(socket_id) do
     :ok = ChannelServer.broadcast(NervesHub.PubSub, socket_id, "disconnect", %{})
   end

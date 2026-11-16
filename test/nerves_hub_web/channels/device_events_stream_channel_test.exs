@@ -2,6 +2,7 @@ defmodule NervesHubWeb.DeviceEventsStreamChannelTest do
   use NervesHubWeb.ChannelCase
 
   alias NervesHub.Accounts
+  alias NervesHub.Accounts.TwoFactor
   alias NervesHub.FirmwareUpdates
   alias NervesHub.Fixtures
   alias NervesHubWeb.DeviceEventsStreamChannel
@@ -64,6 +65,44 @@ defmodule NervesHubWeb.DeviceEventsStreamChannelTest do
                  DeviceEventsStreamChannel,
                  "device:#{device.identifier}"
                )
+    end
+  end
+
+  describe "an organization requiring two-factor" do
+    setup %{tmp_dir: tmp_dir} do
+      admin = Fixtures.user_fixture()
+      device = device_fixture(admin, %{identifier: "stream-two-factor-device"}, tmp_dir)
+      org = Accounts.get_org!(device.org_id)
+      Fixtures.two_factor_fixture(admin)
+
+      member = Fixtures.user_fixture()
+      {:ok, _} = Accounts.add_org_user(org, member, %{role: :manage})
+      {:ok, socket} = connect(EventStreamSocket, %{"token" => Accounts.create_user_api_token(member, "test-token")})
+
+      %{admin: admin, org: org, member: member, socket: socket, topic: "device:#{device.identifier}"}
+    end
+
+    test "turns away a member without it until they turn it on", context do
+      %{admin: admin, org: org, member: member, socket: socket, topic: topic} = context
+      {:ok, _org} = TwoFactor.set_org_requirement(org, admin, true)
+
+      assert {:error, %{reason: "unauthorized"}} = subscribe_and_join(socket, DeviceEventsStreamChannel, topic)
+
+      Fixtures.two_factor_fixture(member)
+
+      assert {:ok, _reply, _channel} = subscribe_and_join(socket, DeviceEventsStreamChannel, topic)
+    end
+
+    test "closes the stream of a member without it when the requirement is turned on", context do
+      %{admin: admin, org: org, socket: socket, topic: topic} = context
+      {:ok, _reply, channel} = subscribe_and_join(socket, DeviceEventsStreamChannel, topic)
+
+      Process.unlink(channel.channel_pid)
+      ref = Process.monitor(channel.channel_pid)
+
+      {:ok, _org} = TwoFactor.set_org_requirement(org, admin, true)
+
+      assert_receive {:DOWN, ^ref, :process, _pid, {:shutdown, :closed}}
     end
   end
 
