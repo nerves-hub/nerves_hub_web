@@ -160,6 +160,23 @@ defmodule NervesHub.Accounts.TwoFactorTest do
       assert {:error, :invalid_code} = TwoFactor.verify(user, old)
       assert {:ok, {:recovery_code, 9}} = TwoFactor.verify(user, new)
     end
+
+    test "new recovery codes email the user", %{user: user, secret: secret} do
+      assert {:error, :invalid_code} = TwoFactor.regenerate_recovery_codes(user, "000000")
+      refute_enqueued(worker: SendEmail, args: %{template: "two_factor_recovery_codes"})
+
+      {:ok, _codes} = TwoFactor.regenerate_recovery_codes(user, Fixtures.next_totp_code(secret))
+
+      assert_enqueued(worker: SendEmail, args: %{template: "two_factor_recovery_codes", to: user.email})
+
+      send_queued_emails()
+
+      assert_email_sent(fn email ->
+        assert email.subject == "NervesHub: New two-factor recovery codes were made"
+        assert email.text_body =~ "old recovery codes no longer work"
+        assert email.html_body =~ "/account/two-factor"
+      end)
+    end
   end
 
   describe "organization requirement" do
@@ -197,6 +214,43 @@ defmodule NervesHub.Accounts.TwoFactorTest do
       assert started.description == "User #{user.name} started requiring two-factor authentication of every member"
       assert stopped.description == "User #{user.name} stopped requiring two-factor authentication of members"
       assert started.actor_id == user.id
+    end
+
+    test "turning it on emails the other members", %{user: user, org: org} do
+      Fixtures.two_factor_fixture(user)
+      without = Fixtures.user_fixture(%{name: "Ringo"})
+      with_it = Fixtures.user_fixture(%{name: "George"})
+      Fixtures.two_factor_fixture(with_it)
+      {:ok, _} = Accounts.add_org_user(org, without, %{role: :view})
+      {:ok, _} = Accounts.add_org_user(org, with_it, %{role: :manage})
+      send_queued_emails()
+
+      {:ok, org} = TwoFactor.set_org_requirement(org, user, true)
+
+      refute_enqueued(worker: SendEmail, args: %{template: "org_requires_two_factor", to: user.email})
+
+      send_queued_emails()
+
+      subject = "NervesHub: #{org.name} now requires two-factor authentication"
+
+      # Each member gets one, so these match on the recipient rather than
+      # asserting inside the predicate, which would fail on the other email.
+      assert_email_sent(fn email ->
+        email.to == [{"", without.email}] and email.subject == subject and
+          email.text_body =~ "Until you turn it on" and email.html_body =~ "/account/two-factor"
+      end)
+
+      assert_email_sent(fn email ->
+        email.to == [{"", with_it.email}] and email.subject == subject and
+          email.text_body =~ "nothing changes for you" and email.text_body =~ user.name and
+          not (email.html_body =~ "Set up two-factor authentication")
+      end)
+
+      # Saving it again, or turning it off, emails no one.
+      {:ok, org} = TwoFactor.set_org_requirement(org, user, true)
+      {:ok, _org} = TwoFactor.set_org_requirement(org, user, false)
+
+      refute_enqueued(worker: SendEmail, args: %{template: "org_requires_two_factor"})
     end
 
     test "turning it on without two-factor isn't recorded", %{user: user, org: org} do

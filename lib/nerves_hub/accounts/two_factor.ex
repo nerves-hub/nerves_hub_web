@@ -178,19 +178,23 @@ defmodule NervesHub.Accounts.TwoFactor do
 
   @doc """
   Replaces the user's recovery codes with ten new ones, given a current code
-  or a recovery code. The old codes stop working.
+  or a recovery code. The old codes stop working, and the user is emailed
+  that they were replaced.
   """
   @spec regenerate_recovery_codes(User.t(), String.t()) :: {:ok, [String.t()]} | {:error, :invalid_code}
   def regenerate_recovery_codes(%User{} = user, code) do
     with {:ok, _how} <- verify(user, code) do
       {codes, hashes} = new_recovery_codes(user)
 
-      {1, _} =
-        UserTOTP
-        |> where(user_id: ^user.id)
-        |> Repo.update_all(set: [recovery_codes: hashes])
+      Repo.transact(fn ->
+        {1, _} =
+          UserTOTP
+          |> where(user_id: ^user.id)
+          |> Repo.update_all(set: [recovery_codes: hashes])
 
-      {:ok, codes}
+        {:ok, _job} = UserNotifier.deliver_two_factor_recovery_codes(user)
+        {:ok, codes}
+      end)
     end
   end
 
@@ -245,7 +249,8 @@ defmodule NervesHub.Accounts.TwoFactor do
   can't lock themselves out of the org by turning it on.
 
   A change is recorded in the org's audit log; saving the same value again
-  isn't.
+  isn't. Turning it on emails every other member, asking those without it to
+  set it up.
   """
   @spec set_org_requirement(Org.t(), User.t(), boolean()) ::
           {:ok, Org.t()} | {:error, :two_factor_off | :unavailable | Ecto.Changeset.t()}
@@ -261,14 +266,37 @@ defmodule NervesHub.Accounts.TwoFactor do
     changeset = Org.require_two_factor_changeset(org, required)
 
     Repo.transact(fn ->
-      with {:ok, updated} <- Repo.update(changeset) do
-        if Ecto.Changeset.changed?(changeset, :require_two_factor) do
-          :ok = OrgTemplates.audit_two_factor_requirement(admin, updated)
-        end
-
+      with {:ok, updated} <- Repo.update(changeset),
+           :ok <- record_change(changeset, updated, admin) do
         {:ok, updated}
       end
     end)
+  end
+
+  defp record_change(changeset, org, admin) do
+    if Ecto.Changeset.changed?(changeset, :require_two_factor) do
+      :ok = OrgTemplates.audit_two_factor_requirement(admin, org)
+      notify_members(org, admin)
+    else
+      :ok
+    end
+  end
+
+  defp notify_members(%Org{require_two_factor: true} = org, admin) do
+    _jobs = UserNotifier.deliver_all_org_requires_two_factor(org, admin, members_with_two_factor(org))
+    :ok
+  end
+
+  defp notify_members(%Org{require_two_factor: false}, _admin), do: :ok
+
+  # Each member, with whether they have two-factor on.
+  defp members_with_two_factor(%Org{id: org_id}) do
+    User
+    |> join(:inner, [u], ou in OrgUser, on: ou.user_id == u.id and ou.org_id == ^org_id and is_nil(ou.deleted_at))
+    |> join(:left, [u], t in UserTOTP, on: t.user_id == u.id)
+    |> where([u], is_nil(u.deleted_at))
+    |> select([u, _ou, t], {u, not is_nil(t.id)})
+    |> Repo.all()
   end
 
   # A TOTP code is six digits; anything else is tried as a recovery code.

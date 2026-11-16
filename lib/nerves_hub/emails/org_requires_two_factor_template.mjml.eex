@@ -1,0 +1,31 @@
+<mjml>
+  <mj-body background-color="#fafafa">
+    <%= render_dynamic_component NervesHub.Emails.LogoHeader, %{} %>
+
+    <mj-section padding-top="0px">
+      <mj-column>
+        <mj-text font-size="20px" font-family="sans-serif" padding-top="20px">Hi <%= @user_name %></mj-text>
+
+        <mj-text font-size="20px" font-family="sans-serif" padding-top="20px">
+          <%= @admin_name %> has made two-factor authentication required for every member of <%= @org_name %>.
+        </mj-text>
+
+        <%= if @has_two_factor do %>
+          <mj-text font-size="20px" font-family="sans-serif" padding-top="20px">
+            You already have it on, so nothing changes for you.
+          </mj-text>
+        <% else %>
+          <mj-text font-size="20px" font-family="sans-serif" padding-top="20px">
+            Until you turn it on, you won't be able to reach <%= @org_name %>'s products, devices or settings. You'll need an authenticator app on your phone.
+          </mj-text>
+
+          <mj-button align="left" padding-top="20px" inner-padding="8px 10px 5px 10px" href="<%= @setup_url %>" font-size="18px" background-color="#6366f1" border-radius="4px" color="#fafafa" font-family="sans-serif">
+            Set up two-factor authentication
+          </mj-button>
+        <% end %>
+      </mj-column>
+    </mj-section>
+
+    <%= render_dynamic_component NervesHub.Emails.ClosingBlock, %{} %>
+  </mj-body>
+</mjml>
