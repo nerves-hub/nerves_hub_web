@@ -449,7 +449,7 @@ job can trim it.
 | `TRUNCATE_AUDIT_LOGS_DEFAULT_DAYS_KEPT` | `30` | Days of audit log kept, for organizations that have not set their own retention. |
 | `CLEAN_UP_SOFT_DELETED_DEVICES` | `false` | Let the cron job hard-delete devices that have been soft deleted. |
 | `SCRIPT_RUNNER_OUTPUT_DAYS_TO_RETAIN` | `3` | Days a script run keeps each device's output, counted from when the device finished. Scripts can print credentials, so output is cleared after this; the run, and how each device ended, are kept. |
-| `SCRIPT_RUNNER_OUTPUT_EXPIRE_LIMIT` | `100000` | Device results cleared of output per run of the cron job. |
+| `SCRIPT_RUNNER_OUTPUT_EXPIRE_ROW_LIMIT` | `100000` | Device results cleared of output per run of the cron job. |
 
 ## Device extensions
 

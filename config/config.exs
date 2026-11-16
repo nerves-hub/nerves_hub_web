@@ -117,14 +117,10 @@ config :nerves_hub, Oban,
   notifier: Oban.Notifiers.PG,
   pruner: [max_age: {1, :week}, interval: {3, :minutes}],
   # Moves on a job left `executing` by a node that died or was shut down mid-job:
-  # back to `available` if it has attempts left, otherwise `discarded`. Without
-  # it such a job stays `executing` for good, and a script run counting it as
-  # live never finishes (see `NervesHub.ScriptRunners.release_stale_devices/2`).
-  #
-  # Applies to every queue and cannot tell a dead job from a slow one, so this
-  # has to outlast the longest job that is still working. Firmware delta builds
-  # are given 16 minutes (`NervesHub.Workers.FirmwareDeltaTimeout`); anything
-  # shorter than that would start a second build of a delta still being built.
+  # back to `available` if it has attempts left, otherwise `discarded`.
+
+  # Firmware delta builds are given 16 minutes (`NervesHub.Workers.FirmwareDeltaTimeout`);
+  # anything shorter than that would start a second build of a delta still being built.
   lifeline: [rescue_after: {30, :minutes}],
   cron: [
     crontab: [

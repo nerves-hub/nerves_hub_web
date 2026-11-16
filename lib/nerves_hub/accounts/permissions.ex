@@ -149,12 +149,7 @@ defmodule NervesHub.Accounts.Permissions do
        {:"support_script:create", :manage, :optional, "Create support scripts"},
        {:"support_script:update", :manage, :optional, "Edit support scripts"},
        {:"support_script:delete", :manage, :optional, "Delete support scripts"},
-       # Running a script across a whole fleet at once, rather than on the one
-       # device in front of you, is a heavier thing than `support_script:run`.
        {:"script_runner:create", :manage, :optional, "Run a script across many devices"},
-       # A run is a record of what was run on a fleet, so changing or removing
-       # one - and the per-device output that goes with it - takes the same
-       # role as starting one.
        {:"script_runner:update", :manage, :optional, "Edit a script run's description"},
        {:"script_runner:delete", :manage, :optional, "Delete script runs"}
      ]}
