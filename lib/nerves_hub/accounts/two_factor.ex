@@ -186,7 +186,9 @@ defmodule NervesHub.Accounts.TwoFactor do
   def disable(%User{} = user, code) do
     with {:ok, _how} <- verify(user, code),
          {:ok, :ok} <- Repo.transact(fn -> delete_and_notify(user) end) do
-      for org <- orgs_requiring(user), do: AccessPubSub.broadcast_membership_changed(org.id, user.id)
+      user
+      |> orgs_requiring()
+      |> Enum.each(fn org -> _ = AccessPubSub.broadcast_membership_changed(org.id, user.id) end)
 
       :ok
     end
@@ -314,8 +316,14 @@ defmodule NervesHub.Accounts.TwoFactor do
       end)
 
     # Once committed, as each subscriber reads the requirement straight away.
-    with {:ok, %Org{require_two_factor: true} = updated} <- result do
-      for member <- members_without(updated), do: AccessPubSub.broadcast_membership_changed(updated.id, member.id)
+    case result do
+      {:ok, %Org{require_two_factor: true} = updated} ->
+        updated
+        |> members_without()
+        |> Enum.each(fn member -> _ = AccessPubSub.broadcast_membership_changed(updated.id, member.id) end)
+
+      _ ->
+        :ok
     end
 
     result

@@ -131,6 +131,7 @@ defmodule NervesHubWeb.Live.Account.TwoFactor do
 
   defp error_message(:invalid_password), do: "That password isn't right."
   defp error_message(:invalid_code), do: "That code didn't work. Check your authenticator app and try again."
+
   defp error_message(:too_many_attempts),
     do: "Too many tries. To keep your account safe, wait ten minutes, then try again."
 
