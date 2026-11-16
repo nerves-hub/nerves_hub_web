@@ -7,6 +7,7 @@ defmodule NervesHubWeb.Live.TagRestrictedRolesTest do
   alias NervesHub.Devices
   alias NervesHub.Fixtures
   alias NervesHub.Products
+  alias NervesHub.ScriptRunners
 
   setup %{org: org, product: product, firmware: firmware, user: user, device: hidden} do
     visible = Fixtures.device_fixture(org, product, firmware, %{tags: ["support"]})
@@ -56,6 +57,35 @@ defmodule NervesHubWeb.Live.TagRestrictedRolesTest do
       |> visit("/org/#{org.name}/#{product.name}/#{page}")
       |> assert_path("/org/#{org.name}/#{product.name}/devices")
       |> assert_has("div", text: "Your role only gives you access to some of this organization's devices.")
+    end
+  end
+
+  # A run's page and its export carry every targeted device's output, including
+  # devices the role cannot see, so both stay closed even with the run's id in hand.
+  describe "a script run" do
+    setup %{product: product, user: user} do
+      {:ok, run, []} =
+        ScriptRunners.create(product, user, %{
+          name: "Fleet check",
+          text: "IO.puts(:hi)",
+          filter_type: :tags,
+          filter: %{tags: ["support"], tag_operator: :or}
+        })
+
+      %{run: run}
+    end
+
+    test "its page is closed", %{conn: conn, org: org, product: product, run: run} do
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/scripts/runs/#{run.id}")
+      |> assert_path("/org/#{org.name}/#{product.name}/devices")
+      |> assert_has("div", text: "Your role only gives you access to some of this organization's devices.")
+    end
+
+    test "its export is refused", %{conn: conn, org: org, product: product, run: run} do
+      assert_raise NervesHubWeb.UnauthorizedError, fn ->
+        get(conn, "/org/#{org.name}/#{product.name}/scripts/runs/#{run.id}/export")
+      end
     end
   end
 

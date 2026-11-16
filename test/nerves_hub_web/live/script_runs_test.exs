@@ -1297,6 +1297,54 @@ defmodule NervesHubWeb.Live.ScriptRunsTest do
     end
   end
 
+  # Hiding a button is not the check: each of these is refused on the server even
+  # when the event is sent by hand.
+  describe "a viewer" do
+    setup ctx do
+      run = ctx |> create_run(name: "Read only", description: "As it was") |> complete()
+
+      {1, _} =
+        OrgUser
+        |> where([ou], ou.org_id == ^ctx.org.id and ou.user_id == ^ctx.user.id)
+        |> Repo.update_all(set: [role: :view])
+
+      Process.flag(:trap_exit, true)
+
+      %{run: run}
+    end
+
+    test "cannot open the new run form", ctx do
+      assert_raise NervesHubWeb.UnauthorizedError, fn ->
+        visit(ctx.conn, "#{runs_path(ctx)}/new")
+      end
+    end
+
+    test "cannot rerun a run", ctx do
+      {:ok, view, _html} = live(ctx.conn, run_path(ctx, ctx.run))
+
+      assert {{%NervesHubWeb.UnauthorizedError{}, _}, _} = catch_exit(render_click(view, "rerun", %{}))
+
+      assert [_only_the_original] = ScriptRunners.all_by_product(ctx.product)
+    end
+
+    test "cannot change a run's description", ctx do
+      {:ok, view, _html} = live(ctx.conn, run_path(ctx, ctx.run))
+
+      assert {{%NervesHubWeb.UnauthorizedError{}, _}, _} =
+               catch_exit(render_submit(view, "save-description", %{"description" => "Changed"}))
+
+      assert Repo.reload!(ctx.run).description == "As it was"
+    end
+
+    test "cannot delete a run", ctx do
+      {:ok, view, _html} = live(ctx.conn, run_path(ctx, ctx.run))
+
+      assert {{%NervesHubWeb.UnauthorizedError{}, _}, _} = catch_exit(render_click(view, "delete-run", %{}))
+
+      assert Repo.get(ScriptRunner, ctx.run.id)
+    end
+  end
+
   # Private helpers, kept at the end rather than in the describe block that uses
   # them: a `defp` inside a `describe` belongs to the module either way.
   defp position(html, text) do

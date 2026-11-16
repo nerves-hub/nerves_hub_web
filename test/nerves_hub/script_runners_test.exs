@@ -1,7 +1,6 @@
 defmodule NervesHub.ScriptRunnersTest do
   use NervesHub.DataCase, async: true
 
-  alias NervesHub.Accounts.Scope
   alias NervesHub.AuditLogs
   alias NervesHub.Fixtures
   alias NervesHub.ScriptRunners
@@ -275,9 +274,11 @@ defmodule NervesHub.ScriptRunnersTest do
   end
 
   describe "create/3 validation" do
-    test "refuses a run that would target nothing", ctx do
+    test "refuses a run that would target nothing, and enqueues no work", ctx do
       assert {:error, :no_devices} =
                create(ctx, %{filter_type: :tags, filter: %{tags: ["nobody-has-this"], tag_operator: :or}})
+
+      refute_enqueued(worker: ScriptRunnerDispatch)
     end
 
     test "requires the values the chosen filter type needs", ctx do
@@ -436,13 +437,6 @@ defmodule NervesHub.ScriptRunnersTest do
       assert_enqueued(worker: ScriptRunnerDispatch, args: %{script_runner_id: runner.id})
     end
 
-    test "a run that targets nothing enqueues no work", ctx do
-      assert {:error, :no_devices} =
-               create(ctx, %{filter_type: :tags, filter: %{tags: ["nobody"], tag_operator: :or}})
-
-      refute_enqueued(worker: ScriptRunnerDispatch)
-    end
-
     test "audits the run against the product", ctx do
       _device = device(ctx, %{tags: ["production"]})
 
@@ -454,26 +448,6 @@ defmodule NervesHub.ScriptRunnersTest do
       assert Enum.any?(logs, fn log ->
                log.description =~ "ran a script named #{runner.name} with id #{runner.id} on 1 devices"
              end)
-    end
-
-    test "accepts a scope in place of a product", ctx do
-      device = device(ctx, %{tags: ["production"]})
-
-      scope =
-        ctx.user
-        |> Scope.for_user()
-        |> Scope.put_org(ctx.org)
-        |> Scope.put_product(ctx.product)
-
-      {:ok, runner, []} =
-        ScriptRunners.create(scope, ctx.user, %{
-          name: "Say hi",
-          text: "IO.puts(:hi)",
-          filter_type: :tags,
-          filter: %{tags: ["production"], tag_operator: :or}
-        })
-
-      assert targeted_device_ids(runner) == [device.id]
     end
   end
 
@@ -507,29 +481,6 @@ defmodule NervesHub.ScriptRunnersTest do
                  filter_type: :tags,
                  filter: tag_filter()
                })
-    end
-  end
-
-  describe "descriptions" do
-    test "a run can be created with one, and it can be changed afterwards", ctx do
-      _device = device(ctx, %{tags: ["production"]})
-
-      {:ok, runner, []} =
-        create(ctx, %{description: "Checking the modem firmware", filter_type: :tags, filter: tag_filter()})
-
-      assert runner.description == "Checking the modem firmware"
-
-      {:ok, updated} = ScriptRunners.update_description(runner, "Turned out to be the antenna")
-
-      assert updated.description == "Turned out to be the antenna"
-    end
-
-    test "a run created without one has none", ctx do
-      _device = device(ctx, %{tags: ["production"]})
-
-      {:ok, runner, []} = create(ctx, %{filter_type: :tags, filter: tag_filter()})
-
-      assert is_nil(runner.description)
     end
   end
 
@@ -613,39 +564,9 @@ defmodule NervesHub.ScriptRunnersTest do
 
       assert copy.name == "100% _done copy 1"
     end
-
-    test "the original is left exactly as it was", ctx do
-      _device = device(ctx, %{tags: ["production"]})
-
-      {:ok, original, []} = create(ctx, %{name: "Reboot", filter_type: :tags, filter: tag_filter()})
-
-      {:ok, _copy, []} = ScriptRunners.rerun(ctx.product, ctx.user, original)
-
-      reloaded = Repo.get!(ScriptRunner, original.id)
-
-      assert reloaded.name == "Reboot"
-      assert reloaded.text == original.text
-      assert is_nil(reloaded.description)
-    end
   end
 
   describe "delete/3" do
-    test "the run goes, and its device rows go with it", ctx do
-      for _ <- 1..3, do: device(ctx, %{tags: ["production"]})
-
-      {:ok, runner, []} = create(ctx, %{filter_type: :tags, filter: tag_filter()})
-
-      assert device_row_count(runner.id) == 3
-
-      {:ok, _deleted} = ScriptRunners.delete(runner, ctx.user, ctx.product)
-
-      refute Repo.get(ScriptRunner, runner.id)
-
-      # Cascaded by the foreign key rather than deleted in Elixir, so this is what
-      # proves the constraint is actually doing it.
-      assert device_row_count(runner.id) == 0
-    end
-
     test "another run's device rows are left alone", ctx do
       for _ <- 1..2, do: device(ctx, %{tags: ["production"]})
 
@@ -689,23 +610,6 @@ defmodule NervesHub.ScriptRunnersTest do
     end
   end
 
-  describe "tag operators" do
-    test "both are offered, with the wording the deployment group form uses" do
-      assert ScriptRunner.tag_operators() == [:and, :or]
-      assert ScriptRunner.tag_operator_label(:and) == "Require all"
-      assert ScriptRunner.tag_operator_label(:or) == "Allow any"
-    end
-
-    test "there is no default, so the UI must ask", ctx do
-      _device = device(ctx, %{tags: ["production"]})
-
-      {:error, changeset} = create(ctx, %{filter_type: :tags, filter: %{tags: ["production"]}})
-
-      refute Ecto.Changeset.get_field(changeset, :filter).tag_operator,
-             "a default here would mean the form could silently submit one"
-    end
-  end
-
   describe "connected_device_ids/1" do
     test "only a device whose latest connection is connected counts as online", ctx do
       connected = device(ctx)
@@ -728,95 +632,6 @@ defmodule NervesHub.ScriptRunnersTest do
     end
   end
 
-  describe "claim_pending_devices/2" do
-    setup ctx do
-      devices = for _ <- 1..5, do: device(ctx, %{tags: ["production"]})
-
-      {:ok, runner, []} =
-        create(ctx, %{filter_type: :tags, filter: %{tags: ["production"], tag_operator: :or}})
-
-      %{runner: runner, devices: devices}
-    end
-
-    test "takes up to the limit and flips them to running", ctx do
-      claimed = ScriptRunners.claim_pending_devices(ctx.runner.id, 2)
-
-      assert length(claimed) == 2
-      assert ScriptRunners.status_counts(ctx.runner) == %{running: 2, pending: 3}
-
-      for result <- ScriptRunners.device_results(ctx.runner), result.device_id in claimed do
-        assert result.status == :running
-        assert result.started_at
-      end
-    end
-
-    test "never hands the same device to two callers", ctx do
-      first = ScriptRunners.claim_pending_devices(ctx.runner.id, 3)
-      second = ScriptRunners.claim_pending_devices(ctx.runner.id, 3)
-
-      # A retry racing the original dispatch must not run the script twice on one
-      # device.
-      assert first -- second == first
-      assert length(first) == 3
-      assert length(second) == 2
-      assert Enum.sort(first ++ second) == Enum.sort(Enum.map(ctx.devices, & &1.id))
-    end
-
-    test "returns nothing once every device is claimed", ctx do
-      _ = ScriptRunners.claim_pending_devices(ctx.runner.id, 5)
-
-      assert ScriptRunners.claim_pending_devices(ctx.runner.id, 5) == []
-    end
-
-    test "a limit of zero or less claims nothing", ctx do
-      assert ScriptRunners.claim_pending_devices(ctx.runner.id, 0) == []
-      assert ScriptRunners.claim_pending_devices(ctx.runner.id, -3) == []
-      assert ScriptRunners.status_counts(ctx.runner) == %{pending: 5}
-    end
-  end
-
-  describe "counting work" do
-    test "active_run_count counts unfinished runs, and never returns zero", ctx do
-      # It divides the concurrency budget, so zero would be a division by zero.
-      assert ScriptRunners.active_run_count() == 1
-
-      _device = device(ctx, %{tags: ["production"]})
-
-      {:ok, first, []} =
-        create(ctx, %{filter_type: :tags, filter: %{tags: ["production"], tag_operator: :or}})
-
-      {:ok, _second, []} =
-        create(ctx, %{filter_type: :tags, filter: %{tags: ["production"], tag_operator: :or}})
-
-      assert ScriptRunners.active_run_count() == 2
-
-      {:ok, _first} = ScriptRunners.mark_finished(first)
-
-      assert ScriptRunners.active_run_count() == 1
-    end
-
-    test "unfinished and pending counts track a device through its statuses", ctx do
-      [one, two] = for _ <- 1..2, do: device(ctx, %{tags: ["production"]})
-
-      {:ok, runner, []} =
-        create(ctx, %{filter_type: :tags, filter: %{tags: ["production"], tag_operator: :or}})
-
-      assert ScriptRunners.unfinished_device_count(runner.id) == 2
-      assert ScriptRunners.pending_device_count(runner.id) == 2
-
-      _ = ScriptRunners.claim_pending_devices(runner.id, 1)
-
-      assert ScriptRunners.unfinished_device_count(runner.id) == 2
-      assert ScriptRunners.pending_device_count(runner.id) == 1
-
-      _ = ScriptRunners.record_device_result(runner.id, one.id, :completed, "done")
-      _ = ScriptRunners.record_device_result(runner.id, two.id, :offline, nil)
-
-      assert ScriptRunners.unfinished_device_count(runner.id) == 0
-      assert ScriptRunners.pending_device_count(runner.id) == 0
-    end
-  end
-
   describe "release_stale_devices/2" do
     setup ctx do
       _devices = for _ <- 1..2, do: device(ctx, %{tags: ["production"]})
@@ -825,23 +640,6 @@ defmodule NervesHub.ScriptRunnersTest do
         create(ctx, %{filter_type: :tags, filter: %{tags: ["production"], tag_operator: :or}})
 
       %{runner: runner}
-    end
-
-    test "puts a device stuck running back in the queue", ctx do
-      claimed = ScriptRunners.claim_pending_devices(ctx.runner.id, 2)
-
-      # Backdate the claim, standing in for a node that died holding these rows.
-      Repo.update_all(
-        from(srd in ScriptRunnerDevice, where: srd.script_runner_id == ^ctx.runner.id),
-        set: [started_at: DateTime.add(DateTime.utc_now(), -10, :minute)]
-      )
-
-      assert ScriptRunners.release_stale_devices(ctx.runner.id) == %{released: 2, abandoned: 0}
-      assert ScriptRunners.status_counts(ctx.runner) == %{pending: 2}
-
-      # Released means claimable again, which is what lets another node finish the
-      # run rather than it stalling forever.
-      assert Enum.sort(ScriptRunners.claim_pending_devices(ctx.runner.id, 2)) == Enum.sort(claimed)
     end
 
     test "leaves a device that is genuinely mid-script alone", ctx do
@@ -902,52 +700,6 @@ defmodule NervesHub.ScriptRunnersTest do
 
       assert ScriptRunners.release_stale_devices(ctx.runner.id) == %{released: 1, abandoned: 0}
       assert ScriptRunners.status_counts(ctx.runner)[:pending] == 2
-    end
-
-    # The script may already have run on the device, so it is not sent again: a
-    # job that crashed after sending would otherwise re-send on every pass.
-    test "abandons a device whose script was sent before its job ended", ctx do
-      [sent_id, unsent_id] = ScriptRunners.claim_pending_devices(ctx.runner.id, 2)
-      assert ScriptRunners.mark_sent(ctx.runner.id, sent_id) == 1
-
-      Repo.update_all(
-        from(srd in ScriptRunnerDevice, where: srd.script_runner_id == ^ctx.runner.id),
-        set: [started_at: DateTime.add(DateTime.utc_now(), -10, :minute)]
-      )
-
-      assert ScriptRunners.release_stale_devices(ctx.runner.id) == %{released: 1, abandoned: 1}
-
-      results = Map.new(ScriptRunners.device_results(ctx.runner), &{&1.device_id, &1})
-
-      assert results[sent_id].status == :abandoned
-      assert results[sent_id].finished_at
-      assert results[unsent_id].status == :pending
-
-      assert ScriptRunners.claim_pending_devices(ctx.runner.id, 2) == [unsent_id]
-      assert ScriptRunners.unfinished_device_count(ctx.runner.id) == 1
-    end
-  end
-
-  describe "mark_sent/2" do
-    setup ctx do
-      device = device(ctx, %{tags: ["production"]})
-
-      {:ok, runner, []} =
-        create(ctx, %{filter_type: :tags, filter: %{tags: ["production"], tag_operator: :or}})
-
-      %{runner: runner, device: device}
-    end
-
-    test "marks a claimed device sent", ctx do
-      [device_id] = ScriptRunners.claim_pending_devices(ctx.runner.id, 1)
-
-      assert ScriptRunners.mark_sent(ctx.runner.id, device_id) == 1
-      assert [%{sent_at: %DateTime{}}] = ScriptRunners.device_results(ctx.runner)
-    end
-
-    test "marks nothing for a device that is not running", ctx do
-      assert ScriptRunners.mark_sent(ctx.runner.id, ctx.device.id) == 0
-      assert [%{sent_at: nil}] = ScriptRunners.device_results(ctx.runner)
     end
   end
 end

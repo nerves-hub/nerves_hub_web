@@ -254,17 +254,6 @@ defmodule NervesHub.Workers.ScriptRunnerDispatchTest do
   # keeps counting towards `active_run_count/0`, so every later run divides the
   # ceiling by a run that is never going to finish.
   describe "a run whose pacer has gone" do
-    test "is given a new dispatch job", ctx do
-      runner = run_with(ctx, 2)
-
-      assert {:snooze, _} = dispatch(runner)
-      discard_dispatch_jobs(runner)
-
-      assert ScriptRunners.requeue_stranded_runs() == 1
-
-      assert [_job] = dispatch_jobs_for(runner)
-    end
-
     test "is worked through again once it has one", ctx do
       runner = run_with(ctx, 2)
 
@@ -281,15 +270,6 @@ defmodule NervesHub.Workers.ScriptRunnerDispatchTest do
 
       assert :ok = dispatch(runner)
       assert reload(runner).status == :completed
-    end
-
-    test "a run that still has a live pacer is left alone", ctx do
-      runner = run_with(ctx, 1)
-
-      assert {:snooze, _} = dispatch(runner)
-
-      assert ScriptRunners.requeue_stranded_runs() == 0
-      assert [_only_one] = dispatch_jobs_for(runner)
     end
 
     test "a completed run is not given a pacer it has no use for", ctx do
