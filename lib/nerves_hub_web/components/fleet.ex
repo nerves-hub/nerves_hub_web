@@ -178,12 +178,12 @@ defmodule NervesHubWeb.Components.Fleet do
   @doc "The Needs attention section: a count and a row per item."
   def attention_section(assigns) do
     ~H"""
-    <section id="needs-attention" aria-labelledby="attention-title" class="flex flex-col gap-3">
+    <section id="needs-attention" aria-labelledby="attention-title" class="flex flex-col gap-2.5">
       <div class="flex items-center gap-2">
-        <h2 id="attention-title" class="text-group-title text-content-strong">Needs attention</h2>
-        <.badge tone="warning">{length(@items)}</.badge>
+        <h2 id="attention-title" class="text-list-title text-content-strong">Needs attention</h2>
+        <.badge tone="warning" count>{length(@items)}</.badge>
       </div>
-      <div class="divide-y divide-line-subtle rounded-md border border-line-default bg-surface-raised shadow-card">
+      <div class="divide-y divide-line-subtle rounded-card border border-line-default bg-surface-raised shadow-card">
         <.attention_row :for={item <- @items} item={item} single_org?={@single_org?} />
       </div>
     </section>
@@ -193,15 +193,31 @@ defmodule NervesHubWeb.Components.Fleet do
   @doc "What stands in for the Needs attention section when nothing does."
   def all_clear(assigns) do
     ~H"""
-    <div id="all-clear" class="flex items-center gap-4 rounded-md border border-line-default bg-surface-raised p-4 shadow-card">
-      <span class="flex size-8 shrink-0 items-center justify-center rounded bg-success-soft text-success-content">
+    <div id="all-clear" class="flex items-center gap-3.5 rounded-card border border-line-default bg-surface-raised px-4 py-3.5 shadow-card">
+      <span class="flex size-8 shrink-0 items-center justify-center rounded-md bg-success-soft text-success-content">
         <span class="lucide-check size-4" aria-hidden="true"></span>
       </span>
-      <div>
-        <p class="text-sm font-medium text-content-strong">Nothing needs attention</p>
-        <p class="text-xs text-content-muted">No releases waiting for approval · no unhealthy devices · nothing in the penalty box</p>
+      <div class="flex flex-col gap-0.5">
+        <p class="text-sm/4.5 font-medium text-content-strong">Nothing needs attention</p>
+        <p class="text-xs text-content-muted">
+          <.separated items={["No releases waiting for approval", "no unhealthy devices", "nothing in the penalty box"]} />
+        </p>
       </div>
     </div>
+    """
+  end
+
+  attr(:items, :list, required: true, doc: "the phrases, in order; a nil is left out")
+
+  @doc ~S|Phrases run together with a middle dot between each, the dots a shade fainter than the text: "3 products · 1,204 devices".|
+  def separated(assigns) do
+    assigns = assign(assigns, :items, Enum.reject(assigns.items, &is_nil/1))
+
+    ~H"""
+    <%= for {item, index} <- Enum.with_index(@items) do %>
+      <span :if={index > 0} class="text-content-faint">·</span>
+      {item}
+    <% end %>
     """
   end
 
@@ -212,7 +228,7 @@ defmodule NervesHubWeb.Components.Fleet do
   @doc "How many of a product's devices are online, as a count and a bar."
   def online_meter(%{total: 0} = assigns) do
     ~H"""
-    <p class="text-sm text-content-muted">No devices yet</p>
+    <p class="text-ui/4 text-content-muted">No devices yet</p>
     """
   end
 
@@ -221,10 +237,10 @@ defmodule NervesHubWeb.Components.Fleet do
   def online_meter(assigns) do
     ~H"""
     <div class="flex items-center gap-3 md:block">
-      <p class="min-w-36 shrink-0 text-sm whitespace-nowrap text-content-muted tabular-nums md:min-w-0">
-        <span class="online-count font-medium text-content-strong">{delimited(@counts && elem(@counts, 0))}</span> of {delimited(@total)}<span class="md:hidden"> online</span>
+      <p class="min-w-36 shrink-0 text-ui/4 whitespace-nowrap text-content-muted tabular-nums md:min-w-0">
+        <span class="online-count font-semibold text-content-strong">{delimited(@counts && elem(@counts, 0))}</span> of {delimited(@total)}<span class="md:hidden"> online</span>
       </p>
-      <div class={["h-1 flex-1 overflow-hidden rounded-full bg-base-800 md:mt-1.5", @class]}>
+      <div class={["h-1 flex-1 overflow-hidden rounded-full bg-base-800 md:mt-1.75", @class]}>
         <div :if={@counts} class="h-full rounded-full bg-status-online" style={"width: #{online_percent(@counts)}%"}></div>
       </div>
     </div>
@@ -232,6 +248,7 @@ defmodule NervesHubWeb.Components.Fleet do
   end
 
   attr(:health, :map, default: nil, doc: "the health counts, or nil while they load")
+  attr(:size, :string, default: "sm", values: ~w(sm md), doc: "`sm` in a table row, `md` as a card's figure")
 
   @doc "The worst health a product's devices report, as a chip."
   def health_chip(%{health: nil} = assigns) do
@@ -242,25 +259,19 @@ defmodule NervesHubWeb.Components.Fleet do
 
   def health_chip(%{health: %{unhealthy: unhealthy}} = assigns) when unhealthy > 0 do
     ~H"""
-    <.badge tone="alert" class="inline-flex items-center gap-1.5">
-      <.status_dot class="size-1.5 bg-alert" />{@health.unhealthy} unhealthy
-    </.badge>
+    <.badge tone="alert" size={@size} dot>{@health.unhealthy} unhealthy</.badge>
     """
   end
 
   def health_chip(%{health: %{warning: warning}} = assigns) when warning > 0 do
     ~H"""
-    <.badge tone="warning" class="inline-flex items-center gap-1.5">
-      <.status_dot class="size-1.5 bg-warning" />{count_noun(@health.warning, "warning", "warnings")}
-    </.badge>
+    <.badge tone="warning" size={@size} dot>{count_noun(@health.warning, "warning", "warnings")}</.badge>
     """
   end
 
   def health_chip(%{health: %{healthy: healthy}} = assigns) when healthy > 0 do
     ~H"""
-    <.badge tone="success" class="inline-flex items-center gap-1.5">
-      <.status_dot class="size-1.5 bg-success" />Healthy
-    </.badge>
+    <.badge tone="success" size={@size} dot>Healthy</.badge>
     """
   end
 
@@ -275,34 +286,38 @@ defmodule NervesHubWeb.Components.Fleet do
 
   # On a phone an attention row wraps its detail line instead of cutting it
   # off, and the approval's button goes under the text so the title keeps the
-  # width. From md up each row is one line with the action at the end.
+  # width. From md up each row is one line with the action at the end, in a
+  # 128px slot so the actions line up from row to row.
   defp attention_row(%{item: %{kind: :approval}} = assigns) do
     ~H"""
-    <div class="attention-item flex items-start gap-3 p-4 md:items-center md:gap-4">
-      <span class="flex size-8 shrink-0 items-center justify-center rounded bg-notice-soft text-notice-content">
-        <span class="lucide-hourglass size-4" aria-hidden="true"></span>
-      </span>
-      <div class="flex min-w-0 flex-1 flex-col items-start gap-3 md:flex-row md:items-center md:gap-4">
-        <div class="w-full min-w-0 md:w-auto md:flex-1">
-          <p class="text-sm font-medium text-content-strong">
+    <div class="attention-item flex items-start gap-3 px-4 py-3.5 md:items-center md:gap-3.5">
+      <.attention_icon icon="lucide-hourglass" class="bg-notice-soft text-notice-content" />
+      <div class="flex min-w-0 flex-1 flex-col items-start gap-3 md:flex-row md:items-center md:gap-3.5">
+        <div class="flex w-full min-w-0 flex-col gap-0.75 md:w-auto md:flex-1">
+          <p class="text-sm/4.5 font-medium text-content-strong">
             <%= if version = release_version(@item.step) do %>
-              Release <span class="font-mono">{version}</span> is waiting for approval
+              Release <span class="font-mono text-ui">{version}</span> is waiting for approval
             <% else %>
               A release is waiting for approval
             <% end %>
           </p>
           <p class="text-xs text-content-muted md:truncate">
-            {place(@item, @single_org?)} · {@item.step.deployment_release.deployment_group.name} · {DeploymentWorkflowStep.label(@item.step)}
+            <.separated items={[
+              place(@item, @single_org?),
+              @item.step.deployment_release.deployment_group.name,
+              DeploymentWorkflowStep.label(@item.step)
+            ]} />
           </p>
         </div>
-        <.button
-          type="link"
-          style={if authorized?(:"deployment_group:update", @item.entry.role), do: "primary", else: "secondary"}
-          size="sm"
-          navigate={~p"/org/#{@item.entry.org}/#{@item.product}/deployment_groups/#{@item.step.deployment_release.deployment_group}"}
-        >
-          {if authorized?(:"deployment_group:update", @item.entry.role), do: "Review release", else: "View release"}
-        </.button>
+        <div class="flex shrink-0 md:w-32 md:justify-end">
+          <.button
+            type="link"
+            style={if authorized?(:"deployment_group:update", @item.entry.role), do: "primary", else: "secondary"}
+            navigate={~p"/org/#{@item.entry.org}/#{@item.product}/deployment_groups/#{@item.step.deployment_release.deployment_group}"}
+          >
+            {if authorized?(:"deployment_group:update", @item.entry.role), do: "Review release", else: "View release"}
+          </.button>
+        </div>
       </div>
     </div>
     """
@@ -310,12 +325,10 @@ defmodule NervesHubWeb.Components.Fleet do
 
   defp attention_row(%{item: %{kind: :unhealthy}} = assigns) do
     ~H"""
-    <div class="attention-item relative flex items-start gap-3 p-4 md:items-center md:gap-4">
-      <span class="flex size-8 shrink-0 items-center justify-center rounded bg-alert-soft text-alert-content">
-        <span class="lucide-activity size-4" aria-hidden="true"></span>
-      </span>
-      <div class="min-w-0 flex-1">
-        <p class="text-sm font-medium text-content-strong">
+    <div class="attention-item relative flex items-start gap-3 px-4 py-3.5 md:items-center md:gap-3.5">
+      <.attention_icon icon="lucide-activity" class="bg-alert-soft text-alert-content" />
+      <div class="flex min-w-0 flex-1 flex-col gap-0.75">
+        <p class="text-sm/4.5 font-medium text-content-strong">
           {if @item.count == 1, do: "1 device is unhealthy", else: "#{delimited(@item.count)} devices are unhealthy"}
         </p>
         <p class="text-xs text-content-muted md:truncate">{place(@item, @single_org?)}</p>
@@ -327,20 +340,31 @@ defmodule NervesHubWeb.Components.Fleet do
 
   defp attention_row(%{item: %{kind: :failing_updates}} = assigns) do
     ~H"""
-    <div class="attention-item relative flex items-start gap-3 p-4 md:items-center md:gap-4">
-      <span class="flex size-8 shrink-0 items-center justify-center rounded bg-warning-soft text-warning-content">
-        <span class="lucide-circle-pause size-4" aria-hidden="true"></span>
-      </span>
-      <div class="min-w-0 flex-1">
-        <p class="text-sm font-medium text-content-strong">
+    <div class="attention-item relative flex items-start gap-3 px-4 py-3.5 md:items-center md:gap-3.5">
+      <.attention_icon icon="lucide-circle-pause" class="bg-warning-soft text-warning-content" />
+      <div class="flex min-w-0 flex-1 flex-col gap-0.75">
+        <p class="text-sm/4.5 font-medium text-content-strong">
           {if @item.count == 1,
             do: "1 device stopped taking updates after repeated failures",
             else: "#{delimited(@item.count)} devices stopped taking updates after repeated failures"}
         </p>
-        <p class="text-xs text-content-muted md:truncate">{place(@item, @single_org?)} · {resumes_in(@item.until)}</p>
+        <p class="text-xs text-content-muted md:truncate">
+          <.separated items={[place(@item, @single_org?), resumes_in(@item.until)]} />
+        </p>
       </div>
       <.view_devices_link navigate={~p"/org/#{@item.entry.org}/#{@item.product}/devices?updates=failed-updates"} />
     </div>
+    """
+  end
+
+  attr(:icon, :string, required: true, doc: "the Lucide class, spelled out in full so Tailwind finds it")
+  attr(:class, :any, required: true, doc: "the tile's tint and the icon's colour")
+
+  defp attention_icon(assigns) do
+    ~H"""
+    <span class={["flex size-8 shrink-0 items-center justify-center rounded-md", @class]}>
+      <span class={[@icon, "size-4"]} aria-hidden="true"></span>
+    </span>
     """
   end
 
@@ -353,10 +377,10 @@ defmodule NervesHubWeb.Components.Fleet do
     ~H"""
     <.link
       navigate={@navigate}
-      class="flex h-8 shrink-0 items-center gap-1 text-sm font-medium text-content-body after:absolute after:inset-0 hover:text-content-strong md:h-auto"
+      class="flex h-8 shrink-0 items-center justify-end gap-1 text-ui/4 font-medium text-content-body after:absolute after:inset-0 hover:text-content-strong md:h-auto md:w-32"
     >
       <span class="sr-only md:not-sr-only">View devices</span>
-      <span class="lucide-chevron-right size-4 text-content-faint md:text-current" aria-hidden="true"></span>
+      <span class="lucide-chevron-right size-4 text-content-faint md:size-3.5 md:text-content-muted" aria-hidden="true"></span>
     </.link>
     """
   end

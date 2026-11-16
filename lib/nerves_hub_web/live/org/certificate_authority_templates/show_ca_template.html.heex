@@ -18,7 +18,7 @@
   </NervesHubWeb.Layouts.org_heading>
 
   <div class="flex max-w-[650px] flex-col gap-6">
-    <div class="flex flex-col rounded-md border border-line-default bg-surface-raised">
+    <div class="flex flex-col rounded-card border border-line-default bg-surface-raised">
       <div class="flex h-14 items-center justify-between border-b border-line-default px-4">
         <div class="text-card-title text-content-strong">Certificate Authority</div>
         <CAHelpers.certificate_status not_before={@certificate.not_before} not_after={@certificate.not_after} />
@@ -67,7 +67,7 @@
       </dl>
     </div>
 
-    <div id="ca-devices" class="flex flex-col rounded-md border border-line-default bg-surface-raised">
+    <div id="ca-devices" class="flex flex-col rounded-card border border-line-default bg-surface-raised">
       <div class="flex h-14 items-center gap-2 border-b border-line-default px-4">
         <div class="text-card-title text-content-strong">Devices</div>
         <.badge>

@@ -121,18 +121,19 @@ defmodule NervesHubWeb.Live.Org.SigningKeys do
   end
 
   defp toggle_menu(key_id) do
-    JS.toggle(
+    [
       to: "#signing-key-#{key_id}-menu",
       in: {"ease-out duration-150", "opacity-0", "opacity-100"},
       out: {"ease-out duration-150", "opacity-100", "opacity-0"}
-    )
+    ]
+    |> JS.toggle()
+    |> JS.toggle_attribute({"aria-expanded", "true", "false"}, to: "#signing-key-#{key_id}-menu-toggle")
   end
 
   defp hide_menu(js \\ %JS{}, key_id) do
-    JS.hide(js,
-      to: "#signing-key-#{key_id}-menu",
-      transition: {"ease-out duration-150", "opacity-100", "opacity-0"}
-    )
+    js
+    |> JS.hide(to: "#signing-key-#{key_id}-menu", transition: {"ease-out duration-150", "opacity-100", "opacity-0"})
+    |> JS.set_attribute({"aria-expanded", "false"}, to: "#signing-key-#{key_id}-menu-toggle")
   end
 
   defp key_label(%{scheme: :secure_boot_v2_rsa}), do: "eFuse digest"

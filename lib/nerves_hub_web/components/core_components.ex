@@ -141,12 +141,24 @@ defmodule NervesHubWeb.CoreComponents do
   (the default), `notice`, `success`, `warning` or `alert`. For a label a user
   gave something, such as a device tag, use `tag/1`.
 
+  `dot` leads the label with a status dot in the tone's colour, for a state
+  such as a product's health. `size="md"` is a little larger, 22px tall with
+  13px text, for a badge that stands as a card's figure rather than sits in a
+  row.
+
+  `count` is for a number on its own, such as the count beside a section's
+  title: an 18px circle that widens for more digits.
+
   ## Examples
 
-      <.badge>{@device_count}</.badge>
+      <.badge count>{@device_count}</.badge>
       <.badge tone="alert">Failing</.badge>
+      <.badge tone="success" dot>Healthy</.badge>
   """
   attr(:tone, :string, default: "neutral", values: ~w(neutral notice success warning alert))
+  attr(:size, :string, default: "sm", values: ~w(sm md))
+  attr(:dot, :boolean, default: false)
+  attr(:count, :boolean, default: false)
   attr(:class, :any, default: nil)
   attr(:rest, :global)
 
@@ -154,11 +166,28 @@ defmodule NervesHubWeb.CoreComponents do
 
   def badge(assigns) do
     ~H"""
-    <span class={["rounded-full px-2 py-0.5 text-xs font-medium whitespace-nowrap", badge_tone(@tone), @class]} {@rest}>
-      {render_slot(@inner_block)}
+    <span class={["rounded-full whitespace-nowrap", badge_size(@count, @size, @dot), badge_tone(@tone), @class]} {@rest}>
+      <.status_dot :if={@dot} class={["size-1.5", badge_dot(@tone)]} />{render_slot(@inner_block)}
     </span>
     """
   end
+
+  # A dot sits 2px closer to the start than the label does to the end.
+  defp badge_size(true, _size, _dot),
+    do: "inline-flex h-4.5 min-w-4.5 items-center justify-center px-1.25 text-[11px]/3.5 font-semibold tabular-nums"
+
+  defp badge_size(false, "sm", false), do: "px-2 py-0.5 text-xs font-medium"
+  defp badge_size(false, "sm", true), do: "inline-flex items-center gap-1.25 py-0.5 pr-2 pl-1.5 text-xs font-medium"
+  defp badge_size(false, "md", false), do: "px-2.25 py-0.75 text-ui/4 font-medium"
+
+  defp badge_size(false, "md", true),
+    do: "inline-flex items-center gap-1.25 py-0.75 pr-2.25 pl-1.75 text-ui/4 font-medium"
+
+  defp badge_dot("neutral"), do: "bg-content-faint"
+  defp badge_dot("notice"), do: "bg-notice"
+  defp badge_dot("success"), do: "bg-success"
+  defp badge_dot("warning"), do: "bg-warning"
+  defp badge_dot("alert"), do: "bg-alert"
 
   defp badge_tone("neutral"), do: "bg-base-800 text-content-body"
   defp badge_tone("notice"), do: "bg-notice-soft text-notice-content"
@@ -328,7 +357,16 @@ defmodule NervesHubWeb.CoreComponents do
       phx-click={JS.push("lv:clear-flash", value: %{key: @kind}) |> hide("##{@id}")}
       role="alert"
       data-kind={@kind}
-      class="fixed right-2 bottom-4 z-50 mr-2 w-80 rounded-md p-3 ring-1 data-[kind=error]:bg-alert-soft data-[kind=error]:text-alert-content data-[kind=error]:ring-alert data-[kind=info]:bg-success-soft data-[kind=info]:text-success-content data-[kind=info]:ring-success data-[kind=notice]:bg-notice-soft data-[kind=notice]:text-notice data-[kind=notice]:ring-notice sm:w-96"
+      class={
+        [
+          "fixed right-2 bottom-4 z-50 mr-2 w-80 rounded-md p-3 shadow-overlay ring-1 sm:w-96",
+          # It floats over the page, so its tint sits on an opaque fill: the -soft
+          # colours alone are see-through in dark.
+          "data-[kind=error]:overlay-tint-alert-soft data-[kind=error]:text-alert-content data-[kind=error]:ring-alert",
+          "data-[kind=info]:overlay-tint-success-soft data-[kind=info]:text-success-content data-[kind=info]:ring-success",
+          "data-[kind=notice]:overlay-tint-notice-soft data-[kind=notice]:text-notice data-[kind=notice]:ring-notice"
+        ]
+      }
       {@rest}
     >
       <p :if={@title} class="flex items-center gap-1.5 text-sm/6 font-semibold">
@@ -411,11 +449,15 @@ defmodule NervesHubWeb.CoreComponents do
 
   ## Sizes
 
-  `md` (the default) for page and form actions, and `sm` for a compact action
-  inside a row, card or toolbar.
+  `md` (the default, 32px) for page and form actions, and `sm` (28px) for a
+  compact action inside a row, card or toolbar.
+
+  A button sizes the Lucide icons it holds itself, whatever size the icon
+  asks for: 14px, or 15px alone in an `md` square button. A secondary
+  button draws them in the muted text colour, a shade under its label.
 
   A button that holds only an icon sets `square`. It is then as wide as it is
-  tall, and the height of a text button of the same size, which a 16px icon
+  tall, and the height of a text button of the same size, which an icon
   alone would fall short of. Give it an `aria-label`.
 
   ## Examples
@@ -470,12 +512,12 @@ defmodule NervesHubWeb.CoreComponents do
     ]
   end
 
-  # A text button's height is its line height plus padding and border: 20 + 12
-  # + 2 for md, 16 + 8 + 2 for sm. A square button is fixed at that height.
-  defp button_size("md", false), do: "gap-2 px-3 py-1.5 text-sm"
-  defp button_size("md", true), do: "size-8.5 shrink-0 text-sm"
-  defp button_size("sm", false), do: "gap-1.5 px-2 py-1 text-xs"
-  defp button_size("sm", true), do: "size-6.5 shrink-0 text-xs"
+  # A text button's height is its line height plus padding and border: 16 + 14
+  # + 2 for md, 16 + 10 + 2 for sm. A square button is fixed at that height.
+  defp button_size("md", false), do: "gap-1.5 px-3 py-1.75 text-ui/4 [&>[class*=lucide-]]:size-3.5"
+  defp button_size("md", true), do: "size-8 shrink-0 text-ui/4 [&>[class*=lucide-]]:size-3.75"
+  defp button_size("sm", false), do: "gap-1.5 px-2.5 py-1.25 text-ui/4 [&>[class*=lucide-]]:size-3.5"
+  defp button_size("sm", true), do: "size-7 shrink-0 text-ui/4 [&>[class*=lucide-]]:size-3.5"
 
   defp button_style("primary") do
     [
@@ -492,18 +534,28 @@ defmodule NervesHubWeb.CoreComponents do
 
   defp button_style("secondary") do
     [
-      "border-line-strong bg-base-800 hover:bg-base-700 active:border-primary active:bg-primary disabled:bg-base-800",
+      # Raised like a card: the card's fill and a hairline shadow. Hover tints
+      # it toward the text in either theme (zinc-800 dark, zinc-100 light).
+      "border-line-strong bg-surface-raised shadow-xs hover:bg-base-800 light:hover:bg-surface-muted",
+      "active:border-primary active:bg-primary disabled:bg-surface-raised",
       "text-content-body hover:text-content-strong active:text-primary-content disabled:text-content-faint",
-      # line-strong already clears 3:1 on white, as every control outline does,
-      # so light only darkens the edge on hover (zinc-600).
+      "[&>[class*=lucide-]]:text-content-muted active:[&>[class*=lucide-]]:text-current disabled:[&>[class*=lucide-]]:text-current",
+      # The design draws this edge in zinc-200, but a white button on a white
+      # card is told apart by its outline alone, so it keeps line-strong, which
+      # clears 3:1 on white as every control outline does. Light only darkens
+      # the edge on hover (zinc-600).
       "light:hover:border-base-400"
     ]
   end
 
   defp button_style("danger") do
     [
-      "border-alert bg-base-800 hover:bg-base-700 active:bg-base-600 disabled:border-line-strong disabled:bg-base-800",
-      "text-alert disabled:text-content-faint"
+      "border-alert bg-surface-raised shadow-xs hover:bg-base-800 light:hover:bg-surface-muted",
+      "active:bg-base-700 light:active:bg-base-800 disabled:border-line-strong disabled:bg-surface-raised",
+      "text-alert disabled:text-content-faint",
+      # red-500 is 3.8:1 on white, short of the 4.5:1 a label needs, so light
+      # draws the edge and label a step darker (red-600, 4.8:1).
+      "light:border-danger light:text-danger light:disabled:border-line-strong light:disabled:text-content-faint"
     ]
   end
 

@@ -299,7 +299,7 @@ defmodule NervesHubWeb.Live.Product.HealthProfiles do
       @level == "alert" && "border-alert health-alert"
     ]}>
       <div class={[
-        "text-xs font-semibold tracking-wide uppercase",
+        "text-label uppercase",
         @level == "warning" && "text-warning",
         @level == "alert" && "text-alert"
       ]}>

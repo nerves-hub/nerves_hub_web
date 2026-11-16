@@ -3,17 +3,17 @@
     <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-6">
       <div class="flex min-w-0 flex-col gap-1">
         <div class="flex items-baseline gap-2">
-          <h2 id="signing-keys-title" class="text-group-title text-content-strong">Signing keys</h2>
-          <span class="text-[13px] text-content-faint">{length(@signing_keys)}</span>
+          <h2 id="signing-keys-title" class="text-list-title text-content-strong">Signing keys</h2>
+          <span class="text-ui text-content-faint">{length(@signing_keys)}</span>
         </div>
-        <p class="text-[13px] text-content-muted">Firmware and archives you upload must be signed with one of these keys.</p>
+        <p class="text-ui/4.5 text-content-muted">Firmware and archives you upload must be signed with one of these keys.</p>
       </div>
       <div class="flex shrink-0 items-center gap-4">
         <a
           href="https://docs.nerves-hub.org/nerves-hub/setup/firmware-signing-keys"
           target="_blank"
           rel="noopener noreferrer"
-          class="inline-flex items-center gap-1 text-[13px] font-medium text-content-muted hover:text-content-strong"
+          class="inline-flex items-center gap-1 text-ui font-medium text-content-muted hover:text-content-strong"
         >
           How to generate a key <span class="lucide-arrow-up-right size-3.5" aria-hidden="true"></span>
         </a>
@@ -24,11 +24,11 @@
     </div>
 
     <% can_delete? = authorized?(:"signing_key:delete", @current_scope) %>
-    <div class="rounded-lg border border-line-default bg-surface-raised shadow-card" role="table" aria-label={"#{@org.name} signing keys"}>
-      <div role="row" class="hidden h-9 items-center gap-4 rounded-t-lg border-b border-line-subtle bg-surface px-5 md:flex">
-        <span role="columnheader" class="flex-1 text-[11px]/3.5 font-medium tracking-[0.06em] text-content-faint uppercase">Key</span>
-        <span role="columnheader" class="w-30 text-[11px]/3.5 font-medium tracking-[0.06em] text-content-faint uppercase">Signs</span>
-        <span role="columnheader" class="w-35 text-[11px]/3.5 font-medium tracking-[0.06em] text-content-faint uppercase">Added</span>
+    <div class="rounded-card border border-line-default bg-surface-raised shadow-card" role="table" aria-label={"#{@org.name} signing keys"}>
+      <div role="row" class="hidden h-9 items-center gap-4 rounded-t-card border-b border-line-subtle bg-surface px-5 md:flex">
+        <span role="columnheader" class="flex-1 text-label text-content-faint uppercase">Key</span>
+        <span role="columnheader" class="w-30 text-label text-content-faint uppercase">Signs</span>
+        <span role="columnheader" class="w-35 text-label text-content-faint uppercase">Added</span>
         <span class="w-7" aria-hidden="true"></span>
       </div>
 
@@ -72,12 +72,12 @@
           </div>
         </div>
 
-        <div role="cell" class={["hidden w-30 shrink-0 text-[13px] md:block", if(unused?(usage), do: "text-content-faint", else: "text-content-body")]}>
+        <div role="cell" class={["hidden w-30 shrink-0 text-ui md:block", if(unused?(usage), do: "text-content-faint", else: "text-content-body")]}>
           {usage_label(usage)}
         </div>
 
         <div role="cell" class="hidden w-35 shrink-0 flex-col gap-px md:flex">
-          <span class="text-[13px] text-content-muted">{added(signing_key)}</span>
+          <span class="text-ui text-content-muted">{added(signing_key)}</span>
           <span :if={signing_key.created_by} class="truncate text-xs text-content-faint" title={signing_key.created_by.email}>
             by {signing_key.created_by.name}
           </span>
@@ -90,7 +90,8 @@
             phx-click={toggle_menu(signing_key.id)}
             aria-haspopup="menu"
             aria-label={"Actions for #{signing_key.name}"}
-            class="flex size-7 items-center justify-center rounded text-content-muted hover:cursor-pointer hover:bg-surface-muted hover:text-content-strong"
+            aria-expanded="false"
+            class="flex size-7 items-center justify-center rounded text-content-muted hover:cursor-pointer hover:bg-surface-muted hover:text-content-strong aria-expanded:bg-surface-muted aria-expanded:text-content-strong"
           >
             <span class="lucide-ellipsis size-4" aria-hidden="true"></span>
           </button>
@@ -108,10 +109,10 @@
                 id={"copy-key-menu-#{signing_key.id}"}
                 phx-hook="CopyToClipboard"
                 data-copy-value={signing_key.key}
-                class="flex items-center gap-2 rounded px-2 py-1.5 text-left text-sm text-content-body hover:cursor-pointer hover:bg-surface-muted"
+                class="flex h-8 items-center gap-2 rounded px-2 text-left text-ui/4 text-content-body hover:cursor-pointer hover:bg-surface-muted"
               >
-                <span data-icon="copy" class="lucide-copy size-4 text-content-muted" aria-hidden="true"></span>
-                <span data-icon="check" class="lucide-check hidden size-4 text-success" aria-hidden="true"></span> Copy key
+                <span data-icon="copy" class="lucide-copy size-3.5 text-content-muted" aria-hidden="true"></span>
+                <span data-icon="check" class="lucide-check hidden size-3.5 text-success" aria-hidden="true"></span> Copy key
               </button>
               <div class="my-1 h-px bg-line-subtle" aria-hidden="true"></div>
               <button
@@ -122,9 +123,9 @@
                 phx-click="delete"
                 phx-value-signing_key_id={signing_key.id}
                 data-confirm={"Delete #{signing_key.name}? Firmware signed with it can't be uploaded once it's gone."}
-                class="flex items-center gap-2 rounded px-2 py-1.5 text-left text-sm text-alert-content hover:cursor-pointer hover:bg-alert-soft"
+                class="flex h-8 items-center gap-2 rounded px-2 text-left text-ui/4 text-alert-content hover:cursor-pointer hover:bg-alert-soft"
               >
-                <span class="lucide-trash size-4" aria-hidden="true"></span> Delete key
+                <span class="lucide-trash size-3.5" aria-hidden="true"></span> Delete key
               </button>
               <button
                 :if={!(can_delete? && unused?(usage))}
@@ -132,9 +133,9 @@
                 role="menuitem"
                 id={"delete-key-#{signing_key.id}"}
                 disabled
-                class="flex items-start gap-2 rounded px-2 py-1.5 text-left text-sm text-content-faint"
+                class="flex items-start gap-2 rounded p-2 text-left text-ui/4 text-content-faint"
               >
-                <span class="mt-0.5 lucide-trash size-4" aria-hidden="true"></span>
+                <span class="mt-px lucide-trash size-3.5" aria-hidden="true"></span>
                 <span class="flex flex-col gap-0.5">
                   Delete key <span class="text-xs">{delete_blocked_reason(usage, can_delete?)}</span>
                 </span>
@@ -152,7 +153,7 @@
   <div class="max-w-[650px]">
     <.form :let={f} id="signing_key_form" for={@form} phx-submit="save">
       <%= if @form.action do %>
-        <div class="mb-4 rounded-md border border-alert bg-alert-soft p-4 text-sm text-alert-content">
+        <div class="mb-4 rounded-card border border-alert bg-alert-soft p-4 text-sm text-alert-content">
           <p>Something went wrong! Please check the errors below.</p>
         </div>
       <% end %>
@@ -164,7 +165,7 @@
           id="name_input"
           name={f[:name].name}
           value={f[:name].value}
-          class="w-full rounded border border-line-default bg-base-900 px-3 py-2 text-sm text-content-strong focus:ring-2 focus:ring-focus-ring focus:outline-none"
+          class="w-full rounded border border-line-strong bg-base-900 px-3 py-2 text-sm text-content-strong focus:ring-2 focus:ring-focus-ring focus:outline-none"
         />
         <div class="mt-1 text-sm text-alert-content"><.field_errors field={f[:name]} /></div>
       </div>
@@ -174,7 +175,7 @@
         <select
           id="scheme_input"
           name={f[:scheme].name}
-          class="w-full rounded border border-line-default bg-base-900 px-3 py-2 text-sm text-content-strong focus:ring-2 focus:ring-focus-ring focus:outline-none"
+          class="w-full rounded border border-line-strong bg-base-900 px-3 py-2 text-sm text-content-strong focus:ring-2 focus:ring-focus-ring focus:outline-none"
         >
           {Phoenix.HTML.Form.options_for_select(scheme_options(), f[:scheme].value)}
         </select>
@@ -195,7 +196,7 @@
           id="key_input"
           name={f[:key].name}
           rows="8"
-          class="w-full rounded border border-line-default bg-base-900 px-3 py-2 font-mono text-sm text-content-strong focus:ring-2 focus:ring-focus-ring focus:outline-none"
+          class="w-full rounded border border-line-strong bg-base-900 px-3 py-2 font-mono text-sm text-content-strong focus:ring-2 focus:ring-focus-ring focus:outline-none"
         ><%= Phoenix.HTML.Form.normalize_value("textarea", f[:key].value) %></textarea>
         <p class="mt-1 text-xs text-content-faint">Paste the public key. An RSA key is a multi-line PEM block, including its BEGIN and END lines.</p>
         <div class="mt-1 text-sm text-alert-content"><.field_errors field={f[:key]} /></div>

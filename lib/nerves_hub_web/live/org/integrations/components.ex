@@ -84,12 +84,12 @@ defmodule NervesHubWeb.Live.Org.Integrations.Components do
 
   def table_header(assigns) do
     ~H"""
-    <div role="row" class="flex h-9 items-center gap-4 rounded-t-lg bg-surface px-4 md:px-5">
-      <span role="columnheader" class="flex-1 text-[11px]/3.5 font-medium tracking-[0.06em] text-content-faint uppercase">{@label}</span>
-      <span role="columnheader" class="hidden w-37.5 shrink-0 text-[11px]/3.5 font-medium tracking-[0.06em] text-content-faint uppercase md:block">
+    <div role="row" class="flex h-9 items-center gap-4 rounded-t-card bg-surface px-4 md:px-5">
+      <span role="columnheader" class="flex-1 text-label text-content-faint uppercase">{@label}</span>
+      <span role="columnheader" class="hidden w-37.5 shrink-0 text-label text-content-faint uppercase md:block">
         Products
       </span>
-      <span role="columnheader" class="hidden w-57.5 shrink-0 text-[11px]/3.5 font-medium tracking-[0.06em] text-content-faint uppercase md:block">
+      <span role="columnheader" class="hidden w-57.5 shrink-0 text-label text-content-faint uppercase md:block">
         Events
       </span>
       <span class="w-7 shrink-0" aria-hidden="true"></span>
@@ -138,14 +138,14 @@ defmodule NervesHubWeb.Live.Org.Integrations.Components do
       </div>
 
       <div role="cell" class="hidden w-37.5 shrink-0 items-center gap-1.5 md:flex">
-        <span class={["truncate text-[13px]/4", if(@products == [], do: "text-content-faint", else: "text-content-body")]}>
+        <span class={["truncate text-ui/4", if(@products == [], do: "text-content-faint", else: "text-content-body")]}>
           {products_first(@products)}
         </span>
         <.more_chip :if={is_list(@products) && length(@products) > 1} count={length(@products) - 1} />
       </div>
 
       <div role="cell" class="hidden w-57.5 shrink-0 items-center gap-1.5 md:flex" title={Enum.join(@events, ", ")}>
-        <span class="truncate text-[13px]/4 text-content-body">{Enum.join(@shown_events, ", ")}</span>
+        <span class="truncate text-ui/4 text-content-body">{Enum.join(@shown_events, ", ")}</span>
         <.more_chip :if={length(@events) > length(@shown_events)} count={length(@events) - length(@shown_events)} />
       </div>
 
@@ -201,7 +201,8 @@ defmodule NervesHubWeb.Live.Org.Integrations.Components do
       phx-click={toggle_menu(@id)}
       aria-haspopup="menu"
       aria-label={@label}
-      class="flex size-7 items-center justify-center rounded text-content-muted hover:cursor-pointer hover:bg-surface-muted hover:text-content-strong"
+      aria-expanded="false"
+      class="flex size-7 items-center justify-center rounded text-content-muted hover:cursor-pointer hover:bg-surface-muted hover:text-content-strong aria-expanded:bg-surface-muted aria-expanded:text-content-strong"
     >
       <span class="lucide-ellipsis size-4" aria-hidden="true"></span>
     </button>
@@ -225,7 +226,7 @@ defmodule NervesHubWeb.Live.Org.Integrations.Components do
       type="button"
       role="menuitem"
       class={[
-        "flex h-8 shrink-0 items-center gap-2 rounded px-2 text-left text-[13px]/4 enabled:hover:cursor-pointer disabled:text-content-faint",
+        "flex h-8 shrink-0 items-center gap-2 rounded px-2 text-left text-ui/4 enabled:hover:cursor-pointer disabled:text-content-faint",
         if(@danger, do: "text-alert-content enabled:hover:bg-alert-soft", else: "text-content-body enabled:hover:bg-surface-muted")
       ]}
       {@rest}
@@ -265,7 +266,7 @@ defmodule NervesHubWeb.Live.Org.Integrations.Components do
       <.service_logo :if={@service} service={@service} class="size-4" />
       <span :if={@icon} class={[@icon, "size-4 shrink-0 text-content-muted"]} aria-hidden="true"></span>
       <span class="flex min-w-0 flex-col gap-px">
-        <span class="text-[13px]/4 text-content-body">{render_slot(@inner_block)}</span>
+        <span class="text-ui/4 text-content-body">{render_slot(@inner_block)}</span>
         <span :if={@detail} class="text-xs text-content-faint">{@detail}</span>
       </span>
     </button>
@@ -364,10 +365,10 @@ defmodule NervesHubWeb.Live.Org.Integrations.Components do
 
   def steps(assigns) do
     ~H"""
-    <div class="flex flex-col gap-2 rounded-md border border-line-subtle bg-surface px-4 py-3.5">
+    <div class="flex flex-col gap-2 rounded-card border border-line-subtle bg-surface px-4 py-3.5">
       <div class="text-xs font-semibold text-content-body">{@title}</div>
       <ol class="flex flex-col gap-2">
-        <li :for={{step, number} <- Enum.with_index(@step, 1)} class="flex items-start gap-2.5 text-[13px]/4.5 text-content-muted">
+        <li :for={{step, number} <- Enum.with_index(@step, 1)} class="flex items-start gap-2.5 text-ui/4.5 text-content-muted">
           <span class="w-4 shrink-0 font-mono text-xs/4.5 text-content-faint" aria-hidden="true">{number}</span>
           <span>{render_slot(step)}</span>
         </li>
@@ -400,7 +401,7 @@ defmodule NervesHubWeb.Live.Org.Integrations.Components do
 
     ~H"""
     <div class="flex flex-col gap-1.5">
-      <label for={@field.id} class="text-[13px]/4 font-medium text-content-body">{@label}</label>
+      <label for={@field.id} class="text-ui/4 font-medium text-content-body">{@label}</label>
       <input
         type={@type}
         id={@field.id}
@@ -409,7 +410,7 @@ defmodule NervesHubWeb.Live.Org.Integrations.Components do
         aria-describedby={@hint != [] && "#{@field.id}-hint"}
         class={[
           "h-9 w-full rounded-md border bg-surface-raised px-2.5 text-content-strong placeholder:text-content-faint focus:ring-3 focus:outline-none",
-          if(@mono, do: "font-mono text-xs", else: "text-[13px]"),
+          if(@mono, do: "font-mono text-xs", else: "text-ui"),
           if(@errors == [], do: "border-line-strong focus:border-primary focus:ring-primary/20", else: "border-alert focus:ring-alert/20")
         ]}
         {@rest}
@@ -439,13 +440,13 @@ defmodule NervesHubWeb.Live.Org.Integrations.Components do
 
     ~H"""
     <div class="flex flex-col gap-2" role="group" aria-labelledby={"#{@id}-products-label"}>
-      <span id={"#{@id}-products-label"} class="text-[13px]/4 font-medium text-content-body">Products</span>
+      <span id={"#{@id}-products-label"} class="text-ui/4 font-medium text-content-body">Products</span>
       <div class="flex gap-0.5 self-start rounded-md bg-surface-muted p-0.75">
         <label
           :for={{value, label} <- [{"true", "Every product"}, {"false", "Only some"}]}
           for={"#{@id}-all-products-#{value}"}
           class={[
-            "flex h-7 items-center rounded px-3 text-[13px]/4 font-medium text-content-muted hover:cursor-pointer hover:text-content-strong",
+            "flex h-7 items-center rounded px-3 text-ui/4 font-medium text-content-muted hover:cursor-pointer hover:text-content-strong",
             "has-checked:bg-surface-raised has-checked:text-content-strong has-checked:shadow-control",
             "has-focus-visible:outline-2 has-focus-visible:outline-focus-ring"
           ]}
@@ -464,7 +465,7 @@ defmodule NervesHubWeb.Live.Org.Integrations.Components do
       <p :if={@all?} class="text-xs text-content-faint">Includes products added later.</p>
 
       <input type="hidden" name={"#{@form.name}[products][]"} value="" />
-      <div :if={!@all?} class="flex flex-col gap-2 rounded-md border border-line-default px-4 py-3.5">
+      <div :if={!@all?} class="flex flex-col gap-2 rounded-card border border-line-default px-4 py-3.5">
         <label :for={product <- @products} for={"#{@id}-product-#{product.id}"} class="flex items-center gap-2 hover:cursor-pointer">
           <input
             type="checkbox"
@@ -474,9 +475,9 @@ defmodule NervesHubWeb.Live.Org.Integrations.Components do
             checked={MapSet.member?(@selected, product.name)}
             class={checkbox_class()}
           />
-          <span class="text-[13px]/4 text-content-body">{product.name}</span>
+          <span class="text-ui/4 text-content-body">{product.name}</span>
         </label>
-        <p :if={@products == []} class="text-[13px] text-content-muted">This organization has no products yet.</p>
+        <p :if={@products == []} class="text-ui text-content-muted">This organization has no products yet.</p>
       </div>
 
       <CoreComponents.error :for={message <- checkbox_errors(@form, :products)}>{message}</CoreComponents.error>
@@ -507,14 +508,14 @@ defmodule NervesHubWeb.Live.Org.Integrations.Components do
     ~H"""
     <div class="flex flex-col gap-2.5">
       <div class="flex items-baseline justify-between gap-3">
-        <span id={"#{@id}-events-label"} class="text-[13px]/4 font-medium text-content-body">Events</span>
+        <span id={"#{@id}-events-label"} class="text-ui/4 font-medium text-content-body">Events</span>
         <span class="text-xs text-content-faint">{@count} of {@total}</span>
       </div>
       <input type="hidden" name={"#{@form.name}[events][]"} value="" />
-      <div role="group" aria-labelledby={"#{@id}-events-label"} class="grid gap-x-6 gap-y-3.5 rounded-md border border-line-default px-4 py-3.5 sm:grid-cols-2">
+      <div role="group" aria-labelledby={"#{@id}-events-label"} class="grid gap-x-6 gap-y-3.5 rounded-card border border-line-default px-4 py-3.5 sm:grid-cols-2">
         <div :for={column <- @columns} class="flex flex-col gap-3.5">
           <div :for={{group, events} <- column} class="flex flex-col gap-2">
-            <div class="text-[11px]/3.5 font-medium tracking-[0.06em] text-content-faint uppercase">{group}</div>
+            <div class="text-label text-content-faint uppercase">{group}</div>
             <label :for={event <- events} for={"#{@id}-event-#{event.value}"} title={event.description} class="flex items-center gap-2 hover:cursor-pointer">
               <input
                 type="checkbox"
@@ -524,7 +525,7 @@ defmodule NervesHubWeb.Live.Org.Integrations.Components do
                 checked={event.value in @selected}
                 class={checkbox_class()}
               />
-              <span class="text-[13px]/4 text-content-body">{event.label}</span>
+              <span class="text-ui/4 text-content-body">{event.label}</span>
             </label>
           </div>
         </div>
@@ -543,11 +544,13 @@ defmodule NervesHubWeb.Live.Org.Integrations.Components do
   page's update-mode menu works.
   """
   def toggle_menu(id) do
-    JS.toggle(
+    [
       to: "##{id}-menu",
       in: {"ease-out duration-150", "opacity-0", "opacity-100"},
       out: {"ease-out duration-150", "opacity-100", "opacity-0"}
-    )
+    ]
+    |> JS.toggle()
+    |> JS.toggle_attribute({"aria-expanded", "true", "false"}, to: "##{id}-menu-toggle")
   end
 
   @doc """
@@ -555,7 +558,9 @@ defmodule NervesHubWeb.Live.Org.Integrations.Components do
   a click elsewhere cannot open it the way `toggle_menu/1` would.
   """
   def hide_menu(js \\ %JS{}, id) do
-    JS.hide(js, to: "##{id}-menu", transition: {"ease-out duration-150", "opacity-100", "opacity-0"})
+    js
+    |> JS.hide(to: "##{id}-menu", transition: {"ease-out duration-150", "opacity-100", "opacity-0"})
+    |> JS.set_attribute({"aria-expanded", "false"}, to: "##{id}-menu-toggle")
   end
 
   @doc """
