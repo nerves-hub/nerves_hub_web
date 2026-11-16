@@ -79,7 +79,7 @@ defmodule NervesHubWeb.OAuthControllerTest do
       |> click_button("Join #{org.name}")
 
       {:ok, user} = Accounts.get_user_by_email("jane@person.com")
-      assert Accounts.has_org_role?(org, user, :view)
+      assert {:ok, %{role: :view}} = Accounts.get_org_user(org, user)
     end
 
     test "signs in the account linked to the Google account, even with registrations closed" do

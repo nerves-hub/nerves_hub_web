@@ -7,6 +7,9 @@ defmodule NervesHubWeb.Live.Product.HealthProfiles do
   alias NervesHub.Products.HealthProfiles
   alias NervesHubWeb.Components.DeviceHealth.MetricLabels
   alias NervesHubWeb.Components.Utils
+  alias NervesHubWeb.Mounts.RequireEveryDevice
+
+  on_mount(RequireEveryDevice)
 
   def mount(_params, _session, socket) do
     product = socket.assigns.current_scope.product

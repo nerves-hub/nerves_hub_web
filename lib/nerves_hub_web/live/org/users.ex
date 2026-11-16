@@ -4,6 +4,7 @@ defmodule NervesHubWeb.Live.Org.Users do
   alias NervesHub.Accounts
   alias NervesHub.Accounts.Invite
   alias NervesHub.Accounts.Org
+  alias NervesHub.Accounts.OrgRoles
   alias NervesHub.Accounts.UserNotifier
   alias NervesHubWeb.Components.Utils
   alias NervesHubWeb.InviteLinks
@@ -36,6 +37,8 @@ defmodule NervesHubWeb.Live.Org.Users do
     socket
     |> page_title("Invite User - #{socket.assigns.org.name}")
     |> assign(:form, to_form(Invite.changeset(%Invite{}, %{})))
+    |> assign(:role_choice, "view")
+    |> assign(:custom_roles, OrgRoles.list_org_roles(socket.assigns.org))
     |> sidebar_tab(:users)
     |> render_with(&invite_template/1)
   end
@@ -47,6 +50,8 @@ defmodule NervesHubWeb.Live.Org.Users do
     |> page_title("Edit User - #{socket.assigns.org.name}")
     |> assign(:membership, org_user)
     |> assign(:form, to_form(Org.change_user_role(org_user)))
+    |> assign(:role_choice, Utils.role_choice(org_user))
+    |> assign(:custom_roles, OrgRoles.list_org_roles(socket.assigns.org))
     |> sidebar_tab(:users)
     |> render_with(&edit_user_template/1)
   end
@@ -57,7 +62,7 @@ defmodule NervesHubWeb.Live.Org.Users do
 
     authorized!(:"org_user:invite", scope)
 
-    case Accounts.invite(invite_params, org, invited_by) do
+    case Accounts.invite(role_params(invite_params), org, invited_by) do
       {:ok, %Invite{} = invite} ->
         has_account? = match?({:ok, _user}, Accounts.get_user_by_email(invite.email))
 
@@ -72,7 +77,10 @@ defmodule NervesHubWeb.Live.Org.Users do
         |> noreply()
 
       {:error, changeset} ->
-        {:noreply, assign(socket, :form, to_form(changeset))}
+        socket
+        |> assign(:form, to_form(changeset))
+        |> assign(:role_choice, invite_params["role"])
+        |> noreply()
     end
   end
 
@@ -136,14 +144,14 @@ defmodule NervesHubWeb.Live.Org.Users do
 
     {:ok, role} = Map.fetch(params, "role")
 
-    case Accounts.change_org_user_role(socket.assigns.membership, role) do
-      {:ok, _org_user} ->
-        {:noreply,
-         socket
-         |> put_flash(:info, "Role updated")
-         |> push_patch(to: ~p"/org/#{socket.assigns.org}/settings/users")}
-
-      {:error, _changeset} ->
+    with {:ok, role} <- resolve_role(socket.assigns.org, role),
+         {:ok, _org_user} <- Accounts.change_org_user_role(socket.assigns.membership, role) do
+      {:noreply,
+       socket
+       |> put_flash(:info, "Role updated")
+       |> push_patch(to: ~p"/org/#{socket.assigns.org}/settings/users")}
+    else
+      {:error, _reason} ->
         {:noreply, put_flash(socket, :error, "Error updating role")}
     end
   end
@@ -155,10 +163,11 @@ defmodule NervesHubWeb.Live.Org.Users do
 
     with {:ok, org_user} <- Accounts.get_org_user(scope.org, user_id),
          false <- org_user.user_id == scope.user.id,
+         {:ok, role} <- resolve_role(scope.org, role),
          {:ok, org_user} <- Accounts.change_org_user_role(org_user, role) do
       socket
       |> org_users()
-      |> put_flash(:info, "#{org_user.user.name} is now #{role_label(org_user.role)}")
+      |> put_flash(:info, "#{org_user.user.name} is now #{Utils.role_name(org_user)}")
       |> noreply()
     else
       _ ->
@@ -213,17 +222,27 @@ defmodule NervesHubWeb.Live.Org.Users do
     socket
     |> assign(:org_users, org_users)
     |> assign(:admin_count, Enum.count(org_users, fn ou -> ou.role == :admin end))
+    |> assign(:custom_roles, OrgRoles.list_org_roles(socket.assigns.org))
   end
+
+  # The role select sends a built-in role's name, or "custom:<id>" for one of
+  # the org's own roles (see `Utils.role_options/1`).
+  defp role_params(%{"role" => "custom:" <> org_role_id} = params) do
+    Map.merge(params, %{"role" => nil, "org_role_id" => org_role_id})
+  end
+
+  defp role_params(params), do: Map.put(params, "org_role_id", nil)
+
+  defp resolve_role(org, "custom:" <> org_role_id), do: OrgRoles.get_org_role(org, org_role_id)
+  defp resolve_role(_org, role), do: {:ok, role}
 
   defp role_rank(role), do: Enum.find_index(@roles, &(&1 == role)) || length(@roles)
 
-  defp role_label(role), do: role |> to_string() |> String.capitalize()
-
-  # "3 admin · 2 manage · 4 view", leaving out roles nobody has.
+  # "3 admin · 2 manage · 4 view · 1 custom", leaving out roles nobody has.
   defp role_summary(org_users) do
-    counts = Enum.frequencies_by(org_users, & &1.role)
+    counts = Enum.frequencies_by(org_users, &(&1.role || :custom))
 
-    for role <- @roles, Map.has_key?(counts, role), do: "#{counts[role]} #{role}"
+    for role <- @roles ++ [:custom], Map.has_key?(counts, role), do: "#{counts[role]} #{role}"
   end
 
   defp org_invites(socket) do

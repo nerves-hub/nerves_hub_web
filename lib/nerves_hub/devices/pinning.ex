@@ -11,6 +11,7 @@ defmodule NervesHub.Devices.Pinning do
   alias NervesHub.Accounts.Scope
   alias NervesHub.Devices.Device
   alias NervesHub.Devices.PinnedDevice
+  alias NervesHub.Devices.Visibility
   alias NervesHub.Repo
 
   @spec get_pinned_devices(Scope.t()) :: [Device.t()]
@@ -21,8 +22,10 @@ defmodule NervesHub.Devices.Pinning do
       |> select([:device_id])
 
     # Removing a member or moving a device unpins it, but deleting an org
-    # doesn't, so its devices are left out here instead.
+    # doesn't, so its devices are left out here instead. This also drops a
+    # device pinned before the user's role stopped seeing it.
     Device
+    |> Visibility.where_visible(user)
     |> where([d], d.id in subquery(query))
     |> join(:inner, [d], o in assoc(d, :org))
     |> where([d, o], is_nil(o.deleted_at))
