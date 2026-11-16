@@ -155,6 +155,18 @@ defmodule NervesHubWeb.Live.Devices.Show.ErrorsTabTest do
       |> assert_has("#device-tabs a[href$='/errors']", text: "Errors 2", timeout: 1000)
     end
 
+    # The Details tab's async hook sees the count's result before the
+    # LiveView does, and once crashed on it, remounting the page in a loop.
+    test "is shown on the Details tab", %{conn: conn, org: org, product: product, device: device} do
+      product = enable(product)
+
+      record(device, [report("** (RuntimeError) the sensor bus is unreachable")])
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      |> assert_has("#device-tabs a[href$='/errors']", text: "Errors 1", timeout: 1000)
+    end
+
     test "is left off when nothing has been reported", %{conn: conn, org: org, product: product, device: device} do
       product = enable(product)
 
