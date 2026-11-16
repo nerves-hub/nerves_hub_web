@@ -10,6 +10,7 @@ defmodule NervesHub.Devices do
   alias NervesHub.Accounts.Scope
   alias NervesHub.Accounts.User
   alias NervesHub.AuditLogs
+  alias NervesHub.AuditLogs.AuditLog
   alias NervesHub.AuditLogs.DeviceTemplates
   alias NervesHub.DeviceEvents
   alias NervesHub.DeviceLink
@@ -903,13 +904,13 @@ defmodule NervesHub.Devices do
       Accounts.maybe_copy_firmware_keys(device, product.org, user)
     end)
     |> Multi.run(:audit_device, fn _, _ ->
-      AuditLogs.audit(user, device, description)
+      AuditLogs.audit(user, device, description, kind: :device_moved)
     end)
     |> Multi.run(:audit_target, fn _, _ ->
-      AuditLogs.audit(user, product, description)
+      AuditLogs.audit(user, product, description, kind: :device_moved)
     end)
     |> Multi.run(:audit_source, fn _, _ ->
-      AuditLogs.audit(user, source_product, description)
+      AuditLogs.audit(user, source_product, description, kind: :device_moved)
     end)
     |> Repo.transact()
     |> case do
@@ -940,7 +941,7 @@ defmodule NervesHub.Devices do
   def tag_device(%Device{} = device, user, tags) when is_list(tags) or is_binary(tags) do
     description = "User #{user.name} updated device #{device.identifier} tags"
     params = %{tags: tags}
-    update_device_with_audit(device, params, user, description)
+    update_device_with_audit(device, params, user, description, :tags_changed)
   end
 
   @doc """
@@ -1006,7 +1007,7 @@ defmodule NervesHub.Devices do
 
           added ->
             description = "User #{user.name} added the tags #{Enum.join(added, ", ")} to device #{device.identifier}"
-            update_device_with_audit(device, %{tags: current_tags ++ added}, user, description)
+            update_device_with_audit(device, %{tags: current_tags ++ added}, user, description, :tags_changed)
         end
 
       :error ->
@@ -1037,7 +1038,7 @@ defmodule NervesHub.Devices do
             description =
               "User #{user.name} removed the tags #{Enum.join(removed, ", ")} from device #{device.identifier}"
 
-            update_device_with_audit(device, %{tags: remaining}, user, description)
+            update_device_with_audit(device, %{tags: remaining}, user, description, :tags_changed)
         end
 
       :error ->
@@ -1058,16 +1059,19 @@ defmodule NervesHub.Devices do
   The actor is usually a user, but a device is one too: a device that sets its
   own update mode, or that is moved off a mode its firmware cannot support, is
   the actor for that change, and the log should not imply an operator asked.
+
+  `kind` says what sort of change it is, for the icon the device's Activity
+  tab draws (see `NervesHub.AuditLogs.AuditLog.kinds/0`).
   """
-  @spec update_device_with_audit(Device.t(), map(), User.t() | Device.t(), String.t()) ::
+  @spec update_device_with_audit(Device.t(), map(), User.t() | Device.t(), String.t(), AuditLog.kind()) ::
           {:ok, Device.t()} | {:error, any(), any(), any()}
-  def update_device_with_audit(device, params, user, description) do
+  def update_device_with_audit(device, params, user, description, kind) do
     Multi.new()
     |> Multi.run(:update_with_audit, fn _, _ ->
       update_device(device, params, broadcast: false)
     end)
     |> Multi.run(:audit_device, fn _, _ ->
-      AuditLogs.audit(user, device, description)
+      AuditLogs.audit(user, device, description, kind: kind)
     end)
     |> Repo.transact()
     |> case do
@@ -1112,7 +1116,7 @@ defmodule NervesHub.Devices do
 
     Repo.transact(fn ->
       with {:ok, updated} <- device |> Device.update_changeset(params) |> Repo.update(),
-           {:ok, _audit_log} <- AuditLogs.audit(user, device, description),
+           {:ok, _audit_log} <- AuditLogs.audit(user, device, description, kind: :device_updated),
            {:ok, updated} <- set_managed_updates_allowed(updated, opts[:managed_updates_allowed], user) do
         set_update_mode(updated, opts[:update_mode], user)
       end

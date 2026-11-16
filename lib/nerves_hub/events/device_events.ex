@@ -88,7 +88,7 @@ defmodule NervesHub.DeviceEvents do
   """
   def identify(device, user, opts \\ []) do
     Repo.transact(fn ->
-      DeviceTemplates.audit_request_action(user, device, "identify itself", opts[:via])
+      DeviceTemplates.audit_request_action(user, device, :identify, opts[:via])
 
       broadcast(device, "identify", %{})
 
