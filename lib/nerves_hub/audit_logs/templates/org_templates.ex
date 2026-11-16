@@ -48,6 +48,15 @@ defmodule NervesHub.AuditLogs.OrgTemplates do
     AuditLogs.audit!(user, org, description)
   end
 
+  @spec audit_two_factor_requirement(User.t(), Org.t()) :: :ok
+  def audit_two_factor_requirement(user, %Org{require_two_factor: true} = org) do
+    AuditLogs.audit!(user, org, "User #{user.name} started requiring two-factor authentication of every member")
+  end
+
+  def audit_two_factor_requirement(user, %Org{require_two_factor: false} = org) do
+    AuditLogs.audit!(user, org, "User #{user.name} stopped requiring two-factor authentication of members")
+  end
+
   @spec audit_slack_connected(User.t(), Org.t(), Workspace.t()) :: :ok
   def audit_slack_connected(user, org, workspace) do
     description = "User #{user.name} connected Slack workspace #{workspace.team_name} (#{workspace.team_id})"

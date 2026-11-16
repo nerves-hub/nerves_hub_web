@@ -25,7 +25,9 @@ defmodule NervesHub.Accounts.TwoFactor do
   alias NervesHub.Accounts.Org
   alias NervesHub.Accounts.OrgUser
   alias NervesHub.Accounts.User
+  alias NervesHub.Accounts.UserNotifier
   alias NervesHub.Accounts.UserTOTP
+  alias NervesHub.AuditLogs.OrgTemplates
   alias NervesHub.Branding
   alias NervesHub.Repo
   alias NervesHub.Types.Encrypted
@@ -97,6 +99,8 @@ defmodule NervesHub.Accounts.TwoFactor do
   @doc """
   Turns two-factor on with `secret`, once `code` shows the user's app has
   it. Returns the recovery codes, which are shown once and never again.
+
+  The user is emailed that it was turned on.
   """
   @spec enable(User.t(), binary(), String.t()) ::
           {:ok, [String.t()]} | {:error, :invalid_code | :already_enabled | :unavailable}
@@ -105,14 +109,20 @@ defmodule NervesHub.Accounts.TwoFactor do
          {:ok, period_start} <- match_totp(secret, normalize(code)) do
       {codes, hashes} = new_recovery_codes(user)
 
-      %UserTOTP{user_id: user.id}
-      |> Ecto.Changeset.change(secret: secret, last_used_at: period_start, recovery_codes: hashes)
-      |> Ecto.Changeset.unique_constraint(:user_id)
-      |> Repo.insert()
-      |> case do
-        {:ok, _totp} -> {:ok, codes}
-        {:error, _changeset} -> {:error, :already_enabled}
-      end
+      Repo.transact(fn ->
+        %UserTOTP{user_id: user.id}
+        |> Ecto.Changeset.change(secret: secret, last_used_at: period_start, recovery_codes: hashes)
+        |> Ecto.Changeset.unique_constraint(:user_id)
+        |> Repo.insert()
+        |> case do
+          {:ok, _totp} ->
+            {:ok, _job} = UserNotifier.deliver_two_factor_enabled(user)
+            {:ok, codes}
+
+          {:error, _changeset} ->
+            {:error, :already_enabled}
+        end
+      end)
     else
       {:available, false} -> {:error, :unavailable}
       :error -> {:error, :invalid_code}
@@ -140,12 +150,29 @@ defmodule NervesHub.Accounts.TwoFactor do
   Turns two-factor off, given a current code or a recovery code, which
   proves whoever asks still holds the second factor rather than only a
   signed in browser.
+
+  The user is emailed that it was turned off.
   """
   @spec disable(User.t(), String.t()) :: :ok | {:error, :invalid_code}
   def disable(%User{} = user, code) do
-    with {:ok, _how} <- verify(user, code) do
-      {_count, _} = UserTOTP |> where(user_id: ^user.id) |> Repo.delete_all()
+    with {:ok, _how} <- verify(user, code),
+         {:ok, :ok} <- Repo.transact(fn -> delete_and_notify(user) end) do
       :ok
+    end
+  end
+
+  defp delete_and_notify(user) do
+    UserTOTP
+    |> where(user_id: ^user.id)
+    |> Repo.delete_all()
+    |> case do
+      {0, _} ->
+        # Turned off by another request in the meantime, which sent the email.
+        {:ok, :ok}
+
+      {1, _} ->
+        {:ok, _job} = UserNotifier.deliver_two_factor_disabled(user)
+        {:ok, :ok}
     end
   end
 
@@ -216,6 +243,9 @@ defmodule NervesHub.Accounts.TwoFactor do
 
   Only someone with two-factor on can turn the requirement on, so an admin
   can't lock themselves out of the org by turning it on.
+
+  A change is recorded in the org's audit log; saving the same value again
+  isn't.
   """
   @spec set_org_requirement(Org.t(), User.t(), boolean()) ::
           {:ok, Org.t()} | {:error, :two_factor_off | :unavailable | Ecto.Changeset.t()}
@@ -223,8 +253,22 @@ defmodule NervesHub.Accounts.TwoFactor do
     cond do
       required and not available?() -> {:error, :unavailable}
       required and not enabled?(admin) -> {:error, :two_factor_off}
-      true -> org |> Org.require_two_factor_changeset(required) |> Repo.update()
+      true -> update_org_requirement(org, admin, required)
     end
+  end
+
+  defp update_org_requirement(org, admin, required) do
+    changeset = Org.require_two_factor_changeset(org, required)
+
+    Repo.transact(fn ->
+      with {:ok, updated} <- Repo.update(changeset) do
+        if Ecto.Changeset.changed?(changeset, :require_two_factor) do
+          :ok = OrgTemplates.audit_two_factor_requirement(admin, updated)
+        end
+
+        {:ok, updated}
+      end
+    end)
   end
 
   # A TOTP code is six digits; anything else is tried as a recovery code.

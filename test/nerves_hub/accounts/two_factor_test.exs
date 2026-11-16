@@ -1,11 +1,16 @@
 defmodule NervesHub.Accounts.TwoFactorTest do
   use NervesHub.DataCase, async: true
 
+  import NervesHub.Support.Emails
+  import Swoosh.X.TestAssertions
+
   alias NervesHub.Accounts
   alias NervesHub.Accounts.TwoFactor
   alias NervesHub.Accounts.UserTOTP
+  alias NervesHub.AuditLogs
   alias NervesHub.Fixtures
   alias NervesHub.Repo
+  alias NervesHub.Workers.SendEmail
 
   setup do
     user = Fixtures.user_fixture()
@@ -20,6 +25,21 @@ defmodule NervesHub.Accounts.TwoFactorTest do
       assert length(codes) == 10
       assert Enum.all?(codes, &String.match?(&1, ~r/\A[a-z2-7]{5}-[a-z2-7]{5}\z/))
       assert TwoFactor.enabled?(user)
+    end
+
+    test "emails the user that it's on", %{user: user} do
+      secret = TwoFactor.new_secret()
+      {:ok, _codes} = TwoFactor.enable(user, secret, NimbleTOTP.verification_code(secret))
+
+      assert_enqueued(worker: SendEmail, args: %{template: "two_factor_enabled", to: user.email})
+
+      send_queued_emails()
+
+      assert_email_sent(fn email ->
+        assert email.subject == "NervesHub: Two-factor authentication is on"
+        assert email.html_body =~ "/account/two-factor"
+        assert email.text_body =~ "/account/two-factor"
+      end)
     end
 
     test "stores the secret encrypted and only hashes of the recovery codes", %{user: user} do
@@ -37,6 +57,7 @@ defmodule NervesHub.Accounts.TwoFactorTest do
 
       assert {:error, :invalid_code} = TwoFactor.enable(user, secret, "000000")
       refute TwoFactor.enabled?(user)
+      refute_enqueued(worker: SendEmail)
     end
 
     test "refuses to set up a second app", %{user: user} do
@@ -110,6 +131,23 @@ defmodule NervesHub.Accounts.TwoFactorTest do
       refute TwoFactor.enabled?(user)
     end
 
+    test "turning it off emails the user", %{user: user, recovery_codes: [code | _]} do
+      assert {:error, :invalid_code} = TwoFactor.disable(user, "000000")
+      refute_enqueued(worker: SendEmail, args: %{template: "two_factor_disabled"})
+
+      :ok = TwoFactor.disable(user, code)
+
+      assert_enqueued(worker: SendEmail, args: %{template: "two_factor_disabled", to: user.email})
+
+      send_queued_emails()
+
+      assert_email_sent(fn email ->
+        assert email.subject == "NervesHub: Two-factor authentication is off"
+        assert email.html_body =~ "/password-reset"
+        assert email.text_body =~ "/password-reset"
+      end)
+    end
+
     test "a recovery code can turn it off", %{user: user, recovery_codes: [code | _]} do
       assert :ok = TwoFactor.disable(user, code)
       refute TwoFactor.enabled?(user)
@@ -143,6 +181,27 @@ defmodule NervesHub.Accounts.TwoFactorTest do
       {1, _} = Repo.delete_all(UserTOTP)
 
       assert {:ok, %{require_two_factor: false}} = TwoFactor.set_org_requirement(org, user, false)
+    end
+
+    test "a change is recorded in the audit log, saving the same value isn't", %{user: user, org: org} do
+      Fixtures.two_factor_fixture(user)
+
+      {:ok, org} = TwoFactor.set_org_requirement(org, user, false)
+      assert AuditLogs.logs_for(org) == []
+
+      {:ok, org} = TwoFactor.set_org_requirement(org, user, true)
+      {:ok, org} = TwoFactor.set_org_requirement(org, user, true)
+      {:ok, org} = TwoFactor.set_org_requirement(org, user, false)
+
+      assert [stopped, started] = AuditLogs.logs_for(org)
+      assert started.description == "User #{user.name} started requiring two-factor authentication of every member"
+      assert stopped.description == "User #{user.name} stopped requiring two-factor authentication of members"
+      assert started.actor_id == user.id
+    end
+
+    test "turning it on without two-factor isn't recorded", %{user: user, org: org} do
+      assert {:error, :two_factor_off} = TwoFactor.set_org_requirement(org, user, true)
+      assert AuditLogs.logs_for(org) == []
     end
 
     test "members without it don't meet it", %{user: user, org: org} do

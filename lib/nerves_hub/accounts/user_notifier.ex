@@ -25,6 +25,8 @@ defmodule NervesHub.Accounts.UserNotifier do
   alias NervesHub.Emails.TellOrgUserInvitedTemplate
   alias NervesHub.Emails.TellOrgUserRemovedTemplate
   alias NervesHub.Emails.TellOrgUserRemovedThemselfTemplate
+  alias NervesHub.Emails.TwoFactorDisabledTemplate
+  alias NervesHub.Emails.TwoFactorEnabledTemplate
   alias NervesHub.Emails.UpdateEmailTemplate
   alias NervesHub.Emails.UserInviteTemplate
   alias NervesHub.Emails.WelcomeTemplate
@@ -56,6 +58,22 @@ defmodule NervesHub.Accounts.UserNotifier do
 
   def deliver_password_updated(user, reset_url) do
     Oban.insert(job("password_updated", user, %{user_name: user.name, reset_url: reset_url}))
+  end
+
+  @doc """
+  Tells a user two-factor authentication was turned on for their account, so
+  they hear about it if someone with their password did it.
+  """
+  def deliver_two_factor_enabled(user) do
+    Oban.insert(job("two_factor_enabled", user, %{user_name: user.name, manage_url: web_url("/account/two-factor")}))
+  end
+
+  @doc """
+  Tells a user two-factor authentication was turned off for their account,
+  with a link to reset their password in case it wasn't them.
+  """
+  def deliver_two_factor_disabled(user) do
+    Oban.insert(job("two_factor_disabled", user, %{user_name: user.name, reset_url: web_url("/password-reset")}))
   end
 
   def deliver_login_with_google_reminder(user, login_url) do
@@ -224,6 +242,8 @@ defmodule NervesHub.Accounts.UserNotifier do
   defp template_module("tell_org_user_invited"), do: TellOrgUserInvitedTemplate
   defp template_module("tell_org_user_removed"), do: TellOrgUserRemovedTemplate
   defp template_module("tell_org_user_removed_themself"), do: TellOrgUserRemovedThemselfTemplate
+  defp template_module("two_factor_disabled"), do: TwoFactorDisabledTemplate
+  defp template_module("two_factor_enabled"), do: TwoFactorEnabledTemplate
   defp template_module("update_email"), do: UpdateEmailTemplate
   defp template_module("user_invite"), do: UserInviteTemplate
   defp template_module("welcome"), do: WelcomeTemplate
@@ -250,6 +270,10 @@ defmodule NervesHub.Accounts.UserNotifier do
   defp subject_for("tell_org_user_removed_themself", %{removed_user_name: removed_user_name, org_name: org_name}),
     do: "#{platform_name()}: #{removed_user_name} has been removed from #{org_name}"
 
+  defp subject_for("two_factor_disabled", _assigns), do: "#{platform_name()}: Two-factor authentication is off"
+
+  defp subject_for("two_factor_enabled", _assigns), do: "#{platform_name()}: Two-factor authentication is on"
+
   defp subject_for("update_email", _assigns), do: "#{platform_name()}: Confirm your new email address"
 
   defp subject_for("user_invite", %{org_name: org_name}),
@@ -274,6 +298,8 @@ defmodule NervesHub.Accounts.UserNotifier do
   defp atomize_keys(assigns) do
     Map.new(assigns, fn {key, value} -> {String.to_existing_atom(key), value} end)
   end
+
+  defp web_url(path), do: NervesHubWeb.Endpoint.url() <> path
 
   defp from_address() do
     email = Application.fetch_env!(:nerves_hub, :from_email)
