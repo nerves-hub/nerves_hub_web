@@ -296,8 +296,11 @@
 
             <tr :if={@expanded_device_id == result.id} class="border-b border-base-800">
               <td colspan="3" class="py-3">
-                <pre :if={result.output} class="overflow-x-auto rounded bg-base-800/50 p-4 font-mono text-sm whitespace-pre-wrap text-base-300">{result.output}</pre>
-                <span :if={is_nil(result.output)} class="text-sm text-base-500">
+                <pre :if={@expanded_output} class="overflow-x-auto rounded bg-base-800/50 p-4 font-mono text-sm whitespace-pre-wrap text-base-300">{@expanded_output}</pre>
+                <span :if={is_nil(@expanded_output) && result.output_expired_at} class="text-sm text-base-500">
+                  Output was removed after the retention period, on <.local_datetime at={result.output_expired_at} time_zone={@time_zone} zone_label={false} />.
+                </span>
+                <span :if={is_nil(@expanded_output) && is_nil(result.output_expired_at)} class="text-sm text-base-500">
                   Nothing was recorded for this device.
                 </span>
               </td>

@@ -46,6 +46,12 @@ defmodule NervesHub.ScriptRunners do
   # free to be released. See `release_stale_devices/2`.
   @live_job_states ~w(available scheduled executing retryable)
 
+  # Per device. Far more than a diagnostic script prints, and small enough that a
+  # run across a whole fleet stays a reasonable size: 50,000 devices at the cap
+  # is about 1.6GB, against unbounded without one.
+  @max_output_bytes 32_768
+  @truncated_marker "[output truncated at 32 KB]"
+
   @doc """
   Create a run and queue its first pacing job.
 
@@ -539,6 +545,10 @@ defmodule NervesHub.ScriptRunners do
   @doc """
   One run's device results, paginated, searchable by identifier and sortable.
 
+  The rows come back without their `output`, which is `nil` on every one: a page
+  can be a hundred rows of up to `max_output_bytes/0` each, and only the row
+  someone opens is shown. Read that one with `device_output/2`.
+
   Not routed through `NervesHub.Filtering` like the other listings: that helper
   scopes every query with `product_id`, which `script_runner_devices` does not
   have. The run is the scope here, and the run itself was already fetched within
@@ -556,6 +566,7 @@ defmodule NervesHub.ScriptRunners do
     ScriptRunnerDevice
     |> where([srd], srd.script_runner_id == ^id)
     |> join(:inner, [srd], d in assoc(srd, :device), as: :device)
+    |> select([srd], struct(srd, ^ScriptRunnerDevice.fields_without_output()))
     |> preload([device: d], device: d)
     |> ScriptRunnerDeviceFiltering.build_filters(Map.get(opts, :filters, %{}))
     |> ScriptRunnerDeviceFiltering.sort(Map.get(opts, :sort, {:asc, :identifier}))
@@ -741,12 +752,88 @@ defmodule NervesHub.ScriptRunners do
   # `:running` for `release_stale_devices/2` to hand back to the dispatcher, so
   # the script is sent to the device again. Scrubbed the same way as
   # `NervesHub.Integrations` scrubs event payloads.
+  #
+  # Capped too: nothing limits the size of a device's websocket frame, and a run
+  # stores one of these for every device it targets.
   defp sanitize_output(nil), do: nil
 
   defp sanitize_output(output) when is_binary(output) do
     output
     |> String.replace_invalid()
     |> String.replace(<<0>>, "")
+    |> truncate_output()
+  end
+
+  defp truncate_output(output) when byte_size(output) <= @max_output_bytes, do: output
+
+  defp truncate_output(output) do
+    kept = output |> binary_part(0, @max_output_bytes) |> drop_partial_codepoint()
+
+    kept <> "\n" <> @truncated_marker
+  end
+
+  # The byte cut can land inside a multi-byte character. At most three bytes of
+  # one are left behind, so this loops at most three times.
+  defp drop_partial_codepoint(binary) do
+    if String.valid?(binary) do
+      binary
+    else
+      drop_partial_codepoint(binary_part(binary, 0, byte_size(binary) - 1))
+    end
+  end
+
+  @doc """
+  The most output kept for one device, in bytes. Anything past it is dropped and
+  replaced by a note saying so.
+  """
+  @spec max_output_bytes() :: 32_768
+  def max_output_bytes(), do: @max_output_bytes
+
+  @doc """
+  One device result's output, for the row someone opened on a run's page.
+
+  The page lists rows without their output (see `filter_devices/2`), so it is
+  read here, one row at a time. Scoped to the run, so an id from another run
+  reads as nothing.
+  """
+  @spec device_output(ScriptRunner.t(), integer()) :: String.t() | nil
+  def device_output(%ScriptRunner{id: runner_id}, result_id) do
+    ScriptRunnerDevice
+    |> where([srd], srd.id == ^result_id and srd.script_runner_id == ^runner_id)
+    |> select([srd], srd.output)
+    |> Repo.one()
+  end
+
+  @doc """
+  Clear the output of device results that finished more than `retain_for`
+  milliseconds ago, at most `limit` rows per call.
+
+  Output is whatever a script printed, which routinely includes secrets, and the
+  console's contents are never stored at all (see
+  `NervesHub.Devices.DeviceMessages`). So it is kept only as long as it is
+  likely to be read. The rest of the row stays: which devices a run targeted and
+  how each one ended is a record of what ran, and `output_expired_at` says the
+  output was there and has gone, rather than never sent.
+
+  Returns how many rows were cleared.
+  """
+  @spec expire_output(pos_integer(), pos_integer()) :: non_neg_integer()
+  def expire_output(retain_for, limit) do
+    now = DateTime.utc_now()
+    cutoff = DateTime.add(now, -retain_for, :millisecond)
+
+    expired =
+      ScriptRunnerDevice
+      |> where([srd], not is_nil(srd.output) and srd.finished_at < ^cutoff)
+      |> limit(^limit)
+      |> select([srd], srd.id)
+
+    {count, nil} =
+      ScriptRunnerDevice
+      |> where([srd], srd.id in subquery(expired))
+      |> Repo.update_all(set: [output: nil, output_expired_at: now, updated_at: naive_now()])
+
+    count
   end
 
   # `timestamps()` here is the repo default `:naive_datetime`, and `update_all`

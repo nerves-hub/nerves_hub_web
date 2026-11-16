@@ -181,6 +181,9 @@ config :nerves_hub,
   # `:devices_websocket_url` instead of serving them.
   redirect_to_devices_websocket_url: System.get_env("REDIRECT_TO_DEVICES_WEBSOCKET_URL", "false") == "true",
   clean_up_soft_deleted_devices: System.get_env("CLEAN_UP_SOFT_DELETED_DEVICES", "false") == "true",
+  # See `NervesHub.Workers.ExpireScriptRunnerOutput`.
+  script_runner_output_days_to_retain: String.to_integer(System.get_env("SCRIPT_RUNNER_OUTPUT_DAYS_TO_RETAIN", "3")),
+  script_runner_output_expire_limit: String.to_integer(System.get_env("SCRIPT_RUNNER_OUTPUT_EXPIRE_LIMIT", "100000")),
   default_lifo_deployment_queue: System.get_env("DEFAULT_LIFO_DEPLOYMENT_QUEUE", "false") == "true",
   featurebase_app_id: System.get_env("FEATUREBASE_APP_ID"),
   featurebase_signing_token: System.get_env("FEATUREBASE_SIGNING_TOKEN"),

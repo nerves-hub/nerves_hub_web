@@ -11,6 +11,7 @@ defmodule NervesHubWeb.Live.ScriptRunsTest do
   alias NervesHub.ScriptRunners
   alias NervesHub.ScriptRunners.ScriptRunner
   alias NervesHub.ScriptRunners.ScriptRunnerDevice
+  alias NervesHub.Workers.ExpireScriptRunnerOutput
 
   setup %{user: user, org: org} = context do
     product = Fixtures.product_fixture(user, org, %{name: "Amazing"})
@@ -733,6 +734,26 @@ defmodule NervesHubWeb.Live.ScriptRunsTest do
       {:ok, view, _html} = live(ctx.conn, run_path(ctx, run))
 
       assert render_click(view, "toggle-output", %{"id" => result.id}) =~ "Nothing was recorded for this device."
+    end
+
+    test "a device whose output expired says it was removed", ctx do
+      run = create_run(ctx, tag: "expired")
+      [result] = ScriptRunners.device_results(run)
+      1 = ScriptRunners.record_device_result(run.id, result.device_id, :completed, "password=hunter2")
+
+      Repo.update_all(where(ScriptRunnerDevice, [srd], srd.id == ^result.id),
+        set: [finished_at: DateTime.add(DateTime.utc_now(), -4, :day)]
+      )
+
+      :ok = Oban.Testing.perform_job(ExpireScriptRunnerOutput, %{}, repo: Repo)
+
+      {:ok, view, _html} = live(ctx.conn, run_path(ctx, run))
+
+      html = render_click(view, "toggle-output", %{"id" => result.id})
+
+      assert html =~ "Output was removed after the retention period"
+      refute html =~ "hunter2"
+      refute html =~ "Nothing was recorded for this device."
     end
 
     test "the status counts follow a device reporting in", ctx do

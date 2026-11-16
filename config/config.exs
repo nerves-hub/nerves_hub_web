@@ -5,6 +5,7 @@ alias NervesHub.Workers.CleanStaleDeviceConnections
 alias NervesHub.Workers.CleanUpSoftDeletedDevices
 alias NervesHub.Workers.DeleteExpiredCLISessionRecords
 alias NervesHub.Workers.ExpireInflightUpdates
+alias NervesHub.Workers.ExpireScriptRunnerOutput
 alias NervesHub.Workers.FirmwareDeltaTimeout
 alias NervesHub.Workers.QueueStrandedChatEvents
 alias NervesHub.Workers.RequeueStrandedScriptRunners
@@ -131,6 +132,7 @@ config :nerves_hub, Oban,
       {"* * * * *", FirmwareDeltaTimeout},
       {"*/5 * * * *", ExpireInflightUpdates},
       {"*/5 * * * *", RequeueStrandedScriptRunners},
+      {"*/15 * * * *", ExpireScriptRunnerOutput},
       {"*/15 * * * *", CleanUpSoftDeletedDevices},
       {"* * * * *", QueueStrandedChatEvents}
     ]

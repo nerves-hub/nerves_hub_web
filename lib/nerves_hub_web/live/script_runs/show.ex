@@ -59,6 +59,7 @@ defmodule NervesHubWeb.Live.ScriptRuns.Show do
     |> assign(:targeted_deployment_groups, targeted_deployment_groups(scope.product, run))
     |> assign(:status_counts, ScriptRunners.status_counts(run))
     |> assign(:expanded_device_id, nil)
+    |> assign(:expanded_output, nil)
     |> assign(:rerun_preview, nil)
     |> assign(:editing_description?, false)
     |> assign(:paginate_opts, @default_pagination)
@@ -129,8 +130,13 @@ defmodule NervesHubWeb.Live.ScriptRuns.Show do
     id = if is_binary(id), do: String.to_integer(id), else: id
     expanded = if socket.assigns.expanded_device_id != id, do: id
 
+    # The page's rows carry no output (see `ScriptRunners.filter_devices/2`), so
+    # the opened row's is read on its own.
+    output = if expanded, do: ScriptRunners.device_output(socket.assigns.script_run, expanded)
+
     socket
     |> assign(:expanded_device_id, expanded)
+    |> assign(:expanded_output, output)
     |> noreply()
   end
 

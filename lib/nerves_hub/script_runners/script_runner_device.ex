@@ -63,8 +63,20 @@ defmodule NervesHub.ScriptRunners.ScriptRunnerDevice do
     field(:started_at, :utc_datetime_usec)
     field(:finished_at, :utc_datetime_usec)
 
+    # Set when `output` was cleared for outliving its retention period. See
+    # `NervesHub.ScriptRunners.expire_output/2`.
+    field(:output_expired_at, :utc_datetime_usec)
+
     timestamps()
   end
+
+  @doc """
+  Every field except `output`, for listings that show a page of rows without
+  their output. Output is uncapped by row count and can be large, so it is only
+  read for the one row someone opens.
+  """
+  @spec fields_without_output() :: [atom(), ...]
+  def fields_without_output(), do: __schema__(:fields) -- [:output]
 
   @doc """
   Every status a device row can end on.

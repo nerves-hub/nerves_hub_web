@@ -92,6 +92,40 @@ defmodule NervesHub.Workers.ScriptRunnerDeviceTest do
     assert result.output == "abcdef�ghi"
   end
 
+  test "output past the cap is truncated, without splitting a character", ctx do
+    %{device: device, runner: runner} = run_for(ctx, %{})
+    _ = Fixtures.device_connection_fixture(device)
+
+    max = ScriptRunners.max_output_bytes()
+
+    # "é" is two bytes, so the cut lands inside one.
+    output = String.duplicate("a", max - 1) <> "é" <> "after the cap"
+
+    stub(Runner, :send, fn _device, _command, _opts -> {:ok, output} end)
+
+    assert :ok = perform(runner, device)
+
+    stored = result(runner).output
+
+    assert String.valid?(stored)
+    assert String.starts_with?(stored, String.duplicate("a", max - 1) <> "\n")
+    refute stored =~ "after the cap"
+    assert stored =~ "[output truncated at 32 KB]"
+  end
+
+  test "output at the cap is kept whole", ctx do
+    %{device: device, runner: runner} = run_for(ctx, %{})
+    _ = Fixtures.device_connection_fixture(device)
+
+    output = String.duplicate("a", ScriptRunners.max_output_bytes())
+
+    stub(Runner, :send, fn _device, _command, _opts -> {:ok, output} end)
+
+    assert :ok = perform(runner, device)
+
+    assert result(runner).output == output
+  end
+
   test "an offline device is recorded without being sent anything", ctx do
     %{device: device, runner: runner} = run_for(ctx, %{})
     _ = Fixtures.device_connection_fixture(device, %{status: :disconnected})
