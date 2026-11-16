@@ -226,7 +226,7 @@
             navigate={~p"/org/#{device.org}/#{device.product}/devices/#{device.identifier}"}
             class="flex items-center gap-3 border-b border-line-subtle px-4 py-3 transition-colors last:border-0 hover:bg-surface-muted md:gap-4"
           >
-            <% online? = @device_statuses[device.identifier] == "online" %>
+            <% online? = @device_statuses[device.id] == "online" %>
             <% firmware = (device.firmware_metadata && device.firmware_metadata.version) || "—" %>
             <% {label, color} = if online?, do: health_label(device), else: {offline_for(device), "text-content-muted"} %>
             <%!-- On a phone the row is two lines: the identifier and its state, then where it is and
