@@ -11,7 +11,10 @@ defmodule NervesHubWeb.Live.Devices.New do
     |> page_title("New Device - #{socket.assigns.current_scope.product.name}")
     |> sidebar_tab(:devices)
     |> assign(:form, to_form(changeset))
-    |> assign(:available_tags, Devices.distinct_tags_for_product(socket.assigns.current_scope.product))
+    |> assign(
+      :available_tags,
+      Devices.distinct_tags_for_product(socket.assigns.current_scope.product, socket.assigns.current_scope.user)
+    )
     |> ok()
   end
 
