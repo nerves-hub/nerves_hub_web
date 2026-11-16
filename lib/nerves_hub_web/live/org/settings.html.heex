@@ -30,6 +30,58 @@
       </.form>
     </section>
 
+    <section :if={@two_factor_available? || @org.require_two_factor} id="org-two-factor" class="flex flex-col gap-4 border-b border-line-default pb-7 md:flex-row md:gap-12">
+      <div class="flex flex-col gap-1 md:w-70 md:shrink-0">
+        <h2 class="text-group-title text-content-strong">Two-factor authentication</h2>
+        <p class="text-ui text-content-muted">Members without it can't reach this organization, here or through the API, until they turn it on.</p>
+      </div>
+
+      <.form for={%{}} id="org-two-factor-form" phx-submit="update-two-factor" class="flex min-w-0 flex-1 flex-col gap-3.5">
+        <div class="flex items-start gap-2.5">
+          <input type="hidden" name="require_two_factor" value="false" />
+          <input
+            id="require_two_factor"
+            name="require_two_factor"
+            type="checkbox"
+            value="true"
+            checked={@org.require_two_factor}
+            disabled={!authorized?(:"organization:update", @current_scope) || (!@own_two_factor? && !@org.require_two_factor)}
+            aria-describedby="require_two_factor_hint"
+            class="mt-0.5 rounded border-line-strong bg-base-800 checked:bg-primary focus:ring-0 focus:ring-offset-0 focus-visible:ring-2 focus-visible:ring-focus-ring disabled:opacity-50 light:checked:bg-indigo-600"
+          />
+          <label for="require_two_factor" class="text-sm text-content-body">Require two-factor authentication for every member</label>
+        </div>
+
+        <p id="require_two_factor_hint" class="text-xs text-content-muted">
+          <span :if={!@own_two_factor? && !@org.require_two_factor}>
+            <.link navigate={~p"/account/two-factor"} class="font-medium text-primary hover:text-primary-hover light:text-indigo-600">Turn it on for your own account</.link>
+            first, so requiring it can't lock you out.
+          </span>
+          <span :if={@members_without_two_factor == []}>Every member has it on.</span>
+          <span :if={@members_without_two_factor != [] && !@org.require_two_factor} id="members-without-two-factor">
+            {length(@members_without_two_factor)} {if length(@members_without_two_factor) == 1, do: "member doesn't", else: "members don't"} have it on yet and would be turned away: {member_names(
+              @members_without_two_factor
+            )}.
+          </span>
+          <span :if={@members_without_two_factor != [] && @org.require_two_factor} id="members-without-two-factor">
+            {length(@members_without_two_factor)} {if length(@members_without_two_factor) == 1, do: "member can't", else: "members can't"} reach the organization until they turn it on: {member_names(
+              @members_without_two_factor
+            )}.
+          </span>
+        </p>
+
+        <div>
+          <.button
+            style="primary"
+            type="submit"
+            disabled={!authorized?(:"organization:update", @current_scope) || (!@own_two_factor? && !@org.require_two_factor)}
+          >
+            Save
+          </.button>
+        </div>
+      </.form>
+    </section>
+
     <section id="delete-org" class="flex flex-col gap-4 md:flex-row md:gap-12">
       <div class="flex flex-col gap-1 md:w-70 md:shrink-0">
         <h2 class="text-list-title text-content-strong">Delete organization</h2>

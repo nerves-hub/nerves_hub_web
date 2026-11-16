@@ -48,6 +48,28 @@ defmodule NervesHubWeb.UserConsoleChannelTest do
     end
   end
 
+  describe "an organization requiring two-factor" do
+    test "turns away a member without it until they turn it on", %{tmp_dir: tmp_dir} do
+      user = Fixtures.user_fixture()
+      device = device_fixture(user, %{identifier: "test-device-2fa"}, tmp_dir)
+      org = Accounts.get_org!(device.org_id)
+      Fixtures.two_factor_fixture(user)
+      {:ok, _org} = Accounts.TwoFactor.set_org_requirement(org, user, true)
+
+      member = Fixtures.user_fixture()
+      {:ok, _} = Accounts.add_org_user(org, member, %{role: :manage})
+      {:ok, socket} = connect(APISocket, %{"token" => Accounts.create_user_api_token(member, "test-token")})
+
+      assert {:error, %{reason: "unauthorized"}} =
+               subscribe_and_join(socket, UserConsoleChannel, "user:console:identifier-#{device.identifier}")
+
+      Fixtures.two_factor_fixture(member)
+
+      assert {:ok, _reply, _channel} =
+               subscribe_and_join(socket, UserConsoleChannel, "user:console:identifier-#{device.identifier}")
+    end
+  end
+
   describe "a member with a custom role" do
     test "can open a console if the role grants it", %{tmp_dir: tmp_dir} do
       {socket, device, _role} = custom_role_member(["device:console"], tmp_dir)

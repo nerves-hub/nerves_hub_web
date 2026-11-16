@@ -9,6 +9,7 @@ defmodule NervesHub.Accounts.RemoveAccount do
   alias NervesHub.Accounts.OrgMetric
   alias NervesHub.Accounts.OrgUser
   alias NervesHub.Accounts.User
+  alias NervesHub.Accounts.UserTOTP
   alias NervesHub.DeviceEvents
   alias NervesHub.Devices.CACertificate
   alias NervesHub.Devices.Device
@@ -43,6 +44,7 @@ defmodule NervesHub.Accounts.RemoveAccount do
     |> Multi.delete_all(:firmware_deltas, &query_firmware_deltas/1)
     |> Multi.delete_all(:firmware_transfers, &query_by_org_id(FirmwareTransfer, &1))
     |> Multi.delete_all(:pinned_devices, &query_by_user_id(PinnedDevice, &1))
+    |> Multi.delete_all(:user_totps, &query_by_user_id(UserTOTP, &1))
     # Devices are only soft deleted below, so nothing cascades their firmware
     # history or in-flight updates away. Both reference `firmwares`, and the
     # rows have to go before the firmware they name can.

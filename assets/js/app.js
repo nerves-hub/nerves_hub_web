@@ -26,6 +26,7 @@ import { LiveFlowHook } from "live_flow"
 import LoadMoreOnVisible from "./hooks/loadMoreOnVisible.js"
 import LocalShell from "./hooks/localShell.js"
 import LogDayStarts from "./hooks/logDayStarts.js"
+import { OtpInputHook, mountAll as mountOtpInputs, mountModeToggles as mountOtpModeToggles } from "./otpInput.js"
 import PageVisible from "./hooks/pageVisible.js"
 import ScriptAutocomplete from "./hooks/scriptAutocomplete.js"
 import SharedSecretClipboardClick from "./hooks/sharedSecretClipboardClick.js"
@@ -87,6 +88,7 @@ let liveSocket = new LiveSocket("/live", Socket, {
     LoadMoreOnVisible,
     LogDayStarts,
     LocalShell,
+    OtpInput: OtpInputHook,
     PageVisible,
     SharedSecretClipboardClick,
     SidebarToggle,
@@ -142,6 +144,11 @@ liveSocket.getSocket().onOpen(() => {
 liveSocket.getSocket().onError(() => delayedConnectionClosedAlert())
 liveSocket.getSocket().onClose(() => delayedConnectionClosedAlert())
 liveSocket.connect()
+
+// The sign-in pages aren't LiveViews, so their code fields are mounted here.
+// The script is deferred, so the page is parsed by now.
+mountOtpInputs()
+mountOtpModeToggles()
 
 let connectionClosedTimer
 const delayedConnectionClosedAlert = () => {

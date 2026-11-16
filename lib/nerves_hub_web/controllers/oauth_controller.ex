@@ -19,13 +19,11 @@ defmodule NervesHubWeb.OAuthController do
   def callback(%{assigns: %{ueberauth_auth: auth}} = conn, _params) do
     case Accounts.update_or_create_user_from_ueberauth(auth) do
       {:ok, user} ->
-        conn
-        |> put_flash(:info, "Welcome back!")
-        |> Auth.log_in_user(user)
+        Auth.sign_in(conn, user, %{}, flash: "Welcome back!")
 
       # The email is on an account no Google account is linked to. Signing in
       # with that account's password, or resetting it, links them, see
-      # `NervesHubWeb.Auth.link_pending_google_account/2`.
+      # `NervesHubWeb.Auth.sign_in/4`'s `:link_google`.
       {:error, :link_required} ->
         conn
         |> put_session(:pending_google_link, Accounts.pending_google_link(auth))

@@ -170,6 +170,11 @@
     "xtermjs",
     "OTPTBS",
     "PEMFILE",
-    "rdns"
+    "rdns",
+    "Authy",
+    "autofilled",
+    "otpauth",
+    "TOTP",
+    "totps"
   ]
 }

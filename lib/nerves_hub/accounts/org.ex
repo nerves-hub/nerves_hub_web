@@ -36,6 +36,10 @@ defmodule NervesHub.Accounts.Org do
     field(:deleted_at, :utc_datetime)
     field(:audit_log_days_to_keep, :integer)
 
+    # Members without two-factor authentication can't reach the org until they
+    # turn it on. See `NervesHub.Accounts.TwoFactor`.
+    field(:require_two_factor, :boolean, default: false)
+
     # Hostnames this org's devices connect to. Several orgs can share one, and only
     # they can connect to it. Not in any changeset an org's own users can reach, or
     # one org could claim another's.
@@ -57,6 +61,15 @@ defmodule NervesHub.Accounts.Org do
     |> validate_required(@params)
     |> unique_constraint(:name)
     |> validate_format(:name, ~r/^[A-Za-z0-9-_]+$/)
+  end
+
+  @doc """
+  Turns the org's two-factor requirement on or off. Only through
+  `NervesHub.Accounts.TwoFactor.set_org_requirement/3`, which checks the
+  admin making the change has it on themselves.
+  """
+  def require_two_factor_changeset(%Org{} = org, required) when is_boolean(required) do
+    change(org, require_two_factor: required)
   end
 
   def device_hostnames_changeset(%Org{} = org, hostnames) do

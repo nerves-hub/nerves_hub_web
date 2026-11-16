@@ -14,6 +14,7 @@ defmodule NervesHub.Accounts do
   alias NervesHub.Accounts.RemoveAccount
   alias NervesHub.Accounts.Scope
   alias NervesHub.Accounts.Starring
+  alias NervesHub.Accounts.TwoFactor
   alias NervesHub.Accounts.User
   alias NervesHub.Accounts.UserCLISession
   alias NervesHub.Accounts.UserNotifier
@@ -482,10 +483,14 @@ defmodule NervesHub.Accounts do
   `:email_not_confirmed`, as signing in on the web is: until it is, nobody has
   shown the address is theirs. The password is checked first, so only someone
   who knows it learns the account is unconfirmed.
+
+  An account with two-factor authentication on is refused with
+  `:two_factor_required`: a password alone isn't enough for it, so it signs in
+  through the browser, as the CLI's login does, or uses an access token.
   """
   @spec authenticate(String.t(), String.t()) ::
           {:ok, User.t()}
-          | {:error, :authentication_failed | :email_not_confirmed}
+          | {:error, :authentication_failed | :email_not_confirmed | :two_factor_required}
   def authenticate(_, nil) do
     Bcrypt.no_user_verify()
     {:error, :authentication_failed}
@@ -495,7 +500,11 @@ defmodule NervesHub.Accounts do
     with {:ok, user} <- get_user_by_email(email),
          true <- is_binary(user.password_hash),
          true <- Bcrypt.verify_pass(password, user.password_hash) do
-      if user.confirmed_at, do: {:ok, user}, else: {:error, :email_not_confirmed}
+      cond do
+        is_nil(user.confirmed_at) -> {:error, :email_not_confirmed}
+        TwoFactor.enabled?(user) -> {:error, :two_factor_required}
+        true -> {:ok, user}
+      end
     else
       _ ->
         # User wasn't found; do dummy check to make user enumeration more difficult

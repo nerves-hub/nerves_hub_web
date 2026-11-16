@@ -116,6 +116,24 @@
         </.form>
       </div>
 
+      <div :if={@two_factor_enabled? || NervesHub.Accounts.TwoFactor.available?()} id="two-factor-summary" class="rounded-card border border-line-default bg-surface-raised p-4 shadow-card">
+        <div class="flex items-start justify-between gap-4">
+          <div>
+            <div class="mb-2 flex items-center gap-2">
+              <h2 class="text-section-title text-content-strong">Two-factor authentication</h2>
+              <.badge :if={@two_factor_enabled?} tone="success">On</.badge>
+              <.badge :if={!@two_factor_enabled?}>Off</.badge>
+            </div>
+            <p class="text-sm text-content-muted">
+              Asks for a code from an authenticator app when you sign in, as well as your password.
+            </p>
+          </div>
+          <.button type="link" navigate={~p"/account/two-factor"} class="shrink-0">
+            {if @two_factor_enabled?, do: "Manage", else: "Set up"}
+          </.button>
+        </div>
+      </div>
+
       <div class="rounded-card border border-line-default bg-surface-raised p-4 shadow-card">
         <div class="flex justify-between">
           <h2 class="mb-4 text-section-title text-content-strong">Access tokens</h2>

@@ -323,6 +323,17 @@ defmodule NervesHubWeb.API.FallbackController do
     })
   end
 
+  def call(conn, {:error, :two_factor_required}) do
+    conn
+    |> put_status(401)
+    |> put_view(ErrorJSON)
+    |> render(:"401", %{
+      reason:
+        "This account has two-factor authentication on, so it can't sign in with only a password. " <>
+          "Sign in through the browser, as the CLI's login command does, or use an access token."
+    })
+  end
+
   def call(conn, {:error, reason}) when is_binary(reason) or is_atom(reason) do
     conn
     |> put_status(500)

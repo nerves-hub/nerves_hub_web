@@ -2,6 +2,7 @@ defmodule NervesHubWeb.SessionController do
   use NervesHubWeb, :controller
 
   alias NervesHub.Accounts
+  alias NervesHub.Accounts.TwoFactor
   alias NervesHub.Accounts.User
   alias NervesHub.Accounts.UserNotifier
   alias NervesHub.Accounts.UserToken
@@ -10,6 +11,8 @@ defmodule NervesHubWeb.SessionController do
   alias NervesHubWeb.Plugs.Attack
 
   plug(:limit_cli_code_attempts when action in [:cli_code, :cli_confirm])
+  plug(:fetch_pending_two_factor_user when action in [:two_factor, :verify_two_factor])
+  plug(:limit_two_factor_attempts when action in [:verify_two_factor])
 
   def new(conn, params) do
     conn = maybe_store_external_return_to(conn, params["return_to"])
@@ -38,10 +41,7 @@ defmodule NervesHubWeb.SessionController do
         )
 
       %User{} = user ->
-        conn
-        |> put_flash(:info, "Welcome back!")
-        |> Auth.link_pending_google_account(user)
-        |> Auth.log_in_user(user, user_params)
+        Auth.sign_in(conn, user, user_params, flash: "Welcome back!", link_google: true)
 
       _ ->
         # Keep the email and the remember-me tick, but never send the password back.
@@ -52,6 +52,93 @@ defmodule NervesHubWeb.SessionController do
         |> assign(:error_message, "That email and password don't match")
         |> render(:new, form: form)
     end
+  end
+
+  # The second step of signing in, for a user with two-factor on. Their
+  # password (or Google, or a password reset) got them here, and
+  # `Auth.sign_in/4` left what's needed to finish in the session.
+
+  def two_factor(conn, params), do: render_two_factor(conn, mode: two_factor_mode(params))
+
+  def verify_two_factor(conn, params) do
+    user = conn.assigns.pending_user
+
+    case TwoFactor.verify(user, params["code"] || "") do
+      {:ok, :totp} ->
+        Auth.complete_two_factor(conn, user)
+
+      {:ok, {:recovery_code, left}} ->
+        Auth.complete_two_factor(conn, user, recovery_code_message(left))
+
+      {:error, :invalid_code} ->
+        mode = two_factor_mode(params)
+        render_two_factor(conn, mode: mode, error: {"That code didn't work", wrong_code_detail(mode)})
+    end
+  end
+
+  def cancel_two_factor(conn, _params) do
+    conn
+    |> Auth.cancel_two_factor()
+    |> redirect(to: ~p"/login")
+  end
+
+  # Which field the code page opens with: the code from the app, or a
+  # recovery code. Either field takes either kind of code; this only picks
+  # what the page asks for.
+  defp two_factor_mode(%{"mode" => "recovery"}), do: :recovery
+  defp two_factor_mode(_params), do: :app
+
+  defp wrong_code_detail(:app), do: "Check the code your app shows now and try again."
+  defp wrong_code_detail(:recovery), do: "Check it against the codes you saved. Each one works only once."
+
+  defp recovery_code_message(0) do
+    "You signed in with your last recovery code. Make new ones in your account settings."
+  end
+
+  defp recovery_code_message(1), do: "You signed in with a recovery code. You have 1 left."
+  defp recovery_code_message(left), do: "You signed in with a recovery code. You have #{left} left."
+
+  defp fetch_pending_two_factor_user(conn, _opts) do
+    case Auth.pending_two_factor_user(conn) do
+      {:ok, user} ->
+        assign(conn, :pending_user, user)
+
+      :error ->
+        conn
+        |> Auth.cancel_two_factor()
+        |> put_flash(:error, "Your sign-in timed out. Sign in again.")
+        |> redirect(to: ~p"/login")
+        |> halt()
+    end
+  end
+
+  defp limit_two_factor_attempts(conn, _opts) do
+    case Attack.two_factor_throttle(conn.assigns.pending_user.id) do
+      {:allow, _data} ->
+        conn
+
+      {:block, _data} ->
+        conn
+        |> render_two_factor(
+          error: {"Too many codes tried", "To keep your account safe, wait ten minutes, then try again."},
+          mode: two_factor_mode(conn.params),
+          locked: true
+        )
+        |> halt()
+    end
+  end
+
+  defp render_two_factor(conn, opts) do
+    {message, detail} = Keyword.get(opts, :error, {nil, nil})
+
+    conn
+    |> assign(:page_title, "Two-factor authentication")
+    |> assign(:email, conn.assigns.pending_user.email)
+    |> assign(:error_message, message)
+    |> assign(:error_detail, detail)
+    |> assign(:locked, Keyword.get(opts, :locked, false))
+    |> assign(:mode, Keyword.get(opts, :mode, :app))
+    |> render(:two_factor)
   end
 
   def confirm(conn, %{"token" => token}) do

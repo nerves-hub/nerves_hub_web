@@ -6,6 +6,7 @@ defmodule NervesHubWeb.Router do
   import Phoenix.LiveDashboard.Router
 
   alias Live.Account.SlackLink
+  alias Live.Account.TwoFactor
   alias Live.Org.CertificateAuthorities
   alias Live.Org.Delete
   alias Live.Org.Integrations
@@ -54,6 +55,7 @@ defmodule NervesHubWeb.Router do
     plug(:put_secure_browser_headers)
     plug(:fetch_current_user)
     plug(:assign_org_to_scope)
+    plug(:require_org_two_factor)
     plug(:assign_product_to_scope)
     plug(SetLocale)
   end
@@ -63,6 +65,7 @@ defmodule NervesHubWeb.Router do
     plug(PutApiSpec, module: NervesHubWeb.ApiSpec)
     plug(FetchCurrentUser)
     plug(:assign_org_to_scope)
+    plug(:require_org_two_factor, :api)
     plug(:assign_product_to_scope)
   end
 
@@ -330,6 +333,9 @@ defmodule NervesHubWeb.Router do
 
     get("/login", SessionController, :new)
     post("/login", SessionController, :create)
+    get("/login/two-factor", SessionController, :two_factor)
+    post("/login/two-factor", SessionController, :verify_two_factor)
+    post("/login/two-factor/cancel", SessionController, :cancel_two_factor)
 
     get("/register", AccountController, :new)
     post("/register", AccountController, :create)
@@ -395,6 +401,7 @@ defmodule NervesHubWeb.Router do
       ] do
       live("/account", Live.Account, :edit)
       live("/account/delete", Live.Account, :delete)
+      live("/account/two-factor", TwoFactor)
       # Where a Slack user confirms which NervesHub account they are. Under
       # /integrations with the rest of Slack, but a page for a signed in person.
       live("/integrations/slack/link", SlackLink)

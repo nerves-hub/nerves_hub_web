@@ -11,12 +11,15 @@ defmodule NervesHubWeb.Auth do
   alias NervesHub.Accounts.Permissions
   alias NervesHub.Accounts.PubSub, as: AccessPubSub
   alias NervesHub.Accounts.Scope
+  alias NervesHub.Accounts.TwoFactor
   alias NervesHub.Accounts.User
   alias NervesHub.Accounts.UserToken
 
   # Make the remember me cookie valid for 60 days.
   # If you want bump or reduce this value, also change
   # the token expiry itself in UserToken.
+  alias NervesHubWeb.API.ErrorJSON
+
   @max_age 60 * 60 * 24 * 60
   @remember_me_cookie "_nerves_hub_user_remember_me"
   @remember_me_options [sign: true, max_age: @max_age, same_site: "Lax"]
@@ -27,18 +30,90 @@ defmodule NervesHubWeb.Auth do
   """
   def remember_me_days(), do: div(@max_age, 60 * 60 * 24)
 
+  # How long someone has, after their password, to type in their code.
+  @two_factor_timeout_seconds 5 * 60
+
   @doc """
-  Logs the User in.
+  Signs `user` in, once whoever is signing in has proven they are them, by
+  password, Google or a password reset. Every sign-in goes through here.
 
-  It renews the session ID and clears the whole session
-  to avoid fixation attacks. See the renew_session
-  function to customize this behaviour.
+  A user with two-factor authentication on isn't signed in yet: they're sent
+  to type in a code (`/login/two-factor`), and `complete_two_factor/3` signs
+  them in after. What's needed to finish is kept in the session meanwhile.
 
-  It also sets a `:live_socket_id` key in the session,
-  so LiveView sessions are identified and automatically
-  disconnected on log out.
+  Options:
+
+    * `:flash` - an info message for the first page after signing in.
+    * `:link_google` - link the Google account a Google sign-in left in the
+      session (see `link_pending_google_account/2`), for the sign-ins that
+      prove the account is theirs.
   """
-  def log_in_user(conn, user, params \\ %{}) do
+  @spec sign_in(Plug.Conn.t(), User.t(), map(), keyword()) :: Plug.Conn.t()
+  def sign_in(conn, %User{} = user, params \\ %{}, opts \\ []) do
+    if TwoFactor.enabled?(user) do
+      pending = %{
+        "user_id" => user.id,
+        "started_at" => System.os_time(:second),
+        "remember_me" => params["remember_me"] == "true",
+        "flash" => opts[:flash],
+        "link_google" => Keyword.get(opts, :link_google, false)
+      }
+
+      conn
+      |> put_session(:two_factor_pending, pending)
+      |> redirect(to: ~p"/login/two-factor")
+    else
+      finish_sign_in(conn, user, params, opts[:flash], Keyword.get(opts, :link_google, false))
+    end
+  end
+
+  @doc """
+  The user a sign-in waiting for a two-factor code is for, unless there is
+  none or it has waited too long.
+  """
+  @spec pending_two_factor_user(Plug.Conn.t()) :: {:ok, User.t()} | :error
+  def pending_two_factor_user(conn) do
+    with %{"user_id" => user_id, "started_at" => started_at} <- get_session(conn, :two_factor_pending),
+         true <- System.os_time(:second) - started_at <= @two_factor_timeout_seconds,
+         {:ok, %User{} = user} <- Accounts.get_user(user_id) do
+      {:ok, user}
+    else
+      _ -> :error
+    end
+  end
+
+  @doc """
+  Finishes a sign-in `sign_in/4` sent to `/login/two-factor`, once the code
+  was right. `flash` is added to what the sign-in was going to say.
+  """
+  @spec complete_two_factor(Plug.Conn.t(), User.t(), String.t() | nil) :: Plug.Conn.t()
+  def complete_two_factor(conn, %User{} = user, flash \\ nil) do
+    pending = get_session(conn, :two_factor_pending)
+    params = if pending["remember_me"], do: %{"remember_me" => "true"}, else: %{}
+    message = [pending["flash"], flash] |> Enum.reject(&is_nil/1) |> Enum.join(" ")
+
+    finish_sign_in(conn, user, params, if(message != "", do: message), pending["link_google"])
+  end
+
+  @doc """
+  Forgets a sign-in that was waiting for a two-factor code.
+  """
+  @spec cancel_two_factor(Plug.Conn.t()) :: Plug.Conn.t()
+  def cancel_two_factor(conn), do: delete_session(conn, :two_factor_pending)
+
+  defp finish_sign_in(conn, user, params, flash, link_google?) do
+    conn = if flash, do: put_flash(conn, :info, flash), else: conn
+    conn = if link_google?, do: link_pending_google_account(conn, user), else: conn
+
+    log_in_user(conn, user, params)
+  end
+
+  # Logs the user in, once they have passed two-factor if they have it on.
+  #
+  # It renews the session ID and clears the whole session to avoid fixation
+  # attacks, and sets a `:live_socket_id` key in the session, so LiveView
+  # sessions are identified and automatically disconnected on log out.
+  defp log_in_user(conn, user, params) do
     token = Accounts.create_user_session_token(user)
     user_return_to = get_session(conn, :login_redirect_path)
 
@@ -49,17 +124,12 @@ defmodule NervesHubWeb.Auth do
     |> redirect_after_login(user_return_to)
   end
 
-  @doc """
-  Links the Google account a Google sign-in left in the session, waiting for
-  proof that `user`'s account belongs to whoever is signing in (see
-  `NervesHubWeb.OAuthController`).
-
-  Call it just before `log_in_user/3`, from the sign-ins that prove it: the
-  account's password, or a password reset. Signing in clears the session, so a
-  pending link is only ever tried once.
-  """
-  @spec link_pending_google_account(Plug.Conn.t(), User.t()) :: Plug.Conn.t()
-  def link_pending_google_account(conn, %User{} = user) do
+  # Links the Google account a Google sign-in left in the session, waiting for
+  # proof that `user`'s account belongs to whoever is signing in (see
+  # `NervesHubWeb.OAuthController`). Only for the sign-ins that prove it: the
+  # account's password, or a password reset. Signing in clears the session, so
+  # a pending link is only ever tried once.
+  defp link_pending_google_account(conn, %User{} = user) do
     with %{} = pending <- get_session(conn, :pending_google_link),
          {:ok, _user} <- Accounts.link_google_account(user, pending) do
       put_flash(conn, :info, "Your Google account is now connected.")
@@ -198,6 +268,51 @@ defmodule NervesHubWeb.Auth do
     end
   end
 
+  @doc """
+  Stops a member without two-factor authentication at an org that requires
+  it. The browser is sent to set it up; the API (`:api`) is refused with a
+  403 saying why.
+
+  Runs after `assign_org_to_scope/2`, so a request with no org passes.
+  """
+  def require_org_two_factor(conn, opts) do
+    case conn.assigns.current_scope do
+      %Scope{org: %Org{} = org, user: %User{} = user} ->
+        if TwoFactor.meets_org_requirement?(org, user) do
+          conn
+        else
+          refuse_without_two_factor(conn, org, opts)
+        end
+
+      _ ->
+        conn
+    end
+  end
+
+  defp refuse_without_two_factor(conn, org, :api) do
+    conn
+    |> put_status(:forbidden)
+    |> put_view(ErrorJSON)
+    |> render(:"403", message: two_factor_required_message(org))
+    |> halt()
+  end
+
+  defp refuse_without_two_factor(conn, org, _opts) do
+    conn
+    |> put_flash(:error, two_factor_required_message(org))
+    |> redirect(to: ~p"/account/two-factor")
+    |> halt()
+  end
+
+  @doc """
+  What a member without two-factor is told when an org that requires it
+  turns them away.
+  """
+  @spec two_factor_required_message(Org.t()) :: String.t()
+  def two_factor_required_message(%Org{name: name}) do
+    "#{name} requires two-factor authentication. Turn it on to reach the organization again."
+  end
+
   def assign_product_to_scope(conn, _opts) do
     current_scope = conn.assigns.current_scope
 
@@ -227,7 +342,20 @@ defmodule NervesHubWeb.Auth do
           socket
       end
 
-    {:cont, watch_membership(socket)}
+    %Scope{org: org, user: user} = socket.assigns.current_scope
+
+    # Checked on every mount, so live navigation into the org is stopped as
+    # well as the first request (`require_org_two_factor/2`).
+    if TwoFactor.meets_org_requirement?(org, user) do
+      {:cont, watch_membership(socket)}
+    else
+      socket =
+        socket
+        |> Phoenix.LiveView.put_flash(:error, two_factor_required_message(org))
+        |> Phoenix.LiveView.redirect(to: ~p"/account/two-factor")
+
+      {:halt, socket}
+    end
   end
 
   def on_mount(:assign_org_to_scope, _params, _session, socket), do: {:cont, socket}

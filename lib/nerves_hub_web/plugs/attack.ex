@@ -93,6 +93,24 @@ defmodule NervesHubWeb.Plugs.Attack do
     do_throttle({:cli_code, user_id}, time: time, limit: 10, period: to_timeout(minute: 10))
   end
 
+  @doc """
+  Limits how many two-factor codes can be tried for one user signing in: five
+  every ten minutes.
+
+  Three six digit codes work at any moment (this period's and its
+  neighbours'), so a guess has about a one in 330,000 chance, and getting to
+  guess at all takes the user's password. Recovery codes count against the
+  same limit.
+
+  Counted on this node only, like `cli_code_throttle/2`.
+  """
+  @spec two_factor_throttle(pos_integer(), keyword()) :: {:allow | :block, {:throttle, keyword()}}
+  def two_factor_throttle(user_id, opts \\ []) do
+    time = opts[:time] || System.system_time(:millisecond)
+
+    do_throttle({:two_factor, user_id}, time: time, limit: 5, period: to_timeout(minute: 10))
+  end
+
   defp do_throttle(key, opts) do
     limit = Keyword.fetch!(opts, :limit)
     period = Keyword.fetch!(opts, :period)
