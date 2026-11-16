@@ -218,6 +218,67 @@ defmodule NervesHub.Devices.HealthEvaluationTest do
     end
   end
 
+  describe "Metrics.health_breach_counts/4" do
+    # One query counts every metric in the profile, each row looking up its
+    # own key's windows, thresholds and direction. Mixing them here is what
+    # would catch a lookup that crossed keys.
+    test "counts each key against its own windows, thresholds and direction", %{
+      device: device,
+      device_info: device_info
+    } do
+      insert_metric(device, "cpu_usage_percent", 85.0, 20)
+      insert_metric(device, "cpu_usage_percent", 95.0, 3)
+      insert_metric(device, "fps", 12.0, 20)
+      insert_metric(device, "fps", 25.0, 3)
+      insert_metric(device, "mem_used_percent", 50.0, 3)
+
+      metrics = [
+        %HealthProfileMetric{
+          key: "cpu_usage_percent",
+          operator: :gte,
+          warning_threshold: 80.0,
+          warning_period_seconds: 3600,
+          alert_threshold: 90.0,
+          alert_period_seconds: 600
+        },
+        %HealthProfileMetric{
+          key: "fps",
+          operator: :lte,
+          warning_threshold: 30.0,
+          warning_period_seconds: 600,
+          alert_threshold: 15.0,
+          alert_period_seconds: 3600
+        },
+        # No operator, as on rows from before the column: reads as :gte.
+        %HealthProfileMetric{
+          key: "mem_used_percent",
+          operator: nil,
+          warning_threshold: 40.0,
+          warning_period_seconds: 600,
+          alert_threshold: 60.0,
+          alert_period_seconds: 600
+        },
+        %HealthProfileMetric{
+          key: "no_readings",
+          operator: :gte,
+          warning_threshold: 1.0,
+          warning_period_seconds: 600,
+          alert_threshold: 2.0,
+          alert_period_seconds: 600
+        }
+      ]
+
+      now_minute = HealthEvaluation.minute(DateTime.utc_now())
+
+      assert Metrics.health_breach_counts(device_info, metrics, now_minute) == %{
+               "cpu_usage_percent" => %{warning: {2, 2}, alert: {1, 1}},
+               "fps" => %{warning: {1, 1}, alert: {2, 1}},
+               "mem_used_percent" => %{warning: {1, 1}, alert: {1, 0}},
+               "no_readings" => %{warning: {0, 0}, alert: {0, 0}}
+             }
+    end
+  end
+
   describe "evaluate_and_save/2" do
     test "an unchanged verdict still broadcasts, so an open page picks up the readings", %{
       device: device,
