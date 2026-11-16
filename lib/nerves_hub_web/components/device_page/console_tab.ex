@@ -2,6 +2,7 @@ defmodule NervesHubWeb.Components.DevicePage.ConsoleTab do
   use NervesHubWeb, tab_component: :console
 
   alias NervesHub.Consoles
+  alias NervesHubWeb.Components.DevicePage.TerminalFrame
   alias Phoenix.LiveView.AsyncResult
   alias Phoenix.LiveView.JS
 
@@ -132,43 +133,6 @@ defmodule NervesHubWeb.Components.DevicePage.ConsoleTab do
 
   def hooked_async(_name, _async_fun_result, socket), do: {:cont, socket}
 
-  def toggle_fullscreen(js \\ %JS{}) do
-    js
-    # Dropzone
-    # disable relative
-    |> JS.toggle_class("relative", to: "#dropzone")
-    |> JS.toggle_class("fixed", to: "#dropzone")
-    |> JS.toggle_class("top-0", to: "#dropzone")
-    |> JS.toggle_class("left-0", to: "#dropzone")
-    |> JS.toggle_class("right-0", to: "#dropzone")
-    |> JS.toggle_class("bottom-0", to: "#dropzone")
-    # disable p-12
-    |> JS.toggle_class("p-12", to: "#dropzone")
-    |> JS.toggle_class("p-6", to: "#dropzone")
-    |> JS.toggle_class("pt-14", to: "#dropzone")
-    |> JS.toggle_class("pb-4", to: "#dropzone")
-    |> JS.toggle_class("box-border", to: "#dropzone")
-
-    # Immersive device information
-    |> JS.toggle(to: "#immersive-device")
-
-    # Console
-    |> JS.toggle_class("box-border", to: "#console")
-    # disable w-full
-    |> JS.toggle_class("w-full", to: "#console")
-    # disable h-full
-    |> JS.toggle_class("h-full", to: "#console")
-
-    # Terminal controls (the option-as-meta toggle and the fullscreen/close button)
-    # disable right-16
-    |> JS.toggle_class("right-16", to: "#terminal-controls")
-    |> JS.toggle_class("right-4", to: "#terminal-controls")
-    # disable top-8
-    |> JS.toggle_class("top-8", to: "#terminal-controls")
-    |> JS.toggle_class("top-4", to: "#terminal-controls")
-    |> JS.toggle_class("hidden", to: "#fullscreen > span")
-  end
-
   def render(assigns) do
     ~H"""
     <div
@@ -176,65 +140,37 @@ defmodule NervesHubWeb.Components.DevicePage.ConsoleTab do
       phx-mounted={JS.remove_class("opacity-0")}
       class="tab-content size-full opacity-0 transition-all duration-500 phx-click-loading:opacity-50"
     >
-      <div class="flex size-full flex-col items-start justify-between">
-        <.async_result :let={online?} assign={@console_active?}>
-          <:loading>
-            <div class="flex size-full bg-black" style="background-color: rgb(14, 16, 25);">
-              <div :if={authorized?(:"device:console", @current_scope)} class="text-medium flex grow items-center justify-center gap-6 p-6 font-mono">
-                Checking if the device is online...
-              </div>
-            </div>
-          </:loading>
-          <:failed :let={_failure}>
-            <div class="flex size-full bg-black" style="background-color: rgb(14, 16, 25);">
-              <div class="text-medium flex grow items-center justify-center gap-6 p-6 font-mono">
-                There was an error checking if the device was online.
-              </div>
-            </div>
-          </:failed>
-          <div id="console-and-chat" class="flex size-full bg-black" style="background-color: rgb(14, 16, 25);">
-            <div :if={authorized?(:"device:console", @current_scope) && online?} id="dropzone" class="relative flex grow gap-6 p-12" style="background-color: rgb(14, 16, 25);">
-              <div id="console" phx-hook="Console" phx-update="ignore" data-device-identifier={@device.identifier} class="z-10 size-full"></div>
-              <div id="immersive-device" class="pointer-events-none absolute top-4 left-6 z-20 hidden text-base-800">
-                <div class="flex items-center gap-3">
-                  <%= if Map.get(@device_connection || %{}, :status) == :connected do %>
-                    <.status_dot class="bg-status-online" />
-                  <% else %>
-                    <.status_dot class="bg-status-offline" />
-                  <% end %>
-                  <h1 class="font-mono text-page-title tracking-normal text-content-strong">
-                    {@device.identifier}
-                  </h1>
-                </div>
-              </div>
-              <div id="terminal-controls" phx-update="ignore" class="absolute top-8 right-16 z-20 flex items-center gap-3">
-                <label
-                  class="hidden cursor-pointer items-center gap-2 rounded-full bg-neutral-900 px-3 py-1.5 text-xs text-neutral-50"
-                  title="Send ⌥ (Option) to the device as Meta, for shortcuts such as M-b and M-f. Leave this off to type characters like [ ] { } | on non-US keyboard layouts."
-                >
-                  <input type="checkbox" id="option-as-meta" class="size-3.5 rounded border-line-strong text-content-muted checked:bg-primary focus:ring-0" />
-                  <span>⌥ as Meta</span>
-                </label>
-                <button
-                  id="fullscreen"
-                  class="flex size-6 cursor-pointer items-center justify-center rounded-full bg-neutral-900 hover:scale-[1.1]"
-                  phx-click={toggle_fullscreen()}
-                  title="Toggle fullscreen"
-                >
-                  <span class="lucide-expand size-5 text-neutral-50" aria-hidden="true"></span>
-                  <span class="lucide-x hidden size-5 text-neutral-50" aria-hidden="true"></span>
-                </button>
-              </div>
-            </div>
-            <div :if={authorized?(:"device:console", @current_scope) && !online?} class="text-medium flex grow items-center justify-center gap-6 p-6 font-mono">
-              The device console isn't currently available.
-            </div>
-            <div :if={!authorized?(:"device:console", @current_scope)} class="text-medium flex grow items-center justify-center gap-6 p-6 font-mono text-alert">
-              You don't have the required permissions to access a Device console.
-            </div>
-          </div>
-        </.async_result>
-      </div>
+      <.async_result :let={online?} assign={@console_active?}>
+        <:loading>
+          <TerminalFrame.frame terminal_id="console" name="Console" status={:checking} identifier={@device.identifier}>
+            <TerminalFrame.message :if={authorized?(:"device:console", @current_scope)}>
+              Checking if the device is online…
+            </TerminalFrame.message>
+          </TerminalFrame.frame>
+        </:loading>
+        <:failed :let={_failure}>
+          <TerminalFrame.frame terminal_id="console" name="Console" status={:unavailable} identifier={@device.identifier}>
+            <TerminalFrame.message>There was an error checking if the device was online.</TerminalFrame.message>
+          </TerminalFrame.frame>
+        </:failed>
+        <TerminalFrame.frame
+          terminal_id="console"
+          name="Console"
+          file_input="console-file"
+          status={if(authorized?(:"device:console", @current_scope) && online?, do: :connected, else: :unavailable)}
+          identifier={@device.identifier}
+          note="Shared session · everyone on this tab sees the same console"
+          hint="Drop a file on the console to send it to the device"
+        >
+          <div :if={authorized?(:"device:console", @current_scope) && online?} id="console" phx-hook="Console" phx-update="ignore" data-device-identifier={@device.identifier} class="z-10 size-full"></div>
+          <TerminalFrame.message :if={authorized?(:"device:console", @current_scope) && !online?}>
+            The device console isn't currently available.
+          </TerminalFrame.message>
+          <TerminalFrame.message :if={!authorized?(:"device:console", @current_scope)} tone={:alert}>
+            You don't have the required permissions to access a Device console.
+          </TerminalFrame.message>
+        </TerminalFrame.frame>
+      </.async_result>
     </div>
     """
   end

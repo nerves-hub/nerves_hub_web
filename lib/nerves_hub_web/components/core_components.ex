@@ -147,7 +147,7 @@ defmodule NervesHubWeb.CoreComponents do
   row.
 
   `count` is for a number on its own, such as the count beside a section's
-  title: an 18px circle that widens for more digits.
+  title: an 18px circle that widens for more digits, outlined when neutral.
 
   ## Examples
 
@@ -166,7 +166,7 @@ defmodule NervesHubWeb.CoreComponents do
 
   def badge(assigns) do
     ~H"""
-    <span class={["rounded-full whitespace-nowrap", badge_size(@count, @size, @dot), badge_tone(@tone), @class]} {@rest}>
+    <span class={["rounded-full whitespace-nowrap", badge_size(@count, @size, @dot), badge_tone(@tone, @count), @class]} {@rest}>
       <.status_dot :if={@dot} class={["size-1.5", badge_dot(@tone)]} />{render_slot(@inner_block)}
     </span>
     """
@@ -174,7 +174,7 @@ defmodule NervesHubWeb.CoreComponents do
 
   # A dot sits 2px closer to the start than the label does to the end.
   defp badge_size(true, _size, _dot),
-    do: "inline-flex h-4.5 min-w-4.5 items-center justify-center px-1.25 text-[11px]/3.5 font-semibold tabular-nums"
+    do: "inline-flex h-4.5 min-w-4.5 items-center justify-center px-1.25 text-[11px]/3.5 font-medium tabular-nums"
 
   defp badge_size(false, "sm", false), do: "px-2 py-0.5 text-xs font-medium"
   defp badge_size(false, "sm", true), do: "inline-flex items-center gap-1.25 py-0.5 pr-2 pl-1.5 text-xs font-medium"
@@ -189,11 +189,16 @@ defmodule NervesHubWeb.CoreComponents do
   defp badge_dot("warning"), do: "bg-warning"
   defp badge_dot("alert"), do: "bg-alert"
 
-  defp badge_tone("neutral"), do: "bg-base-800 text-content-body"
-  defp badge_tone("notice"), do: "bg-notice-soft text-notice-content"
-  defp badge_tone("success"), do: "bg-success-soft text-success-content"
-  defp badge_tone("warning"), do: "bg-warning-soft text-warning-content"
-  defp badge_tone("alert"), do: "bg-alert-soft text-alert-content"
+  # A neutral count is outlined, so it holds its shape beside a label without
+  # reading as a status.
+  defp badge_tone("neutral", true),
+    do: "bg-line-subtle text-content-body ring-1 ring-line-default ring-inset light:bg-surface-muted"
+
+  defp badge_tone("neutral", _count), do: "bg-base-800 text-content-body"
+  defp badge_tone("notice", _count), do: "bg-notice-soft text-notice-content"
+  defp badge_tone("success", _count), do: "bg-success-soft text-success-content"
+  defp badge_tone("warning", _count), do: "bg-warning-soft text-warning-content"
+  defp badge_tone("alert", _count), do: "bg-alert-soft text-alert-content"
 
   @doc """
   Renders a tag: a label a user gave something, such as a device tag, or an
@@ -536,14 +541,13 @@ defmodule NervesHubWeb.CoreComponents do
     [
       # Raised like a card: the card's fill and a hairline shadow. Hover tints
       # it toward the text in either theme (zinc-800 dark, zinc-100 light).
-      "border-line-strong bg-surface-raised shadow-xs hover:bg-base-800 light:hover:bg-surface-muted",
+      "border-line-control bg-surface-raised shadow-xs hover:bg-base-800 light:hover:bg-surface-muted",
       "active:border-primary active:bg-primary disabled:bg-surface-raised",
       "text-content-body hover:text-content-strong active:text-primary-content disabled:text-content-faint",
       "[&>[class*=lucide-]]:text-content-muted active:[&>[class*=lucide-]]:text-current disabled:[&>[class*=lucide-]]:text-current",
-      # The design draws this edge in zinc-200, but a white button on a white
-      # card is told apart by its outline alone, so it keeps line-strong, which
-      # clears 3:1 on white as every control outline does. Light only darkens
-      # the edge on hover (zinc-600).
+      # Its label says it is a button, so the edge can be the lighter
+      # line-control (zinc-300 in light) rather than a 3:1 outline. Light
+      # darkens the edge on hover (zinc-600).
       "light:hover:border-base-400"
     ]
   end
@@ -728,7 +732,7 @@ defmodule NervesHubWeb.CoreComponents do
       <select
         id={@id}
         name={@name}
-        class="mt-2 block w-full rounded border border-line-strong bg-base-900 px-2 py-1.5 text-content-muted focus:ring-2 focus:ring-focus-ring sm:text-sm"
+        class="mt-2 block w-full rounded border border-line-control border-b-line-strong bg-base-900 px-2 py-1.5 text-content-muted focus:ring-2 focus:ring-focus-ring sm:text-sm"
         multiple={@multiple}
         {@rest}
       >
@@ -753,7 +757,7 @@ defmodule NervesHubWeb.CoreComponents do
         class={[
           "mt-2 block w-full rounded bg-base-900 px-2 py-1.5 text-content-muted focus:ring-2 sm:text-sm/6",
           @class || "min-h-24",
-          @errors == [] && "border-line-strong focus:ring-focus-ring",
+          @errors == [] && "border-line-control border-b-line-strong focus:ring-focus-ring",
           @errors != [] && "border-alert focus:ring-alert"
         ]}
         {@rest}
@@ -779,7 +783,7 @@ defmodule NervesHubWeb.CoreComponents do
         value={Phoenix.HTML.Form.normalize_value(@type, @value)}
         class={[
           "mt-2 block w-full rounded bg-base-900 px-2 py-1.5 text-content-muted focus:ring-2 sm:text-sm",
-          @errors == [] && "border-line-strong focus:ring-focus-ring",
+          @errors == [] && "border-line-control border-b-line-strong focus:ring-focus-ring",
           @errors != [] && "border-alert focus:ring-alert"
         ]}
         {@rest}
@@ -808,7 +812,7 @@ defmodule NervesHubWeb.CoreComponents do
         value={Phoenix.HTML.Form.normalize_value(@type, @value)}
         class={[
           "mt-2 block w-full rounded bg-base-900 px-2 py-1.5 text-content-muted focus:ring-2 sm:text-sm",
-          @errors == [] && "border-line-strong focus:ring-focus-ring",
+          @errors == [] && "border-line-control border-b-line-strong focus:ring-focus-ring",
           @errors != [] && "border-alert focus:ring-alert"
         ]}
         {@rest}
@@ -871,7 +875,7 @@ defmodule NervesHubWeb.CoreComponents do
           data-tag-input
           class={[
             "block w-full rounded bg-base-900 px-2 py-1.5 text-content-muted focus:ring-2 sm:text-sm",
-            @errors == [] && "border-line-strong focus:ring-focus-ring",
+            @errors == [] && "border-line-control border-b-line-strong focus:ring-focus-ring",
             @errors != [] && "border-alert focus:ring-alert"
           ]}
           {@rest}

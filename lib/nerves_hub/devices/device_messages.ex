@@ -118,6 +118,7 @@ defmodule NervesHub.Devices.DeviceMessages do
     * `:limit` — how many to return, defaults to 100
     * `:direction` — `"received"` or `"sent"`
     * `:topic` — `"device"`, `"console"` or `"extensions"`
+    * `:before` — only messages older than this `DateTime`, for the next page
 
   """
   @spec recent(Device.t(), keyword()) :: [DeviceMessage.t()]
@@ -127,6 +128,7 @@ defmodule NervesHub.Devices.DeviceMessages do
     |> where(device_id: ^device.id)
     |> filter_by(:direction, opts[:direction])
     |> filter_by(:topic, opts[:topic])
+    |> filter_by(:before, opts[:before])
     |> order_by(desc: :timestamp)
     |> limit(^Keyword.get(opts, :limit, 100))
     |> AnalyticsRepo.all()
@@ -140,6 +142,7 @@ defmodule NervesHub.Devices.DeviceMessages do
   defp filter_by(query, _field, ""), do: query
   defp filter_by(query, :direction, value), do: where(query, direction: ^value)
   defp filter_by(query, :topic, value), do: where(query, topic: ^value)
+  defp filter_by(query, :before, %DateTime{} = before), do: where(query, [m], m.timestamp < ^before)
 
   defp base_row(device, direction, topic, event) do
     %{

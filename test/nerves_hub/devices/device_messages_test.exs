@@ -112,6 +112,19 @@ defmodule NervesHub.Devices.DeviceMessagesTest do
 
       assert 2 == device |> DeviceMessages.recent(limit: 2) |> length()
     end
+
+    test "returns only messages older than :before, newest first", %{device: device} do
+      for n <- 1..5, do: DeviceMessages.record(device, :sent, :device, "reboot", %{"n" => n})
+      :ok = Buffer.flush(DeviceMessage)
+
+      [newest, second | _] = DeviceMessages.recent(device)
+
+      older = DeviceMessages.recent(device, before: second.timestamp)
+
+      assert length(older) == 3
+      assert Enum.all?(older, &DateTime.before?(&1.timestamp, second.timestamp))
+      refute Enum.any?(older, &(&1.payload in [newest.payload, second.payload]))
+    end
   end
 
   describe "payload redaction" do

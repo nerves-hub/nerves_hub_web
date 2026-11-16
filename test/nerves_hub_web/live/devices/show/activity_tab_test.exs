@@ -30,7 +30,7 @@ defmodule NervesHubWeb.Live.Devices.Show.ActivityTabTest do
 
     conn
     |> visit(~p"/org/#{org}/#{product}/devices/#{device}/activity")
-    |> assert_has("div", text: "User #{user.name} rebooted device #{device.identifier}")
+    |> assert_has("li[data-activity-entry]", text: "User #{user.name} rebooted device #{device.identifier}")
   end
 
   describe "icons" do
@@ -48,11 +48,11 @@ defmodule NervesHubWeb.Live.Devices.Show.ActivityTabTest do
 
       conn
       |> visit(~p"/org/#{org}/#{product}/devices/#{device}/activity")
-      |> assert_has("div.flex.items-center.gap-6:has(span.lucide-power)", text: "rebooted device")
-      |> assert_has("div.flex.items-center.gap-6:has(span.lucide-shield-check)", text: "has validated its firmware")
-      |> assert_has("div.flex.items-center.gap-6:has(span.lucide-file-text)", text: "updated firmware metadata")
-      |> assert_has("div.flex.items-center.gap-6:has(span.lucide-toggle-right)", text: "enabled updates")
-      |> refute_has("span.lucide-activity")
+      |> assert_has("li[data-activity-entry]:has(span.lucide-power--bold)", text: "rebooted device")
+      |> assert_has("li[data-activity-entry]:has(span.lucide-shield-check--bold)", text: "has validated its firmware")
+      |> assert_has("li[data-activity-entry]:has(span.lucide-file-text--bold)", text: "updated firmware metadata")
+      |> assert_has("li[data-activity-entry]:has(span.lucide-toggle-right--bold)", text: "enabled updates")
+      |> refute_has("span.lucide-activity--bold")
     end
 
     test "an entry with no kind, as older ones have, gets a neutral icon", %{
@@ -66,7 +66,7 @@ defmodule NervesHubWeb.Live.Devices.Show.ActivityTabTest do
 
       conn
       |> visit(~p"/org/#{org}/#{product}/devices/#{device}/activity")
-      |> assert_has("div.flex.items-center.gap-6:has(span.lucide-activity)", text: "Written before entries had kinds")
+      |> assert_has("li[data-activity-entry]:has(span.lucide-activity--bold)", text: "Written before entries had kinds")
     end
 
     test "every kind has an icon other than the neutral one" do
@@ -76,12 +76,12 @@ defmodule NervesHubWeb.Live.Devices.Show.ActivityTabTest do
     end
 
     test "the icons are the ones the Paper boards draw" do
-      assert ActivityTab.kind_icon(:device_rebooted) == "lucide-power"
-      assert ActivityTab.kind_icon(:firmware_validated) == "lucide-shield-check"
-      assert ActivityTab.kind_icon(:firmware_updated) == "lucide-refresh-cw"
-      assert ActivityTab.kind_icon(:firmware_metadata_updated) == "lucide-file-text"
-      assert ActivityTab.kind_icon(:deployment_update_sent) == "lucide-download"
-      assert ActivityTab.kind_icon(:updates_enabled) == "lucide-toggle-right"
+      assert ActivityTab.kind_icon(:device_rebooted) == "lucide-power--bold"
+      assert ActivityTab.kind_icon(:firmware_validated) == "lucide-shield-check--bold"
+      assert ActivityTab.kind_icon(:firmware_updated) == "lucide-refresh-cw--bold"
+      assert ActivityTab.kind_icon(:firmware_metadata_updated) == "lucide-file-text--bold"
+      assert ActivityTab.kind_icon(:deployment_update_sent) == "lucide-download--bold"
+      assert ActivityTab.kind_icon(:updates_enabled) == "lucide-toggle-right--bold"
     end
   end
 
@@ -101,20 +101,20 @@ defmodule NervesHubWeb.Live.Devices.Show.ActivityTabTest do
       # Test page 1 with default page_size=25
       conn
       |> visit(~p"/org/#{org}/#{product}/devices/#{device}/activity")
-      |> assert_has("div.flex.items-center.gap-6", count: 25)
+      |> assert_has("li[data-activity-entry]", count: 25)
       |> assert_has("button[phx-value-page=\"2\"]")
 
       # Test page 2 with page_size=25
       conn
       |> visit(~p"/org/#{org}/#{product}/devices/#{device}/activity?page_number=2&page_size=25")
       # Remaining 5 entries
-      |> assert_has("div.flex.items-center.gap-6", count: 5)
+      |> assert_has("li[data-activity-entry]", count: 5)
       |> assert_has("button[phx-value-page=\"1\"]")
 
       # Test custom page_size=10
       conn
       |> visit(~p"/org/#{org}/#{product}/devices/#{device}/activity?page_number=1&page_size=10")
-      |> assert_has("div.flex.items-center.gap-6", count: 10)
+      |> assert_has("li[data-activity-entry]", count: 10)
       |> assert_has("button[phx-value-page=\"2\"]")
       |> assert_has("button[phx-value-page=\"3\"]")
     end
@@ -161,8 +161,8 @@ defmodule NervesHubWeb.Live.Devices.Show.ActivityTabTest do
 
       # Test changing page size to 50
       view
-      |> element(~s(button[phx-click="set-paginate-opts"][phx-value-page-size="50"]))
-      |> render_click()
+      |> form("#activity-pager-page-size", %{"page-size" => "50"})
+      |> render_change()
 
       # Should redirect to page 1 with page_size=50
       assert_patch(

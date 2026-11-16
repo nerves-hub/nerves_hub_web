@@ -39,6 +39,25 @@ defmodule NervesHub.Helpers.RelativeTime do
     end
   end
 
+  @doc """
+  How long it has been since `datetime`, without "ago", for a sentence such as
+  "online for 3 hours". A time in the future counts as no time at all.
+
+      iex> now = ~U[2026-01-10 12:00:00Z]
+      iex> NervesHub.Helpers.RelativeTime.elapsed(~U[2026-01-10 09:00:00Z], now)
+      "3 hours"
+      iex> NervesHub.Helpers.RelativeTime.elapsed(~U[2026-01-08 12:00:00Z], now)
+      "2 days"
+      iex> NervesHub.Helpers.RelativeTime.elapsed(~U[2026-01-10 12:00:30Z], now)
+      "0 seconds"
+  """
+  @spec elapsed(DateTime.t() | NaiveDateTime.t(), DateTime.t() | NaiveDateTime.t()) :: String.t()
+  def elapsed(datetime, reference \\ DateTime.utc_now()) do
+    seconds = div(DateTime.diff(to_utc(reference), to_utc(datetime), :microsecond), 1_000_000)
+
+    describe(max(seconds, 0))
+  end
+
   defp to_utc(%DateTime{} = datetime), do: datetime
   defp to_utc(%NaiveDateTime{} = datetime), do: DateTime.from_naive!(datetime, "Etc/UTC")
 
