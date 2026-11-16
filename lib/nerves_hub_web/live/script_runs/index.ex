@@ -26,8 +26,8 @@ defmodule NervesHubWeb.Live.ScriptRuns.Index do
     total_pages: :integer
   }
 
-  # Newest first: a run has no name to sort by, and the most recent one is nearly
-  # always what someone came to look at.
+  # Newest first: the most recent run is nearly always what someone came to look
+  # at.
   @default_sorting %{sort_direction: "desc", sort: "inserted_at"}
   @sort_types %{sort_direction: :string, sort: :string}
 

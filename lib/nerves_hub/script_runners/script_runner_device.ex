@@ -28,7 +28,8 @@ defmodule NervesHub.ScriptRunners.ScriptRunnerDevice do
     * `:abandoned` — the script was sent, but the job ended without recording
       what happened, so whether it ran is unknown. It is not sent again.
 
-  A device is only ever `:running` while a job holds it. If that job ends without
+  A device is `:running` from the moment the dispatcher claims it, which is just
+  before its job is inserted, until that job records an outcome. If the job ends without
   recording an outcome, the row is released back to `:pending` when the script
   was never sent, and marked `:abandoned` when it was — see
   `NervesHub.ScriptRunners.release_stale_devices/2`.

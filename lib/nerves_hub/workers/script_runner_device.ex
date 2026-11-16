@@ -2,10 +2,11 @@ defmodule NervesHub.Workers.ScriptRunnerDevice do
   @moduledoc """
   Runs one script runner's script on one device and records what it said.
 
-  The `script_runners` queue's concurrency limit is the whole concurrency story:
-  Oban runs at most that many of these at a time per node, so there is no budget
-  to track here. A job spends nearly all its life waiting on a device, which is
-  why the limit is set so much higher than the queues around it.
+  Concurrency is decided before a job exists: `NervesHub.Workers.ScriptRunnerDispatch`
+  only inserts as many of these as each run's share of the `script_runners`
+  ceiling allows, so there is no budget to track here. A job spends nearly all its
+  life waiting on a device, which is why the limit is set so much higher than the
+  queues around it.
 
   One device is one job so that a device which never answers, or takes its own
   process down, costs exactly itself. Every outcome — including the ones where
@@ -26,8 +27,6 @@ defmodule NervesHub.Workers.ScriptRunnerDevice do
   @timeout to_timeout(second: 30)
 
   @impl Oban.Worker
-  # Jobs queued by the previous release also carry a `"text"` arg. It is ignored:
-  # the run's own `text` is the same immutable value.
   def perform(%Oban.Job{args: %{"script_runner_id" => runner_id, "device_id" => device_id}}) do
     Logger.metadata(script_runner_id: runner_id, device_id: device_id)
 

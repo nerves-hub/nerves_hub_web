@@ -147,11 +147,14 @@ config :nerves_hub, Oban,
     device: 1,
     firmware_delta_builder: 2,
     firmware_delta_timeout: 1,
-    # The ceiling on scripts in flight at once. Oban's queue limit is per node, so
-    # this is 500 per web node however many runs are going. The single source of
-    # the number: `NervesHub.Workers.ScriptRunnerDispatch.ceiling/0` reads it back
-    # to size each run's share, so changing it here changes both how many scripts
-    # run and how many are queued. Each job spends nearly all its time waiting on
+    # The ceiling on scripts in flight at once, across the whole cluster rather
+    # than per node. Oban's queue limit is per node, but
+    # `NervesHub.Workers.ScriptRunnerDispatch.ceiling/0` reads this number back and
+    # splits it between the active runs, counting each run's in-flight devices in
+    # the database. So the cluster as a whole has about this many device jobs
+    # queued or running however many web nodes there are, and extra nodes only add
+    # headroom. Changing it here changes both how many scripts run and how many
+    # are queued. Each job spends nearly all its time waiting on
     # a device rather than on CPU, which is why it is so much larger than the
     # queues around it.
     script_runners: 500,

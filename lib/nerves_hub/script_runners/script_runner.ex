@@ -153,9 +153,10 @@ defmodule NervesHub.ScriptRunners.ScriptRunner do
   @doc """
   Update a run's description.
 
-  The only changeset that writes to a run after it exists, and deliberately
-  narrow: everything else about a run is a record of what happened. See the
-  moduledoc.
+  The only changeset an operator can write to a run through after it exists, and
+  deliberately narrow: everything else about a run is a record of what happened.
+  The status changesets below are written by the dispatcher, not by people. See
+  the moduledoc.
   """
   @spec description_changeset(t(), map()) :: Ecto.Changeset.t()
   def description_changeset(%__MODULE__{} = runner, params) do

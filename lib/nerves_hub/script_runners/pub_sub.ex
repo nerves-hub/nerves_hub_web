@@ -2,8 +2,7 @@ defmodule NervesHub.ScriptRunners.PubSub do
   @moduledoc """
   Targeted pub/sub for a script run's progress, backed by the `:group` library.
 
-  This replaces the `Phoenix.PubSub` broadcast on the `"script_runner:<id>"`
-  topic. `Phoenix.PubSub`'s `pg` adapter sends every message to the pub/sub server
+  Not `Phoenix.PubSub`: its `pg` adapter sends every message to the pub/sub server
   on every node in the cluster, which then filters by local subscription — the
   send does not depend on anyone having subscribed. A run's only subscriber is the
   one Show LiveView somebody has open, usually none, while the traffic is one
@@ -16,10 +15,9 @@ defmodule NervesHub.ScriptRunners.PubSub do
   way device connections do, and joins are paid once per page view rather than per
   device event.
 
-  Messages keep the shape they had under `Phoenix.PubSub` — the bare
-  `{:script_runner, event, payload}` tuple rather than a
-  `%Phoenix.Socket.Broadcast{}` — because the only receiver matches on the tuple
-  directly. Only the subscribe/broadcast call sites move here.
+  Messages are the bare `{:script_runner, event, payload}` tuple rather than a
+  `%Phoenix.Socket.Broadcast{}`, because the only receiver matches on the tuple
+  directly.
 
   Default `:group` cluster, like the other device ↔ UI topics: the publisher is an
   Oban worker on a web node and the subscriber is a LiveView on a web node, but

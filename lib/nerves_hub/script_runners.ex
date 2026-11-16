@@ -243,7 +243,6 @@ defmodule NervesHub.ScriptRunners do
   "Reboot copy 1 copy 1", so the base name stays put however many times a rerun is
   itself rerun.
   """
-  # The `copy_name/2` loop already skips every name it can see.
   @spec copy_name(Product.t(), String.t()) :: String.t()
   def copy_name(%Product{} = product, name) when is_binary(name) do
     base = base_name(name)
@@ -375,8 +374,8 @@ defmodule NervesHub.ScriptRunners do
   @doc """
   A product's runs, paginated and filtered for the listing page.
 
-  Sorted newest first unless asked otherwise: a run has no name to order by, and
-  the most recent one is nearly always what someone came to look at.
+  Sorted newest first unless asked otherwise: the most recent run is nearly always
+  what someone came to look at.
   """
   @spec filter(Scope.t() | Product.t(), map()) :: {[ScriptRunner.t()], Flop.Meta.t()}
   def filter(scope_or_product, opts \\ %{})
@@ -423,11 +422,11 @@ defmodule NervesHub.ScriptRunners do
   -- a run can be tens of thousands of devices wide, and the database does that in
   one statement.
 
-  The run's device jobs are cancelled in the same transaction. Each one carries
-  the script's text, so a job left queued would still send the script to its
-  device after the run is gone, with nowhere left to record what came back. One
-  already executing is killed by the cancel too, though its script may already be
-  on the device.
+  The run's device jobs are cancelled in the same transaction, so none of them is
+  left queued for a run that is gone. A job that started anyway finds no script
+  to read and no row to mark sent, and stops without sending (see
+  `NervesHub.Workers.ScriptRunnerDevice`). One already executing is killed by the
+  cancel too, though its script may already be on the device.
 
   Any dispatch job still queued for the run finds nothing to work on and stops;
   see `NervesHub.Workers.ScriptRunnerDispatch`.
@@ -925,9 +924,9 @@ defmodule NervesHub.ScriptRunners do
   the job raised, or the node executing it died. Nothing else recovers that row:
   the device worker is `max_attempts: 1`, so Oban does not retry it, and
   `Oban.Lifeline` (the `lifeline:` setting in the Oban config) marks an
-  attempt-exhausted job `discarded` rather than making it available again. The
-  row is what `claim_pending_devices/2` looks at, so until it leaves `:running`
-  the run never reaches `:completed`.
+  attempt-exhausted job `discarded` rather than making it available again. A
+  `:running` row counts towards `unfinished_device_count/1`, so until it leaves
+  `:running` the run never reaches `:completed`.
 
   Which way it leaves depends on `sent_at` (see `mark_sent/2`):
 

@@ -208,9 +208,9 @@ defmodule NervesHubWeb.Live.ScriptRuns.New do
   #
   # Only the first few are named. A flash goes into the session cookie, which
   # browsers cap at 4KB, and a CSV of mostly-unknown identifiers would otherwise
-  # put every one of them in there -- 8,000 of them measured 147KB. The count is
-  # the part worth reading anyway; which ones they were is a question for the run's
-  # own page.
+  # put every one of them in there -- 8,000 of them measured 147KB. The rest are
+  # not shown anywhere: unmatched identifiers are not stored with the run, and its
+  # page only counts the identifiers it was given.
   defp maybe_warn_unmatched(socket, unmatched) do
     count = length(unmatched)
     named = Enum.take(unmatched, @unmatched_named_limit)
