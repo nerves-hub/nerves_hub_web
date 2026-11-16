@@ -69,7 +69,7 @@ defmodule NervesHubWeb.Live.Devices.Show.ActivityTabTest do
       |> assert_has("div.flex.items-center.gap-6:has(span.lucide-activity)", text: "Written before entries had kinds")
     end
 
-    test "every kind has an icon of its own" do
+    test "every kind has an icon other than the neutral one" do
       for kind <- AuditLog.kinds() do
         refute ActivityTab.kind_icon(kind) == ActivityTab.kind_icon(nil), "#{kind} has no icon"
       end
