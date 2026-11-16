@@ -47,35 +47,7 @@ defmodule NervesHub.AuditLogs.AuditLog do
     :updates_enabled
   ]
 
-  @type kind ::
-          :archive_sent
-          | :deployment_group_mismatch
-          | :deployment_group_set
-          | :deployment_update_sent
-          | :device_moved
-          | :device_rebooted
-          | :device_updated
-          | :firmware_metadata_updated
-          | :firmware_pushed
-          | :firmware_updated
-          | :firmware_validated
-          | :identify_requested
-          | :managed_updates_changed
-          | :penalty_box_cleared
-          | :reconnect_requested
-          | :script_run
-          | :shared_secret_created
-          | :shared_secret_deactivated
-          | :tags_changed
-          | :update_attempted
-          | :update_failed
-          | :update_ignored
-          | :update_mode_changed
-          | :update_requested
-          | :update_rescheduled
-          | :updates_blocked
-          | :updates_disabled
-          | :updates_enabled
+  @type kind :: unquote(Enum.reduce(Enum.reverse(@kinds), &{:|, [], [&1, &2]}))
 
   @primary_key {:id, :binary_id, autogenerate: true}
   @required_params [
