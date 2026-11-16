@@ -30,7 +30,7 @@ defmodule NervesHubWeb.Components.OAuthLinks do
         Continue with Google
       </.button>
 
-      <div class="flex items-center gap-3 text-[0.8125rem] text-content-faint">
+      <div class="flex items-center gap-3 text-ui text-content-faint">
         <span class="h-px flex-1 bg-line-subtle" aria-hidden="true"></span>
         {@divider}
         <span class="h-px flex-1 bg-line-subtle" aria-hidden="true"></span>

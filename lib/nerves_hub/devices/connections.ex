@@ -404,8 +404,7 @@ defmodule NervesHub.Devices.Connections do
     end
 
     if update_count < update_limit do
-      # Once the DB is cleaned, we can clean Analytics
-      clean_stale_connections_from_analytics()
+      :ok
     else
       # relax stress on Ecto pool and go again
       Process.sleep(2000)
@@ -434,6 +433,19 @@ defmodule NervesHub.Devices.Connections do
     end)
   end
 
+  @doc """
+  Writes a disconnected history row for every connection ClickHouse still
+  has open but that hasn't been seen within the stale window.
+
+  A safety net, run hourly by `NervesHub.Workers.CleanStaleDeviceConnectionHistory`.
+  `clean_stale_connections/0` already writes a history row for each
+  connection it closes, so this only finds disconnects that were lost before
+  reaching ClickHouse, such as rows still buffered in
+  `NervesHub.Analytics.Buffer` when a node died. It is kept off the
+  every-minute sweep because the query is a `FINAL` scan of the whole
+  `device_connection_history` table. Does nothing unless analytics is enabled.
+  """
+  @spec clean_stale_connections_from_analytics() :: :ok
   def clean_stale_connections_from_analytics() do
     _ =
       if Application.get_env(:nerves_hub, :analytics_enabled) do
@@ -485,6 +497,63 @@ defmodule NervesHub.Devices.Connections do
     )
     |> AnalyticsRepo.one(settings: [final: 1])
   end
+
+  # A gap between connections shorter than this is a reconnect, not time
+  # offline worth showing.
+  @shortest_offline_seconds 60
+
+  @doc """
+  The spans between `from` and `until` when the device had no connection, as
+  `[{from, until}]`, oldest first, read from the connection history.
+
+  A connection with no `disconnected_at` is taken to still be open. Gaps under
+  a minute are left out. Callers are expected to check that analytics is
+  enabled first.
+  """
+  @spec offline_periods(
+          %{id: pos_integer(), org_id: pos_integer(), product_id: pos_integer()},
+          DateTime.t(),
+          DateTime.t()
+        ) :: [{DateTime.t(), DateTime.t()}]
+  def offline_periods(%{id: device_id, org_id: org_id, product_id: product_id}, from, until) do
+    DeviceConnectionHistory
+    |> where([dc], dc.org_id == ^org_id and dc.product_id == ^product_id and dc.device_id == ^device_id)
+    |> where([dc], dc.established_at <= ^until)
+    |> where([dc], is_nil(dc.disconnected_at) or dc.disconnected_at >= ^from)
+    |> select([dc], {dc.established_at, dc.disconnected_at})
+    |> AnalyticsRepo.all(settings: [final: 1])
+    |> offline_gaps(from, until)
+  end
+
+  @doc """
+  The gaps between `from` and `until` that `connections` don't cover, oldest
+  first.
+
+  `connections` is `[{established_at, disconnected_at | nil}]`, in any order
+  and possibly overlapping; a nil `disconnected_at` is still open. Gaps under
+  a minute are left out.
+  """
+  @spec offline_gaps([{DateTime.t(), DateTime.t() | nil}], DateTime.t(), DateTime.t()) ::
+          [{DateTime.t(), DateTime.t()}]
+  def offline_gaps(connections, from, until) do
+    {covered_to, gaps} =
+      connections
+      |> Enum.map(fn {established_at, disconnected_at} -> {established_at, disconnected_at || until} end)
+      |> Enum.sort_by(&elem(&1, 0), DateTime)
+      |> Enum.reduce({from, []}, fn {established_at, disconnected_at}, {covered_to, gaps} ->
+        {latest(covered_to, disconnected_at), add_gap(gaps, covered_to, established_at)}
+      end)
+
+    gaps
+    |> add_gap(covered_to, until)
+    |> Enum.reverse()
+  end
+
+  defp add_gap(gaps, start, stop) do
+    if DateTime.diff(stop, start) >= @shortest_offline_seconds, do: [{start, stop} | gaps], else: gaps
+  end
+
+  defp latest(a, b), do: if(DateTime.after?(b, a), do: b, else: a)
 
   def flapping_connections(%Product{} = product) do
     DeviceConnectionHistory

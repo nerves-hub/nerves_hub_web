@@ -14,7 +14,7 @@ defmodule NervesHubWeb.Live.Devices.Show.FirmwareHistoryTabTest do
     |> assert_has("span", text: "No firmware history found for the device.")
   end
 
-  test "audit log history exists for the device", %{
+  test "firmware history exists for the device", %{
     conn: conn,
     org: org,
     product: product,
@@ -30,10 +30,24 @@ defmodule NervesHubWeb.Live.Devices.Show.FirmwareHistoryTabTest do
 
     conn
     |> visit(~p"/org/#{org}/#{product}/devices/#{device}/firmware_history")
-    |> assert_has("#device-firmware-#{df1.id} div span", text: device.firmware_metadata.version)
-    |> assert_has("#device-firmware-#{df1.id} div span", text: "Validated")
-    |> assert_has("#device-firmware-#{df2.id} div span", text: "0.2.0")
-    |> assert_has("#device-firmware-#{df2.id} div", text: "Firmware unrecognized")
+    |> assert_has("#device-firmware-#{df1.id} td", text: device.firmware_metadata.version)
+    |> assert_has("#device-firmware-#{df1.id} td", text: "Validated")
+    |> assert_has("#device-firmware-#{df2.id} td", text: "0.2.0")
+    |> assert_has("#device-firmware-#{df2.id} td", text: "Not uploaded to this product")
+  end
+
+  test "switching to update attempts keeps the view in the URL", %{
+    conn: conn,
+    org: org,
+    product: product,
+    device: device
+  } do
+    conn
+    |> visit(~p"/org/#{org}/#{product}/devices/#{device}/firmware_history")
+    |> click_link("Update attempts")
+    |> assert_path(~p"/org/#{org}/#{product}/devices/#{device}/firmware_history", query_params: %{view: "attempts"})
+    |> assert_has("span", text: "No update attempts recorded for the device.")
+    |> assert_has("span", text: "No failures in a row")
   end
 
   describe "pagination" do
@@ -53,20 +67,20 @@ defmodule NervesHubWeb.Live.Devices.Show.FirmwareHistoryTabTest do
       # Test page 1 with default page_size=25
       conn
       |> visit(~p"/org/#{org}/#{product}/devices/#{device}/firmware_history")
-      |> assert_has("div.flex.items-center.gap-6", count: 25)
+      |> assert_has("tr[id^=device-firmware-]", count: 25)
       |> assert_has("button[phx-value-page=\"2\"]")
 
       # Test page 2 with page_size=25
       conn
       |> visit(~p"/org/#{org}/#{product}/devices/#{device}/firmware_history?page_number=2&page_size=25")
       # Remaining 5 entries
-      |> assert_has("div.flex.items-center.gap-6", count: 5)
+      |> assert_has("tr[id^=device-firmware-]", count: 5)
       |> assert_has("button[phx-value-page=\"1\"]")
 
       # Test custom page_size=10
       conn
       |> visit(~p"/org/#{org}/#{product}/devices/#{device}/firmware_history?page_number=1&page_size=10")
-      |> assert_has("div.flex.items-center.gap-6", count: 10)
+      |> assert_has("tr[id^=device-firmware-]", count: 10)
       |> assert_has("button[phx-value-page=\"2\"]")
       |> assert_has("button[phx-value-page=\"3\"]")
     end
@@ -115,8 +129,8 @@ defmodule NervesHubWeb.Live.Devices.Show.FirmwareHistoryTabTest do
 
       # Test changing page size to 50
       view
-      |> element(~s(button[phx-click="set-paginate-opts"][phx-value-page-size="50"]))
-      |> render_click()
+      |> form("#firmware-history-pager-page-size", %{"page-size" => "50"})
+      |> render_change()
 
       # Should redirect to page 1 with page_size=50
       assert_patch(

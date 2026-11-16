@@ -238,6 +238,26 @@ defmodule NervesHub.ErrorReports do
   # ---------------------------------------------------------- device read path
 
   @doc """
+  How many issues one device has reported in the window `groups_for_device/2`
+  reads, for the count beside the device page's Errors tab.
+
+  Counts fingerprints in ClickHouse alone, so unlike `groups_for_device/2` it
+  includes the rare fingerprint whose group row is gone.
+  """
+  @spec issue_count_for_device(Device.t()) :: non_neg_integer()
+  def issue_count_for_device(%Device{} = device) do
+    since = DateTime.add(DateTime.utc_now(), -@device_window_days, :day)
+
+    ErrorReport
+    |> where([r], r.product_id == ^device.product_id)
+    |> where([r], r.device_id == ^device.id)
+    |> where([r], r.timestamp >= ^since)
+    |> select([r], fragment("uniqExact(?)", r.fingerprint))
+    |> AnalyticsRepo.one()
+    |> Kernel.||(0)
+  end
+
+  @doc """
   The issues seen on one device, most recently seen first.
 
   Reads the aggregate from ClickHouse and the names from PostgreSQL. A

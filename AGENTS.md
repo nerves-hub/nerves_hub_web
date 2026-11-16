@@ -72,7 +72,8 @@ when adding or removing one.
 ### `lib/nerves_hub/` (contexts)
 
 - `accounts.ex` / `accounts/` — users, orgs, org-users, tokens, scopes, and
-  roles. `accounts/permissions.ex` is the catalog of every permission a member
+  roles, and the orgs each user stars on the home page (`Accounts.Starring`).
+  `accounts/permissions.ex` is the catalog of every permission a member
   can hold and which built-in role (`admin`, `manage`, `view`) first gets it.
   An org can also define its own roles (`OrgRole`, managed through
   `accounts/org_roles.ex`), each a set of permissions from that catalog; a
@@ -179,7 +180,12 @@ when adding or removing one.
   [docs/discord.md](docs/discord.md).
 - `scripts.ex` / `scripts/` — support scripts run against a device console.
 - `workers/` — Oban workers (e.g. firmware delta building, firmware deletion).
-- Cross-cutting: `audit_logs.ex`, `clustering.ex`, `product_notifications.ex`, `tracker.ex`,
+- `audit_logs.ex` / `audit_logs/` - the audit log, written from the templates
+  in `audit_logs/templates/`. An entry a device's Activity tab shows passes a
+  `kind:` (`AuditLog.kinds/0`), and the tab draws its icon from that, never
+  from the description. A new kind of entry needs a kind and an icon in
+  `NervesHubWeb.Components.DevicePage.ActivityTab`.
+- Cross-cutting: `clustering.ex`, `product_notifications.ex`, `tracker.ex`,
   `rate_limit.ex`, `cli_session_cache.ex`, `device_link.ex`, `repo.ex`,
   `analytics_repo.ex`, `application.ex`.
 
@@ -191,7 +197,12 @@ when adding or removing one.
   - User-facing counterparts: `UserConsoleChannel`, `UserLocalShellChannel`.
 - `live/` — LiveViews (the dashboard). `live/devices/show.ex` is the device
   page; its tabs live in `components/device_page/*` as tab components that hook
-  into the LiveView. An organization's pages (`live/org/`, plus
+  into the LiveView. Below `sm` the device page scrolls as one, under tabs
+  that stick to the top, and each tab has its own `max-sm:` layout (a table
+  becomes a card per row by restyling its rows, not by rendering them twice).
+  Two states on a phone are marked on `<html>`, which a patch never touches,
+  and read by the `header-scrolled:` and `terminal-typing:` variants in
+  `app.css`. An organization's pages (`live/org/`, plus
   `live/products/new.ex`) have no sidebar: they render inside `Layouts.org/1`,
   a centered column under the organization's name, counts and tabs, and mount
   `NervesHubWeb.Mounts.OrgCounts` for the counts. Product pages keep the
@@ -239,6 +250,8 @@ when adding or removing one.
   any class with no SVG behind it. A line icon draws its stroke at 1/16 of its
   size and never under 1px: plain `lucide-<icon>` is that weight, `--bold` is
   for a selected nav item or an icon under 16px, and `--thin` for 32px and up.
+  `--fill` fills the glyph in, for a closed shape that shows something is on
+  (a starred organization's star); an open glyph like a chevron fills oddly.
   Every icon is a Lucide glyph, either a `lucide-*` span or `<.icon name="…">`
   (`NervesHubWeb.Components.Icons`, which names the ones used across pages).
   The glyph is a mask filled with `currentColor`, so a `text-*` class colours
@@ -256,6 +269,14 @@ when adding or removing one.
   the font themselves in `assets/js` and wait for it with `whenFontsLoaded`.
   Self-hosted instances may have no internet access, so don't load fonts or
   other assets from a third-party CDN.
+- **Type sizes and card corners:** sizes off Tailwind's scale are named in the
+  `@theme` block of `assets/css/app.css`, so use the name, not a bracketed
+  size: `text-ui` (13px interface text, with `/4` or `/4.5` for its line
+  height), `text-label` (the 11px uppercase label over a column or a figure),
+  `text-item-title` (the name over a card), and `text-figure` /
+  `text-figure-sm` for big numbers. Every card, panel and dashed placeholder
+  is `rounded-card` (4px), along with its `rounded-t-card` header and
+  `rounded-b-card` footer. Controls keep `rounded`, and menus `rounded-md`.
 - **Boundaries:** contexts (`lib/nerves_hub/`) hold business logic; web modules
   stay thin and call into them. Match the surrounding module's conventions,
   error handling, and naming rather than importing your own.

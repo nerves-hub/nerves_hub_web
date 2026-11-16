@@ -276,4 +276,38 @@ defmodule NervesHub.Devices.ConnectionsTest do
       end
     end
   end
+
+  describe "offline_gaps/3" do
+    @from ~U[2026-11-12 08:00:00Z]
+    @until ~U[2026-11-12 11:00:00Z]
+
+    defp at(minutes), do: DateTime.add(@from, minutes, :minute)
+
+    test "is the whole window when the device had no connection in it" do
+      assert Connections.offline_gaps([], @from, @until) == [{@from, @until}]
+    end
+
+    test "is the time between connections, and before the first and after the last" do
+      connections = [{at(10), at(60)}, {at(90), at(150)}]
+
+      assert Connections.offline_gaps(connections, @from, @until) ==
+               [{@from, at(10)}, {at(60), at(90)}, {at(150), @until}]
+    end
+
+    test "counts a connection still open as lasting to the end of the window" do
+      assert Connections.offline_gaps([{at(-30), nil}], @from, @until) == []
+    end
+
+    test "merges connections that overlap, whatever order they come in" do
+      connections = [{at(50), at(180)}, {at(-10), at(70)}, {at(20), at(40)}]
+
+      assert Connections.offline_gaps(connections, @from, @until) == []
+    end
+
+    test "leaves out a reconnect shorter than a minute" do
+      connections = [{at(0), at(60)}, {DateTime.add(at(60), 30, :second), at(180)}]
+
+      assert Connections.offline_gaps(connections, @from, @until) == []
+    end
+  end
 end

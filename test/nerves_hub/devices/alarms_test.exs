@@ -207,10 +207,14 @@ defmodule NervesHub.Devices.AlarmsTest do
       assert Alarms.current_alarms_for_device(device) == nil
     end
 
-    test "current_alarms_for_device/1 returns name and description", %{device: device, info: info} do
+    test "current_alarms_for_device/1 returns name, description and when it was raised", %{
+      device: device,
+      info: info
+    } do
       :ok = Alarms.sync(info, %{"HighTemp" => "too hot"})
+      [%{raised_at: raised_at}] = stored(device)
 
-      assert Alarms.current_alarms_for_device(device) == [{"HighTemp", "too hot"}]
+      assert Alarms.current_alarms_for_device(device) == [{"HighTemp", "too hot", raised_at}]
     end
 
     test "get_current_alarm_types/1 is the product's distinct raised alarms", %{

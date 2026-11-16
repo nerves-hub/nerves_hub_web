@@ -53,11 +53,11 @@
     <.form for={@form} id="slack-subscription-form" phx-change="validate" phx-submit="save" phx-target={@myself}>
       <.dialog_body>
         <div :if={match?({:new, _}, @editing)} class="flex flex-col gap-1.5">
-          <label for="slack-subscription-channel" class="text-[13px]/4 font-medium text-content-body">Channel</label>
-          <div :if={@channels.loading} class="flex h-9 items-center gap-2 text-[13px] text-content-muted">
+          <label for="slack-subscription-channel" class="text-ui/4 font-medium text-content-body">Channel</label>
+          <div :if={@channels.loading} class="flex h-9 items-center gap-2 text-ui text-content-muted">
             <span class="lucide-loader-circle size-3.5 animate-spin" aria-hidden="true"></span> Loading channels from Slack…
           </div>
-          <p :if={@channels.failed} class="text-[13px] text-alert-content">
+          <p :if={@channels.failed} class="text-ui text-alert-content">
             Slack did not list the workspace's channels: {error_message(@channels.failed)}
           </p>
           <select
@@ -65,7 +65,7 @@
             id="slack-subscription-channel"
             name="slack_subscription[channel_id]"
             aria-describedby="slack-subscription-channel-hint"
-            class="h-9 w-full rounded-md border border-line-strong bg-surface-raised px-2.5 text-[13px] text-content-strong focus:border-primary focus:ring-3 focus:ring-primary/20 focus:outline-none"
+            class="h-9 w-full rounded-md border border-line-strong bg-surface-raised px-2.5 text-ui text-content-strong focus:border-primary focus:ring-3 focus:ring-primary/20 focus:outline-none"
           >
             <option value="">Choose a channel</option>
             {Phoenix.HTML.Form.options_for_select(channel_options(@channels.result), @selected_channel)}

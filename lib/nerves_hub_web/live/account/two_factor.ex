@@ -153,7 +153,7 @@ defmodule NervesHubWeb.Live.Account.TwoFactor do
         </div>
 
         <div class="flex flex-col gap-6">
-          <div :if={@orgs_requiring != [] && is_nil(@totp)} id="two-factor-required" role="alert" class="flex gap-2.5 rounded-md border border-warning/30 bg-warning-soft p-4 text-sm text-content-body">
+          <div :if={@orgs_requiring != [] && is_nil(@totp)} id="two-factor-required" role="alert" class="flex gap-2.5 rounded-card border border-warning/30 bg-warning-soft p-4 text-sm text-content-body">
             <span class="mt-0.5 lucide-shield-exclamation-point size-4 flex-none text-warning" aria-hidden="true"></span>
             <p>
               {org_names(@orgs_requiring)} {if length(@orgs_requiring) == 1, do: "requires", else: "require"} two-factor authentication. Turn it on to reach {if length(@orgs_requiring) == 1,
@@ -162,12 +162,12 @@ defmodule NervesHubWeb.Live.Account.TwoFactor do
             </p>
           </div>
 
-          <div :if={@recovery_codes} id="recovery-codes" class="rounded-md border border-primary bg-surface-raised p-4 shadow-card">
+          <div :if={@recovery_codes} id="recovery-codes" class="rounded-card border border-primary bg-surface-raised p-4 shadow-card">
             <h2 class="mb-2 text-section-title text-content-strong">Save your recovery codes</h2>
             <p class="mb-4 text-sm text-content-muted">
               Each code signs you in once if you lose your phone. Keep them somewhere safe, like a password manager. They won't be shown again.
             </p>
-            <ul class="mb-4 grid grid-cols-2 gap-2 rounded-md border border-line-default bg-surface p-4 font-mono text-sm text-content-strong sm:grid-cols-5">
+            <ul class="mb-4 grid grid-cols-2 gap-2 rounded-card border border-line-default bg-surface p-4 font-mono text-sm text-content-strong sm:grid-cols-5">
               <li :for={code <- @recovery_codes}>{code}</li>
             </ul>
             <div class="flex flex-wrap gap-2">
@@ -187,14 +187,14 @@ defmodule NervesHubWeb.Live.Account.TwoFactor do
             </div>
           </div>
 
-          <div :if={!@available?} id="two-factor-unavailable" class="rounded-md border border-line-default bg-surface-raised p-4 shadow-card">
+          <div :if={!@available?} id="two-factor-unavailable" class="rounded-card border border-line-default bg-surface-raised p-4 shadow-card">
             <h2 class="mb-2 text-section-title text-content-strong">Not available</h2>
             <p class="text-sm text-content-muted">
               Two-factor authentication needs this server to have a key for encrypting secrets. Ask your platform admin to set <span class="font-mono">SECRETS_ENCRYPTION_KEY</span>.
             </p>
           </div>
 
-          <div :if={@available? && is_nil(@totp) && is_nil(@setup_secret)} id="two-factor-off" class="rounded-md border border-line-default bg-surface-raised p-4 shadow-card">
+          <div :if={@available? && is_nil(@totp) && is_nil(@setup_secret)} id="two-factor-off" class="rounded-card border border-line-default bg-surface-raised p-4 shadow-card">
             <h2 class="mb-2 text-section-title text-content-strong">Off</h2>
             <p class="mb-4 text-sm text-content-muted">
               With two-factor authentication on, signing in asks for a code from an authenticator app on your phone, such as 1Password, Google Authenticator or Authy, as well as your password. Someone who learns your password still can't sign in.
@@ -204,7 +204,7 @@ defmodule NervesHubWeb.Live.Account.TwoFactor do
             </.button>
           </div>
 
-          <div :if={@setup_secret} id="two-factor-setup" class="rounded-md border border-line-default bg-surface-raised p-4 shadow-card">
+          <div :if={@setup_secret} id="two-factor-setup" class="rounded-card border border-line-default bg-surface-raised p-4 shadow-card">
             <h2 class="mb-4 text-section-title text-content-strong">Set up your authenticator app</h2>
             <div class="flex flex-col gap-6 md:flex-row">
               <div class="flex shrink-0 flex-col items-center gap-2">
@@ -239,7 +239,7 @@ defmodule NervesHubWeb.Live.Account.TwoFactor do
             </div>
           </div>
 
-          <div :if={@totp} id="two-factor-on" class="rounded-md border border-line-default bg-surface-raised p-4 shadow-card">
+          <div :if={@totp} id="two-factor-on" class="rounded-card border border-line-default bg-surface-raised p-4 shadow-card">
             <div class="mb-2 flex items-center gap-2">
               <h2 class="text-section-title text-content-strong">On</h2>
               <.badge tone="success">Enabled</.badge>

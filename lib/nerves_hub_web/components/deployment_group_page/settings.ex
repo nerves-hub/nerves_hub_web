@@ -29,7 +29,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
     ~H"""
     <div class="flex flex-col items-start justify-between gap-4 p-6">
       <.form id="deployment-form" for={@form} class="flex w-full flex-col gap-4" phx-change="validate-deployment-group" phx-submit="update-deployment-group" phx-target={@myself}>
-        <div class="flex w-2/3 flex-col rounded-md border border-line-default bg-surface-raised">
+        <div class="flex w-2/3 flex-col rounded-card border border-line-default bg-surface-raised">
           <div class="flex h-14 items-center justify-between border-b border-line-default px-4">
             <div class="text-card-title text-content-strong">General settings</div>
           </div>
@@ -61,7 +61,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
           </div>
         </div>
 
-        <div class="flex w-2/3 flex-col rounded-md border border-line-default bg-surface-raised">
+        <div class="flex w-2/3 flex-col rounded-card border border-line-default bg-surface-raised">
           <div class="flex h-14 items-center justify-between border-b border-line-default px-4">
             <div class="text-card-title text-content-strong">Device matching conditions</div>
           </div>
@@ -97,7 +97,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
           </div>
         </div>
 
-        <div class="flex w-2/3 flex-col rounded-md border border-line-default bg-surface-raised">
+        <div class="flex w-2/3 flex-col rounded-card border border-line-default bg-surface-raised">
           <div class="flex h-14 items-center justify-between border-b border-line-default px-4">
             <div class="text-card-title text-content-strong">Deployment Workflows</div>
           </div>
@@ -140,7 +140,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
           </div>
         </div>
 
-        <div class="flex w-2/3 flex-col rounded-md border border-line-default bg-surface-raised">
+        <div class="flex w-2/3 flex-col rounded-card border border-line-default bg-surface-raised">
           <div class="flex h-14 items-center justify-between border-b border-line-default px-4">
             <div class="text-card-title text-content-strong">Device queue settings</div>
           </div>
@@ -158,7 +158,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
           </div>
         </div>
 
-        <div class="flex w-2/3 flex-col rounded-md border border-line-default bg-surface-raised">
+        <div class="flex w-2/3 flex-col rounded-card border border-line-default bg-surface-raised">
           <div class="flex h-14 items-center justify-between border-b border-line-default px-4">
             <div class="text-card-title text-content-strong">Rolling updates</div>
           </div>
@@ -181,7 +181,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
           </div>
         </div>
 
-        <div class="flex w-2/3 flex-col rounded-md border border-line-default bg-surface-raised">
+        <div class="flex w-2/3 flex-col rounded-card border border-line-default bg-surface-raised">
           <div class="flex h-14 items-center justify-between border-b border-line-default px-4">
             <div class="text-card-title text-content-strong">Priority queue</div>
           </div>
@@ -226,7 +226,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
           </div>
         </div>
 
-        <div class="flex w-2/3 flex-col rounded-md border border-line-default bg-surface-raised">
+        <div class="flex w-2/3 flex-col rounded-card border border-line-default bg-surface-raised">
           <div class="flex h-14 items-center justify-between border-b border-line-default px-4">
             <div class="text-card-title text-content-strong">Device penalty box logic</div>
           </div>
@@ -291,7 +291,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
           </div>
         </div>
 
-        <div class="flex w-2/3 flex-col rounded-md border border-line-default bg-surface-raised">
+        <div class="flex w-2/3 flex-col rounded-card border border-line-default bg-surface-raised">
           <div class="flex h-14 items-center justify-between border-b border-line-default px-4">
             <div class="text-card-title text-content-strong">First Connect Code</div>
           </div>
@@ -315,7 +315,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
           </div>
         </div>
 
-        <div class="flex w-2/3 flex-col rounded-md border border-line-default bg-surface-raised">
+        <div class="flex w-2/3 flex-col rounded-card border border-line-default bg-surface-raised">
           <div class="flex items-center justify-between gap-6 border-t border-line-default p-4">
             <.button style="primary" type="submit">
               <.icon name="save" /> Save changes
@@ -349,7 +349,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
 
   defp superseded_by_workflow(assigns) do
     ~H"""
-    <div class="flex w-2/3 gap-2 rounded border border-line-default bg-surface-muted px-3 py-2 text-sm text-content-muted">
+    <div class="flex w-2/3 gap-2 rounded-card border border-line-default bg-surface-muted px-3 py-2 text-sm text-content-muted">
       <.icon name="info" class="mt-0.5 text-content-muted" />
       <div>{render_slot(@inner_block)}</div>
     </div>

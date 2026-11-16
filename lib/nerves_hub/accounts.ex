@@ -13,6 +13,7 @@ defmodule NervesHub.Accounts do
   alias NervesHub.Accounts.PubSub, as: AccessPubSub
   alias NervesHub.Accounts.RemoveAccount
   alias NervesHub.Accounts.Scope
+  alias NervesHub.Accounts.Starring
   alias NervesHub.Accounts.TwoFactor
   alias NervesHub.Accounts.User
   alias NervesHub.Accounts.UserCLISession
@@ -163,6 +164,18 @@ defmodule NervesHub.Accounts do
   end
 
   @doc """
+  Saves how a user has picked to draw the device Health tab's charts, one of
+  `NervesHub.Accounts.User.DisplayPreferences.health_chart_styles/0`.
+  """
+  @spec update_user_health_chart_style(User.t(), atom() | String.t()) ::
+          {:ok, User.t()} | {:error, Ecto.Changeset.t()}
+  def update_user_health_chart_style(%User{} = user, style) do
+    user
+    |> User.display_preferences_changeset(%{health_chart_style: style})
+    |> Repo.update()
+  end
+
+  @doc """
   Creates a new user, and an org if one does not exist yet
   """
   @spec create_user(map()) :: {:ok, User.t()} | {:error, Ecto.Changeset.t()}
@@ -300,13 +313,15 @@ defmodule NervesHub.Accounts do
 
   Pages they have open in the org send them back to their list of orgs, and
   their consoles, local shells and device event streams on its devices close
-  (see `NervesHub.Accounts.PubSub`).
+  (see `NervesHub.Accounts.PubSub`). Their pins on its devices and their star
+  on it go.
   """
   @spec soft_delete_org_user(OrgUser.t()) :: :ok | {:error, Changeset.t()}
   def soft_delete_org_user(org_user) do
     with {:ok, %{org_id: org_id, user_id: user_id}} <-
            Repo.soft_delete(org_user),
-         {_, nil} <- Pinning.unpin_org_devices(user_id, org_id) do
+         {_, nil} <- Pinning.unpin_org_devices(user_id, org_id),
+         {_, nil} <- Starring.unstar_org(user_id, org_id) do
       _ = AccessPubSub.broadcast_membership_changed(org_id, user_id)
       :ok
     end

@@ -9,14 +9,17 @@ module.exports = plugin(function ({ matchComponents, theme }) {
   // 1px at 16px, 1.25px at 20px, whatever its source. On Lucide's 24 grid
   // that is 1.5, the default here. --bold is for a selected nav item and for
   // icons under 16px (size-3, size-3.5); --thin keeps an icon of 32px or
-  // more from drawing a 2px+ line.
+  // more from drawing a 2px+ line. --fill is the default weight with the
+  // shape filled in, for a closed glyph that marks something as on, like the
+  // star on a starred organization.
   let weights = [
-    ["", "1.5"],
-    ["--bold", "2"],
-    ["--thin", "0.8"],
+    ["", "1.5", false],
+    ["--bold", "2", false],
+    ["--thin", "0.8", false],
+    ["--fill", "1.5", true],
   ]
 
-  weights.forEach(([suffix, weight]) => {
+  weights.forEach(([suffix, weight, filled]) => {
     fs.readdirSync(iconsDir).forEach((file) => {
       if (file.endsWith(".svg")) {
         let name = path.basename(file, ".svg") + suffix
@@ -24,6 +27,7 @@ module.exports = plugin(function ({ matchComponents, theme }) {
           name,
           fullPath: path.join(iconsDir, file),
           weight: weight,
+          filled: filled,
         }
       }
     })
@@ -31,7 +35,7 @@ module.exports = plugin(function ({ matchComponents, theme }) {
 
   matchComponents(
     {
-      lucide: ({ name, fullPath, weight }) => {
+      lucide: ({ name, fullPath, weight, filled }) => {
         let content = fs
           .readFileSync(fullPath)
           .toString()
@@ -42,6 +46,11 @@ module.exports = plugin(function ({ matchComponents, theme }) {
             /stroke-width="2"/g,
             `stroke-width="${weight}"`,
           )
+        }
+
+        // Every Lucide icon sets fill="none" once, on its <svg>.
+        if (filled) {
+          content = content.replace(/fill="none"/, 'fill="currentColor"')
         }
 
         content = encodeURIComponent(content)

@@ -25,6 +25,16 @@ defmodule NervesHubWeb.Layouts do
     )
   end
 
+  # On a phone the sidebar is a drawer. An attribute rather than JS.show, so
+  # the classes decide that it only hides below `sm`.
+  defp show_sidebar(js \\ %JS{}) do
+    js
+    |> JS.set_attribute({"data-open", ""}, to: "#sidebar")
+    |> JS.focus_first(to: "#sidebar")
+  end
+
+  defp hide_sidebar(js \\ %JS{}), do: JS.remove_attribute(js, "data-open", to: "#sidebar")
+
   embed_templates("layouts/*")
 
   attr(:flash, :map, required: true)
@@ -84,20 +94,17 @@ defmodule NervesHubWeb.Layouts do
   end
 
   # "3 products · 1,204 devices · 5 members", or, before there's a product,
-  # what to do about it.
+  # what to do about it. `Fleet.separated/1` puts the dots between.
   defp org_summary(%{products: 0} = counts) do
-    "No products yet · " <> Fleet.count_noun(counts.members, "member", "members")
+    ["No products yet", Fleet.count_noun(counts.members, "member", "members")]
   end
 
   defp org_summary(counts) do
-    Enum.join(
-      [
-        Fleet.count_noun(counts.products, "product", "products"),
-        Fleet.count_noun(counts.devices, "device", "devices"),
-        Fleet.count_noun(counts.members, "member", "members")
-      ],
-      " · "
-    )
+    [
+      Fleet.count_noun(counts.products, "product", "products"),
+      Fleet.count_noun(counts.devices, "device", "devices"),
+      Fleet.count_noun(counts.members, "member", "members")
+    ]
   end
 
   # Each icon is spelled out in full, regular and bold, so Tailwind finds the

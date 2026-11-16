@@ -52,7 +52,7 @@ defmodule NervesHub.Extensions.HealthReportTest do
       })
 
     assert %{status: :healthy} = Repo.get_by!(DeviceHealth, device_id: device.id)
-    assert Alarms.current_alarms_for_device(device) == [{"MyApp.HighTemp", "too hot"}]
+    assert [{"MyApp.HighTemp", "too hot", %DateTime{}}] = Alarms.current_alarms_for_device(device)
     assert %{metadata: %{"serial_number" => "SN-1234"}} = Connections.get_latest_for_device(device.id)
   end
 
@@ -66,7 +66,7 @@ defmodule NervesHub.Extensions.HealthReportTest do
 
   test "an alarm that clears is removed on the next report", %{device: device, state: state} do
     :ok = report(state, %{"alarms" => %{"HighTemp" => "too hot"}})
-    assert Alarms.current_alarms_for_device(device) == [{"HighTemp", "too hot"}]
+    assert [{"HighTemp", "too hot", %DateTime{}}] = Alarms.current_alarms_for_device(device)
 
     :ok = report(state, %{"alarms" => %{}})
     assert Alarms.current_alarms_for_device(device) == nil
@@ -84,7 +84,7 @@ defmodule NervesHub.Extensions.HealthReportTest do
     :ok = report(state, %{"alarms" => %{"HighTemp" => "too hot"}})
     :ok = report(state, %{"alarms" => ["HighTemp"]})
 
-    assert Alarms.current_alarms_for_device(device) == [{"HighTemp", "too hot"}]
+    assert [{"HighTemp", "too hot", %DateTime{}}] = Alarms.current_alarms_for_device(device)
   end
 
   test "a report without an alarms key leaves stored alarms alone", %{device: device, state: state} do
@@ -92,7 +92,7 @@ defmodule NervesHub.Extensions.HealthReportTest do
     :ok = report(state, %{"alarms" => %{"HighTemp" => "too hot"}})
     :ok = report(state, %{"metrics" => %{"cpu_usage_percent" => 12.0}})
 
-    assert Alarms.current_alarms_for_device(device) == [{"HighTemp", "too hot"}]
+    assert [{"HighTemp", "too hot", %DateTime{}}] = Alarms.current_alarms_for_device(device)
   end
 
   test "a report carrying neither alarms nor metadata still records status", %{device: device, state: state} do
