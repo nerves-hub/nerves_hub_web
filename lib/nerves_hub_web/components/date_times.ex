@@ -171,13 +171,16 @@ defmodule NervesHubWeb.Components.DateTimes do
   end
 
   @doc """
-  The ISO 8601 date `at` falls on in the viewer's zone. Rows carry it in
-  `data-day` for the `LogDayStarts` hook, which compares neighbours to find
-  where each day starts.
+  The ISO 8601 date `at` falls on in the viewer's zone, for telling whether
+  two times fall on the same day there. Log rows carry it in `data-day` for
+  the `LogDayStarts` hook, which compares neighbours to find where each day
+  starts.
   """
-  @spec day_key(DateTime.t(), String.t() | nil) :: String.t()
+  @spec day_key(DateTime.t() | NaiveDateTime.t(), String.t() | nil) :: String.t()
   def day_key(at, time_zone) do
-    at |> DateTime.shift_zone!(Timezone.resolve(time_zone)) |> DateTime.to_date() |> Date.to_iso8601()
+    {:ok, utc} = to_utc(at)
+
+    utc |> DateTime.shift_zone!(Timezone.resolve(time_zone)) |> DateTime.to_date() |> Date.to_iso8601()
   end
 
   defp format(local, format, zone_label) when format in [:log, :log_time] do

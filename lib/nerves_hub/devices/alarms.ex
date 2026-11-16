@@ -187,7 +187,7 @@ defmodule NervesHub.Devices.Alarms do
 
   @doc """
   The device's raised alarms as `[{alarm, description, raised_at}]`, oldest
-  first, or `nil` when it has none — the device details page distinguishes "no
+  first, or `nil` when it has none: the device details page distinguishes "no
   alarms" from "alarms" rather than rendering an empty list.
   """
   @spec current_alarms_for_device(Device.t() | pos_integer()) ::

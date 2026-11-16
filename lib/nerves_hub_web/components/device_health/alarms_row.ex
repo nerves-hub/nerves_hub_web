@@ -46,7 +46,7 @@ defmodule NervesHubWeb.Components.DeviceHealth.AlarmsRow do
   # The time alone for an alarm raised today, which most are; the date as
   # well once it has been up since an earlier day.
   defp since_format(raised_at, time_zone) do
-    if day_label(raised_at, time_zone) == "Today", do: :time, else: :short_datetime
+    if day_key(raised_at, time_zone) == day_key(DateTime.utc_now(), time_zone), do: :time, else: :short_datetime
   end
 
   defp description?(description) do

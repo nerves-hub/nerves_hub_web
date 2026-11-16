@@ -660,8 +660,8 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
   end
 
   # The boxes in each column, top to bottom, as the user arranged them. Boxes
-  # with nothing to show are left out: the map when geo is off, and the old
-  # alarms box, which is now a row in the Health card.
+  # with nothing to show are left out: the map when geo is off, and the alarms
+  # box, whose alarms are drawn as a row in the Health card.
   defp details_columns(user, product, device) do
     preferences = user.display_preferences
     visible? = &box_visible?(&1, product, device)
@@ -681,8 +681,8 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
   end
 
   defp box_visible?(:location, product, device), do: show_location?(product, device)
-  # Alarms are a row in the Health card now. A layout saved with an alarms
-  # box keeps its place for it, but nothing is drawn there.
+  # Alarms are drawn as a row in the Health card. A layout saved with an
+  # alarms box keeps its place for it, but nothing is drawn there.
   defp box_visible?(:alarms, _product, _device), do: false
   defp box_visible?(_box, _product, _device), do: true
 

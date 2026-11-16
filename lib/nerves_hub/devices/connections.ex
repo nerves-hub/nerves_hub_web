@@ -514,9 +514,12 @@ defmodule NervesHub.Devices.Connections do
   end
 
   @doc """
-  The gaps between `from` and `until` that `connections`, as
-  `[{established_at, disconnected_at | nil}]`, don't cover. Connections may
-  overlap and come in any order; a nil `disconnected_at` is still open.
+  The gaps between `from` and `until` that `connections` don't cover, oldest
+  first.
+
+  `connections` is `[{established_at, disconnected_at | nil}]`, in any order
+  and possibly overlapping; a nil `disconnected_at` is still open. Gaps under
+  a minute are left out.
   """
   @spec offline_gaps([{DateTime.t(), DateTime.t() | nil}], DateTime.t(), DateTime.t()) ::
           [{DateTime.t(), DateTime.t()}]

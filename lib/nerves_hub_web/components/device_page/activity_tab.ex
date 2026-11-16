@@ -3,7 +3,6 @@ defmodule NervesHubWeb.Components.DevicePage.ActivityTab do
 
   alias NervesHub.AuditLogs
   alias NervesHubWeb.Components.Pager
-  alias NervesHubWeb.Helpers.Timezone
 
   def tab_params(params, _uri, socket) do
     page_number = String.to_integer(Map.get(params, "page_number", "1"))
@@ -93,15 +92,12 @@ defmodule NervesHubWeb.Components.DevicePage.ActivityTab do
 
   # Entries arrive newest first, so each day's run is already in order.
   defp group_by_day(entries, time_zone) do
-    zone = Timezone.resolve(time_zone)
-
     entries
-    |> Enum.chunk_by(&local_date(&1.inserted_at, zone))
-    |> Enum.map(fn [first | _] = day -> {Calendar.strftime(local_date(first.inserted_at, zone), "%b %-d, %Y"), day} end)
+    |> Enum.chunk_by(&day_key(&1.inserted_at, time_zone))
+    |> Enum.map(fn [first | _] = day ->
+      {to_local_string(first.inserted_at, time_zone, :medium_date, false), day}
+    end)
   end
-
-  defp local_date(%NaiveDateTime{} = at, zone), do: at |> DateTime.from_naive!("Etc/UTC") |> local_date(zone)
-  defp local_date(%DateTime{} = at, zone), do: at |> DateTime.shift_zone!(zone) |> DateTime.to_date()
 
   def hooked_event("set-paginate-opts", %{"page-size" => page_size}, socket) do
     params = %{"page_size" => page_size, "page_number" => "1"}
