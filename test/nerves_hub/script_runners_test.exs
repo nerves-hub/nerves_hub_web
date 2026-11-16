@@ -1,5 +1,6 @@
 defmodule NervesHub.ScriptRunnersTest do
   use NervesHub.DataCase, async: true
+  use Mimic
 
   alias NervesHub.AuditLogs
   alias NervesHub.Fixtures
@@ -485,12 +486,23 @@ defmodule NervesHub.ScriptRunnersTest do
   end
 
   describe "rerun/3" do
+    test "a run that has not finished cannot be rerun", ctx do
+      _device = device(ctx, %{tags: ["production"]})
+      {:ok, pending, []} = create(ctx, %{name: "Reboot", filter_type: :tags, filter: tag_filter()})
+      {:ok, running} = ScriptRunners.mark_running(pending)
+
+      assert {:error, :not_completed} = ScriptRunners.rerun(ctx.product, ctx.user, pending)
+      assert {:error, :not_completed} = ScriptRunners.rerun(ctx.product, ctx.user, running)
+
+      assert [_only_the_original] = ScriptRunners.all_by_product(ctx.product)
+    end
+
     test "the copy is named after the original, and says where it came from", ctx do
       _device = device(ctx, %{tags: ["production"]})
 
       {:ok, original, []} = create(ctx, %{name: "Reboot", filter_type: :tags, filter: tag_filter()})
 
-      {:ok, copy, []} = ScriptRunners.rerun(ctx.product, ctx.user, original)
+      {:ok, copy, []} = ScriptRunners.rerun(ctx.product, ctx.user, finished(original))
 
       assert copy.name == "Reboot copy 1"
       assert copy.description == "copied from Reboot"
@@ -504,7 +516,7 @@ defmodule NervesHub.ScriptRunnersTest do
       {:ok, original, []} =
         create(ctx, %{name: "Reboot", description: "Modem check", filter_type: :tags, filter: tag_filter()})
 
-      {:ok, copy, []} = ScriptRunners.rerun(ctx.product, ctx.user, original)
+      {:ok, copy, []} = ScriptRunners.rerun(ctx.product, ctx.user, finished(original))
 
       assert copy.description == "Modem check\ncopied from Reboot"
     end
@@ -514,9 +526,9 @@ defmodule NervesHub.ScriptRunnersTest do
 
       {:ok, original, []} = create(ctx, %{name: "Reboot", filter_type: :tags, filter: tag_filter()})
 
-      {:ok, first, []} = ScriptRunners.rerun(ctx.product, ctx.user, original)
-      {:ok, second, []} = ScriptRunners.rerun(ctx.product, ctx.user, original)
-      {:ok, third, []} = ScriptRunners.rerun(ctx.product, ctx.user, original)
+      {:ok, first, []} = ScriptRunners.rerun(ctx.product, ctx.user, finished(original))
+      {:ok, second, []} = ScriptRunners.rerun(ctx.product, ctx.user, finished(original))
+      {:ok, third, []} = ScriptRunners.rerun(ctx.product, ctx.user, finished(original))
 
       assert first.name == "Reboot copy 1"
       assert second.name == "Reboot copy 2"
@@ -529,8 +541,8 @@ defmodule NervesHub.ScriptRunnersTest do
 
       {:ok, original, []} = create(ctx, %{name: "Reboot", filter_type: :tags, filter: tag_filter()})
 
-      {:ok, first, []} = ScriptRunners.rerun(ctx.product, ctx.user, original)
-      {:ok, second, []} = ScriptRunners.rerun(ctx.product, ctx.user, first)
+      {:ok, first, []} = ScriptRunners.rerun(ctx.product, ctx.user, finished(original))
+      {:ok, second, []} = ScriptRunners.rerun(ctx.product, ctx.user, finished(first))
 
       assert second.name == "Reboot copy 2"
       # The note names the run it was actually copied from, which was the copy.
@@ -545,7 +557,7 @@ defmodule NervesHub.ScriptRunnersTest do
       # Someone named a run by hand exactly what the first copy would have been.
       {:ok, _squatter, []} = create(ctx, %{name: "Reboot copy 1", filter_type: :tags, filter: tag_filter()})
 
-      {:ok, copy, []} = ScriptRunners.rerun(ctx.product, ctx.user, original)
+      {:ok, copy, []} = ScriptRunners.rerun(ctx.product, ctx.user, finished(original))
 
       assert copy.name == "Reboot copy 2"
     end
@@ -560,10 +572,61 @@ defmodule NervesHub.ScriptRunnersTest do
       # push the real copy to number 2.
       {:ok, _decoy, []} = create(ctx, %{name: "100XX Ydone copy 1", filter_type: :tags, filter: tag_filter()})
 
-      {:ok, copy, []} = ScriptRunners.rerun(ctx.product, ctx.user, original)
+      {:ok, copy, []} = ScriptRunners.rerun(ctx.product, ctx.user, finished(original))
 
       assert copy.name == "100% _done copy 1"
     end
+
+    # Two reruns of one run can both pick the same free `copy N`. A concurrent
+    # rerun cannot be interleaved inside one sandbox transaction, so the rival is
+    # inserted from inside the rerun's own changeset build: after the free name is
+    # chosen, before the insert that needs it.
+    test "a rerun that loses the race for its name takes the next one", ctx do
+      _device = device(ctx, %{tags: ["production"]})
+      {:ok, original, []} = create(ctx, %{name: "Reboot", filter_type: :tags, filter: tag_filter()})
+
+      win_races(ctx, 1)
+
+      {:ok, copy, []} = ScriptRunners.rerun(ctx.product, ctx.user, finished(original))
+
+      assert copy.name == "Reboot copy 2"
+    end
+
+    test "a rerun that loses the race twice reports it rather than trying again", ctx do
+      _device = device(ctx, %{tags: ["production"]})
+      {:ok, original, []} = create(ctx, %{name: "Reboot", filter_type: :tags, filter: tag_filter()})
+
+      win_races(ctx, 2)
+
+      assert {:error, changeset} = ScriptRunners.rerun(ctx.product, ctx.user, finished(original))
+      assert "has already been used by another run in this product" in errors_on(changeset).name
+    end
+  end
+
+  # Only a finished run can be rerun.
+  defp finished(%ScriptRunner{status: :completed} = run), do: run
+
+  defp finished(run) do
+    {:ok, run} = ScriptRunners.mark_finished(run)
+    run
+  end
+
+  # For the next `count` runs built, a rival run takes the chosen name first.
+  defp win_races(ctx, count) do
+    Process.put(:races_left, count)
+
+    stub(ScriptRunner, :create_changeset, fn product, user, params ->
+      left = Process.get(:races_left)
+
+      if left > 0 do
+        Process.put(:races_left, left - 1)
+
+        rival = %{name: params.name, text: "IO.puts(:rival)", filter_type: :tags, filter: tag_filter()}
+        Repo.insert!(call_original(ScriptRunner, :create_changeset, [product, user, rival]))
+      end
+
+      call_original(ScriptRunner, :create_changeset, [product, user, params])
+    end)
   end
 
   describe "delete/3" do

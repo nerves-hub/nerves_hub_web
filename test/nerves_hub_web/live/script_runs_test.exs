@@ -161,6 +161,33 @@ defmodule NervesHubWeb.Live.ScriptRunsTest do
                "No Script Runs match the current filters."
     end
 
+    test "clicking a column sorts by it, and clicking it again reverses it", ctx do
+      _bravo = create_run(ctx, name: "Bravo run")
+      _alpha = create_run(ctx, name: "Alpha run")
+
+      {:ok, view, _html} = live(ctx.conn, runs_path(ctx))
+
+      ascending = render_click(view, "sort", %{"sort" => "name"})
+      assert position(ascending, "Alpha run") < position(ascending, "Bravo run")
+
+      descending = render_click(view, "sort", %{"sort" => "name"})
+      assert position(descending, "Bravo run") < position(descending, "Alpha run")
+    end
+
+    test "a newly clicked column starts ascending", ctx do
+      _small = create_run(ctx, name: "Small run", devices: 1)
+      _large = create_run(ctx, name: "Large run", devices: 3)
+
+      {:ok, view, _html} = live(ctx.conn, runs_path(ctx))
+
+      # Name descending first, so the next column's direction cannot be carried over.
+      _ = render_click(view, "sort", %{"sort" => "name"})
+      _ = render_click(view, "sort", %{"sort" => "name"})
+
+      by_devices = render_click(view, "sort", %{"sort" => "device_count"})
+      assert position(by_devices, "Small run") < position(by_devices, "Large run")
+    end
+
     test "shows a filter-specific message when nothing matches", ctx do
       _run = create_run(ctx, name: "Say hi")
 
@@ -417,6 +444,22 @@ defmodule NervesHubWeb.Live.ScriptRunsTest do
 
     # A flash is stored in the session cookie, which browsers cap at 4KB, so the
     # unmatched identifiers cannot all go in it.
+    test "a few unmatched identifiers are each named", ctx do
+      device = Fixtures.device_fixture(ctx.org, ctx.product, ctx.firmware)
+
+      ctx.conn
+      |> visit(new_path(ctx))
+      |> fill_in("Name", with: "A couple of ghosts")
+      |> fill_in("Script code", with: "IO.puts(:hi)")
+      |> choose_identifiers()
+      |> fill_in("textarea#script_runner_filter_0_identifiers", "Device identifiers",
+        with: "#{device.identifier}\nghost-one\nghost-two"
+      )
+      |> click_button("Run script")
+      |> assert_has("div", text: "2 identifiers matched no device: ghost-one, ghost-two")
+      |> refute_has("div", text: "ghost-two and")
+    end
+
     test "unmatched identifiers are counted rather than all named", %{tmp_dir: tmp_dir} = ctx do
       device = Fixtures.device_fixture(ctx.org, ctx.product, ctx.firmware)
       ghosts = Enum.map_join(1..50, "\n", &"ghost-device-#{&1}")
@@ -823,6 +866,16 @@ defmodule NervesHubWeb.Live.ScriptRunsTest do
       ctx.conn
       |> visit(run_path(ctx, run))
       |> refute_has("button", text: "Rerun")
+    end
+
+    # Hiding the button is not the check: the event is refused on the server too.
+    test "a run still going cannot be rerun by sending the event", ctx do
+      run = create_run(ctx, tag: "still-going-by-hand")
+
+      {:ok, view, _html} = live(ctx.conn, run_path(ctx, run))
+
+      assert render_click(view, "rerun", %{}) =~ "A run can only be rerun once it has finished."
+      assert [_only_the_original] = ScriptRunners.all_by_product(ctx.product)
     end
 
     test "the modal says a rerun is an entirely new run", ctx do

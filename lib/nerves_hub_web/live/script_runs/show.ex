@@ -176,6 +176,14 @@ defmodule NervesHubWeb.Live.ScriptRuns.Show do
         |> put_flash(:error, "No devices match the filter any more, so there is nothing to run.")
         |> noreply()
 
+      # The button is only shown once the run is done, so this is an event sent by
+      # hand.
+      {:error, :not_completed} ->
+        socket
+        |> assign(:rerun_preview, nil)
+        |> put_flash(:error, "A run can only be rerun once it has finished.")
+        |> noreply()
+
       {:error, _changeset} ->
         socket
         |> assign(:rerun_preview, nil)

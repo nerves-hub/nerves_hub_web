@@ -212,10 +212,23 @@ defmodule NervesHub.ScriptRunners do
   The new run is named after the original with a `copy N` suffix, and its
   description says which run it came from. Names are unique per product, so losing
   a race for one is retried against the names that exist by then.
+
+  Only a `:completed` run can be rerun; anything else is `{:error, :not_completed}`.
+  A run still going would otherwise have a copy sent to the same devices while
+  its own scripts are still arriving. Checked on the run passed in: `:completed`
+  is final, so a run that says so really is finished, while one read before it
+  finished is refused until it is read again.
   """
   @spec rerun(Scope.t() | Product.t(), User.t(), ScriptRunner.t()) ::
-          {:ok, ScriptRunner.t(), [String.t()]} | {:error, Changeset.t()} | {:error, :no_devices}
+          {:ok, ScriptRunner.t(), [String.t()]}
+          | {:error, Changeset.t()}
+          | {:error, :no_devices}
+          | {:error, :not_completed}
   def rerun(%Scope{product: product}, user, runner), do: rerun(product, user, runner)
+
+  def rerun(%Product{}, _user, %ScriptRunner{status: status}) when status != :completed do
+    {:error, :not_completed}
+  end
 
   def rerun(%Product{} = product, user, %ScriptRunner{} = runner) do
     case create(product, user, rerun_params(product, runner)) do
