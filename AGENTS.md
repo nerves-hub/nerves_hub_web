@@ -72,7 +72,8 @@ when adding or removing one.
 ### `lib/nerves_hub/` (contexts)
 
 - `accounts.ex` / `accounts/` — users, orgs, org-users, tokens, scopes, and
-  roles. `accounts/permissions.ex` is the catalog of every permission a member
+  roles, and the orgs each user stars on the home page (`Accounts.Starring`).
+  `accounts/permissions.ex` is the catalog of every permission a member
   can hold and which built-in role (`admin`, `manage`, `view`) first gets it.
   An org can also define its own roles (`OrgRole`, managed through
   `accounts/org_roles.ex`), each a set of permissions from that catalog; a
@@ -229,6 +230,8 @@ when adding or removing one.
   any class with no SVG behind it. A line icon draws its stroke at 1/16 of its
   size and never under 1px: plain `lucide-<icon>` is that weight, `--bold` is
   for a selected nav item or an icon under 16px, and `--thin` for 32px and up.
+  `--fill` fills the glyph in, for a closed shape that shows something is on
+  (a starred organization's star); an open glyph like a chevron fills oddly.
   Every icon is a Lucide glyph, either a `lucide-*` span or `<.icon name="…">`
   (`NervesHubWeb.Components.Icons`, which names the ones used across pages).
   The glyph is a mask filled with `currentColor`, so a `text-*` class colours

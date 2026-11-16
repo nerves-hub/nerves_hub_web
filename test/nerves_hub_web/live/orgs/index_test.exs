@@ -2,6 +2,8 @@ defmodule NervesHubWeb.Live.Orgs.IndexTest do
   use NervesHubWeb.ConnCase.Browser, async: true
 
   alias NervesHub.Accounts
+  alias NervesHub.Accounts.Scope
+  alias NervesHub.Accounts.Starring
   alias NervesHub.Devices
   alias NervesHub.Devices.Connections
   alias NervesHub.Devices.Health
@@ -254,6 +256,90 @@ defmodule NervesHubWeb.Live.Orgs.IndexTest do
       |> assert_has("#other-orgs", text: "Other organizations")
       |> assert_has("#other-org-#{smallest.id}", text: "Empty")
       |> assert_has("#other-org-#{smallest.id}", text: "No devices yet")
+    end
+
+    test "offers no stars below five", %{conn: conn, user: user} = context do
+      for {name, count} <- [{"A", 3}, {"B", 2}, {"C", 1}], do: another_org(user, name, count, context)
+
+      conn
+      |> visit("/orgs")
+      |> assert_has("section[id^='org-']", count: 4)
+      |> refute_has("button[id^='star-org-']")
+    end
+
+    test "gives a starred organization a section, even a small one", %{conn: conn, user: user} = context do
+      for {name, count} <- [{"A", 5}, {"B", 4}, {"C", 3}, {"D", 2}], do: another_org(user, name, count, context)
+      smallest = another_org(user, "Empty", 0, context)
+
+      conn
+      |> visit("/orgs")
+      |> refute_has("#starred-title")
+      |> assert_has("#other-orgs p", text: "Star the ones you want in full")
+      |> click_star(smallest)
+      |> assert_has("section[id^='org-']", count: 1)
+      |> assert_has("section#org-#{smallest.id} h2", text: "Empty")
+      |> assert_has("section#org-#{smallest.id} #star-org-#{smallest.id}[aria-pressed='true']")
+      |> assert_has("#starred-title", text: "Starred")
+      |> assert_has("p", text: "1 of 6 organizations")
+      |> assert_has("nav[aria-label='Starred organizations'] a", count: 1)
+      |> assert_has("#star-slot", text: "Star an organization")
+      |> assert_has("#other-orgs h2", text: "5")
+      |> assert_has("#other-orgs p", text: "Star one to give it a full section")
+      |> refute_has("#other-org-#{smallest.id}")
+
+      assert Starring.starred_org_ids(Scope.for_user(user)) == MapSet.new([smallest.id])
+    end
+
+    test "keeps the starred organizations largest first", %{conn: conn, user: user, org: org} = context do
+      [a, b, c, d] =
+        for {name, count} <- [{"A", 5}, {"B", 4}, {"C", 3}, {"D", 2}], do: another_org(user, name, count, context)
+
+      for starred <- [d, a, org, b], do: :ok = Starring.star_org(user.id, starred.id)
+
+      {:ok, _view, html} = live(conn, "/orgs")
+
+      positions = for starred <- [a, b, d, org], do: html |> :binary.match("org-title-#{starred.id}") |> elem(0)
+      assert positions == Enum.sort(positions)
+
+      conn
+      |> visit("/orgs")
+      |> assert_has("section[id^='org-']", count: 4)
+      |> refute_has("#star-slot")
+      |> assert_has("#other-org-#{c.id}")
+    end
+
+    test "unstarring the last one gives the four largest their sections back", %{conn: conn, user: user} = context do
+      for {name, count} <- [{"A", 5}, {"B", 4}, {"C", 3}, {"D", 2}], do: another_org(user, name, count, context)
+      smallest = another_org(user, "Empty", 0, context)
+      :ok = Starring.star_org(user.id, smallest.id)
+
+      conn
+      |> visit("/orgs")
+      |> assert_has("section[id^='org-']", count: 1)
+      |> click_star(smallest)
+      |> assert_has("section[id^='org-']", count: 4)
+      |> refute_has("#starred-title")
+      |> assert_has("#other-org-#{smallest.id}")
+      |> assert_has("#star-org-#{smallest.id}[aria-pressed='false']")
+
+      assert Starring.starred_org_ids(Scope.for_user(user)) == MapSet.new()
+    end
+
+    test "ignores a star on an organization the user isn't in", %{conn: conn, user: user} = context do
+      for {name, count} <- [{"A", 5}, {"B", 4}, {"C", 3}, {"D", 2}], do: another_org(user, name, count, context)
+      stranger = Fixtures.user_fixture()
+      elsewhere = Fixtures.org_fixture(stranger, %{name: "Elsewhere"})
+
+      conn
+      |> visit("/orgs")
+      |> unwrap(fn view -> render_click(view, "toggle-star", %{"org_id" => to_string(elsewhere.id)}) end)
+      |> refute_has("#starred-title")
+
+      assert Starring.starred_org_ids(Scope.for_user(user)) == MapSet.new()
+    end
+
+    defp click_star(session, org) do
+      unwrap(session, fn view -> view |> element("#star-org-#{org.id}") |> render_click() end)
     end
   end
 
