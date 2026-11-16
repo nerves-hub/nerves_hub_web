@@ -29,7 +29,7 @@
         class="-mx-4 scrollbar-none flex overflow-x-auto mask-r-from-[calc(100%-2.5rem)] px-1 data-scrolled-to-end:mask-none md:mx-0 md:-ml-3 md:mask-none md:px-0"
       >
         <.link
-          :for={tab <- org_tabs(@current_scope.org, @counts)}
+          :for={tab <- org_tabs(@current_scope, @counts)}
           navigate={tab.path}
           aria-current={if tab.key == @tab, do: "page"}
           class="group relative flex h-11 shrink-0 items-center gap-2 border-b-2 border-transparent px-3 text-sm font-medium whitespace-nowrap text-content-muted hover:text-content-strong aria-[current=page]:border-primary aria-[current=page]:font-semibold aria-[current=page]:text-content-strong"

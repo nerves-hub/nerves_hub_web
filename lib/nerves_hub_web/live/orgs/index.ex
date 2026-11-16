@@ -23,6 +23,7 @@ defmodule NervesHubWeb.Live.Orgs.Index do
   import NervesHubWeb.Components.Fleet
 
   alias NervesHub.Accounts
+  alias NervesHub.Accounts.Scope
   alias NervesHub.Devices
   alias NervesHub.Devices.Pinning
   alias NervesHub.Devices.PubSub
@@ -86,9 +87,17 @@ defmodule NervesHubWeb.Live.Orgs.Index do
     end
   end
 
+  # The broadcast carries only the status. Which device it is for comes from
+  # the topic (`"internal:device:<id>"`, see `NervesHub.Devices.PubSub`), so
+  # statuses are keyed by device id.
   @impl Phoenix.LiveView
-  def handle_info(%Broadcast{event: "connection:change", payload: payload}, socket) do
-    update_device_statuses(socket, payload)
+  def handle_info(
+        %Broadcast{topic: "internal:device:" <> id, event: "connection:change", payload: %{status: status}},
+        socket
+      ) do
+    socket
+    |> update(:device_statuses, &Map.put(&1, String.to_integer(id), status))
+    |> noreply()
   end
 
   # Ignore unknown broadcasts
@@ -122,12 +131,21 @@ defmodule NervesHubWeb.Live.Orgs.Index do
 
   defp assign_home(%{assigns: %{current_scope: scope}} = socket) do
     orgs = load_orgs(scope)
-    product_ids = for entry <- orgs, %{product: product} <- entry.products, do: product.id
+
+    # Health, updates, deployment groups and approvals are figures over all of
+    # a product's devices, so products in an org where the user's role is
+    # limited to tagged devices are left out of them.
+    product_ids =
+      for entry <- orgs,
+          not Scope.devices_limited?(Scope.put_role(scope, entry.role)),
+          %{product: product} <- entry.products,
+          do: product.id
+
     pinned_devices = Pinning.get_pinned_devices(scope)
 
     statuses =
       Map.new(pinned_devices, fn device ->
-        {device.identifier, Tracker.connection_status(device)}
+        {device.id, Tracker.connection_status(device)}
       end)
 
     socket
@@ -156,7 +174,7 @@ defmodule NervesHubWeb.Live.Orgs.Index do
   defp load_orgs(scope) do
     orgs_with_roles = Accounts.get_orgs_with_roles(scope)
     product_ids = for {org, _role} <- orgs_with_roles, product <- org.products, do: product.id
-    device_counts = Devices.count_by_product(product_ids)
+    device_counts = Devices.count_by_product(product_ids, scope.user)
     member_counts = Accounts.count_org_users_by_org(Enum.map(orgs_with_roles, fn {org, _} -> org.id end))
 
     orgs_with_roles
@@ -185,15 +203,6 @@ defmodule NervesHubWeb.Live.Orgs.Index do
     end
 
     socket
-  end
-
-  defp update_device_statuses(
-         %{assigns: %{device_statuses: statuses}} = socket,
-         %{device_id: identifier, status: status} = _payload
-       ) do
-    socket
-    |> assign(:device_statuses, Map.put(statuses, identifier, status))
-    |> noreply()
   end
 
   defp limit_devices(devices) do

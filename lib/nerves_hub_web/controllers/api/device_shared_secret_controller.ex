@@ -21,10 +21,10 @@ defmodule NervesHubWeb.API.DeviceSharedSecretController do
 
   @auth_error_responses SchemaHelpers.auth_error_responses()
 
-  # Listing returns keys but never secrets, so view-only members may see them,
+  # Listing returns keys but never secrets, so every member may see them,
   # as they can a product's keys on its settings page.
-  plug(:validate_role, [org: :manage] when action in [:create, :delete])
-  plug(:validate_role, [org: :view] when action in [:index])
+  plug(:require_permission, :"device:update" when action in [:create, :delete])
+  plug(:require_membership when action in [:index])
   plug(RefuseDeletedDevice when action in [:create, :delete])
 
   @device_path_parameters [
