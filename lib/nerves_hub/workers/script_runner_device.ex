@@ -26,12 +26,24 @@ defmodule NervesHub.Workers.ScriptRunnerDevice do
   @timeout to_timeout(second: 30)
 
   @impl Oban.Worker
-  def perform(%Oban.Job{args: %{"script_runner_id" => runner_id, "device_id" => device_id, "text" => text}}) do
+  # Jobs queued by the previous release also carry a `"text"` arg. It is ignored:
+  # the run's own `text` is the same immutable value.
+  def perform(%Oban.Job{args: %{"script_runner_id" => runner_id, "device_id" => device_id}}) do
     Logger.metadata(script_runner_id: runner_id, device_id: device_id)
 
-    # Checked here rather than when the run was created: a device that dropped off
-    # while the queue worked through the devices ahead of it should be recorded as
-    # offline, not sent a script nothing will answer.
+    # Read from the run rather than carried on the job (see
+    # `NervesHub.Workers.ScriptRunnerDispatch`). The text never changes once a run
+    # exists, so this is still exactly what the run recorded.
+    case ScriptRunners.script_text(runner_id) do
+      nil -> {:cancel, "script runner #{runner_id} no longer exists"}
+      text -> run_if_connected(runner_id, device_id, text)
+    end
+  end
+
+  # Checked here rather than when the run was created: a device that dropped off
+  # while the queue worked through the devices ahead of it should be recorded as
+  # offline, not sent a script nothing will answer.
+  defp run_if_connected(runner_id, device_id, text) do
     case ScriptRunners.connected_device_ids([device_id]) do
       [^device_id] -> run(runner_id, device_id, text)
       [] -> record(runner_id, device_id, :offline, nil)

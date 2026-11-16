@@ -29,7 +29,7 @@ defmodule NervesHub.Workers.ScriptRunnerDispatchTest do
   # limit in config is retuned.
   defp ceiling(), do: ScriptRunnerDispatch.ceiling()
 
-  defp run_with(ctx, device_count) do
+  defp run_with(ctx, device_count, opts \\ []) do
     tag = "run-#{System.unique_integer([:positive])}"
 
     for _ <- 1..device_count do
@@ -40,7 +40,7 @@ defmodule NervesHub.Workers.ScriptRunnerDispatchTest do
     {:ok, runner, []} =
       ScriptRunners.create(ctx.product, ctx.user, %{
         name: "Say hi #{tag}",
-        text: "IO.puts(:hi)",
+        text: Keyword.get(opts, :text, "IO.puts(:hi)"),
         filter_type: :tags,
         filter: %{tags: [tag], tag_operator: :or}
       })
@@ -349,12 +349,16 @@ defmodule NervesHub.Workers.ScriptRunnerDispatchTest do
     end
   end
 
-  test "carries the run's own text, so an edited script cannot change a run", ctx do
-    runner = run_with(ctx, 1)
+  # `oban_jobs` carries a unique btree index over `args`, and a btree row is
+  # capped at 2704 bytes. A script in the args put any run past a few KB over
+  # that, so its device jobs could never be inserted. The device worker reads the
+  # text from the run instead.
+  test "leaves the script out of the device jobs, so a long one can be dispatched", ctx do
+    runner = run_with(ctx, 1, text: "# " <> Base.encode64(:crypto.strong_rand_bytes(6_000)))
 
     assert {:snooze, _} = dispatch(runner)
 
     [job] = device_jobs_for(runner)
-    assert job.args["text"] == runner.text
+    assert Map.keys(job.args) |> Enum.sort() == ["device_id", "script_runner_id"]
   end
 end

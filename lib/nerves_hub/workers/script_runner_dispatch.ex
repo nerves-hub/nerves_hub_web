@@ -128,13 +128,10 @@ defmodule NervesHub.Workers.ScriptRunnerDispatch do
   defp insert_device_jobs(device_ids, runner) do
     jobs =
       Enum.map(device_ids, fn device_id ->
-        ScriptRunnerDevice.new(%{
-          script_runner_id: runner.id,
-          device_id: device_id,
-          # Carried on the job rather than read back per device: the text is
-          # immutable, so a job always runs what the run recorded.
-          text: runner.text
-        })
+        # The script is not carried on the job: `oban_jobs` has a unique btree
+        # index over `args`, which caps them at 2704 bytes, and a script of a few
+        # KB would make the insert fail. The device worker reads it off the run.
+        ScriptRunnerDevice.new(%{script_runner_id: runner.id, device_id: device_id})
       end)
 
     _ = Oban.insert_all(jobs)

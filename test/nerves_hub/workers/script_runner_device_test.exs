@@ -42,11 +42,7 @@ defmodule NervesHub.Workers.ScriptRunnerDeviceTest do
   end
 
   defp perform(runner, device) do
-    perform_job(ScriptRunnerDevice, %{
-      "script_runner_id" => runner.id,
-      "device_id" => device.id,
-      "text" => runner.text
-    })
+    perform_job(ScriptRunnerDevice, %{"script_runner_id" => runner.id, "device_id" => device.id})
   end
 
   defp result(runner) do
@@ -213,6 +209,35 @@ defmodule NervesHub.Workers.ScriptRunnerDeviceTest do
     result = result(runner)
     assert result.status == :failed
     assert result.output =~ "wheels came off"
+  end
+
+  # The previous release carried the script on the job. Those jobs can still be
+  # queued across a deploy, and must run the same way.
+  test "runs a job queued with the script in its args", ctx do
+    %{device: device, runner: runner} = run_for(ctx, %{})
+    _ = Fixtures.device_connection_fixture(device)
+
+    stub(Runner, :send, fn _device, %{text: "IO.puts(:hi)"}, _opts -> {:ok, "hi"} end)
+
+    assert :ok =
+             perform_job(ScriptRunnerDevice, %{
+               "script_runner_id" => runner.id,
+               "device_id" => device.id,
+               "text" => runner.text
+             })
+
+    assert result(runner).status == :completed
+  end
+
+  test "a job whose run was deleted is cancelled without sending anything", ctx do
+    %{device: device, runner: runner} = run_for(ctx, %{})
+    _ = Fixtures.device_connection_fixture(device)
+
+    {:ok, _} = ScriptRunners.delete(runner, ctx.user, ctx.product)
+
+    reject(&Runner.send/3)
+
+    assert {:cancel, _reason} = perform(runner, device)
   end
 
   test "tells subscribers the device finished", ctx do

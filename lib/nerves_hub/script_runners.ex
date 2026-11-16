@@ -473,6 +473,20 @@ defmodule NervesHub.ScriptRunners do
   end
 
   @doc """
+  The script a run sends to its devices, or `nil` if the run no longer exists.
+
+  Read by each device job rather than carried in its args: `oban_jobs` has a
+  unique btree index over `args`, which caps them at 2704 bytes.
+  """
+  @spec script_text(integer()) :: String.t() | nil
+  def script_text(runner_id) do
+    ScriptRunner
+    |> where([sr], sr.id == ^runner_id)
+    |> select([sr], sr.text)
+    |> Repo.one()
+  end
+
+  @doc """
   What each of a run's devices did, ordered by device identifier.
   """
   @spec device_results(ScriptRunner.t()) :: [ScriptRunnerDevice.t()]

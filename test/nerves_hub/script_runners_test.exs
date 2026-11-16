@@ -353,6 +353,18 @@ defmodule NervesHub.ScriptRunnersTest do
       assert "can't be blank" in errors_on(changeset).text
     end
 
+    test "refuses script text over 64 KB", ctx do
+      _device = device(ctx, %{tags: ["production"]})
+
+      params = %{filter_type: :tags, filter: %{tags: ["production"], tag_operator: :or}}
+
+      assert {:error, changeset} = create(ctx, Map.put(params, :text, String.duplicate("a", 65_537)))
+      assert Enum.any?(errors_on(changeset).text, &(&1 =~ "should be at most"))
+
+      assert {:ok, _runner, []} =
+               create(ctx, Map.merge(params, %{name: "At the cap", text: String.duplicate("a", 65_536)}))
+    end
+
     test "requires a name", ctx do
       _device = device(ctx, %{tags: ["production"]})
 
@@ -859,8 +871,7 @@ defmodule NervesHub.ScriptRunnersTest do
         Oban.insert(
           NervesHub.Workers.ScriptRunnerDevice.new(%{
             script_runner_id: ctx.runner.id,
-            device_id: device_id,
-            text: ctx.runner.text
+            device_id: device_id
           })
         )
 

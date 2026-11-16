@@ -42,6 +42,7 @@ defmodule NervesHub.ScriptRunners.ScriptRunner do
   @filter_types [:tags, :identifiers, :deployment_groups]
   @statuses [:pending, :running, :completed]
   @tag_operators [:and, :or]
+  @max_text_bytes 65_536
 
   schema "script_runners" do
     belongs_to(:product, Product)
@@ -137,6 +138,9 @@ defmodule NervesHub.ScriptRunners.ScriptRunner do
     |> cast(params, [:name, :description, :text, :language, :filter_type, :device_count])
     |> validate_required([:name, :text, :filter_type])
     |> validate_length(:name, max: 255)
+    # Far more than a diagnostic script needs. The text is pushed to every device
+    # the run targets, so an unbounded one is that much traffic per device.
+    |> validate_length(:text, max: @max_text_bytes, count: :bytes)
     |> cast_embed(:filter, required: true, with: &filter_changeset/2)
     |> validate_filter_for_type()
     |> put_assoc(:product, product)
