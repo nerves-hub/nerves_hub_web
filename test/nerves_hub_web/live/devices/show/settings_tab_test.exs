@@ -8,10 +8,12 @@ defmodule NervesHubWeb.Live.Devices.Show.SettingsTabTest do
   alias NervesHub.Accounts.User
   alias NervesHub.Devices
   alias NervesHub.Devices.CACertificates
+  alias NervesHub.Devices.Device
   alias NervesHub.Fixtures
   alias NervesHub.Repo
   alias NervesHubWeb.Components.DevicePage.SettingsTab
   alias NervesHubWeb.Components.Utils
+  alias NervesHubWeb.Mounts.RequireAuthorization.AuthorizationFailed
   alias Phoenix.LiveView.Socket
   alias Phoenix.LiveView.UploadEntry
   alias Phoenix.Socket.Broadcast
@@ -290,10 +292,8 @@ defmodule NervesHubWeb.Live.Devices.Show.SettingsTabTest do
 
       session = visit(conn, ~p"/org/#{org}/#{product}/devices/#{device}/settings")
 
-      Process.flag(:trap_exit, true)
-
-      assert {{%NervesHubWeb.UnauthorizedError{}, _}, _} =
-               catch_exit(render_click(session.view, "update-extension", %{"extension" => "geo", "value" => "off"}))
+      assert render_click(session.view, "update-extension", %{"extension" => "geo", "value" => "off"}) =~
+               "Sorry. You were denied access. Please check your role or contact your support."
 
       assert Repo.reload(device).extensions.geo
     end
@@ -315,10 +315,8 @@ defmodule NervesHubWeb.Live.Devices.Show.SettingsTabTest do
         |> assert_has("div", text: "Serial: #{Utils.format_serial(cert.serial)}")
         |> refute_has("button[phx-click=\"delete-certificate\"]")
 
-      Process.flag(:trap_exit, true)
-
-      assert {{%NervesHubWeb.UnauthorizedError{}, _}, _} =
-               catch_exit(render_click(session.view, "delete-certificate", %{"serial" => cert.serial}))
+      assert render_click(session.view, "delete-certificate", %{"serial" => cert.serial}) =~
+               "Sorry. You were denied access. Please check your role or contact your support."
 
       assert [%{serial: serial}] = Repo.preload(device, :device_certificates, force: true).device_certificates
       assert serial == cert.serial
@@ -346,10 +344,10 @@ defmodule NervesHubWeb.Live.Devices.Show.SettingsTabTest do
   # when the page mounts, so no page can reach this. It guards the certificate
   # being saved if the upload were ever offered to someone it shouldn't be.
   test "a finished certificate upload is authorized before it is saved" do
-    socket = %Socket{assigns: %{__changed__: %{}, current_scope: %Scope{role: :view}}}
+    socket = %Socket{assigns: %{__changed__: %{}, current_scope: %Scope{role: :view}, device: %Device{}}}
     entry = %UploadEntry{upload_config: :certificate, done?: true}
 
-    assert_raise NervesHubWeb.UnauthorizedError, fn ->
+    assert_raise AuthorizationFailed, fn ->
       SettingsTab.handle_progress(:certificate, entry, socket)
     end
   end

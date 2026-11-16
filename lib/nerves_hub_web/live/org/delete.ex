@@ -7,6 +7,7 @@ defmodule NervesHubWeb.Live.Org.Delete do
   on_mount(OrgCounts)
 
   @impl Phoenix.LiveView
+  @decorate requires_permission(:"organization:delete")
   def mount(_params, _session, %{assigns: %{current_scope: scope}} = socket) do
     socket
     |> page_title("Delete Organization - #{scope.org.name}")
@@ -17,6 +18,7 @@ defmodule NervesHubWeb.Live.Org.Delete do
   end
 
   @impl Phoenix.LiveView
+  @decorate requires_permission(:"organization:delete")
   def handle_event("delete", params, %{assigns: %{current_scope: scope}} = socket) do
     authorized!(:"organization:delete", scope)
 

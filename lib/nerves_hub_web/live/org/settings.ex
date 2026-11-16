@@ -9,6 +9,8 @@ defmodule NervesHubWeb.Live.Org.Settings do
   on_mount(OrgCounts)
 
   @impl Phoenix.LiveView
+  # Members who aren't admins see the settings with the controls disabled.
+  @decorate requires_permission(:"organization:view")
   def mount(_params, _session, %{assigns: %{current_scope: scope}} = socket) do
     socket
     |> page_title("Settings - #{scope.org.name}")
@@ -23,6 +25,7 @@ defmodule NervesHubWeb.Live.Org.Settings do
   end
 
   @impl Phoenix.LiveView
+  @decorate requires_permission(:"organization:update")
   def handle_event("update", %{"org" => org_params}, %{assigns: %{current_scope: scope}} = socket) do
     authorized!(:"organization:update", scope)
 

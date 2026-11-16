@@ -17,7 +17,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
       accept: ~w(.json),
       max_entries: 1,
       auto_upload: true,
-      progress: &handle_progress/3
+      progress: authorized_progress(&handle_progress/3)
     )
     |> assign(:form, to_form(changeset))
     |> assign(:available_tags, Devices.distinct_tags_for_product(assigns.current_scope.product))
@@ -356,6 +356,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
     """
   end
 
+  @decorate requires_permission(:"deployment_group:update", on: :deployment_group)
   def handle_progress(:workflow_definition, entry, socket) do
     %{
       current_scope: %{org: org, product: product, user: user},
@@ -429,6 +430,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
 
   @impl Phoenix.LiveComponent
 
+  @decorate requires_permission(:"deployment_group:update", on: :deployment_group)
   def handle_event("delete-workflow-definition", _params, socket) do
     %{
       current_scope: %{org: org, product: product, user: user},
@@ -466,6 +468,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
     end
   end
 
+  @decorate requires_permission(:"deployment_group:view", on: :deployment_group)
   def handle_event("validate-deployment-group", %{"deployment_group" => params}, socket) do
     changeset =
       socket.assigns.deployment_group
@@ -476,6 +479,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
     |> noreply()
   end
 
+  @decorate requires_permission(:"deployment_group:update", on: :deployment_group)
   def handle_event("update-deployment-group", %{"deployment_group" => params}, socket) do
     %{
       current_scope: %{org: org, product: product, user: user},
@@ -511,6 +515,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
     end
   end
 
+  @decorate requires_permission(:"deployment_group:delete", on: :deployment_group)
   def handle_event("delete-deployment-group", _params, socket) do
     authorized!(:"deployment_group:delete", socket.assigns.current_scope)
 

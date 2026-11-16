@@ -65,13 +65,14 @@ defmodule NervesHubWeb do
       unquote(live_view_setup())
       unquote(live_view_imports())
       unquote(live_view_helper_functions())
-      unquote(auth_decorator())
+      # Must come after live_view_setup() so Phoenix.LiveView is loaded first
+      unquote(authorized_live_view())
     end
   end
 
-  defp auth_decorator() do
+  defp authorized_live_view() do
     quote do
-      use NervesHubWeb.AuthDecorator
+      use NervesHubWeb.Access.AuthorizedLiveView
     end
   end
 
@@ -180,6 +181,7 @@ defmodule NervesHubWeb do
   def live_component() do
     quote do
       use Phoenix.LiveComponent
+      use NervesHubWeb.Access.AuthorizedLiveComponent
 
       import NervesHubWeb.Components.DateTimes
       import NervesHubWeb.Components.Icons
@@ -300,6 +302,7 @@ defmodule NervesHubWeb do
   defp hooked_component_setup() do
     quote do
       use Phoenix.Component
+      use NervesHubWeb.Access.AuthorizedTab
 
       alias Phoenix.LiveView.JS
       alias Phoenix.Socket.Broadcast
@@ -365,7 +368,7 @@ defmodule NervesHubWeb do
       def attach_hooks(%{assigns: %{tab: tab}} = socket) when tab == @tab_id do
         socket
         |> attach_hook(tab_hook_id(), :handle_async, &__MODULE__.hooked_async/3)
-        |> attach_hook(tab_hook_id(), :handle_event, &__MODULE__.hooked_event/3)
+        |> attach_hook(tab_hook_id(), :handle_event, &__MODULE__.authorized_hooked_event/3)
         |> attach_hook(tab_hook_id(), :handle_info, &__MODULE__.hooked_info/2)
       end
 

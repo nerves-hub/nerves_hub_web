@@ -457,12 +457,14 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Releases do
   end
 
   @impl Phoenix.LiveComponent
+  @decorate requires_permission(:"deployment_group:view", on: :deployment_group)
   def handle_event("toggle-rollout-options", _params, socket) do
     socket
     |> assign(:show_rollout_options, !socket.assigns.show_rollout_options)
     |> noreply()
   end
 
+  @decorate requires_permission(:"deployment_group:view", on: :deployment_group)
   def handle_event("validate-release", %{"deployment_release" => params}, socket) do
     %{
       current_scope: scope,
@@ -480,6 +482,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Releases do
     |> noreply()
   end
 
+  @decorate requires_permission(:"deployment_group:update", on: :deployment_group)
   def handle_event("update-release", %{"deployment_release" => params}, socket) do
     %{
       current_scope: scope,
@@ -516,6 +519,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Releases do
     end
   end
 
+  @decorate requires_permission(:"deployment_group:update", on: :deployment_group)
   def handle_event("toggle-release-required", %{"release_id" => release_id}, socket) do
     %{current_scope: scope, releases: releases} = socket.assigns
 
@@ -542,6 +546,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Releases do
     end
   end
 
+  @decorate requires_permission(:"deployment_group:view", on: :deployment_group)
   def handle_event("show-release-deltas", %{"release_id" => release_id}, socket) do
     case Enum.find(socket.assigns.releases, &(to_string(&1.id) == to_string(release_id))) do
       nil ->
@@ -555,6 +560,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Releases do
     end
   end
 
+  @decorate requires_permission(:"deployment_group:update", on: :deployment_group)
   def handle_event("retry-delta", %{"id" => id}, socket) do
     %{current_scope: scope, deltas: deltas} = socket.assigns
 
@@ -570,6 +576,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Releases do
     |> noreply()
   end
 
+  @decorate requires_permission(:"deployment_group:update", on: :deployment_group)
   def handle_event("delete-delta", %{"id" => id}, socket) do
     %{current_scope: scope, deltas: deltas} = socket.assigns
 
@@ -585,6 +592,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Releases do
     |> noreply()
   end
 
+  @decorate requires_permission(:"deployment_group:update", on: :deployment_group)
   def handle_event("edit-release", %{"release_id" => release_id}, socket) do
     %{current_scope: scope, releases: releases} = socket.assigns
 
@@ -602,16 +610,19 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Releases do
     end
   end
 
+  @decorate requires_permission(:"deployment_group:view", on: :deployment_group)
   def handle_event("validate-connecting-code", %{"release_connecting_code" => params}, socket) do
     socket
     |> assign(:connecting_code_form, connecting_code_form(socket.assigns.editing_release, params, :validate))
     |> noreply()
   end
 
+  @decorate requires_permission(:"deployment_group:update", on: :deployment_group)
   def handle_event("save-connecting-code", %{"release_connecting_code" => params}, socket) do
     save_connecting_code(socket, params, &"Connecting code for release #{&1.number} saved")
   end
 
+  @decorate requires_permission(:"deployment_group:update", on: :deployment_group)
   def handle_event("remove-connecting-code", _params, socket) do
     save_connecting_code(socket, %{"connecting_code" => nil}, &"Connecting code removed from release #{&1.number}")
   end

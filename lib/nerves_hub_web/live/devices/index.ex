@@ -59,6 +59,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
 
   @tag_bulk_actions [:tag_devices, :add_tags_to_devices, :remove_tags_from_devices]
 
+  @decorate requires_permission(:"device:list")
   def mount(_params, _session, %{assigns: %{current_scope: scope}} = socket) do
     product = Products.load_shared_secret_auth(scope.product)
 
@@ -115,6 +116,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
     |> ok()
   end
 
+  @decorate requires_permission(:"device:list")
   def handle_params(unsigned_params, _uri, %{assigns: %{product: product}} = socket) do
     filters = DeviceFiltering.parse_filters(unsigned_params)
     sort = DeviceFiltering.parse_sort(unsigned_params)
@@ -160,6 +162,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
 
   # Handles event of user clicking the same field that is already sorted
   # For this case, we switch the sorting direction of same field
+  @decorate requires_permission(:"device:list")
   def handle_event("sort", %{"sort" => value}, %{assigns: %{current_sort: current_sort}} = socket)
       when value == current_sort do
     %{sort_direction: sort_direction} = socket.assigns
@@ -174,6 +177,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
   end
 
   # User has clicked a new column to sort
+  @decorate requires_permission(:"device:list")
   def handle_event("sort", %{"sort" => value}, socket) do
     params = %{sort_direction: "asc", sort: value}
 
@@ -182,6 +186,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
     |> noreply()
   end
 
+  @decorate requires_permission(:"device:list")
   def handle_event("paginate", %{"page" => page_num}, socket) do
     params = %{"page_number" => page_num}
 
@@ -190,6 +195,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
     |> noreply()
   end
 
+  @decorate requires_permission(:"device:list")
   def handle_event("set-paginate-opts", %{"page-size" => page_size}, socket) do
     params = %{"page_size" => page_size, "page_number" => 1}
 
@@ -198,6 +204,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
     |> noreply()
   end
 
+  @decorate requires_permission(:"device:list")
   def handle_event("update-filters", params, %{assigns: %{paginate_opts: paginate_opts}} = socket) do
     page_params = %{"page_number" => @default_page, "page_size" => paginate_opts.page_size}
 
@@ -208,6 +215,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
     |> noreply()
   end
 
+  @decorate requires_permission(:"device:list")
   def handle_event("reset-filters", _, %{assigns: %{paginate_opts: paginate_opts}} = socket) do
     page_params = %{"page_number" => @default_page, "page_size" => paginate_opts.page_size}
 
@@ -220,6 +228,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
   # Free-text input is applied as its rewritten `search like "%text%"` form
   # (the canonical query from `AdvancedQuery.interpret/2`), so the search box
   # shows the query language equivalent of what was typed.
+  @decorate requires_permission(:"device:list")
   def handle_event("apply-advanced-query", %{"query" => raw_query}, %{assigns: %{current_scope: scope}} = socket) do
     query = String.trim(raw_query)
 
@@ -237,10 +246,12 @@ defmodule NervesHubWeb.Live.Devices.Index do
     end
   end
 
+  @decorate requires_permission(:"device:list")
   def handle_event("clear-advanced-query", _, socket) do
     apply_advanced_query(socket, "")
   end
 
+  @decorate requires_permission(:"device:list")
   def handle_event("update-settings", params, %{assigns: %{current_scope: scope}} = socket) do
     {:ok, user} = ListSettingsSidebar.update_displayed_columns(scope.user, :device_list_columns, params)
     {:noreply, assign(socket, :current_scope, %{scope | user: user})}
@@ -319,6 +330,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
     |> noreply()
   end
 
+  @decorate requires_permission(:"device:list")
   def handle_event("validate-tags", %{"tags" => tags} = params, socket) do
     socket
     |> assign(:valid_tags, not String.contains?(tags, " "))
@@ -366,6 +378,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
     end
   end
 
+  @decorate requires_permission(:"device:update")
   def handle_event("target-product", %{"product_id" => ""}, socket) do
     {:noreply, assign(socket, target_product: nil)}
   end
@@ -383,10 +396,12 @@ defmodule NervesHubWeb.Live.Devices.Index do
     end
   end
 
+  @decorate requires_permission(:"device:update")
   def handle_event("target-deployment-group", params, socket) when not is_map_key(params, "deployment_group") do
     {:noreply, assign(socket, target_deployment_group: nil)}
   end
 
+  @decorate requires_permission(:"device:update")
   def handle_event("target-deployment-group", %{"deployment_group" => ""}, socket) do
     {:noreply, assign(socket, target_deployment_group: nil)}
   end
@@ -505,6 +520,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
     end
   end
 
+  @decorate requires_permission(:"device:update")
   def handle_event("target-firmware", %{"firmware" => ""}, socket) do
     {:noreply, assign(socket, target_firmware: nil)}
   end
@@ -626,6 +642,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
     end
   end
 
+  @decorate requires_permission(:"device:list")
   def handle_event("page_visibility_change", %{"visible" => visible?}, socket) do
     socket
     |> then(fn socket ->

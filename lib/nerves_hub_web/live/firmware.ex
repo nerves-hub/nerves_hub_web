@@ -24,6 +24,7 @@ defmodule NervesHubWeb.Live.Firmware do
   @pagination_opts ["page_number", "page_size", "sort", "sort_direction"]
 
   @impl Phoenix.LiveView
+  @decorate requires_permission(:"firmware:list")
   def mount(_params, _session, %{assigns: %{current_scope: scope}} = socket) do
     if connected?(socket) do
       Logger.metadata(user_id: scope.user.id, product_id: scope.product.id)
@@ -37,6 +38,7 @@ defmodule NervesHubWeb.Live.Firmware do
   end
 
   @impl Phoenix.LiveView
+  @decorate requires_permission(:"firmware:list")
   def handle_params(params, _url, socket) do
     socket
     |> apply_action(socket.assigns.live_action, params)
@@ -57,7 +59,7 @@ defmodule NervesHubWeb.Live.Firmware do
       max_entries: 1,
       auto_upload: true,
       max_file_size: max_file_size(),
-      progress: &handle_progress/3,
+      progress: authorized_progress(&handle_progress/3),
       writer: fn _name, _entry, _socket -> {NervesHubWeb.BrieflyUploadWriter, parent: self()} end
     )
     |> assign_firmware_with_pagination()
@@ -92,8 +94,10 @@ defmodule NervesHubWeb.Live.Firmware do
 
   # A phx-change handler is required when using live uploads.
   @impl Phoenix.LiveView
+  @decorate requires_permission(:"firmware:list")
   def handle_event("validate-firmware", _, socket), do: {:noreply, socket}
 
+  @decorate requires_permission(:"firmware:list")
   def handle_event("paginate", %{"page" => page_num}, socket) do
     params = %{"page_number" => page_num}
 
@@ -102,6 +106,7 @@ defmodule NervesHubWeb.Live.Firmware do
     |> noreply()
   end
 
+  @decorate requires_permission(:"firmware:list")
   def handle_event("set-paginate-opts", %{"page-size" => page_size}, socket) do
     params = %{"page_size" => page_size, "page_number" => 1}
 
@@ -112,6 +117,7 @@ defmodule NervesHubWeb.Live.Firmware do
 
   # Handles event of user clicking the same field that is already sorted
   # For this case, we switch the sorting direction of same field
+  @decorate requires_permission(:"firmware:list")
   def handle_event("sort", %{"sort" => value}, %{assigns: %{current_sort: current_sort}} = socket)
       when value == current_sort do
     %{sort_direction: sort_direction} = socket.assigns
@@ -127,6 +133,7 @@ defmodule NervesHubWeb.Live.Firmware do
   end
 
   # User has clicked a new column to sort
+  @decorate requires_permission(:"firmware:list")
   def handle_event("sort", %{"sort" => value}, socket) do
     new_params = %{sort: value}
 
@@ -135,6 +142,7 @@ defmodule NervesHubWeb.Live.Firmware do
     |> noreply()
   end
 
+  @decorate requires_permission(:"firmware:list")
   def handle_event("firmware-selected", _, socket) do
     {:noreply, socket}
   end
@@ -143,6 +151,7 @@ defmodule NervesHubWeb.Live.Firmware do
   # shareable and survives a reload. Turning it off drops the param rather than
   # writing `include_deleted=false`, and either way the page count changes, so
   # go back to page 1.
+  @decorate requires_permission(:"firmware:list")
   def handle_event("toggle-deleted-firmware", _params, socket) do
     include_deleted = if !socket.assigns.include_deleted, do: "true"
 
@@ -154,12 +163,12 @@ defmodule NervesHubWeb.Live.Firmware do
   end
 
   # the delete handler for the list page
+  @decorate authorizes_in_body()
   def handle_event("delete-firmware", %{"firmware_uuid" => uuid}, socket) do
     %{current_scope: scope, product: product} = socket.assigns
 
-    authorized!(:"firmware:delete", scope)
-
     {:ok, firmware} = Firmwares.get_firmware_by_uuid(scope, uuid, include_deleted: true)
+    socket = authorize!(socket, :"firmware:delete", firmware)
 
     case Firmwares.delete_firmware(firmware, scope.user) do
       {:ok, _} ->
@@ -182,12 +191,12 @@ defmodule NervesHubWeb.Live.Firmware do
   end
 
   # the delete handler for the show page
+  @decorate authorizes_in_body()
   def handle_event("delete-firmware", _params, socket) do
-    authorized!(:"firmware:delete", socket.assigns.current_scope)
-
     %{current_scope: scope, firmware: firmware} = socket.assigns
 
     {:ok, firmware} = Firmwares.get_firmware_by_uuid(scope, firmware.uuid, include_deleted: true)
+    socket = authorize!(socket, :"firmware:delete", firmware)
 
     case Firmwares.delete_firmware(firmware, scope.user) do
       {:ok, _} ->
@@ -272,6 +281,7 @@ defmodule NervesHubWeb.Live.Firmware do
     {:noreply, socket}
   end
 
+  @decorate requires_permission(:"firmware:upload")
   def handle_progress(:firmware, entry, socket) do
     authorized!(:"firmware:upload", socket.assigns.current_scope)
 

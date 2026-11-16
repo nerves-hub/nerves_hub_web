@@ -9,6 +9,7 @@ defmodule NervesHubWeb.Live.Account.SlackLink do
   alias NervesHub.Branding
 
   @impl Phoenix.LiveView
+  @decorate requires_no_permission()
   def mount(params, _session, socket) do
     socket
     |> page_title("Link Slack")

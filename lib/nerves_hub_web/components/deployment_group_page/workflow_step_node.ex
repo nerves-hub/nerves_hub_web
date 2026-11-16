@@ -43,6 +43,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.WorkflowStepNode do
   end
 
   @impl Phoenix.LiveComponent
+  @decorate special_permission(:checked_by_the_live_view_when_it_acts_on_the_step)
   def handle_event("skip", _params, socket) do
     send(self(), {:workflow_step_action, :skip, socket.assigns.number})
 

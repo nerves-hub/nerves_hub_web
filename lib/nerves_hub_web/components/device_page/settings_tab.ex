@@ -43,7 +43,7 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
         accept: :any,
         auto_upload: true,
         max_entries: 1,
-        progress: &handle_progress/3
+        progress: authorized_progress(&handle_progress/3)
       )
     else
       socket
@@ -386,6 +386,7 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
     """
   end
 
+  @decorate requires_permission(:"device:view", on: :device)
   def hooked_event("validate-device-settings", %{"device" => device_params}, socket) do
     changeset = Device.update_changeset(socket.assigns.device, device_params)
 
@@ -394,6 +395,7 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
     |> halt()
   end
 
+  @decorate requires_permission(:"device:update", on: :device)
   def hooked_event("update-device-settings", %{"device" => device_params}, socket) do
     authorized!(:"device:update", socket.assigns.current_scope)
 
@@ -430,6 +432,7 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
     end
   end
 
+  @decorate requires_permission(:"device:delete", on: :device)
   def hooked_event("delete-device", _, socket) do
     authorized!(:"device:delete", socket.assigns.current_scope)
 
@@ -443,6 +446,7 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
     |> halt()
   end
 
+  @decorate requires_permission(:"device:restore", on: :device)
   def hooked_event("restore-device", _, socket) do
     authorized!(:"device:restore", socket.assigns.current_scope)
 
@@ -456,6 +460,7 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
     |> halt()
   end
 
+  @decorate requires_permission(:"device:destroy", on: :device)
   def hooked_event("destroy-device", _, socket) do
     %{current_scope: current_scope, device: device} = socket.assigns
 
@@ -472,8 +477,10 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
   end
 
   # A phx-change handler is required when using live uploads.
+  @decorate requires_permission(:"device:view", on: :device)
   def hooked_event("validate-cert", _, socket), do: {:halt, socket}
 
+  @decorate requires_permission(:"device:update", on: :device)
   def hooked_event("delete-certificate", %{"serial" => serial}, %{assigns: %{device: device}} = socket) do
     authorized!(:"device:update", socket.assigns.current_scope)
 
@@ -497,6 +504,7 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
     end
   end
 
+  @decorate requires_permission(:"device:update", on: :device)
   def hooked_event("create-shared-secret", _params, %{assigns: %{device: %{deleted_at: nil} = device}} = socket) do
     authorized!(:"device:update", socket.assigns.current_scope)
 
@@ -519,12 +527,14 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
     end
   end
 
+  @decorate requires_permission(:"device:view", on: :device)
   def hooked_event("dismiss-shared-secret", _params, socket) do
     socket
     |> assign(:new_shared_secret, nil)
     |> halt()
   end
 
+  @decorate requires_permission(:"device:update", on: :device)
   def hooked_event(
         "deactivate-shared-secret",
         %{"key" => key},
@@ -546,12 +556,14 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
     |> halt()
   end
 
+  @decorate requires_permission(:"device:view", on: :device)
   def hooked_event(event, _params, socket) when event in ["create-shared-secret", "deactivate-shared-secret"] do
     socket
     |> put_flash(:error, "The device is deleted and must be restored to change its shared secrets.")
     |> halt()
   end
 
+  @decorate requires_permission(:"device:toggle-updates", on: :device)
   def hooked_event("toggle-managed-updates-allowed", params, socket) do
     authorized!(:"device:toggle-updates", socket.assigns.current_scope)
 
@@ -572,6 +584,7 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
     end
   end
 
+  @decorate requires_permission(:"device:update", on: :device)
   def hooked_event("update-extension", %{"extension" => extension} = params, socket) do
     authorized!(:"device:update", socket.assigns.current_scope)
 
@@ -607,12 +620,14 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
     |> halt()
   end
 
+  @decorate requires_no_permission()
   def hooked_event(_event, _params, socket), do: {:cont, socket}
 
   def hooked_info(_event, socket), do: {:cont, socket}
 
   def hooked_async(_name, _async_fun_result, socket), do: {:cont, socket}
 
+  @decorate requires_permission(:"device:update", on: :device)
   def handle_progress(:certificate, %{done?: true} = entry, socket) do
     authorized!(:"device:update", socket.assigns.current_scope)
 
@@ -621,6 +636,7 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
     {:noreply, socket}
   end
 
+  @decorate requires_permission(:"device:update", on: :device)
   def handle_progress(:certificate, _entry, socket), do: {:noreply, socket}
 
   defp import_cert(%{assigns: %{device: device}} = socket, path) do

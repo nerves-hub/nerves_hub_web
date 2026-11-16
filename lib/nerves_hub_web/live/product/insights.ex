@@ -25,6 +25,7 @@ defmodule NervesHubWeb.Live.Product.Insights do
   @failing_updates_list_size 8
 
   @impl Phoenix.LiveView
+  @decorate requires_permission(:"product:view")
   def mount(_params, _session, %{assigns: %{current_scope: scope}} = socket) do
     product = Products.load_shared_secret_auth(scope.product)
 
@@ -44,12 +45,14 @@ defmodule NervesHubWeb.Live.Product.Insights do
   end
 
   @impl Phoenix.LiveView
+  @decorate requires_permission(:"product:view")
   def handle_event("toggle-auto-refresh", _params, %{assigns: %{polling_pid: nil}} = socket) do
     socket
     |> update_information()
     |> noreply()
   end
 
+  @decorate requires_permission(:"product:view")
   def handle_event("toggle-auto-refresh", _params, %{assigns: %{polling_pid: polling_pid}} = socket) do
     _ = Process.cancel_timer(polling_pid)
 
@@ -58,30 +61,35 @@ defmodule NervesHubWeb.Live.Product.Insights do
     |> noreply()
   end
 
+  @decorate requires_permission(:"product:view")
   def handle_event("select-graph-time-period", %{"period" => period}, socket) when period in @graph_periods do
     socket
     |> maybe_assign_device_connections_graph(String.to_existing_atom(period))
     |> noreply()
   end
 
+  @decorate requires_permission(:"product:view")
   def handle_event("select-graph-time-period", _params, socket) do
     socket
     |> put_flash(:error, "Invalid graph period selected")
     |> noreply()
   end
 
+  @decorate requires_permission(:"product:view")
   def handle_event("select-update-graph-time-period", %{"period" => period}, socket) when period in @graph_periods do
     socket
     |> maybe_assign_update_outcomes_graph(String.to_existing_atom(period))
     |> noreply()
   end
 
+  @decorate requires_permission(:"product:view")
   def handle_event("select-update-graph-time-period", _params, socket) do
     socket
     |> put_flash(:error, "Invalid graph period selected")
     |> noreply()
   end
 
+  @decorate requires_permission(:"product:view")
   def handle_event(
         "view-devices-with-firmware-version",
         %{"version" => version},

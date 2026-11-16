@@ -443,12 +443,8 @@ defmodule NervesHubWeb.Live.Org.CertificateAuthoritiesTest do
         |> visit("/org/#{org.name}/settings/certificates/#{ca.serial}")
         |> refute_has("button", text: "Delete")
 
-      Process.flag(:trap_exit, true)
-
-      assert {{%NervesHubWeb.UnauthorizedError{}, _}, _} =
-               catch_exit(
-                 render_click(session.view, "delete-certificate-authority", %{"certificate_serial" => ca.serial})
-               )
+      assert render_click(session.view, "delete-certificate-authority", %{"certificate_serial" => ca.serial}) =~
+               "Sorry. You were denied access. Please check your role or contact your support."
 
       assert {:ok, _} = CACertificates.get_ca_certificate_by_serial(ca.serial)
     end

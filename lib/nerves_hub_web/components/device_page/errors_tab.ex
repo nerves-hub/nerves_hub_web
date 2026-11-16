@@ -60,6 +60,7 @@ defmodule NervesHubWeb.Components.DevicePage.ErrorsTab do
 
   def hooked_async(_name, _async_fun_result, socket), do: {:cont, socket}
 
+  @decorate requires_permission(:"device:view", on: :device)
   def hooked_event("toggle-error-streaming", _params, socket) do
     socket
     |> assign(:streaming_enabled, !socket.assigns.streaming_enabled)
@@ -70,6 +71,7 @@ defmodule NervesHubWeb.Components.DevicePage.ErrorsTab do
     |> halt()
   end
 
+  @decorate requires_permission(:"device:view", on: :device)
   def hooked_event("toggle-error-details", %{"fingerprint" => fingerprint}, socket) do
     if socket.assigns.expanded_fingerprint == fingerprint do
       socket
@@ -84,6 +86,7 @@ defmodule NervesHubWeb.Components.DevicePage.ErrorsTab do
     end
   end
 
+  @decorate requires_no_permission()
   def hooked_event(_event, _params, socket), do: {:cont, socket}
 
   def hooked_info(%Broadcast{event: "error_reports:received"}, socket) do

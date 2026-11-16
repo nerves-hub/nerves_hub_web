@@ -28,12 +28,14 @@ defmodule NervesHubWeb.Components.CommandPalette do
   # Open/close is owned by the server so re-renders (every keystroke fires
   # phx-change) don't clobber a client-toggled `hidden` class and snap it shut.
   @impl Phoenix.LiveComponent
+  @decorate requires_no_permission()
   def handle_event("open", _params, socket) do
     socket
     |> assign(:open, true)
     |> noreply()
   end
 
+  @decorate requires_no_permission()
   def handle_event("close", _params, socket) do
     socket
     |> assign(:open, false)
@@ -42,6 +44,7 @@ defmodule NervesHubWeb.Components.CommandPalette do
     |> noreply()
   end
 
+  @decorate special_permission(:search_only_returns_what_the_scope_can_see)
   def handle_event("search", %{"query" => query}, socket) do
     scope = socket.assigns.current_scope
 
