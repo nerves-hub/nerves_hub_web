@@ -2,6 +2,7 @@ defmodule NervesHubWeb.Live.Account do
   use NervesHubWeb, :live_view
 
   alias NervesHub.Accounts
+  alias NervesHub.Accounts.TwoFactor
   alias NervesHub.Accounts.UserToken
   alias NervesHub.Integrations.Slack.Users, as: SlackUsers
   alias NervesHubWeb.Components.DateTimes
@@ -18,6 +19,7 @@ defmodule NervesHubWeb.Live.Account do
     |> assign(:user, scope.user)
     |> assign(:new_token, nil)
     |> assign(:slack_links, SlackUsers.list_links(scope.user))
+    |> assign(:two_factor_enabled?, TwoFactor.enabled?(scope.user))
     |> ok()
   end
 

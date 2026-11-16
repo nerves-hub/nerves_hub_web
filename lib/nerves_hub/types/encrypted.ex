@@ -47,6 +47,16 @@ defmodule NervesHub.Types.Encrypted do
 
   def load(_value), do: :error
 
+  @doc """
+  Whether a key is configured. It is optional outside prod, and in prod is
+  only required once something needs it, so features that store a secret this
+  way check this before offering to.
+  """
+  @spec configured?() :: boolean()
+  def configured?() do
+    match?(<<_::binary-32>>, Application.get_env(:nerves_hub, __MODULE__, [])[:key])
+  end
+
   defp encrypt(plaintext) do
     iv = :crypto.strong_rand_bytes(12)
     {ciphertext, tag} = :crypto.crypto_one_time_aead(:aes_256_gcm, key(), iv, plaintext, @aad, true)

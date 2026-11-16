@@ -14,7 +14,7 @@ defmodule NervesHubWeb.UserSocketTest do
     session =
       Phoenix.ConnTest.build_conn()
       |> Plug.Test.init_test_session(%{})
-      |> Auth.log_in_user(user)
+      |> Auth.sign_in(user)
       |> Plug.Conn.get_session()
 
     %{user: user, session: session}

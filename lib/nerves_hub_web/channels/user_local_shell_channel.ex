@@ -5,6 +5,7 @@ defmodule NervesHubWeb.UserLocalShellChannel do
   alias NervesHub.Accounts.OrgUser
   alias NervesHub.Accounts.PubSub, as: AccessPubSub
   alias NervesHub.Accounts.Scope
+  alias NervesHub.Accounts.TwoFactor
   alias NervesHub.Consoles
   alias NervesHub.Devices
   alias NervesHubWeb.Helpers.Authorization
@@ -67,7 +68,8 @@ defmodule NervesHubWeb.UserLocalShellChannel do
 
     with {:ok, device} <- Devices.get_by_identifier(scope, identifier),
          %OrgUser{} = org_user <- Accounts.find_org_user_with_device(user, device.id),
-         true <- Authorization.authorized?(:"device:extensions:local_shell", org_user) do
+         true <- Authorization.authorized?(:"device:extensions:local_shell", org_user),
+         true <- TwoFactor.meets_org_requirement?(device.org_id, user) do
       device
     else
       _ ->

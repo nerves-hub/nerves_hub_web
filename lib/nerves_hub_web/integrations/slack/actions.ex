@@ -34,6 +34,7 @@ defmodule NervesHubWeb.Integrations.Slack.Actions do
 
   alias NervesHub.Accounts
   alias NervesHub.Accounts.Org
+  alias NervesHub.Accounts.TwoFactor
   alias NervesHub.Branding
   alias NervesHub.DeviceEvents
   alias NervesHub.Devices.Device
@@ -219,7 +220,8 @@ defmodule NervesHubWeb.Integrations.Slack.Actions do
   The checks, made fresh each time: the Slack user linked a NervesHub
   account, the device exists, its organization is connected to the
   workspace the request came from, the NervesHub user is a member there
-  whose role has `permission`, and the role lets them see the device (see
+  whose role has `permission`, they have two-factor on if the organization
+  requires it, and the role lets them see the device (see
   `NervesHub.Devices.Visibility`). Shared by buttons and slash commands
   (`NervesHubWeb.Integrations.Slack.Commands`).
   """
@@ -249,8 +251,9 @@ defmodule NervesHubWeb.Integrations.Slack.Actions do
   The checks `authorize/5` makes of the organization, for a NervesHub user a
   Slack user linked and something of the organization's other than a
   device: the organization is connected to the workspace the request came
-  from, and the user is a member whose role has `permission`, or any role
-  when `permission` is `nil`, as seeing a deployment group's page takes.
+  from, the user is a member whose role has `permission`, or any role
+  when `permission` is `nil`, as seeing a deployment group's page takes, and
+  they have two-factor on if the organization requires it.
   `subject` finishes "the organization ... belongs to", already escaped.
   """
   @spec authorize_in(String.t(), Accounts.User.t(), Org.t(), atom() | nil, String.t(), String.t()) ::
@@ -258,7 +261,8 @@ defmodule NervesHubWeb.Integrations.Slack.Actions do
   def authorize_in(team_id, %Accounts.User{} = user, %Org{} = org, permission, what, subject) do
     with {:connected, true} <- {:connected, connected?(org.id, team_id)},
          {:member, {:ok, org_user}} <- {:member, Accounts.get_org_user(org, user)},
-         {:allowed, true} <- {:allowed, is_nil(permission) or Authorization.authorized?(permission, org_user)} do
+         {:allowed, true} <- {:allowed, is_nil(permission) or Authorization.authorized?(permission, org_user)},
+         {:two_factor, true} <- {:two_factor, TwoFactor.meets_org_requirement?(org, user)} do
       :ok
     else
       {:connected, false} ->
@@ -269,6 +273,10 @@ defmodule NervesHubWeb.Integrations.Slack.Actions do
 
       {:allowed, false} ->
         {:error, :not_allowed, "Your role in #{platform()} does not let you #{what}."}
+
+      {:two_factor, false} ->
+        {:error, :two_factor_required,
+         "The organization #{subject} belongs to requires two-factor authentication. Turn it on in your #{platform()} account settings first."}
     end
   end
 

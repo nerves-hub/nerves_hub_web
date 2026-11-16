@@ -181,6 +181,11 @@
   --text-group-title: 0.875rem; /* 14px: a group inside a card */
   --text-group-title--line-height: 1.25rem;
   --text-group-title--font-weight: 600;
+
+  /* One-time code slots (NervesHubWeb.Components.OtpInput) */
+  --animate-otp-pop: otp-pop 140ms ease-out;
+  --animate-otp-shake: otp-shake 320ms ease-in-out;
+  --animate-otp-blink: otp-blink 1s steps(1, end) infinite;
 }
 
 /*
@@ -504,6 +509,42 @@
   }
   to {
     opacity: 1;
+  }
+}
+
+@keyframes otp-pop {
+  from {
+    transform: scale(0.6);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes otp-shake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  20%,
+  60% {
+    transform: translateX(-4px);
+  }
+  40%,
+  80% {
+    transform: translateX(4px);
+  }
+}
+
+@keyframes otp-blink {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0;
   }
 }
 

@@ -1,0 +1,101 @@
+<Layouts.auth flash={@flash}>
+  <:title>
+    Two-factor authentication
+  </:title>
+  <:subheader>
+    <span data-otp-mode="app" hidden={@mode != :app}>Type in the code from your authenticator app.</span>
+    <span data-otp-mode="recovery" hidden={@mode != :recovery}>Type in one of the recovery codes you saved.</span>
+  </:subheader>
+
+  <form id="two_factor_form" method="post" action={~p"/login/two-factor"} class="flex flex-col gap-5">
+    <input type="hidden" name="_csrf_token" value={Plug.CSRFProtection.get_csrf_token()} />
+
+    <div id="two_factor_account" class="flex items-center gap-3 border-b border-line-default pb-5">
+      <span class="flex size-9 flex-none items-center justify-center rounded-full bg-primary/10">
+        <span class="lucide-shield-check size-4.5 text-primary" aria-hidden="true"></span>
+      </span>
+      <div class="min-w-0">
+        <p class="text-[0.8125rem] text-content-muted">Signing in as</p>
+        <p class="truncate text-sm font-semibold text-content-strong">{@email}</p>
+      </div>
+    </div>
+
+    <div :if={@error_message} role="alert" data-otp-error class="flex gap-2.5 rounded-md border border-alert/30 bg-alert-soft p-3 text-sm text-alert-content">
+      <span class="mt-0.5 lucide-circle-exclamation-point size-4 flex-none text-alert" aria-hidden="true"></span>
+      <div>
+        <p class="font-semibold">{@error_message}</p>
+        <p :if={@error_detail}>{@error_detail}</p>
+      </div>
+    </div>
+
+    <div id="two_factor_app" data-otp-mode="app" hidden={@mode != :app}>
+      <.label for="code">Authentication code</.label>
+      <NervesHubWeb.Components.OtpInput.otp_input
+        id="code"
+        name="code"
+        invalid={!is_nil(@error_message)}
+        autosubmit
+        autofocus={@mode == :app && !@locked}
+        disabled={@locked || @mode != :app}
+        required
+        aria-describedby="code_hint"
+      />
+      <p :if={!@locked} id="code_hint" class="mt-1.5 text-[0.8125rem] text-content-muted">The code changes every 30 seconds.</p>
+    </div>
+
+    <div id="two_factor_recovery" data-otp-mode="recovery" hidden={@mode != :recovery}>
+      <input type="hidden" name="mode" value="recovery" disabled={@mode != :recovery} />
+      <.label for="recovery_code">Recovery code</.label>
+      <input
+        type="text"
+        id="recovery_code"
+        name="code"
+        value=""
+        placeholder="xxxxx-xxxxx"
+        autocomplete="off"
+        autocapitalize="none"
+        spellcheck="false"
+        autofocus={@mode == :recovery && !@locked}
+        disabled={@locked || @mode != :recovery}
+        required
+        aria-describedby="recovery_code_hint"
+        data-otp-invalid={!is_nil(@error_message)}
+        class="mt-2 block h-13 w-full rounded border-line-strong bg-base-900 px-3 text-center font-mono text-xl tracking-[0.08em] text-content-strong placeholder:text-content-faint focus:ring-2 focus:ring-focus-ring disabled:cursor-not-allowed disabled:opacity-60 data-otp-invalid:border-alert data-otp-invalid:focus:ring-alert"
+      />
+      <p :if={!@locked} id="recovery_code_hint" class="mt-1.5 text-[0.8125rem] text-content-muted">Each recovery code works once.</p>
+    </div>
+
+    <.button style="primary" type="submit" class="w-full" disabled={@locked}>
+      Verify
+    </.button>
+
+    <div :if={!@locked} id="two_factor_use_recovery" data-otp-mode="app" hidden={@mode != :app} class="flex gap-2.5 rounded-md bg-surface-muted p-3 text-[0.8125rem] text-content-muted">
+      <span class="mt-0.5 lucide-key-round size-4 flex-none" aria-hidden="true"></span>
+      <p>
+        <span class="font-semibold text-content-strong">Lost your phone?</span>
+        <.link href={~p"/login/two-factor?mode=recovery"} data-otp-mode-toggle="recovery" class="font-semibold text-primary hover:text-primary-hover light:text-indigo-600 light:hover:text-indigo-500">
+          Use a recovery code instead
+        </.link>
+      </p>
+    </div>
+
+    <div :if={!@locked} id="two_factor_use_app" data-otp-mode="recovery" hidden={@mode != :recovery} class="flex gap-2.5 rounded-md bg-surface-muted p-3 text-[0.8125rem] text-content-muted">
+      <span class="mt-0.5 lucide-smartphone size-4 flex-none" aria-hidden="true"></span>
+      <p>
+        <span class="font-semibold text-content-strong">Have your phone?</span>
+        <.link href={~p"/login/two-factor"} data-otp-mode-toggle="app" class="font-semibold text-primary hover:text-primary-hover light:text-indigo-600 light:hover:text-indigo-500">
+          Use your authenticator app
+        </.link>
+      </p>
+    </div>
+  </form>
+
+  <:footer>
+    <form id="two_factor_cancel" method="post" action={~p"/login/two-factor/cancel"} class="inline">
+      <input type="hidden" name="_csrf_token" value={Plug.CSRFProtection.get_csrf_token()} /> Not you?
+      <button type="submit" class="font-semibold text-primary hover:cursor-pointer hover:text-primary-hover light:text-indigo-600 light:hover:text-indigo-500">
+        Sign in as someone else
+      </button>
+    </form>
+  </:footer>
+</Layouts.auth>

@@ -531,7 +531,7 @@ Read in every environment. See [Slack](slack.md) for creating the Slack app thes
 | `SLACK_CLIENT_SECRET` | — | The Slack app's client secret, used to exchange an install's code for its bot token. |
 | `SLACK_SIGNING_SECRET` | — | The Slack app's signing secret. Requests to `/integrations/slack/` without a valid signature are refused, and without it those URLs answer 404. |
 | `SLACK_APP_TOKEN` | — | An app-level token (`xapp-…`, with the `connections:write` scope), for an instance Slack cannot reach. When set, each web node opens two Socket Mode connections to Slack and gets Slack's events, button clicks and slash commands over them, instead of at `/integrations/slack/`. See [Slack](slack.md#an-instance-slack-cannot-reach-socket-mode). |
-| `SECRETS_ENCRYPTION_KEY` | — (a fixed key in dev and test) | 32 random bytes, base64 encoded (`openssl rand -base64 32`). Encrypts secrets NervesHub holds for others, such as Slack bot tokens, before they are stored. Required in prod when `SLACK_CLIENT_ID` is set. Changing it makes the stored secrets unreadable, so connected workspaces would have to be connected again. |
+| `SECRETS_ENCRYPTION_KEY` | — (a fixed key in dev and test) | 32 random bytes, base64 encoded (`openssl rand -base64 32`). Encrypts secrets NervesHub holds for others, such as Slack bot tokens, before they are stored. Also encrypts each user's two-factor authentication secret, so two-factor authentication is only offered when it is set. Required in prod when `SLACK_CLIENT_ID` is set. Changing it makes the stored secrets unreadable, so connected workspaces would have to be connected again, and users with two-factor authentication on could no longer sign in. |
 
 ## Branding and UI
 

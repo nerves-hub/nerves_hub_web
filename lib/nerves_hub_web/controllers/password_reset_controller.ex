@@ -43,11 +43,10 @@ defmodule NervesHubWeb.PasswordResetController do
 
   def update(%{assigns: %{user: user}} = conn, %{"user" => user_params}) do
     case Accounts.reset_user_password(user, user_params) do
+      # Resetting the password proves the email address is theirs, but not
+      # that they hold the second factor, so two-factor is still asked for.
       {:ok, updated_user} ->
-        conn
-        |> put_flash(:info, "Password reset successfully.")
-        |> Auth.link_pending_google_account(updated_user)
-        |> Auth.log_in_user(updated_user, user_params)
+        Auth.sign_in(conn, updated_user, user_params, flash: "Password reset successfully.", link_google: true)
 
       {:error, changeset} ->
         render(conn, :edit, changeset: changeset)

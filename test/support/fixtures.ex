@@ -4,6 +4,7 @@ defmodule NervesHub.Fixtures do
   alias NervesHub.Accounts
   alias NervesHub.Accounts.Org
   alias NervesHub.Accounts.OrgKey
+  alias NervesHub.Accounts.TwoFactor
   alias NervesHub.Archives
   alias NervesHub.AuditLogs.AuditLog
   alias NervesHub.Certificate
@@ -220,6 +221,29 @@ defmodule NervesHub.Fixtures do
     {:ok, user} = Accounts.confirm_user(user)
 
     user
+  end
+
+  @doc """
+  Turns two-factor authentication on for `user`. Returns the TOTP secret, the
+  recovery codes and the code that turned it on.
+
+  Turning it on uses up the current period's code, so sign in with
+  `next_totp_code/1`.
+  """
+  def two_factor_fixture(user) do
+    secret = TwoFactor.new_secret()
+    enable_code = NimbleTOTP.verification_code(secret)
+    {:ok, codes} = TwoFactor.enable(user, secret, enable_code)
+
+    %{secret: secret, recovery_codes: codes, enable_code: enable_code}
+  end
+
+  @doc """
+  The code for the period after this one, which is accepted for clock drift
+  and hasn't been used yet.
+  """
+  def next_totp_code(secret) do
+    NimbleTOTP.verification_code(secret, time: System.os_time(:second) + 30)
   end
 
   @doc """

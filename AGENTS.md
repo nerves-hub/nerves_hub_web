@@ -82,6 +82,16 @@ when adding or removing one.
   same permissions with `plug(:require_permission, :"firmware:upload" when
   action in [:create])`, and read-only actions with `plug(:require_membership)`
   (`helpers/permission_plugs.ex`).
+- Two-factor authentication (`accounts/two_factor.ex`) is optional per user:
+  an authenticator app (TOTP, through NimbleTOTP) plus ten single-use
+  recovery codes. Its secret is encrypted with `Types.Encrypted`, so it is
+  only offered when `SECRETS_ENCRYPTION_KEY` is set. Signing in goes through
+  `NervesHubWeb.Auth.sign_in/4`, which stops at `/login/two-factor` for a
+  user who has it on; a new way to sign in must use it too, or it skips the
+  second step. An organization can require it of every member
+  (`orgs.require_two_factor`): the browser and API pipelines, LiveView
+  mounts, console and shell channels, and Slack actions all turn away a
+  member without it.
 - A custom role can be limited to devices with certain tags. Its members see
   only those devices, so **every device query a user can reach must go through
   `NervesHub.Devices.Visibility.where_visible/2`**, which checks the member's
