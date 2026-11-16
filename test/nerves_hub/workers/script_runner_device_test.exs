@@ -75,6 +75,23 @@ defmodule NervesHub.Workers.ScriptRunnerDeviceTest do
     assert result.finished_at
   end
 
+  # PostgreSQL rejects both in a `text` column. A failed write would crash the
+  # job and leave the row at `:running`, to be released and sent again.
+  test "output with a NUL byte or invalid UTF-8 is stored scrubbed", ctx do
+    %{device: device, runner: runner} = run_for(ctx, %{})
+    _ = Fixtures.device_connection_fixture(device)
+
+    stub(Runner, :send, fn _device, _command, _opts ->
+      {:ok, "abc" <> <<0>> <> "def" <> <<0xFF>> <> "ghi"}
+    end)
+
+    assert :ok = perform(runner, device)
+
+    result = result(runner)
+    assert result.status == :completed
+    assert result.output == "abcdef�ghi"
+  end
+
   test "an offline device is recorded without being sent anything", ctx do
     %{device: device, runner: runner} = run_for(ctx, %{})
     _ = Fixtures.device_connection_fixture(device, %{status: :disconnected})

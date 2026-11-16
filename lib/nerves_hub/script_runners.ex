@@ -713,6 +713,9 @@ defmodule NervesHub.ScriptRunners do
 
   @doc """
   Record what one device did with a run's script.
+
+  `output` is whatever the device sent back, and is made storable first: see
+  `sanitize_output/1`.
   """
   @spec record_device_result(integer(), integer(), ScriptRunnerDevice.status(), String.t() | nil) ::
           non_neg_integer()
@@ -721,10 +724,29 @@ defmodule NervesHub.ScriptRunners do
       ScriptRunnerDevice
       |> where([srd], srd.script_runner_id == ^runner_id and srd.device_id == ^device_id)
       |> Repo.update_all(
-        set: [status: status, output: output, finished_at: DateTime.utc_now(), updated_at: naive_now()]
+        set: [
+          status: status,
+          output: sanitize_output(output),
+          finished_at: DateTime.utc_now(),
+          updated_at: naive_now()
+        ]
       )
 
     count
+  end
+
+  # Output is the device's to choose, and a msgpack client can send any bytes at
+  # all. PostgreSQL refuses a `text` value holding invalid UTF-8 or a NUL byte,
+  # and the write failing here crashes the device job -- which leaves the row at
+  # `:running` for `release_stale_devices/2` to hand back to the dispatcher, so
+  # the script is sent to the device again. Scrubbed the same way as
+  # `NervesHub.Integrations` scrubs event payloads.
+  defp sanitize_output(nil), do: nil
+
+  defp sanitize_output(output) when is_binary(output) do
+    output
+    |> String.replace_invalid()
+    |> String.replace(<<0>>, "")
   end
 
   # `timestamps()` here is the repo default `:naive_datetime`, and `update_all`
