@@ -220,7 +220,7 @@ defmodule NervesHubWeb.Live.Org.SigningKeysTest do
       |> init_test_session(%{"user_token" => NervesHub.Accounts.create_user_session_token(viewer)})
       |> visit("/org/#{org.name}/settings/keys")
       |> assert_has("#signing-key-#{key.id}", text: "Not used yet")
-      |> assert_has("#delete-key-#{key.id}[disabled]", text: "Deleting a key needs the Manage or Admin role.")
+      |> assert_has("#delete-key-#{key.id}[disabled]", text: "Your role doesn't let you delete signing keys.")
     end
   end
 end

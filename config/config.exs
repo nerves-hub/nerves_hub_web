@@ -1,6 +1,7 @@
 import Config
 
 alias NervesHub.Accounts.Scope
+alias NervesHub.Workers.CleanStaleDeviceConnectionHistory
 alias NervesHub.Workers.CleanStaleDeviceConnections
 alias NervesHub.Workers.CleanUpSoftDeletedDevices
 alias NervesHub.Workers.DeleteExpiredCLISessionRecords
@@ -129,6 +130,7 @@ config :nerves_hub, Oban,
     crontab: [
       {"0 * * * *", ScheduleOrgAuditLogTruncation},
       {"*/1 * * * *", CleanStaleDeviceConnections},
+      {"30 * * * *", CleanStaleDeviceConnectionHistory},
       {"* * * * *", FirmwareDeltaTimeout},
       {"*/5 * * * *", ExpireInflightUpdates},
       {"*/5 * * * *", RequeueStrandedScriptRunners},

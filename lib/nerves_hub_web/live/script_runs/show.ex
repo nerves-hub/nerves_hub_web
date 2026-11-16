@@ -17,6 +17,10 @@ defmodule NervesHubWeb.Live.ScriptRuns.Show do
   alias NervesHub.ScriptRunners.ScriptRunnerDevice
   alias NervesHub.Scripts.Script
   alias NervesHubWeb.Components.Sorting
+  alias NervesHubWeb.Mounts.RequireEveryDevice
+
+  # A run targets a product's devices by filter, not one device at a time.
+  on_mount(RequireEveryDevice)
 
   @default_page 1
   @default_page_size 25

@@ -29,12 +29,14 @@
           Role <span class="ml-2 text-xs text-content-faint">(Defines the type of access this user has in this org)</span>
         </label>
         <select
-          id={f[:role].id}
+          id="role_input"
           name={f[:role].name}
           class="w-full rounded border border-line-default bg-base-900 px-3 py-2 text-sm text-content-strong focus:ring-2 focus:ring-focus-ring focus:outline-none"
         >
-          {Phoenix.HTML.Form.options_for_select(Utils.role_options(), f.params["role"] || :view)}
+          {Phoenix.HTML.Form.options_for_select(Utils.role_options(@custom_roles), @role_choice)}
         </select>
+        <div class="mt-1 text-sm text-alert-content"><.field_errors field={f[:role]} /></div>
+        <div class="mt-1 text-sm text-alert-content"><.field_errors field={f[:org_role_id]} /></div>
       </div>
 
       <div class="flex gap-3">

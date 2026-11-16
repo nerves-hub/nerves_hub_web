@@ -12,7 +12,8 @@ defmodule NervesHubWeb.ScriptRunController do
   alias NervesHub.ScriptRunners
   alias NimbleCSV.RFC4180, as: CSV
 
-  plug(:validate_role, org: :view)
+  plug(:require_membership)
+  plug(:require_every_device)
 
   @doc """
   A run's device results as a CSV.

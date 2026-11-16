@@ -1,6 +1,8 @@
 defmodule NervesHubWeb.API.OrgUserJSON do
   @moduledoc false
 
+  alias NervesHub.Accounts.OrgRole
+
   def index(%{org_users: org_users}) do
     %{data: for(org_user <- org_users, do: org_user(org_user))}
   end
@@ -13,7 +15,11 @@ defmodule NervesHubWeb.API.OrgUserJSON do
     %{
       name: org_user.user.name,
       email: org_user.user.email,
-      role: org_user.role
+      role: org_user.role,
+      custom_role: custom_role(org_user)
     }
   end
+
+  defp custom_role(%{org_role: %OrgRole{name: name}}), do: name
+  defp custom_role(_org_user), do: nil
 end

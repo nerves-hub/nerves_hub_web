@@ -4,6 +4,9 @@ defmodule NervesHubWeb.Live.Archives do
   alias NervesHub.Accounts
   alias NervesHub.Archives
   alias NervesHubWeb.Components.Sorting
+  alias NervesHubWeb.Mounts.RequireEveryDevice
+
+  on_mount(RequireEveryDevice)
 
   embed_templates("archive_templates/*")
 

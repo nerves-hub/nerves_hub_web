@@ -16,6 +16,10 @@ defmodule NervesHubWeb.Live.ScriptRuns.New do
   alias NervesHub.ScriptRunners.ScriptRunner
   alias NervesHub.Scripts
   alias NervesHub.Scripts.Script
+  alias NervesHubWeb.Mounts.RequireEveryDevice
+
+  # A run targets a product's devices by filter, not one device at a time.
+  on_mount(RequireEveryDevice)
 
   # How many unmatched identifiers the flash names before falling back to a count.
   @unmatched_named_limit 10

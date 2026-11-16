@@ -22,19 +22,25 @@ defmodule NervesHub.AuditLogs.DeviceTemplates do
   @spec audit_reboot(User.t(), Device.t(), String.t() | nil) :: :ok
   def audit_reboot(user, device, via \\ nil) do
     description = "User #{user.name} rebooted device #{device.identifier}#{via(via)}"
-    AuditLogs.audit!(user, device, description)
+    AuditLogs.audit!(user, device, description, kind: :device_rebooted)
   end
 
-  @spec audit_request_action(User.t(), Device.t(), String.t(), String.t() | nil) :: :ok
+  @spec audit_request_action(User.t(), Device.t(), :identify | :reconnect, String.t() | nil) :: :ok
   def audit_request_action(user, device, action, via \\ nil) do
-    description = "User #{user.name} requested the device (#{device.identifier}) #{action}#{via(via)}"
-    AuditLogs.audit!(user, device, description)
+    {wording, kind} =
+      case action do
+        :identify -> {"identify itself", :identify_requested}
+        :reconnect -> {"reconnect", :reconnect_requested}
+      end
+
+    description = "User #{user.name} requested the device (#{device.identifier}) #{wording}#{via(via)}"
+    AuditLogs.audit!(user, device, description, kind: kind)
   end
 
   @spec audit_script_run(User.t(), Device.t(), String.t(), String.t() | nil) :: :ok
   def audit_script_run(user, device, script_name, via \\ nil) do
     description = "User #{user.name} ran support script #{script_name} on device #{device.identifier}#{via(via)}"
-    AuditLogs.audit!(user, device, description)
+    AuditLogs.audit!(user, device, description, kind: :script_run)
   end
 
   defp via(nil), do: ""
@@ -45,13 +51,13 @@ defmodule NervesHub.AuditLogs.DeviceTemplates do
   @spec audit_shared_secret_created(User.t(), Device.t(), SharedSecretAuth.t()) :: :ok
   def audit_shared_secret_created(user, device, auth) do
     description = "User #{user.name} created shared secret #{auth.key} for device #{device.identifier}"
-    AuditLogs.audit!(user, device, description)
+    AuditLogs.audit!(user, device, description, kind: :shared_secret_created)
   end
 
   @spec audit_shared_secret_deactivated(User.t(), Device.t(), SharedSecretAuth.t()) :: :ok
   def audit_shared_secret_deactivated(user, device, auth) do
     description = "User #{user.name} deactivated shared secret #{auth.key} for device #{device.identifier}"
-    AuditLogs.audit!(user, device, description)
+    AuditLogs.audit!(user, device, description, kind: :shared_secret_deactivated)
   end
 
   ## Firmware and upgrades
@@ -64,7 +70,7 @@ defmodule NervesHub.AuditLogs.DeviceTemplates do
 
   def audit_update_attempt(%Device{} = device) do
     description = "Device #{device.identifier} is attempting to update"
-    AuditLogs.audit(device, device, description)
+    AuditLogs.audit(device, device, description, kind: :update_attempted)
   end
 
   @spec audit_pushed_available_update(User.t(), Device.t(), Firmware.t()) :: :ok
@@ -72,7 +78,7 @@ defmodule NervesHub.AuditLogs.DeviceTemplates do
     description =
       "User #{user.name} pushed available firmware update #{firmware.version} #{firmware.uuid} to device #{device.identifier}"
 
-    AuditLogs.audit!(user, device, description)
+    AuditLogs.audit!(user, device, description, kind: :firmware_pushed)
   end
 
   @spec audit_firmware_pushed(User.t(), Device.t(), Firmware.t()) :: :ok
@@ -80,13 +86,13 @@ defmodule NervesHub.AuditLogs.DeviceTemplates do
     description =
       "User #{user.name} pushed firmware #{firmware.version} #{firmware.uuid} to device #{device.identifier}"
 
-    AuditLogs.audit!(user, device, description)
+    AuditLogs.audit!(user, device, description, kind: :firmware_pushed)
   end
 
   @spec audit_firmware_metadata_updated(Device.t()) :: :ok
   def audit_firmware_metadata_updated(device) do
     description = "Device #{device.identifier} updated firmware metadata"
-    AuditLogs.audit!(device, device, description)
+    AuditLogs.audit!(device, device, description, kind: :firmware_metadata_updated)
   end
 
   @spec audit_firmware_validated(Device.t() | DeviceInfo.t()) :: :ok
@@ -97,7 +103,7 @@ defmodule NervesHub.AuditLogs.DeviceTemplates do
 
   def audit_firmware_validated(%Device{} = device) do
     description = "Device #{device.identifier} has validated its firmware"
-    AuditLogs.audit!(device, device, description)
+    AuditLogs.audit!(device, device, description, kind: :firmware_validated)
   end
 
   @spec audit_firmware_upgrade_ignored(Device.t(), DeploymentGroup.t() | nil, String.t() | nil) :: :ok
@@ -109,7 +115,7 @@ defmodule NervesHub.AuditLogs.DeviceTemplates do
     Firmware upgrades are blocked for #{deployment_group.penalty_timeout_minutes} minutes.
     """
 
-    AuditLogs.audit!(deployment_group, device, description)
+    AuditLogs.audit!(deployment_group, device, description, kind: :update_ignored)
   end
 
   def audit_firmware_upgrade_ignored(device, _deployment_group, reason) do
@@ -119,7 +125,7 @@ defmodule NervesHub.AuditLogs.DeviceTemplates do
     Device #{device.identifier} ignored the manual firmware upgrade request#{reason && " because of \"#{reason}\""}.
     """
 
-    AuditLogs.audit!(device, device, description)
+    AuditLogs.audit!(device, device, description, kind: :update_ignored)
   end
 
   @spec audit_firmware_upgrade_blocked(DeploymentGroup.t(), Device.t(), Firmware.t()) :: :ok
@@ -129,7 +135,7 @@ defmodule NervesHub.AuditLogs.DeviceTemplates do
     Device failure rate met for firmware #{firmware.uuid} in deployment group #{deployment_group.name}.
     """
 
-    AuditLogs.audit!(deployment_group, device, description)
+    AuditLogs.audit!(deployment_group, device, description, kind: :updates_blocked)
   end
 
   @spec audit_firmware_upgrade_rescheduled(Device.t(), NaiveDateTime.t(), String.t() | nil) :: :ok
@@ -144,7 +150,7 @@ defmodule NervesHub.AuditLogs.DeviceTemplates do
     During an update request from \"#{deployment_group.name}\", device #{device.identifier} requested firmware upgrades be rescheduled #{RelativeTime.from_now(blocked_until)} time #{reason && "because \"#{reason}\""}.
     """
 
-    AuditLogs.audit!(deployment_group, device, description)
+    AuditLogs.audit!(deployment_group, device, description, kind: :update_rescheduled)
   end
 
   def audit_firmware_upgrade_rescheduled(device, blocked_until, reason) do
@@ -155,7 +161,7 @@ defmodule NervesHub.AuditLogs.DeviceTemplates do
     The update will not be automatically retried.
     """
 
-    AuditLogs.audit!(device, device, description)
+    AuditLogs.audit!(device, device, description, kind: :update_rescheduled)
   end
 
   @spec audit_firmware_upgrade_failed(Device.t(), String.t() | nil, Keyword.t()) :: :ok
@@ -172,7 +178,7 @@ defmodule NervesHub.AuditLogs.DeviceTemplates do
     Device #{device.identifier} reported an error #{reason && "(\"#{reason}\") "}while trying to update its firmware during a deployment release. Updates will be blocked for #{opts[:penalty_timeout_minutes]} minutes.
     """
 
-    AuditLogs.audit!(deployment_group, device, description)
+    AuditLogs.audit!(deployment_group, device, description, kind: :update_failed)
   end
 
   def audit_firmware_upgrade_failed(device, reason, _opts) do
@@ -182,7 +188,7 @@ defmodule NervesHub.AuditLogs.DeviceTemplates do
     Device #{device.identifier} reported an error #{reason && "(\"#{reason}\") "}while trying to update its firmware.
     """
 
-    AuditLogs.audit!(device, device, description)
+    AuditLogs.audit!(device, device, description, kind: :update_failed)
   end
 
   @spec audit_firmware_updated(Device.t()) :: :ok
@@ -190,7 +196,7 @@ defmodule NervesHub.AuditLogs.DeviceTemplates do
     description =
       "Device #{device.identifier} firmware set to version #{device.firmware_metadata.version} (#{device.firmware_metadata.uuid})"
 
-    AuditLogs.audit!(device, device, description)
+    AuditLogs.audit!(device, device, description, kind: :firmware_updated)
   end
 
   @spec audit_device_deployment_group_update_triggered(
@@ -202,7 +208,7 @@ defmodule NervesHub.AuditLogs.DeviceTemplates do
     description =
       "Deployment #{deployment_group.name} update triggered device #{device.identifier} to update firmware #{firmware.uuid}"
 
-    AuditLogs.audit!(deployment_group, device, description)
+    AuditLogs.audit!(deployment_group, device, description, kind: :deployment_update_sent)
   end
 
   @doc """
@@ -216,7 +222,7 @@ defmodule NervesHub.AuditLogs.DeviceTemplates do
     description =
       "Device #{device.identifier} requested firmware #{firmware.uuid} from deployment #{deployment_group.name}"
 
-    AuditLogs.audit!(device, device, description)
+    AuditLogs.audit!(device, device, description, kind: :update_requested)
   end
 
   @spec audit_device_deployment_group_update(User.t(), Device.t(), DeploymentGroup.t()) :: :ok
@@ -224,7 +230,8 @@ defmodule NervesHub.AuditLogs.DeviceTemplates do
     AuditLogs.audit!(
       user,
       device,
-      "User #{user.name} set #{device.identifier}'s deployment group to #{deployment_group.name}"
+      "User #{user.name} set #{device.identifier}'s deployment group to #{deployment_group.name}",
+      kind: :deployment_group_set
     )
   end
 
@@ -233,7 +240,8 @@ defmodule NervesHub.AuditLogs.DeviceTemplates do
     AuditLogs.audit!(
       device,
       device,
-      "Updating #{device.identifier}'s deployment group to #{deployment_group.name}"
+      "Updating #{device.identifier}'s deployment group to #{deployment_group.name}",
+      kind: :deployment_group_set
     )
   end
 
@@ -241,7 +249,8 @@ defmodule NervesHub.AuditLogs.DeviceTemplates do
     AuditLogs.audit!(
       device,
       device,
-      "Multiple matching deployments found, updating #{device.identifier}'s deployment group to #{deployment_group.name}"
+      "Multiple matching deployments found, updating #{device.identifier}'s deployment group to #{deployment_group.name}",
+      kind: :deployment_group_set
     )
   end
 
@@ -250,7 +259,7 @@ defmodule NervesHub.AuditLogs.DeviceTemplates do
     description =
       "Archive update triggered for #{device.identifier}. Sending archive #{archive.uuid}."
 
-    AuditLogs.audit_with_ref!(device, device, description, reference_id)
+    AuditLogs.audit_with_ref!(device, device, description, reference_id, kind: :archive_sent)
 
     :ok
   end

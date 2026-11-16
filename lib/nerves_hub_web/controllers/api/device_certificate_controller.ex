@@ -14,8 +14,9 @@ defmodule NervesHubWeb.API.DeviceCertificateController do
 
   @auth_error_responses SchemaHelpers.auth_error_responses()
 
-  plug(:validate_role, [org: :manage] when action in [:create, :delete])
-  plug(:validate_role, [org: :view] when action in [:index, :show])
+  plug(:require_membership when action in [:index, :show])
+  # The dashboard manages a device's certificates as one of its settings.
+  plug(:require_permission, :"device:update" when action in [:create, :delete])
 
   operation(:index,
     summary: "List all Certificates for a Device",
