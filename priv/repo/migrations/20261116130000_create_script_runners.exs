@@ -10,6 +10,15 @@ defmodule NervesHub.Repo.Migrations.CreateScriptRunners do
       add(:product_id, references(:products, on_delete: :delete_all), null: false)
       add(:created_by_id, references(:users, on_delete: :nothing))
 
+      # What the listing shows. `text` is ad-hoc and often long, which makes it a
+      # poor label for the one column a person scans.
+      add(:name, :string, null: false)
+
+      # Operator commentary on the run -- why it was run, what to make of the
+      # results. Unlike `text`, this is not a record of what happened and stays
+      # editable after the run is over. Nullable: runs are created without one.
+      add(:description, :text)
+
       add(:text, :text, null: false)
       add(:language, :string, null: false, default: "elixir")
 
@@ -29,8 +38,15 @@ defmodule NervesHub.Repo.Migrations.CreateScriptRunners do
       timestamps()
     end
 
-    # Listing a product's runs, newest first.
-    create(index(:script_runners, [:product_id]))
+    # A name identifies a run within its product, so two runs cannot share one.
+    # Scoped to the product rather than global, the same way deployment groups and
+    # support scripts are: two products naming a run "Reboot fleet" are talking
+    # about different fleets.
+    #
+    # Also the index for listing a product's runs and for the product's delete
+    # cascade: `product_id` leads, so a separate index on it alone would only
+    # duplicate this one.
+    create(unique_index(:script_runners, [:product_id, :name]))
 
     # Every dispatch divides the concurrency budget by the number of runs in
     # flight, so this count is read far more often than the rows change. Partial,
