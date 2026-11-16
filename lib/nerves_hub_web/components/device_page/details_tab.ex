@@ -645,6 +645,10 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
     |> halt()
   end
 
+  # Results of tasks the device page started itself, such as the Errors tab's
+  # count, pass through this hook on their way to `handle_async/3`.
+  def hooked_async(_name, _async_fun_result, socket), do: {:cont, socket}
+
   # TODO: this is duplicated code, find a new way to reuse it
   defp disconnected?(connection) do
     is_nil(connection) || connection.status != :connected
