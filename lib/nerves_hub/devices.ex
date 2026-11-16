@@ -6,9 +6,11 @@ defmodule NervesHub.Devices do
   alias NervesHub.Accounts
   alias NervesHub.Accounts.Org
   alias NervesHub.Accounts.OrgUser
+  alias NervesHub.Accounts.PubSub, as: AccessPubSub
   alias NervesHub.Accounts.Scope
   alias NervesHub.Accounts.User
   alias NervesHub.AuditLogs
+  alias NervesHub.AuditLogs.AuditLog
   alias NervesHub.AuditLogs.DeviceTemplates
   alias NervesHub.DeviceEvents
   alias NervesHub.DeviceLink
@@ -21,6 +23,7 @@ defmodule NervesHub.Devices do
   alias NervesHub.Devices.PinnedDevice
   alias NervesHub.Devices.SharedSecretAuth
   alias NervesHub.Devices.Updates
+  alias NervesHub.Devices.Visibility
   alias NervesHub.Extensions
   alias NervesHub.Filtering, as: CommonFiltering
   alias NervesHub.Firmwares.FirmwareMetadata
@@ -140,6 +143,7 @@ defmodule NervesHub.Devices do
     # Named for the alarm filters, as in `common_filter_query/1`.
     Device
     |> from(as: :device)
+    |> maybe_where_visible(opts[:visible_to])
     |> where([d], d.org_id == ^org_id)
     |> where([d], d.product_id == ^product_id)
     |> join(:left, [d], o in assoc(d, :org))
@@ -163,6 +167,11 @@ defmodule NervesHub.Devices do
     )
     |> Flop.run(flop)
   end
+
+  # Without `:visible_to`, every device in the product is listed. That is only
+  # right for a caller that already knows its user sees all of them.
+  defp maybe_where_visible(query, nil), do: query
+  defp maybe_where_visible(query, %User{} = user), do: Visibility.where_visible(query, user)
 
   def get_device_count_by_org_id_and_product_id(org_id, product_id) do
     query =
@@ -198,6 +207,7 @@ defmodule NervesHub.Devices do
     # back to this device; see `NervesHub.Devices.AdvancedQuery.Compiler`.
     Device
     |> from(as: :device)
+    |> Visibility.where_visible(user)
     |> join(:left, [d], dc in assoc(d, :latest_connection), as: :latest_connection)
     |> join(:left, [d, dc], dh in assoc(d, :latest_health), as: :latest_health)
     |> join(:left, [d, dc, dh], pd in PinnedDevice,
@@ -230,15 +240,16 @@ defmodule NervesHub.Devices do
   end
 
   @doc """
-  How many devices each of the given products has. A product with none is left
-  out of the map.
+  How many of the given products' devices `user` can see, by product. A
+  product with none is left out of the map.
   """
-  @spec count_by_product([pos_integer()]) :: %{pos_integer() => pos_integer()}
-  def count_by_product([]), do: %{}
+  @spec count_by_product([pos_integer()], User.t()) :: %{pos_integer() => pos_integer()}
+  def count_by_product([], _user), do: %{}
 
-  def count_by_product(product_ids) when is_list(product_ids) do
+  def count_by_product(product_ids, %User{} = user) when is_list(product_ids) do
     Device
     |> where([d], d.product_id in ^product_ids)
+    |> Visibility.where_visible(user)
     |> Repo.exclude_deleted()
     |> group_by([d], d.product_id)
     |> select([d], {d.product_id, count(d.id)})
@@ -298,6 +309,7 @@ defmodule NervesHub.Devices do
 
   defp get_by_identifier_query(%Scope{org: org} = scope, identifier, preload_assoc) when not is_nil(org) do
     Device
+    |> Visibility.where_visible(scope.user)
     |> join(:left, [d], o in assoc(d, :org), as: :org)
     |> where(identifier: ^identifier)
     |> where(org_id: ^org.id)
@@ -309,6 +321,7 @@ defmodule NervesHub.Devices do
 
   defp get_by_identifier_query(%Scope{user: user} = scope, identifier, preload_assoc) when not is_nil(user) do
     Device
+    |> Visibility.where_visible(user)
     |> join(:left, [d], o in assoc(d, :org), as: :org)
     |> join(:left, [d, o], u in assoc(o, :users), as: :users)
     |> where(identifier: ^identifier)
@@ -820,6 +833,7 @@ defmodule NervesHub.Devices do
     case Repo.update(changeset) do
       {:ok, device} ->
         _ = maybe_broadcast_updated(device, opts)
+        _ = maybe_broadcast_access_changed(changeset, opts)
 
         {:ok, device}
 
@@ -890,18 +904,19 @@ defmodule NervesHub.Devices do
       Accounts.maybe_copy_firmware_keys(device, product.org, user)
     end)
     |> Multi.run(:audit_device, fn _, _ ->
-      AuditLogs.audit(user, device, description)
+      AuditLogs.audit(user, device, description, kind: :device_moved)
     end)
     |> Multi.run(:audit_target, fn _, _ ->
-      AuditLogs.audit(user, product, description)
+      AuditLogs.audit(user, product, description, kind: :device_moved)
     end)
     |> Multi.run(:audit_source, fn _, _ ->
-      AuditLogs.audit(user, source_product, description)
+      AuditLogs.audit(user, source_product, description, kind: :device_moved)
     end)
     |> Repo.transact()
     |> case do
       {:ok, %{move: device}} ->
         DeviceEvents.moved_product(device)
+        :ok = AccessPubSub.broadcast_device_access_changed(device.id)
         {:ok, device}
 
       err ->
@@ -926,18 +941,20 @@ defmodule NervesHub.Devices do
   def tag_device(%Device{} = device, user, tags) when is_list(tags) or is_binary(tags) do
     description = "User #{user.name} updated device #{device.identifier} tags"
     params = %{tags: tags}
-    update_device_with_audit(device, params, user, description)
+    update_device_with_audit(device, params, user, description, :tags_changed)
   end
 
   @doc """
   Returns the sorted, distinct list of tags used by all devices in a product.
 
   Used to power tag autocomplete suggestions when tagging devices or targeting
-  deployment groups.
+  deployment groups. Given a user, only the tags on devices they can see, so a
+  role limited to some tags isn't shown the others.
   """
-  @spec distinct_tags_for_product(Product.t()) :: [String.t()]
-  def distinct_tags_for_product(%Product{} = product) do
+  @spec distinct_tags_for_product(Product.t(), User.t() | nil) :: [String.t()]
+  def distinct_tags_for_product(%Product{} = product, user \\ nil) do
     Device
+    |> maybe_where_visible(user)
     |> where([d], d.product_id == ^product.id)
     |> where([d], not is_nil(d.tags))
     |> select([d], fragment("distinct unnest(?)", d.tags))
@@ -990,7 +1007,7 @@ defmodule NervesHub.Devices do
 
           added ->
             description = "User #{user.name} added the tags #{Enum.join(added, ", ")} to device #{device.identifier}"
-            update_device_with_audit(device, %{tags: current_tags ++ added}, user, description)
+            update_device_with_audit(device, %{tags: current_tags ++ added}, user, description, :tags_changed)
         end
 
       :error ->
@@ -1021,7 +1038,7 @@ defmodule NervesHub.Devices do
             description =
               "User #{user.name} removed the tags #{Enum.join(removed, ", ")} from device #{device.identifier}"
 
-            update_device_with_audit(device, %{tags: remaining}, user, description)
+            update_device_with_audit(device, %{tags: remaining}, user, description, :tags_changed)
         end
 
       :error ->
@@ -1042,21 +1059,25 @@ defmodule NervesHub.Devices do
   The actor is usually a user, but a device is one too: a device that sets its
   own update mode, or that is moved off a mode its firmware cannot support, is
   the actor for that change, and the log should not imply an operator asked.
+
+  `kind` says what sort of change it is, for the icon the device's Activity
+  tab draws (see `NervesHub.AuditLogs.AuditLog.kinds/0`).
   """
-  @spec update_device_with_audit(Device.t(), map(), User.t() | Device.t(), String.t()) ::
+  @spec update_device_with_audit(Device.t(), map(), User.t() | Device.t(), String.t(), AuditLog.kind()) ::
           {:ok, Device.t()} | {:error, any(), any(), any()}
-  def update_device_with_audit(device, params, user, description) do
+  def update_device_with_audit(device, params, user, description, kind) do
     Multi.new()
     |> Multi.run(:update_with_audit, fn _, _ ->
       update_device(device, params, broadcast: false)
     end)
     |> Multi.run(:audit_device, fn _, _ ->
-      AuditLogs.audit(user, device, description)
+      AuditLogs.audit(user, device, description, kind: kind)
     end)
     |> Repo.transact()
     |> case do
       {:ok, %{update_with_audit: updated}} ->
         DeviceEvents.updated(device)
+        _ = if updated.tags != device.tags, do: AccessPubSub.broadcast_device_access_changed(device.id)
         {:ok, updated}
 
       err ->
@@ -1095,7 +1116,7 @@ defmodule NervesHub.Devices do
 
     Repo.transact(fn ->
       with {:ok, updated} <- device |> Device.update_changeset(params) |> Repo.update(),
-           {:ok, _audit_log} <- AuditLogs.audit(user, device, description),
+           {:ok, _audit_log} <- AuditLogs.audit(user, device, description, kind: :device_updated),
            {:ok, updated} <- set_managed_updates_allowed(updated, opts[:managed_updates_allowed], user) do
         set_update_mode(updated, opts[:update_mode], user)
       end
@@ -1104,6 +1125,7 @@ defmodule NervesHub.Devices do
       {:ok, updated} ->
         _ = DeviceEvents.updated(updated)
         _ = if updated.update_mode != device.update_mode, do: Updates.update_mode_committed(updated)
+        _ = if updated.tags != device.tags, do: AccessPubSub.broadcast_device_access_changed(device.id)
         {:ok, updated}
 
       error ->
@@ -1139,12 +1161,23 @@ defmodule NervesHub.Devices do
   @spec get_devices_by_id(Scope.t(), [non_neg_integer()]) :: [Device.t()]
   def get_devices_by_id(%Scope{user: user}, ids) when is_list(ids) do
     Device
+    |> Visibility.where_visible(user)
     |> join(:left, [d], o in assoc(d, :org), as: :org)
     |> join(:left, [d, o], u in assoc(o, :users), as: :users)
     |> where([d], d.id in ^ids)
     |> where([users: u], u.id == ^user.id)
     |> where_org_not_deleted()
     |> Repo.all()
+  end
+
+  # A device's tags decide which custom roles see it, so sessions open on it
+  # have to check again. Only once the change is committed, or they'd check
+  # against the old tags; a caller passing `broadcast: false` is in a
+  # transaction and does this itself afterwards.
+  defp maybe_broadcast_access_changed(changeset, opts) do
+    if Keyword.get(opts, :broadcast, true) and Ecto.Changeset.changed?(changeset, :tags) do
+      AccessPubSub.broadcast_device_access_changed(changeset.data.id)
+    end
   end
 
   defp maybe_broadcast_updated(device, opts) do
@@ -1203,10 +1236,27 @@ defmodule NervesHub.Devices do
   end
 
   @doc """
-  Get distinct tags currently used across devices in the product
+  The tags on all of an org's devices, sorted. For choosing the tags a custom
+  role is limited to.
   """
-  def distinct_tags(product_id) do
+  @spec distinct_tags_for_org(Org.t()) :: [String.t()]
+  def distinct_tags_for_org(%Org{id: org_id}) do
     Device
+    |> where([d], d.org_id == ^org_id)
+    |> Repo.exclude_deleted()
+    |> select([d], fragment("unnest(?)", d.tags))
+    |> distinct(true)
+    |> Repo.all()
+    |> Enum.sort()
+  end
+
+  @doc """
+  Get distinct tags currently used across devices in the product. Given a user,
+  only the tags on devices they can see.
+  """
+  def distinct_tags(product_id, user \\ nil) do
+    Device
+    |> maybe_where_visible(user)
     |> select([d], fragment("unnest(?)", d.tags))
     |> distinct(true)
     |> where([d], d.product_id == ^product_id)

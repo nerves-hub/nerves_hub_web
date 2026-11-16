@@ -6,7 +6,9 @@ defmodule NervesHubWeb.Auth do
 
   alias NervesHub.Accounts
   alias NervesHub.Accounts.Org
+  alias NervesHub.Accounts.OrgRole
   alias NervesHub.Accounts.OrgUser
+  alias NervesHub.Accounts.Permissions
   alias NervesHub.Accounts.PubSub, as: AccessPubSub
   alias NervesHub.Accounts.Scope
   alias NervesHub.Accounts.User
@@ -187,7 +189,7 @@ defmodule NervesHubWeb.Auth do
 
       current_scope
       |> Scope.put_org(membership.org)
-      |> Scope.put_role(membership.role)
+      |> Scope.put_role(OrgUser.assigned_role(membership))
       |> then(fn scope ->
         assign(conn, :current_scope, scope)
       end)
@@ -216,7 +218,7 @@ defmodule NervesHubWeb.Auth do
 
           scope
           |> Scope.put_org(membership.org)
-          |> Scope.put_role(membership.role)
+          |> Scope.put_role(OrgUser.assigned_role(membership))
           |> then(fn scope ->
             Phoenix.Component.assign(socket, :current_scope, scope)
           end)
@@ -301,17 +303,18 @@ defmodule NervesHubWeb.Auth do
          {:org_membership_changed, org_id},
          %{assigns: %{current_scope: %{org: %{id: org_id}}}} = socket
        ) do
-    %Scope{org: org, user: user, role: role} = socket.assigns.current_scope
+    %Scope{org: org, user: user} = scope = socket.assigns.current_scope
 
     socket =
       case Accounts.get_org_user(org, user) do
-        {:ok, %OrgUser{role: ^role}} ->
-          socket
-
-        {:ok, %OrgUser{}} ->
-          socket
-          |> Phoenix.LiveView.put_flash(:info, "Your role in #{org.name} has changed.")
-          |> Phoenix.LiveView.push_navigate(to: socket.assigns.current_path)
+        {:ok, %OrgUser{} = org_user} ->
+          if same_role?(scope, OrgUser.assigned_role(org_user)) do
+            socket
+          else
+            socket
+            |> Phoenix.LiveView.put_flash(:info, "Your role in #{org.name} has changed.")
+            |> Phoenix.LiveView.push_navigate(to: socket.assigns.current_path)
+          end
 
         {:error, :not_found} ->
           socket
@@ -323,6 +326,15 @@ defmodule NervesHubWeb.Auth do
   end
 
   defp membership_changed(_message, socket), do: {:cont, socket}
+
+  # A custom role can keep its id while what it grants changes, so it is the
+  # same role only if it grants the same permissions too.
+  defp same_role?(%Scope{role: %OrgRole{id: id}, permissions: permissions}, %OrgRole{id: id} = role) do
+    Permissions.for_role(role) == permissions
+  end
+
+  defp same_role?(%Scope{role: role}, role) when is_atom(role), do: true
+  defp same_role?(_scope, _role), do: false
 
   @doc """
   Used for routes that require the user to be authenticated.

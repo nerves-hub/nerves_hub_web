@@ -607,7 +607,7 @@ defmodule NervesHub.Devices.Updates do
     # the log distinguishes a device opting in from a user changing it for them.
     audit_actor = if actor == :device, do: device, else: actor
 
-    Devices.update_device_with_audit(device, params, audit_actor, description)
+    Devices.update_device_with_audit(device, params, audit_actor, description, :update_mode_changed)
   end
 
   @doc """
@@ -643,7 +643,9 @@ defmodule NervesHub.Devices.Updates do
     description =
       "Device #{device.identifier} was returned to automatic updates: its firmware is too old to manage its own"
 
-    case Devices.update_device_with_audit(device, %{update_mode: :automatic}, device, description) do
+    params = %{update_mode: :automatic}
+
+    case Devices.update_device_with_audit(device, params, device, description, :update_mode_changed) do
       {:ok, device} = result ->
         _ =
           if device.deployment_id do
@@ -670,7 +672,7 @@ defmodule NervesHub.Devices.Updates do
     description =
       "User #{user.name} paused automatic updates for device #{device.identifier} to send firmware manually"
 
-    Devices.update_device_with_audit(device, %{update_mode: :off}, user, description)
+    Devices.update_device_with_audit(device, %{update_mode: :off}, user, description, :updates_disabled)
   end
 
   def pause_automatic_updates(%Device{} = device, _user), do: {:ok, device}
@@ -692,7 +694,8 @@ defmodule NervesHub.Devices.Updates do
       device,
       %{managed_updates_allowed: enabled},
       user,
-      description
+      description,
+      :managed_updates_changed
     )
   end
 
@@ -702,7 +705,7 @@ defmodule NervesHub.Devices.Updates do
     description = "User #{user.name} enabled updates for device #{device.identifier}"
     params = %{update_mode: :automatic, update_attempts: []}
 
-    case Devices.update_device_with_audit(device, params, user, description) do
+    case Devices.update_device_with_audit(device, params, user, description, :updates_enabled) do
       {:ok, device} = result ->
         _ =
           if device.deployment_id do
@@ -721,7 +724,7 @@ defmodule NervesHub.Devices.Updates do
   def disable_updates(%Device{} = device, user) do
     description = "User #{user.name} disabled updates for device #{device.identifier}"
     params = %{update_mode: :off}
-    Devices.update_device_with_audit(device, params, user, description)
+    Devices.update_device_with_audit(device, params, user, description, :updates_disabled)
   end
 
   @doc """
@@ -798,6 +801,6 @@ defmodule NervesHub.Devices.Updates do
   def clear_penalty_box(%Device{} = device, user) do
     description = "User #{user.name} removed device #{device.identifier} from the penalty box"
     params = %{updates_blocked_until: nil, update_attempts: []}
-    Devices.update_device_with_audit(device, params, user, description)
+    Devices.update_device_with_audit(device, params, user, description, :penalty_box_cleared)
   end
 end

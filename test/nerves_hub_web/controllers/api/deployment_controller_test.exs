@@ -1,6 +1,7 @@
 defmodule NervesHubWeb.API.DeploymentGroupControllerTest do
   use NervesHubWeb.APIConnCase, async: true
 
+  alias NervesHub.Accounts
   alias NervesHub.AuditLogs
   alias NervesHub.Fixtures
   alias NervesHub.ManagedDeployments
@@ -260,6 +261,31 @@ defmodule NervesHubWeb.API.DeploymentGroupControllerTest do
       conn = get(conn, path)
       assert json_response(conn, 200)["data"]["is_active"]
       assert json_response(conn, 200)["data"]["state"] == "on"
+    end
+
+    test "turning a group on or off needs its own permission", %{
+      conn2: conn2,
+      user2: user2,
+      deployment_group: deployment_group,
+      org: org,
+      product: product
+    } do
+      role = Fixtures.org_role_fixture(org, %{permissions: ["deployment_group:update"]})
+      {:ok, _} = Accounts.add_org_user(org, user2, %{org_role_id: role.id})
+      path = Routes.api_deployment_group_path(conn2, :update, org.name, product.name, deployment_group.name)
+
+      assert %{"notes" => "hello"} = json_response(put(conn2, path, deployment: %{"notes" => "hello"}), 200)["data"]
+
+      for params <- [%{"is_active" => true}, %{"state" => "on"}, %{"delta_updatable" => false}] do
+        assert_error_sent(401, fn -> put(conn2, path, deployment: params) end)
+      end
+
+      {:ok, _} =
+        Accounts.OrgRoles.update_org_role(role, %{
+          "permissions" => ["deployment_group:update", "deployment_group:toggle"]
+        })
+
+      assert %{"is_active" => true} = json_response(put(conn2, path, deployment: %{"state" => "on"}), 200)["data"]
     end
 
     test "can change firmware_id to release new firmware", %{
