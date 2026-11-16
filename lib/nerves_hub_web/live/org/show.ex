@@ -21,6 +21,7 @@ defmodule NervesHubWeb.Live.Org.Show do
   import NervesHubWeb.Components.Fleet
 
   alias NervesHub.Accounts
+  alias NervesHub.Accounts.Scope
   alias NervesHub.Devices
   alias NervesHub.ErrorReports
   alias NervesHub.Extensions
@@ -127,7 +128,7 @@ defmodule NervesHubWeb.Live.Org.Show do
   # Ties keep the alphabetical order the query returns.
   defp load_products(scope) do
     products = scope |> Products.get_products() |> Enum.sort_by(& &1.name)
-    device_counts = products |> Enum.map(& &1.id) |> Devices.count_by_product()
+    device_counts = products |> Enum.map(& &1.id) |> Devices.count_by_product(scope.user)
 
     products
     |> Enum.map(&%{product: &1, device_count: Map.get(device_counts, &1.id, 0)})
@@ -137,8 +138,11 @@ defmodule NervesHubWeb.Live.Org.Show do
   defp load_figures(socket, _scope, []), do: socket
 
   defp load_figures(socket, scope, products) do
-    product_ids = Enum.map(products, & &1.product.id)
-    with_error_reports = for %{product: product} <- products, product.extensions.error_reports, do: product.id
+    # Health, updates, deployment groups and errors are figures over all of a
+    # product's devices, which a role limited to tagged devices doesn't get.
+    figure_products = if Scope.devices_limited?(scope), do: [], else: products
+    product_ids = Enum.map(figure_products, & &1.product.id)
+    with_error_reports = for %{product: product} <- figure_products, product.extensions.error_reports, do: product.id
 
     socket
     |> start_async(:online, fn -> Accounts.get_org_device_counts(scope, scope.org.id) end)

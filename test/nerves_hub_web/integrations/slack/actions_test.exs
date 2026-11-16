@@ -160,6 +160,17 @@ defmodule NervesHubWeb.Integrations.Slack.ActionsTest do
       assert %{"text" => "Your role in NervesHub does not let you ask a device to reboot."} = private_reply()
     end
 
+    test "answers a role limited to other tags as if the device weren't there", %{device: device, org: org} do
+      member = Fixtures.user_fixture()
+      role = Fixtures.org_role_fixture(org, %{device_tags: ["support"], permissions: ["device:reboot"]})
+      {:ok, _} = Accounts.add_org_user(org, member, %{org_role_id: role.id})
+      :ok = link!(member)
+
+      assert {:error, :no_device} = Actions.perform(click(device, "device.reboot"))
+      assert %{"text" => text} = private_reply()
+      assert text =~ "is not in NervesHub"
+    end
+
     test "refuses somebody who is not a member of the device's organization", %{device: device} do
       :ok = link!(Fixtures.user_fixture())
 
