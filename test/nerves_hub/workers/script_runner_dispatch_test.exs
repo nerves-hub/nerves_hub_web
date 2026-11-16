@@ -2,8 +2,8 @@ defmodule NervesHub.Workers.ScriptRunnerDispatchTest do
   @moduledoc """
   Pacing a run.
 
-  The `script_runners` queue limit caps how many scripts run at once; this worker
-  decides how many of them belong to each run. What is asserted here is how many
+  The `script_runners` queue limit caps how many scripts one node runs at once;
+  this worker splits that same number between the active runs, cluster-wide. What is asserted here is how many
   device jobs a pass inserts, since that is the whole fair-share mechanism.
   """
 
@@ -64,9 +64,9 @@ defmodule NervesHub.Workers.ScriptRunnerDispatchTest do
     |> Enum.filter(&(&1.args["script_runner_id"] == runner.id))
   end
 
-  # Stands in for a pacer that exhausted its attempts: `all_enqueued/1` only
-  # reports jobs that can still run, so a discarded one is gone as far as the run
-  # is concerned.
+  # Stands in for a pacer that exhausted its attempts. A discarded job will never
+  # run again, so it is gone as far as the run is concerned (and `all_enqueued/1`,
+  # which reports only `available` and `scheduled` jobs, no longer lists it).
   #
   # `scheduled_at` is backdated along with the state. This repo carries a unique
   # index on `oban_jobs (args, scheduled_at, worker)`, and Postgres freezes
@@ -320,9 +320,10 @@ defmodule NervesHub.Workers.ScriptRunnerDispatchTest do
   end
 
   # Each of these is asked about a config it is handed, rather than one written to
-  # the application environment: `Application.put_env/3` is global, the suite runs
-  # tests concurrently, and retuning the real limit here changed the ceiling that
-  # the share tests above were measuring against half way through them.
+  # the application environment: `Application.put_env/3` is global, so retuning
+  # the real limit would have to be undone after every test, and a test that
+  # failed before undoing it would change the ceiling the share tests above
+  # measure against.
   describe "ceiling/1" do
     test "is the configured queue limit" do
       configured =

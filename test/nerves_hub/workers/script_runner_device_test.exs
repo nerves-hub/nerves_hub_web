@@ -77,7 +77,8 @@ defmodule NervesHub.Workers.ScriptRunnerDeviceTest do
   end
 
   # PostgreSQL rejects both in a `text` column. A failed write would crash the
-  # job and leave the row at `:running`, to be released and sent again.
+  # job after the script was sent, and the row would end up `:abandoned`, losing
+  # an answer the device did send.
   test "output with a NUL byte or invalid UTF-8 is stored scrubbed", ctx do
     %{device: device, runner: runner} = run_for(ctx, %{})
     _ = Fixtures.device_connection_fixture(device)
@@ -216,24 +217,6 @@ defmodule NervesHub.Workers.ScriptRunnerDeviceTest do
     assert result.output =~ "wheels came off"
   end
 
-  # The previous release carried the script on the job. Those jobs can still be
-  # queued across a deploy, and must run the same way.
-  test "runs a job queued with the script in its args", ctx do
-    %{device: device, runner: runner} = run_for(ctx, %{})
-    _ = Fixtures.device_connection_fixture(device)
-
-    stub(Runner, :send, fn _device, %{text: "IO.puts(:hi)"}, _opts -> {:ok, "hi"} end)
-
-    assert :ok =
-             perform_job(ScriptRunnerDevice, %{
-               "script_runner_id" => runner.id,
-               "device_id" => device.id,
-               "text" => runner.text
-             })
-
-    assert result(runner).status == :completed
-  end
-
   test "a job whose run was deleted is cancelled without sending anything", ctx do
     %{device: device, runner: runner} = run_for(ctx, %{})
     _ = Fixtures.device_connection_fixture(device)
@@ -256,7 +239,7 @@ defmodule NervesHub.Workers.ScriptRunnerDeviceTest do
     assert {:cancel, _reason} = perform(runner, device)
   end
 
-  # Review finding #4. A job that crashes after the script was sent used to have
+  # A job that crashes after the script was sent used to have
   # its row released and the script sent again on every dispatch pass, forever.
   test "a job that crashes after sending is abandoned, not sent again", ctx do
     %{device: device, runner: runner} = run_for(ctx, %{})

@@ -657,8 +657,8 @@ defmodule NervesHub.ScriptRunnersTest do
       assert device_row_count(kept.id) == 2
     end
 
-    # A queued device job carries the script's text, so leaving it behind would
-    # still send the script to a device after the run that chose it is gone.
+    # A device job left queued for a deleted run has nothing left to do, so it is
+    # cancelled with the run rather than left to start and find the run gone.
     test "the run's queued device jobs are cancelled, and another run's are not", ctx do
       for _ <- 1..2, do: device(ctx, %{tags: ["production"]})
 

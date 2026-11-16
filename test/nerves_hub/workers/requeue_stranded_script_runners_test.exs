@@ -2,8 +2,9 @@ defmodule NervesHub.Workers.RequeueStrandedScriptRunnersTest do
   @moduledoc """
   The cron job that rescues a run whose pacer was lost.
 
-  What it does is covered in `NervesHub.ScriptRunners.requeue_stranded_runs/0`'s
-  own tests; what is asserted here is that the worker is wired to it and reports a
+  What it does is covered by the tests of `NervesHub.ScriptRunners.requeue_stranded_runs/0`
+  in `NervesHub.Workers.ScriptRunnerDispatchTest` ("a run whose pacer has gone");
+  what is asserted here is that the worker is wired to it and reports a
   clean result either way.
   """
   use NervesHub.DataCase, async: false

@@ -265,8 +265,9 @@ defmodule NervesHubWeb.Live.ScriptRunsTest do
       refute html =~ "cell-backup"
       assert html =~ ~s(data-tag-search="search-device-tags")
 
-      # ...they are asked for by the hook, which gets them as a reply. Both score
-      # the same on similarity, so the alphabetical tiebreak orders them.
+      # ...they are asked for by the hook, which gets them as a reply, closest
+      # first: "cell-backup" scores slightly higher on trigram similarity to "cell"
+      # than "cellular" does.
       render_hook(view, "search-device-tags", %{"query" => "cell"})
 
       assert_reply(view, %{tags: ["cell-backup", "cellular"]})
@@ -433,7 +434,7 @@ defmodule NervesHubWeb.Live.ScriptRunsTest do
         |> assert_has("div", text: "50 identifiers matched no device")
         |> assert_has("div", text: "and 40 more")
 
-      # The 41st onwards are counted, not listed.
+      # The 11th onwards are counted, not listed.
       refute_has(session, "div", text: "ghost-device-50")
     end
   end
