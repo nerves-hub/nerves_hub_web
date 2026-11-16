@@ -91,8 +91,13 @@ when adding or removing one.
   user who has it on; a new way to sign in must use it too, or it skips the
   second step. An organization can require it of every member
   (`orgs.require_two_factor`): the browser and API pipelines, LiveView
-  mounts, console and shell channels, and Slack actions all turn away a
-  member without it.
+  mounts, console, shell and device event stream channels, and Slack actions
+  all turn away a member without it. A route that finds its org some other
+  way than an `:org_name` in the path has to check for itself, as
+  `API.Plugs.Device` does for `/api/devices/:identifier`. Turning the
+  requirement on, or a member turning two-factor off, is announced on
+  `Accounts.PubSub`, so what that member has open closes. Anything that
+  checks a code limits the tries first (`Plugs.Attack`).
 - A custom role can be limited to devices with certain tags. Its members see
   only those devices, so **every device query a user can reach must go through
   `NervesHub.Devices.Visibility.where_visible/2`**, which checks the member's

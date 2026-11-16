@@ -5,6 +5,7 @@ defmodule NervesHub.Accounts.TwoFactorTest do
   import Swoosh.X.TestAssertions
 
   alias NervesHub.Accounts
+  alias NervesHub.Accounts.PubSub, as: AccessPubSub
   alias NervesHub.Accounts.TwoFactor
   alias NervesHub.Accounts.UserTOTP
   alias NervesHub.AuditLogs
@@ -23,7 +24,7 @@ defmodule NervesHub.Accounts.TwoFactorTest do
 
       assert {:ok, codes} = TwoFactor.enable(user, secret, NimbleTOTP.verification_code(secret))
       assert length(codes) == 10
-      assert Enum.all?(codes, &String.match?(&1, ~r/\A[a-z2-7]{5}-[a-z2-7]{5}\z/))
+      assert Enum.all?(codes, &String.match?(&1, ~r/\A[a-z2-7]{4}(-[a-z2-7]{4}){3}\z/))
       assert TwoFactor.enabled?(user)
     end
 
@@ -153,6 +154,21 @@ defmodule NervesHub.Accounts.TwoFactorTest do
       refute TwoFactor.enabled?(user)
     end
 
+    test "turning it off tells what the user has open in an org that requires it", %{user: user, secret: secret} do
+      org = Fixtures.org_fixture(user)
+      {:ok, org} = TwoFactor.set_org_requirement(org, user, true)
+      other_org = Fixtures.org_fixture(user)
+
+      :ok = AccessPubSub.subscribe_membership(org.id, user.id)
+      :ok = AccessPubSub.subscribe_membership(other_org.id, user.id)
+
+      assert :ok = TwoFactor.disable(user, Fixtures.next_totp_code(secret))
+
+      org_id = org.id
+      assert_receive {:org_membership_changed, ^org_id}
+      refute_receive {:org_membership_changed, _other_org_id}, 50
+    end
+
     test "new recovery codes replace the old ones", %{user: user, secret: secret, recovery_codes: [old | _]} do
       assert {:ok, [new | _] = codes} = TwoFactor.regenerate_recovery_codes(user, Fixtures.next_totp_code(secret))
       assert length(codes) == 10
@@ -179,6 +195,31 @@ defmodule NervesHub.Accounts.TwoFactorTest do
     end
   end
 
+  describe "a secret that can no longer be decrypted" do
+    setup %{user: user} do
+      fixture = Fixtures.two_factor_fixture(user)
+
+      # As it is once `SECRETS_ENCRYPTION_KEY` has changed.
+      Repo.query!("UPDATE user_totps SET secret = $1 WHERE user_id = $2", [<<1, 0::size(40)-unit(8)>>, user.id])
+
+      fixture
+    end
+
+    test "the user's authenticator app still loads, without its secret", %{user: user} do
+      assert %UserTOTP{secret: nil, recovery_codes: [_ | _]} = TwoFactor.get(user)
+    end
+
+    test "a code from the app can't be checked, and says so", %{user: user, secret: secret} do
+      assert {:error, :secret_unreadable} = TwoFactor.verify(user, Fixtures.next_totp_code(secret))
+    end
+
+    test "a recovery code still works, and can turn it off", %{user: user, recovery_codes: [first, second | _]} do
+      assert {:ok, {:recovery_code, 9}} = TwoFactor.verify(user, first)
+      assert :ok = TwoFactor.disable(user, second)
+      refute TwoFactor.enabled?(user)
+    end
+  end
+
   describe "organization requirement" do
     setup %{user: user} do
       %{org: Fixtures.org_fixture(user)}
@@ -190,6 +231,21 @@ defmodule NervesHub.Accounts.TwoFactorTest do
       Fixtures.two_factor_fixture(user)
 
       assert {:ok, %{require_two_factor: true}} = TwoFactor.set_org_requirement(org, user, true)
+    end
+
+    test "turning it on tells what members without it have open", %{user: user, org: org} do
+      Fixtures.two_factor_fixture(user)
+      member = Fixtures.user_fixture()
+      {:ok, _} = Accounts.add_org_user(org, member, %{role: :view})
+
+      :ok = AccessPubSub.subscribe_membership(org.id, member.id)
+      :ok = AccessPubSub.subscribe_membership(org.id, user.id)
+
+      {:ok, _org} = TwoFactor.set_org_requirement(org, user, true)
+
+      # Once each: only the member is without it.
+      assert_receive {:org_membership_changed, _org_id}
+      refute_receive {:org_membership_changed, _org_id}, 50
     end
 
     test "turning it off needs nothing of the admin", %{user: user, org: org} do

@@ -73,6 +73,16 @@ defmodule NervesHubWeb.SessionController do
       {:error, :invalid_code} ->
         mode = two_factor_mode(params)
         render_two_factor(conn, mode: mode, error: {"That code didn't work", wrong_code_detail(mode)})
+
+      # The server's encryption key has changed since the app was set up. A
+      # recovery code doesn't need the secret, so the page opens on that.
+      {:error, :secret_unreadable} ->
+        render_two_factor(conn,
+          mode: :recovery,
+          error:
+            {"Your authenticator app can't be checked right now",
+             "Sign in with a recovery code instead, then set your app up again. Without one, ask your platform admin for help."}
+        )
     end
   end
 
@@ -119,6 +129,7 @@ defmodule NervesHubWeb.SessionController do
 
       {:block, _data} ->
         conn
+        |> put_status(:too_many_requests)
         |> render_two_factor(
           error: {"Too many codes tried", "To keep your account safe, wait ten minutes, then try again."},
           mode: two_factor_mode(conn.params),

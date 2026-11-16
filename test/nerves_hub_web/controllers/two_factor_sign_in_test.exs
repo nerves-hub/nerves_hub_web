@@ -100,6 +100,24 @@ defmodule NervesHubWeb.TwoFactorSignInTest do
     |> click_button("Verify")
     |> assert_has("[role='alert']", text: "Too many codes tried")
     |> refute_has("#two_factor_use_recovery")
+    |> then(&assert(&1.conn.status == 429))
+  end
+
+  test "when the app's secret can't be decrypted, says so and takes a recovery code", context do
+    %{user: user, secret: secret, recovery_codes: [code | _]} = context
+
+    # As it is once `SECRETS_ENCRYPTION_KEY` has changed.
+    Repo.query!("UPDATE user_totps SET secret = $1 WHERE user_id = $2", [<<1, 0::size(40)-unit(8)>>, user.id])
+
+    sign_in_with_password()
+    |> fill_in("Authentication code", with: Fixtures.next_totp_code(secret))
+    |> click_button("Verify")
+    |> assert_path(~p"/login/two-factor")
+    |> assert_has("[role='alert']", text: "Your authenticator app can't be checked right now")
+    |> assert_has("#two_factor_recovery:not([hidden]) #recovery_code:not([disabled])")
+    |> fill_in("Recovery code", with: code)
+    |> click_button("Verify")
+    |> assert_has("div", text: "You signed in with a recovery code. You have 9 left.")
   end
 
   test "the code page without a password first goes back to sign in" do

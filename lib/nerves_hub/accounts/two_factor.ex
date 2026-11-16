@@ -16,6 +16,10 @@ defmodule NervesHub.Accounts.TwoFactor do
   Setting it up also gives the user ten recovery codes, each good for one
   sign-in without the app. Only their hashes are kept.
 
+  Checking a code that is wrong can be tried without end by whoever is asking,
+  so every caller limits the tries first: `NervesHubWeb.Plugs.Attack` has a
+  limit for signing in and another for the account's two-factor page.
+
   The TOTP secret is encrypted with `NervesHub.Types.Encrypted`, so this is
   only offered when that has a key (`available?/0`).
   """
@@ -24,6 +28,7 @@ defmodule NervesHub.Accounts.TwoFactor do
 
   alias NervesHub.Accounts.Org
   alias NervesHub.Accounts.OrgUser
+  alias NervesHub.Accounts.PubSub, as: AccessPubSub
   alias NervesHub.Accounts.User
   alias NervesHub.Accounts.UserNotifier
   alias NervesHub.Accounts.UserTOTP
@@ -32,6 +37,8 @@ defmodule NervesHub.Accounts.TwoFactor do
   alias NervesHub.Repo
   alias NervesHub.Types.Encrypted
 
+  require Logger
+
   @period 30
   @recovery_code_count 10
   @recovery_code_alphabet ~c"abcdefghijklmnopqrstuvwxyz234567"
@@ -39,7 +46,7 @@ defmodule NervesHub.Accounts.TwoFactor do
   @type verify_result ::
           {:ok, :totp}
           | {:ok, {:recovery_code, non_neg_integer()}}
-          | {:error, :invalid_code}
+          | {:error, :invalid_code | :secret_unreadable}
 
   @doc """
   Whether this instance can store TOTP secrets. Without a
@@ -60,10 +67,18 @@ defmodule NervesHub.Accounts.TwoFactor do
   end
 
   @doc """
-  The user's authenticator app, if they have set one up.
+  The user's authenticator app, if they have set one up, without its secret:
+  nothing but checking a code needs that, and it can't be decrypted once
+  `SECRETS_ENCRYPTION_KEY` has changed, which shouldn't stop the account's
+  two-factor page from loading.
   """
   @spec get(User.t()) :: UserTOTP.t() | nil
-  def get(%User{id: user_id}), do: Repo.get_by(UserTOTP, user_id: user_id)
+  def get(%User{id: user_id}) do
+    UserTOTP
+    |> where(user_id: ^user_id)
+    |> select([t], struct(t, [:id, :user_id, :last_used_at, :recovery_codes, :inserted_at, :updated_at]))
+    |> Repo.one()
+  end
 
   @doc """
   A new random secret, for a user to add to their authenticator app. Nothing
@@ -100,6 +115,10 @@ defmodule NervesHub.Accounts.TwoFactor do
   Turns two-factor on with `secret`, once `code` shows the user's app has
   it. Returns the recovery codes, which are shown once and never again.
 
+  Browser sessions the user already has stay signed in, though none of them
+  typed a code. The account's two-factor page signs the others out with
+  `NervesHub.Accounts.delete_other_user_session_tokens/2`, once this returns.
+
   The user is emailed that it was turned on.
   """
   @spec enable(User.t(), binary(), String.t()) ::
@@ -107,26 +126,30 @@ defmodule NervesHub.Accounts.TwoFactor do
   def enable(%User{} = user, secret, code) when is_binary(secret) do
     with {:available, true} <- {:available, available?()},
          {:ok, period_start} <- match_totp(secret, normalize(code)) do
-      {codes, hashes} = new_recovery_codes(user)
-
-      Repo.transact(fn ->
-        %UserTOTP{user_id: user.id}
-        |> Ecto.Changeset.change(secret: secret, last_used_at: period_start, recovery_codes: hashes)
-        |> Ecto.Changeset.unique_constraint(:user_id)
-        |> Repo.insert()
-        |> case do
-          {:ok, _totp} ->
-            {:ok, _job} = UserNotifier.deliver_two_factor_enabled(user)
-            {:ok, codes}
-
-          {:error, _changeset} ->
-            {:error, :already_enabled}
-        end
-      end)
+      insert_totp(user, secret, period_start)
     else
       {:available, false} -> {:error, :unavailable}
       :error -> {:error, :invalid_code}
     end
+  end
+
+  defp insert_totp(user, secret, period_start) do
+    {codes, hashes} = new_recovery_codes(user)
+
+    Repo.transact(fn ->
+      %UserTOTP{user_id: user.id}
+      |> Ecto.Changeset.change(secret: secret, last_used_at: period_start, recovery_codes: hashes)
+      |> Ecto.Changeset.unique_constraint(:user_id)
+      |> Repo.insert()
+      |> case do
+        {:ok, _totp} ->
+          {:ok, _job} = UserNotifier.deliver_two_factor_enabled(user)
+          {:ok, codes}
+
+        {:error, _changeset} ->
+          {:error, :already_enabled}
+      end
+    end)
   end
 
   @doc """
@@ -134,7 +157,10 @@ defmodule NervesHub.Accounts.TwoFactor do
   app, or one of their recovery codes, which is used up. Spaces and dashes
   are ignored.
 
-  A user without two-factor has no code that works.
+  A user without two-factor has no code that works. A code from the app
+  can't be checked once `SECRETS_ENCRYPTION_KEY` has changed
+  (`:secret_unreadable`), but recovery codes, which don't need the secret,
+  still work, so the user can sign in and set their app up again.
   """
   @spec verify(User.t(), String.t()) :: verify_result()
   def verify(%User{} = user, code) when is_binary(code) do
@@ -151,12 +177,17 @@ defmodule NervesHub.Accounts.TwoFactor do
   proves whoever asks still holds the second factor rather than only a
   signed in browser.
 
+  Whatever the user has open in an organization that requires two-factor is
+  told, so those pages and consoles close.
+
   The user is emailed that it was turned off.
   """
-  @spec disable(User.t(), String.t()) :: :ok | {:error, :invalid_code}
+  @spec disable(User.t(), String.t()) :: :ok | {:error, :invalid_code | :secret_unreadable}
   def disable(%User{} = user, code) do
     with {:ok, _how} <- verify(user, code),
          {:ok, :ok} <- Repo.transact(fn -> delete_and_notify(user) end) do
+      for org <- orgs_requiring(user), do: AccessPubSub.broadcast_membership_changed(org.id, user.id)
+
       :ok
     end
   end
@@ -181,19 +212,26 @@ defmodule NervesHub.Accounts.TwoFactor do
   or a recovery code. The old codes stop working, and the user is emailed
   that they were replaced.
   """
-  @spec regenerate_recovery_codes(User.t(), String.t()) :: {:ok, [String.t()]} | {:error, :invalid_code}
+  @spec regenerate_recovery_codes(User.t(), String.t()) ::
+          {:ok, [String.t()]} | {:error, :invalid_code | :secret_unreadable}
   def regenerate_recovery_codes(%User{} = user, code) do
     with {:ok, _how} <- verify(user, code) do
       {codes, hashes} = new_recovery_codes(user)
 
       Repo.transact(fn ->
-        {1, _} =
-          UserTOTP
-          |> where(user_id: ^user.id)
-          |> Repo.update_all(set: [recovery_codes: hashes])
+        UserTOTP
+        |> where(user_id: ^user.id)
+        |> Repo.update_all(set: [recovery_codes: hashes])
+        |> case do
+          {1, _} ->
+            {:ok, _job} = UserNotifier.deliver_two_factor_recovery_codes(user)
+            {:ok, codes}
 
-        {:ok, _job} = UserNotifier.deliver_two_factor_recovery_codes(user)
-        {:ok, codes}
+          {0, _} ->
+            # Turned off by another request since the code was checked, so
+            # there is nothing for the code to have been for.
+            {:error, :invalid_code}
+        end
       end)
     end
   end
@@ -250,7 +288,9 @@ defmodule NervesHub.Accounts.TwoFactor do
 
   A change is recorded in the org's audit log; saving the same value again
   isn't. Turning it on emails every other member, asking those without it to
-  set it up.
+  set it up, and tells whatever those without it have open in the org, so
+  their pages and consoles close rather than staying open until they next
+  navigate.
   """
   @spec set_org_requirement(Org.t(), User.t(), boolean()) ::
           {:ok, Org.t()} | {:error, :two_factor_off | :unavailable | Ecto.Changeset.t()}
@@ -265,12 +305,20 @@ defmodule NervesHub.Accounts.TwoFactor do
   defp update_org_requirement(org, admin, required) do
     changeset = Org.require_two_factor_changeset(org, required)
 
-    Repo.transact(fn ->
-      with {:ok, updated} <- Repo.update(changeset),
-           :ok <- record_change(changeset, updated, admin) do
-        {:ok, updated}
-      end
-    end)
+    result =
+      Repo.transact(fn ->
+        with {:ok, updated} <- Repo.update(changeset),
+             :ok <- record_change(changeset, updated, admin) do
+          {:ok, updated}
+        end
+      end)
+
+    # Once committed, as each subscriber reads the requirement straight away.
+    with {:ok, %Org{require_two_factor: true} = updated} <- result do
+      for member <- members_without(updated), do: AccessPubSub.broadcast_membership_changed(updated.id, member.id)
+    end
+
+    result
   end
 
   defp record_change(changeset, org, admin) do
@@ -309,11 +357,40 @@ defmodule NervesHub.Accounts.TwoFactor do
   end
 
   defp verify_totp(%UserTOTP{} = totp, code) do
-    with {:ok, period_start} <- match_totp(totp.secret, code),
+    with {:ok, secret} <- load_secret(totp),
+         {:ok, period_start} <- match_totp(secret, code),
          true <- claim_period(totp, period_start) do
       {:ok, :totp}
     else
+      {:error, :secret_unreadable} -> {:error, :secret_unreadable}
       _ -> {:error, :invalid_code}
+    end
+  end
+
+  # Read as the stored bytes and decrypted here, rather than by loading the
+  # field, which raises when the key has changed since it was stored.
+  defp load_secret(%UserTOTP{id: id, user_id: user_id}) do
+    stored =
+      UserTOTP
+      |> where(id: ^id)
+      |> select([t], type(t.secret, :binary))
+      |> Repo.one()
+
+    with <<_::binary>> <- stored,
+         true <- available?() || :error,
+         {:ok, secret} <- Encrypted.load(stored) do
+      {:ok, secret}
+    else
+      nil ->
+        # Turned off since the row was read.
+        {:error, :invalid_code}
+
+      :error ->
+        Logger.error(
+          "[TwoFactor] The TOTP secret of user #{user_id} can't be decrypted. Has SECRETS_ENCRYPTION_KEY changed?"
+        )
+
+        {:error, :secret_unreadable}
     end
   end
 
@@ -366,16 +443,18 @@ defmodule NervesHub.Accounts.TwoFactor do
     {codes, hashes}
   end
 
-  # Ten characters of base32, 50 bits, shown as two groups of five.
+  # Sixteen characters of base32, 80 bits, shown as four groups of four.
   defp random_recovery_code() do
-    chars = for <<byte <- :crypto.strong_rand_bytes(10)>>, do: Enum.at(@recovery_code_alphabet, rem(byte, 32))
-    {first, second} = Enum.split(chars, 5)
+    chars = for <<byte <- :crypto.strong_rand_bytes(16)>>, do: Enum.at(@recovery_code_alphabet, rem(byte, 32))
 
-    "#{first}-#{second}"
+    chars
+    |> Enum.chunk_every(4)
+    |> Enum.join("-")
   end
 
-  # Codes are random, so a fast hash is enough; the user id keeps the same
-  # code from hashing alike for two users.
+  # Codes are random and 80 bits, too many to search for from a leaked hash,
+  # so a fast hash is enough; the user id keeps the same code from hashing
+  # alike for two users.
   defp hash_recovery_code(user_id, code), do: :crypto.hash(:sha256, "#{user_id}:#{code}")
 
   defp normalize(code) when is_binary(code) do

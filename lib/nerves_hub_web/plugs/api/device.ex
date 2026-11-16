@@ -5,6 +5,7 @@ defmodule NervesHubWeb.API.Plugs.Device do
   alias NervesHub.Accounts.OrgUser
   alias NervesHub.Accounts.Scope
   alias NervesHub.Devices
+  alias NervesHubWeb.Auth
 
   @preloads [:product, :latest_connection]
 
@@ -22,6 +23,9 @@ defmodule NervesHubWeb.API.Plugs.Device do
   # The top-level /api/devices/:identifier routes name no org, so the device's
   # org and the user's role in it go on the scope here, for the permission
   # checks after this plug.
+  #
+  # `require_org_two_factor` ran before this plug, when the scope had no org
+  # yet, so it is run again here, now that it does.
   def call(%{assigns: %{current_scope: scope}, params: %{"identifier" => identifier}} = conn, _opts) do
     device = Devices.get_by_identifier!(scope, identifier, @preloads)
     {:ok, org_user} = Accounts.get_org_user(device.org, scope.user)
@@ -34,5 +38,6 @@ defmodule NervesHubWeb.API.Plugs.Device do
     conn
     |> assign(:current_scope, scope)
     |> assign(:device, device)
+    |> Auth.require_org_two_factor(:api)
   end
 end
