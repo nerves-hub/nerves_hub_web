@@ -1,4 +1,4 @@
-import semver from "semver"
+import { acceptsFiles } from "../helpers/consoleFiles.js"
 import {
   connectUserSocket,
   createTerminal,
@@ -61,6 +61,14 @@ export default {
     // Stream all events straight to the device
     term.onData(data => {
       channel.push("dn", { data: this.keyboard.transform(data) })
+    })
+
+    // The device's console version, which says whether it can take a file.
+    // It arrives once the device's console answers, so it may be unknown.
+    let consoleVersion = null
+
+    channel.on("metadata", payload => {
+      consoleVersion = payload.version
     })
 
     // Write data from device to console
@@ -143,11 +151,7 @@ export default {
       e.stopPropagation()
       e.preventDefault()
 
-      if (semver.gte(metadata.version, "2.0.0")) {
-        e.dataTransfer.dropEffect = "copy"
-      } else {
-        e.dataTransfer.dropEffect = "none"
-      }
+      e.dataTransfer.dropEffect = acceptsFiles(consoleVersion) ? "copy" : "none"
     })
 
     // Sends a file to the device, a chunk at a time.
@@ -188,6 +192,7 @@ export default {
       e => {
         e.preventDefault()
         e.stopPropagation()
+        if (!acceptsFiles(consoleVersion)) return
         if (e.dataTransfer.items) {
           for (const item of e.dataTransfer.items) {
             sendFile(item.getAsFile())

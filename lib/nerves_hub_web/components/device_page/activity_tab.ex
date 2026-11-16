@@ -65,7 +65,7 @@ defmodule NervesHubWeb.Components.DevicePage.ActivityTab do
               <ul>
                 <li :for={entry <- entries} data-activity-entry class="flex min-h-11 items-center gap-3 py-1.5">
                   <span class="flex size-7 shrink-0 items-center justify-center rounded-full border border-line-subtle bg-surface-muted">
-                    <span class="lucide-activity size-3.5 text-content-muted" aria-hidden="true"></span>
+                    <span class={[kind_icon(entry.kind), "size-3.5 text-content-muted"]} aria-hidden="true"></span>
                   </span>
                   <%!-- A description can hold an unbroken token (a shared secret's
                         key, a firmware UUID), which breaks rather than running
@@ -98,6 +98,47 @@ defmodule NervesHubWeb.Components.DevicePage.ActivityTab do
       {to_local_string(first.inserted_at, time_zone, :medium_date, false), day}
     end)
   end
+
+  # One glyph per kind of entry (`NervesHub.AuditLogs.AuditLog.kinds/0`), as
+  # the Activity tab boards in Paper draw them, in the bold weight a 14px glyph
+  # takes. Whole class names, so Tailwind finds them. Entries written before
+  # kinds existed have none and get the neutral glyph.
+  @icons %{
+    archive_sent: "lucide-archive--bold",
+    deployment_group_mismatch: "lucide-unlink--bold",
+    deployment_group_set: "lucide-rocket--bold",
+    deployment_update_sent: "lucide-download--bold",
+    device_moved: "lucide-arrow-right-left--bold",
+    device_rebooted: "lucide-power--bold",
+    device_updated: "lucide-pencil--bold",
+    firmware_metadata_updated: "lucide-file-text--bold",
+    firmware_pushed: "lucide-download--bold",
+    firmware_updated: "lucide-refresh-cw--bold",
+    firmware_validated: "lucide-shield-check--bold",
+    identify_requested: "lucide-locate--bold",
+    managed_updates_changed: "lucide-cpu--bold",
+    penalty_box_cleared: "lucide-lock-open--bold",
+    reconnect_requested: "lucide-wifi--bold",
+    script_run: "lucide-file-code-corner--bold",
+    shared_secret_created: "lucide-key-round--bold",
+    shared_secret_deactivated: "lucide-key-round--bold",
+    tags_changed: "lucide-tag--bold",
+    update_attempted: "lucide-hard-drive-download--bold",
+    update_failed: "lucide-triangle-exclamation-point--bold",
+    update_ignored: "lucide-circle-slash--bold",
+    update_mode_changed: "lucide-sliders-horizontal--bold",
+    update_requested: "lucide-download--bold",
+    update_rescheduled: "lucide-calendar-clock--bold",
+    updates_blocked: "lucide-ban--bold",
+    updates_disabled: "lucide-toggle-left--bold",
+    updates_enabled: "lucide-toggle-right--bold"
+  }
+
+  @doc false
+  # The glyph class for an entry's kind; public so the tests can check every
+  # kind has one.
+  @spec kind_icon(atom() | nil) :: String.t()
+  def kind_icon(kind), do: Map.get(@icons, kind, "lucide-activity--bold")
 
   def hooked_event("set-paginate-opts", %{"page-size" => page_size}, socket) do
     params = %{"page_size" => page_size, "page_number" => "1"}

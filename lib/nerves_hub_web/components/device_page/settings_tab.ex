@@ -20,7 +20,10 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
 
     socket
     |> assign(:settings_form, to_form(changeset))
-    |> assign(:available_tags, Devices.distinct_tags_for_product(socket.assigns.current_scope.product))
+    |> assign(
+      :available_tags,
+      Devices.distinct_tags_for_product(socket.assigns.current_scope.product, socket.assigns.current_scope.user)
+    )
     |> assign(:shared_secrets_enabled, DeviceLink.shared_secrets_enabled?())
     |> assign(:shared_secrets, Devices.list_shared_secret_auths(socket.assigns.device))
     |> assign(:new_shared_secret, nil)
@@ -89,7 +92,7 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
                 <.field_errors field={@settings_form[:description]} />
               </div>
 
-              <div class="flex flex-col gap-1.5">
+              <div :if={authorized?(:"device:tags", @current_scope)} class="flex flex-col gap-1.5">
                 <label for="settings-new-tag" class={field_label_class()}>Tags</label>
                 <input type="hidden" name={@settings_form[:tags].name} value={@settings_form[:tags].value |> form_tags() |> Enum.join(",")} />
                 <div class={[
@@ -561,6 +564,10 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
     %{device: device, user: user} = socket.assigns
 
     device_params = with_unadded_tag(device_params, params["new_tag"])
+
+    if Ecto.Changeset.changed?(Device.update_changeset(device, Map.take(device_params, ["tags"])), :tags) do
+      authorized!(:"device:tags", socket.assigns.current_scope)
+    end
 
     case Devices.update_device_settings(device, device_params, user) do
       {:ok, device} ->

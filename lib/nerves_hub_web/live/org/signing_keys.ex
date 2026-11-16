@@ -113,7 +113,7 @@ defmodule NervesHubWeb.Live.Org.SigningKeys do
 
   # Why the menu's Delete is greyed out. Firmware and archives hold the key by
   # a foreign key, so it can't go while they're there.
-  defp delete_blocked_reason(_usage, false), do: "Deleting a key needs the Manage or Admin role."
+  defp delete_blocked_reason(_usage, false), do: "Your role doesn't let you delete signing keys."
 
   defp delete_blocked_reason(%{firmware: firmware, archives: archives} = usage, true) do
     verb = if firmware + archives == 1, do: "is", else: "are"

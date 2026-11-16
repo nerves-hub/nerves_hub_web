@@ -14,6 +14,7 @@ defmodule NervesHubWeb.Integrations.Slack.OAuthController do
   use NervesHubWeb, :controller
 
   alias NervesHub.Accounts
+  alias NervesHub.Accounts.OrgUser
   alias NervesHub.Accounts.Scope
   alias NervesHub.Branding
   alias NervesHub.Integrations.Slack
@@ -91,7 +92,7 @@ defmodule NervesHubWeb.Integrations.Slack.OAuthController do
 
     scope
     |> Scope.put_org(membership.org)
-    |> Scope.put_role(membership.role)
+    |> Scope.put_role(OrgUser.assigned_role(membership))
   end
 
   @doc """

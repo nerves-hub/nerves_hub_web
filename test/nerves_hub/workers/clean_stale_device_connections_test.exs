@@ -11,8 +11,11 @@ defmodule NervesHub.Workers.CleanStaleDeviceConnectionsTest do
 
       stub(Connections, :clean_stale_connections, fn ->
         send(test_pid, :clean_called)
-        {0, []}
+        :ok
       end)
+
+      # The ClickHouse pass runs hourly from its own worker.
+      reject(&Connections.clean_stale_connections_from_analytics/0)
 
       job = %Oban.Job{id: Ecto.UUID.generate(), attempt: 1, args: %{}}
       assert :ok = CleanStaleDeviceConnections.perform(job)
