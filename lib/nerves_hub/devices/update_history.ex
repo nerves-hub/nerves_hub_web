@@ -322,10 +322,12 @@ defmodule NervesHub.Devices.UpdateHistory do
     AnalyticsRepo.all(query)
   end
 
+  @max_attempts_page_size 100
+
   @typedoc """
   One finished attempt as `device_attempts/3` returns it, with its firmware
-  and deployment group looked up. A firmware this product no longer has, or
-  never had, comes back with a `nil` version.
+  and deployment group looked up. A deployment group this product no longer
+  has comes back as `nil`; see `t:firmware_ref/0` for a missing firmware.
   """
   @type attempt :: %{
           timestamp: DateTime.t(),
@@ -356,9 +358,23 @@ defmodule NervesHub.Devices.UpdateHistory do
 
   Reads ClickHouse, so it is empty where `:analytics_enabled` is not set, and
   an attempt that has just ended may take a moment to appear.
+
+  `page` and `page_size` come from the page's URL, so they are clamped: the
+  page to 1 or more, and the page size to between 1 and #{@max_attempts_page_size}.
   """
-  @spec device_attempts(device(), pos_integer(), pos_integer()) :: {[attempt()], page()}
+  @spec device_attempts(device(), integer(), integer()) :: {[attempt()], page()}
   def device_attempts(device, page, page_size) do
+    page = max(page, 1)
+    page_size = page_size |> max(1) |> min(@max_attempts_page_size)
+
+    if Application.get_env(:nerves_hub, :analytics_enabled) do
+      attempts_page(device, page, page_size)
+    else
+      {[], %{current_page: 1, page_size: page_size, total_count: 0, total_pages: 0}}
+    end
+  end
+
+  defp attempts_page(device, page, page_size) do
     base =
       from h in DeviceUpdateHistory,
         where: h.org_id == ^device.org_id,

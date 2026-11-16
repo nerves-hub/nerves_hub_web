@@ -67,7 +67,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
     |> watch_paced_extensions()
     |> load_inprogress_firmware_update()
     |> assign(:pinned?, Pinning.device_pinned?(user.id, device.id))
-    |> assign(:error_issue_count, error_issue_count(product, device))
+    |> load_error_issue_count(product, device)
     |> setup_presence_tracking()
     |> setup_tab_components(@tab_components)
     |> ok()
@@ -327,6 +327,16 @@ defmodule NervesHubWeb.Live.Devices.Show do
     |> noreply()
   end
 
+  def handle_async(:error_issue_count, {:ok, count}, socket) do
+    {:noreply, assign(socket, :error_issue_count, count)}
+  end
+
+  def handle_async(:error_issue_count, {:exit, reason}, socket) do
+    Logger.warning("Couldn't count the device's error report issues: #{inspect(reason)}")
+
+    {:noreply, socket}
+  end
+
   # Ignore handle_async results that have come from other tabs
   # This can happen when a support script is run from the details tab, only for the user
   # to navigate to a different tab before the result arrives.
@@ -410,15 +420,25 @@ defmodule NervesHubWeb.Live.Devices.Show do
   # The Errors tab's count: the issues the device reported in the last 30
   # days, or nothing where error reports can't be shown. The Errors tab keeps
   # it current while it is open.
-  # Matches the Errors tab's own gating: on for the product, not turned off for
-  # the device.
-  defp error_issue_count(%{extensions: %{error_reports: true}}, %{extensions: %{error_reports: false}}), do: nil
+  #
+  # It is read from ClickHouse once the socket connects, off the mount, so a
+  # slow or unreachable ClickHouse leaves the count empty rather than holding
+  # up or failing every tab.
+  defp load_error_issue_count(socket, product, device) do
+    socket = assign(socket, :error_issue_count, nil)
 
-  defp error_issue_count(%{extensions: %{error_reports: true}}, device) do
-    if analytics_enabled?(), do: ErrorReports.issue_count_for_device(device)
+    if connected?(socket) and error_issue_count?(product, device) do
+      start_async(socket, :error_issue_count, fn -> ErrorReports.issue_count_for_device(device) end)
+    else
+      socket
+    end
   end
 
-  defp error_issue_count(_product, _device), do: nil
+  # Matches the Errors tab's own gating: on for the product, not turned off for
+  # the device, and analytics on.
+  defp error_issue_count?(%{extensions: %{error_reports: true}}, %{extensions: %{error_reports: false}}), do: false
+  defp error_issue_count?(%{extensions: %{error_reports: true}}, _device), do: analytics_enabled?() == true
+  defp error_issue_count?(_product, _device), do: false
 
   defp nonzero(count) when is_integer(count) and count > 0, do: count
   defp nonzero(_count), do: nil

@@ -75,6 +75,23 @@ defmodule NervesHub.Devices.UpdateHistoryTest do
 
       assert {[^earlier], %{current_page: 2}} = UpdateHistory.device_attempts(device, 2, 1)
     end
+
+    test "clamps a page and page size taken from the URL", %{device: device, firmware: firmware} do
+      :ok = UpdateHistory.record(device, :succeeded, target_firmware_uuid: firmware.uuid)
+      :ok = Buffer.flush(DeviceUpdateHistory)
+
+      assert_eventually({[_attempt], %{current_page: 1, page_size: 1}} = UpdateHistory.device_attempts(device, 0, 0))
+      assert {[_attempt], %{current_page: 1, page_size: 100}} = UpdateHistory.device_attempts(device, -3, 1_000_000)
+    end
+
+    test "is empty without querying ClickHouse where analytics is off", %{device: device} do
+      original = Application.get_env(:nerves_hub, :analytics_enabled)
+      Application.put_env(:nerves_hub, :analytics_enabled, false)
+      on_exit(fn -> Application.put_env(:nerves_hub, :analytics_enabled, original) end)
+
+      assert {[], %{current_page: 1, page_size: 25, total_count: 0, total_pages: 0}} =
+               UpdateHistory.device_attempts(device, 2, 25)
+    end
   end
 
   describe "record/3" do

@@ -151,7 +151,8 @@ defmodule NervesHubWeb.Live.Devices.Show.ErrorsTabTest do
 
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}/activity")
-      |> assert_has("#device-tabs a[href$='/errors']", text: "Errors 2")
+      # Read once the socket connects, off the mount.
+      |> assert_has("#device-tabs a[href$='/errors']", text: "Errors 2", timeout: 1000)
     end
 
     test "is left off when nothing has been reported", %{conn: conn, org: org, product: product, device: device} do
