@@ -36,8 +36,8 @@ defmodule NervesHubWeb.Live.DeploymentGroups.New do
     end
   end
 
-  # The firmware list's "New deployment group with it" links here with the
-  # firmware's UUID, so its platform, architecture and firmware start chosen.
+  # A `firmware` param (a UUID) starts the form with that firmware's platform,
+  # architecture and firmware chosen.
   defp preselect_firmware(socket, nil), do: socket
 
   defp preselect_firmware(socket, %Firmware{} = firmware) do

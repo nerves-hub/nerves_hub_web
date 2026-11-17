@@ -111,13 +111,11 @@ defmodule NervesHubWeb.Live.Firmware do
     end
   end
 
-  # Why the delete button is disabled, and what to warn about before it is
-  # clicked. Both are recomputed whenever the firmware is reloaded — a
-  # deployment group can start rolling this firmware out while the page is open.
+  # Why the delete button is disabled. Recomputed whenever the firmware is
+  # reloaded, since a deployment group can start rolling this firmware out while
+  # the page is open.
   defp assign_deletion_state(socket, firmware) do
-    socket
-    |> assign(:deletion_blockers, Firmwares.deletion_blockers(firmware))
-    |> assign(:deletion_warnings, Firmwares.deletion_warnings(firmware))
+    assign(socket, :deletion_blockers, Firmwares.deletion_blockers(firmware))
   end
 
   # A phx-change handler is required when using live uploads.
