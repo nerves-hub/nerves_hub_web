@@ -98,7 +98,7 @@ defmodule NervesHubWeb.AuthorizationDeclared do
       [] ->
         nil
 
-      [{name, args, line} | _] = undeclared ->
+      [{_name, _args, line} | _] = undeclared ->
         clauses =
           Enum.map_join(undeclared, "\n", fn {name, args, line} ->
             "  * line #{line}: #{name}(#{Enum.map_join(args, ", ", &Macro.to_string/1)})"
@@ -108,7 +108,7 @@ defmodule NervesHubWeb.AuthorizationDeclared do
           file: env.file,
           line: line,
           description: """
-          #{name}/#{length(args)} in #{inspect(env.module)} does not say what authorization it needs:
+          #{inspect(env.module)} has callbacks that do not say what authorization they need:
 
           #{clauses}
 

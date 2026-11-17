@@ -57,9 +57,8 @@ defmodule NervesHubWeb.Helpers.PermissionPlugs do
   Checks nothing, and says why nothing needs checking.
 
   For actions outside any organization, such as signing in, and ones the
-  request proves for itself, such as a Slack request's signature. Every
-  controller action has to be covered by this or one of the plugs above, see
-  `NervesHubWeb.ControllerAuthorizationDeclared`.
+  request proves for itself, such as a Slack request's signature. `reason`
+  has to be a non-nil atom.
   """
   def require_no_permission(conn, reason) when is_atom(reason) and not is_nil(reason), do: conn
 end

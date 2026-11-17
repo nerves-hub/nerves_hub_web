@@ -32,7 +32,7 @@ defmodule NervesHubWeb.AuthorizationDeclaredTest do
 
   describe "callbacks a client can drive" do
     test "a clause without a decorator does not compile" do
-      assert_raise CompileError, ~r/handle_event\/3 .* does not say what authorization it needs.*"undeclared"/s, fn ->
+      assert_raise CompileError, ~r/has callbacks that do not say what authorization they need.*"undeclared"/s, fn ->
         compile(
           quote do
             use NervesHubWeb.AuthorizationDeclared, handle_event: 3

@@ -16,7 +16,7 @@ defmodule NervesHubWeb.SessionController do
   )
 
   # The second step of a password sign-in. `fetch_pending_two_factor_user`
-  # turns away anyone who didn't pass the first.
+  # turns away anyone who didn't pass the first; cancelling only clears it.
   plug(
     :require_no_permission,
     :finishes_a_password_sign_in when action in [:two_factor, :verify_two_factor, :cancel_two_factor]

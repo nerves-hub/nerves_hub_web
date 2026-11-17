@@ -32,7 +32,6 @@ defmodule NervesHubWeb do
     quote do
       use Phoenix.Controller, formats: [:html]
       use Gettext, backend: NervesHubWeb.Gettext
-      # Every action says what authorization it needs.
       use NervesHubWeb.ControllerAuthorizationDeclared
 
       import NervesHubWeb.Helpers.PermissionPlugs
@@ -47,7 +46,6 @@ defmodule NervesHubWeb do
     quote do
       use Phoenix.Controller, formats: [:json]
       use Gettext, backend: NervesHubWeb.Gettext
-      # Every action says what authorization it needs.
       use NervesHubWeb.ControllerAuthorizationDeclared
 
       import NervesHubWeb.Helpers.PermissionPlugs
@@ -66,8 +64,6 @@ defmodule NervesHubWeb do
 
   def live_view() do
     quote do
-      # Every callback a browser can drive says what it needs to run. See
-      # NervesHubWeb.AuthorizationDeclared.
       use NervesHubWeb.AuthorizationDeclared, mount: 3, handle_params: 3, handle_event: 3, handle_progress: 3
 
       unquote(live_view_setup())
