@@ -125,7 +125,7 @@ defmodule NervesHub.Accounts do
   end
 
   def change_user(%User{} = user, params) do
-    User.update_changeset(user, params)
+    User.update_changeset(user, params, email_follows_google: email_follows_google?(user))
   end
 
   @doc """
@@ -232,13 +232,19 @@ defmodule NervesHub.Accounts do
       {:error, %Ecto.Changeset{}}
 
   """
-  def update_user_password(%User{} = user, password, attrs, reset_url) do
-    changeset =
-      user
+  def update_user_password(%User{id: user_id}, password, attrs, reset_url) do
+    # Checked against the row as it is now, not the caller's copy: a page
+    # loaded before the password was removed would otherwise put one back
+    # with the old password.
+    Repo.transact(fn ->
+      User
+      |> where(id: ^user_id)
+      |> lock("FOR UPDATE")
+      |> Repo.one!()
       |> User.password_changeset(attrs)
       |> User.validate_current_password(password)
-
-    Repo.update(changeset)
+      |> Repo.update()
+    end)
     |> case do
       {:ok, user} ->
         _ = deliver_user_password_updated(user, reset_url)
@@ -262,6 +268,183 @@ defmodule NervesHub.Accounts do
     {encoded_token, user_token} = UserToken.build_hashed_token(user, "reset_password", nil)
     Repo.insert!(user_token)
     UserNotifier.deliver_password_updated(user, reset_url_fun.(encoded_token))
+  end
+
+  @doc """
+  Whether this server offers Google sign-in, which it does when it has a
+  Google client ID (`GOOGLE_CLIENT_ID`).
+  """
+  @spec google_sign_in_enabled?() :: boolean()
+  def google_sign_in_enabled?(), do: Application.get_env(:nerves_hub, :enable_google_auth) == true
+
+  @doc """
+  The ways `user` can sign in: `:password`, `:google`, both, or (for a Google
+  account on a server that has since turned Google sign-in off) neither.
+  """
+  @spec sign_in_methods(User.t()) :: [:password | :google]
+  def sign_in_methods(%User{} = user) do
+    Enum.filter([:password, :google], &sign_in_method?(user, &1))
+  end
+
+  defp sign_in_method?(%User{password_hash: hash}, :password), do: is_binary(hash)
+  defp sign_in_method?(%User{} = user, :google), do: email_follows_google?(user)
+
+  @doc """
+  Whether the account's email comes from Google: it is linked to a Google
+  account and this server offers Google sign-in, so the next one will
+  overwrite it. On a server that has turned Google sign-in off, the account
+  changes its email like any other.
+
+  It is also whether the account can sign in with Google
+  (`sign_in_methods/1`).
+  """
+  @spec email_follows_google?(User.t()) :: boolean()
+  def email_follows_google?(%User{google_id: google_id}) do
+    is_binary(google_id) and google_sign_in_enabled?()
+  end
+
+  @doc """
+  Gives an account without a password one, for an account that signs in with
+  Google. Changing a password that exists is `update_user_password/4`, which
+  asks for the old one.
+
+  Whoever calls this has made sure the user signed in recently, since a signed
+  in browser is all it otherwise needs.
+  """
+  @spec set_user_password(User.t(), map(), (String.t() -> String.t())) ::
+          {:ok, User.t()} | {:error, :already_set | Changeset.t()}
+  def set_user_password(%User{id: user_id}, attrs, reset_url) do
+    # Decided on the row as it is now, not on the caller's copy, which may be
+    # from before a password was set in another tab or by a reset.
+    Repo.transact(fn ->
+      User
+      |> where(id: ^user_id)
+      |> lock("FOR UPDATE")
+      |> Repo.one!()
+      |> case do
+        %User{password_hash: nil} = user -> user |> User.password_changeset(attrs) |> Repo.update()
+        %User{} -> {:error, :already_set}
+      end
+    end)
+    |> case do
+      {:ok, user} ->
+        _ = deliver_user_password_updated(user, reset_url)
+        {:ok, user}
+
+      error ->
+        error
+    end
+  end
+
+  @doc """
+  Removes the password from an account that signs in with Google, so only
+  Google signs it in. Refused with `:last_sign_in_method` unless Google sign-in
+  works for it, so nobody can lock themselves out.
+
+  Every session but `keep_token` (the one asking) is signed out, as whoever
+  holds them may have got in with the password, and the user is emailed to
+  say so.
+
+  Whoever calls this has made sure the user signed in recently.
+  """
+  @spec remove_password(User.t(), binary() | nil) ::
+          {:ok, User.t()} | {:error, :no_password | :last_sign_in_method | Changeset.t()}
+  def remove_password(%User{} = user, keep_token) do
+    change_sign_in_methods(user, keep_token, :password_removed, fn user ->
+      cond do
+        not sign_in_method?(user, :password) -> {:error, :no_password}
+        not sign_in_method?(user, :google) -> {:error, :last_sign_in_method}
+        true -> {:ok, User.remove_password_changeset(user)}
+      end
+    end)
+  end
+
+  @doc """
+  Unlinks the Google account from an account that has a password, so only the
+  password signs it in. Refused with `:last_sign_in_method` when it has no
+  password.
+
+  Every session but `keep_token` (the one asking) is signed out, as whoever
+  holds them may have got in with Google, and the user is emailed to say so.
+
+  Whoever calls this has made sure the user signed in recently.
+  """
+  @spec disconnect_google(User.t(), binary() | nil) ::
+          {:ok, User.t()} | {:error, :not_connected | :last_sign_in_method | Changeset.t()}
+  def disconnect_google(%User{} = user, keep_token) do
+    change_sign_in_methods(user, keep_token, :google_disconnected, fn user ->
+      cond do
+        is_nil(user.google_id) -> {:error, :not_connected}
+        not sign_in_method?(user, :password) -> {:error, :last_sign_in_method}
+        true -> {:ok, User.disconnect_google_changeset(user)}
+      end
+    end)
+  end
+
+  # `change_fun` decides on the account's row as it is now, locked until the
+  # change commits, rather than on the caller's copy, which may be stale: two
+  # tabs could otherwise each remove a different way in and leave none.
+  defp change_sign_in_methods(%User{id: user_id}, keep_token, change, change_fun) do
+    Multi.new()
+    |> Multi.run(:changeset, fn repo, _changes ->
+      User
+      |> where(id: ^user_id)
+      |> lock("FOR UPDATE")
+      |> repo.one!()
+      |> change_fun.()
+    end)
+    |> Multi.update(:user, fn %{changeset: changeset} -> changeset end)
+    |> Multi.run(:signed_out, fn repo, %{user: user} ->
+      query = UserToken.by_user_and_contexts_query(user, ["session"])
+      query = if is_binary(keep_token), do: where(query, [t], t.token != ^keep_token), else: query
+
+      {_count, tokens} = repo.delete_all(select(query, [t], t.token))
+      {:ok, tokens}
+    end)
+    |> Repo.transact()
+    |> case do
+      {:ok, %{user: user, signed_out: tokens}} ->
+        for token <- tokens, do: disconnect_socket(UserToken.live_socket_id(token))
+        {:ok, _job} = UserNotifier.deliver_sign_in_method_changed(user, change)
+        {:ok, user}
+
+      {:error, :changeset, reason, _} ->
+        {:error, reason}
+
+      {:error, :user, changeset, _} ->
+        {:error, changeset}
+    end
+  end
+
+  @doc """
+  Links the Google account `auth` is for to `user`, who is signed in and has
+  just signed in to Google from their account page.
+
+  Refused with `:email_not_verified` unless Google has verified the address,
+  then makes the checks of `link_google_account/2`: the address is the
+  account's, the account is confirmed, and it has no Google account yet. The
+  user is emailed once it's connected. Whoever calls this has made sure the
+  user signed in recently.
+  """
+  @spec connect_google_account(User.t(), Ueberauth.Auth.t()) ::
+          {:ok, User.t()}
+          | {:error,
+             :email_not_verified
+             | :expired
+             | :email_mismatch
+             | :unconfirmed
+             | :already_linked
+             | :invalid
+             | Changeset.t()}
+  def connect_google_account(%User{} = user, %Ueberauth.Auth{} = auth) do
+    if google_email_verified?(auth) do
+      with {:ok, user} <- link_google_account(user, pending_google_link(auth)) do
+        {:ok, _job} = UserNotifier.deliver_sign_in_method_changed(user, :google_connected)
+        {:ok, user}
+      end
+    else
+      {:error, :email_not_verified}
+    end
   end
 
   @doc """

@@ -5,10 +5,6 @@ defmodule NervesHubWeb.Live.TwoFactorTest do
   alias NervesHub.Accounts.TwoFactor
   alias NervesHub.Fixtures
 
-  defp signed_in(user) do
-    init_test_session(build_conn(), %{"user_token" => Accounts.create_user_session_token(user)})
-  end
-
   # The secret the setup page shows for typing into an app by hand.
   defp setup_secret(session) do
     unwrap(session, fn view ->
@@ -34,7 +30,6 @@ defmodule NervesHubWeb.Live.TwoFactorTest do
 
       session
       |> fill_in("Code from the app", with: NimbleTOTP.verification_code(secret))
-      |> fill_in("Your password", with: "test_password")
       |> click_button("Turn on")
       |> assert_has("#recovery-codes li", count: 10)
       |> click_button("I've saved them")
@@ -56,7 +51,6 @@ defmodule NervesHubWeb.Live.TwoFactorTest do
 
       session
       |> fill_in("Code from the app", with: NimbleTOTP.verification_code(secret))
-      |> fill_in("Your password", with: "test_password")
       |> click_button("Turn on")
       |> assert_has("#recovery-codes li", count: 10)
 
@@ -68,14 +62,41 @@ defmodule NervesHubWeb.Live.TwoFactorTest do
       |> assert_has("#two-factor-on")
     end
 
-    test "won't turn on without the password", %{conn: conn, user: user} do
-      conn
+    # The browser case's session signed in just now; this one didn't.
+    test "asks a session that didn't sign in recently to confirm it's them first", %{user: user} do
+      user
+      |> signed_in_conn(recent: false)
       |> visit(~p"/account/two-factor")
       |> click_button("Set up two-factor authentication")
-      |> fill_in("Code from the app", with: "123456")
-      |> fill_in("Your password", with: "not it")
+      |> assert_path(~p"/account/confirm", query_params: %{return_to: "/account/two-factor"})
+
+      refute TwoFactor.enabled?(user)
+    end
+
+    test "a setup left open too long has to start again", %{conn: conn, user: user} do
+      session =
+        conn
+        |> visit(~p"/account/two-factor")
+        |> click_button("Set up two-factor authentication")
+
+      secret = setup_secret(session)
+
+      # As if setup started eleven minutes ago.
+      session =
+        unwrap(session, fn view ->
+          :sys.replace_state(view.pid, fn state ->
+            started_at = System.monotonic_time(:second) - 11 * 60
+            %{state | socket: Phoenix.Component.assign(state.socket, :setup_started_at, started_at)}
+          end)
+
+          render(view)
+        end)
+
+      session
+      |> fill_in("Code from the app", with: NimbleTOTP.verification_code(secret))
       |> click_button("Turn on")
-      |> assert_has("#two-factor-error", text: "That password isn't right.")
+      |> assert_has("div", text: "Setting up took longer than ten minutes")
+      |> assert_has("#two-factor-off")
 
       refute TwoFactor.enabled?(user)
     end
@@ -123,28 +144,6 @@ defmodule NervesHubWeb.Live.TwoFactorTest do
       assert TwoFactor.enabled?(user)
     end
 
-    test "wrong passwords are limited too when turning it on", %{conn: conn, user: user} do
-      turn_on = fn session, password ->
-        session
-        |> fill_in("Code from the app", with: "123456")
-        |> fill_in("Your password", with: password)
-        |> click_button("Turn on")
-      end
-
-      session =
-        conn
-        |> visit(~p"/account/two-factor")
-        |> click_button("Set up two-factor authentication")
-
-      1..5
-      |> Enum.reduce(session, fn _, session -> turn_on.(session, "not it") end)
-      |> assert_has("#two-factor-error", text: "That password isn't right.")
-      |> turn_on.("test_password")
-      |> assert_has("#two-factor-error", text: "Too many tries")
-
-      refute TwoFactor.enabled?(user)
-    end
-
     test "makes new recovery codes", %{conn: conn, user: user} do
       %{recovery_codes: [code | _]} = Fixtures.two_factor_fixture(user)
 
@@ -180,14 +179,14 @@ defmodule NervesHubWeb.Live.TwoFactorTest do
 
     test "sends a member without it to set it up", %{org: org, member: member} do
       member
-      |> signed_in()
+      |> signed_in_conn(recent: false)
       |> visit(~p"/org/#{org}")
       |> assert_path(~p"/account/two-factor")
       |> assert_has("#two-factor-required", text: "#{org.name} requires two-factor authentication")
     end
 
     test "stops them at the org's controller routes too", %{org: org, member: member, product: product} do
-      conn = get(signed_in(member), ~p"/org/#{org}/#{product}/devices/export")
+      conn = get(signed_in_conn(member, recent: false), ~p"/org/#{org}/#{product}/devices/export")
 
       assert redirected_to(conn) == ~p"/account/two-factor"
     end
@@ -196,7 +195,7 @@ defmodule NervesHubWeb.Live.TwoFactorTest do
       Fixtures.two_factor_fixture(member)
 
       member
-      |> signed_in()
+      |> signed_in_conn(recent: false)
       |> visit(~p"/org/#{org}")
       |> assert_path(~p"/org/#{org}")
     end
@@ -247,7 +246,7 @@ defmodule NervesHubWeb.Live.TwoFactorTest do
       Fixtures.two_factor_fixture(member)
 
       member
-      |> signed_in()
+      |> signed_in_conn(recent: false)
       |> visit(~p"/account/two-factor")
       |> assert_has("#two-factor-disable-warning", text: org.name)
     end
@@ -261,7 +260,7 @@ defmodule NervesHubWeb.Live.TwoFactorTest do
       member = Fixtures.user_fixture()
       {:ok, _} = Accounts.add_org_user(org, member, %{role: :manage})
 
-      {:ok, members_page, _html} = member |> signed_in() |> live(~p"/org/#{org}")
+      {:ok, members_page, _html} = member |> signed_in_conn(recent: false) |> live(~p"/org/#{org}")
       {:ok, admins_page, _html} = live(conn, ~p"/org/#{org}")
 
       {:ok, _org} = TwoFactor.set_org_requirement(org, user, true)

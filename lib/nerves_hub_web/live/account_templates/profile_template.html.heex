@@ -1,0 +1,224 @@
+<NervesHubWeb.Layouts.account flash={@flash} current_scope={@current_scope} tab={:profile}>
+  <section id="profile" class="flex flex-col gap-3">
+    <NervesHubWeb.Layouts.org_heading title="Your details">
+      Shown to people in your organizations and in the audit log.
+    </NervesHubWeb.Layouts.org_heading>
+
+    <.form
+      for={@form}
+      id="details-form"
+      phx-submit="update-details"
+      class="grid gap-4 rounded-card border border-line-default bg-surface-raised p-4 sm:grid-cols-2 sm:p-5"
+    >
+      <.input field={@form[:name]} type="text" label="Name" autocomplete="name" />
+
+      <%= if NervesHub.Accounts.email_follows_google?(@user) do %>
+        <div>
+          <.input id="email_input" name="email" type="email" value={@user.email} label="Email" readonly aria-describedby="email_follows_google" />
+          <p id="email_follows_google" class="mt-1.5 text-ui text-content-muted">
+            Follows your Google account. Change it in Google, and it changes here the next time you sign in with Google.
+          </p>
+        </div>
+      <% else %>
+        <div class="flex flex-col gap-4">
+          <.input field={@form[:email]} type="email" label="Email" autocomplete="email" />
+          <.input
+            :if={@user.password_hash}
+            field={@form[:current_password]}
+            type="password"
+            label="Current password"
+            hint="needed to change your email"
+            autocomplete="current-password"
+          />
+        </div>
+      <% end %>
+
+      <div class="flex justify-end sm:col-span-2">
+        <.button style="primary" type="submit">Save profile</.button>
+      </div>
+    </.form>
+  </section>
+
+  <div :if={@recent_until} id="recent-sign-in" class="flex items-center gap-2.5 rounded-card border border-line-default bg-surface-raised px-3.5 py-2.5 text-ui/4.5 text-content-body">
+    <span class="lucide-circle-check size-4 flex-none text-success" aria-hidden="true"></span>
+    <p>
+      You signed in recently, so changing how you sign in won't ask you to confirm it's you until <.local_datetime at={@recent_until} time_zone={@time_zone} format={:time} zone_label={false} />.
+    </p>
+  </div>
+
+  <section id="sign-in-methods" class="flex flex-col gap-3">
+    <NervesHubWeb.Layouts.org_heading title="Ways to sign in">
+      Keep at least one. Removing one signs your other browsers out.
+    </NervesHubWeb.Layouts.org_heading>
+
+    <div class="divide-y divide-line-default rounded-card border border-line-default bg-surface-raised">
+      <.account_row :if={@user.google_id || NervesHub.Accounts.google_sign_in_enabled?()} id="sign-in-method-google">
+        <:icon><OAuthLinks.google_logo class="size-4.5" /></:icon>
+        <:title>Google</:title>
+        <:badge>
+          <.badge :if={@user.google_id} tone="success" dot>Connected</.badge>
+          <.badge :if={!@user.google_id}>Not connected</.badge>
+        </:badge>
+        <:description>
+          <%= cond do %>
+            <% @user.google_id && !NervesHub.Accounts.google_sign_in_enabled?() -> %>
+              This server no longer offers Google sign-in.
+            <% @user.google_id -> %>
+              <NervesHubWeb.Components.Fleet.separated items={[
+                @user.email,
+                @user.google_last_synced_at && "last used " <> DateTimes.from_now(@user.google_last_synced_at)
+              ]} />
+            <% true -> %>
+              Connect the Google account for {@user.email} to sign in with it.
+          <% end %>
+        </:description>
+        <:actions>
+          <.button
+            :if={@user.google_id && @user.password_hash}
+            id="disconnect-google"
+            type="button"
+            phx-click="disconnect-google"
+            data-confirm="Disconnect your Google account? You'll sign in with your password, and your other browser sessions will be signed out."
+          >
+            Disconnect
+          </.button>
+          <form :if={!@user.google_id && NervesHub.Accounts.google_sign_in_enabled?()} id="connect-google" method="post" action={~p"/account/confirm/google"}>
+            <input type="hidden" name="_csrf_token" value={Plug.CSRFProtection.get_csrf_token()} />
+            <input type="hidden" name="intent" value="connect" />
+            <input type="hidden" name="return_to" value={~p"/account"} />
+            <.button type="submit">Connect</.button>
+          </form>
+        </:actions>
+      </.account_row>
+
+      <.account_row id="sign-in-method-password" open={!!(@password_form || @new_password_form)}>
+        <:icon><span class="lucide-key-round size-4.5" aria-hidden="true"></span></:icon>
+        <:title>Password</:title>
+        <:badge>
+          <.badge :if={@user.password_hash} tone="success" dot>Set</.badge>
+          <.badge :if={!@user.password_hash}>Not set</.badge>
+        </:badge>
+        <:description>
+          {if @user.password_hash, do: "Sign in with your email and password.", else: "Add one to sign in without Google."}
+        </:description>
+        <:actions>
+          <.button :if={@user.password_hash && !@password_form} id="change-password" type="button" phx-click="start-change-password">Change</.button>
+          <.button
+            :if={@user.password_hash && :google in NervesHub.Accounts.sign_in_methods(@user)}
+            id="remove-password"
+            type="button"
+            phx-click="remove-password"
+            data-confirm="Remove your password? You'll sign in with Google only, and your other browser sessions will be signed out."
+          >
+            Remove
+          </.button>
+          <.button :if={!@user.password_hash && !@new_password_form} id="start-set-password" type="button" phx-click="start-set-password">Set a password</.button>
+        </:actions>
+
+        <.form :let={f} :if={@password_form} id="password-form" for={@password_form} phx-submit="update-password" class="flex flex-col gap-4">
+          <.input field={f[:current_password]} type="password" label="Current password" autocomplete="current-password" required />
+          <div class="grid gap-4 sm:grid-cols-2">
+            <.input field={f[:password]} type="password" label="New password" autocomplete="new-password" required />
+            <.input field={f[:password_confirmation]} type="password" label="Confirm new password" autocomplete="new-password" required />
+          </div>
+          <div class="flex flex-wrap items-center justify-between gap-3">
+            <p class="text-ui text-content-muted">At least 12 characters. We'll email you to say it changed.</p>
+            <div class="flex gap-2">
+              <.button type="button" phx-click="cancel-change-password">Cancel</.button>
+              <.button type="submit" style="primary">Change password</.button>
+            </div>
+          </div>
+        </.form>
+
+        <.form :let={f} :if={@new_password_form} id="set-password-form" for={@new_password_form} phx-submit="set-password" class="flex flex-col gap-4">
+          <div class="grid gap-4 sm:grid-cols-2">
+            <.input field={f[:password]} type="password" label="New password" autocomplete="new-password" required />
+            <.input field={f[:password_confirmation]} type="password" label="Confirm new password" autocomplete="new-password" required />
+          </div>
+          <div class="flex flex-wrap items-center justify-between gap-3">
+            <p class="text-ui text-content-muted">At least 12 characters. We'll email you to say it was set.</p>
+            <div class="flex gap-2">
+              <.button type="button" phx-click="cancel-set-password">Cancel</.button>
+              <.button type="submit" style="primary">Set password</.button>
+            </div>
+          </div>
+        </.form>
+      </.account_row>
+    </div>
+  </section>
+
+  <section :if={@totp || NervesHub.Accounts.TwoFactor.available?()} id="two-factor-summary" class="flex flex-col gap-3">
+    <NervesHubWeb.Layouts.org_heading title="Two-factor authentication">
+      A second step after Google or your password. Someone who gets into either still can't sign in.
+    </NervesHubWeb.Layouts.org_heading>
+
+    <div class="rounded-card border border-line-default bg-surface-raised">
+      <.account_row id="two-factor-app">
+        <:icon><span class="lucide-smartphone size-4.5" aria-hidden="true"></span></:icon>
+        <:title>Authenticator app</:title>
+        <:badge>
+          <.badge :if={@totp} tone="success" dot>On</.badge>
+          <.badge :if={!@totp}>Off</.badge>
+        </:badge>
+        <:description>
+          <%= if @totp do %>
+            Turned on
+            <.local_datetime at={@totp.inserted_at} time_zone={@time_zone} format={:long_date} zone_label={false} />. {length(@totp.recovery_codes)} recovery {if length(@totp.recovery_codes) == 1,
+              do: "code",
+              else: "codes"} left.
+          <% else %>
+            1Password, Google Authenticator, Authy or any app that shows six-digit codes.
+          <% end %>
+        </:description>
+        <:actions>
+          <.button :if={@totp} type="link" navigate={~p"/account/two-factor"}>Manage</.button>
+          <.button :if={!@totp} type="link" style="primary" navigate={~p"/account/two-factor"}>Set up</.button>
+        </:actions>
+      </.account_row>
+    </div>
+  </section>
+
+  <section :if={NervesHub.Integrations.Slack.configured?() || @slack_links != []} id="slack-links" class="flex flex-col gap-3">
+    <NervesHubWeb.Layouts.org_heading title="Linked accounts">
+      Slack accounts that act as you when they click {NervesHub.Branding.friendly_platform_name()}'s buttons or run /nerveshub.
+    </NervesHubWeb.Layouts.org_heading>
+
+    <div :if={@slack_links == []} id="no-slack-links" class="rounded-card border border-dashed border-line-default px-5 py-8 text-center text-sm text-content-muted">
+      No Slack accounts are linked. Click one of {NervesHub.Branding.friendly_platform_name()}'s buttons in Slack to link yours.
+    </div>
+
+    <div :if={@slack_links != []} class="divide-y divide-line-default rounded-card border border-line-default bg-surface-raised">
+      <.account_row :for={%{link: link, team_name: team_name} <- @slack_links} id={"slack-link-#{link.id}"}>
+        <:icon><span class="lucide-hash size-4.5" aria-hidden="true"></span></:icon>
+        <:title>
+          {if link.slack_name, do: link.slack_name, else: link.slack_user_id}
+          <span class="font-normal text-content-muted">in {team_name || "a workspace no longer connected"}</span>
+        </:title>
+        <:description>
+          Linked <.local_datetime at={link.linked_at} time_zone={@time_zone} format={:long_date} zone_label={false} />.
+          <%= if link.last_used_at do %>
+            Last used <.local_datetime at={link.last_used_at} time_zone={@time_zone} format={:long_datetime} />.
+          <% else %>
+            Not used yet.
+          <% end %>
+        </:description>
+        <:actions>
+          <.button phx-click="unlink-slack" phx-value-link_id={link.id} data-confirm="Unlink this Slack account? Its buttons in Slack will ask to be linked again.">
+            Unlink
+          </.button>
+        </:actions>
+      </.account_row>
+    </div>
+  </section>
+
+  <section id="delete-account" class="flex flex-col gap-3 pt-2">
+    <NervesHubWeb.Layouts.org_heading title="Delete account" />
+    <div class="flex flex-wrap items-center justify-between gap-4 rounded-card border border-alert/30 bg-alert-soft px-5 py-4">
+      <div class="flex flex-col gap-0.75">
+        <p class="text-sm/4.5 font-medium text-alert-content">Deletes your account and any organization you're the last member of</p>
+        <p class="text-ui text-content-muted">You'll type your email to confirm. This can't be undone.</p>
+      </div>
+      <.button type="link" style="danger" navigate={~p"/account/delete"}>Delete account…</.button>
+    </div>
+  </section>
+</NervesHubWeb.Layouts.account>
