@@ -312,8 +312,8 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       |> assert_has("#device-count", text: "2", timeout: 1000)
       |> assert_has("div a", text: device.identifier)
       |> assert_has("div a", text: device2.identifier)
-      # the show filters button is shown using JS, so no `click_button` is needed
-      |> fill_in("Identifier", with: device.identifier)
+      |> visit(device_index_path(fixture) <> "?" <> URI.encode_query(identifier: device.identifier))
+      |> assert_has("#filter-token-identifier", timeout: 1000)
       |> assert_has("#device-count", text: "1", timeout: 1_000)
       |> assert_has("div a", text: device.identifier)
       |> refute_has("div a", text: device2.identifier)
@@ -328,8 +328,8 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       |> visit(device_index_path(fixture))
       |> assert_has("div a", text: device.identifier, timeout: 1000)
       |> assert_has("div a", text: device2.identifier)
-      # the show filters button is shown using JS, so no `click_button` is needed
-      |> fill_in("Identifier", with: "foo")
+      |> visit(device_index_path(fixture) <> "?" <> URI.encode_query(identifier: "foo"))
+      |> assert_has("#filter-token-identifier", timeout: 1000)
       |> assert_has("#device-count", text: "0", timeout: 1000)
     end
 
@@ -339,8 +339,8 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       conn
       |> visit(device_index_path(fixture))
       |> assert_has("div a", text: device.identifier, timeout: 1000)
-      # the show filters button is shown using JS, so no `click_button` is needed
-      |> fill_in("Identifier", with: "device-")
+      |> visit(device_index_path(fixture) <> "?" <> URI.encode_query(identifier: "device-"))
+      |> assert_has("#filter-token-identifier", timeout: 1000)
       |> assert_has("#device-count", text: "1", timeout: 1000)
       |> assert_has("div a", text: device.identifier)
     end
@@ -353,8 +353,8 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       conn
       |> visit(device_index_path(fixture))
       |> assert_has("div a", text: device.identifier, timeout: 1000)
-      # the show filters button is shown using JS, so no `click_button` is needed
-      |> fill_in("Identifier", with: just_the_tail)
+      |> visit(device_index_path(fixture) <> "?" <> URI.encode_query(identifier: just_the_tail))
+      |> assert_has("#filter-token-identifier", timeout: 1000)
       |> assert_has("#device-count", text: "1", timeout: 1000)
       |> assert_has("div a", text: device.identifier)
     end
@@ -365,8 +365,8 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       conn
       |> visit(device_index_path(fixture))
       |> assert_has("div a", text: device.identifier, timeout: 1000)
-      # the show filters button is shown using JS, so no `click_button` is needed
-      |> fill_in("Identifier", with: "ice-")
+      |> visit(device_index_path(fixture) <> "?" <> URI.encode_query(identifier: "ice-"))
+      |> assert_has("#filter-token-identifier", timeout: 1000)
       |> assert_has("#device-count", text: "1", timeout: 1000)
       |> assert_has("div a", text: device.identifier)
     end
@@ -387,6 +387,7 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       |> visit("/org/#{org.name}/#{product.name}/devices")
       |> assert_has("a", text: device.identifier, timeout: 1000)
       |> assert_has("a", text: device2.identifier)
+      |> open_filters()
       |> select("Platform", option: "foo")
       |> assert_has("a", text: device2.identifier, timeout: 1000)
       |> refute_has("a", text: device.identifier)
@@ -395,7 +396,7 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       |> refute_has("a", text: device2.identifier)
     end
 
-    test "the firmware dropdown only lists versions devices are running", %{
+    test "the firmware filter only lists versions devices are running", %{
       conn: conn,
       fixture: fixture,
       tmp_dir: tmp_dir
@@ -410,13 +411,14 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices")
       |> assert_has("a", text: device.identifier, timeout: 1000)
-      |> assert_has("#input_firmware_version option", text: device.firmware_metadata.version, timeout: 1000)
-      |> refute_has("#input_firmware_version option", text: "9.9.9")
+      |> open_filters()
+      |> assert_has("#filter-firmware_version label", text: device.firmware_metadata.version, timeout: 1000)
+      |> refute_has("#filter-firmware_version label", text: "9.9.9")
     end
 
     # `Devices.filter/3` preloads only the columns behind the health icon and its
     # tooltip, so this asserts the tooltip still has what it renders from.
-    test "renders the health tooltip from the trimmed preload", %{conn: conn, fixture: fixture} do
+    test "renders the health reasons from the trimmed preload", %{conn: conn, fixture: fixture} do
       %{device: device, org: org, product: product, firmware: firmware} = fixture
 
       healthy = Fixtures.device_fixture(org, product, firmware)
@@ -439,10 +441,10 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices")
       |> assert_has("a", text: device.identifier, timeout: 1000)
-      # from `status_reasons`
-      |> assert_has("div", text: "Warning: Cpu Temp: 41.2 (threshold is 40)")
-      # from `status`, when there are no reasons to show
-      |> assert_has("div", text: "Device is healthy.")
+      # a problem is a chip, with its reasons from `status_reasons` on hover
+      |> assert_has("#health-#{device.id}[title*='Cpu Temp: 41.2 (threshold is 40)']", text: "Warning")
+      # healthy is plain text
+      |> assert_has("#health-#{healthy.id}", text: "Healthy")
     end
 
     test "by health status", %{conn: conn, fixture: fixture} do
@@ -467,11 +469,13 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       |> visit("/org/#{org.name}/#{product.name}/devices")
       |> assert_has("a", text: device.identifier, timeout: 1000)
       |> assert_has("a", text: device2.identifier)
-      |> select("Health Status", option: "Unknown")
+      |> open_filters()
+      |> pick("health_status", "unknown", "Unknown")
       # This also asserts that devices with nil health status are listed as unknown
       |> assert_has("a", text: device.identifier, timeout: 1000)
       |> refute_has("a", text: device2.identifier)
-      |> select("Health Status", option: "Healthy")
+      |> unpick("health_status", "unknown", "Unknown")
+      |> pick("health_status", "healthy", "Healthy")
       |> assert_has("a", text: device2.identifier, timeout: 1000)
       |> refute_has("a", text: device.identifier)
     end
@@ -504,15 +508,18 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       |> assert_has("a", text: device.identifier, timeout: 1000)
       |> assert_has("a", text: device2.identifier)
       |> assert_has("a", text: device3.identifier)
-      |> select("Connection", option: "Connected")
+      |> open_filters()
+      |> pick("connection", "connected", "Online")
       |> assert_has("a", text: device.identifier, timeout: 1000)
       |> refute_has("a", text: device2.identifier)
       |> refute_has("a", text: device3.identifier)
-      |> select("Connection", option: "Disconnected")
+      |> unpick("connection", "connected", "Online")
+      # offline, as the Offline tab counts it, includes a device never connected
+      |> pick("connection", "offline", "Offline")
       |> assert_has("a", text: device2.identifier, timeout: 1000)
+      |> assert_has("a", text: device3.identifier)
       |> refute_has("a", text: device.identifier)
-      |> refute_has("a", text: device3.identifier)
-      |> select("Connection", option: "All")
+      |> unpick("connection", "offline", "Offline")
       |> assert_has("a", text: device2.identifier, timeout: 1000)
       |> assert_has("a", text: device.identifier)
       |> assert_has("a", text: device3.identifier)
@@ -573,15 +580,18 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       |> assert_has("a", text: device.identifier, timeout: 1000)
       |> assert_has("a", text: device2.identifier)
       |> assert_has("a", text: device3.identifier)
-      |> select("Connection", option: "Not seen in 7 days")
+      |> open_filters()
+      |> pick("connection", "not_seen_in_seven_days", "Not seen 7 d+")
       |> assert_has("a", text: device.identifier, timeout: 1000)
       |> assert_has("a", text: device2.identifier)
       |> refute_has("a", text: device3.identifier)
-      |> select("Connection", option: "Not seen in 14 days")
+      |> unpick("connection", "not_seen_in_seven_days", "Not seen 7 d+")
+      |> pick("connection", "not_seen_in_fourteen_days", "Not seen 14 d+")
       |> assert_has("a", text: device2.identifier, timeout: 1000)
       |> refute_has("a", text: device.identifier)
       |> refute_has("a", text: device3.identifier)
-      |> select("Connection", option: "Not Seen")
+      |> unpick("connection", "not_seen_in_fourteen_days", "Not seen 14 d+")
+      |> pick("connection", "not_seen", "Never connected")
       |> assert_has("a", text: device3.identifier, timeout: 1000)
       |> refute_has("a", text: device2.identifier)
       |> refute_has("a", text: device.identifier)
@@ -597,11 +607,11 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       |> assert_has("#device-count", text: "2", timeout: 1000)
       |> assert_has("div a", text: device.identifier)
       |> assert_has("div a", text: device2.identifier)
-      # the show filters button is shown using JS, so no `click_button` is needed
-      |> fill_in("#filter-form .sidebar-text-input", "Tags", with: "filter-test-no-show")
+      |> open_filters()
+      |> fill_in("#filter-tags", "Tags", with: "filter-test-no-show")
       |> assert_has("#device-count", text: "0", timeout: 1_000)
       |> refute_has("div a", text: device2.identifier)
-      |> fill_in("#filter-form .sidebar-text-input", "Tags", with: "filter-test")
+      |> fill_in("#filter-tags", "Tags", with: "filter-test")
       |> assert_has("#device-count", text: "1", timeout: 1_000)
       |> assert_has("div a", text: device2.identifier)
     end
@@ -623,21 +633,17 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       |> assert_has("#device-count", text: "2", timeout: 1000)
       |> assert_has("div a", text: device.identifier)
       |> assert_has("div a", text: device2.identifier)
-      # the show filters button is shown using JS, so no `click_button` is needed
-      |> select("Metrics", option: "cpu_temp")
-      |> assert_has("label", text: "Operator", timeout: 1000)
-      |> select("Metrics Operator", option: "Greater Than")
-      |> assert_has("label", text: "Metrics Value", timeout: 1000)
-      |> fill_in("Metrics Value", with: "37")
+      |> open_filters()
+      |> select("Metric", option: "cpu_temp")
+      |> choose("Above")
+      |> fill_in("Metric value", with: "37")
       # Show only show device2, which has a value greater than 37 on most recent cpu_temp metric.
       |> assert_has("#device-count", text: "1", timeout: 1_000)
       |> assert_has("div a", text: device2.identifier)
       |> refute_has("div a", text: device.identifier)
-      |> select("Metrics", option: "cpu_temp")
-      |> assert_has("label", text: "Operator", timeout: 1000)
-      |> select("Metrics Operator", option: "Less Than")
-      |> assert_has("label", text: "Metrics Value", timeout: 1000)
-      |> fill_in("Metrics Value", with: "37")
+      |> select("Metric", option: "cpu_temp")
+      |> choose("Below")
+      |> fill_in("Metric value", with: "37")
       # Should not show any device since the query is for values less than 37
       |> assert_has("#device-count", text: "0", timeout: 1_000)
       |> refute_has("div a", text: device2.identifier)
@@ -654,11 +660,10 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       conn
       |> visit(device_index_path(fixture))
       |> assert_has("#device-count", text: "2", timeout: 1000)
-      |> select("Metrics", option: "goats_per_second")
-      |> assert_has("label", text: "Operator", timeout: 1000)
-      |> select("Metrics Operator", option: "Greater Than")
-      |> assert_has("label", text: "Metrics Value", timeout: 1000)
-      |> fill_in("Metrics Value", with: "37")
+      |> open_filters()
+      |> select("Metric", option: "goats_per_second")
+      |> choose("Above")
+      |> fill_in("Metric value", with: "37")
       |> assert_has("#device-count", text: "1", timeout: 1_000)
       |> assert_has("div a", text: device2.identifier)
       |> refute_has("div a", text: device.identifier)
@@ -685,16 +690,15 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       conn
       |> visit(device_index_path(fixture))
       |> assert_has("#device-count", text: "2", timeout: 1000)
-      |> select("Metrics", option: "test_latency_ms")
-      |> assert_has("label", text: "Operator", timeout: 1000)
-      |> select("Metrics Operator", option: "Greater Than")
-      |> assert_has("label", text: "Metrics Value", timeout: 1000)
-      |> fill_in("Metrics Value", with: "40")
+      |> open_filters()
+      |> select("Metric", option: "test_latency_ms")
+      |> choose("Above")
+      |> fill_in("Metric value", with: "40")
       # device's latest reading is 30 - its stale 90 must not match.
       |> assert_has("#device-count", text: "1", timeout: 1_000)
       |> assert_has("div a", text: device2.identifier)
       |> refute_has("div a", text: device.identifier)
-      |> select("Metrics Operator", option: "Less Than")
+      |> choose("Below")
       # device's latest reading is 30, even though device2 reported later.
       |> assert_has("#device-count", text: "1", timeout: 1_000)
       |> assert_has("div a", text: device.identifier)
@@ -713,14 +717,17 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       conn
       |> visit(device_index_path(fixture))
       |> assert_has("#device-count", text: "3", timeout: 1000)
-      |> select("Firmware Validation", option: "Validated")
+      |> open_filters()
+      |> pick("firmware_validation_status", "validated", "Validated")
       |> assert_has("#device-count", text: "1", timeout: 1_000)
       |> assert_has("div a", text: validated.identifier)
-      |> select("Firmware Validation", option: "Not validated")
+      |> unpick("firmware_validation_status", "validated", "Validated")
+      |> pick("firmware_validation_status", "not_validated", "Not validated")
       |> assert_has("#device-count", text: "1", timeout: 1_000)
       |> assert_has("div a", text: not_validated.identifier)
       # the fixture device has never reported, so it reads as unknown
-      |> select("Firmware Validation", option: "Unknown")
+      |> unpick("firmware_validation_status", "not_validated", "Not validated")
+      |> pick("firmware_validation_status", "unknown", "Unknown")
       |> assert_has("#device-count", text: "1", timeout: 1_000)
       |> assert_has("div a", text: device.identifier)
     end
@@ -737,6 +744,7 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       conn
       |> visit(device_index_path(fixture))
       |> assert_has("#device-count", text: "2", timeout: 1000)
+      |> open_filters()
       |> select("Signer CA", option: ca_cert.description)
       |> assert_has("#device-count", text: "1", timeout: 1_000)
       |> assert_has("div a", text: signed.identifier)
@@ -759,14 +767,14 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       |> assert_has("#device-count", text: "2", timeout: 1000)
       |> assert_has("div a", text: device.identifier)
       |> assert_has("div a", text: device2.identifier)
-      # the show filters button is shown using JS, so no `click_button` is needed
-      |> fill_in("#filter-form .sidebar-text-input", "Tags", with: "filter-test-no-show")
+      |> open_filters()
+      |> fill_in("#filter-tags", "Tags", with: "filter-test-no-show")
       |> assert_has("#device-count", text: "0", timeout: 1_000)
       |> refute_has("div a", text: device2.identifier)
-      |> fill_in("#filter-form .sidebar-text-input", "Tags", with: "filter-test")
+      |> fill_in("#filter-tags", "Tags", with: "filter-test")
       |> assert_has("#device-count", text: "1", timeout: 1_000)
       |> assert_has("div a", text: device2.identifier)
-      |> fill_in("#filter-form .sidebar-text-input", "Tags", with: "filter-test, test-filter")
+      |> fill_in("#filter-tags", "Tags", with: "filter-test, test-filter")
       |> assert_has("#device-count", text: "1", timeout: 1_000)
       |> assert_has("div a", text: device2.identifier)
     end
@@ -780,8 +788,8 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       |> visit(device_index_path(fixture))
       |> assert_has("div a", text: device.identifier, timeout: 1000)
       |> assert_has("div a", text: device2.identifier)
-      # the show filters button is shown using JS, so no `click_button` is needed
-      |> fill_in("#filter-form .sidebar-text-input", "Tags", with: "does_not_matter")
+      |> open_filters()
+      |> fill_in("#filter-tags", "Tags", with: "does_not_matter")
       |> assert_has("#device-count", text: "0", timeout: 1000)
       |> refute_has("div a", text: device2.identifier)
     end
@@ -798,8 +806,8 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       |> assert_has("div a", text: device.identifier)
       |> assert_has("div a", text: device2.identifier)
       |> assert_has("div a", text: device3.identifier)
-      # the show filters button is shown using JS, so no `click_button` is needed
-      |> select("Untagged", option: "Only untagged")
+      |> open_filters()
+      |> check("Untagged only")
       |> assert_has("#device-count", text: "1", timeout: 1000)
       |> assert_has("div a", text: device2.identifier)
       |> refute_has("div a", text: device3.identifier)
@@ -817,8 +825,8 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       |> assert_has("#device-count", text: "2", timeout: 1000)
       |> assert_has("div a", text: device.identifier)
       |> assert_has("div a", text: device2.identifier)
-      # the show filters button is shown using JS, so no `click_button` is needed
-      |> select("Alarm Status", option: "Has Alarms")
+      |> open_filters()
+      |> pick("alarm_status", "with", "Any raised")
       |> assert_has("#device-count", text: "1", timeout: 1000)
       |> assert_has("div a", text: device.identifier)
       |> refute_has("div a", text: device2.identifier)
@@ -836,8 +844,8 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       |> assert_has("#device-count", text: "2", timeout: 1000)
       |> assert_has("div a", text: device.identifier)
       |> assert_has("div a", text: device2.identifier)
-      # the show filters button is shown using JS, so no `click_button` is needed
-      |> select("Alarm Status", option: "No Alarms")
+      |> open_filters()
+      |> pick("alarm_status", "without", "None raised")
       |> assert_has("#device-count", text: "1", timeout: 1000)
       |> assert_has("div a", text: device2.identifier)
       |> refute_has("div a", text: device.identifier)
@@ -856,8 +864,8 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       |> assert_has("#device-count", text: "2", timeout: 1000)
       |> assert_has("div a", text: device.identifier)
       |> assert_has("div a", text: device2.identifier)
-      # the show filters button is shown using JS, so no `click_button` is needed
-      |> select("Alarm", option: alarm)
+      |> open_filters()
+      |> pick("alarm", alarm, alarm)
       |> assert_path(device_index_path(fixture), query_params: %{alarm: alarm})
       |> assert_has("#device-count", text: "1", timeout: 1000)
       |> assert_has("div a", text: device.identifier)
@@ -883,8 +891,8 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       |> assert_has("#device-count", text: "2", timeout: 1000)
       |> assert_has("div a", text: device.identifier)
       |> assert_has("div a", text: device2.identifier)
-      # the show filters button is shown using JS, so no `click_button` is needed
-      |> select("Deployment Group", option: deployment_group.name)
+      |> open_filters()
+      |> select("Deployment group", option: deployment_group.name)
       |> assert_has("#device-count", text: "1", timeout: 1_000)
       |> assert_has("div a", text: device.identifier)
       |> refute_has("div a", text: device2.identifier)
@@ -896,8 +904,8 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       conn
       |> visit(device_index_path(fixture))
       |> assert_has("button", text: "Filters", timeout: 1000)
-      # the show filters button is shown using JS, so no `click_button` is needed
-      |> select("Deployment Group", option: "All")
+      |> open_filters()
+      |> select("Deployment group", option: "Any")
       |> assert_has("#device-count", text: "1", timeout: 1000)
     end
 
@@ -910,9 +918,9 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       conn
       |> visit(device_index_path(fixture))
       |> assert_has("#device-count", text: "3", timeout: 1000)
-      |> refute_has("h4", text: "1 device selected")
+      |> refute_has("#bulk-bar")
       |> check("input#checkbox-device-#{device2.id}", "")
-      |> assert_has("h4", text: "1 device selected")
+      |> assert_has("#bulk-selected", text: "1 selected")
     end
 
     test "select/deselect all devices", %{conn: conn, fixture: fixture} do
@@ -926,10 +934,10 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       |> assert_has("#device-count", text: "3", timeout: 1000)
       |> check("Select all devices")
       |> assert_has("#device-count", text: "3")
-      |> assert_has("h4", text: "3 devices selected")
+      |> assert_has("#bulk-selected", text: "3 selected")
       |> uncheck("Select all devices")
       |> assert_has("#device-count", text: "3")
-      |> refute_has("h4", text: "devices selected")
+      |> refute_has("#bulk-bar")
     end
 
     test "excludes deleted device by default", %{
@@ -958,7 +966,8 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
 
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices")
-      |> select("Include Deleted Devices?", option: "Yes")
+      |> open_filters()
+      |> choose("Include")
       |> assert_has("a", text: device.identifier, timeout: 1000, exact: false)
       |> assert_has("a", text: deleted_device.identifier, exact: false)
     end
@@ -974,7 +983,8 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
 
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices")
-      |> select("Include Deleted Devices?", option: "Only deleted devices")
+      |> open_filters()
+      |> choose("Only deleted")
       |> assert_has("a", text: deleted_device.identifier, timeout: 1000, exact: false)
       |> refute_has("a", text: device.identifier, exact: false)
     end
@@ -996,21 +1006,24 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
 
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices")
-      |> select("Update status", option: "Updating")
+      |> open_filters()
+      |> pick("updates", "updating", "Updating")
       |> refute_has("a", text: device.identifier, timeout: 1000)
 
       {:ok, _inflight_update} = DeviceEvents.schedule_update(device.id, deployment_group)
 
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices")
-      |> select("Update status", option: "Updating")
+      |> open_filters()
+      |> pick("updates", "updating", "Updating")
       |> assert_has("a", text: device.identifier, timeout: 1000)
 
       {:ok, _device} = FirmwareUpdates.firmware_update_successful(device, device.firmware_metadata)
 
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices")
-      |> select("Update status", option: "Updating")
+      |> open_filters()
+      |> pick("updates", "updating", "Updating")
       |> refute_has("a", text: device.identifier, timeout: 1000)
     end
 
@@ -1032,12 +1045,360 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       |> assert_has("div a", text: device.identifier)
       |> assert_has("div a", text: device2.identifier)
       |> assert_has("div a", text: device3.identifier)
-      # the show filters button is shown using JS, so no `click_button` is needed
-      |> select("Deployment Group", option: deployment_group.name)
+      |> open_filters()
+      |> select("Deployment group", option: deployment_group.name)
       |> assert_has("#device-count", text: "2", timeout: 1_000)
       |> select("Platform", option: "platform")
       |> assert_has("#device-count", text: "2", timeout: 1_000)
-      |> assert_has("#input_deployment_id:has(> option[selected])")
+      |> assert_has("#filter-deployment_id:has(> option[selected])")
+    end
+  end
+
+  describe "filters panel" do
+    # fixture's device: online and unhealthy; healthy: online and healthy;
+    # unknown: offline, never reported its health.
+    setup %{fixture: %{org: org, product: product, firmware: firmware, device: device}} do
+      healthy = Fixtures.device_fixture(org, product, firmware)
+      unknown = Fixtures.device_fixture(org, product, firmware)
+
+      Fixtures.device_connection_fixture(device, %{status: :connected})
+      Fixtures.device_connection_fixture(healthy, %{status: :connected})
+
+      {:ok, _} = Health.save_device_health(%{"device_id" => device.id, "status" => "unhealthy"})
+      {:ok, _} = Health.save_device_health(%{"device_id" => healthy.id, "status" => "healthy"})
+
+      %{healthy: healthy, unknown: unknown}
+    end
+
+    test "widens a filter with each choice, and shows it as a token that removes it", context do
+      %{conn: conn, fixture: fixture, healthy: healthy, unknown: unknown} = context
+
+      conn
+      |> visit(device_index_path(fixture))
+      |> open_filters()
+      |> pick("health_status", "unhealthy", "Unhealthy")
+      |> assert_has("#device-count", text: "1", timeout: 1000)
+      |> pick("health_status", "healthy", "Healthy")
+      |> assert_has("#device-count", text: "2", timeout: 1000)
+      |> assert_has("a", text: healthy.identifier)
+      |> refute_has("a", text: unknown.identifier)
+      |> assert_has("#filters-applied", text: "1 applied")
+      |> assert_has("#filter-token-health_status", text: "health: healthy, unhealthy")
+      |> click_button("#filter-token-health_status", "health: healthy, unhealthy")
+      |> assert_has("#device-count", text: "3", timeout: 1000)
+      |> refute_has("#filter-token-health_status")
+    end
+
+    test "counts what each choice would give alongside the other filters", %{conn: conn, fixture: fixture} do
+      conn
+      |> visit(device_index_path(fixture) <> "?connection=connected")
+      |> open_filters()
+      |> assert_has("#filter-health_status label", text: "Unhealthy 1", timeout: 1000)
+      |> assert_has("#filter-health_status label", text: "Unknown 0")
+      # a filter's own choices aren't narrowed by it
+      |> assert_has("#filter-connection label", text: "Offline 1")
+      |> assert_has("#filter-connection label", text: "Online 2")
+      |> assert_has("#filters-total", text: "2 of 3 devices")
+    end
+
+    test "lists only the versions a device the other filters allow is running", context do
+      %{conn: conn, fixture: fixture, tmp_dir: tmp_dir} = context
+      %{device: device, org: org, product: product, user: user} = fixture
+
+      org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
+      newer = Fixtures.firmware_fixture(org_key, product, %{version: "9.0.0", dir: tmp_dir})
+      # offline, so the Online filter leaves it out
+      Fixtures.device_fixture(org, product, newer)
+
+      conn
+      |> visit(device_index_path(fixture) <> "?connection=connected")
+      |> open_filters()
+      |> assert_has("#filter-firmware_version label", text: device.firmware_metadata.version, timeout: 1000)
+      |> refute_has("#filter-firmware_version label", text: "9.0.0")
+      |> refute_has("#filter-firmware_version label", text: "Unknown")
+      # a chosen version stays, so it can be unchosen
+      |> visit(device_index_path(fixture) <> "?connection=connected&firmware_version=9.0.0")
+      |> open_filters()
+      |> assert_has("#filter-firmware_version label", text: "9.0.0 0", timeout: 1000)
+    end
+
+    test "resets the panel's filters but keeps the tab", %{conn: conn, fixture: fixture} do
+      conn
+      |> visit(device_index_path(fixture) <> "?state=online&health_status=unhealthy")
+      |> assert_has("#device-count", text: "1", timeout: 1000)
+      |> open_filters()
+      |> click_button("Reset filters")
+      |> assert_has("#device-count", text: "2", timeout: 1000)
+      |> refute_has("#filter-token-health_status")
+    end
+
+    test "Find a filter shows only the filters that match", %{conn: conn, fixture: fixture} do
+      conn
+      |> visit(device_index_path(fixture))
+      |> open_filters()
+      |> assert_has("#filter-group-status")
+      |> fill_in("Find a filter", with: "alarm")
+      |> assert_has("#filter-group-alarms #filter-alarm_status")
+      |> refute_has("#filter-group-status")
+      |> refute_has("#filter-group-alarms label", text: "Metric")
+      |> fill_in("Find a filter", with: "zebra")
+      |> assert_has("#filter-panel", text: "No filter matches")
+    end
+
+    test "keeps a filter set from a link that the panel doesn't offer, as a token", %{conn: conn, fixture: fixture} do
+      %{device: device} = fixture
+
+      conn
+      |> visit(device_index_path(fixture) <> "?identifier=#{device.identifier}")
+      |> assert_has("#device-count", text: "1", timeout: 1000)
+      |> open_filters()
+      |> pick("connection", "connected", "Online")
+      |> assert_has("#filter-token-connection", timeout: 1000)
+      |> assert_has("#filter-token-identifier", text: "identifier: #{device.identifier}")
+      |> assert_has("#device-count", text: "1")
+    end
+
+    test "closes", %{conn: conn, fixture: fixture} do
+      conn
+      |> visit(device_index_path(fixture))
+      |> open_filters()
+      |> assert_has("#filter-panel")
+      |> click_button("Done")
+      |> refute_has("#filter-panel")
+    end
+  end
+
+  describe "state tabs" do
+    # fixture's device: online and unhealthy; device2: last seen 20 days ago.
+    setup %{fixture: %{org: org, product: product, firmware: firmware, device: device}} do
+      device2 = Fixtures.device_fixture(org, product, firmware)
+
+      Fixtures.device_connection_fixture(device, %{status: :connected})
+
+      Fixtures.device_connection_fixture(device2, %{
+        status: :disconnected,
+        last_seen_at: DateTime.add(DateTime.utc_now(), -20, :day)
+      })
+
+      {:ok, _} = Health.save_device_health(%{"device_id" => device.id, "status" => "unhealthy"})
+
+      %{device2: device2}
+    end
+
+    test "count each tab's devices", %{conn: conn, fixture: fixture} do
+      conn
+      |> visit(device_index_path(fixture))
+      |> assert_has("#state-tab-all[aria-current=page]", text: "2", timeout: 1000)
+      |> assert_has("#state-tab-online", text: "1")
+      |> assert_has("#state-tab-attention", text: "2")
+      |> assert_has("#state-tab-updating", text: "0")
+      |> assert_has("#state-tab-offline", text: "1")
+    end
+
+    test "list only the picked tab's devices", %{conn: conn, fixture: fixture, device2: device2} do
+      %{device: device} = fixture
+
+      conn
+      |> visit(device_index_path(fixture))
+      |> assert_has("#state-tab-online", text: "1", timeout: 1000)
+      |> click_link("#state-tab-online", "Online")
+      |> assert_path(device_index_path(fixture), query_params: %{state: "online"})
+      |> assert_has("#device-count", text: "1", timeout: 1000)
+      |> assert_has("a", text: device.identifier)
+      |> refute_has("a", text: device2.identifier)
+      |> assert_has("#state-tab-online[aria-current=page]")
+    end
+
+    test "keep the other filters", %{conn: conn, fixture: fixture, device2: device2} do
+      {:ok, _} = Devices.update_device(device2, %{tags: ["field"]})
+
+      conn
+      |> visit(device_index_path(fixture) <> "?tags=field")
+      |> assert_has("#state-tab-all", text: "1", timeout: 1000)
+      |> assert_has("#state-tab-online", text: "0")
+      |> assert_has("#state-tab-attention", text: "1")
+      |> assert_has("#sidebar-filter-button", text: "1")
+    end
+
+    test "the Needs attention tab lists why each device needs it", %{conn: conn, fixture: fixture, device2: device2} do
+      %{device: device} = fixture
+
+      conn
+      |> visit(device_index_path(fixture) <> "?state=attention")
+      |> assert_has("#attention-list #device-row-#{device.id}",
+        text: "Unhealthy · the device didn't say why",
+        timeout: 1000
+      )
+      |> assert_has("#attention-list #device-row-#{device2.id}", text: "Not seen in 20 days")
+      |> refute_has("#device-list")
+      |> refute_has("button", text: "Columns")
+    end
+
+    test "a reason narrows the Needs attention list, and the tabs leave it behind", %{
+      conn: conn,
+      fixture: fixture,
+      device2: device2
+    } do
+      %{device: device} = fixture
+
+      conn
+      |> visit(device_index_path(fixture) <> "?state=attention")
+      |> assert_has("#reason-tab-all[aria-current=page]", text: "2", timeout: 1000)
+      |> assert_has("#reason-tab-unhealthy", text: "1")
+      |> assert_has("#reason-tab-failing", text: "0")
+      |> assert_has("#reason-tab-not_seen", text: "1")
+      |> click_link("#reason-tab-unhealthy", "Unhealthy")
+      |> assert_path(device_index_path(fixture), query_params: %{state: "attention", reason: "unhealthy"})
+      |> assert_has("#attention-list #device-row-#{device.id}", timeout: 1000)
+      |> refute_has("#attention-list #device-row-#{device2.id}")
+      |> assert_has("#state-tab-attention", text: "2")
+      |> click_link("#state-tab-all", "All")
+      |> assert_path(device_index_path(fixture))
+      |> assert_has("#device-list #device-row-#{device2.id}", timeout: 1000)
+      |> refute_has("#reason-tabs")
+    end
+
+    test "a Needs attention row opens the peek", %{conn: conn, fixture: fixture} do
+      %{device: device} = fixture
+
+      conn
+      |> visit(device_index_path(fixture) <> "?state=attention")
+      |> assert_has("#device-row-#{device.id}", timeout: 1000)
+      |> unwrap(fn view -> view |> element("#device-row-#{device.id}") |> render_click() end)
+      |> assert_has("#peek-title", text: device.identifier)
+      |> assert_has("#device-row-#{device.id}[data-peeked]")
+      |> assert_has("#device-container.lg\\:mr-150")
+    end
+
+    test "say so when no device needs attention for a reason", %{conn: conn, fixture: fixture} do
+      conn
+      |> visit(device_index_path(fixture) <> "?state=attention&reason=failing")
+      |> assert_has("#empty-tab", text: "No devices are failing updates", timeout: 1000)
+      |> assert_has("#reason-tab-failing[aria-current=page]", text: "0")
+    end
+
+    test "say so when nothing needs attention", %{conn: conn, fixture: fixture, device2: device2} do
+      %{device: device} = fixture
+
+      {:ok, _} = Health.save_device_health(%{"device_id" => device.id, "status" => "healthy"})
+      Repo.update_all(where(DeviceConnection, device_id: ^device2.id), set: [status: :connected])
+
+      conn
+      |> visit(device_index_path(fixture) <> "?state=attention")
+      |> assert_has("#empty-tab", text: "Nothing needs attention", timeout: 1000)
+      |> assert_has("#state-tab-attention", text: "0")
+    end
+  end
+
+  describe "peek" do
+    # fixture's device: online and unhealthy; device2: last seen 20 days ago.
+    setup %{fixture: %{org: org, product: product, firmware: firmware, device: device}} do
+      device2 = Fixtures.device_fixture(org, product, firmware)
+
+      Fixtures.device_connection_fixture(device, %{status: :connected})
+
+      Fixtures.device_connection_fixture(device2, %{
+        status: :disconnected,
+        last_seen_at: DateTime.add(DateTime.utc_now(), -20, :day)
+      })
+
+      {:ok, _} =
+        Health.save_device_health(%{
+          "device_id" => device.id,
+          "status" => "unhealthy",
+          "status_reasons" => %{"unhealthy" => %{"mem_used_percent" => %{"value" => 97, "threshold" => 90}}}
+        })
+
+      %{device2: device2}
+    end
+
+    test "a row opens the peek, and its identifier still links to the device", %{conn: conn, fixture: fixture} do
+      %{org: org, product: product, device: device} = fixture
+
+      conn
+      |> visit(device_index_path(fixture))
+      |> assert_has("#device-row-#{device.id}", timeout: 1000)
+      |> assert_has("#device-row-#{device.id} a[href='/org/#{org.name}/#{product.name}/devices/#{device.identifier}']")
+      |> unwrap(fn view -> view |> element("#device-row-#{device.id}") |> render_click() end)
+      |> assert_has("#peek-title", text: device.identifier)
+      |> assert_has("#device-row-#{device.id}[data-peeked]")
+      |> assert_has("#peek-why", text: "Unhealthy")
+      |> assert_has("#peek-why", text: "Mem Used: 97%")
+      |> assert_has(
+        "#device-peek a[data-peek-open][href='/org/#{org.name}/#{product.name}/devices/#{device.identifier}']"
+      )
+    end
+
+    test "says how long since a device was seen", %{conn: conn, fixture: fixture, device2: device2} do
+      conn
+      |> visit(device_index_path(fixture))
+      |> assert_has("#device-row-#{device2.id}", timeout: 1000)
+      |> unwrap(fn view -> view |> element("#device-row-#{device2.id}") |> render_click() end)
+      |> assert_has("#peek-why", text: "Not seen in 20 days")
+    end
+
+    test "the arrow keys move along the page, and escape closes it", %{conn: conn, fixture: fixture, device2: device2} do
+      [first, second] = Enum.sort_by([fixture.device, device2], & &1.identifier)
+
+      conn
+      |> visit(device_index_path(fixture))
+      |> assert_has("#device-row-#{first.id}", timeout: 1000)
+      |> unwrap(fn view -> view |> element("#device-row-#{first.id}") |> render_click() end)
+      |> unwrap(fn view -> view |> element("#device-peek") |> render_hook("peek-move", %{"by" => -1}) end)
+      |> assert_has("#peek-title", text: first.identifier)
+      |> unwrap(fn view -> view |> element("#device-peek") |> render_hook("peek-move", %{"by" => 1}) end)
+      |> assert_has("#peek-title", text: second.identifier)
+      |> unwrap(fn view -> view |> element("#device-peek") |> render_hook("peek-move", %{"by" => 1}) end)
+      |> assert_has("#peek-title", text: second.identifier)
+      |> unwrap(fn view -> view |> element("#device-peek") |> render_hook("close-peek", %{}) end)
+      |> refute_has("#device-peek")
+    end
+
+    test "only opens on a device the page lists", %{conn: conn, fixture: fixture} do
+      %{org: org, user: user} = fixture
+      other_product = Fixtures.product_fixture(user, org)
+      other_device = Fixtures.device_fixture(org, other_product, fixture.firmware)
+
+      {:ok, view, _html} = live(conn, device_index_path(fixture))
+      render_async(view, 300)
+
+      render_click(view, "peek", %{"id" => "#{other_device.id}"})
+      refute has_element?(view, "#device-peek")
+
+      render_click(view, "peek", %{"id" => "not-an-id"})
+      refute has_element?(view, "#device-peek")
+    end
+
+    test "reboots the device", %{conn: conn, fixture: fixture} do
+      %{device: device} = fixture
+
+      conn
+      |> visit(device_index_path(fixture))
+      |> assert_has("#device-row-#{device.id}", timeout: 1000)
+      |> unwrap(fn view -> view |> element("#device-row-#{device.id}") |> render_click() end)
+      |> click_button("#device-peek button", "Reboot…")
+      |> assert_has("#flash-info", text: "Reboot requested for #{device.identifier}")
+
+      assert_receive %Broadcast{event: "reboot"}
+    end
+
+    test "won't reboot for a member without the permission", %{conn: conn, fixture: fixture} do
+      %{org: org, device: device, user: user} = fixture
+
+      org_user = Accounts.get_org_user!(Scope.put_org(Scope.for_user(user), org), user)
+      Accounts.change_org_user_role(org_user, :view)
+
+      {:ok, view, _html} = live(conn, device_index_path(fixture))
+      render_async(view, 300)
+
+      view |> element("#device-row-#{device.id}") |> render_click()
+      assert has_element?(view, "#device-peek")
+      refute has_element?(view, "#device-peek button", "Reboot")
+
+      assert render_click(view, "peek-reboot") =~
+               "Sorry, you don't have the required role" |> Phoenix.HTML.html_escape() |> Phoenix.HTML.safe_to_string()
+
+      refute_received %Broadcast{event: "reboot"}
     end
   end
 
@@ -1053,8 +1414,8 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       |> assert_has("th", text: "Health")
       |> assert_has("th", text: "Firmware")
       |> assert_has("th", text: "Platform")
-      |> assert_has("th", text: "Connected for")
-      |> assert_has("th", text: "Deployment Group")
+      |> assert_has("th", text: "Connection")
+      |> assert_has("th", text: "Deployment group")
       |> assert_has("th", text: "Tags")
     end
 
@@ -1106,8 +1467,8 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
           {:health, "Health"},
           {:firmware, "Firmware"},
           {:platform, "Platform"},
-          {:connected_info, "Connected for"},
-          {:deployment_group, "Deployment Group"},
+          {:connected_info, "Connection"},
+          {:deployment_group, "Deployment group"},
           {:tags, "Tags"}
         ] do
       @column column
@@ -1346,6 +1707,7 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       |> visit(~p"/org/#{org}/#{product}/devices")
       |> assert_has("h1", text: "Devices", timeout: 1_000)
       |> check("Select all devices", exact: false)
+      |> click_button("#bulk-move", "Move to product")
       |> within("form#product-move", fn session ->
         session
         |> select("Move device(s) to product:", option: other_product.name, exact_option: false)
@@ -1409,9 +1771,10 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       |> unwrap(fn view ->
         render_change(view, "select", %{"id" => device.id})
       end)
+      |> click_button("#bulk-tags", "Tags")
       |> within("form#bulk-tag-input", fn session ->
         session
-        |> select("Update tags", option: "Add tags")
+        |> choose("Add")
         |> fill_in("Tags", with: "moussaka")
         |> submit()
       end)
@@ -1430,9 +1793,10 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       |> unwrap(fn view ->
         render_change(view, "select", %{"id" => device.id})
       end)
+      |> click_button("#bulk-tags", "Tags")
       |> within("form#bulk-tag-input", fn session ->
         session
-        |> select("Update tags", option: "Remove tags")
+        |> choose("Remove")
         |> fill_in("Tags", with: "beta")
         |> submit()
       end)
@@ -1450,10 +1814,11 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       |> unwrap(fn view ->
         render_change(view, "select", %{"id" => device.id})
       end)
+      |> click_button("#bulk-tags", "Tags")
       |> within("form#bulk-tag-input", fn session ->
         session
         |> fill_in("Tags", with: "moussaka")
-        |> select("Update tags", option: "Remove tags")
+        |> choose("Remove")
       end)
       |> assert_has("#input_set_tags[value='moussaka']")
     end
@@ -1529,7 +1894,8 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       )
       |> assert_has("div", text: "2", timeout: 1000)
       |> check("Select all devices", exact: false)
-      |> assert_has("div", text: "2 devices selected")
+      |> assert_has("#bulk-selected", text: "2 selected")
+      |> click_button("#bulk-group", "Deployment group")
       |> within("form#deployment-set", fn session ->
         session
         |> select("Set deployment group",
@@ -1565,7 +1931,8 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       |> visit("/org/#{org.name}/#{product.name}/devices")
       |> assert_has("div", text: "2", timeout: 1000)
       |> check("Select all devices", exact: false)
-      |> assert_has("div", text: "2 devices selected")
+      |> assert_has("#bulk-selected", text: "2 selected")
+      |> click_button("#bulk-move", "Move to product")
       |> within("form#product-move", fn session ->
         session
         |> select("Move device(s) to product:",
@@ -1600,15 +1967,17 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       |> visit("/org/#{org.name}/#{product.name}/devices")
       |> assert_has("div", text: "2", timeout: 1000)
       |> check("Select all devices", exact: false)
-      |> assert_has("div", text: "2 devices selected")
-      |> click_button("Disable")
+      |> assert_has("#bulk-selected", text: "2 selected")
+      |> click_button("#bulk-updates", "Updates")
+      |> click_button("Disable updates")
       |> assert_has("div", text: "Disabled updates for 2 selected device(s).")
       |> tap(fn _ ->
         assert Repo.reload(device).update_mode == :off
         assert Repo.reload(second_device).update_mode == :off
       end)
-      |> assert_has("div", text: "2 devices selected")
-      |> click_button("Enable")
+      |> assert_has("#bulk-selected", text: "2 selected")
+      |> click_button("#bulk-updates", "Updates")
+      |> click_button("Enable updates")
       |> assert_has("div", text: "Enabled updates for 2 selected device(s).")
       |> tap(fn _ ->
         assert Repo.reload(device).update_mode == :automatic
@@ -1638,12 +2007,269 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       |> visit("/org/#{org.name}/#{product.name}/devices")
       |> assert_has("div", text: "2", timeout: 1000)
       |> check("Select all devices", exact: false)
-      |> assert_has("div", text: "2 devices selected")
+      |> assert_has("#bulk-selected", text: "2 selected")
+      |> click_button("#bulk-updates", "Updates")
       |> click_button("Clear penalty box")
       |> assert_has("div", text: "2 selected device(s) cleared from the penalty box.")
 
       assert Repo.reload(device).updates_blocked_until |> is_nil()
       assert Repo.reload(second_device).updates_blocked_until |> is_nil()
+    end
+  end
+
+  describe "pager" do
+    setup %{fixture: %{org: org, product: product, firmware: firmware}} do
+      %{second_device: Fixtures.device_fixture(org, product, firmware)}
+    end
+
+    test "says which devices it shows and pages through them", %{conn: conn, fixture: fixture} do
+      conn
+      |> visit(device_index_path(fixture) <> "?page_size=1")
+      |> assert_has("#device-pager", text: "1–1 of 2", timeout: 1_000)
+      |> assert_has("#device-pager nav", text: "1 / 2")
+      |> assert_has("#device-pager button[aria-label='Previous page'][disabled]")
+      |> click_button("#device-pager button[aria-label='Next page']", "")
+      |> assert_has("#device-pager", text: "2–2 of 2", timeout: 1_000)
+      |> assert_has("#device-pager nav", text: "2 / 2")
+      |> assert_has("#device-pager button[aria-label='Next page'][disabled]")
+    end
+  end
+
+  describe "phone layout" do
+    setup %{fixture: %{org: org, product: product, firmware: firmware}} do
+      %{second_device: Fixtures.device_fixture(org, product, firmware)}
+    end
+
+    test "Select makes tapping a device select it, until Done", %{conn: conn, fixture: fixture} do
+      %{device: device} = fixture
+
+      conn
+      |> visit(device_index_path(fixture))
+      |> assert_has("#device-count", text: "2", timeout: 1_000)
+      |> refute_has("#phone-selection")
+      |> click_button("#phone-select", "Select")
+      |> assert_has("#phone-selection", text: "0 selected")
+      |> refute_has("#phone-select")
+      |> unwrap(&render_click(&1, "peek", %{"id" => device.id}))
+      |> refute_has("#device-peek")
+      |> assert_has("#phone-selection", text: "1 selected")
+      |> assert_has("#checkbox-device-#{device.id}[checked]")
+      |> click_button("#phone-selection-done", "Done")
+      |> refute_has("#phone-selection")
+      |> refute_has("#checkbox-device-#{device.id}[checked]")
+      |> unwrap(&render_click(&1, "peek", %{"id" => device.id}))
+      |> assert_has("#device-peek")
+    end
+
+    test "sorts from the sort menu above the cards", %{conn: conn, fixture: fixture} do
+      conn
+      |> visit(device_index_path(fixture))
+      |> assert_has("#phone-list-meta", text: "1–2 of 2", timeout: 1_000)
+      |> assert_has("#phone-sort-select option[selected][value='identifier:asc']")
+      |> unwrap(&render_change(element(&1, "#phone-sort"), %{"sort" => "connection_established_at:desc"}))
+      |> assert_has("#phone-sort-select option[selected][value='connection_established_at:desc']")
+      |> unwrap(&render_change(element(&1, "#phone-sort"), %{"sort" => "deleted_at:desc"}))
+      |> assert_has("#phone-sort-select option[selected][value='connection_established_at:desc']")
+    end
+
+    test "the Filters sheet's button says how many devices it shows", %{conn: conn, fixture: fixture} do
+      conn
+      |> visit(device_index_path(fixture))
+      |> assert_has("#device-count", text: "2", timeout: 1_000)
+      |> click_button("#sidebar-filter-button", "Filters")
+      |> assert_has("#filter-panel footer button", text: "Show 2 devices")
+    end
+  end
+
+  describe "empty and loading states" do
+    test "says what removing each filter would bring back", %{conn: conn, fixture: fixture} do
+      %{org: org, product: product, device: device} = fixture
+
+      conn
+      |> visit(~p"/org/#{org}/#{product}/devices?tags=nope&platform=platform")
+      |> assert_has("#no-matches", text: "No devices match both filters", timeout: 1_000)
+      |> assert_has("#no-matches-remove-tags", text: "tags: nope", timeout: 1_000)
+      |> assert_has("#no-matches-remove-tags", text: "1")
+      |> assert_has("#no-matches", text: "Removing one of them would bring devices back.")
+      # Without the platform, the tag still matches nothing, so it isn't offered.
+      |> refute_has("#no-matches-remove-platform")
+      |> click_button("#no-matches-remove-tags", "Remove")
+      |> assert_has("a", text: device.identifier, timeout: 1_000)
+      |> refute_has("#no-matches")
+    end
+
+    test "says when removing the one filter wouldn't help either", %{conn: conn, fixture: fixture} do
+      %{org: org, product: product} = fixture
+
+      conn
+      |> visit(~p"/org/#{org}/#{product}/devices?state=updating&platform=platform")
+      |> assert_has("#no-matches", text: "No devices match this filter", timeout: 1_000)
+      |> assert_has("#no-matches", text: "Nothing would show here without it either.", timeout: 1_000)
+      |> refute_has("#no-matches-remove-platform")
+      |> assert_has("#no-matches-reset", text: "Clear filters")
+    end
+
+    test "offers to clear a search that matches nothing", %{conn: conn, fixture: fixture} do
+      conn
+      |> visit(device_index_path(fixture))
+      |> assert_has("#device-count", text: "1", timeout: 1_000)
+      |> unwrap(&render_hook(&1, "apply-advanced-query", %{"query" => ~s|identifier like "%no-such-device%"|}))
+      |> assert_has("#no-matches-remove-advanced_query", text: "Clear search", timeout: 1_000)
+      |> refute_has("#no-matches-reset")
+      |> click_button("#no-matches-remove-advanced_query", "Clear")
+      |> assert_has("#device-count", text: "1", timeout: 1_000)
+    end
+
+    test "shows the first device once it connects", %{conn: conn, user: user, org: org} do
+      product = Fixtures.product_fixture(user, org, %{name: "Empty"})
+      {:ok, view, _html} = live(conn, ~p"/org/#{org}/#{product}/devices")
+
+      assert render_async(view) =~ "Connect your first device"
+
+      org_key = Fixtures.org_key_fixture(org, user)
+      firmware = Fixtures.firmware_fixture(org_key, product)
+      device = Fixtures.device_fixture(org, product, firmware)
+
+      send(view.pid, :await_first_device)
+
+      assert render_async(view) =~ device.identifier
+    end
+  end
+
+  describe "bulk bar" do
+    setup %{fixture: %{org: org, product: product, firmware: firmware}} do
+      %{second_device: Fixtures.device_fixture(org, product, firmware)}
+    end
+
+    test "counts the selection, offers the rest, and clears it", %{conn: conn, fixture: fixture} do
+      %{device: device} = fixture
+
+      conn
+      |> visit(device_index_path(fixture))
+      |> assert_has("#device-count", text: "2", timeout: 1_000)
+      |> refute_has("#bulk-bar")
+      |> unwrap(&render_change(&1, "select", %{"id" => device.id}))
+      |> assert_has("#bulk-selected", text: "1 selected")
+      |> assert_has("#bulk-select-all", text: "Select all 2")
+      |> click_button("#bulk-deselect", "")
+      |> refute_has("#bulk-bar")
+    end
+
+    test "opens one popover at a time, and closes it again", %{conn: conn, fixture: fixture} do
+      %{device: device} = fixture
+
+      conn
+      |> visit(device_index_path(fixture))
+      |> assert_has("#device-count", text: "2", timeout: 1_000)
+      |> unwrap(&render_change(&1, "select", %{"id" => device.id}))
+      |> click_button("#bulk-tags", "Tags")
+      |> assert_has("#bulk-popover[aria-label='Tags']")
+      |> assert_has("#bulk-tags[aria-expanded='true']")
+      |> click_button("#bulk-group", "Deployment group")
+      |> assert_has("#bulk-popover[aria-label='Deployment group']")
+      |> refute_has("#bulk-popover[aria-label='Tags']")
+      |> click_button("#bulk-group", "Deployment group")
+      |> refute_has("#bulk-popover")
+      |> click_button("#bulk-move", "Move to product")
+      |> click_button("#bulk-popover button", "Cancel")
+      |> refute_has("#bulk-popover")
+    end
+
+    test "names the tag change on its button, and closes once it's done", %{conn: conn, fixture: fixture} do
+      %{device: device} = fixture
+
+      conn
+      |> visit(device_index_path(fixture))
+      |> assert_has("#device-count", text: "2", timeout: 1_000)
+      |> unwrap(&render_change(&1, "select", %{"id" => device.id}))
+      |> click_button("#bulk-tags", "Tags")
+      |> within("form#bulk-tag-input", fn session ->
+        session
+        |> fill_in("Tags", with: "moussaka")
+        |> assert_has("button[type='submit']", text: "Add to 1 device")
+        |> choose("Replace all")
+        |> assert_has("button[type='submit'][data-confirm]", text: "Replace on 1 device")
+        |> choose("Add")
+        |> submit()
+      end)
+      |> assert_has("div", text: "Tags added to all selected device(s).", timeout: 1_000)
+      |> refute_has("#bulk-popover")
+
+      assert "moussaka" in Repo.reload(device).tags
+    end
+
+    test "won't take a tag with a space in it", %{conn: conn, fixture: fixture} do
+      %{device: device} = fixture
+
+      conn
+      |> visit(device_index_path(fixture))
+      |> assert_has("#device-count", text: "2", timeout: 1_000)
+      |> unwrap(&render_change(&1, "select", %{"id" => device.id}))
+      |> click_button("#bulk-tags", "Tags")
+      |> fill_in("#input_set_tags", "Tags", with: "two words")
+      |> assert_has("#bulk-tag-input p.text-alert", text: "A tag can't contain spaces.")
+      |> assert_has("#bulk-tag-input button[type='submit'][disabled]")
+    end
+
+    test "adds tags as chips, and applies them with one still being typed", %{conn: conn, fixture: fixture} do
+      %{device: device} = fixture
+
+      conn
+      |> visit(device_index_path(fixture))
+      |> assert_has("#device-count", text: "2", timeout: 1_000)
+      |> unwrap(&render_change(&1, "select", %{"id" => device.id}))
+      |> click_button("#bulk-tags", "Tags")
+      |> assert_has("#bulk-tag-input button[type='submit'][disabled]")
+      |> unwrap(&render_hook(&1, "bulk-add-tag", %{"tag" => "alpha"}))
+      |> unwrap(&render_hook(&1, "bulk-add-tag", %{"tag" => "beta two"}))
+      |> assert_has("#bulk-tag-input [data-tag='alpha']")
+      |> assert_has("#bulk-tag-input [data-tag='beta']")
+      |> assert_has("#bulk-tag-input [data-tag='two']")
+      |> assert_has("#bulk-tag-input input[name='tags'][value='alpha,beta,two']")
+      |> refute_has("#bulk-tag-input button[type='submit'][disabled]")
+      |> unwrap(&render_click(element(&1, "#bulk-tag-input button[phx-value-tag='two']")))
+      |> refute_has("#bulk-tag-input [data-tag='two']")
+      |> within("form#bulk-tag-input", fn session ->
+        session
+        |> fill_in("Tags", with: "gamma")
+        |> submit()
+      end)
+      |> assert_has("div", text: "Tags added to all selected device(s).", timeout: 1_000)
+      |> click_button("#bulk-tags", "Tags")
+      |> refute_has("#bulk-tag-input [data-tag]")
+
+      tags = Repo.reload(device).tags
+      assert "alpha" in tags
+      assert "beta" in tags
+      assert "gamma" in tags
+      refute "two" in tags
+    end
+
+    test "says why firmware can't be sent until the list is one platform", %{conn: conn, fixture: fixture} do
+      %{device: device} = fixture
+
+      conn
+      |> visit(device_index_path(fixture))
+      |> assert_has("#device-count", text: "2", timeout: 1_000)
+      |> unwrap(&render_change(&1, "select", %{"id" => device.id}))
+      |> click_button("#bulk-firmware", "Send firmware")
+      |> assert_has("#bulk-firmware-unavailable", text: "Filter the list to one platform first")
+      |> refute_has("#push-firmware")
+    end
+
+    test "opening the Filters panel closes the popover", %{conn: conn, fixture: fixture} do
+      %{device: device} = fixture
+
+      conn
+      |> visit(device_index_path(fixture))
+      |> assert_has("#device-count", text: "2", timeout: 1_000)
+      |> unwrap(&render_change(&1, "select", %{"id" => device.id}))
+      |> click_button("#bulk-tags", "Tags")
+      |> open_filters()
+      |> assert_has("#filter-panel")
+      |> refute_has("#bulk-popover")
+      |> click_button("#bulk-tags", "Tags")
+      |> refute_has("#filter-panel")
     end
   end
 
@@ -1662,9 +2288,9 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       |> assert_has("h1", text: "Devices", timeout: 1_000)
       |> assert_has("#device-count", text: "26", timeout: 1_000)
       |> check("Select all devices", exact: false)
-      |> click_button("Select all")
-      |> assert_has("h4", "All devices selected")
-      |> assert_has("span", "All available devices matching the filters have been selected.")
+      |> click_button("#bulk-select-all", "Select all")
+      |> assert_has("#bulk-selected", text: "26 selected")
+      |> click_button("#bulk-move", "Move to product")
       |> within("form#product-move", fn session ->
         session
         |> select("Move device(s) to product:",
@@ -1698,10 +2324,10 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       |> assert_has("h1", text: "Devices", timeout: 1_000)
       |> assert_has("#device-count", text: "26", timeout: 1_000)
       |> check("Select all devices", exact: false)
-      |> click_button("Select all")
-      |> assert_has("h4", "All devices selected")
-      |> assert_has("span", "All available devices matching the filters have been selected.")
-      |> click_button("#remove-devices-from-deployment-group", "")
+      |> click_button("#bulk-select-all", "Select all")
+      |> assert_has("#bulk-selected", text: "26 selected")
+      |> click_button("#bulk-group", "Deployment group")
+      |> click_button("#remove-devices-from-deployment-group", "Remove from group")
       |> assert_has("div", text: "Updating devices, please wait...", timeout: 1_000)
       |> assert_has("div",
         text: "All devices (26) were successfully removed from their deployment group.",
@@ -1723,9 +2349,9 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       |> assert_has("h1", text: "Devices", timeout: 1_000)
       |> assert_has("#device-count", text: "26", timeout: 1_000)
       |> check("Select all devices", exact: false)
-      |> click_button("Select all")
-      |> assert_has("h4", "All devices selected")
-      |> assert_has("span", "All available devices matching the filters have been selected.")
+      |> click_button("#bulk-select-all", "Select all")
+      |> assert_has("#bulk-selected", text: "26 selected")
+      |> click_button("#bulk-group", "Deployment group")
       |> within("form#deployment-set", fn session ->
         session
         |> select("Set deployment group",
@@ -1755,9 +2381,8 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       |> assert_has("h1", text: "Devices", timeout: 1_000)
       |> assert_has("#device-count", text: "26", timeout: 1_000)
       |> check("Select all devices", exact: false)
-      |> click_button("Select all")
-      |> assert_has("h4", "All devices selected")
-      |> assert_has("span", "All available devices matching the filters have been selected.")
+      |> click_button("#bulk-select-all", "Select all")
+      |> assert_has("#bulk-selected", text: "26 selected")
       |> unwrap(fn view ->
         render_submit(view, "tag-devices", %{"tags" => "moussaka"})
       end)
@@ -1779,11 +2404,12 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       |> assert_has("h1", text: "Devices", timeout: 1_000)
       |> assert_has("#device-count", text: "26", timeout: 1_000)
       |> check("Select all devices", exact: false)
-      |> click_button("Select all")
-      |> assert_has("h4", "All devices selected")
+      |> click_button("#bulk-select-all", "Select all")
+      |> assert_has("#bulk-selected", text: "26 selected")
+      |> click_button("#bulk-tags", "Tags")
       |> within("form#bulk-tag-input", fn session ->
         session
-        |> select("Update tags", option: "Add tags")
+        |> choose("Add")
         |> fill_in("Tags", with: "moussaka")
         |> submit()
       end)
@@ -1805,11 +2431,12 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       |> assert_has("h1", text: "Devices", timeout: 1_000)
       |> assert_has("#device-count", text: "26", timeout: 1_000)
       |> check("Select all devices", exact: false)
-      |> click_button("Select all")
-      |> assert_has("h4", "All devices selected")
+      |> click_button("#bulk-select-all", "Select all")
+      |> assert_has("#bulk-selected", text: "26 selected")
+      |> click_button("#bulk-tags", "Tags")
       |> within("form#bulk-tag-input", fn session ->
         session
-        |> select("Update tags", option: "Remove tags")
+        |> choose("Remove")
         |> fill_in("Tags", with: "beta")
         |> submit()
       end)
@@ -1833,10 +2460,10 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       |> assert_has("h1", text: "Devices", timeout: 1_000)
       |> assert_has("#device-count", text: "26", timeout: 1_000)
       |> check("Select all devices", exact: false)
-      |> click_button("Select all")
-      |> assert_has("h4", "All devices selected")
-      |> assert_has("span", "All available devices matching the filters have been selected.")
-      |> click_button("Enable")
+      |> click_button("#bulk-select-all", "Select all")
+      |> assert_has("#bulk-selected", text: "26 selected")
+      |> click_button("#bulk-updates", "Updates")
+      |> click_button("Enable updates")
       |> assert_has("div", text: "Updating devices, please wait...", timeout: 1_000)
       |> assert_has("div", text: "Enabled updates for #{26} selected device(s).", timeout: 3_000)
 
@@ -1857,10 +2484,10 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       |> assert_has("h1", text: "Devices", timeout: 1_000)
       |> assert_has("#device-count", text: "26", timeout: 1_000)
       |> check("Select all devices", exact: false)
-      |> click_button("Select all")
-      |> assert_has("h4", "All devices selected")
-      |> assert_has("span", "All available devices matching the filters have been selected.")
-      |> click_button("Disable")
+      |> click_button("#bulk-select-all", "Select all")
+      |> assert_has("#bulk-selected", text: "26 selected")
+      |> click_button("#bulk-updates", "Updates")
+      |> click_button("Disable updates")
       |> assert_has("div", text: "Updating devices, please wait...", timeout: 1_000)
       |> assert_has("div", text: "Disabled updates for 26 selected device(s).", timeout: 3_000)
 
@@ -1884,9 +2511,9 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       |> assert_has("h1", text: "Devices", timeout: 1_000)
       |> assert_has("#device-count", text: "26", timeout: 1_000)
       |> check("Select all devices", exact: false)
-      |> click_button("Select all")
-      |> assert_has("h4", "All devices selected")
-      |> assert_has("span", "All available devices matching the filters have been selected.")
+      |> click_button("#bulk-select-all", "Select all")
+      |> assert_has("#bulk-selected", text: "26 selected")
+      |> click_button("#bulk-updates", "Updates")
       |> click_button("Clear penalty box")
       |> assert_has("div", text: "Updating devices, please wait...", timeout: 1_000)
       |> assert_has("div", text: "26 selected device(s) cleared from the penalty box.", timeout: 3_000)
@@ -1896,7 +2523,7 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
   end
 
   describe "pagination" do
-    test "no pagination when less than 25 devices", %{conn: conn, fixture: fixture} do
+    test "one page when there are fewer devices than a page holds", %{conn: conn, fixture: fixture} do
       %{
         org: org,
         product: product
@@ -1904,7 +2531,9 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
 
       conn
       |> visit(~p"/org/#{org}/#{product}/devices")
-      |> refute_has("button", text: "25", timeout: 1000)
+      |> assert_has("#device-pager nav", text: "1 / 1", timeout: 1000)
+      |> assert_has("#device-pager button[aria-label='Previous page'][disabled]")
+      |> assert_has("#device-pager button[aria-label='Next page'][disabled]")
     end
 
     test "pagination with more than 25 devices", %{conn: conn, fixture: fixture} do
@@ -1924,12 +2553,12 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       conn
       |> visit(~p"/org/#{org}/#{product}/devices")
       |> assert_has("a", text: first_device.identifier, timeout: 1000)
-      |> assert_has("button", text: "25", timeout: 1000)
-      |> assert_has("button", text: "50", timeout: 1000)
-      |> assert_has("button", text: "2", timeout: 1000)
-      |> click_button("button[phx-click='paginate'][phx-value-page='2']", "2")
+      |> assert_has("#device-pager-size-select option[value='25'][selected]")
+      |> assert_has("#device-pager nav", text: "1 / 2")
+      |> click_button("#device-pager button[aria-label='Next page']", "")
       |> refute_has("a", text: first_device.identifier, timeout: 1000)
-      |> click_button("button[phx-click='paginate'][phx-value-page='1']", "1")
+      |> assert_has("#device-pager nav", text: "2 / 2")
+      |> click_button("#device-pager button[aria-label='Previous page']", "")
       |> assert_has("a", text: first_device.identifier, timeout: 1000)
     end
 
@@ -1950,13 +2579,15 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       conn
       |> visit(~p"/org/#{org}/#{product}/devices")
       |> assert_has("a", text: first_device.identifier, timeout: 1000)
-      |> assert_has("button", text: "25", timeout: 1000)
-      |> assert_has("button", text: "50", timeout: 1000)
-      |> assert_has("button", text: "2", timeout: 1000)
-      |> click_button("button[phx-click='paginate'][phx-value-page='2']", "2")
-      |> refute_has("a", text: first_device.identifier, timeout: 1000)
-      |> click_button("button[phx-click='paginate'][phx-value-page='3']", "3")
-      |> refute_has("a", text: first_device.identifier, timeout: 1000)
+      |> assert_has("#device-pager nav", text: "1 / 3")
+      |> click_button("#device-pager button[aria-label='Next page']", "")
+      |> assert_has("#device-pager nav", text: "2 / 3", timeout: 1000)
+      |> click_button("#device-pager button[aria-label='Next page']", "")
+      |> assert_has("#device-pager nav", text: "3 / 3", timeout: 1000)
+      |> refute_has("a", text: first_device.identifier)
+      |> unwrap(&render_change(element(&1, "#device-pager-size"), %{"page-size" => "50"}))
+      |> assert_has("#device-pager nav", text: "1 / 2", timeout: 1000)
+      |> assert_has("a", text: first_device.identifier, timeout: 1000)
     end
 
     test "sets deployment group on devices", %{conn: conn, fixture: fixture} do
@@ -1971,8 +2602,9 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       |> unwrap(fn view ->
         render_change(view, "select", %{"id" => device.id})
       end)
-      |> assert_has("h4", text: "1 device selected")
+      |> assert_has("#bulk-selected", text: "1 selected")
       # The "Set deployment group" dropdown should be available
+      |> click_button("#bulk-group", "Deployment group")
       |> assert_has("label", text: "Set deployment group")
       # Choose the deployment group and submit
       |> unwrap(fn view ->
@@ -2000,10 +2632,11 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       |> unwrap(fn view ->
         render_change(view, "select", %{"id" => device.id})
       end)
-      |> assert_has("h4", text: "1 device selected")
+      |> assert_has("#bulk-selected", text: "1 selected")
       # Should show the deployment group badge since all selected are in the same one
-      |> assert_has("label", text: "Remove from deployment group")
-      |> assert_has("span", text: deployment_group.name)
+      |> click_button("#bulk-group", "Deployment group")
+      |> assert_has("#remove-devices-from-deployment-group", text: "Remove from group")
+      |> assert_has("#bulk-popover span", text: deployment_group.name)
       # Click remove (trash icon button)
       |> unwrap(fn view ->
         render_click(view, "remove-devices-from-deployment-group", %{})
@@ -2033,10 +2666,11 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       |> unwrap(fn view ->
         render_change(view, "select", %{"id" => other_device.id})
       end)
-      |> assert_has("h4", text: "2 devices selected")
-      # The dropdown should be disabled with "(no valid choices)"
+      |> assert_has("#bulk-selected", text: "2 selected")
+      # The dropdown should be disabled, saying no group fits
+      |> click_button("#bulk-group", "Deployment group")
       |> assert_has("select[disabled]#set_deployment_group")
-      |> assert_has("option", text: "(no valid choices)")
+      |> assert_has("option", text: "No group matches these devices")
     end
 
     test "sends manual firmware update to devices", %{conn: conn, fixture: fixture} do
@@ -2046,14 +2680,16 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       |> visit(device_index_path(fixture))
       |> assert_has("div a", text: device.identifier, timeout: 1_000)
       # Filter by platform to reveal the firmware push option
-      # the show filters button is shown using JS, so no `click_button` is needed
+      |> open_filters()
       |> select("Platform", option: "platform")
       |> assert_has("#device-count", text: "1", timeout: 1_000)
       # Select the device
       |> unwrap(fn view ->
         render_change(view, "select", %{"id" => device.id})
       end)
-      |> assert_has("h4", text: "1 device selected")
+      |> assert_has("#bulk-selected", text: "1 selected")
+      |> click_button("#bulk-firmware", "Send firmware")
+      |> assert_has("#push-firmware")
       # Choose the firmware and submit
       |> unwrap(fn view ->
         render_change(view, "target-firmware", %{"firmware" => firmware.uuid})
@@ -2203,4 +2839,18 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
     {1, _} = Repo.update_all(where(Device, id: ^device.id), set: [firmware_validation_status: status])
     :ok
   end
+
+  # The Filters button shows once the list has loaded.
+  defp open_filters(session) do
+    session
+    |> assert_has("#sidebar-filter-button", timeout: 1000)
+    |> click_button("#sidebar-filter-button", "Filters")
+  end
+
+  # Turns one of a Filters panel chip's choices on or off, by its value.
+  defp pick(session, key, value, label),
+    do: check(session, "#filter-#{key} input[value='#{value}']", label, exact: false)
+
+  defp unpick(session, key, value, label),
+    do: uncheck(session, "#filter-#{key} input[value='#{value}']", label, exact: false)
 end

@@ -27,9 +27,27 @@ defmodule NervesHubWeb.Components.HealthStatus do
   defp icon_name(nil), do: "unknown"
   defp icon_name(%{status: status}), do: to_string(status)
 
+  @doc """
+  Why the device is warning or unhealthy, a sentence per status that has
+  reasons, or the no-reasons sentence when none do.
+  """
+  @spec reason_lines(map() | nil) :: [String.t()]
+  def reason_lines(%{status_reasons: reasons} = health) when is_map(reasons) and map_size(reasons) > 0 do
+    reasons
+    |> Enum.map(fn {status, status_reasons} -> format_health_status_reason(status, status_reasons) end)
+    |> Enum.reject(&is_nil/1)
+    |> case do
+      [] -> [no_reasons(health)]
+      lines -> lines
+    end
+  end
+
+  def reason_lines(health), do: [no_reasons(health)]
+
   def no_reasons(nil), do: "No health metrics have been received."
   def no_reasons(%{status: :healthy}), do: "Device is healthy."
   def no_reasons(%{status: :unknown}), do: "Health status is unknown."
+  def no_reasons(_health), do: "The device didn't say why."
 
   defp format_health_status_reason(status, reasons) do
     key_strings =

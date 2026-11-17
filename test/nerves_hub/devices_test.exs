@@ -20,6 +20,7 @@ defmodule NervesHub.DevicesTest do
   alias NervesHub.Devices.Device
   alias NervesHub.Devices.DeviceCertificate
   alias NervesHub.Devices.DeviceConnection
+  alias NervesHub.Devices.DeviceFiltering
   alias NervesHub.Devices.DeviceFirmware
   alias NervesHub.Devices.DeviceHealth
   alias NervesHub.Devices.Health
@@ -4207,6 +4208,109 @@ defmodule NervesHub.DevicesTest do
 
     test "is empty for no products", %{user: user} do
       assert Devices.count_by_product([], user) == %{}
+    end
+  end
+
+  describe "state_counts/3" do
+    # device: online and unhealthy; device2: online and installing an update;
+    # device3: last seen 15 days ago; failing: blocked after failed updates.
+    setup %{org: org, product: product, firmware: firmware, device: device, device2: device2, device3: device3} do
+      Fixtures.device_connection_fixture(device, %{status: :connected})
+      Fixtures.device_connection_fixture(device2, %{status: :connected})
+
+      Fixtures.device_connection_fixture(device3, %{
+        status: :disconnected,
+        last_seen_at: DateTime.add(DateTime.utc_now(), -15, :day)
+      })
+
+      {:ok, _} = Health.save_device_health(%{"device_id" => device.id, "status" => "unhealthy"})
+      Fixtures.inflight_update(device2, firmware)
+
+      failing = Fixtures.device_fixture(org, product, firmware, %{tags: ["field"]})
+
+      Repo.update_all(
+        where(Device, id: ^failing.id),
+        set: [updates_blocked_until: DateTime.add(DateTime.utc_now(), 1, :hour), consecutive_failed_updates: 3]
+      )
+
+      %{failing: failing}
+    end
+
+    test "counts each tab's devices in one query", %{product: product, user: user} do
+      opts = %{filters: DeviceFiltering.default_filters()}
+
+      assert Devices.state_counts(product, user, opts) == %{
+               "all" => 4,
+               "attention" => 3,
+               "online" => 2,
+               "updating" => 1,
+               "offline" => 2,
+               "unhealthy" => 1,
+               "failing" => 1,
+               "not_seen" => 1
+             }
+    end
+
+    test "applies the other filters but not the state or reason", %{product: product, user: user} do
+      filters = %{DeviceFiltering.default_filters() | tags: "field", state: "online", reason: "unhealthy"}
+
+      assert Devices.state_counts(product, user, %{filters: filters}) == %{
+               "all" => 1,
+               "attention" => 1,
+               "online" => 0,
+               "updating" => 0,
+               "offline" => 1,
+               "unhealthy" => 0,
+               "failing" => 1,
+               "not_seen" => 0
+             }
+    end
+
+    test "agrees with the devices each tab lists", %{product: product, user: user} do
+      counts = Devices.state_counts(product, user, %{filters: DeviceFiltering.default_filters()})
+
+      for state <- DeviceFiltering.states() do
+        opts = %{sort: {:asc, :identifier}, filters: %{DeviceFiltering.default_filters() | state: state}}
+        {_devices, meta} = Devices.filter(product, user, opts)
+
+        assert meta.total_count == counts[state], "#{state} lists #{meta.total_count}, counted #{counts[state]}"
+      end
+    end
+
+    test "facet_counts/4 counts each choice with the other filters but not its own", context do
+      %{product: product, user: user, device: device} = context
+      filters = %{DeviceFiltering.default_filters() | health_status: "healthy", connection: "connected"}
+      facets = %{health_status: ["unhealthy", "unknown"], connection: ["connected", "not_seen"], updates: ["sickly"]}
+
+      assert Devices.facet_counts(product, user, %{filters: filters}, facets) == %{
+               # online: device (unhealthy) and device2 (unknown)
+               health_status: %{"unhealthy" => 1, "unknown" => 1},
+               # healthy: none, so every choice is 0
+               connection: %{"connected" => 0, "not_seen" => 0},
+               updates: %{}
+             }
+
+      {devices, _meta} =
+        Devices.filter(product, user, %{
+          sort: {:asc, :identifier},
+          filters: %{filters | health_status: "unhealthy"}
+        })
+
+      assert Enum.map(devices, & &1.id) == [device.id]
+    end
+
+    test "lists each reason's devices, as many as it counts", context do
+      %{product: product, user: user, device: device, device3: device3, failing: failing} = context
+      counts = Devices.state_counts(product, user, %{filters: DeviceFiltering.default_filters()})
+      expected = %{"unhealthy" => [device.id], "failing" => [failing.id], "not_seen" => [device3.id]}
+
+      for reason <- DeviceFiltering.reasons() do
+        filters = %{DeviceFiltering.default_filters() | state: "attention", reason: reason}
+        {devices, meta} = Devices.filter(product, user, %{sort: {:asc, :identifier}, filters: filters})
+
+        assert meta.total_count == counts[reason]
+        assert Enum.map(devices, & &1.id) == expected[reason], "#{reason} listed the wrong devices"
+      end
     end
   end
 end

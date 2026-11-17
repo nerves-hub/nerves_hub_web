@@ -32,7 +32,9 @@ defmodule NervesHub.Devices.DeviceFiltering do
     search: "",
     display_deleted: "exclude",
     only_updating: false,
-    advanced_query: ""
+    advanced_query: "",
+    state: "",
+    reason: ""
   }
 
   @filter_types %{
@@ -58,8 +60,39 @@ defmodule NervesHub.Devices.DeviceFiltering do
     search: :string,
     display_deleted: :string,
     only_updating: :boolean,
-    advanced_query: :string
+    advanced_query: :string,
+    state: :string,
+    reason: :string
   }
+
+  # The devices list's tabs, each a slice of the product's devices. "" is All.
+  @states ~w(attention online updating offline)
+
+  # Why a device is in the Needs attention tab, each one of its filters.
+  @reasons ~w(unhealthy failing not_seen)
+
+  # Filters that take several choices at once, comma-separated: a device
+  # matches any of them. Each choice is a `value_dynamic/2`.
+  @multi_filters [
+    :health_status,
+    :connection,
+    :connection_type,
+    :firmware_version,
+    :updates,
+    :firmware_validation_status,
+    :alarm_status,
+    :alarm
+  ]
+
+  @type multi_filter() ::
+          :health_status
+          | :connection
+          | :connection_type
+          | :firmware_version
+          | :updates
+          | :firmware_validation_status
+          | :alarm_status
+          | :alarm
 
   @default_sort %{sort_direction: "asc", sort: "identifier"}
   @sort_types %{sort_direction: :string, sort: :string}
@@ -69,6 +102,101 @@ defmodule NervesHub.Devices.DeviceFiltering do
   def default_filters(), do: @default_filters
 
   def default_sort(), do: @default_sort
+
+  @doc "The states the devices list has a tab for, besides All."
+  @spec states() :: [String.t()]
+  def states(), do: @states
+
+  @doc """
+  The devices in one of the devices list's tabs, as a condition on the query
+  `NervesHub.Devices.filter/3` builds:
+
+    * `"attention"` - unhealthy, stopped taking updates after repeated
+      failures, or not seen in 14 days
+    * `"online"` - connected now
+    * `"updating"` - installing an update now
+    * `"offline"` - not connected now, including devices never seen
+  """
+  @spec state_dynamic(String.t()) :: Ecto.Query.dynamic_expr()
+  def state_dynamic("attention") do
+    Enum.reduce(@reasons, dynamic(false), fn reason, acc -> dynamic(^acc or ^reason_dynamic(reason)) end)
+  end
+
+  def state_dynamic("online"), do: Compiler.to_dynamic({:comparison, "connection", "=", "connected"})
+  def state_dynamic("updating"), do: Compiler.to_dynamic({:comparison, "update_status", "is", "updating"})
+  def state_dynamic("offline"), do: Compiler.to_dynamic({:comparison, "connection", "!=", "connected"})
+
+  @doc "The reasons a device can need attention, each a filter of the Needs attention tab."
+  @spec reasons() :: [String.t()]
+  def reasons(), do: @reasons
+
+  @doc """
+  The devices that need attention for one reason, as a condition on the query
+  `NervesHub.Devices.filter/3` builds:
+
+    * `"unhealthy"` - its health is unhealthy
+    * `"failing"` - its updates are on hold after repeated failures
+    * `"not_seen"` - last seen 14 days ago or more
+  """
+  @spec reason_dynamic(String.t()) :: Ecto.Query.dynamic_expr()
+  def reason_dynamic("unhealthy"), do: Compiler.to_dynamic({:comparison, "health_status", "=", "unhealthy"})
+  def reason_dynamic("failing"), do: Compiler.to_dynamic({:comparison, "updates", "=", "failed-updates"})
+  def reason_dynamic("not_seen"), do: Compiler.to_dynamic({:comparison, "last_seen", "<", "14 days ago"})
+
+  @doc """
+  The filters that take several choices at once, as a comma-separated value.
+  A device matches the filter when it matches any of its choices.
+  """
+  @spec multi_filters() :: [multi_filter(), ...]
+  def multi_filters(), do: @multi_filters
+
+  @doc "A multi-choice filter's value as its list of choices."
+  @spec choices(String.t()) :: [String.t()]
+  def choices(value) when is_binary(value), do: String.split(value, ",", trim: true)
+  def choices(_value), do: []
+
+  @doc """
+  The devices matching one choice of a multi-choice filter
+  (`multi_filters/0`), as a condition on the query `NervesHub.Devices.filter/3`
+  builds, or nil for a choice the filter doesn't have.
+  """
+  @spec value_dynamic(atom(), String.t()) :: Ecto.Query.dynamic_expr() | nil
+  def value_dynamic(:health_status, value) when value in ~w(healthy warning unhealthy unknown),
+    do: comparison("health_status", "=", value)
+
+  def value_dynamic(:connection, "not_seen_in_seven_days"), do: comparison("last_seen", "<", "7 days ago")
+  def value_dynamic(:connection, "not_seen_in_fourteen_days"), do: comparison("last_seen", "<", "14 days ago")
+
+  # Not connected now, as the Offline tab counts it: "disconnected" leaves out
+  # devices that never connected.
+  def value_dynamic(:connection, "offline"), do: state_dynamic("offline")
+
+  def value_dynamic(:connection, value) when value in ~w(connected disconnected not_seen),
+    do: comparison("connection", "=", value)
+
+  def value_dynamic(:connection_type, value) when value in ~w(cellular ethernet wifi unknown),
+    do: comparison("connection_type", "=", value)
+
+  def value_dynamic(:firmware_version, "Unknown"), do: dynamic([d], is_nil(d.firmware_metadata["version"]))
+
+  # The advanced query's `firmware` column matches by UUID, not version, so
+  # this stays a direct comparison.
+  def value_dynamic(:firmware_version, value), do: dynamic([d], d.firmware_metadata["version"] == ^value)
+
+  def value_dynamic(:updates, "updating"), do: comparison("update_status", "is", "updating")
+
+  def value_dynamic(:updates, value)
+      when value in ["enabled", "penalty-box", "failed-updates", "disabled", "automatic", "device-managed"],
+      do: comparison("updates", "=", value)
+
+  def value_dynamic(:firmware_validation_status, value) when value in ["validated", "not_validated", "unknown"],
+    do: comparison("firmware_validation_status", "=", value)
+
+  def value_dynamic(:alarm_status, value) when value in ["with", "without"], do: comparison("alarm_status", "=", value)
+  def value_dynamic(:alarm, value), do: comparison("alarm", "contains", value)
+  def value_dynamic(_key, _value), do: nil
+
+  defp comparison(column, operator, value), do: Compiler.to_dynamic({:comparison, column, operator, value})
 
   @doc """
   Casts raw (string-keyed) params into the filter map, applying defaults for
@@ -148,47 +276,15 @@ defmodule NervesHub.Devices.DeviceFiltering do
     query
   end
 
-  def filter(query, _filters, :alarm, alarm) do
-    advanced(query, "alarm", "contains", alarm)
-  end
-
-  def filter(query, _filters, :alarm_status, value) when value in ["with", "without"] do
-    advanced(query, "alarm_status", "=", value)
-  end
-
-  def filter(query, _filters, :health_status, value) do
-    advanced(query, "health_status", "=", value)
-  end
-
-  def filter(query, _filters, :connection, "not_seen_in_seven_days") do
-    advanced(query, "last_seen", "<", "7 days ago")
-  end
-
-  def filter(query, _filters, :connection, "not_seen_in_fourteen_days") do
-    advanced(query, "last_seen", "<", "14 days ago")
-  end
-
-  def filter(query, _filters, :connection, value) do
-    advanced(query, "connection", "=", value)
-  end
-
-  def filter(query, _filters, :connection_type, value) do
-    advanced(query, "connection_type", "=", value)
-  end
-
-  def filter(query, _filters, :firmware_version, "Unknown") do
-    where(query, [d], is_nil(d.firmware_metadata["version"]))
-  end
-
-  # The advanced query's `firmware` column matches by UUID, not version, so
-  # this stays a direct comparison.
-  def filter(query, _filters, :firmware_version, value) do
-    where(query, [d], d.firmware_metadata["version"] == ^value)
-  end
-
-  def filter(query, _filters, :firmware_validation_status, value)
-      when value in ["validated", "not_validated", "unknown"] do
-    advanced(query, "firmware_validation_status", "=", value)
+  def filter(query, _filters, key, value) when key in @multi_filters and is_binary(value) do
+    value
+    |> choices()
+    |> Enum.map(&value_dynamic(key, &1))
+    |> Enum.reject(&is_nil/1)
+    |> case do
+      [] -> query
+      [first | rest] -> where(query, ^Enum.reduce(rest, first, fn choice, acc -> dynamic(^acc or ^choice) end))
+    end
   end
 
   # The value is the signer CA's serial, or the not-set sentinel for devices
@@ -203,11 +299,6 @@ defmodule NervesHub.Devices.DeviceFiltering do
 
   def filter(query, _filters, :platform, value) do
     advanced(query, "platform", "=", value)
-  end
-
-  def filter(query, _filters, :updates, value)
-      when value in ["enabled", "penalty-box", "failed-updates", "disabled", "automatic", "device-managed"] do
-    advanced(query, "updates", "=", value)
   end
 
   def filter(query, _filters, :identifier, value) do
@@ -247,6 +338,9 @@ defmodule NervesHub.Devices.DeviceFiltering do
   def filter(query, _filters, :only_updating, false), do: query
 
   def filter(query, _filters, :only_updating, true), do: advanced(query, "update_status", "is", "updating")
+
+  def filter(query, _filters, :state, value) when value in @states, do: where(query, ^state_dynamic(value))
+  def filter(query, _filters, :reason, value) when value in @reasons, do: where(query, ^reason_dynamic(value))
 
   def filter(query, _filters, :search, value) when is_binary(value) and value != "" do
     advanced(query, "search", "like", "%#{value}%")
