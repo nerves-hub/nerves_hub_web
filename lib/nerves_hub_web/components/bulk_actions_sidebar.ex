@@ -54,7 +54,10 @@ defmodule NervesHubWeb.Components.BulkActionsSidebar do
               </div>
             </form>
 
-            <div :if={@selected_have_deployment_groups or @select_all_matching} class="flex flex-col gap-2">
+            <div
+              :if={(@selected_have_deployment_groups or @select_all_matching) and NervesHubWeb.Helpers.Authorization.authorized?(:"device:set-deployment-group", @current_scope)}
+              class="flex flex-col gap-2"
+            >
               <label class="sidebar-label">Remove from deployment group</label>
               <div class="flex items-center gap-2">
                 <span :if={@selected_shared_deployment_group && not @select_all_matching} class="flex items-center gap-1 rounded-full border border-line-default bg-base-800 py-0.5 pr-2.5 pl-1.5">
@@ -78,6 +81,7 @@ defmodule NervesHubWeb.Components.BulkActionsSidebar do
             </div>
 
             <form
+              :if={NervesHubWeb.Helpers.Authorization.authorized?(:"device:set-deployment-group", @current_scope)}
               id="deployment-set"
               class="flex flex-col gap-2"
               phx-change="target-deployment-group"
@@ -163,7 +167,7 @@ defmodule NervesHubWeb.Components.BulkActionsSidebar do
             </form>
 
             <form
-              :if={Enum.any?(@available_firmwares_for_filtered_platform) and not @select_all_matching}
+              :if={Enum.any?(@available_firmwares_for_filtered_platform) and not @select_all_matching and NervesHubWeb.Helpers.Authorization.authorized?(:"device:push-update", @current_scope)}
               id="push-firmware"
               class="flex flex-col gap-2"
               phx-change="target-firmware"
@@ -195,10 +199,13 @@ defmodule NervesHubWeb.Components.BulkActionsSidebar do
               </div>
             </form>
 
-            <div class="flex flex-col gap-2">
+            <div
+              :if={NervesHubWeb.Helpers.Authorization.authorized?(:"device:toggle-updates", @current_scope) or NervesHubWeb.Helpers.Authorization.authorized?(:"device:clear-penalty-box", @current_scope)}
+              class="flex flex-col gap-2"
+            >
               <label>Firmware updates</label>
 
-              <div class="flex w-full gap-2">
+              <div :if={NervesHubWeb.Helpers.Authorization.authorized?(:"device:toggle-updates", @current_scope)} class="flex w-full gap-2">
                 <form class="grow" id="disable-updates" phx-submit="disable-updates-for-devices">
                   <.button type="submit" data-confirm="This will disable updates for all selected devices" class="w-full">
                     <span class="lucide-x size-4 text-content-muted" aria-hidden="true"></span>
@@ -213,7 +220,12 @@ defmodule NervesHubWeb.Components.BulkActionsSidebar do
                 </form>
               </div>
 
-              <form id="clear-penalty-box" class="mt-2" phx-submit="clear-penalty-box-for-devices">
+              <form
+                :if={NervesHubWeb.Helpers.Authorization.authorized?(:"device:clear-penalty-box", @current_scope)}
+                id="clear-penalty-box"
+                class="mt-2"
+                phx-submit="clear-penalty-box-for-devices"
+              >
                 <.button type="submit" data-confirm="This will clear the penalty box all selected devices" class="w-full">
                   <span class="">Clear penalty box</span>
                 </.button>

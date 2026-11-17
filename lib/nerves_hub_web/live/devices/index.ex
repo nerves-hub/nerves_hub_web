@@ -406,7 +406,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
     {:noreply, assign(socket, target_deployment_group: nil)}
   end
 
-  @decorate requires_permission(:"device:update")
+  @decorate requires_permission(:"device:set-deployment-group")
   def handle_event("target-deployment-group", %{"deployment_group" => deployment_id_str}, socket) do
     %{
       available_deployment_groups_for_filtered_platform: available,
@@ -476,7 +476,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
     end
   end
 
-  @decorate requires_permission(:"device:update")
+  @decorate requires_permission(:"device:set-deployment-group")
   def handle_event("move-devices-deployment-group", _, socket) do
     %{
       assigns: %{
@@ -525,7 +525,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
     {:noreply, assign(socket, target_firmware: nil)}
   end
 
-  @decorate requires_permission(:"device:update")
+  @decorate requires_permission(:"device:push-update")
   def handle_event("target-firmware", %{"firmware" => firmware_uuid}, socket) do
     firmware =
       Enum.find(
@@ -536,7 +536,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
     {:noreply, assign(socket, target_firmware: firmware)}
   end
 
-  @decorate requires_permission(:"device:update")
+  @decorate requires_permission(:"device:push-update")
   def handle_event("push-firmware-to-devices", _, socket) do
     %{assigns: %{current_scope: scope, selected_devices: selected_devices, target_firmware: firmware}} =
       socket
@@ -566,7 +566,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
     |> noreply()
   end
 
-  @decorate requires_permission(:"device:update")
+  @decorate requires_permission(:"device:set-deployment-group")
   def handle_event("remove-devices-from-deployment-group", _, socket) do
     %{assigns: %{current_scope: scope, selected_devices: selected_devices}} = socket
 
@@ -582,7 +582,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
     end
   end
 
-  @decorate requires_permission(:"device:update")
+  @decorate requires_permission(:"device:toggle-updates")
   def handle_event("disable-updates-for-devices", _, socket) do
     %{assigns: %{current_scope: scope, selected_devices: selected_devices}} = socket
 
@@ -601,7 +601,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
     end
   end
 
-  @decorate requires_permission(:"device:update")
+  @decorate requires_permission(:"device:toggle-updates")
   def handle_event("enable-updates-for-devices", _, socket) do
     %{assigns: %{current_scope: scope, selected_devices: selected_devices}} = socket
 
@@ -620,7 +620,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
     end
   end
 
-  @decorate requires_permission(:"device:update")
+  @decorate requires_permission(:"device:clear-penalty-box")
   def handle_event("clear-penalty-box-for-devices", _, socket) do
     %{assigns: %{current_scope: scope, selected_devices: selected_devices}} = socket
 

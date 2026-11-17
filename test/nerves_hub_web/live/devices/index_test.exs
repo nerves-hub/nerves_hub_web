@@ -1506,6 +1506,48 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
                catch_exit(render_click(view, "move-devices-product", %{"deployment_group" => ["1"]}))
     end
 
+    # Each bulk action needs the permission its single-device version does on
+    # the device page, not just device:update.
+    for {event, params, permission} <- [
+          {"target-deployment-group", %{"deployment_group" => "1"}, "device:set-deployment-group"},
+          {"move-devices-deployment-group", %{}, "device:set-deployment-group"},
+          {"remove-devices-from-deployment-group", %{}, "device:set-deployment-group"},
+          {"target-firmware", %{"firmware" => "x"}, "device:push-update"},
+          {"push-firmware-to-devices", %{}, "device:push-update"},
+          {"disable-updates-for-devices", %{}, "device:toggle-updates"},
+          {"enable-updates-for-devices", %{}, "device:toggle-updates"},
+          {"clear-penalty-box-for-devices", %{}, "device:clear-penalty-box"}
+        ] do
+      test "#{event} needs #{permission}, not only device:update", %{conn: conn, fixture: fixture} do
+        %{org: org, product: product} = fixture
+        give_custom_role(fixture, ["device:update"])
+
+        {:ok, view, _html} = live(conn, ~p"/org/#{org}/#{product}/devices")
+        render_async(view, 300)
+
+        Process.flag(:trap_exit, true)
+
+        assert {{%NervesHubWeb.UnauthorizedError{}, _}, _} =
+                 catch_exit(render_click(view, unquote(event), unquote(Macro.escape(params))))
+      end
+    end
+
+    test "the sidebar shows only the bulk actions the role may take", %{conn: conn, fixture: fixture} do
+      %{device: device, org: org, product: product} = fixture
+      give_custom_role(fixture, ["device:update", "device:toggle-updates"])
+
+      conn
+      |> visit(~p"/org/#{org}/#{product}/devices")
+      |> assert_has("#device-count", text: "1", timeout: 1000)
+      |> check("input#checkbox-device-#{device.id}", "")
+      |> assert_has("h4", text: "1 device selected")
+      |> assert_has("#disable-updates")
+      |> assert_has("#enable-updates")
+      |> refute_has("#clear-penalty-box")
+      |> refute_has("#deployment-set")
+      |> refute_has("#push-firmware")
+    end
+
     test "add multiple devices to deployment",
          %{conn: conn, fixture: fixture} do
       %{
@@ -2197,6 +2239,13 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
     }
 
     {:ok, _stored} = Metrics.record(device_info, metrics, timestamp)
+  end
+
+  defp give_custom_role(%{org: org, user: user}, permissions) do
+    role = Fixtures.org_role_fixture(org, %{permissions: permissions})
+    org_user = Accounts.get_org_user!(Scope.put_org(Scope.for_user(user), org), user)
+    {:ok, _} = Accounts.change_org_user_role(org_user, role)
+    :ok
   end
 
   defp set_validation_status(device, status) do
