@@ -4,10 +4,10 @@ defmodule NervesHubWeb.Components.BulkBar do
   are selected, with what can be done to all of them at once.
 
   Each action opens a popover above the bar (`@menu`, one at a time, kept by
-  the LiveView), whose form sends the same events the list has always handled:
+  the LiveView), whose form sends one of the LiveView's bulk events:
   `tag-devices`, `move-devices-deployment-group`, `push-firmware-to-devices`,
-  `move-devices-product` and the update toggles. Each of those closes the
-  popover again.
+  `move-devices-product` and the update toggles. Each of those handlers closes
+  the popover again.
   """
   use NervesHubWeb, :component
 

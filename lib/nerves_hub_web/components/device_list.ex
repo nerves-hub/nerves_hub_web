@@ -1,11 +1,12 @@
 defmodule NervesHubWeb.Components.DeviceList do
   @moduledoc """
-  The pieces of a product's devices list (`NervesHubWeb.Live.Devices.Index`):
-  the state tabs above it and the cells of each row.
+  The pieces of a product's devices list (`NervesHubWeb.Live.Devices.Index`).
 
-  The cells keep to one rule: only what needs someone's attention gets
-  colour. A healthy device reads as plain grey text, an unhealthy one as a
-  red chip.
+  The state and reason tabs, the table's cells and the Needs attention rows,
+  the pager, the no-match and past-last-page states, and the first-load
+  skeletons. The cells keep to one rule: only what needs someone's attention
+  gets colour, so a healthy device reads as plain grey text and an unhealthy
+  one as a red chip.
   """
   use NervesHubWeb, :component
 

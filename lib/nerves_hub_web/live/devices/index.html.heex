@@ -183,6 +183,7 @@
             id="attention-list"
             phx-hook="AttentionList"
             data-key={@list_key}
+            data-filters-open={to_string(@filters_open?)}
             class={[
               "overflow-clip rounded-card border border-line-default bg-surface-raised",
               "max-sm:flex max-sm:flex-col max-sm:gap-2 max-sm:overflow-visible max-sm:border-0 max-sm:bg-transparent",

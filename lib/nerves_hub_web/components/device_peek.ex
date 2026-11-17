@@ -4,12 +4,10 @@ defmodule NervesHubWeb.Components.DevicePeek do
   enough about one device to decide whether to open it, without leaving the
   list.
 
-  Its "why" section changes with what is wrong with the device, worst first:
-  an update it keeps failing, then its health, then how long since it was
-  seen, then an update it is installing. A device with nothing wrong has no
-  such section.
-
-  The list owns the device, its connection status and update progress; what
+  Its "why" section is about, in order of precedence: an update it keeps
+  failing, a warning or unhealthy health report, how long since it was seen,
+  or an update it is installing; a device with none of these has no such
+  section. The list owns the device, its connection status and update progress; what
   the panel loads for itself (update attempts, recent activity, the latest
   metrics) arrives in `data`, and its sections show placeholders until then.
   """

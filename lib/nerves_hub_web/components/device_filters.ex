@@ -20,11 +20,31 @@ defmodule NervesHubWeb.Components.DeviceFilters do
 
   @default_filters DeviceFiltering.default_filters()
 
-  # The filters the panel sets, and the Filters button counts. The state and
-  # reason are tabs, the query has its own field, and the metric's operator and
-  # value only narrow its key.
-  @applicable Map.keys(@default_filters) --
-                [:state, :reason, :advanced_query, :metrics_operator, :metrics_value]
+  # The filters the panel sets, and the Filters button counts, in the order
+  # their tokens show. The state and reason are tabs, the query has its own
+  # field, and the metric's operator and value only narrow its key.
+  @applicable [
+    :identifier,
+    :search,
+    :health_status,
+    :healthy,
+    :connection,
+    :connection_type,
+    :firmware_version,
+    :updates,
+    :only_updating,
+    :deployment_id,
+    :platform,
+    :tags,
+    :has_no_tags,
+    :is_pinned,
+    :alarm_status,
+    :alarm,
+    :metrics_key,
+    :firmware_validation_status,
+    :signer_ca,
+    :display_deleted
+  ]
 
   @chips %{
     health_status: [
@@ -91,34 +111,7 @@ defmodule NervesHubWeb.Components.DeviceFilters do
   @doc "The filters the panel has applied: those not at their default."
   @spec applied(map()) :: [atom()]
   def applied(filters) do
-    @applicable
-    |> Enum.filter(fn key -> Map.get(filters, key) != Map.get(@default_filters, key) end)
-    |> Enum.sort_by(&Enum.find_index(token_order(), fn k -> k == &1 end))
-  end
-
-  defp token_order() do
-    [
-      :identifier,
-      :search,
-      :health_status,
-      :healthy,
-      :connection,
-      :connection_type,
-      :firmware_version,
-      :updates,
-      :only_updating,
-      :deployment_id,
-      :platform,
-      :tags,
-      :has_no_tags,
-      :is_pinned,
-      :alarm_status,
-      :alarm,
-      :metrics_key,
-      :firmware_validation_status,
-      :signer_ca,
-      :display_deleted
-    ]
+    Enum.filter(@applicable, fn key -> Map.get(filters, key) != Map.get(@default_filters, key) end)
   end
 
   @doc "Whether `key` is a filter the panel sets, and so one a token can remove."

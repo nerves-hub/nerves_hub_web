@@ -5,7 +5,7 @@
 import { describe, it } from "node:test"
 import assert from "node:assert/strict"
 
-import { shouldOpenFirst } from "./attentionList.js"
+import { openedKeyAfter, shouldOpenFirst } from "./attentionList.js"
 
 const list = (overrides = {}) => ({
   key: "|",
@@ -43,5 +43,18 @@ describe("shouldOpenFirst", () => {
 
   it("does nothing for an empty list", () => {
     assert.equal(shouldOpenFirst(list({ firstId: undefined })), false)
+  })
+})
+
+describe("openedKeyAfter", () => {
+  it("records the list it looked at", () => {
+    assert.equal(openedKeyAfter({ key: "failing|", openedKey: "|", filtersOpen: false }), "failing|")
+  })
+
+  it("keeps a list loaded under the Filters panel to open once the panel closes", () => {
+    const openedKey = openedKeyAfter({ key: "failing|", openedKey: "|", filtersOpen: true })
+
+    assert.equal(openedKey, "|")
+    assert.equal(shouldOpenFirst(list({ key: "failing|", openedKey })), true)
   })
 })

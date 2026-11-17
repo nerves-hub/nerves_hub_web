@@ -1,8 +1,10 @@
 defmodule NervesHubWeb.Components.DeviceOnboarding do
   @moduledoc """
-  What a product's devices list shows before any device has connected: the
-  steps to connect the first one, with the product's shared secret filled in
-  for members allowed to see it.
+  What a product's devices list shows while the product has no devices.
+
+  The steps to connect the first one, with the product's shared secret filled
+  in for members allowed to see it; otherwise `secret_reason` says whether the
+  product has none or the member can't see it.
   """
   use NervesHubWeb, :component
 

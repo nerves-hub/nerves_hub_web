@@ -2128,6 +2128,9 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       |> visit(device_index_path(fixture))
       |> assert_has("#phone-list-meta", text: "1–2 of 2", timeout: 1_000)
       |> assert_has("#phone-sort-select option[selected][value='identifier:asc']")
+      # The asc sort puts the newest connections first (DeviceFiltering.sort/2).
+      |> assert_has("#phone-sort-select option[value='connection_established_at:asc']", text: "Connected most recently")
+      |> assert_has("#phone-sort-select option[value='connection_established_at:desc']", text: "Connected longest ago")
       |> unwrap(&render_change(element(&1, "#phone-sort"), %{"sort" => "connection_established_at:desc"}))
       |> assert_has("#phone-sort-select option[selected][value='connection_established_at:desc']")
       |> unwrap(&render_change(element(&1, "#phone-sort"), %{"sort" => "deleted_at:desc"}))

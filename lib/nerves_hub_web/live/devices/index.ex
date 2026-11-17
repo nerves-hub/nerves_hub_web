@@ -229,14 +229,14 @@ defmodule NervesHubWeb.Live.Devices.Index do
     end
   end
 
-  # The peek opens on a device of the page the list shows, which is already
-  # limited to the devices the user may see.
   # On a phone, tapping a card while choosing devices (`selecting?`) selects it
   # rather than opening the peek, as there's no room for a checkbox to aim at.
   def handle_event("peek", %{"id" => id}, %{assigns: %{selecting?: true}} = socket) do
     handle_event("select", %{"id" => to_string(id)}, socket)
   end
 
+  # The peek opens on a device of the page the list shows, which is already
+  # limited to the devices the user may see.
   def handle_event("peek", %{"id" => id}, socket) do
     case find_listed_device(socket, id) do
       nil -> noreply(socket)
@@ -345,8 +345,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
 
   # Resets what the Filters panel sets, keeping the tab and the query.
   def handle_event("reset-filters", _, socket) do
-    socket
-    |> apply_filters(Map.drop(@default_filters, [:state, :reason, :advanced_query]))
+    apply_filters(socket, Map.drop(@default_filters, [:state, :reason, :advanced_query]))
   end
 
   # A filter's token, or a Clear link in the Filters panel. Clearing the metric
@@ -1748,8 +1747,8 @@ defmodule NervesHubWeb.Live.Devices.Index do
     [
       {"Sort: Identifier A–Z", "identifier:asc"},
       {"Sort: Identifier Z–A", "identifier:desc"},
-      {"Sort: Connected most recently", "connection_established_at:desc"},
-      {"Sort: Connected longest ago", "connection_established_at:asc"},
+      {"Sort: Connected most recently", "connection_established_at:asc"},
+      {"Sort: Connected longest ago", "connection_established_at:desc"},
       {"Sort: Tags A–Z", "tags:asc"},
       {"Sort: Tags Z–A", "tags:desc"}
     ]
