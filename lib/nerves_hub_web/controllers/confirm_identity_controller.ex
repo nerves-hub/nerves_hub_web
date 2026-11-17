@@ -20,6 +20,8 @@ defmodule NervesHubWeb.ConfirmIdentityController do
   alias NervesHubWeb.Auth
   alias NervesHubWeb.Plugs.Attack
 
+  plug(:require_no_permission, :the_users_own_account when action in [:new, :create, :google])
+
   def new(conn, params) do
     render_new(conn, Auth.account_return_to(params["return_to"]))
   end

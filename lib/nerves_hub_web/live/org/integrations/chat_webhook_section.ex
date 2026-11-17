@@ -39,18 +39,16 @@ defmodule NervesHubWeb.Live.Org.Integrations.ChatWebhookSection do
   end
 
   @impl Phoenix.LiveComponent
+  @decorate requires_permission(:"chat_webhook:create")
   def handle_event("new-channel", _params, socket) do
-    authorized!(:"chat_webhook:create", socket.assigns.current_scope)
-
     socket
     |> assign(:editing, :new)
     |> assign(:form, form(socket, ChatWebhooks.change_channel(socket.assigns.org, new_channel(socket))))
     |> noreply()
   end
 
+  @decorate requires_permission(:"chat_webhook:update")
   def handle_event("edit-channel", %{"channel_id" => id}, socket) do
-    authorized!(:"chat_webhook:update", socket.assigns.current_scope)
-
     channel = ChatWebhooks.get_channel!(socket.assigns.org, id)
 
     socket
@@ -59,12 +57,14 @@ defmodule NervesHubWeb.Live.Org.Integrations.ChatWebhookSection do
     |> noreply()
   end
 
+  @decorate requires_membership()
   def handle_event("cancel", _params, socket) do
     socket
     |> close_form()
     |> noreply()
   end
 
+  @decorate requires_membership()
   def handle_event("validate", params, socket) do
     params = channel_params(socket, params)
 
@@ -78,6 +78,7 @@ defmodule NervesHubWeb.Live.Org.Integrations.ChatWebhookSection do
     |> noreply()
   end
 
+  @decorate authorizes_in_body(:create_or_update_depends_on_the_form)
   def handle_event("save", params, socket) do
     params = socket |> channel_params(params) |> form_params()
 
@@ -100,9 +101,8 @@ defmodule NervesHubWeb.Live.Org.Integrations.ChatWebhookSection do
     end
   end
 
+  @decorate requires_permission(:"chat_webhook:update")
   def handle_event("toggle", %{"channel_id" => id}, socket) do
-    authorized!(:"chat_webhook:update", socket.assigns.current_scope)
-
     channel = ChatWebhooks.get_channel!(socket.assigns.org, id)
 
     case ChatWebhooks.update_channel(socket.assigns.current_scope, channel, %{"enabled" => !channel.enabled}) do
@@ -119,9 +119,8 @@ defmodule NervesHubWeb.Live.Org.Integrations.ChatWebhookSection do
     end
   end
 
+  @decorate requires_permission(:"chat_webhook:delete")
   def handle_event("delete", %{"channel_id" => id}, socket) do
-    authorized!(:"chat_webhook:delete", socket.assigns.current_scope)
-
     channel = ChatWebhooks.get_channel!(socket.assigns.org, id)
     {:ok, _} = ChatWebhooks.delete_channel(socket.assigns.current_scope, channel)
 
@@ -134,9 +133,8 @@ defmodule NervesHubWeb.Live.Org.Integrations.ChatWebhookSection do
 
   # Off the LiveView process: a chat service not answering would otherwise freeze the
   # page for the whole timeout.
+  @decorate requires_permission(:"chat_webhook:update")
   def handle_event("send-test", %{"channel_id" => id}, socket) do
-    authorized!(:"chat_webhook:update", socket.assigns.current_scope)
-
     channel = ChatWebhooks.get_channel!(socket.assigns.org, id)
     scope = socket.assigns.current_scope
 

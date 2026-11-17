@@ -9,11 +9,13 @@ defmodule NervesHubWeb.Live.Org.SigningKeys do
   on_mount(OrgCounts)
 
   @impl Phoenix.LiveView
+  @decorate requires_membership()
   def mount(_params, _session, %{assigns: %{current_scope: scope}} = socket) do
     {:ok, assign(socket, :org, scope.org)}
   end
 
   @impl Phoenix.LiveView
+  @decorate requires_membership()
   def handle_params(params, _url, socket) do
     {:noreply, apply_action(socket, socket.assigns.live_action, params)}
   end
@@ -33,9 +35,8 @@ defmodule NervesHubWeb.Live.Org.SigningKeys do
   end
 
   @impl Phoenix.LiveView
+  @decorate requires_permission(:"signing_key:create")
   def handle_event("save", %{"org_key" => key_params}, %{assigns: %{current_scope: scope}} = socket) do
-    authorized!(:"signing_key:create", scope)
-
     case Accounts.create_org_key(scope.org, scope.user, key_params) do
       {:ok, _org_key} ->
         {:noreply,
@@ -48,9 +49,8 @@ defmodule NervesHubWeb.Live.Org.SigningKeys do
     end
   end
 
+  @decorate requires_permission(:"signing_key:delete")
   def handle_event("delete", %{"signing_key_id" => signing_key_id}, %{assigns: %{current_scope: scope}} = socket) do
-    authorized!(:"signing_key:delete", scope)
-
     {:ok, signing_key} = Accounts.get_org_key(scope, signing_key_id)
 
     case Accounts.delete_org_key(signing_key) do

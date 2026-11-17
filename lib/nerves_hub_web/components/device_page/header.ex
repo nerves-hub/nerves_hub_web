@@ -174,7 +174,7 @@ defmodule NervesHubWeb.Components.DevicePage.Header do
       <.link
         navigate={~p"/org/#{@org}/#{@product}/devices"}
         aria-label="All Devices"
-        class="-ml-3.5 flex h-11 w-10 shrink-0 items-center justify-center text-content-muted"
+        class="-ml-1.5 flex h-11 w-10 shrink-0 items-center justify-center text-content-muted"
       >
         <span class="lucide-chevron-left size-5" aria-hidden="true"></span>
       </.link>

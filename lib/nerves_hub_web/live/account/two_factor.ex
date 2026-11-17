@@ -21,6 +21,7 @@ defmodule NervesHubWeb.Live.Account.TwoFactor do
   @setup_seconds 10 * 60
 
   @impl Phoenix.LiveView
+  @decorate requires_no_permission()
   def mount(_params, session, socket) do
     socket
     |> page_title("Two-factor authentication")
@@ -49,6 +50,7 @@ defmodule NervesHubWeb.Live.Account.TwoFactor do
   # alone isn't enough: it needs a recent sign-in, by password or Google,
   # whichever the account has. Checked before the secret is made rather than
   # when the code is typed in, so nobody adds the app and is then sent away.
+  @decorate requires_no_permission()
   def handle_event("start-setup", _params, socket) do
     if Auth.recently_authenticated?(socket.assigns.auth_session) do
       socket
@@ -63,6 +65,7 @@ defmodule NervesHubWeb.Live.Account.TwoFactor do
     end
   end
 
+  @decorate requires_no_permission()
   def handle_event("cancel-setup", _params, socket) do
     socket
     |> assign(:setup_secret, nil)
@@ -71,6 +74,7 @@ defmodule NervesHubWeb.Live.Account.TwoFactor do
     |> noreply()
   end
 
+  @decorate requires_no_permission()
   def handle_event("enable", params, %{assigns: %{setup_secret: secret}} = socket) when is_binary(secret) do
     user = socket.assigns.current_scope.user
 
@@ -105,8 +109,10 @@ defmodule NervesHubWeb.Live.Account.TwoFactor do
     end
   end
 
+  @decorate requires_no_permission()
   def handle_event("enable", _params, socket), do: noreply(socket)
 
+  @decorate requires_no_permission()
   def handle_event("regenerate", %{"code" => code}, socket) do
     user = socket.assigns.current_scope.user
 
@@ -123,6 +129,7 @@ defmodule NervesHubWeb.Live.Account.TwoFactor do
     end
   end
 
+  @decorate requires_no_permission()
   def handle_event("disable", %{"code" => code}, socket) do
     user = socket.assigns.current_scope.user
 
@@ -139,6 +146,7 @@ defmodule NervesHubWeb.Live.Account.TwoFactor do
     end
   end
 
+  @decorate requires_no_permission()
   def handle_event("hide-recovery-codes", _params, socket) do
     socket |> assign(:recovery_codes, nil) |> noreply()
   end

@@ -24,10 +24,12 @@ defmodule NervesHubWeb.Integrations.Slack.OAuthController do
   @session_key :slack_install
   @link_session_key :slack_link
 
+  plug(:require_permission, :"slack_connection:create" when action in [:install])
+  plug(:require_no_permission, :checked_against_the_org_the_install_started_for when action in [:callback])
+  plug(:require_no_permission, :links_the_users_own_slack_account when action in [:start_link, :link_callback])
+
   def install(%{assigns: %{current_scope: scope}} = conn, _params) do
     if !Slack.configured?(), do: raise(NervesHubWeb.NotFoundError)
-
-    Authorization.authorized!(:"slack_connection:create", scope)
 
     state = 32 |> :crypto.strong_rand_bytes() |> Base.url_encode64(padding: false)
 

@@ -4,25 +4,91 @@ defmodule NervesHubWeb.Layouts do
   alias NervesHub.Accounts.Org
   alias NervesHub.Accounts.Scope
   alias NervesHubWeb.Components.Fleet
-  alias NervesHubWeb.Components.Navigation
   alias NervesHubWeb.Components.Pager
+  alias NervesHubWeb.Components.ProductSidebar
+  alias NervesHubWeb.Live.Org.IrohEndpoints
   alias Phoenix.LiveView.JS
 
-  defp toggle_user_menu(js \\ %JS{}) do
-    JS.toggle(js,
+  # The sidebar footer's menu, or the phone top bar's (`#phone-user-menu`).
+  defp toggle_user_menu(to \\ "#user-menu-container") do
+    JS.toggle(
       in: {"ease-out duration-150", "opacity-0", "opacity-100"},
       out: {"ease-out duration-150", "opacity-100", "opacity-0"},
-      to: "#user-menu-container"
+      to: to
     )
   end
 
   # Only ever closes the menu - used for Escape and click-away so those never
   # open the menu (JS.toggle would), and are no-ops when it's already closed.
-  defp hide_user_menu(js \\ %JS{}) do
-    JS.hide(js,
+  defp hide_user_menu(to \\ "#user-menu-container") do
+    JS.hide(
       transition: {"ease-out duration-150", "opacity-100", "opacity-0"},
-      to: "#user-menu-container"
+      to: to
     )
+  end
+
+  @doc false
+  # Rendered twice, in the sidebar footer and behind a phone's top bar avatar,
+  # so the theme buttons take their ids from `theme_id`.
+  attr(:theme_id, :string, required: true)
+
+  def user_menu_items(assigns) do
+    ~H"""
+    <div class="justify-left flex items-center gap-1.5 rounded p-2 hover:bg-primary/20">
+      <span class="lucide-user-round size-5 text-content-body" />
+      <.link navigate={~p"/account"} class="text-sm font-light tracking-wide">Account</.link>
+    </div>
+
+    <div class="justify-left flex items-center gap-1.5 rounded p-2 hover:bg-primary/20">
+      <span class="lucide-log-out size-5 text-alert" />
+      <.link navigate={~p"/logout"} class="text-sm font-light tracking-wide text-alert">Log out</.link>
+    </div>
+
+    <div aria-hidden="true" class="col-span-full -mx-1.5 my-1.5 h-px border-t border-line-default"></div>
+
+    <div class="justify-left flex items-center gap-1.5 rounded p-2 hover:bg-primary/20">
+      <span class="lucide-book-open-text size-5 text-content-body" />
+      <a href="https://docs.nerves-hub.org" class="text-sm font-light tracking-wide">Documentation</a>
+    </div>
+
+    <div aria-hidden="true" class="col-span-full -mx-1.5 my-1.5 h-px border-t border-line-default"></div>
+
+    <div id={"#{@theme_id}-selector"} phx-update="ignore" class="ring-border relative isolate mt-2.5 mb-2 ml-2 flex h-8 w-fit gap-1.5 rounded-full p-1 ring-1 ring-line-default">
+      <button
+        id={"#{@theme_id}-light"}
+        aria-label="Light theme"
+        phx-hook="ThemeSwitcher"
+        data-theme-option="light"
+        class="group theme-selectors relative flex size-6 items-center justify-center rounded-full hover:border-primary data-[selected=true]:border-primary"
+        type="button"
+      >
+        <div class="absolute inset-0 hidden rounded-full bg-primary/10 group-data-[selected=true]:flex"></div>
+        <span class="lucide-sun size-5 text-base-600 group-hover:cursor-pointer group-hover:text-primary group-data-[selected=true]:text-primary" />
+      </button>
+      <button
+        id={"#{@theme_id}-dark"}
+        aria-label="Dark theme"
+        phx-hook="ThemeSwitcher"
+        data-theme-option="dark"
+        class="group theme-selectors relative flex size-6 items-center justify-center rounded-full hover:border-primary data-[selected=true]:border-primary"
+        type="button"
+      >
+        <div class="absolute inset-0 hidden rounded-full bg-primary/10 group-data-[selected=true]:flex"></div>
+        <span class="lucide-moon size-5 text-base-600 group-hover:cursor-pointer group-hover:text-primary group-data-[selected=true]:text-primary" />
+      </button>
+      <button
+        id={"#{@theme_id}-system"}
+        aria-label="System theme"
+        phx-hook="ThemeSwitcher"
+        data-theme-option="system"
+        class="group theme-selectors relative flex size-6 items-center justify-center rounded-full hover:border-primary data-[selected=true]:border-primary"
+        type="button"
+      >
+        <div class="absolute inset-0 hidden rounded-full bg-primary/10 group-data-[selected=true]:flex"></div>
+        <span class="lucide-monitor size-4.5 text-base-600 group-hover:cursor-pointer group-hover:text-primary group-data-[selected=true]:text-primary" />
+      </button>
+    </div>
+    """
   end
 
   # On a phone the sidebar is a drawer. An attribute rather than JS.show, so
@@ -198,7 +264,7 @@ defmodule NervesHubWeb.Layouts do
         count: counts.certificates
       },
       # Iroh endpoints span all of the org's devices.
-      Navigation.org_iroh_endpoints_ui_enabled?() && not Scope.devices_limited?(scope) &&
+      IrohEndpoints.enabled?() && not Scope.devices_limited?(scope) &&
         %{
           key: :iroh_endpoints,
           label: "Iroh endpoints",
@@ -237,21 +303,6 @@ defmodule NervesHubWeb.Layouts do
   """
   def tab_target(%{navigate: true} = nav), do: %{navigate: nav.path}
   def tab_target(nav), do: %{patch: nav.path}
-
-  def toggle_product_picker(js \\ %JS{}) do
-    JS.toggle(js,
-      to: "#product-picker",
-      in: {"ease-in duration-200", "opacity-0", "opacity-100"},
-      out: {"ease-out duration-200", "opacity-100", "opacity-0"}
-    )
-  end
-
-  def hide_product_picker(js \\ %JS{}) do
-    JS.hide(js,
-      to: "#product-picker",
-      transition: {"ease-out duration-200", "opacity-100", "opacity-0"}
-    )
-  end
 
   def featurebase_sdk(%{current_scope: scope, app_id: app_id} = assigns) when is_nil(scope) or is_nil(app_id) do
     ~H"""

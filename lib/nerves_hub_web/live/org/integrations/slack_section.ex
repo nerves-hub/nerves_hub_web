@@ -44,9 +44,8 @@ defmodule NervesHubWeb.Live.Org.Integrations.SlackSection do
   end
 
   @impl Phoenix.LiveComponent
+  @decorate requires_permission(:"slack_connection:delete")
   def handle_event("disconnect", %{"connection_id" => id}, socket) do
-    authorized!(:"slack_connection:delete", socket.assigns.current_scope)
-
     connection = Slack.get_connection!(socket.assigns.org, id)
     :ok = Slack.disconnect(socket.assigns.current_scope, connection)
 
@@ -57,9 +56,8 @@ defmodule NervesHubWeb.Live.Org.Integrations.SlackSection do
     |> noreply()
   end
 
+  @decorate requires_permission(:"slack_subscription:create")
   def handle_event("new-channel", %{"connection_id" => id}, socket) do
-    authorized!(:"slack_subscription:create", socket.assigns.current_scope)
-
     connection = Slack.get_connection!(socket.assigns.org, id)
     changeset = Subscriptions.change_subscription(socket.assigns.org, %Subscription{products: []})
 
@@ -72,9 +70,8 @@ defmodule NervesHubWeb.Live.Org.Integrations.SlackSection do
     |> noreply()
   end
 
+  @decorate requires_permission(:"slack_subscription:update")
   def handle_event("edit-channel", %{"subscription_id" => id}, socket) do
-    authorized!(:"slack_subscription:update", socket.assigns.current_scope)
-
     subscription = Subscriptions.get_subscription!(socket.assigns.org, id)
     changeset = Subscriptions.change_subscription(socket.assigns.org, subscription)
 
@@ -84,12 +81,14 @@ defmodule NervesHubWeb.Live.Org.Integrations.SlackSection do
     |> noreply()
   end
 
+  @decorate requires_membership()
   def handle_event("cancel", _params, socket) do
     socket
     |> close_form()
     |> noreply()
   end
 
+  @decorate requires_membership()
   def handle_event("validate", %{"slack_subscription" => params}, socket) do
     params = form_params(params)
 
@@ -104,6 +103,7 @@ defmodule NervesHubWeb.Live.Org.Integrations.SlackSection do
     |> noreply()
   end
 
+  @decorate authorizes_in_body(:create_or_update_depends_on_the_form)
   def handle_event("save", %{"slack_subscription" => params}, socket) do
     params = form_params(params)
 
@@ -113,9 +113,8 @@ defmodule NervesHubWeb.Live.Org.Integrations.SlackSection do
     end
   end
 
+  @decorate requires_permission(:"slack_subscription:update")
   def handle_event("toggle", %{"subscription_id" => id}, socket) do
-    authorized!(:"slack_subscription:update", socket.assigns.current_scope)
-
     subscription = Subscriptions.get_subscription!(socket.assigns.org, id)
 
     case Subscriptions.update_subscription(socket.assigns.current_scope, subscription, %{
@@ -134,9 +133,8 @@ defmodule NervesHubWeb.Live.Org.Integrations.SlackSection do
     end
   end
 
+  @decorate requires_permission(:"slack_subscription:delete")
   def handle_event("delete", %{"subscription_id" => id}, socket) do
-    authorized!(:"slack_subscription:delete", socket.assigns.current_scope)
-
     subscription = Subscriptions.get_subscription!(socket.assigns.org, id)
     {:ok, _} = Subscriptions.delete_subscription(socket.assigns.current_scope, subscription)
 
@@ -149,9 +147,8 @@ defmodule NervesHubWeb.Live.Org.Integrations.SlackSection do
 
   # Off the LiveView process: Slack not answering would otherwise freeze the
   # page for the whole timeout.
+  @decorate requires_permission(:"slack_subscription:update")
   def handle_event("send-test", %{"subscription_id" => id}, socket) do
-    authorized!(:"slack_subscription:update", socket.assigns.current_scope)
-
     subscription = Subscriptions.get_subscription!(socket.assigns.org, id)
     scope = socket.assigns.current_scope
 

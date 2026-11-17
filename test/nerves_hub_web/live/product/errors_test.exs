@@ -272,6 +272,15 @@ defmodule NervesHubWeb.Live.Product.ErrorsTest do
       |> assert_has("a", text: "Errors")
     end
 
+    test "counts the open issues", %{conn: conn, org: org, product: product, device: device} do
+      record(device, [report("boom")])
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/notifications")
+      |> assert_has("#nav-errors", text: "1 open")
+      |> assert_has("#product-sidebar[data-attention='alert']")
+    end
+
     test "hides the link when the extension is off", %{conn: conn, org: org, product: product} do
       {:ok, product} = Product.changeset(product, %{"extensions" => %{"error_reports" => false}}) |> Repo.update()
 

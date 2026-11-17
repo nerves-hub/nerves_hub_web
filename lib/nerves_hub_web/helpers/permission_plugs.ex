@@ -4,7 +4,9 @@ defmodule NervesHubWeb.Helpers.PermissionPlugs do
   request is for.
 
   Every member can read; anything else needs a permission from
-  `NervesHub.Accounts.Permissions`, the same ones the dashboard checks.
+  `NervesHub.Accounts.Permissions`, the same ones the web UI checks. Every
+  action has to be covered by one of these plugs, see
+  `NervesHubWeb.ControllerAuthorizationDeclared`.
 
   The org and the user's role in it come from the scope. `assign_org_to_scope`
   puts them there for routes with an `:org_name`, and
@@ -50,4 +52,13 @@ defmodule NervesHubWeb.Helpers.PermissionPlugs do
   end
 
   def require_permission(_conn, _permission), do: raise(NervesHubWeb.UnauthorizedError)
+
+  @doc """
+  Checks nothing, and says why nothing needs checking.
+
+  For actions outside any organization, such as signing in, and ones the
+  request proves for itself, such as a Slack request's signature. `reason`
+  has to be a non-nil atom.
+  """
+  def require_no_permission(conn, reason) when is_atom(reason) and not is_nil(reason), do: conn
 end

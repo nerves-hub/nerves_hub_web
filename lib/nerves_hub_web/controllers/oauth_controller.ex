@@ -9,6 +9,9 @@ defmodule NervesHubWeb.OAuthController do
   # How long after leaving the account page Google has to send someone back.
   @google_intent_seconds 10 * 60
 
+  # Signs the user in, or for a signed in user finishes what their own account
+  # page started (`fetch_google_intent/2` checks the intent is theirs).
+  plug(:require_no_permission, :signs_the_user_in when action in [:request, :callback])
   plug(:fetch_google_intent)
   plug(Ueberauth)
 

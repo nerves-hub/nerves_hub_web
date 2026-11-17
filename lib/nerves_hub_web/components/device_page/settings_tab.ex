@@ -550,6 +550,7 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
     end)
   end
 
+  @decorate requires_membership()
   def hooked_event("validate-device-settings", %{"device" => device_params}, socket) do
     changeset = Device.update_changeset(socket.assigns.device, device_params)
 
@@ -558,9 +559,8 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
     |> halt()
   end
 
+  @decorate requires_permission(:"device:update")
   def hooked_event("update-device-settings", %{"device" => device_params} = params, socket) do
-    authorized!(:"device:update", socket.assigns.current_scope)
-
     %{device: device, user: user} = socket.assigns
 
     device_params = with_unadded_tag(device_params, params["new_tag"])
@@ -599,21 +599,22 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
 
   # Tags are added to and removed from the form, not the device: like the
   # other fields, they are saved with "Save changes".
+  @decorate requires_membership()
   def hooked_event("settings-add-tag", %{"tag" => tag}, socket) do
     socket
     |> update_form_tags(&Enum.uniq(&1 ++ split_tags(tag)))
     |> halt()
   end
 
+  @decorate requires_membership()
   def hooked_event("settings-remove-tag", %{"tag" => tag}, socket) do
     socket
     |> update_form_tags(&List.delete(&1, tag))
     |> halt()
   end
 
+  @decorate requires_permission(:"device:delete")
   def hooked_event("delete-device", _, socket) do
-    authorized!(:"device:delete", socket.assigns.current_scope)
-
     {:ok, device} = Devices.delete_device(socket.assigns.device)
 
     send(self(), :reload_device)
@@ -624,9 +625,8 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
     |> halt()
   end
 
+  @decorate requires_permission(:"device:restore")
   def hooked_event("restore-device", _, socket) do
-    authorized!(:"device:restore", socket.assigns.current_scope)
-
     {:ok, device} = Devices.restore_device(socket.assigns.device)
 
     send(self(), :reload_device)
@@ -637,10 +637,9 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
     |> halt()
   end
 
+  @decorate requires_permission(:"device:destroy")
   def hooked_event("destroy-device", _, socket) do
     %{current_scope: current_scope, device: device} = socket.assigns
-
-    authorized!(:"device:destroy", current_scope)
 
     {:ok, _device} = Devices.destroy_device(device)
 
@@ -653,11 +652,11 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
   end
 
   # A phx-change handler is required when using live uploads.
+  @decorate requires_membership()
   def hooked_event("validate-cert", _, socket), do: {:halt, socket}
 
+  @decorate requires_permission(:"device:update")
   def hooked_event("delete-certificate", %{"serial" => serial}, %{assigns: %{device: device}} = socket) do
-    authorized!(:"device:update", socket.assigns.current_scope)
-
     device = %{device_certificates: certs} = Certificates.preload_device_certificates(device)
 
     db_cert = Enum.find(certs, &(&1.serial == serial))
@@ -678,9 +677,8 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
     end
   end
 
+  @decorate requires_permission(:"device:update")
   def hooked_event("create-shared-secret", _params, %{assigns: %{device: %{deleted_at: nil} = device}} = socket) do
-    authorized!(:"device:update", socket.assigns.current_scope)
-
     case Devices.issue_shared_secret_auth(device, socket.assigns.user) do
       {:ok, auth} ->
         socket
@@ -700,19 +698,19 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
     end
   end
 
+  @decorate requires_membership()
   def hooked_event("dismiss-shared-secret", _params, socket) do
     socket
     |> assign(:new_shared_secret, nil)
     |> halt()
   end
 
+  @decorate requires_permission(:"device:update")
   def hooked_event(
         "deactivate-shared-secret",
         %{"key" => key},
         %{assigns: %{device: %{deleted_at: nil} = device}} = socket
       ) do
-    authorized!(:"device:update", socket.assigns.current_scope)
-
     socket =
       case Devices.deactivate_shared_secret_auth(device, key, socket.assigns.user) do
         {:ok, _auth} ->
@@ -727,15 +725,15 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
     |> halt()
   end
 
+  @decorate requires_membership()
   def hooked_event(event, _params, socket) when event in ["create-shared-secret", "deactivate-shared-secret"] do
     socket
     |> put_flash(:error, "The device is deleted and must be restored to change its shared secrets.")
     |> halt()
   end
 
+  @decorate requires_permission(:"device:toggle-updates")
   def hooked_event("toggle-managed-updates-allowed", params, socket) do
-    authorized!(:"device:toggle-updates", socket.assigns.current_scope)
-
     %{device: device, user: user} = socket.assigns
     enabled = params["value"] == "on"
 
@@ -753,9 +751,8 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
     end
   end
 
+  @decorate requires_permission(:"device:update")
   def hooked_event("update-extension", %{"extension" => extension} = params, socket) do
-    authorized!(:"device:update", socket.assigns.current_scope)
-
     value = params["value"]
     available = Extensions.list() |> Enum.map(&to_string/1)
 
@@ -788,6 +785,7 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
     |> halt()
   end
 
+  @decorate requires_membership()
   def hooked_event(_event, _params, socket), do: {:cont, socket}
 
   def hooked_info(_event, socket), do: {:cont, socket}
@@ -813,14 +811,14 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
 
   defp with_unadded_tag(device_params, _new_tag), do: device_params
 
+  @decorate requires_permission(:"device:update")
   def handle_progress(:certificate, %{done?: true} = entry, socket) do
-    authorized!(:"device:update", socket.assigns.current_scope)
-
     socket = consume_uploaded_entry(socket, entry, &import_cert(socket, &1.path))
 
     {:noreply, socket}
   end
 
+  @decorate requires_membership()
   def handle_progress(:certificate, _entry, socket), do: {:noreply, socket}
 
   defp import_cert(%{assigns: %{device: device}} = socket, path) do
