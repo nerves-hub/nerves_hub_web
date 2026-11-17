@@ -4,6 +4,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
   import Number.Delimit, only: [number_to_delimited: 2]
 
   alias NervesHub.Accounts
+  alias NervesHub.AuditLogs
   alias NervesHub.DeviceEvents
   alias NervesHub.Devices
   alias NervesHub.Devices.AdvancedQuery
@@ -14,18 +15,20 @@ defmodule NervesHubWeb.Live.Devices.Index do
   alias NervesHub.Devices.DeviceFiltering
   alias NervesHub.Devices.Metrics
   alias NervesHub.Devices.PubSub
+  alias NervesHub.Devices.UpdateHistory
   alias NervesHub.Firmwares
   alias NervesHub.FirmwareUpdates
   alias NervesHub.ManagedDeployments
   alias NervesHub.Products
   alias NervesHub.Tracker
   alias NervesHubWeb.Components.AdvancedSearch
-  alias NervesHubWeb.Components.BulkActionsSidebar
+  alias NervesHubWeb.Components.BulkBar
   alias NervesHubWeb.Components.CAHelpers
-  alias NervesHubWeb.Components.DateTimes
-  alias NervesHubWeb.Components.DeviceUpdateStatus
-  alias NervesHubWeb.Components.FilterSidebar
-  alias NervesHubWeb.Components.HealthStatus
+  alias NervesHubWeb.Components.DeviceColumns
+  alias NervesHubWeb.Components.DeviceFilters
+  alias NervesHubWeb.Components.DeviceList
+  alias NervesHubWeb.Components.DeviceOnboarding
+  alias NervesHubWeb.Components.DevicePeek
   alias NervesHubWeb.Components.ListSettingsSidebar
   alias NervesHubWeb.Components.Sorting
   alias Phoenix.LiveView.AsyncResult
@@ -35,6 +38,11 @@ defmodule NervesHubWeb.Live.Devices.Index do
   require OpenTelemetry.Tracer, as: Tracer
 
   @list_refresh_time 60_000
+  # While a product has no devices, how often to look for its first one
+  @first_device_check_time 5_000
+
+  # What the phone's sort menu offers: the fields the table's headers sort by.
+  @phone_sorts ~w(identifier connection_established_at tags)
   # Delay frequent refresh triggers to this interval
   @refresh_delay 1000
 
@@ -50,6 +58,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
   ]
 
   @default_filters DeviceFiltering.default_filters()
+  @bulk_menus BulkBar.menus()
 
   @default_page 1
   @default_page_size 25
@@ -95,14 +104,21 @@ defmodule NervesHubWeb.Live.Devices.Index do
     |> assign(:currently_filtering, false)
     |> assign(:selected_devices, [])
     |> assign(:select_all_matching, false)
+    |> assign(:selecting?, false)
     |> assign(:target_product, nil)
     |> assign(:move_target_org_ids, Accounts.org_ids_with_role(scope.user, :manage))
     |> assign(:progress, %{})
     |> assign(:valid_tags, true)
     |> assign(:device_tags, "")
-    |> assign(:tag_operation, "set")
+    |> assign(:bulk_tags, [])
+    |> assign(:tag_operation, "add")
     |> assign(:available_tags, Devices.distinct_tags_for_product(product, scope.user))
     |> assign(:total_entries, 0)
+    |> assign(:state_counts, nil)
+    |> assign(:product_device_count, nil)
+    |> assign(:state_tabs, [])
+    |> assign(:reason_tabs, [])
+    |> assign(:list_key, nil)
     |> assign(:visible?, true)
     |> assign(:live_refresh_timer, nil)
     |> assign(:live_refresh_pending?, false)
@@ -123,6 +139,17 @@ defmodule NervesHubWeb.Live.Devices.Index do
       Devices.soft_deleted_devices_exist_for_product?(product.id)
     )
     |> assign(:filters_ready?, false)
+    |> assign(:peek_device_id, nil)
+    |> assign(:peek, AsyncResult.loading())
+    |> assign(:filters_open?, false)
+    |> assign(:columns_open?, false)
+    |> assign(:bulk_menu, nil)
+    |> assign(:list_loading?, false)
+    |> assign(:no_match_suggestions, nil)
+    |> assign(:awaiting_first_device?, false)
+    |> assign(:filter_find, "")
+    |> assign(:facets, %{})
+    |> assign(:facets_for, nil)
     |> refresh_device_list_timer()
     |> ok()
   end
@@ -135,6 +162,8 @@ defmodule NervesHubWeb.Live.Devices.Index do
     pagination_opts = Map.merge(@default_pagination, changes)
 
     socket
+    |> maybe_clear_selection(filters.state)
+    |> assign(:peek_device_id, nil)
     |> assign(:current_sort, sort.sort)
     |> assign(:sort_direction, sort.sort_direction)
     |> assign(:current_filters, filters)
@@ -142,9 +171,52 @@ defmodule NervesHubWeb.Live.Devices.Index do
     |> assign(:paginate_opts, pagination_opts)
     |> assign(:currently_filtering, filters != @default_filters)
     |> assign(:params, unsigned_params)
+    |> assign_state_tabs()
     |> assign_display_devices()
     |> maybe_assign_available_deployment_groups_for_filtered_platform()
     |> assign_filter_data()
+    |> noreply()
+  end
+
+  # A selection belongs to the tab it was made on. Switching tabs could
+  # otherwise leave devices selected that the new tab doesn't show.
+  defp maybe_clear_selection(%{assigns: %{current_filters: %{state: state}}} = socket, state), do: socket
+
+  defp maybe_clear_selection(socket, _state) do
+    socket
+    |> assign(:selected_devices, [])
+    |> assign(:select_all_matching, false)
+    |> assign(:selecting?, false)
+    |> update_selected_device_info()
+  end
+
+  # Each tab keeps the query, filters, sort and page size, and starts again
+  # at the first page. A reason belongs to the Needs attention tab, so the
+  # tabs leave it behind.
+  defp assign_state_tabs(socket) do
+    tabs =
+      Enum.map(DeviceList.tabs(), fn tab ->
+        params = %{"state" => tab.state, "reason" => "", "page_number" => @default_page}
+        Map.put(tab, :path, self_path(socket, params))
+      end)
+
+    reason_tabs =
+      Enum.map(DeviceList.reason_tabs(), fn tab ->
+        Map.put(tab, :path, self_path(socket, %{"reason" => tab.reason, "page_number" => @default_page}))
+      end)
+
+    socket
+    |> assign(:state_tabs, tabs)
+    |> assign(:reason_tabs, reason_tabs)
+  end
+
+  defp apply_filters(%{assigns: %{paginate_opts: paginate_opts}} = socket, filters) do
+    page_params = %{"page_number" => @default_page, "page_size" => paginate_opts.page_size}
+
+    socket
+    |> assign(:selected_devices, [])
+    |> assign(:select_all_matching, false)
+    |> push_patch(to: self_path(socket, Map.merge(filters, page_params)))
     |> noreply()
   end
 
@@ -168,6 +240,66 @@ defmodule NervesHubWeb.Live.Devices.Index do
       socket
     else
       socket
+    end
+  end
+
+  # On a phone, tapping a card while choosing devices (`selecting?`) selects it
+  # rather than opening the peek, as there's no room for a checkbox to aim at.
+  @decorate requires_no_permission()
+  def handle_event("peek", %{"id" => id}, %{assigns: %{selecting?: true}} = socket) do
+    handle_event("select", %{"id" => to_string(id)}, socket)
+  end
+
+  # The peek opens on a device of the page the list shows, which is already
+  # limited to the devices the user may see.
+  @decorate requires_membership()
+  def handle_event("peek", %{"id" => id}, socket) do
+    case find_listed_device(socket, id) do
+      nil -> noreply(socket)
+      device -> socket |> open_peek(device) |> noreply()
+    end
+  end
+
+  # The next or previous device on the page, from the arrow keys. The peek
+  # stays put at either end of the page.
+  @decorate requires_membership()
+  def handle_event("peek-move", %{"by" => by}, %{assigns: %{peek_device_id: id, devices: devices}} = socket)
+      when by in [-1, 1] and not is_nil(id) do
+    listed = if devices.ok?, do: devices.result, else: []
+
+    with index when is_integer(index) <- Enum.find_index(listed, &(&1.id == id)),
+         next_index when next_index >= 0 <- index + by,
+         %Device{} = device <- Enum.at(listed, next_index) do
+      socket |> open_peek(device) |> noreply()
+    else
+      _ -> noreply(socket)
+    end
+  end
+
+  @decorate requires_membership()
+  def handle_event("peek-move", _params, socket), do: noreply(socket)
+
+  @decorate requires_membership()
+  def handle_event("close-peek", _params, socket) do
+    socket
+    |> assign(:peek_device_id, nil)
+    |> noreply()
+  end
+
+  @decorate requires_permission(:"device:reboot")
+  def handle_event("peek-reboot", _params, socket) do
+    %{current_scope: scope, peek_device_id: id} = socket.assigns
+
+    case find_listed_device(socket, id) do
+      nil ->
+        noreply(socket)
+
+      device ->
+        DeviceEvents.reboot(device, scope.user)
+
+        socket
+        |> put_flash(:info, "Reboot requested for #{device.identifier}")
+        |> noreply()
     end
   end
 
@@ -197,6 +329,21 @@ defmodule NervesHubWeb.Live.Devices.Index do
     |> noreply()
   end
 
+  # The phone's sort menu, which has no column headers to click: a field and
+  # a direction together, as "identifier:asc".
+  @decorate requires_membership()
+  def handle_event("sort-by", %{"sort" => value}, socket) do
+    case String.split(value, ":") do
+      [sort, direction] when sort in @phone_sorts and direction in ~w(asc desc) ->
+        socket
+        |> push_patch(to: self_path(socket, %{sort: sort, sort_direction: direction}))
+        |> noreply()
+
+      _ ->
+        noreply(socket)
+    end
+  end
+
   @decorate requires_membership()
   def handle_event("paginate", %{"page" => page_num}, socket) do
     params = %{"page_number" => page_num}
@@ -215,24 +362,76 @@ defmodule NervesHubWeb.Live.Devices.Index do
     |> noreply()
   end
 
+  # The Filters panel's form, whose multi-choice filters arrive as lists.
   @decorate requires_membership()
-  def handle_event("update-filters", params, %{assigns: %{paginate_opts: paginate_opts}} = socket) do
-    page_params = %{"page_number" => @default_page, "page_size" => paginate_opts.page_size}
+  def handle_event("update-filters", params, socket) do
+    apply_filters(socket, DeviceFilters.join_choices(params))
+  end
+
+  # Resets what the Filters panel sets, keeping the tab and the query.
+  @decorate requires_membership()
+  def handle_event("reset-filters", _, socket) do
+    apply_filters(socket, Map.drop(@default_filters, [:state, :reason, :advanced_query]))
+  end
+
+  # A filter's token, or a Clear link in the Filters panel. Clearing the metric
+  # clears its comparison too.
+  @decorate requires_membership()
+  def handle_event("remove-filter", %{"key" => key}, socket) do
+    case Enum.find(DeviceFilters.applied(socket.assigns.current_filters), &(to_string(&1) == key)) do
+      nil ->
+        noreply(socket)
+
+      key ->
+        apply_filters(socket, filter_removal(key))
+    end
+  end
+
+  # The Filters panel is open while its choices' counts are wanted, and it
+  # covers the peek, so opening it closes the peek.
+  @decorate requires_membership()
+  def handle_event("open-filters", _, socket) do
+    socket
+    |> assign(:filters_open?, true)
+    |> assign(:columns_open?, false)
+    |> assign(:bulk_menu, nil)
+    |> assign(:filter_find, "")
+    |> assign(:peek_device_id, nil)
+    |> assign_facets()
+    |> noreply()
+  end
+
+  # The floating bulk bar opens one popover at a time; asking for the open one
+  # again closes it, as does opening it over the Filters or Columns panel.
+  @decorate requires_membership()
+  def handle_event("bulk-menu", %{"menu" => menu}, socket) when menu in @bulk_menus do
+    menu = if socket.assigns.bulk_menu != menu, do: menu
 
     socket
-    |> assign(:selected_devices, [])
-    |> assign(:select_all_matching, false)
-    |> push_patch(to: self_path(socket, Map.merge(params, page_params)))
+    |> assign(:bulk_menu, menu)
+    |> assign(:filters_open?, false)
+    |> assign(:columns_open?, false)
     |> noreply()
   end
 
   @decorate requires_membership()
-  def handle_event("reset-filters", _, %{assigns: %{paginate_opts: paginate_opts}} = socket) do
-    page_params = %{"page_number" => @default_page, "page_size" => paginate_opts.page_size}
-
+  def handle_event("close-bulk-menu", _, socket) do
     socket
-    |> assign(:selected_devices, [])
-    |> push_patch(to: self_path(socket, Map.merge(@default_filters, page_params)))
+    |> assign(:bulk_menu, nil)
+    |> noreply()
+  end
+
+  @decorate requires_membership()
+  def handle_event("close-filters", _, socket) do
+    socket
+    |> assign(:filters_open?, false)
+    |> noreply()
+  end
+
+  @decorate requires_membership()
+  def handle_event("find-filter", %{"find" => find}, socket) do
+    socket
+    |> assign(:filter_find, String.slice(find, 0, 100))
     |> noreply()
   end
 
@@ -262,10 +461,39 @@ defmodule NervesHubWeb.Live.Devices.Index do
     apply_advanced_query(socket, "")
   end
 
+  # The Columns panel sits where the Filters panel and the peek do, so it
+  # closes them.
   @decorate requires_membership()
-  def handle_event("update-settings", params, %{assigns: %{current_scope: scope}} = socket) do
-    {:ok, user} = ListSettingsSidebar.update_displayed_columns(scope.user, :device_list_columns, params)
-    {:noreply, assign(socket, :current_scope, %{scope | user: user})}
+  def handle_event("open-columns", _, socket) do
+    socket
+    |> assign(:columns_open?, true)
+    |> assign(:filters_open?, false)
+    |> assign(:bulk_menu, nil)
+    |> assign(:peek_device_id, nil)
+    |> noreply()
+  end
+
+  @decorate requires_membership()
+  def handle_event("close-columns", _, socket) do
+    socket
+    |> assign(:columns_open?, false)
+    |> noreply()
+  end
+
+  @decorate requires_membership()
+  def handle_event("update-columns", params, socket) do
+    chosen = List.wrap(params["columns"])
+
+    socket
+    |> save_columns(Enum.filter(DeviceColumns.columns(), &(to_string(&1) in chosen)))
+    |> noreply()
+  end
+
+  @decorate requires_membership()
+  def handle_event("show-all-columns", _, socket) do
+    socket
+    |> save_columns(DeviceColumns.columns())
+    |> noreply()
   end
 
   @decorate authorizes_in_body(:any_bulk_action_permission)
@@ -320,12 +548,25 @@ defmodule NervesHubWeb.Live.Devices.Index do
     end
   end
 
+  # The phone's Select button: the cards show checkboxes, and tapping one
+  # selects it, until Done ("deselect-all").
+  @decorate authorizes_in_body(:any_bulk_action_permission)
+  def handle_event("start-selecting", _, socket) do
+    may_select_devices!(socket.assigns.current_scope)
+
+    socket
+    |> assign(:selecting?, true)
+    |> assign(:peek_device_id, nil)
+    |> noreply()
+  end
+
   @decorate requires_membership()
   def handle_event("deselect-all", _, socket) do
     socket
     |> assign(%{
       selected_devices: [],
       select_all_matching: false,
+      selecting?: false,
       available_deployment_groups_for_filtered_platform: []
     })
     |> update_selected_device_info()
@@ -347,17 +588,47 @@ defmodule NervesHubWeb.Live.Devices.Index do
     |> noreply()
   end
 
+  # `new_tag` is the tag being typed into the Tags popover, before it becomes a
+  # chip; `tags` holds the chips already added.
   @decorate requires_membership()
-  def handle_event("validate-tags", %{"tags" => tags} = params, socket) do
+  def handle_event("validate-tags", params, socket) do
+    typed = Map.get(params, "new_tag", "")
+
     socket
-    |> assign(:valid_tags, not String.contains?(tags, " "))
-    |> assign(:device_tags, tags)
+    |> assign(:valid_tags, not String.contains?(typed, " "))
+    |> assign(:device_tags, typed)
     |> assign(:tag_operation, tag_operation(params))
     |> noreply()
   end
 
+  # Enter, a comma or picking a suggestion in the Tags popover turns what was
+  # typed into chips. Spaces separate tags here too, since a tag can't hold one.
+  @decorate requires_membership()
+  def handle_event("bulk-add-tag", %{"tag" => text}, socket) do
+    added = text |> String.split([",", " "], trim: true) |> Enum.map(&String.trim/1) |> Enum.reject(&(&1 == ""))
+
+    socket
+    |> update(:bulk_tags, &Enum.uniq(&1 ++ added))
+    |> assign(:device_tags, "")
+    |> assign(:valid_tags, true)
+    |> noreply()
+  end
+
+  @decorate requires_membership()
+  def handle_event("bulk-remove-tag", %{"tag" => tag}, socket) do
+    socket
+    |> update(:bulk_tags, &List.delete(&1, tag))
+    |> noreply()
+  end
+
   @decorate requires_permission(:"device:tags")
-  def handle_event("tag-devices", %{"tags" => tags} = params, socket) do
+  def handle_event("tag-devices", params, socket) do
+    tags = submitted_tags(params)
+
+    # A phx-submit command only sends its first push, so the handler closes
+    # the popover itself (here and in every bulk action below).
+    socket = assign(socket, bulk_menu: nil, bulk_tags: [], device_tags: "", valid_tags: true)
+
     bulk_action = tag_bulk_action(tag_operation(params))
 
     if socket.assigns.select_all_matching do
@@ -442,6 +713,8 @@ defmodule NervesHubWeb.Live.Devices.Index do
 
   @decorate requires_permission(:"device:update")
   def handle_event("move-devices-product", _, socket) do
+    socket = assign(socket, :bulk_menu, nil)
+
     %{
       selected_devices: selected_devices,
       target_product: target_product,
@@ -495,6 +768,8 @@ defmodule NervesHubWeb.Live.Devices.Index do
 
   @decorate requires_permission(:"device:set-deployment-group")
   def handle_event("move-devices-deployment-group", _, socket) do
+    socket = assign(socket, :bulk_menu, nil)
+
     %{
       assigns: %{
         current_scope: scope,
@@ -555,6 +830,8 @@ defmodule NervesHubWeb.Live.Devices.Index do
 
   @decorate requires_permission(:"device:push-update")
   def handle_event("push-firmware-to-devices", _, socket) do
+    socket = assign(socket, :bulk_menu, nil)
+
     %{assigns: %{current_scope: scope, selected_devices: selected_devices, target_firmware: firmware}} =
       socket
 
@@ -585,6 +862,8 @@ defmodule NervesHubWeb.Live.Devices.Index do
 
   @decorate requires_permission(:"device:set-deployment-group")
   def handle_event("remove-devices-from-deployment-group", _, socket) do
+    socket = assign(socket, :bulk_menu, nil)
+
     %{assigns: %{current_scope: scope, selected_devices: selected_devices}} = socket
 
     if socket.assigns.select_all_matching do
@@ -601,6 +880,8 @@ defmodule NervesHubWeb.Live.Devices.Index do
 
   @decorate requires_permission(:"device:toggle-updates")
   def handle_event("disable-updates-for-devices", _, socket) do
+    socket = assign(socket, :bulk_menu, nil)
+
     %{assigns: %{current_scope: scope, selected_devices: selected_devices}} = socket
 
     if socket.assigns.select_all_matching do
@@ -620,6 +901,8 @@ defmodule NervesHubWeb.Live.Devices.Index do
 
   @decorate requires_permission(:"device:toggle-updates")
   def handle_event("enable-updates-for-devices", _, socket) do
+    socket = assign(socket, :bulk_menu, nil)
+
     %{assigns: %{current_scope: scope, selected_devices: selected_devices}} = socket
 
     if socket.assigns.select_all_matching do
@@ -639,6 +922,8 @@ defmodule NervesHubWeb.Live.Devices.Index do
 
   @decorate requires_permission(:"device:clear-penalty-box")
   def handle_event("clear-penalty-box-for-devices", _, socket) do
+    socket = assign(socket, :bulk_menu, nil)
+
     %{assigns: %{current_scope: scope, selected_devices: selected_devices}} = socket
 
     if socket.assigns.select_all_matching do
@@ -749,6 +1034,18 @@ defmodule NervesHubWeb.Live.Devices.Index do
     noreply(socket)
   end
 
+  def handle_info(:await_first_device, socket) do
+    socket = assign(socket, :awaiting_first_device?, false)
+
+    if socket.assigns.product_device_count == 0 and socket.assigns.visible? do
+      socket
+      |> assign_display_devices()
+      |> noreply()
+    else
+      noreply(socket)
+    end
+  end
+
   def handle_info(:live_refresh, socket) do
     if socket.assigns.visible? and socket.assigns.live_refresh_pending? do
       Tracer.with_span "NervesHubWeb.Live.Devices.Index.live_refresh_device_list" do
@@ -786,6 +1083,34 @@ defmodule NervesHubWeb.Live.Devices.Index do
         advanced_query_firmwares: Firmwares.firmware_versions_and_uuids(product.id)
       ]
     end)
+  end
+
+  # How many devices each choice in the Filters panel would give, alongside the
+  # other filters. Only counted while the panel is open, and the firmware
+  # versions and alarms it lists have loaded. A filter change counts them once
+  # its list has arrived (`recount_facets/1`), not alongside it: the list is
+  # what someone is waiting for, and a list superseded by another change never
+  # starts its counts.
+  defp assign_facets(%{assigns: %{filters_open?: true, filters_ready?: true, current_scope: scope} = assigns} = socket) do
+    key = facets_key(assigns)
+    opts = %{filters: DeviceFiltering.transform_deployment_filter(assigns.current_filters)}
+    facets = DeviceFilters.facets(assigns.current_filters, assigns.firmware_versions, assigns.current_alarms)
+
+    socket
+    |> assign(:facets_for, key)
+    |> start_async(:load_facets, fn ->
+      {key, Devices.facet_counts(scope.product, scope.user, opts, facets)}
+    end)
+  end
+
+  defp assign_facets(socket), do: socket
+
+  defp facets_key(assigns), do: :erlang.phash2(assigns.current_filters)
+
+  # Counts the facets for the filters the list now shows, unless they're
+  # already counted (or being counted), as they are after a refresh.
+  defp recount_facets(%{assigns: assigns} = socket) do
+    if assigns.facets_for == facets_key(assigns), do: socket, else: assign_facets(socket)
   end
 
   defp apply_advanced_query(%{assigns: %{paginate_opts: paginate_opts}} = socket, query) do
@@ -851,6 +1176,8 @@ defmodule NervesHubWeb.Live.Devices.Index do
   end
 
   defp assign_display_devices(%{assigns: %{current_scope: scope, paginate_opts: paginate_opts}} = socket) do
+    list_key = list_key(socket.assigns)
+
     opts = %{
       pagination: %{page: paginate_opts.page_number, page_size: paginate_opts.page_size},
       sort:
@@ -859,16 +1186,24 @@ defmodule NervesHubWeb.Live.Devices.Index do
     }
 
     if socket.assigns[:devices] && socket.assigns.devices.ok? do
-      socket
+      # A different list (filters, tab, page or sort) shows the old one
+      # dimmed until it arrives; a refresh of the same list doesn't.
+      assign(socket, :list_loading?, list_key != socket.assigns.list_key)
     else
       socket
       |> assign(:devices, AsyncResult.loading())
       |> assign(:device_statuses, AsyncResult.loading())
     end
-    |> start_async(:update_device_list, fn -> Devices.filter(scope.product, scope.user, opts) end)
+    |> start_async(:update_device_list, fn ->
+      {updated_devices, pager} = Devices.filter(scope.product, scope.user, opts)
+      state_counts = Devices.state_counts(scope.product, scope.user, opts)
+      product_count = Map.get(Devices.count_by_product([scope.product.id], scope.user), scope.product.id, 0)
+
+      {updated_devices, pager, state_counts, product_count, list_key}
+    end)
   end
 
-  def handle_async(:update_device_list, {:ok, {updated_devices, pager}}, socket) do
+  def handle_async(:update_device_list, {:ok, {updated_devices, pager, state_counts, product_count, list_key}}, socket) do
     %{devices: old_devices, device_statuses: old_device_statuses, paginate_opts: paginate_opts} =
       socket.assigns
 
@@ -884,7 +1219,14 @@ defmodule NervesHubWeb.Live.Devices.Index do
     |> assign(:devices, AsyncResult.ok(old_devices, updated_devices))
     |> assign(:device_statuses, AsyncResult.ok(old_device_statuses, updated_device_statuses))
     |> assign(:received_connection_change_identifiers, %{})
+    |> assign(:state_counts, state_counts)
+    |> assign(:product_device_count, product_count)
+    |> assign(:list_key, list_key)
+    |> assign(:list_loading?, false)
     |> device_pagination_assigns(paginate_opts, pager)
+    |> assign_no_match_suggestions(updated_devices)
+    |> recount_facets()
+    |> await_first_device(product_count)
     |> then(fn socket ->
       progress =
         Enum.reduce(updated_devices, %{}, fn device, acc ->
@@ -912,8 +1254,23 @@ defmodule NervesHubWeb.Live.Devices.Index do
     _ = Sentry.capture_message(message, result: :none)
 
     socket
+    |> assign(:list_loading?, false)
     |> assign(:devices, AsyncResult.failed(devices, {:exit, reason}))
     |> assign(:device_statuses, AsyncResult.ok(device_statuses, {:exit, reason}))
+    |> noreply()
+  end
+
+  def handle_async(:load_peek, {:ok, {id, data}}, %{assigns: %{peek_device_id: id}} = socket) do
+    socket
+    |> assign(:peek, AsyncResult.ok(data))
+    |> noreply()
+  end
+
+  def handle_async(:load_peek, {:ok, _stale}, socket), do: noreply(socket)
+
+  def handle_async(:load_peek, {:exit, reason}, socket) do
+    socket
+    |> assign(:peek, AsyncResult.failed(socket.assigns.peek, {:exit, reason}))
     |> noreply()
   end
 
@@ -923,6 +1280,37 @@ defmodule NervesHubWeb.Live.Devices.Index do
     socket
     |> assign(:filters_ready?, true)
     |> assign(:advanced_query_schema_json, advanced_query_schema_json(socket.assigns))
+    |> assign_facets()
+    |> noreply()
+  end
+
+  def handle_async(:load_facets, {:ok, {key, facets}}, socket) do
+    if key == facets_key(socket.assigns) do
+      socket
+      |> assign(:facets, facets)
+      |> noreply()
+    else
+      noreply(socket)
+    end
+  end
+
+  def handle_async(:load_facets, {:exit, _reason}, socket), do: noreply(socket)
+
+  def handle_async(:load_no_match_suggestions, {:ok, {key, suggestions}}, socket) do
+    if key == socket.assigns.list_key do
+      socket
+      |> assign(:no_match_suggestions, suggestions)
+      |> noreply()
+    else
+      noreply(socket)
+    end
+  end
+
+  # Without the counts the empty list still says nothing matches; it just
+  # can't say what would.
+  def handle_async(:load_no_match_suggestions, {:exit, _reason}, socket) do
+    socket
+    |> assign(:no_match_suggestions, [])
     |> noreply()
   end
 
@@ -1061,6 +1449,16 @@ defmodule NervesHubWeb.Live.Devices.Index do
     |> noreply()
   end
 
+  # The chips plus a tag still being typed when the form was sent, which is
+  # applied with them rather than quietly dropped.
+  defp submitted_tags(params) do
+    [Map.get(params, "tags", ""), Map.get(params, "new_tag", "")]
+    |> Enum.flat_map(&String.split(&1, ","))
+    |> Enum.map(&String.trim/1)
+    |> Enum.reject(&(&1 == ""))
+    |> Enum.uniq()
+  end
+
   defp tag_operation(%{"tag_operation" => operation}) when operation in ~w(set add remove), do: operation
   defp tag_operation(_params), do: "set"
 
@@ -1145,6 +1543,70 @@ defmodule NervesHubWeb.Live.Devices.Index do
     Devices.filter_query(scope.product, scope.user, opts)
   end
 
+  defp find_listed_device(%{assigns: %{devices: %AsyncResult{ok?: true, result: devices}}}, id) do
+    case parse_id(id) do
+      nil -> nil
+      id -> Enum.find(devices, &(&1.id == id))
+    end
+  end
+
+  defp find_listed_device(_socket, _id), do: nil
+
+  defp parse_id(id) when is_integer(id), do: id
+
+  defp parse_id(id) when is_binary(id) do
+    case Integer.parse(id) do
+      {id, ""} -> id
+      _ -> nil
+    end
+  end
+
+  defp parse_id(_id), do: nil
+
+  # The list already has the device; the peek loads what the list doesn't
+  # show. Each load carries its device's id, so a slow one that lands after
+  # the peek has moved on is dropped.
+  defp open_peek(%{assigns: %{peek_device_id: id}} = socket, %Device{id: id}), do: socket
+
+  defp open_peek(socket, device) do
+    socket
+    |> assign(:peek_device_id, device.id)
+    |> assign(:peek, AsyncResult.loading())
+    |> start_async(:load_peek, fn ->
+      {attempts, attempts_page} = UpdateHistory.device_attempts(device, 1, 5)
+      {activity, _meta} = AuditLogs.logs_for_feed(device, %{page: 1, page_size: 3})
+
+      {device.id,
+       %{
+         attempts: attempts,
+         attempt_count: attempts_page.total_count,
+         activity: activity,
+         metrics: Metrics.get_latest_metric_set(device.id)
+       }}
+    end)
+  end
+
+  # Which list the loaded devices are, by what was asked for rather than what
+  # came back, so a refresh of the same list keeps its key. The Needs
+  # attention list opens its first device in the peek when this changes.
+  defp list_key(%{
+         current_filters: filters,
+         paginate_opts: paginate_opts,
+         current_sort: sort,
+         sort_direction: direction
+       }) do
+    :erlang.phash2({filters, paginate_opts.page_number, paginate_opts.page_size, sort, direction})
+  end
+
+  # On the Needs attention tab, wide screens dock the peek beside the list,
+  # which makes room for it, rather than laying it over the list.
+  defp peek_docked?(%{state: "attention"}, devices, id), do: not is_nil(peek_device(devices, id))
+  defp peek_docked?(_filters, _devices, _id), do: false
+
+  defp peek_device(_devices, nil), do: nil
+  defp peek_device(%AsyncResult{ok?: true, result: devices}, id), do: Enum.find(devices, &(&1.id == id))
+  defp peek_device(_devices, _id), do: nil
+
   defp update_device_statuses(socket, device_id, status) do
     updated_statuses = Map.replace(socket.assigns.device_statuses.result, device_id, status)
 
@@ -1169,23 +1631,6 @@ defmodule NervesHubWeb.Live.Devices.Index do
     else
       to_pluralize <> "s"
     end
-  end
-
-  #
-  # MOVE TO COMPONENTS
-  #
-
-  defp connection_established_at_status(nil), do: "Not seen yet"
-
-  defp connection_established_at_status(latest_connection),
-    do: "Last connected at #{connection_established_at_formatted(latest_connection)}"
-
-  defp connection_established_at(latest_connection), do: connection_established_at_formatted(latest_connection)
-
-  defp connection_established_at_formatted(latest_connection) do
-    latest_connection
-    |> Map.get(:established_at)
-    |> DateTimes.from_now()
   end
 
   defp pagination_changes(params) do
@@ -1214,25 +1659,6 @@ defmodule NervesHubWeb.Live.Devices.Index do
     JS.hide(js, transition: "fade-out", to: "##{id}")
   end
 
-  def fade_in(selector) do
-    JS.show(
-      to: selector,
-      transition: {"transition-all transform ease-out duration-300", "opacity-0", "opacity-100"}
-    )
-  end
-
-  defp progress_style(nil), do: nil
-  defp progress_style(%{percent: nil}), do: nil
-
-  defp progress_style(progress_info) do
-    """
-     background-repeat: no-repeat, no-repeat;
-     background-image: linear-gradient(90deg, var(--color-success) 0%, var(--color-success) 100%),
-                        radial-gradient(circle at 0%, color-mix(in oklab, var(--color-success) 12%, transparent) 0, color-mix(in oklab, var(--color-success) 12%, transparent) 60%, transparent 100%);
-     background-size: #{progress_info[:percent]}% 1px, #{progress_info[:percent] * 1.1}% 100%;
-    """
-  end
-
   defp maybe_assign_available_deployment_groups_for_filtered_platform(
          %{assigns: %{current_scope: scope, current_filters: %{platform: platform}}} = socket
        )
@@ -1254,12 +1680,25 @@ defmodule NervesHubWeb.Live.Devices.Index do
     |> assign(:available_firmwares_for_filtered_platform, [])
   end
 
+  # The tabs, search and buttons around the list: there while it first
+  # loads, so they don't move in above it when it arrives, and after it while
+  # it has devices, a filter is what emptied it, or the product has devices
+  # this page doesn't (one past the last).
+  defp list_chrome?(%AsyncResult{loading: loading} = device_async, currently_filtering?, product_device_count),
+    do:
+      not is_nil(loading) or has_results?(device_async, currently_filtering?) or
+        (device_async.ok? and is_integer(product_device_count) and product_device_count > 0)
+
+  # The columns the table shows, in its order.
+  defp visible_columns(user), do: Enum.filter(DeviceColumns.columns(), &show_column?(user, &1))
+
   defp has_results?(%AsyncResult{} = device_async, currently_filtering?) do
     device_async.ok? && (Enum.any?(device_async.result) || currently_filtering?)
   end
 
   defp update_selected_device_info(%{assigns: %{selected_devices: []}} = socket) do
     socket
+    |> assign(:bulk_menu, nil)
     |> assign(:selected_shared_deployment_group, nil)
     |> assign(:selected_have_deployment_groups, false)
     |> assign(:valid_deployment_groups_for_selected, [])
@@ -1354,9 +1793,190 @@ defmodule NervesHubWeb.Live.Devices.Index do
     String.to_integer(device_id)
   end
 
+  # A column the user switched off still renders its cell, for the card a row
+  # becomes on a phone, but not from sm up.
+  defp column_class(user, column), do: if(!show_column?(user, column), do: "sm:hidden")
+
+  # "1–25 of 1,240", above the cards on a phone.
+  defp page_range(%{total_count: 0}), do: "No devices"
+
+  defp page_range(%{current_page: page, page_size: size, total_count: total}) do
+    first = (page - 1) * size + 1
+    last = min(page * size, total)
+
+    "#{delimit(first)}–#{delimit(last)} of #{delimit(total)}"
+  end
+
+  defp page_range(_pager), do: nil
+
+  defp delimit(number), do: Number.Delimit.number_to_delimited(number, precision: 0)
+
+  # The phone's sort menu, `{label, "field:direction"}`.
+  defp phone_sort_options() do
+    [
+      {"Sort: Identifier A–Z", "identifier:asc"},
+      {"Sort: Identifier Z–A", "identifier:desc"},
+      {"Sort: Connected most recently", "connection_established_at:asc"},
+      {"Sort: Connected longest ago", "connection_established_at:desc"},
+      {"Sort: Tags A–Z", "tags:asc"},
+      {"Sort: Tags Z–A", "tags:desc"}
+    ]
+  end
+
+  # A row checkbox's label, which fills its cell so a click near the box
+  # selects the row rather than opening the device. The input is visually
+  # hidden, and the box inside the label stands in for it, focus ring included.
+  defp checkbox_classes() do
+    [
+      "flex w-10 cursor-pointer items-center pl-4 peer-disabled:cursor-not-allowed peer-disabled:opacity-40",
+      "[&>.checkbox-box]:flex [&>.checkbox-box]:size-3.5 [&>.checkbox-box]:items-center [&>.checkbox-box]:justify-center",
+      "[&>.checkbox-box]:rounded-[3px] [&>.checkbox-box]:border [&>.checkbox-box]:border-line-control [&>.checkbox-box]:bg-surface-raised",
+      "peer-checked:[&>.checkbox-box]:border-primary peer-checked:[&>.checkbox-box]:bg-primary",
+      "peer-focus-visible:[&>.checkbox-box]:outline-2 peer-focus-visible:[&>.checkbox-box]:outline-offset-2",
+      "peer-focus-visible:[&>.checkbox-box]:outline-focus-ring"
+    ]
+  end
+
+  # The filters a Filters panel token's × resets: a metric's key, comparison
+  # and value go together.
+  defp filter_removal(:metrics_key), do: Map.take(@default_filters, [:metrics_key, :metrics_operator, :metrics_value])
+  defp filter_removal(key), do: %{key => Map.fetch!(@default_filters, key)}
+
+  # When filters, or the query, leave a list empty, counts what removing each
+  # one would bring back into the selected tab, for the empty list to offer.
+  defp assign_no_match_suggestions(%{assigns: %{current_filters: filters}} = socket, []) do
+    removable = no_match_removable(filters)
+
+    if removable == [] do
+      assign(socket, :no_match_suggestions, nil)
+    else
+      %{current_scope: scope, list_key: key, deployment_groups: groups, signer_cas: signer_cas} = socket.assigns
+
+      socket
+      |> assign(:no_match_suggestions, nil)
+      |> start_async(:load_no_match_suggestions, fn ->
+        suggestions =
+          removable
+          |> Enum.map(fn removed ->
+            without = Map.merge(filters, filter_removal(removed))
+            opts = %{filters: DeviceFiltering.transform_deployment_filter(without)}
+            counts = Devices.state_counts(scope.product, scope.user, opts)
+
+            %{
+              key: removed,
+              text: no_match_text(removed, filters, groups, signer_cas),
+              count: counts[tab_count_key(filters)] || 0
+            }
+          end)
+          |> Enum.sort_by(& &1.count, :desc)
+
+        {key, suggestions}
+      end)
+    end
+  end
+
+  defp assign_no_match_suggestions(socket, _devices), do: assign(socket, :no_match_suggestions, nil)
+
+  # The Filters panel's filters and the query, whichever are narrowing the list.
+  defp no_match_removable(filters) do
+    DeviceFilters.applied(filters) ++ if(filters.advanced_query in [nil, ""], do: [], else: [:advanced_query])
+  end
+
+  defp no_match_text(:advanced_query, _filters, _groups, _signer_cas), do: "search"
+  defp no_match_text(key, filters, groups, signer_cas), do: DeviceFilters.token_text(key, filters, groups, signer_cas)
+
+  # Which of `Devices.state_counts/3` the selected tab (or reason) shows.
+  defp tab_count_key(%{state: "attention", reason: reason}) when reason != "", do: reason
+  defp tab_count_key(%{state: ""}), do: "all"
+  defp tab_count_key(%{state: state}), do: state
+
+  # With no devices yet, the list looks for the first one every few seconds,
+  # as the onboarding says it will, rather than every minute.
+  defp await_first_device(socket, 0) do
+    if socket.assigns.awaiting_first_device? or not connected?(socket) do
+      socket
+    else
+      Process.send_after(self(), :await_first_device, @first_device_check_time)
+      assign(socket, :awaiting_first_device?, true)
+    end
+  end
+
+  defp await_first_device(socket, _count), do: socket
+
+  # A tab (or one of its reasons) with nothing in it, as opposed to filters
+  # that match nothing.
+  defp only_state_filtered?(filters) do
+    Map.drop(filters, [:state, :reason]) == Map.drop(@default_filters, [:state, :reason])
+  end
+
+  defp empty_tab_title(%{state: "attention", reason: "unhealthy"}), do: "No devices are unhealthy"
+  defp empty_tab_title(%{state: "attention", reason: "failing"}), do: "No devices are failing updates"
+  defp empty_tab_title(%{state: "attention", reason: "not_seen"}), do: "Every device has been seen lately"
+  defp empty_tab_title(%{state: state}), do: empty_tab_title(state)
+  defp empty_tab_title("attention"), do: "Nothing needs attention"
+  defp empty_tab_title("online"), do: "No devices are online"
+  defp empty_tab_title("updating"), do: "No devices are updating"
+  defp empty_tab_title("offline"), do: "Every device is online"
+
+  defp empty_tab_detail(%{state: "attention", reason: "unhealthy"}),
+    do: "Devices show here when their health is unhealthy."
+
+  defp empty_tab_detail(%{state: "attention", reason: "failing"}),
+    do: "Devices show here when their updates are on hold after repeated failures."
+
+  defp empty_tab_detail(%{state: "attention", reason: "not_seen"}),
+    do: "Devices show here when they go #{DeviceFiltering.not_seen_days()} days unseen."
+
+  defp empty_tab_detail(%{state: state}), do: empty_tab_detail(state)
+
+  defp empty_tab_detail("attention"),
+    do:
+      "Every device is healthy, no update is failing, and all were seen in the last #{DeviceFiltering.not_seen_days()} days."
+
+  defp empty_tab_detail("online"), do: "Devices show here while they're connected."
+  defp empty_tab_detail("updating"), do: "Devices show here while they install an update."
+  defp empty_tab_detail("offline"), do: "Devices show here when they disconnect."
+
+  # How many filters the Filters panel has applied, for the count on its button.
+  defp filter_count(filters), do: length(DeviceFilters.applied(filters))
+
+  # "2 devices", or "2 of 40 devices" when filters or a tab leave some out.
+  defp device_count_suffix(shown, total) when is_integer(total) and shown < total,
+    do: " of #{number_to_delimited(total, precision: 0)} devices"
+
+  defp device_count_suffix(1, _total), do: " device"
+  defp device_count_suffix(_shown, _total), do: " devices"
+
+  # Saved to the user's display preferences, so every product's devices list
+  # shows the same columns.
+  defp save_columns(%{assigns: %{current_scope: scope}} = socket, columns) do
+    {:ok, user} =
+      Accounts.update_user_default_columns(scope.user, :device_list_columns, Enum.map(columns, &to_string/1))
+
+    assign(socket, :current_scope, %{scope | user: user})
+  end
+
   defp show_column?(user, column) do
     ListSettingsSidebar.show_column?(user.display_preferences, :device_list_columns, column)
   end
+
+  # The shared secret the onboarding fills in, or why there isn't one. The
+  # secret lets a device connect and register itself, so only members who
+  # could manage it are shown it.
+  defp onboarding_secret(product, scope) do
+    active = Enum.find(product.shared_secret_auths, &is_nil(&1.deactivated_at))
+
+    cond do
+      is_nil(active) -> {nil, :none}
+      authorized?(:"product:update", scope) -> {active, nil}
+      true -> {nil, :hidden}
+    end
+  end
+
+  # Dims a list while a different one loads (`list_loading?`), after a
+  # moment so a quick load doesn't flash; it comes back at once.
+  defp loading_dim(true), do: "opacity-50 transition-opacity delay-200 duration-150"
+  defp loading_dim(false), do: "transition-opacity duration-150"
 
   defp onboarding_nhl_host() do
     Application.get_env(:nerves_hub, :devices_websocket_url) || URI.parse(NervesHubWeb.Endpoint.url()).host

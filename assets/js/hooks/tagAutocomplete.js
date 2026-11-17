@@ -157,6 +157,9 @@ export default {
         }
         break
       case "Escape":
+        // Closing the suggestions is all this Escape does: it stops here so a
+        // popover or panel the field sits in stays open.
+        event.stopPropagation()
         this.hide()
         break
     }

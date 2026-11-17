@@ -8,6 +8,7 @@ import TimeAgo from "javascript-time-ago"
 import en from "javascript-time-ago/locale/en"
 
 import ActiveTabInView from "./hooks/activeTabInView.js"
+import AttentionList from "./hooks/attentionList.js"
 import AdvancedQueryEditor from "./hooks/advancedQueryEditor.js"
 import BarChart from "./hooks/barChart.js"
 import Chart from "./hooks/chart.js"
@@ -17,6 +18,7 @@ import CopyToClipboard from "./hooks/copyToClipboard.js"
 import CrossFadeOnUpdate from "./hooks/crossFadeOnUpdate.js"
 import DeviceDetailsLayout from "./hooks/deviceDetailsLayout.js"
 import DeviceLocationMap from "./hooks/deviceLocationMap.js"
+import DevicePeek from "./hooks/devicePeek.js"
 import DevicePageScroll from "./hooks/devicePageScroll.js"
 import DeviceLocationMapWithGeocoder from "./hooks/deviceLocationMapWithGeocoder.js"
 import Flash from "./hooks/flash.js"
@@ -68,6 +70,7 @@ let liveSocket = new LiveSocket("/live", Socket, {
   },
   hooks: {
     ActiveTabInView,
+    AttentionList,
     AdvancedQueryEditor,
     BarChart,
     Chart,
@@ -76,6 +79,7 @@ let liveSocket = new LiveSocket("/live", Socket, {
     CopyToClipboard,
     CrossFadeOnUpdate,
     DeviceDetailsLayout,
+    DevicePeek,
     DeviceLocationMap,
     DeviceLocationMapWithGeocoder,
     DevicePageScroll,

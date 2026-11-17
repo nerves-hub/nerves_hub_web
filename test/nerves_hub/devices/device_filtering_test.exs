@@ -661,6 +661,34 @@ defmodule NervesHub.Devices.DeviceFilteringTest do
     end
   end
 
+  describe "filter/4 with several choices" do
+    setup %{org: org, product: product, firmware: firmware} do
+      healthy = Fixtures.device_fixture(org, product, firmware)
+      warning = Fixtures.device_fixture(org, product, firmware)
+      unhealthy = Fixtures.device_fixture(org, product, firmware)
+      save_health(healthy, "healthy")
+      save_health(warning, "warning")
+      save_health(unhealthy, "unhealthy")
+
+      %{healthy: healthy, warning: warning, unhealthy: unhealthy}
+    end
+
+    test "matches a device with any of them", %{product: product} = context do
+      result =
+        product |> base_query() |> DeviceFiltering.filter(%{}, :health_status, "healthy,warning") |> identifiers()
+
+      assert result == Enum.sort([context.healthy.identifier, context.warning.identifier])
+    end
+
+    test "ignores a choice the filter doesn't have", %{product: product, healthy: healthy} do
+      assert product |> base_query() |> DeviceFiltering.filter(%{}, :health_status, "sickly,healthy") |> identifiers() ==
+               [healthy.identifier]
+
+      assert product |> base_query() |> DeviceFiltering.filter(%{}, :health_status, "sickly") |> identifiers() ==
+               product |> base_query() |> identifiers()
+    end
+  end
+
   describe "filter/4 :only_updating" do
     test "false returns query unchanged", %{org: org, product: product, firmware: firmware} do
       device = Fixtures.device_fixture(org, product, firmware)

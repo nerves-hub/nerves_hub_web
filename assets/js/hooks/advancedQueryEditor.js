@@ -404,8 +404,6 @@ function setCaretOffset(el, offset) {
   selection.addRange(range)
 }
 
-const COLLAPSED_WIDTH = "w-64"
-const EXPANDED_WIDTH = "w-136"
 const COLLAPSE_DELAY = 120
 
 export default {
@@ -428,7 +426,6 @@ export default {
     this.editor.textContent = this.appliedValue
     if (this.appliedValue !== "") { this.highlight() }
     this.updateClearButtonVisibility()
-    this.applyRestingWidth({ animate: false })
 
     this.editor.addEventListener("input", () => this.handleInput())
     this.editor.addEventListener("keydown", (event) =>
@@ -482,12 +479,6 @@ export default {
         this.updateClearButtonVisibility()
       }
     }
-
-    // Keep the resting width in sync when the server patches the field (e.g.
-    // a query is applied or cleared) while it isn't being actively edited.
-    if (document.activeElement !== this.editor) {
-      this.applyRestingWidth()
-    }
   },
 
   loadSchema() {
@@ -497,38 +488,9 @@ export default {
     this.schema.columns = this.schema.columns || []
   },
 
-  hasQuery() {
-    return this.value().trim() !== ""
-  },
-
-  // The field rests at the collapsed width when empty, but stays expanded once
-  // a query has been entered so an applied query remains readable without focus.
-  // Pass `animate: false` to set the width without running the width transition
-  // (used on initial mount to avoid animating on page load).
-  applyRestingWidth({ animate = true } = {}) {
-    if (!animate) this.wrapper.classList.remove("transition-[width]")
-
-    if (this.hasQuery()) {
-      this.wrapper.classList.remove(COLLAPSED_WIDTH)
-      this.wrapper.classList.add(EXPANDED_WIDTH)
-    } else {
-      this.wrapper.classList.add(COLLAPSED_WIDTH)
-      this.wrapper.classList.remove(EXPANDED_WIDTH)
-    }
-
-    if (!animate) {
-      // Force a reflow so the width change applies before the transition is
-      // restored, otherwise re-adding the class would animate it.
-      void this.wrapper.offsetWidth
-      this.wrapper.classList.add("transition-[width]")
-    }
-  },
-
   expand() {
     clearTimeout(this.collapseTimer)
 
-    this.wrapper.classList.remove(COLLAPSED_WIDTH)
-    this.wrapper.classList.add(EXPANDED_WIDTH)
     this.hints.classList.remove("hidden")
     this.placeholder.classList.add("hidden")
 
@@ -546,9 +508,6 @@ export default {
   },
 
   collapse() {
-    // Keep the field expanded while a query is present; only shrink when empty.
-    this.applyRestingWidth()
-
     this.hideSuggestions()
   },
 

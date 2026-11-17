@@ -257,6 +257,10 @@
   --animate-otp-pop: otp-pop 140ms ease-out;
   --animate-otp-shake: otp-shake 320ms ease-in-out;
   --animate-otp-blink: otp-blink 1s steps(1, end) infinite;
+
+  /* The line along the top of a list while its next results load: a
+     segment sliding across, for a wait with no known length. */
+  --animate-progress-slide: progress-slide 1.1s ease-in-out infinite;
 }
 
 /*
@@ -685,6 +689,15 @@ html:has(#product-sidebar[data-attention="waiting"]) .menu-attention {
   }
   50% {
     opacity: 0;
+  }
+}
+
+@keyframes progress-slide {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(250%);
   }
 }
 

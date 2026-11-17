@@ -26,8 +26,12 @@ function keydown(key) {
   return {
     key,
     defaultPrevented: false,
+    propagationStopped: false,
     preventDefault() {
       this.defaultPrevented = true
+    },
+    stopPropagation() {
+      this.propagationStopped = true
     },
   }
 }
@@ -91,5 +95,29 @@ describe("commit mode", () => {
 
     assert.deepEqual(pushed, [["add-tag", { tag: "roof-2" }]])
     assert.equal(instance.input.value, "")
+  })
+})
+
+describe("escape", () => {
+  it("closes open suggestions without reaching what the field sits in", () => {
+    const { instance } = hook({ value: "ro", listHidden: false })
+    instance.commitEvent = undefined
+    instance.list.children = [{}]
+    const event = keydown("Escape")
+
+    instance.handleKeydown(event)
+
+    assert.equal(instance.list.hidden, true)
+    assert.equal(event.propagationStopped, true)
+  })
+
+  it("lets escape through when no suggestions are showing", () => {
+    const { instance } = hook({ value: "ro" })
+    instance.commitEvent = undefined
+    const event = keydown("Escape")
+
+    instance.handleKeydown(event)
+
+    assert.equal(event.propagationStopped, false)
   })
 })

@@ -66,8 +66,9 @@ defmodule NervesHubWeb.Components.Pager do
   it is "Page 2 of 4 · 25 per page" between previous and next buttons.
 
   It shows whenever there is something to page through, even a single page,
-  so the footer doesn't come and go as a list grows. Other paged lists still
-  use `render_with_page_sizes/1`.
+  so the footer doesn't come and go as a list grows. The devices list has
+  its own, under the list (`NervesHubWeb.Components.DeviceList.pager/1`);
+  other paged lists still use `render_with_page_sizes/1`.
 
   Sends the same events as `render_with_page_sizes/1`: `set-paginate-opts`
   with `page-size`, and `paginate` with `page`.
