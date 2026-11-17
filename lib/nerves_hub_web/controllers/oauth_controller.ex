@@ -4,7 +4,7 @@ defmodule NervesHubWeb.OAuthController do
   alias NervesHub.Accounts
   alias NervesHubWeb.Auth
 
-  plug(:require_no_permission, :signs_the_user_in)
+  plug(:require_no_permission, :signs_the_user_in when action in [:request, :callback])
   plug(Ueberauth)
 
   # Ueberauth answers the request phase itself for a provider it is configured

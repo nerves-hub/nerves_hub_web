@@ -1,6 +1,8 @@
 defmodule NervesHubWeb.Components.BulkActionsSidebar do
   use NervesHubWeb, :component
 
+  import NervesHubWeb.Helpers.Authorization, only: [authorized?: 2]
+
   def render(assigns) do
     ~H"""
     <div class="pointer-events-none fixed inset-y-0 right-0 z-40 mb-[119px] flex max-w-full pl-10 sm:pl-16">
@@ -34,7 +36,7 @@ defmodule NervesHubWeb.Components.BulkActionsSidebar do
 
           <div class="flex flex-1 flex-col gap-6 px-4 py-6">
             <form
-              :if={NervesHubWeb.Helpers.Authorization.authorized?(:"device:update", @current_scope)}
+              :if={authorized?(:"device:update", @current_scope)}
               id="product-move"
               class="flex flex-col gap-2"
               phx-change="target-product"
@@ -61,7 +63,7 @@ defmodule NervesHubWeb.Components.BulkActionsSidebar do
             </form>
 
             <div
-              :if={(@selected_have_deployment_groups or @select_all_matching) and NervesHubWeb.Helpers.Authorization.authorized?(:"device:set-deployment-group", @current_scope)}
+              :if={(@selected_have_deployment_groups or @select_all_matching) and authorized?(:"device:set-deployment-group", @current_scope)}
               class="flex flex-col gap-2"
             >
               <label class="sidebar-label">Remove from deployment group</label>
@@ -87,7 +89,7 @@ defmodule NervesHubWeb.Components.BulkActionsSidebar do
             </div>
 
             <form
-              :if={NervesHubWeb.Helpers.Authorization.authorized?(:"device:set-deployment-group", @current_scope)}
+              :if={authorized?(:"device:set-deployment-group", @current_scope)}
               id="deployment-set"
               class="flex flex-col gap-2"
               phx-change="target-deployment-group"
@@ -124,7 +126,7 @@ defmodule NervesHubWeb.Components.BulkActionsSidebar do
             </form>
 
             <form
-              :if={NervesHubWeb.Helpers.Authorization.authorized?(:"device:tags", @current_scope)}
+              :if={authorized?(:"device:tags", @current_scope)}
               id="bulk-tag-input"
               class="flex flex-col gap-2"
               phx-submit="tag-devices"
@@ -173,7 +175,7 @@ defmodule NervesHubWeb.Components.BulkActionsSidebar do
             </form>
 
             <form
-              :if={Enum.any?(@available_firmwares_for_filtered_platform) and not @select_all_matching and NervesHubWeb.Helpers.Authorization.authorized?(:"device:push-update", @current_scope)}
+              :if={Enum.any?(@available_firmwares_for_filtered_platform) and not @select_all_matching and authorized?(:"device:push-update", @current_scope)}
               id="push-firmware"
               class="flex flex-col gap-2"
               phx-change="target-firmware"
@@ -206,12 +208,12 @@ defmodule NervesHubWeb.Components.BulkActionsSidebar do
             </form>
 
             <div
-              :if={NervesHubWeb.Helpers.Authorization.authorized?(:"device:toggle-updates", @current_scope) or NervesHubWeb.Helpers.Authorization.authorized?(:"device:clear-penalty-box", @current_scope)}
+              :if={authorized?(:"device:toggle-updates", @current_scope) or authorized?(:"device:clear-penalty-box", @current_scope)}
               class="flex flex-col gap-2"
             >
               <label>Firmware updates</label>
 
-              <div :if={NervesHubWeb.Helpers.Authorization.authorized?(:"device:toggle-updates", @current_scope)} class="flex w-full gap-2">
+              <div :if={authorized?(:"device:toggle-updates", @current_scope)} class="flex w-full gap-2">
                 <form class="grow" id="disable-updates" phx-submit="disable-updates-for-devices">
                   <.button type="submit" data-confirm="This will disable updates for all selected devices" class="w-full">
                     <span class="lucide-x size-4 text-content-muted" aria-hidden="true"></span>
@@ -227,7 +229,7 @@ defmodule NervesHubWeb.Components.BulkActionsSidebar do
               </div>
 
               <form
-                :if={NervesHubWeb.Helpers.Authorization.authorized?(:"device:clear-penalty-box", @current_scope)}
+                :if={authorized?(:"device:clear-penalty-box", @current_scope)}
                 id="clear-penalty-box"
                 class="mt-2"
                 phx-submit="clear-penalty-box-for-devices"

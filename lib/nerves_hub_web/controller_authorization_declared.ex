@@ -16,7 +16,9 @@ defmodule NervesHubWeb.ControllerAuthorizationDeclared do
 
   A plug's guard has to be one this can read: none, `action in [...]`,
   `action not in [...]` or `action == ...`. Anything else does not compile
-  either, as there is no telling which actions it covers.
+  either, as there is no telling which actions it covers. A
+  `require_no_permission` plug has to name its actions, so an action added
+  later isn't exempt without anyone saying so.
 
   `use NervesHubWeb, :controller` and `:api_controller` bring this in.
   """
@@ -70,6 +72,15 @@ defmodule NervesHubWeb.ControllerAuthorizationDeclared do
           See NervesHubWeb.ControllerAuthorizationDeclared.
           """
     end
+  end
+
+  defp covered_actions(true, _actions, env, :require_no_permission) do
+    raise CompileError,
+      file: env.file,
+      line: 0,
+      description:
+        "#{inspect(env.module)} has a :require_no_permission plug with no guard, which would " <>
+          "exempt every action, including ones added later. Name them: `when action in [...]`."
   end
 
   defp covered_actions(true, actions, _env, _plug), do: actions

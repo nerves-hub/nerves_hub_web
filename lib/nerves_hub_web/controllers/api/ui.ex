@@ -1,7 +1,7 @@
 defmodule NervesHubWeb.API.UI do
   use NervesHubWeb, :controller
 
-  plug(:require_no_permission, :public_api_documentation)
+  plug(:require_no_permission, :public_api_documentation when action in [:index])
 
   def index(conn, _params) do
     conn

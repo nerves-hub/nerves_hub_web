@@ -215,6 +215,16 @@ defmodule NervesHubWeb.AuthorizationDeclaredTest do
       assert function_exported?(module, :login, 2)
     end
 
+    test "a require_no_permission plug with no guard does not compile" do
+      assert_raise CompileError, ~r/:require_no_permission plug with no guard/, fn ->
+        compile_controller("""
+          plug(:require_no_permission, :signs_the_user_in)
+
+          def login(conn, _params), do: conn
+        """)
+      end
+    end
+
     test "a guard that doesn't say which actions it covers does not compile" do
       assert_raise CompileError, ~r/does not say which actions it covers/, fn ->
         compile_controller("""

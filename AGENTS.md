@@ -290,8 +290,9 @@ when adding or removing one.
 - **Authorization** is declared, so forgetting it fails the build. A browser
   can send a LiveView any event, shown on the page or not, so every clause of
   a LiveView's `mount/3`, `handle_params/3`, `handle_event/3` and
-  `handle_progress/3`, a LiveComponent's `handle_event/3`, and a device tab's
-  `hooked_event/3` carries a decorator (`NervesHubWeb.AuthorizationDeclared`):
+  `handle_progress/3`, a LiveComponent's `handle_event/3` and
+  `handle_progress/3`, and a device tab's `hooked_event/3` and
+  `handle_progress/3` carries a decorator (`NervesHubWeb.AuthorizationDeclared`):
   - `@decorate requires_permission(:"device:update")` for anything that needs
     a permission. It checks before the body runs, so don't also call
     `authorized!/2` at the top of the body.

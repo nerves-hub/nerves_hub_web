@@ -1088,14 +1088,14 @@ defmodule NervesHubWeb.Live.Devices.Index do
   defp tag_action_wording(:add_tags_to_devices), do: {"Tags added to", "Adding tags"}
   defp tag_action_wording(:remove_tags_from_devices), do: {"Tags removed from", "Removing tags"}
 
-  # The role in the target org was checked when the product was picked, and
-  # may have changed since, so it is checked again before anything moves.
   defp may_select_devices?(scope), do: Enum.any?(@bulk_action_permissions, &authorized?(&1, scope))
 
   defp may_select_devices!(scope) do
     if !may_select_devices?(scope), do: raise(NervesHubWeb.UnauthorizedError)
   end
 
+  # The role in the target org was checked when the product was picked, and
+  # may have changed since, so it is checked again before anything moves.
   defp still_allowed_target(_scope, nil), do: :no_product
 
   defp still_allowed_target(scope, target_product) do

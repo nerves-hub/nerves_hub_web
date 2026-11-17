@@ -8,7 +8,7 @@ defmodule NervesHubWeb.Integrations.Slack.CommandsController do
 
   alias NervesHubWeb.Integrations.Slack.Commands
 
-  plug(:require_no_permission, :signed_by_slack)
+  plug(:require_no_permission, :signed_by_slack when action in [:create])
 
   # The body only: Slack's signature covers the body, not the query string,
   # which `params` would mix in.
