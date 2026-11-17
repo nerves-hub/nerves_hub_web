@@ -65,7 +65,7 @@ defmodule NervesHubWeb.Live.TagRestrictedRolesTest do
     |> assert_has("nav a", text: "Devices")
     |> refute_has("nav a", text: "Insights")
     |> refute_has("nav a", text: "Firmware")
-    |> refute_has("nav a", text: "Deployment Groups")
+    |> refute_has("nav a", text: "Deployment groups")
   end
 
   test "device counts only include what the role can see", %{user: user, org: org, product: product} do
@@ -105,6 +105,18 @@ defmodule NervesHubWeb.Live.TagRestrictedRolesTest do
 
   test "tag suggestions only come from visible devices", %{user: user, product: product} do
     assert Devices.distinct_tags_for_product(product, user) == ["support"]
+  end
+
+  test "the product switcher doesn't call a product empty when the role sees none of its devices", context do
+    %{conn: conn, user: user, org: org, product: product, firmware: firmware, visible: visible} = context
+    valve = Fixtures.product_fixture(user, org, %{name: "Valve"})
+    Fixtures.device_fixture(org, valve, firmware)
+
+    conn
+    |> visit("/org/#{org.name}/#{product.name}/devices/#{visible.identifier}")
+    |> click_button("#product-switcher-toggle", product.name)
+    |> assert_has("#product-switcher a", text: "Valve")
+    |> refute_has("#product-switcher a", text: "No devices yet")
   end
 
   describe "when access changes with the device page open" do
