@@ -26,7 +26,7 @@ defmodule NervesHub.SSL do
           | {:invalid_ext_keyusage | :ca_invalid_ext_keyusage, [:public_key.oid()]}
           | :public_key.bad_cert_reason()
   @type reason ::
-          :unknown_ca
+          :ca_not_registered
           | :unknown_server_error
           | :registration_failed
           | :unknown_device_certificate
@@ -263,7 +263,7 @@ defmodule NervesHub.SSL do
       # Mark that this CA cert was used
       CACertificates.update_ca_certificate(db_ca, %{last_used: DateTime.utc_now()})
     else
-      _ -> :unknown_ca
+      _ -> :ca_not_registered
     end
   end
 
@@ -336,6 +336,13 @@ defmodule NervesHub.SSL do
       ski: Certificate.get_ski(otp_cert)
     }
   end
+
+  # Never refuse with :unknown_ca. :ssl reads it as finding no trust anchor and
+  # looks for another root to try. When the chain ends at a self-signed root
+  # :ssl trusts, it finds that same root, asks again, and never stops: the
+  # handshake process spins, querying the database, after the device has gone.
+  # That is OTP's ssl_handshake:path_validate/11, as of 29.1.
+  defp verify_failed(:unknown_ca, otp_cert), do: verify_failed(:ca_not_registered, otp_cert)
 
   defp verify_failed(reason, otp_cert) do
     cert_serial = Certificate.get_serial_number(otp_cert)

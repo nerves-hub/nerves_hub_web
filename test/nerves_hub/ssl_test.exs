@@ -224,7 +224,7 @@ defmodule NervesHub.SSLTest do
 
       assert is_nil(Certificate.get_aki(root_ca))
 
-      assert {:fail, :unknown_ca} = run_verify(root_ca, {:bad_cert, :unknown_ca})
+      assert {:fail, :ca_not_registered} = run_verify(root_ca, {:bad_cert, :unknown_ca})
 
       {:ok, _db_ca} = CACertificates.create_ca_certificate_from_x509(context.org, root_ca)
 
@@ -262,7 +262,7 @@ defmodule NervesHub.SSLTest do
     test "rejects unknown Signer CA", context do
       {:ok, _} = CACertificates.delete_ca_certificate(context.ca_db_cert)
 
-      assert {:fail, :unknown_ca} = run_verify(context.cert2)
+      assert {:fail, :ca_not_registered} = run_verify(context.cert2)
     end
 
     test "rejects Signer CA from another org", context do
@@ -334,7 +334,7 @@ defmodule NervesHub.SSLTest do
     end
 
     test "rejects cert from unknown Signer CA", context do
-      assert {:fail, :unknown_ca} = run_verify(context.unknown_cert)
+      assert {:fail, :ca_not_registered} = run_verify(context.unknown_cert)
     end
 
     test "rejects a cert that names no signer", context do
@@ -348,8 +348,8 @@ defmodule NervesHub.SSLTest do
           extensions: [authority_key_identifier: false, subject_key_identifier: false]
         )
 
-      assert {:fail, :unknown_ca} = run_verify(cert)
-      assert {:fail, :unknown_ca} = run_verify(cert, {:bad_cert, :unknown_ca})
+      assert {:fail, :ca_not_registered} = run_verify(cert)
+      assert {:fail, :ca_not_registered} = run_verify(cert, {:bad_cert, :unknown_ca})
     end
 
     test "rejects registering expired device cert", context do
