@@ -1,149 +1,494 @@
 <NervesHubWeb.Layouts.sidebar flash={@flash} current_scope={@current_scope} sidebar_tab={@sidebar_tab}>
-  <:header>
-    <h1 class="text-page-title text-content-strong">All Firmware</h1>
-    <.badge class="mr-auto">
-      {@pager_meta.total_count}
-    </.badge>
-
-    <div :for={entry <- @uploads.firmware.entries} class="flex w-2/5 flex-col items-center pr-2 pl-4">
-      <div class="mb-1 flex justify-between">
-        <span class="text-sm text-primary dark:text-content-strong">Uploading firmware... </span>
-        <span class="text-sm text-primary dark:text-content-strong">{entry.progress}%</span>
-      </div>
-      <div class="h-2.5 w-full rounded-full bg-base-700">
-        <div class="h-2.5 animate-pulse rounded-full bg-primary" style={"width: #{entry.progress}%"}></div>
-      </div>
+  <:top_bar>
+    <div class="flex min-w-0 items-baseline gap-3">
+      <h1 class="text-base/6 font-semibold text-content-strong">Firmware</h1>
+      <span :if={@counts.all > 0} class="truncate font-mono text-xs text-content-muted max-sm:hidden">
+        {ngettext("1 build", "%{count} builds", @counts.all)} · {ngettext("1 version", "%{count} versions", @counts.versions)}
+      </span>
     </div>
 
-    <label class="flex items-center gap-2 text-sm font-medium text-content-body hover:cursor-pointer">
-      <input
-        type="checkbox"
-        class="rounded border-line-default bg-base-800 text-content-muted checked:bg-primary hover:cursor-pointer focus:ring-0"
-        checked={@include_deleted}
-        phx-click="toggle-deleted-firmware"
-      /> Show deleted
-    </label>
-
-    <form id="firmware-form" phx-change="validate-firmware" class={[Enum.any?(@uploads.firmware.entries) && "hidden"]}>
-      <.button type="label" for={@uploads.firmware.ref}>
-        <.icon name="add" /> Upload Firmware
+    <form :if={authorized?(:"firmware:upload", @current_scope)} id="firmware-form" phx-change="validate-firmware" class="shrink-0 sm:mr-6">
+      <.button style="primary" type="label" for={@uploads.firmware.ref}>
+        <span class="lucide-upload" aria-hidden="true"></span> Upload<span class="max-sm:hidden"> firmware</span>
       </.button>
       <.live_file_input upload={@uploads.firmware} class="hidden" />
     </form>
-  </:header>
+  </:top_bar>
 
   <%!-- The drop target wraps the scrolling list instead of being it, so the
         overlay can cover the whole area without scrolling along with the rows. --%>
   <div class="relative flex h-0 flex-1 flex-col" phx-drop-target={@uploads.firmware.ref}>
     <div class="h-0 flex-1 overflow-y-auto">
-      <div :if={Enum.any?(@firmware)} class="listing">
-        <table>
-          <thead>
-            <tr>
-              <th>UUID</th>
-              <th phx-click="sort" phx-value-sort="version" class="cursor-pointer">
-                <Sorting.sort_icon text="Version" field="version" selected_field={@current_sort} selected_direction={@sort_direction} />
-              </th>
-              <th>Tool</th>
-              <th>Platform</th>
-              <th>Architecture</th>
-              <th phx-click="sort" phx-value-sort="install_count" class="cursor-pointer">
-                <Sorting.sort_icon text="Install count" field="install_count" selected_field={@current_sort} selected_direction={@sort_direction} />
-              </th>
-              <th>Signing Key</th>
-              <th phx-click="sort" phx-value-sort="inserted_at" class="cursor-pointer">
-                <Sorting.sort_icon text={"Uploaded on (#{zone_abbr(@time_zone)})"} field="inserted_at" selected_field={@current_sort} selected_direction={@sort_direction} />
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr :for={firmware <- @firmware} class={["border-b border-line-subtle", Firmware.deleted?(firmware) && "opacity-60"]}>
-              <td>
-                <div class="flex items-center gap-2">
-                  <.link patch={~p"/org/#{@current_scope.org}/#{@product}/firmware/#{firmware}"}>
-                    {firmware.uuid}
-                  </.link>
-                  <.badge :if={Firmware.deleted?(firmware)} title={deleted_summary(firmware, @time_zone)}>
-                    Deleted
-                  </.badge>
-                </div>
-              </td>
+      <nav
+        :if={@counts.all + @counts.deleted > 0}
+        id="firmware-tabs"
+        aria-label="Firmware"
+        class="scrollbar-none flex gap-1 overflow-x-auto border-b border-line-default px-3 sm:px-4"
+      >
+        <.link
+          :for={tab <- list_tabs(@counts)}
+          patch={tab_path(assigns, tab.param)}
+          aria-current={if tab.key == @tab, do: "page"}
+          class="group relative flex h-11 shrink-0 items-center gap-1.75 border-b-2 border-transparent px-3 text-sm/4.5 font-medium whitespace-nowrap text-content-muted hover:text-content-strong aria-[current=page]:border-primary aria-[current=page]:font-semibold aria-[current=page]:text-content-strong light:aria-[current=page]:border-indigo-600"
+        >
+          <.status_dot :if={tab.dot} class={["size-1.5", tab.dot]} />
+          {tab.label}
+          <span class="font-mono text-xs font-normal text-content-faint group-aria-[current=page]:text-content-muted">{tab.count}</span>
+        </.link>
+      </nav>
 
-              <td>
-                <div class="flex items-center gap-2">
+      <form
+        :if={@counts.all + @counts.deleted > 0}
+        id="firmware-filters"
+        phx-change="filter"
+        phx-submit="filter"
+        class="flex flex-wrap items-center gap-2 px-4 pt-4 sm:px-6"
+      >
+        <label class="flex h-8 min-w-0 flex-1 items-center gap-2 rounded border border-line-control bg-surface-raised px-2.5 focus-within:border-primary max-sm:basis-full">
+          <span class="lucide-search size-3.5 text-content-faint" aria-hidden="true"></span>
+          <span class="sr-only">Search firmware</span>
+          <input
+            type="search"
+            name="search"
+            value={@filters.search}
+            placeholder="Search versions, UUIDs or VCS IDs"
+            autocomplete="off"
+            phx-debounce="300"
+            class="h-full min-w-0 flex-1 border-0 bg-transparent p-0 text-ui text-content-strong placeholder:text-content-faint focus:ring-0"
+          />
+        </label>
+
+        <label class={[
+          "flex h-8 items-center gap-1.5 rounded border px-2.5 text-ui text-content-body max-sm:flex-1",
+          (@filters.platform && "border-primary/50 bg-notice-soft") || "border-line-control bg-surface-raised"
+        ]}>
+          Platform
+          <select name="platform" class="h-full border-0 bg-transparent py-0 pr-7 pl-0 font-mono text-xs text-content-strong focus:ring-0 max-sm:min-w-0 max-sm:flex-1">
+            <option value="">Any</option>
+            {Phoenix.HTML.Form.options_for_select(@platforms, @filters.platform)}
+          </select>
+        </label>
+
+        <label
+          :if={length(@tools) > 1 || @filters.tool}
+          class={[
+            "flex h-8 items-center gap-1.5 rounded border px-2.5 text-ui text-content-body max-sm:flex-1",
+            (@filters.tool && "border-primary/50 bg-notice-soft") || "border-line-control bg-surface-raised"
+          ]}
+        >
+          Tool
+          <select name="tool" class="h-full border-0 bg-transparent py-0 pr-7 pl-0 font-mono text-xs text-content-strong focus:ring-0 max-sm:min-w-0 max-sm:flex-1">
+            <option value="">Any</option>
+            {Phoenix.HTML.Form.options_for_select(@tools, @filters.tool)}
+          </select>
+        </label>
+      </form>
+
+      <%!-- A product with no firmware at all, deleted or not. --%>
+      <div
+        :if={@counts.all + @counts.deleted == 0 && @upload_failures == [] && @uploads.firmware.entries == []}
+        id="firmware-empty"
+        class="m-4 flex flex-col items-center gap-4 rounded-card border border-dashed border-line-dashed px-6 py-12 text-center sm:m-6"
+      >
+        <span class="flex size-10 items-center justify-center rounded-full bg-notice-soft">
+          <span class="lucide-upload size-5 text-notice-content" aria-hidden="true"></span>
+        </span>
+        <div class="flex flex-col gap-1">
+          <h2 class="text-section-title text-content-strong">Upload your first firmware</h2>
+          <p class="max-w-md text-sm text-content-muted">
+            {@product.name} doesn’t have any firmware yet. Drop a signed file anywhere on this page, or publish one from CI with the nh CLI. Devices get it once a deployment group releases it.
+          </p>
+        </div>
+        <ol class="grid w-full max-w-2xl gap-px overflow-hidden rounded-card border border-line-default bg-line-default text-left sm:grid-cols-3">
+          <li class="flex flex-col gap-1 bg-surface-raised p-3">
+            <span class="flex items-center gap-1.5 font-mono text-xs text-content-faint">
+              <span :if={@org_keys != []} class="lucide-check size-3 text-success" aria-hidden="true"></span> 01
+            </span>
+            <span class="text-ui font-medium text-content-strong">Have a signing key</span>
+            <span :if={@org_keys != []} class="truncate text-xs text-content-muted">
+              {@current_scope.org.name} has <span class="font-mono">{hd(@org_keys).name}</span>
+            </span>
+            <.link :if={@org_keys == []} navigate={~p"/org/#{@current_scope.org}/settings/keys"} class="text-xs text-notice-content hover:underline">
+              Add a signing key
+            </.link>
+          </li>
+          <li class="flex flex-col gap-1 bg-surface-raised p-3">
+            <span class="font-mono text-xs text-content-faint">02</span>
+            <span class="text-ui font-medium text-content-strong">Sign the firmware</span>
+            <span class="truncate font-mono text-xs text-content-muted">fwup -S -s {(@org_keys != [] && hd(@org_keys).name) || "key"}.priv</span>
+          </li>
+          <li class="flex flex-col gap-1 bg-surface-raised p-3">
+            <span class="font-mono text-xs text-content-faint">03</span>
+            <span class="text-ui font-medium text-content-strong">Upload it here</span>
+            <span class="text-xs text-content-muted">.fw, or .bin, .raucb, .avm if allowed</span>
+          </li>
+        </ol>
+        <div class="flex items-center gap-2">
+          <.button :if={authorized?(:"firmware:upload", @current_scope)} style="primary" type="label" for={@uploads.firmware.ref}>
+            Choose a file
+          </.button>
+          <.button type="link" navigate={~p"/org/#{@current_scope.org}/settings/keys"}>Signing keys</.button>
+          <a href="https://docs.nerves-hub.org/nerves-hub/setup/firmware" target="_blank" class="px-2 text-ui font-medium text-notice-content hover:underline">
+            Firmware guide
+          </a>
+        </div>
+      </div>
+
+      <%!-- Sized by the space it gets, not the viewport: the sidebar can be
+            open or collapsed at any width. Below 48rem each row is a card. --%>
+      <div class="@container">
+        <div
+          :if={@counts.all + @counts.deleted > 0 || @upload_failures != [] || @uploads.firmware.entries != []}
+          id="firmware-list"
+          role="table"
+          aria-label="Firmware"
+          class="flex flex-col pb-4 @max-3xl:pt-3 @3xl:mx-6 @3xl:my-4 @3xl:rounded-card @3xl:border @3xl:border-line-default @3xl:bg-surface-raised"
+        >
+          <%!-- Column widths are shared by the header and every row, so the
+              columns line up without a <table>. With less than 48rem of room
+              the header goes and each row becomes a card. --%>
+          <div
+            :if={@tab != :deleted}
+            role="row"
+            class="flex h-9 items-center gap-3 border-b border-line-default bg-surface-muted px-4 text-label tracking-[0.06em] text-content-muted uppercase @max-3xl:hidden"
+          >
+            <button
+              type="button"
+              role="columnheader"
+              phx-click="sort"
+              phx-value-sort="version"
+              class="flex w-36 shrink-0 cursor-pointer items-center gap-1 text-left uppercase hover:text-content-strong"
+            >
+              Version <.sort_arrow field="version" current={@current_sort} direction={@sort_direction} />
+            </button>
+            <span role="columnheader" class="w-16 shrink-0 @max-[960px]:hidden">Tool</span>
+            <span role="columnheader" class="w-36 shrink-0 @max-4xl:hidden">Platform</span>
+            <button
+              type="button"
+              role="columnheader"
+              phx-click="sort"
+              phx-value-sort="install_count"
+              class="flex w-40 shrink-0 cursor-pointer items-center gap-1 text-left uppercase hover:text-content-strong"
+            >
+              Running on <.sort_arrow field="install_count" current={@current_sort} direction={@sort_direction} />
+            </button>
+            <span role="columnheader" class="min-w-36 flex-1">Used by</span>
+            <span role="columnheader" class="w-32 shrink-0 @max-[1080px]:hidden">Signed with</span>
+            <span role="columnheader" class="w-16 shrink-0 @max-6xl:hidden">Size</span>
+            <button
+              type="button"
+              role="columnheader"
+              phx-click="sort"
+              phx-value-sort="inserted_at"
+              class="flex w-24 shrink-0 cursor-pointer items-center gap-1 text-left uppercase hover:text-content-strong"
+            >
+              Uploaded <.sort_arrow field="inserted_at" current={@current_sort} direction={@sort_direction} />
+            </button>
+            <span class="w-7 shrink-0"><span class="sr-only">Actions</span></span>
+          </div>
+
+          <div
+            :if={@tab == :deleted}
+            role="row"
+            class="flex h-9 items-center gap-3 border-b border-line-default bg-surface-muted px-4 text-label tracking-[0.06em] text-content-muted uppercase @max-3xl:hidden"
+          >
+            <span role="columnheader" class="w-36 shrink-0">Version</span>
+            <span role="columnheader" class="w-16 shrink-0 @max-[960px]:hidden">Tool</span>
+            <span role="columnheader" class="w-36 shrink-0 @max-4xl:hidden">Platform</span>
+            <span role="columnheader" class="w-56 shrink-0">Still running on</span>
+            <span role="columnheader" class="min-w-36 flex-1">Deleted</span>
+            <span role="columnheader" class="w-24 shrink-0">Uploaded</span>
+          </div>
+
+          <%!-- A file on its way up. --%>
+          <div
+            :for={entry <- @uploads.firmware.entries}
+            id={"upload-#{entry.ref}"}
+            role="row"
+            class="flex min-h-13 items-center gap-3 border-b border-line-default bg-notice-soft/60 px-4 py-2 @max-3xl:mx-4 @max-3xl:mb-2 @max-3xl:min-w-0 @max-3xl:flex-wrap @max-3xl:gap-y-2 @max-3xl:rounded-card @max-3xl:border @max-3xl:p-3"
+          >
+            <span class="lucide-upload size-4 text-notice-content" aria-hidden="true"></span>
+            <div class="flex w-80 shrink-0 flex-col gap-0.5 @max-3xl:w-auto @max-3xl:min-w-0 @max-3xl:flex-1">
+              <span class="truncate font-mono text-ui text-content-strong">{entry.client_name}</span>
+              <span class="text-xs text-content-muted">
+                {upload_progress_label(entry)}<span :if={entry.progress == 100}> · checking it</span>
+              </span>
+            </div>
+            <div class="h-1 flex-1 overflow-hidden rounded-full bg-notice-soft @max-3xl:order-last @max-3xl:basis-full">
+              <div class="h-1 rounded-full bg-primary transition-[width]" style={"width: #{entry.progress}%"}></div>
+            </div>
+            <span class="w-10 text-right font-mono text-xs text-content-body @max-3xl:hidden">{entry.progress}%</span>
+            <button type="button" phx-click="cancel-upload" phx-value-ref={entry.ref} class="cursor-pointer px-2 text-ui text-content-muted hover:text-content-strong">
+              Cancel
+            </button>
+          </div>
+
+          <%!-- A file that came back refused, with why. --%>
+          <div
+            :for={failure <- @upload_failures}
+            id={"upload-failure-#{failure.id}"}
+            role="alert"
+            class="flex items-start gap-3 border-b border-line-default bg-alert-soft px-4 py-3 @max-3xl:mx-4 @max-3xl:mb-2 @max-3xl:min-w-0 @max-3xl:rounded-card @max-3xl:border @max-3xl:border-alert/40"
+          >
+            <span class="mt-0.5 lucide-circle-exclamation-point size-4 text-alert-content" aria-hidden="true"></span>
+            <div class="flex min-w-0 flex-1 flex-col gap-1">
+              <div class="flex flex-wrap items-baseline gap-x-2">
+                <span class="text-ui font-semibold text-alert-content">{failure.title}</span>
+                <span class="truncate font-mono text-xs text-content-muted">{failure.name}</span>
+              </div>
+              <div class="text-ui text-content-body">{failure.message}</div>
+              <.link :if={failure.action} navigate={elem(failure.action, 1)} class="text-ui font-medium text-notice-content hover:underline">
+                {elem(failure.action, 0)}
+              </.link>
+            </div>
+            <button
+              type="button"
+              phx-click="dismiss-upload-failure"
+              phx-value-id={failure.id}
+              aria-label="Dismiss"
+              class="flex size-7 shrink-0 cursor-pointer items-center justify-center rounded text-content-muted hover:text-content-strong"
+            >
+              <span class="lucide-x size-4" aria-hidden="true"></span>
+            </button>
+          </div>
+
+          <div
+            :for={{firmware, index} <- Enum.with_index(@firmware)}
+            :if={@tab != :deleted}
+            id={"firmware-#{firmware.uuid}"}
+            role="row"
+            class={[
+              "group/row relative flex min-h-13 items-center gap-3 border-b border-line-subtle px-4 py-2 last:border-b-0 hover:bg-surface-muted",
+              "@max-3xl:mx-4 @max-3xl:mb-2 @max-3xl:min-w-0 @max-3xl:flex-wrap @max-3xl:gap-x-2 @max-3xl:gap-y-2.5 @max-3xl:rounded-card @max-3xl:border @max-3xl:border-line-default @max-3xl:p-3 @max-3xl:last:border-b",
+              firmware.uuid == @new_firmware_uuid && "bg-success-soft/50"
+            ]}
+          >
+            <div role="cell" class="flex w-36 shrink-0 flex-col gap-0.5 @max-3xl:order-1 @max-3xl:w-auto">
+              <.link patch={~p"/org/#{@current_scope.org}/#{@product}/firmware/#{firmware}"} title={firmware.uuid} class="flex flex-col gap-0.5 hover:underline">
+                <span class={[
+                  "flex items-center gap-1.5 font-mono text-ui/4.5 font-medium @max-3xl:text-[15px] @max-3xl:font-semibold",
+                  (firmware.install_count > 0 && "text-content-strong") || "text-content-body"
+                ]}>
                   {firmware.version}
-                </div>
-              </td>
-
-              <td>
-                <span class="inline-flex gap-1 rounded-full border border-line-default bg-base-800 py-0.5 pr-3 pl-2.5">
-                  <code class="text-xs text-content-body">{firmware.tool}</code>
+                  <.badge :if={firmware.uuid == @new_firmware_uuid} tone="success">New</.badge>
                 </span>
-              </td>
+                <span class="font-mono text-[11px]/3.5 text-content-faint">{short_uuid(firmware.uuid)}</span>
+              </.link>
+            </div>
 
-              <td>
-                {firmware.platform}
-              </td>
+            <div role="cell" class="w-16 shrink-0 @max-3xl:order-3 @max-3xl:w-auto @3xl:@max-[960px]:hidden">
+              <.tag mono class="text-[11px]">{firmware.tool}</.tag>
+            </div>
 
-              <td>
-                {firmware.architecture}
-              </td>
+            <div
+              role="cell"
+              class="w-36 shrink-0 truncate font-mono text-xs text-content-body @max-3xl:order-2 @max-3xl:mr-auto @max-3xl:w-auto @max-3xl:self-start @max-3xl:pt-0.5 @3xl:@max-4xl:hidden"
+            >
+              {firmware.platform} <span class="text-content-faint">·</span> <span class="text-content-muted">{firmware.architecture}</span>
+            </div>
 
-              <td>
-                {firmware.install_count || 0}
-              </td>
-
-              <td>
-                <span class="inline-flex gap-1 rounded-full border border-line-default bg-base-800 py-0.5 pr-3 pl-2.5">
-                  <code class="text-xs text-content-body">{format_signed(firmware, @org_keys)}</code>
+            <div role="cell" class="flex w-40 shrink-0 items-center gap-2 @max-3xl:order-5 @max-3xl:w-full">
+              <%= if firmware.install_count > 0 do %>
+                <span class="w-12 shrink-0 font-mono text-ui text-content-strong @max-3xl:w-auto">
+                  {Number.Delimit.number_to_delimited(firmware.install_count, precision: 0)}<span class="@3xl:hidden">{ngettext(" device", " devices", firmware.install_count)}</span>
                 </span>
-              </td>
+                <span class="h-1 w-16 overflow-hidden rounded-full bg-line-subtle @max-3xl:flex-1" aria-hidden="true">
+                  <span class="block h-1 rounded-full bg-success" style={"width: #{share_of_devices(firmware.install_count, @device_count)}%"}></span>
+                </span>
+                <span class="font-mono text-[11px] text-content-muted">{share_label(firmware.install_count, @device_count)}</span>
+              <% else %>
+                <span class="text-ui text-content-faint">Not running</span>
+              <% end %>
+            </div>
 
-              <td>
-                <%= if is_nil(firmware.inserted_at) do %>
-                  Never
-                <% else %>
-                  <.local_datetime at={firmware.inserted_at} time_zone={@time_zone} zone_label={false} />
-                <% end %>
-              </td>
+            <div
+              role="cell"
+              class={[
+                "flex min-w-36 flex-1 flex-col gap-0.5 @max-3xl:order-6 @max-3xl:w-full @max-3xl:min-w-0 @max-3xl:basis-full",
+                Map.get(@used_by, firmware.id, []) == [] && "@max-3xl:hidden"
+              ]}
+            >
+              <%= case Map.get(@used_by, firmware.id, []) do %>
+                <% [] -> %>
+                  <span class="text-ui text-content-faint">—</span>
+                <% [first | rest] -> %>
+                  <div class="flex min-w-0 items-baseline gap-1.5 @max-3xl:flex-wrap">
+                    <.link navigate={~p"/org/#{@current_scope.org}/#{@product}/deployment_groups/#{first.deployment_group}"} class="truncate text-ui text-content-strong hover:underline">
+                      {first.deployment_group.name}
+                    </.link>
+                    <span :if={rest != []} class="shrink-0 text-xs text-content-muted">+{length(rest)} more</span>
+                  </div>
+                  <span class="text-xs text-content-muted">{first.release} release</span>
+              <% end %>
+            </div>
 
-              <%!-- <td class="actions">
-              <div class="">
-                <a class="" data-target="#" id={"actions-#{device.id}"} data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" phx-click={show_menu("actions-menu-#{device.id}")}>
-                  <span class="lucide-ellipsis-vertical size-4 text-content-muted" aria-hidden="true"></span>
-                </a>
-                <div class="hidden absolute right-6 menu-box" id={"actions-menu-#{device.id}"} phx-click-away={hide_menu("actions-menu-#{device.id}")} phx-key="escape" )}>
-                  <.link phx-click="reboot-device" phx-value-device_identifier={device.identifier} class="dropdown-item">
-                    Reboot
+            <div class="hidden h-px basis-full bg-line-subtle @max-3xl:order-7 @max-3xl:block" aria-hidden="true"></div>
+
+            <div role="cell" class="flex w-32 shrink-0 items-center gap-1.5 @max-3xl:order-8 @max-3xl:w-auto @3xl:@max-[1080px]:hidden">
+              <%= case signing_key(firmware, @org_keys) do %>
+                <% {:key, name} -> %>
+                  <span class="lucide-check size-3 text-success" aria-hidden="true"></span>
+                  <span class="truncate font-mono text-xs text-content-body">{name}</span>
+                <% :unsigned -> %>
+                  <.badge tone="warning" dot>Unsigned</.badge>
+                <% :unknown -> %>
+                  <span class="text-xs text-content-faint">Unknown key</span>
+              <% end %>
+            </div>
+
+            <div role="cell" class="w-16 shrink-0 font-mono text-xs text-content-muted @max-3xl:order-9 @max-3xl:w-auto @3xl:@max-6xl:hidden">
+              <span class="@3xl:hidden" aria-hidden="true">· </span>{format_megabytes(firmware.size)}
+            </div>
+
+            <div
+              role="cell"
+              class="w-24 shrink-0 text-ui text-content-body @max-3xl:order-10 @max-3xl:ml-auto @max-3xl:w-auto @max-3xl:text-xs"
+              title={to_local_string(firmware.inserted_at, @time_zone)}
+            >
+              {uploaded_label(firmware.inserted_at, @time_zone)}
+            </div>
+
+            <div role="cell" class="relative w-7 shrink-0 @max-3xl:order-4">
+              <button
+                type="button"
+                id={"firmware-#{firmware.uuid}-menu-toggle"}
+                phx-click={toggle_menu(firmware.uuid)}
+                aria-haspopup="menu"
+                aria-label={"Actions for #{firmware.version}"}
+                aria-expanded="false"
+                class="flex size-7 items-center justify-center rounded text-content-muted hover:cursor-pointer hover:bg-surface-muted hover:text-content-strong aria-expanded:bg-surface-muted aria-expanded:text-content-strong"
+              >
+                <span class="lucide-ellipsis-vertical size-4" aria-hidden="true"></span>
+              </button>
+              <div id={"firmware-#{firmware.uuid}-menu"} class="hidden" phx-click-away={hide_menu(firmware.uuid)} phx-window-keydown={hide_menu(firmware.uuid)} phx-key="escape">
+                <div
+                  role="menu"
+                  class={[
+                    "absolute right-0 z-30 flex w-64 flex-col rounded-md border border-line-default bg-surface-overlay p-1 shadow-overlay",
+                    (opens_up?(index, @firmware) && "bottom-8") || "top-8"
+                  ]}
+                >
+                  <.link
+                    role="menuitem"
+                    patch={~p"/org/#{@current_scope.org}/#{@product}/firmware/#{firmware}"}
+                    class="flex h-8 items-center gap-2 rounded px-2 text-ui/4 text-content-body hover:bg-surface-muted"
+                  >
+                    <span class="lucide-file-text size-3.5 text-content-muted" aria-hidden="true"></span> Open details
                   </.link>
-                  <div class="dropdown-divider"></div>
-                  <.link navigate={~p"/org/#{@org}/#{@product}/devices/#{device}/console"} class="dropdown-item">
-                    Console
+                  <a
+                    :if={authorized?(:"firmware:download", @current_scope)}
+                    role="menuitem"
+                    href={~p"/org/#{@current_scope.org}/#{@product}/firmware/#{firmware}/download"}
+                    download
+                    class="flex h-8 items-center gap-2 rounded px-2 text-ui/4 text-content-body hover:bg-surface-muted"
+                  >
+                    <span class="lucide-file-down size-3.5 text-content-muted" aria-hidden="true"></span> Download
+                  </a>
+                  <button
+                    type="button"
+                    role="menuitem"
+                    id={"copy-uuid-#{firmware.uuid}"}
+                    phx-hook="CopyToClipboard"
+                    data-copy-value={firmware.uuid}
+                    class="flex h-8 items-center gap-2 rounded px-2 text-left text-ui/4 text-content-body hover:cursor-pointer hover:bg-surface-muted"
+                  >
+                    <span data-icon="copy" class="lucide-copy size-3.5 text-content-muted" aria-hidden="true"></span>
+                    <span data-icon="check" class="lucide-check hidden size-3.5 text-success" aria-hidden="true"></span> Copy UUID
+                  </button>
+                  <.link
+                    :if={authorized?(:"deployment_group:create", @current_scope)}
+                    role="menuitem"
+                    navigate={~p"/org/#{@current_scope.org}/#{@product}/deployment_groups/new?firmware=#{firmware.uuid}"}
+                    class="flex h-8 items-center gap-2 rounded px-2 text-ui/4 text-content-body hover:bg-surface-muted"
+                  >
+                    <span class="lucide-rocket size-3.5 text-content-muted" aria-hidden="true"></span> New deployment group with it
                   </.link>
-                  <div class="dropdown-divider"></div>
-                  <div class="dropdown-divider"></div>
-                  <.link phx-click="toggle-device-updates" phx-value-device_identifier={device.identifier} class="dropdown-item">
-                    <span>
-                      <%= if device.update_mode != :off, do: "Disable Updates", else: "Enable Updates" %>
-                    </span>
-                  </.link>
-
-                  <div class="dropdown-divider"></div>
-
-                  <%= link to: Routes.device_path(@socket, :export_audit_logs, @org.name, @product.name, device.identifier), class: "dropdown-item", aria: [label: "Download Audit Logs"] do %>
-                    <div class="button-icon download"></div>
-                    <span class="action-text">Download Audit Logs</span>
+                  <%= if authorized?(:"firmware:delete", @current_scope) do %>
+                    <div class="my-1 h-px bg-line-subtle" aria-hidden="true"></div>
+                    <%= if reason = delete_blocked_reason(firmware, @used_by) do %>
+                      <button type="button" role="menuitem" disabled class="flex items-start gap-2 rounded p-2 text-left text-ui/4 text-content-faint">
+                        <span class="mt-px lucide-trash size-3.5" aria-hidden="true"></span>
+                        <span class="flex flex-col gap-0.5">Delete… <span class="text-xs">{reason}</span></span>
+                      </button>
+                    <% else %>
+                      <button
+                        type="button"
+                        role="menuitem"
+                        phx-click={hide_menu(firmware.uuid) |> JS.push("prepare-delete", value: %{firmware_uuid: firmware.uuid})}
+                        class="flex h-8 items-center gap-2 rounded px-2 text-left text-ui/4 text-alert-content hover:cursor-pointer hover:bg-alert-soft"
+                      >
+                        <span class="lucide-trash size-3.5" aria-hidden="true"></span> Delete…
+                      </button>
+                    <% end %>
                   <% end %>
                 </div>
               </div>
-            </td> --%>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+            </div>
+          </div>
 
-      <div :if={Enum.empty?(@firmware)} class="flex h-full items-center justify-center pb-16">
-        <span class="font-mono text-xl font-medium text-content-muted">{@current_scope.product.name} doesn’t have any available firmware.</span>
+          <%!-- Deleted firmware keeps its row, so a device's history can still
+              say what it ran. Only the file is gone, and there's no undo. --%>
+          <div
+            :for={firmware <- @firmware}
+            :if={@tab == :deleted}
+            id={"firmware-#{firmware.uuid}"}
+            role="row"
+            class="flex min-h-13 items-center gap-3 border-b border-line-subtle px-4 py-2 last:border-b-0 @max-3xl:mx-4 @max-3xl:mb-2 @max-3xl:min-w-0 @max-3xl:flex-wrap @max-3xl:gap-2 @max-3xl:rounded-card @max-3xl:border @max-3xl:border-line-default @max-3xl:p-3 @max-3xl:last:border-b"
+          >
+            <div role="cell" class="w-36 shrink-0 @max-3xl:order-1 @max-3xl:w-auto">
+              <.link patch={~p"/org/#{@current_scope.org}/#{@product}/firmware/#{firmware}"} title={firmware.uuid} class="flex flex-col gap-0.5 hover:underline">
+                <span class="font-mono text-ui/4.5 text-content-body">{firmware.version}</span>
+                <span class="font-mono text-[11px]/3.5 text-content-faint">{short_uuid(firmware.uuid)}</span>
+              </.link>
+            </div>
+            <div role="cell" class="w-16 shrink-0 @max-3xl:order-3 @max-3xl:w-auto @3xl:@max-[960px]:hidden">
+              <.tag mono class="text-[11px]">{firmware.tool}</.tag>
+            </div>
+            <div role="cell" class="w-36 shrink-0 truncate font-mono text-xs text-content-muted @max-3xl:order-2 @max-3xl:mr-auto @max-3xl:w-auto @3xl:@max-4xl:hidden">
+              {firmware.platform} · {firmware.architecture}
+            </div>
+            <div role="cell" class="w-56 shrink-0 text-ui @max-3xl:order-4 @max-3xl:w-full">
+              <span :if={firmware.install_count > 0} class="text-content-body">
+                {ngettext("1 device", "%{count} devices", firmware.install_count)}
+              </span>
+              <span :if={firmware.install_count == 0} class="text-content-faint">No devices</span>
+            </div>
+            <div role="cell" class="flex min-w-36 flex-1 flex-col gap-0.5 @max-3xl:order-5 @max-3xl:w-full">
+              <span class="text-ui text-content-strong">
+                {day_label(firmware.deleted_at, @time_zone)}<span :if={firmware.deleted_by}> by {firmware.deleted_by.name}</span>
+              </span>
+              <span class="text-xs text-content-muted">File removed</span>
+            </div>
+            <div role="cell" class="w-24 shrink-0 text-ui text-content-muted @max-3xl:order-6 @max-3xl:w-auto @max-3xl:text-xs">
+              {day_label(firmware.inserted_at, @time_zone)}
+            </div>
+          </div>
+
+          <%!-- The product has firmware, but none on this tab or none that
+              matches the search and filters. --%>
+          <div :if={@firmware == [] && @counts.all + @counts.deleted > 0} id="firmware-no-matches" class="flex flex-col items-center gap-2 px-4 py-10 text-center">
+            <%= if filtering?(@filters) do %>
+              <span class="text-sm font-medium text-content-strong">
+                No firmware matches <span :if={@filters.search} class="font-mono">{@filters.search}</span>
+                <span :if={@filters.platform}>on <span class="font-mono">{@filters.platform}</span></span>
+                <span :if={@filters.tool}>built with <span class="font-mono">{@filters.tool}</span></span>
+              </span>
+              <div class="flex gap-4 pt-1 text-ui font-medium">
+                <.link :if={@filters.search} patch={without_filter_path(assigns, ["search"])} class="text-notice-content hover:underline">Clear search</.link>
+                <.link :if={@filters.platform} patch={without_filter_path(assigns, ["platform"])} class="text-notice-content hover:underline">Clear platform</.link>
+                <.link :if={@filters.tool} patch={without_filter_path(assigns, ["tool"])} class="text-notice-content hover:underline">Clear tool</.link>
+              </div>
+            <% else %>
+              <span class="text-sm font-medium text-content-strong">{empty_tab_message(@tab)}</span>
+            <% end %>
+          </div>
+
+          <p :if={@tab == :deleted && @firmware != []} class="px-4 pt-3 text-xs text-content-muted @max-3xl:px-5">
+            Deleted firmware keeps its row so each device’s history still says what it ran. It can’t be restored; upload the file again instead.
+          </p>
+        </div>
+
+        <.list_footer :if={@firmware != []} pager={@pager_meta} can_upload={authorized?(:"firmware:upload", @current_scope)} />
       </div>
     </div>
 
@@ -161,5 +506,5 @@
     </div>
   </div>
 
-  <:pagination pager={@pager_meta} page_sizes={[25, 50, 100]} />
+  <.delete_dialog :if={@deleting} deleting={@deleting} />
 </NervesHubWeb.Layouts.sidebar>

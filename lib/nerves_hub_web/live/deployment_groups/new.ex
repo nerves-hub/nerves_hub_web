@@ -10,7 +10,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.New do
   on_mount(RequireEveryDevice)
 
   @impl Phoenix.LiveView
-  def mount(_params, _session, %{assigns: %{current_scope: scope}} = socket) do
+  def mount(params, _session, %{assigns: %{current_scope: scope}} = socket) do
     if Firmwares.count(scope.product) == 0 do
       socket
       |> assign(:firmware_required, true)
@@ -30,8 +30,33 @@ defmodule NervesHubWeb.Live.DeploymentGroups.New do
       |> assign(:firmwares, [])
       |> assign(:available_tags, Devices.distinct_tags_for_product(scope.product))
       |> assign(:form, to_form(ManagedDeployments.new_deployment_group()))
+      |> preselect_firmware(Firmwares.get_by_uuid(scope.product, params["firmware"]))
       |> ok()
     end
+  end
+
+  # The firmware list's "New deployment group with it" links here with the
+  # firmware's UUID, so its platform, architecture and firmware start chosen.
+  defp preselect_firmware(socket, nil), do: socket
+
+  defp preselect_firmware(socket, %Firmware{} = firmware) do
+    product = socket.assigns.current_scope.product
+
+    form =
+      ManagedDeployments.new_deployment_group()
+      |> Ecto.Changeset.change(platform: firmware.platform, architecture: firmware.architecture, firmware: firmware.id)
+      |> to_form()
+
+    # The dropdown lists the newest 25, which an older build isn't among.
+    firmwares = Firmwares.get_firmwares(product, firmware.platform, firmware.architecture)
+    firmwares = if Enum.any?(firmwares, &(&1.id == firmware.id)), do: firmwares, else: firmwares ++ [firmware]
+
+    socket
+    |> assign(:platform, firmware.platform)
+    |> assign(:architecture, firmware.architecture)
+    |> assign(:architectures, Firmwares.get_unique_architectures(product))
+    |> assign(:firmwares, firmwares)
+    |> assign(:form, form)
   end
 
   @impl Phoenix.LiveView

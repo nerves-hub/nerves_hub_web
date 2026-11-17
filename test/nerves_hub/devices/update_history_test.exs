@@ -245,6 +245,33 @@ defmodule NervesHub.Devices.UpdateHistoryTest do
     end
   end
 
+  describe "failed_attempts_count/4" do
+    test "counts failed attempts to move the product's devices to one firmware since a time", %{
+      device: device,
+      firmware: firmware,
+      org: org,
+      product: product
+    } do
+      now = DateTime.utc_now()
+      record = fn status, opts -> :ok = UpdateHistory.record(device, status, opts) end
+
+      record.(:failed, target_firmware_uuid: firmware.uuid, timestamp: DateTime.add(now, -1, :day))
+      record.(:expired, target_firmware_uuid: firmware.uuid, timestamp: DateTime.add(now, -2, :day))
+
+      # Not failures, too old, or another firmware.
+      record.(:succeeded, target_firmware_uuid: firmware.uuid, timestamp: now)
+      record.(:rescheduled, target_firmware_uuid: firmware.uuid, timestamp: now)
+      record.(:failed, target_firmware_uuid: firmware.uuid, timestamp: DateTime.add(now, -8, :day))
+      record.(:failed, target_firmware_uuid: Ecto.UUID.generate(), timestamp: now)
+
+      since = DateTime.add(now, -7, :day)
+      :ok = Buffer.flush(DeviceUpdateHistory)
+
+      assert_eventually(UpdateHistory.failed_attempts_count(org.id, product.id, firmware.uuid, since) == 2)
+      assert UpdateHistory.failed_attempts_count(org.id, product.id + 1, firmware.uuid, since) == 0
+    end
+  end
+
   describe "update_outcomes_by_date/5" do
     test "buckets successes and failures per day, zero filling the rest", %{
       device: device,

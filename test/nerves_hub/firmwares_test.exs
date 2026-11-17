@@ -974,7 +974,7 @@ defmodule NervesHub.FirmwaresTest do
     end
   end
 
-  describe "filter/2" do
+  describe "list_firmware/2" do
     test "counts the number of devices that have the firmware installed", %{
       org: org,
       firmware: firmware,
@@ -982,13 +982,227 @@ defmodule NervesHub.FirmwaresTest do
     } do
       _device_2 = Fixtures.device_fixture(org, product, firmware)
       _device_3 = Fixtures.device_fixture(org, product, firmware)
-      {[firmware], _} = Firmwares.filter(product)
+      {[firmware], _} = Firmwares.list_firmware(product)
       assert firmware.install_count == 3
     end
 
-    test "accepts a non-default sort", %{firmware: firmware, product: product} do
-      {[result], _} = Firmwares.filter(product, %{sort: "uuid", sort_direction: "asc"})
+    test "falls back to newest first for a sort it doesn't offer", %{firmware: firmware, product: product} do
+      {[result], _} = Firmwares.list_firmware(product, %{sort: "uuid", sort_direction: "asc"})
       assert result.id == firmware.id
+    end
+
+    test "sorts by how many devices run each firmware", %{
+      firmware: running,
+      org_key: org_key,
+      product: product,
+      tmp_dir: tmp_dir
+    } do
+      idle = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir, version: "2.0.0"})
+
+      {entries, _} = Firmwares.list_firmware(product, %{sort: "install_count", sort_direction: "desc"})
+      assert Enum.map(entries, & &1.id) == [running.id, idle.id]
+
+      {entries, _} = Firmwares.list_firmware(product, %{sort: "install_count", sort_direction: "asc"})
+      assert Enum.map(entries, & &1.id) == [idle.id, running.id]
+    end
+
+    test "splits firmware into in use, not in use and deleted", %{
+      firmware: running,
+      org_key: org_key,
+      product: product,
+      tmp_dir: tmp_dir,
+      user: user
+    } do
+      released = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir, version: "2.0.0"})
+      idle = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir, version: "3.0.0"})
+      removed = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir, version: "4.0.0"})
+
+      # No device runs it yet, but a deployment group is about to send it.
+      _group = Fixtures.deployment_group_fixture(released, %{user: user})
+      {:ok, _} = Firmwares.delete_firmware(removed, user)
+
+      ids = fn tab ->
+        {entries, _} = Firmwares.list_firmware(product, %{tab: tab})
+        entries |> Enum.map(& &1.id) |> Enum.sort()
+      end
+
+      assert ids.(:all) == Enum.sort([running.id, released.id, idle.id])
+      assert ids.(:in_use) == Enum.sort([running.id, released.id])
+      assert ids.(:not_in_use) == [idle.id]
+      assert ids.(:deleted) == [removed.id]
+    end
+
+    test "searches from the start of a version, UUID or VCS identifier", %{
+      firmware: firmware,
+      org_key: org_key,
+      product: product,
+      tmp_dir: tmp_dir
+    } do
+      other = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir, version: "2.5.0"})
+
+      ids = fn search ->
+        {entries, _} = Firmwares.list_firmware(product, %{search: search})
+        Enum.map(entries, & &1.id)
+      end
+
+      assert ids.("2.5") == [other.id]
+      assert ids.(String.slice(firmware.uuid, 0, 8)) == [firmware.id]
+      assert ids.(String.upcase(String.slice(other.uuid, 0, 8))) == [other.id]
+      # The middle of a version isn't a match.
+      assert ids.(".5.0") == []
+      # Nor is `%`, which would be a wildcard if it weren't escaped.
+      assert ids.("%") == []
+    end
+
+    test "narrows by platform and tool", %{firmware: firmware, product: product} do
+      ids = fn opts ->
+        {entries, _} = Firmwares.list_firmware(product, opts)
+        Enum.map(entries, & &1.id)
+      end
+
+      assert ids.(%{platform: firmware.platform}) == [firmware.id]
+      assert ids.(%{platform: "not-a-platform"}) == []
+      assert ids.(%{tool: firmware.tool}) == [firmware.id]
+      assert ids.(%{tool: "not-a-tool"}) == []
+    end
+
+    test "pages through the list", %{org_key: org_key, product: product, tmp_dir: tmp_dir} do
+      _second = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir, version: "2.0.0"})
+
+      {[_], meta} = Firmwares.list_firmware(product, %{page: "2", page_size: "1"})
+      assert meta.current_page == 2
+      assert meta.total_count == 2
+
+      # Nonsense paging falls back to the defaults rather than raising.
+      {entries, meta} = Firmwares.list_firmware(product, %{page: "zero", page_size: "-4"})
+      assert length(entries) == 2
+      assert meta.page_size == 25
+    end
+  end
+
+  describe "list_counts/1" do
+    test "counts each tab, and the versions firmware that isn't deleted spans", %{
+      org_key: org_key,
+      product: product,
+      tmp_dir: tmp_dir,
+      user: user
+    } do
+      _idle = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir, version: "2.0.0"})
+      _same_version = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir, version: "2.0.0"})
+      removed = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir, version: "3.0.0"})
+      {:ok, _} = Firmwares.delete_firmware(removed, user)
+
+      assert Firmwares.list_counts(product) == %{
+               all: 3,
+               in_use: 1,
+               not_in_use: 2,
+               deleted: 1,
+               versions: 2
+             }
+    end
+  end
+
+  describe "used_by/2" do
+    test "names the groups releasing each firmware now, and the one before", %{
+      firmware: first,
+      org_key: org_key,
+      product: product,
+      tmp_dir: tmp_dir,
+      user: user
+    } do
+      second = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir, version: "2.0.0"})
+      idle = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir, version: "3.0.0"})
+
+      group = Fixtures.deployment_group_fixture(first, %{user: user})
+      {:ok, _} = ManagedDeployments.create_deployment_release(group, second, nil, user, %{})
+
+      used_by = Firmwares.used_by(product, [first.id, second.id, idle.id])
+
+      assert [%{deployment_group: %{id: group_id}, release: :current}] = used_by[second.id]
+      assert group_id == group.id
+      assert [%{deployment_group: %{id: ^group_id}, release: :previous}] = used_by[first.id]
+      refute Map.has_key?(used_by, idle.id)
+    end
+  end
+
+  describe "usage/1" do
+    test "counts the devices running, updating to and ever installing a firmware", %{
+      firmware: firmware,
+      matching_device: running,
+      org: org,
+      org_key: org_key,
+      product: product,
+      tmp_dir: tmp_dir
+    } do
+      other = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir, version: "2.0.0"})
+      moved_on = Fixtures.device_fixture(org, product, other)
+      updating = Fixtures.device_fixture(org, product, other)
+
+      {:ok, _} = Fixtures.inflight_update(updating, firmware)
+
+      # Both installed it, and `moved_on` twice, before moving to another
+      # firmware. Each device counts once.
+      {:ok, metadata} = Firmwares.metadata_from_firmware(firmware)
+
+      for device <- [running, moved_on, moved_on] do
+        {:ok, _} = DeviceFirmwares.add_reported_firmware(device, metadata, :validated, false)
+      end
+
+      assert Firmwares.usage(firmware) == %{running: 1, product_devices: 3, updating: 1, installed: 2}
+    end
+  end
+
+  describe "release_progress/2" do
+    test "counts each group's devices, those running the firmware and those updating to it", %{
+      firmware: firmware,
+      matching_device: running,
+      org: org,
+      org_key: org_key,
+      product: product,
+      tmp_dir: tmp_dir,
+      user: user
+    } do
+      group = Fixtures.deployment_group_fixture(firmware, %{user: user})
+      empty = Fixtures.deployment_group_fixture(firmware, %{user: user, name: "empty"})
+
+      other = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir, version: "0.9.0"})
+      behind = Fixtures.device_fixture(org, product, other)
+
+      for device <- [running, behind] do
+        device |> Ecto.Changeset.change(deployment_id: group.id) |> Repo.update!()
+      end
+
+      {:ok, _} = Fixtures.inflight_update(behind, group)
+
+      assert Firmwares.release_progress(firmware, [group.id, empty.id]) == %{
+               group.id => %{devices: 2, running: 1, updating: 1},
+               empty.id => %{devices: 0, running: 0, updating: 0}
+             }
+
+      assert Firmwares.release_progress(firmware, []) == %{}
+    end
+  end
+
+  describe "other_builds/1" do
+    test "lists the product's other firmware of the same version, leaving out deleted firmware", %{
+      firmware: firmware,
+      org_key: org_key,
+      product: product,
+      tmp_dir: tmp_dir,
+      user: user
+    } do
+      sibling =
+        Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir, version: firmware.version, platform: "rpi3"})
+
+      deleted =
+        Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir, version: firmware.version, platform: "bbb"})
+
+      {:ok, _} = Firmwares.delete_firmware(deleted, user)
+      _other_version = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir, version: "9.9.9"})
+
+      assert [build] = Firmwares.other_builds(firmware)
+      assert build.id == sibling.id
+      assert build.install_count == 0
     end
   end
 

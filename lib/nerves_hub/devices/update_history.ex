@@ -272,6 +272,29 @@ defmodule NervesHub.Devices.UpdateHistory do
   end
 
   @doc """
+  How many attempts to move one of the product's devices to `firmware_uuid`
+  have failed since `since`, for the firmware's page.
+
+  Counts attempts, not devices: a device that failed twice counts twice, the
+  same as the Insights graph does.
+  """
+  @spec failed_attempts_count(pos_integer(), pos_integer(), String.t(), DateTime.t()) :: non_neg_integer()
+  def failed_attempts_count(org_id, product_id, firmware_uuid, %DateTime{} = since) do
+    failure_names = Enum.map(@failure_statuses, &Atom.to_string/1)
+
+    query =
+      from h in DeviceUpdateHistory,
+        where: h.org_id == ^org_id,
+        where: h.product_id == ^product_id,
+        where: h.target_firmware_uuid == ^firmware_uuid,
+        where: h.status in ^failure_names,
+        where: h.timestamp >= ^since,
+        select: fragment("count()")
+
+    AnalyticsRepo.one(query)
+  end
+
+  @doc """
   Mirrors `update_outcomes_by_date/5` at hourly granularity, for the shorter
   "last 24 hours" view.
 

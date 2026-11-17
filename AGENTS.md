@@ -211,7 +211,10 @@ when adding or removing one.
   `live/products/new.ex`) have no sidebar: they render inside `Layouts.org/1`,
   a centered column under the organization's name, counts and tabs, and mount
   `NervesHubWeb.Mounts.OrgCounts` for the counts. Product pages keep the
-  sidebar layout.
+  sidebar layout. The sidebar can be collapsed at any width, so the firmware
+  list sizes its columns and cards by the room it gets (an `@container` and
+  `@max-3xl:`-style variants), not by the viewport, and never scrolls sideways:
+  a sideways scroller would clip each row's menu.
 - `components/` — shared function/live components. `components/fleet.ex`
   sums up how a set of products is doing (Needs attention, online meters,
   health chips), for the organizations home page and an organization's

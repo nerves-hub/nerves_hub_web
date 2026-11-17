@@ -1,18 +1,18 @@
 defmodule NervesHubWeb.Live.Firmware do
   use NervesHubWeb, :live_view
 
-  import NervesHubWeb.Helpers.FirmwareDeletion, only: [deleted_summary: 2]
-
   alias NervesHub.Accounts
   alias NervesHub.AuditLogs.ProductTemplates
+  alias NervesHub.Devices
+  alias NervesHub.Devices.UpdateHistory
   alias NervesHub.Firmwares
   alias NervesHub.Firmwares.Firmware
   alias NervesHub.Firmwares.UpdateTool
   alias NervesHub.Firmwares.Upload
   alias NervesHub.Products
-  alias NervesHubWeb.Components.Sorting
   alias NervesHubWeb.Helpers.FirmwareDeletion
   alias NervesHubWeb.Mounts.RequireEveryDevice
+  alias Phoenix.LiveView.AsyncResult
   alias Phoenix.Socket.Broadcast
 
   require Logger
@@ -21,7 +21,9 @@ defmodule NervesHubWeb.Live.Firmware do
 
   embed_templates("firmware_templates/*")
 
-  @pagination_opts ["page_number", "page_size", "sort", "sort_direction"]
+  # The tabs a `tab` param can name. Anything else, or none, is all of the
+  # firmware that isn't deleted.
+  @tabs %{"in_use" => :in_use, "not_in_use" => :not_in_use, "deleted" => :deleted}
 
   @impl Phoenix.LiveView
   def mount(_params, _session, %{assigns: %{current_scope: scope}} = socket) do
@@ -33,6 +35,9 @@ defmodule NervesHubWeb.Live.Firmware do
 
     socket
     |> assign(:product, scope.product)
+    |> assign(:upload_failures, [])
+    |> assign(:new_firmware_uuid, nil)
+    |> assign(:deleting, nil)
     |> ok()
   end
 
@@ -47,20 +52,9 @@ defmodule NervesHubWeb.Live.Firmware do
     socket
     |> page_title("Firmware - #{product.name}")
     |> sidebar_tab(:firmware)
-    |> assign(:org_keys, Accounts.list_org_keys(socket.assigns.current_scope))
     |> assign(:params, unsigned_params)
-    |> allow_upload(:firmware,
-      # Every format's extension, or the file picker rejects it in the browser
-      # before any of the upload code runs. See firmware_rauc_test.exs and
-      # firmware_atom_vm_test.exs, both written after that happened.
-      accept: ~w(.fw .bin .raucb .avm),
-      max_entries: 1,
-      auto_upload: true,
-      max_file_size: max_file_size(),
-      progress: &handle_progress/3,
-      writer: fn _name, _entry, _socket -> {NervesHubWeb.BrieflyUploadWriter, parent: self()} end
-    )
-    |> assign_firmware_with_pagination()
+    |> allow_firmware_upload()
+    |> assign_firmware_list()
     |> render_with(&list_firmware_template/1)
   end
 
@@ -73,12 +67,46 @@ defmodule NervesHubWeb.Live.Firmware do
       |> Firmwares.preload_deleted_by()
 
     socket
-    |> page_title("Firmware #{firmware_uuid} - #{product.name}")
+    |> page_title("Firmware #{firmware.version} (#{short_uuid(firmware.uuid)}) - #{product.name}")
     |> sidebar_tab(:firmware)
+    |> assign(:org_keys, Accounts.list_org_keys(scope))
+    |> assign_firmware_page(firmware)
+    |> render_with(&show_firmware_template/1)
+  end
+
+  # Everything the firmware's page shows besides the firmware itself: where it
+  # runs, which groups release it, its deltas and its other builds. Reloaded
+  # after anything on the page changes the firmware or its deltas.
+  defp assign_firmware_page(socket, firmware) do
+    %{product: product} = socket.assigns
+
+    releases = product |> Firmwares.used_by([firmware.id]) |> Map.get(firmware.id, [])
+    progress = Firmwares.release_progress(firmware, Enum.map(releases, & &1.deployment_group.id))
+
+    socket
     |> assign(:firmware, firmware)
     |> assign_deletion_state(firmware)
-    |> assign(:org_keys, Accounts.list_org_keys(scope))
-    |> render_with(&show_firmware_template/1)
+    |> assign(:usage, Firmwares.usage(firmware))
+    |> assign(:releases, Enum.map(releases, &Map.put(&1, :progress, progress[&1.deployment_group.id])))
+    |> assign(:deltas, Firmwares.get_deltas_by_target_firmware(firmware))
+    |> assign(:other_builds, Firmwares.other_builds(firmware))
+    |> assign_failed_installs(firmware)
+  end
+
+  # Failed installs live in ClickHouse, which can be slow or switched off, so
+  # the rest of the page doesn't wait for them.
+  defp assign_failed_installs(socket, firmware) do
+    if analytics_enabled?() do
+      %{current_scope: scope} = socket.assigns
+      since = DateTime.add(DateTime.utc_now(), -7, :day)
+
+      assign_async(socket, :failed_installs, fn ->
+        {:ok,
+         %{failed_installs: UpdateHistory.failed_attempts_count(scope.org.id, scope.product.id, firmware.uuid, since)}}
+      end)
+    else
+      assign(socket, :failed_installs, AsyncResult.ok(nil))
+    end
   end
 
   # Why the delete button is disabled, and what to warn about before it is
@@ -93,6 +121,31 @@ defmodule NervesHubWeb.Live.Firmware do
   # A phx-change handler is required when using live uploads.
   @impl Phoenix.LiveView
   def handle_event("validate-firmware", _, socket), do: {:noreply, socket}
+
+  def handle_event("cancel-upload", %{"ref" => ref}, socket) do
+    socket
+    |> cancel_upload(:firmware, ref)
+    |> noreply()
+  end
+
+  def handle_event("dismiss-upload-failure", %{"id" => id}, socket) do
+    socket
+    |> update(:upload_failures, fn failures -> Enum.reject(failures, &(&1.id == id)) end)
+    |> noreply()
+  end
+
+  # Search and the two filters are one form. Any change starts again at
+  # page 1, since the page the user was on may no longer exist.
+  def handle_event("filter", params, socket) do
+    filters =
+      params
+      |> Map.take(["search", "platform", "tool"])
+      |> Map.new(fn {key, value} -> {key, blank_to_nil(value)} end)
+
+    socket
+    |> push_patch(to: self_path(socket, Map.put(filters, "page_number", nil)))
+    |> noreply()
+  end
 
   def handle_event("paginate", %{"page" => page_num}, socket) do
     params = %{"page_number" => page_num}
@@ -110,46 +163,47 @@ defmodule NervesHubWeb.Live.Firmware do
     |> noreply()
   end
 
-  # Handles event of user clicking the same field that is already sorted
-  # For this case, we switch the sorting direction of same field
-  def handle_event("sort", %{"sort" => value}, %{assigns: %{current_sort: current_sort}} = socket)
-      when value == current_sort do
-    %{sort_direction: sort_direction} = socket.assigns
-
-    # switch sort direction for column because
-    sort_direction = if sort_direction == "asc", do: "desc", else: "asc"
-
-    params = %{sort_direction: sort_direction, sort: value}
-
-    socket
-    |> push_patch(to: self_path(socket, params))
-    |> noreply()
-  end
-
-  # User has clicked a new column to sort
+  # Clicking the column already sorted on flips its direction; any other
+  # column sorts newest or biggest first.
   def handle_event("sort", %{"sort" => value}, socket) do
-    new_params = %{sort: value}
+    %{current_sort: current_sort, sort_direction: sort_direction} = socket.assigns
+
+    direction =
+      cond do
+        value != current_sort -> "desc"
+        sort_direction == "asc" -> "desc"
+        true -> "asc"
+      end
 
     socket
-    |> push_patch(to: self_path(socket, new_params))
+    |> push_patch(to: self_path(socket, %{"sort" => value, "sort_direction" => direction}))
     |> noreply()
   end
 
-  def handle_event("firmware-selected", _, socket) do
-    {:noreply, socket}
-  end
+  # Opens the delete dialog. What blocks the delete and what goes with it are
+  # looked up now rather than with the list, since only one row needs them.
+  def handle_event("prepare-delete", %{"firmware_uuid" => uuid}, socket) do
+    %{current_scope: scope} = socket.assigns
 
-  # Deleted firmware is off by default and lives in the URL, so the view is
-  # shareable and survives a reload. Turning it off drops the param rather than
-  # writing `include_deleted=false`, and either way the page count changes, so
-  # go back to page 1.
-  def handle_event("toggle-deleted-firmware", _params, socket) do
-    include_deleted = if !socket.assigns.include_deleted, do: "true"
+    authorized!(:"firmware:delete", scope)
 
-    params = %{"include_deleted" => include_deleted, "page_number" => 1}
+    {:ok, firmware} = Firmwares.get_firmware_by_uuid(scope, uuid)
+
+    install_count = running_count(socket.assigns, firmware)
 
     socket
-    |> push_patch(to: self_path(socket, params))
+    |> assign(:deleting, %{
+      firmware: firmware,
+      install_count: install_count,
+      blockers: Firmwares.deletion_blockers(firmware),
+      warnings: Firmwares.deletion_warnings(firmware)
+    })
+    |> noreply()
+  end
+
+  def handle_event("cancel-delete", _params, socket) do
+    socket
+    |> assign(:deleting, nil)
     |> noreply()
   end
 
@@ -166,12 +220,22 @@ defmodule NervesHubWeb.Live.Firmware do
         _ = ProductTemplates.audit_firmware_deleted(scope.user, product, firmware)
 
         socket
-        |> assign(:firmware, Firmwares.get_firmwares_by_product(product.id))
+        |> assign(:deleting, nil)
+        |> after_delete()
         |> put_flash(:info, "Firmware successfully deleted")
         |> noreply()
 
+      # Something started using it between the dialog opening and the click,
+      # so the dialog swaps its button for the reason.
       {:error, {:blocked, blockers}} ->
         socket
+        |> update(:deleting, fn
+          nil -> nil
+          deleting -> %{deleting | blockers: blockers}
+        end)
+        |> then(fn socket ->
+          if socket.assigns.live_action == :show, do: assign(socket, :deletion_blockers, blockers), else: socket
+        end)
         |> put_flash(:error, FirmwareDeletion.blockers_message(blockers))
         |> noreply()
 
@@ -181,33 +245,20 @@ defmodule NervesHubWeb.Live.Firmware do
     end
   end
 
-  # the delete handler for the show page
-  def handle_event("delete-firmware", _params, socket) do
-    authorized!(:"firmware:delete", socket.assigns.current_scope)
+  # Starts building a failed or timed out delta to this firmware again.
+  def handle_event("retry-delta", %{"id" => id}, socket) do
+    authorized!(:"deployment_group:update", socket.assigns.current_scope)
 
-    %{current_scope: scope, firmware: firmware} = socket.assigns
+    case Enum.find(socket.assigns.deltas, &(to_string(&1.id) == id and &1.status in [:failed, :timed_out])) do
+      nil ->
+        noreply(socket)
 
-    {:ok, firmware} = Firmwares.get_firmware_by_uuid(scope, firmware.uuid, include_deleted: true)
-
-    case Firmwares.delete_firmware(firmware, scope.user) do
-      {:ok, _} ->
-        _ = ProductTemplates.audit_firmware_deleted(scope.user, scope.product, firmware)
+      delta ->
+        {:ok, _} = Firmwares.retry_firmware_delta(delta)
 
         socket
-        |> put_flash(:info, "Firmware successfully deleted")
-        |> push_patch(to: ~p"/org/#{scope.org}/#{scope.product}/firmware")
-        |> noreply()
-
-      # Something started using this firmware between the page rendering and the
-      # click. Re-assign so the button disables itself and the tooltip explains.
-      {:error, {:blocked, blockers}} ->
-        socket
-        |> assign(:deletion_blockers, blockers)
-        |> put_flash(:error, FirmwareDeletion.blockers_message(blockers))
-        |> noreply()
-
-      {:error, changeset} ->
-        error_feedback(socket, changeset, prefix: "Error deleting firmware:")
+        |> assign(:deltas, Firmwares.get_deltas_by_target_firmware(socket.assigns.firmware))
+        |> put_flash(:info, "Building the delta from #{delta.source.version} again")
         |> noreply()
     end
   end
@@ -220,7 +271,7 @@ defmodule NervesHubWeb.Live.Firmware do
       when assigns.live_action == :index do
     if viewing_first_page?(assigns) do
       socket
-      |> assign_firmware_with_pagination()
+      |> assign_firmware_list()
       |> put_flash(
         :notice,
         "New firmware (#{firmware.version} - #{String.slice(firmware.uuid, 0..7)}) available for selection."
@@ -242,7 +293,7 @@ defmodule NervesHubWeb.Live.Firmware do
       )
       when socket.assigns.live_action == :index do
     socket
-    |> assign_firmware_with_pagination()
+    |> assign_firmware_list()
     |> put_flash(
       :notice,
       "Firmware #{firmware.version} (#{String.slice(firmware.uuid, 0..7)}) has been deleted by another user."
@@ -261,8 +312,7 @@ defmodule NervesHubWeb.Live.Firmware do
       |> Firmwares.preload_deleted_by()
 
     socket
-    |> assign(:firmware, firmware)
-    |> assign_deletion_state(firmware)
+    |> assign_firmware_page(firmware)
     |> put_flash(:notice, "This firmware has been deleted by another user.")
     |> noreply()
   end
@@ -282,35 +332,69 @@ defmodule NervesHubWeb.Live.Firmware do
         end)
 
       socket
-      |> create_firmware(filepath)
+      |> create_firmware(filepath, entry)
       |> noreply()
     else
-      {:noreply, assign(socket, status: "uploading...")}
+      {:noreply, socket}
     end
   end
 
-  defp assign_firmware_with_pagination(socket) do
-    %{assigns: %{product: product, params: params}} = socket
+  # Uploading is only offered once per page visit. A patch (a tab, a filter, a
+  # page) comes back through here, and allowing the upload again would drop a
+  # file that is halfway up.
+  defp allow_firmware_upload(%{assigns: %{uploads: %{firmware: _}}} = socket), do: socket
 
-    pagination_opts = Map.take(params, @pagination_opts)
-    include_deleted? = params["include_deleted"] == "true"
+  defp allow_firmware_upload(socket) do
+    allow_upload(socket, :firmware,
+      # Every format's extension, or the file picker rejects it in the browser
+      # before any of the upload code runs. See firmware_rauc_test.exs and
+      # firmware_atom_vm_test.exs, both written after that happened.
+      accept: ~w(.fw .bin .raucb .avm),
+      max_entries: 1,
+      auto_upload: true,
+      max_file_size: max_file_size(),
+      progress: &handle_progress/3,
+      writer: fn _name, _entry, _socket -> {NervesHubWeb.BrieflyUploadWriter, parent: self()} end
+    )
+  end
 
-    opts = %{
-      page: pagination_opts["page_number"],
-      page_size: pagination_opts["page_size"],
-      sort: pagination_opts["sort"] || "inserted_at",
-      sort_direction: pagination_opts["sort_direction"],
-      include_deleted: include_deleted?
+  defp assign_firmware_list(socket) do
+    %{assigns: %{product: product, params: params, current_scope: scope}} = socket
+
+    tab = Map.get(@tabs, params["tab"], :all)
+    sort = params["sort"] || "inserted_at"
+    sort_direction = params["sort_direction"] || "desc"
+
+    filters = %{
+      search: blank_to_nil(params["search"]),
+      platform: blank_to_nil(params["platform"]),
+      tool: blank_to_nil(params["tool"])
     }
 
-    {entries, pager_meta} = Firmwares.filter(product, opts)
+    opts =
+      Map.merge(filters, %{
+        tab: tab,
+        sort: sort,
+        sort_direction: sort_direction,
+        page: params["page_number"],
+        page_size: params["page_size"]
+      })
+
+    {entries, pager_meta} = Firmwares.list_firmware(product, opts)
 
     socket
-    |> assign(:current_sort, opts.sort)
-    |> assign(:sort_direction, opts.sort_direction)
-    |> assign(:include_deleted, include_deleted?)
+    |> assign(:tab, tab)
+    |> assign(:filters, filters)
+    |> assign(:current_sort, sort)
+    |> assign(:sort_direction, sort_direction)
     |> assign(:firmware, entries)
     |> assign(:pager_meta, pager_meta)
+    |> assign(:counts, Firmwares.list_counts(product))
+    |> assign(:used_by, Firmwares.used_by(product, Enum.map(entries, & &1.id)))
+    |> assign(:device_count, Devices.get_device_count_by_product_id(product.id))
+    |> assign(:platforms, product |> Firmwares.get_unique_platforms() |> Enum.sort())
+    |> assign(:tools, product |> Firmwares.get_unique_tools() |> Enum.sort())
+    |> assign(:org_keys, Accounts.list_org_keys(scope))
   end
 
   defp self_path(socket, new_params) do
@@ -337,6 +421,9 @@ defmodule NervesHubWeb.Live.Firmware do
     end
   end
 
+  defp blank_to_nil(value) when value in [nil, ""], do: nil
+  defp blank_to_nil(value), do: value
+
   defp viewing_first_page?(assigns) do
     case get_in(assigns, [:params, "page_number"]) do
       nil -> true
@@ -344,18 +431,59 @@ defmodule NervesHubWeb.Live.Firmware do
     end
   end
 
-  defp create_firmware(socket, filepath) do
+  # A new upload goes to the top of the first page of everything, marked as
+  # new, so it is in view whatever tab or page the user was on. A failed one
+  # stays where it is, as a row above the list that says why.
+  defp create_firmware(socket, filepath, entry) do
     %{org: org, product: product} = socket.assigns.current_scope
 
     case Firmwares.create_firmware(org, filepath, product: product) do
-      {:ok, _firmware} ->
+      {:ok, firmware} ->
         socket
-        |> put_flash(:info, "Firmware uploaded successfully")
+        |> assign(:new_firmware_uuid, firmware.uuid)
+        |> update(:upload_failures, fn failures -> Enum.reject(failures, &(&1.name == entry.client_name)) end)
         |> push_patch(to: ~p"/org/#{org}/#{product}/firmware")
 
       {:error, error} ->
-        error_feedback(socket, upload_error(error))
+        failure =
+          error
+          |> upload_failure(socket.assigns.current_scope)
+          |> Map.merge(%{id: entry.ref, name: entry.client_name})
+
+        update(socket, :upload_failures, fn failures ->
+          [failure | Enum.reject(failures, &(&1.name == entry.client_name))]
+        end)
     end
+  end
+
+  # What a failed upload's row says: a short title, the full reason, and where
+  # to go to fix it when that is somewhere in NervesHub.
+  defp upload_failure(error, scope) do
+    message =
+      case upload_error(error) do
+        %Ecto.Changeset{} = changeset -> changeset_message(changeset)
+        message -> message
+      end
+
+    Map.merge(%{message: message, action: nil}, upload_failure_kind(error, scope))
+  end
+
+  defp upload_failure_kind(error, scope) when error in [:invalid_signature, :no_public_keys, :firmware_not_signed] do
+    %{title: "Bad signature", action: {"Signing keys", ~p"/org/#{scope.org}/settings/keys"}}
+  end
+
+  defp upload_failure_kind({:update_tool_not_allowed, _tool, _product}, scope) do
+    %{title: "Tool turned off", action: {"Product settings", ~p"/org/#{scope.org}/#{scope.product}/settings"}}
+  end
+
+  defp upload_failure_kind(%Ecto.Changeset{errors: [uuid: {"has already been taken", _}]}, _scope) do
+    %{title: "Already uploaded"}
+  end
+
+  defp upload_failure_kind(_error, _scope), do: %{title: "Upload failed"}
+
+  defp changeset_message(changeset) do
+    Enum.map_join(changeset.errors, ", ", fn {_field, {message, _info}} -> message end)
   end
 
   # Turns whatever `create_firmware/3` failed with into something a user can act
@@ -483,53 +611,310 @@ defmodule NervesHubWeb.Live.Firmware do
   defp upload_error(error) when is_binary(error), do: error
   defp upload_error(_error), do: "Unknown error uploading firmware. Please contact support."
 
-  defp error_feedback(socket, changeset_or_message, opts \\ [])
-
-  defp error_feedback(socket, %Ecto.Changeset{} = changeset, opts) do
+  defp error_feedback(socket, %Ecto.Changeset{} = changeset, opts \\ []) do
     error_message =
-      changeset.errors
-      |> Enum.map_join(", ", fn {_field, {message, _info}} -> message end)
-
-    error_message = Enum.join([opts[:prefix] || "", error_message], " ")
+      [opts[:prefix], changeset_message(changeset)]
+      |> Enum.reject(&is_nil/1)
+      |> Enum.join(" ")
 
     put_flash(socket, :error, error_message)
   end
 
-  defp error_feedback(socket, message, _opts) do
-    put_flash(socket, :error, message)
-  end
-
-  # Deleting firmware cannot be undone and the file goes with it, so the confirm
-  # says so — and adds whatever `deletion_warnings/1` turned up, which today is
-  # the deltas built from this firmware going away with it.
-  defp delete_confirmation(firmware, warnings) do
-    [
-      "Delete firmware #{firmware.version} (#{firmware.uuid})?",
-      FirmwareDeletion.warnings_message(warnings),
-      "This cannot be undone."
-    ]
-    |> Enum.reject(&is_nil/1)
-    |> Enum.join(" ")
-  end
-
-  defp format_file_size(size) do
-    cond do
-      size < 1_000 -> "#{size} Bytes"
-      size < 1_000_000 -> "#{round(Float.round(size / 1_000))} Kilobytes"
-      true -> "#{round(Float.round(size / 1_000_000))} Megabytes"
-    end
-  end
-
-  defp format_signed(%{org_key_id: nil}, _org_keys), do: "Unsigned"
-
-  defp format_signed(%{org_key_id: org_key_id}, org_keys) do
-    case Enum.find(org_keys, &(&1.id == org_key_id)) do
-      nil -> "Unknown key"
-      key -> key.name
-    end
-  end
-
   defp max_file_size() do
     Application.get_env(:nerves_hub, Upload, [])[:max_size]
+  end
+
+  # The list's tabs, in order, with the count each shows.
+  defp list_tabs(counts) do
+    [
+      %{key: :all, param: nil, label: "All", count: counts.all, dot: nil},
+      %{key: :in_use, param: "in_use", label: "In use", count: counts.in_use, dot: "bg-success"},
+      %{key: :not_in_use, param: "not_in_use", label: "Not in use", count: counts.not_in_use, dot: "bg-content-faint"},
+      %{key: :deleted, param: "deleted", label: "Deleted", count: counts.deleted, dot: nil}
+    ]
+  end
+
+  # A tab keeps the search and filters but starts again at page 1.
+  defp tab_path(socket_assigns, param) do
+    params =
+      socket_assigns.params
+      |> Map.reject(fn {key, _val} -> key in ["org_name", "product_name", "tab", "page_number"] end)
+      |> then(fn params -> if param, do: Map.put(params, "tab", param), else: params end)
+
+    ~p"/org/#{socket_assigns.current_scope.org}/#{socket_assigns.product}/firmware?#{params}"
+  end
+
+  # The list path without one of the filters, for the "clear" links.
+  defp without_filter_path(socket_assigns, keys) do
+    params =
+      socket_assigns.params
+      |> Map.reject(fn {key, _val} -> key in ["org_name", "product_name", "page_number" | keys] end)
+
+    ~p"/org/#{socket_assigns.current_scope.org}/#{socket_assigns.product}/firmware?#{params}"
+  end
+
+  defp filtering?(filters), do: Enum.any?(filters, fn {_key, value} -> value end)
+
+  # The start and end of a UUID, which is enough to tell builds apart.
+  defp short_uuid(uuid) when byte_size(uuid) > 12 do
+    String.slice(uuid, 0, 8) <> "…" <> String.slice(uuid, -4, 4)
+  end
+
+  defp short_uuid(uuid), do: uuid
+
+  defp format_megabytes(nil), do: "—"
+
+  defp format_megabytes(size) when size < 100_000 do
+    "#{Float.round(size / 1_000, 1)} KB"
+  end
+
+  defp format_megabytes(size), do: "#{Float.round(size / 1_000_000, 1)} MB"
+
+  # A share of the product's devices, rounded, with a sliver of fleet shown
+  # as under 1% rather than 0%.
+  defp share_of_devices(_count, 0), do: 0
+  defp share_of_devices(0, _total), do: 0
+  defp share_of_devices(count, total), do: max(round(count * 100 / total), 1)
+
+  defp share_label(count, total) do
+    case share_of_devices(count, total) do
+      1 when count * 100 < total -> "<1%"
+      share -> "#{share}%"
+    end
+  end
+
+  defp delimited(number), do: Number.Delimit.number_to_delimited(number, precision: 0)
+
+  # A part of a whole as a bar width, never wider than the bar.
+  defp percent(_part, 0), do: 0
+  defp percent(part, whole), do: min(part * 100 / whole, 100)
+
+  # How much smaller than the full firmware a finished delta is.
+  defp delta_saving(%{status: :completed, size: size, target_size: target_size}) when target_size > 0 and size > 0 do
+    max(round((1 - size / target_size) * 100), 0)
+  end
+
+  defp delta_saving(_delta), do: nil
+
+  defp delta_status(:completed), do: %{label: "Ready", dot: "bg-success", text: "text-content-body"}
+  defp delta_status(:processing), do: %{label: "Building", dot: "bg-notice", text: "text-content-body"}
+  defp delta_status(:failed), do: %{label: "Failed", dot: "bg-alert", text: "text-alert-content"}
+  defp delta_status(:timed_out), do: %{label: "Timed out", dot: "bg-alert", text: "text-alert-content"}
+
+  defp signing_key(%{org_key_id: nil}, _org_keys), do: :unsigned
+
+  defp signing_key(%{org_key_id: org_key_id}, org_keys) do
+    case Enum.find(org_keys, &(&1.id == org_key_id)) do
+      nil -> :unknown
+      key -> {:key, key.name}
+    end
+  end
+
+  # Why the row menu's Delete is turned off, from what the list already knows.
+  # The dialog asks again, since updates in flight are not in the list.
+  defp delete_blocked_reason(firmware, used_by) do
+    current =
+      used_by
+      |> Map.get(firmware.id, [])
+      |> Enum.filter(&(&1.release == :current))
+      |> Enum.map(& &1.deployment_group)
+
+    if current != [], do: FirmwareDeletion.blocker_message({:current_release, current})
+  end
+
+  defp toggle_menu(uuid) do
+    [
+      to: "#firmware-#{uuid}-menu",
+      in: {"ease-out duration-150", "opacity-0", "opacity-100"},
+      out: {"ease-out duration-150", "opacity-100", "opacity-0"}
+    ]
+    |> JS.toggle()
+    |> JS.toggle_attribute({"aria-expanded", "true", "false"}, to: "#firmware-#{uuid}-menu-toggle")
+  end
+
+  defp hide_menu(js \\ %JS{}, uuid) do
+    js
+    |> JS.hide(to: "#firmware-#{uuid}-menu", transition: {"ease-out duration-150", "opacity-100", "opacity-0"})
+    |> JS.set_attribute({"aria-expanded", "false"}, to: "#firmware-#{uuid}-menu-toggle")
+  end
+
+  # The list goes back to the list, refreshed; the firmware's page goes to
+  # the list too, since the firmware it showed is gone.
+  defp after_delete(%{assigns: %{live_action: :show, current_scope: scope}} = socket) do
+    push_patch(socket, to: ~p"/org/#{scope.org}/#{scope.product}/firmware")
+  end
+
+  defp after_delete(socket), do: assign_firmware_list(socket)
+
+  # How many devices run the firmware the delete dialog is for: the page
+  # already counted it, and the list has it on the firmware's row.
+  defp running_count(%{live_action: :show, usage: usage}, _firmware), do: usage.running
+
+  defp running_count(%{firmware: listed}, firmware) when is_list(listed) do
+    case Enum.find(listed, &(&1.id == firmware.id)) do
+      nil -> 0
+      row -> row.install_count
+    end
+  end
+
+  # The last two rows of a longer list open their menu upward, so it isn't
+  # cut off by the bottom of the page.
+  defp opens_up?(index, firmware) do
+    count = length(firmware)
+    count > 4 and index >= count - 2
+  end
+
+  attr(:deleting, :map, required: true, doc: "the firmware, its running count, and its deletion blockers and warnings")
+
+  # Asks before deleting a firmware, from the list's row menu or the
+  # firmware's page. When something blocks the delete it says what instead.
+  defp delete_dialog(assigns) do
+    ~H"""
+    <NervesHubWeb.CoreComponents.modal id="delete-firmware-dialog" show on_cancel={JS.push("cancel-delete")}>
+      <div class="flex max-w-lg flex-col gap-4">
+        <div class="flex flex-col gap-1">
+          <h2 id="delete-firmware-dialog-title" class="text-section-title text-content-strong">
+            Delete <span class="font-mono">{@deleting.firmware.version}</span>
+            <span class="font-mono text-sm font-normal text-content-muted">{@deleting.firmware.platform}</span>?
+          </h2>
+          <p id="delete-firmware-dialog-description" class="font-mono text-xs text-content-faint">{@deleting.firmware.uuid}</p>
+        </div>
+
+        <%= if @deleting.blockers != [] do %>
+          <p class="rounded-card border border-alert/40 bg-alert-soft p-3 text-ui text-alert-content">
+            {FirmwareDeletion.blockers_message(@deleting.blockers)}
+          </p>
+        <% else %>
+          <ul class="flex flex-col gap-2 text-ui text-content-body">
+            <li :if={@deleting.install_count > 0} class="flex gap-2">
+              <span class="mt-0.5 lucide-cpu size-3.5 text-content-muted" aria-hidden="true"></span>
+              <span>
+                {ngettext("1 device runs it.", "%{count} devices run it.", @deleting.install_count)} They keep running it, but can’t download it again.
+              </span>
+            </li>
+            <li :if={warning = FirmwareDeletion.warnings_message(@deleting.warnings)} class="flex gap-2">
+              <span class="mt-0.5 lucide-git-compare size-3.5 text-content-muted" aria-hidden="true"></span>
+              <span>{warning}</span>
+            </li>
+            <li class="flex gap-2">
+              <span class="mt-0.5 lucide-archive size-3.5 text-content-muted" aria-hidden="true"></span>
+              <span>The file is removed and can’t be restored. Its row stays under Deleted, so device history still says what ran.</span>
+            </li>
+          </ul>
+        <% end %>
+
+        <div class="flex justify-end gap-2">
+          <.button phx-click={JS.exec("data-cancel", to: "#delete-firmware-dialog")}>Cancel</.button>
+          <.button :if={@deleting.blockers == []} style="danger-solid" phx-click="delete-firmware" phx-value-firmware_uuid={@deleting.firmware.uuid}>
+            Delete firmware
+          </.button>
+        </div>
+      </div>
+    </NervesHubWeb.CoreComponents.modal>
+    """
+  end
+
+  attr(:pager, :map, required: true)
+  attr(:can_upload, :boolean, default: false)
+
+  # Under the list: which rows these are, a reminder that a file can be
+  # dropped anywhere, then the page size and a previous / page / next group.
+  # Sends `set-paginate-opts` and `paginate`, like the shared pager does.
+  defp list_footer(assigns) do
+    %{current_page: page, page_size: size, total_count: total} = assigns.pager
+    last_page = max(assigns.pager.total_pages, 1)
+
+    assigns =
+      assign(assigns,
+        first: (page - 1) * size + 1,
+        last: min(page * size, total),
+        last_page: last_page
+      )
+
+    ~H"""
+    <div id="firmware-pager" class="flex items-center justify-between gap-4 px-4 pb-6 @3xl:px-6">
+      <p class="min-w-0 truncate font-mono text-xs text-content-body">
+        {@first}–{@last} of {@pager.total_count}<span :if={@can_upload} class="max-sm:hidden"><span class="text-content-faint"> · </span><span class="font-sans text-ui text-content-muted">Drop a .fw, .bin, .raucb or .avm file anywhere on this page to upload it</span></span>
+      </p>
+
+      <div class="flex shrink-0 items-center gap-4">
+        <form id="firmware-page-size" phx-change="set-paginate-opts" class="flex items-center gap-1.5">
+          <label for="firmware-page-size-select" class="text-ui text-content-body max-sm:hidden">Per page</label>
+          <span class="grid grid-cols-1">
+            <select
+              id="firmware-page-size-select"
+              name="page-size"
+              aria-label="Firmware per page"
+              class="col-start-1 row-start-1 h-7 cursor-pointer appearance-none rounded-sm border border-line-control bg-surface-raised bg-none py-0 pr-6 pl-2 font-mono text-xs text-content-strong focus:outline focus:-outline-offset-1 focus:outline-focus-ring"
+            >
+              <option :for={option <- [25, 50, 100]} value={option} selected={option == @pager.page_size}>{option}</option>
+            </select>
+            <span class="pointer-events-none col-start-1 row-start-1 mr-1.5 lucide-chevron-down size-3 self-center justify-self-end text-content-muted" aria-hidden="true"></span>
+          </span>
+        </form>
+
+        <nav aria-label="Pages" class="flex items-center">
+          <button
+            type="button"
+            aria-label="Previous page"
+            disabled={@pager.current_page < 2}
+            phx-click="paginate"
+            phx-value-page={@pager.current_page - 1}
+            class="flex size-7 shrink-0 items-center justify-center rounded-l-sm border border-line-control bg-surface-raised text-content-body enabled:cursor-pointer enabled:hover:bg-surface-muted disabled:border-line-default disabled:text-content-faint"
+          >
+            <span class="lucide-chevron-left size-3.5" aria-hidden="true"></span>
+          </button>
+          <span aria-current="page" class="flex h-7 items-center border-y border-line-default bg-surface-raised px-2.5 font-mono text-xs whitespace-nowrap text-content-strong">
+            {@pager.current_page} / {@last_page}
+          </span>
+          <button
+            type="button"
+            aria-label="Next page"
+            disabled={@pager.current_page >= @last_page}
+            phx-click="paginate"
+            phx-value-page={@pager.current_page + 1}
+            class="flex size-7 shrink-0 items-center justify-center rounded-r-sm border border-line-control bg-surface-raised text-content-body enabled:cursor-pointer enabled:hover:bg-surface-muted disabled:border-line-default disabled:text-content-faint"
+          >
+            <span class="lucide-chevron-right size-3.5" aria-hidden="true"></span>
+          </button>
+        </nav>
+      </div>
+    </div>
+    """
+  end
+
+  attr(:field, :string, required: true)
+  attr(:current, :string, required: true)
+  attr(:direction, :string, required: true)
+
+  defp sort_arrow(assigns) do
+    ~H"""
+    <span
+      :if={@field == @current}
+      class={["size-3 text-content-body", (@direction == "asc" && "lucide-arrow-up") || "lucide-arrow-down"]}
+      aria-label={(@direction == "asc" && "ascending") || "descending"}
+    ></span>
+    """
+  end
+
+  # Within the last day, how long ago; before that, the day.
+  defp uploaded_label(at, time_zone) do
+    if NaiveDateTime.diff(NaiveDateTime.utc_now(), at, :hour) < 24 do
+      from_now(at)
+    else
+      day_label(at, time_zone)
+    end
+  end
+
+  defp empty_tab_message(:in_use),
+    do: "No devices are running any of this product’s firmware, and no deployment group releases it."
+
+  defp empty_tab_message(:not_in_use), do: "All of this product’s firmware is in use."
+  defp empty_tab_message(:deleted), do: "No firmware has been deleted."
+  defp empty_tab_message(_tab), do: "This product has no firmware that isn’t deleted."
+
+  defp upload_progress_label(entry) do
+    done = round(entry.client_size * entry.progress / 100)
+    "#{format_megabytes(done)} of #{format_megabytes(entry.client_size)}"
   end
 end
