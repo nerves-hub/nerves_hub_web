@@ -7,6 +7,7 @@ defmodule NervesHub.Firmwares do
   alias NervesHub.Accounts.Scope
   alias NervesHub.Accounts.User
   alias NervesHub.Devices.Device
+  alias NervesHub.Devices.DeviceFirmware
   alias NervesHub.Devices.InflightUpdate
   alias NervesHub.Firmwares.Firmware
   alias NervesHub.Firmwares.FirmwareDelta
@@ -103,6 +104,16 @@ defmodule NervesHub.Firmwares do
     |> Repo.all()
   end
 
+  @spec get_unique_tools(Product.t()) :: [String.t()]
+  def get_unique_tools(product) do
+    Firmware
+    |> select([f], f.tool)
+    |> distinct(true)
+    |> where([f], f.product_id == ^product.id)
+    |> Repo.exclude_deleted()
+    |> Repo.all()
+  end
+
   @spec get_unique_architectures(Product.t()) :: [String.t()]
   def get_unique_architectures(product) do
     Firmware
@@ -146,50 +157,304 @@ defmodule NervesHub.Firmwares do
     |> Repo.all()
   end
 
+  @typedoc """
+  Which of a product's firmware the firmware list shows.
+
+  `:in_use` is firmware a device is running or a deployment group's current
+  release names; `:not_in_use` is the rest. Neither includes deleted firmware,
+  which only `:deleted` shows.
+  """
+  @type list_tab() :: :all | :in_use | :not_in_use | :deleted
+
+  @type list_opts() :: %{
+          optional(:tab) => list_tab(),
+          optional(:search) => String.t() | nil,
+          optional(:platform) => String.t() | nil,
+          optional(:tool) => String.t() | nil,
+          optional(:sort) => String.t(),
+          optional(:sort_direction) => String.t(),
+          optional(:page) => String.t() | pos_integer(),
+          optional(:page_size) => String.t() | pos_integer()
+        }
+
+  @list_sorts ~w(inserted_at version install_count)
+
   @doc """
   A page of the product's firmware, for the firmware list.
 
-  Deleted firmware is left out unless `opts` carries `include_deleted: true` —
-  the list page offers that as a toggle so an operator can see what was retired
-  and who retired it.
+  Each firmware carries `install_count`, the number of the product's devices
+  running it now. `opts` picks the tab (see `t:list_tab/0`), narrows by
+  `search` (the start of a version, UUID or VCS identifier), `platform` and
+  `tool`, and sorts by `inserted_at` (the default), `version` or
+  `install_count`. A page holds 25 firmware unless `page_size` says
+  otherwise, and never more than 100.
   """
-  @spec filter(Product.t(), map()) :: {[Product.t()], Flop.Meta.t()}
-  def filter(product, opts \\ %{}) do
-    opts = Map.reject(opts, fn {_key, val} -> is_nil(val) end)
+  @spec list_firmware(Product.t(), list_opts()) :: {[Firmware.t()], Flop.Meta.t()}
+  def list_firmware(%Product{} = product, opts \\ %{}) do
+    opts = Map.reject(opts, fn {_key, val} -> is_nil(val) or val == "" end)
 
-    sort = Map.get(opts, :sort, "inserted_at")
-    sort_direction = Map.get(opts, :sort_direction, "desc")
-
-    sort_opts = {String.to_existing_atom(sort_direction), String.to_existing_atom(sort)}
+    sort = if opts[:sort] in @list_sorts, do: opts[:sort], else: "inserted_at"
+    sort_direction = if opts[:sort_direction] == "asc", do: :asc, else: :desc
 
     flop = %Flop{
-      page: String.to_integer(Map.get(opts, :page, "1")),
-      page_size: String.to_integer(Map.get(opts, :page_size, "25"))
+      page: to_positive_integer(opts[:page], 1),
+      # The pager offers 25, 50 and 100. Anything bigger only comes from an
+      # edited URL, so it is held to the largest of those.
+      page_size: min(to_positive_integer(opts[:page_size], 25), 100)
     }
 
-    subquery =
-      Device
-      |> select([d], %{
-        firmware_uuid: fragment("? ->> 'uuid'", d.firmware_metadata),
-        install_count: count(fragment("? ->> 'uuid'", d.firmware_metadata))
-      })
-      |> where([d], not is_nil(d.firmware_metadata))
-      |> where([d], not is_nil(fragment("? ->> 'uuid'", d.firmware_metadata)))
-      |> Repo.exclude_deleted()
-      |> group_by([d], fragment("? ->> 'uuid'", d.firmware_metadata))
-
-    Firmware
-    |> join(:left, [f], d in subquery(subquery), on: d.firmware_uuid == f.uuid)
-    |> where([f], f.product_id == ^product.id)
-    |> maybe_exclude_deleted(include_deleted: opts[:include_deleted] == true)
+    product
+    |> firmware_with_install_counts()
+    |> where_tab(Map.get(opts, :tab, :all))
+    |> where_search(opts[:search])
+    |> where_field(:platform, opts[:platform])
+    |> where_field(:tool, opts[:tool])
     |> preload(:deleted_by)
-    |> sort_firmware(sort_opts)
-    |> select_merge([_f, d], %{install_count: d.install_count})
+    |> sort_firmware({sort_direction, String.to_existing_atom(sort)})
+    |> select_merge([installs: i], %{install_count: coalesce(i.install_count, 0)})
     |> Flop.run(flop)
   end
 
+  @doc """
+  How many of the product's firmware each tab of the firmware list holds, and
+  how many distinct versions the firmware that isn't deleted spans.
+  """
+  @spec list_counts(Product.t()) :: %{
+          all: non_neg_integer(),
+          in_use: non_neg_integer(),
+          not_in_use: non_neg_integer(),
+          deleted: non_neg_integer(),
+          versions: non_neg_integer()
+        }
+  def list_counts(%Product{} = product) do
+    counts =
+      product
+      |> firmware_with_install_counts()
+      |> select([firmware: f, installs: i], %{
+        all: filter(count(f.id), is_nil(f.deleted_at)),
+        in_use:
+          filter(
+            count(f.id),
+            is_nil(f.deleted_at) and
+              (coalesce(i.install_count, 0) > 0 or exists(current_release_of_query()))
+          ),
+        deleted: filter(count(f.id), not is_nil(f.deleted_at)),
+        versions: filter(count(f.version, :distinct), is_nil(f.deleted_at))
+      })
+      |> Repo.one()
+
+    Map.put(counts, :not_in_use, counts.all - counts.in_use)
+  end
+
+  @doc """
+  Which deployment groups use each of the given firmware, as their current
+  release or the one before it, keyed by firmware id.
+
+  A group whose previous release is the same firmware as its current one is
+  only listed as current.
+  """
+  @spec used_by(Product.t(), [pos_integer()]) :: %{
+          pos_integer() => [%{deployment_group: DeploymentGroup.t(), release: :current | :previous}]
+        }
+  def used_by(_product, []), do: %{}
+
+  def used_by(%Product{} = product, firmware_ids) do
+    current =
+      DeploymentGroup
+      |> join(:inner, [dg], cr in assoc(dg, :current_release))
+      |> where([dg], dg.product_id == ^product.id)
+      |> where([_dg, cr], cr.firmware_id in ^firmware_ids)
+      |> select([dg, cr], {cr.firmware_id, dg, :current})
+
+    previous =
+      DeploymentGroup
+      |> join(:inner, [dg], cr in assoc(dg, :current_release))
+      |> join(:inner, [dg, cr], pr in DeploymentRelease,
+        on: pr.deployment_group_id == dg.id and pr.number == cr.number - 1
+      )
+      |> where([dg], dg.product_id == ^product.id)
+      |> where([_dg, cr, pr], pr.firmware_id in ^firmware_ids and pr.firmware_id != cr.firmware_id)
+      |> select([dg, _cr, pr], {pr.firmware_id, dg, :previous})
+
+    (Repo.all(current) ++ Repo.all(previous))
+    |> Enum.sort_by(fn {_firmware_id, group, release} -> {release != :current, group.name} end)
+    |> Enum.group_by(
+      fn {firmware_id, _group, _release} -> firmware_id end,
+      fn {_firmware_id, group, release} -> %{deployment_group: group, release: release} end
+    )
+  end
+
+  @doc """
+  Where a firmware stands across its product, for the firmware's page.
+
+    * `:running` - the product's devices running it now.
+    * `:product_devices` - all of the product's devices, to put `:running` in
+      proportion.
+    * `:updating` - devices being moved to it right now.
+    * `:installed` - devices that have ever installed it, counting each once.
+  """
+  @spec usage(Firmware.t()) :: %{
+          running: non_neg_integer(),
+          product_devices: non_neg_integer(),
+          updating: non_neg_integer(),
+          installed: non_neg_integer()
+        }
+  def usage(%Firmware{} = firmware) do
+    devices =
+      Device
+      |> where([d], d.product_id == ^firmware.product_id)
+      |> Repo.exclude_deleted()
+      |> select([d], %{
+        product_devices: count(d.id),
+        running: filter(count(d.id), fragment("? ->> 'uuid'", d.firmware_metadata) == ^firmware.uuid)
+      })
+      |> Repo.one()
+
+    updating =
+      InflightUpdate
+      |> where([iu], iu.firmware_id == ^firmware.id)
+      |> Repo.aggregate(:count)
+
+    installed =
+      DeviceFirmware
+      |> where([df], df.firmware_id == ^firmware.id)
+      |> select([df], count(df.device_id, :distinct))
+      |> Repo.one()
+
+    Map.merge(devices, %{updating: updating, installed: installed})
+  end
+
+  @doc """
+  How far each of the given deployment groups has got with a firmware, keyed
+  by group id: the devices in the group, how many run the firmware now, and
+  how many are being moved to it.
+  """
+  @spec release_progress(Firmware.t(), [pos_integer()]) :: %{
+          pos_integer() => %{devices: non_neg_integer(), running: non_neg_integer(), updating: non_neg_integer()}
+        }
+  def release_progress(_firmware, []), do: %{}
+
+  def release_progress(%Firmware{} = firmware, group_ids) do
+    updating =
+      InflightUpdate
+      |> where([iu], iu.firmware_id == ^firmware.id and iu.deployment_id in ^group_ids)
+      |> group_by([iu], iu.deployment_id)
+      |> select([iu], {iu.deployment_id, count(iu.id)})
+      |> Repo.all()
+      |> Map.new()
+
+    devices =
+      Device
+      |> where([d], d.deployment_id in ^group_ids)
+      |> Repo.exclude_deleted()
+      |> group_by([d], d.deployment_id)
+      |> select(
+        [d],
+        {d.deployment_id, count(d.id),
+         filter(count(d.id), fragment("? ->> 'uuid'", d.firmware_metadata) == ^firmware.uuid)}
+      )
+      |> Repo.all()
+      |> Map.new(fn {group_id, total, running} -> {group_id, {total, running}} end)
+
+    Map.new(group_ids, fn group_id ->
+      {total, running} = Map.get(devices, group_id, {0, 0})
+      {group_id, %{devices: total, running: running, updating: Map.get(updating, group_id, 0)}}
+    end)
+  end
+
+  @doc """
+  The product's other firmware with the same version as this one, ordered by
+  platform then architecture.
+
+  Each carries `install_count`, the devices running it now. Deleted firmware is
+  left out.
+  """
+  @spec other_builds(Firmware.t()) :: [Firmware.t()]
+  def other_builds(%Firmware{} = firmware) do
+    %Product{id: firmware.product_id}
+    |> firmware_with_install_counts()
+    |> Repo.exclude_deleted()
+    |> where([firmware: f], f.version == ^firmware.version and f.id != ^firmware.id)
+    |> order_by([firmware: f], asc: f.platform, asc: f.architecture)
+    |> select_merge([installs: i], %{install_count: coalesce(i.install_count, 0)})
+    |> Repo.all()
+  end
+
+  # Every firmware of the product, deleted or not, joined to how many of the
+  # product's devices run it now.
+  defp firmware_with_install_counts(product) do
+    installs =
+      Device
+      |> where([d], d.product_id == ^product.id)
+      |> where([d], not is_nil(fragment("? ->> 'uuid'", d.firmware_metadata)))
+      |> Repo.exclude_deleted()
+      |> group_by([d], fragment("? ->> 'uuid'", d.firmware_metadata))
+      |> select([d], %{
+        firmware_uuid: fragment("? ->> 'uuid'", d.firmware_metadata),
+        install_count: count(d.id)
+      })
+
+    Firmware
+    |> from(as: :firmware)
+    |> join(:left, [firmware: f], i in subquery(installs), on: i.firmware_uuid == f.uuid, as: :installs)
+    |> where([firmware: f], f.product_id == ^product.id)
+  end
+
+  defp current_release_of_query() do
+    DeploymentGroup
+    |> join(:inner, [dg], cr in assoc(dg, :current_release))
+    |> where([_dg, cr], cr.firmware_id == parent_as(:firmware).id)
+    |> select(1)
+  end
+
+  defp where_tab(query, :deleted), do: where(query, [firmware: f], not is_nil(f.deleted_at))
+  defp where_tab(query, :all), do: Repo.exclude_deleted(query)
+
+  defp where_tab(query, :in_use) do
+    query
+    |> Repo.exclude_deleted()
+    |> where([installs: i], coalesce(i.install_count, 0) > 0 or exists(current_release_of_query()))
+  end
+
+  defp where_tab(query, :not_in_use) do
+    query
+    |> Repo.exclude_deleted()
+    |> where([installs: i], coalesce(i.install_count, 0) == 0 and not exists(current_release_of_query()))
+  end
+
+  defp where_search(query, nil), do: query
+
+  defp where_search(query, search) do
+    prefix = escape_like(String.trim(search)) <> "%"
+
+    where(
+      query,
+      [firmware: f],
+      ilike(f.version, ^prefix) or ilike(f.uuid, ^prefix) or ilike(f.vcs_identifier, ^prefix)
+    )
+  end
+
+  defp where_field(query, _field, nil), do: query
+  defp where_field(query, field, value), do: where(query, [firmware: f], field(f, ^field) == ^value)
+
+  # `%` and `_` are wildcards to `ilike`, and a version can hold an underscore.
+  defp escape_like(search) do
+    String.replace(search, ~r/([\\%_])/, "\\\\\\1")
+  end
+
+  defp to_positive_integer(value, _default) when is_integer(value) and value > 0, do: value
+
+  defp to_positive_integer(value, default) when is_binary(value) do
+    case Integer.parse(value) do
+      {integer, ""} when integer > 0 -> integer
+      _ -> default
+    end
+  end
+
+  defp to_positive_integer(_value, default), do: default
+
   defp sort_firmware(query, {direction, :install_count}) do
-    order_by(query, [_f, d], {^direction, d.install_count})
+    order_by(query, [installs: i], [{^direction, coalesce(i.install_count, 0)}, desc: :inserted_at])
   end
 
   defp sort_firmware(query, {direction, :version}) do
@@ -198,7 +463,7 @@ defmodule NervesHub.Firmwares do
     ])
   end
 
-  defp sort_firmware(query, sort), do: order_by(query, ^sort)
+  defp sort_firmware(query, sort), do: order_by(query, ^[sort, desc: :id])
 
   # Orders a Firmware query by SemVer precedence, newest first, with invalid
   # versions (a NULL sort key) sorted last. Uses `semver_sort_key/1` under
@@ -348,10 +613,6 @@ defmodule NervesHub.Firmwares do
     else
       Repo.exclude_deleted(query)
     end
-  end
-
-  defp maybe_exclude_deleted(query, opts) do
-    if opts[:include_deleted], do: query, else: Repo.exclude_deleted(query)
   end
 
   @doc """

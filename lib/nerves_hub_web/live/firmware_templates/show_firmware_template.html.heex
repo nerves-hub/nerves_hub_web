@@ -1,139 +1,270 @@
 <NervesHubWeb.Layouts.sidebar flash={@flash} current_scope={@current_scope} sidebar_tab={@sidebar_tab}>
   <:top_bar>
-    <.breadcrumb patch={~p"/org/#{@current_scope.org}/#{@product}/firmware"} root_label="All Firmware">
-      <:crumb>{@firmware.uuid}</:crumb>
-    </.breadcrumb>
+    <nav aria-label="Breadcrumb" class="flex min-w-0 items-center gap-2">
+      <.link navigate={~p"/org/#{@current_scope.org}/#{@product}/firmware"} class="text-base/6 font-medium text-content-muted hover:text-content-strong">
+        Firmware
+      </.link>
+      <span class="lucide-chevron-right size-3.5 text-content-faint" aria-hidden="true"></span>
+      <span aria-current="page" class="truncate font-mono text-[15px]/6 font-semibold text-content-strong">{@firmware.version}</span>
+      <span class="truncate font-mono text-xs text-content-muted max-sm:hidden">{@firmware.platform} · {@firmware.architecture}</span>
+    </nav>
+
+    <div :if={!Firmware.deleted?(@firmware)} class="flex shrink-0 items-center gap-2 sm:mr-6">
+      <.button :if={authorized?(:"firmware:download", @current_scope)} type="link" href={~p"/org/#{@current_scope.org}/#{@product}/firmware/#{@firmware}/download"} download>
+        <span class="lucide-download" aria-hidden="true"></span><span class="max-sm:hidden">Download</span>
+      </.button>
+      <.button
+        :if={authorized?(:"firmware:delete", @current_scope)}
+        type="button"
+        aria-label="Delete firmware"
+        disabled={@deletion_blockers != []}
+        phx-click="prepare-delete"
+        phx-value-firmware_uuid={@firmware.uuid}
+      >
+        <span class="lucide-trash" aria-hidden="true"></span><span class="max-sm:hidden">Delete</span>
+      </.button>
+    </div>
   </:top_bar>
 
-  <div class="flex h-0 flex-1 flex-col overflow-y-auto">
-    <div class="flex h-header shrink-0 justify-between border-b border-line-default p-6">
-      <div class="flex items-center gap-3">
-        <h1 class="text-page-title text-content-strong">
-          {@firmware.uuid}
-        </h1>
+  <div class="@container h-0 flex-1 overflow-y-auto">
+    <div class="flex flex-col gap-6 px-4 pt-5 pb-8 @3xl:px-8 @3xl:pt-7">
+      <div class="flex flex-col gap-2.5">
+        <div class="flex flex-wrap items-baseline gap-x-3.5 gap-y-1">
+          <h1 class="font-mono text-[34px]/10 font-semibold tracking-[-0.02em] text-content-strong">{@firmware.version}</h1>
+          <p :if={@firmware.description} class="text-[15px]/5 text-content-body">{@firmware.description}</p>
+        </div>
+        <div class="flex flex-wrap items-center gap-2">
+          <%!-- Squarer and flatter than `<.tag>`. --%>
+          <code class="rounded-sm border border-line-default bg-surface-muted px-1.5 py-px font-mono text-xs text-content-body">{@firmware.tool}</code>
+          <code class="rounded-sm border border-line-default bg-surface-muted px-1.5 py-px font-mono text-xs text-content-body">
+            {@firmware.platform} · {@firmware.architecture}
+          </code>
+          <%= case signing_key(@firmware, @org_keys) do %>
+            <% {:key, name} -> %>
+              <span class="flex items-center gap-1.25 rounded-sm border border-success/20 bg-success-soft px-1.5 py-px text-xs text-success-content light:border-emerald-100">
+                <span class="lucide-check--bold size-3 text-success light:text-emerald-600" aria-hidden="true"></span>
+                <span>Signed with <span class="font-mono">{name}</span></span>
+              </span>
+            <% :unsigned -> %>
+              <span class="flex items-center gap-1.25 rounded-sm border border-warning/30 bg-warning-soft px-1.5 py-px text-xs text-warning-content">
+                <.status_dot class="size-1.5 bg-warning" /> Unsigned
+              </span>
+            <% :unknown -> %>
+              <span class="rounded-sm border border-line-default bg-surface-muted px-1.5 py-px text-xs text-content-body">Signed with an unknown key</span>
+          <% end %>
+          <span class="flex min-w-0 items-center gap-1.5 sm:ml-2">
+            <span id="firmware-uuid" class="truncate font-mono text-xs text-content-faint">{@firmware.uuid}</span>
+            <button
+              id="copy-firmware-uuid"
+              type="button"
+              phx-hook="CopyToClipboard"
+              data-copy-value={@firmware.uuid}
+              aria-label="Copy UUID"
+              title="Copy UUID"
+              class="shrink-0 cursor-pointer text-content-faint hover:text-content-strong light:text-zinc-400 light:hover:text-content-strong"
+            >
+              <span data-icon="copy" class="lucide-copy size-3.25"></span>
+              <span data-icon="check" class="lucide-check hidden size-3.25 text-success"></span>
+            </button>
+          </span>
+        </div>
       </div>
 
-      <div :if={!Firmware.deleted?(@firmware)} class="flex items-center gap-2">
-        <.button :if={authorized?(:"firmware:download", @current_scope)} type="link" href={~p"/org/#{@current_scope.org}/#{@product}/firmware/#{@firmware}/download"} download>
-          <.icon name="download" />Download
-        </.button>
+      <div :if={Firmware.deleted?(@firmware)} id="firmware-deleted" class="flex items-start gap-2.5 rounded-card border border-line-default bg-surface-muted px-3.5 py-3">
+        <span class="mt-0.5 lucide-trash size-3.5 text-content-muted" aria-hidden="true"></span>
+        <span class="text-ui/4.5 text-content-body">
+          This firmware was deleted<span :if={@firmware.deleted_by}> by <span class="font-medium text-content-strong">{@firmware.deleted_by.name}</span></span>
+          on <.local_datetime at={@firmware.deleted_at} time_zone={@time_zone} />. The file is gone; this page is kept so device history and past releases still say what ran.
+        </span>
+      </div>
 
-        <%!-- The tooltip only explains why delete is disabled, so it is only
-        enabled when something blocks the deletion. --%>
-        <.tooltip id="delete-firmware-tooltip" class="z-20 flex items-center" content_class="w-max max-w-72" enabled={@deletion_blockers != []}>
-          <.button
-            style="danger"
-            aria-label="Delete firmware"
-            type="button"
-            disabled={@deletion_blockers != []}
-            phx-click={@deletion_blockers == [] && "delete-firmware"}
-            data-confirm={@deletion_blockers == [] && delete_confirmation(@firmware, @deletion_warnings)}
+      <div class="flex flex-col items-start gap-8 @5xl:flex-row">
+        <div class="flex w-full min-w-0 flex-col gap-6 @5xl:flex-1">
+          <section aria-label="Where it runs" class="flex flex-col rounded-card border border-line-default bg-surface-raised">
+            <dl class="grid grid-cols-2 gap-x-10 gap-y-5 border-b border-line-subtle px-5 pt-5 pb-4.5 @3xl:flex">
+              <div class="flex flex-col gap-1">
+                <dt class="text-label text-content-muted uppercase">Running on</dt>
+                <dd id="firmware-running" class="font-mono text-[28px]/8.5 font-medium tracking-[-0.02em] text-content-strong">{delimited(@usage.running)}</dd>
+                <dd class="text-ui text-content-body">{share_label(@usage.running, @usage.product_devices)} of {@product.name} devices</dd>
+              </div>
+              <div class="flex flex-col gap-1">
+                <dt class="text-label text-content-muted uppercase">Updating to it</dt>
+                <dd id="firmware-updating" class={["font-mono text-[28px]/8.5 font-medium tracking-[-0.02em]", (@usage.updating > 0 && "text-notice-content") || "text-content-strong"]}>
+                  {delimited(@usage.updating)}
+                </dd>
+                <dd class="text-ui text-content-body">right now</dd>
+              </div>
+              <div class="flex flex-col gap-1">
+                <dt class="text-label text-content-muted uppercase">Failed to install</dt>
+                <dd id="firmware-failed" class="font-mono text-[28px]/8.5 font-medium tracking-[-0.02em]">
+                  <%= cond do %>
+                    <% @failed_installs.loading -> %>
+                      <span class="text-content-faint">…</span>
+                    <% @failed_installs.ok? && is_integer(@failed_installs.result) -> %>
+                      <span class={(@failed_installs.result > 0 && "text-alert-content") || "text-content-strong"}>{delimited(@failed_installs.result)}</span>
+                    <% @failed_installs.ok? -> %>
+                      <span class="text-content-faint" title="Update history isn't recorded here">—</span>
+                    <% true -> %>
+                      <span class="text-content-faint" title="Update history couldn't be loaded">—</span>
+                  <% end %>
+                </dd>
+                <dd class="text-ui text-content-body">in the last 7 days</dd>
+              </div>
+              <div class="flex flex-col gap-1">
+                <dt class="text-label text-content-muted uppercase">Installed, all time</dt>
+                <dd id="firmware-installed" class="font-mono text-[28px]/8.5 font-medium tracking-[-0.02em] text-content-strong">{delimited(@usage.installed)}</dd>
+                <dd class="text-ui text-content-body">{ngettext("device", "devices", @usage.installed)}</dd>
+              </div>
+            </dl>
+
+            <div class="flex flex-col py-1.5">
+              <h2 class="px-5 pt-2.5 pb-1.5 text-label text-content-muted uppercase">Deployment groups releasing it</h2>
+              <.link
+                :for={release <- @releases}
+                id={"release-#{release.deployment_group.id}"}
+                navigate={~p"/org/#{@current_scope.org}/#{@product}/deployment_groups/#{release.deployment_group}"}
+                class="group flex items-center gap-3 px-5 py-2.5 hover:bg-surface-muted max-sm:flex-wrap"
+              >
+                <span class="lucide-rocket size-4 text-content-muted" aria-hidden="true"></span>
+                <span class="w-45 min-w-0 shrink-0 truncate text-sm/5 font-medium text-content-strong max-sm:w-auto max-sm:flex-1">{release.deployment_group.name}</span>
+                <span class="w-30 shrink-0 text-ui text-content-body max-sm:w-auto">
+                  {if release.release == :current, do: "current release", else: "previous release"}
+                </span>
+                <span class="flex min-w-0 flex-1 items-center gap-2.5 max-sm:basis-full max-sm:pl-7">
+                  <span
+                    class="flex h-1.5 w-55 shrink overflow-hidden rounded-full bg-line-subtle"
+                    role="img"
+                    aria-label={"#{release.progress.running} of #{release.progress.devices} devices run it, #{release.progress.updating} updating to it"}
+                  >
+                    <span class="h-full bg-success" style={"width: #{percent(release.progress.running, release.progress.devices)}%"}></span>
+                    <span class="h-full bg-primary" style={"width: #{percent(release.progress.updating, release.progress.devices)}%"}></span>
+                  </span>
+                  <span class="shrink-0 font-mono text-xs whitespace-nowrap text-content-body">
+                    {delimited(release.progress.running)} of {delimited(release.progress.devices)} {ngettext("device", "devices", release.progress.devices)}
+                  </span>
+                </span>
+                <span class="lucide-chevron-right size-3.5 text-content-faint group-hover:text-content-muted max-sm:hidden" aria-hidden="true"></span>
+              </.link>
+              <div :if={@releases == []} id="no-releases" class="flex flex-wrap items-center gap-x-3 gap-y-1 px-5 py-2.5 text-ui text-content-muted">
+                No deployment group releases it.
+                <.link
+                  :if={!Firmware.deleted?(@firmware) && authorized?(:"deployment_group:create", @current_scope)}
+                  navigate={~p"/org/#{@current_scope.org}/#{@product}/deployment_groups/new?firmware=#{@firmware.uuid}"}
+                  class="font-medium text-notice-content hover:underline"
+                >
+                  Create a deployment group with it
+                </.link>
+              </div>
+            </div>
+          </section>
+
+          <div
+            :if={@deletion_blockers != [] && !Firmware.deleted?(@firmware)}
+            id="firmware-delete-note"
+            class="flex items-start gap-2.5 rounded-card border border-line-default bg-surface-muted px-3.5 py-3"
           >
-            <span class={["lucide-trash size-4", if(@deletion_blockers == [], do: "text-alert", else: "text-base-500")]} aria-hidden="true"></span>
-            <span class={["text-sm font-medium", if(@deletion_blockers == [], do: "text-alert", else: "text-content-faint")]}>
-              Delete
-            </span>
-          </.button>
-          <:content>
-            {FirmwareDeletion.blockers_message(@deletion_blockers)}
-          </:content>
-        </.tooltip>
-      </div>
-    </div>
-
-    <div :if={Firmware.deleted?(@firmware)} class="flex shrink-0 items-center gap-2 border-b border-line-default px-6 py-3">
-      <.icon name="trash" class="text-content-muted" />
-      <span class="text-sm text-content-body">
-        This firmware was deleted<span :if={@firmware.deleted_by}> by {@firmware.deleted_by.name}</span>
-        on <.local_datetime at={@firmware.deleted_at} time_zone={@time_zone} />. The firmware file is gone; this page is
-        kept so device history and past deployment releases still resolve.
-      </span>
-    </div>
-
-    <div class="flex h-full items-start justify-between gap-4 p-6">
-      <div class="flex w-1/2 flex-col gap-4">
-        <div class="flex flex-col rounded-card border border-line-default bg-surface-raised pb-4 shadow-card">
-          <div class="flex h-14 items-center px-4 text-card-title text-content-strong">
-            General info
+            <span class="mt-0.5 lucide-circle-exclamation-point size-3.75 text-content-muted" aria-hidden="true"></span>
+            <p class="text-ui/4.5 text-content-body">{FirmwareDeletion.blockers_message(@deletion_blockers)}</p>
           </div>
-          <div class="flex flex-col gap-3">
-            <div class="flex min-h-7 items-center gap-4 px-4">
-              <span class="text-sm text-content-faint">Author:</span>
-              <span class="text-sm text-content-body">{@firmware.author}</span>
+
+          <section aria-labelledby="deltas-title" class="flex flex-col rounded-card border border-line-default bg-surface-raised">
+            <div class="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 px-5 pt-4 pb-3">
+              <h2 id="deltas-title" class="text-sm/5 font-semibold text-content-strong">Delta updates to {@firmware.version}</h2>
+              <p class="text-ui text-content-muted">Built when a device on an older version is offered this one</p>
             </div>
 
-            <div class="flex min-h-7 items-center gap-4 px-4">
-              <span class="text-sm text-content-faint">Description:</span>
-              <span :if={@firmware.description} class="text-sm text-content-body">{@firmware.description}</span>
-              <span :if={!@firmware.description} class="text-sm text-content-muted">No description</span>
+            <div :if={@deltas != []} role="table" aria-labelledby="deltas-title" class="flex flex-col">
+              <div role="row" class="flex h-8 shrink-0 items-center border-y border-line-subtle bg-surface-muted/50 px-5 max-sm:hidden">
+                <span role="columnheader" class="w-35 shrink-0 text-label text-content-muted uppercase">From</span>
+                <span role="columnheader" class="w-30 shrink-0 text-label text-content-muted uppercase">Size</span>
+                <span role="columnheader" class="w-50 shrink-0 text-label text-content-muted uppercase">Saving</span>
+                <span role="columnheader" class="flex-1 text-label text-content-muted uppercase">Status</span>
+              </div>
+              <div
+                :for={delta <- @deltas}
+                id={"delta-#{delta.id}"}
+                role="row"
+                class="flex min-h-10.5 shrink-0 items-center border-b border-line-subtle px-5 last:border-b-0 max-sm:flex-wrap max-sm:gap-x-3 max-sm:gap-y-1 max-sm:py-2.5 max-sm:first:border-t"
+              >
+                <span role="cell" class="w-35 shrink-0 font-mono text-ui text-content-strong max-sm:w-auto">{delta.source.version}</span>
+                <span role="cell" class={["w-30 shrink-0 font-mono text-xs max-sm:w-auto", (delta.status == :completed && "text-content-body") || "text-content-faint"]}>
+                  {if delta.status == :completed, do: format_megabytes(delta.size), else: "—"}
+                </span>
+                <span role="cell" class="flex w-50 shrink-0 items-center gap-2 max-sm:w-auto">
+                  <%= if saving = delta_saving(delta) do %>
+                    <span class="flex h-1 w-20 overflow-hidden rounded-full bg-line-subtle max-sm:hidden" aria-hidden="true">
+                      <span class="h-full rounded-full bg-content-strong" style={"width: #{saving}%"}></span>
+                    </span>
+                    <span class="font-mono text-xs text-content-body">{saving}%<span class="sm:hidden"> smaller</span></span>
+                  <% else %>
+                    <span class="font-mono text-xs text-content-faint max-sm:hidden">—</span>
+                  <% end %>
+                </span>
+                <span role="cell" class="flex min-w-0 flex-1 items-center gap-1.5 max-sm:basis-full">
+                  <.status_dot class={["size-1.5", delta_status(delta.status).dot]} />
+                  <span class={["text-ui", delta_status(delta.status).text]}>{delta_status(delta.status).label}</span>
+                  <button
+                    :if={delta.status in [:failed, :timed_out] && authorized?(:"deployment_group:update", @current_scope)}
+                    type="button"
+                    phx-click="retry-delta"
+                    phx-value-id={delta.id}
+                    class="ml-auto cursor-pointer text-ui font-medium text-notice-content hover:underline"
+                  >
+                    Retry
+                  </button>
+                </span>
+              </div>
             </div>
 
-            <div :if={@firmware.misc} class="flex min-h-7 items-center gap-4 px-4">
-              <span class="shrink-0 text-sm text-content-faint">Misc:</span>
-              <span class="min-w-0 text-sm wrap-anywhere text-content-body">{@firmware.misc}</span>
-            </div>
-
-            <div class="flex min-h-7 items-center gap-4 px-4">
-              <span class="text-sm text-content-faint">Install count:</span>
-              <span :if={@firmware.install_count} class="text-sm text-content-body">{@firmware.install_count}</span>
-              <span :if={!@firmware.install_count} class="text-sm text-content-muted">No installations</span>
-            </div>
-
-            <div class="flex min-h-7 items-center gap-4 px-4">
-              <span class="text-sm text-content-faint">Signed with:</span>
-              <span class="flex items-center gap-1 rounded-full border border-line-default bg-base-800 py-0.5 pr-3 pl-2.5">
-                <code class="text-xs text-content-body">{format_signed(@firmware, @org_keys)}</code>
-              </span>
-            </div>
-
-            <div class="flex min-h-7 items-center gap-4 px-4">
-              <span class="text-sm text-content-faint">Uploaded on:</span>
-              <span class="text-sm text-content-body"><.local_datetime at={@firmware.inserted_at} time_zone={@time_zone} /></span>
-            </div>
-          </div>
+            <p :if={@deltas == []} id="no-deltas" class="border-t border-line-subtle px-5 py-3 text-ui text-content-muted">
+              <%= if @firmware.delta_updatable do %>
+                None yet. A delta is built the first time a device on another version is offered this one.
+              <% else %>
+                This firmware can’t be delta updated, so devices always download the full file.
+              <% end %>
+            </p>
+          </section>
         </div>
-      </div>
 
-      <div class="flex w-1/2 flex-col gap-4">
-        <div class="flex flex-col rounded-card border border-line-default bg-surface-raised pb-4 shadow-card">
-          <div class="flex h-14 items-center px-4 text-card-title text-content-strong">
-            Metadata
-          </div>
-          <div class="flex flex-col gap-3">
-            <div class="flex min-h-7 items-center gap-4 px-4">
-              <span class="text-sm text-content-faint">Version:</span>
-              <span class="text-sm text-content-body">{@firmware.version}</span>
+        <aside aria-labelledby="details-title" class="flex w-full shrink-0 flex-col @5xl:w-85">
+          <h2 id="details-title" class="border-b border-line-default pb-2 text-label text-content-muted uppercase">Details</h2>
+          <dl class="flex flex-col">
+            <div class="flex flex-col gap-0.5 border-b border-line-subtle py-2.5">
+              <dt class="text-xs text-content-muted">Uploaded</dt>
+              <dd class="text-ui/4.5 text-content-strong">
+                <.local_datetime at={@firmware.inserted_at} time_zone={@time_zone} /> <span class="text-content-muted">· {from_now(@firmware.inserted_at)}</span>
+              </dd>
             </div>
-
-            <div class="flex min-h-7 items-center gap-4 px-4">
-              <span class="text-sm text-content-faint">Update tool:</span>
-              <span class="flex items-center gap-1 rounded-full border border-line-default bg-base-800 py-0.5 pr-3 pl-2.5">
-                <code class="text-xs text-content-body">{@firmware.tool}</code>
-              </span>
+            <div :if={@firmware.author} class="flex flex-col gap-0.5 border-b border-line-subtle py-2.5">
+              <dt class="text-xs text-content-muted">Author</dt>
+              <dd class="text-ui/4.5 text-content-strong">{@firmware.author}</dd>
             </div>
-
-            <div class="flex min-h-7 items-center gap-4 px-4">
-              <span class="text-sm text-content-faint">Architecture:</span>
-              <span class="text-sm text-content-body">{@firmware.architecture}</span>
+            <div :if={@firmware.vcs_identifier} class="flex flex-col gap-0.5 border-b border-line-subtle py-2.5">
+              <dt class="text-xs text-content-muted">VCS ID</dt>
+              <dd class="font-mono text-xs/4.5 break-all text-content-strong">{@firmware.vcs_identifier}</dd>
             </div>
-
-            <div class="flex min-h-7 items-center gap-4 px-4">
-              <span class="text-sm text-content-faint">Platform:</span>
-              <span class="text-sm text-content-body">{@firmware.platform}</span>
+            <div class="flex flex-col gap-0.5 border-b border-line-subtle py-2.5">
+              <dt class="text-xs text-content-muted">Size</dt>
+              <dd class="font-mono text-xs/4.5 text-content-strong">{format_megabytes(@firmware.size)}</dd>
             </div>
-
-            <div :if={@firmware.vcs_identifier} class="flex min-h-7 items-center gap-4 px-4">
-              <span class="text-sm text-content-faint">VCS ID:</span>
-              <span class="text-sm text-content-body">{@firmware.vcs_identifier}</span>
+            <div :if={@firmware.misc} class="flex flex-col gap-0.5 border-b border-line-subtle py-2.5">
+              <dt class="text-xs text-content-muted">Misc</dt>
+              <dd class="font-mono text-xs/4.5 wrap-anywhere text-content-strong">{@firmware.misc}</dd>
             </div>
-
-            <div class="flex min-h-7 items-center gap-4 px-4">
-              <span class="text-sm text-content-faint">Size:</span>
-              <span class="text-sm text-content-body">{format_file_size(@firmware.size)}</span>
+            <div :if={@other_builds != []} id="other-builds" class="flex flex-col gap-0.5 py-2.5">
+              <dt class="text-xs text-content-muted">Other builds of {@firmware.version}</dt>
+              <dd :for={build <- @other_builds} class="flex items-center gap-1.5 text-xs/4.5">
+                <.link navigate={~p"/org/#{@current_scope.org}/#{@product}/firmware/#{build}"} class="font-mono text-notice-content hover:underline">
+                  {build.platform} · {build.architecture}
+                </.link>
+                <span class="text-content-muted">· {ngettext("1 device", "%{count} devices", build.install_count)}</span>
+              </dd>
             </div>
-          </div>
-        </div>
+          </dl>
+        </aside>
       </div>
     </div>
   </div>
+
+  <.delete_dialog :if={@deleting} deleting={@deleting} />
 </NervesHubWeb.Layouts.sidebar>
