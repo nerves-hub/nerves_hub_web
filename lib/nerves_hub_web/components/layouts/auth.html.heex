@@ -1,52 +1,37 @@
-<div class="relative isolate flex min-h-full flex-col items-center overflow-hidden perfboard px-4 py-12 sm:py-16">
-  <%!-- Circuit traces at two corners: live ones in the brand colour, idle ones in grey. Decoration only, so they sit behind everything and drop out below lg, where the form fills the width. --%>
-  <svg
-    class="pointer-events-none absolute top-0 right-0 -z-10 hidden h-65 w-90 text-primary lg:block light:text-indigo-600"
-    viewBox="0 0 360 260"
-    fill="none"
-    aria-hidden="true"
-  >
-    <g stroke="currentColor" stroke-width="2" stroke-linejoin="round">
-      <path d="M360 90 H250 L190 150 H110" />
-      <path d="M360 130 H270 L210 190 H170" />
-      <path d="M360 170 H290 L230 230" />
-      <circle cx="110" cy="150" r="5" class="fill-surface" />
-      <circle cx="170" cy="190" r="5" class="fill-surface" />
-      <circle cx="230" cy="230" r="5" class="fill-surface" />
-    </g>
-  </svg>
-  <svg class="pointer-events-none absolute bottom-0 left-0 -z-10 hidden h-65 w-90 text-line-default lg:block" viewBox="0 0 360 260" fill="none" aria-hidden="true">
-    <g stroke="currentColor" stroke-width="2" stroke-linejoin="round">
-      <path d="M0 130 H90 L150 70 H230" />
-      <path d="M0 170 H110 L170 110 H270" />
-      <path d="M0 210 H130 L190 150 H310" />
-      <circle cx="230" cy="70" r="5" class="fill-surface" />
-      <circle cx="270" cy="110" r="5" class="fill-surface" />
-      <circle cx="310" cy="150" r="5" class="fill-surface" />
-    </g>
-  </svg>
+<div class="relative isolate flex min-h-full flex-col items-center overflow-hidden bg-surface px-4 py-12 sm:py-16">
+  <%!-- A circuit board behind the form, with a wave of power crossing it now and then (the pcb-* styles in app.css). Decoration only, so it sits behind everything. --%>
+  <div class="pcb-backdrop pointer-events-none absolute inset-0 -z-10 text-primary light:text-indigo-600" aria-hidden="true">
+    <div class="pcb-traces"></div>
+    <div class="pcb-power">
+      <div class="pcb-power-sweep"></div>
+    </div>
+  </div>
 
-  <main class="flex w-full max-w-100 flex-1 flex-col items-center justify-center gap-7">
-    <div class="flex flex-col items-center gap-6 text-center">
-      <.link href="/login">
-        <.logo class="h-6" />
-      </.link>
-      <div class="flex flex-col gap-1.5">
-        <h1 class="text-2xl/7.5 font-semibold tracking-tight text-content-strong">
-          {render_slot(@title)}
-        </h1>
-        <p :if={assigns[:subheader] not in [nil, []]} class="text-sm text-content-muted">
-          {render_slot(@subheader)}
-        </p>
+  <main class="flex w-full max-w-100 flex-1 flex-col items-center justify-center">
+    <div class="relative flex w-full flex-col items-center gap-7">
+      <%!-- Scrim: pools the page colour behind the form, so the title and footer stay readable while the board shows around them. --%>
+      <div class="pcb-scrim pointer-events-none absolute -inset-x-40 -inset-y-28 -z-10" aria-hidden="true"></div>
+      <div class="flex flex-col items-center gap-6 text-center">
+        <.link href="/login">
+          <.logo class="h-6" />
+        </.link>
+        <div class="flex flex-col gap-1.5">
+          <h1 class="text-2xl/7.5 font-semibold tracking-tight text-content-strong">
+            {render_slot(@title)}
+          </h1>
+          <p :if={assigns[:subheader] not in [nil, []]} class="text-sm text-content-muted">
+            {render_slot(@subheader)}
+          </p>
+        </div>
       </div>
-    </div>
 
-    <div class="w-full rounded-xl border border-line-subtle bg-surface-raised p-6 shadow-card sm:p-8">
-      {render_slot(@inner_block)}
-    </div>
+      <div class="w-full rounded-xl border border-line-subtle bg-surface-raised p-6 shadow-card sm:p-8">
+        {render_slot(@inner_block)}
+      </div>
 
-    <div :if={assigns[:footer] not in [nil, []]} class="text-center text-sm text-content-muted">
-      {render_slot(@footer)}
+      <div :if={assigns[:footer] not in [nil, []]} class="text-center text-sm text-content-muted">
+        {render_slot(@footer)}
+      </div>
     </div>
   </main>
 </div>
