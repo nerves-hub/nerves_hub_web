@@ -46,7 +46,7 @@
       </div>
     </div>
 
-    <FleetTrends.row :if={@trends} trends={@trends} composition={@composition} rows={@version_rows} adoption_view={@adoption_view} releases={@release_annotations} />
+    <FleetTrends.row :if={@trends} trends={@trends} period={@trends_period} composition={@composition} rows={@version_rows} adoption_view={@adoption_view} releases={@release_annotations} />
 
     <%!-- Side by side once three columns of about 240px fit; under that,
           one after another. --%>

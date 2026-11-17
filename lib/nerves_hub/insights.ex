@@ -93,8 +93,8 @@ defmodule NervesHub.Insights do
 
     * `:version` - `row` has at least twice the fleet's share of devices
       that aren't healthy;
-    * `:even` - no version does, and `rows` gives each version's share for
-      comparison;
+    * `:even` - no version of at least `min_devices` devices does, and `rows`
+      gives each version's share for comparison;
     * `:all_healthy` - every device is healthy;
     * `:single` - every device is on one version, `row`, so there is nothing
       to compare.
@@ -104,7 +104,13 @@ defmodule NervesHub.Insights do
   """
   @type stands_out() ::
           %{kind: :version, row: version_row(), rate: float(), fleet_rate: float(), not_healthy: non_neg_integer()}
-          | %{kind: :even, rows: [version_row()], fleet_rate: float(), not_healthy: non_neg_integer()}
+          | %{
+              kind: :even,
+              rows: [version_row()],
+              fleet_rate: float(),
+              not_healthy: non_neg_integer(),
+              min_devices: pos_integer()
+            }
           | %{kind: :all_healthy, total: pos_integer(), offline: non_neg_integer()}
           | %{kind: :single, row: version_row(), fleet_rate: float(), not_healthy: non_neg_integer()}
 
@@ -142,8 +148,8 @@ defmodule NervesHub.Insights do
 
     %{
       total: Enum.sum_by(rows, & &1.count),
-      connection: Enum.reduce(rows, @no_connection, &Map.update!(&2, &1.connection, fn n -> n + &1.count end)),
-      health: Enum.reduce(rows, @no_health, &Map.update!(&2, &1.health, fn n -> n + &1.count end)),
+      connection: tally(rows, @no_connection, :connection),
+      health: tally(rows, @no_health, :health),
       versions: Enum.map(by_version, &Map.delete(&1, :sort_key)),
       newest_version: newest_version(by_version)
     }
@@ -151,6 +157,7 @@ defmodule NervesHub.Insights do
 
   @doc """
   The devices list filters for each connection group `composition/2` counts.
+
   Each lists exactly the devices its group counts, so a count can link to
   them.
   """
@@ -223,9 +230,14 @@ defmodule NervesHub.Insights do
       version: version,
       sort_key: rows |> Enum.map(& &1.sort_key) |> Enum.max(),
       count: Enum.sum_by(rows, & &1.count),
-      health: Enum.reduce(rows, @no_health, &Map.update!(&2, &1.health, fn n -> n + &1.count end)),
+      health: tally(rows, @no_health, :health),
       offline: rows |> Enum.reject(&(&1.connection == :online)) |> Enum.sum_by(& &1.count)
     }
+  end
+
+  # Adds each row's count to its group under `key`, starting from `zero`.
+  defp tally(rows, zero, key) do
+    Enum.reduce(rows, zero, fn row, acc -> Map.update!(acc, Map.fetch!(row, key), &(&1 + row.count)) end)
   end
 
   defp newest_version(by_version) do
@@ -241,8 +253,9 @@ defmodule NervesHub.Insights do
   @doc """
   The rows of the firmware breakdown: the largest #{@named_versions} versions
   by name, in the order `composition/2` gives them, then the rest folded into
-  one row. A single version left over is shown by name rather than folded on
-  its own.
+  one row.
+
+  A single version left over is shown by name rather than folded on its own.
   """
   @spec versions(composition()) :: [version_row()]
   def versions(%{versions: versions}) do
@@ -306,7 +319,13 @@ defmodule NervesHub.Insights do
         %{kind: :version, row: row, rate: rate(row), fleet_rate: fleet_rate, not_healthy: not_healthy}
 
       true ->
-        %{kind: :even, rows: rows, fleet_rate: fleet_rate, not_healthy: not_healthy}
+        %{
+          kind: :even,
+          rows: rows,
+          fleet_rate: fleet_rate,
+          not_healthy: not_healthy,
+          min_devices: @stands_out_min_devices
+        }
     end
   end
 

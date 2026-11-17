@@ -232,8 +232,10 @@ defmodule NervesHubWeb.CoreComponents do
 
   @doc """
   Renders a small labelled on/off switch, for a view setting that takes
-  effect at once, such as auto refresh. The label sits to its left and
-  names it for screen readers; `phx-click` and its values go on the switch.
+  effect at once, such as auto refresh.
+
+  The label sits to its left and names it for screen readers; `phx-click`
+  and its values go on the switch.
 
   ## Examples
 

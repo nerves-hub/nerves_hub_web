@@ -26,18 +26,24 @@ defmodule NervesHubWeb.Live.Product.InsightsTrendsTest do
 
   defp click(session, selector), do: unwrap(session, &render_click(element(&1, selector)))
 
+  # The trends load in a task once the page connects.
+  defp loaded(session), do: unwrap(session, &render_async/1)
+
   test "switch the period", %{conn: conn} = ctx do
     conn
     |> visit(insights_path(ctx.org, ctx.product))
+    |> loaded()
     |> assert_has("#trends h2", text: "Last 14 days")
     |> click("#trends-period button[value='4w']")
-    |> assert_has("#trends h2", text: "Last 4 weeks")
     |> assert_has("#trends-period button[value='4w'][aria-pressed=true]")
+    |> loaded()
+    |> assert_has("#trends h2", text: "Last 4 weeks")
   end
 
   test "switch the adoption chart between stacked bands and lines", %{conn: conn} = ctx do
     conn
     |> visit(insights_path(ctx.org, ctx.product))
+    |> loaded()
     |> assert_has("#adoption-view button[value=stacked][aria-pressed=true]")
     |> click("#adoption-view button[value=lines]")
     |> assert_has("#adoption-view button[value=lines][aria-pressed=true]")
@@ -46,6 +52,7 @@ defmodule NervesHubWeb.Live.Product.InsightsTrendsTest do
   test "mark the release, until release annotations are turned off", %{conn: conn} = ctx do
     conn
     |> visit(insights_path(ctx.org, ctx.product))
+    |> loaded()
     |> assert_has("#trends-release", text: "#{ctx.firmware.version} released")
     |> assert_has("#release-annotations[aria-checked=true]")
     |> click("#release-annotations")
@@ -74,6 +81,7 @@ defmodule NervesHubWeb.Live.Product.InsightsTrendsTest do
       |> put_connect_params(%{"time_zone" => "Pacific/Auckland"})
       |> live(insights_path(ctx.org, ctx.product))
 
+    render_async(view)
     assert has_element?(view, "#trends-release", "released #{local}")
   end
 
@@ -84,7 +92,21 @@ defmodule NervesHubWeb.Live.Product.InsightsTrendsTest do
 
     conn
     |> visit(insights_path(ctx.org, ctx.product))
+    |> loaded()
     |> assert_has("#trends")
+  end
+
+  test "ignore a period, adoption view or unit the page never offers", %{conn: conn} = ctx do
+    {:ok, view, _html} = live(conn, insights_path(ctx.org, ctx.product))
+    render_async(view)
+
+    render_hook(view, "set-trends-period", %{"value" => "1y"})
+    render_hook(view, "set-adoption-view", %{"value" => "pie"})
+    render_hook(view, "set-composition-unit", %{"unit" => "bytes"})
+
+    assert has_element?(view, "#trends-period button[value='14d'][aria-pressed=true]")
+    assert has_element?(view, "#adoption-view button[value=stacked][aria-pressed=true]")
+    assert has_element?(view, "#composition-unit button[phx-value-unit=count][aria-pressed=true]")
   end
 
   describe "when analytics is disabled" do

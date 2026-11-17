@@ -185,6 +185,21 @@ defmodule NervesHubWeb.Live.Product.InsightsCompositionTest do
       end)
     end
 
+    test "say a version needs enough devices to stand out", %{conn: conn} = ctx do
+      devices_on(ctx, "2.0.0", 40)
+      devices_on(ctx, "2.0.0", 2, :warning)
+      devices_on(ctx, "1.0.0", 2)
+      devices_on(ctx, "1.0.0", 3, :warning)
+
+      conn
+      |> visit(insights_path(ctx.org, ctx.product))
+      |> within("#stands-out", fn session ->
+        session
+        |> assert_has("p", text: "Nothing stands out.")
+        |> assert_has("p", text: "No version of 10 or more devices is twice the fleet's 10.6% not healthy")
+      end)
+    end
+
     test "say when nothing stands out", %{conn: conn} = ctx do
       devices_on(ctx, "2.0.0", 18)
       devices_on(ctx, "2.0.0", 2, :warning)

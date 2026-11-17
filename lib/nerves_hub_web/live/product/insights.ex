@@ -35,6 +35,7 @@ defmodule NervesHubWeb.Live.Product.Insights do
     |> assign(:trends_period, "14d")
     |> assign(:adoption_view, :stacked)
     |> assign(:release_annotations, true)
+    |> assign(:trends, nil)
     |> update_information()
     |> assign_notifications()
     |> maybe_assign_flapping()
@@ -87,6 +88,20 @@ defmodule NervesHubWeb.Live.Product.Insights do
     |> noreply()
   end
 
+  # A value the page never sends changes nothing, as with the period.
+  def handle_event(event, _params, socket) when event in ~w(set-adoption-view set-composition-unit), do: noreply(socket)
+
+  @impl Phoenix.LiveView
+  def handle_async(:trends, {:ok, trends}, socket) do
+    socket
+    |> assign(:trends, trends)
+    |> noreply()
+  end
+
+  # Trends that failed to load leave the last ones up, or none, rather than
+  # taking the page down.
+  def handle_async(:trends, {:exit, _reason}, socket), do: noreply(socket)
+
   @impl Phoenix.LiveView
   def handle_info(:poll_device_counts, socket) do
     socket
@@ -121,13 +136,16 @@ defmodule NervesHubWeb.Live.Product.Insights do
 
   # Only on the connected mount: the dead render has no client time zone to
   # bucket days in, and would run the ClickHouse queries twice per page load.
-  # Rerun with every poll, so the charts end on the figures above them.
+  # Rerun with every poll, so the charts end on the figures above them. The
+  # queries run in a task, so a slow ClickHouse holds up the charts and not
+  # the page; the last trends stay up until the new ones arrive, and a newer
+  # request wins over one still running.
   defp maybe_assign_trends(%{assigns: %{current_scope: scope}} = socket) do
     if connected?(socket) and Application.get_env(:nerves_hub, :analytics_enabled) and socket.assigns.fleet_size > 0 do
-      trends =
-        Trends.trends(scope.product, socket.assigns.composition, socket.assigns.trends_period, socket.assigns.time_zone)
+      %{composition: composition, trends_period: period, time_zone: time_zone} = socket.assigns
+      product = scope.product
 
-      assign(socket, :trends, trends)
+      start_async(socket, :trends, fn -> Trends.trends(product, composition, period, time_zone) end)
     else
       assign(socket, :trends, nil)
     end

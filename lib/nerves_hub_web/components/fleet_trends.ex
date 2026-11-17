@@ -11,7 +11,7 @@ defmodule NervesHubWeb.Components.FleetTrends do
   chart is stretched. Text is HTML placed over the chart, never SVG text.
 
   The newest version's release, when it falls in the period, is marked on
-  every chart with the same dashed line unless the viewer has turned release
+  every chart with a dashed line unless the viewer has turned release
   annotations off.
   """
   use NervesHubWeb, :component
@@ -27,9 +27,21 @@ defmodule NervesHubWeb.Components.FleetTrends do
   @updates_height 56
   @updates_baseline 41
 
+  # Room the lines view leaves above 100% and below 0%, so a line at either
+  # edge isn't clipped.
+  @lines_padding 4
+
+  # Room above the tallest success bar and below the deepest failure bar.
+  @updates_top_padding 2.5
+  @updates_bottom_padding 1
+
   # The online and healthy charts'.
   @narrow 375
   @line_height 96
+
+  # Room above and below a line chart's range.
+  @line_top_padding 14
+  @line_bottom_padding 10
 
   # The smallest gap between two labels in the adoption chart's gutter.
   @label_gap 13
@@ -38,6 +50,7 @@ defmodule NervesHubWeb.Components.FleetTrends do
   @segments [{"24h", "24 h"}, {"14d", "14 d"}, {"4w", "4 w"}, {"90d", "90 d"}]
 
   attr(:trends, :map, required: true, doc: "from `NervesHub.Insights.Trends.trends/5`")
+  attr(:period, :string, required: true, doc: "the period chosen, which the trends may not have caught up with yet")
   attr(:composition, :map, required: true, doc: "from `NervesHub.Insights.composition/2`")
   attr(:rows, :list, required: true, doc: "from `NervesHub.Insights.versions/1`")
   attr(:adoption_view, :atom, required: true, values: [:stacked, :lines])
@@ -86,15 +99,15 @@ defmodule NervesHubWeb.Components.FleetTrends do
         <div class="flex items-center gap-4">
           <.switch id="release-annotations" label="Releases" checked={@releases} phx-click="toggle-release-annotations" />
           <div id="trends-period" role="group" aria-label="Period" class="flex flex-1 overflow-clip rounded-md border border-line-control @min-[640px]:min-w-0 @min-[640px]:flex-none">
-            <.segment
+            <FleetComposition.segment
               :for={{period, label} <- @segments}
-              event="set-trends-period"
+              phx-click="set-trends-period"
               value={period}
-              selected={@trends.period == period}
+              selected={@period == period}
               class="flex-1 py-1.25 @min-[640px]:flex-none @min-[640px]:py-1"
             >
               {label}
-            </.segment>
+            </FleetComposition.segment>
           </div>
         </div>
       </div>
@@ -112,33 +125,6 @@ defmodule NervesHubWeb.Components.FleetTrends do
         </div>
       </div>
     </section>
-    """
-  end
-
-  attr(:event, :string, required: true)
-  attr(:value, :string, required: true)
-  attr(:selected, :boolean, required: true)
-  attr(:class, :any, default: nil)
-  slot(:inner_block, required: true)
-
-  # One button of a segmented control. Every one after the first draws the
-  # rule between it and the one before.
-  defp segment(assigns) do
-    ~H"""
-    <button
-      type="button"
-      phx-click={@event}
-      value={@value}
-      aria-pressed={to_string(@selected)}
-      class={[
-        "flex cursor-pointer items-center justify-center gap-1.5 px-2.5 text-xs text-content-muted not-first:border-l not-first:border-line-control hover:text-content-strong",
-        "focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-focus-ring",
-        "aria-pressed:bg-surface-muted aria-pressed:font-medium aria-pressed:text-content-strong",
-        @class
-      ]}
-    >
-      {render_slot(@inner_block)}
-    </button>
     """
   end
 
@@ -162,12 +148,12 @@ defmodule NervesHubWeb.Components.FleetTrends do
           </div>
         </div>
         <div id="adoption-view" role="group" aria-label="Adoption chart" class="mb-0.5 flex shrink-0 overflow-clip rounded-md border border-line-control">
-          <.segment event="set-adoption-view" value="stacked" selected={@view == :stacked} class="py-1.25 sm:py-1">
+          <FleetComposition.segment phx-click="set-adoption-view" value="stacked" selected={@view == :stacked} class="py-1.25 sm:py-1">
             <span class="lucide-chart-area size-3.5 max-sm:hidden" aria-hidden="true"></span> Stacked
-          </.segment>
-          <.segment event="set-adoption-view" value="lines" selected={@view == :lines} class="py-1.25 sm:py-1">
+          </FleetComposition.segment>
+          <FleetComposition.segment phx-click="set-adoption-view" value="lines" selected={@view == :lines} class="py-1.25 sm:py-1">
             <span class="lucide-chart-line size-3.5 max-sm:hidden" aria-hidden="true"></span> Lines
-          </.segment>
+          </FleetComposition.segment>
         </div>
       </div>
 
@@ -506,7 +492,7 @@ defmodule NervesHubWeb.Components.FleetTrends do
     end)
   end
 
-  defp lines_y(share), do: 116 - share * 112
+  defp lines_y(share), do: @adoption_height - @lines_padding - share * (@adoption_height - 2 * @lines_padding)
 
   defp stacked_y(share), do: Float.round(@adoption_height * (1 - share), 2)
 
@@ -626,7 +612,10 @@ defmodule NervesHubWeb.Components.FleetTrends do
     # One scale for both, so a day's failures read against its successes,
     # fitted to whichever runs out of room first.
     scale =
-      [max_ok > 0 && 38.5 / max_ok, max_failed > 0 && 14 / max_failed]
+      [
+        max_ok > 0 && (@updates_baseline - @updates_top_padding) / max_ok,
+        max_failed > 0 && (@updates_height - @updates_baseline - @updates_bottom_padding) / max_failed
+      ]
       |> Enum.filter(& &1)
       |> Enum.min(fn -> 0 end)
 
@@ -662,7 +651,9 @@ defmodule NervesHubWeb.Components.FleetTrends do
     high = Float.ceil(Enum.max(percents) * 2) / 2
     {low, high} = if high - low < 1, do: {max(high - 1, 0.0), max(high, 1.0)}, else: {low, high}
 
-    ys = Enum.map(percents, &(86 - (&1 - low) / (high - low) * 72))
+    bottom = @line_height - @line_bottom_padding
+    range = @line_height - @line_top_padding - @line_bottom_padding
+    ys = Enum.map(percents, &(bottom - (&1 - low) / (high - low) * range))
     path = polyline(ys, count, @narrow)
     first_x = round2(center(0, count) * @narrow)
     last_x = round2(center(count - 1, count) * @narrow)

@@ -258,7 +258,7 @@ defmodule NervesHub.InsightsTest do
     test "ignores a version with fewer than ten devices" do
       composition = composition_of([{"2.0.0", 100, healthy: 95, warning: 5}, {"1.0.0", 9, unhealthy: 9}])
 
-      assert %{kind: :even, fleet_rate: fleet_rate, not_healthy: 14} = Insights.stands_out(composition)
+      assert %{kind: :even, fleet_rate: fleet_rate, not_healthy: 14, min_devices: 10} = Insights.stands_out(composition)
       assert_in_delta fleet_rate, 14 / 109, 0.0001
     end
 

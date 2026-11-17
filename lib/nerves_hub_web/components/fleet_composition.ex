@@ -70,10 +70,16 @@ defmodule NervesHubWeb.Components.FleetComposition do
           </div>
         </div>
         <div id="composition-unit" role="group" aria-label="Show the fleet composition as" class="mb-0.75 flex shrink-0 overflow-hidden rounded-md border border-line-control @min-[640px]:mb-0">
-          <.unit_segment unit={:count} selected={@unit}>Count</.unit_segment>
-          <.unit_segment unit={:percent} selected={@unit} aria-label="Percent" class="border-l border-line-control">
+          <.segment phx-click="set-composition-unit" phx-value-unit="count" selected={@unit == :count} class="py-1.25 @min-[640px]:px-3 @min-[640px]:py-1.5 @min-[640px]:text-ui/4.5">Count</.segment>
+          <.segment
+            phx-click="set-composition-unit"
+            phx-value-unit="percent"
+            selected={@unit == :percent}
+            aria-label="Percent"
+            class="py-1.25 @min-[640px]:px-3 @min-[640px]:py-1.5 @min-[640px]:text-ui/4.5"
+          >
             <span aria-hidden="true" class="@min-[640px]:hidden">%</span><span aria-hidden="true" class="hidden @min-[640px]:inline">Percent</span>
-          </.unit_segment>
+          </.segment>
         </div>
       </div>
 
@@ -98,21 +104,25 @@ defmodule NervesHubWeb.Components.FleetComposition do
     """
   end
 
-  attr(:unit, :atom, required: true)
-  attr(:selected, :atom, required: true)
-  attr(:class, :any, default: nil)
-  attr(:rest, :global)
+  attr(:selected, :boolean, required: true)
+  attr(:class, :any, default: nil, doc: "sizes the button for its control")
+  attr(:rest, :global, include: ~w(value))
   slot(:inner_block, required: true)
 
-  defp unit_segment(assigns) do
+  @doc """
+  One button of the bordered segmented controls on the Insights page: the
+  composition's Count and Percent, and the trends' period and adoption view.
+
+  Every button after the first draws the rule between it and the one before.
+  `phx-click` and its value go on the button.
+  """
+  def segment(assigns) do
     ~H"""
     <button
       type="button"
-      phx-click="set-composition-unit"
-      phx-value-unit={@unit}
-      aria-pressed={to_string(@unit == @selected)}
+      aria-pressed={to_string(@selected)}
       class={[
-        "cursor-pointer px-2.5 py-1.25 text-xs text-content-muted hover:text-content-strong @min-[640px]:px-3 @min-[640px]:py-1.5 @min-[640px]:text-ui/4.5",
+        "flex cursor-pointer items-center justify-center gap-1.5 px-2.5 text-xs text-content-muted not-first:border-l not-first:border-line-control hover:text-content-strong",
         "focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-focus-ring",
         "aria-pressed:bg-surface-muted aria-pressed:font-medium aria-pressed:text-content-strong",
         @class
@@ -592,15 +602,19 @@ defmodule NervesHubWeb.Components.FleetComposition do
         scale: scale,
         close: Enum.all?(rates, &(abs(&1 - fleet_rate) <= 0.01)),
         not_healthy: assigns.stands_out.not_healthy,
+        min_devices: assigns.stands_out.min_devices,
         href: devices_href(assigns.devices_path, advanced_query: @not_healthy)
       )
 
     ~H"""
     <.stands_out_card id="stands-out" accent="border-l-line-control" label="Stands out" label_class="text-content-faint">
       <:headline>Nothing stands out.</:headline>
-      {if @close, do: "Every version is within a point of", else: "No version is twice"} the fleet's {percent(@fleet_rate)} not healthy, so the {delimited(@not_healthy)} {if @not_healthy == 1,
-        do: "device that needs a look isn't",
-        else: "devices that need a look aren't"} tied to one firmware.
+      {if @close, do: "Every version is within a point of", else: "No version of #{@min_devices} or more devices is twice"} the fleet's {percent(@fleet_rate)} not healthy, so the {delimited(@not_healthy)} {if @not_healthy ==
+                                                                                                                                                                                                                   1,
+                                                                                                                                                                                                                 do:
+                                                                                                                                                                                                                   "device that needs a look isn't",
+                                                                                                                                                                                                                 else:
+                                                                                                                                                                                                                   "devices that need a look aren't"} tied to one firmware.
       <:extra>
         <div class="flex flex-col gap-2 pt-0.5">
           <div :for={{row, index} <- @rows} class="flex items-center gap-2.5">
