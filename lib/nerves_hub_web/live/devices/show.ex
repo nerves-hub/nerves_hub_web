@@ -118,7 +118,6 @@ defmodule NervesHubWeb.Live.Devices.Show do
     |> assign(:device, device)
     |> assign(:device_connection, device.latest_connection)
     |> load_inprogress_firmware_update()
-    |> assign(:update_information, Updates.resolve_update(device))
     |> then(fn socket ->
       if(payload.status == "online", do: clear_flash(socket), else: socket)
     end)
