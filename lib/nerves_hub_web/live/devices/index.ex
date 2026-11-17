@@ -137,6 +137,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
     |> assign(:awaiting_first_device?, false)
     |> assign(:filter_find, "")
     |> assign(:facets, %{})
+    |> assign(:facets_for, nil)
     |> refresh_device_list_timer()
     |> ok()
   end
@@ -161,7 +162,6 @@ defmodule NervesHubWeb.Live.Devices.Index do
     |> assign_display_devices()
     |> maybe_assign_available_deployment_groups_for_filtered_platform()
     |> assign_filter_data()
-    |> assign_facets()
     |> noreply()
   end
 
@@ -1033,13 +1033,18 @@ defmodule NervesHubWeb.Live.Devices.Index do
 
   # How many devices each choice in the Filters panel would give, alongside the
   # other filters. Only counted while the panel is open, and the firmware
-  # versions and alarms it lists have loaded.
+  # versions and alarms it lists have loaded. A filter change counts them once
+  # its list has arrived (`recount_facets/1`), not alongside it: the list is
+  # what someone is waiting for, and a list superseded by another change never
+  # starts its counts.
   defp assign_facets(%{assigns: %{filters_open?: true, filters_ready?: true, current_scope: scope} = assigns} = socket) do
     key = facets_key(assigns)
     opts = %{filters: DeviceFiltering.transform_deployment_filter(assigns.current_filters)}
     facets = DeviceFilters.facets(assigns.current_filters, assigns.firmware_versions, assigns.current_alarms)
 
-    start_async(socket, :load_facets, fn ->
+    socket
+    |> assign(:facets_for, key)
+    |> start_async(:load_facets, fn ->
       {key, Devices.facet_counts(scope.product, scope.user, opts, facets)}
     end)
   end
@@ -1047,6 +1052,12 @@ defmodule NervesHubWeb.Live.Devices.Index do
   defp assign_facets(socket), do: socket
 
   defp facets_key(assigns), do: :erlang.phash2(assigns.current_filters)
+
+  # Counts the facets for the filters the list now shows, unless they're
+  # already counted (or being counted), as they are after a refresh.
+  defp recount_facets(%{assigns: assigns} = socket) do
+    if assigns.facets_for == facets_key(assigns), do: socket, else: assign_facets(socket)
+  end
 
   defp apply_advanced_query(%{assigns: %{paginate_opts: paginate_opts}} = socket, query) do
     page_params = %{"page_number" => @default_page, "page_size" => paginate_opts.page_size}
@@ -1160,6 +1171,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
     |> assign(:list_loading?, false)
     |> device_pagination_assigns(paginate_opts, pager)
     |> assign_no_match_suggestions(updated_devices)
+    |> recount_facets()
     |> await_first_device(product_count)
     |> then(fn socket ->
       progress =

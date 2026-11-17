@@ -742,9 +742,10 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       |> assert_has("div a", text: device2.identifier)
       |> refute_has("div a", text: device.identifier)
       |> choose("Below")
-      # device's latest reading is 30, even though device2 reported later.
-      |> assert_has("#device-count", text: "1", timeout: 1_000)
-      |> assert_has("div a", text: device.identifier)
+      # device's latest reading is 30, even though device2 reported later. The
+      # count is 1 either side of the change, so wait on the device instead.
+      |> assert_has("div a", text: device.identifier, timeout: 1_000)
+      |> assert_has("#device-count", text: "1")
       |> refute_has("div a", text: device2.identifier)
     end
 
@@ -1142,6 +1143,18 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       |> assert_has("#filter-connection label", text: "Offline 1")
       |> assert_has("#filter-connection label", text: "Online 2")
       |> assert_has("#filters-total", text: "2 of 3 devices")
+    end
+
+    test "recounts each choice once a filter changes the list", %{conn: conn, fixture: fixture} do
+      conn
+      |> visit(device_index_path(fixture))
+      |> open_filters()
+      |> assert_has("#filter-health_status label", text: "Unknown 1", timeout: 1000)
+      |> pick("connection", "connected", "Online")
+      |> assert_has("#device-count", text: "2", timeout: 1000)
+      # the offline device that never reported its health is filtered out
+      |> assert_has("#filter-health_status label", text: "Unknown 0", timeout: 1000)
+      |> assert_has("#filter-health_status label", text: "Unhealthy 1")
     end
 
     test "lists only the versions a device the other filters allow is running", context do
