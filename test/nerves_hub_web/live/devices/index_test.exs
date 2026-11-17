@@ -1205,11 +1205,10 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       assert length(state.socket.assigns.devices.result) == 1
       assert Enum.empty?(state.socket.assigns.selected_devices)
 
-      assert render_click(view, :select, %{id: "#{device.id}"}) =~
-               "Sorry, you don't have the required role" |> Phoenix.HTML.html_escape() |> Phoenix.HTML.safe_to_string()
+      Process.flag(:trap_exit, true)
 
-      state = :sys.get_state(view.pid)
-      assert Enum.empty?(state.socket.assigns.selected_devices)
+      assert {{%NervesHubWeb.UnauthorizedError{}, _}, _} =
+               catch_exit(render_click(view, :select, %{id: "#{device.id}"}))
     end
 
     test "users with the :view role cannot select all devices", %{
@@ -1231,11 +1230,9 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       assert length(state.socket.assigns.devices.result) == 1
       assert Enum.empty?(state.socket.assigns.selected_devices)
 
-      assert render_click(view, "select-all") =~
-               "Sorry, you don't have the required role" |> Phoenix.HTML.html_escape() |> Phoenix.HTML.safe_to_string()
+      Process.flag(:trap_exit, true)
 
-      state = :sys.get_state(view.pid)
-      assert Enum.empty?(state.socket.assigns.selected_devices)
+      assert {{%NervesHubWeb.UnauthorizedError{}, _}, _} = catch_exit(render_click(view, "select-all"))
     end
 
     test "users with the :view role have the select checkboxs disabled", %{conn: conn, fixture: fixture} do
@@ -1373,13 +1370,10 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       state = :sys.get_state(view.pid)
       assert is_nil(state.socket.assigns.target_product)
 
-      assert render_click(view, "target-product", %{
-               "product_id" => "#{product.id}"
-             }) =~
-               "Sorry, you don't have the required role" |> Phoenix.HTML.html_escape() |> Phoenix.HTML.safe_to_string()
+      Process.flag(:trap_exit, true)
 
-      state = :sys.get_state(view.pid)
-      assert is_nil(state.socket.assigns.target_product)
+      assert {{%NervesHubWeb.UnauthorizedError{}, _}, _} =
+               catch_exit(render_click(view, "target-product", %{"product_id" => "#{product.id}"}))
     end
 
     test "changes tags", %{conn: conn, fixture: fixture} do
@@ -1470,8 +1464,10 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
 
       render_async(view, 300)
 
-      assert render_click(view, "tag-devices", %{"tags" => ["Boop"]}) =~
-               "Sorry, you don't have the required role" |> Phoenix.HTML.html_escape() |> Phoenix.HTML.safe_to_string()
+      Process.flag(:trap_exit, true)
+
+      assert {{%NervesHubWeb.UnauthorizedError{}, _}, _} =
+               catch_exit(render_click(view, "tag-devices", %{"tags" => ["Boop"]}))
     end
 
     test "users with the :view role cannot select a deployment group", %{conn: conn, fixture: fixture} do
@@ -1486,8 +1482,10 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
 
       render_async(view, 300)
 
-      assert render_click(view, "target-deployment-group", %{"deployment_group" => ["1"]}) =~
-               "Sorry, you don't have the required role" |> Phoenix.HTML.html_escape() |> Phoenix.HTML.safe_to_string()
+      Process.flag(:trap_exit, true)
+
+      assert {{%NervesHubWeb.UnauthorizedError{}, _}, _} =
+               catch_exit(render_click(view, "target-deployment-group", %{"deployment_group" => ["1"]}))
     end
 
     test "users with the :view role cannot move devices to another product", %{conn: conn, fixture: fixture} do
@@ -1502,8 +1500,10 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
 
       render_async(view, 300)
 
-      assert render_click(view, "move-devices-product", %{"deployment_group" => ["1"]}) =~
-               "Sorry, you don't have the required role" |> Phoenix.HTML.html_escape() |> Phoenix.HTML.safe_to_string()
+      Process.flag(:trap_exit, true)
+
+      assert {{%NervesHubWeb.UnauthorizedError{}, _}, _} =
+               catch_exit(render_click(view, "move-devices-product", %{"deployment_group" => ["1"]}))
     end
 
     test "add multiple devices to deployment",

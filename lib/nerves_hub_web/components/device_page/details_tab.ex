@@ -219,10 +219,9 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
     """
   end
 
+  @decorate requires_permission(:"device:toggle-updates")
   def hooked_event("set-update-mode", %{"mode" => mode}, socket) do
     %{current_scope: scope, device: device} = socket.assigns
-
-    authorized!(:"device:toggle-updates", scope)
 
     mode = String.to_existing_atom(mode)
 
@@ -244,9 +243,8 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
     end
   end
 
+  @decorate requires_permission(:"device:update")
   def hooked_event("clear-manual-location-information", _, socket) do
-    authorized!(:"device:update", socket.assigns.current_scope)
-
     {:ok, device} =
       Devices.update_device(socket.assigns.device, %{
         custom_location_coordinates: nil
@@ -258,6 +256,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
     |> halt()
   end
 
+  @decorate requires_membership()
   def hooked_event("enable-location-editor", _, socket) do
     socket
     |> assign(:enable_location_editor, true)
@@ -265,6 +264,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
     |> halt()
   end
 
+  @decorate requires_membership()
   def hooked_event("discard-location-changes", _, socket) do
     socket
     |> assign(:enable_location_editor, false)
@@ -273,6 +273,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
 
   # Sent by the location box's map style menu. An empty style goes back to
   # following the theme.
+  @decorate requires_membership()
   def hooked_event("set-map-style", %{"style" => style}, socket) do
     %{user: user, current_scope: scope} = socket.assigns
 
@@ -290,15 +291,15 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
     end
   end
 
+  @decorate requires_membership()
   def hooked_event("update-device-location", latlng, socket) do
     socket
     |> assign(:buffer_custom_location, latlng)
     |> halt()
   end
 
+  @decorate requires_permission(:"device:update")
   def hooked_event("save-location-changes", _, socket) do
-    authorized!(:"device:update", socket.assigns.current_scope)
-
     {:ok, device} =
       Devices.update_device(socket.assigns.device, %{
         custom_location_coordinates: [
@@ -314,16 +315,16 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
     |> halt()
   end
 
+  @decorate requires_membership()
   def hooked_event("set-deployment-group", %{"deployment_id" => ""}, socket) do
     socket
     |> put_flash(:error, "Please select a deployment group.")
     |> halt()
   end
 
+  @decorate requires_permission(:"device:set-deployment-group")
   def hooked_event("set-deployment-group", %{"deployment_id" => deployment_id}, socket) do
     %{user: user, device: device, deployment_groups: deployment_groups} = socket.assigns
-
-    authorized!(:"device:set-deployment-group", socket.assigns.current_scope)
 
     deployment = Enum.find(deployment_groups, &(&1.id == String.to_integer(deployment_id)))
     device = Deployments.update_deployment_group(device, deployment)
@@ -337,9 +338,8 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
     |> halt()
   end
 
+  @decorate requires_permission(:"device:push-update")
   def hooked_event("push-available-update", _, socket) do
-    authorized!(:"device:push-update", socket.assigns.current_scope)
-
     %{device: device, user: user} = socket.assigns
 
     case DeviceEvents.schedule_update(device.id, device.deployment_group, user: user) do
@@ -353,11 +353,13 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
     end
   end
 
+  @decorate requires_membership()
   def hooked_event("select-firmware-version", %{"uuid" => ""}, socket) do
     socket
     |> halt()
   end
 
+  @decorate requires_membership()
   def hooked_event("select-firmware-version", %{"uuid" => uuid}, socket) do
     %{product: product, device: device} = socket.assigns
 
@@ -376,15 +378,15 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
     end
   end
 
+  @decorate requires_membership()
   def hooked_event("push-update", %{"uuid" => uuid}, socket) when uuid == "" do
     socket
     |> put_flash(:error, "Please select a firmware version to send to the device.")
     |> halt()
   end
 
+  @decorate requires_permission(:"device:push-update")
   def hooked_event("push-update", %{"uuid" => uuid}, socket) do
-    authorized!(:"device:push-update", socket.assigns.current_scope)
-
     %{product: product, device: device, user: user, org: org} = socket.assigns
 
     case Firmwares.get_firmware_by_product_and_uuid(product, uuid) do
@@ -417,15 +419,15 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
     end
   end
 
+  @decorate requires_membership()
   def hooked_event("push-delta", %{"uuid" => uuid}, socket) when uuid == "" do
     socket
     |> put_flash(:error, "Please select a firmware version to send to the device.")
     |> halt()
   end
 
+  @decorate requires_permission(:"device:push-update")
   def hooked_event("push-delta", %{"uuid" => uuid}, socket) do
-    authorized!(:"device:push-update", socket.assigns.current_scope)
-
     %{product: product, device: device, user: user, org: org} = socket.assigns
 
     case Firmwares.get_firmware_by_product_and_uuid(product, uuid) do
@@ -460,9 +462,8 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
     end
   end
 
+  @decorate requires_permission(:"device:set-deployment-group")
   def hooked_event("remove-from-deployment-group", _, %{assigns: %{device: device}} = socket) do
-    authorized!(:"device:set-deployment-group", socket.assigns.current_scope)
-
     device = Deployments.clear_deployment_group(device)
 
     send(self(), :reload_device)
@@ -473,12 +474,14 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
     |> halt()
   end
 
+  @decorate requires_membership()
   def hooked_event("select-script", %{"script_id" => ""}, socket) do
     socket
     |> assign(:selected_support_script, nil)
     |> halt()
   end
 
+  @decorate requires_membership()
   def hooked_event("select-script", %{"script_id" => id}, %{assigns: %{support_scripts: scripts}} = socket) do
     script = Enum.find(scripts, fn script -> script.id == String.to_integer(id) end)
 
@@ -487,10 +490,9 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
     |> halt()
   end
 
+  @decorate requires_permission(:"support_script:run")
   def hooked_event("run-script", _params, socket) do
-    %{assigns: %{device: device, selected_support_script: script, current_scope: scope}} = socket
-
-    authorized!(:"support_script:run", scope)
+    %{assigns: %{device: device, selected_support_script: script}} = socket
 
     socket
     |> start_async(:run_script, fn -> Scripts.Runner.send(device, script) end)
@@ -500,6 +502,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
     |> halt()
   end
 
+  @decorate requires_membership()
   def hooked_event("clear-script-output", _params, socket) do
     socket
     |> assign(:support_script_running, false)
@@ -508,9 +511,8 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
     |> halt()
   end
 
+  @decorate requires_permission(:"device:tags")
   def hooked_event("add-tag", %{"tag" => tag}, socket) do
-    authorized!(:"device:tags", socket.assigns.current_scope)
-
     Devices.add_tag(socket.assigns.device, socket.assigns.user, tag)
     |> case do
       {:ok, device} ->
@@ -527,9 +529,8 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
     end
   end
 
+  @decorate requires_permission(:"device:tags")
   def hooked_event("remove-tag", %{"tag" => tag}, socket) do
-    authorized!(:"device:tags", socket.assigns.current_scope)
-
     Devices.remove_tag(socket.assigns.device, socket.assigns.user, tag)
     |> case do
       {:ok, device} ->
@@ -548,6 +549,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
 
   # Sent by the DeviceDetailsLayout hook after a box is dropped, with each
   # column's boxes top to bottom as they now appear on the page.
+  @decorate requires_membership()
   def hooked_event("arrange-device-details", %{"left" => left, "right" => right}, socket)
       when is_list(left) and is_list(right) do
     %{user: user, product: product, device: device, current_scope: scope} = socket.assigns
@@ -570,6 +572,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
     end
   end
 
+  @decorate requires_membership()
   def hooked_event(_event, _params, socket), do: {:cont, socket}
 
   def hooked_info(:platform_or_architecture_updated, %{assigns: %{device: device}} = socket) do

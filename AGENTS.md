@@ -82,7 +82,9 @@ when adding or removing one.
   unknown permission raises rather than quietly denying. Controllers check the
   same permissions with `plug(:require_permission, :"firmware:upload" when
   action in [:create])`, and read-only actions with `plug(:require_membership)`
-  (`helpers/permission_plugs.ex`).
+  (`helpers/permission_plugs.ex`). Every action and LiveView callback has to
+  declare its check or it won't compile; see **Authorization** under
+  [Conventions](#conventions).
 - Two-factor authentication (`accounts/two_factor.ex`) is optional per user:
   an authenticator app (TOTP, through NimbleTOTP) plus ten single-use
   recovery codes. Its secret is encrypted with `Types.Encrypted`, so it is
@@ -285,6 +287,27 @@ when adding or removing one.
 - **Boundaries:** contexts (`lib/nerves_hub/`) hold business logic; web modules
   stay thin and call into them. Match the surrounding module's conventions,
   error handling, and naming rather than importing your own.
+- **Authorization** is declared, so forgetting it fails the build. A browser
+  can send a LiveView any event, shown on the page or not, so every clause of
+  a LiveView's `mount/3`, `handle_params/3`, `handle_event/3` and
+  `handle_progress/3`, a LiveComponent's `handle_event/3`, and a device tab's
+  `hooked_event/3` carries a decorator (`NervesHubWeb.AuthorizationDeclared`):
+  - `@decorate requires_permission(:"device:update")` for anything that needs
+    a permission. It checks before the body runs, so don't also call
+    `authorized!/2` at the top of the body.
+  - `@decorate requires_membership()` for what any member may do on an
+    organization's pages: reading, paging, filtering, opening a form.
+  - `@decorate requires_no_permission()` outside any organization, or for a
+    clause that only passes the event on.
+  - `@decorate authorizes_in_body(:reason)` when the permission depends on
+    what the body loads or on the params. The body must then call
+    `authorized!/2` itself.
+
+  Every controller action is covered the same way by a plug
+  (`NervesHubWeb.ControllerAuthorizationDeclared`): `require_permission`,
+  `require_membership`, or `plug(:require_no_permission, :reason)` for
+  sign-in pages and requests that prove themselves (a Slack signature). A
+  refusal raises `NervesHubWeb.UnauthorizedError` everywhere.
 - Never weaken a test, disable a lint, or add a suppression to get green — if
   you're blocked, say so.
 

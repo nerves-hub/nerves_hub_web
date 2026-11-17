@@ -10,6 +10,19 @@ defmodule NervesHubWeb.SessionController do
   alias NervesHubWeb.Helpers.ClientIP
   alias NervesHubWeb.Plugs.Attack
 
+  plug(
+    :require_no_permission,
+    :signs_the_user_in when action in [:new, :create, :confirm, :cli, :cli_code, :cli_confirm, :cli_confirmed]
+  )
+
+  # The second step of a password sign-in. `fetch_pending_two_factor_user`
+  # turns away anyone who didn't pass the first.
+  plug(
+    :require_no_permission,
+    :finishes_a_password_sign_in when action in [:two_factor, :verify_two_factor, :cancel_two_factor]
+  )
+
+  plug(:require_no_permission, :signs_the_user_out when action in [:delete])
   plug(:limit_cli_code_attempts when action in [:cli_code, :cli_confirm])
   plug(:fetch_pending_two_factor_user when action in [:two_factor, :verify_two_factor])
   plug(:limit_two_factor_attempts when action in [:verify_two_factor])

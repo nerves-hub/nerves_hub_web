@@ -17,11 +17,13 @@ defmodule NervesHubWeb.Live.Org.CertificateAuthorities do
   embed_templates("certificate_authority_templates/*")
 
   @impl Phoenix.LiveView
+  @decorate requires_membership()
   def mount(_params, _session, socket) do
     {:ok, socket}
   end
 
   @impl Phoenix.LiveView
+  @decorate requires_membership()
   def handle_params(params, _url, socket) do
     socket
     |> assign(:org, socket.assigns.current_scope.org)
@@ -98,9 +100,8 @@ defmodule NervesHubWeb.Live.Org.CertificateAuthorities do
   end
 
   @impl Phoenix.LiveView
+  @decorate requires_permission(:"certificate_authority:delete")
   def handle_event("delete-certificate-authority", %{"certificate_serial" => serial}, socket) do
-    authorized!(:"certificate_authority:delete", socket.assigns.current_scope)
-
     with {:ok, ca_certificate} <-
            CACertificates.get_ca_certificate_by_org_and_serial(socket.assigns.org, serial),
          {:ok, _ca_certificate} <- CACertificates.delete_ca_certificate(ca_certificate) do
@@ -119,9 +120,8 @@ defmodule NervesHubWeb.Live.Org.CertificateAuthorities do
     end
   end
 
+  @decorate requires_permission(:"certificate_authority:update")
   def handle_event("update_certificate_authority", %{"ca_certificate" => ca_certificate}, socket) do
-    authorized!(:"certificate_authority:update", socket.assigns.current_scope)
-
     with {:ok, cert} <-
            CACertificates.get_ca_certificate_by_org_and_serial(socket.assigns.org, socket.assigns.serial),
          {:ok, params} <- maybe_delete_jitp(ca_certificate),
@@ -145,13 +145,13 @@ defmodule NervesHubWeb.Live.Org.CertificateAuthorities do
     end
   end
 
+  @decorate requires_membership()
   def handle_event("validate_new_certificate_authority", _params, socket) do
     {:noreply, socket}
   end
 
+  @decorate requires_permission(:"certificate_authority:create")
   def handle_event("add_certificate_authority", %{"ca_certificate" => params}, socket) do
-    authorized!(:"certificate_authority:create", socket.assigns.current_scope)
-
     socket = set_show_jitp_form(socket, params)
 
     org = socket.assigns.current_scope.org
