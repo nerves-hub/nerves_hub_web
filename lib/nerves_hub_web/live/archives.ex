@@ -164,18 +164,29 @@ defmodule NervesHubWeb.Live.Archives do
         |> after_delete(scope)
         |> noreply()
 
-      # A release started using it between the dialog opening and the click,
-      # so the dialog swaps its button for the reason.
-      {:error, %Ecto.Changeset{}} ->
-        blocked_by = release_groups(product, archive)
+      {:error, _} ->
+        socket
+        |> delete_failed(product, archive)
+        |> noreply()
+    end
+  end
 
+  # A release that started using the archive between the dialog opening and
+  # the click is the usual reason, and the dialog swaps its button for it. Any
+  # other failure, such as the file's cleanup job not being queued, leaves the
+  # dialog as it was so the delete can be tried again.
+  defp delete_failed(socket, product, archive) do
+    case release_groups(product, archive) do
+      [] ->
+        put_flash(socket, :error, "#{archive_name(archive)} #{archive.version} couldn’t be deleted. Try again.")
+
+      blocked_by ->
         socket
         |> update(:deleting, fn
           nil -> nil
           deleting -> %{deleting | blocked_by: blocked_by}
         end)
         |> put_flash(:error, blocked_message(blocked_by))
-        |> noreply()
     end
   end
 
@@ -316,7 +327,8 @@ defmodule NervesHubWeb.Live.Archives do
       title: "Bad signature",
       tone: :alert,
       message:
-        "It isn’t signed with any of #{scope.org.name}’s signing keys. Sign it with one of them, or add the key it was signed with.",
+        "It’s corrupt, or isn’t signed with any of #{scope.org.name}’s signing keys. " <>
+          "Check the file, sign it with one of them, or add the key it was signed with.",
       action: {"Signing keys", ~p"/org/#{scope.org}/settings/keys"}
     }
   end
@@ -401,7 +413,7 @@ defmodule NervesHubWeb.Live.Archives do
   end
 
   defp empty_tab_message(:delivered), do: "No deployment group’s current release includes an archive."
-  defp empty_tab_message(:not_delivered), do: "Every archive is in a current release"
+  defp empty_tab_message(:not_delivered), do: "Every archive is in a current release."
   defp empty_tab_message(_tab), do: "This product has no archives."
 
   # What the archive is called: its description, which is where fwup keeps a

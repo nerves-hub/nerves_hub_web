@@ -186,6 +186,27 @@ defmodule NervesHubWeb.Live.ArchivesTest do
       |> assert_has("#archive-#{other.uuid}")
     end
 
+    test "a delete that fails for another reason can be tried again", %{
+      conn: conn,
+      user: user,
+      org: org,
+      tmp_dir: tmp_dir
+    } do
+      product = Fixtures.product_fixture(user, org)
+      org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
+      archive = Fixtures.archive_fixture(org_key, product, %{dir: tmp_dir})
+
+      stub(Archives, :delete_archive, fn _archive -> {:error, Ecto.Changeset.change(archive)} end)
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/archives")
+      |> click_button("#archive-#{archive.uuid} [role='menuitem']", "Delete…")
+      |> within("#delete-archive-dialog", &click_button(&1, "Delete archive"))
+      |> assert_has("div", text: "Manifest #{archive.version} couldn’t be deleted. Try again.")
+      |> assert_has("#delete-archive-dialog button", text: "Delete archive")
+      |> assert_has("#archive-#{archive.uuid}")
+    end
+
     test "cancelling leaves the archive alone", %{conn: conn, user: user, org: org, tmp_dir: tmp_dir} do
       product = Fixtures.product_fixture(user, org)
       org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
@@ -319,7 +340,9 @@ defmodule NervesHubWeb.Live.ArchivesTest do
       |> visit("/org/#{org.name}/#{product.name}/archives")
       |> upload("Upload archive", corrupt_archive_path)
       |> assert_has("[id^='upload-failure-']", text: "Bad signature")
-      |> assert_has("[id^='upload-failure-']", text: "It isn’t signed with any of #{org.name}’s signing keys.")
+      |> assert_has("[id^='upload-failure-']",
+        text: "It’s corrupt, or isn’t signed with any of #{org.name}’s signing keys."
+      )
       |> assert_has("[id^='upload-failure-'] a", text: "Signing keys")
     end
 

@@ -217,8 +217,8 @@ defmodule NervesHub.Archives do
 
     %{
       groups: groups,
-      gets_it_now: groups |> Enum.map(& &1.gets_it) |> Enum.sum(),
-      gets_it_after_updating: groups |> Enum.map(&(&1.devices - &1.gets_it)) |> Enum.sum()
+      gets_it_now: Enum.sum_by(groups, & &1.gets_it),
+      gets_it_after_updating: Enum.sum_by(groups, &(&1.devices - &1.gets_it))
     }
   end
 
