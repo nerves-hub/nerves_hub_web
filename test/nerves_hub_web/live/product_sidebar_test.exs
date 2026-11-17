@@ -6,10 +6,12 @@ defmodule NervesHubWeb.ProductSidebarTest do
 
   alias NervesHub.Accounts
   alias NervesHub.Devices.Health
+  alias NervesHub.ErrorReports.ErrorGroup
   alias NervesHub.Fixtures
   alias NervesHub.ManagedDeployments
   alias NervesHub.ManagedDeployments.Workflows
   alias NervesHub.Products.Notification
+  alias NervesHub.Products.Product
   alias NervesHub.Repo
 
   defp visit_product(conn, org, product), do: visit(conn, "/org/#{org.name}/#{product.name}/notifications")
@@ -141,6 +143,23 @@ defmodule NervesHubWeb.ProductSidebarTest do
         |> assert_has("a[href='/org/Elsewhere']", text: "Elsewhere")
         |> assert_has("a[href='/org/#{org.name}/new']", text: "New product")
       end)
+    end
+
+    test "colours a product's line as an alert when it has open errors, even if its devices only warn", context do
+      %{conn: conn, org: org, product: product, device: device} = context
+      {:ok, _} = Health.save_device_health(%{device_id: device.id, status: :warning})
+      product = product |> Product.changeset(%{"extensions" => %{"error_reports" => true}}) |> Repo.update!()
+      now = DateTime.utc_now()
+
+      %{product_id: product.id, fingerprint: "f1", fingerprint_version: 1, kind: "error", reason: "boom"}
+      |> Map.merge(%{first_seen_at: now, last_seen_at: now})
+      |> ErrorGroup.create_changeset()
+      |> Repo.insert!()
+
+      conn
+      |> visit_product(org, product)
+      |> click_button("#product-switcher-toggle", product.name)
+      |> assert_has("#product-switcher a[aria-current='page'] .text-alert-content", text: "1 warning · 1 open error")
     end
 
     test "finds a product by name", %{conn: conn, user: user, org: org, product: product} do

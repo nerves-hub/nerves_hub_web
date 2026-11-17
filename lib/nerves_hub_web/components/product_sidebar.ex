@@ -1,11 +1,10 @@
 defmodule NervesHubWeb.Components.ProductSidebar do
   @moduledoc """
-  The product half of the sidebar on a product's pages: the product's name and
-  how many of its devices are online, the product switcher, and the links to
-  the product's pages.
+  The product half of a product page's sidebar: its header, switcher and page links.
 
-  Each link can carry what needs looking at on its page, so the sidebar doubles
-  as the product's status board:
+  The header names the organization and the product and counts the devices
+  online. Each link can carry what needs looking at on its page, so the sidebar
+  doubles as the product's status board:
 
     * Devices: how many devices report unhealthy, or failing that, a warning
     * Deployment groups: how many there are, and a release waiting for approval
@@ -16,9 +15,10 @@ defmodule NervesHubWeb.Components.ProductSidebar do
   collapses to a rail, a dot or a count on the icon stands in for the line, and
   a tooltip spells it out.
 
-  The figures are counted when the component mounts, on the same render as
-  the page, so the links don't shift as they arrive. The switcher's figures,
-  for every product in the organization, are counted only when it opens.
+  The figures are counted when the product changes, on the same render as the
+  page, so the links don't shift as they arrive, and they don't update live.
+  The switcher's figures, for every product in the organization, are counted
+  only when it opens.
 
   A member who sees only some devices gets none of the product-wide pages, so
   none of their figures either, except the online count, which counts only the
@@ -52,7 +52,6 @@ defmodule NervesHubWeb.Components.ProductSidebar do
     |> assign_new(:switcher_open, fn -> false end)
     |> assign_new(:switcher, fn -> nil end)
     |> assign_new(:query, fn -> "" end)
-    |> assign(:scope, assigns.current_scope)
     |> then(fn socket ->
       if product_changed?, do: assign(socket, :status, load_status(assigns.current_scope)), else: socket
     end)
@@ -198,9 +197,9 @@ defmodule NervesHubWeb.Components.ProductSidebar do
   end
 
   # A switcher row's line: its health, then its open errors, in the colour of
-  # the worse of the two.
-  # A member who sees only some devices gets no line: none of them in a product
-  # doesn't mean the product has none.
+  # the worse of the two, where open errors count as an alert. A member who sees
+  # only some devices gets no line, since seeing none of a product's devices
+  # doesn't mean it has none.
   defp product_line(_row, false), do: nil
   defp product_line(%{online: {0, 0}}, true), do: {:none, "No devices yet"}
 
@@ -212,7 +211,7 @@ defmodule NervesHubWeb.Components.ProductSidebar do
       {nil, nil} -> {:none, "Not reported"}
       {nil, errors} -> {:alert, errors}
       {{tone, text}, nil} -> {tone, text}
-      {{tone, text}, errors} -> {tone, "#{text} · #{errors}"}
+      {{_tone, text}, errors} -> {:alert, "#{text} · #{errors}"}
     end
   end
 
@@ -250,17 +249,17 @@ defmodule NervesHubWeb.Components.ProductSidebar do
   def render(assigns) do
     ~H"""
     <div id={@id} class="relative flex min-h-0 flex-col" data-attention={@attention}>
-      <.product_header scope={@scope} status={@status} myself={@myself} switcher_open={@switcher_open} />
+      <.product_header scope={@current_scope} status={@status} myself={@myself} switcher_open={@switcher_open} />
 
-      <.switcher :if={@switcher_open && @switcher} scope={@scope} switcher={@switcher} query={@query} myself={@myself} />
+      <.switcher :if={@switcher_open && @switcher} scope={@current_scope} switcher={@switcher} query={@query} myself={@myself} />
 
-      <nav id="navigation" aria-label={"#{@scope.product.name} pages"} class="flex grow flex-col py-2">
+      <nav id="navigation" aria-label={"#{@current_scope.product.name} pages"} class="flex grow flex-col py-2">
         <ul role="list" class="flex flex-col">
           <.nav_link
             :if={@status.every_device?}
             id="nav-insights"
             label="Insights"
-            path={~p"/org/#{@scope.org}/#{@scope.product}/insights"}
+            path={~p"/org/#{@current_scope.org}/#{@current_scope.product}/insights"}
             selected={@selected_tab == :insights}
             icon="lucide-activity"
             selected_icon="lucide-activity--bold"
@@ -268,7 +267,7 @@ defmodule NervesHubWeb.Components.ProductSidebar do
           <.nav_link
             id="nav-devices"
             label="Devices"
-            path={~p"/org/#{@scope.org}/#{@scope.product}/devices"}
+            path={~p"/org/#{@current_scope.org}/#{@current_scope.product}/devices"}
             selected={@selected_tab == :devices}
             icon="lucide-cpu"
             selected_icon="lucide-cpu--bold"
@@ -278,7 +277,7 @@ defmodule NervesHubWeb.Components.ProductSidebar do
             :if={@status.every_device?}
             id="nav-deployment-groups"
             label="Deployment groups"
-            path={~p"/org/#{@scope.org}/#{@scope.product}/deployment_groups"}
+            path={~p"/org/#{@current_scope.org}/#{@current_scope.product}/deployment_groups"}
             selected={@selected_tab == :deployments}
             icon="lucide-rocket"
             selected_icon="lucide-rocket--bold"
@@ -292,7 +291,7 @@ defmodule NervesHubWeb.Components.ProductSidebar do
             :if={@status.every_device?}
             id="nav-firmware"
             label="Firmware"
-            path={~p"/org/#{@scope.org}/#{@scope.product}/firmware"}
+            path={~p"/org/#{@current_scope.org}/#{@current_scope.product}/firmware"}
             selected={@selected_tab == :firmware}
             icon="lucide-binary"
             selected_icon="lucide-binary--bold"
@@ -301,7 +300,7 @@ defmodule NervesHubWeb.Components.ProductSidebar do
             :if={@status.every_device?}
             id="nav-archives"
             label="Archives"
-            path={~p"/org/#{@scope.org}/#{@scope.product}/archives"}
+            path={~p"/org/#{@current_scope.org}/#{@current_scope.product}/archives"}
             selected={@selected_tab == :archives}
             icon="lucide-archive"
             selected_icon="lucide-archive--bold"
@@ -309,7 +308,7 @@ defmodule NervesHubWeb.Components.ProductSidebar do
           <.nav_link
             id="nav-support-scripts"
             label="Support scripts"
-            path={~p"/org/#{@scope.org}/#{@scope.product}/scripts"}
+            path={~p"/org/#{@current_scope.org}/#{@current_scope.product}/scripts"}
             selected={@selected_tab == :support_scripts}
             icon="lucide-file-code-corner"
             selected_icon="lucide-file-code-corner--bold"
@@ -319,10 +318,10 @@ defmodule NervesHubWeb.Components.ProductSidebar do
             <.divider />
 
             <.nav_link
-              :if={@scope.product.extensions.error_reports}
+              :if={@current_scope.product.extensions.error_reports}
               id="nav-errors"
               label="Errors"
-              path={~p"/org/#{@scope.org}/#{@scope.product}/errors"}
+              path={~p"/org/#{@current_scope.org}/#{@current_scope.product}/errors"}
               selected={@selected_tab == :errors}
               icon="lucide-circle-exclamation-point"
               selected_icon="lucide-circle-exclamation-point--bold"
@@ -332,7 +331,7 @@ defmodule NervesHubWeb.Components.ProductSidebar do
             <.nav_link
               id="nav-notifications"
               label="Notifications"
-              path={~p"/org/#{@scope.org}/#{@scope.product}/notifications"}
+              path={~p"/org/#{@current_scope.org}/#{@current_scope.product}/notifications"}
               selected={@selected_tab == :notifications}
               icon="lucide-bell"
               selected_icon="lucide-bell--bold"
@@ -345,7 +344,7 @@ defmodule NervesHubWeb.Components.ProductSidebar do
             <.nav_link
               id="nav-settings"
               label="Product settings"
-              path={~p"/org/#{@scope.org}/#{@scope.product}/settings"}
+              path={~p"/org/#{@current_scope.org}/#{@current_scope.product}/settings"}
               selected={@selected_tab == :settings}
               icon="lucide-settings"
               selected_icon="lucide-settings--bold"
