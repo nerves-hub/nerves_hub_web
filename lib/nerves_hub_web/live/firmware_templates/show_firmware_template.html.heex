@@ -34,7 +34,7 @@
           <p :if={@firmware.description} class="text-[15px]/5 text-content-body">{@firmware.description}</p>
         </div>
         <div class="flex flex-wrap items-center gap-2">
-          <%!-- Squarer and flatter than `<.tag>`, as in the FW-C board. --%>
+          <%!-- Squarer and flatter than `<.tag>`. --%>
           <code class="rounded-sm border border-line-default bg-surface-muted px-1.5 py-px font-mono text-xs text-content-body">{@firmware.tool}</code>
           <code class="rounded-sm border border-line-default bg-surface-muted px-1.5 py-px font-mono text-xs text-content-body">
             {@firmware.platform} · {@firmware.architecture}

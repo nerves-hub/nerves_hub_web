@@ -1077,6 +1077,10 @@ defmodule NervesHub.FirmwaresTest do
       {entries, meta} = Firmwares.list_firmware(product, %{page: "zero", page_size: "-4"})
       assert length(entries) == 2
       assert meta.page_size == 25
+
+      # The pager offers no more than 100 a page, and an edited URL gets no more.
+      {_entries, meta} = Firmwares.list_firmware(product, %{page_size: "10000000"})
+      assert meta.page_size == 100
     end
   end
 

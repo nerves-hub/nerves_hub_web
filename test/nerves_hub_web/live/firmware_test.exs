@@ -216,11 +216,38 @@ defmodule NervesHubWeb.Live.FirmwareTest do
       |> refute_has("#firmware-#{removed.uuid}")
       |> click_link("#firmware-tabs a", "Deleted")
       |> assert_path("/org/#{org.name}/#{product.name}/firmware", query_params: %{tab: "deleted"})
-      |> assert_has("#firmware-#{removed.uuid}", text: "File removed")
-      |> assert_has("#firmware-#{removed.uuid}", text: "by #{user.name}")
+      |> assert_has("#deleted-firmware-#{removed.id}", text: "File removed")
+      |> assert_has("#deleted-firmware-#{removed.id}", text: "by #{user.name}")
       # Still linked, so history does not dead-end.
-      |> assert_has("#firmware-#{removed.uuid} a[title='#{removed.uuid}']")
+      |> assert_has("#deleted-firmware-#{removed.id} a[title='#{removed.uuid}']")
       |> refute_has("#firmware-#{kept.uuid}")
+      |> refute_has("#deleted-firmware-#{kept.id}")
+    end
+
+    test "a build deleted twice has a row for each deletion on the Deleted tab", %{
+      conn: conn,
+      user: user,
+      org: org,
+      tmp_dir: tmp_dir
+    } do
+      product = Fixtures.product_fixture(user, org)
+      org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
+      firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+
+      {:ok, first} = Firmwares.delete_firmware(firmware, user)
+
+      # The same file uploaded again and deleted again: the UUID is only
+      # unique among firmware that isn't deleted.
+      second =
+        first
+        |> Map.put(:id, nil)
+        |> Ecto.put_meta(state: :built)
+        |> Repo.insert!()
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/firmware?tab=deleted")
+      |> assert_has("#deleted-firmware-#{first.id}", text: firmware.version)
+      |> assert_has("#deleted-firmware-#{second.id}", text: firmware.version)
     end
   end
 
@@ -745,6 +772,29 @@ defmodule NervesHubWeb.Live.FirmwareTest do
       end)
       |> assert_has("div", text: "Firmware successfully deleted")
       |> refute_has("#firmware-#{firmware.uuid}")
+    end
+
+    test "deleting the only row on the last page shows the page before it", %{
+      conn: conn,
+      user: user,
+      org: org,
+      tmp_dir: tmp_dir
+    } do
+      product = Fixtures.product_fixture(user, org)
+      org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
+      newer = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir, version: "1.0.2"})
+      middle = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir, version: "1.0.1"})
+      oldest = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir, version: "1.0.0"})
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/firmware?sort=version&sort_direction=desc&page_size=2&page_number=2")
+      |> assert_has("#firmware-#{oldest.uuid}")
+      |> unwrap(&render_click(&1, "delete-firmware", %{"firmware_uuid" => oldest.uuid}))
+      |> assert_has("div", text: "Firmware successfully deleted")
+      |> assert_has("#firmware-#{newer.uuid}")
+      |> assert_has("#firmware-#{middle.uuid}")
+      |> refute_has("#firmware-no-matches")
+      |> assert_has("button[aria-label='Next page'][disabled]")
     end
 
     test "shows error when delete fails (list page)", %{

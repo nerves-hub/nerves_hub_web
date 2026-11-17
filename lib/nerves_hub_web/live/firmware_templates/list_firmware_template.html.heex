@@ -145,8 +145,7 @@
           class="flex flex-col pb-4 @max-3xl:pt-3 @3xl:mx-6 @3xl:my-4 @3xl:rounded-card @3xl:border @3xl:border-line-default @3xl:bg-surface-raised"
         >
           <%!-- Column widths are shared by the header and every row, so the
-              columns line up without a <table>. With less than 48rem of room
-              the header goes and each row becomes a card. --%>
+              columns line up without a <table>. --%>
           <div
             :if={@tab != :deleted}
             role="row"
@@ -290,7 +289,7 @@
             <div role="cell" class="flex w-40 shrink-0 items-center gap-2 @max-3xl:order-5 @max-3xl:w-full">
               <%= if firmware.install_count > 0 do %>
                 <span class="w-12 shrink-0 font-mono text-ui text-content-strong @max-3xl:w-auto">
-                  {Number.Delimit.number_to_delimited(firmware.install_count, precision: 0)}<span class="@3xl:hidden">{ngettext(" device", " devices", firmware.install_count)}</span>
+                  {delimited(firmware.install_count)}<span class="@3xl:hidden">{ngettext(" device", " devices", firmware.install_count)}</span>
                 </span>
                 <span class="h-1 w-16 overflow-hidden rounded-full bg-line-subtle @max-3xl:flex-1" aria-hidden="true">
                   <span class="block h-1 rounded-full bg-success" style={"width: #{share_of_devices(firmware.install_count, @device_count)}%"}></span>
@@ -427,11 +426,13 @@
           </div>
 
           <%!-- Deleted firmware keeps its row, so a device's history can still
-              say what it ran. Only the file is gone, and there's no undo. --%>
+              say what it ran. Only the file is gone, and there's no undo.
+              The same build can be deleted more than once, after being
+              uploaded again, so these rows are keyed on id, not UUID. --%>
           <div
             :for={firmware <- @firmware}
             :if={@tab == :deleted}
-            id={"firmware-#{firmware.uuid}"}
+            id={"deleted-firmware-#{firmware.id}"}
             role="row"
             class="flex min-h-13 items-center gap-3 border-b border-line-subtle px-4 py-2 last:border-b-0 @max-3xl:mx-4 @max-3xl:mb-2 @max-3xl:min-w-0 @max-3xl:flex-wrap @max-3xl:gap-2 @max-3xl:rounded-card @max-3xl:border @max-3xl:border-line-default @max-3xl:p-3 @max-3xl:last:border-b"
           >

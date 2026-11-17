@@ -186,7 +186,8 @@ defmodule NervesHub.Firmwares do
   running it now. `opts` picks the tab (see `t:list_tab/0`), narrows by
   `search` (the start of a version, UUID or VCS identifier), `platform` and
   `tool`, and sorts by `inserted_at` (the default), `version` or
-  `install_count`.
+  `install_count`. A page holds 25 firmware unless `page_size` says
+  otherwise, and never more than 100.
   """
   @spec list_firmware(Product.t(), list_opts()) :: {[Firmware.t()], Flop.Meta.t()}
   def list_firmware(%Product{} = product, opts \\ %{}) do
@@ -197,7 +198,9 @@ defmodule NervesHub.Firmwares do
 
     flop = %Flop{
       page: to_positive_integer(opts[:page], 1),
-      page_size: to_positive_integer(opts[:page_size], 25)
+      # The pager offers 25, 50 and 100. Anything bigger only comes from an
+      # edited URL, so it is held to the largest of those.
+      page_size: min(to_positive_integer(opts[:page_size], 25), 100)
     }
 
     product
@@ -284,11 +287,11 @@ defmodule NervesHub.Firmwares do
   @doc """
   Where a firmware stands across its product, for the firmware's page.
 
-    * `:running` — the product's devices running it now.
-    * `:product_devices` — all of the product's devices, to put `:running` in
+    * `:running` - the product's devices running it now.
+    * `:product_devices` - all of the product's devices, to put `:running` in
       proportion.
-    * `:updating` — devices being moved to it right now.
-    * `:installed` — devices that have ever installed it, counting each once.
+    * `:updating` - devices being moved to it right now.
+    * `:installed` - devices that have ever installed it, counting each once.
   """
   @spec usage(Firmware.t()) :: %{
           running: non_neg_integer(),
@@ -360,9 +363,10 @@ defmodule NervesHub.Firmwares do
   end
 
   @doc """
-  The product's other firmware with the same version as this one, built for
-  another platform or architecture, each with the `install_count` of devices
-  running it. Deleted firmware is left out.
+  The product's other firmware with the same version as this one.
+
+  Each carries the `install_count` of devices running it, ordered by platform
+  then architecture. Deleted firmware is left out.
   """
   @spec other_builds(Firmware.t()) :: [Firmware.t()]
   def other_builds(%Firmware{} = firmware) do

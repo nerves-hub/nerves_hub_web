@@ -382,7 +382,20 @@ defmodule NervesHubWeb.Live.Firmware do
 
     {entries, pager_meta} = Firmwares.list_firmware(product, opts)
 
+    # A page past the end, usually left behind by deleting the last row on
+    # it, shows the last page that has rows instead of an empty list.
+    last_page = max(pager_meta.total_pages, 1)
+
+    {entries, pager_meta, params} =
+      if entries == [] and pager_meta.current_page > last_page do
+        {entries, pager_meta} = Firmwares.list_firmware(product, %{opts | page: last_page})
+        {entries, pager_meta, Map.put(params, "page_number", Integer.to_string(last_page))}
+      else
+        {entries, pager_meta, params}
+      end
+
     socket
+    |> assign(:params, params)
     |> assign(:tab, tab)
     |> assign(:filters, filters)
     |> assign(:current_sort, sort)
@@ -397,9 +410,13 @@ defmodule NervesHubWeb.Live.Firmware do
     |> assign(:org_keys, Accounts.list_org_keys(scope))
   end
 
-  defp self_path(socket, new_params) do
+  defp self_path(socket, new_params), do: list_path(socket.assigns, new_params)
+
+  # The list's path with the current params, changed by `new_params`. Every
+  # link and patch on the list builds its path here.
+  defp list_path(assigns, new_params) do
     current_params =
-      socket.assigns.params
+      assigns.params
       |> Map.reject(fn {key, _val} -> key in ["org_name", "product_name"] end)
 
     params =
@@ -408,7 +425,7 @@ defmodule NervesHubWeb.Live.Firmware do
       # A nil value means "drop this param" rather than "set it to nothing".
       |> Map.reject(fn {_key, val} -> is_nil(val) end)
 
-    ~p"/org/#{socket.assigns.current_scope.org}/#{socket.assigns.product}/firmware?#{params}"
+    ~p"/org/#{assigns.current_scope.org}/#{assigns.product}/firmware?#{params}"
   end
 
   defp stringify_keys(params) do
@@ -487,7 +504,7 @@ defmodule NervesHubWeb.Live.Firmware do
   end
 
   # Turns whatever `create_firmware/3` failed with into something a user can act
-  # on. A changeset is passed through untouched — `error_feedback/3` renders it.
+  # on. A changeset is passed through untouched for `upload_failure/2` to render.
   defp upload_error(:no_public_keys) do
     "Please register public keys for verifying firmware signatures first"
   end
@@ -611,13 +628,8 @@ defmodule NervesHubWeb.Live.Firmware do
   defp upload_error(error) when is_binary(error), do: error
   defp upload_error(_error), do: "Unknown error uploading firmware. Please contact support."
 
-  defp error_feedback(socket, %Ecto.Changeset{} = changeset, opts \\ []) do
-    error_message =
-      [opts[:prefix], changeset_message(changeset)]
-      |> Enum.reject(&is_nil/1)
-      |> Enum.join(" ")
-
-    put_flash(socket, :error, error_message)
+  defp error_feedback(socket, %Ecto.Changeset{} = changeset) do
+    put_flash(socket, :error, changeset_message(changeset))
   end
 
   defp max_file_size() do
@@ -635,22 +647,13 @@ defmodule NervesHubWeb.Live.Firmware do
   end
 
   # A tab keeps the search and filters but starts again at page 1.
-  defp tab_path(socket_assigns, param) do
-    params =
-      socket_assigns.params
-      |> Map.reject(fn {key, _val} -> key in ["org_name", "product_name", "tab", "page_number"] end)
-      |> then(fn params -> if param, do: Map.put(params, "tab", param), else: params end)
-
-    ~p"/org/#{socket_assigns.current_scope.org}/#{socket_assigns.product}/firmware?#{params}"
+  defp tab_path(assigns, param) do
+    list_path(assigns, %{"tab" => param, "page_number" => nil})
   end
 
   # The list path without one of the filters, for the "clear" links.
-  defp without_filter_path(socket_assigns, keys) do
-    params =
-      socket_assigns.params
-      |> Map.reject(fn {key, _val} -> key in ["org_name", "product_name", "page_number" | keys] end)
-
-    ~p"/org/#{socket_assigns.current_scope.org}/#{socket_assigns.product}/firmware?#{params}"
+  defp without_filter_path(assigns, keys) do
+    list_path(assigns, Map.new(["page_number" | keys], &{&1, nil}))
   end
 
   defp filtering?(filters), do: Enum.any?(filters, fn {_key, value} -> value end)
