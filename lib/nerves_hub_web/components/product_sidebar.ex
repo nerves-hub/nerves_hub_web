@@ -2,30 +2,18 @@ defmodule NervesHubWeb.Components.ProductSidebar do
   @moduledoc """
   The product half of a product page's sidebar: its header, switcher and page links.
 
-  The header names the organization and the product and counts the devices
-  online. Each link can carry what needs looking at on its page, so the sidebar
-  doubles as the product's status board:
-
-    * Devices: how many devices report unhealthy, or failing that, a warning
-    * Deployment groups: how many there are, and a release waiting for approval
-    * Errors: how many issues are open
-    * Notifications: how many there are
-
-  Offline devices are never shown: every product has some. When the sidebar
-  collapses to a rail, a dot or a count on the icon stands in for the line, and
-  a tooltip spells it out.
-
-  The figures are counted when the product changes, on the same render as the
-  page, so the links don't shift as they arrive, and they don't update live.
-  The switcher's figures, for every product in the organization, are counted
-  only when it opens.
-
-  A member who sees only some devices gets none of the product-wide pages, so
-  none of their figures either, except the online count, which counts only the
-  devices they can see.
-
-  The root carries `data-attention` with the most severe status, which the top
-  bar's menu button shows as a dot on a phone (see `app.css`).
+  The header names the organization and product and counts devices online. Devices
+  shows unhealthy devices (or, failing that, warnings), Deployment groups the group
+  count and any release awaiting approval, Errors the open issues and Notifications
+  the total. Offline devices are never shown, since every product has some. On the
+  rail a dot or count on the icon stands in for the line, and a tooltip spells it
+  out. Figures are counted synchronously when the product changes, so links don't
+  shift as they arrive, and they never update live. The switcher's figures for every
+  product in the organization are counted only when it opens. A member who sees only
+  some devices gets none of the product-wide pages or figures, except the online
+  count, which covers only the devices they can see. The root carries
+  `data-attention` with the most severe status, which the phone top bar's menu
+  button shows as a dot (see `app.css`).
   """
   use NervesHubWeb, :live_component
 
@@ -458,10 +446,10 @@ defmodule NervesHubWeb.Components.ProductSidebar do
           </span>
         </span>
 
-        <span :if={@count} class="shrink-0 self-start font-mono text-xs/4.5 font-normal text-content-faint tabular-nums collapsed:hidden">
+        <span :if={@count} data-count class="shrink-0 self-start font-mono text-xs/4.5 font-normal text-content-faint tabular-nums collapsed:hidden">
           {delimited(@count)}
         </span>
-        <.badge :if={@pill} tone={elem(@pill, 0) |> to_string()} class="shrink-0 font-normal collapsed:hidden">{elem(@pill, 1)}</.badge>
+        <.badge :if={@pill} tone={elem(@pill, 0) |> to_string()} data-count class="shrink-0 font-normal collapsed:hidden">{elem(@pill, 1)}</.badge>
       </.link>
 
       <%!-- Only on the rail, where the label and its line are hidden. --%>

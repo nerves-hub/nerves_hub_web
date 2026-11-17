@@ -85,7 +85,7 @@ defmodule NervesHubWeb.ProductSidebarTest do
 
       conn
       |> visit_product(org, product)
-      |> assert_has("#nav-deployment-groups", text: "1")
+      |> assert_has("#nav-deployment-groups [data-count]", text: "1", exact: true)
 
       definition = %{"version" => 1, "steps" => [%{"name" => "Sign-off", "type" => "approval_required"}]}
 
@@ -119,7 +119,7 @@ defmodule NervesHubWeb.ProductSidebarTest do
 
       conn
       |> visit_product(org, product)
-      |> assert_has("#nav-notifications", text: "1")
+      |> assert_has("#nav-notifications [data-count]", text: "1", exact: true)
       # News, not a problem: it doesn't put a dot on the menu button.
       |> refute_has("#product-sidebar[data-attention]")
     end
