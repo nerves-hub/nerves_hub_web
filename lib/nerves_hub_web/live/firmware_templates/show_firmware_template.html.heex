@@ -102,8 +102,10 @@
                       <span class="text-content-faint">…</span>
                     <% @failed_installs.ok? && is_integer(@failed_installs.result) -> %>
                       <span class={(@failed_installs.result > 0 && "text-alert-content") || "text-content-strong"}>{delimited(@failed_installs.result)}</span>
-                    <% true -> %>
+                    <% @failed_installs.ok? -> %>
                       <span class="text-content-faint" title="Update history isn't recorded here">—</span>
+                    <% true -> %>
+                      <span class="text-content-faint" title="Update history couldn't be loaded">—</span>
                   <% end %>
                 </dd>
                 <dd class="text-ui text-content-body">in the last 7 days</dd>

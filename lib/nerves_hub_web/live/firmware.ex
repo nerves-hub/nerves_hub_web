@@ -245,7 +245,6 @@ defmodule NervesHubWeb.Live.Firmware do
     end
   end
 
-  # Starts building a failed or timed out delta to this firmware again.
   def handle_event("retry-delta", %{"id" => id}, socket) do
     authorized!(:"deployment_group:update", socket.assigns.current_scope)
 
@@ -254,12 +253,18 @@ defmodule NervesHubWeb.Live.Firmware do
         noreply(socket)
 
       delta ->
-        {:ok, _} = Firmwares.retry_firmware_delta(delta)
+        case Firmwares.retry_firmware_delta(delta) do
+          {:ok, _} ->
+            socket
+            |> assign(:deltas, Firmwares.get_deltas_by_target_firmware(socket.assigns.firmware))
+            |> put_flash(:info, "Building the delta from #{delta.source.version} again")
+            |> noreply()
 
-        socket
-        |> assign(:deltas, Firmwares.get_deltas_by_target_firmware(socket.assigns.firmware))
-        |> put_flash(:info, "Building the delta from #{delta.source.version} again")
-        |> noreply()
+          {:error, _reason} ->
+            socket
+            |> put_flash(:error, "Couldn't start building the delta from #{delta.source.version}")
+            |> noreply()
+        end
     end
   end
 
@@ -485,8 +490,16 @@ defmodule NervesHubWeb.Live.Firmware do
     Map.merge(%{message: message, action: nil}, upload_failure_kind(error, scope))
   end
 
-  defp upload_failure_kind(error, scope) when error in [:invalid_signature, :no_public_keys, :firmware_not_signed] do
+  defp upload_failure_kind(:invalid_signature, scope) do
     %{title: "Bad signature", action: {"Signing keys", ~p"/org/#{scope.org}/settings/keys"}}
+  end
+
+  defp upload_failure_kind(:no_public_keys, scope) do
+    %{title: "No signing keys", action: {"Signing keys", ~p"/org/#{scope.org}/settings/keys"}}
+  end
+
+  defp upload_failure_kind(:firmware_not_signed, scope) do
+    %{title: "Not signed", action: {"Signing keys", ~p"/org/#{scope.org}/settings/keys"}}
   end
 
   defp upload_failure_kind({:update_tool_not_allowed, _tool, _product}, scope) do
@@ -741,8 +754,8 @@ defmodule NervesHubWeb.Live.Firmware do
     |> JS.set_attribute({"aria-expanded", "false"}, to: "#firmware-#{uuid}-menu-toggle")
   end
 
-  # The list goes back to the list, refreshed; the firmware's page goes to
-  # the list too, since the firmware it showed is gone.
+  # The firmware's page goes back to the list, since its firmware is gone; the
+  # list reloads in place.
   defp after_delete(%{assigns: %{live_action: :show, current_scope: scope}} = socket) do
     push_patch(socket, to: ~p"/org/#{scope.org}/#{scope.product}/firmware")
   end
@@ -820,8 +833,6 @@ defmodule NervesHubWeb.Live.Firmware do
   attr(:pager, :map, required: true)
   attr(:can_upload, :boolean, default: false)
 
-  # Under the list: which rows these are, a reminder that a file can be
-  # dropped anywhere, then the page size and a previous / page / next group.
   # Sends `set-paginate-opts` and `paginate`, like the shared pager does.
   defp list_footer(assigns) do
     %{current_page: page, page_size: size, total_count: total} = assigns.pager

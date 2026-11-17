@@ -321,6 +321,24 @@ defmodule NervesHubWeb.Live.FirmwareTest do
       |> assert_has("[id^='delta-']", text: "Building")
     end
 
+    test "says so when a failed delta can't be started again", %{conn: conn, user: user, org: org, tmp_dir: tmp_dir} do
+      product = Fixtures.product_fixture(user, org)
+      org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
+      older = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir, version: "0.9.0"})
+      firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir, version: "1.0.0"})
+
+      delta = Fixtures.firmware_delta_fixture(older, firmware)
+      {:ok, _} = delta |> Ecto.Changeset.change(status: :failed) |> Repo.update()
+
+      stub(Firmwares, :retry_firmware_delta, fn _delta -> {:error, :failed_to_insert_job} end)
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/firmware/#{firmware.uuid}")
+      |> click_button("#delta-#{delta.id} button", "Retry")
+      |> assert_has("[role='alert']", text: "Couldn't start building the delta from #{older.version}")
+      |> assert_has("#delta-#{delta.id}", text: "Failed")
+    end
+
     test "delete firmware", %{conn: conn, user: user, org: org, tmp_dir: tmp_dir} do
       product = Fixtures.product_fixture(user, org, %{name: "AmazingProduct"})
       org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
@@ -661,6 +679,26 @@ defmodule NervesHubWeb.Live.FirmwareTest do
       |> assert_has("[id^='upload-failure-']", text: "Bad signature")
       |> assert_has("[id^='upload-failure-']", text: "Firmware corrupt, signature invalid, or missing public key")
       |> assert_has("[id^='upload-failure-'] a", text: "Signing keys")
+    end
+
+    test "error if the organization has no signing keys", %{conn: conn, user: user, tmp_dir: tmp_dir} do
+      org = Fixtures.org_fixture(user, %{name: "KeylessOrg"})
+      product = Fixtures.product_fixture(user, org, %{name: "CoolProduct"})
+
+      Fwup.gen_key_pair("unregistered", tmp_dir)
+
+      {:ok, signed_firmware_path} =
+        Fwup.create_signed_firmware("unregistered", "unsigned", "signed", %{
+          product: product.name,
+          dir: tmp_dir
+        })
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/firmware")
+      |> upload("Upload firmware", signed_firmware_path)
+      |> assert_has("[id^='upload-failure-']", text: "No signing keys")
+      |> assert_has("[id^='upload-failure-']", text: "Please register public keys")
+      |> refute_has("[id^='upload-failure-']", text: "Bad signature")
     end
 
     test "error if org keys do not match firmware", %{

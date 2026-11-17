@@ -363,10 +363,11 @@ defmodule NervesHub.Firmwares do
   end
 
   @doc """
-  The product's other firmware with the same version as this one.
+  The product's other firmware with the same version as this one, ordered by
+  platform then architecture.
 
-  Each carries the `install_count` of devices running it, ordered by platform
-  then architecture. Deleted firmware is left out.
+  Each carries `install_count`, the devices running it now. Deleted firmware is
+  left out.
   """
   @spec other_builds(Firmware.t()) :: [Firmware.t()]
   def other_builds(%Firmware{} = firmware) do
