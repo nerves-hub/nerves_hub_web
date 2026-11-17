@@ -342,14 +342,15 @@ defmodule NervesHub.Accounts do
   works for it, so nobody can lock themselves out.
 
   Every session but `keep_token` (the one asking) is signed out, as whoever
-  holds them may have got in with the password.
+  holds them may have got in with the password, and the user is emailed to
+  say so.
 
   Whoever calls this has made sure the user signed in recently.
   """
   @spec remove_password(User.t(), binary() | nil) ::
           {:ok, User.t()} | {:error, :no_password | :last_sign_in_method | Changeset.t()}
   def remove_password(%User{} = user, keep_token) do
-    change_sign_in_methods(user, keep_token, fn user ->
+    change_sign_in_methods(user, keep_token, :password_removed, fn user ->
       cond do
         not sign_in_method?(user, :password) -> {:error, :no_password}
         not sign_in_method?(user, :google) -> {:error, :last_sign_in_method}
@@ -364,14 +365,14 @@ defmodule NervesHub.Accounts do
   password.
 
   Every session but `keep_token` (the one asking) is signed out, as whoever
-  holds them may have got in with Google.
+  holds them may have got in with Google, and the user is emailed to say so.
 
   Whoever calls this has made sure the user signed in recently.
   """
   @spec disconnect_google(User.t(), binary() | nil) ::
           {:ok, User.t()} | {:error, :not_connected | :last_sign_in_method | Changeset.t()}
   def disconnect_google(%User{} = user, keep_token) do
-    change_sign_in_methods(user, keep_token, fn user ->
+    change_sign_in_methods(user, keep_token, :google_disconnected, fn user ->
       cond do
         is_nil(user.google_id) -> {:error, :not_connected}
         not sign_in_method?(user, :password) -> {:error, :last_sign_in_method}
@@ -383,7 +384,7 @@ defmodule NervesHub.Accounts do
   # `change_fun` decides on the account's row as it is now, locked until the
   # change commits, rather than on the caller's copy, which may be stale: two
   # tabs could otherwise each remove a different way in and leave none.
-  defp change_sign_in_methods(%User{id: user_id}, keep_token, change_fun) do
+  defp change_sign_in_methods(%User{id: user_id}, keep_token, change, change_fun) do
     Multi.new()
     |> Multi.run(:changeset, fn repo, _changes ->
       User
@@ -404,6 +405,7 @@ defmodule NervesHub.Accounts do
     |> case do
       {:ok, %{user: user, signed_out: tokens}} ->
         for token <- tokens, do: disconnect_socket(UserToken.live_socket_id(token))
+        {:ok, _job} = UserNotifier.deliver_sign_in_method_changed(user, change)
         {:ok, user}
 
       {:error, :changeset, reason, _} ->
@@ -420,8 +422,9 @@ defmodule NervesHub.Accounts do
 
   Refused with `:email_not_verified` unless Google has verified the address,
   then makes the checks of `link_google_account/2`: the address is the
-  account's, the account is confirmed, and it has no Google account yet.
-  Whoever calls this has made sure the user signed in recently.
+  account's, the account is confirmed, and it has no Google account yet. The
+  user is emailed once it's connected. Whoever calls this has made sure the
+  user signed in recently.
   """
   @spec connect_google_account(User.t(), Ueberauth.Auth.t()) ::
           {:ok, User.t()}
@@ -435,7 +438,10 @@ defmodule NervesHub.Accounts do
              | Changeset.t()}
   def connect_google_account(%User{} = user, %Ueberauth.Auth{} = auth) do
     if google_email_verified?(auth) do
-      link_google_account(user, pending_google_link(auth))
+      with {:ok, user} <- link_google_account(user, pending_google_link(auth)) do
+        {:ok, _job} = UserNotifier.deliver_sign_in_method_changed(user, :google_connected)
+        {:ok, user}
+      end
     else
       {:error, :email_not_verified}
     end

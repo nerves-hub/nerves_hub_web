@@ -172,17 +172,21 @@ defmodule NervesHubWeb.Auth do
 
   @doc """
   Where `/account/confirm` sends someone back to: `return_to` if it's an
-  account page, or else the account page itself.
+  account page, or else the account page itself. A path with `..` in it is
+  refused, written out or as `%2e`, since the browser would resolve
+  `/account/../logout` to `/logout`.
   """
   @spec account_return_to(term()) :: String.t()
   def account_return_to("/account" <> rest = path) when rest == "" or binary_part(rest, 0, 1) in ["/", "?"] do
     case return_to_target(path) do
-      {:local, ^path} -> path
+      {:local, ^path} -> if dot_segment?(path), do: ~p"/account", else: path
       _ -> ~p"/account"
     end
   end
 
   def account_return_to(_return_to), do: ~p"/account"
+
+  defp dot_segment?(path), do: String.contains?(String.downcase(path), ["..", "%2e"])
 
   # Links the Google account a Google sign-in left in the session, waiting for
   # proof that `user`'s account belongs to whoever is signing in (see

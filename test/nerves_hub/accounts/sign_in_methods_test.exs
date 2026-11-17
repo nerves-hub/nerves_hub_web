@@ -41,6 +41,9 @@ defmodule NervesHub.Accounts.SignInMethodsTest do
       assert Accounts.get_user_by_session_token(this_session)
       refute Accounts.get_user_by_session_token(other_session)
       assert Accounts.get_user_by_email_and_password(user.email, "test_password") == nil
+
+      send_queued_emails()
+      assert_email_sent(to: user.email, subject: "NervesHub: Your password is removed")
     end
 
     test "won't remove the only way in" do
@@ -48,6 +51,9 @@ defmodule NervesHub.Accounts.SignInMethodsTest do
 
       assert Accounts.remove_password(user, nil) == {:error, :last_sign_in_method}
       assert Repo.reload(user).password_hash
+
+      send_queued_emails()
+      assert_no_email_sent()
     end
 
     test "won't remove it while this server doesn't offer Google sign-in" do
@@ -72,6 +78,9 @@ defmodule NervesHub.Accounts.SignInMethodsTest do
 
       assert Accounts.get_user_by_session_token(this_session)
       refute Accounts.get_user_by_session_token(other_session)
+
+      send_queued_emails()
+      assert_email_sent(to: user.email, subject: "NervesHub: Google is disconnected from your account")
     end
 
     test "won't unlink the only way in" do
@@ -172,12 +181,18 @@ defmodule NervesHub.Accounts.SignInMethodsTest do
 
       assert {:ok, %User{google_id: google_id}} = Accounts.connect_google_account(user, auth)
       assert google_id == auth.uid
+
+      send_queued_emails()
+      assert_email_sent(to: user.email, subject: "NervesHub: Google is connected to your account")
     end
 
     test "won't link a Google account for another address" do
       auth = Fixtures.ueberauth_google_success_fixture()
 
       assert Accounts.connect_google_account(Fixtures.user_fixture(), auth) == {:error, :email_mismatch}
+
+      send_queued_emails()
+      assert_no_email_sent()
     end
 
     test "won't link an address Google hasn't verified" do

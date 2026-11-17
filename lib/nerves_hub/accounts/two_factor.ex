@@ -173,16 +173,15 @@ defmodule NervesHub.Accounts.TwoFactor do
   def verify(%User{}, _code), do: {:error, :invalid_code}
 
   @doc """
-  Checks a code as `verify/2` does, but leaves a recovery code unused, for
-  something that can still fail after the code is checked, such as confirming
-  with Google, which needs a trip to Google first. A recovery code comes back
-  as `{:ok, {:held_recovery_code, held}}`: pass `held` to
+  Checks a code as `verify/2` does, but leaves a recovery code unused.
+
+  For something that can still fail after the code is checked, such as
+  confirming with Google, which needs a trip to Google first. A recovery code
+  comes back as `{:ok, {:held_recovery_code, held}}`: pass `held` to
   `use_held_recovery_code/2` once the rest has gone through. A code from the
   app is used up as `verify/2` uses it, since the app shows a new one every 30
-  seconds.
-
-  `held` is the code's hash, which can't be turned back into the code (see
-  `hash_recovery_code/2`), so it may be kept in the session.
+  seconds. `held` is the code's hash, which can't be turned back into the code
+  (see `hash_recovery_code/2`), so it may be kept in the session.
   """
   @spec verify_and_hold(User.t(), String.t()) ::
           {:ok, :totp}

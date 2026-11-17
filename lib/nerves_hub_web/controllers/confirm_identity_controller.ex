@@ -5,12 +5,10 @@ defmodule NervesHubWeb.ConfirmIdentityController do
 
   It takes the password or Google, whichever the account has, so an account
   without a password is never asked for one (see
-  `NervesHubWeb.Auth.recently_authenticated?/1`). The account page also starts
+  `NervesHubWeb.Auth.recently_authenticated?/1`). An account with two-factor
+  on also gives a code, as signing in would ask for, since a browser still
+  signed in to Google confirms with one click. The account page also starts
   connecting a Google account here, which goes out to Google the same way.
-
-  An account with two-factor on also gives a code, as signing in would ask
-  for, before either: a browser still signed in to Google confirms with one
-  click, so Google alone proves no more than the browser does.
   """
   use NervesHubWeb, :controller
 

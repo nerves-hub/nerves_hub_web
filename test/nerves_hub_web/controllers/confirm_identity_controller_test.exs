@@ -49,10 +49,18 @@ defmodule NervesHubWeb.ConfirmIdentityControllerTest do
       refute get_session(conn, :authenticated_at)
     end
 
-    test "only goes back to an account page", %{user: user} do
-      for return_to <- ["https://evil.example/account", "//evil.example/account", "/orgs", "/accountx"] do
+    test "only goes back to an account page" do
+      for return_to <- [
+            "https://evil.example/account",
+            "//evil.example/account",
+            "/orgs",
+            "/accountx",
+            "/account/../logout",
+            "/account/%2e%2E/logout"
+          ] do
+        # A user each, as more tries than this would hit the limit on them.
         conn =
-          user
+          Fixtures.user_fixture()
           |> signed_in_conn(recent: false)
           |> post(~p"/account/confirm", %{"password" => "test_password", "return_to" => return_to})
 
