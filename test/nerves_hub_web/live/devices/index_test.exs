@@ -687,8 +687,11 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       |> select("Metric", option: "cpu_temp")
       |> choose("Below")
       |> fill_in("Metric value", with: "37")
-      # Should not show any device since the query is for values less than 37
-      |> assert_has("#device-count", text: "0", timeout: 1_000)
+      # Should not show any device since the query is for values less than 37.
+      # Each of the three changes above loads a list, and the Filters panel
+      # recounts its choices, on the test's one sandbox connection: on a slow
+      # runner that queue can take over a second.
+      |> assert_has("#device-count", text: "0", timeout: 3_000)
       |> refute_has("div a", text: device2.identifier)
       |> refute_has("div a", text: device.identifier)
     end
@@ -744,7 +747,7 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       |> choose("Below")
       # device's latest reading is 30, even though device2 reported later. The
       # count is 1 either side of the change, so wait on the device instead.
-      |> assert_has("div a", text: device.identifier, timeout: 1_000)
+      |> assert_has("div a", text: device.identifier, timeout: 3_000)
       |> assert_has("#device-count", text: "1")
       |> refute_has("div a", text: device2.identifier)
     end
