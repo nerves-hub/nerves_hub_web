@@ -13,6 +13,7 @@ defmodule NervesHubWeb.ConnCase.Browser do
       use ConnCase, unquote(opts)
 
       import NervesHub.Support.PhoenixTestAssertions
+      import NervesHubWeb.ConnCase.Browser, only: [signed_in_conn: 1, signed_in_conn: 2]
       import Phoenix.LiveViewTest
       import PhoenixTest, except: [assert_has: 3, assert_has: 4, refute_has: 3, refute_has: 4]
       import Test
@@ -67,13 +68,7 @@ defmodule NervesHubWeb.ConnCase.Browser do
           product: product
         }
 
-        token = NervesHub.Accounts.create_user_session_token(user)
-
-        conn =
-          build_conn()
-          |> init_test_session(%{
-            "user_token" => token
-          })
+        conn = signed_in_conn(user)
 
         %{
           conn: conn,
@@ -88,5 +83,21 @@ defmodule NervesHubWeb.ConnCase.Browser do
         }
       end
     end
+  end
+
+  @doc """
+  A conn signed in as `user`. Just now, as `NervesHubWeb.Auth` marks a
+  session, so changes that need a recent sign-in go through, unless
+  `recent: false`.
+  """
+  def signed_in_conn(user, opts \\ []) do
+    session = %{"user_token" => NervesHub.Accounts.create_user_session_token(user)}
+
+    session =
+      if Keyword.get(opts, :recent, true),
+        do: Map.put(session, "authenticated_at", System.os_time(:second)),
+        else: session
+
+    Test.init_test_session(Phoenix.ConnTest.build_conn(), session)
   end
 end

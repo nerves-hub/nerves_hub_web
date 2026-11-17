@@ -12,7 +12,13 @@ defmodule NervesHubWeb.Live.Account.TwoFactor do
   alias NervesHub.Accounts
   alias NervesHub.Accounts.TwoFactor
   alias NervesHub.Accounts.User
+  alias NervesHubWeb.Auth
   alias NervesHubWeb.Plugs.Attack
+
+  # How long after starting setup a code still turns two-factor on. The recent
+  # sign-in is checked when setup starts, so this bounds how long after it a
+  # browser left open on the QR code can still be used to finish.
+  @setup_seconds 10 * 60
 
   @impl Phoenix.LiveView
   @decorate requires_no_permission()
@@ -22,7 +28,10 @@ defmodule NervesHubWeb.Live.Account.TwoFactor do
     # The session this page is open in, which stays signed in when turning
     # two-factor on signs the others out.
     |> assign(:session_token, session["user_token"])
+    # When this session last proved who it is, see `start-setup`.
+    |> assign(:auth_session, Auth.recent_sign_in_session(session))
     |> assign(:setup_secret, nil)
+    |> assign(:setup_started_at, nil)
     |> assign(:recovery_codes, nil)
     |> assign(:error, nil)
     |> load()
@@ -37,18 +46,30 @@ defmodule NervesHubWeb.Live.Account.TwoFactor do
   end
 
   @impl Phoenix.LiveView
+  # Turning it on shuts out anyone without the app, so a signed in browser
+  # alone isn't enough: it needs a recent sign-in, by password or Google,
+  # whichever the account has. Checked before the secret is made rather than
+  # when the code is typed in, so nobody adds the app and is then sent away.
   @decorate requires_no_permission()
   def handle_event("start-setup", _params, socket) do
-    socket
-    |> assign(:setup_secret, TwoFactor.new_secret())
-    |> assign(:error, nil)
-    |> noreply()
+    if Auth.recently_authenticated?(socket.assigns.auth_session) do
+      socket
+      |> assign(:setup_secret, TwoFactor.new_secret())
+      |> assign(:setup_started_at, System.monotonic_time(:second))
+      |> assign(:error, nil)
+      |> noreply()
+    else
+      socket
+      |> redirect(to: ~p"/account/confirm?#{[return_to: ~p"/account/two-factor"]}")
+      |> noreply()
+    end
   end
 
   @decorate requires_no_permission()
   def handle_event("cancel-setup", _params, socket) do
     socket
     |> assign(:setup_secret, nil)
+    |> assign(:setup_started_at, nil)
     |> assign(:error, nil)
     |> noreply()
   end
@@ -57,11 +78,10 @@ defmodule NervesHubWeb.Live.Account.TwoFactor do
   def handle_event("enable", params, %{assigns: %{setup_secret: secret}} = socket) when is_binary(secret) do
     user = socket.assigns.current_scope.user
 
-    # Turning it on shuts out anyone without the app, so a signed in browser
-    # alone isn't enough: the password is asked for too, from accounts that
-    # have one.
-    with :ok <- check_attempts(user),
-         :ok <- check_password(user, params["password"]),
+    # The secret only exists once `start-setup` found a recent sign-in, and
+    # only counts for `@setup_seconds` after that.
+    with :ok <- check_setup_fresh(socket),
+         :ok <- check_attempts(user),
          {:ok, codes} <- TwoFactor.enable(user, secret, params["code"] || "") do
       # Whoever holds another of the user's sessions never typed a code, and
       # may be someone who got in with a stolen password before now.
@@ -75,7 +95,17 @@ defmodule NervesHubWeb.Live.Account.TwoFactor do
       |> put_flash(:info, "Two-factor authentication is on. Your other browser sessions were signed out.")
       |> noreply()
     else
-      {:error, reason} -> socket |> assign(:error, error_message(reason)) |> noreply()
+      {:error, :setup_expired} ->
+        socket
+        |> assign(:setup_secret, nil)
+        |> assign(:setup_started_at, nil)
+        |> assign(:error, nil)
+        # The setup form, which shows `@error`, is gone, so it's a flash.
+        |> put_flash(:error, error_message(:setup_expired))
+        |> noreply()
+
+      {:error, reason} ->
+        socket |> assign(:error, error_message(reason)) |> noreply()
     end
   end
 
@@ -121,8 +151,12 @@ defmodule NervesHubWeb.Live.Account.TwoFactor do
     socket |> assign(:recovery_codes, nil) |> noreply()
   end
 
-  # A code, or the password, is what stops a signed in browser alone from
-  # changing any of this, so how often one can be tried is limited.
+  defp check_setup_fresh(%{assigns: %{setup_started_at: started_at}}) do
+    if System.monotonic_time(:second) - started_at <= @setup_seconds, do: :ok, else: {:error, :setup_expired}
+  end
+
+  # A code is what stops a signed in browser alone from changing any of this,
+  # so how often one can be tried is limited.
   defp check_attempts(%User{id: user_id}) do
     case Attack.two_factor_change_throttle(user_id) do
       {:allow, _data} -> :ok
@@ -130,14 +164,6 @@ defmodule NervesHubWeb.Live.Account.TwoFactor do
     end
   end
 
-  # Accounts that only sign in with Google have no password to ask for.
-  defp check_password(%User{password_hash: nil}, _password), do: :ok
-
-  defp check_password(%User{} = user, password) do
-    if User.valid_password?(user, password), do: :ok, else: {:error, :invalid_password}
-  end
-
-  defp error_message(:invalid_password), do: "That password isn't right."
   defp error_message(:invalid_code), do: "That code didn't work. Check your authenticator app and try again."
 
   defp error_message(:too_many_attempts),
@@ -145,6 +171,9 @@ defmodule NervesHubWeb.Live.Account.TwoFactor do
 
   defp error_message(:secret_unreadable),
     do: "Codes from your authenticator app can't be checked on this server right now. Use a recovery code instead."
+
+  defp error_message(:setup_expired),
+    do: "Setting up took longer than ten minutes, so it was stopped. Start again to get a new QR code."
 
   defp error_message(:already_enabled), do: "Two-factor authentication is already on."
   defp error_message(:unavailable), do: "Two-factor authentication isn't available on this server."
@@ -181,13 +210,10 @@ defmodule NervesHubWeb.Live.Account.TwoFactor do
   @impl Phoenix.LiveView
   def render(assigns) do
     ~H"""
-    <NervesHubWeb.Layouts.no_sidebar flash={@flash} current_scope={@current_scope}>
-      <div class="w-full max-w-[800px] pb-10">
-        <div class="flex h-[88px] items-center justify-between py-6">
-          <h1 class="text-page-title text-content-strong">Two-factor authentication</h1>
-          <.button type="link" navigate={~p"/account"}>Back to account</.button>
-        </div>
+    <NervesHubWeb.Layouts.account flash={@flash} current_scope={@current_scope} tab={:profile}>
+      <NervesHubWeb.Layouts.org_heading title="Two-factor authentication" back={~p"/account"} back_label="Back to profile" />
 
+      <div class="max-w-[800px]">
         <div class="flex flex-col gap-6">
           <div :if={@orgs_requiring != [] && is_nil(@totp)} id="two-factor-required" role="alert" class="flex gap-2.5 rounded-card border border-warning/30 bg-warning-soft p-4 text-sm text-content-body">
             <span class="mt-0.5 lucide-shield-exclamation-point size-4 flex-none text-warning" aria-hidden="true"></span>
@@ -233,7 +259,7 @@ defmodule NervesHubWeb.Live.Account.TwoFactor do
           <div :if={@available? && is_nil(@totp) && is_nil(@setup_secret)} id="two-factor-off" class="rounded-card border border-line-default bg-surface-raised p-4 shadow-card">
             <h2 class="mb-2 text-section-title text-content-strong">Off</h2>
             <p class="mb-4 text-sm text-content-muted">
-              With two-factor authentication on, signing in asks for a code from an authenticator app on your phone, such as 1Password, Google Authenticator or Authy, as well as your password. Someone who learns your password still can't sign in.
+              With two-factor authentication on, signing in asks for a code from an authenticator app on your phone, such as 1Password, Google Authenticator or Authy, after your password or Google. Someone who gets into one of those still can't sign in.
             </p>
             <.button id="start-setup" style="primary" type="button" phx-click="start-setup">
               <span class="lucide-shield-check size-4"></span> Set up two-factor authentication
@@ -264,7 +290,6 @@ defmodule NervesHubWeb.Live.Account.TwoFactor do
                     <NervesHubWeb.CoreComponents.label for="setup_code">Code from the app</NervesHubWeb.CoreComponents.label>
                     <NervesHubWeb.Components.OtpInput.otp_input id="setup_code" name="code" invalid={!is_nil(@error)} hook required />
                   </div>
-                  <.input :if={@current_scope.user.password_hash} id="setup_password" name="password" type="password" value="" label="Your password" autocomplete="current-password" required />
                   <p :if={@error} id="two-factor-error" role="alert" class="text-sm text-alert-content">{@error}</p>
                   <div class="flex gap-2">
                     <.button style="primary" type="submit">Turn on</.button>
@@ -301,7 +326,7 @@ defmodule NervesHubWeb.Live.Account.TwoFactor do
               <.form for={%{}} id="two-factor-disable-form" phx-submit="disable" class="flex flex-col gap-3">
                 <div>
                   <h3 class="text-group-title text-content-strong">Turn off two-factor authentication</h3>
-                  <p class="text-sm text-content-muted">Signing in will only ask for your password.</p>
+                  <p class="text-sm text-content-muted">Signing in won't ask for a code any more.</p>
                   <p :if={@orgs_requiring != []} id="two-factor-disable-warning" class="mt-1 text-sm text-warning-content">
                     {org_names(@orgs_requiring)} {if length(@orgs_requiring) == 1, do: "requires", else: "require"} it, so you won't be able to reach {if length(@orgs_requiring) == 1,
                       do: "it",
@@ -317,7 +342,7 @@ defmodule NervesHubWeb.Live.Account.TwoFactor do
           </div>
         </div>
       </div>
-    </NervesHubWeb.Layouts.no_sidebar>
+    </NervesHubWeb.Layouts.account>
     """
   end
 end

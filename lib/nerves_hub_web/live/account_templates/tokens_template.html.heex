@@ -1,0 +1,59 @@
+<NervesHubWeb.Layouts.account flash={@flash} current_scope={@current_scope} tab={:tokens}>
+  <section id="access-tokens" class="flex flex-col gap-3">
+    <NervesHubWeb.Layouts.org_heading title="Access tokens">
+      For the <span class="font-mono text-content-body">nh</span>
+      CLI and scripts. A token can do anything you can.
+      <:actions>
+        <.button type="button" phx-click={CoreComponents.show_modal("new-access-token")} aria-label="Generate new access token">
+          <span class="lucide-plus size-4" aria-hidden="true"></span> New token
+        </.button>
+      </:actions>
+    </NervesHubWeb.Layouts.org_heading>
+
+    <div :if={@new_token} id="new-token" class="flex flex-col gap-2 rounded-card border border-primary bg-surface-raised p-4">
+      <p class="text-sm/4.5 font-medium text-content-strong">New Token:</p>
+      <code class="font-mono text-sm break-all text-content-body">{@new_token}</code>
+      <p class="text-ui text-content-muted">Copy it now. It won't be shown again.</p>
+    </div>
+
+    <div :if={@access_tokens == []} class="rounded-card border border-dashed border-line-default px-5 py-8 text-center text-sm text-content-muted">
+      No access tokens have been created
+    </div>
+
+    <div :if={@access_tokens != []} class="divide-y divide-line-default rounded-card border border-line-default bg-surface-raised">
+      <.account_row :for={access_token <- @access_tokens} id={"access-token-#{access_token.id}"}>
+        <:icon><span class="lucide-key size-4.5" aria-hidden="true"></span></:icon>
+        <:title>{if access_token.note in [nil, ""], do: "Unnamed", else: access_token.note}</:title>
+        <:description>
+          <%= if access_token.last_used do %>
+            Last used {DateTimes.from_now(access_token.last_used)}
+          <% else %>
+            Never used
+          <% end %>
+        </:description>
+        <:actions>
+          <.button phx-click="delete-access-token" phx-value-access_token_id={access_token.id} data-confirm="Delete this token? Anything using it stops working.">
+            Delete
+          </.button>
+        </:actions>
+      </.account_row>
+    </div>
+  </section>
+
+  <CoreComponents.modal id="new-access-token" on_cancel={Phoenix.LiveView.JS.add_class("hidden")}>
+    <.form id="access-token-form" for={@access_token_form} phx-submit="generate-access-token">
+      <div class="flex h-14 items-center justify-between border-b border-line-default px-4">
+        <div class="text-card-title text-content-strong">New access token</div>
+      </div>
+
+      <div class="flex flex-col gap-6 p-4">
+        <.input field={@access_token_form[:note]} type="text" label="Note" hint="eg. used for CI/CD" />
+        <div>
+          <.button style="primary" type="submit">
+            <.icon name="save" /> Create access token
+          </.button>
+        </div>
+      </div>
+    </.form>
+  </CoreComponents.modal>
+</NervesHubWeb.Layouts.account>

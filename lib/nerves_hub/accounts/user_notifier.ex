@@ -22,6 +22,7 @@ defmodule NervesHub.Accounts.UserNotifier do
   alias NervesHub.Emails.PasswordResetConfirmationTemplate
   alias NervesHub.Emails.PasswordResetTemplate
   alias NervesHub.Emails.PasswordUpdatedTemplate
+  alias NervesHub.Emails.SignInMethodChangedTemplate
   alias NervesHub.Emails.TellOrgUserAddedTemplate
   alias NervesHub.Emails.TellOrgUserInvitedTemplate
   alias NervesHub.Emails.TellOrgUserRemovedTemplate
@@ -60,6 +61,23 @@ defmodule NervesHub.Accounts.UserNotifier do
 
   def deliver_password_updated(user, reset_url) do
     Oban.insert(job("password_updated", user, %{user_name: user.name, reset_url: reset_url}))
+  end
+
+  @doc """
+  Tells a user a way to sign in to their account was added or removed
+  (`change`), with a link to reset their password in case it wasn't them:
+  someone who got in one way could otherwise lock the owner out of the other
+  without them hearing about it.
+  """
+  def deliver_sign_in_method_changed(user, change)
+      when change in [:google_connected, :google_disconnected, :password_removed] do
+    Oban.insert(
+      job("sign_in_method_changed", user, %{
+        user_name: user.name,
+        change: Atom.to_string(change),
+        reset_url: web_url("/password-reset")
+      })
+    )
   end
 
   @doc """
@@ -272,6 +290,7 @@ defmodule NervesHub.Accounts.UserNotifier do
   defp template_module("password_reset"), do: PasswordResetTemplate
   defp template_module("password_reset_confirmation"), do: PasswordResetConfirmationTemplate
   defp template_module("password_updated"), do: PasswordUpdatedTemplate
+  defp template_module("sign_in_method_changed"), do: SignInMethodChangedTemplate
   defp template_module("tell_org_user_added"), do: TellOrgUserAddedTemplate
   defp template_module("tell_org_user_invited"), do: TellOrgUserInvitedTemplate
   defp template_module("tell_org_user_removed"), do: TellOrgUserRemovedTemplate
@@ -295,6 +314,15 @@ defmodule NervesHub.Accounts.UserNotifier do
   defp subject_for("password_reset_confirmation", _assigns), do: "#{platform_name()}: Your password has been reset"
 
   defp subject_for("password_updated", _assigns), do: "#{platform_name()}: Your password has been updated"
+
+  defp subject_for("sign_in_method_changed", %{change: "google_connected"}),
+    do: "#{platform_name()}: Google is connected to your account"
+
+  defp subject_for("sign_in_method_changed", %{change: "google_disconnected"}),
+    do: "#{platform_name()}: Google is disconnected from your account"
+
+  defp subject_for("sign_in_method_changed", %{change: "password_removed"}),
+    do: "#{platform_name()}: Your password is removed"
 
   defp subject_for("tell_org_user_added", %{new_user_name: new_user_name, org_name: org_name}),
     do: "#{platform_name()}: #{new_user_name} has been added to #{org_name}"

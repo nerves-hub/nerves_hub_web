@@ -405,11 +405,4 @@ defmodule NervesHubWeb.AccountControllerTest do
     [path] = Regex.run(~r{/confirm/[\w-]+}, body)
     path
   end
-
-  defp signed_in_conn(user) do
-    token = Accounts.create_user_session_token(user)
-
-    build_conn()
-    |> init_test_session(%{"user_token" => token})
-  end
 end
