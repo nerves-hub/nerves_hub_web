@@ -286,9 +286,10 @@ defmodule NervesHubWeb.Components.FleetComposition do
 
   @doc """
   Health and connection by firmware version: a row per version, with each
-  cell shaded by its share of that version's devices. In a container under
-  787px, the table's width, it becomes a list with a small health bar and the
-  share not healthy per version.
+  cell shaded by its share of that version's devices.
+
+  In a container under 787px, the table's width, it becomes a list with a
+  small health bar and the share not healthy per version.
   """
   def version_table(assigns) do
     flagged =

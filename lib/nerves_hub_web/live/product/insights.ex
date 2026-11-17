@@ -220,7 +220,7 @@ defmodule NervesHubWeb.Live.Product.Insights do
 
   The span runs from the first failure of the current run to now. The list
   answers "an afternoon or a fortnight?", which one unit does. A device whose
-  run predates `first_update_failure_at` has no start to count from.
+  run began before the `first_update_failure_at` column existed shows a dash.
   """
   def failing_for(%{first_update_failure_at: nil}), do: "—"
 

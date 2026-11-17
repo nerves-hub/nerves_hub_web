@@ -35,7 +35,7 @@ defmodule NervesHubWeb.Components.FleetTrends do
   @updates_top_padding 2.5
   @updates_bottom_padding 1
 
-  # The online and healthy charts'.
+  # The online and healthy charts' coordinate space.
   @narrow 375
   @line_height 96
 
@@ -58,9 +58,10 @@ defmodule NervesHubWeb.Components.FleetTrends do
 
   @doc """
   The row: a heading with the period control, then adoption over updates on
-  the left and the online and healthy lines on the right. Under 1167px the
-  two lines move below, side by side from 640px; under 640px each chart
-  drops its gutter for a legend or a heading above it.
+  the left and the online and healthy lines on the right.
+
+  Under 1167px the two lines move below, side by side from 640px; under 640px
+  each chart drops its gutter for a legend or a heading above it.
   """
   def row(assigns) do
     %{trends: trends} = assigns

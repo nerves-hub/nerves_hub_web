@@ -14,9 +14,10 @@ defmodule NervesHub.Insights do
   The groupings follow the devices list's filters, so a count here matches
   the list it links to:
 
-    * connection: online (`connection = "connected"`); offline and last seen
-      in the last 7 days; last seen 7 to 14 days ago; last seen over 14 days
-      ago (`connection=not_seen_in_fourteen_days`); and never connected.
+    * connection: online; offline under 7 days, which also takes a device
+      still connecting or with no connection row; disconnected 7 to 14 days
+      ago; disconnected over 14 days ago; and never connected, a device still
+      `registered`. `connection_filters/0` has the filter for each.
     * health: healthy, warning, unhealthy and unknown, where a device that has
       never reported its health counts as unknown, as the `health_status`
       filter treats it.

@@ -223,10 +223,10 @@ when adding or removing one.
   a centered column under the organization's name, counts and tabs, and mount
   `NervesHubWeb.Mounts.OrgCounts` for the counts. Product pages keep the
   sidebar layout.
-- `components/` — shared function/live components. `components/fleet_composition.ex`
+- `components/` - shared function/live components. `components/fleet_composition.ex`
   draws `NervesHub.Insights` on a product's Insights page, and
-  `components/fleet_trends.ex` its trends row, as SVG drawn on the server
-  rather than chart.js. `components/fleet.ex`
+  `components/fleet_trends.ex` its trends row as SVG drawn on the server.
+  `components/fleet.ex`
   sums up how a set of products is doing (Needs attention, online meters,
   health chips), for the organizations home page and an organization's
   Products tab. `components/product_sidebar.ex` is the sidebar's product
