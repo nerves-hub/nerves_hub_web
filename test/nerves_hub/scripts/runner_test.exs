@@ -22,6 +22,16 @@ defmodule NervesHub.Scripts.RunnerTest do
     {task, runner}
   end
 
+  # The runner joins the user console group while it handles
+  # `{:error, :incompatible_version}`. `Group.join/3` only returns once the
+  # member is in the local table that `Group.dispatch/3` reads, so after that
+  # message is handled, console output broadcast from here reaches the runner.
+  # `:sys.get_state/1` is answered after every message sent before it.
+  defp wait_for_console_subscription(runner) do
+    _ = :sys.get_state(runner)
+    :ok
+  end
+
   test "stops itself when nothing answers the script" do
     device = device()
     {task, runner} = start_runner(device, 50)
@@ -62,9 +72,7 @@ defmodule NervesHub.Scripts.RunnerTest do
       assert_receive {:run_script, runner_pid, "echo fallback"}, 1_000
 
       send(runner_pid, {:error, :incompatible_version})
-
-      # Give the runner time to subscribe to the console topic
-      Process.sleep(50)
+      wait_for_console_subscription(runner_pid)
 
       PubSub.broadcast_to_user_console(device_id, "up", %{"data" => "line1\n"})
       PubSub.broadcast_to_user_console(device_id, "up", %{"data" => "line2\n"})
@@ -90,8 +98,7 @@ defmodule NervesHub.Scripts.RunnerTest do
       assert_receive {:run_script, runner_pid, "echo partial"}, 1_000
 
       send(runner_pid, {:error, :incompatible_version})
-
-      Process.sleep(50)
+      wait_for_console_subscription(runner_pid)
 
       PubSub.broadcast_to_user_console(device_id, "up", %{"data" => "partial out"})
       PubSub.broadcast_to_user_console(device_id, "up", %{"data" => "put\n[NERVESHUB:END]\n"})
