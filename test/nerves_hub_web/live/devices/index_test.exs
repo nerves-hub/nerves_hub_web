@@ -6,6 +6,7 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
   alias NervesHub.Accounts
   alias NervesHub.Accounts.Scope
   alias NervesHub.Accounts.User
+  alias NervesHub.Accounts.User.DisplayPreferences
   alias NervesHub.DeviceEvents
   alias NervesHub.DeviceLink.DeviceInfo
   alias NervesHub.Devices
@@ -19,7 +20,6 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
   alias NervesHub.FirmwareUpdates
   alias NervesHub.Fixtures
   alias NervesHub.Repo
-  alias NervesHubWeb.Components.ListSettingsSidebar
   alias NervesHubWeb.Endpoint
   alias Phoenix.Socket.Broadcast
 
@@ -42,6 +42,49 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
     assert html =~ "Loading..."
 
     assert render_async(lv) =~ device.identifier
+  end
+
+  describe "first load" do
+    test "draws the page around a skeleton of the list", %{
+      conn: conn,
+      fixture: %{org: org, product: product, user: user}
+    } do
+      {:ok, _user} = Accounts.update_user_default_columns(user, :device_list_columns, ["health", "tags"])
+
+      {:ok, lv, html} = live(conn, ~p"/org/#{org}/#{product}/devices")
+      doc = LazyHTML.from_document(html)
+
+      # The tabs, search and buttons are there from the start, so the list
+      # doesn't push them in above it when it arrives.
+      assert doc |> LazyHTML.query("#state-tabs") |> Enum.count() == 1
+      assert doc |> LazyHTML.query("#columns-button") |> Enum.count() == 1
+
+      headers =
+        doc
+        |> LazyHTML.query("#device-list-skeleton thead th")
+        |> Enum.map(&LazyHTML.text/1)
+        |> Enum.map(&String.trim/1)
+
+      assert headers == ["", "Device", "Health", "Tags", "Peek"]
+
+      rows = doc |> LazyHTML.query("#device-list-skeleton tbody tr") |> Enum.count()
+      assert rows == 25
+
+      assert doc |> LazyHTML.query("#device-pager-skeleton") |> Enum.count() == 1
+
+      html = render_async(lv)
+      refute html =~ "device-list-skeleton"
+      refute html =~ "device-pager-skeleton"
+    end
+
+    test "the Needs attention tab loads as its list", %{conn: conn, fixture: %{org: org, product: product}} do
+      {:ok, _lv, html} = live(conn, ~p"/org/#{org}/#{product}/devices?state=attention")
+      doc = LazyHTML.from_document(html)
+
+      assert doc |> LazyHTML.query("#attention-list-skeleton li") |> Enum.count() == 8
+      assert doc |> LazyHTML.query("#device-list-skeleton") |> Enum.empty?()
+      assert doc |> LazyHTML.query("#reason-tabs") |> Enum.count() == 1
+    end
   end
 
   describe "refreshing device list" do
@@ -1417,6 +1460,9 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       |> assert_has("th", text: "Connection")
       |> assert_has("th", text: "Deployment group")
       |> assert_has("th", text: "Tags")
+      |> refute_has("#columns-panel")
+      |> click_button("#columns-button", "Columns")
+      |> assert_has("#columns-shown", text: "7 of 7 shown")
     end
 
     test "a column name that's no longer known is skipped", %{conn: conn, fixture: fixture} do
@@ -1447,9 +1493,11 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       |> assert_has("th", text: "Health")
       |> assert_has("th", text: "Tags")
       |> refute_has("th", text: "Firmware")
-      # the show settings button is shown using JS, so no `click_button` is needed
-      |> uncheck("Tags")
+      |> click_button("#columns-button", "Columns")
+      |> assert_has("#columns-shown", text: "3 of 7 shown")
+      |> uncheck("Tags", exact: false)
       |> refute_has("th", text: "Tags", timeout: 1_000)
+      |> assert_has("#columns-shown", text: "2 of 7 shown")
 
       # Saving the columns again leaves the stale name behind.
       assert %{device_list_columns: [:health]} = Accounts.get_user!(user.id).display_preferences
@@ -1463,6 +1511,35 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
                )
     end
 
+    test "Show all brings back every column", %{conn: conn, fixture: %{user: user} = fixture} do
+      {:ok, _user} = Accounts.update_user_default_columns(user, :device_list_columns, ["health"])
+
+      conn
+      |> visit(device_index_path(fixture))
+      |> assert_has("#device-count", text: "1", timeout: 1000)
+      |> refute_has("th", text: "Tags")
+      |> click_button("#columns-button", "Columns")
+      |> click_button("#columns-panel button", "Show all")
+      |> assert_has("#columns-shown", text: "7 of 7 shown")
+      |> assert_has("th", text: "Tags")
+      |> assert_has("th", text: "Platform")
+
+      assert %{device_list_columns: columns} = Accounts.get_user!(user.id).display_preferences
+      assert Enum.sort(columns) == Enum.sort(DisplayPreferences.device_list_columns())
+    end
+
+    test "the Device column is always shown", %{conn: conn, fixture: fixture} do
+      conn
+      |> visit(device_index_path(fixture))
+      |> assert_has("#device-count", text: "1", timeout: 1000)
+      |> click_button("#columns-button", "Columns")
+      |> within("#columns-form", fn session ->
+        session
+        |> assert_has("span", text: "Always shown")
+        |> refute_has("input[value='identifier']")
+      end)
+    end
+
     for {column, label} <- [
           {:health, "Health"},
           {:firmware, "Firmware"},
@@ -1473,7 +1550,6 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
         ] do
       @column column
       @label label
-      @friendly_column_name to_string(@column) |> String.split("_") |> Enum.map_join(" ", &String.capitalize/1)
 
       test "#{column} column can be removed", %{conn: conn, fixture: fixture} do
         %{user: user} = fixture
@@ -1484,37 +1560,23 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
         |> visit(device_index_path(fixture))
         |> assert_has("#device-count", text: "1", timeout: 1000)
         |> assert_has("th", text: @label)
-        # the show settings button is shown using JS, so no `click_button` is needed
-        |> uncheck(@friendly_column_name)
+        |> click_button("#columns-button", "Columns")
+        |> uncheck(@label, exact: false)
         |> refute_has("th", text: @label, timeout: 1_000)
       end
 
       test "#{column} column can be added", %{conn: conn, fixture: %{user: user} = fixture} do
         assert is_nil(user.display_preferences)
 
-        default_column_payload = %{
-          "_target" => [to_string(@column)],
-          "connected_info" => "true",
-          "deployment_group" => "true",
-          "firmware" => "true",
-          "health" => "true",
-          "platform" => "true",
-          "tags" => "true"
-        }
-
-        {:ok, _user} =
-          ListSettingsSidebar.update_displayed_columns(
-            user,
-            :device_list_columns,
-            Map.put(default_column_payload, to_string(@column), "false")
-          )
+        others = DisplayPreferences.device_list_columns() |> List.delete(@column) |> Enum.map(&to_string/1)
+        {:ok, _user} = Accounts.update_user_default_columns(user, :device_list_columns, others)
 
         conn
         |> visit(device_index_path(fixture))
         |> assert_has("#device-count", text: "1", timeout: 1000)
         |> refute_has("th", text: @label)
-        # the show settings button is shown using JS, so no `click_button` is needed
-        |> check(@friendly_column_name)
+        |> click_button("#columns-button", "Columns")
+        |> check(@label, exact: false)
         |> assert_has("th", text: @label, timeout: 1_000)
       end
     end

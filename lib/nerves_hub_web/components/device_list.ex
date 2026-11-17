@@ -15,6 +15,7 @@ defmodule NervesHubWeb.Components.DeviceList do
   alias NervesHub.Devices.Updates
   alias NervesHubWeb.Components.Fleet
   alias NervesHubWeb.Components.HealthStatus
+  alias NervesHubWeb.Components.Sorting
   alias Phoenix.LiveView.JS
 
   # Not seen for this long, a device needs attention: the same cut-off the
@@ -676,6 +677,211 @@ defmodule NervesHubWeb.Components.DeviceList do
             <span class="lucide-chevron-right size-3.5" aria-hidden="true"></span>
           </button>
         </nav>
+      </div>
+    </div>
+    """
+  end
+
+  # Skeletons for the list's first load, drawn to the same widths and row
+  # heights as what replaces them, so nothing moves when it arrives. A bar's
+  # width varies down the rows, as real identifiers and versions would.
+  @bar "animate-pulse rounded-full bg-base-800 motion-reduce:animate-none"
+  @widths %{
+    identifier: ~w(w-36 w-32 w-40 w-28 w-36 w-30),
+    version: ~w(w-10 w-9 w-10 w-11),
+    detail: ~w(w-20 w-14 w-24 w-16 w-0),
+    group: ~w(w-24 w-20 w-28 w-14),
+    connection: ~w(w-16 w-20 w-14),
+    tags: ~w(w-12 w-10 w-14 w-0)
+  }
+
+  defp bar_width(kind, row), do: Enum.at(@widths[kind], rem(row, length(@widths[kind])))
+
+  @headers %{
+    health: {"Health", "w-28", nil},
+    firmware: {"Firmware", "w-60", nil},
+    platform: {"Platform", "w-20", nil},
+    deployment_group: {"Deployment group", "w-40", nil},
+    connected_info: {"Connection", "w-32", "connection_established_at"},
+    tags: {"Tags", nil, "tags"}
+  }
+
+  attr(:columns, :list, required: true, doc: "the columns shown, in the table's order")
+  attr(:rows, :integer, required: true)
+  attr(:sort, :string, required: true)
+  attr(:sort_direction, :string, required: true)
+
+  @doc """
+  The table while the list first loads: its real header, with the columns the
+  user shows, over rows of placeholders. Below `sm`, cards like the list's.
+  """
+  def table_skeleton(assigns) do
+    assigns = assign(assigns, headers: @headers, bar: @bar)
+
+    ~H"""
+    <div id="device-list-skeleton" aria-busy="true" aria-label="Loading devices">
+      <div class="box-content flex h-8 items-center justify-between gap-3 pt-0.5 pb-2.5 sm:hidden" aria-hidden="true">
+        <span class={["h-2 w-24", @bar]}></span>
+        <span class="flex items-center gap-3">
+          <span class={["h-2 w-20", @bar]}></span>
+          <span class="h-8 w-15 rounded border border-line-default bg-surface-raised"></span>
+        </span>
+      </div>
+      <%!-- Rows the heights of a card's: identifier and health, firmware,
+            then group and connection. --%>
+      <ul class="flex flex-col gap-2 sm:hidden" aria-hidden="true">
+        <li :for={row <- 0..(@rows - 1)} class="flex flex-col gap-2 rounded-card border border-line-default bg-surface-raised p-3">
+          <span class="flex h-4.5 items-center gap-2">
+            <.status_dot class="size-1.75 shrink-0 bg-status-offline" />
+            <span class={["h-2.5", bar_width(:identifier, row), @bar]}></span>
+            <span class={["ml-auto h-2 w-12", @bar]}></span>
+          </span>
+          <span class="flex h-4 items-center pl-3.75">
+            <span class={["h-2", bar_width(:version, row), @bar]}></span>
+          </span>
+          <span class="flex h-6 items-center justify-between pl-3.75">
+            <span class={["h-2", bar_width(:group, row), @bar]}></span>
+            <span class={["h-2", bar_width(:connection, row), @bar]}></span>
+          </span>
+        </li>
+      </ul>
+      <div class="w-max min-w-full overflow-clip rounded-card border border-line-default bg-surface-raised max-sm:hidden">
+        <table class="w-full text-left">
+          <thead>
+            <tr class="h-9 border-b border-line-default bg-surface [&>th]:pr-4 [&>th]:text-label [&>th]:text-content-faint [&>th]:uppercase">
+              <th class="w-8 p-0">
+                <span class="flex h-9 w-10 items-center pl-4" aria-hidden="true">
+                  <span class="size-3.5 rounded-[3px] border border-line-control bg-surface-raised"></span>
+                </span>
+              </th>
+              <th class="w-52">
+                <Sorting.sort_icon text="Device" field="identifier" selected_field={@sort} selected_direction={@sort_direction} />
+              </th>
+              <th :for={column <- @columns} class={elem(@headers[column], 1)}>
+                <% {label, _width, field} = @headers[column] %>
+                <span :if={is_nil(field)}>{label}</span>
+                <Sorting.sort_icon :if={field} text={label} field={field} selected_field={@sort} selected_direction={@sort_direction} />
+              </th>
+              <th class="w-16"><span class="sr-only">Peek</span></th>
+            </tr>
+          </thead>
+          <tbody aria-hidden="true">
+            <tr :for={row <- 0..(@rows - 1)} class="h-11 border-b border-line-subtle last:border-b-0 [&>td]:pr-4">
+              <td class="p-0">
+                <span class="flex h-11 w-10 items-center pl-4">
+                  <span class="size-3.5 rounded-[3px] border border-line-control bg-surface-raised"></span>
+                </span>
+              </td>
+              <td>
+                <span class="flex items-center gap-2">
+                  <.status_dot class="size-1.75 bg-status-offline" />
+                  <span class={["h-2.5", bar_width(:identifier, row), @bar]}></span>
+                </span>
+              </td>
+              <td :for={column <- @columns}>
+                <.skeleton_cell column={column} row={row} bar={@bar} />
+              </td>
+              <td></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    """
+  end
+
+  attr(:column, :atom, required: true)
+  attr(:row, :integer, required: true)
+  attr(:bar, :string, required: true)
+
+  defp skeleton_cell(%{column: :health} = assigns) do
+    ~H"""
+    <span class={["block h-2 w-14", @bar]}></span>
+    """
+  end
+
+  defp skeleton_cell(%{column: :firmware} = assigns) do
+    ~H"""
+    <span class="flex items-center gap-2">
+      <span class={["h-2.5", bar_width(:version, @row), @bar]}></span>
+      <span :if={bar_width(:detail, @row) != "w-0"} class={["h-2", bar_width(:detail, @row), @bar]}></span>
+    </span>
+    """
+  end
+
+  defp skeleton_cell(%{column: :platform} = assigns) do
+    ~H"""
+    <span class={["block h-2 w-10", @bar]}></span>
+    """
+  end
+
+  defp skeleton_cell(%{column: :deployment_group} = assigns) do
+    ~H"""
+    <span class={["block h-2.5", bar_width(:group, @row), @bar]}></span>
+    """
+  end
+
+  defp skeleton_cell(%{column: :connected_info} = assigns) do
+    ~H"""
+    <span class={["block h-2", bar_width(:connection, @row), @bar]}></span>
+    """
+  end
+
+  defp skeleton_cell(%{column: :tags} = assigns) do
+    ~H"""
+    <span class="flex items-center gap-1">
+      <span :if={bar_width(:tags, @row) != "w-0"} class={["h-5 rounded border border-line-default", bar_width(:tags, @row)]}></span>
+    </span>
+    """
+  end
+
+  attr(:rows, :integer, required: true)
+
+  @doc "The Needs attention list while it first loads: rows of placeholders the height of its rows."
+  def attention_skeleton(assigns) do
+    assigns = assign(assigns, :bar, @bar)
+
+    ~H"""
+    <ul
+      id="attention-list-skeleton"
+      aria-busy="true"
+      aria-label="Loading devices"
+      class="overflow-clip rounded-card border border-line-default bg-surface-raised max-sm:flex max-sm:flex-col max-sm:gap-2 max-sm:overflow-visible max-sm:border-0 max-sm:bg-transparent"
+    >
+      <li
+        :for={row <- 0..(@rows - 1)}
+        aria-hidden="true"
+        class="flex h-15 items-center gap-3 border-b border-line-subtle pr-5 pl-4 last:border-b-0 max-sm:h-auto max-sm:items-start max-sm:gap-2 max-sm:rounded-card max-sm:border max-sm:border-line-default max-sm:bg-surface-raised max-sm:p-3 max-sm:last:border-b"
+      >
+        <.status_dot class="size-1.75 shrink-0 bg-status-offline max-sm:mt-1.75" />
+        <span class="flex min-w-0 grow flex-col gap-2 max-sm:gap-2.5">
+          <span class={["h-2.5", bar_width(:identifier, row), @bar]}></span>
+          <span class={["h-2", Enum.at(~w(w-56 w-44 w-64 w-40), rem(row, 4)), @bar]}></span>
+        </span>
+      </li>
+    </ul>
+    """
+  end
+
+  @doc "The pager while the list first loads: its controls, without a range or a page yet."
+  def pager_skeleton(assigns) do
+    assigns = assign(assigns, :bar, @bar)
+
+    ~H"""
+    <div id="device-pager-skeleton" class="flex items-center justify-between gap-4 pt-4 max-sm:justify-end" aria-hidden="true">
+      <span class={["h-2 w-28 max-sm:hidden", @bar]}></span>
+      <div class="flex items-center gap-4">
+        <span class="flex items-center gap-1.5">
+          <span class="text-ui/4 text-content-muted">Per page</span>
+          <span class="h-7 w-13 rounded border border-line-default bg-surface-raised"></span>
+        </span>
+        <span class="flex h-7 items-center">
+          <span class="size-7 rounded-l border border-line-default bg-surface-raised"></span>
+          <span class="flex h-7 w-14 items-center justify-center border-y border-line-default bg-surface-raised">
+            <span class={["h-2 w-7", @bar]}></span>
+          </span>
+          <span class="size-7 rounded-r border border-line-default bg-surface-raised"></span>
+        </span>
       </div>
     </div>
     """

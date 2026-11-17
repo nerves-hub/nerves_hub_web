@@ -230,8 +230,10 @@ when adding or removing one.
   `DeviceFiltering.multi_filters/0` takes several comma-separated choices,
   any of which a device can match; each choice is a
   `DeviceFiltering.value_dynamic/2`, and the panel counts them with
-  `Devices.facet_counts/4` only while it is open. Selecting devices brings up
-  `components/bulk_bar.ex`, a bar floating over the list whose buttons each
+  `Devices.facet_counts/4` only while it is open. The Columns button opens
+  `components/device_columns.ex`, built the same way, which saves the
+  columns shown to the user's display preferences as it changes. Selecting
+  devices brings up `components/bulk_bar.ex`, a bar floating over the list whose buttons each
   open one popover (`bulk_menu` in the LiveView) for an action on all of
   them; every bulk action handler closes it, since a `phx-submit` command
   only sends its first push. A product with no devices shows

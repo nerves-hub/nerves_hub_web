@@ -2,7 +2,9 @@
   <:top_bar>
     <div class={["flex min-w-0 items-baseline gap-3", (@selecting? or @selected_devices != []) && "max-sm:hidden"]}>
       <h1 class="text-base/6 font-semibold text-content-strong">Devices</h1>
-      <span :if={!@devices.ok?} class="font-mono text-xs text-content-muted">Loading...</span>
+      <span :if={!@devices.ok?} class="inline-block h-2 w-16 animate-pulse self-center rounded-full bg-base-800 motion-reduce:animate-none">
+        <span class="sr-only">Loading...</span>
+      </span>
       <span :if={@devices.ok? and @product_device_count != 0} class="truncate font-mono text-xs text-content-muted">
         <span id="device-count">{Number.Delimit.number_to_delimited(@total_entries, precision: 0)}</span><span class="max-sm:hidden">{device_count_suffix(@total_entries, @product_device_count)}</span>
       </span>
@@ -25,7 +27,7 @@
     </div>
     <div class={["mr-6 flex items-center gap-2 max-sm:mr-2", (@selecting? or @selected_devices != []) && "max-sm:hidden"]}>
       <.button
-        :if={has_results?(@devices, @currently_filtering)}
+        :if={list_chrome?(@devices, @currently_filtering)}
         type="link"
         square
         aria-label="Export devices"
@@ -42,7 +44,7 @@
   </:top_bar>
 
   <DeviceList.state_tabs
-    :if={has_results?(@devices, @currently_filtering)}
+    :if={list_chrome?(@devices, @currently_filtering)}
     tabs={@state_tabs}
     selected={@current_filters.state}
     counts={@state_counts}
@@ -51,14 +53,14 @@
   />
 
   <div
-    :if={@current_filters.state == "attention" && has_results?(@devices, @currently_filtering)}
+    :if={@current_filters.state == "attention" && list_chrome?(@devices, @currently_filtering)}
     class={["shrink-0 px-6 pt-4 max-sm:px-0 max-sm:pt-3", peek_docked?(@current_filters, @devices, @peek_device_id) && "lg:mr-150"]}
   >
     <DeviceList.reason_tabs tabs={@reason_tabs} selected={@current_filters.reason} counts={@state_counts} />
   </div>
 
   <div
-    :if={has_results?(@devices, @currently_filtering) || @soft_deleted_devices_exist}
+    :if={list_chrome?(@devices, @currently_filtering) || @soft_deleted_devices_exist}
     class={[
       "flex shrink-0 items-start gap-2 px-6 pb-3 max-sm:px-4",
       if(@current_filters.state == "attention", do: "pt-3", else: "pt-4"),
@@ -66,7 +68,7 @@
     ]}
   >
     <AdvancedSearch.field
-      :if={has_results?(@devices, @currently_filtering)}
+      :if={list_chrome?(@devices, @currently_filtering)}
       query={@current_filters[:advanced_query]}
       error={@advanced_query_error}
       schema_json={@advanced_query_schema_json}
@@ -77,7 +79,7 @@
       phx-click={DeviceFilters.open()}
       aria-expanded={to_string(@filters_open?)}
       aria-controls="filter-panel"
-      class={["max-sm:h-10 max-sm:px-3", !has_results?(@devices, @currently_filtering) && "ml-auto"]}
+      class={["max-sm:h-10 max-sm:px-3", !list_chrome?(@devices, @currently_filtering) && "ml-auto"]}
     >
       <span class="lucide-list-filter" aria-hidden="true"></span>
       Filters
@@ -85,7 +87,15 @@
         {filter_count(@current_filters)}
       </.badge>
     </.button>
-    <.button :if={@current_filters.state != "attention"} type="button" aria-label="List settings" class="max-sm:hidden" phx-click={ListSettingsSidebar.show_settings_sidebar()}>
+    <.button
+      :if={@current_filters.state != "attention"}
+      id="columns-button"
+      type="button"
+      class="max-sm:hidden"
+      phx-click={DeviceColumns.open()}
+      aria-expanded={to_string(@columns_open?)}
+      aria-controls="columns-panel"
+    >
       <span class="lucide-columns-3" aria-hidden="true"></span> Columns
     </.button>
   </div>
@@ -122,57 +132,17 @@
     </div>
     <.async_result :let={devices} assign={@devices}>
       <:loading>
-        <div class="flex flex-col gap-2 pt-1 sm:hidden" aria-busy="true">
-          <div :for={_ <- 1..6} class="flex h-23 animate-pulse flex-col gap-3 rounded-card border border-line-default bg-surface-raised p-3">
-            <div class="flex items-center gap-2">
-              <.status_dot class="bg-status-offline" />
-              <div class="h-2.5 w-36 rounded-full bg-base-800"></div>
-            </div>
-            <div class="ml-3.75 h-2.5 w-24 rounded-full bg-base-800"></div>
-            <div class="ml-3.75 h-2.5 w-40 rounded-full bg-base-800"></div>
-          </div>
-        </div>
-        <div class="w-max min-w-full overflow-clip rounded-card border border-line-default bg-surface-raised max-sm:hidden" aria-busy="true">
-          <table class="w-full text-left">
-            <thead>
-              <tr class="h-9 border-b border-line-default bg-surface">
-                <th class="w-8 pl-4"><span class="block size-3.5 rounded-[3px] border border-line-control opacity-50"></span></th>
-                <th :for={label <- ~w(Device Health Firmware Platform Group Connection Tags)} class="pr-4 text-label text-content-faint uppercase">
-                  {label}
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr :for={_ <- 1..12} class="h-11 animate-pulse border-b border-line-subtle last:border-b-0">
-                <td class="pl-4"><span class="block size-3.5 rounded-[3px] border border-line-control opacity-50"></span></td>
-                <td class="w-52 pr-4">
-                  <div class="flex items-center gap-2">
-                    <.status_dot class="bg-status-offline" />
-                    <div class="h-2.5 w-36 rounded-full bg-base-800"></div>
-                  </div>
-                </td>
-                <td class="w-28 pr-4">
-                  <div class="h-2.5 w-14 rounded-full bg-base-800"></div>
-                </td>
-                <td class="w-60 pr-4">
-                  <div class="h-2.5 w-28 rounded-full bg-base-800"></div>
-                </td>
-                <td class="w-20 pr-4">
-                  <div class="h-2.5 w-10 rounded-full bg-base-800"></div>
-                </td>
-                <td class="w-40 pr-4">
-                  <div class="h-2.5 w-24 rounded-full bg-base-800"></div>
-                </td>
-                <td class="w-32 pr-4">
-                  <div class="h-2.5 w-16 rounded-full bg-base-800"></div>
-                </td>
-                <td class="pr-4">
-                  <div class="h-2.5 w-10 rounded-full bg-base-800"></div>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
+        <%!-- The first load draws what's coming: the list in the shape it
+              will have, with the columns the user shows, and its pager. --%>
+        <DeviceList.attention_skeleton :if={@current_filters.state == "attention"} rows={8} />
+        <DeviceList.table_skeleton
+          :if={@current_filters.state != "attention"}
+          columns={visible_columns(@current_scope.user)}
+          rows={min(@paginate_opts.page_size, 25)}
+          sort={@current_sort}
+          sort_direction={@sort_direction}
+        />
+        <DeviceList.pager_skeleton />
       </:loading>
       <:failed :let={_failure}>
         <div class="flex h-full items-center justify-center pb-16">
@@ -456,10 +426,7 @@
     docked={@current_filters.state == "attention"}
   />
 
-  <ListSettingsSidebar.render
-    available_columns={NervesHub.Accounts.User.DisplayPreferences.device_list_columns()}
-    selected_columns={get_in(@current_scope.user.display_preferences.device_list_columns)}
-  />
+  <DeviceColumns.panel :if={@columns_open?} selected={get_in(@current_scope.user.display_preferences.device_list_columns)} />
 
   <BulkBar.render
     selected_devices={@selected_devices}

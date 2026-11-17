@@ -24,6 +24,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
   alias NervesHubWeb.Components.AdvancedSearch
   alias NervesHubWeb.Components.BulkBar
   alias NervesHubWeb.Components.CAHelpers
+  alias NervesHubWeb.Components.DeviceColumns
   alias NervesHubWeb.Components.DeviceFilters
   alias NervesHubWeb.Components.DeviceList
   alias NervesHubWeb.Components.DeviceOnboarding
@@ -129,6 +130,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
     |> assign(:peek_device_id, nil)
     |> assign(:peek, AsyncResult.loading())
     |> assign(:filters_open?, false)
+    |> assign(:columns_open?, false)
     |> assign(:bulk_menu, nil)
     |> assign(:list_loading?, false)
     |> assign(:no_match_suggestions, nil)
@@ -364,6 +366,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
   def handle_event("open-filters", _, socket) do
     socket
     |> assign(:filters_open?, true)
+    |> assign(:columns_open?, false)
     |> assign(:bulk_menu, nil)
     |> assign(:filter_find, "")
     |> assign(:peek_device_id, nil)
@@ -372,13 +375,14 @@ defmodule NervesHubWeb.Live.Devices.Index do
   end
 
   # The floating bulk bar opens one popover at a time; asking for the open one
-  # again closes it, as does opening it over the Filters panel.
+  # again closes it, as does opening it over the Filters or Columns panel.
   def handle_event("bulk-menu", %{"menu" => menu}, socket) when menu in @bulk_menus do
     menu = if socket.assigns.bulk_menu != menu, do: menu
 
     socket
     |> assign(:bulk_menu, menu)
     |> assign(:filters_open?, false)
+    |> assign(:columns_open?, false)
     |> noreply()
   end
 
@@ -424,9 +428,35 @@ defmodule NervesHubWeb.Live.Devices.Index do
     apply_advanced_query(socket, "")
   end
 
-  def handle_event("update-settings", params, %{assigns: %{current_scope: scope}} = socket) do
-    {:ok, user} = ListSettingsSidebar.update_displayed_columns(scope.user, :device_list_columns, params)
-    {:noreply, assign(socket, :current_scope, %{scope | user: user})}
+  # The Columns panel sits where the Filters panel and the peek do, so it
+  # closes them.
+  def handle_event("open-columns", _, socket) do
+    socket
+    |> assign(:columns_open?, true)
+    |> assign(:filters_open?, false)
+    |> assign(:bulk_menu, nil)
+    |> assign(:peek_device_id, nil)
+    |> noreply()
+  end
+
+  def handle_event("close-columns", _, socket) do
+    socket
+    |> assign(:columns_open?, false)
+    |> noreply()
+  end
+
+  def handle_event("update-columns", params, socket) do
+    chosen = List.wrap(params["columns"])
+
+    socket
+    |> save_columns(Enum.filter(DeviceColumns.columns(), &(to_string(&1) in chosen)))
+    |> noreply()
+  end
+
+  def handle_event("show-all-columns", _, socket) do
+    socket
+    |> save_columns(DeviceColumns.columns())
+    |> noreply()
   end
 
   @decorate requires_permission(:"device:update")
@@ -1585,6 +1615,15 @@ defmodule NervesHubWeb.Live.Devices.Index do
     |> assign(:available_firmwares_for_filtered_platform, [])
   end
 
+  # The tabs, search and buttons around the list: there while it first
+  # loads, so they don't move in above it when it arrives, and after it while
+  # it has devices or a filter is what emptied it.
+  defp list_chrome?(%AsyncResult{loading: loading} = device_async, currently_filtering?),
+    do: not is_nil(loading) or has_results?(device_async, currently_filtering?)
+
+  # The columns the table shows, in its order.
+  defp visible_columns(user), do: Enum.filter(DeviceColumns.columns(), &show_column?(user, &1))
+
   defp has_results?(%AsyncResult{} = device_async, currently_filtering?) do
     device_async.ok? && (Enum.any?(device_async.result) || currently_filtering?)
   end
@@ -1836,6 +1875,15 @@ defmodule NervesHubWeb.Live.Devices.Index do
 
   defp device_count_suffix(1, _total), do: " device"
   defp device_count_suffix(_shown, _total), do: " devices"
+
+  # Saved to the user's display preferences, so every product's devices list
+  # shows the same columns.
+  defp save_columns(%{assigns: %{current_scope: scope}} = socket, columns) do
+    {:ok, user} =
+      Accounts.update_user_default_columns(scope.user, :device_list_columns, Enum.map(columns, &to_string/1))
+
+    assign(socket, :current_scope, %{scope | user: user})
+  end
 
   defp show_column?(user, column) do
     ListSettingsSidebar.show_column?(user.display_preferences, :device_list_columns, column)
