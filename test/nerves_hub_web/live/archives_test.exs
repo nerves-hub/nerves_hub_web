@@ -292,7 +292,7 @@ defmodule NervesHubWeb.Live.ArchivesTest do
       conn
       |> visit("/org/#{org.name}/#{product.name}/archives/#{archive.uuid}")
       |> assert_has("h1", text: archive.uuid)
-      |> click_button("Delete")
+      |> click_button("button[phx-click='delete-archive']", "Delete")
       |> assert_has("div", text: "The archive couldn't be deleted", exact: false)
     end
   end

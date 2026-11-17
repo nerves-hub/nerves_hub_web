@@ -151,6 +151,13 @@
   --color-alert-content: var(--color-red-400);
   --color-alert-soft: color-mix(in oklab, var(--color-alert) 15%, transparent);
 
+  /* Waiting on someone, such as a release awaiting approval. Not a problem,
+     so it stays out of the red/amber scale, and sky rather than the brand
+     indigo, which already marks what's selected. */
+  --color-waiting: var(--color-sky-500);
+  --color-waiting-content: var(--color-sky-400);
+  --color-waiting-soft: color-mix(in oklab, var(--color-waiting) 15%, transparent);
+
   /* Danger — solid destructive CTAs (e.g. "Delete account"). Distinct from
      `alert` (red-500 feedback/state): a heavier red-600 fill with white text,
      identical in both themes. */
@@ -363,6 +370,8 @@
   --color-warning-soft: var(--color-amber-100);
   --color-alert-content: var(--color-red-900);
   --color-alert-soft: var(--color-red-50);
+  --color-waiting-content: var(--color-sky-700);
+  --color-waiting-soft: var(--color-sky-50);
 
   --color-chart-1: #2a78d6;
   --color-chart-2: #eb6834;
@@ -426,6 +435,20 @@
   @media (40rem <= width < 80rem) {
     @slot;
   }
+}
+/* The top bar's menu button on a phone carries the most severe status in the
+   product sidebar behind it, which ProductSidebar puts in data-attention. */
+html:has(#product-sidebar[data-attention]) .menu-attention {
+  display: block;
+}
+html:has(#product-sidebar[data-attention="alert"]) .menu-attention {
+  background-color: var(--color-alert);
+}
+html:has(#product-sidebar[data-attention="warning"]) .menu-attention {
+  background-color: var(--color-warning);
+}
+html:has(#product-sidebar[data-attention="waiting"]) .menu-attention {
+  background-color: var(--color-waiting);
 }
 /* The device page on a phone, once its header has scrolled out of sight and
    the top bar names the device instead (see devicePageScroll.js). */
@@ -834,47 +857,8 @@ body {
   padding: 0;
 }
 
-.org-avatar {
-  width: 32px;
-  height: 32px;
-  line-height: 32px;
-  flex-shrink: 0;
-  text-align: center;
-  text-transform: uppercase;
-  font-size: 14px;
-  @apply bg-base-800 text-content-faint;
-}
-
 .menu-box {
   @apply bg-surface-overlay border-line-default rounded-md border px-4 py-3;
-}
-
-.org-selector-title {
-  @apply text-content-strong;
-  font-size: 14px;
-  font-style: normal;
-  font-weight: 600;
-  line-height: 20px;
-}
-.product-selector-title {
-  @apply text-content-muted;
-  font-size: 14px;
-  font-style: normal;
-  font-weight: 400;
-  line-height: 20px;
-}
-
-.product-selector:hover .product-selector-icon {
-  @apply bg-base-700;
-}
-
-.product-picker-product,
-.product-picker-product:link {
-  @apply text-content-body hover:bg-base-800 ml-7 block rounded px-4 py-1.5;
-  font-size: 14px;
-  font-style: normal;
-  font-weight: 500;
-  line-height: 20px;
 }
 
 .clickable-table-row {

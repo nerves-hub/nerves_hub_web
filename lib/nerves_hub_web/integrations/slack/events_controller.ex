@@ -12,6 +12,8 @@ defmodule NervesHubWeb.Integrations.Slack.EventsController do
 
   alias NervesHubWeb.Integrations.Slack.EventCallbacks
 
+  plug(:require_no_permission, :signed_by_slack when action in [:create])
+
   # The body only: Slack's signature covers the body, not the query string,
   # which `params` would mix in.
   def create(conn, _params), do: handle(conn, conn.body_params)

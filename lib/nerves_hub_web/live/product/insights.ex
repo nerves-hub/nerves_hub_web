@@ -25,6 +25,7 @@ defmodule NervesHubWeb.Live.Product.Insights do
   @flapping_list_size 5
 
   @impl Phoenix.LiveView
+  @decorate requires_membership()
   def mount(_params, _session, %{assigns: %{current_scope: scope}} = socket) do
     product = Products.load_shared_secret_auth(scope.product)
 
@@ -45,12 +46,14 @@ defmodule NervesHubWeb.Live.Product.Insights do
   end
 
   @impl Phoenix.LiveView
+  @decorate requires_membership()
   def handle_event("toggle-auto-refresh", _params, %{assigns: %{polling_pid: nil}} = socket) do
     socket
     |> update_information()
     |> noreply()
   end
 
+  @decorate requires_membership()
   def handle_event("toggle-auto-refresh", _params, %{assigns: %{polling_pid: polling_pid}} = socket) do
     _ = Process.cancel_timer(polling_pid)
 
@@ -59,6 +62,7 @@ defmodule NervesHubWeb.Live.Product.Insights do
     |> noreply()
   end
 
+  @decorate requires_membership()
   def handle_event("set-trends-period", %{"value" => period}, socket) do
     if period in Trends.periods() do
       socket
@@ -70,18 +74,21 @@ defmodule NervesHubWeb.Live.Product.Insights do
     end
   end
 
+  @decorate requires_membership()
   def handle_event("set-adoption-view", %{"value" => view}, socket) when view in ~w(stacked lines) do
     socket
     |> assign(:adoption_view, String.to_existing_atom(view))
     |> noreply()
   end
 
+  @decorate requires_membership()
   def handle_event("toggle-release-annotations", _params, socket) do
     socket
     |> update(:release_annotations, &(!&1))
     |> noreply()
   end
 
+  @decorate requires_membership()
   def handle_event("set-composition-unit", %{"unit" => unit}, socket) when unit in ~w(count percent) do
     socket
     |> assign(:composition_unit, String.to_existing_atom(unit))
@@ -89,6 +96,7 @@ defmodule NervesHubWeb.Live.Product.Insights do
   end
 
   # A value the page never sends changes nothing, as with the period.
+  @decorate requires_membership()
   def handle_event(event, _params, socket) when event in ~w(set-adoption-view set-composition-unit), do: noreply(socket)
 
   @impl Phoenix.LiveView
