@@ -108,15 +108,6 @@ defmodule NervesHub.Devices.Health do
     |> Devices.with_counts(product)
   end
 
-  def health_status_count(product, status) do
-    Device
-    |> join(:inner, [d], lh in assoc(d, :latest_health))
-    |> where(product_id: ^product.id)
-    |> where([_, lh], lh.status == ^status)
-    |> Repo.exclude_deleted()
-    |> Repo.aggregate(:count)
-  end
-
   @doc """
   How many devices in each of the given products are `:healthy`, at
   `:warning` and `:unhealthy`, for a page that covers several products at
