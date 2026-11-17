@@ -1,114 +1,148 @@
 <NervesHubWeb.Layouts.sidebar flash={@flash} current_scope={@current_scope} sidebar_tab={@sidebar_tab}>
   <:top_bar>
-    <div></div>
-    <div class="mr-6 flex gap-2">
-      <.button type="link" navigate={~p"/org/#{@current_scope.org}/#{@current_scope.product}/devices/new"} aria-label="Add new device">
-        <.icon name="add" /> Add Device
-      </.button>
-      <.button :if={has_results?(@devices, @currently_filtering)} type="link" square aria-label="Export devices" href={~p"/org/#{@org}/#{@product}/devices/export?#{@params}"} download>
+    <div class={["flex min-w-0 items-baseline gap-3", (@selecting? or @selected_devices != []) && "max-sm:hidden"]}>
+      <h1 class="text-base/6 font-semibold text-content-strong">Devices</h1>
+      <span :if={!@devices.ok?} class="inline-block h-2 w-16 animate-pulse self-center rounded-full bg-base-800 motion-reduce:animate-none">
+        <span class="sr-only">Loading...</span>
+      </span>
+      <span :if={@devices.ok? and @product_device_count != 0} class="truncate font-mono text-xs text-content-muted">
+        <span id="device-count">{Number.Delimit.number_to_delimited(@total_entries, precision: 0)}</span><span class="max-sm:hidden">{device_count_suffix(@total_entries, @product_device_count)}</span>
+      </span>
+    </div>
+    <%!-- On a phone, choosing devices takes over the title: how many, and
+          Done to stop. The bulk bar along the bottom has the actions. --%>
+    <div :if={@selecting? or @selected_devices != []} id="phone-selection" class="flex min-w-0 flex-1 items-center gap-3 sm:hidden">
+      <span class="text-base/6 font-semibold whitespace-nowrap text-content-strong">
+        <span class="font-mono">{Number.Delimit.number_to_delimited(if(@select_all_matching, do: @total_entries, else: length(@selected_devices)), precision: 0)}</span> selected
+      </span>
+      <button
+        :if={not @select_all_matching and @selected_devices != [] and length(@selected_devices) < @total_entries}
+        type="button"
+        phx-click="select-all-matching"
+        class="cursor-pointer truncate text-ui/4 font-medium text-primary light:text-indigo-600"
+      >
+        Select all <span class="font-mono">{Number.Delimit.number_to_delimited(@total_entries, precision: 0)}</span>
+      </button>
+      <.button id="phone-selection-done" type="button" phx-click="deselect-all" class="mr-1 ml-auto">Done</.button>
+    </div>
+    <div class={["mr-6 flex items-center gap-2 max-sm:mr-2", (@selecting? or @selected_devices != []) && "max-sm:hidden"]}>
+      <.button
+        :if={list_chrome?(@devices, @currently_filtering, @product_device_count)}
+        type="link"
+        square
+        aria-label="Export devices"
+        title="Export devices"
+        href={~p"/org/#{@org}/#{@product}/devices/export?#{@params}"}
+        download
+      >
         <span class="lucide-download size-4" aria-hidden="true"></span>
+      </.button>
+      <.button type="link" style="primary" navigate={~p"/org/#{@current_scope.org}/#{@current_scope.product}/devices/new"} aria-label="Add new device">
+        <span class="lucide-plus--bold" aria-hidden="true"></span> Add<span class="max-sm:hidden"> device</span>
       </.button>
     </div>
   </:top_bar>
 
-  <:header>
-    <h1 :if={!@devices.ok?} class="text-page-title text-content-strong">Loading...</h1>
-    <h1 :if={@devices.ok?} id="devices-header" class="hidden text-page-title text-content-strong" phx-mounted={fade_in("#devices-header")}>
-      All Devices
-    </h1>
+  <DeviceList.state_tabs
+    :if={list_chrome?(@devices, @currently_filtering, @product_device_count)}
+    tabs={@state_tabs}
+    selected={@current_filters.state}
+    counts={@state_counts}
+    loading={@list_loading?}
+    class={peek_docked?(@current_filters, @devices, @peek_device_id) && "lg:mr-150"}
+  />
 
-    <div class="mr-auto">
-      <.badge :if={@devices.ok?} id="device-count" phx-mounted={fade_in("#device-count")} class="mr-auto hidden">
-        {Number.Delimit.number_to_delimited(@total_entries, precision: 0)}
+  <div
+    :if={@current_filters.state == "attention" && list_chrome?(@devices, @currently_filtering, @product_device_count)}
+    class={["shrink-0 px-6 pt-4 max-sm:px-0 max-sm:pt-3", peek_docked?(@current_filters, @devices, @peek_device_id) && "lg:mr-150"]}
+  >
+    <DeviceList.reason_tabs tabs={@reason_tabs} selected={@current_filters.reason} counts={@state_counts} />
+  </div>
+
+  <div
+    :if={list_chrome?(@devices, @currently_filtering, @product_device_count) || @soft_deleted_devices_exist}
+    class={[
+      "flex shrink-0 items-start gap-2 px-6 pb-3 max-sm:px-4",
+      if(@current_filters.state == "attention", do: "pt-3", else: "pt-4"),
+      peek_docked?(@current_filters, @devices, @peek_device_id) && "lg:mr-150"
+    ]}
+  >
+    <AdvancedSearch.field
+      :if={list_chrome?(@devices, @currently_filtering, @product_device_count)}
+      query={@current_filters[:advanced_query]}
+      error={@advanced_query_error}
+      schema_json={@advanced_query_schema_json}
+    />
+    <.button
+      id="sidebar-filter-button"
+      type="button"
+      phx-click={DeviceFilters.open()}
+      aria-expanded={to_string(@filters_open?)}
+      aria-controls="filter-panel"
+      class={["max-sm:h-10 max-sm:px-3", !list_chrome?(@devices, @currently_filtering, @product_device_count) && "ml-auto"]}
+    >
+      <span class="lucide-list-filter" aria-hidden="true"></span>
+      Filters
+      <.badge :if={filter_count(@current_filters) > 0} count tone="notice" aria-label={"#{filter_count(@current_filters)} applied"}>
+        {filter_count(@current_filters)}
       </.badge>
+    </.button>
+    <.button
+      :if={@current_filters.state != "attention"}
+      id="columns-button"
+      type="button"
+      class="max-sm:hidden"
+      phx-click={DeviceColumns.open()}
+      aria-expanded={to_string(@columns_open?)}
+      aria-controls="columns-panel"
+    >
+      <span class="lucide-columns-3" aria-hidden="true"></span> Columns
+    </.button>
+  </div>
+
+  <DeviceFilters.tokens
+    filters={@current_filters}
+    deployment_groups={@deployment_groups}
+    signer_cas={@signer_cas}
+    class={[
+      "-mt-1",
+      peek_docked?(@current_filters, @devices, @peek_device_id) && "lg:mr-150"
+    ]}
+  />
+
+  <div
+    id="device-container"
+    class={[
+      "h-0 flex-1 overflow-auto px-6 max-sm:px-4",
+      peek_docked?(@current_filters, @devices, @peek_device_id) && "lg:mr-150",
+      if(@selected_devices == [], do: "pb-5", else: "pb-20")
+    ]}
+    phx-hook="PageVisible"
+    aria-busy={to_string(@list_loading?)}
+  >
+    <%!-- A different list on its way: a line slides along the top of the old
+          one, which dims. Both wait a moment, so a quick load doesn't flash. --%>
+    <div
+      :if={@list_loading?}
+      id="list-loading"
+      class="pointer-events-none sticky top-0 z-40 -mb-0.5 h-0.5 animate-[fadeIn_150ms_ease-out_200ms_both] overflow-hidden rounded-full"
+      aria-hidden="true"
+    >
+      <div class="h-full w-2/5 animate-progress-slide rounded-full bg-primary motion-reduce:w-full motion-reduce:animate-none"></div>
     </div>
-
-    <div class="flex justify-center gap-4">
-      <AdvancedSearch.field
-        :if={has_results?(@devices, @currently_filtering)}
-        query={@current_filters[:advanced_query]}
-        error={@advanced_query_error}
-        schema_json={@advanced_query_schema_json}
-      />
-
-      <.button
-        :if={has_results?(@devices, @currently_filtering) || @soft_deleted_devices_exist}
-        id="sidebar-filter-button"
-        type="button"
-        square
-        aria-label="Filter devices"
-        phx-click={FilterSidebar.show_filter_sidebar()}
-      >
-        <.icon name="filter" />
-      </.button>
-      <.button type="button" square aria-label="List settings" phx-click={ListSettingsSidebar.show_settings_sidebar()}>
-        <.icon name="settings" />
-      </.button>
-    </div>
-  </:header>
-
-  <div id="device-container" class="h-0 flex-1 overflow-auto" phx-hook="PageVisible">
     <.async_result :let={devices} assign={@devices}>
       <:loading>
-        <div class="listing">
-          <table class="min-w-max [&_th]:sticky [&_th]:top-0 [&_th]:z-10">
-            <thead>
-              <tr>
-                <th class="checkbox">
-                  <input class="checkbox" disabled type="checkbox" />
-                </th>
-                <th>Identifier</th>
-                <th class="w-24">
-                  <div class="flex justify-center">Health</div>
-                </th>
-                <th>Firmware</th>
-                <th>Platform</th>
-                <th>Uptime</th>
-                <th>Deployment Group</th>
-                <th>Tags</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr :for={_ <- 1..25} class="clickable-table-row isolate animate-pulse border-b border-line-subtle">
-                <td class="checkbox"><input class="checkbox opacity-50" disabled type="checkbox" /></td>
-                <td>
-                  <div class="flex items-center gap-2">
-                    <.status_dot class="bg-status-offline" />
-                    <div class="h-2.5 w-[200px] rounded-full bg-base-700"></div>
-                  </div>
-                </td>
-
-                <td>
-                  <div class="flex items-center justify-center gap-2">
-                    <div class="size-4 rounded-full bg-base-700"></div>
-                  </div>
-                </td>
-
-                <td>
-                  <div class="h-2.5 w-20 rounded-full bg-base-700"></div>
-                </td>
-
-                <td>
-                  <div class="h-2.5 max-w-20 rounded-full bg-base-700"></div>
-                </td>
-
-                <td>
-                  <div class="h-2.5 max-w-20 rounded-full bg-base-700"></div>
-                </td>
-
-                <td>
-                  <div class="h-2.5 max-w-20 rounded-full bg-base-700"></div>
-                </td>
-
-                <td>
-                  <div class="flex items-center gap-1">
-                    <div class="h-2.5 w-[30px] rounded-full bg-base-700"></div>
-                  </div>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
+        <%!-- The first load draws what's coming: the list in the shape it
+              will have, with the columns the user shows, and its pager. --%>
+        <DeviceList.attention_skeleton :if={@current_filters.state == "attention"} rows={8} />
+        <DeviceList.table_skeleton
+          :if={@current_filters.state != "attention"}
+          columns={visible_columns(@current_scope.user)}
+          rows={min(@paginate_opts.page_size, 25)}
+          sort={@current_sort}
+          sort_direction={@sort_direction}
+        />
+        <DeviceList.pager_skeleton />
       </:loading>
       <:failed :let={_failure}>
         <div class="flex h-full items-center justify-center pb-16">
@@ -117,67 +151,95 @@
       </:failed>
 
       <%= cond do %>
-        <% Enum.empty?(devices) && @currently_filtering -> %>
-          <div class="flex h-full items-center justify-center pb-16">
-            <span class="text-xl font-medium text-content-strong">No devices match the current filters.</span>
+        <% Enum.empty?(devices) && @paginate_opts.page_number > 1 -> %>
+          <DeviceList.past_last_page class={loading_dim(@list_loading?)} />
+        <% Enum.empty?(devices) && @currently_filtering && only_state_filtered?(@current_filters) -> %>
+          <div id="empty-tab" class={["flex flex-col items-center gap-1 pt-24 pb-16 text-center", loading_dim(@list_loading?)]}>
+            <span :if={@current_filters.state == "attention"} class="mb-3 flex size-11 items-center justify-center rounded-full bg-success-soft">
+              <span class="lucide-check--bold size-4.5 text-success-content" aria-hidden="true"></span>
+            </span>
+            <p class="text-list-title text-content-strong">{empty_tab_title(@current_filters)}</p>
+            <p class="max-w-md text-ui/5 text-content-muted">{empty_tab_detail(@current_filters)}</p>
           </div>
+        <% Enum.empty?(devices) && @currently_filtering -> %>
+          <DeviceList.no_matches
+            removable={length(no_match_removable(@current_filters))}
+            suggestions={@no_match_suggestions}
+            can_reset={DeviceFilters.applied(@current_filters) != []}
+            search_only={no_match_removable(@current_filters) == [:advanced_query]}
+            class={loading_dim(@list_loading?)}
+          />
+        <% Enum.empty?(devices) && @product_device_count == 0 -> %>
+          <% {secret, secret_reason} = onboarding_secret(@product, @current_scope) %>
+          <DeviceOnboarding.render product={@product} host={onboarding_nhl_host()} secret={secret} secret_reason={secret_reason} />
         <% Enum.empty?(devices) -> %>
-          <div class="flex h-full items-center justify-center pb-16">
-            <div class="w-full max-w-2xl px-6">
-              <h2 class="mb-4 text-page-title text-content-strong">{@product.name} doesn't have any devices yet.</h2>
-              <p class="mb-6 text-sm text-content-muted">Get started by adding <code class="text-content-body">nerves_hub_link</code> to your Nerves project.</p>
-              <% active_secret = Enum.find(@product.shared_secret_auths, &is_nil(&1.deactivated_at)) %>
-              <%!-- The secret lets a device connect and register itself, so only members who could manage it are shown it. --%>
-              <%= if active_secret && authorized?(:"product:update", @current_scope) do %>
-                <div class="rounded-card border border-line-default bg-surface-raised p-4">
-                  <h3 class="mb-3 text-group-title text-content-strong">1. Add the dependency to your <code>mix.exs</code></h3>
-                  <pre class="mb-4 overflow-x-auto rounded bg-base-950 p-3 font-mono text-sm text-success-content"><code>&#123;:nerves_hub_link, "~&gt; 2.0"&#125;</code></pre>
-
-                  <h3 class="mb-3 text-group-title text-content-strong">2. Add this to your <code>config/config.exs</code></h3>
-                  <pre class="overflow-x-auto rounded bg-base-950 p-3 font-mono text-sm text-success-content"><code>config :nerves_hub_link,
-  host: "{onboarding_nhl_host()}",
-  remote_iex: true,
-  shared_secret: [
-    product_key: "{active_secret.key}",
-    product_secret: "{active_secret.secret}"
-  ]</code></pre>
-
-                  <p class="mt-4 text-xs text-content-faint">
-                    See the <a class="text-content-muted underline hover:text-content-body" href="https://hexdocs.pm/nerves_hub_link" target="_blank">nerves_hub_link documentation</a>
-                    for more details.
-                  </p>
-                </div>
-              <% else %>
-                <p class="text-sm text-content-muted">
-                  Check the <a class="text-content-body underline hover:text-base-200" href="https://hexdocs.pm/nerves_hub_link" target="_blank">nerves_hub_link documentation</a>
-                  for how to connect your first device.
-                </p>
-              <% end %>
-
-              <div class="mt-6 rounded-card border border-line-subtle bg-surface-muted p-4">
-                <h3 class="mb-2 text-group-title text-content-strong">Production authentication</h3>
-                <p class="text-xs text-content-muted">
-                  For production applications, we recommend mTLS authentication using a local certificate or dedicated secure hardware.
-                </p>
-                <div class="mt-2 flex gap-4">
-                  <a class="text-xs text-content-muted underline hover:text-content-body" href="https://hexdocs.pm/nerves_hub_link/NervesHubLink.Configurator.LocalCert.html" target="_blank">
-                    LocalCert configurator
-                  </a>
-                  <a class="text-xs text-content-muted underline hover:text-content-body" href="https://hexdocs.pm/nerves_hub_link/NervesHubLink.Configurator.NervesKey.html" target="_blank">
-                    NervesKey configurator
-                  </a>
-                </div>
-              </div>
+          <DeviceList.past_last_page class={loading_dim(@list_loading?)} />
+        <% @current_filters.state == "attention" -> %>
+          <%!-- The list opens its first device in the peek on a wide screen,
+                and again whenever a different list loads (`data-key`), but
+                not on a refresh of the same one, so a closed peek stays
+                closed. --%>
+          <ul
+            id="attention-list"
+            phx-hook="AttentionList"
+            data-key={@list_key}
+            data-filters-open={to_string(@filters_open?)}
+            class={[
+              "overflow-clip rounded-card border border-line-default bg-surface-raised",
+              "max-sm:flex max-sm:flex-col max-sm:gap-2 max-sm:overflow-visible max-sm:border-0 max-sm:bg-transparent",
+              loading_dim(@list_loading?)
+            ]}
+          >
+            <DeviceList.attention_row
+              :for={device <- devices}
+              device={device}
+              status={@device_statuses.result[device.id]}
+              reason={@current_filters.reason}
+              peeked={device.id == @peek_device_id}
+              path={~p"/org/#{@org}/#{@product}/devices/#{device}"}
+            />
+          </ul>
+        <% true -> %>
+          <%!-- A phone has no column headers to sort by or select from, so
+                this line above the cards does both. --%>
+          <div id="phone-list-meta" class="flex items-center justify-between gap-3 pt-0.5 pb-2.5 sm:hidden">
+            <span class="text-xs whitespace-nowrap text-content-muted">{page_range(@pager_meta)}</span>
+            <div class="flex items-center gap-3">
+              <form id="phone-sort" phx-change="sort-by">
+                <label for="phone-sort-select" class="sr-only">Sort</label>
+                <select
+                  id="phone-sort-select"
+                  name="sort"
+                  class="h-8 rounded border-0 bg-transparent py-0 pr-7 pl-1 text-right text-xs text-content-body focus:ring-0"
+                >
+                  {Phoenix.HTML.Form.options_for_select(phone_sort_options(), "#{@current_sort}:#{@sort_direction}")}
+                </select>
+              </form>
+              <.button
+                :if={not (@selecting? or @selected_devices != []) and may_select_devices?(@current_scope)}
+                id="phone-select"
+                type="button"
+                size="sm"
+                phx-click="start-selecting"
+              >
+                Select
+              </.button>
             </div>
           </div>
-        <% true -> %>
-          <div id="device-list" class="listing hidden" phx-mounted={fade_in("#device-list")}>
-            <table class="min-w-max [&_th]:sticky [&_th]:top-0 [&_th]:z-10">
-              <thead>
-                <tr>
-                  <th class="checkbox">
+          <div
+            id="device-list"
+            class={[
+              "w-max min-w-full overflow-clip rounded-card border border-line-default bg-surface-raised",
+              "max-sm:w-full max-sm:overflow-visible max-sm:border-0 max-sm:bg-transparent",
+              loading_dim(@list_loading?)
+            ]}
+          >
+            <table class="w-full text-left max-sm:block">
+              <thead class="sticky top-0 z-30 max-sm:hidden">
+                <tr class="h-9 border-b border-line-default bg-surface [&>th]:pr-4 [&>th]:text-label [&>th]:text-content-faint [&>th]:uppercase">
+                  <th class="relative w-8 p-0">
                     <input
-                      class="checkbox peer"
+                      class="peer sr-only"
                       id="toggle-all"
                       title="Select/unselect all"
                       checked={Enum.any?(devices) && Enum.count(@selected_devices) == Enum.count(devices)}
@@ -186,281 +248,211 @@
                       phx-click="select-all"
                       disabled={not may_select_devices?(@current_scope)}
                     />
-                    <label for="toggle-all" class="peer-disabled:opacity-40 peer-disabled:hover:bg-base-800">
-                      <span class="hidden">Select all devices</span>
-                      <span :if={Enum.any?(@selected_devices)} class="lucide-minus--bold size-3 text-primary-content" aria-hidden="true"></span>
+                    <label for="toggle-all" class={["h-9", checkbox_classes()]}>
+                      <span class="sr-only">Select all devices</span>
+                      <span class="checkbox-box">
+                        <span :if={Enum.any?(@selected_devices)} class="lucide-minus--bold size-2.5 text-primary-content" aria-hidden="true"></span>
+                      </span>
                     </label>
                   </th>
-                  <th phx-click="sort" phx-value-sort="identifier" class="cursor-pointer">
-                    <Sorting.sort_icon text="Identifier" field="identifier" selected_field={@current_sort} selected_direction={@sort_direction} />
+                  <th class="w-52 cursor-pointer" phx-click="sort" phx-value-sort="identifier">
+                    <Sorting.sort_icon text="Device" field="identifier" selected_field={@current_sort} selected_direction={@sort_direction} />
                   </th>
-                  <th :if={show_column?(@current_scope.user, :health)} class="w-24">
-                    <div class="flex justify-center">
-                      <span>Health</span>
-                    </div>
-                  </th>
-                  <th :if={show_column?(@current_scope.user, :firmware)}>Firmware</th>
-                  <th :if={show_column?(@current_scope.user, :platform)}>Platform</th>
+                  <th :if={show_column?(@current_scope.user, :health)} class="w-28">Health</th>
+                  <th :if={show_column?(@current_scope.user, :firmware)} class="w-60">Firmware</th>
+                  <th :if={show_column?(@current_scope.user, :platform)} class="w-20">Platform</th>
+                  <th :if={show_column?(@current_scope.user, :deployment_group)} class="w-40">Deployment group</th>
                   <th
                     :if={show_column?(@current_scope.user, :connected_info)}
+                    class="w-32 cursor-pointer"
                     phx-click="sort"
                     phx-value-sort="connection_established_at"
-                    class="cursor-pointer"
                   >
-                    <Sorting.sort_icon text="Connected for" field="connection_established_at" selected_field={@current_sort} selected_direction={@sort_direction} />
+                    <Sorting.sort_icon text="Connection" field="connection_established_at" selected_field={@current_sort} selected_direction={@sort_direction} />
                   </th>
-                  <th :if={show_column?(@current_scope.user, :deployment_group)}>Deployment Group</th>
-                  <th :if={show_column?(@current_scope.user, :tags)} phx-click="sort" phx-value-sort="tags" class="cursor-pointer">
+                  <th :if={show_column?(@current_scope.user, :tags)} class="cursor-pointer" phx-click="sort" phx-value-sort="tags">
                     <Sorting.sort_icon text="Tags" field="tags" selected_field={@current_sort} selected_direction={@sort_direction} />
                   </th>
+                  <th class="w-16"><span class="sr-only">Peek</span></th>
                 </tr>
               </thead>
-              <tbody>
+              <%!-- Below sm each row is a card: a grid that puts the identifier
+                    and health on top, the firmware under them, and the
+                    group, tags and connection last. Cells for columns that
+                    are switched off still render for it, hidden from sm up. --%>
+              <tbody class="max-sm:flex max-sm:flex-col max-sm:gap-2">
                 <tr
                   :for={device <- devices}
-                  class={["clickable-table-row isolate border-b border-line-subtle", device.id in @selected_devices && "selected-row"]}
-                  style={progress_style(@progress[device.id])}
+                  id={"device-row-#{device.id}"}
+                  phx-click={JS.push("peek", value: %{id: device.id})}
+                  data-peeked={device.id == @peek_device_id}
+                  class={[
+                    "group h-11 cursor-pointer scroll-mt-9 border-b border-line-subtle last:border-b-0 hover:bg-primary/4 [&>td]:pr-4",
+                    "max-sm:grid max-sm:h-auto max-sm:scroll-mt-2 max-sm:grid-cols-[auto_auto_minmax(0,1fr)_auto] max-sm:items-center max-sm:gap-y-2 max-sm:rounded-card max-sm:border max-sm:p-3 max-sm:last:border-b max-sm:[&>td]:pr-0",
+                    if(device.id in @selected_devices,
+                      do: "bg-primary/8 hover:bg-primary/10 max-sm:border-primary/40",
+                      else: "max-sm:border-line-default max-sm:bg-surface-raised"
+                    ),
+                    device.id == @peek_device_id && "bg-primary/6 shadow-[inset_2px_0_0_var(--color-primary)]"
+                  ]}
                 >
-                  <td class="checkbox">
+                  <%!-- An empty click binding here and on the identifier stops
+                        the row's, so selecting a device or opening it doesn't
+                        also open the peek. --%>
+                  <td
+                    class={["relative p-0", if(@selecting? or @selected_devices != [], do: "max-sm:col-start-1 max-sm:row-start-1 max-sm:mr-2.5", else: "max-sm:hidden")]}
+                    phx-click={%JS{}}
+                  >
                     <input
                       id={"checkbox-device-#{device.id}"}
-                      class="checkbox peer"
+                      class="peer sr-only"
                       {if device.id in @selected_devices, do: [checked: true], else: []}
                       type="checkbox"
-                      id={"#{device.id}-select"}
                       aria-label={"Select #{device.identifier}"}
                       phx-value-id={device.id}
                       phx-click="select"
                       disabled={not may_select_devices?(@current_scope)}
                     />
-                    <label for={"checkbox-device-#{device.id}"} class="relative z-20 peer-disabled:opacity-40 peer-disabled:hover:bg-base-800">
-                      <span :if={device.id in @selected_devices} class="lucide-check--bold size-3 text-primary-content" aria-hidden="true"></span>
+                    <label for={"checkbox-device-#{device.id}"} class={["h-11 max-sm:h-5 max-sm:w-auto max-sm:pl-0", checkbox_classes()]}>
+                      <span class="checkbox-box">
+                        <span :if={device.id in @selected_devices} class="lucide-check--bold size-2.5 text-primary-content" aria-hidden="true"></span>
+                      </span>
                     </label>
                   </td>
-                  <td>
+                  <td class="max-sm:col-span-2 max-sm:col-start-2 max-sm:row-start-1 max-sm:min-w-0">
                     <div class="flex items-center gap-2">
-                      <span title={connection_established_at_status(device.latest_connection)}>
-                        <%= if @device_statuses.result[device.id] == "online" do %>
-                          <.status_dot class="bg-status-online" />
-                          <!-- use this when we have connection type information -->
-                          <%!-- <span class="lucide-wifi size-4 text-success" aria-hidden="true"></span> --%>
-                        <% else %>
-                          <.status_dot class="bg-status-offline" />
-                          <!-- use this when we have connection type information -->
-                          <%!-- <span class="lucide-wifi-off size-4 text-alert" aria-hidden="true"></span> --%>
-                        <% end %>
-                      </span>
-                      <.link navigate={~p"/org/#{@org}/#{@product}/devices/#{device}"} class="ff-m font-mono">
+                      <.status_dot
+                        class={[
+                          "size-1.75",
+                          if(@device_statuses.result[device.id] == "online", do: "bg-status-online", else: "bg-status-offline"),
+                          (@selecting? or @selected_devices != []) && "max-sm:hidden"
+                        ]}
+                        title={if @device_statuses.result[device.id] == "online", do: "Online", else: "Offline"}
+                      />
+                      <.link
+                        navigate={~p"/org/#{@org}/#{@product}/devices/#{device}"}
+                        phx-click={%JS{}}
+                        class="font-mono text-ui/4 whitespace-nowrap text-content-strong hover:underline hover:decoration-line-strong max-sm:truncate max-sm:text-sm/4.5 max-sm:font-medium max-sm:underline max-sm:decoration-line-strong max-sm:underline-offset-3"
+                      >
                         {device.identifier}
-                        <.tooltip :if={device.deleted_at} id={"health-tooltip-#{device.identifier}"} placement="right" class="z-50 inline-block align-middle">
-                          <.icon name="info" class="text-content-muted" />
-                          <:content>
-                            This device has been deleted. <br /> You can destroy or restore it in the device's settings.
-                          </:content>
-                        </.tooltip>
-                        <span class="clickable-table-row-mask" />
                       </.link>
-                      <span class={["ml-2 flex items-center gap-1 rounded-full border border-line-default bg-base-800 px-2.5 py-0.5", !@progress[device.id] && "invisible"]}>
-                        <span class="text-xs tracking-tight text-content-body">{@progress[device.id][:stage]}</span>
-                      </span>
+                      <.tooltip :if={device.deleted_at} id={"deleted-tooltip-#{device.id}"} placement="right" class="inline-block align-middle">
+                        <.badge>Deleted</.badge>
+                        <:content>
+                          This device has been deleted. <br /> You can destroy or restore it in the device's settings.
+                        </:content>
+                      </.tooltip>
                     </div>
                   </td>
 
-                  <td :if={show_column?(@current_scope.user, :health)}>
-                    <div class="flex items-center justify-center gap-2">
-                      <HealthStatus.render device_id={device.id} health={device.latest_health} tooltip_position="top" />
-                    </div>
+                  <td class={["max-sm:col-start-4 max-sm:row-start-1 max-sm:ml-2 max-sm:justify-self-end", column_class(@current_scope.user, :health)]}>
+                    <DeviceList.health device_id={device.id} health={device.latest_health} />
                   </td>
 
-                  <td :if={show_column?(@current_scope.user, :firmware)}>
-                    <div class="flex items-center gap-2">
-                      <span class="font-mono">
-                        <%= if is_nil(device.firmware_metadata) do %>
-                          Unknown
-                        <% else %>
-                          {device.firmware_metadata.version}
-                        <% end %>
-                      </span>
-                      <DeviceUpdateStatus.render :if={not is_nil(device.deployment_id)} device={device} time_zone={@time_zone} />
-                    </div>
+                  <td class={[
+                    "max-sm:col-span-3 max-sm:col-start-2 max-sm:row-start-2",
+                    !(@selecting? or @selected_devices != []) && "max-sm:pl-3.75",
+                    column_class(@current_scope.user, :firmware)
+                  ]}>
+                    <DeviceList.firmware device={device} progress={@progress[device.id]} />
                   </td>
 
-                  <td :if={show_column?(@current_scope.user, :platform)}>
-                    <span>
-                      <%= if is_nil(device.firmware_metadata) do %>
-                        Unknown
-                      <% else %>
-                        {device.firmware_metadata.platform}
-                      <% end %>
+                  <td :if={show_column?(@current_scope.user, :platform)} class="font-mono text-xs whitespace-nowrap text-content-muted max-sm:hidden">
+                    {if device.firmware_metadata, do: device.firmware_metadata.platform, else: "—"}
+                  </td>
+
+                  <td class={[
+                    "text-ui/4 whitespace-nowrap max-sm:col-start-2 max-sm:row-start-3 max-sm:max-w-40 max-sm:truncate max-sm:text-xs/4",
+                    !(@selecting? or @selected_devices != []) && "max-sm:pl-3.75",
+                    column_class(@current_scope.user, :deployment_group)
+                  ]}>
+                    <span :if={device.deployment_group} class="text-content-body">{device.deployment_group.name}</span>
+                    <span :if={!device.deployment_group} class="text-content-faint"><span class="max-sm:hidden">None</span><span class="sm:hidden">No group</span></span>
+                  </td>
+
+                  <td class={[
+                    "whitespace-nowrap max-sm:col-start-4 max-sm:row-start-3 max-sm:ml-2 max-sm:justify-self-end max-sm:[&>span]:text-xs/4",
+                    column_class(@current_scope.user, :connected_info)
+                  ]}>
+                    <DeviceList.connection device={device} status={@device_statuses.result[device.id]} />
+                  </td>
+
+                  <td class={[
+                    "max-sm:col-start-3 max-sm:row-start-3 max-sm:min-w-0",
+                    column_class(@current_scope.user, :tags)
+                  ]}>
+                    <div class="flex items-center gap-1 text-nowrap max-sm:hidden">
+                      <.tag :for={tag <- device.tags || []}>{tag}</.tag>
+                    </div>
+                    <p :if={device.tags not in [nil, []]} class="truncate text-xs/4 text-content-body sm:hidden">
+                      <span class="mx-1.5 text-content-faint" aria-hidden="true">·</span>{Enum.join(device.tags, ", ")}
+                    </p>
+                  </td>
+
+                  <td class="w-16 text-right max-sm:hidden">
+                    <span class={[
+                      "inline-flex h-5.5 items-center gap-1 rounded-full border border-line-default bg-surface-raised px-2 text-xs text-content-muted",
+                      if(device.id == @peek_device_id, do: "invisible", else: "invisible group-hover:visible")
+                    ]}>
+                      Peek <span class="lucide-panel-right size-3" aria-hidden="true"></span>
                     </span>
-                  </td>
-
-                  <td :if={show_column?(@current_scope.user, :connected_info)}>
-                    <div :if={device.latest_connection} title={connection_established_at(device.latest_connection)}>
-                      {connection_established_at(device.latest_connection)}
-                    </div>
-                  </td>
-
-                  <td :if={show_column?(@current_scope.user, :deployment_group)}>
-                    <span :if={device.deployment_id} class="flex w-fit items-center gap-1 rounded-full border border-line-default bg-base-800 py-0.5 pr-2.5 pl-1.5">
-                      <.status_dot class="bg-success" />
-                      <span class="text-xs tracking-tight text-content-body">{device.deployment_group.name}</span>
-                    </span>
-                  </td>
-
-                  <td :if={show_column?(@current_scope.user, :tags)}>
-                    <div class="flex items-center gap-1 text-nowrap">
-                      <%= if !is_nil(device.tags) do %>
-                        <%= for tag <- device.tags do %>
-                          <.tag>{tag}</.tag>
-                        <% end %>
-                      <% end %>
-                    </div>
                   </td>
                 </tr>
               </tbody>
             </table>
           </div>
       <% end %>
+      <DeviceList.pager :if={devices != []} pager={@pager_meta} />
     </.async_result>
   </div>
 
-  <FilterSidebar.render current_filters={@current_filters}>
-    <:filter attr="identifier" label="Identifier" type={:text} />
-    <:filter
-      attr="health_status"
-      label="Health Status"
-      type={:select}
-      values={[
-        {"All", ""},
-        {"Unknown", "unknown"},
-        {"Healthy", "healthy"},
-        {"Warning", "warning"},
-        {"Unhealthy", "unhealthy"}
-      ]}
-    />
-    <:filter
-      attr="connection"
-      label="Connection"
-      type={:select}
-      values={[
-        {"All", ""},
-        {"Connected", "connected"},
-        {"Disconnected", "disconnected"},
-        {"Not seen in 7 days", "not_seen_in_seven_days"},
-        {"Not seen in 14 days", "not_seen_in_fourteen_days"},
-        {"Not Seen", "not_seen"}
-      ]}
-    />
-    <:filter
-      attr="connection_type"
-      label="Connection Type"
-      type={:select}
-      values={[
-        {"All", ""},
-        {"Cellular", "cellular"},
-        {"Ethernet", "ethernet"},
-        {"WiFi", "wifi"},
-        {"Unknown", "unknown"}
-      ]}
-    />
-
-    <:filter
-      attr="deployment_id"
-      label="Deployment Group"
-      type={:select}
-      values={[
-        {"All", ""},
-        {"No Deployment Group", "-1"}
-        | Enum.map(@deployment_groups, &{&1.name, to_string(&1.id)})
-      ]}
-    />
-    <:filter
-      attr="updates"
-      label="Firmware Updates"
-      type={:select}
-      values={[
-        {"All", ""},
-        {"Enabled", "enabled"},
-        {"Penalty Box", "penalty-box"},
-        {"Failed Updates", "failed-updates"},
-        {"Disabled", "disabled"}
-      ]}
-    />
-    <:filter
-      attr="firmware_version"
-      label="Firmware"
-      type={:select}
-      values={[{"All", ""} | Enum.map(@firmware_versions, &{&1, &1})] ++ [{"Unknown", "Unknown"}]}
-      hint="Only versions currently running on devices in this product are listed. Uploaded firmware which no device is running won't appear."
-    />
-    <:filter
-      attr="firmware_validation_status"
-      label="Firmware Validation"
-      type={:select}
-      values={[
-        {"All", ""},
-        {"Validated", "validated"},
-        {"Not validated", "not_validated"},
-        {"Unknown", "unknown"}
-      ]}
-    />
-    <:filter
-      attr="signer_ca"
-      label="Signer CA"
-      type={:select}
-      hint="Only certificate authorities which signed a certificate held by a device in this product are listed."
-      values={
-        [{"All", ""} | Enum.map(@signer_cas, &{CAHelpers.label(&1), &1.serial})] ++
-          [{"No known CA", AdvancedQuery.Schema.not_set_value()}]
-      }
-    />
-    <:filter attr="platform" label="Platform" type={:select} values={[{"All", ""} | Enum.map(@platforms, &{if(&1, do: &1, else: "Unknown"), &1})]} />
-    <:filter attr="tags" label="Tags" type={:text} />
-    <:filter attr="has_no_tags" label="Untagged" type={:select} values={[{"All", "false"}, {"Only untagged", "true"}]} />
-    <:filter attr="alarm_status" label="Alarm Status" type={:select} values={[{"All", ""}, {"Has Alarms", "with"}, {"No Alarms", "without"}]} />
-    <:filter attr="alarm" label="Alarm" type={:select} values={[{"All", ""} | Enum.map(@current_alarms, &{&1, &1})]} />
-    <:filter attr="metrics_key" label="Metrics" type={:select} values={[{"All", ""} | Enum.map(@metrics_keys, &{&1, &1})]} />
-    <:filter attr="metrics_operator" label="Metrics Operator" type={:select} values={[{"Greater Than", "gt"}, {"Less Than", "lt"}]} />
-    <:filter attr="metrics_value" label="Metrics Value" type={:number} />
-    <:filter attr="is_pinned" label="Pinned" type={:select} values={[{"All", "false"}, {"Only pinned devices", "true"}]} />
-    <:filter
-      attr="display_deleted"
-      label="Include Deleted Devices?"
-      type={:select}
-      values={[
-        {"Yes", "include"},
-        {"No", "exclude"},
-        {"Only deleted devices", "only"}
-      ]}
-    />
-    <:filter attr="only_updating" label="Update status" type={:select} values={[{"All", "false"}, {"Updating", "true"}]} />
-  </FilterSidebar.render>
-
-  <ListSettingsSidebar.render
-    available_columns={NervesHub.Accounts.User.DisplayPreferences.device_list_columns()}
-    selected_columns={get_in(@current_scope.user.display_preferences.device_list_columns)}
+  <DeviceFilters.panel
+    :if={@filters_open?}
+    filters={@current_filters}
+    facets={@facets}
+    find={@filter_find}
+    firmware_versions={@firmware_versions}
+    deployment_groups={@deployment_groups}
+    platforms={@platforms}
+    alarms={@current_alarms}
+    metrics_keys={@metrics_keys}
+    signer_cas={@signer_cas}
+    total={if(@devices.ok?, do: @total_entries)}
+    product_total={@product_device_count}
   />
 
-  <BulkActionsSidebar.render
+  <DevicePeek.panel
+    :for={device <- List.wrap(peek_device(@devices, @peek_device_id))}
+    device={device}
+    status={@device_statuses.result[device.id]}
+    progress={@progress[device.id]}
+    data={@peek}
+    current_scope={@current_scope}
+    docked={@current_filters.state == "attention"}
+  />
+
+  <DeviceColumns.panel :if={@columns_open?} selected={get_in(@current_scope.user.display_preferences.device_list_columns)} />
+
+  <BulkBar.render
     selected_devices={@selected_devices}
     select_all_matching={@select_all_matching}
     total_entries={@total_entries}
+    menu={@bulk_menu}
+    peek_open={not is_nil(peek_device(@devices, @peek_device_id))}
     current_scope={@current_scope}
+    product={@product}
     target_product={@target_product}
     move_target_org_ids={@move_target_org_ids}
-    product={@product}
     selected_have_deployment_groups={@selected_have_deployment_groups}
+    selected_shared_deployment_group={@selected_shared_deployment_group}
     valid_deployment_groups_for_selected={@valid_deployment_groups_for_selected}
     target_deployment_group={@target_deployment_group}
+    available_firmwares_for_filtered_platform={@available_firmwares_for_filtered_platform}
     target_firmware={@target_firmware}
-    selected_shared_deployment_group={@selected_shared_deployment_group}
     valid_tags={@valid_tags}
     device_tags={@device_tags}
+    bulk_tags={@bulk_tags}
     tag_operation={@tag_operation}
     available_tags={@available_tags}
-    available_firmwares_for_filtered_platform={@available_firmwares_for_filtered_platform}
   />
-
-  <:pagination :if={@devices.ok?} pager={@pager_meta} page_sizes={[25, 50, 100]} />
 </NervesHubWeb.Layouts.sidebar>

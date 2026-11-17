@@ -30,11 +30,10 @@ defmodule NervesHubWeb.Live.Org.ProductsTest do
         "user_token" => token
       })
       |> visit(~p"/org/#{org}/#{product}/devices")
-      |> assert_has("h2", text: "#{product.name} doesn't have any devices yet.", timeout: 1000)
-      |> assert_has("p",
-        text: "Check the nerves_hub_link documentation for how to connect your first device.",
-        timeout: 1000
-      )
+      |> assert_has("h2", text: "Connect your first device", timeout: 1000)
+      |> assert_has("#device-onboarding code", text: product.name)
+      |> assert_has("#onboarding-no-secret", text: "This product has no shared secret")
+      |> refute_has("#onboarding-production")
     end
 
     test "shows a friendly onboarding page and how to use shared secrets if no devices are registered and a shared secret exists" do
@@ -54,8 +53,11 @@ defmodule NervesHubWeb.Live.Org.ProductsTest do
         "user_token" => token
       })
       |> visit(~p"/org/#{org}/#{product}/devices")
-      |> assert_has("h2", text: "#{product.name} doesn't have any devices yet.", timeout: 1000)
-      |> assert_has("h3", text: "1. Add the dependency to your mix.exs", timeout: 1000)
+      |> assert_has("h2", text: "Connect your first device", timeout: 1000)
+      |> assert_has("li p", text: "Add the dependency to mix.exs")
+      |> assert_has("#onboarding-config-masked", text: "product_secret: \"••••")
+      |> assert_has("#onboarding-config-copy[data-copy-value*='#{shared_secret.secret}']")
+      |> assert_has("#onboarding-production", text: "Going to production?")
       |> assert_has("code", text: "host: \"pat.all.the.dogs\"", timeout: 1000)
       |> assert_has("code", text: "product_key: \"#{shared_secret.key}\"", timeout: 1000)
       |> assert_has("code", text: "product_secret: \"#{shared_secret.secret}\"", timeout: 1000)
@@ -76,13 +78,13 @@ defmodule NervesHubWeb.Live.Org.ProductsTest do
       |> visit(~p"/org/#{org}/#{product}/devices")
       # The device list loads asynchronously, so wait for the empty state
       # before checking what it rendered.
-      |> assert_has("h2", text: "#{product.name} doesn't have any devices yet.", timeout: 1000)
+      |> assert_has("h2", text: "Connect your first device", timeout: 1000)
       |> unwrap(fn view ->
         html = render(view)
         refute html =~ shared_secret.secret
         html
       end)
-      |> assert_has("p", text: "Check the nerves_hub_link documentation for how to connect your first device.")
+      |> assert_has("#onboarding-no-secret", text: "only shown to members who can manage this product")
     end
   end
 
@@ -234,7 +236,8 @@ defmodule NervesHubWeb.Live.Org.ProductsTest do
       |> fill_in("Name", with: "MyAmazingProduct")
       |> click_button("Create Product")
       |> assert_path("/org/#{org.name}/MyAmazingProduct/devices")
-      |> assert_has("h2", text: "MyAmazingProduct doesn't have any devices yet", timeout: 1000)
+      |> assert_has("h2", text: "Connect your first device", timeout: 1000)
+      |> assert_has("#device-onboarding code", text: "MyAmazingProduct")
     end
 
     test "the product always goes to the current org, whatever the form sends", %{conn: conn, org: org} do
@@ -260,10 +263,8 @@ defmodule NervesHubWeb.Live.Org.ProductsTest do
       |> fill_in("Name", with: "My Amazing Product")
       |> click_button("Create Product")
       |> assert_path("/org/#{org.name}/My%20Amazing%20Product/devices")
-      |> assert_has("h2",
-        text: "My Amazing Product doesn't have any devices yet",
-        timeout: 1000
-      )
+      |> assert_has("h2", text: "Connect your first device", timeout: 1000)
+      |> assert_has("#device-onboarding code", text: "My Amazing Product")
     end
 
     test "trims whitespace around the product name, and creates a new product when given a non blank name",
@@ -274,10 +275,8 @@ defmodule NervesHubWeb.Live.Org.ProductsTest do
       |> fill_in("Name", with: "  My Amazing Product  ")
       |> click_button("Create Product")
       |> assert_path("/org/#{org.name}/My%20Amazing%20Product/devices")
-      |> assert_has("h2",
-        text: "My Amazing Product doesn't have any devices yet",
-        timeout: 1000
-      )
+      |> assert_has("h2", text: "Connect your first device", timeout: 1000)
+      |> assert_has("#device-onboarding code", text: "My Amazing Product")
     end
 
     test "trims extra whitespace in the product name, and creates a new product when given a non blank name",
@@ -288,10 +287,8 @@ defmodule NervesHubWeb.Live.Org.ProductsTest do
       |> fill_in("Name", with: "  My  Amazing  Product  ")
       |> click_button("Create Product")
       |> assert_path("/org/#{org.name}/My%20Amazing%20Product/devices")
-      |> assert_has("h2",
-        text: "My Amazing Product doesn't have any devices yet",
-        timeout: 1000
-      )
+      |> assert_has("h2", text: "Connect your first device", timeout: 1000)
+      |> assert_has("#device-onboarding code", text: "My Amazing Product")
     end
   end
 

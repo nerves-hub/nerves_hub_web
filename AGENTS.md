@@ -194,6 +194,15 @@ when adding or removing one.
   Adaptive Cards in `Teams.Cards`) and `integrations/discord.ex` (URL checks,
   embeds in `Discord.Embeds`). See [docs/teams.md](docs/teams.md) and
   [docs/discord.md](docs/discord.md).
+- `insights.ex` / `insights/` - what a product's fleet is made of, for its
+  Insights page: devices counted by connection, health and firmware version
+  from PostgreSQL alone, and the version whose devices stand out as less
+  healthy than the fleet. Its groupings match the devices list's filters, so
+  each count links to the devices it counts. `insights/trends.ex` is how the
+  fleet moved over a period (adoption, update outcomes, online, healthy),
+  from ClickHouse. History keeps only changes, so the shares are walked back
+  from today's live counts and are shares of today's fleet. A version's
+  release is the first deployment group given it, or its upload if none was.
 - `scripts.ex` / `scripts/` — support scripts run against a device console.
 - `workers/` — Oban workers (e.g. firmware delta building, firmware deletion).
 - `audit_logs.ex` / `audit_logs/` - the audit log, written from the templates
@@ -228,10 +237,46 @@ when adding or removing one.
   list sizes its columns and cards by the room it gets (an `@container` and
   `@max-3xl:`-style variants), not by the viewport, and never scrolls sideways:
   a sideways scroller would clip each row's menu.
-- `components/` — shared function/live components. `components/fleet.ex`
+- `components/` - shared function/live components. `components/fleet_composition.ex`
+  draws `NervesHub.Insights` on a product's Insights page, and
+  `components/fleet_trends.ex` its trends row as SVG drawn on the server.
+  `components/fleet.ex`
   sums up how a set of products is doing (Needs attention, online meters,
   health chips), for the organizations home page and an organization's
-  Products tab. `components/product_sidebar.ex` is the sidebar's product
+  Products tab. `components/device_list.ex` holds a product's devices list's
+  state tabs (All, Online, Needs attention, Updating, Offline) and row cells;
+  each tab is a `state` filter in `DeviceFiltering`, counted together by
+  `Devices.state_counts/3`. Needs attention is a list rather than the table,
+  split by why (`reason`: unhealthy, failing, not seen in 14 days); its
+  definition lives in `DeviceFiltering.reason_dynamic/1`, and the row text in
+  `DeviceList.attention_reason/2` must agree with it. Clicking a row (anywhere but its checkbox or
+  identifier, which links to the device) opens `components/device_peek.ex`,
+  a side panel for that device that only opens on a device the page lists;
+  the `DevicePeek` hook gives it ↑ ↓ ↵ esc. The Filters button opens
+  `components/device_filters.ex`, a panel that applies as it changes and shows
+  what's applied as removable tokens under the query field. A filter in
+  `DeviceFiltering.multi_filters/0` takes several comma-separated choices,
+  any of which a device can match; each choice is a
+  `DeviceFiltering.value_dynamic/2`, and the panel counts them with
+  `Devices.facet_counts/4` only while it is open. The Columns button opens
+  `components/device_columns.ex`, built the same way, which saves the
+  columns shown to the user's display preferences as it changes. Selecting
+  devices brings up `components/bulk_bar.ex`, a bar floating over the list whose buttons each
+  open one popover (`bulk_menu` in the LiveView) for an action on all of
+  them; every bulk action handler closes it, since a `phx-submit` command
+  only sends its first push. A product with no devices shows
+  `components/device_onboarding.ex` and looks for its first one every few
+  seconds; filters that match nothing show `DeviceList.no_matches/1`, which
+  counts what removing each would bring back. A different list (filters, tab,
+  page or sort) on its way dims the old one (`list_loading?`); a refresh of
+  the same list doesn't. Its pager sits under the list (`DeviceList.pager/1`),
+  not in the layout's footer. Below `sm` the same table rows are restyled into
+  cards, so a column switched off still renders its cell, hidden from `sm`
+  up. A phone has no headers to sort by or checkboxes to aim at: a line
+  above the cards has a sort menu (`sort-by`) and a Select button, after
+  which tapping a card selects it (`selecting?`) until Done. The peek, the
+  Filters panel and the bulk bar's popovers become sheets from the bottom.
+  `components/product_sidebar.ex` is the sidebar's product
   half on a product's pages (`Layouts.sidebar/1`): the product switcher and
   the page links, each carrying what needs looking at on its page (unhealthy
   devices, a release awaiting approval, open errors), counted as the page

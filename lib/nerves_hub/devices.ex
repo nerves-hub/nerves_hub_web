@@ -191,8 +191,11 @@ defmodule NervesHub.Devices do
     common_filter_query(user)
     |> preload([latest_connection: lc], latest_connection: lc)
     |> preload([latest_health: lh], latest_health: lh)
-    |> preload([deployment_group: dg], deployment_group: dg)
-    |> preload([inflight_update: ifu], inflight_update: ifu)
+    # The firmware the list's Firmware column measures each device against:
+    # its group's release (up to date, waiting, failing to take it) and the
+    # firmware an update in progress is installing.
+    |> preload([deployment_group: dg], deployment_group: {dg, current_release: :firmware})
+    |> preload([inflight_update: ifu], inflight_update: {ifu, :firmware})
     |> CommonFiltering.filter(product, opts)
   end
 
@@ -200,6 +203,69 @@ defmodule NervesHub.Devices do
   def filter_query(product, user, opts) do
     common_filter_query(user)
     |> CommonFiltering.filter_query(product, opts)
+  end
+
+  @doc """
+  How many of the devices `filter/3` would list fall in each of the devices
+  list's tabs, keyed `"all"` and by `DeviceFiltering.states/0`, and in each
+  of the Needs attention tab's reasons, keyed by `DeviceFiltering.reasons/0`.
+
+  Counted with the rest of `opts`' filters applied but not its `:state` or
+  `:reason`, so every tab and reason shows how many devices it would list if
+  picked. A device can need attention for more than one reason, so the
+  reasons can add up to more than the tab. One query.
+  """
+  @spec state_counts(Product.t(), User.t(), map()) :: %{String.t() => non_neg_integer()}
+  def state_counts(product, user, opts) do
+    opts = Map.update(opts, :filters, %{}, &Map.drop(&1, [:state, :reason]))
+
+    conditions =
+      Enum.map(DeviceFiltering.states(), &{&1, DeviceFiltering.state_dynamic(&1)}) ++
+        Enum.map(DeviceFiltering.reasons(), &{&1, DeviceFiltering.reason_dynamic(&1)})
+
+    counts =
+      Map.new(conditions, fn {key, condition} ->
+        {key, dynamic([device: d], filter(count(d.id), ^condition))}
+      end)
+
+    common_filter_query(user)
+    |> CommonFiltering.filter_query(product, opts)
+    |> exclude(:order_by)
+    |> select(^Map.put(counts, "all", dynamic([device: d], count(d.id))))
+    |> Repo.one()
+  end
+
+  @doc """
+  For each of `facets`' multi-choice filters (`DeviceFiltering.multi_filters/0`),
+  how many devices each of its choices would list with the rest of `opts`'
+  filters applied: what picking that choice alone would give.
+
+  `facets` maps each filter to the choices to count. One query per filter.
+  """
+  @spec facet_counts(Product.t(), User.t(), map(), %{atom() => [String.t()]}) ::
+          %{atom() => %{String.t() => non_neg_integer()}}
+  def facet_counts(product, user, opts, facets) do
+    Map.new(facets, fn {key, choices} ->
+      counts =
+        Enum.flat_map(choices, fn choice ->
+          case DeviceFiltering.value_dynamic(key, choice) do
+            nil -> []
+            condition -> [{choice, dynamic([device: d], filter(count(d.id), ^condition))}]
+          end
+        end)
+
+      {key, count_choices(product, user, put_in(opts, [:filters, key], ""), Map.new(counts))}
+    end)
+  end
+
+  defp count_choices(_product, _user, _opts, counts) when counts == %{}, do: %{}
+
+  defp count_choices(product, user, opts, counts) do
+    common_filter_query(user)
+    |> CommonFiltering.filter_query(product, opts)
+    |> exclude(:order_by)
+    |> select(^counts)
+    |> Repo.one()
   end
 
   defp common_filter_query(user) do
@@ -1340,71 +1406,10 @@ defmodule NervesHub.Devices do
     |> Repo.all()
   end
 
-  def online_count(product) do
-    Device
-    |> join(:left, [d], lc in assoc(d, :latest_connection))
-    |> where(product_id: ^product.id)
-    |> where([_, lc], lc.status == :connected)
-    |> Repo.exclude_deleted()
-    |> Repo.aggregate(:count)
-  end
-
-  def offline_count(product) do
-    Device
-    |> join(:left, [d], lc in assoc(d, :latest_connection))
-    |> where(product_id: ^product.id)
-    |> where([_, lc], lc.status != :connected or is_nil(lc))
-    |> Repo.exclude_deleted()
-    |> Repo.aggregate(:count)
-  end
-
-  def not_seen_in_x_days_count(product, days) do
-    x_days_ago = NaiveDateTime.utc_now() |> NaiveDateTime.add(-days, :day)
-
-    Device
-    |> join(:left, [d], lc in assoc(d, :latest_connection))
-    |> where(product_id: ^product.id)
-    |> where(
-      [_, lc],
-      is_nil(lc) or (lc.status != :connected and lc.disconnected_at < ^x_days_ago)
-    )
-    |> Repo.exclude_deleted()
-    |> Repo.aggregate(:count)
-  end
-
   def total_count(product) do
     Device
     |> where(product_id: ^product.id)
     |> Repo.exclude_deleted()
     |> Repo.aggregate(:count)
-  end
-
-  @doc """
-  Counts the product's devices by the firmware version they last reported,
-  largest group first, then newest version first for groups of equal size.
-
-  Devices which haven't reported any firmware metadata yet are grouped under a
-  `nil` version.
-
-  Distinct from `firmware_versions/1`, which lists the versions for the devices
-  list's filter dropdown: that one keeps soft-deleted devices so the "Only
-  deleted devices" filter still has options, where this one drops them so the
-  counts add up to the product's fleet size.
-  """
-  @spec firmware_version_counts(Product.t()) :: [%{version: String.t() | nil, count: non_neg_integer()}]
-  def firmware_version_counts(product) do
-    Device
-    |> where(product_id: ^product.id)
-    |> Repo.exclude_deleted()
-    |> group_by([d], fragment("? ->> 'version'", d.firmware_metadata))
-    |> select([d], %{
-      version: fragment("? ->> 'version'", d.firmware_metadata),
-      count: count(d.id)
-    })
-    |> order_by([d], [
-      {:desc, count(d.id)},
-      {:desc_nulls_last, fragment(~s|semver_sort_key(? ->> 'version') COLLATE "C"|, d.firmware_metadata)}
-    ])
-    |> Repo.all()
   end
 end

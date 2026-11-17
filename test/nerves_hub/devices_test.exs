@@ -20,6 +20,7 @@ defmodule NervesHub.DevicesTest do
   alias NervesHub.Devices.Device
   alias NervesHub.Devices.DeviceCertificate
   alias NervesHub.Devices.DeviceConnection
+  alias NervesHub.Devices.DeviceFiltering
   alias NervesHub.Devices.DeviceFirmware
   alias NervesHub.Devices.DeviceHealth
   alias NervesHub.Devices.Health
@@ -4101,81 +4102,6 @@ defmodule NervesHub.DevicesTest do
     end
   end
 
-  describe "firmware_version_counts/1" do
-    test "counts devices by their reported firmware version, largest group first", %{
-      org: org,
-      product: product,
-      firmware: firmware
-    } do
-      # the setup already puts three devices on the fixture firmware's version
-      device_on_version(org, product, firmware, "2.0.0")
-      device_on_version(org, product, firmware, "2.0.0")
-      device_on_version(org, product, firmware, "1.5.0")
-
-      assert [
-               %{version: setup_version, count: 3},
-               %{version: "2.0.0", count: 2},
-               %{version: "1.5.0", count: 1}
-             ] = Devices.firmware_version_counts(product)
-
-      assert setup_version == firmware.version
-    end
-
-    test "breaks ties on equal counts by version, newest first", %{
-      org: org,
-      product: product,
-      firmware: firmware
-    } do
-      device_on_version(org, product, firmware, "1.5.0")
-      device_on_version(org, product, firmware, "2.0.0")
-      device_on_version(org, product, firmware, "1.9.0")
-
-      versions =
-        product
-        |> Devices.firmware_version_counts()
-        |> Enum.filter(&(&1.count == 1))
-        |> Enum.map(& &1.version)
-
-      assert versions == ["2.0.0", "1.9.0", "1.5.0"]
-    end
-
-    test "groups devices without firmware metadata under a nil version", %{
-      org: org,
-      product: product,
-      firmware: firmware
-    } do
-      Fixtures.device_fixture(org, product, firmware, %{firmware_metadata: nil})
-
-      counts = Devices.firmware_version_counts(product)
-
-      assert %{version: nil, count: 1} in counts
-    end
-
-    test "excludes deleted devices", %{org: org, product: product, firmware: firmware} do
-      device = device_on_version(org, product, firmware, "9.9.9")
-      {:ok, _} = Devices.delete_device(device)
-
-      refute Enum.any?(Devices.firmware_version_counts(product), &(&1.version == "9.9.9"))
-    end
-
-    test "is scoped to the product", %{user: user, org: org, tmp_dir: tmp_dir} do
-      other_product = Fixtures.product_fixture(user, org, %{name: "Other Product"})
-      org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
-      other_firmware = Fixtures.firmware_fixture(org_key, other_product, %{dir: tmp_dir})
-      _ = Fixtures.device_fixture(org, other_product, other_firmware)
-
-      assert [%{count: 1}] = Devices.firmware_version_counts(other_product)
-    end
-  end
-
-  defp device_on_version(org, product, firmware, version) do
-    {:ok, metadata} = Firmwares.metadata_from_firmware(firmware)
-
-    Fixtures.device_fixture(org, product, firmware, %{
-      firmware_metadata: %{metadata | version: version}
-    })
-  end
-
   def to_device_info(device) do
     %DeviceInfo{
       device_id: device.id,
@@ -4207,6 +4133,109 @@ defmodule NervesHub.DevicesTest do
 
     test "is empty for no products", %{user: user} do
       assert Devices.count_by_product([], user) == %{}
+    end
+  end
+
+  describe "state_counts/3" do
+    # device: online and unhealthy; device2: online and installing an update;
+    # device3: last seen 15 days ago; failing: blocked after failed updates.
+    setup %{org: org, product: product, firmware: firmware, device: device, device2: device2, device3: device3} do
+      Fixtures.device_connection_fixture(device, %{status: :connected})
+      Fixtures.device_connection_fixture(device2, %{status: :connected})
+
+      Fixtures.device_connection_fixture(device3, %{
+        status: :disconnected,
+        last_seen_at: DateTime.add(DateTime.utc_now(), -15, :day)
+      })
+
+      {:ok, _} = Health.save_device_health(%{"device_id" => device.id, "status" => "unhealthy"})
+      Fixtures.inflight_update(device2, firmware)
+
+      failing = Fixtures.device_fixture(org, product, firmware, %{tags: ["field"]})
+
+      Repo.update_all(
+        where(Device, id: ^failing.id),
+        set: [updates_blocked_until: DateTime.add(DateTime.utc_now(), 1, :hour), consecutive_failed_updates: 3]
+      )
+
+      %{failing: failing}
+    end
+
+    test "counts each tab's devices in one query", %{product: product, user: user} do
+      opts = %{filters: DeviceFiltering.default_filters()}
+
+      assert Devices.state_counts(product, user, opts) == %{
+               "all" => 4,
+               "attention" => 3,
+               "online" => 2,
+               "updating" => 1,
+               "offline" => 2,
+               "unhealthy" => 1,
+               "failing" => 1,
+               "not_seen" => 1
+             }
+    end
+
+    test "applies the other filters but not the state or reason", %{product: product, user: user} do
+      filters = %{DeviceFiltering.default_filters() | tags: "field", state: "online", reason: "unhealthy"}
+
+      assert Devices.state_counts(product, user, %{filters: filters}) == %{
+               "all" => 1,
+               "attention" => 1,
+               "online" => 0,
+               "updating" => 0,
+               "offline" => 1,
+               "unhealthy" => 0,
+               "failing" => 1,
+               "not_seen" => 0
+             }
+    end
+
+    test "agrees with the devices each tab lists", %{product: product, user: user} do
+      counts = Devices.state_counts(product, user, %{filters: DeviceFiltering.default_filters()})
+
+      for state <- DeviceFiltering.states() do
+        opts = %{sort: {:asc, :identifier}, filters: %{DeviceFiltering.default_filters() | state: state}}
+        {_devices, meta} = Devices.filter(product, user, opts)
+
+        assert meta.total_count == counts[state], "#{state} lists #{meta.total_count}, counted #{counts[state]}"
+      end
+    end
+
+    test "facet_counts/4 counts each choice with the other filters but not its own", context do
+      %{product: product, user: user, device: device} = context
+      filters = %{DeviceFiltering.default_filters() | health_status: "healthy", connection: "connected"}
+      facets = %{health_status: ["unhealthy", "unknown"], connection: ["connected", "not_seen"], updates: ["sickly"]}
+
+      assert Devices.facet_counts(product, user, %{filters: filters}, facets) == %{
+               # online: device (unhealthy) and device2 (unknown)
+               health_status: %{"unhealthy" => 1, "unknown" => 1},
+               # healthy: none, so every choice is 0
+               connection: %{"connected" => 0, "not_seen" => 0},
+               updates: %{}
+             }
+
+      {devices, _meta} =
+        Devices.filter(product, user, %{
+          sort: {:asc, :identifier},
+          filters: %{filters | health_status: "unhealthy"}
+        })
+
+      assert Enum.map(devices, & &1.id) == [device.id]
+    end
+
+    test "lists each reason's devices, as many as it counts", context do
+      %{product: product, user: user, device: device, device3: device3, failing: failing} = context
+      counts = Devices.state_counts(product, user, %{filters: DeviceFiltering.default_filters()})
+      expected = %{"unhealthy" => [device.id], "failing" => [failing.id], "not_seen" => [device3.id]}
+
+      for reason <- DeviceFiltering.reasons() do
+        filters = %{DeviceFiltering.default_filters() | state: "attention", reason: reason}
+        {devices, meta} = Devices.filter(product, user, %{sort: {:asc, :identifier}, filters: filters})
+
+        assert meta.total_count == counts[reason]
+        assert Enum.map(devices, & &1.id) == expected[reason], "#{reason} listed the wrong devices"
+      end
     end
   end
 end
