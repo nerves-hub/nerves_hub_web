@@ -5,6 +5,7 @@ defmodule NervesHubWeb.Live.SupportScripts.Edit do
   alias NervesHub.Scripts.Script
 
   @impl Phoenix.LiveView
+  @decorate requires_membership()
   def mount(%{"script_id" => script_id}, _session, %{assigns: %{current_scope: scope}} = socket) do
     script = Scripts.get_by_id!(scope, script_id)
 
@@ -18,6 +19,7 @@ defmodule NervesHubWeb.Live.SupportScripts.Edit do
   end
 
   @impl Phoenix.LiveView
+  @decorate requires_membership()
   def handle_event("validate", %{"script" => script_params}, socket) do
     changeset = Script.validate_changeset(script_params)
 
@@ -26,13 +28,12 @@ defmodule NervesHubWeb.Live.SupportScripts.Edit do
     |> noreply()
   end
 
+  @decorate requires_permission(:"support_script:update")
   def handle_event(
         "update-script",
         %{"script" => script_params},
         %{assigns: %{current_scope: scope, script: script}} = socket
       ) do
-    authorized!(:"support_script:update", scope)
-
     case Scripts.update(script, scope.user, script_params) do
       {:ok, _script} ->
         socket
@@ -49,9 +50,8 @@ defmodule NervesHubWeb.Live.SupportScripts.Edit do
   end
 
   @impl Phoenix.LiveView
+  @decorate requires_permission(:"support_script:delete")
   def handle_event("delete-script", %{"id" => id}, %{assigns: %{current_scope: scope}} = socket) do
-    authorized!(:"support_script:delete", scope)
-
     case Scripts.delete(id, scope.product, scope.user) do
       {:ok, _} ->
         socket

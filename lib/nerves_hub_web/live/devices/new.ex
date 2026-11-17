@@ -4,6 +4,7 @@ defmodule NervesHubWeb.Live.Devices.New do
   alias NervesHub.Devices
   alias NervesHub.Devices.Device
 
+  @decorate requires_membership()
   def mount(_params, _session, socket) do
     changeset = Ecto.Changeset.change(%Device{})
 
@@ -18,9 +19,8 @@ defmodule NervesHubWeb.Live.Devices.New do
     |> ok()
   end
 
+  @decorate requires_permission(:"device:create")
   def handle_event("save-device", %{"device" => device_params}, socket) do
-    authorized!(:"device:create", socket.assigns.current_scope)
-
     %{current_scope: %{org: org, product: product}} = socket.assigns
 
     case Devices.create_device(product, device_params) do

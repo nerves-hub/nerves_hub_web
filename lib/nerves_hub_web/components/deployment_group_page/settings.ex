@@ -356,6 +356,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
     """
   end
 
+  @decorate requires_permission(:"deployment_group:update")
   def handle_progress(:workflow_definition, entry, socket) do
     %{
       current_scope: %{org: org, product: product, user: user},
@@ -364,8 +365,6 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
       socket.assigns
 
     if entry.done? do
-      authorized!(:"deployment_group:update", socket.assigns.current_scope)
-
       [contents] =
         consume_uploaded_entries(socket, :workflow_definition, fn %{path: path}, _entry ->
           {:ok, File.read!(path)}
@@ -429,14 +428,13 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
 
   @impl Phoenix.LiveComponent
 
+  @decorate requires_permission(:"deployment_group:update")
   def handle_event("delete-workflow-definition", _params, socket) do
     %{
       current_scope: %{org: org, product: product, user: user},
       deployment_group: deployment_group
     } =
       socket.assigns
-
-    authorized!(:"deployment_group:update", socket.assigns.current_scope)
 
     case ManagedDeployments.update_deployment_group(deployment_group, %{workflow_definition: nil}, user) do
       {:ok, updated} ->
@@ -466,6 +464,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
     end
   end
 
+  @decorate requires_membership()
   def handle_event("validate-deployment-group", %{"deployment_group" => params}, socket) do
     changeset =
       socket.assigns.deployment_group
@@ -476,14 +475,13 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
     |> noreply()
   end
 
+  @decorate requires_permission(:"deployment_group:update")
   def handle_event("update-deployment-group", %{"deployment_group" => params}, socket) do
     %{
       current_scope: %{org: org, product: product, user: user},
       deployment_group: deployment_group
     } =
       socket.assigns
-
-    authorized!(:"deployment_group:update", socket.assigns.current_scope)
 
     case ManagedDeployments.update_deployment_group(deployment_group, params, user) do
       {:ok, updated} ->
@@ -511,9 +509,8 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
     end
   end
 
+  @decorate requires_permission(:"deployment_group:delete")
   def handle_event("delete-deployment-group", _params, socket) do
-    authorized!(:"deployment_group:delete", socket.assigns.current_scope)
-
     %{deployment_group: deployment_group, org: org, product: product, user: user} = socket.assigns
 
     {:ok, _} = ManagedDeployments.delete_deployment_group(deployment_group)

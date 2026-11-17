@@ -8,6 +8,11 @@ defmodule NervesHubWeb.Components.BulkBar do
   `tag-devices`, `move-devices-deployment-group`, `push-firmware-to-devices`,
   `move-devices-product` and the update toggles. Each of those handlers closes
   the popover again.
+
+  A role sees only the actions it may take, by the permission each handler
+  checks: `device:tags`, `device:set-deployment-group`, `device:push-update`,
+  `device:toggle-updates` and `device:clear-penalty-box`, and `device:update`
+  to move devices to another product.
   """
   use NervesHubWeb, :component
 
@@ -160,7 +165,7 @@ defmodule NervesHubWeb.Components.BulkBar do
           </form>
         </.menu>
 
-        <.menu id="group" label="Deployment group" short_label="Group" icon="lucide-rocket" menu={@menu}>
+        <.menu :if={Authorization.authorized?(:"device:set-deployment-group", @current_scope)} id="group" label="Deployment group" short_label="Group" icon="lucide-rocket" menu={@menu}>
           <form id="deployment-set" phx-change="target-deployment-group" phx-submit="move-devices-deployment-group">
             <.popover_body title={"Deployment group for #{delimit(@count)} #{devices(@count)}"}>
               <p :if={@selected_shared_deployment_group && not @select_all_matching} class="text-xs/4 text-content-muted">
@@ -211,7 +216,7 @@ defmodule NervesHubWeb.Components.BulkBar do
           </form>
         </.menu>
 
-        <.menu id="firmware" label="Send firmware" short_label="Firmware" icon="lucide-download" menu={@menu}>
+        <.menu :if={Authorization.authorized?(:"device:push-update", @current_scope)} id="firmware" label="Send firmware" short_label="Firmware" icon="lucide-download" menu={@menu}>
           <form
             :if={@available_firmwares_for_filtered_platform != [] and not @select_all_matching}
             id="push-firmware"
@@ -253,19 +258,29 @@ defmodule NervesHubWeb.Components.BulkBar do
           </.popover_body>
         </.menu>
 
-        <.menu id="updates" label="Updates" short_label="Updates" icon="lucide-circle-arrow-up" compact_only_icon chevron menu={@menu} align="right">
+        <.menu
+          :if={Authorization.authorized?(:"device:toggle-updates", @current_scope) or Authorization.authorized?(:"device:clear-penalty-box", @current_scope)}
+          id="updates"
+          label="Updates"
+          short_label="Updates"
+          icon="lucide-circle-arrow-up"
+          compact_only_icon
+          chevron
+          menu={@menu}
+          align="right"
+        >
           <div role="menu" aria-label="Updates" class="flex w-56 flex-col py-1 max-sm:w-full max-sm:py-2">
-            <form id="enable-updates" phx-submit="enable-updates-for-devices">
+            <form :if={Authorization.authorized?(:"device:toggle-updates", @current_scope)} id="enable-updates" phx-submit="enable-updates-for-devices">
               <button type="submit" role="menuitem" class={menu_item_class()} data-confirm="This will enable updates for all selected devices">
                 <span class="lucide-circle-check size-3.5 text-content-muted" aria-hidden="true"></span> Enable updates
               </button>
             </form>
-            <form id="disable-updates" phx-submit="disable-updates-for-devices">
+            <form :if={Authorization.authorized?(:"device:toggle-updates", @current_scope)} id="disable-updates" phx-submit="disable-updates-for-devices">
               <button type="submit" role="menuitem" class={menu_item_class()} data-confirm="This will disable updates for all selected devices">
                 <span class="lucide-circle-slash size-3.5 text-content-muted" aria-hidden="true"></span> Disable updates
               </button>
             </form>
-            <form id="clear-penalty-box" phx-submit="clear-penalty-box-for-devices">
+            <form :if={Authorization.authorized?(:"device:clear-penalty-box", @current_scope)} id="clear-penalty-box" phx-submit="clear-penalty-box-for-devices">
               <button type="submit" role="menuitem" class={menu_item_class()} data-confirm="This will clear the penalty box for all selected devices">
                 <span class="lucide-rotate-ccw size-3.5 text-content-muted" aria-hidden="true"></span> Clear penalty box
               </button>
@@ -273,7 +288,7 @@ defmodule NervesHubWeb.Components.BulkBar do
           </div>
         </.menu>
 
-        <.menu id="move" label="Move to product" short_label="Move" icon="lucide-arrow-right-left" menu={@menu} align="right">
+        <.menu :if={Authorization.authorized?(:"device:update", @current_scope)} id="move" label="Move to product" short_label="Move" icon="lucide-arrow-right-left" menu={@menu} align="right">
           <form id="product-move" phx-change="target-product" phx-submit="move-devices-product">
             <.popover_body title={"Move #{delimit(@count)} #{devices(@count)}"}>
               <label for="move_to" class="text-xs/4 font-medium text-content-muted">Move device(s) to product:</label>

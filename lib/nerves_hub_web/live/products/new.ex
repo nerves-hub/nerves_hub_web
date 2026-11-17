@@ -9,6 +9,7 @@ defmodule NervesHubWeb.Live.Products.New do
   on_mount(OrgCounts)
 
   @impl Phoenix.LiveView
+  @decorate requires_membership()
   def mount(_params, _session, socket) do
     products = Products.get_products(socket.assigns.current_scope)
 
@@ -22,9 +23,8 @@ defmodule NervesHubWeb.Live.Products.New do
   end
 
   @impl Phoenix.LiveView
+  @decorate requires_permission(:"product:create")
   def handle_event("create_product", %{"product" => product_params}, socket) do
-    authorized!(:"product:create", socket.assigns.current_scope)
-
     case Products.create_product(socket.assigns.current_scope.org, product_params) do
       {:ok, product} ->
         socket

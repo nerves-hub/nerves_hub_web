@@ -21,11 +21,13 @@ defmodule NervesHubWeb.Live.Org.Roles do
   @built_in_roles Map.new(Permissions.built_in_roles(), &{Atom.to_string(&1), &1})
 
   @impl Phoenix.LiveView
+  @decorate requires_membership()
   def mount(_params, _session, socket) do
     {:ok, assign(socket, :org, socket.assigns.current_scope.org)}
   end
 
   @impl Phoenix.LiveView
+  @decorate requires_membership()
   def handle_params(params, _url, socket) do
     {:noreply, apply_action(socket, socket.assigns.live_action, params)}
   end
@@ -78,6 +80,7 @@ defmodule NervesHubWeb.Live.Org.Roles do
   # role grants, as a starting point to adjust. Manage is offered, along with
   # the org's own roles; view grants a single permission a custom role can be
   # given, which is no starting point at all.
+  @decorate requires_membership()
   def handle_event("validate", %{"_target" => ["org_role", "copy_from"], "org_role" => params}, socket) do
     params =
       case role_to_copy(socket.assigns.org, params["copy_from"]) do
@@ -88,14 +91,14 @@ defmodule NervesHubWeb.Live.Org.Roles do
     validate(socket, params)
   end
 
+  @decorate requires_membership()
   def handle_event("validate", %{"org_role" => params}, socket) do
     validate(socket, params)
   end
 
+  @decorate requires_permission(:"org_role:create")
   def handle_event("save", %{"org_role" => params}, %{assigns: %{live_action: :new}} = socket) do
-    %{current_scope: scope, org: org} = socket.assigns
-
-    authorized!(:"org_role:create", scope)
+    %{org: org} = socket.assigns
 
     case OrgRoles.create_org_role(org, params) do
       {:ok, role} ->
@@ -109,10 +112,9 @@ defmodule NervesHubWeb.Live.Org.Roles do
     end
   end
 
+  @decorate requires_permission(:"org_role:update")
   def handle_event("save", %{"org_role" => params}, %{assigns: %{live_action: :edit}} = socket) do
-    %{current_scope: scope, org: org, role: role} = socket.assigns
-
-    authorized!(:"org_role:update", scope)
+    %{org: org, role: role} = socket.assigns
 
     case OrgRoles.update_org_role(role, params) do
       {:ok, role} ->
@@ -126,10 +128,9 @@ defmodule NervesHubWeb.Live.Org.Roles do
     end
   end
 
+  @decorate requires_permission(:"org_role:delete")
   def handle_event("delete", %{"role_id" => role_id}, socket) do
-    %{current_scope: scope, org: org} = socket.assigns
-
-    authorized!(:"org_role:delete", scope)
+    %{org: org} = socket.assigns
 
     with {:ok, role} <- OrgRoles.get_org_role(org, role_id),
          {:ok, role} <- OrgRoles.delete_org_role(role) do

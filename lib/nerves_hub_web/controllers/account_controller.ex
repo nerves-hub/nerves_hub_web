@@ -8,6 +8,14 @@ defmodule NervesHubWeb.AccountController do
   alias NervesHubWeb.Auth
   alias NervesHubWeb.InviteLinks
 
+  plug(:require_no_permission, :signs_a_new_user_up when action in [:new, :create])
+
+  plug(
+    :require_no_permission,
+    :checked_by_the_invite_token when action in [:invite, :accept_invite, :decline_invite, :register_from_invite]
+  )
+
+  plug(:require_no_permission, :checked_by_the_confirmation_token when action in [:confirm_email])
   plug(:registrations_allowed when action in [:new, :create])
 
   def new(conn, _params) do

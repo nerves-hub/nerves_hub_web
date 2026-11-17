@@ -46,6 +46,17 @@ defmodule NervesHubWeb.Live.Devices.Index do
   # Delay frequent refresh triggers to this interval
   @refresh_delay 1000
 
+  # Selecting devices only matters for a bulk action, so a role may select
+  # them if it may take any of these.
+  @bulk_action_permissions [
+    :"device:update",
+    :"device:tags",
+    :"device:push-update",
+    :"device:set-deployment-group",
+    :"device:toggle-updates",
+    :"device:clear-penalty-box"
+  ]
+
   @default_filters DeviceFiltering.default_filters()
   @bulk_menus BulkBar.menus()
 
@@ -68,6 +79,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
 
   @tag_bulk_actions [:tag_devices, :add_tags_to_devices, :remove_tags_from_devices]
 
+  @decorate requires_membership()
   def mount(_params, _session, %{assigns: %{current_scope: scope}} = socket) do
     product = Products.load_shared_secret_auth(scope.product)
 
@@ -142,6 +154,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
     |> ok()
   end
 
+  @decorate requires_membership()
   def handle_params(unsigned_params, _uri, %{assigns: %{product: product}} = socket) do
     filters = DeviceFiltering.parse_filters(unsigned_params)
     sort = DeviceFiltering.parse_sort(unsigned_params)
@@ -231,12 +244,14 @@ defmodule NervesHubWeb.Live.Devices.Index do
 
   # On a phone, tapping a card while choosing devices (`selecting?`) selects it
   # rather than opening the peek, as there's no room for a checkbox to aim at.
+  @decorate requires_no_permission()
   def handle_event("peek", %{"id" => id}, %{assigns: %{selecting?: true}} = socket) do
     handle_event("select", %{"id" => to_string(id)}, socket)
   end
 
   # The peek opens on a device of the page the list shows, which is already
   # limited to the devices the user may see.
+  @decorate requires_membership()
   def handle_event("peek", %{"id" => id}, socket) do
     case find_listed_device(socket, id) do
       nil -> noreply(socket)
@@ -246,6 +261,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
 
   # The next or previous device on the page, from the arrow keys. The peek
   # stays put at either end of the page.
+  @decorate requires_membership()
   def handle_event("peek-move", %{"by" => by}, %{assigns: %{peek_device_id: id, devices: devices}} = socket)
       when by in [-1, 1] and not is_nil(id) do
     listed = if devices.ok?, do: devices.result, else: []
@@ -259,8 +275,10 @@ defmodule NervesHubWeb.Live.Devices.Index do
     end
   end
 
+  @decorate requires_membership()
   def handle_event("peek-move", _params, socket), do: noreply(socket)
 
+  @decorate requires_membership()
   def handle_event("close-peek", _params, socket) do
     socket
     |> assign(:peek_device_id, nil)
@@ -286,6 +304,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
 
   # Handles event of user clicking the same field that is already sorted
   # For this case, we switch the sorting direction of same field
+  @decorate requires_membership()
   def handle_event("sort", %{"sort" => value}, %{assigns: %{current_sort: current_sort}} = socket)
       when value == current_sort do
     %{sort_direction: sort_direction} = socket.assigns
@@ -300,6 +319,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
   end
 
   # User has clicked a new column to sort
+  @decorate requires_membership()
   def handle_event("sort", %{"sort" => value}, socket) do
     params = %{sort_direction: "asc", sort: value}
 
@@ -310,6 +330,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
 
   # The phone's sort menu, which has no column headers to click: a field and
   # a direction together, as "identifier:asc".
+  @decorate requires_membership()
   def handle_event("sort-by", %{"sort" => value}, socket) do
     case String.split(value, ":") do
       [sort, direction] when sort in @phone_sorts and direction in ~w(asc desc) ->
@@ -322,6 +343,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
     end
   end
 
+  @decorate requires_membership()
   def handle_event("paginate", %{"page" => page_num}, socket) do
     params = %{"page_number" => page_num}
 
@@ -330,6 +352,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
     |> noreply()
   end
 
+  @decorate requires_membership()
   def handle_event("set-paginate-opts", %{"page-size" => page_size}, socket) do
     params = %{"page_size" => page_size, "page_number" => 1}
 
@@ -339,17 +362,20 @@ defmodule NervesHubWeb.Live.Devices.Index do
   end
 
   # The Filters panel's form, whose multi-choice filters arrive as lists.
+  @decorate requires_membership()
   def handle_event("update-filters", params, socket) do
     apply_filters(socket, DeviceFilters.join_choices(params))
   end
 
   # Resets what the Filters panel sets, keeping the tab and the query.
+  @decorate requires_membership()
   def handle_event("reset-filters", _, socket) do
     apply_filters(socket, Map.drop(@default_filters, [:state, :reason, :advanced_query]))
   end
 
   # A filter's token, or a Clear link in the Filters panel. Clearing the metric
   # clears its comparison too.
+  @decorate requires_membership()
   def handle_event("remove-filter", %{"key" => key}, socket) do
     case Enum.find(DeviceFilters.applied(socket.assigns.current_filters), &(to_string(&1) == key)) do
       nil ->
@@ -362,6 +388,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
 
   # The Filters panel is open while its choices' counts are wanted, and it
   # covers the peek, so opening it closes the peek.
+  @decorate requires_membership()
   def handle_event("open-filters", _, socket) do
     socket
     |> assign(:filters_open?, true)
@@ -375,6 +402,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
 
   # The floating bulk bar opens one popover at a time; asking for the open one
   # again closes it, as does opening it over the Filters or Columns panel.
+  @decorate requires_membership()
   def handle_event("bulk-menu", %{"menu" => menu}, socket) when menu in @bulk_menus do
     menu = if socket.assigns.bulk_menu != menu, do: menu
 
@@ -385,18 +413,21 @@ defmodule NervesHubWeb.Live.Devices.Index do
     |> noreply()
   end
 
+  @decorate requires_membership()
   def handle_event("close-bulk-menu", _, socket) do
     socket
     |> assign(:bulk_menu, nil)
     |> noreply()
   end
 
+  @decorate requires_membership()
   def handle_event("close-filters", _, socket) do
     socket
     |> assign(:filters_open?, false)
     |> noreply()
   end
 
+  @decorate requires_membership()
   def handle_event("find-filter", %{"find" => find}, socket) do
     socket
     |> assign(:filter_find, String.slice(find, 0, 100))
@@ -406,6 +437,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
   # Free-text input is applied as its rewritten `search like "%text%"` form
   # (the canonical query from `AdvancedQuery.interpret/2`), so the search box
   # shows the query language equivalent of what was typed.
+  @decorate requires_membership()
   def handle_event("apply-advanced-query", %{"query" => raw_query}, %{assigns: %{current_scope: scope}} = socket) do
     query = String.trim(raw_query)
 
@@ -423,12 +455,14 @@ defmodule NervesHubWeb.Live.Devices.Index do
     end
   end
 
+  @decorate requires_membership()
   def handle_event("clear-advanced-query", _, socket) do
     apply_advanced_query(socket, "")
   end
 
   # The Columns panel sits where the Filters panel and the peek do, so it
   # closes them.
+  @decorate requires_membership()
   def handle_event("open-columns", _, socket) do
     socket
     |> assign(:columns_open?, true)
@@ -438,12 +472,14 @@ defmodule NervesHubWeb.Live.Devices.Index do
     |> noreply()
   end
 
+  @decorate requires_membership()
   def handle_event("close-columns", _, socket) do
     socket
     |> assign(:columns_open?, false)
     |> noreply()
   end
 
+  @decorate requires_membership()
   def handle_event("update-columns", params, socket) do
     chosen = List.wrap(params["columns"])
 
@@ -452,14 +488,17 @@ defmodule NervesHubWeb.Live.Devices.Index do
     |> noreply()
   end
 
+  @decorate requires_membership()
   def handle_event("show-all-columns", _, socket) do
     socket
     |> save_columns(DeviceColumns.columns())
     |> noreply()
   end
 
-  @decorate requires_permission(:"device:update")
+  @decorate authorizes_in_body(:any_bulk_action_permission)
   def handle_event("select", %{"id" => id_str}, socket) do
+    may_select_devices!(socket.assigns.current_scope)
+
     %{selected_devices: selected_devices, devices: devices} = socket.assigns
 
     with {device_id, ""} <- Integer.parse(id_str),
@@ -482,8 +521,10 @@ defmodule NervesHubWeb.Live.Devices.Index do
     end
   end
 
-  @decorate requires_permission(:"device:update")
+  @decorate authorizes_in_body(:any_bulk_action_permission)
   def handle_event("select-all", _, socket) do
+    may_select_devices!(socket.assigns.current_scope)
+
     %{selected_devices: selected_devices, devices: devices} = socket.assigns
 
     with {:loaded, true} <- {:loaded, devices.ok?},
@@ -508,15 +549,17 @@ defmodule NervesHubWeb.Live.Devices.Index do
 
   # The phone's Select button: the cards show checkboxes, and tapping one
   # selects it, until Done ("deselect-all").
-  @decorate requires_permission(:"device:update")
+  @decorate authorizes_in_body(:any_bulk_action_permission)
   def handle_event("start-selecting", _, socket) do
+    may_select_devices!(socket.assigns.current_scope)
+
     socket
     |> assign(:selecting?, true)
     |> assign(:peek_device_id, nil)
     |> noreply()
   end
 
-  @decorate requires_permission(:"device:update")
+  @decorate requires_membership()
   def handle_event("deselect-all", _, socket) do
     socket
     |> assign(%{
@@ -529,8 +572,10 @@ defmodule NervesHubWeb.Live.Devices.Index do
     |> noreply()
   end
 
-  @decorate requires_permission(:"device:update")
+  @decorate authorizes_in_body(:any_bulk_action_permission)
   def handle_event("select-all-matching", _, socket) do
+    may_select_devices!(socket.assigns.current_scope)
+
     %{devices: devices} = socket.assigns
 
     selected_devices = Enum.map(devices.result, & &1.id)
@@ -544,6 +589,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
 
   # `new_tag` is the tag being typed into the Tags popover, before it becomes a
   # chip; `tags` holds the chips already added.
+  @decorate requires_membership()
   def handle_event("validate-tags", params, socket) do
     typed = Map.get(params, "new_tag", "")
 
@@ -556,6 +602,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
 
   # Enter, a comma or picking a suggestion in the Tags popover turns what was
   # typed into chips. Spaces separate tags here too, since a tag can't hold one.
+  @decorate requires_membership()
   def handle_event("bulk-add-tag", %{"tag" => text}, socket) do
     added = text |> String.split([",", " "], trim: true) |> Enum.map(&String.trim/1) |> Enum.reject(&(&1 == ""))
 
@@ -566,6 +613,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
     |> noreply()
   end
 
+  @decorate requires_membership()
   def handle_event("bulk-remove-tag", %{"tag" => tag}, socket) do
     socket
     |> update(:bulk_tags, &List.delete(&1, tag))
@@ -617,6 +665,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
     end
   end
 
+  @decorate requires_membership()
   def handle_event("target-product", %{"product_id" => ""}, socket) do
     {:noreply, assign(socket, target_product: nil)}
   end
@@ -634,15 +683,17 @@ defmodule NervesHubWeb.Live.Devices.Index do
     end
   end
 
+  @decorate requires_membership()
   def handle_event("target-deployment-group", params, socket) when not is_map_key(params, "deployment_group") do
     {:noreply, assign(socket, target_deployment_group: nil)}
   end
 
+  @decorate requires_membership()
   def handle_event("target-deployment-group", %{"deployment_group" => ""}, socket) do
     {:noreply, assign(socket, target_deployment_group: nil)}
   end
 
-  @decorate requires_permission(:"device:update")
+  @decorate requires_permission(:"device:set-deployment-group")
   def handle_event("target-deployment-group", %{"deployment_group" => deployment_id_str}, socket) do
     %{
       available_deployment_groups_for_filtered_platform: available,
@@ -714,7 +765,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
     end
   end
 
-  @decorate requires_permission(:"device:update")
+  @decorate requires_permission(:"device:set-deployment-group")
   def handle_event("move-devices-deployment-group", _, socket) do
     socket = assign(socket, :bulk_menu, nil)
 
@@ -760,11 +811,12 @@ defmodule NervesHubWeb.Live.Devices.Index do
     end
   end
 
+  @decorate requires_membership()
   def handle_event("target-firmware", %{"firmware" => ""}, socket) do
     {:noreply, assign(socket, target_firmware: nil)}
   end
 
-  @decorate requires_permission(:"device:update")
+  @decorate requires_permission(:"device:push-update")
   def handle_event("target-firmware", %{"firmware" => firmware_uuid}, socket) do
     firmware =
       Enum.find(
@@ -775,7 +827,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
     {:noreply, assign(socket, target_firmware: firmware)}
   end
 
-  @decorate requires_permission(:"device:update")
+  @decorate requires_permission(:"device:push-update")
   def handle_event("push-firmware-to-devices", _, socket) do
     socket = assign(socket, :bulk_menu, nil)
 
@@ -807,7 +859,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
     |> noreply()
   end
 
-  @decorate requires_permission(:"device:update")
+  @decorate requires_permission(:"device:set-deployment-group")
   def handle_event("remove-devices-from-deployment-group", _, socket) do
     socket = assign(socket, :bulk_menu, nil)
 
@@ -825,7 +877,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
     end
   end
 
-  @decorate requires_permission(:"device:update")
+  @decorate requires_permission(:"device:toggle-updates")
   def handle_event("disable-updates-for-devices", _, socket) do
     socket = assign(socket, :bulk_menu, nil)
 
@@ -846,7 +898,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
     end
   end
 
-  @decorate requires_permission(:"device:update")
+  @decorate requires_permission(:"device:toggle-updates")
   def handle_event("enable-updates-for-devices", _, socket) do
     socket = assign(socket, :bulk_menu, nil)
 
@@ -867,7 +919,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
     end
   end
 
-  @decorate requires_permission(:"device:update")
+  @decorate requires_permission(:"device:clear-penalty-box")
   def handle_event("clear-penalty-box-for-devices", _, socket) do
     socket = assign(socket, :bulk_menu, nil)
 
@@ -891,6 +943,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
     end
   end
 
+  @decorate requires_membership()
   def handle_event("page_visibility_change", %{"visible" => visible?}, socket) do
     socket
     |> then(fn socket ->
@@ -1431,6 +1484,12 @@ defmodule NervesHubWeb.Live.Devices.Index do
   defp tag_action_wording(:tag_devices), do: {"Tags updated on", "Updating tags"}
   defp tag_action_wording(:add_tags_to_devices), do: {"Tags added to", "Adding tags"}
   defp tag_action_wording(:remove_tags_from_devices), do: {"Tags removed from", "Removing tags"}
+
+  defp may_select_devices?(scope), do: Enum.any?(@bulk_action_permissions, &authorized?(&1, scope))
+
+  defp may_select_devices!(scope) do
+    if !may_select_devices?(scope), do: raise(NervesHubWeb.UnauthorizedError)
+  end
 
   # The role in the target org was checked when the product was picked, and
   # may have changed since, so it is checked again before anything moves.

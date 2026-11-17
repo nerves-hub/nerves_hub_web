@@ -216,7 +216,7 @@
                 </select>
               </form>
               <.button
-                :if={not (@selecting? or @selected_devices != []) and authorized?(:"device:update", @current_scope)}
+                :if={not (@selecting? or @selected_devices != []) and may_select_devices?(@current_scope)}
                 id="phone-select"
                 type="button"
                 size="sm"
@@ -246,7 +246,7 @@
                       name="toggle-all"
                       type="checkbox"
                       phx-click="select-all"
-                      disabled={not authorized?(:"device:update", @current_scope)}
+                      disabled={not may_select_devices?(@current_scope)}
                     />
                     <label for="toggle-all" class={["h-9", checkbox_classes()]}>
                       <span class="sr-only">Select all devices</span>
@@ -311,7 +311,7 @@
                       aria-label={"Select #{device.identifier}"}
                       phx-value-id={device.id}
                       phx-click="select"
-                      disabled={not authorized?(:"device:update", @current_scope)}
+                      disabled={not may_select_devices?(@current_scope)}
                     />
                     <label for={"checkbox-device-#{device.id}"} class={["h-11 max-sm:h-5 max-sm:w-auto max-sm:pl-0", checkbox_classes()]}>
                       <span class="checkbox-box">
