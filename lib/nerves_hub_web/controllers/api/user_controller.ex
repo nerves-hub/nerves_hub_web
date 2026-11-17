@@ -12,6 +12,8 @@ defmodule NervesHubWeb.API.UserController do
   alias NervesHubWeb.Helpers.ClientIP
   alias NervesHubWeb.Plugs.Attack
 
+  plug(:require_no_permission, :signs_the_user_in when action in [:auth, :login, :cli_session, :check_cli_session])
+  plug(:require_no_permission, :the_users_own_account when action in [:me])
   plug(Attack when action in [:cli_session, :check_cli_session])
 
   tags(["Auth"])

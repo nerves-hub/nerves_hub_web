@@ -6,6 +6,8 @@ defmodule NervesHubWeb.PasswordResetController do
   alias NervesHub.Accounts.User
   alias NervesHubWeb.Auth
 
+  plug(:require_no_permission, :anyone_may_ask_for_a_reset_link when action in [:new, :create])
+  plug(:require_no_permission, :checked_by_the_reset_token when action in [:edit, :update])
   plug(:get_user_by_reset_password_token when action in [:edit, :update])
 
   def new(conn, _params) do

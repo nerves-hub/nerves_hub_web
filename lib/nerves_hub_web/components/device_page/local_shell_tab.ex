@@ -78,6 +78,7 @@ defmodule NervesHubWeb.Components.DevicePage.LocalShellTab do
 
   def hooked_info(_event, socket), do: {:cont, socket}
 
+  @decorate requires_membership()
   def hooked_event(_event, _params, socket), do: {:cont, socket}
 
   def hooked_async(_name, _async_fun_result, socket), do: {:cont, socket}

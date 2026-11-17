@@ -15,6 +15,7 @@ defmodule NervesHubWeb.Live.Account.TwoFactor do
   alias NervesHubWeb.Plugs.Attack
 
   @impl Phoenix.LiveView
+  @decorate requires_no_permission()
   def mount(_params, session, socket) do
     socket
     |> page_title("Two-factor authentication")
@@ -36,6 +37,7 @@ defmodule NervesHubWeb.Live.Account.TwoFactor do
   end
 
   @impl Phoenix.LiveView
+  @decorate requires_no_permission()
   def handle_event("start-setup", _params, socket) do
     socket
     |> assign(:setup_secret, TwoFactor.new_secret())
@@ -43,6 +45,7 @@ defmodule NervesHubWeb.Live.Account.TwoFactor do
     |> noreply()
   end
 
+  @decorate requires_no_permission()
   def handle_event("cancel-setup", _params, socket) do
     socket
     |> assign(:setup_secret, nil)
@@ -50,6 +53,7 @@ defmodule NervesHubWeb.Live.Account.TwoFactor do
     |> noreply()
   end
 
+  @decorate requires_no_permission()
   def handle_event("enable", params, %{assigns: %{setup_secret: secret}} = socket) when is_binary(secret) do
     user = socket.assigns.current_scope.user
 
@@ -75,8 +79,10 @@ defmodule NervesHubWeb.Live.Account.TwoFactor do
     end
   end
 
+  @decorate requires_no_permission()
   def handle_event("enable", _params, socket), do: noreply(socket)
 
+  @decorate requires_no_permission()
   def handle_event("regenerate", %{"code" => code}, socket) do
     user = socket.assigns.current_scope.user
 
@@ -93,6 +99,7 @@ defmodule NervesHubWeb.Live.Account.TwoFactor do
     end
   end
 
+  @decorate requires_no_permission()
   def handle_event("disable", %{"code" => code}, socket) do
     user = socket.assigns.current_scope.user
 
@@ -109,6 +116,7 @@ defmodule NervesHubWeb.Live.Account.TwoFactor do
     end
   end
 
+  @decorate requires_no_permission()
   def handle_event("hide-recovery-codes", _params, socket) do
     socket |> assign(:recovery_codes, nil) |> noreply()
   end

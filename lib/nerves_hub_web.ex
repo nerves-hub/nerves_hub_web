@@ -32,6 +32,7 @@ defmodule NervesHubWeb do
     quote do
       use Phoenix.Controller, formats: [:html]
       use Gettext, backend: NervesHubWeb.Gettext
+      use NervesHubWeb.ControllerAuthorizationDeclared
 
       import NervesHubWeb.Helpers.PermissionPlugs
       import Plug.Conn
@@ -45,6 +46,7 @@ defmodule NervesHubWeb do
     quote do
       use Phoenix.Controller, formats: [:json]
       use Gettext, backend: NervesHubWeb.Gettext
+      use NervesHubWeb.ControllerAuthorizationDeclared
 
       import NervesHubWeb.Helpers.PermissionPlugs
       import Phoenix.LiveView.Controller
@@ -62,16 +64,11 @@ defmodule NervesHubWeb do
 
   def live_view() do
     quote do
+      use NervesHubWeb.AuthorizationDeclared, mount: 3, handle_params: 3, handle_event: 3, handle_progress: 3
+
       unquote(live_view_setup())
       unquote(live_view_imports())
       unquote(live_view_helper_functions())
-      unquote(auth_decorator())
-    end
-  end
-
-  defp auth_decorator() do
-    quote do
-      use NervesHubWeb.AuthDecorator
     end
   end
 
@@ -112,7 +109,6 @@ defmodule NervesHubWeb do
       # HTML escaping functionality
       import Phoenix.HTML
 
-      alias NervesHubWeb.Components.Navigation
       alias Phoenix.LiveView.JS
 
       # Routes generation with the ~p sigil
@@ -134,9 +130,6 @@ defmodule NervesHubWeb do
       end
 
       def analytics_enabled?(), do: Application.get_env(:nerves_hub, :analytics_enabled)
-
-      def org_iroh_endpoints_ui_enabled?(),
-        do: Application.get_env(:nerves_hub, :org_iroh_endpoints_ui_enabled, false)
 
       unquote(tab_component_functions())
     end
@@ -180,6 +173,7 @@ defmodule NervesHubWeb do
   def live_component() do
     quote do
       use Phoenix.LiveComponent
+      use NervesHubWeb.AuthorizationDeclared, handle_event: 3, handle_progress: 3
 
       import NervesHubWeb.Components.DateTimes
       import NervesHubWeb.Components.Icons
@@ -276,12 +270,6 @@ defmodule NervesHubWeb do
           segmented_control: 1
         ]
 
-      # The sidebar asks this before rendering the link to the Iroh Endpoints
-      # page. Hiding the link is presentation; the route refuses too.
-      def org_iroh_endpoints_ui_enabled?() do
-        Application.get_env(:nerves_hub, :org_iroh_endpoints_ui_enabled, false)
-      end
-
       # Routes generation with the ~p sigil
       unquote(verified_routes())
     end
@@ -300,6 +288,8 @@ defmodule NervesHubWeb do
   defp hooked_component_setup() do
     quote do
       use Phoenix.Component
+      # A tab's hooked_event/3 sees the page's events before the LiveView does.
+      use NervesHubWeb.AuthorizationDeclared, hooked_event: 3, handle_progress: 3
 
       alias Phoenix.LiveView.JS
       alias Phoenix.Socket.Broadcast
@@ -424,13 +414,6 @@ defmodule NervesHubWeb do
 
       def analytics_enabled?() do
         Application.get_env(:nerves_hub, :analytics_enabled)
-      end
-
-      # The organisation's Iroh Endpoints page, off unless a deployment turns it
-      # on. The nav link and the route both ask, because hiding a link is not
-      # access control — the URL is still typeable.
-      def org_iroh_endpoints_ui_enabled?() do
-        Application.get_env(:nerves_hub, :org_iroh_endpoints_ui_enabled, false)
       end
 
       # Routes generation with the ~p sigil

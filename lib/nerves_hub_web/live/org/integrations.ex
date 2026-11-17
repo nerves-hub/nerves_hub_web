@@ -37,6 +37,7 @@ defmodule NervesHubWeb.Live.Org.Integrations do
 
   @webhook_docs "https://github.com/nerves-hub/nerves_hub_web/blob/main/docs/webhooks.md"
 
+  @decorate requires_membership()
   def mount(_params, _session, %{assigns: %{current_scope: scope}} = socket) do
     socket
     |> page_title("Integrations - #{scope.org.name}")
@@ -65,18 +66,16 @@ defmodule NervesHubWeb.Live.Org.Integrations do
     |> noreply()
   end
 
+  @decorate requires_permission(:"webhook:create")
   def handle_event("new", _params, socket) do
-    authorized!(:"webhook:create", socket.assigns.current_scope)
-
     socket
     |> assign(:editing, :new)
     |> assign(:form, to_form(Webhooks.change_webhook(socket.assigns.org, %Webhook{products: []})))
     |> noreply()
   end
 
+  @decorate requires_permission(:"webhook:update")
   def handle_event("edit", %{"webhook_id" => id}, socket) do
-    authorized!(:"webhook:update", socket.assigns.current_scope)
-
     webhook = Webhooks.get_webhook!(socket.assigns.org, id)
 
     socket
@@ -85,12 +84,14 @@ defmodule NervesHubWeb.Live.Org.Integrations do
     |> noreply()
   end
 
+  @decorate requires_membership()
   def handle_event("cancel", _params, socket) do
     socket
     |> close_form()
     |> noreply()
   end
 
+  @decorate requires_membership()
   def handle_event("validate", %{"webhook" => params}, socket) do
     changeset =
       socket.assigns.org
@@ -102,6 +103,7 @@ defmodule NervesHubWeb.Live.Org.Integrations do
     |> noreply()
   end
 
+  @decorate authorizes_in_body(:create_or_update_depends_on_the_form)
   def handle_event("save", %{"webhook" => params}, socket) do
     %{current_scope: scope, editing: editing} = socket.assigns
 
@@ -136,9 +138,8 @@ defmodule NervesHubWeb.Live.Org.Integrations do
     end
   end
 
+  @decorate requires_permission(:"webhook:update")
   def handle_event("toggle", %{"webhook_id" => id}, socket) do
-    authorized!(:"webhook:update", socket.assigns.current_scope)
-
     webhook = Webhooks.get_webhook!(socket.assigns.org, id)
 
     case Webhooks.update_webhook(socket.assigns.current_scope, webhook, %{enabled: !webhook.enabled}) do
@@ -155,9 +156,8 @@ defmodule NervesHubWeb.Live.Org.Integrations do
     end
   end
 
+  @decorate requires_permission(:"webhook:update")
   def handle_event("regenerate-secret", %{"webhook_id" => id}, socket) do
-    authorized!(:"webhook:update", socket.assigns.current_scope)
-
     webhook = Webhooks.get_webhook!(socket.assigns.org, id)
     {:ok, _webhook} = Webhooks.regenerate_secret(socket.assigns.current_scope, webhook)
 
@@ -167,9 +167,8 @@ defmodule NervesHubWeb.Live.Org.Integrations do
     |> noreply()
   end
 
+  @decorate requires_permission(:"webhook:delete")
   def handle_event("delete", %{"webhook_id" => id}, socket) do
-    authorized!(:"webhook:delete", socket.assigns.current_scope)
-
     webhook = Webhooks.get_webhook!(socket.assigns.org, id)
     {:ok, _webhook} = Webhooks.delete_webhook(socket.assigns.current_scope, webhook)
 
@@ -182,9 +181,8 @@ defmodule NervesHubWeb.Live.Org.Integrations do
 
   # The request runs off the LiveView process: an endpoint that does not
   # answer would otherwise freeze the page for the whole timeout.
+  @decorate requires_permission(:"webhook:update")
   def handle_event("send-test", %{"webhook_id" => id}, socket) do
-    authorized!(:"webhook:update", socket.assigns.current_scope)
-
     webhook = Webhooks.get_webhook!(socket.assigns.org, id)
     scope = socket.assigns.current_scope
 

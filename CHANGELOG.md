@@ -1,5 +1,58 @@
 # Changelog
 
+## v2.5.4
+
+A security release, with two new features: organizations can define their own roles, and users can turn on two-factor authentication, which an organization can require. The security fix stops a device certificate from an unregistered CA tying up a device node and the database forever. Anyone holding a client certificate from a public CA could do that, without an account. Every instance should upgrade. Read Upgrading first: once a member has a custom role, you can't go back to 2.5.3.
+
+### Upgrading
+
+- **Don't roll back to 2.5.3 once anyone has a custom role.** Five migrations run, and they only add tables and columns: custom roles, starred organizations, audit log kinds and two-factor authentication. 2.5.3 doesn't know about custom roles, so a member holding one has no role it understands. For the same reason, finish the rolling deploy before giving anyone a custom role. (#3075)
+- **Two-factor authentication needs `SECRETS_ENCRYPTION_KEY`.** The key encrypts each user's authenticator secret, so two-factor authentication is only offered when it's set. Changing the key afterwards leaves users who have it on with only their recovery codes, and there's no admin reset yet. (#3277)
+- **The API's member endpoints can return `role: null`.** `GET /api/orgs/:org_name/users` and `GET /api/orgs/:org_name/users/:user_email` return each member's `role`, which used to be `admin`, `manage` or `view`. For a member with a custom role, `role` is now `null`, and the role's name is in a new `custom_role` field. A client that expects one of the three built-in roles needs to handle that. (#3075)
+- **A device refused because its CA isn't registered sees a different alert.** It gets `handshake_failure` where it got `unknown_ca`, and the reason on the `nerves_hub.ssl.fail` telemetry event and log line is `ca_not_registered`. Update any alert or filter that matches on the old reason. ([GHSA-8j48-4mg5-7v6v](https://github.com/nerves-hub/nerves_hub_web/security/advisories/GHSA-8j48-4mg5-7v6v))
+
+### Security
+
+- High: A device certificate whose CA isn't registered in NervesHub kept its TLS handshake running forever, querying the database thousands of times a second, long after the device had disconnected. The certificate's chain has to end at a root the device endpoint trusts, and unless `DEVICE_SSL_CACERTFILE` is set, the endpoint trusts the public web roots. So a client certificate from a public CA was enough, without an account, and a handful of connections could make NervesHub unavailable until each node was restarted. The advisory has a workaround for instances that can't upgrade straight away. Affects 1.0.0 to 2.5.3. ([GHSA-8j48-4mg5-7v6v](https://github.com/nerves-hub/nerves_hub_web/security/advisories/GHSA-8j48-4mg5-7v6v), CVE-2026-125275)
+
+### Added
+
+- Custom roles. An organization's admins create them from the Roles tab in its settings, each a set of permissions from a catalog, and give them to members and invites. Admin, Manage and View stay in every organization, unchanged. Editing a role applies straight away to the pages, consoles and shells its members have open. (#3075)
+- A custom role can be limited to devices with certain tags, matching any or all of them. Its members see only those devices, wherever devices are listed or opened. Pages built from all of a product's devices, such as Insights, deployment groups and firmware, are closed to them. A console, shell or device page they have open closes when a tag change takes the device out of their reach. (#3077, #3079)
+- Custom roles work in the JSON API. Each write checks the same permission the web UI does, and reads need only membership. (#3076)
+- Two-factor authentication with an authenticator app, turned on from the account page, with ten single-use recovery codes. Once it's on, every way of signing in asks for a code. Users are emailed when it's turned on or off, and when new recovery codes are made. (#3277, #3278)
+- An organization's admins can require two-factor authentication of every member. A member without it is sent to set it up when they open the organization, and until they do, its API, consoles, shells, device event streams and Slack actions refuse them. Pages and consoles they have open close when the requirement starts applying. (#3277, #3278)
+- Star organizations on the home page. Once you belong to five or more, starred ones are shown in full and the rest go in a table. (#3264)
+- Each entry on a device's Activity tab has an icon for the kind of event it records (#3271)
+- The device page has a phone layout. It scrolls as one under tabs that stick to the top, tables become a card per row, and the console and system shell get a typing mode with the Esc, Tab, Ctrl and arrow keys a phone keyboard lacks. On a phone, every product page's sidebar is a drawer. (#3272)
+
+### Changed
+
+- Every tab of the device page matches its design. Health charts mark the product's thresholds and the spans the device was offline, Firmware History can show how each update attempt ended, Errors shows an issue's latest occurrence on the device, and Activity is grouped by day. Times on the page are in the viewer's time zone, in 12-hour format. (#3272)
+- The organization pages match their designs, and so do the buttons, badges, hairlines, type sizes and card corners they share with the rest of the web UI. Faint text in dark mode now meets 4.5:1 contrast. (#3265)
+- The Group release row on a device's Details tab says why the device isn't on the release: it's in the penalty box, its firmware updates are off, or the group is paused. It used to say "Device is up to date". (#3286)
+- View members can no longer download archives from the web UI. That needs the new `archive:download` permission, which Manage has, as the API already required. Archives can carry secrets the way firmware can. (#3075)
+- Any member can list and show an organization's members through the API, as they can in the web UI. It used to need Admin. (#3076)
+- Changing a device's tags needs the new `device:tags` permission. Manage has it, so the built-in roles can do what they did before. (#3077)
+- The API's password sign-in (`/api/users/auth`) refuses an account with two-factor authentication on, and says to sign in through the browser or use an access token (#3277)
+- The ClickHouse check for stale device connections runs hourly, on its own worker, instead of every minute. It was the largest read on a busy ClickHouse. A connection whose disconnect never reached ClickHouse can show as open in its history for up to an hour. (#3267)
+- Health evaluation's ClickHouse query uses about half the CPU it did (#3266)
+
+### Fixed
+
+- Opening a device's page no longer changes its update state. The page ran the same check a device's update request does, which could clear an update in progress, put a device that had reached its failure limit in the penalty box, and sign a firmware URL nobody used. (#3286)
+- The organizations home page crashed when a pinned device connected or disconnected (#3269)
+- Dragging a file over a device's console threw an error on every movement (#3268)
+
+### Dependencies
+
+- **dialyxir**: 1.4.8 -> 1.4.9 (#3282)
+- **eqrcode**: added at 0.2.1 (#3277)
+- **hackney**: 4.9.1 -> 4.10.2 (#3276)
+- **live_flow**: 0.3.2 -> 0.3.3 (#3280)
+- **nimble_totp**: added at 1.0.0 (#3277)
+- **oban_web**: 2.13.1 -> 2.13.2 (#3281)
+
 ## v2.5.3
 
 A security release. It fixes six vulnerabilities, published as advisories (one critical, three high, one medium and one low), and several smaller holes found while fixing them. Every instance should upgrade. Read Upgrading first: Google sign-in can stop creating accounts, a migration takes devices off other products' deployment groups, and the device API now ignores fields it used to save.
