@@ -489,7 +489,9 @@
           </p>
         </div>
 
-        <.list_footer :if={@firmware != []} pager={@pager_meta} can_upload={authorized?(:"firmware:upload", @current_scope)} />
+        <.list_footer :if={@firmware != []} id="firmware" label="Firmware" pager={@pager_meta}>
+          <:hint :if={authorized?(:"firmware:upload", @current_scope)}>Drop a .fw, .bin, .raucb or .avm file anywhere on this page to upload it</:hint>
+        </.list_footer>
       </div>
     </div>
 
