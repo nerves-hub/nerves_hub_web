@@ -1637,7 +1637,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
 
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
-      |> assert_has("div", text: "Support Scripts")
+      |> assert_has("#support-scripts-card", text: "Support scripts")
       |> assert_has("select#script_id option[value=\"#{script.id}\"]", text: "MOTD")
       # No script is selected by default, so a placeholder option is shown
       # and the run button stays disabled.
@@ -1711,7 +1711,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
 
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
-      |> assert_has("div", text: "Support Scripts")
+      |> assert_has("#support-scripts-card", text: "Support scripts")
       # The native <select> is replaced by the searchable combobox.
       |> refute_has("select#script_id")
       |> assert_has("#script-autocomplete[phx-hook=\"ScriptAutocomplete\"]")
