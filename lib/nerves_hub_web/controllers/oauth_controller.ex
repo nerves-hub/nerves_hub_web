@@ -2,9 +2,17 @@ defmodule NervesHubWeb.OAuthController do
   use NervesHubWeb, :controller
 
   alias NervesHub.Accounts
+  alias NervesHub.Accounts.TwoFactor
+  alias NervesHub.Accounts.User
   alias NervesHubWeb.Auth
 
+  # How long after leaving the account page Google has to send someone back.
+  @google_intent_seconds 10 * 60
+
+  # Signs the user in, or for a signed in user finishes what their own account
+  # page started (`fetch_google_intent/2` checks the intent is theirs).
   plug(:require_no_permission, :signs_the_user_in when action in [:request, :callback])
+  plug(:fetch_google_intent)
   plug(Ueberauth)
 
   # Ueberauth answers the request phase itself for a provider it is configured
@@ -12,6 +20,13 @@ defmodule NervesHubWeb.OAuthController do
   # path named a provider it doesn't know (`/auth/login`, `/auth/.env`), so
   # there is nothing here.
   def request(conn, _params), do: not_found(conn)
+
+  # A signed in user back from Google, where their account page sent them.
+  def callback(%{assigns: %{google_intent: %{} = intent}} = conn, _params) do
+    conn
+    |> delete_session(:google_intent)
+    |> finish_google_intent(intent, conn.assigns.current_scope.user, conn.assigns[:ueberauth_auth])
+  end
 
   def callback(%{assigns: %{ueberauth_failure: _fails}} = conn, _params) do
     render(conn, :auth_failure)
@@ -52,6 +67,94 @@ defmodule NervesHubWeb.OAuthController do
   end
 
   def callback(conn, _params), do: not_found(conn)
+
+  # Signing in with Google is for someone signed out. A signed in user only
+  # comes here from their account page (`NervesHubWeb.ConfirmIdentityController.google/2`),
+  # which leaves what they came for in the session; anyone else signed in is
+  # sent on.
+  defp fetch_google_intent(conn, _opts) do
+    case {conn.assigns[:current_scope], get_session(conn, :google_intent)} do
+      {%{user: %User{id: user_id}}, %{"user_id" => user_id, "started_at" => started_at} = intent}
+      when is_integer(started_at) ->
+        if System.os_time(:second) - started_at <= @google_intent_seconds do
+          assign(conn, :google_intent, intent)
+        else
+          conn
+          |> delete_session(:google_intent)
+          |> Auth.redirect_if_user_is_authenticated([])
+        end
+
+      _ ->
+        Auth.redirect_if_user_is_authenticated(conn, [])
+    end
+  end
+
+  defp finish_google_intent(conn, %{"return_to" => return_to}, _user, nil) do
+    conn
+    |> put_flash(:error, "Google didn't confirm your account. Try again.")
+    |> redirect(to: Auth.account_return_to(return_to))
+  end
+
+  defp finish_google_intent(conn, %{"action" => "confirm", "return_to" => return_to} = intent, user, auth) do
+    return_to = Auth.account_return_to(return_to)
+
+    cond do
+      not (is_binary(user.google_id) and auth.uid == user.google_id) ->
+        conn
+        |> put_flash(:error, "That isn't the Google account connected to yours. Try again and choose that one.")
+        |> redirect(to: ~p"/account/confirm?#{[return_to: return_to]}")
+
+      # The recovery code the confirm page checked, used up only now that
+      # Google has confirmed too.
+      spend_held_recovery_code?(user, intent["recovery_code"]) ->
+        conn
+        |> Auth.mark_authenticated()
+        |> redirect(to: return_to)
+
+      true ->
+        conn
+        |> put_flash(:error, "That recovery code has been used since. Try again with another.")
+        |> redirect(to: ~p"/account/confirm?#{[return_to: return_to]}")
+    end
+  end
+
+  defp finish_google_intent(conn, %{"action" => "connect", "return_to" => return_to}, user, auth) do
+    return_to = Auth.account_return_to(return_to)
+
+    case Accounts.connect_google_account(user, auth) do
+      {:ok, _user} ->
+        conn
+        # Signing in to Google just now proves it's them as well as the
+        # password does.
+        |> Auth.mark_authenticated()
+        |> put_flash(:info, "Your Google account is now connected. You can sign in with it.")
+        |> redirect(to: return_to)
+
+      {:error, reason} ->
+        conn
+        |> put_flash(:error, connect_error(reason, user, auth))
+        |> redirect(to: return_to)
+    end
+  end
+
+  defp spend_held_recovery_code?(_user, nil), do: true
+
+  defp spend_held_recovery_code?(user, held) do
+    match?({:ok, _left}, TwoFactor.use_held_recovery_code(user, held))
+  end
+
+  defp connect_error(:email_mismatch, user, auth),
+    do: "That Google account is #{auth.info.email}. Connect the one for #{user.email}."
+
+  defp connect_error(:email_not_verified, _user, auth),
+    do: "Google hasn't verified #{auth.info.email}, so it can't be connected."
+
+  defp connect_error(:unconfirmed, _user, _auth), do: "Confirm your email address first, then connect Google."
+  defp connect_error(:already_linked, _user, _auth), do: "Your account is already connected to a Google account."
+
+  defp connect_error(%Ecto.Changeset{}, _user, _auth), do: "That Google account is connected to another account."
+
+  defp connect_error(_reason, _user, _auth), do: "Google couldn't be connected. Try again."
 
   defp login_error(conn, message) do
     conn

@@ -22,10 +22,10 @@ defmodule NervesHubWeb.Live.FirmwareEspIdfTest do
 
       conn
       |> visit("/org/#{org.name}/#{product.name}/firmware")
-      |> assert_has("a", text: firmware.uuid)
-      |> assert_has("code", text: "esp-idf")
-      |> assert_has("td", text: "esp32s3")
-      |> assert_has("td", text: "xtensa")
+      |> assert_has("#firmware-#{firmware.uuid} a", text: "1.4.0")
+      |> assert_has("#firmware-#{firmware.uuid} code", text: "esp-idf")
+      |> assert_has("#firmware-#{firmware.uuid} [role='cell']", text: "esp32s3")
+      |> assert_has("#firmware-#{firmware.uuid} [role='cell']", text: "xtensa")
     end
 
     test "shows the key that signed it", %{conn: conn, user: user, org: org} do
@@ -37,7 +37,7 @@ defmodule NervesHubWeb.Live.FirmwareEspIdfTest do
 
       conn
       |> visit("/org/#{org.name}/#{product.name}/firmware")
-      |> assert_has("code", text: key.name)
+      |> assert_has("#firmware-#{firmware.uuid} [role='cell']", text: key.name)
     end
 
     test "shows fwup and ESP-IDF firmware side by side", %{conn: conn, user: user, org: org, tmp_dir: tmp_dir} do
@@ -49,10 +49,8 @@ defmodule NervesHubWeb.Live.FirmwareEspIdfTest do
 
       conn
       |> visit("/org/#{org.name}/#{product.name}/firmware")
-      |> assert_has("a", text: fwup_firmware.uuid)
-      |> assert_has("a", text: esp_firmware.uuid)
-      |> assert_has("code", text: "esp-idf")
-      |> assert_has("code", text: "fwup")
+      |> assert_has("#firmware-#{fwup_firmware.uuid} code", text: "fwup")
+      |> assert_has("#firmware-#{esp_firmware.uuid} code", text: "esp-idf")
     end
   end
 
@@ -64,12 +62,11 @@ defmodule NervesHubWeb.Live.FirmwareEspIdfTest do
 
       conn
       |> visit("/org/#{org.name}/#{product.name}/firmware/#{firmware.uuid}")
-      |> assert_has("h1", text: firmware.uuid)
-      |> assert_has("span", text: "2.1.0")
+      |> assert_has("h1", text: "2.1.0")
+      |> assert_has("#firmware-uuid", text: firmware.uuid)
       |> assert_has("code", text: "esp-idf")
-      |> assert_has("span", text: "esp32c6")
-      |> assert_has("span", text: "riscv")
-      |> assert_has("span", text: "ESP-IDF v5.2.1")
+      |> assert_has("code", text: "esp32c6 · riscv")
+      |> assert_has("p", text: "ESP-IDF v5.2.1")
     end
 
     test "renders the signing key on the show page", %{conn: conn, user: user, org: org} do
@@ -79,7 +76,7 @@ defmodule NervesHubWeb.Live.FirmwareEspIdfTest do
 
       conn
       |> visit("/org/#{org.name}/#{product.name}/firmware/#{firmware.uuid}")
-      |> assert_has("code", text: key.name)
+      |> assert_has("span", text: "Signed with #{key.name}")
     end
   end
 

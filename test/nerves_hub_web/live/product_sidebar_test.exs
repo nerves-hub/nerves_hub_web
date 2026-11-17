@@ -48,7 +48,7 @@ defmodule NervesHubWeb.ProductSidebarTest do
     } do
       conn
       |> visit("/org/#{org.name}/#{product.name}/firmware/#{firmware.uuid}")
-      |> assert_has("h1", text: firmware.uuid)
+      |> assert_has("h1", text: firmware.version)
       |> refute_has("#phone-title")
     end
   end

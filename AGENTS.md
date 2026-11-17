@@ -100,6 +100,15 @@ when adding or removing one.
   requirement on, or a member turning two-factor off, is announced on
   `Accounts.PubSub`, so what that member has open closes. Anything that
   checks a code limits the tries first (`Plugs.Attack`).
+- An account signs in with a password, Google, or both
+  (`Accounts.sign_in_methods/1`), and must keep one. Changing how it signs
+  in (adding or removing a way, turning on two-factor) needs a **recent
+  sign-in**, not a password: `NervesHubWeb.Auth.recently_authenticated?/1`
+  reads `:authenticated_at` from the session (10 minutes). `/account/confirm`
+  renews it with whichever way the account has, plus a two-factor code when
+  two-factor is on, so an account without a password is never asked for one.
+  A signed in user only reaches `/auth/google` with a `:google_intent` the
+  account page set.
 - A custom role can be limited to devices with certain tags. Its members see
   only those devices, so **every device query a user can reach must go through
   `NervesHub.Devices.Visibility.where_visible/2`**, which checks the member's
@@ -222,7 +231,10 @@ when adding or removing one.
   `live/products/new.ex`) have no sidebar: they render inside `Layouts.org/1`,
   a centered column under the organization's name, counts and tabs, and mount
   `NervesHubWeb.Mounts.OrgCounts` for the counts. Product pages keep the
-  sidebar layout.
+  sidebar layout. The sidebar can be collapsed at any width, so the firmware
+  list sizes its columns and cards by the room it gets (an `@container` and
+  `@max-3xl:`-style variants), not by the viewport, and never scrolls sideways:
+  a sideways scroller would clip each row's menu.
 - `components/` - shared function/live components. `components/fleet_composition.ex`
   draws `NervesHub.Insights` on a product's Insights page, and
   `components/fleet_trends.ex` its trends row as SVG drawn on the server.

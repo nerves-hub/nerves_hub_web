@@ -121,6 +121,31 @@ defmodule NervesHub.Accounts.TwoFactorTest do
     end
   end
 
+  describe "verify_and_hold/2 and use_held_recovery_code/2" do
+    setup %{user: user}, do: Fixtures.two_factor_fixture(user)
+
+    test "uses up a code from the app at once", %{user: user, secret: secret} do
+      code = Fixtures.next_totp_code(secret)
+
+      assert {:ok, :totp} = TwoFactor.verify_and_hold(user, code)
+      assert {:error, :invalid_code} = TwoFactor.verify(user, code)
+    end
+
+    test "holds a recovery code until it's used up, once", %{user: user, recovery_codes: [code | _]} do
+      assert {:ok, {:held_recovery_code, held}} = TwoFactor.verify_and_hold(user, String.upcase(code))
+      assert {:ok, {:held_recovery_code, ^held}} = TwoFactor.verify_and_hold(user, code)
+
+      assert {:ok, {:recovery_code, 9}} = TwoFactor.use_held_recovery_code(user, held)
+      assert {:error, :invalid_code} = TwoFactor.use_held_recovery_code(user, held)
+      assert {:error, :invalid_code} = TwoFactor.verify_and_hold(user, code)
+    end
+
+    test "won't hold a code that isn't one", %{user: user} do
+      assert {:error, :invalid_code} = TwoFactor.verify_and_hold(user, "aaaa-bbbb-cccc-dddd")
+      assert {:error, :invalid_code} = TwoFactor.verify_and_hold(Fixtures.user_fixture(), "aaaa-bbbb-cccc-dddd")
+    end
+  end
+
   describe "disable/2 and regenerate_recovery_codes/2" do
     setup %{user: user}, do: Fixtures.two_factor_fixture(user)
 

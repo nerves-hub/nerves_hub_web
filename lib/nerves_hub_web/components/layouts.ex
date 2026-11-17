@@ -119,6 +119,51 @@ defmodule NervesHubWeb.Layouts do
   """
   def org(assigns)
 
+  attr(:flash, :map, required: true)
+  attr(:current_scope, :map, required: true)
+  attr(:tab, :atom, required: true, doc: "the selected tab: `:profile` or `:tokens`")
+  slot(:inner_block, required: true)
+
+  @doc """
+  The signed in user's account pages: their avatar, name and email in a
+  header, a row of tabs for its sections, and the page centered under them,
+  laid out like `org/1`.
+  """
+  def account(assigns)
+
+  # "you@example.com · Member of 2 organizations · Since March 2025"
+  defp account_summary(user) do
+    orgs = if Ecto.assoc_loaded?(user.orgs), do: length(user.orgs)
+
+    [
+      user.email,
+      orgs && "Member of " <> Fleet.count_noun(orgs, "organization", "organizations"),
+      # The month is UTC's, which is near enough for when someone joined.
+      "Since " <> Calendar.strftime(user.inserted_at, "%B %Y")
+    ]
+  end
+
+  # Each icon is spelled out in full, regular and bold, so Tailwind finds the
+  # class names in this file.
+  defp account_tabs() do
+    [
+      %{
+        key: :profile,
+        label: "Profile",
+        path: ~p"/account",
+        icon: "lucide-user-round",
+        selected_icon: "lucide-user-round--bold"
+      },
+      %{
+        key: :tokens,
+        label: "Access tokens",
+        path: ~p"/account/tokens",
+        icon: "lucide-key",
+        selected_icon: "lucide-key--bold"
+      }
+    ]
+  end
+
   attr(:title, :string, required: true)
 
   attr(:back, :string,
@@ -131,8 +176,9 @@ defmodule NervesHubWeb.Layouts do
   slot(:inner_block, doc: "a line under the title")
 
   @doc """
-  The heading of an organization page's content, under its tabs. The tabs'
-  header holds the organization's name as the page's h1, so this is an h2.
+  The heading of an organization or account page's content, under its tabs.
+  The tabs' header holds the organization's or the user's name as the page's
+  h1, so this is an h2.
   """
   def org_heading(assigns) do
     ~H"""

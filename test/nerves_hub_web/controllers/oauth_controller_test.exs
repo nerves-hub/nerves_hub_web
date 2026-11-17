@@ -8,6 +8,7 @@ defmodule NervesHubWeb.OAuthControllerTest do
   import Swoosh.TestAssertions
 
   alias NervesHub.Accounts
+  alias NervesHub.Accounts.TwoFactor
   alias NervesHub.Accounts.User
   alias NervesHub.Accounts.UserToken
   alias NervesHub.Fixtures
@@ -294,6 +295,128 @@ defmodule NervesHubWeb.OAuthControllerTest do
       send_queued_emails()
 
       assert_email_sent(subject: "NervesHub: Login with Google")
+    end
+  end
+
+  describe "from the account page" do
+    setup do
+      Application.put_env(:nerves_hub, :enable_google_auth, true)
+      on_exit(fn -> Application.put_env(:nerves_hub, :enable_google_auth, false) end)
+
+      Mimic.stub(Ueberauth, :call, fn conn, _routes ->
+        %{conn | assigns: Map.put(conn.assigns, :ueberauth_auth, Process.get(:google_auth))}
+      end)
+
+      %{google_auth: Fixtures.ueberauth_google_success_fixture()}
+    end
+
+    # Out to Google from the account page, and back as `google_auth`.
+    defp round_trip(conn, intent, google_auth, code \\ nil) do
+      params = %{"intent" => intent, "return_to" => "/account", "code" => code}
+      conn = post(conn, ~p"/account/confirm/google", params)
+      assert "/auth/google?" <> _ = redirected_to(conn)
+
+      Process.put(:google_auth, google_auth)
+
+      conn
+      |> recycle()
+      |> get(~p"/auth/google/callback?state=dummy&code=dummy")
+    end
+
+    test "connects the Google account for the account's email", %{google_auth: google_auth} do
+      user = Fixtures.user_fixture(%{email: google_auth.info.email})
+
+      conn = user |> signed_in_conn() |> round_trip("connect", google_auth)
+
+      assert redirected_to(conn) == "/account"
+      assert Phoenix.Flash.get(conn.assigns.flash, :info) =~ "Your Google account is now connected."
+      assert Repo.reload(user).google_id == google_auth.uid
+      refute get_session(conn, :google_intent)
+    end
+
+    test "won't connect a Google account for another address", %{google_auth: google_auth} do
+      user = Fixtures.user_fixture()
+
+      conn = user |> signed_in_conn() |> round_trip("connect", google_auth)
+
+      assert redirected_to(conn) == "/account"
+      assert Phoenix.Flash.get(conn.assigns.flash, :error) =~ "Connect the one for #{user.email}."
+      refute Repo.reload(user).google_id
+    end
+
+    test "confirms it's them with the Google account connected to theirs", %{google_auth: google_auth} do
+      user = Fixtures.google_user_fixture(google_id: google_auth.uid)
+
+      conn = user |> signed_in_conn(recent: false) |> round_trip("confirm", google_auth)
+
+      assert redirected_to(conn) == "/account"
+      assert is_integer(get_session(conn, :authenticated_at))
+    end
+
+    test "won't confirm it's them with a different Google account", %{google_auth: google_auth} do
+      user = Fixtures.google_user_fixture(google_id: "someone-else")
+
+      conn = user |> signed_in_conn(recent: false) |> round_trip("confirm", google_auth)
+
+      assert redirected_to(conn) == ~p"/account/confirm?#{[return_to: "/account"]}"
+      refute get_session(conn, :authenticated_at)
+    end
+
+    test "with two-factor on, uses up the recovery code only once Google confirms", %{google_auth: google_auth} do
+      user = Fixtures.google_user_fixture(google_id: google_auth.uid)
+      %{recovery_codes: [code, other_code | _]} = Fixtures.two_factor_fixture(user)
+      someone_else = %{google_auth | uid: "someone-else"}
+
+      # Choosing the wrong Google account leaves the code to try again with.
+      conn = user |> signed_in_conn(recent: false) |> round_trip("confirm", someone_else, code)
+      refute get_session(conn, :authenticated_at)
+
+      conn = user |> signed_in_conn(recent: false) |> round_trip("confirm", google_auth, code)
+      assert is_integer(get_session(conn, :authenticated_at))
+      assert {:error, :invalid_code} = TwoFactor.verify(user, code)
+
+      # A code used up between leaving for Google and coming back.
+      conn = user |> signed_in_conn(recent: false)
+      conn = post(conn, ~p"/account/confirm/google", %{"intent" => "confirm", "code" => other_code})
+      assert {:ok, _} = TwoFactor.verify(user, other_code)
+      Process.put(:google_auth, google_auth)
+      conn = conn |> recycle() |> get(~p"/auth/google/callback?state=dummy&code=dummy")
+
+      assert Phoenix.Flash.get(conn.assigns.flash, :error) =~ "That recovery code has been used since."
+      refute get_session(conn, :authenticated_at)
+    end
+
+    test "sends a signed in user who didn't come from it on, without touching their account", %{
+      google_auth: google_auth
+    } do
+      user = Fixtures.user_fixture(%{email: google_auth.info.email})
+      Process.put(:google_auth, google_auth)
+
+      conn = user |> signed_in_conn() |> get(~p"/auth/google/callback?state=dummy&code=dummy")
+
+      refute redirected_to(conn) =~ "/account"
+      refute Repo.reload(user).google_id
+    end
+
+    test "forgets a trip to Google that took too long", %{google_auth: google_auth} do
+      user = Fixtures.user_fixture(%{email: google_auth.info.email})
+      Process.put(:google_auth, google_auth)
+
+      conn =
+        build_conn()
+        |> init_test_session(%{
+          "user_token" => Accounts.create_user_session_token(user),
+          "google_intent" => %{
+            "action" => "connect",
+            "user_id" => user.id,
+            "return_to" => "/account",
+            "started_at" => System.os_time(:second) - 11 * 60
+          }
+        })
+        |> get(~p"/auth/google/callback?state=dummy&code=dummy")
+
+      refute redirected_to(conn) =~ "/account"
+      refute Repo.reload(user).google_id
     end
   end
 

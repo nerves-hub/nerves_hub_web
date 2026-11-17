@@ -82,6 +82,7 @@ defmodule NervesHubWeb.CoreComponents do
       <.user_avatar user={@current_scope.user} />
   """
   attr(:user, :map, required: true, doc: "a user with `name` and `profile_picture_url`")
+  attr(:size, :string, default: "size-8", doc: "its `size-*` classes, which `class` can't override")
   attr(:class, :string, default: nil)
 
   def user_avatar(assigns) do
@@ -89,7 +90,8 @@ defmodule NervesHubWeb.CoreComponents do
     <div
       :if={!@user.profile_picture_url}
       class={[
-        "relative inline-flex size-8 items-center justify-center overflow-hidden rounded-full bg-base-800 pt-0.5 dark:bg-base-600",
+        "relative inline-flex items-center justify-center overflow-hidden rounded-full bg-base-800 pt-0.5 dark:bg-base-600",
+        @size,
         @class
       ]}
     >
@@ -97,7 +99,7 @@ defmodule NervesHubWeb.CoreComponents do
     </div>
     <div
       :if={@user.profile_picture_url}
-      class={["relative inline-flex size-8 items-center justify-center overflow-hidden", @class]}
+      class={["relative inline-flex items-center justify-center overflow-hidden", @size, @class]}
     >
       <img src={@user.profile_picture_url} alt="User Profile Picture" class="size-full rounded-full object-cover" />
     </div>
@@ -528,7 +530,10 @@ defmodule NervesHubWeb.CoreComponents do
   attr(:square, :boolean, default: false)
   attr(:type, :string, default: "button")
   attr(:class, :any, default: nil)
-  attr(:rest, :global, include: ~w(disabled form name value href navigate download patch method replace for))
+
+  attr(:rest, :global,
+    include: ~w(disabled form formaction formnovalidate name value href navigate download patch method replace for)
+  )
 
   slot(:inner_block, required: true)
 

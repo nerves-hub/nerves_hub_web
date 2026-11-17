@@ -173,6 +173,55 @@ defmodule NervesHub.Accounts.TwoFactor do
   def verify(%User{}, _code), do: {:error, :invalid_code}
 
   @doc """
+  Checks a code as `verify/2` does, but leaves a recovery code unused.
+
+  For something that can still fail after the code is checked, such as
+  confirming with Google, which needs a trip to Google first. A recovery code
+  comes back as `{:ok, {:held_recovery_code, held}}`: pass `held` to
+  `use_held_recovery_code/2` once the rest has gone through. A code from the
+  app is used up as `verify/2` uses it, since the app shows a new one every 30
+  seconds. `held` is the code's hash, which can't be turned back into the code
+  (see `hash_recovery_code/2`), so it may be kept in the session.
+  """
+  @spec verify_and_hold(User.t(), String.t()) ::
+          {:ok, :totp}
+          | {:ok, {:held_recovery_code, binary()}}
+          | {:error, :invalid_code | :secret_unreadable}
+  def verify_and_hold(%User{id: user_id} = user, code) when is_binary(code) do
+    code = normalize(code)
+
+    case get(user) do
+      %UserTOTP{} = totp ->
+        hash = hash_recovery_code(user_id, code)
+
+        cond do
+          String.match?(code, ~r/\A\d{6}\z/) -> verify_totp(totp, code)
+          hash in totp.recovery_codes -> {:ok, {:held_recovery_code, hash}}
+          true -> {:error, :invalid_code}
+        end
+
+      nil ->
+        {:error, :invalid_code}
+    end
+  end
+
+  def verify_and_hold(%User{}, _code), do: {:error, :invalid_code}
+
+  @doc """
+  Uses up a recovery code `verify_and_hold/2` held. Refused with
+  `:invalid_code` when it has been used since, or two-factor turned off or
+  given new codes.
+  """
+  @spec use_held_recovery_code(User.t(), binary()) ::
+          {:ok, {:recovery_code, non_neg_integer()}} | {:error, :invalid_code}
+  def use_held_recovery_code(%User{} = user, held) when is_binary(held) do
+    case get(user) do
+      %UserTOTP{} = totp -> remove_recovery_code(totp, held)
+      nil -> {:error, :invalid_code}
+    end
+  end
+
+  @doc """
   Turns two-factor off, given a current code or a recovery code, which
   proves whoever asks still holds the second factor rather than only a
   signed in browser.
@@ -427,9 +476,11 @@ defmodule NervesHub.Accounts.TwoFactor do
     count == 1
   end
 
-  defp verify_recovery_code(%UserTOTP{id: id, user_id: user_id}, code) do
-    hash = hash_recovery_code(user_id, code)
+  defp verify_recovery_code(%UserTOTP{user_id: user_id} = totp, code) do
+    remove_recovery_code(totp, hash_recovery_code(user_id, code))
+  end
 
+  defp remove_recovery_code(%UserTOTP{id: id}, hash) do
     # Removed in the same statement that finds it, so a code can only be used
     # once even by two requests at the same time.
     UserTOTP

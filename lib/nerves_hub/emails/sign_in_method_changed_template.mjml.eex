@@ -1,0 +1,33 @@
+<mjml>
+  <mj-body background-color="#fafafa">
+    <%= render_dynamic_component NervesHub.Emails.LogoHeader, %{} %>
+
+    <mj-section padding-top="0px">
+      <mj-column>
+        <mj-text font-size="20px" font-family="sans-serif" padding-top="20px">Hi <%= @user_name %></mj-text>
+
+        <mj-text font-size="20px" font-family="sans-serif" padding-top="20px">
+          <%= if @change == "google_connected" do %>
+            A Google account is now connected to your <%= @platform_name %> account, so you can sign in with Google.
+          <% end %>
+          <%= if @change == "google_disconnected" do %>
+            Your Google account is no longer connected to your <%= @platform_name %> account, so you sign in with your password.
+          <% end %>
+          <%= if @change == "password_removed" do %>
+            Your <%= @platform_name %> account no longer has a password, so you sign in with Google.
+          <% end %>
+        </mj-text>
+
+        <mj-text font-size="20px" font-family="sans-serif" padding-top="20px">
+          If this wasn't you, reset your password straight away, which signs you out everywhere else, then check how you sign in on your account page.
+        </mj-text>
+
+        <mj-button align="left" padding-top="20px" inner-padding="8px 10px 5px 10px" href="<%= @reset_url %>" font-size="18px" background-color="#6366f1" border-radius="4px" color="#fafafa" font-family="sans-serif">
+          Reset my password
+        </mj-button>
+      </mj-column>
+    </mj-section>
+
+    <%= render_dynamic_component NervesHub.Emails.ClosingBlock, %{} %>
+  </mj-body>
+</mjml>
