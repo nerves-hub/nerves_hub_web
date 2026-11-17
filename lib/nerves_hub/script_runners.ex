@@ -52,6 +52,10 @@ defmodule NervesHub.ScriptRunners do
   @max_output_bytes 32_768
   @truncated_marker "[output truncated at 32 KB]"
 
+  # Rows per export query. At the output cap this is at most about 16MB held at
+  # once, and a run of 50,000 devices is a hundred queries.
+  @export_page_size 500
+
   @doc """
   Create a run and queue its first pacing job.
 
@@ -518,43 +522,88 @@ defmodule NervesHub.ScriptRunners do
   def export_csv_header(), do: ["identifier", "status", "finished_at", "output"]
 
   @doc """
-  Stream one run's device results through `callback`, a row at a time.
+  Feed one run's device results through `callback`, a row at a time.
 
-  Streamed rather than loaded: a run can be tens of thousands of devices wide, and
-  every device's output is in here. Ordered by identifier, the same as the table on
-  the run's page.
+  Read a page at a time rather than loaded: a run can be tens of thousands of
+  devices wide, and every device's output is in here. Ordered by identifier, the
+  same as the table on the run's page.
+
+  Each page is its own short query, picking up after the last row of the one
+  before (keyset pagination), with no transaction or cursor held between them.
+  `callback` is typically writing to a client's socket, which goes only as fast
+  as the client reads. Holding one query open across the whole export would keep
+  a pooled connection for as long as the download took, and a checkout timeout
+  would cut a slow download off partway. Rows a device finishes mid-export are
+  read with whatever status they have when their page is reached.
 
   `callback` is given the accumulator and one row of `export_csv_header/0` columns,
   and returns `{:ok, acc}` to continue or `{:error, term()}` to stop.
+
+  ## Options
+
+    * `:page_size` - rows read per query. Defaults to #{@export_page_size}.
   """
-  @spec export_reducer(ScriptRunner.t(), acc, (acc, [String.t()] -> {:ok, acc} | {:error, term()})) ::
+  @spec export_reducer(ScriptRunner.t(), acc, (acc, [String.t()] -> {:ok, acc} | {:error, term()}), keyword()) ::
           {:ok, acc}
         when acc: term()
-  def export_reducer(%ScriptRunner{id: id}, acc, callback) do
-    Repo.transact(
-      fn ->
-        ScriptRunnerDevice
-        |> where([srd], srd.script_runner_id == ^id)
-        |> join(:inner, [srd], d in assoc(srd, :device), as: :device)
-        |> order_by([device: d], asc: d.identifier)
-        |> select([srd, device: d], %{
-          identifier: d.identifier,
-          status: srd.status,
-          finished_at: srd.finished_at,
-          output: srd.output
-        })
-        |> Repo.stream(max_rows: 500)
-        |> Stream.map(&export_csv_line/1)
-        |> Enum.reduce_while(acc, fn line, acc ->
-          case callback.(acc, line) do
-            {:ok, acc} -> {:cont, acc}
-            {:error, _reason} -> {:halt, acc}
-          end
-        end)
-        |> then(&{:ok, &1})
-      end,
-      timeout: 90_000
-    )
+  def export_reducer(%ScriptRunner{id: id}, acc, callback, opts \\ []) do
+    page_size = Keyword.get(opts, :page_size, @export_page_size)
+
+    {:ok, export_pages(id, nil, page_size, acc, callback)}
+  end
+
+  defp export_pages(runner_id, after_key, page_size, acc, callback) do
+    rows = export_page(runner_id, after_key, page_size)
+
+    case reduce_export_rows(rows, acc, callback) do
+      {:halt, acc} ->
+        acc
+
+      # A short page is the last one.
+      {:cont, acc} when length(rows) < page_size ->
+        acc
+
+      {:cont, acc} ->
+        last = List.last(rows)
+
+        export_pages(runner_id, {last.identifier, last.id}, page_size, acc, callback)
+    end
+  end
+
+  defp reduce_export_rows(rows, acc, callback) do
+    Enum.reduce_while(rows, {:cont, acc}, fn row, {:cont, acc} ->
+      case callback.(acc, export_csv_line(row)) do
+        {:ok, acc} -> {:cont, {:cont, acc}}
+        {:error, _reason} -> {:halt, {:halt, acc}}
+      end
+    end)
+  end
+
+  # Ordered by identifier with the row's own id as a tiebreak, so the key is
+  # unique and no row is skipped or repeated between pages: identifiers are
+  # only unique within an organization, and a soft-deleted device can still
+  # share one.
+  defp export_page(runner_id, after_key, page_size) do
+    ScriptRunnerDevice
+    |> where([srd], srd.script_runner_id == ^runner_id)
+    |> join(:inner, [srd], d in assoc(srd, :device), as: :device)
+    |> after_export_key(after_key)
+    |> order_by([srd, device: d], asc: d.identifier, asc: srd.id)
+    |> limit(^page_size)
+    |> select([srd, device: d], %{
+      id: srd.id,
+      identifier: d.identifier,
+      status: srd.status,
+      finished_at: srd.finished_at,
+      output: srd.output
+    })
+    |> Repo.all()
+  end
+
+  defp after_export_key(query, nil), do: query
+
+  defp after_export_key(query, {identifier, id}) do
+    where(query, [srd, device: d], fragment("(?, ?) > (?, ?)", d.identifier, srd.id, ^identifier, ^id))
   end
 
   # Every column a string, and a missing value an empty cell rather than the word

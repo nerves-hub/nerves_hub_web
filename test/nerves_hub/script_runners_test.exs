@@ -672,4 +672,69 @@ defmodule NervesHub.ScriptRunnersTest do
       assert Enum.any?(descriptions, &(&1 =~ "deleted the script run named Reboot"))
     end
   end
+
+  # The controller cannot choose the page size, so paging across several queries
+  # is exercised here; the CSV itself is covered by the export tests in
+  # `NervesHubWeb.Live.ScriptRunsTest`.
+  describe "export_reducer/4" do
+    defp collect_rows(runner, opts) do
+      {:ok, rows} = ScriptRunners.export_reducer(runner, [], fn acc, row -> {:ok, [row | acc]} end, opts)
+
+      Enum.reverse(rows)
+    end
+
+    test "reads every row exactly once, in identifier order, across pages", ctx do
+      devices = for _i <- 1..5, do: device(ctx, %{tags: ["production"]})
+
+      {:ok, runner, []} = create(ctx, %{filter_type: :tags, filter: tag_filter()})
+
+      identifiers = Enum.map(collect_rows(runner, page_size: 2), &hd/1)
+
+      assert identifiers == devices |> Enum.map(& &1.identifier) |> Enum.sort()
+    end
+
+    # A run whose size is an exact multiple of the page size ends on a full page,
+    # and the empty page after it must end the export rather than loop.
+    test "ends cleanly when the last page is full", ctx do
+      for _i <- 1..4, do: device(ctx, %{tags: ["production"]})
+
+      {:ok, runner, []} = create(ctx, %{filter_type: :tags, filter: tag_filter()})
+
+      assert length(collect_rows(runner, page_size: 2)) == 4
+    end
+
+    # A client that went away mid-download stops the export, rather than the rest
+    # of the run's pages being read for nobody.
+    test "stops reading once the callback returns an error", ctx do
+      for _i <- 1..5, do: device(ctx, %{tags: ["production"]})
+
+      {:ok, runner, []} = create(ctx, %{filter_type: :tags, filter: tag_filter()})
+
+      {:ok, seen} =
+        ScriptRunners.export_reducer(
+          runner,
+          0,
+          fn
+            2, _row -> {:error, :closed}
+            seen, _row -> {:ok, seen + 1}
+          end,
+          page_size: 2
+        )
+
+      assert seen == 2
+    end
+
+    # Each page is its own query, not one long-held transaction: a slow client
+    # must not keep a connection checked out for the whole download.
+    test "does not wrap the export in a transaction", ctx do
+      _device = device(ctx, %{tags: ["production"]})
+
+      {:ok, runner, []} = create(ctx, %{filter_type: :tags, filter: tag_filter()})
+
+      {:ok, in_transaction?} =
+        ScriptRunners.export_reducer(runner, nil, fn _acc, _row -> {:ok, Repo.in_transaction?()} end)
+
+      refute in_transaction?
+    end
+  end
 end
