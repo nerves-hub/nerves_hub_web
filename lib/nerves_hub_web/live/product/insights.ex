@@ -1,6 +1,7 @@
 defmodule NervesHubWeb.Live.Product.Insights do
   use NervesHubWeb, :live_view
 
+  import NervesHubWeb.Components.Fleet, only: [delimited: 1]
   import NervesHubWeb.CoreComponents, only: [switch: 1]
 
   alias NervesHub.Devices.Connections
@@ -135,7 +136,7 @@ defmodule NervesHubWeb.Live.Product.Insights do
   # PostgreSQL alone, so unlike the charts above this list is there whether
   # or not the deployment runs analytics. A device failing to take its firmware is
   # an operational fact rather than a statistic, and the count beside it has to
-  # be exact — see `NervesHub.Devices.UpdateHistory`.
+  # be exact. See `NervesHub.Devices.UpdateHistory`.
   defp assign_failing_updates(%{assigns: %{current_scope: scope}} = socket) do
     socket
     |> assign(:failing_devices, Updates.failing_updates(scope.product, @failing_updates_list_size))
@@ -146,16 +147,24 @@ defmodule NervesHubWeb.Live.Product.Insights do
   # from ClickHouse, so the list is only there where analytics is.
   defp maybe_assign_flapping(%{assigns: %{current_scope: scope}} = socket) do
     if Application.get_env(:nerves_hub, :analytics_enabled) do
-      devices_path = ~p"/org/#{scope.org}/#{scope.product}/devices"
-
       connections =
         for {device, count} <- Connections.flapping_connections(scope.product) do
-          %{device: device, kind: "connection", count: count, path: "#{devices_path}/#{device.identifier}"}
+          %{
+            device: device,
+            kind: "connection",
+            count: count,
+            path: ~p"/org/#{scope.org}/#{scope.product}/devices/#{device.identifier}"
+          }
         end
 
       health =
         for {device, count} <- Health.flapping_health(scope.product) do
-          %{device: device, kind: "health", count: count, path: "#{devices_path}/#{device.identifier}/health"}
+          %{
+            device: device,
+            kind: "health",
+            count: count,
+            path: ~p"/org/#{scope.org}/#{scope.product}/devices/#{device.identifier}/health"
+          }
         end
 
       flapping =
@@ -227,8 +236,6 @@ defmodule NervesHubWeb.Live.Product.Insights do
 
   defp devices_count(1), do: "1 device"
   defp devices_count(count), do: "#{delimited(count)} devices"
-
-  defp delimited(number), do: Number.Delimit.number_to_delimited(number, precision: 0)
 
   attr(:id, :string, required: true)
   attr(:title, :string, required: true)

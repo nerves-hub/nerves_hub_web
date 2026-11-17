@@ -1340,71 +1340,10 @@ defmodule NervesHub.Devices do
     |> Repo.all()
   end
 
-  def online_count(product) do
-    Device
-    |> join(:left, [d], lc in assoc(d, :latest_connection))
-    |> where(product_id: ^product.id)
-    |> where([_, lc], lc.status == :connected)
-    |> Repo.exclude_deleted()
-    |> Repo.aggregate(:count)
-  end
-
-  def offline_count(product) do
-    Device
-    |> join(:left, [d], lc in assoc(d, :latest_connection))
-    |> where(product_id: ^product.id)
-    |> where([_, lc], lc.status != :connected or is_nil(lc))
-    |> Repo.exclude_deleted()
-    |> Repo.aggregate(:count)
-  end
-
-  def not_seen_in_x_days_count(product, days) do
-    x_days_ago = NaiveDateTime.utc_now() |> NaiveDateTime.add(-days, :day)
-
-    Device
-    |> join(:left, [d], lc in assoc(d, :latest_connection))
-    |> where(product_id: ^product.id)
-    |> where(
-      [_, lc],
-      is_nil(lc) or (lc.status != :connected and lc.disconnected_at < ^x_days_ago)
-    )
-    |> Repo.exclude_deleted()
-    |> Repo.aggregate(:count)
-  end
-
   def total_count(product) do
     Device
     |> where(product_id: ^product.id)
     |> Repo.exclude_deleted()
     |> Repo.aggregate(:count)
-  end
-
-  @doc """
-  Counts the product's devices by the firmware version they last reported,
-  largest group first, then newest version first for groups of equal size.
-
-  Devices which haven't reported any firmware metadata yet are grouped under a
-  `nil` version.
-
-  Distinct from `firmware_versions/1`, which lists the versions for the devices
-  list's filter dropdown: that one keeps soft-deleted devices so the "Only
-  deleted devices" filter still has options, where this one drops them so the
-  counts add up to the product's fleet size.
-  """
-  @spec firmware_version_counts(Product.t()) :: [%{version: String.t() | nil, count: non_neg_integer()}]
-  def firmware_version_counts(product) do
-    Device
-    |> where(product_id: ^product.id)
-    |> Repo.exclude_deleted()
-    |> group_by([d], fragment("? ->> 'version'", d.firmware_metadata))
-    |> select([d], %{
-      version: fragment("? ->> 'version'", d.firmware_metadata),
-      count: count(d.id)
-    })
-    |> order_by([d], [
-      {:desc, count(d.id)},
-      {:desc_nulls_last, fragment(~s|semver_sort_key(? ->> 'version') COLLATE "C"|, d.firmware_metadata)}
-    ])
-    |> Repo.all()
   end
 end

@@ -10,14 +10,15 @@ defmodule NervesHubWeb.Components.FleetTrends do
   end dots as zero-length round-capped strokes, which stay round when the
   chart is stretched. Text is HTML placed over the chart, never SVG text.
 
-  When the newest version was released, if that falls in the period, is
-  marked on every chart with the same dashed line, unless the viewer has
-  turned release annotations off.
+  The newest version's release, when it falls in the period, is marked on
+  every chart with the same dashed line unless the viewer has turned release
+  annotations off.
   """
   use NervesHubWeb, :component
 
   import NervesHubWeb.CoreComponents, only: [switch: 1]
 
+  alias NervesHubWeb.Components.Fleet
   alias NervesHubWeb.Components.FleetComposition
 
   # The adoption and updates charts' coordinate space.
@@ -294,8 +295,7 @@ defmodule NervesHubWeb.Components.FleetTrends do
   attr(:axis, :list, required: true)
 
   # Wider than a phone each label sits over its bucket; on a phone the first
-  # starts at the left edge and the last ends at the right, as the board
-  # has them.
+  # starts at the left edge and the last ends at the right.
   defp axis(assigns) do
     ~H"""
     <div class="flex gap-3">
@@ -392,7 +392,7 @@ defmodule NervesHubWeb.Components.FleetTrends do
 
   defp release(%{release: nil}), do: nil
 
-  defp release(%{release: release, buckets: buckets, unit: unit}) do
+  defp release(%{release: release, buckets: buckets, unit: unit, time_zone: time_zone}) do
     count = length(buckets)
     span = if unit == :hour, do: 3600, else: 86_400
 
@@ -405,7 +405,7 @@ defmodule NervesHubWeb.Components.FleetTrends do
       x: (index + min(max(within, 0), 1)) / count,
       index: index,
       at: release.at,
-      label: Calendar.strftime(release.at, "%b %-d")
+      label: release.at |> DateTime.shift_zone!(time_zone) |> Calendar.strftime("%b %-d")
     }
   end
 
@@ -606,9 +606,9 @@ defmodule NervesHubWeb.Components.FleetTrends do
           end
 
         %{
-          share: percent(now),
+          share: FleetComposition.percent(now),
           version: composition.newest_version,
-          since: "from #{percent(from)} in #{span(since)}"
+          since: "from #{FleetComposition.percent(from)} in #{span(since)}"
         }
     end
   end
@@ -646,8 +646,8 @@ defmodule NervesHubWeb.Components.FleetTrends do
 
     %{
       bars: bars,
-      succeeded: delimited(Enum.sum_by(buckets, & &1.succeeded)),
-      failed: delimited(Enum.sum_by(buckets, & &1.failed))
+      succeeded: Fleet.delimited(Enum.sum_by(buckets, & &1.succeeded)),
+      failed: Fleet.delimited(Enum.sum_by(buckets, & &1.failed))
     }
   end
 
@@ -674,7 +674,7 @@ defmodule NervesHubWeb.Components.FleetTrends do
       area: "#{path} L#{last_x} #{@line_height} L#{first_x} #{@line_height} Z",
       end_x: last_x,
       end_y: round2(List.last(ys)),
-      value: percent(List.last(shares)),
+      value: FleetComposition.percent(List.last(shares)),
       range: "#{trim(low)}–#{trim(high)}%",
       delta: delta_label(delta),
       delta_class:
@@ -690,8 +690,6 @@ defmodule NervesHubWeb.Components.FleetTrends do
   defp delta_label(delta) when delta > 0, do: "+#{:erlang.float_to_binary(delta, decimals: 1)} pt"
   defp delta_label(_delta), do: "0.0 pt"
 
-  defp percent(share), do: :erlang.float_to_binary(share * 100, decimals: 1) <> "%"
-
   defp trim(value) do
     if value == Float.round(value),
       do: Integer.to_string(trunc(value)),
@@ -699,6 +697,4 @@ defmodule NervesHubWeb.Components.FleetTrends do
   end
 
   defp round2(value), do: Float.round(value * 1.0, 2)
-
-  defp delimited(number), do: Number.Delimit.number_to_delimited(number, precision: 0)
 end

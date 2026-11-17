@@ -14,6 +14,8 @@ defmodule NervesHubWeb.Components.FleetComposition do
   """
   use NervesHubWeb, :component
 
+  import NervesHubWeb.Components.Fleet, only: [delimited: 1]
+
   alias NervesHub.Insights
 
   # Version colours, in the order versions are listed. Chart 2 (orange) and
@@ -50,7 +52,10 @@ defmodule NervesHubWeb.Components.FleetComposition do
       |> assign(:connection, connection_segments(composition.connection, assigns.devices_path))
       |> assign(:health, health_segments(composition.health, assigns.devices_path))
       |> assign(:firmware, firmware_segments(rows, assigns.devices_path))
-      |> assign(:newest, Enum.find(composition.versions, &(&1.version == composition.newest_version)))
+      |> assign(
+        :newest,
+        composition.newest_version && Enum.find(composition.versions, &(&1.version == composition.newest_version))
+      )
 
     ~H"""
     <section id="fleet-composition" class="@container flex flex-col">
@@ -190,12 +195,14 @@ defmodule NervesHubWeb.Components.FleetComposition do
   end
 
   defp connection_segments(counts, devices_path) do
+    filters = Insights.connection_filters()
+
     [
       %{
         label: "Online",
         count: counts.online,
         color: @healthy,
-        href: devices_href(devices_path, connection: "connected"),
+        href: devices_href(devices_path, filters.online),
         always: true
       },
       %{
@@ -203,30 +210,30 @@ defmodule NervesHubWeb.Components.FleetComposition do
         short: "Offline <7 d",
         count: counts.recent,
         color: "var(--color-chart-other)",
-        href: devices_href(devices_path, advanced_query: ~s(last_seen > "7 days ago"))
+        href: devices_href(devices_path, filters.recent)
       },
       %{
         label: "Not seen 7–14 d",
         short: "7–14 d",
         count: counts.week,
         color: @warning,
-        href: devices_href(devices_path, advanced_query: ~s(last_seen < "7 days ago" and last_seen > "14 days ago"))
+        href: devices_href(devices_path, filters.week)
       },
       %{
         label: "Not seen 14 d+",
         short: "14 d+",
         count: counts.stale,
         color: @alert,
-        href: devices_href(devices_path, connection: "not_seen_in_fourteen_days")
+        href: devices_href(devices_path, filters.stale)
       },
-      # Not on the design, which assumes every device has connected; shown
-      # only when some haven't, so the bar still adds up to the fleet.
+      # Shown only when some devices have never connected, so the bar still
+      # adds up to the fleet.
       %{
         label: "Never connected",
         short: "Never",
         count: counts.never,
         color: @unknown,
-        href: devices_href(devices_path, advanced_query: ~s(connection = "not_seen"))
+        href: devices_href(devices_path, filters.never)
       }
     ]
   end
@@ -389,7 +396,7 @@ defmodule NervesHubWeb.Components.FleetComposition do
             {label}
           </span>
         </div>
-        <p class="pt-2 text-xs text-content-faint">Not healthy is warning, unhealthy or unknown. Tap a version for its counts and offline devices.</p>
+        <p class="pt-2 text-xs text-content-faint">Not healthy is warning, unhealthy or unknown. Tap a version to list its devices.</p>
       </div>
     </section>
     """
@@ -485,7 +492,7 @@ defmodule NervesHubWeb.Components.FleetComposition do
   defp cell_style(value, count, shade, weight, max) do
     share = value / count * weight * 100
 
-    if !(share < 1) do
+    if share >= 1 do
       alpha = share |> max(3) |> min(max) |> Kernel.*(1.0) |> Float.round(1)
 
       "background: color-mix(in oklab, #{shade_color(shade)} calc(#{alpha}% * var(--shade-strength)), transparent)"
@@ -818,6 +825,4 @@ defmodule NervesHubWeb.Components.FleetComposition do
 
   defp format_percent(value, 0), do: "#{round(value)}%"
   defp format_percent(value, decimals), do: "#{:erlang.float_to_binary(value * 1.0, decimals: decimals)}%"
-
-  defp delimited(number), do: Number.Delimit.number_to_delimited(number, precision: 0)
 end

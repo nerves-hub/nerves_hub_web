@@ -183,7 +183,7 @@ when adding or removing one.
   Adaptive Cards in `Teams.Cards`) and `integrations/discord.ex` (URL checks,
   embeds in `Discord.Embeds`). See [docs/teams.md](docs/teams.md) and
   [docs/discord.md](docs/discord.md).
-- `insights.ex` / `insights/` — what a product's fleet is made of, for its
+- `insights.ex` / `insights/` - what a product's fleet is made of, for its
   Insights page: devices counted by connection, health and firmware version
   from PostgreSQL alone, and the version whose devices stand out as less
   healthy than the fleet. Its groupings match the devices list's filters, so

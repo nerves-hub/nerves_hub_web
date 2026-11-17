@@ -91,12 +91,12 @@ defmodule NervesHub.Insights do
   @typedoc """
   What the Insights page's "Stands out" card says, from `stands_out/1`:
 
-    * `:version` — `row` has at least twice the fleet's share of devices
+    * `:version` - `row` has at least twice the fleet's share of devices
       that aren't healthy;
-    * `:even` — no version does, and `rows` gives each version's share for
+    * `:even` - no version does, and `rows` gives each version's share for
       comparison;
-    * `:all_healthy` — every device is healthy;
-    * `:single` — every device is on one version, `row`, so there is nothing
+    * `:all_healthy` - every device is healthy;
+    * `:single` - every device is on one version, `row`, so there is nothing
       to compare.
 
   `fleet_rate` is the fleet's share of devices that aren't healthy, and
@@ -149,12 +149,30 @@ defmodule NervesHub.Insights do
     }
   end
 
-  # One row per firmware version, health status and connection group. The
-  # connection groups mirror the devices list's filters: never connected is
-  # `connection = "not_seen"` (a device still `registered`), and `last_seen`
-  # only matches disconnected devices, so one still connecting counts as
-  # recently seen. A provisioned device with no connection row is counted as
-  # never connected too, since it has no last-seen time to place it by.
+  @doc """
+  The devices list filters for each connection group `composition/2` counts.
+  Each lists exactly the devices its group counts, so a count can link to
+  them.
+  """
+  @spec connection_filters() :: %{atom() => keyword()}
+  def connection_filters() do
+    %{
+      online: [connection: "connected"],
+      recent: [
+        advanced_query:
+          ~s{connection != "connected" and connection != "not_seen" and (connection != "disconnected" or last_seen > "7 days ago")}
+      ],
+      week: [advanced_query: ~s(last_seen < "7 days ago" and last_seen > "14 days ago")],
+      stale: [connection: "not_seen_in_fourteen_days"],
+      never: [advanced_query: ~s(connection = "not_seen")]
+    }
+  end
+
+  # One row per firmware version, health status and connection group. Each
+  # connection group is exactly what its filter in `connection_filters/0`
+  # lists: never connected is a device still `registered`, and `last_seen`
+  # only matches disconnected devices, so one still connecting, or with no
+  # connection row at all, falls to recently seen.
   defp composition_rows(product, now) do
     seven_days_ago = DateTime.add(now, -7, :day)
     fourteen_days_ago = DateTime.add(now, -14, :day)
@@ -174,7 +192,7 @@ defmodule NervesHub.Insights do
             """
             CASE
               WHEN ? = 'connected' THEN 'online'
-              WHEN ? = 'registered' OR ? IS NULL THEN 'never'
+              WHEN ? = 'registered' THEN 'never'
               WHEN ? = 'disconnected' AND ? < ? THEN 'stale'
               WHEN ? = 'disconnected' AND ? < ? THEN 'week'
               ELSE 'recent'
@@ -182,7 +200,6 @@ defmodule NervesHub.Insights do
             """,
             lc.status,
             d.status,
-            lc.id,
             lc.status,
             lc.last_seen_at,
             ^fourteen_days_ago,

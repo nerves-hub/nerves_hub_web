@@ -1,11 +1,13 @@
 defmodule NervesHubWeb.Live.Product.InsightsTest do
   use NervesHubWeb.ConnCase.Browser, async: false
 
+  import Ecto.Query, only: [from: 2]
   import Phoenix.LiveViewTest
 
   alias NervesHub.Accounts
   alias NervesHub.Analytics.Buffer
   alias NervesHub.AnalyticsRepo
+  alias NervesHub.Devices.Device
   alias NervesHub.Devices.DeviceHealthHistory
   alias NervesHub.Devices.Health
   alias NervesHub.Fixtures
@@ -118,6 +120,21 @@ defmodule NervesHubWeb.Live.Product.InsightsTest do
 
       assert html =~ "What the fleet is made of"
       assert :sys.get_state(view.pid).socket.assigns.composition.health.unknown == 1
+    end
+
+    test "says nothing about the latest version when no device has reported one", %{
+      conn: conn,
+      org: org,
+      product: product,
+      firmware: firmware
+    } do
+      device = Fixtures.device_fixture(org, product, firmware)
+      NervesHub.Repo.update_all(from(d in Device, where: d.id == ^device.id), set: [firmware_metadata: nil])
+
+      conn
+      |> visit(insights_path(org, product))
+      |> assert_has("#fleet-composition", text: "Firmware")
+      |> refute_has("#fleet-composition", text: "on latest")
     end
   end
 

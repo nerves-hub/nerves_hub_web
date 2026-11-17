@@ -8,16 +8,17 @@ defmodule NervesHub.Insights.Trends do
   time zone otherwise. The last bucket ends now, so each series ends on the
   same figures `NervesHub.Insights.composition/2` gives.
 
-    * `updates` — finished update attempts in each bucket, split into those
-      that succeeded and those that failed, as
-      `NervesHub.Devices.UpdateHistory` counts them.
-    * `online` — the share of the fleet connected at the end of each bucket,
+    * `updates` - finished update attempts in each bucket, split into those
+      that succeeded and those that failed
+      (`NervesHub.Devices.UpdateHistory.failure_statuses/0`). A reschedule
+      is neither: it defers an update rather than ending it.
+    * `online` - the share of the fleet connected at the end of each bucket,
       from the connection history. The last is the live figure.
-    * `healthy` — the share of the fleet healthy at the end of each bucket.
+    * `healthy` - the share of the fleet healthy at the end of each bucket.
       Health history keeps only transitions, and only for 90 days, so it is
       walked back from the live count: each move into healthy after a
       bucket's end is taken off, each move out of it put back.
-    * `adoption` — how many devices ran each firmware version at the end of
+    * `adoption` - how many devices ran each firmware version at the end of
       each bucket, walked back from the live counts the same way through the
       updates that succeeded.
 
@@ -43,6 +44,7 @@ defmodule NervesHub.Insights.Trends do
 
   @periods %{"24h" => {:hour, 24}, "14d" => {:day, 14}, "4w" => {:day, 28}, "90d" => {:day, 90}}
 
+  # A reschedule is left out: it defers an update rather than ending it.
   @graphed_statuses ["succeeded" | Enum.map(UpdateHistory.failure_statuses(), &Atom.to_string/1)]
 
   # A connection with no disconnect is still open; this stands in for "never"
@@ -254,9 +256,7 @@ defmodule NervesHub.Insights.Trends do
     # finished in it.
     gains =
       Enum.reduce(moves, %{}, fn {index, source, target, count}, gains ->
-        gains
-        |> Map.update(index, %{}, & &1)
-        |> update_in([index], fn by_version ->
+        update_in(gains, [Access.key(index, %{})], fn by_version ->
           by_version
           |> Map.update(Map.get(versions, target), count, &(&1 + count))
           |> Map.update(Map.get(versions, source), -count, &(&1 - count))

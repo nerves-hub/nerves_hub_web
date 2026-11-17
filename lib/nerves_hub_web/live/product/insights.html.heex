@@ -6,7 +6,7 @@
     <div class="flex items-baseline gap-3 max-sm:hidden">
       <h1 class="text-base/6 font-semibold text-content-strong">Insights</h1>
       <span id="device-count" class="font-mono text-xs text-content-faint">
-        {Number.Delimit.number_to_delimited(@fleet_size, precision: 0)} {if(@fleet_size == 1, do: "device", else: "devices")}
+        {delimited(@fleet_size)} {if(@fleet_size == 1, do: "device", else: "devices")}
       </span>
     </div>
     <div class="mr-6 flex items-center gap-4 max-sm:hidden">
@@ -26,7 +26,7 @@
         <div class="flex items-baseline gap-2">
           <h1 class="text-xl/7 font-semibold tracking-[-0.01em] text-content-strong">Insights</h1>
           <span class="font-mono text-xs text-content-muted">
-            {Number.Delimit.number_to_delimited(@fleet_size, precision: 0)} {if(@fleet_size == 1, do: "device", else: "devices")}
+            {delimited(@fleet_size)} {if(@fleet_size == 1, do: "device", else: "devices")}
           </span>
         </div>
         <.updated_at updated_at={@updated_at} id="updated-at-phone" />

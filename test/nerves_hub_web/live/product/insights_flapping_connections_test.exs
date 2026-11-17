@@ -89,6 +89,22 @@ defmodule NervesHubWeb.Live.Product.InsightsFlappingConnectionsTest do
       assert html =~ ~p"/org/#{org}/#{product}/devices/#{device.identifier}"
     end
 
+    test "encodes an identifier that isn't a plain path segment", %{
+      conn: conn,
+      org: org,
+      product: product,
+      firmware: firmware
+    } do
+      device = Fixtures.device_fixture(org, product, firmware, %{identifier: "rack 4/slot #2"})
+      insert_connections(device, 11)
+
+      {:ok, view, _html} = live(conn, insights_path(org, product))
+
+      href = ~p"/org/#{org}/#{product}/devices" <> "/rack%204%2Fslot%20%232"
+
+      assert has_element?(view, ~s(#flapping a[href="#{href}"]))
+    end
+
     test "shows an empty state when no devices are flapping", %{
       conn: conn,
       org: org,

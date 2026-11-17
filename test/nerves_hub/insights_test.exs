@@ -1,6 +1,7 @@
 defmodule NervesHub.InsightsTest do
   use NervesHub.DataCase, async: true
 
+  alias NervesHub.Devices
   alias NervesHub.Devices.Health
   alias NervesHub.Firmwares
   alias NervesHub.Fixtures
@@ -44,14 +45,49 @@ defmodule NervesHub.InsightsTest do
         Fixtures.device_connection_fixture(seen, %{status: :disconnected, last_seen_at: days_ago(days)})
       end
 
-      # never connected: still registered, or provisioned with no connection row
+      # never connected
       device(ctx, "1.0.0", status: :registered)
+
+      # provisioned, with no connection row to say when it was last seen
       device(ctx, "1.0.0", status: :provisioned)
 
       composition = Insights.composition(ctx.product, @now)
 
       assert composition.total == 13
-      assert composition.connection == %{online: 1, recent: 3, week: 3, stale: 4, never: 2}
+      assert composition.connection == %{online: 1, recent: 4, week: 3, stale: 4, never: 1}
+    end
+
+    test "counts in each connection group exactly the devices its filter lists", ctx do
+      now = DateTime.utc_now()
+      ago = &DateTime.add(now, -&1, :day)
+
+      online = device(ctx, "1.0.0", status: :provisioned)
+      Fixtures.device_connection_fixture(online, %{status: :connected, last_seen_at: now})
+
+      connecting = device(ctx, "1.0.0", status: :provisioned)
+      Fixtures.device_connection_fixture(connecting, %{status: :connecting, last_seen_at: ago.(30)})
+
+      for days <- [2, 10, 20] do
+        seen = device(ctx, "1.0.0", status: :provisioned)
+        Fixtures.device_connection_fixture(seen, %{status: :disconnected, last_seen_at: ago.(days)})
+      end
+
+      device(ctx, "1.0.0", status: :registered)
+      device(ctx, "1.0.0", status: :provisioned)
+
+      counts = Insights.composition(ctx.product, now).connection
+
+      for {group, filters} <- Insights.connection_filters() do
+        opts = %{
+          sort: {:asc, :identifier},
+          filters: filters |> Map.new() |> Map.put(:display_deleted, "exclude"),
+          pagination: %{page_size: 100}
+        }
+
+        {devices, _meta} = Devices.filter(ctx.product, ctx.user, opts)
+
+        assert length(devices) == counts[group], "#{group}: #{inspect(filters)}"
+      end
     end
 
     test "counts a device that has never reported its health as unknown", ctx do

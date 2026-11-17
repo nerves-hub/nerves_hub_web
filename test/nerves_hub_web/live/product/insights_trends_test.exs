@@ -55,6 +55,28 @@ defmodule NervesHubWeb.Live.Product.InsightsTrendsTest do
     |> assert_has("#trends-release")
   end
 
+  test "date the release in the viewer's time zone", %{conn: conn} = ctx do
+    # 20:00 UTC is the next morning in Auckland
+    released =
+      DateTime.utc_now()
+      |> DateTime.add(-3 * 86_400, :second)
+      |> Map.merge(%{hour: 20, minute: 0, second: 0, microsecond: {0, 0}})
+
+    Repo.update_all(from(f in Firmware, where: f.id == ^ctx.firmware.id),
+      set: [inserted_at: DateTime.to_naive(released)]
+    )
+
+    local = released |> DateTime.shift_zone!("Pacific/Auckland") |> Calendar.strftime("%b %-d")
+    refute local == Calendar.strftime(released, "%b %-d")
+
+    {:ok, view, _html} =
+      conn
+      |> put_connect_params(%{"time_zone" => "Pacific/Auckland"})
+      |> live(insights_path(ctx.org, ctx.product))
+
+    assert has_element?(view, "#trends-release", "released #{local}")
+  end
+
   test "leave the trends off the first, unconnected render", %{conn: conn} = ctx do
     html = conn |> get(insights_path(ctx.org, ctx.product)) |> html_response(200)
 
