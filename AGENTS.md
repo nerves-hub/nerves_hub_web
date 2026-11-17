@@ -203,7 +203,9 @@ when adding or removing one.
   `NervesHubWeb.Components.DevicePage.ActivityTab`.
 - Cross-cutting: `clustering.ex`, `product_notifications.ex`, `tracker.ex`,
   `rate_limit.ex`, `cli_session_cache.ex`, `device_link.ex`, `repo.ex`,
-  `analytics_repo.ex`, `application.ex`.
+  `analytics_repo.ex`, `application.ex`. `list_query.ex` holds what the
+  contexts' list functions share: escaping a search for `ilike` and reading a
+  page number or size from params.
 
 ### `lib/nerves_hub_web/` (web)
 

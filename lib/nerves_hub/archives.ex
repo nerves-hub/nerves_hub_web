@@ -25,6 +25,7 @@ defmodule NervesHub.Archives do
   alias NervesHub.Firmwares.Firmware
   alias NervesHub.Firmwares.UpdateTool
   alias NervesHub.Fwup
+  alias NervesHub.ListQuery
   alias NervesHub.ManagedDeployments.DeploymentGroup
   alias NervesHub.ManagedDeployments.DeploymentRelease
   alias NervesHub.Products.Product
@@ -77,10 +78,10 @@ defmodule NervesHub.Archives do
     sort_direction = if opts[:sort_direction] == "asc", do: :asc, else: :desc
 
     flop = %Flop{
-      page: to_positive_integer(opts[:page], 1),
+      page: ListQuery.positive_integer(opts[:page], 1),
       # The pager offers 25, 50 and 100. Anything bigger only comes from an
       # edited URL, so it is held to the largest of those.
-      page_size: min(to_positive_integer(opts[:page_size], 25), 100)
+      page_size: min(ListQuery.positive_integer(opts[:page_size], 25), 100)
     }
 
     Archive
@@ -135,10 +136,8 @@ defmodule NervesHub.Archives do
   Each release carries its deployment group and firmware, whether it is the
   group's current release, and when the group's next release replaced it
   (`nil` while it is current). Current releases come first, then the rest
-  newest first.
-
-  Any of these releases, past ones included, stops the archive being deleted:
-  a group's history keeps the archive it shipped with.
+  newest first. Any of these releases, past ones included, stops the archive
+  being deleted: a group's history keeps the archive it shipped with.
   """
   @spec releases(Product.t(), [pos_integer()]) :: %{
           pos_integer() => [
@@ -236,7 +235,7 @@ defmodule NervesHub.Archives do
   defp where_search(query, nil), do: query
 
   defp where_search(query, search) do
-    escaped = escape_like(String.trim(search))
+    escaped = ListQuery.escape_like(String.trim(search))
     prefix = escaped <> "%"
     anywhere = "%" <> escaped <> "%"
 
@@ -251,11 +250,6 @@ defmodule NervesHub.Archives do
   defp where_platform(query, nil), do: query
   defp where_platform(query, platform), do: where(query, [archive: a], a.platform == ^platform)
 
-  # `%` and `_` are wildcards to `ilike`, and a version can hold an underscore.
-  defp escape_like(search) do
-    String.replace(search, ~r/([\\%_])/, "\\\\\\1")
-  end
-
   # Versions sort by SemVer precedence: see `NervesHub.Firmwares` for why the
   # sort key needs `COLLATE "C"`.
   defp sort_archives(query, {direction, :version}) do
@@ -268,17 +262,6 @@ defmodule NervesHub.Archives do
   end
 
   defp sort_archives(query, {direction, field}), do: order_by(query, ^[{direction, field}, desc: :id])
-
-  defp to_positive_integer(value, _default) when is_integer(value) and value > 0, do: value
-
-  defp to_positive_integer(value, default) when is_binary(value) do
-    case Integer.parse(value) do
-      {integer, ""} when integer > 0 -> integer
-      _ -> default
-    end
-  end
-
-  defp to_positive_integer(_value, default), do: default
 
   @spec all_by_product(Product.t()) :: [Archive.t()]
   def all_by_product(product) do

@@ -270,8 +270,7 @@ defmodule NervesHubWeb.Live.Archives do
     |> assign(:org_keys, Accounts.list_org_keys(scope))
   end
 
-  # The list's path with the current params, changed by `new_params`. Every
-  # link and patch on the list builds its path here.
+  # The list's path with the current params, changed by `new_params`.
   defp list_path(assigns, new_params) do
     params =
       assigns.params
