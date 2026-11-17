@@ -2,6 +2,7 @@ defmodule NervesHubWeb.OAuthController do
   use NervesHubWeb, :controller
 
   alias NervesHub.Accounts
+  alias NervesHub.Accounts.TwoFactor
   alias NervesHub.Accounts.User
   alias NervesHubWeb.Auth
 
@@ -91,17 +92,26 @@ defmodule NervesHubWeb.OAuthController do
     |> redirect(to: Auth.account_return_to(return_to))
   end
 
-  defp finish_google_intent(conn, %{"action" => "confirm", "return_to" => return_to}, user, auth) do
+  defp finish_google_intent(conn, %{"action" => "confirm", "return_to" => return_to} = intent, user, auth) do
     return_to = Auth.account_return_to(return_to)
 
-    if is_binary(user.google_id) and auth.uid == user.google_id do
-      conn
-      |> Auth.mark_authenticated()
-      |> redirect(to: return_to)
-    else
-      conn
-      |> put_flash(:error, "That isn't the Google account connected to yours. Try again and choose that one.")
-      |> redirect(to: ~p"/account/confirm?#{[return_to: return_to]}")
+    cond do
+      not (is_binary(user.google_id) and auth.uid == user.google_id) ->
+        conn
+        |> put_flash(:error, "That isn't the Google account connected to yours. Try again and choose that one.")
+        |> redirect(to: ~p"/account/confirm?#{[return_to: return_to]}")
+
+      # The recovery code the confirm page checked, used up only now that
+      # Google has confirmed too.
+      spend_held_recovery_code?(user, intent["recovery_code"]) ->
+        conn
+        |> Auth.mark_authenticated()
+        |> redirect(to: return_to)
+
+      true ->
+        conn
+        |> put_flash(:error, "That recovery code has been used since. Try again with another.")
+        |> redirect(to: ~p"/account/confirm?#{[return_to: return_to]}")
     end
   end
 
@@ -122,6 +132,12 @@ defmodule NervesHubWeb.OAuthController do
         |> put_flash(:error, connect_error(reason, user, auth))
         |> redirect(to: return_to)
     end
+  end
+
+  defp spend_held_recovery_code?(_user, nil), do: true
+
+  defp spend_held_recovery_code?(user, held) do
+    match?({:ok, _left}, TwoFactor.use_held_recovery_code(user, held))
   end
 
   defp connect_error(:email_mismatch, user, auth),

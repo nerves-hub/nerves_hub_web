@@ -52,14 +52,17 @@ defmodule NervesHubWeb.ConfirmIdentityController do
     return_to = Auth.account_return_to(params["return_to"])
 
     with {:ok, intent} <- google_intent(user, params["intent"], Auth.recently_authenticated?(conn)),
-         :ok <- check_code_before_google(user, intent, params["code"]) do
+         {:ok, held} <- check_code_before_google(user, intent, params["code"]) do
       conn
-      |> put_session(:google_intent, %{
-        "action" => intent,
-        "user_id" => user.id,
-        "return_to" => return_to,
-        "started_at" => System.os_time(:second)
-      })
+      |> put_session(
+        :google_intent,
+        Map.merge(held, %{
+          "action" => intent,
+          "user_id" => user.id,
+          "return_to" => return_to,
+          "started_at" => System.os_time(:second)
+        })
+      )
       |> redirect(to: ~p"/auth/google?#{[prompt: "select_account", login_hint: user.email]}")
     else
       # Connecting adds a way into the account, so it needs a recent sign-in
@@ -82,17 +85,25 @@ defmodule NervesHubWeb.ConfirmIdentityController do
 
   # Confirming with Google, for an account with two-factor on, needs its code
   # first. Connecting already needs a recent sign-in, which had the code.
+  #
+  # A recovery code isn't used up until Google has confirmed, so going back
+  # from Google, or choosing the wrong account there, doesn't cost one: it is
+  # held in the intent for `NervesHubWeb.OAuthController` to use up.
   defp check_code_before_google(user, "confirm", code) do
     if TwoFactor.enabled?(user) do
       with {:allow, _data} <- Attack.confirm_identity_throttle(user.id) do
-        check_two_factor(user, code)
+        case TwoFactor.verify_and_hold(user, code || "") do
+          {:ok, :totp} -> {:ok, %{}}
+          {:ok, {:held_recovery_code, held}} -> {:ok, %{"recovery_code" => held}}
+          {:error, _reason} = error -> error
+        end
       end
     else
-      :ok
+      {:ok, %{}}
     end
   end
 
-  defp check_code_before_google(_user, _intent, _code), do: :ok
+  defp check_code_before_google(_user, _intent, _code), do: {:ok, %{}}
 
   defp check_two_factor(user, code) do
     if TwoFactor.enabled?(user) do

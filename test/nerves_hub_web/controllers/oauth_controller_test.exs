@@ -8,6 +8,7 @@ defmodule NervesHubWeb.OAuthControllerTest do
   import Swoosh.TestAssertions
 
   alias NervesHub.Accounts
+  alias NervesHub.Accounts.TwoFactor
   alias NervesHub.Accounts.User
   alias NervesHub.Accounts.UserToken
   alias NervesHub.Fixtures
@@ -310,8 +311,9 @@ defmodule NervesHubWeb.OAuthControllerTest do
     end
 
     # Out to Google from the account page, and back as `google_auth`.
-    defp round_trip(conn, intent, google_auth) do
-      conn = post(conn, ~p"/account/confirm/google", %{"intent" => intent, "return_to" => "/account"})
+    defp round_trip(conn, intent, google_auth, code \\ nil) do
+      params = %{"intent" => intent, "return_to" => "/account", "code" => code}
+      conn = post(conn, ~p"/account/confirm/google", params)
       assert "/auth/google?" <> _ = redirected_to(conn)
 
       Process.put(:google_auth, google_auth)
@@ -357,6 +359,30 @@ defmodule NervesHubWeb.OAuthControllerTest do
       conn = user |> signed_in_conn(recent: false) |> round_trip("confirm", google_auth)
 
       assert redirected_to(conn) == ~p"/account/confirm?#{[return_to: "/account"]}"
+      refute get_session(conn, :authenticated_at)
+    end
+
+    test "with two-factor on, uses up the recovery code only once Google confirms", %{google_auth: google_auth} do
+      user = Fixtures.google_user_fixture(google_id: google_auth.uid)
+      %{recovery_codes: [code, other_code | _]} = Fixtures.two_factor_fixture(user)
+      someone_else = %{google_auth | uid: "someone-else"}
+
+      # Choosing the wrong Google account leaves the code to try again with.
+      conn = user |> signed_in_conn(recent: false) |> round_trip("confirm", someone_else, code)
+      refute get_session(conn, :authenticated_at)
+
+      conn = user |> signed_in_conn(recent: false) |> round_trip("confirm", google_auth, code)
+      assert is_integer(get_session(conn, :authenticated_at))
+      assert {:error, :invalid_code} = TwoFactor.verify(user, code)
+
+      # A code used up between leaving for Google and coming back.
+      conn = user |> signed_in_conn(recent: false)
+      conn = post(conn, ~p"/account/confirm/google", %{"intent" => "confirm", "code" => other_code})
+      assert {:ok, _} = TwoFactor.verify(user, other_code)
+      Process.put(:google_auth, google_auth)
+      conn = conn |> recycle() |> get(~p"/auth/google/callback?state=dummy&code=dummy")
+
+      assert Phoenix.Flash.get(conn.assigns.flash, :error) =~ "That recovery code has been used since."
       refute get_session(conn, :authenticated_at)
     end
 

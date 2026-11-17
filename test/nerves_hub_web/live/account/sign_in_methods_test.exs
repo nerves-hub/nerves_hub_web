@@ -85,6 +85,31 @@ defmodule NervesHubWeb.Live.Account.SignInMethodsTest do
     assert User.valid_password?(Repo.reload(user), password)
   end
 
+  test "says so when a password was set elsewhere since the page loaded" do
+    user = Fixtures.google_user_fixture(password: false)
+
+    session =
+      user
+      |> signed_in_conn()
+      |> visit("/account")
+      |> click_button("#start-set-password", "Set a password")
+
+    Fixtures.user_fixture()
+    |> then(&Ecto.Changeset.change(user, password_hash: &1.password_hash))
+    |> Repo.update!()
+
+    session
+    |> within("#set-password-form", fn session ->
+      session
+      |> fill_in("New password", with: "a long enough password")
+      |> fill_in("Confirm new password", with: "a long enough password")
+      |> submit()
+    end)
+    |> assert_has("div", text: "Your account already has a password.")
+    |> assert_has("#sign-in-method-password", text: "Set")
+    |> refute_has("#start-set-password")
+  end
+
   test "asks a browser that didn't sign in recently to confirm it's them before removing a way in" do
     user = Fixtures.google_user_fixture()
 

@@ -190,8 +190,15 @@ defmodule NervesHubWeb.Live.Account do
         {:error, %Ecto.Changeset{} = changeset} ->
           socket |> assign(:new_password_form, to_form(changeset)) |> noreply()
 
+        # Set in another tab, or by a reset, since this page loaded.
         {:error, :already_set} ->
-          socket |> assign(:new_password_form, nil) |> noreply()
+          {:ok, user} = Accounts.get_user(socket.assigns.user.id)
+
+          socket
+          |> put_user(user)
+          |> assign(:new_password_form, nil)
+          |> put_flash(:info, "Your account already has a password. Change it with your current one.")
+          |> noreply()
       end
     end)
   end

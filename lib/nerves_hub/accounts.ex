@@ -232,13 +232,19 @@ defmodule NervesHub.Accounts do
       {:error, %Ecto.Changeset{}}
 
   """
-  def update_user_password(%User{} = user, password, attrs, reset_url) do
-    changeset =
-      user
+  def update_user_password(%User{id: user_id}, password, attrs, reset_url) do
+    # Checked against the row as it is now, not the caller's copy: a page
+    # loaded before the password was removed would otherwise put one back
+    # with the old password.
+    Repo.transact(fn ->
+      User
+      |> where(id: ^user_id)
+      |> lock("FOR UPDATE")
+      |> Repo.one!()
       |> User.password_changeset(attrs)
       |> User.validate_current_password(password)
-
-    Repo.update(changeset)
+      |> Repo.update()
+    end)
     |> case do
       {:ok, user} ->
         _ = deliver_user_password_updated(user, reset_url)

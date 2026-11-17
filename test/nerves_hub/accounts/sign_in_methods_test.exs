@@ -96,6 +96,20 @@ defmodule NervesHub.Accounts.SignInMethodsTest do
     end
   end
 
+  describe "update_user_password/4" do
+    # A page loaded before the password was removed still has the old hash.
+    test "won't put back a password removed since the caller's copy of the account was loaded" do
+      user = Fixtures.google_user_fixture()
+      {:ok, _user} = Accounts.remove_password(user, nil)
+
+      attrs = %{"password" => "a long enough password", "password_confirmation" => "a long enough password"}
+
+      assert {:error, changeset} = Accounts.update_user_password(user, "test_password", attrs, &"/reset/#{&1}")
+      assert %{current_password: ["is not correct"]} = errors_on(changeset)
+      refute Repo.reload(user).password_hash
+    end
+  end
+
   describe "set_user_password/3" do
     test "gives a Google account a password, and emails to say so" do
       user = Fixtures.google_user_fixture(password: false)
