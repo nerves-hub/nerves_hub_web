@@ -151,6 +151,17 @@ defmodule NervesHub.Workers.ScriptRunnerDeviceTest do
     assert result(runner).status == :offline
   end
 
+  # Still in its handshake, so nothing would answer a script yet.
+  test "a device still connecting is offline", ctx do
+    %{device: device, runner: runner} = run_for(ctx, %{})
+    _ = Fixtures.device_connection_fixture(device, %{status: :connecting})
+
+    reject(&Runner.send/3)
+
+    assert :ok = perform(runner, device)
+    assert result(runner).status == :offline
+  end
+
   test "a device whose connection drops between creation and dispatch is offline", ctx do
     %{device: device, runner: runner} = run_for(ctx, %{})
     connection = Fixtures.device_connection_fixture(device)

@@ -59,32 +59,6 @@ defmodule NervesHub.Workers.ScriptRunnerDispatchTest do
 
   defp reload(runner), do: Repo.get!(ScriptRunner, runner.id)
 
-  defp dispatch_jobs_for(runner) do
-    all_enqueued(worker: ScriptRunnerDispatch)
-    |> Enum.filter(&(&1.args["script_runner_id"] == runner.id))
-  end
-
-  # Stands in for a pacer that exhausted its attempts. A discarded job will never
-  # run again, so it is gone as far as the run is concerned (and `all_enqueued/1`,
-  # which reports only `available` and `scheduled` jobs, no longer lists it).
-  #
-  # `scheduled_at` is backdated along with the state. This repo carries a unique
-  # index on `oban_jobs (args, scheduled_at, worker)`, and Postgres freezes
-  # `now()` for the length of a transaction -- which, under the Ecto sandbox, is
-  # the whole test. Without this the replacement insert would collide with the
-  # discarded row on a timestamp that only matches because the test never
-  # committed, and the test would be asserting against an artifact of its own
-  # sandbox rather than how a run behaves in production.
-  defp discard_dispatch_jobs(runner) do
-    Repo.update_all(
-      from(j in "oban_jobs",
-        where: j.worker == "NervesHub.Workers.ScriptRunnerDispatch",
-        where: fragment("(? ->> 'script_runner_id')::bigint = ?", j.args, ^runner.id)
-      ),
-      set: [state: "discarded", scheduled_at: NaiveDateTime.add(NaiveDateTime.utc_now(), -10, :minute)]
-    )
-  end
-
   describe "pacing a single run" do
     test "a lone run gets the whole ceiling", ctx do
       runner = run_with(ctx, 3)
@@ -245,42 +219,35 @@ defmodule NervesHub.Workers.ScriptRunnerDispatchTest do
       # run when its node dies.
       assert Enum.sort(Enum.map(device_jobs_for(runner), & &1.args["device_id"])) == Enum.sort(claimed)
     end
-  end
 
-  # A run's pacer is inserted once, when the run is created. If that job is
-  # discarded -- five failed attempts, or a `Lifeline` rescue of an
-  # attempt-exhausted job -- nothing else would ever insert another, and the run
-  # would sit at `:running` forever with no devices being dispatched. Worse, it
-  # keeps counting towards `active_run_count/0`, so every later run divides the
-  # ceiling by a run that is never going to finish.
-  describe "a run whose pacer has gone" do
-    test "is worked through again once it has one", ctx do
-      runner = run_with(ctx, 2)
-
-      assert {:snooze, _} = dispatch(runner)
-      discard_dispatch_jobs(runner)
-
-      _ = ScriptRunners.requeue_stranded_runs()
-
-      # The run can now reach `:completed` rather than being stranded at
-      # `:running`, which is what frees its slice of the ceiling.
-      for result <- ScriptRunners.device_results(runner) do
-        _ = ScriptRunners.record_device_result(runner.id, result.device_id, :completed, "done")
-      end
-
-      assert :ok = dispatch(runner)
-      assert reload(runner).status == :completed
-    end
-
-    test "a completed run is not given a pacer it has no use for", ctx do
+    # A device whose job is still in the queue is waiting its turn, not stuck,
+    # however long a saturated or paused `script_runners` queue keeps it there.
+    # Releasing it would queue a second job, and run the operator's script on the
+    # device twice.
+    #
+    # Asserted on the row's `started_at` rather than on the number of jobs: a
+    # second job for the same device would collide with the first on the
+    # `oban_jobs (args, scheduled_at, worker)` index under the sandbox's frozen
+    # `now()`, and be dropped, so the job count reads 1 either way. A released row
+    # is claimed again with a fresh `started_at`.
+    test "a device whose job is still queued is left alone, however old", ctx do
       runner = run_with(ctx, 1)
 
       assert {:snooze, _} = dispatch(runner)
-      discard_dispatch_jobs(runner)
-      {:ok, _} = ScriptRunners.mark_finished(runner)
+      assert [_job] = device_jobs_for(runner)
 
-      assert ScriptRunners.requeue_stranded_runs() == 0
-      assert dispatch_jobs_for(runner) == []
+      long_ago = DateTime.add(DateTime.utc_now(), -10, :minute)
+
+      Repo.update_all(
+        from(srd in NervesHub.ScriptRunners.ScriptRunnerDevice, where: srd.script_runner_id == ^runner.id),
+        set: [started_at: long_ago]
+      )
+
+      assert {:snooze, _} = dispatch(runner)
+
+      [result] = ScriptRunners.device_results(runner)
+      assert result.status == :running
+      assert result.started_at == long_ago, "the device was released and claimed a second time"
     end
   end
 

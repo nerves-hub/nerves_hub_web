@@ -1,6 +1,6 @@
 defmodule NervesHub.Workers.ExpireScriptRunnerOutputTest do
-  # Not async: the retention period is read from the application environment,
-  # and one test changes it.
+  # Not async: the retention period and the row limit are read from the
+  # application environment, and tests change them.
   use NervesHub.DataCase, async: false
 
   alias NervesHub.Fixtures
@@ -80,12 +80,21 @@ defmodule NervesHub.Workers.ExpireScriptRunnerOutputTest do
     assert reload(ctx.old).output_expired_at == nil
   end
 
-  test "clears at most the limit in one pass", ctx do
+  # The limit is set through the application environment, the way the retention
+  # period is in the test above.
+  test "clears at most the limit in one pass, and the rest on the next", ctx do
     finished_days_ago(ctx.recent, 4)
 
-    assert ScriptRunners.expire_output(to_timeout(day: 3), 1) == 1
-    assert ScriptRunners.expire_output(to_timeout(day: 3), 1) == 1
-    assert ScriptRunners.expire_output(to_timeout(day: 3), 1) == 0
+    previous = Application.get_env(:nerves_hub, :script_runner_output_expire_row_limit)
+    Application.put_env(:nerves_hub, :script_runner_output_expire_row_limit, 1)
+    on_exit(fn -> Application.put_env(:nerves_hub, :script_runner_output_expire_row_limit, previous) end)
+
+    assert :ok = perform_job(ExpireScriptRunnerOutput, %{})
+
+    outputs = Enum.map([ctx.old, ctx.recent], &reload(&1).output)
+    assert Enum.count(outputs, &is_nil/1) == 1
+
+    assert :ok = perform_job(ExpireScriptRunnerOutput, %{})
 
     assert reload(ctx.old).output == nil
     assert reload(ctx.recent).output == nil

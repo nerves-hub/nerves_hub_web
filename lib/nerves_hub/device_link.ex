@@ -41,10 +41,6 @@ defmodule NervesHub.DeviceLink do
   # is why one arriving in that mode is put back on automatic.
   @update_mode_api_version ">= 2.4.0"
 
-  # Only used for a `:run_script` that arrives without a timeout, which is the
-  # message shape of the previous release. Callers send their own.
-  @default_script_timeout to_timeout(second: 15)
-
   # ------------------------------------------------------------------------
   # Device channel
   #
@@ -329,13 +325,6 @@ defmodule NervesHub.DeviceLink do
   defp do_device_notify(session, %Broadcast{event: "archives/updated"}) do
     :ok = maybe_send_archive(session.device_info, session.device_api_version, audit_log: true)
     {session, []}
-  end
-
-  # The pre-timeout message shape. A web node still running the old release
-  # broadcasts this, so it has to keep working across a rolling deploy; remove it
-  # once one has completed.
-  defp do_device_notify(session, {:run_script, pid, text}) do
-    do_device_notify(session, {:run_script, pid, text, @default_script_timeout})
   end
 
   defp do_device_notify(session, {:run_script, pid, text, timeout}) do

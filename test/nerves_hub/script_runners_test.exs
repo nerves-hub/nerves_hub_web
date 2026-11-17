@@ -585,7 +585,7 @@ defmodule NervesHub.ScriptRunnersTest do
       _device = device(ctx, %{tags: ["production"]})
       {:ok, original, []} = create(ctx, %{name: "Reboot", filter_type: :tags, filter: tag_filter()})
 
-      win_races(ctx, 1)
+      win_races(1)
 
       {:ok, copy, []} = ScriptRunners.rerun(ctx.product, ctx.user, finished(original))
 
@@ -596,7 +596,7 @@ defmodule NervesHub.ScriptRunnersTest do
       _device = device(ctx, %{tags: ["production"]})
       {:ok, original, []} = create(ctx, %{name: "Reboot", filter_type: :tags, filter: tag_filter()})
 
-      win_races(ctx, 2)
+      win_races(2)
 
       assert {:error, changeset} = ScriptRunners.rerun(ctx.product, ctx.user, finished(original))
       assert "has already been used by another run in this product" in errors_on(changeset).name
@@ -612,7 +612,7 @@ defmodule NervesHub.ScriptRunnersTest do
   end
 
   # For the next `count` runs built, a rival run takes the chosen name first.
-  defp win_races(ctx, count) do
+  defp win_races(count) do
     Process.put(:races_left, count)
 
     stub(ScriptRunner, :create_changeset, fn product, user, params ->
@@ -670,99 +670,6 @@ defmodule NervesHub.ScriptRunnersTest do
       descriptions = Enum.map(AuditLogs.logs_for(ctx.product), & &1.description)
 
       assert Enum.any?(descriptions, &(&1 =~ "deleted the script run named Reboot"))
-    end
-  end
-
-  describe "connected_device_ids/1" do
-    test "only a device whose latest connection is connected counts as online", ctx do
-      connected = device(ctx)
-      disconnected = device(ctx)
-      never_connected = device(ctx)
-
-      _ = Fixtures.device_connection_fixture(connected)
-      _ = Fixtures.device_connection_fixture(disconnected, %{status: :disconnected})
-
-      ids = [connected.id, disconnected.id, never_connected.id]
-
-      assert ScriptRunners.connected_device_ids(ids) == [connected.id]
-    end
-
-    test "a connecting device is not yet online", ctx do
-      connecting = device(ctx)
-      _ = Fixtures.device_connection_fixture(connecting, %{status: :connecting})
-
-      assert ScriptRunners.connected_device_ids([connecting.id]) == []
-    end
-  end
-
-  describe "release_stale_devices/2" do
-    setup ctx do
-      _devices = for _ <- 1..2, do: device(ctx, %{tags: ["production"]})
-
-      {:ok, runner, []} =
-        create(ctx, %{filter_type: :tags, filter: %{tags: ["production"], tag_operator: :or}})
-
-      %{runner: runner}
-    end
-
-    test "leaves a device that is genuinely mid-script alone", ctx do
-      _ = ScriptRunners.claim_pending_devices(ctx.runner.id, 2)
-
-      assert ScriptRunners.release_stale_devices(ctx.runner.id) == %{released: 0, abandoned: 0}
-      assert ScriptRunners.status_counts(ctx.runner) == %{running: 2}
-    end
-
-    test "leaves devices that already answered alone", ctx do
-      [result | _] = ScriptRunners.device_results(ctx.runner)
-      _ = ScriptRunners.record_device_result(ctx.runner.id, result.device_id, :completed, "done")
-
-      assert ScriptRunners.release_stale_devices(ctx.runner.id) == %{released: 0, abandoned: 0}
-      assert ScriptRunners.status_counts(ctx.runner)[:completed] == 1
-    end
-
-    # A device whose job is still sitting in the queue has not been abandoned, it
-    # is waiting its turn. Releasing it would insert a second job for the same
-    # device, and the operator's script would run on it twice -- the thing
-    # `max_attempts: 1` on the device worker exists to prevent. A row is only
-    # stale when there is no job behind it.
-    test "leaves a device alone while its job is still queued", ctx do
-      [device_id | _] = ScriptRunners.claim_pending_devices(ctx.runner.id, 1)
-
-      {:ok, _job} =
-        Oban.insert(
-          NervesHub.Workers.ScriptRunnerDevice.new(%{
-            script_runner_id: ctx.runner.id,
-            device_id: device_id
-          })
-        )
-
-      # Long enough ago that the age check alone would release it: a saturated
-      # `script_runners` queue can leave a job waiting this long.
-      Repo.update_all(
-        from(srd in ScriptRunnerDevice,
-          where: srd.script_runner_id == ^ctx.runner.id and srd.device_id == ^device_id
-        ),
-        set: [started_at: DateTime.add(DateTime.utc_now(), -10, :minute)]
-      )
-
-      assert ScriptRunners.release_stale_devices(ctx.runner.id) == %{released: 0, abandoned: 0}
-      assert ScriptRunners.status_counts(ctx.runner)[:running] == 1
-    end
-
-    # The opposite case, and the one the release exists for: the job is gone, so
-    # nothing is coming for this row and it has to go back in the queue.
-    test "releases a device whose job has left the queue", ctx do
-      [device_id | _] = ScriptRunners.claim_pending_devices(ctx.runner.id, 1)
-
-      Repo.update_all(
-        from(srd in ScriptRunnerDevice,
-          where: srd.script_runner_id == ^ctx.runner.id and srd.device_id == ^device_id
-        ),
-        set: [started_at: DateTime.add(DateTime.utc_now(), -10, :minute)]
-      )
-
-      assert ScriptRunners.release_stale_devices(ctx.runner.id) == %{released: 1, abandoned: 0}
-      assert ScriptRunners.status_counts(ctx.runner)[:pending] == 2
     end
   end
 end

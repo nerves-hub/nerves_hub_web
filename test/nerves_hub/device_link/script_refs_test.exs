@@ -54,17 +54,6 @@ defmodule NervesHub.DeviceLink.ScriptRefsTest do
            "a caller waiting 90s had its answer dropped at 15s"
   end
 
-  test "a script sent without a timeout still arms one" do
-    # The previous release's message shape: a web node still running it can send
-    # this to a node running this one for as long as a deploy takes.
-    {session, effects} = DeviceLink.device_notify(session(), {:run_script, self(), "IO.puts(:hi)"})
-
-    assert {:send_after, {:script_ref, ref}, {:clear_script_ref, ref}, 15_000} =
-             Enum.find(effects, &match?({:send_after, _, _, _}, &1))
-
-    assert Map.has_key?(session.script_refs, ref)
-  end
-
   test "a device that answers releases both the reference and the timeout" do
     {session, _effects, ref} = run_script(session())
 
@@ -129,7 +118,8 @@ defmodule NervesHub.DeviceLink.ScriptRefsTest do
   test "a device too old for scripts is told so, and nothing is armed" do
     session = %{session() | device_api_version: "2.0.0"}
 
-    {session, effects} = DeviceLink.device_notify(session, {:run_script, self(), "IO.puts(:hi)"})
+    {session, effects} =
+      DeviceLink.device_notify(session, {:run_script, self(), "IO.puts(:hi)", to_timeout(second: 15)})
 
     assert_received {:error, :incompatible_version}
     assert effects == []

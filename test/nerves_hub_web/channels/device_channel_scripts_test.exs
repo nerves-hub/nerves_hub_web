@@ -147,7 +147,7 @@ defmodule NervesHubWeb.DeviceChannelScriptsTest do
 
       waiting_pid = self()
 
-      send(device_channel.channel_pid, {:run_script, waiting_pid, "echo hello"})
+      send(device_channel.channel_pid, {:run_script, waiting_pid, "echo hello", to_timeout(second: 15)})
       socket_state = :sys.get_state(device_channel.channel_pid)
       [ref] = Map.keys(socket_state.assigns.session.script_refs)
 
@@ -189,7 +189,7 @@ defmodule NervesHubWeb.DeviceChannelScriptsTest do
       {device_channel, _device} = join_device_channel(tmp_dir, "2.1.0")
 
       waiting_pid = self()
-      send(device_channel.channel_pid, {:run_script, waiting_pid, "echo test"})
+      send(device_channel.channel_pid, {:run_script, waiting_pid, "echo test", to_timeout(second: 15)})
       socket_state = :sys.get_state(device_channel.channel_pid)
 
       assert map_size(socket_state.assigns.session.script_refs) == 1
@@ -204,7 +204,7 @@ defmodule NervesHubWeb.DeviceChannelScriptsTest do
       {device_channel, _device} = join_device_channel(tmp_dir, "2.0.0")
 
       waiting_pid = self()
-      send(device_channel.channel_pid, {:run_script, waiting_pid, "echo test"})
+      send(device_channel.channel_pid, {:run_script, waiting_pid, "echo test", to_timeout(second: 15)})
       _state = :sys.get_state(device_channel.channel_pid)
 
       assert_received {:error, :incompatible_version}
@@ -218,7 +218,7 @@ defmodule NervesHubWeb.DeviceChannelScriptsTest do
       {device_channel, _device} = join_device_channel(tmp_dir, "2.1.0")
 
       waiting_pid = self()
-      send(device_channel.channel_pid, {:run_script, waiting_pid, "echo test"})
+      send(device_channel.channel_pid, {:run_script, waiting_pid, "echo test", to_timeout(second: 15)})
       socket_state = :sys.get_state(device_channel.channel_pid)
       [ref] = Map.keys(socket_state.assigns.session.script_refs)
 
