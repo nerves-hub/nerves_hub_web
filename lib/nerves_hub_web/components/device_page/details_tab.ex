@@ -29,6 +29,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
   alias NervesHubWeb.Components.DeviceHealth.StatusBadge
   alias NervesHubWeb.Components.DeviceLocation
   alias NervesHubWeb.Components.DeviceNetworkIdentities
+  alias NervesHubWeb.Components.DeviceUpdateStatus
   alias NervesHubWeb.Components.UpdateProgress
   alias NervesHubWeb.Components.Utils
   alias Phoenix.Socket.Broadcast
@@ -42,7 +43,6 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
     :recently_run_support_script,
     :recently_run_support_script_output,
     :firmwares,
-    :update_information,
     :alarms,
     :extension_overrides,
     :deployment_groups,
@@ -53,7 +53,6 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
     socket
     |> assign_support_scripts()
     |> assign(:firmwares, Firmwares.get_firmware_for_device(device))
-    |> assign(:update_information, Updates.resolve_update(device))
     |> assign_health_display(device)
     |> assign(:alarms, Alarms.current_alarms_for_device(device))
     |> assign(:extension_overrides, extension_overrides(device, device.product))
@@ -186,7 +185,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
             device={@device}
             device_connection={@device_connection}
             deployment_groups={@deployment_groups}
-            update_information={@update_information}
+            time_zone={@time_zone}
             firmwares={@firmwares}
             selected_firmware={@selected_firmware}
             delta_available?={@delta_available?}
@@ -229,7 +228,6 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
       {:ok, updated_device} ->
         socket
         |> assign(:device, updated_device)
-        |> assign(:update_information, Updates.resolve_update(updated_device))
         |> put_flash(:info, "Firmware updates set to #{update_mode_label(mode)}.")
         |> halt()
 
@@ -896,7 +894,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
   attr(:device, Device, required: true)
   attr(:device_connection, :any)
   attr(:deployment_groups, :list, required: true)
-  attr(:update_information, :map, required: true)
+  attr(:time_zone, :string, default: "UTC")
   attr(:firmwares, :list, required: true)
   attr(:selected_firmware, :string, required: true)
   attr(:delta_available?, :boolean, required: true)
@@ -908,11 +906,12 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
 
   defp deployment_box(assigns) do
     assigns =
-      assign(
-        assigns,
+      assigns
+      |> assign(
         :installing_release?,
         installing_release?(assigns.device, assigns.stage, assigns.inflight_firmware_uuid)
       )
+      |> assign(:update_status, group_release_status(assigns.device))
 
     ~H"""
     <.card id="firmware-updates-card">
@@ -967,12 +966,22 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
         <.info_row :if={@device.deployment_group && @device.deployment_group.current_release} label="Group release">
           <span class="font-mono text-xs font-semibold text-content-strong">{@device.deployment_group.current_release.firmware.version}</span>
           <span :if={@installing_release?} class="text-xs font-medium text-notice-content">Installing on this device now</span>
-          <span :if={!@installing_release? && !@update_information.update_available} class="flex items-center gap-1 text-xs font-medium text-success-content">
+          <%!-- Why the device isn't taking the release, when it isn't: a device
+                held back from it is not up to date. --%>
+          <span :if={!@installing_release? && @update_status == :up_to_date} class="flex items-center gap-1 text-xs font-medium text-success-content">
             <span class="lucide-check--bold size-3.25" aria-hidden="true"></span>Device is up to date
           </span>
-          <span :if={!@installing_release? && @update_information.update_available} class="text-xs font-medium text-notice-content">Update available</span>
+          <span :if={!@installing_release? && @update_status == :updates_blocked} class="flex items-center gap-1 text-xs font-medium text-warning-content">
+            <span class="lucide-shield-exclamation-point--bold size-3.25" aria-hidden="true"></span>Updates blocked {DeviceUpdateStatus.friendly_blocked_until(
+              @device.updates_blocked_until,
+              @time_zone
+            )}
+          </span>
+          <span :if={!@installing_release? && @update_status == :updates_off} class="text-xs font-medium text-content-muted">Firmware updates are off</span>
+          <span :if={!@installing_release? && @update_status == :deployment_group_inactive} class="text-xs font-medium text-content-muted">Group is paused</span>
+          <span :if={!@installing_release? && @update_status == :update_available} class="text-xs font-medium text-notice-content">Update available</span>
           <.button
-            :if={!@installing_release? && @update_information.update_available}
+            :if={!@installing_release? && @update_status == :update_available}
             size="sm"
             class="ml-auto"
             phx-click="push-available-update"
@@ -1067,6 +1076,13 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
     </div>
     """
   end
+
+  # Where the device stands against its group's release, for the Group release
+  # row, which only shows when the group has one.
+  defp group_release_status(%Device{deployment_group: %{current_release: %{}} = deployment_group} = device),
+    do: Updates.update_status(device, deployment_group)
+
+  defp group_release_status(_device), do: nil
 
   # Whether the update under way is the deployment group's release.
   defp installing_release?(%{deployment_group: %{current_release: %{firmware: %{uuid: uuid}}}}, stage, uuid),
