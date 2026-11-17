@@ -94,7 +94,8 @@ defmodule NervesHubWeb.Live.Account.SlackLinkTest do
     |> assert_has("#slack-link-#{link.id}", text: "Not used yet.")
     |> within("#slack-link-#{link.id}", &click_button(&1, "Unlink"))
     |> assert_has("[role='alert']", text: "The Slack account was unlinked.")
-    |> refute_has("#slack-links")
+    |> refute_has("#slack-link-#{link.id}")
+    |> assert_has("#no-slack-links")
 
     assert Users.list_links(user) == []
   end

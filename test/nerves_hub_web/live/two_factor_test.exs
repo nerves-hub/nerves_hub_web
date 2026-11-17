@@ -34,7 +34,6 @@ defmodule NervesHubWeb.Live.TwoFactorTest do
 
       session
       |> fill_in("Code from the app", with: NimbleTOTP.verification_code(secret))
-      |> fill_in("Your password", with: "test_password")
       |> click_button("Turn on")
       |> assert_has("#recovery-codes li", count: 10)
       |> click_button("I've saved them")
@@ -56,7 +55,6 @@ defmodule NervesHubWeb.Live.TwoFactorTest do
 
       session
       |> fill_in("Code from the app", with: NimbleTOTP.verification_code(secret))
-      |> fill_in("Your password", with: "test_password")
       |> click_button("Turn on")
       |> assert_has("#recovery-codes li", count: 10)
 
@@ -68,14 +66,13 @@ defmodule NervesHubWeb.Live.TwoFactorTest do
       |> assert_has("#two-factor-on")
     end
 
-    test "won't turn on without the password", %{conn: conn, user: user} do
-      conn
+    # The browser case's session signed in just now; this one didn't.
+    test "asks a session that didn't sign in recently to confirm it's them first", %{user: user} do
+      user
+      |> signed_in()
       |> visit(~p"/account/two-factor")
       |> click_button("Set up two-factor authentication")
-      |> fill_in("Code from the app", with: "123456")
-      |> fill_in("Your password", with: "not it")
-      |> click_button("Turn on")
-      |> assert_has("#two-factor-error", text: "That password isn't right.")
+      |> assert_path(~p"/account/confirm", query_params: %{return_to: "/account/two-factor"})
 
       refute TwoFactor.enabled?(user)
     end
@@ -121,28 +118,6 @@ defmodule NervesHubWeb.Live.TwoFactorTest do
       |> assert_has("#two-factor-error", text: "Too many tries")
 
       assert TwoFactor.enabled?(user)
-    end
-
-    test "wrong passwords are limited too when turning it on", %{conn: conn, user: user} do
-      turn_on = fn session, password ->
-        session
-        |> fill_in("Code from the app", with: "123456")
-        |> fill_in("Your password", with: password)
-        |> click_button("Turn on")
-      end
-
-      session =
-        conn
-        |> visit(~p"/account/two-factor")
-        |> click_button("Set up two-factor authentication")
-
-      1..5
-      |> Enum.reduce(session, fn _, session -> turn_on.(session, "not it") end)
-      |> assert_has("#two-factor-error", text: "That password isn't right.")
-      |> turn_on.("test_password")
-      |> assert_has("#two-factor-error", text: "Too many tries")
-
-      refute TwoFactor.enabled?(user)
     end
 
     test "makes new recovery codes", %{conn: conn, user: user} do

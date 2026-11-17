@@ -265,6 +265,131 @@ defmodule NervesHub.Accounts do
   end
 
   @doc """
+  Whether this server offers Google sign-in, which it does when it has a
+  Google client ID (`GOOGLE_CLIENT_ID`).
+  """
+  @spec google_sign_in_enabled?() :: boolean()
+  def google_sign_in_enabled?(), do: Application.get_env(:nerves_hub, :enable_google_auth) == true
+
+  @doc """
+  The ways `user` can sign in: `:password`, `:google`, both, or (for a Google
+  account on a server that has since turned Google sign-in off) neither.
+  """
+  @spec sign_in_methods(User.t()) :: [:password | :google]
+  def sign_in_methods(%User{} = user) do
+    Enum.filter([:password, :google], &sign_in_method?(user, &1))
+  end
+
+  defp sign_in_method?(%User{password_hash: hash}, :password), do: is_binary(hash)
+  defp sign_in_method?(%User{google_id: id}, :google), do: is_binary(id) and google_sign_in_enabled?()
+
+  @doc """
+  Gives an account without a password one, for an account that signs in with
+  Google. Changing a password that exists is `update_user_password/4`, which
+  asks for the old one.
+
+  Whoever calls this has made sure the user signed in recently, since a signed
+  in browser is all it otherwise needs.
+  """
+  @spec set_user_password(User.t(), map(), (String.t() -> String.t())) ::
+          {:ok, User.t()} | {:error, :already_set | Changeset.t()}
+  def set_user_password(%User{password_hash: nil} = user, attrs, reset_url) do
+    with {:ok, user} <- user |> User.password_changeset(attrs) |> Repo.update() do
+      _ = deliver_user_password_updated(user, reset_url)
+      {:ok, user}
+    end
+  end
+
+  def set_user_password(%User{}, _attrs, _reset_url), do: {:error, :already_set}
+
+  @doc """
+  Removes the password from an account that signs in with Google, so only
+  Google signs it in. Refused with `:last_sign_in_method` unless Google sign-in
+  works for it, so nobody can lock themselves out.
+
+  Every session but `keep_token` (the one asking) is signed out, as whoever
+  holds them may have got in with the password.
+
+  Whoever calls this has made sure the user signed in recently.
+  """
+  @spec remove_password(User.t(), binary() | nil) ::
+          {:ok, User.t()} | {:error, :no_password | :last_sign_in_method | Changeset.t()}
+  def remove_password(%User{} = user, keep_token) do
+    cond do
+      not sign_in_method?(user, :password) -> {:error, :no_password}
+      not sign_in_method?(user, :google) -> {:error, :last_sign_in_method}
+      true -> change_sign_in_methods(User.remove_password_changeset(user), keep_token)
+    end
+  end
+
+  @doc """
+  Unlinks the Google account from an account that has a password, so only the
+  password signs it in. Refused with `:last_sign_in_method` when it has no
+  password.
+
+  Every session but `keep_token` (the one asking) is signed out, as whoever
+  holds them may have got in with Google.
+
+  Whoever calls this has made sure the user signed in recently.
+  """
+  @spec disconnect_google(User.t(), binary() | nil) ::
+          {:ok, User.t()} | {:error, :not_connected | :last_sign_in_method | Changeset.t()}
+  def disconnect_google(%User{} = user, keep_token) do
+    cond do
+      is_nil(user.google_id) -> {:error, :not_connected}
+      not sign_in_method?(user, :password) -> {:error, :last_sign_in_method}
+      true -> change_sign_in_methods(User.disconnect_google_changeset(user), keep_token)
+    end
+  end
+
+  defp change_sign_in_methods(changeset, keep_token) do
+    Multi.new()
+    |> Multi.update(:user, changeset)
+    |> Multi.run(:signed_out, fn repo, %{user: user} ->
+      query = UserToken.by_user_and_contexts_query(user, ["session"])
+      query = if is_binary(keep_token), do: where(query, [t], t.token != ^keep_token), else: query
+
+      {_count, tokens} = repo.delete_all(select(query, [t], t.token))
+      {:ok, tokens}
+    end)
+    |> Repo.transaction()
+    |> case do
+      {:ok, %{user: user, signed_out: tokens}} ->
+        for token <- tokens, do: disconnect_socket(UserToken.live_socket_id(token))
+        {:ok, user}
+
+      {:error, :user, changeset, _} ->
+        {:error, changeset}
+    end
+  end
+
+  @doc """
+  Links the Google account `auth` is for to `user`, who is signed in and has
+  just signed in to Google from their account page. The same checks as
+  `link_google_account/2`: Google has verified the address, it is the
+  account's, and the account has no Google account yet.
+
+  Whoever calls this has made sure the user signed in recently.
+  """
+  @spec connect_google_account(User.t(), Ueberauth.Auth.t()) ::
+          {:ok, User.t()}
+          | {:error,
+             :email_not_verified
+             | :expired
+             | :email_mismatch
+             | :unconfirmed
+             | :already_linked
+             | :invalid
+             | Changeset.t()}
+  def connect_google_account(%User{} = user, %Ueberauth.Auth{} = auth) do
+    if google_email_verified?(auth) do
+      link_google_account(user, pending_google_link(auth))
+    else
+      {:error, :email_not_verified}
+    end
+  end
+
+  @doc """
   Adds a user to an org.
   `params` are passed to `Org.add_user/2`, and give the user a built-in `role`
   or one of the org's custom roles as `org_role_id`.

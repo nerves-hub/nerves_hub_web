@@ -32,6 +32,9 @@ defmodule NervesHubWeb.Auth do
   # How long someone has, after their password, to type in their code.
   @two_factor_timeout_seconds 5 * 60
 
+  # How long a sign-in counts as recent, for `recently_authenticated?/1`.
+  @recent_sign_in_seconds 10 * 60
+
   @doc """
   Signs `user` in, once whoever is signing in has proven they are them, by
   password, Google or a password reset. Every sign-in goes through here.
@@ -118,10 +121,53 @@ defmodule NervesHubWeb.Auth do
 
     conn
     |> renew_session()
+    |> mark_authenticated()
     |> put_token_in_session(token)
     |> maybe_write_remember_me_cookie(token, params)
     |> redirect_after_login(user_return_to)
   end
+
+  @doc """
+  Records in the session that whoever holds it has just proven who they are:
+  by signing in, or on `/account/confirm` with their password or Google.
+  `recently_authenticated?/1` reads it.
+  """
+  @spec mark_authenticated(Plug.Conn.t()) :: Plug.Conn.t()
+  def mark_authenticated(conn), do: put_session(conn, :authenticated_at, System.os_time(:second))
+
+  @doc """
+  Whether a session (a LiveView's, or a conn's) proved who it is in the last
+  ten minutes, by signing in or on `/account/confirm`.
+
+  Changes that would lock someone out of an account, or let somebody keep it,
+  ask for this rather than for a password, so they work the same whichever way
+  the account signs in: turning on two-factor, and adding or removing a way to
+  sign in. A signed in browser alone isn't enough for them, because it may not
+  be its owner's any more. A session restored from the remember me cookie
+  hasn't proven anything yet, so it has to confirm first.
+  """
+  @spec recently_authenticated?(Plug.Conn.t() | map()) :: boolean()
+  def recently_authenticated?(%Plug.Conn{} = conn), do: recently_authenticated?(get_session(conn))
+
+  def recently_authenticated?(%{"authenticated_at" => at}) when is_integer(at) do
+    System.os_time(:second) - at <= @recent_sign_in_seconds
+  end
+
+  def recently_authenticated?(_session), do: false
+
+  @doc """
+  Where `/account/confirm` sends someone back to: `return_to` if it's an
+  account page, or else the account page itself.
+  """
+  @spec account_return_to(term()) :: String.t()
+  def account_return_to("/account" <> rest = path) when rest == "" or binary_part(rest, 0, 1) in ["/", "?"] do
+    case return_to_target(path) do
+      {:local, ^path} -> path
+      _ -> ~p"/account"
+    end
+  end
+
+  def account_return_to(_return_to), do: ~p"/account"
 
   # Links the Google account a Google sign-in left in the session, waiting for
   # proof that `user`'s account belongs to whoever is signing in (see

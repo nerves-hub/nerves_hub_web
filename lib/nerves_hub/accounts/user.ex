@@ -16,7 +16,7 @@ defmodule NervesHub.Accounts.User do
 
   @password_min_length 8
 
-  @required_params [:name, :email, :password_hash]
+  @required_params [:name, :email]
 
   schema "users" do
     has_many(:user_tokens, UserToken)
@@ -179,7 +179,7 @@ defmodule NervesHub.Accounts.User do
 
   def creation_changeset(%User{} = user, params) do
     changeset(user, params)
-    |> validate_required([:password])
+    |> validate_required([:password, :password_hash])
   end
 
   @doc """
@@ -216,10 +216,43 @@ defmodule NervesHub.Accounts.User do
 
   # Name and email only. Passwords change through `password_changeset/2`, which
   # checks the current password and the length and sends the notification email.
+  #
+  # An account linked to Google takes its email from Google on every Google
+  # sign-in (`oauth_changeset/3`), so it can't be changed here.
   def update_changeset(%User{} = user, params) do
     user
     |> changeset(Map.drop(params, ["password", :password]))
+    |> email_follows_google(user)
     |> email_password_update_valid?(user, params)
+  end
+
+  defp email_follows_google(changeset, %User{google_id: nil}), do: changeset
+
+  defp email_follows_google(changeset, %User{}) do
+    if Map.has_key?(changeset.changes, :email) do
+      changeset
+      |> delete_change(:email)
+      |> add_error(:email, "follows your Google account, so it changes there")
+    else
+      changeset
+    end
+  end
+
+  @doc """
+  Removes the password from an account that signs in with Google, so Google is
+  the only way in. `NervesHub.Accounts.remove_password/2` checks Google sign-in
+  is still possible first.
+  """
+  def remove_password_changeset(%User{} = user) do
+    change(user, password_hash: nil)
+  end
+
+  @doc """
+  Unlinks the account's Google account, so it signs in with its password only.
+  `NervesHub.Accounts.disconnect_google/2` checks it has one first.
+  """
+  def disconnect_google_changeset(%User{} = user) do
+    change(user, google_id: nil, google_hd: nil, google_last_synced_at: nil)
   end
 
   @doc """
@@ -303,7 +336,7 @@ defmodule NervesHub.Accounts.User do
        when curr_pass != "" do
     case Map.has_key?(changes, :email) or Map.has_key?(changes, :password) do
       true ->
-        if Bcrypt.verify_pass(curr_pass, user.password_hash) do
+        if valid_password?(user, curr_pass) do
           changeset
         else
           changeset

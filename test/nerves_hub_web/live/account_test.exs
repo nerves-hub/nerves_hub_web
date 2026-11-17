@@ -10,9 +10,9 @@ defmodule NervesHubWeb.Live.AccountTest do
     test "can update username", %{conn: conn, user: user} do
       conn
       |> visit("/account")
-      |> assert_has("h1", text: "Personal Info")
+      |> assert_has("h2", text: "Your details")
       |> fill_in("Name", with: "My Newest Name")
-      |> click_button("Save Changes")
+      |> click_button("Save profile")
       |> assert_path("/account")
       |> assert_has("div", text: "Account updated")
 
@@ -24,16 +24,17 @@ defmodule NervesHubWeb.Live.AccountTest do
     test "can update password", %{conn: conn, user: user} do
       conn
       |> visit("/account")
-      |> assert_has("h1", text: "Personal Info")
+      |> click_button("#change-password", "Change")
       |> within("#password-form", fn session ->
         session
-        |> fill_in("Old Password", with: "test_password")
-        |> fill_in("New Password", with: "foobarbazhumbug")
-        |> fill_in("Confirm New Password", with: "foobarbazhumbug")
+        |> fill_in("Current password", with: "test_password")
+        |> fill_in("New password", with: "foobarbazhumbug")
+        |> fill_in("Confirm new password", with: "foobarbazhumbug")
         |> submit()
       end)
       |> assert_path("/account")
-      |> assert_has("div", text: "Account updated")
+      |> assert_has("div", text: "Your password is changed.")
+      |> refute_has("#password-form")
 
       updated_user = Accounts.get_user(user.id) |> elem(1)
 
@@ -43,7 +44,6 @@ defmodule NervesHubWeb.Live.AccountTest do
     test "requires current password to update email", %{conn: conn} do
       conn
       |> visit("/account")
-      |> assert_has("h1", text: "Personal Info")
       |> within("#details-form", fn session ->
         session
         |> fill_in("Email", with: "ringo@drums.com")
@@ -61,7 +61,7 @@ defmodule NervesHubWeb.Live.AccountTest do
       |> within("#details-form", fn session ->
         session
         |> fill_in("Email", with: "ringo@drums.com")
-        |> fill_in("Password", with: "test_password", exact: false)
+        |> fill_in("Current password", with: "test_password")
         |> submit()
       end)
       |> assert_path("/account")
@@ -77,34 +77,34 @@ defmodule NervesHubWeb.Live.AccountTest do
     test "requires valid current password to update password", %{conn: conn} do
       conn
       |> visit("/account")
-      |> assert_has("h1", text: "Personal Info")
+      |> click_button("#change-password", "Change")
       |> within("#password-form", fn session ->
         session
-        |> fill_in("Old Password", with: "not the current password")
-        |> fill_in("New Password", with: "12345678")
-        |> fill_in("Confirm New Password", with: "12345678")
+        |> fill_in("Current password", with: "not the current password")
+        |> fill_in("New password", with: "12345678")
+        |> fill_in("Confirm new password", with: "12345678")
         |> submit()
       end)
       |> assert_path("/account")
       |> assert_has("div", text: "is not correct")
       |> within("#password-form", fn session ->
         session
-        |> fill_in("Old Password", with: "test_password")
-        |> fill_in("New Password", with: "1234567891011")
-        |> fill_in("Confirm New Password", with: "12345678")
+        |> fill_in("Current password", with: "test_password")
+        |> fill_in("New password", with: "1234567891011")
+        |> fill_in("Confirm new password", with: "12345678")
         |> submit()
       end)
       |> assert_path("/account")
       |> assert_has("div", text: "does not match password")
       |> within("#password-form", fn session ->
         session
-        |> fill_in("Old Password", with: "test_password")
-        |> fill_in("New Password", with: "1234567891011")
-        |> fill_in("Confirm New Password", with: "1234567891011")
+        |> fill_in("Current password", with: "test_password")
+        |> fill_in("New password", with: "1234567891011")
+        |> fill_in("Confirm new password", with: "1234567891011")
         |> submit()
       end)
       |> assert_path("/account")
-      |> assert_has("div", text: "Account updated")
+      |> assert_has("div", text: "Your password is changed.")
 
       send_queued_emails()
 
@@ -127,6 +127,20 @@ defmodule NervesHubWeb.Live.AccountTest do
 
       assert updated_user.password_hash == user.password_hash
     end
+  end
+
+  test "has two tabs, with everything but access tokens on Profile", %{conn: conn} do
+    conn
+    |> visit("/account")
+    |> assert_has("#account-tabs a", count: 2)
+    |> assert_has("#account-tabs a[aria-current]", text: "Profile")
+    |> assert_has("#details-form")
+    |> assert_has("#sign-in-methods")
+    |> assert_has("#two-factor-summary")
+    |> assert_has("#delete-account")
+    |> click_link("#account-tabs a", "Access tokens")
+    |> assert_path("/account/tokens")
+    |> assert_has("#access-tokens")
   end
 
   describe "delete" do
@@ -166,14 +180,14 @@ defmodule NervesHubWeb.Live.AccountTest do
   describe "generate new access token" do
     test "accepts a token note", %{conn: conn, user: user} do
       conn
-      |> visit("/account")
+      |> visit("/account/tokens")
       |> assert_has("div", text: "No access tokens have been created")
       # PhoenixTest doesn't work with JS commands in the phx-click
       # |> click_button("Generate Access Token")
       |> assert_has("div", text: "New access token")
       |> fill_in("Note", with: "An amazing token")
       |> click_button("Create access token")
-      |> assert_path("/account")
+      |> assert_path("/account/tokens")
       |> assert_has("div", text: "Token created")
       |> assert_has("div", text: "New Token:")
       |> assert_has("code", text: "nhu_")
@@ -184,13 +198,13 @@ defmodule NervesHubWeb.Live.AccountTest do
 
     test "token note can be blank", %{conn: conn, user: user} do
       conn
-      |> visit("/account")
+      |> visit("/account/tokens")
       |> assert_has("div", text: "No access tokens have been created")
       # PhoenixTest doesn't work with JS commands in the phx-click
       # |> click_button("Generate Access Token")
       |> assert_has("div", text: "New access token")
       |> click_button("Create access token")
-      |> assert_path("/account")
+      |> assert_path("/account/tokens")
       |> assert_has("div", text: "Token created")
       |> assert_has("div", text: "New Token:")
       |> assert_has("code", text: "nhu_")
@@ -201,14 +215,14 @@ defmodule NervesHubWeb.Live.AccountTest do
 
     test "token note will be trimmed", %{conn: conn} do
       conn
-      |> visit("/account")
+      |> visit("/account/tokens")
       |> assert_has("div", text: "No access tokens have been created")
       # PhoenixTest doesn't work with JS commands in the phx-click
       # |> click_button("Generate Access Token")
       |> assert_has("div", text: "New access token")
       |> fill_in("Note", with: "    An    amazing    token    ")
       |> click_button("Create access token")
-      |> assert_path("/account")
+      |> assert_path("/account/tokens")
       |> assert_has("div", text: "Token created")
       |> assert_has("div", text: "New Token:")
       |> assert_has("code", text: "nhu_")
@@ -220,7 +234,7 @@ defmodule NervesHubWeb.Live.AccountTest do
     Accounts.create_user_api_token(user, "Boop")
 
     conn
-    |> visit("/account")
+    |> visit("/account/tokens")
     |> assert_has("h3", text: "Boop")
     |> click_button("button[phx-click=\"delete-access-token\"]", "Delete")
     |> assert_has("div", text: "Token deleted")

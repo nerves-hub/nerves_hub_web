@@ -1,0 +1,55 @@
+<Layouts.auth flash={@flash}>
+  <:title>
+    Confirm it's you
+  </:title>
+  <:subheader>
+    This change needs a recent sign-in. Confirm it's you to carry on.
+  </:subheader>
+
+  <div class="flex flex-col gap-5">
+    <div id="confirm_identity_account" class="flex items-center gap-3 border-b border-line-default pb-5">
+      <span class="flex size-9 flex-none items-center justify-center rounded-full bg-primary/10">
+        <span class="lucide-user-round-check size-4.5 text-primary" aria-hidden="true"></span>
+      </span>
+      <div class="min-w-0">
+        <p class="text-ui text-content-muted">Signed in as</p>
+        <p class="truncate text-sm font-semibold text-content-strong">{@current_scope.user.email}</p>
+      </div>
+    </div>
+
+    <div :if={@error} id="confirm_identity_error" role="alert" class="flex gap-2.5 rounded-md border border-alert/30 bg-alert-soft p-3 text-sm text-alert-content">
+      <span class="mt-0.5 lucide-circle-exclamation-point size-4 flex-none text-alert" aria-hidden="true"></span>
+      <p class="font-semibold">{@error}</p>
+    </div>
+
+    <form :if={:google in @methods} id="confirm_identity_google" method="post" action={~p"/account/confirm/google"} class="flex flex-col gap-5">
+      <input type="hidden" name="_csrf_token" value={Plug.CSRFProtection.get_csrf_token()} />
+      <input type="hidden" name="intent" value="confirm" />
+      <input type="hidden" name="return_to" value={@return_to} />
+      <.button type="submit" class="w-full">
+        <NervesHubWeb.Components.OAuthLinks.google_logo /> Continue with Google
+      </.button>
+    </form>
+
+    <div :if={:google in @methods && :password in @methods} class="flex items-center gap-3 text-ui text-content-faint">
+      <span class="h-px flex-1 bg-line-subtle" aria-hidden="true"></span> or use your password <span class="h-px flex-1 bg-line-subtle" aria-hidden="true"></span>
+    </div>
+
+    <form :if={:password in @methods} id="confirm_identity_password" method="post" action={~p"/account/confirm"} class="flex flex-col gap-5">
+      <input type="hidden" name="_csrf_token" value={Plug.CSRFProtection.get_csrf_token()} />
+      <input type="hidden" name="return_to" value={@return_to} />
+      <.input id="confirm_password" name="password" type="password" value="" label="Password" autocomplete="current-password" autofocus={:google not in @methods} required />
+      <.button style="primary" type="submit" class="w-full">Confirm</.button>
+    </form>
+
+    <p :if={@methods == []} id="confirm_identity_unavailable" class="text-sm text-content-muted">
+      Your account signs in with Google, which this server no longer offers. Ask your platform admin for help.
+    </p>
+  </div>
+
+  <:footer>
+    <.link href={@return_to} class="font-semibold text-primary hover:text-primary-hover light:text-indigo-600 light:hover:text-indigo-500">
+      Cancel
+    </.link>
+  </:footer>
+</Layouts.auth>

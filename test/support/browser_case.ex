@@ -71,8 +71,11 @@ defmodule NervesHubWeb.ConnCase.Browser do
 
         conn =
           build_conn()
+          # Just signed in, as `NervesHubWeb.Auth` marks a session, so changes
+          # that need a recent sign-in go through.
           |> init_test_session(%{
-            "user_token" => token
+            "user_token" => token,
+            "authenticated_at" => System.os_time(:second)
           })
 
         %{
