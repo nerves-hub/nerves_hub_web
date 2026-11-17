@@ -1529,8 +1529,87 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       |> assert_has("h1", text: device.identifier)
       |> refute_has("span", text: "Update available")
       |> refute_has("button", text: "Skip the queue")
+      |> refute_has("#firmware-updates-card span", text: "Device is up to date")
+      |> assert_has("#firmware-updates-card span", text: "Group is paused")
 
       assert Repo.aggregate(InflightUpdate, :count) == 0
+    end
+
+    test "a device in the penalty box isn't up to date", %{
+      conn: conn,
+      user: user,
+      org: org,
+      product: product,
+      device: device,
+      deployment_group: deployment_group,
+      org_key: org_key,
+      tmp_dir: tmp_dir
+    } do
+      firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+
+      {:ok, {_release, deployment_group}} =
+        ManagedDeployments.create_deployment_release(deployment_group, firmware, nil, user, %{})
+
+      {:ok, _deployment_group} =
+        ManagedDeployments.update_deployment_group(deployment_group, %{is_active: true}, user)
+
+      device
+      |> Ecto.Changeset.change(%{
+        deployment_id: deployment_group.id,
+        updates_blocked_until: DateTime.add(DateTime.utc_now(:second), 3600)
+      })
+      |> Repo.update!()
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      |> assert_has("#firmware-updates-card span", text: "Updates blocked for")
+      |> refute_has("#firmware-updates-card span", text: "Device is up to date")
+      |> refute_has("button", text: "Skip the queue")
+    end
+
+    test "a device with updates off isn't up to date", %{
+      conn: conn,
+      user: user,
+      org: org,
+      product: product,
+      device: device,
+      deployment_group: deployment_group,
+      org_key: org_key,
+      tmp_dir: tmp_dir
+    } do
+      firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+
+      {:ok, {_release, deployment_group}} =
+        ManagedDeployments.create_deployment_release(deployment_group, firmware, nil, user, %{})
+
+      {:ok, _deployment_group} =
+        ManagedDeployments.update_deployment_group(deployment_group, %{is_active: true}, user)
+
+      device
+      |> Ecto.Changeset.change(%{deployment_id: deployment_group.id, update_mode: :off})
+      |> Repo.update!()
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      |> assert_has("#firmware-updates-card span", text: "Firmware updates are off")
+      |> refute_has("#firmware-updates-card span", text: "Device is up to date")
+      |> refute_has("button", text: "Skip the queue")
+    end
+
+    test "a device running the group's release is up to date", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device,
+      deployment_group: deployment_group
+    } do
+      device
+      |> Ecto.Changeset.change(%{deployment_id: deployment_group.id})
+      |> Repo.update!()
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      |> assert_has("#firmware-updates-card span", text: "Device is up to date")
     end
   end
 

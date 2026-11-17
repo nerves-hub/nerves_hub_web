@@ -49,6 +49,58 @@ defmodule NervesHub.Devices.UpdatesTest do
     end
   end
 
+  describe "update_status/3" do
+    setup %{deployment_group: deployment_group} do
+      %{deployment_group: Repo.preload(deployment_group, current_release: :firmware)}
+    end
+
+    test "is up to date when the device runs the group's release", %{
+      device: device,
+      deployment_group: deployment_group
+    } do
+      uuid = deployment_group.current_release.firmware.uuid
+      device = %{device | firmware_metadata: %{device.firmware_metadata | uuid: uuid}}
+
+      assert Updates.update_status(device, deployment_group) == :up_to_date
+      # Even when it couldn't take an update now
+      assert Updates.update_status(%{device | update_mode: :off}, deployment_group) == :up_to_date
+    end
+
+    test "is available to a device that can take it", %{device: device, deployment_group: deployment_group} do
+      assert Updates.update_status(device, deployment_group) == :update_available
+    end
+
+    test "says why a device behind the release isn't taking it", %{
+      device: device,
+      deployment_group: deployment_group
+    } do
+      now = DateTime.utc_now()
+
+      assert Updates.update_status(device, %{deployment_group | is_active: false}) == :deployment_group_inactive
+      assert Updates.update_status(%{device | update_mode: :off}, deployment_group) == :updates_off
+
+      blocked = %{device | updates_blocked_until: DateTime.add(now, 60)}
+      assert Updates.update_status(blocked, deployment_group, now) == :updates_blocked
+
+      # A penalty that has run out holds nothing back
+      assert Updates.update_status(blocked, deployment_group, DateTime.add(now, 120)) == :update_available
+    end
+
+    test "is unknown before the device reports its firmware", %{device: device, deployment_group: deployment_group} do
+      assert Updates.update_status(%{device | firmware_metadata: nil}, deployment_group) == :unknown
+    end
+
+    test "changes nothing", %{device: device, deployment_group: deployment_group} do
+      {:ok, device} = Devices.update_device(device, %{update_attempts: attempts_days_apart(3)})
+
+      assert Updates.update_status(device, deployment_group) == :update_available
+
+      device = Repo.reload(device)
+      refute Updates.device_in_penalty_box?(device)
+      assert length(device.update_attempts) == 3
+    end
+  end
+
   describe "enforce_failure_limits/2" do
     test "lets a device under its limits through", %{device: device, deployment_group: deployment_group} do
       assert {:ok, ^device} = Updates.enforce_failure_limits(device, deployment_group)
