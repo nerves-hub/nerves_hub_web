@@ -2179,6 +2179,23 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       %{second_device: Fixtures.device_fixture(org, product, firmware)}
     end
 
+    test "switching tabs ends selecting, so a tap opens the peek again", %{conn: conn, fixture: fixture} do
+      %{device: device} = fixture
+
+      conn
+      |> visit(device_index_path(fixture))
+      |> assert_has("#device-count", text: "2", timeout: 1_000)
+      |> click_button("#phone-select", "Select")
+      |> assert_has("#phone-selection", text: "0 selected")
+      |> click_link("#state-tab-offline", "Offline")
+      |> assert_has("#state-tab-offline[aria-current='page']")
+      |> refute_has("#phone-selection")
+      |> assert_has("#phone-select")
+      |> assert_has("a", text: device.identifier, timeout: 1_000)
+      |> unwrap(&render_click(&1, "peek", %{"id" => device.id}))
+      |> assert_has("#device-peek")
+    end
+
     test "Select makes tapping a device select it, until Done", %{conn: conn, fixture: fixture} do
       %{device: device} = fixture
 

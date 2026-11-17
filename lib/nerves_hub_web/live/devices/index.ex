@@ -186,6 +186,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
     socket
     |> assign(:selected_devices, [])
     |> assign(:select_all_matching, false)
+    |> assign(:selecting?, false)
     |> update_selected_device_info()
   end
 
@@ -1792,9 +1793,6 @@ defmodule NervesHubWeb.Live.Devices.Index do
     String.to_integer(device_id)
   end
 
-  # A row checkbox's label, which fills its cell so a click near the box
-  # selects the row rather than opening the device. The input is visually
-  # hidden, and the box inside the label stands in for it, focus ring included.
   # A column the user switched off still renders its cell, for the card a row
   # becomes on a phone, but not from sm up.
   defp column_class(user, column), do: if(!show_column?(user, column), do: "sm:hidden")
@@ -1825,6 +1823,9 @@ defmodule NervesHubWeb.Live.Devices.Index do
     ]
   end
 
+  # A row checkbox's label, which fills its cell so a click near the box
+  # selects the row rather than opening the device. The input is visually
+  # hidden, and the box inside the label stands in for it, focus ring included.
   defp checkbox_classes() do
     [
       "flex w-10 cursor-pointer items-center pl-4 peer-disabled:cursor-not-allowed peer-disabled:opacity-40",
@@ -1923,11 +1924,14 @@ defmodule NervesHubWeb.Live.Devices.Index do
   defp empty_tab_detail(%{state: "attention", reason: "failing"}),
     do: "Devices show here when their updates are on hold after repeated failures."
 
-  defp empty_tab_detail(%{state: "attention", reason: "not_seen"}), do: "Devices show here when they go 14 days unseen."
+  defp empty_tab_detail(%{state: "attention", reason: "not_seen"}),
+    do: "Devices show here when they go #{DeviceFiltering.not_seen_days()} days unseen."
+
   defp empty_tab_detail(%{state: state}), do: empty_tab_detail(state)
 
   defp empty_tab_detail("attention"),
-    do: "Every device is healthy, no update is failing, and all were seen in the last 14 days."
+    do:
+      "Every device is healthy, no update is failing, and all were seen in the last #{DeviceFiltering.not_seen_days()} days."
 
   defp empty_tab_detail("online"), do: "Devices show here while they're connected."
   defp empty_tab_detail("updating"), do: "Devices show here while they install an update."
