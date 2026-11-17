@@ -113,6 +113,69 @@ defmodule NervesHubWeb.ConfirmIdentityControllerTest do
     end
   end
 
+  describe "with two-factor on" do
+    setup %{user: user} do
+      user = user |> Ecto.Changeset.change(google_id: "google-#{user.id}") |> Repo.update!()
+      %{secret: secret} = Fixtures.two_factor_fixture(user)
+
+      %{user: user, secret: secret}
+    end
+
+    test "asks for a code along with the password or Google", %{user: user} do
+      html = user |> signed_in() |> get(~p"/account/confirm") |> html_response(200)
+
+      assert html =~ ~s(name="code")
+      assert html =~ ~s(name="password")
+      assert html =~ ~s(value="confirm")
+    end
+
+    test "confirms with the password and a code", %{user: user, secret: secret} do
+      conn =
+        user
+        |> signed_in()
+        |> post(~p"/account/confirm", %{
+          "password" => "test_password",
+          "code" => Fixtures.next_totp_code(secret),
+          "return_to" => "/account"
+        })
+
+      assert redirected_to(conn) == "/account"
+      assert is_integer(get_session(conn, :authenticated_at))
+    end
+
+    test "won't confirm with the password alone", %{user: user} do
+      for code <- [nil, "000000"] do
+        params = %{"password" => "test_password", "code" => code, "return_to" => "/account"}
+        conn = user |> signed_in() |> post(~p"/account/confirm", params)
+
+        assert html_response(conn, 200) =~ "That code didn&#39;t work."
+        refute get_session(conn, :authenticated_at)
+      end
+    end
+
+    # A browser still signed in to Google would otherwise confirm in one click.
+    test "won't go to Google without a code", %{user: user} do
+      conn = user |> signed_in() |> post(~p"/account/confirm/google", %{"intent" => "confirm", "code" => "000000"})
+
+      assert html_response(conn, 200) =~ "That code didn&#39;t work."
+      refute get_session(conn, :google_intent)
+    end
+
+    test "goes to Google with a code", %{user: user, secret: secret} do
+      conn =
+        user
+        |> signed_in()
+        |> post(~p"/account/confirm/google", %{
+          "intent" => "confirm",
+          "code" => Fixtures.next_totp_code(secret),
+          "return_to" => "/account"
+        })
+
+      assert "/auth/google?" <> _query = redirected_to(conn)
+      assert %{"action" => "confirm"} = get_session(conn, :google_intent)
+    end
+  end
+
   test "is only for someone signed in" do
     conn = get(build_conn(), ~p"/account/confirm")
 

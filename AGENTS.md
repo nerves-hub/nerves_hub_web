@@ -104,7 +104,8 @@ when adding or removing one.
   sign-in**, not a password: `NervesHubWeb.Auth.recently_authenticated?/1`
   reads `:authenticated_at` from the session (10 minutes), and
   `/account/confirm` renews it with whichever way the account has, so an
-  account without a password is never asked for one. A signed in user only
+  account without a password is never asked for one, plus a two-factor
+  code when the account has two-factor on. A signed in user only
   reaches `/auth/google` with a `:google_intent` the account page set.
 - A custom role can be limited to devices with certain tags. Its members see
   only those devices, so **every device query a user can reach must go through

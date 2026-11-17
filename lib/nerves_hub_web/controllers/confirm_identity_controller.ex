@@ -7,10 +7,15 @@ defmodule NervesHubWeb.ConfirmIdentityController do
   without a password is never asked for one (see
   `NervesHubWeb.Auth.recently_authenticated?/1`). The account page also starts
   connecting a Google account here, which goes out to Google the same way.
+
+  An account with two-factor on also gives a code, as signing in would ask
+  for, before either: a browser still signed in to Google confirms with one
+  click, so Google alone proves no more than the browser does.
   """
   use NervesHubWeb, :controller
 
   alias NervesHub.Accounts
+  alias NervesHub.Accounts.TwoFactor
   alias NervesHub.Accounts.User
   alias NervesHubWeb.Auth
   alias NervesHubWeb.Plugs.Attack
@@ -23,19 +28,17 @@ defmodule NervesHubWeb.ConfirmIdentityController do
     user = conn.assigns.current_scope.user
     return_to = Auth.account_return_to(params["return_to"])
 
+    # The password first, so a wrong one doesn't use up a recovery code.
     with {:allow, _data} <- Attack.confirm_identity_throttle(user.id),
-         true <- User.valid_password?(user, params["password"] || "") do
+         true <- User.valid_password?(user, params["password"] || ""),
+         :ok <- check_two_factor(user, params["code"]) do
       conn
       |> Auth.mark_authenticated()
       |> redirect(to: return_to)
     else
-      {:block, _data} ->
-        conn
-        |> put_status(:too_many_requests)
-        |> render_new(return_to, "Too many tries. To keep your account safe, wait ten minutes, then try again.")
-
-      false ->
-        render_new(conn, return_to, "That password isn't right.")
+      {:block, _data} -> too_many_tries(conn, return_to)
+      false -> render_new(conn, return_to, "That password isn't right.")
+      {:error, reason} -> render_new(conn, return_to, two_factor_error(reason))
     end
   end
 
@@ -48,17 +51,17 @@ defmodule NervesHubWeb.ConfirmIdentityController do
     user = conn.assigns.current_scope.user
     return_to = Auth.account_return_to(params["return_to"])
 
-    case google_intent(user, params["intent"], Auth.recently_authenticated?(conn)) do
-      {:ok, intent} ->
-        conn
-        |> put_session(:google_intent, %{
-          "action" => intent,
-          "user_id" => user.id,
-          "return_to" => return_to,
-          "started_at" => System.os_time(:second)
-        })
-        |> redirect(to: ~p"/auth/google?#{[prompt: "select_account", login_hint: user.email]}")
-
+    with {:ok, intent} <- google_intent(user, params["intent"], Auth.recently_authenticated?(conn)),
+         :ok <- check_code_before_google(user, intent, params["code"]) do
+      conn
+      |> put_session(:google_intent, %{
+        "action" => intent,
+        "user_id" => user.id,
+        "return_to" => return_to,
+        "started_at" => System.os_time(:second)
+      })
+      |> redirect(to: ~p"/auth/google?#{[prompt: "select_account", login_hint: user.email]}")
+    else
       # Connecting adds a way into the account, so it needs a recent sign-in
       # like removing one does.
       :confirm_first ->
@@ -68,7 +71,49 @@ defmodule NervesHubWeb.ConfirmIdentityController do
         conn
         |> put_flash(:error, "Google sign-in isn't available for your account.")
         |> redirect(to: return_to)
+
+      {:block, _data} ->
+        too_many_tries(conn, return_to)
+
+      {:error, reason} ->
+        render_new(conn, return_to, two_factor_error(reason))
     end
+  end
+
+  # Confirming with Google, for an account with two-factor on, needs its code
+  # first. Connecting already needs a recent sign-in, which had the code.
+  defp check_code_before_google(user, "confirm", code) do
+    if TwoFactor.enabled?(user) do
+      with {:allow, _data} <- Attack.confirm_identity_throttle(user.id) do
+        check_two_factor(user, code)
+      end
+    else
+      :ok
+    end
+  end
+
+  defp check_code_before_google(_user, _intent, _code), do: :ok
+
+  defp check_two_factor(user, code) do
+    if TwoFactor.enabled?(user) do
+      case TwoFactor.verify(user, code || "") do
+        {:ok, _how} -> :ok
+        {:error, _reason} = error -> error
+      end
+    else
+      :ok
+    end
+  end
+
+  defp two_factor_error(:invalid_code), do: "That code didn't work. Check your authenticator app and try again."
+
+  defp two_factor_error(:secret_unreadable),
+    do: "Codes from your authenticator app can't be checked on this server right now. Use a recovery code instead."
+
+  defp too_many_tries(conn, return_to) do
+    conn
+    |> put_status(:too_many_requests)
+    |> render_new(return_to, "Too many tries. To keep your account safe, wait ten minutes, then try again.")
   end
 
   defp google_intent(user, intent, recent?) do
@@ -87,6 +132,7 @@ defmodule NervesHubWeb.ConfirmIdentityController do
       page_title: "Confirm it's you",
       return_to: return_to,
       methods: Accounts.sign_in_methods(conn.assigns.current_scope.user),
+      two_factor?: TwoFactor.enabled?(conn.assigns.current_scope.user),
       error: error
     )
   end

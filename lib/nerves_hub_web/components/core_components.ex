@@ -481,7 +481,10 @@ defmodule NervesHubWeb.CoreComponents do
   attr(:square, :boolean, default: false)
   attr(:type, :string, default: "button")
   attr(:class, :any, default: nil)
-  attr(:rest, :global, include: ~w(disabled form name value href navigate download patch method replace for))
+
+  attr(:rest, :global,
+    include: ~w(disabled form formaction formnovalidate name value href navigate download patch method replace for)
+  )
 
   slot(:inner_block, required: true)
 

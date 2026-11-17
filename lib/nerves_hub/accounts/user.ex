@@ -231,6 +231,9 @@ defmodule NervesHub.Accounts.User do
   account, and this server offers Google sign-in, so the next one will
   overwrite it. On a server that has turned Google sign-in off, the account
   changes its email like any other.
+
+  It is also whether the account can sign in with Google, which
+  `NervesHub.Accounts.sign_in_methods/1` reads from here.
   """
   @spec email_follows_google?(t()) :: boolean()
   def email_follows_google?(%User{google_id: google_id}) do

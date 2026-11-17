@@ -137,6 +137,20 @@ defmodule NervesHub.Accounts.SignInMethodsTest do
       assert %{password: [_ | _], password_confirmation: [_ | _]} = errors_on(changeset)
     end
 
+    # The caller loaded the account before a password was set in another tab.
+    test "won't replace a password set since the caller's copy of the account was loaded" do
+      user = google_user(password: false)
+      password = "a long enough password"
+      attrs = %{"password" => password, "password_confirmation" => password}
+
+      assert {:ok, _user} = Accounts.set_user_password(user, attrs, &"/reset/#{&1}")
+
+      assert Accounts.set_user_password(user, %{attrs | "password" => "another long password"}, &"/reset/#{&1}") ==
+               {:error, :already_set}
+
+      assert User.valid_password?(Repo.reload(user), password)
+    end
+
     test "won't replace a password that's set, which needs the old one" do
       assert Accounts.set_user_password(google_user(), %{"password" => "a long enough password"}, &"/reset/#{&1}") ==
                {:error, :already_set}

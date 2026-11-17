@@ -22,25 +22,57 @@
       <p class="font-semibold">{@error}</p>
     </div>
 
-    <form :if={:google in @methods} id="confirm_identity_google" method="post" action={~p"/account/confirm/google"} class="flex flex-col gap-5">
-      <input type="hidden" name="_csrf_token" value={Plug.CSRFProtection.get_csrf_token()} />
-      <input type="hidden" name="intent" value="confirm" />
-      <input type="hidden" name="return_to" value={@return_to} />
-      <.button type="submit" class="w-full">
-        <NervesHubWeb.Components.OAuthLinks.google_logo /> Continue with Google
-      </.button>
-    </form>
+    <%= if @two_factor? do %>
+      <%!-- One form, so the code goes with whichever way is used. The password
+      comes first so Enter in it confirms, rather than going to Google. --%>
+      <form :if={@methods != []} id="confirm_identity_two_factor" method="post" action={~p"/account/confirm"} class="flex flex-col gap-5">
+        <input type="hidden" name="_csrf_token" value={Plug.CSRFProtection.get_csrf_token()} />
+        <input type="hidden" name="return_to" value={@return_to} />
+        <.input id="confirm_code" name="code" value="" label="Code from the app, or a recovery code" autocomplete="one-time-code" autofocus required />
 
-    <div :if={:google in @methods && :password in @methods} class="flex items-center gap-3 text-ui text-content-faint">
-      <span class="h-px flex-1 bg-line-subtle" aria-hidden="true"></span> or use your password <span class="h-px flex-1 bg-line-subtle" aria-hidden="true"></span>
-    </div>
+        <%= if :password in @methods do %>
+          <.input id="confirm_password" name="password" type="password" value="" label="Password" autocomplete="current-password" required />
+          <.button style="primary" type="submit" class="w-full">Confirm</.button>
+        <% end %>
 
-    <form :if={:password in @methods} id="confirm_identity_password" method="post" action={~p"/account/confirm"} class="flex flex-col gap-5">
-      <input type="hidden" name="_csrf_token" value={Plug.CSRFProtection.get_csrf_token()} />
-      <input type="hidden" name="return_to" value={@return_to} />
-      <.input id="confirm_password" name="password" type="password" value="" label="Password" autocomplete="current-password" autofocus={:google not in @methods} required />
-      <.button style="primary" type="submit" class="w-full">Confirm</.button>
-    </form>
+        <div :if={:google in @methods && :password in @methods} class="flex items-center gap-3 text-ui text-content-faint">
+          <span class="h-px flex-1 bg-line-subtle" aria-hidden="true"></span> or use Google <span class="h-px flex-1 bg-line-subtle" aria-hidden="true"></span>
+        </div>
+
+        <.button
+          :if={:google in @methods}
+          id="confirm_identity_google"
+          type="submit"
+          name="intent"
+          value="confirm"
+          formaction={~p"/account/confirm/google"}
+          formnovalidate={:password in @methods}
+          class="w-full"
+        >
+          <NervesHubWeb.Components.OAuthLinks.google_logo /> Continue with Google
+        </.button>
+      </form>
+    <% else %>
+      <form :if={:google in @methods} id="confirm_identity_google" method="post" action={~p"/account/confirm/google"} class="flex flex-col gap-5">
+        <input type="hidden" name="_csrf_token" value={Plug.CSRFProtection.get_csrf_token()} />
+        <input type="hidden" name="intent" value="confirm" />
+        <input type="hidden" name="return_to" value={@return_to} />
+        <.button type="submit" class="w-full">
+          <NervesHubWeb.Components.OAuthLinks.google_logo /> Continue with Google
+        </.button>
+      </form>
+
+      <div :if={:google in @methods && :password in @methods} class="flex items-center gap-3 text-ui text-content-faint">
+        <span class="h-px flex-1 bg-line-subtle" aria-hidden="true"></span> or use your password <span class="h-px flex-1 bg-line-subtle" aria-hidden="true"></span>
+      </div>
+
+      <form :if={:password in @methods} id="confirm_identity_password" method="post" action={~p"/account/confirm"} class="flex flex-col gap-5">
+        <input type="hidden" name="_csrf_token" value={Plug.CSRFProtection.get_csrf_token()} />
+        <input type="hidden" name="return_to" value={@return_to} />
+        <.input id="confirm_password" name="password" type="password" value="" label="Password" autocomplete="current-password" autofocus={:google not in @methods} required />
+        <.button style="primary" type="submit" class="w-full">Confirm</.button>
+      </form>
+    <% end %>
 
     <p :if={@methods == []} id="confirm_identity_unavailable" class="text-sm text-content-muted">
       Your account signs in with Google, which this server no longer offers. Ask your platform admin for help.

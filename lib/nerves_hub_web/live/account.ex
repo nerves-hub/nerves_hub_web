@@ -81,7 +81,8 @@ defmodule NervesHubWeb.Live.Account do
   def handle_event("update-details", %{"user" => params}, socket) do
     confirm_url = &url(~p"/account/confirm-email/#{&1}")
 
-    # Only an email change checks the password, so only then does a try count.
+    # Any current password sent counts as a try, though only an email change
+    # checks it.
     password_tried? = params["current_password"] not in [nil, ""]
 
     result =

@@ -281,7 +281,7 @@ defmodule NervesHub.Accounts do
   end
 
   defp sign_in_method?(%User{password_hash: hash}, :password), do: is_binary(hash)
-  defp sign_in_method?(%User{google_id: id}, :google), do: is_binary(id) and google_sign_in_enabled?()
+  defp sign_in_method?(%User{} = user, :google), do: User.email_follows_google?(user)
 
   @doc """
   Gives an account without a password one, for an account that signs in with
@@ -293,14 +293,28 @@ defmodule NervesHub.Accounts do
   """
   @spec set_user_password(User.t(), map(), (String.t() -> String.t())) ::
           {:ok, User.t()} | {:error, :already_set | Changeset.t()}
-  def set_user_password(%User{password_hash: nil} = user, attrs, reset_url) do
-    with {:ok, user} <- user |> User.password_changeset(attrs) |> Repo.update() do
-      _ = deliver_user_password_updated(user, reset_url)
-      {:ok, user}
+  def set_user_password(%User{id: user_id}, attrs, reset_url) do
+    # Decided on the row as it is now, not on the caller's copy, which may be
+    # from before a password was set in another tab or by a reset.
+    Repo.transact(fn ->
+      User
+      |> where(id: ^user_id)
+      |> lock("FOR UPDATE")
+      |> Repo.one!()
+      |> case do
+        %User{password_hash: nil} = user -> user |> User.password_changeset(attrs) |> Repo.update()
+        %User{} -> {:error, :already_set}
+      end
+    end)
+    |> case do
+      {:ok, user} ->
+        _ = deliver_user_password_updated(user, reset_url)
+        {:ok, user}
+
+      error ->
+        error
     end
   end
-
-  def set_user_password(%User{}, _attrs, _reset_url), do: {:error, :already_set}
 
   @doc """
   Removes the password from an account that signs in with Google, so only
