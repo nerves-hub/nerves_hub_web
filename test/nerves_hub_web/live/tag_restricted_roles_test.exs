@@ -107,6 +107,18 @@ defmodule NervesHubWeb.Live.TagRestrictedRolesTest do
     assert Devices.distinct_tags_for_product(product, user) == ["support"]
   end
 
+  test "the product switcher doesn't call a product empty when the role sees none of its devices", context do
+    %{conn: conn, user: user, org: org, product: product, firmware: firmware, visible: visible} = context
+    valve = Fixtures.product_fixture(user, org, %{name: "Valve"})
+    Fixtures.device_fixture(org, valve, firmware)
+
+    conn
+    |> visit("/org/#{org.name}/#{product.name}/devices/#{visible.identifier}")
+    |> click_button("#product-switcher-toggle", product.name)
+    |> assert_has("#product-switcher a", text: "Valve")
+    |> refute_has("#product-switcher a", text: "No devices yet")
+  end
+
   describe "when access changes with the device page open" do
     test "the page is left once the device stops matching the role", %{
       conn: conn,

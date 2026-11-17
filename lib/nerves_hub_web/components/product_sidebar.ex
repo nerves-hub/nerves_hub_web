@@ -13,8 +13,8 @@ defmodule NervesHubWeb.Components.ProductSidebar do
     * Notifications: how many there are
 
   Offline devices are never shown: every product has some. When the sidebar
-  collapses to a rail, a dot on the icon stands in for the line, and a tooltip
-  spells it out.
+  collapses to a rail, a dot or a count on the icon stands in for the line, and
+  a tooltip spells it out.
 
   The figures are counted when the component mounts, on the same render as
   the page, so the links don't shift as they arrive. The switcher's figures,
@@ -94,18 +94,17 @@ defmodule NervesHubWeb.Components.ProductSidebar do
   }
 
   @doc """
-  The name of the link a page's `sidebar_tab` selects, for a phone's top bar,
-  which names the product and the page while the drawer is shut. `nil` for a
-  tab with no link.
+  The label of the sidebar link that a page's `sidebar_tab` selects.
+
+  A phone's top bar shows it after the product name. `nil` for a tab with no link.
   """
   @spec page_label(atom() | nil) :: String.t() | nil
   def page_label(tab), do: Map.get(@page_labels, tab)
 
   ## Figures
 
-  @doc false
   # Everything the links show for the scope's product.
-  def load_status(%Scope{product: product} = scope) do
+  defp load_status(%Scope{product: product} = scope) do
     online = Products.get_product_counts(scope, product.id)
 
     if Scope.devices_limited?(scope) do
@@ -169,29 +168,26 @@ defmodule NervesHubWeb.Components.ProductSidebar do
   ## Statuses
 
   # What a link's line says, as `{tone, text}`, or nil when there's nothing to say.
-  @doc false
-  def devices_status(%{every_device?: false}), do: nil
-  def devices_status(%{health: %{unhealthy: n}}) when n > 0, do: {:alert, "#{delimited(n)} unhealthy"}
-  def devices_status(%{health: %{warning: 1}}), do: {:warning, "1 warning"}
-  def devices_status(%{health: %{warning: n}}) when n > 0, do: {:warning, "#{delimited(n)} warnings"}
-  def devices_status(_status), do: nil
+  defp devices_status(%{every_device?: false}), do: nil
+  defp devices_status(%{health: %{unhealthy: n}}) when n > 0, do: {:alert, "#{delimited(n)} unhealthy"}
+  defp devices_status(%{health: %{warning: 1}}), do: {:warning, "1 warning"}
+  defp devices_status(%{health: %{warning: n}}) when n > 0, do: {:warning, "#{delimited(n)} warnings"}
+  defp devices_status(_status), do: nil
 
-  @doc false
-  def deployments_status(%{approvals: []}), do: nil
+  defp deployments_status(%{approvals: []}), do: nil
 
-  def deployments_status(%{approvals: [step]}) do
+  defp deployments_status(%{approvals: [step]}) do
     case step.deployment_release.firmware do
       %{version: version} -> {:waiting, {version, " awaiting approval"}}
       _ -> {:waiting, "1 release awaiting approval"}
     end
   end
 
-  def deployments_status(%{approvals: steps}), do: {:waiting, "#{length(steps)} releases awaiting approval"}
+  defp deployments_status(%{approvals: steps}), do: {:waiting, "#{length(steps)} releases awaiting approval"}
 
   # The most severe status any link shows, for the menu button's dot. Open
   # errors count as an alert; notifications are news, not a problem.
-  @doc false
-  def attention(status) do
+  defp attention(status) do
     tones = [
       elem(devices_status(status) || {nil, nil}, 0),
       elem(deployments_status(status) || {nil, nil}, 0),
@@ -203,8 +199,10 @@ defmodule NervesHubWeb.Components.ProductSidebar do
 
   # A switcher row's line: its health, then its open errors, in the colour of
   # the worse of the two.
-  defp product_line(%{online: {0, 0}}, _every_device?), do: {:none, "No devices yet"}
+  # A member who sees only some devices gets no line: none of them in a product
+  # doesn't mean the product has none.
   defp product_line(_row, false), do: nil
+  defp product_line(%{online: {0, 0}}, true), do: {:none, "No devices yet"}
 
   defp product_line(row, true) do
     errors = if row.errors > 0, do: "#{delimited(row.errors)} open #{if row.errors == 1, do: "error", else: "errors"}"
@@ -652,12 +650,8 @@ defmodule NervesHubWeb.Components.ProductSidebar do
     """
   end
 
-  defp product_count(%{products: products}) when is_list(products) do
-    case length(products) do
-      1 -> "1 product"
-      n -> "#{n} products"
-    end
-  end
+  defp product_count(%{products: products}) when is_list(products),
+    do: Fleet.count_noun(length(products), "product", "products")
 
   defp product_count(_org), do: nil
 end

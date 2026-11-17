@@ -6,6 +6,7 @@ defmodule NervesHubWeb.Layouts do
   alias NervesHubWeb.Components.Fleet
   alias NervesHubWeb.Components.Pager
   alias NervesHubWeb.Components.ProductSidebar
+  alias NervesHubWeb.Live.Org.IrohEndpoints
   alias Phoenix.LiveView.JS
 
   # The sidebar footer's menu, or the phone top bar's (`#phone-user-menu`).
@@ -99,9 +100,6 @@ defmodule NervesHubWeb.Layouts do
   end
 
   defp hide_sidebar(js \\ %JS{}), do: JS.remove_attribute(js, "data-open", to: "#sidebar")
-
-  # The same switch `NervesHubWeb.Live.Org.IrohEndpoints` checks for its route.
-  defp iroh_endpoints_ui_enabled?(), do: Application.get_env(:nerves_hub, :org_iroh_endpoints_ui_enabled, false)
 
   embed_templates("layouts/*")
 
@@ -220,7 +218,7 @@ defmodule NervesHubWeb.Layouts do
         count: counts.certificates
       },
       # Iroh endpoints span all of the org's devices.
-      iroh_endpoints_ui_enabled?() && not Scope.devices_limited?(scope) &&
+      IrohEndpoints.enabled?() && not Scope.devices_limited?(scope) &&
         %{
           key: :iroh_endpoints,
           label: "Iroh endpoints",
