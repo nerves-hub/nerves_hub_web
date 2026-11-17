@@ -27,9 +27,8 @@ defmodule NervesHubWeb.Layouts do
   end
 
   @doc false
-  # What the user menu offers: the account, logging out, the docs and the
-  # theme. The sidebar footer has it, and a phone's top bar has it again
-  # behind the avatar, so the theme buttons take their ids from `theme_id`.
+  # Rendered twice, in the sidebar footer and behind a phone's top bar avatar,
+  # so the theme buttons take their ids from `theme_id`.
   attr(:theme_id, :string, required: true)
 
   def user_menu_items(assigns) do
