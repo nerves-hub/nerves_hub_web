@@ -20,9 +20,11 @@ export default {
       )
       itemsArray.forEach((item) => item.setAttribute("data-selected", "false"))
 
+      // The user menu can be on the page twice (the sidebar's, and the
+      // phone top bar's), so mark every button for this theme.
       document
-        .getElementById("theme-" + theme)
-        .setAttribute("data-selected", "true")
+        .querySelectorAll(`.theme-selectors[data-theme-option="${theme}"]`)
+        .forEach((item) => item.setAttribute("data-selected", "true"))
 
       if (theme === "system") {
         setupSystemTheme()

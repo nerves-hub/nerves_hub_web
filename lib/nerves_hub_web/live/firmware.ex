@@ -26,6 +26,7 @@ defmodule NervesHubWeb.Live.Firmware do
   @tabs %{"in_use" => :in_use, "not_in_use" => :not_in_use, "deleted" => :deleted}
 
   @impl Phoenix.LiveView
+  @decorate requires_membership()
   def mount(_params, _session, %{assigns: %{current_scope: scope}} = socket) do
     if connected?(socket) do
       Logger.metadata(user_id: scope.user.id, product_id: scope.product.id)
@@ -42,6 +43,7 @@ defmodule NervesHubWeb.Live.Firmware do
   end
 
   @impl Phoenix.LiveView
+  @decorate requires_membership()
   def handle_params(params, _url, socket) do
     socket
     |> apply_action(socket.assigns.live_action, params)
@@ -120,14 +122,17 @@ defmodule NervesHubWeb.Live.Firmware do
 
   # A phx-change handler is required when using live uploads.
   @impl Phoenix.LiveView
+  @decorate requires_membership()
   def handle_event("validate-firmware", _, socket), do: {:noreply, socket}
 
+  @decorate requires_membership()
   def handle_event("cancel-upload", %{"ref" => ref}, socket) do
     socket
     |> cancel_upload(:firmware, ref)
     |> noreply()
   end
 
+  @decorate requires_membership()
   def handle_event("dismiss-upload-failure", %{"id" => id}, socket) do
     socket
     |> update(:upload_failures, fn failures -> Enum.reject(failures, &(&1.id == id)) end)
@@ -136,6 +141,7 @@ defmodule NervesHubWeb.Live.Firmware do
 
   # Search and the two filters are one form. Any change starts again at
   # page 1, since the page the user was on may no longer exist.
+  @decorate requires_membership()
   def handle_event("filter", params, socket) do
     filters =
       params
@@ -147,6 +153,7 @@ defmodule NervesHubWeb.Live.Firmware do
     |> noreply()
   end
 
+  @decorate requires_membership()
   def handle_event("paginate", %{"page" => page_num}, socket) do
     params = %{"page_number" => page_num}
 
@@ -155,6 +162,7 @@ defmodule NervesHubWeb.Live.Firmware do
     |> noreply()
   end
 
+  @decorate requires_membership()
   def handle_event("set-paginate-opts", %{"page-size" => page_size}, socket) do
     params = %{"page_size" => page_size, "page_number" => 1}
 
@@ -165,6 +173,7 @@ defmodule NervesHubWeb.Live.Firmware do
 
   # Clicking the column already sorted on flips its direction; any other
   # column sorts newest or biggest first.
+  @decorate requires_membership()
   def handle_event("sort", %{"sort" => value}, socket) do
     %{current_sort: current_sort, sort_direction: sort_direction} = socket.assigns
 
@@ -182,10 +191,9 @@ defmodule NervesHubWeb.Live.Firmware do
 
   # Opens the delete dialog. What blocks the delete and what goes with it are
   # looked up now rather than with the list, since only one row needs them.
+  @decorate requires_permission(:"firmware:delete")
   def handle_event("prepare-delete", %{"firmware_uuid" => uuid}, socket) do
     %{current_scope: scope} = socket.assigns
-
-    authorized!(:"firmware:delete", scope)
 
     {:ok, firmware} = Firmwares.get_firmware_by_uuid(scope, uuid)
 
@@ -201,6 +209,7 @@ defmodule NervesHubWeb.Live.Firmware do
     |> noreply()
   end
 
+  @decorate requires_membership()
   def handle_event("cancel-delete", _params, socket) do
     socket
     |> assign(:deleting, nil)
@@ -208,10 +217,9 @@ defmodule NervesHubWeb.Live.Firmware do
   end
 
   # the delete handler for the list page
+  @decorate requires_permission(:"firmware:delete")
   def handle_event("delete-firmware", %{"firmware_uuid" => uuid}, socket) do
     %{current_scope: scope, product: product} = socket.assigns
-
-    authorized!(:"firmware:delete", scope)
 
     {:ok, firmware} = Firmwares.get_firmware_by_uuid(scope, uuid, include_deleted: true)
 
@@ -245,9 +253,8 @@ defmodule NervesHubWeb.Live.Firmware do
     end
   end
 
+  @decorate requires_permission(:"deployment_group:update")
   def handle_event("retry-delta", %{"id" => id}, socket) do
-    authorized!(:"deployment_group:update", socket.assigns.current_scope)
-
     case Enum.find(socket.assigns.deltas, &(to_string(&1.id) == id and &1.status in [:failed, :timed_out])) do
       nil ->
         noreply(socket)
@@ -327,9 +334,8 @@ defmodule NervesHubWeb.Live.Firmware do
     {:noreply, socket}
   end
 
+  @decorate requires_permission(:"firmware:upload")
   def handle_progress(:firmware, entry, socket) do
-    authorized!(:"firmware:upload", socket.assigns.current_scope)
-
     if entry.done? do
       [filepath] =
         consume_uploaded_entries(socket, :firmware, fn %{path: path}, _entry ->

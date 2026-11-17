@@ -13,6 +13,8 @@ defmodule NervesHubWeb.Integrations.Slack.InteractionsController do
 
   alias NervesHubWeb.Integrations.Slack.Actions
 
+  plug(:require_no_permission, :signed_by_slack when action in [:create])
+
   # The body only: Slack's signature covers the body, not the query string,
   # which `params` would mix in.
   def create(%{body_params: %{"payload" => payload}} = conn, _params) when is_binary(payload) do

@@ -43,6 +43,9 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.WorkflowStepNode do
   end
 
   @impl Phoenix.LiveComponent
+  # Only asks the LiveView, whose workflow_step_action/3 checks
+  # deployment_group:update before it acts.
+  @decorate requires_no_permission()
   def handle_event("skip", _params, socket) do
     send(self(), {:workflow_step_action, :skip, socket.assigns.number})
 

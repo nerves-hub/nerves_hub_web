@@ -38,6 +38,17 @@ defmodule NervesHubWeb.Live.Devices.Index do
   # Delay frequent refresh triggers to this interval
   @refresh_delay 1000
 
+  # Selecting devices only matters for a bulk action, so a role may select
+  # them if it may take any of these.
+  @bulk_action_permissions [
+    :"device:update",
+    :"device:tags",
+    :"device:push-update",
+    :"device:set-deployment-group",
+    :"device:toggle-updates",
+    :"device:clear-penalty-box"
+  ]
+
   @default_filters DeviceFiltering.default_filters()
 
   @default_page 1
@@ -59,6 +70,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
 
   @tag_bulk_actions [:tag_devices, :add_tags_to_devices, :remove_tags_from_devices]
 
+  @decorate requires_membership()
   def mount(_params, _session, %{assigns: %{current_scope: scope}} = socket) do
     product = Products.load_shared_secret_auth(scope.product)
 
@@ -115,6 +127,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
     |> ok()
   end
 
+  @decorate requires_membership()
   def handle_params(unsigned_params, _uri, %{assigns: %{product: product}} = socket) do
     filters = DeviceFiltering.parse_filters(unsigned_params)
     sort = DeviceFiltering.parse_sort(unsigned_params)
@@ -160,6 +173,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
 
   # Handles event of user clicking the same field that is already sorted
   # For this case, we switch the sorting direction of same field
+  @decorate requires_membership()
   def handle_event("sort", %{"sort" => value}, %{assigns: %{current_sort: current_sort}} = socket)
       when value == current_sort do
     %{sort_direction: sort_direction} = socket.assigns
@@ -174,6 +188,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
   end
 
   # User has clicked a new column to sort
+  @decorate requires_membership()
   def handle_event("sort", %{"sort" => value}, socket) do
     params = %{sort_direction: "asc", sort: value}
 
@@ -182,6 +197,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
     |> noreply()
   end
 
+  @decorate requires_membership()
   def handle_event("paginate", %{"page" => page_num}, socket) do
     params = %{"page_number" => page_num}
 
@@ -190,6 +206,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
     |> noreply()
   end
 
+  @decorate requires_membership()
   def handle_event("set-paginate-opts", %{"page-size" => page_size}, socket) do
     params = %{"page_size" => page_size, "page_number" => 1}
 
@@ -198,6 +215,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
     |> noreply()
   end
 
+  @decorate requires_membership()
   def handle_event("update-filters", params, %{assigns: %{paginate_opts: paginate_opts}} = socket) do
     page_params = %{"page_number" => @default_page, "page_size" => paginate_opts.page_size}
 
@@ -208,6 +226,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
     |> noreply()
   end
 
+  @decorate requires_membership()
   def handle_event("reset-filters", _, %{assigns: %{paginate_opts: paginate_opts}} = socket) do
     page_params = %{"page_number" => @default_page, "page_size" => paginate_opts.page_size}
 
@@ -220,6 +239,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
   # Free-text input is applied as its rewritten `search like "%text%"` form
   # (the canonical query from `AdvancedQuery.interpret/2`), so the search box
   # shows the query language equivalent of what was typed.
+  @decorate requires_membership()
   def handle_event("apply-advanced-query", %{"query" => raw_query}, %{assigns: %{current_scope: scope}} = socket) do
     query = String.trim(raw_query)
 
@@ -237,17 +257,21 @@ defmodule NervesHubWeb.Live.Devices.Index do
     end
   end
 
+  @decorate requires_membership()
   def handle_event("clear-advanced-query", _, socket) do
     apply_advanced_query(socket, "")
   end
 
+  @decorate requires_membership()
   def handle_event("update-settings", params, %{assigns: %{current_scope: scope}} = socket) do
     {:ok, user} = ListSettingsSidebar.update_displayed_columns(scope.user, :device_list_columns, params)
     {:noreply, assign(socket, :current_scope, %{scope | user: user})}
   end
 
-  @decorate requires_permission(:"device:update")
+  @decorate authorizes_in_body(:any_bulk_action_permission)
   def handle_event("select", %{"id" => id_str}, socket) do
+    may_select_devices!(socket.assigns.current_scope)
+
     %{selected_devices: selected_devices, devices: devices} = socket.assigns
 
     with {device_id, ""} <- Integer.parse(id_str),
@@ -270,8 +294,10 @@ defmodule NervesHubWeb.Live.Devices.Index do
     end
   end
 
-  @decorate requires_permission(:"device:update")
+  @decorate authorizes_in_body(:any_bulk_action_permission)
   def handle_event("select-all", _, socket) do
+    may_select_devices!(socket.assigns.current_scope)
+
     %{selected_devices: selected_devices, devices: devices} = socket.assigns
 
     with {:loaded, true} <- {:loaded, devices.ok?},
@@ -294,7 +320,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
     end
   end
 
-  @decorate requires_permission(:"device:update")
+  @decorate requires_membership()
   def handle_event("deselect-all", _, socket) do
     socket
     |> assign(%{
@@ -306,8 +332,10 @@ defmodule NervesHubWeb.Live.Devices.Index do
     |> noreply()
   end
 
-  @decorate requires_permission(:"device:update")
+  @decorate authorizes_in_body(:any_bulk_action_permission)
   def handle_event("select-all-matching", _, socket) do
+    may_select_devices!(socket.assigns.current_scope)
+
     %{devices: devices} = socket.assigns
 
     selected_devices = Enum.map(devices.result, & &1.id)
@@ -319,6 +347,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
     |> noreply()
   end
 
+  @decorate requires_membership()
   def handle_event("validate-tags", %{"tags" => tags} = params, socket) do
     socket
     |> assign(:valid_tags, not String.contains?(tags, " "))
@@ -366,6 +395,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
     end
   end
 
+  @decorate requires_membership()
   def handle_event("target-product", %{"product_id" => ""}, socket) do
     {:noreply, assign(socket, target_product: nil)}
   end
@@ -383,15 +413,17 @@ defmodule NervesHubWeb.Live.Devices.Index do
     end
   end
 
+  @decorate requires_membership()
   def handle_event("target-deployment-group", params, socket) when not is_map_key(params, "deployment_group") do
     {:noreply, assign(socket, target_deployment_group: nil)}
   end
 
+  @decorate requires_membership()
   def handle_event("target-deployment-group", %{"deployment_group" => ""}, socket) do
     {:noreply, assign(socket, target_deployment_group: nil)}
   end
 
-  @decorate requires_permission(:"device:update")
+  @decorate requires_permission(:"device:set-deployment-group")
   def handle_event("target-deployment-group", %{"deployment_group" => deployment_id_str}, socket) do
     %{
       available_deployment_groups_for_filtered_platform: available,
@@ -461,7 +493,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
     end
   end
 
-  @decorate requires_permission(:"device:update")
+  @decorate requires_permission(:"device:set-deployment-group")
   def handle_event("move-devices-deployment-group", _, socket) do
     %{
       assigns: %{
@@ -505,11 +537,12 @@ defmodule NervesHubWeb.Live.Devices.Index do
     end
   end
 
+  @decorate requires_membership()
   def handle_event("target-firmware", %{"firmware" => ""}, socket) do
     {:noreply, assign(socket, target_firmware: nil)}
   end
 
-  @decorate requires_permission(:"device:update")
+  @decorate requires_permission(:"device:push-update")
   def handle_event("target-firmware", %{"firmware" => firmware_uuid}, socket) do
     firmware =
       Enum.find(
@@ -520,7 +553,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
     {:noreply, assign(socket, target_firmware: firmware)}
   end
 
-  @decorate requires_permission(:"device:update")
+  @decorate requires_permission(:"device:push-update")
   def handle_event("push-firmware-to-devices", _, socket) do
     %{assigns: %{current_scope: scope, selected_devices: selected_devices, target_firmware: firmware}} =
       socket
@@ -550,7 +583,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
     |> noreply()
   end
 
-  @decorate requires_permission(:"device:update")
+  @decorate requires_permission(:"device:set-deployment-group")
   def handle_event("remove-devices-from-deployment-group", _, socket) do
     %{assigns: %{current_scope: scope, selected_devices: selected_devices}} = socket
 
@@ -566,7 +599,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
     end
   end
 
-  @decorate requires_permission(:"device:update")
+  @decorate requires_permission(:"device:toggle-updates")
   def handle_event("disable-updates-for-devices", _, socket) do
     %{assigns: %{current_scope: scope, selected_devices: selected_devices}} = socket
 
@@ -585,7 +618,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
     end
   end
 
-  @decorate requires_permission(:"device:update")
+  @decorate requires_permission(:"device:toggle-updates")
   def handle_event("enable-updates-for-devices", _, socket) do
     %{assigns: %{current_scope: scope, selected_devices: selected_devices}} = socket
 
@@ -604,7 +637,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
     end
   end
 
-  @decorate requires_permission(:"device:update")
+  @decorate requires_permission(:"device:clear-penalty-box")
   def handle_event("clear-penalty-box-for-devices", _, socket) do
     %{assigns: %{current_scope: scope, selected_devices: selected_devices}} = socket
 
@@ -626,6 +659,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
     end
   end
 
+  @decorate requires_membership()
   def handle_event("page_visibility_change", %{"visible" => visible?}, socket) do
     socket
     |> then(fn socket ->
@@ -1053,6 +1087,12 @@ defmodule NervesHubWeb.Live.Devices.Index do
   defp tag_action_wording(:tag_devices), do: {"Tags updated on", "Updating tags"}
   defp tag_action_wording(:add_tags_to_devices), do: {"Tags added to", "Adding tags"}
   defp tag_action_wording(:remove_tags_from_devices), do: {"Tags removed from", "Removing tags"}
+
+  defp may_select_devices?(scope), do: Enum.any?(@bulk_action_permissions, &authorized?(&1, scope))
+
+  defp may_select_devices!(scope) do
+    if !may_select_devices?(scope), do: raise(NervesHubWeb.UnauthorizedError)
+  end
 
   # The role in the target org was checked when the product was picked, and
   # may have changed since, so it is checked again before anything moves.

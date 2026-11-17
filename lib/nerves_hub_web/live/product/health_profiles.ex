@@ -11,6 +11,7 @@ defmodule NervesHubWeb.Live.Product.HealthProfiles do
 
   on_mount(RequireEveryDevice)
 
+  @decorate requires_membership()
   def mount(_params, _session, socket) do
     product = socket.assigns.current_scope.product
 
@@ -30,6 +31,7 @@ defmodule NervesHubWeb.Live.Product.HealthProfiles do
   # persisted on the click itself. On an add-metric form with a suggestion
   # pending, the pre-filled thresholds follow the flip (the suggestion has a
   # value per direction).
+  @decorate requires_membership()
   def handle_event("flip-operator", %{"target" => target, "operator" => current}, socket) do
     flipped = if current == "gte", do: "lte", else: "gte"
 
@@ -39,6 +41,7 @@ defmodule NervesHubWeb.Live.Product.HealthProfiles do
   # Picking a metric in an add form pre-fills its thresholds with the fleet
   # suggestion (page state until Add). The form's phx-change also fires for
   # the other inputs; only the picker matters here.
+  @decorate requires_membership()
   def handle_event("suggest-thresholds", %{"_target" => ["metric", "key"]} = params, socket) do
     %{"profile_id" => profile_id, "metric" => %{"key" => key}} = params
     suggestion = HealthProfiles.suggested_thresholds(socket.assigns.observed_stats[key])
@@ -46,11 +49,11 @@ defmodule NervesHubWeb.Live.Product.HealthProfiles do
     {:noreply, update(socket, :pending_suggestions, &Map.put(&1, "new-#{profile_id}", suggestion))}
   end
 
+  @decorate requires_membership()
   def handle_event("suggest-thresholds", _other_input, socket), do: {:noreply, socket}
 
+  @decorate requires_permission(:"product:update")
   def handle_event("create-platform-profile", %{"platform" => platform}, socket) do
-    authorized!(:"product:update", socket.assigns.current_scope)
-
     case HealthProfiles.create_platform_profile(socket.assigns.product, platform) do
       {:ok, profile} ->
         socket
@@ -65,9 +68,8 @@ defmodule NervesHubWeb.Live.Product.HealthProfiles do
     end
   end
 
+  @decorate requires_permission(:"product:update")
   def handle_event("delete-profile", %{"profile_id" => profile_id}, socket) do
-    authorized!(:"product:update", socket.assigns.current_scope)
-
     profile = HealthProfiles.get_profile!(socket.assigns.product, profile_id)
 
     case HealthProfiles.delete_profile(profile) do
@@ -87,9 +89,8 @@ defmodule NervesHubWeb.Live.Product.HealthProfiles do
     end
   end
 
+  @decorate requires_permission(:"product:update")
   def handle_event("add-metric", %{"profile_id" => profile_id, "metric" => attrs}, socket) do
-    authorized!(:"product:update", socket.assigns.current_scope)
-
     profile = HealthProfiles.get_profile!(socket.assigns.product, profile_id)
 
     case HealthProfiles.add_metric(profile, normalize_periods(attrs)) do
@@ -106,9 +107,8 @@ defmodule NervesHubWeb.Live.Product.HealthProfiles do
     end
   end
 
+  @decorate requires_permission(:"product:update")
   def handle_event("update-metric", %{"profile_id" => profile_id, "metric_id" => metric_id, "metric" => attrs}, socket) do
-    authorized!(:"product:update", socket.assigns.current_scope)
-
     profile = HealthProfiles.get_profile!(socket.assigns.product, profile_id)
     metric = HealthProfiles.get_metric!(profile, metric_id)
 
@@ -126,9 +126,8 @@ defmodule NervesHubWeb.Live.Product.HealthProfiles do
     end
   end
 
+  @decorate requires_permission(:"product:update")
   def handle_event("delete-metric", %{"profile_id" => profile_id, "metric_id" => metric_id}, socket) do
-    authorized!(:"product:update", socket.assigns.current_scope)
-
     profile = HealthProfiles.get_profile!(socket.assigns.product, profile_id)
     metric = HealthProfiles.get_metric!(profile, metric_id)
 

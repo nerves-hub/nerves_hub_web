@@ -13,6 +13,8 @@ defmodule NervesHubWeb.API.OrgController do
 
   @auth_error_responses SchemaHelpers.auth_error_responses()
 
+  plug(:require_no_permission, :lists_only_the_users_own_organizations when action in [:index])
+
   operation(:index,
     summary: "List all Organizations the authenticated user belongs to",
     parameters: [

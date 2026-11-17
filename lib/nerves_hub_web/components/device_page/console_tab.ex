@@ -129,6 +129,7 @@ defmodule NervesHubWeb.Components.DevicePage.ConsoleTab do
     assign(socket, :console_active?, AsyncResult.ok(socket.assigns.console_active?, active?))
   end
 
+  @decorate requires_membership()
   def hooked_event(_event, _params, socket), do: {:cont, socket}
 
   def hooked_async(_name, _async_fun_result, socket), do: {:cont, socket}

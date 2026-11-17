@@ -184,7 +184,7 @@
                       name="toggle-all"
                       type="checkbox"
                       phx-click="select-all"
-                      disabled={not authorized?(:"device:update", @current_scope)}
+                      disabled={not may_select_devices?(@current_scope)}
                     />
                     <label for="toggle-all" class="peer-disabled:opacity-40 peer-disabled:hover:bg-base-800">
                       <span class="hidden">Select all devices</span>
@@ -231,7 +231,7 @@
                       aria-label={"Select #{device.identifier}"}
                       phx-value-id={device.id}
                       phx-click="select"
-                      disabled={not authorized?(:"device:update", @current_scope)}
+                      disabled={not may_select_devices?(@current_scope)}
                     />
                     <label for={"checkbox-device-#{device.id}"} class="relative z-20 peer-disabled:opacity-40 peer-disabled:hover:bg-base-800">
                       <span :if={device.id in @selected_devices} class="lucide-check--bold size-3 text-primary-content" aria-hidden="true"></span>
