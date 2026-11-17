@@ -48,6 +48,7 @@ defmodule NervesHubWeb.Components.ProductSidebar do
   end
 
   @impl Phoenix.LiveComponent
+  @decorate requires_membership()
   def handle_event("open_switcher", _params, socket) do
     socket
     |> assign(:switcher_open, true)
@@ -56,12 +57,14 @@ defmodule NervesHubWeb.Components.ProductSidebar do
     |> noreply()
   end
 
+  @decorate requires_membership()
   def handle_event("close_switcher", _params, socket) do
     socket
     |> assign(:switcher_open, false)
     |> noreply()
   end
 
+  @decorate requires_membership()
   def handle_event("filter_switcher", %{"query" => query}, socket) do
     socket
     |> assign(:query, query)
