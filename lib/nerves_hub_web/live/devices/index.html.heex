@@ -27,7 +27,7 @@
     </div>
     <div class={["mr-6 flex items-center gap-2 max-sm:mr-2", (@selecting? or @selected_devices != []) && "max-sm:hidden"]}>
       <.button
-        :if={list_chrome?(@devices, @currently_filtering)}
+        :if={list_chrome?(@devices, @currently_filtering, @product_device_count)}
         type="link"
         square
         aria-label="Export devices"
@@ -44,7 +44,7 @@
   </:top_bar>
 
   <DeviceList.state_tabs
-    :if={list_chrome?(@devices, @currently_filtering)}
+    :if={list_chrome?(@devices, @currently_filtering, @product_device_count)}
     tabs={@state_tabs}
     selected={@current_filters.state}
     counts={@state_counts}
@@ -53,14 +53,14 @@
   />
 
   <div
-    :if={@current_filters.state == "attention" && list_chrome?(@devices, @currently_filtering)}
+    :if={@current_filters.state == "attention" && list_chrome?(@devices, @currently_filtering, @product_device_count)}
     class={["shrink-0 px-6 pt-4 max-sm:px-0 max-sm:pt-3", peek_docked?(@current_filters, @devices, @peek_device_id) && "lg:mr-150"]}
   >
     <DeviceList.reason_tabs tabs={@reason_tabs} selected={@current_filters.reason} counts={@state_counts} />
   </div>
 
   <div
-    :if={list_chrome?(@devices, @currently_filtering) || @soft_deleted_devices_exist}
+    :if={list_chrome?(@devices, @currently_filtering, @product_device_count) || @soft_deleted_devices_exist}
     class={[
       "flex shrink-0 items-start gap-2 px-6 pb-3 max-sm:px-4",
       if(@current_filters.state == "attention", do: "pt-3", else: "pt-4"),
@@ -68,7 +68,7 @@
     ]}
   >
     <AdvancedSearch.field
-      :if={list_chrome?(@devices, @currently_filtering)}
+      :if={list_chrome?(@devices, @currently_filtering, @product_device_count)}
       query={@current_filters[:advanced_query]}
       error={@advanced_query_error}
       schema_json={@advanced_query_schema_json}
@@ -79,7 +79,7 @@
       phx-click={DeviceFilters.open()}
       aria-expanded={to_string(@filters_open?)}
       aria-controls="filter-panel"
-      class={["max-sm:h-10 max-sm:px-3", !list_chrome?(@devices, @currently_filtering) && "ml-auto"]}
+      class={["max-sm:h-10 max-sm:px-3", !list_chrome?(@devices, @currently_filtering, @product_device_count) && "ml-auto"]}
     >
       <span class="lucide-list-filter" aria-hidden="true"></span>
       Filters
@@ -151,6 +151,8 @@
       </:failed>
 
       <%= cond do %>
+        <% Enum.empty?(devices) && @paginate_opts.page_number > 1 -> %>
+          <DeviceList.past_last_page class={loading_dim(@list_loading?)} />
         <% Enum.empty?(devices) && @currently_filtering && only_state_filtered?(@current_filters) -> %>
           <div id="empty-tab" class={["flex flex-col items-center gap-1 pt-24 pb-16 text-center", loading_dim(@list_loading?)]}>
             <span :if={@current_filters.state == "attention"} class="mb-3 flex size-11 items-center justify-center rounded-full bg-success-soft">
@@ -167,9 +169,11 @@
             search_only={no_match_removable(@current_filters) == [:advanced_query]}
             class={loading_dim(@list_loading?)}
           />
-        <% Enum.empty?(devices) -> %>
+        <% Enum.empty?(devices) && @product_device_count == 0 -> %>
           <% {secret, secret_reason} = onboarding_secret(@product, @current_scope) %>
           <DeviceOnboarding.render product={@product} host={onboarding_nhl_host()} secret={secret} secret_reason={secret_reason} />
+        <% Enum.empty?(devices) -> %>
+          <DeviceList.past_last_page class={loading_dim(@list_loading?)} />
         <% @current_filters.state == "attention" -> %>
           <%!-- The list opens its first device in the peek on a wide screen,
                 and again whenever a different list loads (`data-key`), but

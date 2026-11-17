@@ -71,6 +71,9 @@ defmodule NervesHub.Devices.DeviceFiltering do
   # Why a device is in the Needs attention tab, each one of its filters.
   @reasons ~w(unhealthy failing not_seen)
 
+  # Not seen for this many days, a device needs attention.
+  @not_seen_days 14
+
   # Filters that take several choices at once, comma-separated: a device
   # matches any of them. Each choice is a `value_dynamic/2`.
   @multi_filters [
@@ -112,7 +115,7 @@ defmodule NervesHub.Devices.DeviceFiltering do
   `NervesHub.Devices.filter/3` builds:
 
     * `"attention"` - unhealthy, stopped taking updates after repeated
-      failures, or not seen in 14 days
+      failures, or not seen in #{@not_seen_days} days
     * `"online"` - connected now
     * `"updating"` - installing an update now
     * `"offline"` - not connected now, including devices never seen
@@ -131,17 +134,27 @@ defmodule NervesHub.Devices.DeviceFiltering do
   def reasons(), do: @reasons
 
   @doc """
+  How many days a device can go unseen before it needs attention (the
+  `"not_seen"` reason). The devices list's rows and peek say why a device is
+  on the Needs attention tab, so they use this rather than a number of their own.
+  """
+  def not_seen_days(), do: @not_seen_days
+
+  @doc "`not_seen_days/0` in seconds."
+  def not_seen_seconds(), do: @not_seen_days * 86_400
+
+  @doc """
   The devices that need attention for one reason, as a condition on the query
   `NervesHub.Devices.filter/3` builds:
 
     * `"unhealthy"` - its health is unhealthy
     * `"failing"` - its updates are on hold after repeated failures
-    * `"not_seen"` - last seen 14 days ago or more
+    * `"not_seen"` - last seen #{@not_seen_days} days ago or more
   """
   @spec reason_dynamic(String.t()) :: Ecto.Query.dynamic_expr()
   def reason_dynamic("unhealthy"), do: Compiler.to_dynamic({:comparison, "health_status", "=", "unhealthy"})
   def reason_dynamic("failing"), do: Compiler.to_dynamic({:comparison, "updates", "=", "failed-updates"})
-  def reason_dynamic("not_seen"), do: Compiler.to_dynamic({:comparison, "last_seen", "<", "14 days ago"})
+  def reason_dynamic("not_seen"), do: Compiler.to_dynamic({:comparison, "last_seen", "<", "#{@not_seen_days} days ago"})
 
   @doc """
   The filters that take several choices at once, as a comma-separated value.

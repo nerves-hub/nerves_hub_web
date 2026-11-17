@@ -2196,6 +2196,28 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
 
       assert render_async(view) =~ device.identifier
     end
+
+    test "a page past the last one links back to the first, not to onboarding", %{conn: conn, fixture: fixture} do
+      %{org: org, product: product, device: device} = fixture
+
+      conn
+      |> visit(~p"/org/#{org}/#{product}/devices?page_number=3")
+      |> assert_has("#past-last-page", text: "Nothing on this page", timeout: 1_000)
+      |> refute_has("body", text: "Connect your first device")
+      |> assert_has("#state-tabs")
+      |> click_button("#past-last-page-first", "Go to the first page")
+      |> assert_has("a", text: device.identifier, timeout: 1_000)
+      |> refute_has("#past-last-page")
+    end
+
+    test "a tab's page past the last one doesn't say the tab is empty", %{conn: conn, fixture: fixture} do
+      %{org: org, product: product} = fixture
+
+      conn
+      |> visit(~p"/org/#{org}/#{product}/devices?state=offline&page_number=3")
+      |> assert_has("#past-last-page", text: "Nothing on this page", timeout: 1_000)
+      |> refute_has("#empty-tab")
+    end
   end
 
   describe "bulk bar" do

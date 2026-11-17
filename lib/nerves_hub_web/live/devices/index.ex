@@ -507,9 +507,9 @@ defmodule NervesHubWeb.Live.Devices.Index do
     end
   end
 
-  @decorate requires_permission(:"device:update")
   # The phone's Select button: the cards show checkboxes, and tapping one
   # selects it, until Done ("deselect-all").
+  @decorate requires_permission(:"device:update")
   def handle_event("start-selecting", _, socket) do
     socket
     |> assign(:selecting?, true)
@@ -517,6 +517,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
     |> noreply()
   end
 
+  @decorate requires_permission(:"device:update")
   def handle_event("deselect-all", _, socket) do
     socket
     |> assign(%{
@@ -576,7 +577,8 @@ defmodule NervesHubWeb.Live.Devices.Index do
   def handle_event("tag-devices", params, socket) do
     tags = submitted_tags(params)
 
-    # Carrying out a bulk action closes its popover; the flash says how it went.
+    # A phx-submit command only sends its first push, so the handler closes
+    # the popover itself (here and in every bulk action below).
     socket = assign(socket, bulk_menu: nil, bulk_tags: [], device_tags: "", valid_tags: true)
 
     bulk_action = tag_bulk_action(tag_operation(params))
@@ -660,7 +662,6 @@ defmodule NervesHubWeb.Live.Devices.Index do
 
   @decorate requires_permission(:"device:update")
   def handle_event("move-devices-product", _, socket) do
-    # Carrying out a bulk action closes its popover; the flash says how it went.
     socket = assign(socket, :bulk_menu, nil)
 
     %{
@@ -716,7 +717,6 @@ defmodule NervesHubWeb.Live.Devices.Index do
 
   @decorate requires_permission(:"device:update")
   def handle_event("move-devices-deployment-group", _, socket) do
-    # Carrying out a bulk action closes its popover; the flash says how it went.
     socket = assign(socket, :bulk_menu, nil)
 
     %{
@@ -778,7 +778,6 @@ defmodule NervesHubWeb.Live.Devices.Index do
 
   @decorate requires_permission(:"device:update")
   def handle_event("push-firmware-to-devices", _, socket) do
-    # Carrying out a bulk action closes its popover; the flash says how it went.
     socket = assign(socket, :bulk_menu, nil)
 
     %{assigns: %{current_scope: scope, selected_devices: selected_devices, target_firmware: firmware}} =
@@ -811,7 +810,6 @@ defmodule NervesHubWeb.Live.Devices.Index do
 
   @decorate requires_permission(:"device:update")
   def handle_event("remove-devices-from-deployment-group", _, socket) do
-    # Carrying out a bulk action closes its popover; the flash says how it went.
     socket = assign(socket, :bulk_menu, nil)
 
     %{assigns: %{current_scope: scope, selected_devices: selected_devices}} = socket
@@ -830,7 +828,6 @@ defmodule NervesHubWeb.Live.Devices.Index do
 
   @decorate requires_permission(:"device:update")
   def handle_event("disable-updates-for-devices", _, socket) do
-    # Carrying out a bulk action closes its popover; the flash says how it went.
     socket = assign(socket, :bulk_menu, nil)
 
     %{assigns: %{current_scope: scope, selected_devices: selected_devices}} = socket
@@ -852,7 +849,6 @@ defmodule NervesHubWeb.Live.Devices.Index do
 
   @decorate requires_permission(:"device:update")
   def handle_event("enable-updates-for-devices", _, socket) do
-    # Carrying out a bulk action closes its popover; the flash says how it went.
     socket = assign(socket, :bulk_menu, nil)
 
     %{assigns: %{current_scope: scope, selected_devices: selected_devices}} = socket
@@ -874,7 +870,6 @@ defmodule NervesHubWeb.Live.Devices.Index do
 
   @decorate requires_permission(:"device:update")
   def handle_event("clear-penalty-box-for-devices", _, socket) do
-    # Carrying out a bulk action closes its popover; the flash says how it went.
     socket = assign(socket, :bulk_menu, nil)
 
     %{assigns: %{current_scope: scope, selected_devices: selected_devices}} = socket
@@ -1520,7 +1515,6 @@ defmodule NervesHubWeb.Live.Devices.Index do
     end)
   end
 
-  # The device the peek shows, while it is on the page the list shows.
   # Which list the loaded devices are, by what was asked for rather than what
   # came back, so a refresh of the same list keeps its key. The Needs
   # attention list opens its first device in the peek when this changes.
@@ -1617,9 +1611,12 @@ defmodule NervesHubWeb.Live.Devices.Index do
 
   # The tabs, search and buttons around the list: there while it first
   # loads, so they don't move in above it when it arrives, and after it while
-  # it has devices or a filter is what emptied it.
-  defp list_chrome?(%AsyncResult{loading: loading} = device_async, currently_filtering?),
-    do: not is_nil(loading) or has_results?(device_async, currently_filtering?)
+  # it has devices, a filter is what emptied it, or the product has devices
+  # this page doesn't (one past the last).
+  defp list_chrome?(%AsyncResult{loading: loading} = device_async, currently_filtering?, product_device_count),
+    do:
+      not is_nil(loading) or has_results?(device_async, currently_filtering?) or
+        (device_async.ok? and is_integer(product_device_count) and product_device_count > 0)
 
   # The columns the table shows, in its order.
   defp visible_columns(user), do: Enum.filter(DeviceColumns.columns(), &show_column?(user, &1))

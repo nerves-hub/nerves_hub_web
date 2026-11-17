@@ -18,15 +18,13 @@ defmodule NervesHubWeb.Components.DevicePeek do
   import NervesHubWeb.Helpers.Authorization, only: [authorized?: 2]
 
   alias NervesHub.Devices.Device
+  alias NervesHub.Devices.DeviceFiltering
   alias NervesHubWeb.Components.DeviceList
   alias NervesHubWeb.Components.DevicePage.ActivityTab
   alias NervesHubWeb.Components.Fleet
   alias NervesHubWeb.Components.HealthStatus
   alias Phoenix.LiveView.AsyncResult
   alias Phoenix.LiveView.JS
-
-  # The same cut-off the Needs attention tab and the Connection column use.
-  @not_seen_seconds 14 * 86_400
 
   # The metrics shown beside an unhealthy device's reasons, as
   # `{key, label, unit}`, in the order shown. Others stay on the Health tab.
@@ -47,8 +45,8 @@ defmodule NervesHubWeb.Components.DevicePeek do
 
   @doc """
   What the panel's "why" section is about, if anything: an update the device
-  keeps failing, a warning or unhealthy health report, not being seen for 14
-  days or more, or an update it is installing, in that order.
+  keeps failing, a warning or unhealthy health report, not being seen for
+  #{DeviceFiltering.not_seen_days()} days or more, or an update it is installing, in that order.
   """
   @spec reason(Device.t(), String.t() | nil, map() | nil) :: reason()
   def reason(device, status, progress) do
@@ -62,10 +60,12 @@ defmodule NervesHubWeb.Components.DevicePeek do
        when status in [:warning, :unhealthy], do: {:health, health}
 
   defp health_reason(device, status, state) do
+    not_seen = DeviceFiltering.not_seen_seconds()
+
     case {status, last_seen_seconds(device), state} do
       {"online", _seconds, {:updating, progress, version}} -> {:updating, progress, version}
       {"online", _seconds, _state} -> nil
-      {_status, seconds, _state} when is_integer(seconds) and seconds >= @not_seen_seconds -> {:not_seen, seconds}
+      {_status, seconds, _state} when is_integer(seconds) and seconds >= not_seen -> {:not_seen, seconds}
       {_status, _seconds, {:updating, progress, version}} -> {:updating, progress, version}
       _ -> nil
     end
@@ -136,7 +136,7 @@ defmodule NervesHubWeb.Components.DevicePeek do
             </.button>
           </div>
           <p class="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 pl-5 text-ui/4 text-content-muted max-sm:mt-1.5 max-sm:pl-4">
-            <span :if={@online?}><span class="font-medium text-success-content">Online</span> {connected_for(@device)}</span>
+            <span :if={@online?}><span class="font-medium text-success-content">Online</span> {DeviceList.connected_for(@device.latest_connection)}</span>
             <span :if={!@online?} class="font-medium text-content-body">Offline</span>
             <.dot_separator :if={@device.firmware_metadata} />
             <span :if={@device.firmware_metadata} class="font-mono text-xs">{@device.firmware_metadata.platform}</span>
@@ -377,11 +377,6 @@ defmodule NervesHubWeb.Components.DevicePeek do
     """
   end
 
-  defp connected_for(%Device{latest_connection: %{established_at: %DateTime{} = at}}),
-    do: "for #{Fleet.duration(max(DateTime.diff(DateTime.utc_now(), at), 0))}"
-
-  defp connected_for(_device), do: nil
-
   defp connection_label(_device, true), do: "Connected"
   defp connection_label(%Device{latest_connection: %{last_seen_at: %DateTime{}}}, false), do: "Last seen"
   defp connection_label(_device, false), do: "Connection"
@@ -435,14 +430,9 @@ defmodule NervesHubWeb.Components.DevicePeek do
   defp metrics(latest) do
     Enum.flat_map(@metrics, fn {key, label, unit} ->
       case latest[key] do
-        value when is_number(value) -> [{label, "#{format_metric(value)}#{unit}"}]
+        value when is_number(value) -> [{label, "#{DeviceList.format_number(value)}#{unit}"}]
         _ -> []
       end
     end)
   end
-
-  defp format_metric(value) when is_float(value),
-    do: :erlang.float_to_binary(value, decimals: if(value >= 10, do: 0, else: 1))
-
-  defp format_metric(value), do: to_string(value)
 end

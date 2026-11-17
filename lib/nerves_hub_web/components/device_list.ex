@@ -12,15 +12,16 @@ defmodule NervesHubWeb.Components.DeviceList do
   import Number.Delimit, only: [number_to_delimited: 2]
 
   alias NervesHub.Devices.Device
+  alias NervesHub.Devices.DeviceFiltering
   alias NervesHub.Devices.Updates
   alias NervesHubWeb.Components.Fleet
   alias NervesHubWeb.Components.HealthStatus
   alias NervesHubWeb.Components.Sorting
   alias Phoenix.LiveView.JS
 
-  # Not seen for this long, a device needs attention: the same cut-off the
-  # Needs attention tab uses (`DeviceFiltering.state_dynamic/1`).
-  @not_seen_days 14
+  # Not seen for this long, a device needs attention: the cut-off in
+  # `DeviceFiltering.reason_dynamic("not_seen")`.
+  @not_seen_days DeviceFiltering.not_seen_days()
 
   @tabs [
     %{state: "", label: "All", dot: nil},
@@ -136,6 +137,22 @@ defmodule NervesHubWeb.Components.DeviceList do
   defp reason_count(_tab, nil), do: "—"
   defp reason_count(%{reason: ""}, counts), do: delimited(counts["attention"])
   defp reason_count(%{reason: reason}, counts), do: delimited(counts[reason])
+
+  attr(:class, :any, default: nil)
+
+  @doc """
+  An empty page of a list that has devices: one past the last page, from an
+  old link or after the last page's devices moved away. Links back to the first.
+  """
+  def past_last_page(assigns) do
+    ~H"""
+    <div id="past-last-page" class={["flex flex-col items-center rounded-card border border-dashed border-line-default px-6 pt-16 pb-18 text-center", @class]}>
+      <p class="text-list-title text-content-strong">Nothing on this page</p>
+      <p class="mt-1 max-w-md text-ui/5 text-content-muted">The list has fewer pages than this now.</p>
+      <.button id="past-last-page-first" size="sm" class="mt-4" phx-click="paginate" phx-value-page="1">Go to the first page</.button>
+    </div>
+    """
+  end
 
   attr(:removable, :integer, required: true, doc: "how many filters, and the query, are narrowing the list")
 
@@ -301,10 +318,12 @@ defmodule NervesHubWeb.Components.DeviceList do
       else: {Enum.join(parts, " "), ""}
   end
 
-  defp format_number(value) when is_float(value),
+  @doc "A metric's value: a float to one decimal place under 10, and none from 10 up."
+  @spec format_number(number()) :: String.t()
+  def format_number(value) when is_float(value),
     do: :erlang.float_to_binary(value, decimals: if(value >= 10, do: 0, else: 1))
 
-  defp format_number(value), do: to_string(value)
+  def format_number(value), do: to_string(value)
 
   attr(:device, Device, required: true)
   attr(:status, :string, default: nil, doc: ~s("online" or "offline", as the page tracks it))
@@ -582,7 +601,7 @@ defmodule NervesHubWeb.Components.DeviceList do
   """
   def connection(%{status: "online"} = assigns) do
     ~H"""
-    <span class="text-ui/4 text-content-body">{connected_for(@device.latest_connection)}</span>
+    <span class="text-ui/4 text-content-body">{connected_for(@device.latest_connection) || "Online"}</span>
     """
   end
 
@@ -605,12 +624,14 @@ defmodule NervesHubWeb.Components.DeviceList do
     """
   end
 
-  defp connected_for(%{established_at: %DateTime{} = at}),
+  @doc ~s(How long a connection has been up, as "for 3 hours", or nil when it has no start.)
+  @spec connected_for(map() | nil) :: String.t() | nil
+  def connected_for(%{established_at: %DateTime{} = at}),
     do: "for #{Fleet.duration(max(DateTime.diff(DateTime.utc_now(), at), 0))}"
 
-  defp connected_for(_connection), do: "Online"
+  def connected_for(_connection), do: nil
 
-  defp not_seen_seconds(), do: @not_seen_days * 86_400
+  defp not_seen_seconds(), do: DeviceFiltering.not_seen_seconds()
 
   attr(:pager, :map, required: true, doc: "with `current_page`, `total_pages`, `page_size` and `total_count`")
   attr(:page_sizes, :list, default: [25, 50, 100])
