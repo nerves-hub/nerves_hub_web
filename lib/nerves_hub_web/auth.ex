@@ -150,6 +150,13 @@ defmodule NervesHubWeb.Auth do
   def recently_authenticated?(conn_or_session), do: recently_authenticated_until(conn_or_session) != nil
 
   @doc """
+  The part of a session `recently_authenticated?/1` reads, for a LiveView to
+  keep from its mount session and check later.
+  """
+  @spec recent_sign_in_session(map()) :: map()
+  def recent_sign_in_session(session), do: Map.take(session, ["authenticated_at"])
+
+  @doc """
   Until when a session's sign-in counts as recent (`recently_authenticated?/1`),
   or nil when it doesn't now.
   """

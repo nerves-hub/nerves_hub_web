@@ -125,7 +125,7 @@ defmodule NervesHub.Accounts do
   end
 
   def change_user(%User{} = user, params) do
-    User.update_changeset(user, params)
+    User.update_changeset(user, params, email_follows_google: email_follows_google?(user))
   end
 
   @doc """
@@ -281,7 +281,21 @@ defmodule NervesHub.Accounts do
   end
 
   defp sign_in_method?(%User{password_hash: hash}, :password), do: is_binary(hash)
-  defp sign_in_method?(%User{} = user, :google), do: User.email_follows_google?(user)
+  defp sign_in_method?(%User{} = user, :google), do: email_follows_google?(user)
+
+  @doc """
+  Whether the account's email comes from Google: it is linked to a Google
+  account and this server offers Google sign-in, so the next one will
+  overwrite it. On a server that has turned Google sign-in off, the account
+  changes its email like any other.
+
+  It is also whether the account can sign in with Google
+  (`sign_in_methods/1`).
+  """
+  @spec email_follows_google?(User.t()) :: boolean()
+  def email_follows_google?(%User{google_id: google_id}) do
+    is_binary(google_id) and google_sign_in_enabled?()
+  end
 
   @doc """
   Gives an account without a password one, for an account that signs in with
@@ -380,7 +394,7 @@ defmodule NervesHub.Accounts do
       {_count, tokens} = repo.delete_all(select(query, [t], t.token))
       {:ok, tokens}
     end)
-    |> Repo.transaction()
+    |> Repo.transact()
     |> case do
       {:ok, %{user: user, signed_out: tokens}} ->
         for token <- tokens, do: disconnect_socket(UserToken.live_socket_id(token))

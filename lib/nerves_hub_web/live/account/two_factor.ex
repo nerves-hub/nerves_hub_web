@@ -28,7 +28,7 @@ defmodule NervesHubWeb.Live.Account.TwoFactor do
     # two-factor on signs the others out.
     |> assign(:session_token, session["user_token"])
     # When this session last proved who it is, see `start-setup`.
-    |> assign(:auth_session, Map.take(session, ["authenticated_at"]))
+    |> assign(:auth_session, Auth.recent_sign_in_session(session))
     |> assign(:setup_secret, nil)
     |> assign(:setup_started_at, nil)
     |> assign(:recovery_codes, nil)

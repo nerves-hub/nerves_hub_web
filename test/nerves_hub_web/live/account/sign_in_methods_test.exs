@@ -12,28 +12,6 @@ defmodule NervesHubWeb.Live.Account.SignInMethodsTest do
     on_exit(fn -> Application.put_env(:nerves_hub, :enable_google_auth, false) end)
   end
 
-  # An account linked to Google, with the fixture's password unless
-  # `password: false`.
-  defp google_user(opts \\ []) do
-    user = Fixtures.user_fixture()
-    changes = [google_id: "google-#{user.id}"]
-    changes = if Keyword.get(opts, :password, true), do: changes, else: [{:password_hash, nil} | changes]
-
-    user |> Ecto.Changeset.change(changes) |> Repo.update!()
-  end
-
-  # Signed in as `user`, just now unless `recent: false`.
-  defp signed_in(user, opts \\ []) do
-    session = %{"user_token" => Accounts.create_user_session_token(user)}
-
-    session =
-      if Keyword.get(opts, :recent, true),
-        do: Map.put(session, "authenticated_at", System.os_time(:second)),
-        else: session
-
-    init_test_session(build_conn(), session)
-  end
-
   test "an account with only a password can connect Google, and can't remove its password", %{conn: conn} do
     conn
     |> visit("/account")
@@ -45,22 +23,22 @@ defmodule NervesHubWeb.Live.Account.SignInMethodsTest do
 
   test "says how long the sign-in counts as recent" do
     Fixtures.user_fixture()
-    |> signed_in()
+    |> signed_in_conn()
     |> visit("/account")
     |> assert_has("#recent-sign-in", text: "You signed in recently")
 
     Fixtures.user_fixture()
-    |> signed_in(recent: false)
+    |> signed_in_conn(recent: false)
     |> visit("/account")
     |> refute_has("#recent-sign-in")
   end
 
   test "removes the password of an account that signs in with Google, and signs its other browsers out" do
-    user = google_user()
+    user = Fixtures.google_user_fixture()
     elsewhere = Accounts.create_user_session_token(user)
 
     user
-    |> signed_in()
+    |> signed_in_conn()
     |> visit("/account")
     |> click_button("#remove-password", "Remove")
     |> assert_has("div", text: "Your password is removed")
@@ -73,10 +51,10 @@ defmodule NervesHubWeb.Live.Account.SignInMethodsTest do
   end
 
   test "disconnects Google from an account with a password" do
-    user = google_user()
+    user = Fixtures.google_user_fixture()
 
     user
-    |> signed_in()
+    |> signed_in_conn()
     |> visit("/account")
     |> click_button("#disconnect-google", "Disconnect")
     |> assert_has("div", text: "Your Google account is disconnected")
@@ -87,11 +65,11 @@ defmodule NervesHubWeb.Live.Account.SignInMethodsTest do
   end
 
   test "gives an account that signs in with Google a password" do
-    user = google_user(password: false)
+    user = Fixtures.google_user_fixture(password: false)
     password = "a long enough password"
 
     user
-    |> signed_in()
+    |> signed_in_conn()
     |> visit("/account")
     |> refute_has("#disconnect-google")
     |> click_button("#start-set-password", "Set a password")
@@ -108,10 +86,10 @@ defmodule NervesHubWeb.Live.Account.SignInMethodsTest do
   end
 
   test "asks a browser that didn't sign in recently to confirm it's them before removing a way in" do
-    user = google_user()
+    user = Fixtures.google_user_fixture()
 
     user
-    |> signed_in(recent: false)
+    |> signed_in_conn(recent: false)
     |> visit("/account")
     |> click_button("#remove-password", "Remove")
     |> assert_path("/account/confirm", query_params: %{return_to: "/account"})
@@ -120,8 +98,8 @@ defmodule NervesHubWeb.Live.Account.SignInMethodsTest do
   end
 
   test "an account that signs in with Google shows the email Google gives it, which can't be changed here" do
-    google_user(password: false)
-    |> signed_in()
+    Fixtures.google_user_fixture(password: false)
+    |> signed_in_conn()
     |> visit("/account")
     |> assert_has("#email_input[readonly]")
     |> assert_has("#email_follows_google")
@@ -131,8 +109,8 @@ defmodule NervesHubWeb.Live.Account.SignInMethodsTest do
   test "an account linked to Google changes its email here while this server doesn't offer Google sign-in" do
     Application.put_env(:nerves_hub, :enable_google_auth, false)
 
-    google_user()
-    |> signed_in()
+    Fixtures.google_user_fixture()
+    |> signed_in_conn()
     |> visit("/account")
     |> refute_has("#email_follows_google")
     |> assert_has("#details-form input[name='user[email]']:not([readonly])")

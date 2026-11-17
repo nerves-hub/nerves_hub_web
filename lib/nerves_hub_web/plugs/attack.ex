@@ -130,10 +130,13 @@ defmodule NervesHubWeb.Plugs.Attack do
   end
 
   @doc """
-  Limits how many passwords one signed in user can try on `/account/confirm`:
-  five every ten minutes, so whoever holds their browser can't guess it there.
+  Limits how often one signed in user can try to prove it's them: five tries
+  every ten minutes.
 
-  Counted on this node only, like `cli_code_throttle/2`.
+  Shared by the password and two-factor code on `/account/confirm` and the
+  current password on the account page, so whoever holds the browser can't
+  guess at one to get round the limit on another. Counted on this node only,
+  like `cli_code_throttle/2`.
   """
   @spec confirm_identity_throttle(pos_integer(), keyword()) :: {:allow | :block, {:throttle, keyword()}}
   def confirm_identity_throttle(user_id, opts \\ []) do

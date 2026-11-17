@@ -5,10 +5,6 @@ defmodule NervesHubWeb.Live.TwoFactorTest do
   alias NervesHub.Accounts.TwoFactor
   alias NervesHub.Fixtures
 
-  defp signed_in(user) do
-    init_test_session(build_conn(), %{"user_token" => Accounts.create_user_session_token(user)})
-  end
-
   # The secret the setup page shows for typing into an app by hand.
   defp setup_secret(session) do
     unwrap(session, fn view ->
@@ -69,7 +65,7 @@ defmodule NervesHubWeb.Live.TwoFactorTest do
     # The browser case's session signed in just now; this one didn't.
     test "asks a session that didn't sign in recently to confirm it's them first", %{user: user} do
       user
-      |> signed_in()
+      |> signed_in_conn(recent: false)
       |> visit(~p"/account/two-factor")
       |> click_button("Set up two-factor authentication")
       |> assert_path(~p"/account/confirm", query_params: %{return_to: "/account/two-factor"})
@@ -183,14 +179,14 @@ defmodule NervesHubWeb.Live.TwoFactorTest do
 
     test "sends a member without it to set it up", %{org: org, member: member} do
       member
-      |> signed_in()
+      |> signed_in_conn(recent: false)
       |> visit(~p"/org/#{org}")
       |> assert_path(~p"/account/two-factor")
       |> assert_has("#two-factor-required", text: "#{org.name} requires two-factor authentication")
     end
 
     test "stops them at the org's controller routes too", %{org: org, member: member, product: product} do
-      conn = get(signed_in(member), ~p"/org/#{org}/#{product}/devices/export")
+      conn = get(signed_in_conn(member, recent: false), ~p"/org/#{org}/#{product}/devices/export")
 
       assert redirected_to(conn) == ~p"/account/two-factor"
     end
@@ -199,7 +195,7 @@ defmodule NervesHubWeb.Live.TwoFactorTest do
       Fixtures.two_factor_fixture(member)
 
       member
-      |> signed_in()
+      |> signed_in_conn(recent: false)
       |> visit(~p"/org/#{org}")
       |> assert_path(~p"/org/#{org}")
     end
@@ -250,7 +246,7 @@ defmodule NervesHubWeb.Live.TwoFactorTest do
       Fixtures.two_factor_fixture(member)
 
       member
-      |> signed_in()
+      |> signed_in_conn(recent: false)
       |> visit(~p"/account/two-factor")
       |> assert_has("#two-factor-disable-warning", text: org.name)
     end
@@ -264,7 +260,7 @@ defmodule NervesHubWeb.Live.TwoFactorTest do
       member = Fixtures.user_fixture()
       {:ok, _} = Accounts.add_org_user(org, member, %{role: :manage})
 
-      {:ok, members_page, _html} = member |> signed_in() |> live(~p"/org/#{org}")
+      {:ok, members_page, _html} = member |> signed_in_conn(recent: false) |> live(~p"/org/#{org}")
       {:ok, admins_page, _html} = live(conn, ~p"/org/#{org}")
 
       {:ok, _org} = TwoFactor.set_org_requirement(org, user, true)

@@ -309,18 +309,6 @@ defmodule NervesHubWeb.OAuthControllerTest do
       %{google_auth: Fixtures.ueberauth_google_success_fixture()}
     end
 
-    # Signed in as `user`, just now unless `recent: false`.
-    defp account_conn(user, opts \\ []) do
-      session = %{"user_token" => Accounts.create_user_session_token(user)}
-
-      session =
-        if Keyword.get(opts, :recent, true),
-          do: Map.put(session, "authenticated_at", System.os_time(:second)),
-          else: session
-
-      init_test_session(build_conn(), session)
-    end
-
     # Out to Google from the account page, and back as `google_auth`.
     defp round_trip(conn, intent, google_auth) do
       conn = post(conn, ~p"/account/confirm/google", %{"intent" => intent, "return_to" => "/account"})
@@ -336,7 +324,7 @@ defmodule NervesHubWeb.OAuthControllerTest do
     test "connects the Google account for the account's email", %{google_auth: google_auth} do
       user = Fixtures.user_fixture(%{email: google_auth.info.email})
 
-      conn = user |> account_conn() |> round_trip("connect", google_auth)
+      conn = user |> signed_in_conn() |> round_trip("connect", google_auth)
 
       assert redirected_to(conn) == "/account"
       assert Phoenix.Flash.get(conn.assigns.flash, :info) =~ "Your Google account is now connected."
@@ -347,7 +335,7 @@ defmodule NervesHubWeb.OAuthControllerTest do
     test "won't connect a Google account for another address", %{google_auth: google_auth} do
       user = Fixtures.user_fixture()
 
-      conn = user |> account_conn() |> round_trip("connect", google_auth)
+      conn = user |> signed_in_conn() |> round_trip("connect", google_auth)
 
       assert redirected_to(conn) == "/account"
       assert Phoenix.Flash.get(conn.assigns.flash, :error) =~ "Connect the one for #{user.email}."
@@ -355,18 +343,18 @@ defmodule NervesHubWeb.OAuthControllerTest do
     end
 
     test "confirms it's them with the Google account connected to theirs", %{google_auth: google_auth} do
-      user = Fixtures.user_fixture() |> Ecto.Changeset.change(google_id: google_auth.uid) |> Repo.update!()
+      user = Fixtures.google_user_fixture(google_id: google_auth.uid)
 
-      conn = user |> account_conn(recent: false) |> round_trip("confirm", google_auth)
+      conn = user |> signed_in_conn(recent: false) |> round_trip("confirm", google_auth)
 
       assert redirected_to(conn) == "/account"
       assert is_integer(get_session(conn, :authenticated_at))
     end
 
     test "won't confirm it's them with a different Google account", %{google_auth: google_auth} do
-      user = Fixtures.user_fixture() |> Ecto.Changeset.change(google_id: "someone-else") |> Repo.update!()
+      user = Fixtures.google_user_fixture(google_id: "someone-else")
 
-      conn = user |> account_conn(recent: false) |> round_trip("confirm", google_auth)
+      conn = user |> signed_in_conn(recent: false) |> round_trip("confirm", google_auth)
 
       assert redirected_to(conn) == ~p"/account/confirm?#{[return_to: "/account"]}"
       refute get_session(conn, :authenticated_at)
@@ -378,7 +366,7 @@ defmodule NervesHubWeb.OAuthControllerTest do
       user = Fixtures.user_fixture(%{email: google_auth.info.email})
       Process.put(:google_auth, google_auth)
 
-      conn = user |> account_conn() |> get(~p"/auth/google/callback?state=dummy&code=dummy")
+      conn = user |> signed_in_conn() |> get(~p"/auth/google/callback?state=dummy&code=dummy")
 
       refute redirected_to(conn) =~ "/account"
       refute Repo.reload(user).google_id

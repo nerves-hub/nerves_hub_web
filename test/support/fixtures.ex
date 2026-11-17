@@ -224,6 +224,19 @@ defmodule NervesHub.Fixtures do
   end
 
   @doc """
+  A user linked to a Google account, with `user_fixture/1`'s password unless
+  `password: false`. `:google_id` names the Google account, which is otherwise
+  made up from the user's id.
+  """
+  def google_user_fixture(opts \\ []) do
+    user = user_fixture()
+    changes = [google_id: Keyword.get(opts, :google_id, "google-#{user.id}")]
+    changes = if Keyword.get(opts, :password, true), do: changes, else: [{:password_hash, nil} | changes]
+
+    user |> Ecto.Changeset.change(changes) |> Repo.update!()
+  end
+
+  @doc """
   Turns two-factor authentication on for `user`. Returns the TOTP secret, the
   recovery codes and the code that turned it on.
 

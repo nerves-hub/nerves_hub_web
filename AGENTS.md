@@ -102,11 +102,11 @@ when adding or removing one.
   (`Accounts.sign_in_methods/1`), and must keep one. Changing how it signs
   in (adding or removing a way, turning on two-factor) needs a **recent
   sign-in**, not a password: `NervesHubWeb.Auth.recently_authenticated?/1`
-  reads `:authenticated_at` from the session (10 minutes), and
-  `/account/confirm` renews it with whichever way the account has, so an
-  account without a password is never asked for one, plus a two-factor
-  code when the account has two-factor on. A signed in user only
-  reaches `/auth/google` with a `:google_intent` the account page set.
+  reads `:authenticated_at` from the session (10 minutes). `/account/confirm`
+  renews it with whichever way the account has, plus a two-factor code when
+  two-factor is on, so an account without a password is never asked for one.
+  A signed in user only reaches `/auth/google` with a `:google_intent` the
+  account page set.
 - A custom role can be limited to devices with certain tags. Its members see
   only those devices, so **every device query a user can reach must go through
   `NervesHub.Devices.Visibility.where_visible/2`**, which checks the member's

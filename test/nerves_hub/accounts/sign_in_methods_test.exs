@@ -15,34 +15,24 @@ defmodule NervesHub.Accounts.SignInMethodsTest do
     on_exit(fn -> Application.put_env(:nerves_hub, :enable_google_auth, false) end)
   end
 
-  # An account linked to Google, with its password (the fixture's) unless
-  # `password: false`.
-  defp google_user(opts \\ []) do
-    user = Fixtures.user_fixture()
-    changes = [google_id: "google-#{user.id}"]
-    changes = if Keyword.get(opts, :password, true), do: changes, else: [{:password_hash, nil} | changes]
-
-    user |> Ecto.Changeset.change(changes) |> Repo.update!()
-  end
-
   describe "sign_in_methods/1" do
     test "lists the ways the account signs in" do
       assert Accounts.sign_in_methods(Fixtures.user_fixture()) == [:password]
-      assert Accounts.sign_in_methods(google_user()) == [:password, :google]
-      assert Accounts.sign_in_methods(google_user(password: false)) == [:google]
+      assert Accounts.sign_in_methods(Fixtures.google_user_fixture()) == [:password, :google]
+      assert Accounts.sign_in_methods(Fixtures.google_user_fixture(password: false)) == [:google]
     end
 
     test "leaves Google out when this server doesn't offer it" do
       Application.put_env(:nerves_hub, :enable_google_auth, false)
 
-      assert Accounts.sign_in_methods(google_user()) == [:password]
-      assert Accounts.sign_in_methods(google_user(password: false)) == []
+      assert Accounts.sign_in_methods(Fixtures.google_user_fixture()) == [:password]
+      assert Accounts.sign_in_methods(Fixtures.google_user_fixture(password: false)) == []
     end
   end
 
   describe "remove_password/2" do
     test "removes it from an account that signs in with Google, and signs its other sessions out" do
-      user = google_user()
+      user = Fixtures.google_user_fixture()
       this_session = Accounts.create_user_session_token(user)
       other_session = Accounts.create_user_session_token(user)
 
@@ -62,19 +52,19 @@ defmodule NervesHub.Accounts.SignInMethodsTest do
 
     test "won't remove it while this server doesn't offer Google sign-in" do
       Application.put_env(:nerves_hub, :enable_google_auth, false)
-      user = google_user()
+      user = Fixtures.google_user_fixture()
 
       assert Accounts.remove_password(user, nil) == {:error, :last_sign_in_method}
     end
 
     test "says when there's no password to remove" do
-      assert Accounts.remove_password(google_user(password: false), nil) == {:error, :no_password}
+      assert Accounts.remove_password(Fixtures.google_user_fixture(password: false), nil) == {:error, :no_password}
     end
   end
 
   describe "disconnect_google/2" do
     test "unlinks Google from an account with a password, and signs its other sessions out" do
-      user = google_user()
+      user = Fixtures.google_user_fixture()
       this_session = Accounts.create_user_session_token(user)
       other_session = Accounts.create_user_session_token(user)
 
@@ -85,7 +75,7 @@ defmodule NervesHub.Accounts.SignInMethodsTest do
     end
 
     test "won't unlink the only way in" do
-      user = google_user(password: false)
+      user = Fixtures.google_user_fixture(password: false)
 
       assert Accounts.disconnect_google(user, nil) == {:error, :last_sign_in_method}
       assert Repo.reload(user).google_id
@@ -93,7 +83,7 @@ defmodule NervesHub.Accounts.SignInMethodsTest do
 
     # Two tabs each loaded the account with both ways in, and each removes one.
     test "keeps one way in when the caller's copy of the account is out of date" do
-      user = google_user()
+      user = Fixtures.google_user_fixture()
 
       assert {:ok, _user} = Accounts.remove_password(user, nil)
       assert Accounts.disconnect_google(user, nil) == {:error, :last_sign_in_method}
@@ -108,7 +98,7 @@ defmodule NervesHub.Accounts.SignInMethodsTest do
 
   describe "set_user_password/3" do
     test "gives a Google account a password, and emails to say so" do
-      user = google_user(password: false)
+      user = Fixtures.google_user_fixture(password: false)
       password = "a long enough password"
 
       assert {:ok, user} =
@@ -125,7 +115,7 @@ defmodule NervesHub.Accounts.SignInMethodsTest do
     end
 
     test "checks the password like a new one" do
-      user = google_user(password: false)
+      user = Fixtures.google_user_fixture(password: false)
 
       assert {:error, changeset} =
                Accounts.set_user_password(
@@ -139,7 +129,7 @@ defmodule NervesHub.Accounts.SignInMethodsTest do
 
     # The caller loaded the account before a password was set in another tab.
     test "won't replace a password set since the caller's copy of the account was loaded" do
-      user = google_user(password: false)
+      user = Fixtures.google_user_fixture(password: false)
       password = "a long enough password"
       attrs = %{"password" => password, "password_confirmation" => password}
 
@@ -152,7 +142,11 @@ defmodule NervesHub.Accounts.SignInMethodsTest do
     end
 
     test "won't replace a password that's set, which needs the old one" do
-      assert Accounts.set_user_password(google_user(), %{"password" => "a long enough password"}, &"/reset/#{&1}") ==
+      assert Accounts.set_user_password(
+               Fixtures.google_user_fixture(),
+               %{"password" => "a long enough password"},
+               &"/reset/#{&1}"
+             ) ==
                {:error, :already_set}
     end
   end
@@ -183,7 +177,7 @@ defmodule NervesHub.Accounts.SignInMethodsTest do
 
   describe "update_user/3 for an account without a password" do
     test "saves its name" do
-      user = google_user(password: false)
+      user = Fixtures.google_user_fixture(password: false)
 
       assert {:ok, %User{name: "New Name"}, nil} =
                Accounts.update_user(user, %{"name" => "New Name", "current_password" => ""}, &"/c/#{&1}")
@@ -192,7 +186,7 @@ defmodule NervesHub.Accounts.SignInMethodsTest do
 
   describe "update_user/3 for an account linked to Google" do
     test "won't change its email, which follows Google's" do
-      user = google_user()
+      user = Fixtures.google_user_fixture()
 
       assert {:error, changeset} =
                Accounts.update_user(
@@ -206,7 +200,7 @@ defmodule NervesHub.Accounts.SignInMethodsTest do
 
     test "changes its email like any other's while this server doesn't offer Google sign-in" do
       Application.put_env(:nerves_hub, :enable_google_auth, false)
-      user = google_user()
+      user = Fixtures.google_user_fixture()
 
       assert {:ok, _user, "new@example.com"} =
                Accounts.update_user(

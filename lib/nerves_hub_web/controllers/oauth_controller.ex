@@ -100,7 +100,7 @@ defmodule NervesHubWeb.OAuthController do
       |> redirect(to: return_to)
     else
       conn
-      |> put_flash(:error, "That isn't the Google account connected to yours. Choose that one, or use your password.")
+      |> put_flash(:error, "That isn't the Google account connected to yours. Try again and choose that one.")
       |> redirect(to: ~p"/account/confirm?#{[return_to: return_to]}")
     end
   end

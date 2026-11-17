@@ -20,7 +20,7 @@ defmodule NervesHubWeb.Live.Account do
     # account signs in signs the others out, and when it last proved who it is
     # (`Auth.recently_authenticated?/1`).
     |> assign(:session_token, session["user_token"])
-    |> assign(:auth_session, Map.take(session, ["authenticated_at"]))
+    |> assign(:auth_session, Auth.recent_sign_in_session(session))
     |> assign(:user, scope.user)
     |> ok()
   end

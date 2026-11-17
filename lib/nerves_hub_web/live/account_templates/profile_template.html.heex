@@ -12,7 +12,7 @@
     >
       <.input field={@form[:name]} type="text" label="Name" autocomplete="name" />
 
-      <%= if NervesHub.Accounts.User.email_follows_google?(@user) do %>
+      <%= if NervesHub.Accounts.email_follows_google?(@user) do %>
         <div>
           <.input id="email_input" name="email" type="email" value={@user.email} label="Email" readonly aria-describedby="email_follows_google" />
           <p id="email_follows_google" class="mt-1.5 text-ui text-content-muted">

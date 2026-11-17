@@ -218,30 +218,17 @@ defmodule NervesHub.Accounts.User do
   # checks the current password and the length and sends the notification email.
   #
   # An account that signs in with Google takes its email from Google on every
-  # Google sign-in (`oauth_changeset/3`), so it can't be changed here.
-  def update_changeset(%User{} = user, params) do
+  # Google sign-in (`oauth_changeset/3`), so with `email_follows_google: true`
+  # (`NervesHub.Accounts.email_follows_google?/1`) it can't be changed here.
+  def update_changeset(%User{} = user, params, opts \\ []) do
     user
     |> changeset(Map.drop(params, ["password", :password]))
-    |> email_follows_google(user)
+    |> email_follows_google(Keyword.get(opts, :email_follows_google, false))
     |> email_password_update_valid?(user, params)
   end
 
-  @doc """
-  Whether the account's email comes from Google: it is linked to a Google
-  account, and this server offers Google sign-in, so the next one will
-  overwrite it. On a server that has turned Google sign-in off, the account
-  changes its email like any other.
-
-  It is also whether the account can sign in with Google, which
-  `NervesHub.Accounts.sign_in_methods/1` reads from here.
-  """
-  @spec email_follows_google?(t()) :: boolean()
-  def email_follows_google?(%User{google_id: google_id}) do
-    is_binary(google_id) and NervesHub.Accounts.google_sign_in_enabled?()
-  end
-
-  defp email_follows_google(changeset, %User{} = user) do
-    if email_follows_google?(user) and Map.has_key?(changeset.changes, :email) do
+  defp email_follows_google(changeset, follows?) do
+    if follows? and Map.has_key?(changeset.changes, :email) do
       changeset
       |> delete_change(:email)
       |> add_error(:email, "follows your Google account, so it changes there")
