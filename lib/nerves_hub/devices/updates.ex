@@ -331,6 +331,39 @@ defmodule NervesHub.Devices.Updates do
     end
   end
 
+  @typedoc """
+  Where a device stands against its deployment group's release, as
+  `update_status/3` reports it.
+  """
+  @type update_status ::
+          :unknown | :up_to_date | :deployment_group_inactive | :updates_off | :updates_blocked | :update_available
+
+  @doc """
+  Where the device stands against its deployment group's release: running it
+  already, held back from it and why, or due it.
+
+  `deployment_group` must have its current release and that release's
+  firmware loaded. `:unknown` is a device that hasn't reported its firmware
+  yet.
+
+  Unlike `verify_update_eligibility/3` it changes nothing, so a page can show
+  it as often as it renders.
+  """
+  @spec update_status(Device.t(), DeploymentGroup.t(), DateTime.t()) :: update_status()
+  def update_status(device, deployment_group, now \\ DateTime.utc_now())
+
+  def update_status(%Device{firmware_metadata: nil}, _deployment_group, _now), do: :unknown
+
+  def update_status(device, deployment_group, now) do
+    cond do
+      device_matches_deployment_group?(device, deployment_group) -> :up_to_date
+      not deployment_group.is_active -> :deployment_group_inactive
+      device.update_mode == :off -> :updates_off
+      device_in_penalty_box?(device, now) -> :updates_blocked
+      true -> :update_available
+    end
+  end
+
   @doc """
   Is there firmware waiting for this device, without minting a URL for it?
 
@@ -353,8 +386,7 @@ defmodule NervesHub.Devices.Updates do
   def check_update(%Device{} = device, now) do
     {:ok, deployment_group} = ManagedDeployments.get_deployment_group(device)
 
-    if deployment_group.is_active and not device_matches_deployment_group?(device, deployment_group) and
-         not updates_blocked?(device, now) do
+    if update_status(device, deployment_group, now) == :update_available do
       target_release = ManagedDeployments.target_release(deployment_group, device)
       {:ok, meta} = Firmwares.metadata_from_firmware(target_release.firmware)
       %{available?: true, firmware_meta: meta}
