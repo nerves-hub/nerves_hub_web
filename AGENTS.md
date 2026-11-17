@@ -215,7 +215,13 @@ when adding or removing one.
 - `components/` — shared function/live components. `components/fleet.ex`
   sums up how a set of products is doing (Needs attention, online meters,
   health chips), for the organizations home page and an organization's
-  Products tab.
+  Products tab. `components/product_sidebar.ex` is the sidebar's product
+  half on a product's pages (`Layouts.sidebar/1`): the product switcher and
+  the page links, each carrying what needs looking at on its page (unhealthy
+  devices, a release awaiting approval, open errors), counted as the page
+  mounts. On a phone the sidebar is a drawer, and the top bar reads menu
+  button, then the page's breadcrumb (or the product and page names when it
+  has none), then the avatar, which holds the user menu the drawer leaves out.
 - `controllers/` — JSON API (`controllers/api/`) and others.
 - `plugs/`, `router.ex`, `endpoint.ex`, `device_endpoint.ex`,
   `health_check_endpoint.ex`, `auth*.ex`.

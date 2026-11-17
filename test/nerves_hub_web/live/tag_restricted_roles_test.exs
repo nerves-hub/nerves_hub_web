@@ -65,7 +65,7 @@ defmodule NervesHubWeb.Live.TagRestrictedRolesTest do
     |> assert_has("nav a", text: "Devices")
     |> refute_has("nav a", text: "Insights")
     |> refute_has("nav a", text: "Firmware")
-    |> refute_has("nav a", text: "Deployment Groups")
+    |> refute_has("nav a", text: "Deployment groups")
   end
 
   test "device counts only include what the role can see", %{user: user, org: org, product: product} do

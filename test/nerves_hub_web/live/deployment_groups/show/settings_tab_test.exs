@@ -69,7 +69,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show.SettingsTabTest do
   } do
     conn =
       conn
-      |> assert_has("a", text: product.name)
+      |> assert_has("#product-switcher-toggle", text: product.name)
       |> fill_in("Name", with: "Moussaka")
       |> fill_in("Tag(s) distributed to", with: "josh, lars")
       |> fill_in("Version requirement", with: "4.3.2")
@@ -100,7 +100,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show.SettingsTabTest do
     deployment_group: deployment_group
   } do
     conn
-    |> assert_has("a", text: product.name)
+    |> assert_has("#product-switcher-toggle", text: product.name)
     |> fill_in("Version requirement", with: "1.2.3.4.5.6")
     |> click_button("Save changes")
     |> assert_path("/org/#{org.name}/#{product.name}/deployment_groups/#{deployment_group.name}/settings")
