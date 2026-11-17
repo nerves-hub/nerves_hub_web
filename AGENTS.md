@@ -183,6 +183,15 @@ when adding or removing one.
   Adaptive Cards in `Teams.Cards`) and `integrations/discord.ex` (URL checks,
   embeds in `Discord.Embeds`). See [docs/teams.md](docs/teams.md) and
   [docs/discord.md](docs/discord.md).
+- `insights.ex` / `insights/` — what a product's fleet is made of, for its
+  Insights page: devices counted by connection, health and firmware version
+  from PostgreSQL alone, and the version whose devices stand out as less
+  healthy than the fleet. Its groupings match the devices list's filters, so
+  each count links to the devices it counts. `insights/trends.ex` is how the
+  fleet moved over a period (adoption, update outcomes, online, healthy),
+  from ClickHouse. History keeps only changes, so the shares are walked back
+  from today's live counts and are shares of today's fleet. A version's
+  release is the first deployment group given it, or its upload if none was.
 - `scripts.ex` / `scripts/` — support scripts run against a device console.
 - `workers/` — Oban workers (e.g. firmware delta building, firmware deletion).
 - `audit_logs.ex` / `audit_logs/` - the audit log, written from the templates
@@ -212,7 +221,10 @@ when adding or removing one.
   a centered column under the organization's name, counts and tabs, and mount
   `NervesHubWeb.Mounts.OrgCounts` for the counts. Product pages keep the
   sidebar layout.
-- `components/` — shared function/live components. `components/fleet.ex`
+- `components/` — shared function/live components. `components/fleet_composition.ex`
+  draws `NervesHub.Insights` on a product's Insights page, and
+  `components/fleet_trends.ex` its trends row, as SVG drawn on the server
+  rather than chart.js. `components/fleet.ex`
   sums up how a set of products is doing (Needs attention, online meters,
   health chips), for the organizations home page and an organization's
   Products tab.

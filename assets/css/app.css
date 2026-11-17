@@ -213,6 +213,22 @@
   --text-figure-sm--line-height: 1.5rem;
   --text-figure-sm--font-weight: 600;
   --text-figure-sm--letter-spacing: -0.02em;
+  /* A page's headline count, set in mono at its regular weight, such as the
+     fleet size over a product's Insights. xl from 640px, lg on a phone. */
+  --text-figure-xl: 2rem; /* 32px */
+  --text-figure-xl--line-height: 2.5rem;
+  --text-figure-xl--letter-spacing: -0.03em;
+  --text-figure-lg: 1.75rem; /* 28px */
+  --text-figure-lg--line-height: 2.125rem;
+  --text-figure-lg--letter-spacing: -0.02em;
+  /* A chart's own figure, in mono at its regular weight, over the trends
+     on a product's Insights: md for firmware adoption, xs for the online
+     and healthy lines. */
+  --text-figure-md: 1.375rem; /* 22px */
+  --text-figure-md--line-height: 1.75rem;
+  --text-figure-md--letter-spacing: -0.02em;
+  --text-figure-xs: 1.125rem; /* 18px */
+  --text-figure-xs--line-height: 1.5rem;
 
   /* Small text, beside Tailwind's xs (12px) and sm (14px). */
   /* 13px: interface text, such as buttons, menus, table cells and summaries.
@@ -263,6 +279,28 @@
   --color-chart-5: #d55181;
   --color-chart-6: #008300;
   --color-chart-other: #71717a;
+
+  /* The red that marks unhealthy and long-unseen devices in a chart. */
+  --color-chart-alert: #e5484d;
+  /* The shading behind a figure in the Insights cross-tab: a cell is tinted
+     with chart-4 (warning), chart-alert (unhealthy) or this grey (unknown,
+     offline) by its share of the row, times --shade-strength, which dark
+     raises so the tints read on the dark surface. */
+  --color-shade-offline: #71717a;
+  --shade-strength: 1.5;
+
+  /* A version's name written beside its chart colour, as the adoption chart
+     labels its bands: the same hue a step darker so it reads as text. The
+     same in both themes. */
+  --color-chart-1-label: #2a78d6;
+  --color-chart-2-label: #c4501f;
+  --color-chart-3-label: #14855d;
+  --color-chart-4-label: #b57a00;
+  --color-chart-5-label: #c2557f;
+  --color-chart-6-label: #006b00;
+  /* The dashed line marking the newest version's release on the trends
+     charts; light uses indigo-500. */
+  --color-release: var(--color-indigo-400);
 
   /* The neutral hover veil behind sidebar items; flips in light */
   --veil: var(--color-zinc-700);
@@ -333,6 +371,9 @@
   --color-chart-5: #e87ba4;
   --color-chart-6: #008300;
   --color-chart-other: #a1a1aa;
+  --color-chart-alert: #e7000b;
+  --shade-strength: 1;
+  --color-release: var(--color-indigo-500);
 
   /* Semantic roles + neutral veil flip on the light canvas */
   --color-content-strong: var(--color-zinc-900); /* zinc-900 */

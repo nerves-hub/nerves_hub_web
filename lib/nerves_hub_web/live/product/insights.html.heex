@@ -1,449 +1,100 @@
 <NervesHubWeb.Layouts.sidebar flash={@flash} current_scope={@current_scope} sidebar_tab={@sidebar_tab}>
-  <:header>
-    <div class="flex w-full justify-between">
-      <div class="flex items-center gap-4">
-        <h1 class="text-page-title text-content-strong">Insights</h1>
-        <.badge id="device-count" class="mr-auto">
-          {Number.Delimit.number_to_delimited(@fleet_size, precision: 0)} {if(@fleet_size == 1, do: "device", else: "devices")}
-        </.badge>
-      </div>
-      <div class="flex items-center gap-3">
-        <div class="flex items-center gap-1 text-xs tracking-wide text-content-faint">
-          <span class="lucide-clock size-4 shrink"></span>
-          <span class="font-normal">Updated</span>
-          <time class="font-normal" id="health-last-updated" phx-hook="UpdatingTimeAgo" datetime={String.replace(DateTime.to_string(DateTime.truncate(@updated_at, :second)), " ", "T")}>
-            {RelativeTime.from_now(@updated_at)}
-          </time>
-        </div>
-        <div class="text-xs tracking-wide text-content-body">Auto refresh</div>
-        <div>
-          <button
-            type="button"
-            phx-click="toggle-auto-refresh"
-            class={[
-              "border-1.5 relative inline-flex h-3.5 w-6 shrink-0 cursor-pointer items-center rounded-full border-transparent transition-colors duration-200 ease-in-out focus:ring-1 focus:ring-focus-ring focus:ring-offset-2 focus:outline-none",
-              (@polling_pid && "bg-primary") || "bg-base-600"
-            ]}
-            role="switch"
-            aria-checked="false"
-          >
-            <span class="sr-only">Auto refresh health information</span>
-            <span
-              aria-hidden="true"
-              class={[
-                "pointer-events-none inline-block size-3",
-                (@polling_pid && "translate-x-3") || "translate-x-0",
-                "transform rounded-full bg-white shadow-control ring-0 transition duration-200 ease-in-out"
-              ]}
-            ></span>
-          </button>
-        </div>
-      </div>
+  <%!-- One bar from sm up: the title and fleet size on the left, when the
+        page was read and the auto refresh switch on the right. A phone gets
+        the title in the page instead, under the layout's own bar. --%>
+  <:top_bar>
+    <div class="flex items-baseline gap-3 max-sm:hidden">
+      <h1 class="text-base/6 font-semibold text-content-strong">Insights</h1>
+      <span id="device-count" class="font-mono text-xs text-content-faint">
+        {Number.Delimit.number_to_delimited(@fleet_size, precision: 0)} {if(@fleet_size == 1, do: "device", else: "devices")}
+      </span>
     </div>
-  </:header>
-
-  <div :if={@fleet_size > 0} class="flex h-0 flex-1 flex-col gap-4 overflow-y-auto p-6">
-    <div class="grid h-[132px] grid-cols-4 gap-4">
-      <.link navigate={~p"/org/#{@current_scope.org}/#{@current_scope.product}/devices?connection=connected"}>
-        <div class="relative flex h-[132px] flex-col overflow-hidden rounded-card border border-line-default bg-surface-raised p-4 shadow-card">
-          <div class="absolute inset-y-0 left-0 w-[3.5px] bg-status-online"></div>
-          <div class="mb-3.5 flex items-center gap-2">
-            <.status_dot class="bg-status-online" />
-            <span class="font-sans text-sm text-content-muted">Online now</span>
-          </div>
-          <div id="online-count" phx-hook="CrossFadeOnUpdate" class="font-mono text-3xl leading-none tracking-tight text-content-strong">
-            {if @online_count.ok?, do: Number.Delimit.number_to_delimited(@online_count.result, precision: 0), else: "—"}
-          </div>
-          <div id="online-percentage" phx-hook="CrossFadeOnUpdate" class="mt-2 font-mono text-sm text-success-content">
-            {if @online_count.ok?, do: "#{percentage(@online_count.result, @fleet_size)}% of fleet", else: "—"}
-          </div>
-        </div>
-      </.link>
-
-      <.link navigate={~p"/org/#{@current_scope.org}/#{@current_scope.product}/devices?connection=disconnected"}>
-        <div class="relative flex h-[132px] flex-col overflow-hidden rounded-card border border-line-default bg-surface-raised p-4 shadow-card">
-          <div class="absolute inset-y-0 left-0 w-[3.5px] bg-status-offline"></div>
-          <div class="mb-3.5 flex items-center gap-2">
-            <.status_dot class="bg-status-offline" />
-            <span class="font-sans text-sm text-content-muted">Offline</span>
-          </div>
-          <div id="offline-count" phx-hook="CrossFadeOnUpdate" class="font-mono text-3xl leading-none tracking-tight text-content-strong">
-            {if @offline_count.ok?, do: Number.Delimit.number_to_delimited(@offline_count.result, precision: 0), else: "—"}
-          </div>
-          <div id="offline-percentage" phx-hook="CrossFadeOnUpdate" class="mt-2 font-mono text-sm text-content-muted">
-            {if @offline_count.ok?, do: "#{percentage(@offline_count.result, @fleet_size)}% of fleet", else: "—"}
-          </div>
-        </div>
-      </.link>
-
-      <.link navigate={~p"/org/#{@current_scope.org}/#{@current_scope.product}/devices?connection=not_seen_in_seven_days"}>
-        <div class="relative flex h-[132px] flex-col overflow-hidden rounded-card border border-line-default bg-surface-raised p-4 shadow-card">
-          <div class="absolute inset-y-0 left-0 w-[3.5px] bg-warning"></div>
-          <div class="mb-3.5 flex items-center gap-2">
-            <span class="lucide-clock-exclamation-point size-4 shrink text-warning"></span>
-            <span class="font-sans text-sm text-content-muted">Not seen in 7 days</span>
-          </div>
-          <div id="not-seen-7-days-count" phx-hook="CrossFadeOnUpdate" class="font-mono text-3xl leading-none tracking-tight text-content-strong">
-            {if @not_seen_in_7_days.ok?, do: Number.Delimit.number_to_delimited(@not_seen_in_7_days.result, precision: 0), else: "—"}
-          </div>
-          <div id="not-seen-7-days-percentage" phx-hook="CrossFadeOnUpdate" class="mt-2 font-mono text-sm text-warning-content">
-            {if @not_seen_in_7_days.ok?, do: "#{percentage(@not_seen_in_7_days.result, @fleet_size)}% of fleet", else: "—"}
-          </div>
-        </div>
-      </.link>
-      <.link navigate={~p"/org/#{@current_scope.org}/#{@current_scope.product}/devices?connection=not_seen_in_fourteen_days"}>
-        <div class="relative flex h-[132px] flex-col overflow-hidden rounded-card border border-line-default bg-surface-raised p-4 shadow-card">
-          <div class="absolute inset-y-0 left-0 w-[3.5px] bg-danger"></div>
-          <div class="mb-3.5 flex items-center gap-2">
-            <span class="lucide-triangle-exclamation-point size-4 shrink text-danger"></span>
-            <span class="font-sans text-sm text-content-muted">Not seen in 14 days</span>
-          </div>
-          <div id="not-seen-14-days-count" phx-hook="CrossFadeOnUpdate" class="font-mono text-3xl leading-none tracking-tight text-content-strong">
-            {if @not_seen_in_14_days.ok?, do: Number.Delimit.number_to_delimited(@not_seen_in_14_days.result, precision: 0), else: "—"}
-          </div>
-          <div id="not-seen-14-days-percentage" phx-hook="CrossFadeOnUpdate" class="mt-2 font-mono text-sm text-danger">
-            {if @not_seen_in_14_days.ok?, do: "#{percentage(@not_seen_in_14_days.result, @fleet_size)}% of fleet", else: "—"}
-          </div>
-        </div>
-      </.link>
+    <div class="mr-6 flex items-center gap-4 max-sm:hidden">
+      <.updated_at updated_at={@updated_at} id="health-last-updated" />
+      <.switch id="auto-refresh" label="Auto refresh" checked={!is_nil(@polling_pid)} phx-click="toggle-auto-refresh" />
     </div>
+  </:top_bar>
 
-    <div :if={@device_connections_graph_enabled} class="flex flex-col gap-5 rounded-card border border-line-default bg-surface-raised p-4 shadow-card">
-      <div class="flex justify-between">
-        <div class="flex items-center leading-6 font-medium text-content-strong">
-          Connected Device History
-        </div>
-
-        <.segmented_control id="connected-devices-period" label="Connected device history period">
-          <:segment selected={@connected_devices_period == :twenty_four_hours} phx-click="select-graph-time-period" phx-value-period="twenty_four_hours">Last 24 hours</:segment>
-          <:segment selected={@connected_devices_period == :fourteen_days} phx-click="select-graph-time-period" phx-value-period="fourteen_days">14 days</:segment>
-          <:segment selected={@connected_devices_period == :four_weeks} phx-click="select-graph-time-period" phx-value-period="four_weeks">4 weeks</:segment>
-        </.segmented_control>
+  <div :if={@fleet_size > 0} class="flex h-0 flex-1 flex-col gap-3.5 overflow-y-auto px-4 pt-5 pb-10 sm:gap-10 sm:p-8 sm:pb-16">
+    <div class="-mx-4 -mt-5 flex flex-col gap-1.5 border-b border-line-subtle px-4 pt-4 pb-3.5 sm:hidden">
+      <div class="flex min-w-0 items-center gap-1.5 text-xs">
+        <span class="truncate text-content-muted">{@current_scope.org.name}</span>
+        <span class="text-content-faint">/</span>
+        <span class="truncate font-medium text-content-strong">{@current_scope.product.name}</span>
       </div>
-
-      <div class="h-[160px] grow">
-        <canvas
-          id={"daily-device-counts-chart-#{@connected_devices_period}"}
-          phx-hook="BarChart"
-          phx-update="ignore"
-          data-metrics={Jason.encode!(@device_connections_graph_data)}
-          data-title=""
-          data-mindate={Jason.encode!(@device_connections_graph_from)}
-          data-maxdate={Jason.encode!(@device_connections_graph_to)}
-          data-unit={@device_connections_graph_unit}
-          data-period={@connected_devices_period}
-        ></canvas>
-      </div>
-    </div>
-
-    <div :if={@update_outcomes_graph_enabled} class="flex flex-col gap-5 rounded-card border border-line-default bg-surface-raised p-4 shadow-card">
-      <div class="flex justify-between">
-        <div class="flex items-center">
-          <div class="flex items-center leading-6 font-medium text-content-strong">
-            Firmware Update History
-          </div>
-          <.tooltip id="update-outcomes-tooltip" placement="top" class="z-20 ml-4" content_class="w-72">
-            <span class="lucide-info size-4" />
-            <:content>
-              <p class="pb-2">Every firmware update attempt that finished, counted on the day it finished.</p>
-              <p class="pb-2">A failure is a device that did not end up running the firmware it was sent: it reported an error, refused it, stopped partway, or came back on its old firmware.</p>
-              <p>A device that asked for the update to come back later is deferring rather than failing, and is not counted here.</p>
-            </:content>
-          </.tooltip>
-        </div>
-
-        <.segmented_control id="update-outcomes-period" label="Firmware update history period">
-          <:segment selected={@update_outcomes_period == :twenty_four_hours} phx-click="select-update-graph-time-period" phx-value-period="twenty_four_hours">Last 24 hours</:segment>
-          <:segment selected={@update_outcomes_period == :fourteen_days} phx-click="select-update-graph-time-period" phx-value-period="fourteen_days">14 days</:segment>
-          <:segment selected={@update_outcomes_period == :four_weeks} phx-click="select-update-graph-time-period" phx-value-period="four_weeks">4 weeks</:segment>
-        </.segmented_control>
-      </div>
-
-      <div class="h-[160px] grow">
-        <canvas
-          id={"update-outcomes-chart-#{@update_outcomes_period}"}
-          phx-hook="UpdateOutcomesChart"
-          phx-update="ignore"
-          data-buckets={Jason.encode!(@update_outcomes_graph_data)}
-          data-mindate={Jason.encode!(@update_outcomes_graph_from)}
-          data-maxdate={Jason.encode!(@update_outcomes_graph_to)}
-          data-unit={@update_outcomes_graph_unit}
-          data-period={@update_outcomes_period}
-        ></canvas>
-      </div>
-
-      <%!-- The legend carries identity and the totals, so neither rests on colour alone. --%>
-      <div class="flex items-center gap-6">
-        <div class="flex items-center gap-2">
-          <span class="size-2.5 shrink-0 rounded-full bg-success"></span>
-          <span class="text-sm text-content-muted">Successful</span>
-          <span id="update-outcomes-succeeded" class="font-mono text-sm text-content-strong">
-            {Number.Delimit.number_to_delimited(@update_outcomes_succeeded, precision: 0)}
+      <div class="flex items-baseline justify-between gap-3">
+        <div class="flex items-baseline gap-2">
+          <h1 class="text-xl/7 font-semibold tracking-[-0.01em] text-content-strong">Insights</h1>
+          <span class="font-mono text-xs text-content-muted">
+            {Number.Delimit.number_to_delimited(@fleet_size, precision: 0)} {if(@fleet_size == 1, do: "device", else: "devices")}
           </span>
         </div>
-        <div class="flex items-center gap-2">
-          <span class="size-2.5 shrink-0 rounded-full bg-danger"></span>
-          <span class="text-sm text-content-muted">Failed</span>
-          <span id="update-outcomes-failed" class="font-mono text-sm text-content-strong">
-            {Number.Delimit.number_to_delimited(@update_outcomes_failed, precision: 0)}
-          </span>
-        </div>
-        <div
-          :if={@update_outcomes_succeeded + @update_outcomes_failed > 0}
-          id="update-outcomes-failure-rate"
-          class="ml-auto font-mono text-sm text-content-muted"
-        >
-          {percentage(@update_outcomes_failed, @update_outcomes_succeeded + @update_outcomes_failed)}% of attempts failed
+        <.updated_at updated_at={@updated_at} id="updated-at-phone" />
+      </div>
+    </div>
+
+    <FleetComposition.bars composition={@composition} rows={@version_rows} unit={@composition_unit} devices_path={@devices_path} />
+
+    <%!-- Side by side once the table (787px) and a card of at least 340px
+         fit; under that the card goes first, and the table becomes a list. --%>
+    <div class="@container">
+      <div class="flex flex-col gap-6 @min-[1167px]:flex-row @min-[1167px]:items-start @min-[1167px]:gap-10">
+        <FleetComposition.version_table composition={@composition} rows={@version_rows} stands_out={@stands_out} devices_path={@devices_path} />
+        <div :if={@stands_out} class="order-first @min-[1167px]:order-0 @min-[1167px]:mt-8 @min-[1167px]:min-w-0 @min-[1167px]:flex-1">
+          <FleetComposition.stands_out stands_out={@stands_out} composition={@composition} devices_path={@devices_path} />
         </div>
       </div>
     </div>
 
-    <div class="grid grid-cols-2 gap-4">
-      <div class="flex flex-col gap-4">
-        <div class="flex flex-col gap-5 rounded-card border border-line-default bg-surface-raised p-4 shadow-card">
-          <div class="flex items-center leading-6 font-medium text-content-strong">
-            Fleet Health
-          </div>
-          <div class="flex h-3 gap-0.5 overflow-hidden rounded-full">
-            <div :if={@healthy_count > 0} class="bg-success" style={"width: #{@healthy_count / @total_health_count * 100}%;"}></div>
-            <div :if={@warning_count > 0} class="bg-warning" style={"width: #{@warning_count / @total_health_count * 100}%;"}></div>
-            <div :if={@unhealthy_count > 0} class="bg-danger" style={"width: #{@unhealthy_count / @total_health_count * 100}%;"}></div>
-            <div :if={@unknown_count > 0} class="bg-base-600" style={"width: #{@unknown_count / @total_health_count * 100}%;"}></div>
-          </div>
-          <div class="flex flex-col divide-y divide-line-subtle">
-            <.link navigate={~p"/org/#{@current_scope.org}/#{@current_scope.product}/devices?health_status=healthy"}>
-              <div class="group flex items-center gap-3 py-3">
-                <span title="healthy"><.icon name="healthy" /></span>
-                <span class="flex-1 text-sm text-content-body group-hover:underline">Healthy</span>
-                <span class="text-right font-mono text-sm text-content-strong">{@healthy_count}</span>
-                <span class="w-12 text-right font-mono text-sm text-content-muted">{percentage(@healthy_count, @total_health_count)}%</span>
-              </div>
+    <FleetTrends.row :if={@trends} trends={@trends} composition={@composition} rows={@version_rows} adoption_view={@adoption_view} releases={@release_annotations} />
+
+    <%!-- Side by side once three columns of about 240px fit; under that,
+          one after another. --%>
+    <div class="@container">
+      <div id="insights-lists" class="flex flex-col gap-7 @min-[787px]:flex-row @min-[787px]:gap-10">
+        <.list_column id="failing-updates" title="Failing updates" meta={devices_count(@failing_count)}>
+          <.list_row :for={device <- @failing_devices} navigate={~p"/org/#{@current_scope.org}/#{@current_scope.product}/devices/#{device.identifier}"}>
+            <span class="min-w-0 flex-1 truncate font-mono text-content-strong max-sm:text-ui/4.5">{device.identifier}</span>
+            <span class="w-16 shrink-0 text-right font-mono text-alert-content">{device.consecutive_failed_updates} failed</span>
+            <span class="w-14 shrink-0 text-right text-content-faint max-sm:w-16">{failing_for(device)}</span>
+          </.list_row>
+          <.list_empty :if={@failing_devices == []}>No devices are failing to update</.list_empty>
+          <:footer :if={@failing_count > length(@failing_devices)}>
+            <span class="flex-1 text-content-muted">{@failing_count - length(@failing_devices)} more</span>
+            <.link navigate={~p"/org/#{@current_scope.org}/#{@current_scope.product}/devices?updates=failed-updates"} class="text-content-muted hover:text-content-strong">
+              View all →
             </.link>
-            <.link navigate={~p"/org/#{@current_scope.org}/#{@current_scope.product}/devices?health_status=warning"}>
-              <div class="group flex items-center gap-3 py-3">
-                <span title="warning"><.icon name="warning" /></span>
-                <span class="flex-1 text-sm text-content-body group-hover:underline">Warning</span>
-                <span class="text-right font-mono text-sm text-content-strong">{@warning_count}</span>
-                <span class="w-12 text-right font-mono text-sm text-content-muted">{percentage(@warning_count, @total_health_count)}%</span>
-              </div>
+          </:footer>
+        </.list_column>
+
+        <.list_column :if={@flapping_enabled} id="flapping" title="Flapping" meta="last hour">
+          <.list_row :for={{entry, index} <- Enum.with_index(@flapping)} navigate={entry.path} class={index >= 3 && "max-sm:hidden"}>
+            <span class="min-w-0 flex-1 truncate font-mono text-content-strong max-sm:text-ui/4.5">{entry.device.identifier}</span>
+            <span class="w-20 shrink-0 text-content-muted max-sm:w-auto">{entry.kind}</span>
+            <span class="w-12 shrink-0 text-right font-mono text-content-strong">{entry.count}/h</span>
+          </.list_row>
+          <.list_empty :if={@flapping == []}>Nothing has flapped in the last hour</.list_empty>
+          <:footer :if={length(@flapping) > 3} class="sm:hidden">
+            <span class="flex-1 text-content-muted">{length(@flapping) - 3} more</span>
+          </:footer>
+        </.list_column>
+
+        <.list_column id="notifications" title="Notifications" meta={@notification_count}>
+          <.list_row :for={entry <- @notifications}>
+            <span data-level={entry.level} class="size-1.5 shrink-0 rounded-full bg-(--color-chart-other) data-[level=error]:bg-(--color-chart-alert) data-[level=warning]:bg-(--color-chart-4)"></span>
+            <span class="min-w-0 flex-1 truncate text-content-strong">
+              {entry.title}<span :if={entry.occurrence_count > 1} class="font-mono text-content-faint"> ×{delimited(entry.occurrence_count)}</span>
+            </span>
+            <span class="shrink-0 text-content-faint">{occurred(entry.last_occurred_at, @time_zone)}</span>
+          </.list_row>
+          <.list_empty :if={@notifications == []}>No notifications</.list_empty>
+          <:footer :if={@notification_count > length(@notifications)}>
+            <span class="flex-1 text-content-muted">{@notification_count - length(@notifications)} more</span>
+            <.link navigate={~p"/org/#{@current_scope.org}/#{@product}/notifications"} class="text-content-muted hover:text-content-strong">
+              View all →
             </.link>
-            <.link navigate={~p"/org/#{@current_scope.org}/#{@current_scope.product}/devices?health_status=unhealthy"}>
-              <div class="group flex items-center gap-3 py-3">
-                <span title="unhealthy"><.icon name="unhealthy" /></span>
-                <span class="flex-1 text-sm text-content-body group-hover:underline">Unhealthy</span>
-                <span class="text-right font-mono text-sm text-content-strong">{@unhealthy_count}</span>
-                <span class="w-12 text-right font-mono text-sm text-content-muted">{percentage(@unhealthy_count, @total_health_count)}%</span>
-              </div>
-            </.link>
-            <.link navigate={~p"/org/#{@current_scope.org}/#{@current_scope.product}/devices?health_status=unknown"}>
-              <div class="group flex items-center gap-3 py-3">
-                <span title="unknown"><.icon name="unknown" /></span>
-                <span class="flex-1 text-sm text-content-body group-hover:underline">Unknown</span>
-                <span class="text-right font-mono text-sm text-content-strong">{@unknown_count}</span>
-                <span class="w-12 text-right font-mono text-sm text-content-muted">{percentage(@unknown_count, @total_health_count)}%</span>
-              </div>
-            </.link>
-          </div>
-        </div>
-
-        <div :if={@flapping_connections_enabled} class="flex flex-col gap-5 rounded-card border border-line-default bg-surface-raised p-4 shadow-card">
-          <div class="flex justify-between">
-            <div class="flex items-center leading-6 font-medium text-content-strong">
-              Flapping Connections
-            </div>
-            <.tooltip id="flapping-connections-tooltip" placement="top" class="z-20 ml-4">
-              <span class="lucide-info size-4" />
-              <:content>
-                <p class="pb-2">Devices that have reconnected 10 times or more in the last hour.</p>
-                <p>
-                  These devices might have issues with connection stability, <br />or underlying errors which are causing the devices to crash.
-                </p>
-              </:content>
-            </.tooltip>
-          </div>
-          <div class="flex flex-col divide-y divide-line-subtle">
-            <.link
-              :for={{device, connection_count} <- @flapping_connections}
-              :if={Enum.any?(@flapping_connections)}
-              navigate={~p"/org/#{@current_scope.org}/#{@current_scope.product}/devices/#{device.identifier}"}
-            >
-              <div class="group flex items-center gap-3 py-3">
-                <span class="flex-1 font-mono text-sm text-content-body group-hover:underline">{device.identifier}</span>
-                <span class="text-right font-mono text-sm text-content-strong">{connection_count} p/hour</span>
-              </div>
-            </.link>
-            <div :if={Enum.empty?(@flapping_connections)} class="inline-flex h-20 items-center justify-center">
-              <span class="font-mono text-content-faint">No flapping connections detected</span>
-            </div>
-          </div>
-        </div>
-        <div :if={@flapping_health_enabled} class="flex flex-col gap-5 rounded-card border border-line-default bg-surface-raised p-4 shadow-card">
-          <div class="flex justify-between">
-            <div class="flex items-center leading-6 font-medium text-content-strong">
-              Flapping Health
-            </div>
-            <.tooltip id="flapping-health-tooltip" placement="top" class="z-20 ml-4">
-              <span class="lucide-info size-4" />
-              <:content>
-                <p class="pb-2">Devices whose health has crossed into warning or unhealthy more than 5 times in the last hour.</p>
-                <p>
-                  A device sitting steadily unhealthy is not here — these are the ones <br />changing their mind, which usually means a
-                  threshold sits right where <br />the metric normally runs.
-                </p>
-              </:content>
-            </.tooltip>
-          </div>
-          <div class="flex flex-col divide-y divide-line-subtle">
-            <.link
-              :for={{device, change_count} <- @flapping_health}
-              :if={Enum.any?(@flapping_health)}
-              navigate={~p"/org/#{@current_scope.org}/#{@current_scope.product}/devices/#{device.identifier}/health"}
-            >
-              <div class="group flex items-center gap-3 py-3">
-                <span class="flex-1 font-mono text-sm text-content-body group-hover:underline">{device.identifier}</span>
-                <span class="text-right font-mono text-sm text-content-strong">{change_count} p/hour</span>
-              </div>
-            </.link>
-            <div :if={Enum.empty?(@flapping_health)} class="inline-flex h-20 items-center justify-center">
-              <span class="font-mono text-content-faint">No flapping health detected</span>
-            </div>
-          </div>
-        </div>
-
-        <%!-- <div class="bg-surface-raised border-line-default shadow-card flex h-[132px] flex-col rounded-card border">
-          <div class="text-content-strong flex h-14 items-center px-4 text-card-title">
-            Device Alarms
-          </div>
-        </div> --%>
-      </div>
-
-      <div class="flex flex-col gap-4">
-        <div class="flex h-fit grow-0 flex-col gap-5 rounded-card border border-line-default bg-surface-raised p-4 shadow-card">
-          <div class="flex items-center justify-between">
-            <div class="flex items-center">
-              <div class="leading-6 font-medium text-content-strong">
-                Failed Firmware Updates
-                <.badge class="ml-2.5">{@failing_count}</.badge>
-              </div>
-              <.tooltip id="failing-updates-tooltip" placement="top" class="z-20 ml-4" content_class="w-72">
-                <span class="lucide-info size-4" />
-                <:content>
-                  <p class="pb-2">Devices that are failing to take their firmware, and are blocked from trying again for now.</p>
-                  <p class="pb-2">The count is attempts in a row that ended without the device running the firmware it was sent, since the last time it did.</p>
-                  <p>Beside it is how long that run has been going: an afternoon is bad luck, a fortnight is a device that will not fix itself.</p>
-                </:content>
-              </.tooltip>
-            </div>
-
-            <.link
-              :if={Enum.any?(@failing_devices)}
-              navigate={~p"/org/#{@current_scope.org}/#{@current_scope.product}/devices?updates=failed-updates"}
-              class="flex items-center gap-1.5 text-xs text-content-muted"
-            >
-              All <span class="lucide-chevron-right size-4"></span>
-            </.link>
-          </div>
-
-          <div class="flex flex-col divide-y divide-line-subtle">
-            <.link
-              :for={device <- @failing_devices}
-              navigate={~p"/org/#{@current_scope.org}/#{@current_scope.product}/devices/#{device.identifier}"}
-            >
-              <div class="group flex items-center gap-3 py-3">
-                <span class="min-w-0 flex-1 truncate font-mono text-sm text-content-body group-hover:underline">{device.identifier}</span>
-                <span class="w-24 shrink-0 text-right font-mono text-sm text-content-strong">{device.consecutive_failed_updates} failed</span>
-                <span class="w-32 shrink-0 truncate text-right font-mono text-xs text-content-muted">{failing_duration(device)}</span>
-              </div>
-            </.link>
-            <div :if={Enum.empty?(@failing_devices)} class="inline-flex h-20 items-center justify-center">
-              <span class="font-mono text-content-faint">No devices are failing to update</span>
-            </div>
-          </div>
-        </div>
-
-        <div class="flex h-fit grow-0 flex-col gap-4.5 rounded-card border border-line-default bg-surface-raised p-4 shadow-card">
-          <div class="flex items-center justify-between">
-            <div class="leading-6 font-medium text-content-strong">
-              Notifications
-              <.badge class="ml-2.5">{@notification_count}</.badge>
-            </div>
-
-            <.link
-              :if={Enum.any?(@notifications)}
-              navigate={~p"/org/#{@current_scope.org}/#{@product}/notifications"}
-              class="flex items-center gap-1.5 text-xs text-content-muted"
-            >
-              All <span class="lucide-chevron-right size-4"></span>
-            </.link>
-          </div>
-
-          <div :if={Enum.empty?(@notifications)} class="flex h-[200px] flex-col items-center justify-center gap-2 font-mono text-content-faint">
-            <div>You have no notifications</div>
-            <div>Nothing to see here</div>
-          </div>
-          <div :if={Enum.any?(@notifications)} class="flex flex-col divide-y divide-line-subtle">
-            <div :for={entry <- @notifications} class="flex items-center gap-2.5 py-2.5">
-              <.status_dot data-level={entry.level} class="data-[level=error]:bg-alert data-[level=info]:bg-notice data-[level=warning]:bg-warning/85" />
-              <div class="min-w-0 flex-[1_1_0%]">
-                <div class="truncate font-mono text-sm font-normal">
-                  {entry.title}
-                </div>
-                <div class="font-mono text-xs text-content-faint">
-                  {Number.Delimit.number_to_delimited(entry.occurrence_count, precision: 0)} {if entry.occurrence_count == 1, do: "occurrence", else: "occurrences"}
-                </div>
-              </div>
-              <span class="shrink-0 text-xs text-content-muted">{RelativeTime.from_now(entry.last_occurred_at)}</span>
-            </div>
-          </div>
-        </div>
-
-        <div class="flex h-fit grow-0 flex-col gap-5 rounded-card border border-line-default bg-surface-raised p-4 shadow-card">
-          <div class="flex items-center justify-between">
-            <div class="leading-6 font-medium text-content-strong">
-              Firmware Versions
-              <.badge class="ml-2.5">{@firmware_version_count}</.badge>
-            </div>
-            <.tooltip id="firmware-versions-tooltip" placement="top" class="z-20 ml-4" content_class="w-64">
-              <span class="lucide-info size-4" />
-              <:content>
-                <p>The firmware version each device last reported, not the version its deployment group is on. Select a version to see those devices.</p>
-              </:content>
-            </.tooltip>
-          </div>
-
-          <div class="flex items-center gap-6">
-            <div class="size-[168px] shrink-0">
-              <canvas
-                id="firmware-versions-chart"
-                phx-hook="DonutChart"
-                phx-update="ignore"
-                data-slices={Jason.encode!(@firmware_version_slices)}
-              ></canvas>
-            </div>
-
-            <div class="flex min-w-0 flex-1 flex-col divide-y divide-line-subtle">
-              <.link
-                :for={{slice, index} <- Enum.with_index(@firmware_version_slices)}
-                :if={slice.filter}
-                navigate={~p"/org/#{@current_scope.org}/#{@current_scope.product}/devices?firmware_version=#{slice.filter}"}
-              >
-                <div class="group flex items-center gap-3 py-2.5">
-                  <span class="size-2.5 shrink-0 rounded-full" style={"background-color: #{firmware_version_color(index)}"}></span>
-                  <span class="min-w-0 flex-1 truncate font-mono text-sm text-content-body group-hover:underline">{slice.label}</span>
-                  <span class="text-right font-mono text-sm text-content-strong">{slice.count}</span>
-                  <span class="w-12 text-right font-mono text-sm text-content-muted">{percentage(slice.count, @firmware_version_total)}%</span>
-                </div>
-              </.link>
-
-              <div :if={@firmware_version_other} class="flex items-center gap-3 py-2.5">
-                <span class="size-2.5 shrink-0 rounded-full" style="background-color: var(--color-chart-other)"></span>
-                <span class="min-w-0 flex-1 truncate font-mono text-sm text-content-muted">{@firmware_version_other.versions} other versions</span>
-                <span class="text-right font-mono text-sm text-content-strong">{@firmware_version_other.count}</span>
-                <span class="w-12 text-right font-mono text-sm text-content-muted">{percentage(@firmware_version_other.count, @firmware_version_total)}%</span>
-              </div>
-            </div>
-          </div>
-        </div>
+          </:footer>
+        </.list_column>
       </div>
     </div>
   </div>

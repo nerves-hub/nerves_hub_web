@@ -65,13 +65,14 @@ defmodule NervesHubWeb.Live.Product.InsightsFlappingConnectionsTest do
 
       {:ok, view, html} = live(conn, insights_path(org, product))
 
-      assert html =~ "Flapping Connections"
-      assert html =~ device.identifier
-      assert html =~ "11 p/hour"
+      assert html =~ "Flapping"
+      assert has_element?(view, "#flapping", device.identifier)
+      assert has_element?(view, "#flapping", "connection")
+      assert has_element?(view, "#flapping", "11/h")
 
       assigns = :sys.get_state(view.pid).socket.assigns
-      assert assigns.flapping_connections_enabled
-      assert [{flapping_device, 11}] = assigns.flapping_connections
+      assert assigns.flapping_enabled
+      assert [%{device: flapping_device, kind: "connection", count: 11}] = assigns.flapping
       assert flapping_device.id == device.id
     end
 
@@ -97,13 +98,12 @@ defmodule NervesHubWeb.Live.Product.InsightsFlappingConnectionsTest do
       # below the threshold, so this device should not be reported
       insert_connections(device, 5)
 
-      {:ok, view, html} = live(conn, insights_path(org, product))
+      {:ok, view, _html} = live(conn, insights_path(org, product))
 
-      assert html =~ "Flapping Connections"
-      assert html =~ "No flapping connections detected"
-      refute html =~ "p/hour"
+      assert has_element?(view, "#flapping", "Nothing has flapped in the last hour")
+      refute has_element?(view, "#flapping", device.identifier)
 
-      assert :sys.get_state(view.pid).socket.assigns.flapping_connections == []
+      assert :sys.get_state(view.pid).socket.assigns.flapping == []
     end
   end
 
@@ -115,15 +115,15 @@ defmodule NervesHubWeb.Live.Product.InsightsFlappingConnectionsTest do
       :ok
     end
 
-    test "does not render the flapping connections panel", %{
+    test "does not render the flapping list", %{
       conn: conn,
       org: org,
       product: product
     } do
-      {:ok, view, html} = live(conn, insights_path(org, product))
+      {:ok, view, _html} = live(conn, insights_path(org, product))
 
-      refute html =~ "Flapping Connections"
-      refute :sys.get_state(view.pid).socket.assigns.flapping_connections_enabled
+      refute has_element?(view, "#flapping")
+      refute :sys.get_state(view.pid).socket.assigns.flapping_enabled
     end
   end
 end

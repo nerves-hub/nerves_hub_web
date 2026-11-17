@@ -45,22 +45,14 @@ defmodule NervesHubWeb.Live.Product.InsightsTest do
       firmware: firmware
     } do
       device = Fixtures.device_fixture(org, product, firmware)
-      # seed a health record so the fleet health breakdown has data to show
       set_health(device, :healthy)
 
       {:ok, _view, html} = live(conn, insights_path(org, product))
 
       assert html =~ "Insights"
       assert html =~ "1 device"
-      assert html =~ "Online now"
-      assert html =~ "Offline"
-      assert html =~ "Not seen in 7 days"
-      assert html =~ "Not seen in 14 days"
-      assert html =~ "Fleet Health"
-      assert html =~ "Healthy"
-      assert html =~ "Warning"
-      assert html =~ "Unhealthy"
-      assert html =~ "Unknown"
+      assert html =~ "What the fleet is made of"
+      assert html =~ "Health and connection by firmware version"
       assert html =~ "Notifications"
     end
   end
@@ -77,13 +69,12 @@ defmodule NervesHubWeb.Live.Product.InsightsTest do
       assert html =~ "0 devices"
       assert html =~ "#{product.name} doesn"
       assert html =~ "have any devices yet"
-      # the dashboard cards are hidden when there are no devices
-      refute html =~ "% of fleet"
+      # the composition is hidden when there are no devices
+      refute html =~ "What the fleet is made of"
 
-      render_async(view)
       assigns = :sys.get_state(view.pid).socket.assigns
       assert assigns.fleet_size == 0
-      assert assigns.online_count.result == 0
+      refute assigns.stands_out
     end
 
     test "the onboarding message includes the shared secret for manage members", %{
@@ -125,74 +116,24 @@ defmodule NervesHubWeb.Live.Product.InsightsTest do
 
       {:ok, view, html} = live(conn, insights_path(org, product))
 
-      assert html =~ "Fleet Health"
-      assert html =~ "Healthy"
-
-      assert :sys.get_state(view.pid).socket.assigns.total_health_count == 0
+      assert html =~ "What the fleet is made of"
+      assert :sys.get_state(view.pid).socket.assigns.composition.health.unknown == 1
     end
   end
 
-  describe "device connection counts" do
-    test "counts online, offline, and not-seen devices", %{
-      conn: conn,
-      org: org,
-      product: product,
-      firmware: firmware
-    } do
-      now = DateTime.utc_now()
-
-      online = Fixtures.device_fixture(org, product, firmware)
-      connect_device(online, %{status: :connected})
-
-      offline_recent = Fixtures.device_fixture(org, product, firmware)
-      connect_device(offline_recent, %{status: :disconnected, disconnected_at: now})
-
-      offline_8_days = Fixtures.device_fixture(org, product, firmware)
-      connect_device(offline_8_days, %{status: :disconnected, disconnected_at: DateTime.add(now, -8, :day)})
-
-      offline_15_days = Fixtures.device_fixture(org, product, firmware)
-      connect_device(offline_15_days, %{status: :disconnected, disconnected_at: DateTime.add(now, -15, :day)})
-
-      # a device that has never connected counts as offline and not seen
-      _never_connected = Fixtures.device_fixture(org, product, firmware)
+  describe "polling" do
+    test "recounts the fleet on each poll", %{conn: conn, org: org, product: product, firmware: firmware} do
+      device = Fixtures.device_fixture(org, product, firmware)
 
       {:ok, view, _html} = live(conn, insights_path(org, product))
+      assert :sys.get_state(view.pid).socket.assigns.composition.connection.online == 0
 
-      render_async(view)
-      assigns = :sys.get_state(view.pid).socket.assigns
+      connect_device(device, %{status: :connected})
+      send(view.pid, :poll_device_counts)
 
-      assert assigns.fleet_size == 5
-      assert assigns.online_count.result == 1
-      assert assigns.offline_count.result == 4
-      # offline_8_days, offline_15_days, never_connected
-      assert assigns.not_seen_in_7_days.result == 3
-      # offline_15_days, never_connected
-      assert assigns.not_seen_in_14_days.result == 2
-    end
-  end
-
-  describe "fleet health" do
-    test "counts devices by health status", %{
-      conn: conn,
-      org: org,
-      product: product,
-      firmware: firmware
-    } do
-      for status <- [:healthy, :healthy, :warning, :unhealthy, :unknown] do
-        org
-        |> Fixtures.device_fixture(product, firmware)
-        |> set_health(status)
-      end
-
-      {:ok, view, _html} = live(conn, insights_path(org, product))
-
-      assigns = :sys.get_state(view.pid).socket.assigns
-
-      assert assigns.healthy_count == 2
-      assert assigns.warning_count == 1
-      assert assigns.unhealthy_count == 1
-      assert assigns.unknown_count == 1
-      assert assigns.total_health_count == 5
+      # render/1 waits for the poll to be handled
+      render(view)
+      assert :sys.get_state(view.pid).socket.assigns.composition.connection.online == 1
     end
   end
 
@@ -228,7 +169,7 @@ defmodule NervesHubWeb.Live.Product.InsightsTest do
 
       {:ok, view, html} = live(conn, insights_path(org, product))
 
-      assert html =~ "You have no notifications"
+      assert html =~ "No notifications"
       assert :sys.get_state(view.pid).socket.assigns.notification_count == 0
     end
 
@@ -262,12 +203,12 @@ defmodule NervesHubWeb.Live.Product.InsightsTest do
 
       # auto refresh polling is started on mount
       assert :sys.get_state(view.pid).socket.assigns.polling_pid
-      assert has_element?(view, "button[phx-click=toggle-auto-refresh].bg-primary")
+      assert has_element?(view, "button[phx-click=toggle-auto-refresh][aria-checked=true]")
 
       render_click(view, "toggle-auto-refresh")
 
       refute :sys.get_state(view.pid).socket.assigns.polling_pid
-      assert has_element?(view, "button[phx-click=toggle-auto-refresh].bg-base-600")
+      assert has_element?(view, "button[phx-click=toggle-auto-refresh][aria-checked=false]")
 
       render_click(view, "toggle-auto-refresh")
 
@@ -306,9 +247,12 @@ defmodule NervesHubWeb.Live.Product.InsightsTest do
 
       conn
       |> visit(insights_path(org, product))
-      |> assert_has("div", text: "Flapping Health")
-      |> assert_has("span", text: device.identifier)
-      |> assert_has("span", text: "6 p/hour")
+      |> within("#flapping", fn session ->
+        session
+        |> assert_has("a", text: device.identifier)
+        |> assert_has("span", text: "health")
+        |> assert_has("span", text: "6/h")
+      end)
     end
 
     test "says so when nothing is flapping", %{conn: conn, org: org, product: product, device: device} do
@@ -316,8 +260,8 @@ defmodule NervesHubWeb.Live.Product.InsightsTest do
 
       conn
       |> visit(insights_path(org, product))
-      |> assert_has("span", text: "No flapping health detected")
-      |> refute_has("span", text: device.identifier)
+      |> assert_has("#flapping", text: "Nothing has flapped in the last hour")
+      |> refute_has("#flapping", text: device.identifier)
     end
   end
 end
