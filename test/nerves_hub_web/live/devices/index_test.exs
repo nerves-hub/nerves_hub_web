@@ -1532,6 +1532,21 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       end
     end
 
+    test "a role with one bulk action permission can select devices for it", %{conn: conn, fixture: fixture} do
+      %{device: device, org: org, product: product} = fixture
+      give_custom_role(fixture, ["device:toggle-updates"])
+
+      conn
+      |> visit(~p"/org/#{org}/#{product}/devices")
+      |> assert_has("#device-count", text: "1", timeout: 1000)
+      |> check("input#checkbox-device-#{device.id}", "")
+      |> assert_has("h4", text: "1 device selected")
+      |> assert_has("#disable-updates")
+      |> refute_has("#product-move")
+      |> refute_has("#bulk-tag-input")
+      |> refute_has("#deployment-set")
+    end
+
     test "the sidebar shows only the bulk actions the role may take", %{conn: conn, fixture: fixture} do
       %{device: device, org: org, product: product} = fixture
       give_custom_role(fixture, ["device:update", "device:toggle-updates"])

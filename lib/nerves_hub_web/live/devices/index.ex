@@ -38,6 +38,17 @@ defmodule NervesHubWeb.Live.Devices.Index do
   # Delay frequent refresh triggers to this interval
   @refresh_delay 1000
 
+  # Selecting devices only matters for a bulk action, so a role may select
+  # them if it may take any of these.
+  @bulk_action_permissions [
+    :"device:update",
+    :"device:tags",
+    :"device:push-update",
+    :"device:set-deployment-group",
+    :"device:toggle-updates",
+    :"device:clear-penalty-box"
+  ]
+
   @default_filters DeviceFiltering.default_filters()
 
   @default_page 1
@@ -257,8 +268,10 @@ defmodule NervesHubWeb.Live.Devices.Index do
     {:noreply, assign(socket, :current_scope, %{scope | user: user})}
   end
 
-  @decorate requires_permission(:"device:update")
+  @decorate authorizes_in_body(:any_bulk_action_permission)
   def handle_event("select", %{"id" => id_str}, socket) do
+    may_select_devices!(socket.assigns.current_scope)
+
     %{selected_devices: selected_devices, devices: devices} = socket.assigns
 
     with {device_id, ""} <- Integer.parse(id_str),
@@ -281,8 +294,10 @@ defmodule NervesHubWeb.Live.Devices.Index do
     end
   end
 
-  @decorate requires_permission(:"device:update")
+  @decorate authorizes_in_body(:any_bulk_action_permission)
   def handle_event("select-all", _, socket) do
+    may_select_devices!(socket.assigns.current_scope)
+
     %{selected_devices: selected_devices, devices: devices} = socket.assigns
 
     with {:loaded, true} <- {:loaded, devices.ok?},
@@ -305,7 +320,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
     end
   end
 
-  @decorate requires_permission(:"device:update")
+  @decorate requires_membership()
   def handle_event("deselect-all", _, socket) do
     socket
     |> assign(%{
@@ -317,8 +332,10 @@ defmodule NervesHubWeb.Live.Devices.Index do
     |> noreply()
   end
 
-  @decorate requires_permission(:"device:update")
+  @decorate authorizes_in_body(:any_bulk_action_permission)
   def handle_event("select-all-matching", _, socket) do
+    may_select_devices!(socket.assigns.current_scope)
+
     %{devices: devices} = socket.assigns
 
     selected_devices = Enum.map(devices.result, & &1.id)
@@ -1073,6 +1090,12 @@ defmodule NervesHubWeb.Live.Devices.Index do
 
   # The role in the target org was checked when the product was picked, and
   # may have changed since, so it is checked again before anything moves.
+  defp may_select_devices?(scope), do: Enum.any?(@bulk_action_permissions, &authorized?(&1, scope))
+
+  defp may_select_devices!(scope) do
+    if !may_select_devices?(scope), do: raise(NervesHubWeb.UnauthorizedError)
+  end
+
   defp still_allowed_target(_scope, nil), do: :no_product
 
   defp still_allowed_target(scope, target_product) do

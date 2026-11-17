@@ -33,7 +33,13 @@ defmodule NervesHubWeb.Components.BulkActionsSidebar do
           </div>
 
           <div class="flex flex-1 flex-col gap-6 px-4 py-6">
-            <form id="product-move" class="flex flex-col gap-2" phx-change="target-product" phx-submit="move-devices-product">
+            <form
+              :if={NervesHubWeb.Helpers.Authorization.authorized?(:"device:update", @current_scope)}
+              id="product-move"
+              class="flex flex-col gap-2"
+              phx-change="target-product"
+              phx-submit="move-devices-product"
+            >
               <label for="move_to" class="sidebar-label">Move device(s) to product:</label>
 
               <div class="flex gap-2">
