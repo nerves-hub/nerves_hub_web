@@ -15,7 +15,7 @@ defmodule NervesHubWeb.API.CACertificateController do
 
   @auth_error_responses SchemaHelpers.auth_error_responses()
 
-  plug(:require_membership when action in [:index, :show])
+  plug(:require_membership when action in [:index, :show, :verification_token])
   plug(:require_permission, :"certificate_authority:create" when action in [:create])
   plug(:require_permission, :"certificate_authority:delete" when action in [:delete])
 

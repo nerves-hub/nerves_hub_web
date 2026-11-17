@@ -13,7 +13,7 @@ defmodule NervesHubWeb.API.ProductController do
 
   @auth_error_responses SchemaHelpers.auth_error_responses()
 
-  plug(:require_membership when action in [:show])
+  plug(:require_membership when action in [:index, :show])
   plug(:require_permission, :"product:create" when action in [:create])
   plug(:require_permission, :"product:update" when action in [:update])
   plug(:require_permission, :"product:delete" when action in [:delete])

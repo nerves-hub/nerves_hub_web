@@ -207,6 +207,7 @@ defmodule NervesHubWeb.Components.DevicePage.LogsTab do
 
   def hooked_async(_name, _async_fun_result, socket), do: {:cont, socket}
 
+  @decorate requires_membership()
   def hooked_event("filter-logs", params, socket) do
     %{org: org, product: product, device: device} = socket.assigns
 
@@ -215,12 +216,14 @@ defmodule NervesHubWeb.Components.DevicePage.LogsTab do
     |> halt()
   end
 
+  @decorate requires_membership()
   def hooked_event("load-more-logs", _params, socket) do
     socket
     |> load_older()
     |> halt()
   end
 
+  @decorate requires_membership()
   def hooked_event("toggle-log-streaming", _, %{assigns: %{streaming_enabled: false}} = socket) do
     socket
     |> assign(:streaming_enabled, true)
@@ -228,12 +231,14 @@ defmodule NervesHubWeb.Components.DevicePage.LogsTab do
     |> halt()
   end
 
+  @decorate requires_membership()
   def hooked_event("toggle-log-streaming", _, %{assigns: %{streaming_enabled: true}} = socket) do
     socket
     |> assign(:streaming_enabled, false)
     |> halt()
   end
 
+  @decorate requires_membership()
   def hooked_event(_event, _params, socket), do: {:cont, socket}
 
   # Only what differs from showing everything, so an unfiltered tab keeps its

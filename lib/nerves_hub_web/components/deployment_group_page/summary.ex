@@ -129,6 +129,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
   end
 
   @impl Phoenix.LiveComponent
+  @decorate requires_membership()
   def handle_event("select_version_for_stat", %{"version" => version}, socket) do
     update_stat_for_current_firmware =
       Enum.find(socket.assigns.update_stats, fn {_uuid, stats} -> stats.version == version end)
@@ -136,9 +137,8 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
     {:noreply, assign(socket, :update_stat_for_current_firmware, update_stat_for_current_firmware)}
   end
 
+  @decorate requires_permission(:"deployment_group:update")
   def handle_event("delete_delta", %{"id" => id}, socket) do
-    authorized!(:"deployment_group:update", socket.assigns.current_scope)
-
     delta_to_delete = Enum.find(socket.assigns.deltas, &(&1.id == String.to_integer(id)))
 
     {:ok, _} = Firmwares.delete_firmware_delta(delta_to_delete)
@@ -153,9 +153,8 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
     {:noreply, socket}
   end
 
+  @decorate requires_permission(:"deployment_group:update")
   def handle_event("retry_delta", %{"id" => id}, socket) do
-    authorized!(:"deployment_group:update", socket.assigns.current_scope)
-
     delta = Enum.find(socket.assigns.deltas, &(&1.id == String.to_integer(id)))
 
     {:ok, _} = Firmwares.retry_firmware_delta(delta)
@@ -164,9 +163,8 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
     {:noreply, socket}
   end
 
+  @decorate requires_permission(:"deployment_group:update")
   def handle_event("generate-firmware-deltas", _params, %{assigns: %{deployment_group: deployment_group}} = socket) do
-    authorized!(:"deployment_group:update", socket.assigns.current_scope)
-
     {:ok, _} = ManagedDeployments.trigger_delta_generation_for_deployment_group(deployment_group)
 
     socket
@@ -174,11 +172,11 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
     |> noreply()
   end
 
+  @decorate requires_membership()
   def handle_event("validate-csv", _params, socket), do: {:noreply, socket}
 
+  @decorate requires_permission(:"device:set-deployment-group")
   def handle_progress(:device_csv, %{done?: true} = entry, socket) do
-    authorized!(:"device:set-deployment-group", socket.assigns.current_scope)
-
     %{deployment_group: deployment_group, current_scope: %{product: product, user: user}} =
       socket.assigns
 
@@ -211,6 +209,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
     {:noreply, socket}
   end
 
+  @decorate requires_membership()
   def handle_progress(:device_csv, _entry, socket), do: {:noreply, socket}
 
   @impl Phoenix.LiveComponent
