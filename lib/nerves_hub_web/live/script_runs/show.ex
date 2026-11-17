@@ -22,6 +22,10 @@ defmodule NervesHubWeb.Live.ScriptRuns.Show do
   # A run targets a product's devices by filter, not one device at a time.
   on_mount(RequireEveryDevice)
 
+  # The most often the status counts are recounted while devices report. See the
+  # `:device_finished` handlers.
+  @status_counts_interval to_timeout(second: 1)
+
   @default_page 1
   @default_page_size 25
 
@@ -62,6 +66,8 @@ defmodule NervesHubWeb.Live.ScriptRuns.Show do
     |> assign(:script_run, run)
     |> assign(:targeted_deployment_groups, targeted_deployment_groups(scope.product, run))
     |> assign(:status_counts, ScriptRunners.status_counts(run))
+    |> assign(:status_counts_throttled?, false)
+    |> assign(:status_counts_stale?, false)
     |> assign(:expanded_device_id, nil)
     |> assign(:expanded_output, nil)
     |> assign(:rerun_preview, nil)
@@ -249,10 +255,39 @@ defmodule NervesHubWeb.Live.ScriptRuns.Show do
   # Only the counts are refreshed as devices report. Reloading the visible page of
   # rows on every device would re-query a paginated table once per device, and a
   # run can be tens of thousands of devices wide.
+  #
+  # Even the counts are recounted at most once per `@status_counts_interval`. Each
+  # recount reads every row in the run, and offline devices finish a dispatch pass
+  # (up to 500 of them) within about a second. Recounting per event, a 50k-device
+  # run's page managed only about 85 events a second, fell behind each pass, and
+  # kept a database connection about 90% busy for every person watching. The
+  # first event in a quiet spell recounts straight away, so a small run updates as
+  # fast as it did before; the rest of a burst is folded into one recount when the
+  # interval ends.
   @impl Phoenix.LiveView
+  def handle_info({:script_runner, :device_finished, _payload}, %{assigns: %{status_counts_throttled?: true}} = socket) do
+    socket
+    |> assign(:status_counts_stale?, true)
+    |> noreply()
+  end
+
   def handle_info({:script_runner, :device_finished, _payload}, socket) do
     socket
-    |> assign(:status_counts, ScriptRunners.status_counts(socket.assigns.script_run))
+    |> refresh_status_counts()
+    |> noreply()
+  end
+
+  # The interval is over. Recount if anything reported during it, which starts
+  # another interval; otherwise the next event recounts straight away.
+  def handle_info(:refresh_status_counts, %{assigns: %{status_counts_stale?: true}} = socket) do
+    socket
+    |> refresh_status_counts()
+    |> noreply()
+  end
+
+  def handle_info(:refresh_status_counts, socket) do
+    socket
+    |> assign(:status_counts_throttled?, false)
     |> noreply()
   end
 
@@ -267,6 +302,17 @@ defmodule NervesHubWeb.Live.ScriptRuns.Show do
   end
 
   def handle_info(_message, socket), do: noreply(socket)
+
+  # Recounts now and opens an interval during which further device events only
+  # mark the counts stale. See the `:device_finished` handlers.
+  defp refresh_status_counts(socket) do
+    _ = Process.send_after(self(), :refresh_status_counts, @status_counts_interval)
+
+    socket
+    |> assign(:status_counts, ScriptRunners.status_counts(socket.assigns.script_run))
+    |> assign(:status_counts_throttled?, true)
+    |> assign(:status_counts_stale?, false)
+  end
 
   # The groups a `:deployment_groups` run targeted, so the page can name them
   # rather than only count them. The run stores ids, and a group can be renamed or

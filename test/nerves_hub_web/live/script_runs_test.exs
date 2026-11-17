@@ -821,6 +821,36 @@ defmodule NervesHubWeb.Live.ScriptRunsTest do
       refute updated =~ "pending"
     end
 
+    # Each recount reads every row in the run, so a burst of devices reporting is
+    # folded into one recount at the end of the interval rather than one each.
+    test "the status counts are recounted at most once an interval", ctx do
+      run = create_run(ctx, tag: "throttled-counts", devices: 3)
+      [first, second, third] = ScriptRunners.device_results(run)
+
+      {:ok, view, _html} = live(ctx.conn, run_path(ctx, run))
+
+      report = fn result ->
+        1 = ScriptRunners.record_device_result(run.id, result.device_id, :completed, ":ok")
+
+        :ok =
+          ScriptRunners.broadcast_progress(run.id, :device_finished, %{device_id: result.device_id, status: :completed})
+      end
+
+      # The first report in a quiet spell is shown straight away.
+      report.(first)
+      assert progress(render(view)) =~ "1 / 3"
+
+      # The rest of the burst waits for the interval to end.
+      report.(second)
+      report.(third)
+      assert progress(render(view)) =~ "1 / 3"
+
+      # Sent by hand rather than waited for, so the test does not sleep through the
+      # interval: this is the message the page schedules for itself.
+      send(view.pid, :refresh_status_counts)
+      assert progress(render(view)) =~ "3 / 3"
+    end
+
     test "another product's run is not reachable", ctx do
       other_product = Fixtures.product_fixture(ctx.user, ctx.org, %{name: "Somewhere else"})
       other_key = Fixtures.org_key_fixture(ctx.org, ctx.user)

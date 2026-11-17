@@ -116,9 +116,12 @@ config :nerves_hub, Oban,
   repo: {NervesHub.Repo, log: false},
   notifier: Oban.Notifiers.PG,
   pruner: [max_age: {1, :week}, interval: {3, :minutes}],
-  # Moves on a job left `executing` by a node that died or was shut down mid-job:
-  # back to `available` if it has attempts left, otherwise `discarded`.
-
+  # Moves any job that has been `executing` longer than `rescue_after` back to
+  # `available` if it has attempts left, otherwise `discarded`. Meant for jobs
+  # orphaned by a node that died or was shut down mid-job, but the rescue is
+  # purely time-based: it does not check whether the node is still alive, so a
+  # job genuinely running longer than this, in any queue, is run a second time.
+  #
   # Firmware delta builds are given 16 minutes (`NervesHub.Workers.FirmwareDeltaTimeout`);
   # anything shorter than that would start a second build of a delta still being built.
   lifeline: [rescue_after: {30, :minutes}],
