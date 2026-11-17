@@ -9,12 +9,9 @@ defmodule NervesHubWeb.Live.Account do
   alias NervesHubWeb.Components.DateTimes
   alias NervesHubWeb.Components.OAuthLinks
   alias NervesHubWeb.CoreComponents
+  alias NervesHubWeb.Plugs.Attack
 
   embed_templates("account_templates/*")
-
-  # How long `Auth.recently_authenticated?/1` counts a sign-in as recent, for
-  # saying until when above the ways to sign in.
-  @recent_sign_in_seconds 10 * 60
 
   @impl Phoenix.LiveView
   def mount(_params, session, %{assigns: %{current_scope: scope}} = socket) do
@@ -44,7 +41,7 @@ defmodule NervesHubWeb.Live.Account do
     |> assign(:password_form, nil)
     |> assign(:new_password_form, nil)
     |> assign(:totp, TwoFactor.get(socket.assigns.user))
-    |> assign(:recent_until, recent_until(socket.assigns.auth_session))
+    |> assign(:recent_until, Auth.recently_authenticated_until(socket.assigns.auth_session))
     |> assign(:slack_links, SlackUsers.list_links(socket.assigns.user))
     |> render_with(&profile_template/1)
   end
@@ -63,13 +60,6 @@ defmodule NervesHubWeb.Live.Account do
     |> page_title("Delete account")
     |> assign(:form, to_form(%{}))
     |> render_with(&delete_account_template/1)
-  end
-
-  # Until when the session's sign-in counts as recent, or nil when it doesn't.
-  defp recent_until(auth_session) do
-    if Auth.recently_authenticated?(auth_session) do
-      DateTime.from_unix!(auth_session["authenticated_at"] + @recent_sign_in_seconds)
-    end
   end
 
   @impl Phoenix.LiveView
@@ -91,9 +81,15 @@ defmodule NervesHubWeb.Live.Account do
   def handle_event("update-details", %{"user" => params}, socket) do
     confirm_url = &url(~p"/account/confirm-email/#{&1}")
 
-    socket.assigns.user
-    |> Accounts.update_user(params, confirm_url)
-    |> case do
+    # Only an email change checks the password, so only then does a try count.
+    password_tried? = params["current_password"] not in [nil, ""]
+
+    result =
+      with :ok <- if(password_tried?, do: check_password_attempts(socket.assigns.user), else: :ok) do
+        Accounts.update_user(socket.assigns.user, params, confirm_url)
+      end
+
+    case result do
       {:ok, user, nil} ->
         socket
         |> put_user(user)
@@ -108,6 +104,11 @@ defmodule NervesHubWeb.Live.Account do
         |> put_flash(:info, "We've emailed a link to #{new_email}. Your email address will change when you follow it.")
         |> noreply()
 
+      {:error, :too_many_attempts} ->
+        socket
+        |> assign(:form, to_form(too_many_attempts(socket.assigns.user, params)))
+        |> noreply()
+
       {:error, changeset} ->
         socket
         |> assign(:form, to_form(changeset))
@@ -120,15 +121,24 @@ defmodule NervesHubWeb.Live.Account do
     user_params = Map.delete(user_params, "current_password")
 
     reset_url = &url(~p"/password-reset/#{&1}")
+    user = socket.assigns.current_scope.user
 
-    socket.assigns.current_scope.user
-    |> Accounts.update_user_password(password, user_params, reset_url)
-    |> case do
+    result =
+      with :ok <- check_password_attempts(user) do
+        Accounts.update_user_password(user, password, user_params, reset_url)
+      end
+
+    case result do
       {:ok, user} ->
         socket
         |> put_user(user)
         |> assign(:password_form, nil)
         |> put_flash(:info, "Your password is changed.")
+        |> noreply()
+
+      {:error, :too_many_attempts} ->
+        socket
+        |> assign(:password_form, to_form(too_many_attempts(user, user_params)))
         |> noreply()
 
       {:error, changeset} ->
@@ -314,8 +324,38 @@ defmodule NervesHubWeb.Live.Account do
     end
   end
 
-  # The page reads how the account signs in from both.
+  # Guessing the password here would get round the limit on `/account/confirm`,
+  # where it buys a recent sign-in, so tries here count against the same one.
+  defp check_password_attempts(user) do
+    case Attack.confirm_identity_throttle(user.id) do
+      {:allow, _data} -> :ok
+      {:block, _data} -> {:error, :too_many_attempts}
+    end
+  end
+
+  # The form as it was sent, but for the password, which the error goes under.
+  defp too_many_attempts(user, params) do
+    user
+    |> Ecto.Changeset.change()
+    |> Ecto.Changeset.cast(Map.put(params, "current_password", ""), [
+      :name,
+      :email,
+      :password,
+      :password_confirmation,
+      :current_password
+    ])
+    |> Ecto.Changeset.add_error(
+      :current_password,
+      "Too many tries. To keep your account safe, wait ten minutes, then try again."
+    )
+    |> Map.put(:action, :validate)
+  end
+
+  # The page reads how the account signs in from both. The header counts the
+  # organizations preloaded at mount, which an updated user doesn't carry.
   defp put_user(socket, user) do
+    user = %{user | orgs: socket.assigns.user.orgs}
+
     socket
     |> assign(:user, user)
     |> assign(:current_scope, %{socket.assigns.current_scope | user: user})

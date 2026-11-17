@@ -77,6 +77,34 @@ defmodule NervesHubWeb.Live.TwoFactorTest do
       refute TwoFactor.enabled?(user)
     end
 
+    test "a setup left open too long has to start again", %{conn: conn, user: user} do
+      session =
+        conn
+        |> visit(~p"/account/two-factor")
+        |> click_button("Set up two-factor authentication")
+
+      secret = setup_secret(session)
+
+      # As if setup started eleven minutes ago.
+      session =
+        unwrap(session, fn view ->
+          :sys.replace_state(view.pid, fn state ->
+            started_at = System.monotonic_time(:second) - 11 * 60
+            %{state | socket: Phoenix.Component.assign(state.socket, :setup_started_at, started_at)}
+          end)
+
+          render(view)
+        end)
+
+      session
+      |> fill_in("Code from the app", with: NimbleTOTP.verification_code(secret))
+      |> click_button("Turn on")
+      |> assert_has("div", text: "Setting up took longer than ten minutes")
+      |> assert_has("#two-factor-off")
+
+      refute TwoFactor.enabled?(user)
+    end
+
     test "turns off with a code", %{conn: conn, user: user} do
       %{secret: secret} = Fixtures.two_factor_fixture(user)
 

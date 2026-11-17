@@ -5,6 +5,7 @@ defmodule NervesHubWeb.Live.AccountTest do
   import Swoosh.TestAssertions
 
   alias NervesHub.Accounts
+  alias NervesHubWeb.Plugs.Attack
 
   describe "update" do
     test "can update username", %{conn: conn, user: user} do
@@ -109,6 +110,37 @@ defmodule NervesHubWeb.Live.AccountTest do
       send_queued_emails()
 
       assert_email_sent(subject: "NervesHub: Your password has been updated")
+    end
+
+    test "keeps counting the user's organizations after a save", %{conn: conn} do
+      conn
+      |> visit("/account")
+      |> assert_has("#account-summary", text: "Member of 1 organization")
+      |> fill_in("Name", with: "My Newest Name")
+      |> click_button("Save profile")
+      |> assert_has("div", text: "Account updated")
+      |> assert_has("#account-summary", text: "Member of 1 organization")
+    end
+
+    # Otherwise guessing here would get round the limit on `/account/confirm`.
+    test "limits tries at the current password, along with confirming it's you", %{conn: conn, user: user} do
+      for _ <- 1..5, do: Attack.confirm_identity_throttle(user.id)
+
+      conn
+      |> visit("/account")
+      |> click_button("#change-password", "Change")
+      |> within("#password-form", fn session ->
+        session
+        |> fill_in("Current password", with: "test_password")
+        |> fill_in("New password", with: "foobarbazhumbug")
+        |> fill_in("Confirm new password", with: "foobarbazhumbug")
+        |> submit()
+      end)
+      |> assert_has("#password-form", text: "Too many tries")
+
+      {:ok, updated_user} = Accounts.get_user(user.id)
+
+      assert updated_user.password_hash == user.password_hash
     end
 
     # The details form has no password field, but nothing stops a request

@@ -15,6 +15,11 @@ defmodule NervesHubWeb.Live.Account.TwoFactor do
   alias NervesHubWeb.Auth
   alias NervesHubWeb.Plugs.Attack
 
+  # How long after starting setup a code still turns two-factor on. The recent
+  # sign-in is checked when setup starts, so this bounds how long after it a
+  # browser left open on the QR code can still be used to finish.
+  @setup_seconds 10 * 60
+
   @impl Phoenix.LiveView
   def mount(_params, session, socket) do
     socket
@@ -25,6 +30,7 @@ defmodule NervesHubWeb.Live.Account.TwoFactor do
     # When this session last proved who it is, see `start-setup`.
     |> assign(:auth_session, Map.take(session, ["authenticated_at"]))
     |> assign(:setup_secret, nil)
+    |> assign(:setup_started_at, nil)
     |> assign(:recovery_codes, nil)
     |> assign(:error, nil)
     |> load()
@@ -47,6 +53,7 @@ defmodule NervesHubWeb.Live.Account.TwoFactor do
     if Auth.recently_authenticated?(socket.assigns.auth_session) do
       socket
       |> assign(:setup_secret, TwoFactor.new_secret())
+      |> assign(:setup_started_at, System.monotonic_time(:second))
       |> assign(:error, nil)
       |> noreply()
     else
@@ -59,6 +66,7 @@ defmodule NervesHubWeb.Live.Account.TwoFactor do
   def handle_event("cancel-setup", _params, socket) do
     socket
     |> assign(:setup_secret, nil)
+    |> assign(:setup_started_at, nil)
     |> assign(:error, nil)
     |> noreply()
   end
@@ -66,8 +74,10 @@ defmodule NervesHubWeb.Live.Account.TwoFactor do
   def handle_event("enable", params, %{assigns: %{setup_secret: secret}} = socket) when is_binary(secret) do
     user = socket.assigns.current_scope.user
 
-    # The secret only exists once `start-setup` found a recent sign-in.
-    with :ok <- check_attempts(user),
+    # The secret only exists once `start-setup` found a recent sign-in, and
+    # only counts for `@setup_seconds` after that.
+    with :ok <- check_setup_fresh(socket),
+         :ok <- check_attempts(user),
          {:ok, codes} <- TwoFactor.enable(user, secret, params["code"] || "") do
       # Whoever holds another of the user's sessions never typed a code, and
       # may be someone who got in with a stolen password before now.
@@ -81,7 +91,17 @@ defmodule NervesHubWeb.Live.Account.TwoFactor do
       |> put_flash(:info, "Two-factor authentication is on. Your other browser sessions were signed out.")
       |> noreply()
     else
-      {:error, reason} -> socket |> assign(:error, error_message(reason)) |> noreply()
+      {:error, :setup_expired} ->
+        socket
+        |> assign(:setup_secret, nil)
+        |> assign(:setup_started_at, nil)
+        |> assign(:error, nil)
+        # The setup form, which shows `@error`, is gone, so it's a flash.
+        |> put_flash(:error, error_message(:setup_expired))
+        |> noreply()
+
+      {:error, reason} ->
+        socket |> assign(:error, error_message(reason)) |> noreply()
     end
   end
 
@@ -123,6 +143,10 @@ defmodule NervesHubWeb.Live.Account.TwoFactor do
     socket |> assign(:recovery_codes, nil) |> noreply()
   end
 
+  defp check_setup_fresh(%{assigns: %{setup_started_at: started_at}}) do
+    if System.monotonic_time(:second) - started_at <= @setup_seconds, do: :ok, else: {:error, :setup_expired}
+  end
+
   # A code is what stops a signed in browser alone from changing any of this,
   # so how often one can be tried is limited.
   defp check_attempts(%User{id: user_id}) do
@@ -139,6 +163,9 @@ defmodule NervesHubWeb.Live.Account.TwoFactor do
 
   defp error_message(:secret_unreadable),
     do: "Codes from your authenticator app can't be checked on this server right now. Use a recovery code instead."
+
+  defp error_message(:setup_expired),
+    do: "Setting up took longer than ten minutes, so it was stopped. Start again to get a new QR code."
 
   defp error_message(:already_enabled), do: "Two-factor authentication is already on."
   defp error_message(:unavailable), do: "Two-factor authentication isn't available on this server."

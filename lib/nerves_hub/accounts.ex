@@ -315,11 +315,13 @@ defmodule NervesHub.Accounts do
   @spec remove_password(User.t(), binary() | nil) ::
           {:ok, User.t()} | {:error, :no_password | :last_sign_in_method | Changeset.t()}
   def remove_password(%User{} = user, keep_token) do
-    cond do
-      not sign_in_method?(user, :password) -> {:error, :no_password}
-      not sign_in_method?(user, :google) -> {:error, :last_sign_in_method}
-      true -> change_sign_in_methods(User.remove_password_changeset(user), keep_token)
-    end
+    change_sign_in_methods(user, keep_token, fn user ->
+      cond do
+        not sign_in_method?(user, :password) -> {:error, :no_password}
+        not sign_in_method?(user, :google) -> {:error, :last_sign_in_method}
+        true -> {:ok, User.remove_password_changeset(user)}
+      end
+    end)
   end
 
   @doc """
@@ -335,16 +337,28 @@ defmodule NervesHub.Accounts do
   @spec disconnect_google(User.t(), binary() | nil) ::
           {:ok, User.t()} | {:error, :not_connected | :last_sign_in_method | Changeset.t()}
   def disconnect_google(%User{} = user, keep_token) do
-    cond do
-      is_nil(user.google_id) -> {:error, :not_connected}
-      not sign_in_method?(user, :password) -> {:error, :last_sign_in_method}
-      true -> change_sign_in_methods(User.disconnect_google_changeset(user), keep_token)
-    end
+    change_sign_in_methods(user, keep_token, fn user ->
+      cond do
+        is_nil(user.google_id) -> {:error, :not_connected}
+        not sign_in_method?(user, :password) -> {:error, :last_sign_in_method}
+        true -> {:ok, User.disconnect_google_changeset(user)}
+      end
+    end)
   end
 
-  defp change_sign_in_methods(changeset, keep_token) do
+  # `change_fun` decides on the account's row as it is now, locked until the
+  # change commits, rather than on the caller's copy, which may be stale: two
+  # tabs could otherwise each remove a different way in and leave none.
+  defp change_sign_in_methods(%User{id: user_id}, keep_token, change_fun) do
     Multi.new()
-    |> Multi.update(:user, changeset)
+    |> Multi.run(:changeset, fn repo, _changes ->
+      User
+      |> where(id: ^user_id)
+      |> lock("FOR UPDATE")
+      |> repo.one!()
+      |> change_fun.()
+    end)
+    |> Multi.update(:user, fn %{changeset: changeset} -> changeset end)
     |> Multi.run(:signed_out, fn repo, %{user: user} ->
       query = UserToken.by_user_and_contexts_query(user, ["session"])
       query = if is_binary(keep_token), do: where(query, [t], t.token != ^keep_token), else: query
@@ -358,6 +372,9 @@ defmodule NervesHub.Accounts do
         for token <- tokens, do: disconnect_socket(UserToken.live_socket_id(token))
         {:ok, user}
 
+      {:error, :changeset, reason, _} ->
+        {:error, reason}
+
       {:error, :user, changeset, _} ->
         {:error, changeset}
     end
@@ -365,10 +382,11 @@ defmodule NervesHub.Accounts do
 
   @doc """
   Links the Google account `auth` is for to `user`, who is signed in and has
-  just signed in to Google from their account page. The same checks as
-  `link_google_account/2`: Google has verified the address, it is the
-  account's, and the account has no Google account yet.
+  just signed in to Google from their account page.
 
+  Refused with `:email_not_verified` unless Google has verified the address,
+  then makes the checks of `link_google_account/2`: the address is the
+  account's, the account is confirmed, and it has no Google account yet.
   Whoever calls this has made sure the user signed in recently.
   """
   @spec connect_google_account(User.t(), Ueberauth.Auth.t()) ::

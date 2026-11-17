@@ -1,13 +1,12 @@
 defmodule NervesHubWeb.ConfirmIdentityController do
   @moduledoc """
-  "Confirm it's you": where a signed in user proves who they are again, with
-  their password or with Google, before a change that needs a recent sign-in
-  (see `NervesHubWeb.Auth.recently_authenticated?/1`). Whichever way the
-  account signs in works, so an account without a password is never asked for
-  one.
+  The "Confirm it's you" page, where a signed in user proves who they are
+  again before a change that needs a recent sign-in.
 
-  Also where the account page starts connecting a Google account, which goes
-  out to Google the same way.
+  It takes the password or Google, whichever the account has, so an account
+  without a password is never asked for one (see
+  `NervesHubWeb.Auth.recently_authenticated?/1`). The account page also starts
+  connecting a Google account here, which goes out to Google the same way.
   """
   use NervesHubWeb, :controller
 

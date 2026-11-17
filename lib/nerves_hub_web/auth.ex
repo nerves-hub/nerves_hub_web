@@ -147,13 +147,21 @@ defmodule NervesHubWeb.Auth do
   hasn't proven anything yet, so it has to confirm first.
   """
   @spec recently_authenticated?(Plug.Conn.t() | map()) :: boolean()
-  def recently_authenticated?(%Plug.Conn{} = conn), do: recently_authenticated?(get_session(conn))
+  def recently_authenticated?(conn_or_session), do: recently_authenticated_until(conn_or_session) != nil
 
-  def recently_authenticated?(%{"authenticated_at" => at}) when is_integer(at) do
-    System.os_time(:second) - at <= @recent_sign_in_seconds
+  @doc """
+  Until when a session's sign-in counts as recent (`recently_authenticated?/1`),
+  or nil when it doesn't now.
+  """
+  @spec recently_authenticated_until(Plug.Conn.t() | map()) :: DateTime.t() | nil
+  def recently_authenticated_until(%Plug.Conn{} = conn), do: recently_authenticated_until(get_session(conn))
+
+  def recently_authenticated_until(%{"authenticated_at" => at}) when is_integer(at) do
+    until = at + @recent_sign_in_seconds
+    if System.os_time(:second) <= until, do: DateTime.from_unix!(until)
   end
 
-  def recently_authenticated?(_session), do: false
+  def recently_authenticated_until(_session), do: nil
 
   @doc """
   Where `/account/confirm` sends someone back to: `return_to` if it's an

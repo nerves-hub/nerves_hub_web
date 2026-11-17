@@ -127,4 +127,14 @@ defmodule NervesHubWeb.Live.Account.SignInMethodsTest do
     |> assert_has("#email_follows_google")
     |> refute_has("#details-form input[name='user[current_password]']")
   end
+
+  test "an account linked to Google changes its email here while this server doesn't offer Google sign-in" do
+    Application.put_env(:nerves_hub, :enable_google_auth, false)
+
+    google_user()
+    |> signed_in()
+    |> visit("/account")
+    |> refute_has("#email_follows_google")
+    |> assert_has("#details-form input[name='user[email]']:not([readonly])")
+  end
 end

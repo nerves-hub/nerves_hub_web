@@ -91,6 +91,16 @@ defmodule NervesHub.Accounts.SignInMethodsTest do
       assert Repo.reload(user).google_id
     end
 
+    # Two tabs each loaded the account with both ways in, and each removes one.
+    test "keeps one way in when the caller's copy of the account is out of date" do
+      user = google_user()
+
+      assert {:ok, _user} = Accounts.remove_password(user, nil)
+      assert Accounts.disconnect_google(user, nil) == {:error, :last_sign_in_method}
+
+      assert Repo.reload(user).google_id
+    end
+
     test "says when there's no Google account to unlink" do
       assert Accounts.disconnect_google(Fixtures.user_fixture(), nil) == {:error, :not_connected}
     end
@@ -178,6 +188,18 @@ defmodule NervesHub.Accounts.SignInMethodsTest do
                )
 
       assert %{email: ["follows your Google account, so it changes there"]} = errors_on(changeset)
+    end
+
+    test "changes its email like any other's while this server doesn't offer Google sign-in" do
+      Application.put_env(:nerves_hub, :enable_google_auth, false)
+      user = google_user()
+
+      assert {:ok, _user, "new@example.com"} =
+               Accounts.update_user(
+                 user,
+                 %{"email" => "new@example.com", "current_password" => "test_password"},
+                 &"/c/#{&1}"
+               )
     end
   end
 
