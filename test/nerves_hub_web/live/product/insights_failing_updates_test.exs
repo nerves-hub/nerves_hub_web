@@ -48,7 +48,7 @@ defmodule NervesHubWeb.Live.Product.InsightsFailingUpdatesTest do
 
       {:ok, view, html} = live(conn, insights_path(org, product))
 
-      assert html =~ "Failed Firmware Updates"
+      assert html =~ "Failing updates"
       assert html =~ "27 failed"
       assert html =~ "1 failed"
 
@@ -67,9 +67,9 @@ defmodule NervesHubWeb.Live.Product.InsightsFailingUpdatesTest do
     } do
       _ = failing(Fixtures.device_fixture(org, product, firmware), failures: 40, failing_since: days_ago(14))
 
-      {:ok, _view, html} = live(conn, insights_path(org, product))
+      {:ok, view, _html} = live(conn, insights_path(org, product))
 
-      assert html =~ "over 14 days"
+      assert has_element?(view, "#failing-updates span", "14 d")
     end
 
     test "leaves out a device that is blocked but has not failed", %{
@@ -127,19 +127,43 @@ defmodule NervesHubWeb.Live.Product.InsightsFailingUpdatesTest do
       assert :sys.get_state(view.pid).socket.assigns.failing_count == 0
     end
 
-    test "links to the devices list filtered to the same population it lists", %{
+    test "links to the devices list filtered to the same population, when it lists only some", %{
       conn: conn,
       org: org,
       product: product,
       firmware: firmware
     } do
-      _blocked = failing(Fixtures.device_fixture(org, product, firmware), failures: 3)
+      for failures <- 1..4, do: failing(Fixtures.device_fixture(org, product, firmware), failures: failures)
 
-      {:ok, _view, html} = live(conn, insights_path(org, product))
+      {:ok, view, _html} = live(conn, insights_path(org, product))
+
+      assert has_element?(view, "#failing-updates", "1 more")
 
       # Not `penalty-box`: that is a superset, so the link would have shown a
       # different list from the count beside it.
-      assert html =~ "devices?updates=failed-updates"
+      assert has_element?(view, ~s(#failing-updates a[href$="devices?updates=failed-updates"]), "View all")
+    end
+  end
+
+  describe "when analytics is disabled" do
+    setup do
+      original = Application.get_env(:nerves_hub, :analytics_enabled)
+      Application.put_env(:nerves_hub, :analytics_enabled, false)
+      on_exit(fn -> Application.put_env(:nerves_hub, :analytics_enabled, original) end)
+      :ok
+    end
+
+    test "the failing updates list is still there, because it does not need analytics", %{
+      conn: conn,
+      org: org,
+      product: product,
+      firmware: firmware
+    } do
+      _ = failing(Fixtures.device_fixture(org, product, firmware), failures: 3)
+
+      {:ok, view, _html} = live(conn, insights_path(org, product))
+
+      assert has_element?(view, "#failing-updates", "3 failed")
     end
   end
 end

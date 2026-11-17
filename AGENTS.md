@@ -100,6 +100,15 @@ when adding or removing one.
   requirement on, or a member turning two-factor off, is announced on
   `Accounts.PubSub`, so what that member has open closes. Anything that
   checks a code limits the tries first (`Plugs.Attack`).
+- An account signs in with a password, Google, or both
+  (`Accounts.sign_in_methods/1`), and must keep one. Changing how it signs
+  in (adding or removing a way, turning on two-factor) needs a **recent
+  sign-in**, not a password: `NervesHubWeb.Auth.recently_authenticated?/1`
+  reads `:authenticated_at` from the session (10 minutes). `/account/confirm`
+  renews it with whichever way the account has, plus a two-factor code when
+  two-factor is on, so an account without a password is never asked for one.
+  A signed in user only reaches `/auth/google` with a `:google_intent` the
+  account page set.
 - A custom role can be limited to devices with certain tags. Its members see
   only those devices, so **every device query a user can reach must go through
   `NervesHub.Devices.Visibility.where_visible/2`**, which checks the member's
@@ -185,6 +194,15 @@ when adding or removing one.
   Adaptive Cards in `Teams.Cards`) and `integrations/discord.ex` (URL checks,
   embeds in `Discord.Embeds`). See [docs/teams.md](docs/teams.md) and
   [docs/discord.md](docs/discord.md).
+- `insights.ex` / `insights/` - what a product's fleet is made of, for its
+  Insights page: devices counted by connection, health and firmware version
+  from PostgreSQL alone, and the version whose devices stand out as less
+  healthy than the fleet. Its groupings match the devices list's filters, so
+  each count links to the devices it counts. `insights/trends.ex` is how the
+  fleet moved over a period (adoption, update outcomes, online, healthy),
+  from ClickHouse. History keeps only changes, so the shares are walked back
+  from today's live counts and are shares of today's fleet. A version's
+  release is the first deployment group given it, or its upload if none was.
 - `scripts.ex` / `scripts/` — support scripts run against a device console.
 - `workers/` — Oban workers (e.g. firmware delta building, firmware deletion).
 - `audit_logs.ex` / `audit_logs/` - the audit log, written from the templates
@@ -213,8 +231,14 @@ when adding or removing one.
   `live/products/new.ex`) have no sidebar: they render inside `Layouts.org/1`,
   a centered column under the organization's name, counts and tabs, and mount
   `NervesHubWeb.Mounts.OrgCounts` for the counts. Product pages keep the
-  sidebar layout.
-- `components/` — shared function/live components. `components/fleet.ex`
+  sidebar layout. The sidebar can be collapsed at any width, so the firmware
+  list sizes its columns and cards by the room it gets (an `@container` and
+  `@max-3xl:`-style variants), not by the viewport, and never scrolls sideways:
+  a sideways scroller would clip each row's menu.
+- `components/` - shared function/live components. `components/fleet_composition.ex`
+  draws `NervesHub.Insights` on a product's Insights page, and
+  `components/fleet_trends.ex` its trends row as SVG drawn on the server.
+  `components/fleet.ex`
   sums up how a set of products is doing (Needs attention, online meters,
   health chips), for the organizations home page and an organization's
   Products tab. `components/device_list.ex` holds a product's devices list's

@@ -117,8 +117,7 @@ defmodule NervesHubWeb.Plugs.Attack do
 
   Turning two-factor off and making new recovery codes ask for a code so that
   a signed in browser alone can't do either. Without a limit, whoever holds
-  that browser could guess codes until one worked. Turning it on asks for the
-  password, which could be guessed the same way.
+  that browser could guess codes until one worked.
 
   Counted apart from `two_factor_throttle/2`, so tries here can't lock the
   user out of signing in, and on this node only, like it.
@@ -128,6 +127,22 @@ defmodule NervesHubWeb.Plugs.Attack do
     time = opts[:time] || System.system_time(:millisecond)
 
     do_throttle({:two_factor_change, user_id}, time: time, limit: 5, period: to_timeout(minute: 10))
+  end
+
+  @doc """
+  Limits how often one signed in user can try to prove it's them: five tries
+  every ten minutes.
+
+  Shared by the password and two-factor code on `/account/confirm` and the
+  current password on the account page, so whoever holds the browser can't
+  guess at one to get round the limit on another. Counted on this node only,
+  like `cli_code_throttle/2`.
+  """
+  @spec confirm_identity_throttle(pos_integer(), keyword()) :: {:allow | :block, {:throttle, keyword()}}
+  def confirm_identity_throttle(user_id, opts \\ []) do
+    time = opts[:time] || System.system_time(:millisecond)
+
+    do_throttle({:confirm_identity, user_id}, time: time, limit: 5, period: to_timeout(minute: 10))
   end
 
   defp do_throttle(key, opts) do

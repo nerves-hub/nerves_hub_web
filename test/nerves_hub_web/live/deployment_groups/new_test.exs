@@ -281,4 +281,58 @@ defmodule NervesHubWeb.Live.DelploymentGroups.NewTest do
       |> assert_has("h1", text: "Add Deployment Group")
     end
   end
+
+  describe "starting from a firmware" do
+    test "the firmware list's link starts with that firmware chosen", %{
+      conn: conn,
+      user: user,
+      org: org,
+      org_key: org_key,
+      tmp_dir: tmp_dir
+    } do
+      product = Fixtures.product_fixture(user, org)
+
+      firmware =
+        Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir, platform: "taramasalata"})
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/deployment_groups/new?firmware=#{firmware.uuid}")
+      |> assert_has("option[selected]", text: firmware.platform)
+      |> assert_has("option[selected]", text: firmware.architecture)
+      |> assert_has("option[selected]", text: firmware.uuid, exact: false)
+      |> fill_in("Name", with: "Moussaka")
+      |> fill_in("Tag(s) distributed to", with: "josh")
+      |> click_button("Save changes")
+      |> assert_has("h1", text: "Moussaka")
+
+      assert %{firmware_id: firmware_id} =
+               DeploymentGroup
+               |> Repo.get_by!(name: "Moussaka")
+               |> Repo.preload(:current_release)
+               |> Map.get(:current_release)
+
+      assert firmware_id == firmware.id
+    end
+
+    test "an unknown or deleted firmware starts with nothing chosen", %{
+      conn: conn,
+      user: user,
+      org: org,
+      org_key: org_key,
+      tmp_dir: tmp_dir
+    } do
+      product = Fixtures.product_fixture(user, org)
+      firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+      {:ok, _} = NervesHub.Firmwares.delete_firmware(firmware, user)
+      _other = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir, version: "2.0.0"})
+
+      for uuid <- [firmware.uuid, Ecto.UUID.generate()] do
+        conn
+        |> visit("/org/#{org.name}/#{product.name}/deployment_groups/new?firmware=#{uuid}")
+        |> assert_has("h1", text: "Add Deployment Group")
+        |> refute_has("select[name$='[platform]'] option[selected]")
+        |> refute_has("select[name$='[firmware]'] option[selected]")
+      end
+    end
+  end
 end

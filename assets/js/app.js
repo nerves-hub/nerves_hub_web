@@ -21,7 +21,6 @@ import DeviceLocationMap from "./hooks/deviceLocationMap.js"
 import DevicePeek from "./hooks/devicePeek.js"
 import DevicePageScroll from "./hooks/devicePageScroll.js"
 import DeviceLocationMapWithGeocoder from "./hooks/deviceLocationMapWithGeocoder.js"
-import DonutChart from "./hooks/donutChart.js"
 import Flash from "./hooks/flash.js"
 import HighlightCode from "./hooks/highlightCode.js"
 import { LiveFlowHook } from "live_flow"
@@ -37,7 +36,6 @@ import SupportScriptOutput from "./hooks/supportScriptOutput.js"
 import TagAutocomplete from "./hooks/tagAutocomplete.js"
 import ThemeSwitcher from "./hooks/themeSwitcher.js"
 import ToolTip from "./hooks/toolTip.js"
-import UpdateOutcomesChart from "./hooks/updateOutcomesChart.js"
 import UpdatingTimeAgo from "./hooks/updatingTimeAgo.js"
 import WorkflowDiagramFit from "./hooks/workflowDiagramFit.js"
 import WorldMap from "./hooks/worldMap.js"
@@ -85,7 +83,6 @@ let liveSocket = new LiveSocket("/live", Socket, {
     DeviceLocationMap,
     DeviceLocationMapWithGeocoder,
     DevicePageScroll,
-    DonutChart,
     Flash,
     HighlightCode,
     LiveFlow: LiveFlowHook,
@@ -101,7 +98,6 @@ let liveSocket = new LiveSocket("/live", Socket, {
     TagAutocomplete,
     ThemeSwitcher,
     ToolTip,
-    UpdateOutcomesChart,
     UpdatingTimeAgo,
     WorkflowDiagramFit,
     WorldMap,

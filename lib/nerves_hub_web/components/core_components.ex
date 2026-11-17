@@ -82,6 +82,7 @@ defmodule NervesHubWeb.CoreComponents do
       <.user_avatar user={@current_scope.user} />
   """
   attr(:user, :map, required: true, doc: "a user with `name` and `profile_picture_url`")
+  attr(:size, :string, default: "size-8", doc: "its `size-*` classes, which `class` can't override")
   attr(:class, :string, default: nil)
 
   def user_avatar(assigns) do
@@ -89,7 +90,8 @@ defmodule NervesHubWeb.CoreComponents do
     <div
       :if={!@user.profile_picture_url}
       class={[
-        "relative inline-flex size-8 items-center justify-center overflow-hidden rounded-full bg-base-800 pt-0.5 dark:bg-base-600",
+        "relative inline-flex items-center justify-center overflow-hidden rounded-full bg-base-800 pt-0.5 dark:bg-base-600",
+        @size,
         @class
       ]}
     >
@@ -97,7 +99,7 @@ defmodule NervesHubWeb.CoreComponents do
     </div>
     <div
       :if={@user.profile_picture_url}
-      class={["relative inline-flex size-8 items-center justify-center overflow-hidden", @class]}
+      class={["relative inline-flex items-center justify-center overflow-hidden", @size, @class]}
     >
       <img src={@user.profile_picture_url} alt="User Profile Picture" class="size-full rounded-full object-cover" />
     </div>
@@ -227,6 +229,52 @@ defmodule NervesHubWeb.CoreComponents do
   def tag(assigns) do
     ~H"""
     <span class={["rounded border border-line-default bg-base-800 px-1.5 py-0.5 text-xs text-content-body", @class]} {@rest}>{render_slot(@inner_block)}</span>
+    """
+  end
+
+  @doc """
+  Renders a small labelled on/off switch, for a view setting that takes
+  effect at once, such as auto refresh.
+
+  The label sits to its left and names it for screen readers; `phx-click`
+  and its values go on the switch.
+
+  ## Examples
+
+      <.switch id="auto-refresh" label="Auto refresh" checked={@polling?} phx-click="toggle-auto-refresh" />
+  """
+  attr(:id, :string, required: true)
+  attr(:label, :string, required: true)
+  attr(:checked, :boolean, required: true)
+  attr(:class, :any, default: nil)
+  attr(:rest, :global)
+
+  def switch(assigns) do
+    ~H"""
+    <div class={["flex items-center gap-2", @class]}>
+      <span id={"#{@id}-label"} class="text-xs text-content-body">{@label}</span>
+      <button
+        id={@id}
+        type="button"
+        role="switch"
+        aria-checked={to_string(@checked)}
+        aria-labelledby={"#{@id}-label"}
+        class={[
+          "flex h-3.5 w-6 shrink-0 cursor-pointer items-center rounded-full p-px transition-colors duration-200 ease-in-out",
+          "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring",
+          (@checked && "bg-primary light:bg-indigo-600") || "bg-line-control"
+        ]}
+        {@rest}
+      >
+        <span
+          aria-hidden="true"
+          class={[
+            "pointer-events-none size-3 rounded-full bg-white shadow-control transition duration-200 ease-in-out",
+            @checked && "translate-x-2.5"
+          ]}
+        ></span>
+      </button>
+    </div>
     """
   end
 
@@ -447,6 +495,9 @@ defmodule NervesHubWeb.CoreComponents do
 
     * `secondary` (the default): an everyday action.
     * `primary`: the one main action on a page or in a form.
+    * `contrast`: the one action inside a card that already carries colour,
+      such as the Insights finding, where an indigo button would compete
+      with the chart colours. Near-black in light, near-white in dark.
     * `danger`: an outlined destructive action, such as one that asks for
       confirmation first or leads to a page that does.
     * `danger-solid`: the last step of something that can't be undone, such as
@@ -474,12 +525,15 @@ defmodule NervesHubWeb.CoreComponents do
       <.button square aria-label="Pin device" phx-click="pin"><.icon name="unpinned" /></.button>
       <.button type="label" for={@uploads.csv.ref}><.icon name="add" /> Import</.button>
   """
-  attr(:style, :string, default: "secondary", values: ~w(primary secondary danger danger-solid))
+  attr(:style, :string, default: "secondary", values: ~w(primary contrast secondary danger danger-solid))
   attr(:size, :string, default: "md", values: ~w(sm md))
   attr(:square, :boolean, default: false)
   attr(:type, :string, default: "button")
   attr(:class, :any, default: nil)
-  attr(:rest, :global, include: ~w(disabled form name value href navigate download patch method replace for))
+
+  attr(:rest, :global,
+    include: ~w(disabled form formaction formnovalidate name value href navigate download patch method replace for)
+  )
 
   slot(:inner_block, required: true)
 
@@ -534,6 +588,16 @@ defmodule NervesHubWeb.CoreComponents do
       # Light-theme contrast: indigo-500 sits at the AA floor on white, so the design system
       # darkens the fill to indigo-600 (hover 500 / active 700); disabled stays grey.
       "light:bg-indigo-600 light:hover:bg-indigo-500 light:active:bg-indigo-700 light:disabled:bg-base-800"
+    ]
+  end
+
+  defp button_style("contrast") do
+    [
+      # The strongest text colour as the fill: zinc-50 in dark, zinc-900 in
+      # light, stepping toward the body text on hover.
+      "border-transparent bg-content-strong hover:bg-content-body active:bg-content-muted",
+      "text-zinc-900 light:text-white",
+      "disabled:border-line-strong disabled:bg-base-800 disabled:text-content-faint"
     ]
   end
 

@@ -297,6 +297,11 @@ defmodule NervesHubWeb.Router do
     # Behind sign in so only the account that asked for the change can use it
     get("/account/confirm-email/:token", AccountController, :confirm_email)
 
+    # Confirming it's you before a change that needs a recent sign-in
+    get("/account/confirm", ConfirmIdentityController, :new)
+    post("/account/confirm", ConfirmIdentityController, :create)
+    post("/account/confirm/google", ConfirmIdentityController, :google)
+
     get("/auth/cli", SessionController, :cli)
     post("/auth/cli", SessionController, :cli_code)
     post("/auth/cli/confirm", SessionController, :cli_confirm)
@@ -342,11 +347,17 @@ defmodule NervesHubWeb.Router do
 
     get("/password-reset", PasswordResetController, :new)
     post("/password-reset", PasswordResetController, :create)
+  end
 
-    scope "/auth" do
-      get("/:provider", OAuthController, :request)
-      get("/:provider/callback", OAuthController, :callback)
-    end
+  scope "/auth", NervesHubWeb do
+    # Signing in with Google, and also where a signed in user goes out to
+    # Google from their account page, to confirm it's them or connect it. The
+    # controller sends anyone else who is signed in on, as
+    # `redirect_if_user_is_authenticated` would.
+    pipe_through([:browser])
+
+    get("/:provider", OAuthController, :request)
+    get("/:provider/callback", OAuthController, :callback)
   end
 
   scope "/", NervesHubWeb do
@@ -399,7 +410,8 @@ defmodule NervesHubWeb.Router do
         EnrichSentryContext,
         CurrentPath
       ] do
-      live("/account", Live.Account, :edit)
+      live("/account", Live.Account, :profile)
+      live("/account/tokens", Live.Account, :tokens)
       live("/account/delete", Live.Account, :delete)
       live("/account/two-factor", TwoFactor)
       # Where a Slack user confirms which NervesHub account they are. Under

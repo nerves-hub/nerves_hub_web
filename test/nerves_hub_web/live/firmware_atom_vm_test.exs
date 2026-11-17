@@ -83,9 +83,9 @@ defmodule NervesHubWeb.Live.FirmwareAtomVMTest do
 
       conn
       |> visit("/org/#{org.name}/#{product.name}/firmware")
-      |> assert_has("a", text: firmware.uuid)
-      |> assert_has("code", text: "atomvm")
-      |> assert_has("td", text: "beam")
+      |> assert_has("#firmware-#{firmware.uuid} a", text: "1.4.0")
+      |> assert_has("#firmware-#{firmware.uuid} code", text: "atomvm")
+      |> assert_has("#firmware-#{firmware.uuid} [role='cell']", text: "beam")
     end
   end
 end
