@@ -31,7 +31,7 @@ defmodule NervesHub.Products.Notification do
     :wrong_websocket_host
   ]
 
-  # Kinds raised once per device, which a problem across the fleet raises for
+  # Kinds raised per device, which a problem across the fleet raises for
   # every device it hits. The list shows each as one card holding its devices.
   @device_kinds [
     :duplicate_device_identifier,
@@ -71,8 +71,8 @@ defmodule NervesHub.Products.Notification do
   def kinds(), do: @kinds
 
   @doc """
-  The kinds raised once per device, which the notifications list rolls up
-  into one card per kind.
+  The kinds raised per device, which the notifications list rolls up into
+  one card per kind.
   """
   @spec device_kinds() :: nonempty_list(device_kind())
   def device_kinds(), do: @device_kinds

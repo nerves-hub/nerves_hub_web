@@ -182,8 +182,11 @@ defmodule NervesHub.ProductNotifications do
   end
 
   @doc """
-  The notifications on a rolled-up card, one for each device, the most
-  recent first, at most `limit` of them.
+  The notifications on a rolled-up card, the most recent first, at most
+  `limit` of them.
+
+  A device usually has one, but one whose extensions fail for several
+  reasons has one for each.
   """
   @spec card_notifications(Product.t(), Notification.kind(), pos_integer()) :: [Notification.t()]
   def card_notifications(%Product{} = product, kind, limit) do
@@ -196,7 +199,9 @@ defmodule NervesHub.ProductNotifications do
 
   @doc """
   How many cards the product's notifications list has, in all and at each
-  level. A kind rolled up across devices counts once.
+  level.
+
+  A kind rolled up across devices counts once.
   """
   @spec level_counts(Product.t()) :: %{
           all: non_neg_integer(),
@@ -248,7 +253,10 @@ defmodule NervesHub.ProductNotifications do
 
   @doc """
   Dismisses a rolled-up card: every one of the product's notifications of a
-  kind raised per device. Returns how many went.
+  kind raised per device.
+
+  Returns how many went, or `{:error, :not_found}` for a kind that isn't
+  rolled up or has none in the product.
   """
   @spec dismiss_card(Scope.t(), String.t()) :: {:ok, pos_integer()} | {:error, :not_found}
   def dismiss_card(%Scope{product: product}, kind) when is_binary(kind) do

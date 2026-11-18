@@ -11,6 +11,7 @@ defmodule NervesHubWeb.Live.Product.NotificationsTest do
   alias NervesHub.ProductNotifications
   alias NervesHub.Products.Notification
   alias NervesHub.Repo
+  alias NervesHubWeb.Components.DateTimes
 
   defp page_path(org, product, query \\ ""), do: "/org/#{org.name}/#{product.name}/notifications#{query}"
 
@@ -66,7 +67,7 @@ defmodule NervesHubWeb.Live.Product.NotificationsTest do
       product: product
     } do
       _today = product |> code_failure!("today") |> last_occurred!(60)
-      _old = product |> code_failure!("long-ago") |> last_occurred!(60 * 60 * 24 * 40)
+      old = product |> code_failure!("long-ago") |> last_occurred!(60 * 60 * 24 * 40)
 
       conn
       |> visit(page_path(org, product))
@@ -78,6 +79,9 @@ defmodule NervesHubWeb.Live.Product.NotificationsTest do
       |> assert_has("#day-today article", text: "today")
       |> refute_has("#day-today article", text: "long-ago")
       |> assert_has("article[data-level=warning]", text: "long-ago")
+      # In the formats other pages use: how long ago today, then a 12-hour time.
+      |> assert_has("#day-today article time", text: "1 minute ago")
+      |> assert_has("article time", text: DateTimes.to_local_string(old.last_occurred_at, nil, :short_datetime, false))
     end
 
     test "says when nothing needs attention", %{conn: conn, org: org, product: product} do
@@ -104,7 +108,7 @@ defmodule NervesHubWeb.Live.Product.NotificationsTest do
       |> refute_has("article", text: @code_failure)
       |> click_link("#level-info", "Info")
       |> assert_has("#notifications-level-empty", text: "No info notifications")
-      |> assert_has("#notifications-level-empty", text: "There are 1 error and 1 warning.")
+      |> assert_has("#notifications-level-empty", text: "There is 1 error and 1 warning.")
       |> click_link("Show all 2")
       |> assert_has("article", count: 2)
     end
@@ -393,6 +397,24 @@ defmodule NervesHubWeb.Live.Product.NotificationsTest do
       |> refute_has("article", text: "snootboop")
       |> click_link("Go to newest")
       |> assert_has("article", text: "snootboop")
+    end
+
+    test "on a later page of a level, the bar counts only that level's arrivals", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device
+    } do
+      _ = many!(product, 30)
+
+      conn
+      |> visit(page_path(org, product, "?level=warning&page_number=2"))
+      |> assert_has("article", text: "abc-30")
+      |> tap(fn _ -> ProductNotifications.create_update_mode_revert_failed_notification!(device) end)
+      |> assert_has("#level-error", text: "1")
+      |> refute_has("#arrived-elsewhere")
+      |> tap(fn _ -> code_failure!(product, "snootboop") end)
+      |> assert_has("#arrived-elsewhere", text: "1 new notification on the first page")
     end
   end
 

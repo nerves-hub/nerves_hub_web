@@ -188,13 +188,16 @@ defmodule NervesHubWeb.Live.Product.Notifications do
     |> noreply()
   end
 
+  # Only arrivals the open tab would list count towards the bar, since "Go to
+  # newest" keeps the tab.
   def handle_info(%Broadcast{event: "created"}, socket) do
-    before = socket.assigns.counts.all
+    level = socket.assigns.level || :all
+    before = socket.assigns.counts[level]
     counts = ProductNotifications.level_counts(socket.assigns.current_scope.product)
 
     socket
     |> assign_counts(counts)
-    |> update(:arrived_elsewhere, &(&1 + max(counts.all - before, 0)))
+    |> update(:arrived_elsewhere, &(&1 + max(counts[level] - before, 0)))
     |> noreply()
   end
 
@@ -392,20 +395,12 @@ defmodule NervesHubWeb.Live.Product.Notifications do
     if year == today.year, do: name, else: "#{name} #{year}"
   end
 
-  # When a notification last happened, as precisely as its group needs: how
-  # long ago today, the time yesterday, the weekday this week and last, and
-  # the date before that.
+  # When a notification last happened, as precisely as its group needs and in
+  # the formats other pages use: how long ago today, the time under
+  # Yesterday, and the date and time in a group that spans several days.
   defp when_label(at, :today, _time_zone), do: from_now(at)
-
-  defp when_label(at, bucket, time_zone) do
-    local = DateTime.shift_zone!(at, Timezone.resolve(time_zone))
-
-    case bucket do
-      :yesterday -> Calendar.strftime(local, "%H:%M")
-      week when week in [:this_week, :last_week] -> Calendar.strftime(local, "%a, %H:%M")
-      _month -> Calendar.strftime(local, "%b %-d, %H:%M")
-    end
-  end
+  defp when_label(at, :yesterday, time_zone), do: to_local_string(at, time_zone, :time, false)
+  defp when_label(at, _bucket, time_zone), do: to_local_string(at, time_zone, :short_datetime, false)
 
   # A device's notification on an opened card says when it last happened as
   # its card would on its own.
@@ -443,19 +438,24 @@ defmodule NervesHubWeb.Live.Product.Notifications do
 
   # What the other tabs hold, for an empty one: "There are 6 warnings and 2
   # info notifications."
+  # The verb agrees with the first of them: "There is 1 error and 2 warnings."
   defp elsewhere_sentence(counts, level) do
-    parts =
-      [
-        error: &ngettext("1 error", "%{count} errors", &1),
-        warning: &ngettext("1 warning", "%{count} warnings", &1),
-        info: &ngettext("1 info notification", "%{count} info notifications", &1)
-      ]
-      |> Enum.reject(fn {key, _label} -> key == level or counts[key] == 0 end)
-      |> Enum.map(fn {key, label} -> label.(counts[key]) end)
+    [{first, _label} | _] =
+      parts =
+      Enum.reject(
+        [
+          error: &ngettext("1 error", "%{count} errors", &1),
+          warning: &ngettext("1 warning", "%{count} warnings", &1),
+          info: &ngettext("1 info notification", "%{count} info notifications", &1)
+        ],
+        fn {key, _label} -> key == level or counts[key] == 0 end
+      )
 
-    case parts do
-      [one] -> "There #{if counts.all == 1, do: "is", else: "are"} #{one}."
-      many -> "There are #{Enum.join(Enum.drop(many, -1), ", ")} and #{List.last(many)}."
+    verb = if counts[first] == 1, do: "is", else: "are"
+
+    case Enum.map(parts, fn {key, label} -> label.(counts[key]) end) do
+      [one] -> "There #{verb} #{one}."
+      many -> "There #{verb} #{Enum.join(Enum.drop(many, -1), ", ")} and #{List.last(many)}."
     end
   end
 

@@ -43,8 +43,10 @@ defmodule NervesHub.ProductNotifications.Subjects do
         }
 
   @doc """
-  The subjects of `notifications`, keyed by notification ID. A notification
-  about nothing in particular, such as a finished device import, has none.
+  The subjects of `notifications`, keyed by notification ID.
+
+  A notification about nothing in particular, such as a finished device
+  import, has none.
   """
   @spec for_notifications(Scope.t(), [Notification.t()]) :: %{Ecto.UUID.t() => t()}
   def for_notifications(%Scope{} = scope, notifications) do

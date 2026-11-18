@@ -53,7 +53,10 @@ defmodule NervesHub.ProductNotifications.Copy do
 
   @doc """
   The notification as it's said away from the notifications list, naming
-  what it's about. What `ProductNotifications` stores when it raises one.
+  what it's about.
+
+  What `ProductNotifications` stores as `title` and `message` when it raises
+  one.
   """
   @spec full(Notification.kind(), map()) :: text()
   def full(kind, metadata) do
@@ -63,8 +66,10 @@ defmodule NervesHub.ProductNotifications.Copy do
 
   @doc """
   The card for `count` notifications of one kind, about `devices` devices.
+
   `latest` is the most recent of them, for details they share, such as the
-  host they should have connected to.
+  host they should have connected to. A card of one notification is that
+  notification's `card/1`.
   """
   @spec rollup(Notification.kind(), pos_integer(), pos_integer(), Notification.t()) :: text()
   def rollup(_kind, _devices, 1, latest), do: card(latest)
