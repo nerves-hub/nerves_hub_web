@@ -1357,6 +1357,45 @@ defmodule NervesHub.Devices do
     |> Repo.one!()
   end
 
+  @doc """
+  How many of a product's devices have each extension on in their own setting,
+  out of how many devices it has.
+
+  A device's own setting only matters while the product allows the extension
+  too, so this is what turning the extension on for the product would reach. A
+  device with no value for an extension has the default, which is on.
+
+      %{total: 1240, on: %{"geo" => 1228, "health" => 1240, ...}}
+  """
+  @spec extension_counts(Product.t()) :: %{total: non_neg_integer(), on: %{String.t() => non_neg_integer()}}
+  def extension_counts(%Product{} = product) do
+    keys = Enum.map(Extensions.list(), &to_string/1)
+
+    on =
+      Device
+      |> where([d], d.product_id == ^product.id)
+      |> Repo.exclude_deleted()
+      |> join(:inner, [d], k in fragment("SELECT unnest(?::text[]) AS key", ^keys), on: true)
+      |> group_by([_d, k], k.key)
+      |> select([d, k], {k.key, filter(count(d.id), fragment("coalesce((?->>?)::boolean, true)", d.extensions, k.key))})
+      |> Repo.all()
+      |> Map.new()
+
+    %{total: get_device_count_by_product_id(product.id), on: Map.merge(Map.new(keys, &{&1, 0}), on)}
+  end
+
+  @doc """
+  How many of a product's devices may choose their own update mode.
+  """
+  @spec managed_updates_allowed_count(Product.t()) :: non_neg_integer()
+  def managed_updates_allowed_count(%Product{} = product) do
+    Device
+    |> where([d], d.product_id == ^product.id and d.managed_updates_allowed)
+    |> Repo.exclude_deleted()
+    |> select([d], count(d.id))
+    |> Repo.one!()
+  end
+
   def enable_extension_setting(%Device{} = device, extension_string) do
     set_extension_setting(device, extension_string, true)
   end
