@@ -18,6 +18,7 @@ defmodule NervesHubWeb.Router do
   alias Live.Org.Users
   alias Live.Orgs.Index
   alias Live.Orgs.New
+  alias Live.Product.ApiKeys
   alias Live.Product.ErrorGroup
   alias Live.Product.Errors
   alias Live.Product.HealthProfiles
@@ -551,6 +552,7 @@ defmodule NervesHubWeb.Router do
 
       live("/org/:org_name/:product_name/settings", Live.Product.Settings)
       live("/org/:org_name/:product_name/settings/health", HealthProfiles)
+      live("/org/:org_name/:product_name/settings/api_keys", ApiKeys)
     end
   end
 

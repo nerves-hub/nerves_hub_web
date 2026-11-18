@@ -15,9 +15,13 @@ defmodule NervesHubWeb.Components.Utils do
   Options for a role select: the built-in roles, then the org's custom roles
   when it has any. Read the chosen value back with `role_choice/1`'s format:
   a built-in role's name, or `"custom:<id>"`.
+
+  `built_in_roles` narrows the built-in half, for somewhere that cannot offer
+  all of them: a product API key is never an admin, so it passes
+  `NervesHub.Products.ApiKey.built_in_roles/0`.
   """
-  def role_options(custom_roles \\ []) do
-    built_in = for role <- Permissions.built_in_roles(), do: {role_name(role), Atom.to_string(role)}
+  def role_options(custom_roles \\ [], built_in_roles \\ Permissions.built_in_roles()) do
+    built_in = for role <- built_in_roles, do: {role_name(role), Atom.to_string(role)}
 
     case custom_roles do
       [] ->

@@ -1,7 +1,7 @@
 defmodule NervesHubWeb.Components.ProductSettings do
   @moduledoc """
-  What a product's two settings pages share: the title in the top bar and the
-  General / Device health tabs under it.
+  What a product's settings pages share: the title in the top bar and the
+  tabs under it.
   """
   use NervesHubWeb, :component
 
@@ -23,7 +23,7 @@ defmodule NervesHubWeb.Components.ProductSettings do
   end
 
   attr(:current_scope, :map, required: true)
-  attr(:tab, :atom, required: true, values: [:general, :health])
+  attr(:tab, :atom, required: true, values: [:general, :health, :api_keys])
   attr(:profile_count, :integer, required: true)
 
   @doc """
@@ -40,6 +40,9 @@ defmodule NervesHubWeb.Components.ProductSettings do
         <span class="font-mono text-xs font-normal text-content-muted">
           {@profile_count}<span class="max-sm:hidden">{if @profile_count == 1, do: " profile", else: " profiles"}</span>
         </span>
+      </.tab>
+      <.tab navigate={~p"/org/#{@current_scope.org}/#{@current_scope.product}/settings/api_keys"} selected={@tab == :api_keys}>
+        API keys
       </.tab>
     </nav>
     """
