@@ -316,7 +316,7 @@ defmodule NervesHubWeb.Live.Product.NotificationsTest do
 
       conn
       |> visit(page_path(org, product))
-      |> assert_has("#notification-extension_failure h3", text: "A device could not start an extension.")
+      |> assert_has("#notification-extension_failure h3", text: "A device had 2 extension failures.")
       |> assert_has("#notification-extension_failure", text: "1 device")
       |> click_button("#notification-extension_failure button[aria-label='Show the 2 notifications']", "")
       |> assert_has("#notification-extension_failure-devices li", text: "geo: :enoent")

@@ -12,7 +12,8 @@ defmodule NervesHubWeb.Live.Product.Notifications do
 
   on_mount(RequireEveryDevice)
 
-  @page_sizes [25, 50, 100]
+  @default_page_size 25
+  @page_sizes [@default_page_size, 50, 100]
   @levels ~w(error warning info)
 
   # How long a notification that just arrived keeps its "New" tag, and one
@@ -36,7 +37,7 @@ defmodule NervesHubWeb.Live.Product.Notifications do
     |> assign(:platform_name, Branding.friendly_platform_name())
     |> assign(:level, nil)
     |> assign(:page_number, 1)
-    |> assign(:page_size, 25)
+    |> assign(:page_size, @default_page_size)
     |> assign(:fresh, %{new: MapSet.new(), bumped: MapSet.new(), ref: nil})
     |> assign(:arrived_elsewhere, 0)
     |> assign(:dismissed_by, nil)
@@ -303,9 +304,12 @@ defmodule NervesHubWeb.Live.Product.Notifications do
   end
 
   defp parse_page_size(value) do
-    size = parse_positive(value, 25)
-    if size in @page_sizes, do: size, else: 25
+    size = parse_positive(value, @default_page_size)
+    if size in @page_sizes, do: size, else: @default_page_size
   end
+
+  # More than fits on the smallest page, so the pager has something to do.
+  defp paged?(meta), do: meta.total_count > @default_page_size
 
   # The list's path with `changes` applied to the level, page and page size it
   # is showing. A nil value leaves that one out.
@@ -314,7 +318,7 @@ defmodule NervesHubWeb.Live.Product.Notifications do
       %{
         "level" => assigns.level && Atom.to_string(assigns.level),
         "page_number" => assigns.page_number > 1 && Integer.to_string(assigns.page_number),
-        "page_size" => assigns.page_size != 25 && Integer.to_string(assigns.page_size)
+        "page_size" => assigns.page_size != @default_page_size && Integer.to_string(assigns.page_size)
       }
       |> Map.merge(changes)
       |> Enum.reject(fn {_key, value} -> value in [nil, false] end)
@@ -491,7 +495,8 @@ defmodule NervesHubWeb.Live.Product.Notifications do
       assign(assigns,
         first: (page - 1) * size + 1,
         last: min(page * size, total),
-        last_page: max(assigns.pager.total_pages, 1)
+        last_page: max(assigns.pager.total_pages, 1),
+        page_sizes: @page_sizes
       )
 
     ~H"""
@@ -508,7 +513,7 @@ defmodule NervesHubWeb.Live.Product.Notifications do
               aria-label="Notifications per page"
               class="col-start-1 row-start-1 h-7 cursor-pointer appearance-none rounded-sm border border-line-control bg-surface-raised bg-none py-0 pr-6 pl-2 font-mono text-xs text-content-strong focus:outline focus:-outline-offset-1 focus:outline-focus-ring"
             >
-              <option :for={option <- [25, 50, 100]} value={option} selected={option == @pager.page_size}>{option}</option>
+              <option :for={option <- @page_sizes} value={option} selected={option == @pager.page_size}>{option}</option>
             </select>
             <span class="pointer-events-none col-start-1 row-start-1 mr-1.5 lucide-chevron-down size-3 self-center justify-self-end text-content-muted" aria-hidden="true"></span>
           </span>

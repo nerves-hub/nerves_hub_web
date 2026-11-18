@@ -9,8 +9,8 @@ defmodule NervesHubWeb.Components.ProductSidebar do
   rail a dot or count on the icon stands in for the line, and a tooltip spells it
   out. Figures are counted synchronously when the product changes, so links don't
   shift as they arrive, and they never update live. The one exception is the
-  notifications count on the notifications page, where dismissing changes it in
-  front of the reader; that page sends it with `send_update/3`
+  notifications count on the notifications page, which follows notifications
+  arriving and being dismissed there; that page sends it with `send_update/3`
   (`notifications_count:`). The switcher's figures for every
   product in the organization are counted only when it opens. A member who sees only
   some devices gets none of the product-wide pages or figures, except the online

@@ -53,7 +53,8 @@ defmodule NervesHub.ProductNotificationsTest do
       {[card], _meta, nil} = NervesHub.ProductNotifications.list_cards(product)
 
       assert %{key: "extension_failure", count: 2, devices: 1} = card
-      assert card.title == "A device could not start an extension."
+      assert card.title == "A device had 2 extension failures."
+      refute card.message =~ "local_shell"
     end
 
     test "pages through the cards that aren't rolled up", %{product: product} do

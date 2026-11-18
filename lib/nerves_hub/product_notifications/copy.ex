@@ -7,7 +7,7 @@ defmodule NervesHub.ProductNotifications.Copy do
   what the card shows beside it (a device, a webhook). `full/2` names it, for
   where the notification goes without that, such as a Slack or Teams
   channel, and is what `ProductNotifications` stores as `title` and
-  `message`. `rollup/3` writes the card for a kind raised on many devices. A
+  `message`. `rollup/4` writes the card for a kind raised on many devices. A
   notification whose metadata lacks something its kind's copy needs, such as
   one raised before that was stored or one with no kind, is shown with the
   title and message it was stored with.
@@ -62,15 +62,27 @@ defmodule NervesHub.ProductNotifications.Copy do
   end
 
   @doc """
-  The card for `count` devices with a notification of the same kind.
+  The card for `count` notifications of one kind, about `devices` devices.
   `latest` is the most recent of them, for details they share, such as the
   host they should have connected to.
   """
-  @spec rollup(Notification.kind(), pos_integer(), Notification.t()) :: text()
-  def rollup(_kind, 1, latest), do: card(latest)
+  @spec rollup(Notification.kind(), pos_integer(), pos_integer(), Notification.t()) :: text()
+  def rollup(_kind, _devices, 1, latest), do: card(latest)
 
-  def rollup(kind, count, %Notification{metadata: metadata}) do
-    rolled_up(kind, count, stringify(metadata))
+  def rollup(:extension_failure, 1, count, _latest) do
+    %{
+      title: "A device had #{count} extension failures.",
+      message:
+        "The extensions stay on in #{platform()}, but won't work on this device until the causes are fixed, " <>
+          "usually in its firmware."
+    }
+  end
+
+  # Every other kind is raised once per device, so one device is one notification.
+  def rollup(_kind, 1, _count, latest), do: card(latest)
+
+  def rollup(kind, devices, _count, %Notification{metadata: metadata}) do
+    rolled_up(kind, devices, stringify(metadata))
   end
 
   @doc """

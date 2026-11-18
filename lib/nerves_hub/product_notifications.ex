@@ -30,6 +30,9 @@ defmodule NervesHub.ProductNotifications do
 
   @levels [:error, :warning, :info]
 
+  # The kinds rolled up into one card, by the name a card's key carries.
+  @rolled_up_kinds Map.new(Notification.device_kinds(), &{Atom.to_string(&1), &1})
+
   @typedoc """
   A card in the product's notifications list: one notification, or every
   device's notification of one kind rolled up together (see
@@ -106,15 +109,13 @@ defmodule NervesHub.ProductNotifications do
   # that's rolled up, otherwise its own ID. `device` is the device it's
   # about, or its own ID when it isn't about one.
   defp keyed(product, level) do
-    rolled_up = Enum.map(Notification.device_kinds(), &Atom.to_string/1)
-
     from(n in listed(product, level),
       select: %{
         key:
           fragment(
             "CASE WHEN ? = ANY(?) THEN ? ELSE ?::text END",
             n.kind,
-            type(^rolled_up, {:array, :string}),
+            type(^Map.keys(@rolled_up_kinds), {:array, :string}),
             n.kind,
             n.id
           ),
@@ -135,8 +136,7 @@ defmodule NervesHub.ProductNotifications do
   defp cards(_product, []), do: []
 
   defp cards(product, rows) do
-    kinds = Map.new(Notification.device_kinds(), &{Atom.to_string(&1), &1})
-    {rolled_up, single} = Enum.split_with(rows, &Map.has_key?(kinds, &1.key))
+    {rolled_up, single} = Enum.split_with(rows, &Map.has_key?(@rolled_up_kinds, &1.key))
 
     singles =
       Notification
@@ -145,7 +145,10 @@ defmodule NervesHub.ProductNotifications do
 
     latest_of_kinds =
       Notification
-      |> where([n], n.product_id == ^product.id and n.kind in ^Enum.map(rolled_up, &Map.fetch!(kinds, &1.key)))
+      |> where(
+        [n],
+        n.product_id == ^product.id and n.kind in ^Enum.map(rolled_up, &Map.fetch!(@rolled_up_kinds, &1.key))
+      )
       |> distinct([n], n.kind)
       |> order_by([n], desc: n.last_occurred_at, desc: n.id)
       |> Repo.all()
@@ -159,7 +162,7 @@ defmodule NervesHub.ProductNotifications do
           []
 
         notification ->
-          %{title: title, message: message} = Copy.rollup(notification.kind, row.devices, notification)
+          %{title: title, message: message} = Copy.rollup(notification.kind, row.devices, row.count, notification)
 
           [
             Map.merge(row, %{
@@ -222,10 +225,11 @@ defmodule NervesHub.ProductNotifications do
   defdelegate subjects(scope, notifications), to: Subjects, as: :for_notifications
 
   @doc """
-  Dismisses one of the product's notifications. Anyone else looking at the
-  product's notifications sees it go, with nothing to announce it.
+  Dismisses one of the product's notifications.
 
-  If what it was about happens again it comes back as a new notification.
+  Anyone else looking at the product's notifications sees it go, with nothing
+  to announce it. If what it was about happens again it comes back as a new
+  notification.
   """
   @spec dismiss(Scope.t(), String.t()) :: {:ok, Notification.t()} | {:error, :not_found}
   def dismiss(%Scope{product: product}, id) do
@@ -248,9 +252,7 @@ defmodule NervesHub.ProductNotifications do
   """
   @spec dismiss_card(Scope.t(), String.t()) :: {:ok, pos_integer()} | {:error, :not_found}
   def dismiss_card(%Scope{product: product}, kind) when is_binary(kind) do
-    kinds = Map.new(Notification.device_kinds(), &{Atom.to_string(&1), &1})
-
-    with {:ok, kind} <- Map.fetch(kinds, kind),
+    with {:ok, kind} <- Map.fetch(@rolled_up_kinds, kind),
          {count, _} when count > 0 <-
            Notification
            |> where([n], n.product_id == ^product.id and n.kind == ^kind)

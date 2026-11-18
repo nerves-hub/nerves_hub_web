@@ -225,9 +225,10 @@ when adding or removing one.
   cards. The page groups cards by day, filters by level, and dismisses one,
   a card or all. `ProductNotifications.Subjects` links each to what it's
   about, from its kind and the metadata key that kind names, and says when
-  that has gone. A new kind needs a clause in `Copy`, an entry in
-  `Subjects` if it's about something, and the add-then-write rollout
-  `Notification` describes. Seed test or dev notifications through the
+  that has gone. A new kind needs `title`, `message` and `@needs` entries in
+  `Copy` (and `rolled_up` if it's raised per device), an entry in `Subjects`
+  if it's about something, and the add-then-write rollout `Notification`
+  describes. Seed test or dev notifications through the
   `create_*` functions, not by hand, so they read as the real ones do.
 - Cross-cutting: `clustering.ex`, `tracker.ex`,
   `rate_limit.ex`, `cli_session_cache.ex`, `device_link.ex`, `repo.ex`,

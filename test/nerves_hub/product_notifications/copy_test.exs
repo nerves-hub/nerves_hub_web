@@ -71,20 +71,29 @@ defmodule NervesHub.ProductNotifications.CopyTest do
     end
   end
 
-  describe "rollup/3" do
+  describe "rollup/4" do
     test "writes one card for a kind raised on many devices" do
       latest = notification(:wrong_websocket_host, %{identifier: "sp-0042", host: "devices.example.com"})
 
-      assert Copy.rollup(:wrong_websocket_host, 38, latest) == %{
+      assert Copy.rollup(:wrong_websocket_host, 38, 38, latest) == %{
                title: "38 devices connected to the wrong host.",
                message: "They connected to the management host instead of devices.example.com, and were redirected."
              }
     end
 
-    test "a card of one device is that device's card" do
+    test "a card of one notification is that notification's card" do
       latest = notification(:missing_firmware_metadata, %{identifier: "sp-0042"})
 
-      assert Copy.rollup(:missing_firmware_metadata, 1, latest) == Copy.card(latest)
+      assert Copy.rollup(:missing_firmware_metadata, 1, 1, latest) == Copy.card(latest)
+    end
+
+    test "a card of one device's extension failures names none of them" do
+      latest = notification(:extension_failure, %{identifier: "sp-0042", extension: "geo", reason: ":enoent"})
+
+      assert %{title: "A device had 2 extension failures.", message: message} =
+               Copy.rollup(:extension_failure, 1, 2, latest)
+
+      refute message =~ "geo"
     end
   end
 

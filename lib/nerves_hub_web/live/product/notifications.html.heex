@@ -265,7 +265,7 @@
         </article>
       </section>
 
-      <.list_footer :if={@cards != [] && @result_meta.total_count > 25} pager={@result_meta} />
+      <.list_footer :if={@cards != [] && paged?(@result_meta)} pager={@result_meta} />
     </div>
   </div>
 
