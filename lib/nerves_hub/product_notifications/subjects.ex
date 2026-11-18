@@ -4,11 +4,10 @@ defmodule NervesHub.ProductNotifications.Subjects do
 
   A notification's kind says what it is about, and its metadata names it: a
   device's identifier, a deployment group, or the webhook, Slack subscription
-  or chat channel that was turned off. Those are looked up together for a page of notifications, a
-  query per kind, so the page can link to each one or say it has gone.
-
-  The names come from the notification, not the lookup, so a subject keeps the
-  name it had when the notification was raised after it has gone.
+  or chat channel that was turned off. A page's subjects are looked up
+  together, one query per kind, so the page can link each or say it has gone.
+  Names come from the notification rather than the lookup, so a subject that
+  has gone keeps the name it had when the notification was raised.
   """
 
   import Ecto.Query

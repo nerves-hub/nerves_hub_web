@@ -309,6 +309,21 @@ defmodule NervesHubWeb.Live.Product.NotificationsTest do
       |> refute_has("button", text: "Show all 13 devices")
     end
 
+    test "lists one device's notifications when it has more than one", %{conn: conn, org: org, product: product} do
+      device_info = %DeviceInfo{product_id: product.id, device_identifier: "abc"}
+      _ = ProductNotifications.create_extension_failure_notification!(device_info, "geo", ":enoent")
+      _ = ProductNotifications.create_extension_failure_notification!(device_info, "local_shell", ":no_pty")
+
+      conn
+      |> visit(page_path(org, product))
+      |> assert_has("#notification-extension_failure h3", text: "A device could not start an extension.")
+      |> assert_has("#notification-extension_failure", text: "1 device")
+      |> click_button("#notification-extension_failure button[aria-label='Show the 2 notifications']", "")
+      |> assert_has("#notification-extension_failure-devices li", text: "geo: :enoent")
+      |> assert_has("#notification-extension_failure-devices li", text: "local_shell: :no_pty")
+      |> assert_has("button", text: "Dismiss all 2")
+    end
+
     test "counts up when another device joins it", %{conn: conn, org: org, product: product} do
       conn
       |> visit(page_path(org, product))

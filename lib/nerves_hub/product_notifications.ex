@@ -33,8 +33,12 @@ defmodule NervesHub.ProductNotifications do
   @typedoc """
   A card in the product's notifications list: one notification, or every
   device's notification of one kind rolled up together (see
-  `Notification.device_kinds/0`). `key` is the notification's ID for one, and
-  the kind for a roll-up. `latest` is the most recent notification in it, and
+  `Notification.device_kinds/0`).
+
+  `key` is the notification's ID for one, and the kind for a roll-up.
+  `count` is how many notifications it holds and `devices` how many devices
+  they're about, which can be fewer: a device whose extension fails for two
+  reasons has two. `latest` is the most recent notification in it, and
   `title` and `message` are written for the card by
   `NervesHub.ProductNotifications.Copy`.
   """
@@ -44,6 +48,7 @@ defmodule NervesHub.ProductNotifications do
           level: Notification.level(),
           title: String.t(),
           message: String.t(),
+          count: pos_integer(),
           devices: pos_integer(),
           occurrences: pos_integer(),
           last_occurred_at: DateTime.t(),
@@ -51,11 +56,12 @@ defmodule NervesHub.ProductNotifications do
         }
 
   @doc """
-  A page of the product's notifications list, the most recent card first,
-  with the pagination it's on and when the card before the page last
+  A page of the product's notification cards, the most recent first.
+
+  Returns the cards, the pagination, and when the card before the page last
   happened (`nil` on the first page), so a page that starts partway through a
-  day can say so. A page past the end is the last page. Pass a `level` to
-  list only the cards at that level.
+  day can say so. A page past the end is the last page. A `level` lists only
+  the cards at that level.
   """
   @spec list_cards(Product.t(), pos_integer(), pos_integer(), Notification.level() | nil) ::
           {[card()], Flop.Meta.t(), DateTime.t() | nil}
@@ -72,7 +78,8 @@ defmodule NervesHub.ProductNotifications do
         select: %{
           key: k.key,
           last_occurred_at: max(k.last_occurred_at),
-          devices: count(k.key),
+          count: count(k.key),
+          devices: count(k.device, :distinct),
           occurrences: type(sum(k.occurrence_count), :integer)
         },
         order_by: [desc: max(k.last_occurred_at), desc: k.key],
@@ -96,7 +103,8 @@ defmodule NervesHub.ProductNotifications do
   end
 
   # Each of the product's notifications with the card it's on: its kind if
-  # that's rolled up, otherwise its own ID.
+  # that's rolled up, otherwise its own ID. `device` is the device it's
+  # about, or its own ID when it isn't about one.
   defp keyed(product, level) do
     rolled_up = Enum.map(Notification.device_kinds(), &Atom.to_string/1)
 
@@ -110,6 +118,7 @@ defmodule NervesHub.ProductNotifications do
             n.kind,
             n.id
           ),
+        device: fragment("COALESCE(? ->> 'identifier', ?::text)", n.metadata, n.id),
         level: n.level,
         last_occurred_at: n.last_occurred_at,
         occurrence_count: n.occurrence_count
@@ -239,8 +248,9 @@ defmodule NervesHub.ProductNotifications do
   """
   @spec dismiss_card(Scope.t(), String.t()) :: {:ok, pos_integer()} | {:error, :not_found}
   def dismiss_card(%Scope{product: product}, kind) when is_binary(kind) do
-    with %{} = kinds <- Map.new(Notification.device_kinds(), &{Atom.to_string(&1), &1}),
-         {:ok, kind} <- Map.fetch(kinds, kind),
+    kinds = Map.new(Notification.device_kinds(), &{Atom.to_string(&1), &1})
+
+    with {:ok, kind} <- Map.fetch(kinds, kind),
          {count, _} when count > 0 <-
            Notification
            |> where([n], n.product_id == ^product.id and n.kind == ^kind)

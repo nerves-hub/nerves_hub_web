@@ -1,6 +1,7 @@
 defmodule NervesHubWeb.Live.Product.Notifications do
   use NervesHubWeb, :live_view
 
+  alias NervesHub.Accounts.Scope
   alias NervesHub.Branding
   alias NervesHub.ProductNotifications
   alias NervesHub.ProductNotifications.Copy
@@ -173,12 +174,12 @@ defmodule NervesHubWeb.Live.Product.Notifications do
   # page the list stays put under the reader, and a bar says there's something
   # new on the first.
   def handle_info(%Broadcast{event: "created"}, %{assigns: %{page_number: 1}} = socket) do
-    before = Map.new(socket.assigns.cards, &{&1.key, {&1.devices, &1.occurrences}})
+    before = Map.new(socket.assigns.cards, &{&1.key, {&1.count, &1.occurrences}})
     socket = fetch_notifications(socket)
 
     {new, bumped} =
       socket.assigns.cards
-      |> Enum.reject(&(Map.get(before, &1.key) == {&1.devices, &1.occurrences}))
+      |> Enum.reject(&(Map.get(before, &1.key) == {&1.count, &1.occurrences}))
       |> Enum.split_with(&(&1.occurrences == 1 and not Map.has_key?(before, &1.key)))
 
     socket
@@ -271,7 +272,12 @@ defmodule NervesHubWeb.Live.Product.Notifications do
     |> assign(:continued_from, continued_from)
   end
 
-  defp rolled_up_keys(cards), do: for(card <- cards, card.devices > 1, do: card.key)
+  defp rolled_up_keys(cards), do: for(card <- cards, card.count > 1, do: card.key)
+
+  # What an opened card lists: its devices, or its notifications when some
+  # device has more than one.
+  defp held(%{count: count, devices: count}), do: ngettext("1 device", "%{count} devices", count)
+  defp held(%{count: count}), do: ngettext("1 notification", "%{count} notifications", count)
 
   defp dismissed_card_flash(nil, count), do: "Dismissed #{ngettext("1 notification", "%{count} notifications", count)}"
   defp dismissed_card_flash(card, _count), do: "Dismissed “#{card.title}”"
@@ -279,7 +285,7 @@ defmodule NervesHubWeb.Live.Product.Notifications do
   # The sidebar counts notifications once, as the page mounts, and this is the
   # page where that count changes in front of the reader.
   defp assign_counts(socket, counts) do
-    if (connected?(socket) and socket.assigns[:counts]) && socket.assigns.counts.all != counts.all do
+    if connected?(socket) and socket.assigns[:counts] != nil and socket.assigns.counts.all != counts.all do
       send_update(ProductSidebar, id: "product-sidebar", notifications_count: counts.all)
     end
 
@@ -447,6 +453,32 @@ defmodule NervesHubWeb.Live.Product.Notifications do
       [one] -> "There #{if counts.all == 1, do: "is", else: "are"} #{one}."
       many -> "There are #{Enum.join(Enum.drop(many, -1), ", ")} and #{List.last(many)}."
     end
+  end
+
+  attr(:scope, Scope, required: true)
+  attr(:subject, :map, required: true)
+
+  # What a notification is about: a link while it's there, and its name and
+  # what became of it once it isn't.
+  defp subject(assigns) do
+    assigns = assign(assigns, :path, subject_path(assigns.scope, assigns.subject))
+
+    ~H"""
+    <.link
+      :if={@path}
+      navigate={@path}
+      title={@subject.label}
+      class={[
+        "max-w-full truncate text-notice-content hover:underline light:text-indigo-600",
+        (@subject.kind == :deployment_group && "text-ui") || "font-mono"
+      ]}
+    >
+      {@subject.label}
+    </.link>
+    <span :if={!@path} title={@subject.label} class={["max-w-full truncate text-content-faint", @subject.kind != :deployment_group && "font-mono"]}>
+      {@subject.label} · {subject_state_label(@subject.state)}
+    </span>
+    """
   end
 
   attr(:pager, :map, required: true)

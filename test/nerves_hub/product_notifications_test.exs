@@ -40,8 +40,20 @@ defmodule NervesHub.ProductNotificationsTest do
       assert %{key: "duplicate_device_identifier", devices: 30, occurrences: 30} = card
       assert card.title == "30 devices tried to connect with identifiers already in use."
 
-      assert [%Notification{metadata: %{"identifier" => "abc-30"}} | _] =
-               NervesHub.ProductNotifications.card_notifications(product, :duplicate_device_identifier, 10)
+      shown = NervesHub.ProductNotifications.card_notifications(product, :duplicate_device_identifier, 10)
+      assert length(shown) == 10
+      assert Enum.all?(shown, &(&1.product_id == product.id and &1.kind == :duplicate_device_identifier))
+    end
+
+    test "counts a card's devices apart from its notifications", %{product: product} do
+      device_info = %DeviceInfo{product_id: product.id, device_identifier: "abc"}
+      _ = NervesHub.ProductNotifications.create_extension_failure_notification!(device_info, "geo", ":enoent")
+      _ = NervesHub.ProductNotifications.create_extension_failure_notification!(device_info, "local_shell", ":no_pty")
+
+      {[card], _meta, nil} = NervesHub.ProductNotifications.list_cards(product)
+
+      assert %{key: "extension_failure", count: 2, devices: 1} = card
+      assert card.title == "A device could not start an extension."
     end
 
     test "pages through the cards that aren't rolled up", %{product: product} do

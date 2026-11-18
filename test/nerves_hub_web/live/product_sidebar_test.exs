@@ -34,8 +34,8 @@ defmodule NervesHubWeb.ProductSidebarTest do
       org: org,
       product: product
     } do
-      # Support scripts, since a page with a top bar of its own, as the
-      # notifications page has, puts its title there instead.
+      # The notifications page has its own top bar, which takes the phone
+      # title, so this checks another product page.
       conn
       |> visit("/org/#{org.name}/#{product.name}/scripts")
       |> assert_has("#phone-title", text: "#{product.name} / Support scripts")

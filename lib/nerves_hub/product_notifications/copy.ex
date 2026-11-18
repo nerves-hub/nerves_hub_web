@@ -1,23 +1,16 @@
 defmodule NervesHub.ProductNotifications.Copy do
   @moduledoc """
-  What a notification says, written from its kind and metadata when it's
-  shown rather than stored when it's raised. Changing the copy here changes
-  it for every notification, old ones included.
+  Writes a notification's title and message from its kind and metadata.
 
-  Each kind is written two ways:
-
-    * `card/1`, for the notifications list. The card shows what it's about
-      (a device, a webhook) beside the text, so the text leaves it out.
-    * `full/2`, for where the notification goes without that, such as a
-      Slack or Teams channel. It names what it's about, and is what
-      `ProductNotifications` stores as the notification's `title` and
-      `message`.
-
-  `rollup/3` writes the card for a kind raised on many devices at once.
-
-  A notification whose metadata is missing something its kind's copy needs,
-  such as one raised before that was stored, or one with no kind, is shown
-  with the title and message it was stored with.
+  The copy is written when it's shown, so changing it here changes old
+  notifications too. `card/1` is for the notifications list, and leaves out
+  what the card shows beside it (a device, a webhook). `full/2` names it, for
+  where the notification goes without that, such as a Slack or Teams
+  channel, and is what `ProductNotifications` stores as `title` and
+  `message`. `rollup/3` writes the card for a kind raised on many devices. A
+  notification whose metadata lacks something its kind's copy needs, such as
+  one raised before that was stored or one with no kind, is shown with the
+  title and message it was stored with.
   """
 
   alias NervesHub.Branding
