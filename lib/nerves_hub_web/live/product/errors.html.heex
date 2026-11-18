@@ -1,124 +1,283 @@
 <NervesHubWeb.Layouts.sidebar flash={@flash} current_scope={@current_scope} sidebar_tab={@sidebar_tab}>
-  <:header>
-    <h1 class="text-page-title text-content-strong">Errors</h1>
-    <.badge :if={@extension_enabled?} id="error-count" class="mr-auto">
-      {@status_counts.unresolved} unresolved
-    </.badge>
-  </:header>
+  <:top_bar>
+    <div class="flex min-w-0 items-baseline gap-3">
+      <h1 class="text-base/6 font-semibold text-content-strong">Errors</h1>
+      <span class="truncate font-mono text-xs text-content-muted max-sm:hidden">reported by devices · kept 30 days</span>
+    </div>
+  </:top_bar>
 
-  <div :if={!@extension_enabled?} class="flex h-full flex-col items-center justify-center gap-3 p-14">
-    <span class="font-semibold text-content-body">Error reports aren't enabled for this product.</span>
-    <span class="font-extralight text-content-faint">
-      Turn the extension on in <.link navigate={~p"/org/#{@current_scope.org}/#{@current_scope.product}/settings"} class="underline">product settings</.link>
-      and devices that support it will start reporting.
-    </span>
-  </div>
+  <div class="@container h-0 flex-1 overflow-y-auto overscroll-y-none">
+    <%!-- The extension is off: nothing else on the page means anything. --%>
+    <div
+      :if={!@extension_enabled?}
+      id="errors-off"
+      class="m-4 flex flex-col items-center gap-3 rounded-card border border-line-default bg-surface-raised px-6 py-14 text-center sm:m-6"
+    >
+      <span class="lucide-circle-exclamation-point size-7 text-content-muted" aria-hidden="true"></span>
+      <h2 class="text-section-title text-content-strong">Error reports are off for {@product.name}</h2>
+      <p class="max-w-lg text-sm text-content-muted">
+        Turn them on and devices send their crashes and exceptions here, grouped into errors you can resolve. Reports are kept for 30 days.
+      </p>
+      <div class="flex flex-wrap justify-center gap-x-4 gap-y-1 pt-1 text-ui font-medium">
+        <.link
+          :if={authorized?(:"product:update", @current_scope)}
+          navigate={~p"/org/#{@current_scope.org}/#{@product}/settings"}
+          class="text-notice-content hover:underline"
+        >
+          Turn on in Product settings
+        </.link>
+        <a href={docs_url()} target="_blank" class="text-notice-content hover:underline">Read about error reports</a>
+      </div>
+    </div>
 
-  <div :if={@extension_enabled?} class="flex h-1 flex-1 flex-col items-start justify-between gap-4 overflow-x-auto p-6">
-    <div class="flex w-full flex-col rounded-card border border-line-default bg-surface-raised">
-      <div class="flex h-14 items-center gap-4 border-b border-line-default px-4">
-        <form id="error-filters" phx-change="filter" class="flex grow flex-row items-center gap-4">
-          <label class="flex items-center gap-2">
-            <span class="text-sm text-content-muted">Status :</span>
-            <select name="status" class="rounded border border-line-strong bg-base-800 py-0.5 pr-8 pl-2 text-sm text-content-body">
-              <option :for={{label, value} <- NervesHubWeb.Live.Product.Errors.status_options()} value={value} selected={value == @status_filter}>
-                {label} ({Map.get(@status_counts, NervesHubWeb.Live.Product.Errors.status_option(value), 0)})
-              </option>
-            </select>
-          </label>
+    <%!-- On, but nothing has ever been reported: no tabs or filters yet. --%>
+    <div
+      :if={@extension_enabled? && Enum.sum(Map.values(@status_counts)) == 0}
+      id="errors-none-yet"
+      class="m-4 flex flex-col items-center gap-3 rounded-card border border-line-default bg-surface-raised px-6 py-14 text-center sm:m-6"
+    >
+      <h2 class="text-section-title text-content-strong">No errors reported yet</h2>
+      <p class="max-w-lg text-sm text-content-muted">
+        Devices report crashes once they run nerves_hub_link 2.13 or later. Nothing to set up on the device: error reports are on for this product.
+      </p>
+      <pre class="rounded-card border border-line-default bg-surface-muted px-4 py-3 text-left font-mono text-xs/5 text-content-body"><span class="text-content-faint"># mix.exs</span>
+{~s({:nerves_hub_link, "~> 2.13"})}</pre>
+      <a href={docs_url()} target="_blank" class="text-ui font-medium text-notice-content hover:underline">Read about error reports</a>
+    </div>
 
-          <label class="flex items-center gap-2">
-            <span class="text-sm text-content-muted">Sort by :</span>
-            <select name="sort" class="rounded border border-line-strong bg-base-800 py-0.5 pr-8 pl-2 text-sm text-content-body">
-              <option :for={{label, value} <- NervesHubWeb.Live.Product.Errors.sort_options()} value={value} selected={value == @sort}>
-                {label}
-              </option>
-            </select>
-          </label>
+    <div :if={@extension_enabled? && Enum.sum(Map.values(@status_counts)) > 0}>
+      <nav
+        id="error-tabs"
+        aria-label="Errors"
+        class="scrollbar-none flex gap-1 overflow-x-auto border-b border-line-default px-3 max-sm:sticky max-sm:top-0 max-sm:z-20 max-sm:bg-surface sm:px-4"
+      >
+        <.link
+          :for={{label, value} <- status_options()}
+          id={"error-tab-#{value}"}
+          patch={list_path(assigns, %{"status" => value})}
+          aria-current={if value == @status_filter, do: "page"}
+          class="group relative flex h-11 shrink-0 items-center gap-1.75 border-b-2 border-transparent px-3 text-sm/4.5 font-medium whitespace-nowrap text-content-muted hover:text-content-strong aria-[current=page]:border-primary aria-[current=page]:font-semibold aria-[current=page]:text-content-strong light:aria-[current=page]:border-indigo-600"
+        >
+          {label}
+          <span class={[
+            "font-mono text-xs font-normal",
+            (value == "unresolved" && @status_counts.unresolved > 0 && "text-alert-content") || "text-content-faint group-aria-[current=page]:text-content-muted"
+          ]}>
+            {Map.get(@status_counts, status_option(value), 0)}
+          </span>
+        </.link>
+      </nav>
 
+      <form id="error-filters" phx-change="filter" phx-submit="filter" class="flex flex-wrap items-center gap-2 px-4 pt-4 sm:px-6">
+        <label class="flex h-8 min-w-0 flex-1 items-center gap-2 rounded border border-line-control bg-surface-raised px-2.5 focus-within:border-primary max-sm:basis-full">
+          <span class="lucide-search size-3.5 text-content-faint" aria-hidden="true"></span>
+          <span class="sr-only">Search errors</span>
           <input
-            type="text"
+            type="search"
             name="search"
             value={@search}
-            placeholder="Search reasons"
-            phx-debounce="400"
-            class="ml-auto rounded border border-line-strong bg-base-800 px-2 py-0.5 text-sm text-content-body"
+            placeholder="Search error messages and stack frames"
+            autocomplete="off"
+            phx-debounce="300"
+            class="h-full min-w-0 flex-1 border-0 bg-transparent p-0 text-ui text-content-strong placeholder:text-content-faint focus:ring-0"
           />
-        </form>
-      </div>
+        </label>
 
-      <div :if={Enum.empty?(@groups)} class="flex items-center justify-center p-14">
-        <span class="font-extralight text-content-faint">
-          {(@search != "" && "No errors match that search.") || "No #{@status_filter} errors. Huzzah!"}
-        </span>
-      </div>
+        <label class={[
+          "flex h-8 items-center gap-1.5 rounded border px-2.5 text-ui whitespace-nowrap text-content-body max-sm:flex-1",
+          (@firmware_filter != "" && "border-primary/50 bg-notice-soft") || "border-line-control bg-surface-raised"
+        ]}>
+          {(@firmware_filter != "" && "Last seen on") || "Firmware"}
+          <select name="firmware" class="h-full border-0 bg-transparent py-0 pr-7 pl-0 font-mono text-xs text-content-strong focus:ring-0 max-sm:min-w-0 max-sm:flex-1">
+            <option value="">Any</option>
+            {Phoenix.HTML.Form.options_for_select(firmware_options(@versions, @firmware_filter), @firmware_filter)}
+          </select>
+        </label>
 
-      <table :if={Enum.any?(@groups)} class="w-full table-fixed text-sm">
-        <colgroup>
-          <col class="w-28" />
-          <col />
-          <col class="w-24" />
-          <col class="w-24" />
-          <col class="w-44" />
-          <col class="w-28" />
-        </colgroup>
-        <thead>
-          <tr class="border-b border-line-default text-left font-extralight text-content-muted">
-            <th class="px-4 py-2 font-normal">Status</th>
-            <th class="py-2 pr-6 font-normal">Error</th>
-            <th class="py-2 pr-6 font-normal">Count</th>
-            <th class="py-2 pr-6 font-normal">Devices</th>
-            <th class="py-2 pr-6 font-normal">Last seen</th>
-            <th class="py-2 pr-4 font-normal"></th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr :for={group <- @groups} id={"error-group-#{group.id}"} class="border-b border-line-subtle align-top hover:bg-base-900">
-            <td class="px-4 py-3">
-              <span class={["rounded px-1.5 py-0.5 text-xs", NervesHubWeb.Live.Product.Errors.status_class(group.status)]}>
-                {group.status}
-              </span>
-              <div :if={group.regressed_at} class="pt-1 text-xs text-warning">regressed</div>
-            </td>
-            <td class="py-3 pr-6">
-              <.link navigate={~p"/org/#{@current_scope.org}/#{@current_scope.product}/errors/#{group.id}"} class="block truncate font-mono text-base-200 hover:underline" title={group.reason}>
+        <label class="flex h-8 items-center gap-1.5 rounded border border-line-control bg-surface-raised px-2.5 text-ui whitespace-nowrap text-content-body max-sm:flex-1">
+          Sort
+          <select name="sort" class="h-full border-0 bg-transparent py-0 pr-7 pl-0 text-ui font-medium text-content-strong focus:ring-0 max-sm:min-w-0 max-sm:flex-1">
+            {Phoenix.HTML.Form.options_for_select(sort_options(), @sort)}
+          </select>
+        </label>
+      </form>
+
+      <div
+        id="error-list"
+        role="table"
+        aria-label="Errors"
+        class="flex flex-col @max-3xl:pt-3 @3xl:mx-6 @3xl:mt-4 @3xl:rounded-card @3xl:border @3xl:border-line-default @3xl:bg-surface-raised"
+      >
+        <div
+          :if={@groups != []}
+          role="row"
+          class="flex h-9 items-center gap-6 rounded-t-card border-b border-line-default bg-surface-muted px-4 text-label tracking-[0.06em] text-content-muted uppercase @max-3xl:hidden"
+        >
+          <span role="columnheader" class="min-w-0 flex-1">Error</span>
+          <span role="columnheader" class="w-30 shrink-0 @max-5xl:hidden">Last 14 days</span>
+          <%!-- The two counts cover different periods, which the headers
+                say on hover. --%>
+          <.tooltip id="errors-events-help" role="columnheader" placement="top" class="z-20 flex w-20 shrink-0 justify-end" content_class={header_tip_class()}>
+            <.link patch={list_path(assigns, %{"sort" => "count"})} class={["flex items-center gap-1 hover:text-content-strong", header_tip_trigger_class()]}>
+              Events <span :if={@sort == "count"} class="lucide-arrow-down--bold size-3" aria-hidden="true"></span>
+            </.link>
+            <:content>Every report since the error was first seen, including ones older than 30 days.</:content>
+          </.tooltip>
+          <.tooltip id="errors-devices-help" role="columnheader" placement="top" class="z-20 flex w-16 shrink-0 justify-end" content_class={header_tip_class()}>
+            <span class={header_tip_trigger_class()}>Devices</span>
+            <:content>Devices that reported it in the last 30 days.</:content>
+          </.tooltip>
+          <.link
+            role="columnheader"
+            patch={list_path(assigns, %{"sort" => "last_seen"})}
+            class={["flex w-32 shrink-0 items-center gap-1 hover:text-content-strong", @sort == "last_seen" && "text-content-strong"]}
+          >
+            {(@sort == "first_seen" && "First seen") || "Last seen"}
+            <span :if={@sort != "count"} class="lucide-arrow-down--bold size-3" aria-hidden="true"></span>
+          </.link>
+          <span class="w-16 shrink-0"><span class="sr-only">Actions</span></span>
+        </div>
+
+        <div
+          :for={group <- @groups}
+          id={"error-group-#{group.id}"}
+          role="row"
+          class={[
+            "group/row relative flex min-h-15 items-center gap-6 border-b border-line-subtle px-4 py-2.5 last:border-b-0 hover:bg-surface-muted",
+            "@max-3xl:mx-4 @max-3xl:mb-2 @max-3xl:flex-wrap @max-3xl:gap-x-3 @max-3xl:gap-y-2 @max-3xl:rounded-card @max-3xl:border @max-3xl:border-line-default @max-3xl:bg-surface-raised @max-3xl:p-3 @max-3xl:last:border-b"
+          ]}
+        >
+          <div role="cell" class="flex min-w-0 flex-1 flex-col gap-1 @max-3xl:basis-full">
+            <div class="flex min-w-0 items-center gap-2 @max-3xl:flex-wrap">
+              <.issue_badge group={group} />
+              <%!-- On a phone the last seen time sits on the badge's line, so
+                    a card without a badge keeps that line anyway. --%>
+              <span :if={!badge_kind(group)} class="h-5 @3xl:hidden"></span>
+              <.link
+                navigate={~p"/org/#{@current_scope.org}/#{@product}/errors/#{group.id}"}
+                title={group.reason}
+                class="min-w-0 truncate font-mono text-ui/5 font-medium text-content-strong after:absolute after:inset-0 hover:underline @max-3xl:basis-full @max-3xl:text-xs/4.5 @max-3xl:whitespace-normal"
+              >
                 {group.reason}
               </.link>
-              <div :if={NervesHubWeb.Live.Product.Errors.top_frame(group)} class="truncate pt-0.5 font-mono text-xs text-content-faint">
-                {NervesHubWeb.Live.Product.Errors.top_frame(group)}
-              </div>
-            </td>
-            <td class="py-3 pr-6 text-content-body">{group.occurrence_count}</td>
-            <td class="py-3 pr-6 text-content-body">
-              {Map.get(@device_counts, group.id, "—")}
-            </td>
-            <td class="py-3 pr-6 text-content-body">
-              <div>{RelativeTime.from_now(group.last_seen_at)}</div>
-              <div :if={group.last_seen_firmware_uuid not in [nil, ""]} class="truncate pt-0.5 font-mono text-xs text-content-faint" title={group.last_seen_firmware_uuid}>
-                {group.last_seen_firmware_uuid}
-              </div>
-            </td>
-            <td class="py-3 pr-4">
-              <%!-- Icon-only, with the label kept for screen readers and as a
-                    hover tooltip: three labelled buttons per row crowds out the
-                    reason, which is the column people are actually reading. --%>
-              <div :if={authorized?(:"error_group:update", @current_scope)} class="flex flex-row gap-2">
-                <.button :if={group.status != :resolved} style="secondary" phx-click="resolve" phx-value-id={group.id} title="Resolve">
-                  <.icon name="check" /><span class="sr-only">Resolve</span>
-                </.button>
-                <.button :if={group.status == :unresolved} style="secondary" phx-click="mute" phx-value-id={group.id} title="Mute">
-                  <.icon name="mute" /><span class="sr-only">Mute</span>
-                </.button>
-                <.button :if={group.status != :unresolved} style="secondary" phx-click="reopen" phx-value-id={group.id} title="Reopen">
-                  <.icon name="undo" /><span class="sr-only">Reopen</span>
-                </.button>
-              </div>
-            </td>
-          </tr>
-        </tbody>
-      </table>
+            </div>
+            <span :if={group.top_frame_module} class="truncate font-mono text-xs text-content-muted">
+              {group.top_frame_module}.{group.top_frame_function}<span :if={group.top_frame_file} class="@max-3xl:hidden"> · {location(group.top_frame_file, group.top_frame_line)}</span>
+            </span>
+            <span :if={status_note(group, @time_zone)} class="text-xs text-content-muted">{status_note(group, @time_zone)}</span>
+          </div>
+
+          <div role="cell" class="w-30 shrink-0 @max-5xl:hidden">
+            <%= case stat(@stats, group, :daily) do %>
+              <% :loading -> %>
+                <span class="block h-1.5 w-30 animate-pulse rounded-full bg-line-subtle" aria-label="Loading"></span>
+              <% :failed -> %>
+                <span class="text-content-faint" title="Couldn’t load this right now">—</span>
+              <% daily -> %>
+                <.sparkline daily={daily} hot={hot?(group)} />
+            <% end %>
+          </div>
+
+          <div role="cell" class="w-20 shrink-0 text-right font-mono text-ui text-content-strong @max-3xl:w-auto @max-3xl:text-xs @max-3xl:text-content-body">
+            {NervesHubWeb.Components.Fleet.delimited(group.occurrence_count)}<span class="@3xl:hidden"> events</span>
+          </div>
+
+          <div role="cell" class="w-16 shrink-0 text-right font-mono text-ui text-content-strong @max-3xl:w-auto @max-3xl:text-xs @max-3xl:text-content-body">
+            <%= case stat(@stats, group, :device_count) do %>
+              <% :loading -> %>
+                <span class="ml-auto block h-3 w-7 animate-pulse rounded bg-line-subtle @max-3xl:hidden" aria-label="Loading"></span>
+              <% :failed -> %>
+                <span class="text-content-faint" title="Couldn’t load this right now">—</span>
+              <% count -> %>
+                {NervesHubWeb.Components.Fleet.delimited(count)}<span class="@3xl:hidden">{ngettext(" device", " devices", count)}</span>
+            <% end %>
+          </div>
+
+          <div role="cell" class="flex w-32 shrink-0 flex-col gap-0.5 @max-3xl:contents">
+            <span class="text-ui text-content-strong @max-3xl:absolute @max-3xl:top-3 @max-3xl:right-3 @max-3xl:text-xs @max-3xl:text-content-body">
+              {last_seen_label((@sort == "first_seen" && group.first_seen_at) || group.last_seen_at)}
+            </span>
+            <span :if={label = firmware_label(group.last_seen_firmware_uuid, @firmware)} class="truncate text-xs text-content-muted">
+              on <.firmware label={label} />
+            </span>
+          </div>
+
+          <div role="cell" class="relative z-10 flex w-16 shrink-0 justify-end gap-1.5 @max-3xl:hidden @3xl:opacity-0 @3xl:group-focus-within/row:opacity-100 @3xl:group-hover/row:opacity-100">
+            <%= if authorized?(:"error_group:update", @current_scope) do %>
+              <.button :if={group.status == :unresolved} size="sm" square phx-click="resolve" phx-value-id={group.id} title="Resolve">
+                <span class="pointer-events-none lucide-check" aria-hidden="true"></span><span class="sr-only">Resolve</span>
+              </.button>
+              <.button :if={group.status == :unresolved} size="sm" square phx-click="mute" phx-value-id={group.id} title="Mute">
+                <span class="pointer-events-none lucide-bell-off" aria-hidden="true"></span><span class="sr-only">Mute</span>
+              </.button>
+              <.button :if={group.status == :muted} size="sm" square phx-click="reopen" phx-value-id={group.id} title="Unmute">
+                <span class="pointer-events-none lucide-bell" aria-hidden="true"></span><span class="sr-only">Unmute</span>
+              </.button>
+              <.button :if={group.status == :resolved} size="sm" square phx-click="reopen" phx-value-id={group.id} title="Reopen">
+                <span class="pointer-events-none lucide-rotate-ccw" aria-hidden="true"></span><span class="sr-only">Reopen</span>
+              </.button>
+            <% end %>
+          </div>
+        </div>
+
+        <%!-- A search or the firmware filter emptied the tab. --%>
+        <div :if={@groups == [] && filtering?(assigns)} id="errors-no-matches" class="flex flex-col items-center gap-2 px-4 py-12 text-center">
+          <span class="text-sm font-medium text-content-strong">
+            No {@status_filter} error matches <span :if={@search != ""} class="font-mono">{@search}</span>
+            <span :if={@firmware_filter != ""}>last seen on <span class="font-mono">{@firmware_filter}</span></span>
+          </span>
+          <span :if={@match_counts && Enum.sum(Map.values(@match_counts)) > 0} class="text-ui text-content-muted">
+            {match_summary(@match_counts, status_option(@status_filter))}
+          </span>
+          <div class="flex flex-wrap justify-center gap-x-4 gap-y-1 pt-1 text-ui font-medium">
+            <.link :if={@search != ""} patch={list_path(assigns, %{"search" => ""})} class="text-notice-content hover:underline">Clear search</.link>
+            <.link :if={@firmware_filter != ""} patch={list_path(assigns, %{"firmware" => ""})} class="text-notice-content hover:underline">Clear firmware</.link>
+            <.link
+              :for={{label, value} <- status_options()}
+              :if={value != @status_filter && @match_counts && Map.get(@match_counts, status_option(value), 0) > 0}
+              patch={list_path(assigns, %{"status" => value})}
+              class="text-notice-content hover:underline"
+            >
+              Search {String.downcase(label)}
+            </.link>
+          </div>
+        </div>
+
+        <%!-- Nothing on this tab at all. --%>
+        <div :if={@groups == [] && !filtering?(assigns) && @status_filter == "unresolved"} id="errors-tab-empty" class="flex flex-col items-center gap-2 px-4 py-12 text-center">
+          <span class="lucide-circle-check size-7 text-success" aria-hidden="true"></span>
+          <span class="text-sm font-medium text-content-strong">Nothing unresolved</span>
+          <span class="text-ui text-content-muted">
+            <span :if={@last_resolved_at}>Last error resolved {last_seen_label(@last_resolved_at)}.</span> One that comes back reopens here as Regressed.
+          </span>
+        </div>
+
+        <div :if={@groups == [] && !filtering?(assigns) && @status_filter != "unresolved"} id="errors-tab-empty" class="flex flex-col items-center gap-2 px-4 py-12 text-center">
+          <% {title, body} = empty_tab(status_option(@status_filter)) %>
+          <span class="text-sm font-medium text-content-strong">{title}</span>
+          <span class="max-w-lg text-ui text-content-muted">{body}</span>
+        </div>
+      </div>
+
+      <div :if={@groups != []} class="px-4 pb-6 sm:px-6">
+        <NervesHubWeb.Components.DeviceList.pager id="error-pager" pager={@result_meta} noun={@status_filter} page_sizes={page_sizes()} />
+      </div>
     </div>
   </div>
 
-  <NervesHubWeb.Components.Pager.render_with_page_sizes :if={@extension_enabled? && @result_meta.total_count && @result_meta.total_count > 0} pager={@result_meta} />
+  <div
+    :if={@undo}
+    id="error-undo"
+    role="status"
+    class="fixed bottom-6 left-1/2 z-40 flex max-w-[calc(100vw-2rem)] -translate-x-1/2 items-center gap-3 rounded-md bg-zinc-900 py-2.5 pr-2 pl-4 text-ui text-zinc-100 shadow-overlay ring-1 ring-white/10"
+  >
+    <span class="lucide-check size-4 text-emerald-400" aria-hidden="true"></span>
+    <span class="min-w-0">
+      {toast_verb(@undo)} <span class="font-mono">{@undo.name}</span>. {toast_message(@undo)}
+    </span>
+    <button type="button" phx-click="undo" class="shrink-0 cursor-pointer px-1 font-medium text-indigo-300 hover:text-indigo-200">Undo</button>
+    <button type="button" phx-click="dismiss-undo" aria-label="Dismiss" class="flex size-7 shrink-0 cursor-pointer items-center justify-center rounded text-zinc-400 hover:text-zinc-100">
+      <span class="lucide-x size-4" aria-hidden="true"></span>
+    </button>
+  </div>
 </NervesHubWeb.Layouts.sidebar>

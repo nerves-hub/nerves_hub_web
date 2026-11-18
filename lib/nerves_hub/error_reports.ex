@@ -28,6 +28,8 @@ defmodule NervesHub.ErrorReports do
   alias NervesHub.ErrorReports.Fingerprint
   alias NervesHub.ErrorReports.GroupBuffer
   alias NervesHub.ErrorReports.Payload
+  alias NervesHub.Firmwares.Firmware
+  alias NervesHub.ManagedDeployments.DeploymentRelease
   alias NervesHub.Products.Product
   alias NervesHub.Repo
 
@@ -143,9 +145,13 @@ defmodule NervesHub.ErrorReports do
   ## Options
 
     * `:status` — `:unresolved`, `:resolved`, `:muted`, or `nil` for all.
-    * `:search` — matches the reason, case-insensitively.
+    * `:search` — matches the reason or the top frame's module and function,
+      case-insensitively.
+    * `:firmware` — a firmware version; only issues last seen on it.
     * `:sort` — `:last_seen` (default), `:first_seen` or `:count`.
     * `:page` / `:page_size`.
+
+  The resolved and muted by users are preloaded, for the rows that say who.
   """
   @spec groups_for_product(Product.t(), keyword()) :: {[ErrorGroup.t()], Flop.Meta.t()}
   def groups_for_product(%Product{} = product, opts \\ []) do
@@ -154,11 +160,11 @@ defmodule NervesHub.ErrorReports do
       page_size: Keyword.get(opts, :page_size, @default_limit)
     }
 
-    ErrorGroup
-    |> where([g], g.product_id == ^product.id)
+    product
+    |> filtered_groups(opts)
     |> filter_status(Keyword.get(opts, :status))
-    |> filter_search(Keyword.get(opts, :search))
     |> sort_groups(Keyword.get(opts, :sort, :last_seen))
+    |> preload([:resolved_by, :muted_by])
     |> Flop.run(flop)
   end
 
@@ -166,19 +172,102 @@ defmodule NervesHub.ErrorReports do
   How many issues a product has in each status.
 
   One grouped query rather than three counts, since the page shows all of them
-  side by side.
+  side by side. Takes the same `:search` and `:firmware` options as
+  `groups_for_product/2`, so a search that finds nothing on one tab can say
+  where its matches are.
   """
-  @spec status_counts(Product.t()) :: %{atom() => non_neg_integer()}
-  def status_counts(%Product{} = product) do
+  @spec status_counts(Product.t(), keyword()) :: %{atom() => non_neg_integer()}
+  def status_counts(%Product{} = product, opts \\ []) do
     counts =
-      ErrorGroup
-      |> where([g], g.product_id == ^product.id)
+      product
+      |> filtered_groups(opts)
       |> group_by([g], g.status)
       |> select([g], {g.status, count(g.id)})
       |> Repo.all()
       |> Map.new()
 
     Map.new(ErrorGroup.statuses(), &{&1, Map.get(counts, &1, 0)})
+  end
+
+  defp filtered_groups(product, opts) do
+    ErrorGroup
+    |> where([g], g.product_id == ^product.id)
+    |> filter_search(Keyword.get(opts, :search))
+    |> filter_firmware(product, Keyword.get(opts, :firmware))
+  end
+
+  @doc """
+  When the most recent resolve in a product happened, or `nil` if nothing in
+  it is resolved.
+  """
+  @spec last_resolved_at(Product.t()) :: DateTime.t() | nil
+  def last_resolved_at(%Product{} = product) do
+    ErrorGroup
+    |> where([g], g.product_id == ^product.id and g.status == :resolved)
+    |> select([g], max(g.resolved_at))
+    |> Repo.one()
+  end
+
+  @doc """
+  The firmware versions a product's issues were last seen on, newest upload
+  first, for the list's firmware filter.
+  """
+  @spec last_seen_versions(Product.t()) :: [String.t()]
+  def last_seen_versions(%Product{} = product) do
+    ErrorGroup
+    |> join(:inner, [g], f in Firmware, on: f.uuid == g.last_seen_firmware_uuid and f.product_id == g.product_id)
+    |> where([g], g.product_id == ^product.id)
+    |> group_by([_g, f], f.version)
+    |> order_by([_g, f], desc: max(f.inserted_at))
+    |> select([_g, f], f.version)
+    |> Repo.all()
+  end
+
+  @doc """
+  The firmware each of `uuids` names in a product, as `%{uuid => %{version:,
+  deleted?:}}`.
+
+  A report carries only its firmware's UUID. A UUID with no firmware behind it
+  (the product never had it, or the row is gone) is left out, so callers can
+  tell it apart from one that is merely deleted.
+  """
+  @spec firmware_by_uuid(Product.t(), [String.t() | nil]) :: %{
+          String.t() => %{version: String.t(), deleted?: boolean()}
+        }
+  def firmware_by_uuid(%Product{} = product, uuids) do
+    uuids = uuids |> Enum.reject(&(&1 in [nil, ""])) |> Enum.uniq()
+
+    Firmware
+    |> where([f], f.product_id == ^product.id and f.uuid in ^uuids)
+    # A UUID can be uploaded again after a delete; the live row wins.
+    |> order_by([f], asc: not is_nil(f.deleted_at), desc: f.inserted_at)
+    |> select([f], {f.uuid, %{version: f.version, deleted?: not is_nil(f.deleted_at)}})
+    |> Repo.all()
+    |> Enum.reverse()
+    |> Map.new()
+  end
+
+  @doc """
+  When `version` of a product's firmware was first released, and to which
+  deployment group, or `nil` if no group has been given it.
+  """
+  @spec first_release(Product.t(), String.t() | nil) ::
+          %{version: String.t(), at: DateTime.t(), deployment_group: String.t()} | nil
+  def first_release(_product, nil), do: nil
+
+  def first_release(%Product{} = product, version) do
+    DeploymentRelease
+    |> join(:inner, [r], f in assoc(r, :firmware))
+    |> join(:inner, [r], dg in assoc(r, :deployment_group))
+    |> where([_r, f], f.product_id == ^product.id and f.version == ^version)
+    |> order_by([r], asc: r.inserted_at)
+    |> limit(1)
+    |> select([r, _f, dg], %{version: ^version, at: r.inserted_at, deployment_group: dg.name})
+    |> Repo.one()
+    |> case do
+      nil -> nil
+      release -> Map.update!(release, :at, &DateTime.from_naive!(&1, "Etc/UTC"))
+    end
   end
 
   @doc """
@@ -221,8 +310,26 @@ defmodule NervesHub.ErrorReports do
   defp filter_search(query, nil), do: query
   defp filter_search(query, ""), do: query
 
+  # The top frame is searched as `Module.function`, the way the list shows it,
+  # so "Poller.handle_info" finds a frame stored as module and function apart.
   defp filter_search(query, search) do
-    where(query, [g], ilike(g.reason, ^"%#{escape_like(search)}%"))
+    pattern = "%#{escape_like(search)}%"
+
+    where(
+      query,
+      [g],
+      ilike(g.reason, ^pattern) or
+        ilike(fragment("concat_ws('.', ?, ?)", g.top_frame_module, g.top_frame_function), ^pattern)
+    )
+  end
+
+  defp filter_firmware(query, _product, nil), do: query
+  defp filter_firmware(query, _product, ""), do: query
+
+  defp filter_firmware(query, product, version) do
+    uuids = from(f in Firmware, where: f.product_id == ^product.id and f.version == ^version, select: f.uuid)
+
+    where(query, [g], g.last_seen_firmware_uuid in subquery(uuids))
   end
 
   # `%` and `_` are wildcards to `ilike`, and a reason is full of neither by
@@ -314,6 +421,8 @@ defmodule NervesHub.ErrorReports do
     * `:before` — strictly before this time, so the oldest row on a page can be
       handed straight back as the next page's cursor without repeating itself.
     * `:limit`.
+    * `:offset` — skip this many of the newest first, for paging through
+      them one at a time.
   """
   @spec occurrences(ErrorGroup.t(), keyword()) :: [ErrorReport.t()]
   def occurrences(%ErrorGroup{} = group, opts \\ []) do
@@ -323,6 +432,7 @@ defmodule NervesHub.ErrorReports do
     |> filter_before(Keyword.get(opts, :before))
     |> order_by([r], desc: r.timestamp)
     |> limit(^Keyword.get(opts, :limit, @default_limit))
+    |> offset(^Keyword.get(opts, :offset, 0))
     |> AnalyticsRepo.all()
   end
 
@@ -352,7 +462,8 @@ defmodule NervesHub.ErrorReports do
   end
 
   @doc """
-  The devices an issue has been seen on, most recently first.
+  The devices an issue has been seen on, most recently first, or with the
+  most occurrences first when `order: :count` is given.
 
   Devices deleted since their occurrences were recorded are dropped — ClickHouse
   keeps the id, PostgreSQL is where it means something.
@@ -370,13 +481,14 @@ defmodule NervesHub.ErrorReports do
         occurrence_count: count(r.device_id),
         last_seen_at: max(r.timestamp)
       })
-      |> order_by([r], desc: max(r.timestamp))
+      |> order_devices(Keyword.get(opts, :order, :last_seen))
       |> limit(^Keyword.get(opts, :limit, @default_limit))
       |> AnalyticsRepo.all()
 
     devices =
       Device
       |> where([d], d.id in ^Enum.map(aggregates, & &1.device_id))
+      |> preload(:latest_connection)
       |> Repo.all()
       |> Map.new(&{&1.id, &1})
 
@@ -387,6 +499,9 @@ defmodule NervesHub.ErrorReports do
       end
     end)
   end
+
+  defp order_devices(query, :count), do: order_by(query, [r], desc: count(r.device_id), desc: max(r.timestamp))
+  defp order_devices(query, _last_seen), do: order_by(query, [r], desc: max(r.timestamp))
 
   @doc """
   Occurrences of an issue bucketed by day, in the viewer's timezone.
@@ -424,6 +539,116 @@ defmodule NervesHub.ErrorReports do
     end)
   end
 
+  @doc """
+  Occurrences of an issue bucketed by hour, from the hour `from` falls in to
+  the hour `to` does, in the viewer's timezone. Like `occurrences_by_date/4`,
+  every hour comes back, quiet ones included.
+  """
+  @spec occurrences_by_hour(ErrorGroup.t(), DateTime.t(), DateTime.t(), String.t()) :: [map()]
+  def occurrences_by_hour(%ErrorGroup{} = group, %DateTime{} = from, %DateTime{} = to, time_zone) do
+    from = truncate_to_hour(from)
+    to = truncate_to_hour(to)
+
+    counts =
+      from(r in ErrorReport,
+        where: r.product_id == ^group.product_id,
+        where: r.fingerprint == ^group.fingerprint,
+        where: r.timestamp >= ^from,
+        where: r.timestamp < ^DateTime.add(to, 1, :hour),
+        group_by: fragment("toStartOfHour(?, ?)", r.timestamp, ^time_zone),
+        select: %{hour: fragment("toStartOfHour(?, ?)", r.timestamp, ^time_zone), count: count(r.fingerprint)}
+      )
+      |> AnalyticsRepo.all()
+      |> Map.new(&{&1.hour |> to_utc_datetime() |> DateTime.to_unix(), &1.count})
+
+    from
+    |> Stream.iterate(&DateTime.add(&1, 1, :hour))
+    |> Enum.take_while(&(DateTime.compare(&1, to) != :gt))
+    |> Enum.map(&%{hour: &1, count: Map.get(counts, DateTime.to_unix(&1), 0)})
+  end
+
+  defp truncate_to_hour(%DateTime{} = at), do: %{DateTime.truncate(at, :second) | minute: 0, second: 0}
+
+  # `toStartOfHour` comes back as a naive datetime or a datetime, depending on
+  # the column type; both name the same instant in UTC.
+  defp to_utc_datetime(%NaiveDateTime{} = at), do: DateTime.from_naive!(at, "Etc/UTC")
+  defp to_utc_datetime(%DateTime{} = at), do: at
+
+  @doc """
+  How many of an issue's occurrences are still kept. Lower than
+  `occurrence_count` once any have aged out.
+  """
+  @spec retained_count(ErrorGroup.t()) :: non_neg_integer()
+  def retained_count(%ErrorGroup{} = group) do
+    ErrorReport
+    |> where([r], r.product_id == ^group.product_id and r.fingerprint == ^group.fingerprint)
+    |> select([r], count(r.fingerprint))
+    |> AnalyticsRepo.one()
+    |> Kernel.||(0)
+  end
+
+  @doc """
+  An issue's kept occurrences split by the firmware they were reported on,
+  most first, as `%{firmware_uuid:, count:, device_count:}`.
+  """
+  @spec occurrences_by_firmware(ErrorGroup.t()) :: [map()]
+  def occurrences_by_firmware(%ErrorGroup{} = group) do
+    ErrorReport
+    |> where([r], r.product_id == ^group.product_id and r.fingerprint == ^group.fingerprint)
+    |> group_by([r], r.firmware_uuid)
+    |> select([r], %{
+      firmware_uuid: r.firmware_uuid,
+      count: count(r.fingerprint),
+      device_count: fragment("uniqExact(?)", r.device_id)
+    })
+    |> order_by([r], desc: count(r.fingerprint))
+    |> AnalyticsRepo.all()
+  end
+
+  @doc """
+  What a product's issues list shows from ClickHouse, for the issues on one
+  page of it, in two queries: per fingerprint, the occurrences on each of the
+  last `days` days (oldest first, quiet days as zero) and how many devices
+  have kept occurrences.
+
+  Returns `%{fingerprint => %{daily: [non_neg_integer()], device_count: n}}`;
+  a fingerprint with nothing kept is absent.
+  """
+  @spec list_stats(Product.t(), [ErrorGroup.t()], pos_integer(), String.t()) :: %{String.t() => map()}
+  def list_stats(_product, [], _days, _time_zone), do: %{}
+
+  def list_stats(%Product{} = product, groups, days, time_zone) do
+    fingerprints = Enum.map(groups, & &1.fingerprint)
+    today = time_zone |> DateTime.now!() |> DateTime.to_date()
+    first_day = Date.add(today, 1 - days)
+
+    daily =
+      from(r in ErrorReport,
+        where: r.product_id == ^product.id and r.fingerprint in ^fingerprints,
+        where: fragment("toDate(?, ?)", r.timestamp, ^time_zone) >= ^first_day,
+        group_by: [r.fingerprint, fragment("toDate(?, ?)", r.timestamp, ^time_zone)],
+        select: {r.fingerprint, fragment("toDate(?, ?)", r.timestamp, ^time_zone), count(r.fingerprint)}
+      )
+      |> AnalyticsRepo.all()
+      |> Enum.group_by(&elem(&1, 0), &{elem(&1, 1), elem(&1, 2)})
+
+    devices =
+      from(r in ErrorReport,
+        where: r.product_id == ^product.id and r.fingerprint in ^fingerprints,
+        group_by: r.fingerprint,
+        select: {r.fingerprint, fragment("uniqExact(?)", r.device_id)}
+      )
+      |> AnalyticsRepo.all()
+      |> Map.new()
+
+    dates = Date.range(first_day, today)
+
+    Map.new(devices, fn {fingerprint, device_count} ->
+      by_date = daily |> Map.get(fingerprint, []) |> Map.new()
+      {fingerprint, %{daily: Enum.map(dates, &Map.get(by_date, &1, 0)), device_count: device_count}}
+    end)
+  end
+
   defp filter_device(query, nil), do: query
   defp filter_device(query, device_id), do: where(query, [r], r.device_id == ^device_id)
 
@@ -458,11 +683,17 @@ defmodule NervesHub.ErrorReports do
 
   @doc """
   Returns an issue to the queue, from either resolved or muted.
+
+  ## Options
+
+    * `:regressed_at` — put back the regression a resolve cleared, so undoing
+      a resolve leaves the issue as it was rather than as a plain unresolved
+      one.
   """
-  @spec reopen(ErrorGroup.t()) :: {:ok, ErrorGroup.t()} | {:error, Ecto.Changeset.t()}
-  def reopen(%ErrorGroup{} = group) do
+  @spec reopen(ErrorGroup.t(), keyword()) :: {:ok, ErrorGroup.t()} | {:error, Ecto.Changeset.t()}
+  def reopen(%ErrorGroup{} = group, opts \\ []) do
     group
-    |> ErrorGroup.reopen_changeset()
+    |> ErrorGroup.reopen_changeset(opts)
     |> Repo.update()
   end
 end

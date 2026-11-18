@@ -147,16 +147,28 @@ defmodule NervesHub.ErrorReports.ErrorGroup do
 
   @doc """
   Returns a group to the queue, from either resolved or muted.
+
+  A plain reopen is not a regression, so `regressed_at` is left alone unless
+  `:regressed_at` is given, which undoing a resolve uses to put back the one
+  the resolve cleared.
   """
-  @spec reopen_changeset(t()) :: Ecto.Changeset.t()
-  def reopen_changeset(%__MODULE__{} = group) do
-    change(group, %{
+  @spec reopen_changeset(t(), keyword()) :: Ecto.Changeset.t()
+  def reopen_changeset(%__MODULE__{} = group, opts \\ []) do
+    changes = %{
       status: :unresolved,
       resolved_at: nil,
       resolved_by_id: nil,
       resolved_in_firmware_uuid: nil,
       muted_at: nil,
       muted_by_id: nil
-    })
+    }
+
+    changes =
+      case Keyword.fetch(opts, :regressed_at) do
+        {:ok, regressed_at} -> Map.put(changes, :regressed_at, regressed_at)
+        :error -> changes
+      end
+
+    change(group, changes)
   end
 end

@@ -149,6 +149,12 @@ when adding or removing one.
 - `error_reports.ex` / `error_reports/` — exceptions devices report, grouped
   into issues. Split across both stores: the group in Postgres, the
   occurrences in ClickHouse. See [docs/error_reports.md](docs/error_reports.md).
+  A product's Errors list (`live/product/errors.ex`) is read from PostgreSQL
+  and filters on the issue row (reason, top frame, last-seen firmware); its
+  sparklines and device counts load afterwards from ClickHouse in one task, and
+  show a dash if it doesn't answer. An issue's page (`live/product/error_group.ex`)
+  draws its chart on the server. What both pages share (badges, firmware labels,
+  the sparkline and chart) is in `NervesHubWeb.Components.ErrorReports`.
 - `webhooks.ex` / `webhooks/` — webhooks: device events POSTed to endpoints
   an organization configures, for every product or a chosen few (org
   Integrations page, or `API.WebhookController`). Events arrive through

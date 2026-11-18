@@ -189,6 +189,11 @@ An issue is **unresolved**, **resolved** or **muted**.
 - **Mute** when you know about it and do not want it in the queue. A muted
   issue keeps counting and does not reopen.
 
+Resolving or muting from a product's Errors list offers an undo for as long
+as the notice stays up. Undoing a resolve puts back the regressed mark the
+resolve cleared, so an issue that came back still says so. Reopening by hand,
+or unmuting, is not a regression and leaves no mark.
+
 The reopen rule is currently blunt: any occurrence after the issue was resolved
 reopens it. On a fleet where half the devices are still running the firmware
 that had the bug, that means it reopens straight away, and mute is the right
@@ -200,6 +205,12 @@ built after the fix — is the intended refinement.
 Occurrences are kept for **30 days**, against three days for log lines. An
 error you look into a week later is ordinary; a log line you look at a week
 later is not.
+
+What an issue's page can show splits along the same line. The count of
+events, and when and on which firmware it was first and last seen, live on the
+issue and stay. The chart, the devices it hit, the split by firmware and the
+latest event's frames and context are read from the occurrences, so they all
+go empty together once the last one ages out.
 
 The window is a ClickHouse TTL set when the table is created, not a runtime
 setting. There is no environment variable for it deliberately: a variable read
