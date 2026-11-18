@@ -8,8 +8,13 @@ defmodule NervesHub.Products.ApiKeys do
 
   import Ecto.Query
 
+  alias Ecto.Changeset
+  alias NervesHub.Accounts
+  alias NervesHub.Accounts.Org
   alias NervesHub.Accounts.OrgRole
   alias NervesHub.Accounts.OrgRoles
+  alias NervesHub.Accounts.OrgUser
+  alias NervesHub.Accounts.Permissions
   alias NervesHub.Accounts.User
   alias NervesHub.AuditLogs.ProductTemplates
   alias NervesHub.Products.ApiKey
@@ -48,6 +53,9 @@ defmodule NervesHub.Products.ApiKeys do
   @doc """
   Create a key for a product.
 
+  The role must be one `user` could give it (see `grantable?/2`), going by
+  their role in the product's organization when the key is created.
+
   Returns the key's record along with the key itself, which is not stored and
   can't be recovered once this returns.
   """
@@ -57,7 +65,12 @@ defmodule NervesHub.Products.ApiKeys do
     {token, changeset} = ApiKey.create_changeset(product, user, attrs)
 
     Repo.transact(fn ->
-      with {:ok, api_key} <- Repo.insert(OrgRoles.validate_org_role(changeset)) do
+      changeset =
+        changeset
+        |> OrgRoles.validate_org_role()
+        |> validate_grantable(creator_permissions(product, user))
+
+      with {:ok, api_key} <- Repo.insert(changeset) do
         api_key = Repo.preload(api_key, [:created_by, :org_role])
         :ok = ProductTemplates.audit_api_key_created(user, product, api_key)
         {:ok, api_key}
@@ -68,6 +81,17 @@ defmodule NervesHub.Products.ApiKeys do
       {:error, changeset} -> {:error, changeset}
     end
   end
+
+  @doc """
+  Whether a member holding `permissions` can give a key `role`: only when the
+  role grants nothing they don't hold themselves.
+
+  Creating a key takes `product:update`, which a custom role can hold without
+  the rest of manage. Without this, such a member could create a key that does
+  more than they can.
+  """
+  @spec grantable?(ApiKey.built_in_role() | OrgRole.t(), MapSet.t(Permissions.permission())) :: boolean()
+  def grantable?(role, permissions), do: MapSet.subset?(Permissions.for_role(role), permissions)
 
   @doc """
   Stop a product's key from authenticating.
@@ -96,7 +120,7 @@ defmodule NervesHub.Products.ApiKeys do
       {:ok, api_key} ->
         # After the commit, so a client that reconnects straight away finds the
         # key already deactivated.
-        :ok = ChannelServer.broadcast(NervesHub.PubSub, socket_id(api_key), "disconnect", %{})
+        :ok = disconnect(api_key)
         {:ok, api_key}
 
       {:error, :not_found} ->
@@ -105,7 +129,25 @@ defmodule NervesHub.Products.ApiKeys do
   end
 
   @doc """
-  The id of any socket opened with a key, which `deactivate/3` disconnects.
+  Disconnect every socket open with an active key that holds `org_role`.
+
+  A socket's scope is built when it connects, so it keeps the role as it was
+  then. `NervesHub.Accounts.OrgRoles.update_org_role/2` calls this so that a
+  key's sockets reconnect with the role as it is now.
+  """
+  @spec disconnect_holders(OrgRole.t()) :: :ok
+  def disconnect_holders(%OrgRole{id: org_role_id}) do
+    ApiKey
+    |> where(org_role_id: ^org_role_id)
+    |> where([k], is_nil(k.deactivated_at))
+    |> select([k], k.id)
+    |> Repo.all()
+    |> Enum.each(&disconnect(%ApiKey{id: &1}))
+  end
+
+  @doc """
+  The id of any socket opened with a key, which `deactivate/3` and
+  `disconnect_holders/1` disconnect.
   """
   @spec socket_id(ApiKey.t()) :: String.t()
   def socket_id(%ApiKey{id: id}), do: "product_api_key:#{id}"
@@ -145,20 +187,40 @@ defmodule NervesHub.Products.ApiKeys do
     |> Repo.exists?()
   end
 
-  @doc """
-  How many active keys hold each role in the product's organization, keyed the
-  way `NervesHub.Accounts.OrgRoles.member_counts/1` keys members: by built-in
-  role, and by custom role id.
-  """
-  @spec key_counts(Product.t()) :: %{(atom() | integer()) => non_neg_integer()}
-  def key_counts(%Product{org_id: org_id}) do
-    ApiKey
-    |> where(org_id: ^org_id)
-    |> where([k], is_nil(k.deactivated_at))
-    |> group_by([k], [k.role, k.org_role_id])
-    |> select([k], {k.role, k.org_role_id, count()})
-    |> Repo.all()
-    |> Map.new(fn {role, org_role_id, count} -> {org_role_id || role, count} end)
+  defp disconnect(api_key), do: ChannelServer.broadcast(NervesHub.PubSub, socket_id(api_key), "disconnect", %{})
+
+  # Checked once the role is otherwise valid, so a missing or foreign role gets
+  # its own error rather than this one.
+  defp validate_grantable(%Changeset{valid?: false} = changeset, _permissions), do: changeset
+
+  defp validate_grantable(changeset, permissions) do
+    if grantable?(changeset_role(changeset), permissions) do
+      changeset
+    else
+      Changeset.add_error(changeset, :role, "can do more than your own role")
+    end
+  end
+
+  defp changeset_role(changeset) do
+    case Changeset.get_field(changeset, :org_role_id) do
+      nil ->
+        Changeset.get_field(changeset, :role)
+
+      org_role_id ->
+        case OrgRoles.get_org_role(%Org{id: Changeset.get_field(changeset, :org_id)}, org_role_id) do
+          {:ok, org_role} -> org_role
+          {:error, :not_found} -> nil
+        end
+    end
+  end
+
+  # What the creator's own role grants in the product's organization, read
+  # afresh rather than taken from the caller. Nothing, if they aren't a member.
+  defp creator_permissions(%Product{org_id: org_id}, %User{} = user) do
+    case Accounts.get_org_user(%Org{id: org_id}, user) do
+      {:ok, org_user} -> Permissions.for_role(OrgUser.assigned_role(org_user))
+      {:error, :not_found} -> MapSet.new()
+    end
   end
 
   defp get(product, id) when is_binary(id) do

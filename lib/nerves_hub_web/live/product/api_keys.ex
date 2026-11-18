@@ -7,10 +7,10 @@ defmodule NervesHubWeb.Live.Product.ApiKeys do
   itself, which is shown once and only to the person who created it. Nothing
   else on this page can show it again, because only its hash is kept.
 
-  Minting a key takes `product:update`, the same permission as a shared secret:
-  a key is never more powerful than the member who created it, since the roles
-  on offer stop at manage and a custom role cannot hold the permissions that
-  run the organization.
+  Minting a key takes `product:update`, the same permission as a shared secret.
+  A custom role can hold that without the rest of manage, so the picker only
+  offers roles that grant nothing beyond the member's own, and
+  `NervesHub.Products.ApiKeys.create/3` refuses any other.
   """
 
   use NervesHubWeb, :live_view
@@ -19,28 +19,26 @@ defmodule NervesHubWeb.Live.Product.ApiKeys do
 
   alias NervesHub.Accounts.OrgRole
   alias NervesHub.Accounts.OrgRoles
+  alias NervesHub.Accounts.Scope
   alias NervesHub.Products.ApiKey
   alias NervesHub.Products.ApiKeys
   alias NervesHub.Products.HealthProfiles
   alias NervesHubWeb.Components.Utils
+  alias NervesHubWeb.CoreComponents
   alias NervesHubWeb.Mounts.RequireEveryDevice
 
   on_mount(RequireEveryDevice)
 
-  # View by default: the narrower of the two, so the wider one is always a
-  # deliberate pick.
-  @default_role "view"
-
   @decorate requires_membership()
   def mount(_params, _session, socket) do
-    %{org: org, product: product} = socket.assigns.current_scope
+    %{org: org, product: product} = scope = socket.assigns.current_scope
 
     socket
     |> assign(:page_title, "#{product.name} API Keys")
     |> sidebar_tab(:settings)
     |> assign(:product, product)
     |> assign(:profile_count, HealthProfiles.count_for_product(product))
-    |> assign(:custom_roles, OrgRoles.list_org_roles(org))
+    |> assign(:role_groups, role_groups(OrgRoles.list_org_roles(org), scope))
     |> assign(:dialog, nil)
     |> reset_form()
     |> assign_api_keys()
@@ -50,7 +48,7 @@ defmodule NervesHubWeb.Live.Product.ApiKeys do
   @decorate requires_permission(:"product:update")
   def handle_event("open-create", _params, socket) do
     socket
-    |> assign(:dialog, %{kind: :create, role: @default_role, role_menu: false})
+    |> assign(:dialog, %{kind: :create, role: default_role(socket.assigns.role_groups), role_menu: false})
     |> reset_form()
     |> noreply()
   end
@@ -71,9 +69,13 @@ defmodule NervesHubWeb.Live.Product.ApiKeys do
 
   @decorate requires_permission(:"product:update")
   def handle_event("pick-role", %{"role" => role}, socket) do
-    socket
-    |> update_create_dialog(&%{&1 | role: role, role_menu: false})
-    |> noreply()
+    if role_option(socket.assigns.role_groups, role) do
+      socket
+      |> update_create_dialog(&%{&1 | role: role, role_menu: false})
+      |> noreply()
+    else
+      noreply(socket)
+    end
   end
 
   # The role lives on the dialog rather than in the form so that it survives a
@@ -89,14 +91,12 @@ defmodule NervesHubWeb.Live.Product.ApiKeys do
 
   @decorate requires_permission(:"product:update")
   def handle_event("create", %{"api_key" => params}, socket) do
-    %{current_scope: scope, custom_roles: custom_roles, product: product} = socket.assigns
+    %{current_scope: scope, product: product} = socket.assigns
 
     case ApiKeys.create(product, scope.user, role_params(params)) do
       {:ok, api_key, token} ->
-        role = selected_role(params["role"], custom_roles)
-
         socket
-        |> assign(:dialog, %{kind: :reveal, name: api_key.name, token: token, role: role})
+        |> assign(:dialog, %{kind: :reveal, name: api_key.name, token: token, role: ApiKey.assigned_role(api_key)})
         |> reset_form()
         |> assign_api_keys()
         |> noreply()
@@ -149,7 +149,8 @@ defmodule NervesHubWeb.Live.Product.ApiKeys do
   end
 
   attr(:dialog, :map, required: true)
-  attr(:custom_roles, :list, required: true)
+  attr(:groups, :list, required: true)
+  attr(:errors, :list, required: true)
 
   # The roles on offer, grouped the way the members page groups them, each
   # saying what it allows. A native select can't carry those lines, so this is
@@ -160,9 +161,7 @@ defmodule NervesHubWeb.Live.Product.ApiKeys do
   # listens for it on the window, and a popover inside can't take it back.
   defp role_field(assigns) do
     assigns =
-      assigns
-      |> assign(:selected, selected_role(assigns.dialog.role, assigns.custom_roles))
-      |> assign(:groups, role_groups(assigns.custom_roles))
+      assign(assigns, :selected, with(%{role: role} <- role_option(assigns.groups, assigns.dialog.role), do: role))
 
     ~H"""
     <div class="flex flex-col gap-1.5" phx-click-away={@dialog.role_menu && "close-role-menu"}>
@@ -220,6 +219,7 @@ defmodule NervesHubWeb.Live.Product.ApiKeys do
       </div>
 
       <p class="text-xs/4 text-content-muted"><.role_description role={@selected} /></p>
+      <.error :for={error <- @errors}>{CoreComponents.translate_error(error)}</.error>
       <input type="hidden" name="api_key[role]" value={@dialog.role} />
     </div>
     """
@@ -279,28 +279,37 @@ defmodule NervesHubWeb.Live.Product.ApiKeys do
 
   defp role_params(params), do: Map.put(params, "org_role_id", nil)
 
-  # What the picker's value stands for: a built-in role as an atom, or the
-  # custom role itself. Nil while the value names a role that has since gone.
-  defp selected_role("custom:" <> org_role_id, custom_roles) do
-    Enum.find(custom_roles, &(to_string(&1.id) == org_role_id))
-  end
-
-  defp selected_role(role, _custom_roles) when role in ~w(view manage) do
-    String.to_existing_atom(role)
-  end
-
-  defp selected_role(_role, _custom_roles), do: nil
-
-  defp role_groups(custom_roles) do
+  # The roles this member can give a key, built-in ones first. Only those that
+  # grant nothing beyond the member's own role are offered.
+  defp role_groups(custom_roles, %Scope{permissions: permissions}) do
     built_in =
-      for role <- ApiKey.built_in_roles() do
+      for role <- ApiKey.built_in_roles(), ApiKeys.grantable?(role, permissions) do
         %{value: Atom.to_string(role), name: Utils.role_name(role), role: role}
       end
 
-    custom = for role <- custom_roles, do: %{value: "custom:#{role.id}", name: role.name, role: role}
+    custom =
+      for role <- custom_roles, ApiKeys.grantable?(role, permissions) do
+        %{value: "custom:#{role.id}", name: role.name, role: role}
+      end
 
     [{"Built-in roles", built_in}, {"Custom roles", custom}]
     |> Enum.reject(fn {_group, options} -> options == [] end)
+  end
+
+  # The option the picker's value stands for, or nil if it isn't one on offer.
+  defp role_option(groups, value) do
+    Enum.find_value(groups, fn {_group, options} -> Enum.find(options, &(&1.value == value)) end)
+  end
+
+  # View when it is on offer: the narrowest built-in role, so anything wider is
+  # always a deliberate pick. A member whose own role lacks part of view starts
+  # on the first role they can give.
+  defp default_role(groups) do
+    case {role_option(groups, "view"), groups} do
+      {%{value: value}, _groups} -> value
+      {nil, [{_group, [%{value: value} | _]} | _]} -> value
+      {nil, []} -> nil
+    end
   end
 
   defp reset_form(socket), do: assign(socket, :form, to_form(%{"name" => ""}, as: :api_key))

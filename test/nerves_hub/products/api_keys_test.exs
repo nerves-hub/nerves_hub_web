@@ -88,6 +88,32 @@ defmodule NervesHub.Products.ApiKeysTest do
       assert %{org_role_id: ["is not a role in this organization"]} = errors_on(changeset)
     end
 
+    test "refuses a role that does more than its creator's own", %{org: org, product: product} do
+      member = Fixtures.user_fixture()
+      {:ok, _} = Accounts.add_org_user(org, member, %{role: :view})
+      own_role = Fixtures.org_role_fixture(org, %{permissions: ["product:update", "deployment_group:update"]})
+      {:ok, _} = Accounts.change_org_user_role(Accounts.get_org_user!(org, member.id), own_role)
+
+      wider = Fixtures.org_role_fixture(org, %{permissions: ["device:reboot"]})
+
+      for attrs <- [%{"role" => "manage"}, %{"role" => "view"}, %{"org_role_id" => wider.id}] do
+        assert {:error, changeset} = ApiKeys.create(product, member, Map.put(attrs, "name", "CI"))
+        assert %{role: ["can do more than your own role"]} = errors_on(changeset)
+      end
+
+      # Their own role, and anything narrower, they can give.
+      narrower = Fixtures.org_role_fixture(org, %{permissions: ["deployment_group:update"]})
+      assert {:ok, _, _} = ApiKeys.create(product, member, %{"name" => "CI", "org_role_id" => own_role.id})
+      assert {:ok, _, _} = ApiKeys.create(product, member, %{"name" => "CI", "org_role_id" => narrower.id})
+    end
+
+    test "refuses every role to someone outside the organization", %{product: product} do
+      outsider = Fixtures.user_fixture()
+
+      assert {:error, changeset} = ApiKeys.create(product, outsider, %{"name" => "CI", "role" => "view"})
+      assert %{role: ["can do more than your own role"]} = errors_on(changeset)
+    end
+
     test "records who created the key in the product's audit log", %{user: user, product: product} do
       {:ok, _api_key, _token} = ApiKeys.create(product, user, %{"name" => "CI deploys", "role" => "view"})
 
@@ -260,6 +286,24 @@ defmodule NervesHub.Products.ApiKeysTest do
 
       {:ok, _} = ApiKeys.deactivate(product, user, api_key.id)
       assert {:ok, _} = OrgRoles.delete_org_role(role)
+    end
+
+    test "disconnects the key's sockets when it is edited", %{user: user, org: org, product: product} do
+      role = Fixtures.org_role_fixture(org, %{device_tags: ["canary"]})
+      {:ok, holder, _token} = ApiKeys.create(product, user, %{"name" => "CI", "org_role_id" => role.id})
+      {:ok, retired, _token} = ApiKeys.create(product, user, %{"name" => "Old", "org_role_id" => role.id})
+      {:ok, _} = ApiKeys.deactivate(product, user, retired.id)
+      {:ok, other, _token} = ApiKeys.create(product, user, %{"name" => "Other", "role" => "view"})
+
+      for api_key <- [holder, retired, other] do
+        :ok = Phoenix.PubSub.subscribe(NervesHub.PubSub, ApiKeys.socket_id(api_key))
+      end
+
+      {:ok, _} = OrgRoles.update_org_role(role, %{"device_tags" => ["canary", "beta"]})
+
+      holder_socket = ApiKeys.socket_id(holder)
+      assert_receive %Broadcast{topic: ^holder_socket, event: "disconnect"}
+      refute_received %Broadcast{event: "disconnect"}
     end
 
     test "doesn't hold a deleted product's keys against it", %{user: user, org: org} do

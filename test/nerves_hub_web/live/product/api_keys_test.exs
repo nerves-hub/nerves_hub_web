@@ -81,6 +81,10 @@ defmodule NervesHubWeb.Live.Product.ApiKeysTest do
         |> assert_has("#new-api-key h2", text: "Copy the key for CI deploys")
         |> assert_has("#new-api-key", text: "This is the only time it is shown.")
         |> assert_has("#api-key-row-#{hd(ApiKeys.list(product)).id}", text: "Manage")
+        # Escape, a click outside or the close button would throw the key away.
+        |> refute_has("#new-api-key-container[phx-click-away]")
+        |> refute_has("#new-api-key-container[phx-window-keydown]")
+        |> refute_has("#new-api-key button[aria-label='close']")
 
       [token] = Regex.run(~r/nhpk_[0-9A-Za-z]+/, render(session.view))
 
@@ -156,6 +160,41 @@ defmodule NervesHubWeb.Live.Product.ApiKeysTest do
 
       assert [api_key] = ApiKeys.list(product)
       assert api_key.org_role_id == role.id
+    end
+
+    test "only offers roles that do no more than the member's own", %{
+      conn: conn,
+      org: org,
+      product: product,
+      user: user
+    } do
+      own_role =
+        Fixtures.org_role_fixture(org, %{name: "Releaser", permissions: ["product:update", "deployment_group:update"]})
+
+      _wider = Fixtures.org_role_fixture(org, %{name: "Rebooter", permissions: ["device:reboot"]})
+      {:ok, _} = Accounts.change_org_user_role(Accounts.get_org_user!(org, user.id), own_role)
+
+      conn
+      |> visit(keys_path(org, product))
+      |> open_create_dialog()
+      # View includes running support scripts, which this role doesn't.
+      |> assert_has("#api-key-role", text: "Releaser")
+      |> open_role_menu()
+      |> assert_has("#api-key-role-options [role='option']", text: "Releaser")
+      |> refute_has("#api-key-role-options [role='option']", text: "View")
+      |> refute_has("#api-key-role-options [role='option']", text: "Manage")
+      |> refute_has("#api-key-role-options [role='option']", text: "Rebooter")
+      |> refute_has("#api-key-role-options", text: "Built-in roles")
+      # A forged pick is ignored, and a forged submit is refused.
+      |> unwrap(&render_click(&1, "pick-role", %{"role" => "manage"}))
+      |> assert_has("#api-key-form input[name='api_key[role]'][value='custom:#{own_role.id}']")
+      |> unwrap(fn view ->
+        view |> form("#api-key-form") |> render_submit(%{api_key: %{name: "CI deploys", role: "manage"}})
+      end)
+      |> assert_has("#api-key-form", text: "can do more than your own role")
+      |> refute_has("#new-api-key")
+
+      assert ApiKeys.list(product) == []
     end
 
     test "is not offered the admin role", %{conn: conn, org: org, product: product} do

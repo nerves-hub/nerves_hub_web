@@ -40,8 +40,9 @@ defmodule NervesHubWeb.DeviceEventsStreamChannel do
     end
   end
 
-  # A product API key has no membership to watch. Deactivating it disconnects
-  # the socket instead; see `NervesHub.Products.ApiKeys.deactivate/3`.
+  # A product API key has no membership to watch. Deactivating it, or editing
+  # the custom role it holds, disconnects the socket instead; see
+  # `NervesHub.Products.ApiKeys.deactivate/3` and `disconnect_holders/1`.
   defp subscribe_membership(%Scope{user: %User{} = user}, device),
     do: AccessPubSub.subscribe_membership(device.org_id, user.id)
 

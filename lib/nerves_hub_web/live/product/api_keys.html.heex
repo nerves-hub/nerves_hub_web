@@ -130,7 +130,7 @@
         autocomplete="off"
         phx-mounted={JS.focus()}
       />
-      <.role_field dialog={@dialog} custom_roles={@custom_roles} />
+      <.role_field dialog={@dialog} groups={@role_groups} errors={@form[:role].errors ++ @form[:org_role_id].errors} />
     </.form>
     <:actions>
       <.button style="primary" type="submit" form="api-key-form">Create key</.button>
@@ -145,7 +145,7 @@
     cancel={false}
   >
     <p>
-      This is the only time it is shown. Only a hash of it is stored, so nothing here can show it again — if it is lost, deactivate it and create another.
+      This is the only time it is shown. Only a hash of it is stored, so nothing here can show it again. If it is lost, deactivate it and create another.
     </p>
     <div class="flex items-center gap-2 rounded border border-line-default bg-surface-muted px-3 py-2.5">
       <code id="new-api-key-token" class="min-w-0 flex-1 font-mono text-ui break-all text-content-strong">{@dialog.token}</code>

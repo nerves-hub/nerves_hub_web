@@ -66,7 +66,9 @@ defmodule NervesHub.Accounts.OrgRoles do
   Every member holding the role is told their membership changed, as when an
   admin gives them another role: pages they have open mount again with the new
   permissions, and consoles, local shells and device event streams the role no
-  longer allows close (see `NervesHub.Accounts.PubSub`).
+  longer allows close (see `NervesHub.Accounts.PubSub`). Any socket open with
+  a product API key holding the role is disconnected, to reconnect with the
+  role as it now is.
   """
   @spec update_org_role(OrgRole.t(), map()) :: {:ok, OrgRole.t()} | {:error, Changeset.t()}
   def update_org_role(%OrgRole{} = role, params) do
@@ -77,6 +79,8 @@ defmodule NervesHub.Accounts.OrgRoles do
       |> select([ou], ou.user_id)
       |> Repo.all()
       |> Enum.each(&AccessPubSub.broadcast_membership_changed(role.org_id, &1))
+
+      :ok = ApiKeys.disconnect_holders(role)
 
       {:ok, role}
     end

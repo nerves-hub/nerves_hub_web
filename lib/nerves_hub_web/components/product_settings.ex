@@ -79,7 +79,12 @@ defmodule NervesHubWeb.Components.ProductSettings do
   attr(:id, :string, required: true)
   attr(:title, :string, required: true)
   attr(:cancel_event, :string, default: "cancel-confirm", doc: "the event Cancel, Escape and a click outside send")
-  attr(:cancel, :boolean, default: true, doc: "whether the footer offers Cancel")
+
+  attr(:cancel, :boolean,
+    default: true,
+    doc: "whether it can be cancelled: Cancel in the footer, Escape, a click outside and the close button"
+  )
+
   slot(:inner_block, required: true)
   slot(:note, doc: "a line at the start of the footer, opposite the actions")
   slot(:actions)
@@ -90,7 +95,8 @@ defmodule NervesHubWeb.Components.ProductSettings do
 
   General and Device health use it to ask before anything that changes every
   device or cannot be undone. API keys uses it for the create form and for the
-  one-time key, which offers no Cancel because dismissing is the only way out.
+  one-time key, which can't be cancelled: a stray click outside would throw
+  the key away, so only its own button closes it.
   """
   def dialog(assigns) do
     ~H"""
@@ -100,6 +106,7 @@ defmodule NervesHubWeb.Components.ProductSettings do
       on_cancel={JS.push(@cancel_event)}
       width_class="max-w-[30rem]"
       body_class=""
+      dismissible={@cancel}
     >
       <%!-- Not `overflow-hidden`: a popover inside, such as the role picker, hangs past the footer. --%>
       <div class="flex flex-col">

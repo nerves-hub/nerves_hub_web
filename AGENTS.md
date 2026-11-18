@@ -323,9 +323,11 @@ when adding or removing one.
   component for its create form and for the one-time key); each event that
   opens one checks the same permission as the event that acts. The dialog is
   480px with its own footer bar, so it passes `width_class` and a cleared
-  `body_class` to `CoreComponents.modal`, whose defaults keep every other
-  modal as it was. It must not clip, because the API keys role picker is a
-  popover that hangs past the footer.
+  `body_class` to `CoreComponents.modal`, whose defaults suit every other
+  modal. One without Cancel, such as the one-time key, also turns off the
+  modal's Escape, click outside and close button (`dismissible`), so a stray
+  click can't throw the key away. It must not clip, because the API keys role
+  picker is a popover that hangs past the footer.
 - `controllers/` — JSON API (`controllers/api/`) and others.
 - `plugs/`, `router.ex`, `endpoint.ex`, `device_endpoint.ex`,
   `health_check_endpoint.ex`, `auth*.ex`.

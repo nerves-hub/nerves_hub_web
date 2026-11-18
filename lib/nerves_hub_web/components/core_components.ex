@@ -355,6 +355,11 @@ defmodule NervesHubWeb.CoreComponents do
     doc: "padding inside the panel; a dialog that draws its own header and footer bars clears it"
   )
 
+  attr(:dismissible, :boolean,
+    default: true,
+    doc: "whether Escape, a click outside and the close button dismiss it; without them, only its own buttons do"
+  )
+
   slot(:inner_block, required: true)
 
   # The root is absolute so it stays out of flow once shown. Showing it sets
@@ -370,12 +375,12 @@ defmodule NervesHubWeb.CoreComponents do
           <div class="w-full max-w-3xl p-4 sm:p-6 lg:py-8">
             <.focus_wrap
               id={"#{@id}-container"}
-              phx-window-keydown={JS.exec("data-cancel", to: "##{@id}")}
-              phx-key="escape"
-              phx-click-away={JS.exec("data-cancel", to: "##{@id}")}
+              phx-window-keydown={@dismissible && JS.exec("data-cancel", to: "##{@id}")}
+              phx-key={@dismissible && "escape"}
+              phx-click-away={@dismissible && JS.exec("data-cancel", to: "##{@id}")}
               class={["relative mx-auto hidden rounded-md bg-base-900 shadow-overlay ring-1 ring-line-default/10 transition", @width_class, @body_class]}
             >
-              <div class="absolute top-6 right-5">
+              <div :if={@dismissible} class="absolute top-6 right-5">
                 <button phx-click={JS.exec("data-cancel", to: "##{@id}")} type="button" class="-m-3 flex-none p-3 opacity-20 hover:opacity-40" aria-label={gettext("close")}>
                   <.icon name="close" class="size-6 text-base-200" />
                 </button>
