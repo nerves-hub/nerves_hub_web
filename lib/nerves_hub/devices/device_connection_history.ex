@@ -92,12 +92,14 @@ defmodule NervesHub.Devices.DeviceConnectionHistory do
   Used when reconciling stale connections directly against the analytics store:
   the existing row is carried forward (same `ref`/`established_at`) with the
   disconnect details applied and a bumped `version` so the `ReplacingMergeTree`
-  collapses to this disconnected state.
+  collapses to this disconnected state. It is closed as of `last_seen_at`, the
+  last time anything heard from it, rather than when the stale connection was
+  noticed, which can be an hour or more later.
   """
   def mark_as_stale_and_disconnected_changeset(%__MODULE__{} = connection) do
     connection
     |> change()
-    |> put_change(:disconnected_at, DateTime.utc_now())
+    |> put_change(:disconnected_at, connection.last_seen_at)
     |> put_change(:disconnected_reason, "Stale connection")
     |> put_change(:version, current_version())
   end
