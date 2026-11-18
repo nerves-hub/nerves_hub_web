@@ -10,7 +10,7 @@ defmodule NervesHubWeb.ProductSidebarTest do
   alias NervesHub.Fixtures
   alias NervesHub.ManagedDeployments
   alias NervesHub.ManagedDeployments.Workflows
-  alias NervesHub.Products.Notification
+  alias NervesHub.ProductNotifications
   alias NervesHub.Products.Product
   alias NervesHub.Repo
 
@@ -34,9 +34,11 @@ defmodule NervesHubWeb.ProductSidebarTest do
       org: org,
       product: product
     } do
+      # Support scripts, since a page with a top bar of its own, as the
+      # notifications page has, puts its title there instead.
       conn
-      |> visit_product(org, product)
-      |> assert_has("#phone-title", text: "#{product.name} / Notifications")
+      |> visit("/org/#{org.name}/#{product.name}/scripts")
+      |> assert_has("#phone-title", text: "#{product.name} / Support scripts")
       |> assert_has("#phone-user-menu a", text: "Log out")
     end
 
@@ -107,15 +109,7 @@ defmodule NervesHubWeb.ProductSidebarTest do
     end
 
     test "count notifications", %{conn: conn, org: org, product: product} do
-      product
-      |> Notification.new_changeset(%{
-        title: "A webhook was turned off.",
-        message: "It failed for a day.",
-        metadata: %{},
-        level: :warning,
-        event_key: "webhook-disabled"
-      })
-      |> Repo.insert!()
+      _ = ProductNotifications.create_duplicate_device_identifier_notification!(product.id, "abc", :shared_secrets)
 
       conn
       |> visit_product(org, product)

@@ -179,7 +179,7 @@ defmodule NervesHub.DeviceMetricsTest do
 
       assert [notification] = notifications(product)
       assert notification.level == :warning
-      assert notification.title =~ "metric names that were too long"
+      assert notification.title == "A device reported metric names too long to store."
       assert notification.message =~ device.identifier
       assert notification.metadata["example_key"] == long_key
       assert notification.metadata["count"] == 1
@@ -257,7 +257,7 @@ defmodule NervesHub.DeviceMetricsTest do
 
       assert [notification] = notifications(product)
       assert notification.level == :warning
-      assert notification.title =~ "more metrics than NervesHub will store"
+      assert notification.title == "A device reported more metrics than NervesHub stores."
       assert notification.message =~ device.identifier
       assert notification.metadata["reported"] == max_keys + 3
       assert notification.metadata["max_keys"] == max_keys

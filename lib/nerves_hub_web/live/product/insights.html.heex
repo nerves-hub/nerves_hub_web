@@ -83,7 +83,7 @@
           <.list_row :for={entry <- @notifications}>
             <span data-level={entry.level} class="size-1.5 shrink-0 rounded-full bg-(--color-chart-other) data-[level=error]:bg-(--color-chart-alert) data-[level=warning]:bg-(--color-chart-4)"></span>
             <span class="min-w-0 flex-1 truncate text-content-strong">
-              {entry.title}<span :if={entry.occurrence_count > 1} class="font-mono text-content-faint"> ×{delimited(entry.occurrence_count)}</span>
+              {entry.title}<span :if={entry.occurrences > 1} class="font-mono text-content-faint"> ×{delimited(entry.occurrences)}</span>
             </span>
             <span class="shrink-0 text-content-faint">{occurred(entry.last_occurred_at, @time_zone)}</span>
           </.list_row>

@@ -164,15 +164,19 @@ defmodule NervesHubWeb.Live.Product.InsightsTest do
       # the dashboard (incl. the notifications panel) only renders with devices
       Fixtures.device_fixture(org, product, firmware)
 
-      ProductNotifications.create_duplicate_device_identifier_notification!(
-        product.id,
-        "abc",
-        :shared_secrets
-      )
+      for identifier <- ["abc", "def"] do
+        ProductNotifications.create_duplicate_device_identifier_notification!(
+          product.id,
+          identifier,
+          :shared_secrets
+        )
+      end
 
       {:ok, view, html} = live(conn, insights_path(org, product))
 
-      assert html =~ "already exists"
+      # Two devices with the same problem are one entry, as on the
+      # notifications page.
+      assert html =~ "2 devices tried to connect with identifiers already in use."
       assert :sys.get_state(view.pid).socket.assigns.notification_count == 1
     end
 

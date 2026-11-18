@@ -409,7 +409,9 @@ defmodule NervesHub.DevicesTest do
       assert [notification] = Repo.all(Notification)
       assert notification.product_id == product.id
       assert notification.level == :warning
-      assert notification.title == "A device connected without any firmware metadata."
+      assert notification.kind == :missing_firmware_metadata
+      assert notification.title == "A device connected without firmware metadata."
+      assert notification.message =~ "'#{device.identifier}'"
       assert notification.metadata == %{"identifier" => device.identifier}
       assert notification.event_key == "missing_firmware_metadata-#{device.identifier}"
       assert notification.occurrence_count == 1

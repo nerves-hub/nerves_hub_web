@@ -210,7 +210,26 @@ when adding or removing one.
   `kind:` (`AuditLog.kinds/0`), and the tab draws its icon from that, never
   from the description. A new kind of entry needs a kind and an icon in
   `NervesHubWeb.Components.DevicePage.ActivityTab`.
-- Cross-cutting: `clustering.ex`, `product_notifications.ex`, `tracker.ex`,
+- `product_notifications.ex` / `product_notifications/` - what a product's
+  Notifications page lists: things that need a person, raised by a
+  `create_*_notification!` function and coalesced by `event_key`, so one
+  that happens again counts up instead of adding a row. Each has a `kind`
+  (`Notification.kinds/0`, which its `event_key` starts with). The text
+  shown is written from the kind and metadata by `ProductNotifications.Copy`
+  when it's shown, so changing the copy there changes it for old
+  notifications too: a short version for the page, which shows what it's
+  about beside it, and a full one naming it, stored as `title` and `message`
+  for Slack, Teams and Discord. A kind raised per device
+  (`Notification.device_kinds/0`) is rolled up into one card per product
+  that opens to its devices, and the page, its counts and Insights all count
+  cards. The page groups cards by day, filters by level, and dismisses one,
+  a card or all. `ProductNotifications.Subjects` links each to what it's
+  about, from its kind and the metadata key that kind names, and says when
+  that has gone. A new kind needs a clause in `Copy`, an entry in
+  `Subjects` if it's about something, and the add-then-write rollout
+  `Notification` describes. Seed test or dev notifications through the
+  `create_*` functions, not by hand, so they read as the real ones do.
+- Cross-cutting: `clustering.ex`, `tracker.ex`,
   `rate_limit.ex`, `cli_session_cache.ex`, `device_link.ex`, `repo.ex`,
   `analytics_repo.ex`, `application.ex`.
 
