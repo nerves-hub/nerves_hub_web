@@ -15,6 +15,7 @@ defmodule NervesHubWeb.Live.Product.Errors do
   use NervesHubWeb, :live_view
 
   import NervesHubWeb.Components.ErrorReports
+  import NervesHubWeb.Components.Fleet, only: [delimited: 1]
 
   alias NervesHub.AuditLogs.ProductTemplates
   alias NervesHub.ErrorReports
@@ -28,6 +29,7 @@ defmodule NervesHubWeb.Live.Product.Errors do
   @sorts ~w(last_seen first_seen count)
   @page_sizes [25, 50, 100]
   @sparkline_days 14
+  @restored_on_undo [:regressed_at, :resolved_at, :resolved_by_id, :resolved_in_firmware_uuid]
 
   @impl Phoenix.LiveView
   @decorate requires_membership()
@@ -120,9 +122,7 @@ defmodule NervesHubWeb.Live.Product.Errors do
     end
   end
 
-  # Resolving cleared the regression; undoing puts it back.
-  defp undo_options(%{action: :resolve, regressed_at: regressed_at}), do: [regressed_at: regressed_at]
-  defp undo_options(_undo), do: []
+  defp undo_options(%{restore: restore}), do: Map.to_list(restore)
 
   @impl Phoenix.LiveView
   def handle_async(:stats, {:ok, {fingerprints, stats}}, socket) do
@@ -166,8 +166,17 @@ defmodule NervesHubWeb.Live.Product.Errors do
 
   # Resolving and muting take the row off this tab, so they come with an undo
   # instead of a flash. Reopening and unmuting are their own undo.
+  #
+  # A regressed error still carries the resolve it came back from, and
+  # resolving clears the regression, so undo puts back both rather than
+  # leaving a plain unresolved error.
   defp undo(action, group) when action in [:resolve, :mute] do
-    %{action: action, group_id: group.id, name: short_name(group.reason), regressed_at: group.regressed_at}
+    %{
+      action: action,
+      group_id: group.id,
+      name: short_name(group.reason),
+      restore: Map.take(group, @restored_on_undo)
+    }
   end
 
   defp undo(_action, _group), do: nil
@@ -206,6 +215,21 @@ defmodule NervesHubWeb.Live.Product.Errors do
         ] ++ filters
       )
 
+    last_page = max(meta.total_pages, 1)
+
+    if groups == [] and assigns.page_number > last_page do
+      # Past the last page, which resolving or muting the only row on it
+      # leaves you: show the last page there is, not an empty tab without a
+      # pager to get back with.
+      socket
+      |> assign(:page_number, last_page)
+      |> fetch_groups()
+    else
+      assign_groups(socket, groups, meta, filters)
+    end
+  end
+
+  defp assign_groups(%{assigns: assigns} = socket, groups, meta, filters) do
     status_counts = ErrorReports.status_counts(assigns.product)
 
     socket

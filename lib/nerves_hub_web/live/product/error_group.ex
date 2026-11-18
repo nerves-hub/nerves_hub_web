@@ -2,16 +2,17 @@ defmodule NervesHubWeb.Live.Product.ErrorGroup do
   @moduledoc """
   One error, across the whole fleet.
 
-  The header and the Events and First seen figures are the PostgreSQL row,
-  which is why they are still here after the occurrences have aged out.
-  Everything else (the chart, the devices, the latest event, the split by
-  firmware) is read from the 30 days of reports ClickHouse keeps, so it all
-  goes empty together once they are gone.
+  The header and the Events, First seen and Last seen figures are the
+  PostgreSQL row, which is why they are still here after the occurrences have
+  aged out. Everything else (the chart, the devices, the latest event, the
+  split by firmware) is read from the 30 days of reports ClickHouse keeps, so
+  it all goes empty together once they are gone.
   """
 
   use NervesHubWeb, :live_view
 
   import NervesHubWeb.Components.ErrorReports
+  import NervesHubWeb.Components.Fleet, only: [delimited: 1]
 
   alias NervesHub.AuditLogs.ProductTemplates
   alias NervesHub.Devices
@@ -183,7 +184,7 @@ defmodule NervesHubWeb.Live.Product.ErrorGroup do
     now = DateTime.utc_now()
 
     group
-    |> ErrorReports.occurrences_by_hour(DateTime.add(now, -23, :hour), now, time_zone)
+    |> ErrorReports.occurrences_by_hour(DateTime.add(now, -23, :hour), now)
     |> Enum.map(fn %{hour: hour, count: count} ->
       local = DateTime.shift_zone!(hour, time_zone)
 
@@ -297,8 +298,7 @@ defmodule NervesHubWeb.Live.Product.ErrorGroup do
   When one firmware carries most of an error's events, a line that says so,
   and where that firmware went if it was released. `nil` otherwise.
   """
-  def firmware_tip([_top, _next | _rest] = rows, firmware, release) do
-    [top | _] = rows
+  def firmware_tip([top, _next | _rest] = rows, firmware, release) do
     total = rows |> Enum.map(& &1.count) |> Enum.sum()
     share = top.count / max(total, 1)
 

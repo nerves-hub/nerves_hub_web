@@ -8,6 +8,7 @@ defmodule NervesHub.ErrorReportsTest do
   alias NervesHub.Analytics.Buffer
   alias NervesHub.AnalyticsRepo
   alias NervesHub.DeviceLink.DeviceInfo
+  alias NervesHub.Devices.Device
   alias NervesHub.ErrorReports
   alias NervesHub.ErrorReports.ErrorGroup
   alias NervesHub.ErrorReports.ErrorReport
@@ -429,6 +430,23 @@ defmodule NervesHub.ErrorReportsTest do
       assert Enum.find(entries, &(&1.device.id == device.id)).occurrence_count == 2
     end
 
+    # The reports keep the product they were sent under; the device list must
+    # not show a device to the members of a product it has left.
+    test "affected_devices/2 drops devices moved to another product", %{
+      group: group,
+      device: device,
+      user: user,
+      org: org
+    } do
+      other_product = Fixtures.product_fixture(user, org, %{name: "elsewhere"})
+      {1, _} = Repo.update_all(from(d in Device, where: d.id == ^device.id), set: [product_id: other_product.id])
+
+      entries = ErrorReports.affected_devices(group)
+
+      assert length(entries) == 1
+      refute Enum.any?(entries, &(&1.device.id == device.id))
+    end
+
     test "affected_devices/2 drops devices that no longer exist", %{group: group, device: device} do
       Repo.delete!(device)
 
@@ -606,7 +624,7 @@ defmodule NervesHub.ErrorReportsTest do
       settle()
       [group] = groups(product)
 
-      hours = ErrorReports.occurrences_by_hour(group, DateTime.add(now, -23, :hour), now, "Etc/UTC")
+      hours = ErrorReports.occurrences_by_hour(group, DateTime.add(now, -23, :hour), now)
 
       assert length(hours) == 24
       assert hours |> Enum.map(& &1.count) |> Enum.sum() == 1

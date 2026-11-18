@@ -144,14 +144,14 @@ defmodule NervesHub.ErrorReports do
 
   ## Options
 
-    * `:status` — `:unresolved`, `:resolved`, `:muted`, or `nil` for all.
-    * `:search` — matches the reason or the top frame's module and function,
+    * `:status`: `:unresolved`, `:resolved`, `:muted`, or `nil` for all.
+    * `:search`: matches the reason or the top frame's module and function,
       case-insensitively.
-    * `:firmware` — a firmware version; only issues last seen on it.
-    * `:sort` — `:last_seen` (default), `:first_seen` or `:count`.
+    * `:firmware`: a firmware version; only issues last seen on it.
+    * `:sort`: `:last_seen` (default), `:first_seen` or `:count`.
     * `:page` / `:page_size`.
 
-  The resolved and muted by users are preloaded, for the rows that say who.
+  Preloads `:resolved_by` and `:muted_by`, which the rows show.
   """
   @spec groups_for_product(Product.t(), keyword()) :: {[ErrorGroup.t()], Flop.Meta.t()}
   def groups_for_product(%Product{} = product, opts \\ []) do
@@ -417,11 +417,11 @@ defmodule NervesHub.ErrorReports do
 
   ## Options
 
-    * `:device_id` — only this device's.
-    * `:before` — strictly before this time, so the oldest row on a page can be
+    * `:device_id`: only this device's.
+    * `:before`: strictly before this time, so the oldest row on a page can be
       handed straight back as the next page's cursor without repeating itself.
     * `:limit`.
-    * `:offset` — skip this many of the newest first, for paging through
+    * `:offset`: skip this many of the newest first, for paging through
       them one at a time.
   """
   @spec occurrences(ErrorGroup.t(), keyword()) :: [ErrorReport.t()]
@@ -465,8 +465,9 @@ defmodule NervesHub.ErrorReports do
   The devices an issue has been seen on, most recently first, or with the
   most occurrences first when `order: :count` is given.
 
-  Devices deleted since their occurrences were recorded are dropped — ClickHouse
-  keeps the id, PostgreSQL is where it means something.
+  Devices deleted or moved to another product since their occurrences were
+  recorded are dropped. ClickHouse keeps the id and the product it was
+  reported under; PostgreSQL is where the device lives now.
   """
   @spec affected_devices(ErrorGroup.t(), keyword()) :: [
           %{device: Device.t(), occurrence_count: non_neg_integer(), last_seen_at: DateTime.t()}
@@ -487,7 +488,7 @@ defmodule NervesHub.ErrorReports do
 
     devices =
       Device
-      |> where([d], d.id in ^Enum.map(aggregates, & &1.device_id))
+      |> where([d], d.product_id == ^group.product_id and d.id in ^Enum.map(aggregates, & &1.device_id))
       |> preload(:latest_connection)
       |> Repo.all()
       |> Map.new(&{&1.id, &1})
@@ -540,12 +541,16 @@ defmodule NervesHub.ErrorReports do
   end
 
   @doc """
-  Occurrences of an issue bucketed by hour, from the hour `from` falls in to
-  the hour `to` does, in the viewer's timezone. Like `occurrences_by_date/4`,
-  every hour comes back, quiet ones included.
+  Occurrences of an issue bucketed by whole UTC hours, from the hour `from`
+  falls in to the hour `to` does. Like `occurrences_by_date/4`, every hour
+  comes back, quiet ones included.
+
+  There is no time zone here, unlike the daily buckets: a zone half or three
+  quarters of an hour off UTC would start its hours somewhere else. The
+  caller shifts each hour to local time for its label.
   """
-  @spec occurrences_by_hour(ErrorGroup.t(), DateTime.t(), DateTime.t(), String.t()) :: [map()]
-  def occurrences_by_hour(%ErrorGroup{} = group, %DateTime{} = from, %DateTime{} = to, time_zone) do
+  @spec occurrences_by_hour(ErrorGroup.t(), DateTime.t(), DateTime.t()) :: [map()]
+  def occurrences_by_hour(%ErrorGroup{} = group, %DateTime{} = from, %DateTime{} = to) do
     from = truncate_to_hour(from)
     to = truncate_to_hour(to)
 
@@ -555,8 +560,8 @@ defmodule NervesHub.ErrorReports do
         where: r.fingerprint == ^group.fingerprint,
         where: r.timestamp >= ^from,
         where: r.timestamp < ^DateTime.add(to, 1, :hour),
-        group_by: fragment("toStartOfHour(?, ?)", r.timestamp, ^time_zone),
-        select: %{hour: fragment("toStartOfHour(?, ?)", r.timestamp, ^time_zone), count: count(r.fingerprint)}
+        group_by: fragment("toStartOfHour(?)", r.timestamp),
+        select: %{hour: fragment("toStartOfHour(?)", r.timestamp), count: count(r.fingerprint)}
       )
       |> AnalyticsRepo.all()
       |> Map.new(&{&1.hour |> to_utc_datetime() |> DateTime.to_unix(), &1.count})
@@ -606,13 +611,12 @@ defmodule NervesHub.ErrorReports do
   end
 
   @doc """
-  What a product's issues list shows from ClickHouse, for the issues on one
-  page of it, in two queries: per fingerprint, the occurrences on each of the
-  last `days` days (oldest first, quiet days as zero) and how many devices
-  have kept occurrences.
+  The sparkline and device count the issues list shows for `groups`, from ClickHouse.
 
-  Returns `%{fingerprint => %{daily: [non_neg_integer()], device_count: n}}`;
-  a fingerprint with nothing kept is absent.
+  Two queries. Returns `%{fingerprint => %{daily: [non_neg_integer()], device_count: n}}`,
+  where `daily` covers the last `days` days oldest first with quiet days as zero
+  and `device_count` is how many devices have kept occurrences. A fingerprint
+  with nothing kept is absent.
   """
   @spec list_stats(Product.t(), [ErrorGroup.t()], pos_integer(), String.t()) :: %{String.t() => map()}
   def list_stats(_product, [], _days, _time_zone), do: %{}
@@ -684,11 +688,11 @@ defmodule NervesHub.ErrorReports do
   @doc """
   Returns an issue to the queue, from either resolved or muted.
 
-  ## Options
-
-    * `:regressed_at` — put back the regression a resolve cleared, so undoing
-      a resolve leaves the issue as it was rather than as a plain unresolved
-      one.
+  `opts` undoes a resolve: `:regressed_at` puts back the regression it
+  cleared, and `:resolved_at`, `:resolved_by_id` and
+  `:resolved_in_firmware_uuid` put back an earlier resolve that a regression
+  left on the issue. Undoing a resolve then leaves the issue as it was rather
+  than as a plain unresolved one.
   """
   @spec reopen(ErrorGroup.t(), keyword()) :: {:ok, ErrorGroup.t()} | {:error, Ecto.Changeset.t()}
   def reopen(%ErrorGroup{} = group, opts \\ []) do

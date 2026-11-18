@@ -45,18 +45,18 @@
 
     <div class="flex gap-6 px-4 py-5 max-lg:flex-col sm:px-6">
       <div class="flex min-w-0 flex-1 flex-col gap-5">
-        <%!-- The Events and First seen figures are kept on the error; the rest
-              come from the 30 days of reports. --%>
+        <%!-- Events, First seen and Last seen are kept on the error; Devices
+              comes from the 30 days of reports. --%>
         <div id="error-stats" class="grid grid-cols-4 rounded-card border border-line-default bg-surface-raised max-md:grid-cols-2">
           <div class="flex flex-col gap-1 px-4 py-3.5 max-md:border-b max-md:border-line-subtle">
             <span class="text-label tracking-[0.06em] text-content-muted uppercase">Events</span>
-            <span class="font-mono text-figure-sm text-content-strong">{NervesHubWeb.Components.Fleet.delimited(@group.occurrence_count)}</span>
+            <span class="font-mono text-figure-sm text-content-strong">{delimited(@group.occurrence_count)}</span>
             <span class="text-xs text-content-muted">since {day_label(@group.first_seen_at, @time_zone)}, all time</span>
           </div>
           <div class="flex flex-col gap-1 border-l border-line-subtle px-4 py-3.5 max-md:border-b">
             <span class="text-label tracking-[0.06em] text-content-muted uppercase">Devices</span>
             <%= if @retained_count > 0 do %>
-              <span class="font-mono text-figure-sm text-content-strong">{NervesHubWeb.Components.Fleet.delimited(@device_count)}</span>
+              <span class="font-mono text-figure-sm text-content-strong">{delimited(@device_count)}</span>
               <span class="text-xs text-content-muted">in the last 30 days</span>
             <% else %>
               <span class="font-mono text-figure-sm text-content-faint">—</span>
@@ -133,7 +133,7 @@
               <span :if={!@occurrence_device}>a deleted device</span>
             </span>
             <div :if={@occurrence} class="ml-auto flex items-center gap-2">
-              <span class="font-mono text-xs text-content-muted max-sm:hidden">{@occurrence_index + 1} of {NervesHubWeb.Components.Fleet.delimited(@retained_count)}</span>
+              <span class="font-mono text-xs text-content-muted max-sm:hidden">{@occurrence_index + 1} of {delimited(@retained_count)}</span>
               <.button size="sm" square aria-label="Newer event" disabled={@occurrence_index == 0} phx-click="occurrence" phx-value-index={@occurrence_index - 1}>
                 <span class="lucide-chevron-left" aria-hidden="true"></span>
               </.button>
@@ -227,7 +227,7 @@
                     </.link>
                 <% end %>
                 <span class="font-mono text-content-muted">
-                  {NervesHubWeb.Components.Fleet.delimited(row.count)} · {ngettext("1 device", "%{count} devices", row.device_count)}
+                  {delimited(row.count)} · {ngettext("1 device", "%{count} devices", row.device_count)}
                 </span>
               </div>
               <div class="h-1 overflow-hidden rounded-full bg-line-subtle">
@@ -255,7 +255,7 @@
               >
                 {entry.device.identifier}
               </.link>
-              <span class="font-mono text-xs text-content-muted">{NervesHubWeb.Components.Fleet.delimited(entry.occurrence_count)}</span>
+              <span class="font-mono text-xs text-content-muted">{delimited(entry.occurrence_count)}</span>
             </li>
           </ul>
         </section>

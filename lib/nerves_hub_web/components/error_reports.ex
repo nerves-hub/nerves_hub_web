@@ -1,8 +1,10 @@
 defmodule NervesHubWeb.Components.ErrorReports do
   @moduledoc """
-  What a product's errors list and an error's page share: the status badge,
-  the short name an error goes by, its top frame, the firmware it was seen on
-  and the 14-day sparkline.
+  What a product's errors list and an error's page share.
+
+  Covers the status badge, the short name an error goes by, its top frame,
+  the firmware it was seen on, an occurrence's labelled context, the sparkline
+  and the events chart. Both charts are SVG drawn on the server.
   """
 
   use Phoenix.Component
@@ -267,7 +269,7 @@ defmodule NervesHubWeb.Components.ErrorReports do
 
   defp format_bytes(value) do
     case Integer.parse(value) do
-      {bytes, ""} -> megabytes(bytes)
+      {bytes, ""} when bytes in 0..1_000_000_000_000_000 -> megabytes(bytes)
       _ -> value
     end
   end

@@ -69,6 +69,20 @@ defmodule NervesHubWeb.Live.Product.ErrorsTest do
     :ok
   end
 
+  # A regressed error keeps the resolve it came back from, which the error
+  # page draws as a marker on its chart.
+  defp regress(group, user) do
+    regressed_at = DateTime.add(DateTime.utc_now(), -1, :day)
+    resolved_at = DateTime.add(DateTime.utc_now(), -3, :day)
+
+    {1, _} =
+      Repo.update_all(from(g in ErrorGroup, where: g.id == ^group.id),
+        set: [regressed_at: regressed_at, resolved_at: resolved_at, resolved_by_id: user.id]
+      )
+
+    %{regressed_at: regressed_at, resolved_at: resolved_at}
+  end
+
   describe "the list" do
     test "says error reports are off, and where to turn them on", %{conn: conn, org: org, product: product} do
       {:ok, product} = Product.changeset(product, %{"extensions" => %{"error_reports" => false}}) |> Repo.update()
@@ -289,10 +303,9 @@ defmodule NervesHubWeb.Live.Product.ErrorsTest do
       assert Enum.any?(AuditLogs.logs_for(product), &(&1.description =~ "as resolved"))
     end
 
-    test "undoing a resolve puts the error back as it was", %{conn: conn, org: org, product: product} do
+    test "undoing a resolve puts the error back as it was", %{conn: conn, org: org, product: product, user: user} do
       [group] = groups(product)
-      regressed_at = DateTime.add(DateTime.utc_now(), -1, :day)
-      {1, _} = Repo.update_all(from(g in ErrorGroup, where: g.id == ^group.id), set: [regressed_at: regressed_at])
+      before = regress(group, user)
 
       conn
       |> visit("/org/#{org.name}/#{product.name}/errors")
@@ -301,8 +314,43 @@ defmodule NervesHubWeb.Live.Product.ErrorsTest do
       |> refute_has("#error-undo")
       |> assert_has("a", text: "** (RuntimeError) boom")
 
-      assert [%ErrorGroup{status: :unresolved, regressed_at: restored}] = groups(product)
-      assert DateTime.compare(restored, regressed_at) == :eq
+      assert [%ErrorGroup{status: :unresolved} = restored] = groups(product)
+      assert DateTime.compare(restored.regressed_at, before.regressed_at) == :eq
+      assert DateTime.compare(restored.resolved_at, before.resolved_at) == :eq
+      assert restored.resolved_by_id == user.id
+    end
+
+    test "undoing a mute puts the error back as it was", %{conn: conn, org: org, product: product, user: user} do
+      [group] = groups(product)
+      before = regress(group, user)
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/errors")
+      |> click_button("Mute")
+      |> click_button("Undo")
+      |> refute_has("#error-undo")
+
+      assert [%ErrorGroup{status: :unresolved, muted_at: nil} = restored] = groups(product)
+      assert DateTime.compare(restored.regressed_at, before.regressed_at) == :eq
+      assert DateTime.compare(restored.resolved_at, before.resolved_at) == :eq
+      assert restored.resolved_by_id == user.id
+    end
+
+    test "resolving the only error on the last page goes back a page", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device
+    } do
+      # 26 in all, so the 25 a page holds leave one on page 2.
+      record(device, Enum.map(1..25, &report("** (RuntimeError) boom #{&1}", %{"fingerprint" => "boom-#{&1}"})))
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/errors?page_number=2")
+      |> within("#error-list", fn session -> click_button(session, "Resolve") end)
+      |> refute_has("#errors-tab-empty")
+      |> assert_has("#error-pager")
+      |> assert_has("#error-list a", text: "** (RuntimeError) boom")
     end
 
     test "muting updates the status and writes an audit log", %{conn: conn, org: org, product: product} do
@@ -380,6 +428,25 @@ defmodule NervesHubWeb.Live.Product.ErrorsTest do
       |> visit("/org/#{org.name}/#{product.name}/errors/#{group.id}")
       |> click_button("24 h")
       |> assert_has("h2", text: "Events per hour")
+    end
+
+    # India is UTC+5:30, so its hours start at half past the UTC ones the
+    # chart counts in.
+    test "counts the hours in a time zone off UTC by half an hour", %{
+      conn: conn,
+      org: org,
+      product: product,
+      group: group
+    } do
+      {:ok, view, _html} =
+        conn
+        |> put_connect_params(%{"time_zone" => "Asia/Kolkata"})
+        |> live("/org/#{org.name}/#{product.name}/errors/#{group.id}")
+
+      html = view |> element("button", "24 h") |> render_click()
+
+      assert html =~ "Events per hour"
+      assert html =~ ~r/<title>[^<]*: 1<\/title>/
     end
 
     test "pages through the kept events", %{conn: conn, org: org, product: product, group: group, device: device} do

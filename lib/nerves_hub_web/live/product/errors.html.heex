@@ -179,7 +179,7 @@
           </div>
 
           <div role="cell" class="w-20 shrink-0 text-right font-mono text-ui text-content-strong @max-3xl:w-auto @max-3xl:text-xs @max-3xl:text-content-body">
-            {NervesHubWeb.Components.Fleet.delimited(group.occurrence_count)}<span class="@3xl:hidden"> events</span>
+            {delimited(group.occurrence_count)}<span class="@3xl:hidden"> events</span>
           </div>
 
           <div role="cell" class="w-16 shrink-0 text-right font-mono text-ui text-content-strong @max-3xl:w-auto @max-3xl:text-xs @max-3xl:text-content-body">
@@ -189,7 +189,7 @@
               <% :failed -> %>
                 <span class="text-content-faint" title="Couldn’t load this right now">—</span>
               <% count -> %>
-                {NervesHubWeb.Components.Fleet.delimited(count)}<span class="@3xl:hidden">{ngettext(" device", " devices", count)}</span>
+                {delimited(count)}<span class="@3xl:hidden">{ngettext(" device", " devices", count)}</span>
             <% end %>
           </div>
 
