@@ -202,7 +202,10 @@ is running, as far as NervesHub knows:
 
 `reason` is `"Stale connection"` when NervesHub closed a connection whose
 device had stopped sending heartbeats, which is how a device that lost power
-or network is noticed. Otherwise it is `null`.
+or network is noticed. It is `"Reconnected"` when the device connected again
+before NervesHub noticed the old connection had gone; the event is sent as the
+new connection starts, and `disconnected_at` is when the old one was last
+seen. Otherwise it is `null`.
 
 ### `device.health_reported`
 

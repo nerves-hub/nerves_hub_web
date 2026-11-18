@@ -29,6 +29,7 @@ defmodule NervesHub.ErrorReports do
   alias NervesHub.ErrorReports.GroupBuffer
   alias NervesHub.ErrorReports.Payload
   alias NervesHub.Firmwares.Firmware
+  alias NervesHub.ListQuery
   alias NervesHub.ManagedDeployments.DeploymentRelease
   alias NervesHub.Products.Product
   alias NervesHub.Repo
@@ -313,7 +314,7 @@ defmodule NervesHub.ErrorReports do
   # The top frame is searched as `Module.function`, the way the list shows it,
   # so "Poller.handle_info" finds a frame stored as module and function apart.
   defp filter_search(query, search) do
-    pattern = "%#{escape_like(search)}%"
+    pattern = "%#{ListQuery.escape_like(search)}%"
 
     where(
       query,
@@ -330,12 +331,6 @@ defmodule NervesHub.ErrorReports do
     uuids = from(f in Firmware, where: f.product_id == ^product.id and f.version == ^version, select: f.uuid)
 
     where(query, [g], g.last_seen_firmware_uuid in subquery(uuids))
-  end
-
-  # `%` and `_` are wildcards to `ilike`, and a reason is full of neither by
-  # accident — a device logging "100%" should be found by searching for "100%".
-  defp escape_like(search) do
-    String.replace(search, ~r/([\\%_])/, "\\\\\\1")
   end
 
   defp sort_groups(query, :count), do: order_by(query, [g], desc: g.occurrence_count)

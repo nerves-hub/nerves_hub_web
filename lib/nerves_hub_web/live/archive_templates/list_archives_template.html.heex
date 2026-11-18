@@ -1,122 +1,397 @@
 <NervesHubWeb.Layouts.sidebar flash={@flash} current_scope={@current_scope} sidebar_tab={@sidebar_tab}>
-  <:header>
-    <h1 class="text-page-title text-content-strong">All Archives</h1>
-    <.badge class="mr-auto">
-      {@pager_meta.total_count}
-    </.badge>
-
-    <div :for={entry <- @uploads.archive.entries} class="flex w-2/5 flex-col items-center pr-2 pl-4">
-      <div class="mb-1 flex justify-between">
-        <span class="text-sm text-primary dark:text-content-strong">Uploading archive... </span>
-        <span class="text-sm text-primary dark:text-content-strong">{entry.progress}%</span>
-      </div>
-      <div class="h-2.5 w-full rounded-full bg-base-700">
-        <div class="h-2.5 animate-pulse rounded-full bg-primary" style={"width: #{entry.progress}%"}></div>
-      </div>
+  <:top_bar>
+    <div class="flex min-w-0 items-baseline gap-3">
+      <h1 class="text-base/6 font-semibold text-content-strong">Archives</h1>
+      <span class="truncate font-mono text-xs text-content-muted max-sm:hidden">
+        <%= if @counts.all > 0 do %>
+          {ngettext("1 archive", "%{count} archives", @counts.all)}
+        <% else %>
+          none yet
+        <% end %>
+      </span>
     </div>
 
-    <form id="archive-form" phx-change="validate-firmware" class={[Enum.any?(@uploads.archive.entries) && "hidden"]}>
-      <.button type="label" for={@uploads.archive.ref}>
-        <.icon name="add" /> Upload Archive
+    <form :if={authorized?(:"archive:upload", @current_scope)} id="archive-form" phx-change="validate-archive" class="shrink-0 sm:mr-6">
+      <.button style="primary" type="label" for={@uploads.archive.ref}>
+        <span class="lucide-upload" aria-hidden="true"></span> Upload<span class="max-sm:hidden"> archive</span>
       </.button>
       <.live_file_input upload={@uploads.archive} class="hidden" />
     </form>
-  </:header>
+  </:top_bar>
 
-  <div class="h-0 flex-1 overflow-y-auto" phx-drop-target={@uploads.archive.ref}>
-    <div :if={Enum.any?(@archives)} class="listing">
-      <table>
-        <thead>
-          <tr>
-            <th>UUID</th>
-            <th phx-click="sort" phx-value-sort="version" class="cursor-pointer">
-              <Sorting.sort_icon text="Version" field="version" selected_field={@current_sort} selected_direction={@sort_direction} />
-            </th>
-            <th>Platform</th>
-            <th>Architecture</th>
-            <th>Signing Key</th>
-            <th phx-click="sort" phx-value-sort="inserted_at" class="cursor-pointer">
-              <Sorting.sort_icon text={"Uploaded on (#{zone_abbr(@time_zone)})"} field="inserted_at" selected_field={@current_sort} selected_direction={@sort_direction} />
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr :for={archive <- @archives} class="border-b border-line-subtle">
-            <td>
-              <div class="flex items-center gap-2">
-                <.link navigate={~p"/org/#{@current_scope.org}/#{@product}/archives/#{archive}"}>
-                  {archive.uuid}
-                </.link>
-              </div>
-            </td>
+  <%!-- The drop target wraps the scrolling list instead of being it, so the
+        overlay can cover the whole area without scrolling along with the rows. --%>
+  <div class="relative flex h-0 flex-1 flex-col" phx-drop-target={@uploads.archive.ref}>
+    <div class="flex h-0 flex-1 flex-col overflow-y-auto">
+      <nav :if={@counts.all > 0} id="archive-tabs" aria-label="Archives" class="scrollbar-none flex shrink-0 gap-1 overflow-x-auto border-b border-line-default px-3 sm:px-4">
+        <.link
+          :for={tab <- list_tabs(@counts)}
+          patch={tab_path(assigns, tab.param)}
+          aria-current={if tab.key == @tab, do: "page"}
+          class="group relative flex h-11 shrink-0 items-center gap-1.75 border-b-2 border-transparent px-3 text-sm/4.5 font-medium whitespace-nowrap text-content-muted hover:text-content-strong aria-[current=page]:border-primary aria-[current=page]:font-semibold aria-[current=page]:text-content-strong light:aria-[current=page]:border-indigo-600"
+        >
+          <.status_dot :if={tab.dot} class={["size-1.5", tab.dot]} />
+          {tab.label}
+          <span class="font-mono text-xs font-normal text-content-faint group-aria-[current=page]:text-content-muted">{tab.count}</span>
+        </.link>
+      </nav>
 
-            <td>
-              <div class="flex items-center gap-2">
-                {archive.version}
-              </div>
-            </td>
+      <form :if={@counts.all > 0} id="archive-filters" phx-change="filter" phx-submit="filter" class="flex flex-wrap items-center gap-2 px-4 pt-4 sm:px-6">
+        <label class="flex h-8 min-w-0 flex-1 items-center gap-2 rounded border border-line-control bg-surface-raised px-2.5 focus-within:border-primary max-sm:basis-full">
+          <span class="lucide-search size-3.5 text-content-faint" aria-hidden="true"></span>
+          <span class="sr-only">Search archives</span>
+          <input
+            type="search"
+            name="search"
+            value={@filters.search}
+            placeholder="Search descriptions, versions, UUIDs or VCS IDs"
+            autocomplete="off"
+            phx-debounce="300"
+            class="h-full min-w-0 flex-1 border-0 bg-transparent p-0 text-ui text-content-strong placeholder:text-content-faint focus:ring-0"
+          />
+        </label>
 
-            <td>
-              {archive.platform}
-            </td>
+        <label class={[
+          "flex h-8 items-center gap-1.5 rounded border px-2.5 text-ui text-content-body max-sm:flex-1",
+          (@filters.platform && "border-primary/50 bg-notice-soft") || "border-line-control bg-surface-raised"
+        ]}>
+          Platform
+          <select name="platform" class="h-full border-0 bg-transparent py-0 pr-7 pl-0 font-mono text-xs text-content-strong focus:ring-0 max-sm:min-w-0 max-sm:flex-1">
+            <option value="">Any</option>
+            {Phoenix.HTML.Form.options_for_select(@platforms, @filters.platform)}
+          </select>
+        </label>
+      </form>
 
-            <td>
-              {archive.architecture}
-            </td>
+      <%!-- A product with no archives. It says what an archive is, since this
+            is the one place most people meet the idea. --%>
+      <div
+        :if={@counts.all == 0 && @upload_failures == [] && @uploads.archive.entries == []}
+        id="archives-empty"
+        class="m-4 flex flex-1 flex-col items-center justify-center gap-5 rounded-card border border-dashed border-line-dashed px-6 py-12 text-center sm:m-6"
+      >
+        <span class="lucide-archive--thin size-9 text-primary" aria-hidden="true"></span>
+        <div class="flex flex-col gap-2">
+          <h2 class="text-section-title text-content-strong">Ship files that aren’t firmware</h2>
+          <p class="max-w-xl text-sm text-content-muted">
+            An archive is a signed fwup file devices download when they connect: calibration data, a modem image, ML models. It travels with a deployment group’s release, so it reaches the same devices its firmware does.
+          </p>
+        </div>
+        <ol class="grid w-full max-w-2xl gap-px overflow-hidden rounded-card border border-line-default bg-line-default text-left sm:grid-cols-3">
+          <li class="flex flex-col gap-1 bg-surface-raised p-3">
+            <span class="font-mono text-xs text-notice-content">01</span>
+            <span class="text-ui font-medium text-content-strong">Build and sign it</span>
+            <span class="text-xs text-content-muted">with fwup and one of your org’s signing keys</span>
+          </li>
+          <li class="flex flex-col gap-1 bg-surface-raised p-3">
+            <span class="font-mono text-xs text-notice-content">02</span>
+            <span class="text-ui font-medium text-content-strong">Upload it here</span>
+            <span class="text-xs text-content-muted">drop the .fw file on this page</span>
+          </li>
+          <li class="flex flex-col gap-1 bg-surface-raised p-3">
+            <span class="font-mono text-xs text-notice-content">03</span>
+            <span class="text-ui font-medium text-content-strong">Attach it to a release</span>
+            <span class="text-xs text-content-muted">from a deployment group’s release settings</span>
+          </li>
+        </ol>
+        <div class="flex items-center gap-2">
+          <.button :if={authorized?(:"archive:upload", @current_scope)} style="primary" type="label" for={@uploads.archive.ref}>
+            Choose a file
+          </.button>
+          <%!-- The docs have no page on archives yet; releases are where one is
+                attached, so that's the closest guide. --%>
+          <a href="https://docs.nerves-hub.org/setup/deployments#releases" target="_blank" class="px-2 text-ui font-medium text-notice-content hover:underline">
+            Read about releases
+          </a>
+        </div>
+      </div>
 
-            <td>
-              <span class="inline-flex gap-1 rounded-full border border-line-default bg-base-800 py-0.5 pr-3 pl-2.5">
-                <code class="text-xs text-content-body">{format_signed(archive, @org_keys)}</code>
+      <%!-- Sized by the space it gets, not the viewport: the sidebar can be
+            open or collapsed at any width. Below 48rem each row is a card. --%>
+      <div class="@container">
+        <div
+          :if={@counts.all > 0 || @upload_failures != [] || @uploads.archive.entries != []}
+          id="archive-list"
+          role="table"
+          aria-label="Archives"
+          class="flex flex-col pb-4 @max-3xl:pt-3 @3xl:mx-6 @3xl:my-4 @3xl:rounded-card @3xl:border @3xl:border-line-default @3xl:bg-surface-raised"
+        >
+          <%!-- Column widths are shared by the header and every row, so the
+                columns line up without a <table>. --%>
+          <div role="row" class="flex h-9 items-center gap-3 border-b border-line-default bg-surface-muted px-4 text-label tracking-[0.06em] text-content-muted uppercase @max-3xl:hidden">
+            <button
+              type="button"
+              role="columnheader"
+              phx-click="sort"
+              phx-value-sort="version"
+              class="flex min-w-48 flex-1 cursor-pointer items-center gap-1 text-left uppercase hover:text-content-strong"
+            >
+              Archive <.sort_arrow field="version" current={@current_sort} direction={@sort_direction} />
+            </button>
+            <span role="columnheader" class="w-36 shrink-0 @max-4xl:hidden">Platform</span>
+            <span role="columnheader" class="w-56 shrink-0">Delivered by</span>
+            <span role="columnheader" class="w-32 shrink-0 @max-[1080px]:hidden">Signed with</span>
+            <span role="columnheader" class="w-16 shrink-0 @max-6xl:hidden">Size</span>
+            <button
+              type="button"
+              role="columnheader"
+              phx-click="sort"
+              phx-value-sort="inserted_at"
+              class="flex w-24 shrink-0 cursor-pointer items-center gap-1 text-left uppercase hover:text-content-strong"
+            >
+              Uploaded <.sort_arrow field="inserted_at" current={@current_sort} direction={@sort_direction} />
+            </button>
+            <span class="w-7 shrink-0"><span class="sr-only">Actions</span></span>
+          </div>
+
+          <%!-- A file on its way up. --%>
+          <div
+            :for={entry <- @uploads.archive.entries}
+            id={"upload-#{entry.ref}"}
+            role="row"
+            class="flex min-h-13 items-center gap-3 border-b border-line-default bg-notice-soft/60 px-4 py-2 @max-3xl:mx-4 @max-3xl:mb-2 @max-3xl:min-w-0 @max-3xl:flex-wrap @max-3xl:gap-y-2 @max-3xl:rounded-card @max-3xl:border @max-3xl:p-3"
+          >
+            <span class="lucide-upload size-4 text-notice-content" aria-hidden="true"></span>
+            <div class="flex w-80 shrink-0 flex-col gap-0.5 @max-3xl:w-auto @max-3xl:min-w-0 @max-3xl:flex-1">
+              <span class="truncate font-mono text-ui text-content-strong">{entry.client_name}</span>
+              <span class="text-xs text-content-muted">
+                {upload_progress_label(entry)}<span :if={entry.progress == 100}> · checking signature and metadata</span>
               </span>
-            </td>
+            </div>
+            <div class="h-1 flex-1 overflow-hidden rounded-full bg-notice-soft @max-3xl:order-last @max-3xl:basis-full">
+              <div class="h-1 rounded-full bg-primary transition-[width]" style={"width: #{entry.progress}%"}></div>
+            </div>
+            <span class="w-10 text-right font-mono text-xs text-content-body @max-3xl:hidden">{entry.progress}%</span>
+            <button type="button" phx-click="cancel-upload" phx-value-ref={entry.ref} class="cursor-pointer px-2 text-ui text-content-muted hover:text-content-strong">
+              Cancel
+            </button>
+          </div>
 
-            <td>
-              <%= if is_nil(archive.inserted_at) do %>
-                Never
-              <% else %>
-                <.local_datetime at={archive.inserted_at} time_zone={@time_zone} zone_label={false} />
+          <%!-- A file that came back refused, with why. --%>
+          <div
+            :for={failure <- @upload_failures}
+            id={"upload-failure-#{failure.id}"}
+            role="alert"
+            class={[
+              "flex items-start gap-3 border-b border-line-default px-4 py-3 @max-3xl:mx-4 @max-3xl:mb-2 @max-3xl:min-w-0 @max-3xl:rounded-card @max-3xl:border",
+              (failure.tone == :warning && "bg-warning-soft @max-3xl:border-warning/40") || "bg-alert-soft @max-3xl:border-alert/40"
+            ]}
+          >
+            <span
+              class={[
+                "mt-0.5 size-4",
+                (failure.tone == :warning && "lucide-triangle-exclamation-point text-warning-content") || "lucide-circle-exclamation-point text-alert-content"
+              ]}
+              aria-hidden="true"
+            ></span>
+            <div class="flex min-w-0 flex-1 flex-col gap-1">
+              <div class="flex flex-wrap items-baseline gap-x-2">
+                <span class={["text-ui font-semibold", (failure.tone == :warning && "text-warning-content") || "text-alert-content"]}>{failure.title}</span>
+                <span class="truncate font-mono text-xs text-content-muted">{failure.name}</span>
+              </div>
+              <div class="text-ui text-content-body">{failure.message}</div>
+              <.link :if={failure.action} navigate={elem(failure.action, 1)} class="text-ui font-medium text-notice-content hover:underline">
+                {elem(failure.action, 0)}
+              </.link>
+            </div>
+            <button
+              type="button"
+              phx-click="dismiss-upload-failure"
+              phx-value-id={failure.id}
+              aria-label="Dismiss"
+              class="flex size-7 shrink-0 cursor-pointer items-center justify-center rounded text-content-muted hover:text-content-strong"
+            >
+              <span class="lucide-x size-4" aria-hidden="true"></span>
+            </button>
+          </div>
+
+          <div
+            :for={{archive, index} <- Enum.with_index(@archives)}
+            id={"archive-#{archive.uuid}"}
+            role="row"
+            class={[
+              "group/row relative flex min-h-13 items-center gap-3 border-b border-line-subtle px-4 py-2 last:border-b-0 hover:bg-surface-muted",
+              "@max-3xl:mx-4 @max-3xl:mb-2 @max-3xl:min-w-0 @max-3xl:flex-wrap @max-3xl:gap-x-2 @max-3xl:gap-y-2.5 @max-3xl:rounded-card @max-3xl:border @max-3xl:border-line-default @max-3xl:p-3 @max-3xl:last:border-b",
+              archive.uuid == @new_archive_uuid && "bg-success-soft/50"
+            ]}
+          >
+            <% delivered_by = current_releases(@releases, archive.id) %>
+
+            <div role="cell" class="flex min-w-48 flex-1 flex-col gap-0.5 @max-3xl:order-1 @max-3xl:w-auto @max-3xl:min-w-0">
+              <.link patch={~p"/org/#{@current_scope.org}/#{@product}/archives/#{archive}"} title={archive.uuid} class="flex min-w-0 flex-col gap-0.5 hover:underline">
+                <span class={[
+                  "flex min-w-0 items-baseline gap-1.5 text-ui/4.5 @max-3xl:text-[15px]",
+                  (delivered_by != [] && "text-content-strong") || "text-content-body"
+                ]}>
+                  <span class="truncate font-medium">{archive_name(archive)}</span>
+                  <span class={["shrink-0 font-mono", (delivered_by != [] && "text-content-body") || "text-content-muted"]}>{archive.version}</span>
+                  <.badge :if={archive.uuid == @new_archive_uuid} tone="success" class="self-center">New</.badge>
+                </span>
+                <span class="font-mono text-[11px]/3.5 text-content-faint">{short_uuid(archive.uuid)}</span>
+              </.link>
+            </div>
+
+            <div
+              role="cell"
+              class="w-36 shrink-0 truncate font-mono text-xs text-content-body @max-3xl:order-2 @max-3xl:w-auto @max-3xl:self-start @max-3xl:pt-0.5 @3xl:@max-4xl:hidden"
+            >
+              {archive.platform} <span class="text-content-faint">·</span> <span class="text-content-muted">{archive.architecture}</span>
+            </div>
+
+            <div role="cell" class="flex w-56 shrink-0 flex-col gap-0.5 @max-3xl:order-5 @max-3xl:w-full @max-3xl:basis-full">
+              <%= case delivered_by do %>
+                <% [] -> %>
+                  <%!-- A release is the only way an archive reaches devices, so
+                        a new upload points straight at making one. --%>
+                  <%= if archive.uuid == @new_archive_uuid && authorized?(:"deployment_group:update", @current_scope) do %>
+                    <.link navigate={~p"/org/#{@current_scope.org}/#{@product}/deployment_groups"} class="text-ui font-medium text-notice-content hover:underline">
+                      Add to a group’s release…
+                    </.link>
+                  <% else %>
+                    <span class="text-ui text-content-faint">Not in a current release</span>
+                  <% end %>
+                <% [first | rest] -> %>
+                  <div class="flex min-w-0 items-baseline gap-1.5">
+                    <.link navigate={~p"/org/#{@current_scope.org}/#{@product}/deployment_groups/#{first.deployment_group}"} class="truncate text-ui text-content-strong hover:underline">
+                      {first.deployment_group.name}
+                    </.link>
+                    <span :if={rest != []} class="shrink-0 text-xs text-content-muted">+{length(rest)} more</span>
+                  </div>
+                  <span class="text-xs text-content-muted">with <span class="font-mono">{first.firmware.version}</span></span>
               <% end %>
-            </td>
+            </div>
 
-            <%!-- <td class="actions">
-            <div class="">
-              <a class="" data-target="#" id={"actions-#{device.id}"} data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" phx-click={show_menu("actions-menu-#{device.id}")}>
-                <span class="lucide-ellipsis-vertical size-4 text-content-muted" aria-hidden="true"></span>
-              </a>
-              <div class="hidden absolute right-6 menu-box" id={"actions-menu-#{device.id}"} phx-click-away={hide_menu("actions-menu-#{device.id}")} phx-key="escape" )}>
-                <.link phx-click="reboot-device" phx-value-device_identifier={device.identifier} class="dropdown-item">
-                  Reboot
-                </.link>
-                <div class="dropdown-divider"></div>
-                <.link navigate={~p"/org/#{@org}/#{@product}/devices/#{device.identifier}/console"} class="dropdown-item">
-                  Console
-                </.link>
-                <div class="dropdown-divider"></div>
-                <div class="dropdown-divider"></div>
-                <.link phx-click="toggle-device-updates" phx-value-device_identifier={device.identifier} class="dropdown-item">
-                  <span>
-                    <%= if device.update_mode != :off, do: "Disable Updates", else: "Enable Updates" %>
-                  </span>
-                </.link>
+            <div class="hidden h-px basis-full bg-line-subtle @max-3xl:order-6 @max-3xl:block" aria-hidden="true"></div>
 
-                <div class="dropdown-divider"></div>
+            <div role="cell" class="flex w-32 shrink-0 items-center gap-1.5 @max-3xl:order-7 @max-3xl:w-auto @3xl:@max-[1080px]:hidden">
+              <%= case signing_key(archive, @org_keys) do %>
+                <% {:key, name} -> %>
+                  <span class="lucide-check size-3 text-success" aria-hidden="true"></span>
+                  <span class="truncate font-mono text-xs text-content-body">{name}</span>
+                <% :unknown -> %>
+                  <span class="text-xs text-content-faint">Unknown key</span>
+              <% end %>
+            </div>
 
-                <%= link to: Routes.device_path(@socket, :export_audit_logs, @org.name, @product.name, device.identifier), class: "dropdown-item", aria: [label: "Download Audit Logs"] do %>
-                  <div class="button-icon download"></div>
-                  <span class="action-text">Download Audit Logs</span>
-                <% end %>
+            <div role="cell" class="w-16 shrink-0 font-mono text-xs text-content-muted @max-3xl:order-8 @max-3xl:w-auto @3xl:@max-6xl:hidden">
+              <span class="@3xl:hidden" aria-hidden="true">· </span>{format_megabytes(archive.size)}
+            </div>
+
+            <div
+              role="cell"
+              class="w-24 shrink-0 text-ui text-content-body @max-3xl:order-9 @max-3xl:ml-auto @max-3xl:w-auto @max-3xl:text-xs"
+              title={to_local_string(archive.inserted_at, @time_zone)}
+            >
+              {uploaded_label(archive.inserted_at, @time_zone)}
+            </div>
+
+            <div role="cell" class="relative w-7 shrink-0 @max-3xl:order-3 @max-3xl:ml-auto">
+              <button
+                type="button"
+                id={"archive-#{archive.uuid}-menu-toggle"}
+                phx-click={toggle_menu(archive.uuid)}
+                aria-haspopup="menu"
+                aria-label={"Actions for #{archive_name(archive)} #{archive.version}"}
+                aria-expanded="false"
+                class="flex size-7 items-center justify-center rounded text-content-muted hover:cursor-pointer hover:bg-surface-muted hover:text-content-strong aria-expanded:bg-surface-muted aria-expanded:text-content-strong"
+              >
+                <span class="lucide-ellipsis-vertical size-4" aria-hidden="true"></span>
+              </button>
+              <div id={"archive-#{archive.uuid}-menu"} class="hidden" phx-click-away={hide_menu(archive.uuid)} phx-window-keydown={hide_menu(archive.uuid)} phx-key="escape">
+                <div
+                  role="menu"
+                  class={[
+                    "absolute right-0 z-30 flex w-64 flex-col rounded-md border border-line-default bg-surface-overlay p-1 shadow-overlay",
+                    (opens_up?(index, @archives) && "bottom-8") || "top-8"
+                  ]}
+                >
+                  <.link
+                    role="menuitem"
+                    patch={~p"/org/#{@current_scope.org}/#{@product}/archives/#{archive}"}
+                    class="flex h-8 items-center gap-2 rounded px-2 text-ui/4 text-content-body hover:bg-surface-muted"
+                  >
+                    <span class="lucide-file-text size-3.5 text-content-muted" aria-hidden="true"></span> Open details
+                  </.link>
+                  <a
+                    :if={authorized?(:"archive:download", @current_scope)}
+                    role="menuitem"
+                    href={~p"/org/#{@current_scope.org}/#{@product}/archives/#{archive}/download"}
+                    download
+                    class="flex h-8 items-center gap-2 rounded px-2 text-ui/4 text-content-body hover:bg-surface-muted"
+                  >
+                    <span class="lucide-file-down size-3.5 text-content-muted" aria-hidden="true"></span> Download
+                  </a>
+                  <button
+                    type="button"
+                    role="menuitem"
+                    id={"copy-uuid-#{archive.uuid}"}
+                    phx-hook="CopyToClipboard"
+                    data-copy-value={archive.uuid}
+                    class="flex h-8 items-center gap-2 rounded px-2 text-left text-ui/4 text-content-body hover:cursor-pointer hover:bg-surface-muted"
+                  >
+                    <span data-icon="copy" class="lucide-copy size-3.5 text-content-muted" aria-hidden="true"></span>
+                    <span data-icon="check" class="lucide-check hidden size-3.5 text-success" aria-hidden="true"></span> Copy UUID
+                  </button>
+                  <%= if authorized?(:"archive:delete", @current_scope) do %>
+                    <div class="my-1 h-px bg-line-subtle" aria-hidden="true"></div>
+                    <%= if reason = delete_blocked_reason(archive, @releases) do %>
+                      <button type="button" role="menuitem" disabled class="flex items-start gap-2 rounded p-2 text-left text-ui/4 text-content-faint">
+                        <span class="mt-px lucide-trash size-3.5" aria-hidden="true"></span>
+                        <span class="flex flex-col gap-0.5">Delete… <span class="text-xs">{reason}</span></span>
+                      </button>
+                    <% else %>
+                      <button
+                        type="button"
+                        role="menuitem"
+                        phx-click={hide_menu(archive.uuid) |> JS.push("prepare-delete", value: %{archive_uuid: archive.uuid})}
+                        class="flex h-8 items-center gap-2 rounded px-2 text-left text-ui/4 text-alert-content hover:cursor-pointer hover:bg-alert-soft"
+                      >
+                        <span class="lucide-trash size-3.5" aria-hidden="true"></span> Delete…
+                      </button>
+                    <% end %>
+                  <% end %>
+                </div>
               </div>
             </div>
-          </td> --%>
-          </tr>
-        </tbody>
-      </table>
+          </div>
+
+          <%!-- The product has archives, but none on this tab or none that
+                matches the search and filter. --%>
+          <div :if={@archives == [] && @counts.all > 0} id="archive-no-matches" class="flex flex-col items-center gap-2 px-4 py-10 text-center">
+            <%= if filtering?(@filters) do %>
+              <span class="text-sm font-medium text-content-strong">
+                No archive matches <span :if={@filters.search} class="font-mono">{@filters.search}</span>
+                <span :if={@filters.platform}>on <span class="font-mono">{@filters.platform}</span></span>
+              </span>
+              <div class="flex gap-4 pt-1 text-ui font-medium">
+                <.link :if={@filters.search} patch={without_filter_path(assigns, "search")} class="text-notice-content hover:underline">Clear search</.link>
+                <.link :if={@filters.platform} patch={without_filter_path(assigns, "platform")} class="text-notice-content hover:underline">Clear platform</.link>
+              </div>
+            <% else %>
+              <span class="text-sm font-medium text-content-strong">{empty_tab_message(@tab)}</span>
+            <% end %>
+          </div>
+        </div>
+
+        <.list_footer :if={@archives != []} id="archive" label="Archives" pager={@pager_meta}>
+          <:hint :if={authorized?(:"archive:upload", @current_scope)}>Drop a signed .fw archive anywhere on this page to upload it</:hint>
+        </.list_footer>
+      </div>
     </div>
 
-    <div :if={Enum.empty?(@archives)} class="flex h-full items-center justify-center pb-16">
-      <span class="font-mono text-xl font-medium text-content-muted">{@current_scope.product.name} doesn't have any available archives.</span>
+    <%!-- Only shown while a file is being dragged over the page. `pointer-events-none`
+          keeps the drop itself landing on the target underneath. --%>
+    <div
+      aria-hidden="true"
+      class="pointer-events-none absolute inset-0 z-40 flex items-center justify-center bg-surface/70 p-6 opacity-0 backdrop-blur-xs transition-opacity duration-150 phx-drop-target-active:opacity-100"
+    >
+      <div class="flex size-full flex-col items-center justify-center gap-3 rounded-card border-2 border-dashed border-primary bg-primary/5">
+        <span class="lucide-upload size-10 text-primary"></span>
+        <span class="text-lg font-medium text-content-strong">Drop to upload an archive</span>
+        <span class="text-sm text-content-muted">Accepts signed .fw files</span>
+      </div>
     </div>
   </div>
 
-  <:pagination pager={@pager_meta} page_sizes={[25, 50, 100]} />
+  <.delete_dialog :if={@deleting} deleting={@deleting} />
 </NervesHubWeb.Layouts.sidebar>

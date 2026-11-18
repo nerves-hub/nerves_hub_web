@@ -32,6 +32,13 @@ defmodule NervesHub.Devices.Connections do
   Replaces the device's previous connection row. Nothing carries over from it:
   `ip_address` and the client library (`lib` / `lib_version`, from
   `client_library`) are recorded as unknown when left out.
+
+  A device often reconnects before the server has noticed its old socket is
+  gone. If the previous connection is still open, it is closed as of its
+  `last_seen_at` with the reason `"Reconnected"`, because once the row is
+  replaced neither its socket's `device_disconnected/2` nor
+  `clean_stale_connections/0` can find it. Its `device.disconnected` event
+  goes out only if it had reached `:connected`.
   """
   @spec device_connecting(
           pos_integer(),
@@ -67,10 +74,26 @@ defmodule NervesHub.Devices.Connections do
         ]
       )
 
-    DeviceConnection.connecting_changeset(org_id, product_id, device_id, ip_address, client_library)
-    |> Repo.insert(on_conflict: conflict_query, conflict_target: [:device_id])
+    changeset = DeviceConnection.connecting_changeset(org_id, product_id, device_id, ip_address, client_library)
+
+    # The lock makes two connects for the same device take turns, so each
+    # replaced connection is closed once.
+    Repo.transact(fn ->
+      previous =
+        DeviceConnection
+        |> where(device_id: ^device_id)
+        |> lock("FOR UPDATE")
+        |> Repo.one()
+
+      with {:ok, device_connection} <-
+             Repo.insert(changeset, on_conflict: conflict_query, conflict_target: [:device_id]) do
+        {:ok, {previous, device_connection}}
+      end
+    end)
     |> case do
-      {:ok, device_connection} ->
+      {:ok, {previous, device_connection}} ->
+        :ok = close_replaced_connection(previous)
+
         async_device_connection_history_insert(device_connection)
 
         Tracker.connecting(device_id)
@@ -79,6 +102,30 @@ defmodule NervesHub.Devices.Connections do
 
       {:error, _} = error ->
         error
+    end
+  end
+
+  defp close_replaced_connection(nil), do: :ok
+  defp close_replaced_connection(%DeviceConnection{status: :disconnected}), do: :ok
+
+  defp close_replaced_connection(%DeviceConnection{} = previous) do
+    closed = %{
+      previous
+      | status: :disconnected,
+        disconnected_at: previous.last_seen_at,
+        disconnected_reason: "Reconnected"
+    }
+
+    async_device_connection_history_insert(closed)
+
+    # A connection still `:connecting` never raised `device.connected`, so it
+    # raises no disconnect either.
+    if previous.status == :connected do
+      Integrations.dispatch(closed.product_id, "device.disconnected", fn ->
+        Payloads.device_disconnected(closed)
+      end)
+    else
+      :ok
     end
   end
 
@@ -312,7 +359,8 @@ defmodule NervesHub.Devices.Connections do
 
   A safety net, run hourly by `NervesHub.Workers.CleanStaleDeviceConnectionHistory`.
   `clean_stale_connections/0` already writes a history row for each
-  connection it closes, so this only finds disconnects that were lost before
+  connection it closes, and `device_connecting/5` for each one a reconnect
+  replaces, so this only finds disconnects that were lost before
   reaching ClickHouse, such as rows still buffered in
   `NervesHub.Analytics.Buffer` when a node died. It is kept off the
   every-minute sweep because the query is a `FINAL` scan of the whole

@@ -112,6 +112,45 @@ defmodule NervesHub.Webhooks.RaisedEventsTest do
       assert disconnected_at
     end
 
+    test "device.disconnected, for a connection a reconnect replaced", %{device: device, org: org, product: product} do
+      {:ok, replaced} = Connections.device_connecting(org.id, product.id, device.id)
+      :ok = Connections.device_connected(replaced.id)
+      last_seen_at = Connections.get_latest_for_device(device.id).last_seen_at
+
+      {:ok, _connection} = Connections.device_connecting(org.id, product.id, device.id)
+
+      assert [data] = raised("device.disconnected")
+      assert data["device"] == device_summary(device)
+      assert %{"id" => id, "reason" => "Reconnected", "disconnected_at" => disconnected_at} = data["connection"]
+      assert id == replaced.id
+      assert disconnected_at == DateTime.to_iso8601(last_seen_at)
+    end
+
+    test "no device.disconnected for a replaced connection that never connected", %{
+      device: device,
+      org: org,
+      product: product
+    } do
+      {:ok, _replaced} = Connections.device_connecting(org.id, product.id, device.id)
+      {:ok, _connection} = Connections.device_connecting(org.id, product.id, device.id)
+
+      assert [] = raised("device.disconnected")
+    end
+
+    test "no second device.disconnected for a connection that already disconnected", %{
+      device: device,
+      org: org,
+      product: product
+    } do
+      {:ok, replaced} = Connections.device_connecting(org.id, product.id, device.id)
+      :ok = Connections.device_connected(replaced.id)
+      :ok = Connections.device_disconnected(replaced.id)
+
+      {:ok, _connection} = Connections.device_connecting(org.id, product.id, device.id)
+
+      assert [%{"connection" => %{"reason" => nil}}] = raised("device.disconnected")
+    end
+
     test "device.disconnected, for a connection the stale sweep closed", %{device: device, product: product} do
       interval = Application.get_env(:nerves_hub, :device_last_seen_update_interval_minutes)
       long_ago = DateTime.add(DateTime.utc_now(), -(interval + 30), :minute)
