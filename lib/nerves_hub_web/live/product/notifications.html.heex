@@ -1,56 +1,273 @@
 <NervesHubWeb.Layouts.sidebar flash={@flash} current_scope={@current_scope} sidebar_tab={@sidebar_tab}>
-  <:header>
-    <h1 class="text-page-title text-content-strong">Notifications</h1>
-    <.badge id="notification-count" class="mr-auto">
-      {@result_meta.total_count}
-    </.badge>
-  </:header>
+  <:top_bar>
+    <div class="flex min-w-0 items-baseline gap-3">
+      <h1 class="text-base/6 font-semibold text-content-strong">Notifications</h1>
+      <span class="truncate font-mono text-xs text-content-muted max-sm:hidden">what {@platform_name} needs you to know</span>
+    </div>
 
-  <div class="flex h-0 flex-1 flex-col items-start justify-between gap-4 overflow-x-auto p-6">
-    <div class="flex w-full flex-col rounded-card border border-line-default bg-surface-raised">
-      <div class="flex h-14 items-center justify-end gap-3 border-b border-line-default px-4">
-        <.button :if={authorized?(:"product:notifications:dismiss", @current_scope)} style="secondary" phx-click="dismiss-all" data-confirm="Are you sure you want to dismiss all notifications?">
-          Dismiss all
-        </.button>
-      </div>
-      <div :if={Enum.empty?(@notifications)} class="flex flex-col gap-1 px-4 py-2">
-        <div class="flex items-center justify-center p-14">
-          <span class="font-extralight text-content-faint">You don't have any notifications. Huzzah!</span>
-        </div>
-      </div>
-      <div :if={Enum.any?(@notifications)} class="flex flex-col gap-1 px-4 py-2">
-        <div :for={entry <- @notifications} class="flex items-center gap-6 p-2">
-          <div class="size-[34px] overflow-hidden rounded-full bg-base-800">
-            <span
-              data-level={entry.level}
-              class="-mt-0.5 -ml-0.5 size-[38px] data-[level=error]:lucide-circle-exclamation-point--thin data-[level=error]:text-alert data-[level=info]:lucide-info--thin data-[level=info]:text-notice data-[level=warning]:lucide-circle-slash--thin data-[level=warning]:text-warning/85"
-            />
-          </div>
-          <div class="grow">
-            <div data-level={entry.level} class="text-base-200 data-[level=error]:text-alert/85 data-[level=info]:text-notice/85 data-[level=warning]:text-warning/85">
-              {entry.title}
-            </div>
-            <div class="pb-0.5 text-sm text-content-muted">{entry.message}</div>
-            <div class="flex gap-2">
-              <div class="text-xs tracking-wide text-content-muted">
-                Last occurrence: {RelativeTime.from_now(entry.last_occurred_at)}
-              </div>
+    <div :if={@counts.all > 0 && authorized?(:"product:notifications:dismiss", @current_scope)} class="relative shrink-0 sm:mr-6">
+      <.button id="dismiss-all" class="max-sm:hidden" phx-click="confirm-dismiss-all">
+        <span class="lucide-check-check" aria-hidden="true"></span> Dismiss all
+      </.button>
 
-              <div class="flex items-center">
-                <svg class="size-0.5" viewBox="0 0 2 2" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <circle cx="1" cy="1" r="1" class="fill-base-500" />
-                </svg>
-              </div>
-
-              <div class="text-xs tracking-wide text-content-muted">
-                {entry.occurrence_count} {if entry.occurrence_count == 1, do: "occurrence", else: "occurrences"}
-              </div>
-            </div>
-          </div>
+      <%!-- On a phone Dismiss all sits in a menu, so the bar keeps room for the title. --%>
+      <.button
+        id="notifications-actions-toggle"
+        square
+        class="sm:hidden"
+        aria-label="More actions"
+        aria-haspopup="menu"
+        aria-expanded="false"
+        phx-click={toggle_actions_menu()}
+      >
+        <span class="lucide-ellipsis" aria-hidden="true"></span>
+      </.button>
+      <div id="notifications-actions-menu" class="hidden sm:hidden" phx-click-away={hide_actions_menu()} phx-window-keydown={hide_actions_menu()} phx-key="escape">
+        <div role="menu" class="absolute top-10 right-0 z-30 flex w-56 flex-col rounded-md border border-line-default bg-surface-overlay p-1 shadow-overlay">
+          <button
+            type="button"
+            role="menuitem"
+            phx-click={hide_actions_menu() |> JS.push("confirm-dismiss-all")}
+            class="flex h-9 cursor-pointer items-center gap-2 rounded px-2 text-left text-ui text-content-body hover:bg-surface-muted"
+          >
+            <span class="lucide-check-check size-3.5 text-content-muted" aria-hidden="true"></span> Dismiss {ngettext("1", "all %{count}", @counts.all)}
+          </button>
         </div>
       </div>
     </div>
+  </:top_bar>
+
+  <div class="h-0 flex-1 overflow-y-auto">
+    <nav
+      id="notification-levels"
+      aria-label="Levels"
+      class="sticky top-0 z-10 scrollbar-none flex gap-1 overflow-x-auto border-b border-line-default bg-surface px-3 sm:px-4"
+    >
+      <.link
+        :for={tab <- level_tabs(@counts)}
+        id={"level-#{tab.param || "all"}"}
+        patch={level_path(assigns, tab.param)}
+        aria-current={if tab.level == @level, do: "page"}
+        class="group relative flex h-11 shrink-0 items-center gap-1.75 border-b-2 border-transparent px-3 text-sm/4.5 font-medium whitespace-nowrap text-content-muted hover:text-content-strong aria-[current=page]:border-primary aria-[current=page]:font-semibold aria-[current=page]:text-content-strong light:aria-[current=page]:border-indigo-600"
+      >
+        <.status_dot :if={tab.dot} class={["size-1.5", tab.dot]} />
+        {tab.label}
+        <span class="font-mono text-xs font-normal text-content-faint group-aria-[current=page]:text-content-muted">{tab.count}</span>
+      </.link>
+    </nav>
+
+    <div class="flex flex-col gap-2 px-4 pt-4 pb-6 sm:px-6">
+      <div :if={@dismissed_by} id="dismissed-by" role="status" class="flex items-center gap-2.5 rounded-card border border-line-default bg-surface-raised px-3 py-2.5">
+        <span class="lucide-info size-3.5 text-content-muted" aria-hidden="true"></span>
+        <span class="flex-1 text-ui text-content-body">
+          {@dismissed_by.name} dismissed {(@dismissed_by.count && ngettext("1 notification", "all %{count} notifications", @dismissed_by.count)) ||
+            "all notifications"}.
+        </span>
+        <button type="button" phx-click="hide-dismissed-by" aria-label="Close" class="flex size-6 cursor-pointer items-center justify-center rounded text-content-faint hover:text-content-strong">
+          <span class="lucide-x size-3.5" aria-hidden="true"></span>
+        </button>
+      </div>
+
+      <div :if={@arrived_elsewhere > 0} id="arrived-elsewhere" role="status" class="flex items-center gap-2.5 rounded-card border border-primary/30 bg-notice-soft px-3 py-2.5">
+        <.status_dot class="size-1.5 bg-primary" />
+        <span class="flex-1 text-ui text-content-body">
+          {ngettext("1 new notification", "%{count} new notifications", @arrived_elsewhere)} on the first page
+        </span>
+        <.link patch={list_path(assigns, %{"page_number" => nil})} class="text-ui font-medium text-notice-content hover:underline light:text-indigo-600">
+          Go to newest
+        </.link>
+      </div>
+
+      <%!-- Nothing at all. --%>
+      <div :if={@counts.all == 0} id="notifications-empty" class="flex flex-col items-center gap-2 rounded-card border border-line-default bg-surface-raised px-6 py-14 text-center">
+        <span class="lucide-bell size-5 text-content-faint" aria-hidden="true"></span>
+        <h2 class="pt-1 text-section-title text-content-strong">Nothing needs your attention</h2>
+        <p class="max-w-md text-ui text-content-muted">
+          {@platform_name} posts here when something about {@current_scope.product.name} needs a look: a device that can’t update, a webhook that was turned off, a release waiting for approval.
+        </p>
+      </div>
+
+      <%!-- Something, but nothing at this level. --%>
+      <div
+        :if={@counts.all > 0 && @cards == [] && @level}
+        id="notifications-level-empty"
+        class="flex flex-col items-center gap-1.5 rounded-card border border-line-default bg-surface-raised px-6 py-10 text-center"
+      >
+        <h2 class="text-section-title text-content-strong">{empty_level_title(@level)}</h2>
+        <p class="text-ui text-content-muted">{elsewhere_sentence(@counts, @level)}</p>
+        <.link patch={level_path(assigns, nil)} class="pt-1 text-ui font-medium text-notice-content hover:underline light:text-indigo-600">
+          Show all {@counts.all}
+        </.link>
+      </div>
+
+      <section :for={group <- day_groups(@cards, @time_zone, @continued_from)} id={"day-#{group.key}"} class="flex flex-col gap-2 not-first-of-type:pt-3">
+        <h2 class="px-1 text-label tracking-[0.06em] text-content-muted uppercase">
+          {group.label}<span :if={group.continued?} class="tracking-normal text-content-faint normal-case"> · continued</span>
+        </h2>
+
+        <article
+          :for={card <- group.cards}
+          id={"notification-#{if card.count > 1, do: card.key, else: card.latest.id}"}
+          data-level={card.level}
+          class={[
+            "group/card flex flex-col rounded-card border transition-colors",
+            (MapSet.member?(@fresh.new, card.key) && "border-primary/40 bg-notice-soft/60") ||
+              "border-line-default bg-surface-raised hover:border-line-control"
+          ]}
+        >
+          <div class="flex flex-wrap items-start gap-x-3 gap-y-2 p-3 sm:flex-nowrap sm:px-4">
+            <span
+              role="img"
+              aria-label={level_label(card.level)}
+              class={[
+                "order-1 flex size-7 shrink-0 items-center justify-center rounded-full",
+                card.level == :error && "bg-alert-soft",
+                card.level == :warning && "bg-warning-soft",
+                card.level == :info && "bg-surface-muted"
+              ]}
+            >
+              <span :if={card.level == :error} class="lucide-circle-exclamation-point size-3.5 text-alert" aria-hidden="true"></span>
+              <span :if={card.level == :warning} class="lucide-triangle-exclamation-point size-3.5 text-warning-content light:text-amber-700" aria-hidden="true"></span>
+              <span :if={card.level == :info} class="size-1.5 rounded-full bg-content-faint" aria-hidden="true"></span>
+            </span>
+
+            <div class="order-2 flex min-w-0 flex-1 flex-col gap-0.5 pt-0.5">
+              <h3 class="flex flex-wrap items-center gap-x-2 gap-y-1 text-ui/4.5 font-semibold text-content-strong">
+                {card.title}
+                <.badge :if={MapSet.member?(@fresh.new, card.key)} tone="notice">New</.badge>
+              </h3>
+              <p class="text-ui/4.5 wrap-break-word text-content-body">{card.message}</p>
+            </div>
+
+            <%!-- What it's about and when. Beside the text from sm up, and a line
+                  under it on a phone. --%>
+            <div class="order-4 flex min-w-0 items-baseline gap-x-1.5 text-xs max-sm:basis-full max-sm:flex-wrap max-sm:pl-10 sm:order-3 sm:w-50 sm:shrink-0 sm:flex-col sm:items-end sm:gap-0.5 sm:pt-0.5 sm:text-right">
+              <%= cond do %>
+                <% card.count > 1 -> %>
+                  <span class={["font-mono text-content-strong", MapSet.member?(@fresh.bumped, card.key) && "font-medium text-notice-content! light:text-indigo-600!"]}>
+                    {ngettext("1 device", "%{count} devices", card.devices)}
+                  </span>
+                  <span class="text-content-faint sm:hidden" aria-hidden="true">·</span>
+                <% subject = @subjects[card.latest.id] -> %>
+                  <.subject scope={@current_scope} subject={subject} />
+                  <span class="text-content-faint sm:hidden" aria-hidden="true">·</span>
+                <% true -> %>
+              <% end %>
+              <span class="whitespace-nowrap text-content-muted">
+                <span :if={card.occurrences > 1} class={card.count == 1 && MapSet.member?(@fresh.bumped, card.key) && "font-medium text-notice-content light:text-indigo-600"}>
+                  {ngettext("1 time", "%{count} times", card.occurrences)} ·
+                </span>
+                <time datetime={DateTime.to_iso8601(card.last_occurred_at)} title={to_local_string(card.last_occurred_at, @time_zone)}>
+                  {when_label(card.last_occurred_at, group.bucket, @time_zone)}
+                </time>
+              </span>
+              <span :if={clears_itself?(card)} class="text-content-faint max-sm:hidden">Clears itself</span>
+            </div>
+
+            <div class="order-3 flex size-7 shrink-0 items-center justify-center sm:order-4">
+              <button
+                :if={card.count > 1}
+                type="button"
+                phx-click="toggle-card"
+                phx-value-key={card.key}
+                aria-expanded={to_string(MapSet.member?(@expanded, card.key))}
+                aria-controls={"notification-#{card.key}-devices"}
+                aria-label={"Show the #{held(card)}"}
+                class="flex size-7 cursor-pointer items-center justify-center rounded text-content-muted hover:bg-surface-muted hover:text-content-strong"
+              >
+                <span class={["size-3.5", (MapSet.member?(@expanded, card.key) && "lucide-chevron-up") || "lucide-chevron-down"]} aria-hidden="true"></span>
+              </button>
+              <button
+                :if={card.count == 1 && !clears_itself?(card) && authorized?(:"product:notifications:dismiss", @current_scope)}
+                type="button"
+                phx-click="dismiss"
+                phx-value-id={card.latest.id}
+                aria-label={"Dismiss “#{card.title}”"}
+                title="Dismiss"
+                class="flex size-7 cursor-pointer items-center justify-center rounded text-content-faint group-hover/card:text-content-muted hover:bg-surface-muted hover:text-content-strong!"
+              >
+                <span class="lucide-x size-3.5" aria-hidden="true"></span>
+              </button>
+            </div>
+          </div>
+
+          <%!-- An opened card lists its devices, the most recent first. --%>
+          <div
+            :if={card.count > 1 && MapSet.member?(@expanded, card.key)}
+            id={"notification-#{card.key}-devices"}
+            class="flex flex-col border-t border-line-default bg-surface/40 px-3 pb-3 sm:pr-4 sm:pl-14"
+          >
+            <div class="flex h-9 items-center gap-3 text-label tracking-[0.06em] text-content-muted uppercase max-sm:hidden">
+              <span class="flex-1">Device</span>
+              <span class="w-16 text-right">Times</span>
+              <span class="w-32 text-right">Last</span>
+              <span :if={authorized?(:"product:notifications:dismiss", @current_scope)} class="w-16"></span>
+            </div>
+
+            <ul class="flex flex-col">
+              <li
+                :for={notification <- Map.get(@members, card.key, [])}
+                id={"notification-#{notification.id}"}
+                class="flex flex-wrap items-baseline gap-x-3 gap-y-0.5 border-b border-line-default py-2 text-xs last:border-b-0 max-sm:pt-2.5"
+              >
+                <span class="flex min-w-0 flex-1 items-baseline gap-2">
+                  <.subject :if={@subjects[notification.id]} scope={@current_scope} subject={@subjects[notification.id]} />
+                  <span :if={detail = Copy.detail(notification)} class="min-w-0 truncate font-mono text-content-muted" title={detail}>{detail}</span>
+                </span>
+                <span class="text-content-muted sm:w-16 sm:text-right">
+                  <span class="sm:hidden">{ngettext("1 time", "%{count} times", notification.occurrence_count)} ·</span>
+                  <span class="font-mono max-sm:hidden">{notification.occurrence_count}</span>
+                </span>
+                <time
+                  datetime={DateTime.to_iso8601(notification.last_occurred_at)}
+                  title={to_local_string(notification.last_occurred_at, @time_zone)}
+                  class="whitespace-nowrap text-content-muted sm:w-32 sm:text-right"
+                >
+                  {device_when_label(notification.last_occurred_at, @time_zone)}
+                </time>
+                <span :if={authorized?(:"product:notifications:dismiss", @current_scope)} class="w-16 text-right max-sm:ml-auto">
+                  <button
+                    type="button"
+                    phx-click="dismiss"
+                    phx-value-id={notification.id}
+                    aria-label={"Dismiss #{(@subjects[notification.id] || %{label: "this device"}).label}"}
+                    class="cursor-pointer text-content-muted hover:text-content-strong hover:underline"
+                  >
+                    Dismiss
+                  </button>
+                </span>
+              </li>
+            </ul>
+
+            <div class="flex flex-wrap items-center gap-3 pt-3">
+              <button
+                :if={length(Map.get(@members, card.key, [])) < card.count && !MapSet.member?(@showing_all, card.key)}
+                type="button"
+                phx-click="show-all-devices"
+                phx-value-key={card.key}
+                class="cursor-pointer text-ui font-medium text-notice-content hover:underline light:text-indigo-600"
+              >
+                Show all {held(card)}
+              </button>
+              <span :if={length(Map.get(@members, card.key, [])) < card.count && MapSet.member?(@showing_all, card.key)} class="text-ui text-content-muted">
+                Showing the {length(Map.get(@members, card.key, []))} most recent
+              </span>
+              <.button
+                :if={authorized?(:"product:notifications:dismiss", @current_scope)}
+                class="ml-auto"
+                phx-click="dismiss-card"
+                phx-value-key={card.key}
+              >
+                Dismiss all {card.count}
+              </.button>
+            </div>
+          </div>
+        </article>
+      </section>
+
+      <.list_footer :if={@cards != [] && paged?(@result_meta)} pager={@result_meta} />
+    </div>
   </div>
 
-  <:pagination pager={@result_meta} page_sizes={[25, 50, 100]} />
+  <.dismiss_all_dialog :if={@confirming_dismiss_all} count={@counts.all} />
 </NervesHubWeb.Layouts.sidebar>

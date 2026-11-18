@@ -2,7 +2,6 @@ defmodule NervesHub.ProductNotifications do
   import Ecto.Query
 
   alias NervesHub.Accounts.Scope
-  alias NervesHub.Branding
   alias NervesHub.DeviceLink.DeviceInfo
   alias NervesHub.Devices.Device
   alias NervesHub.Integrations
@@ -10,6 +9,8 @@ defmodule NervesHub.ProductNotifications do
   alias NervesHub.Integrations.ChatWebhooks.ChatWebhook
   alias NervesHub.Integrations.Slack.Subscription
   alias NervesHub.ManagedDeployments.DeploymentWorkflowStep
+  alias NervesHub.ProductNotifications.Copy
+  alias NervesHub.ProductNotifications.Subjects
   alias NervesHub.Products
   alias NervesHub.Products.Notification
   alias NervesHub.Products.Product
@@ -27,19 +28,259 @@ defmodule NervesHub.ProductNotifications do
     :ok = Group.join(NervesHub.Group, key(product_id), %{})
   end
 
-  @spec paginated_list(Product.t(), integer(), integer()) :: {[Notification.t()], Flop.Meta.t()}
-  def paginated_list(%Product{} = product, page \\ 1, page_size \\ 25) do
-    flop = %Flop{page: page, page_size: page_size}
+  @levels [:error, :warning, :info]
 
-    Notification
-    |> where([n], n.product_id == ^product.id)
-    |> order_by(desc: :last_occurred_at)
-    |> Flop.run(flop)
+  # The kinds rolled up into one card, by the name a card's key carries.
+  @rolled_up_kinds Map.new(Notification.device_kinds(), &{Atom.to_string(&1), &1})
+
+  @typedoc """
+  A card in the product's notifications list: one notification, or every
+  device's notification of one kind rolled up together (see
+  `Notification.device_kinds/0`).
+
+  `key` is the notification's ID for one, and the kind for a roll-up.
+  `count` is how many notifications it holds and `devices` how many devices
+  they're about, which can be fewer: a device whose extension fails for two
+  reasons has two. `latest` is the most recent notification in it, and
+  `title` and `message` are written for the card by
+  `NervesHub.ProductNotifications.Copy`.
+  """
+  @type card :: %{
+          key: String.t(),
+          kind: Notification.kind() | nil,
+          level: Notification.level(),
+          title: String.t(),
+          message: String.t(),
+          count: pos_integer(),
+          devices: pos_integer(),
+          occurrences: pos_integer(),
+          last_occurred_at: DateTime.t(),
+          latest: Notification.t()
+        }
+
+  @doc """
+  A page of the product's notification cards, the most recent first.
+
+  Returns the cards, the pagination, and when the card before the page last
+  happened (`nil` on the first page), so a page that starts partway through a
+  day can say so. A page past the end is the last page. A `level` lists only
+  the cards at that level.
+  """
+  @spec list_cards(Product.t(), pos_integer(), pos_integer(), Notification.level() | nil) ::
+          {[card()], Flop.Meta.t(), DateTime.t() | nil}
+  def list_cards(%Product{} = product, page \\ 1, page_size \\ 25, level \\ nil) do
+    total = Repo.one(from(k in subquery(keyed(product, level)), select: count(k.key, :distinct)))
+    total_pages = max(div(total + page_size - 1, page_size), 1)
+    page = page |> max(1) |> min(total_pages)
+    skip = (page - 1) * page_size
+
+    # One more than the page, the card before it, unless it's the first.
+    rows =
+      from(k in subquery(keyed(product, level)),
+        group_by: k.key,
+        select: %{
+          key: k.key,
+          last_occurred_at: max(k.last_occurred_at),
+          count: count(k.key),
+          devices: count(k.device, :distinct),
+          occurrences: type(sum(k.occurrence_count), :integer)
+        },
+        order_by: [desc: max(k.last_occurred_at), desc: k.key],
+        offset: ^max(skip - 1, 0),
+        limit: ^(page_size + min(skip, 1))
+      )
+      |> Repo.all()
+
+    {before, rows} = if skip > 0, do: Enum.split(rows, 1), else: {[], rows}
+
+    meta = %Flop.Meta{
+      current_page: page,
+      page_size: page_size,
+      total_count: total,
+      total_pages: total_pages,
+      has_previous_page?: page > 1,
+      has_next_page?: page < total_pages
+    }
+
+    {cards(product, rows), meta, Enum.at(before, 0)[:last_occurred_at]}
   end
 
+  # Each of the product's notifications with the card it's on: its kind if
+  # that's rolled up, otherwise its own ID. `device` is the device it's
+  # about, or its own ID when it isn't about one.
+  defp keyed(product, level) do
+    from(n in listed(product, level),
+      select: %{
+        key:
+          fragment(
+            "CASE WHEN ? = ANY(?) THEN ? ELSE ?::text END",
+            n.kind,
+            type(^Map.keys(@rolled_up_kinds), {:array, :string}),
+            n.kind,
+            n.id
+          ),
+        device: fragment("COALESCE(? ->> 'identifier', ?::text)", n.metadata, n.id),
+        level: n.level,
+        last_occurred_at: n.last_occurred_at,
+        occurrence_count: n.occurrence_count
+      }
+    )
+  end
+
+  defp listed(product, nil), do: where(Notification, [n], n.product_id == ^product.id)
+
+  defp listed(product, level) when level in @levels,
+    do: where(Notification, [n], n.product_id == ^product.id and n.level == ^level)
+
+  # The most recent notification on each card, for its kind, level and copy.
+  defp cards(_product, []), do: []
+
+  defp cards(product, rows) do
+    {rolled_up, single} = Enum.split_with(rows, &Map.has_key?(@rolled_up_kinds, &1.key))
+
+    singles =
+      Notification
+      |> where([n], n.product_id == ^product.id and n.id in ^Enum.map(single, & &1.key))
+      |> Repo.all()
+
+    latest_of_kinds =
+      Notification
+      |> where(
+        [n],
+        n.product_id == ^product.id and n.kind in ^Enum.map(rolled_up, &Map.fetch!(@rolled_up_kinds, &1.key))
+      )
+      |> distinct([n], n.kind)
+      |> order_by([n], desc: n.last_occurred_at, desc: n.id)
+      |> Repo.all()
+
+    latest = Map.new(singles ++ latest_of_kinds, &{card_key(&1), &1})
+
+    # A card whose notifications went between the two queries is left out.
+    Enum.flat_map(rows, fn row ->
+      case latest[row.key] do
+        nil ->
+          []
+
+        notification ->
+          %{title: title, message: message} = Copy.rollup(notification.kind, row.devices, row.count, notification)
+
+          [
+            Map.merge(row, %{
+              kind: notification.kind,
+              level: notification.level,
+              title: title,
+              message: message,
+              latest: notification
+            })
+          ]
+      end
+    end)
+  end
+
+  defp card_key(%Notification{kind: kind, id: id}) do
+    if kind in Notification.device_kinds(), do: Atom.to_string(kind), else: id
+  end
+
+  @doc """
+  The notifications on a rolled-up card, the most recent first, at most
+  `limit` of them.
+
+  A device usually has one, but one whose extensions fail for several
+  reasons has one for each.
+  """
+  @spec card_notifications(Product.t(), Notification.kind(), pos_integer()) :: [Notification.t()]
+  def card_notifications(%Product{} = product, kind, limit) do
+    Notification
+    |> where([n], n.product_id == ^product.id and n.kind == ^kind)
+    |> order_by([n], desc: n.last_occurred_at, desc: n.id)
+    |> limit(^limit)
+    |> Repo.all()
+  end
+
+  @doc """
+  How many cards the product's notifications list has, in all and at each
+  level.
+
+  A kind rolled up across devices counts once.
+  """
+  @spec level_counts(Product.t()) :: %{
+          all: non_neg_integer(),
+          error: non_neg_integer(),
+          warning: non_neg_integer(),
+          info: non_neg_integer()
+        }
+  def level_counts(%Product{} = product) do
+    counts =
+      from(k in subquery(keyed(product, nil)),
+        group_by: k.level,
+        select: {k.level, count(k.key, :distinct)}
+      )
+      |> Repo.all()
+      |> Map.new()
+
+    by_level = Map.new(@levels, &{&1, Map.get(counts, &1, 0)})
+    Map.put(by_level, :all, by_level |> Map.values() |> Enum.sum())
+  end
+
+  @doc """
+  What each of `notifications` is about, and whether it is still there. See
+  `NervesHub.ProductNotifications.Subjects`.
+  """
+  @spec subjects(Scope.t(), [Notification.t()]) :: %{Ecto.UUID.t() => Subjects.t()}
+  defdelegate subjects(scope, notifications), to: Subjects, as: :for_notifications
+
+  @doc """
+  Dismisses one of the product's notifications.
+
+  Anyone else looking at the product's notifications sees it go, with nothing
+  to announce it. If what it was about happens again it comes back as a new
+  notification.
+  """
+  @spec dismiss(Scope.t(), String.t()) :: {:ok, Notification.t()} | {:error, :not_found}
+  def dismiss(%Scope{product: product}, id) do
+    with {:ok, id} <- Ecto.UUID.cast(id),
+         {1, [notification]} <-
+           Notification
+           |> where([n], n.product_id == ^product.id and n.id == ^id)
+           |> select([n], n)
+           |> Repo.delete_all() do
+      :ok = broadcast(product.id, "resolved")
+      {:ok, notification}
+    else
+      _ -> {:error, :not_found}
+    end
+  end
+
+  @doc """
+  Dismisses a rolled-up card: every one of the product's notifications of a
+  kind raised per device.
+
+  Returns how many went, or `{:error, :not_found}` for a kind that isn't
+  rolled up or has none in the product.
+  """
+  @spec dismiss_card(Scope.t(), String.t()) :: {:ok, pos_integer()} | {:error, :not_found}
+  def dismiss_card(%Scope{product: product}, kind) when is_binary(kind) do
+    with {:ok, kind} <- Map.fetch(@rolled_up_kinds, kind),
+         {count, _} when count > 0 <-
+           Notification
+           |> where([n], n.product_id == ^product.id and n.kind == ^kind)
+           |> Repo.delete_all() do
+      :ok = broadcast(product.id, "resolved")
+      {:ok, count}
+    else
+      _ -> {:error, :not_found}
+    end
+  end
+
+  @doc """
+  Dismisses all of the product's notifications, at every level, and tells
+  anyone else looking at them who did it and how many cards went.
+  """
   @spec delete_all(Scope.t()) :: :ok
   def delete_all(%Scope{product: product, user: user}) do
-    _ =
+    %{all: count} = level_counts(product)
+
+    {_deleted, _} =
       Notification
       |> where([n], n.product_id == ^product.id)
       |> Repo.delete_all()
@@ -48,7 +289,7 @@ defmodule NervesHub.ProductNotifications do
       Group.dispatch(NervesHub.Group, key(product.id), %Broadcast{
         topic: topic(product.id),
         event: "dismissed",
-        payload: %{dismissed_by: %{id: user.id, name: user.name}}
+        payload: %{dismissed_by: %{id: user.id, name: user.name}, count: count}
       })
 
     :ok
@@ -60,54 +301,23 @@ defmodule NervesHub.ProductNotifications do
           unsuccessfully_created_count :: non_neg_integer(),
           format :: String.t()
         ) :: Notification.t()
-  def create_device_async_bulk_create_notification!(
-        product_id,
-        successfully_created_count,
-        unsuccessfully_created_count,
-        format
-      ) do
-    [message, level] =
-      case {successfully_created_count, unsuccessfully_created_count} do
-        {0, 0} ->
-          [
-            "No devices entries were processed. Please check if the uploaded manifest was empty, or contact support if you believe this was an error with the import process.",
-            :warning
-          ]
-
-        {1, 0} ->
-          [
-            "1 device was imported successfully. Only 1 device was detected in the manifest, please contact support if this was incorrect.",
-            :info
-          ]
-
-        {successful_count, 0} ->
-          [
-            "All device entries were imported successfully. #{successful_count} devices have been created, along with their associated certificates.",
-            :info
-          ]
-
-        {0, unsuccessful_count} ->
-          [
-            "All device entries (#{unsuccessful_count}) failed to import successfully. Please check if the uploaded manifest was valid, or contact support if you believe this was an error with the import process.",
-            :error
-          ]
-
-        {successful_count, unsuccessful_count} ->
-          [
-            "#{successful_count} device#{if(successful_count > 1, do: "s")} were imported successfully, and #{unsuccessful_count} device#{if(unsuccessful_count > 1, do: "s")} failed to import. Please check if the uploaded manifest was valid, or contact support if you believe this was an error with the import process.",
-            :warning
-          ]
+  def create_device_async_bulk_create_notification!(product_id, created, failed, format) do
+    level =
+      case {created, failed} do
+        {0, 0} -> :warning
+        {_created, 0} -> :info
+        {0, _failed} -> :error
+        _some_failed -> :warning
       end
 
-    Products.get_product!(product_id)
-    |> Notification.new_changeset(%{
-      title: "An async bulk device import has completed.",
-      message: message,
-      level: level,
-      metadata: %{format: format},
-      event_key: "device_bulk_create-#{DateTime.utc_now() |> DateTime.to_unix()}"
-    })
-    |> insert_and_notify!()
+    product_id
+    |> Products.get_product!()
+    |> raise!(
+      :device_bulk_create,
+      level,
+      %{format: format, created: created, failed: failed},
+      "device_bulk_create-#{DateTime.utc_now() |> DateTime.to_unix()}"
+    )
   end
 
   @spec create_duplicate_device_identifier_notification!(
@@ -116,57 +326,48 @@ defmodule NervesHub.ProductNotifications do
           auth_type :: atom()
         ) :: Notification.t()
   def create_duplicate_device_identifier_notification!(product_id, identifier, auth_type) do
-    Products.get_product!(product_id)
-    |> Notification.new_changeset(%{
-      title: "A device failed connecting as the identifier '#{identifier}' already exists.",
-      message: "Please check if you have any soft deleted devices, or choose another identifier for the device.",
-      level: :warning,
-      metadata: %{identifier: identifier, auth_type: auth_type},
-      event_key: "duplicate_device_identifier-#{identifier}"
-    })
-    |> insert_and_notify!()
+    product_id
+    |> Products.get_product!()
+    |> raise!(
+      :duplicate_device_identifier,
+      :warning,
+      %{identifier: identifier, auth_type: auth_type},
+      "duplicate_device_identifier-#{identifier}"
+    )
   end
 
   @spec create_wrong_websocket_host_notification!(device_info :: DeviceInfo.t(), host :: String.t()) ::
           Notification.t()
   def create_wrong_websocket_host_notification!(device_info, host) do
-    %Product{id: device_info.product_id}
-    |> Notification.new_changeset(%{
-      title: "A device connected to the wrong host.",
-      message:
-        "The device with the identifier '#{device_info.device_identifier}' connected to the management host instead of '#{host}', and was redirected. Please update the device's configuration.",
-      level: :warning,
-      metadata: %{identifier: device_info.device_identifier, host: host},
-      event_key: "wrong_websocket_host-#{device_info.device_identifier}"
-    })
-    |> insert_and_notify!()
+    raise!(
+      %Product{id: device_info.product_id},
+      :wrong_websocket_host,
+      :warning,
+      %{identifier: device_info.device_identifier, host: host},
+      "wrong_websocket_host-#{device_info.device_identifier}"
+    )
   end
 
   @spec create_soft_deleted_device_removed!(device :: Device.t()) :: Notification.t()
   def create_soft_deleted_device_removed!(device) do
-    %Product{id: device.product_id}
-    |> Notification.new_changeset(%{
-      title: "A soft-deleted device with the identifier '#{device.identifier}' has been permanently deleted.",
-      message: "Soft deleted devices are permanently deleted after two weeks.",
-      level: :info,
-      metadata: %{identifier: device.identifier},
-      event_key: "soft_deleted_device-#{device.identifier}"
-    })
-    |> insert_and_notify!()
+    raise!(
+      %Product{id: device.product_id},
+      :soft_deleted_device,
+      :info,
+      %{identifier: device.identifier},
+      "soft_deleted_device-#{device.identifier}"
+    )
   end
 
   @spec create_missing_firmware_metadata_notification!(device :: Device.t()) :: Notification.t()
   def create_missing_firmware_metadata_notification!(device) do
-    %Product{id: device.product_id}
-    |> Notification.new_changeset(%{
-      title: "A device connected without any firmware metadata.",
-      message:
-        "The device with the identifier '#{device.identifier}' connected but reported no firmware metadata (e.g. its uboot env had no `nerves_fw_uuid`). This is unexpected — please check the device's firmware.",
-      level: :warning,
-      metadata: %{identifier: device.identifier},
-      event_key: "missing_firmware_metadata-#{device.identifier}"
-    })
-    |> insert_and_notify!()
+    raise!(
+      %Product{id: device.product_id},
+      :missing_firmware_metadata,
+      :warning,
+      %{identifier: device.identifier},
+      "missing_firmware_metadata-#{device.identifier}"
+    )
   end
 
   @doc """
@@ -177,16 +378,13 @@ defmodule NervesHub.ProductNotifications do
   nothing else will notice — the device goes on connecting perfectly happily.
   """
   def create_update_mode_revert_failed_notification!(device) do
-    %Product{id: device.product_id}
-    |> Notification.new_changeset(%{
-      title: "A device could not be returned to automatic updates.",
-      message:
-        "The device with the identifier '#{device.identifier}' is set to manage its own updates, but is running firmware too old to do so. NervesHub tried to return it to automatic updates and could not, so it will receive no firmware at all until this is resolved. Set its update mode manually, or send it firmware by hand.",
-      level: :error,
-      metadata: %{identifier: device.identifier},
-      event_key: "update_mode_revert_failed-#{device.identifier}"
-    })
-    |> insert_and_notify!()
+    raise!(
+      %Product{id: device.product_id},
+      :update_mode_revert_failed,
+      :error,
+      %{identifier: device.identifier},
+      "update_mode_revert_failed-#{device.identifier}"
+    )
   end
 
   @doc """
@@ -204,24 +402,18 @@ defmodule NervesHub.ProductNotifications do
   @spec create_oversized_metric_keys_notification!(DeviceInfo.t(), String.t(), pos_integer(), pos_integer()) ::
           Notification.t()
   def create_oversized_metric_keys_notification!(device_info, example_key, count, max_bytes) do
-    %Product{id: device_info.product_id}
-    |> Notification.new_changeset(%{
-      title: "A device reported metric names that were too long to store.",
-      message:
-        "The device with the identifier '#{device_info.device_identifier}' sent #{count} " <>
-          "metric#{if count > 1, do: "s"} whose names are longer than #{max_bytes} bytes, " <>
-          "starting with '#{String.slice(example_key, 0, 64)}'. Those readings were discarded, " <>
-          "and the rest of the report was stored. Please shorten the metric names the device reports.",
-      level: :warning,
-      metadata: %{
+    raise!(
+      %Product{id: device_info.product_id},
+      :oversized_metric_keys,
+      :warning,
+      %{
         identifier: device_info.device_identifier,
         example_key: String.slice(example_key, 0, 256),
         count: count,
         max_bytes: max_bytes
       },
-      event_key: "oversized_metric_keys-#{device_info.device_identifier}"
-    })
-    |> insert_and_notify!()
+      "oversized_metric_keys-#{device_info.device_identifier}"
+    )
   end
 
   @doc """
@@ -236,23 +428,28 @@ defmodule NervesHub.ProductNotifications do
   the list back without it.
   """
   def create_workflow_halted_notification!(deployment_group, step, reason, opts \\ []) do
-    {title, message, level} = workflow_halted_copy(deployment_group, step, reason)
+    {reason, level, failed} =
+      case reason do
+        {:failed, failed_count} -> {"failed", :error, %{failed_count: failed_count}}
+        :awaiting_approval -> {"awaiting_approval", :info, %{}}
+      end
 
-    %Product{id: deployment_group.product_id}
-    |> Notification.new_changeset(%{
-      title: title,
-      message: message,
-      level: level,
-      metadata: %{
+    raise!(
+      %Product{id: deployment_group.product_id},
+      :workflow_halted,
+      level,
+      Map.merge(failed, %{
         deployment_group: deployment_group.name,
+        deployment_group_id: deployment_group.id,
         step_number: step.number,
-        step: DeploymentWorkflowStep.label(step)
-      },
+        step: DeploymentWorkflowStep.label(step),
+        reason: reason
+      }),
       # Keyed to the step rather than the deployment group, so a workflow that
       # stops twice at different stages says so twice.
-      event_key: workflow_halted_key(deployment_group.id, step.id)
-    })
-    |> insert_and_notify!(opts)
+      workflow_halted_key(deployment_group.id, step.id),
+      opts
+    )
   end
 
   @doc """
@@ -279,21 +476,15 @@ defmodule NervesHub.ProductNotifications do
   def create_extension_failure_notification!(%DeviceInfo{} = device_info, extension, reason) do
     reason = truncate_reason(reason)
 
-    %Product{id: device_info.product_id}
-    |> Notification.new_changeset(%{
-      title: "A device could not start an extension.",
-      message:
-        "The device with the identifier '#{device_info.device_identifier}' could not start the " <>
-          "'#{extension}' extension#{reason_clause(reason)}. It stays enabled in NervesHub and " <>
-          "will not work on this device until the cause is fixed, which is usually in the " <>
-          "device's firmware.",
-      level: :warning,
-      metadata: %{identifier: device_info.device_identifier, extension: extension, reason: reason},
+    raise!(
+      %Product{id: device_info.product_id},
+      :extension_failure,
+      :warning,
+      %{identifier: device_info.device_identifier, extension: extension, reason: reason},
       # The changeset rejects spaces, and a reason is a sentence, so the reason
       # is keyed by hash rather than by its text.
-      event_key: "extension_failure-#{extension}-#{device_info.device_identifier}-#{:erlang.phash2(reason)}"
-    })
-    |> insert_and_notify!()
+      "extension_failure-#{extension}-#{device_info.device_identifier}-#{:erlang.phash2(reason)}"
+    )
   end
 
   @doc """
@@ -316,19 +507,13 @@ defmodule NervesHub.ProductNotifications do
   def create_connecting_code_failure_notification!(%DeviceInfo{} = device_info, connecting_code, reason) do
     reason = truncate_reason(reason)
 
-    %Product{id: device_info.product_id}
-    |> Notification.new_changeset(%{
-      title: "A device could not run its connecting code.",
-      message:
-        "The device with the identifier '#{device_info.device_identifier}' could not run the " <>
-          "connecting code it was sent when it connected#{reason_clause(reason)}. A device's connecting " <>
-          "code combines its own, its deployment group's and its release's. Every device sent the " <>
-          "same code adds to this notification's count.",
-      level: :warning,
-      metadata: %{identifier: device_info.device_identifier, reason: reason},
-      event_key: "connecting_code_failure-#{:erlang.phash2(connecting_code)}"
-    })
-    |> insert_and_notify!()
+    raise!(
+      %Product{id: device_info.product_id},
+      :connecting_code_failure,
+      :warning,
+      %{identifier: device_info.device_identifier, reason: reason},
+      "connecting_code_failure-#{:erlang.phash2(connecting_code)}"
+    )
   end
 
   @doc """
@@ -343,19 +528,13 @@ defmodule NervesHub.ProductNotifications do
   """
   @spec create_too_many_metrics_notification!(DeviceInfo.t(), pos_integer(), pos_integer()) :: Notification.t()
   def create_too_many_metrics_notification!(device_info, reported, max_keys) do
-    %Product{id: device_info.product_id}
-    |> Notification.new_changeset(%{
-      title: "A device reported more metrics than NervesHub will store.",
-      message:
-        "The device with the identifier '#{device_info.device_identifier}' sent #{reported} metrics " <>
-          "in one report, and NervesHub stores at most #{max_keys}. The report was trimmed to the " <>
-          "first #{max_keys} metric names in alphabetical order, so the same readings are dropped " <>
-          "each time. Reduce what the device reports, or raise the limit for this deployment.",
-      level: :warning,
-      metadata: %{identifier: device_info.device_identifier, reported: reported, max_keys: max_keys},
-      event_key: "too_many_metrics-#{device_info.device_identifier}"
-    })
-    |> insert_and_notify!()
+    raise!(
+      %Product{id: device_info.product_id},
+      :too_many_metrics,
+      :warning,
+      %{identifier: device_info.device_identifier, reported: reported, max_keys: max_keys},
+      "too_many_metrics-#{device_info.device_identifier}"
+    )
   end
 
   @doc """
@@ -374,17 +553,13 @@ defmodule NervesHub.ProductNotifications do
     host = URI.parse(webhook.url).host
 
     for product_id <- product_ids do
-      %Product{id: product_id}
-      |> Notification.new_changeset(%{
-        title: "A webhook was turned off.",
-        message:
-          "#{Branding.friendly_platform_name()} stopped sending events to #{host} because #{reason}. Once the endpoint is " <>
-            "fixed, turn the webhook back on from the organization's Integrations settings.",
-        level: :error,
-        metadata: %{webhook_id: webhook.id, host: host},
-        event_key: "webhook_disabled-#{webhook.id}"
-      })
-      |> insert_and_notify!()
+      raise!(
+        %Product{id: product_id},
+        :webhook_disabled,
+        :error,
+        %{webhook_id: webhook.id, host: host, reason: reason},
+        "webhook_disabled-#{webhook.id}"
+      )
     end
   end
 
@@ -397,17 +572,13 @@ defmodule NervesHub.ProductNotifications do
           [Notification.t()]
   def create_slack_subscription_disabled_notifications!(%Subscription{} = subscription, product_ids, reason) do
     for product_id <- product_ids do
-      %Product{id: product_id}
-      |> Notification.new_changeset(%{
-        title: "Slack notifications were turned off.",
-        message:
-          "#{Branding.friendly_platform_name()} stopped posting to ##{subscription.channel_name} because #{reason}. Once that is fixed, " <>
-            "turn the channel back on from the organization's Integrations settings.",
-        level: :error,
-        metadata: %{slack_subscription_id: subscription.id, channel: subscription.channel_name},
-        event_key: "slack_subscription_disabled-#{subscription.id}"
-      })
-      |> insert_and_notify!()
+      raise!(
+        %Product{id: product_id},
+        :slack_subscription_disabled,
+        :error,
+        %{slack_subscription_id: subscription.id, channel: subscription.channel_name, reason: reason},
+        "slack_subscription_disabled-#{subscription.id}"
+      )
     end
   end
 
@@ -420,17 +591,13 @@ defmodule NervesHub.ProductNotifications do
     service = ChatWebhooks.provider(channel.provider).label()
 
     for product_id <- product_ids do
-      %Product{id: product_id}
-      |> Notification.new_changeset(%{
-        title: "#{service} notifications were turned off.",
-        message:
-          "#{Branding.friendly_platform_name()} stopped posting to the #{service} channel #{channel.name} because #{reason}. Once the webhook is fixed, " <>
-            "turn the channel back on from the organization's Integrations settings, or give it the webhook's new URL.",
-        level: :error,
-        metadata: %{chat_webhook_id: channel.id, channel: channel.name},
-        event_key: "chat_webhook_disabled-#{channel.id}"
-      })
-      |> insert_and_notify!()
+      raise!(
+        %Product{id: product_id},
+        :chat_webhook_disabled,
+        :error,
+        %{chat_webhook_id: channel.id, channel: channel.name, service: service, reason: reason},
+        "chat_webhook_disabled-#{channel.id}"
+      )
     end
   end
 
@@ -488,21 +655,6 @@ defmodule NervesHub.ProductNotifications do
     "workflow_halted-#{deployment_group_id}-#{step_id}"
   end
 
-  defp workflow_halted_copy(deployment_group, step, {:failed, failed_count}) do
-    {"A deployment workflow stopped after devices failed to update.",
-     "Step #{step.number} ('#{DeploymentWorkflowStep.label(step)}') of the workflow for deployment group '#{deployment_group.name}' failed: #{failed_count} device(s) could not take the update. No further devices will be updated for this release until the step is retried or skipped.",
-     :error}
-  end
-
-  defp workflow_halted_copy(deployment_group, step, :awaiting_approval) do
-    {"A deployment workflow is waiting for approval.",
-     "Step #{step.number} ('#{DeploymentWorkflowStep.label(step)}') of the workflow for deployment group '#{deployment_group.name}' needs approving before the rollout continues. No further devices will be updated for this release until it is approved or skipped.",
-     :info}
-  end
-
-  defp reason_clause(nil), do: ""
-  defp reason_clause(reason), do: ": #{reason}"
-
   defp truncate_reason(nil), do: nil
 
   defp truncate_reason(reason) when is_binary(reason) do
@@ -515,13 +667,33 @@ defmodule NervesHub.ProductNotifications do
 
   defp truncate_reason(reason), do: truncate_reason(inspect(reason))
 
-  defp insert_and_notify!(changeset, opts \\ []) do
+  # Raises a notification of `kind`, storing the copy that names what it's
+  # about as its title and message, for where it's sent.
+  defp raise!(product, kind, level, metadata, event_key, opts \\ []) do
+    %{title: title, message: message} = Copy.full(kind, metadata)
+
+    product
+    |> Notification.new_changeset(%{
+      kind: kind,
+      title: title,
+      message: message,
+      level: level,
+      metadata: metadata,
+      event_key: event_key
+    })
+    |> insert_and_notify!(opts)
+  end
+
+  defp insert_and_notify!(changeset, opts) do
     conflict_query =
       Notification
       |> update([n],
         set: [
           last_occurred_at: fragment("EXCLUDED.last_occurred_at"),
-          occurrence_count: fragment("?.occurrence_count + 1", n)
+          occurrence_count: fragment("?.occurrence_count + 1", n),
+          # One raised without a kind, by a node on a release from before
+          # kinds, gets one when it happens again.
+          kind: fragment("COALESCE(?.kind, EXCLUDED.kind)", n)
         ]
       )
 
@@ -563,9 +735,9 @@ defmodule NervesHub.ProductNotifications do
   # Preserved as the previous `Phoenix.PubSub` topic string.
   defp topic(product_id), do: "product_notifications:#{product_id}"
 
-  def count(product) do
-    Notification
-    |> where(product_id: ^product.id)
-    |> Repo.aggregate(:count)
-  end
+  @doc """
+  How many cards the product's notifications list has. See `level_counts/1`.
+  """
+  @spec count(Product.t()) :: non_neg_integer()
+  def count(product), do: level_counts(product).all
 end

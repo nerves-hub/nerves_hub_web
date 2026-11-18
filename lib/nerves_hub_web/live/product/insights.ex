@@ -207,7 +207,7 @@ defmodule NervesHubWeb.Live.Product.Insights do
   end
 
   defp assign_notifications(%{assigns: %{current_scope: scope}} = socket) do
-    {notifications, result_meta} = ProductNotifications.paginated_list(scope.product, 1, @notifications_list_size)
+    {notifications, result_meta, _before} = ProductNotifications.list_cards(scope.product, 1, @notifications_list_size)
 
     socket
     |> assign(:notifications, notifications)

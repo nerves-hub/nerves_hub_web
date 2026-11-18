@@ -988,8 +988,10 @@ defmodule NervesHubWeb.WebsocketTest do
       notifications = Repo.all(Notification)
       assert length(notifications) == 1
 
-      assert notifications |> hd() |> Map.get(:title) ==
-               "A device failed connecting as the identifier '#{device.identifier}' already exists."
+      assert [%{title: "A device tried to connect with an identifier already in use.", message: message}] =
+               notifications
+
+      assert message =~ "A device tried to connect as '#{device.identifier}'."
     end
   end
 

@@ -8,7 +8,10 @@ defmodule NervesHubWeb.Components.ProductSidebar do
   the total. Offline devices are never shown, since every product has some. On the
   rail a dot or count on the icon stands in for the line, and a tooltip spells it
   out. Figures are counted synchronously when the product changes, so links don't
-  shift as they arrive, and they never update live. The switcher's figures for every
+  shift as they arrive, and they never update live. The one exception is the
+  notifications count on the notifications page, which follows notifications
+  arriving and being dismissed there; that page sends it with `send_update/3`
+  (`notifications_count:`). The switcher's figures for every
   product in the organization are counted only when it opens. A member who sees only
   some devices gets none of the product-wide pages or figures, except the online
   count, which covers only the devices they can see. The root carries
@@ -31,6 +34,19 @@ defmodule NervesHubWeb.Components.ProductSidebar do
   @no_health %{healthy: 0, warning: 0, unhealthy: 0}
 
   @impl Phoenix.LiveComponent
+  def update(%{notifications_count: count}, socket) do
+    socket =
+      if socket.assigns[:status][:every_device?] do
+        socket
+        |> assign(:status, Map.put(socket.assigns.status, :notifications, count))
+        |> then(&assign(&1, :attention, attention(&1.assigns.status)))
+      else
+        socket
+      end
+
+    {:ok, socket}
+  end
+
   def update(assigns, socket) do
     product_changed? = socket.assigns[:product_id] != assigns.current_scope.product.id
 

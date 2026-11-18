@@ -636,7 +636,8 @@ defmodule NervesHubWeb.Live.Product.ErrorsTest do
 
       conn
       |> visit("/org/#{org.name}/#{product.name}/notifications")
-      |> refute_has("a", text: "Errors")
+      |> assert_has("#nav-notifications")
+      |> refute_has("#nav-errors")
     end
   end
 end
