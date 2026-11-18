@@ -1,193 +1,271 @@
 <NervesHubWeb.Layouts.sidebar flash={@flash} current_scope={@current_scope} sidebar_tab={@sidebar_tab}>
   <:top_bar>
-    <.breadcrumb navigate={~p"/org/#{@current_scope.org}/#{@current_scope.product}/errors"} root_label="All Errors"></.breadcrumb>
+    <nav aria-label="Breadcrumb" class="flex min-w-0 items-center gap-2">
+      <.link navigate={~p"/org/#{@current_scope.org}/#{@product}/errors"} class="text-base/6 font-medium text-content-muted hover:text-content-strong">
+        Errors
+      </.link>
+      <span class="lucide-chevron-right size-3.5 text-content-faint" aria-hidden="true"></span>
+      <span aria-current="page" class="truncate text-base/6 font-semibold text-content-strong">{short_name(@group.reason)}</span>
+      <span class="truncate font-mono text-xs text-content-muted max-sm:hidden">{top_bar_note(@group, @time_zone)}</span>
+    </nav>
   </:top_bar>
 
-  <:header>
-    <span class={["rounded px-1.5 py-0.5 text-xs", status_class(@group.status)]}>
-      {@group.status}
-    </span>
-    <h1 class="w-full text-page-title text-content-strong" title={@group.reason}>
-      {@group.reason}
-    </h1>
-    <div :if={authorized?(:"error_group:update", @current_scope)} class="flex flex-row gap-2">
-      <.button :if={@group.status != :resolved} style="secondary" phx-click="resolve" title="Resolve">
-        <.icon name="check" /><span class="sr-only">Resolve</span>
-      </.button>
-      <.button :if={@group.status == :unresolved} style="secondary" phx-click="mute" title="Mute">
-        <.icon name="mute" /><span class="sr-only">Mute</span>
-      </.button>
-      <.button :if={@group.status != :unresolved} style="secondary" phx-click="reopen" title="Reopen">
-        <.icon name="undo" /><span class="sr-only">Reopen</span>
-      </.button>
-    </div>
-  </:header>
+  <div class="@container h-0 flex-1 overflow-y-auto overscroll-y-none">
+    <%!-- From sm up it stays put while the page scrolls, and is at least as
+          tall as the sidebar's product block (107px with its border) so the
+          two bottom borders line up. --%>
+    <div
+      id="error-header"
+      class="flex gap-6 border-b border-line-default bg-surface px-4 py-5 max-sm:flex-col max-sm:gap-4 sm:sticky sm:top-0 sm:z-20 sm:min-h-26.75 sm:items-center sm:px-6 sm:py-3"
+    >
+      <div class="flex min-w-0 flex-1 flex-col gap-1.5">
+        <div class="flex flex-wrap items-center gap-2">
+          <.issue_badge group={@group} />
+          <span id="error-header-note" class="text-ui text-content-muted">{header_note(@group, @firmware, @time_zone)}</span>
+        </div>
+        <h1 class="font-mono text-lg/7 font-semibold wrap-break-word text-content-strong max-sm:text-[15px]/6">{@group.reason}</h1>
+        <p :if={top_frame(@group)} class="font-mono text-xs wrap-break-word text-content-muted sm:truncate">{top_frame(@group)}</p>
+      </div>
 
-  <div class="flex h-0 flex-1 flex-col gap-4 overflow-x-auto p-6">
-    <div class="grid grid-cols-2 gap-x-8 gap-y-3 rounded-card border border-line-default bg-surface-raised p-4 text-sm md:grid-cols-4">
-      <div>
-        <div class="text-xs text-content-muted">Occurrences</div>
-        <div class="font-mono text-lg text-base-100">{@group.occurrence_count}</div>
-      </div>
-      <div>
-        <div class="text-xs text-content-muted">Devices affected</div>
-        <div class="font-mono text-lg text-base-100">{@affected_device_count}</div>
-        <div class="text-xs text-content-faint">in the last 30 days</div>
-      </div>
-      <div>
-        <div class="text-xs text-content-muted">First seen</div>
-        <div class="text-base-200">{RelativeTime.from_now(@group.first_seen_at)}</div>
-        <div :if={@group.first_seen_firmware_uuid not in [nil, ""]} class="truncate font-mono text-xs text-content-faint" title={@group.first_seen_firmware_uuid}>
-          {@group.first_seen_firmware_uuid}
-        </div>
-      </div>
-      <div>
-        <div class="text-xs text-content-muted">Last seen</div>
-        <div class="text-base-200">{RelativeTime.from_now(@group.last_seen_at)}</div>
-        <div :if={@group.last_seen_firmware_uuid not in [nil, ""]} class="truncate font-mono text-xs text-content-faint" title={@group.last_seen_firmware_uuid}>
-          {@group.last_seen_firmware_uuid}
-        </div>
-      </div>
-      <div>
-        <div class="text-xs text-content-muted">Kind</div>
-        <div class="font-mono text-base-200">{@group.kind}</div>
-      </div>
-      <div>
-        <div class="text-xs text-content-muted">Source</div>
-        <div class="font-mono text-base-200">{@group.source}</div>
-      </div>
-      <div :if={@group.resolved_at}>
-        <div class="text-xs text-content-muted">Resolved</div>
-        <div class="text-base-200">
-          {RelativeTime.from_now(@group.resolved_at)}<span :if={@group.resolved_by}> by {@group.resolved_by.name}</span>
-        </div>
-      </div>
-      <div :if={@group.muted_at}>
-        <div class="text-xs text-content-muted">Muted</div>
-        <div class="text-base-200">
-          {RelativeTime.from_now(@group.muted_at)}<span :if={@group.muted_by}> by {@group.muted_by.name}</span>
-        </div>
-      </div>
-      <div :if={@group.regressed_at}>
-        <div class="text-xs text-content-muted">Regressed</div>
-        <div class="text-warning">{RelativeTime.from_now(@group.regressed_at)}</div>
+      <div :if={authorized?(:"error_group:update", @current_scope)} class="flex shrink-0 items-start gap-2 max-sm:*:flex-1">
+        <.button :if={@group.status == :unresolved} id="mute-error" phx-click="mute">
+          <span class="lucide-bell-off" aria-hidden="true"></span>Mute
+        </.button>
+        <.button :if={@group.status == :muted} id="unmute-error" phx-click="reopen">
+          <span class="lucide-bell" aria-hidden="true"></span>Unmute
+        </.button>
+        <.button :if={@group.status == :resolved} id="reopen-error" phx-click="reopen">
+          <span class="lucide-rotate-ccw" aria-hidden="true"></span>Reopen
+        </.button>
+        <.button :if={@group.status != :resolved} id="resolve-error" style="primary" phx-click="resolve" class="max-sm:order-first">
+          <span class="lucide-check" aria-hidden="true"></span>Resolve
+        </.button>
       </div>
     </div>
 
-    <div class="flex flex-col gap-4 rounded-card border border-line-default bg-surface-raised p-4">
-      <div class="flex flex-row items-center justify-between">
-        <div class="leading-6 font-medium text-content-strong">Occurrences over time</div>
-        <.segmented_control label="Occurrences period">
-          <:segment :for={{label, value} <- periods()} selected={@period == value} phx-click="select-period" phx-value-period={value}>
-            {label}
-          </:segment>
-        </.segmented_control>
-      </div>
-      <div class="h-[160px] grow">
-        <canvas
-          id={"error-occurrences-chart-#{@period}"}
-          phx-hook="BarChart"
-          phx-update="ignore"
-          data-metrics={Jason.encode!(@chart_data)}
-          data-title=""
-          data-mindate={Jason.encode!(@chart_from)}
-          data-maxdate={Jason.encode!(@chart_to)}
-          data-unit="day"
-          data-period={@period}
-        ></canvas>
-      </div>
-    </div>
-
-    <div class="flex flex-col gap-3 rounded-card border border-line-default bg-surface-raised p-4">
-      <div class="leading-6 font-medium text-content-strong">Most recent occurrence</div>
-      <div :if={is_nil(@latest_occurrence)} class="text-sm font-extralight text-content-faint">
-        No stored occurrence — reports are kept for 30 days, and this error's have aged out.
-      </div>
-      <div :if={@latest_occurrence} class="flex flex-col gap-3 font-mono text-xs">
-        <div :if={@latest_occurrence.message != ""} class="max-h-60 overflow-y-auto whitespace-pre-wrap text-content-body">
-          {@latest_occurrence.message}
-        </div>
-        <div class="flex flex-col gap-0.5">
-          <div :for={frame <- frames(@latest_occurrence)} class="text-content-muted">
-            <span class="text-base-200">{frame["module"]}.{frame["function"]}</span>
-            <span :if={frame["file"]}>&nbsp;({frame["file"]}<span :if={frame["line"]}>:{frame["line"]}</span>)</span>
+    <div class="flex gap-6 px-4 py-5 max-lg:flex-col sm:px-6">
+      <div class="flex min-w-0 flex-1 flex-col gap-5">
+        <%!-- Events, First seen and Last seen are kept on the error; Devices
+              comes from the 30 days of reports. --%>
+        <div id="error-stats" class="grid grid-cols-4 rounded-card border border-line-default bg-surface-raised max-md:grid-cols-2">
+          <div class="flex flex-col gap-1 px-4 py-3.5 max-md:border-b max-md:border-line-subtle">
+            <span class="text-label tracking-[0.06em] text-content-muted uppercase">Events</span>
+            <span class="font-mono text-figure-sm text-content-strong">{delimited(@group.occurrence_count)}</span>
+            <span class="text-xs text-content-muted">since {day_label(@group.first_seen_at, @time_zone)}, all time</span>
+          </div>
+          <div class="flex flex-col gap-1 border-l border-line-subtle px-4 py-3.5 max-md:border-b">
+            <span class="text-label tracking-[0.06em] text-content-muted uppercase">Devices</span>
+            <%= if @retained_count > 0 do %>
+              <span class="font-mono text-figure-sm text-content-strong">{delimited(@device_count)}</span>
+              <span class="text-xs text-content-muted">in the last 30 days</span>
+            <% else %>
+              <span class="font-mono text-figure-sm text-content-faint">—</span>
+              <span class="text-xs text-content-muted">no reports in 30 days</span>
+            <% end %>
+          </div>
+          <div class="flex flex-col gap-1 border-l border-line-subtle px-4 py-3.5 max-md:border-l-0">
+            <span class="text-label tracking-[0.06em] text-content-muted uppercase">First seen</span>
+            <span class="truncate text-figure-sm text-content-strong">
+              <%= if label = firmware_label(@group.first_seen_firmware_uuid, @firmware) do %>
+                <.firmware label={label} class="[&>span]:text-xs" />
+              <% else %>
+                <span class="font-mono text-content-faint">—</span>
+              <% end %>
+            </span>
+            <span class="text-xs text-content-muted">{to_local_string(@group.first_seen_at, @time_zone, :medium_date, false)}</span>
+          </div>
+          <div class="flex flex-col gap-1 border-l border-line-subtle px-4 py-3.5">
+            <span class="text-label tracking-[0.06em] text-content-muted uppercase">Last seen</span>
+            <span class="truncate text-figure-sm text-content-strong">
+              <%= if label = firmware_label(@group.last_seen_firmware_uuid, @firmware) do %>
+                <.firmware label={label} class="[&>span]:text-xs" />
+              <% else %>
+                <span class="font-mono text-content-faint">—</span>
+              <% end %>
+            </span>
+            <span class="text-xs text-content-muted">
+              <span :if={@retained_count == 0}>{day_label(@group.last_seen_at, @time_zone)}, </span>{last_seen_label(@group.last_seen_at)}
+            </span>
           </div>
         </div>
-        <div :if={@latest_occurrence.context != %{}} class="flex flex-row flex-wrap gap-x-6 gap-y-1 text-content-muted">
-          <span :for={{key, value} <- @latest_occurrence.context}>{key}: <span class="text-base-200">{value}</span></span>
-        </div>
-      </div>
-    </div>
 
-    <div class="flex flex-col rounded-card border border-line-default bg-surface-raised">
-      <div class="flex h-14 items-center border-b border-line-default px-4">
-        <div class="text-card-title text-content-strong">Affected devices</div>
+        <section id="error-chart" class="rounded-card border border-line-default bg-surface-raised">
+          <div class="flex h-13 items-center justify-between gap-3 border-b border-line-default px-4">
+            <h2 class="text-sm font-semibold text-content-strong">{chart_title(@period)}</h2>
+            <.segmented_control id="chart-period" label="Time range">
+              <:segment :for={{label, value} <- periods()} selected={@period == value} phx-click="select-period" phx-value-period={value}>
+                {label}
+              </:segment>
+            </.segmented_control>
+          </div>
+          <div class="px-4 pt-4 pb-3">
+            <%= if @retained_count > 0 do %>
+              <.events_chart id={"events-chart-#{@period}"} bars={@bars} markers={@markers} axis={@axis} />
+              <div :if={@markers != []} class="flex flex-wrap gap-x-5 gap-y-1 pt-2.5 text-xs text-content-muted">
+                <span :for={marker <- @markers} class="flex items-center gap-1.5">
+                  <span class={["w-4 border-t", (marker.kind == :release && "border-dotted border-notice") || "border-dashed border-content-faint"]} aria-hidden="true"></span>
+                  {marker_legend(marker.kind, @group, @release, @time_zone)}
+                </span>
+              </div>
+            <% else %>
+              <div id="chart-empty" class="flex h-40 flex-col items-center justify-center gap-1 text-center">
+                <span class="text-sm font-medium text-content-strong">No reports in the last 30 days</span>
+                <span class="max-w-md text-ui text-content-muted">
+                  Reports are kept for 30 days. This one was last seen {day_label(@group.last_seen_at, @time_zone)}, so there’s nothing left to chart.
+                </span>
+              </div>
+            <% end %>
+          </div>
+        </section>
+
+        <section id="latest-event" class="rounded-card border border-line-default bg-surface-raised">
+          <div class="flex min-h-13 flex-wrap items-center gap-x-3 gap-y-1 border-b border-line-default px-4 py-2.5">
+            <h2 class="text-sm font-semibold text-content-strong">Latest event</h2>
+            <span :if={@occurrence} class="text-ui text-content-muted">
+              {last_seen_label(@occurrence.timestamp)} on
+              <.link
+                :if={@occurrence_device}
+                navigate={~p"/org/#{@current_scope.org}/#{@product}/devices/#{@occurrence_device}/errors"}
+                class="font-mono text-xs text-notice-content hover:underline"
+              >
+                {@occurrence_device.identifier}
+              </.link>
+              <span :if={!@occurrence_device}>a deleted device</span>
+            </span>
+            <div :if={@occurrence} class="ml-auto flex items-center gap-2">
+              <span class="font-mono text-xs text-content-muted max-sm:hidden">{@occurrence_index + 1} of {delimited(@retained_count)}</span>
+              <.button size="sm" square aria-label="Newer event" disabled={@occurrence_index == 0} phx-click="occurrence" phx-value-index={@occurrence_index - 1}>
+                <span class="lucide-chevron-left" aria-hidden="true"></span>
+              </.button>
+              <.button size="sm" square aria-label="Older event" disabled={@occurrence_index + 1 >= @retained_count} phx-click="occurrence" phx-value-index={@occurrence_index + 1}>
+                <span class="lucide-chevron-right" aria-hidden="true"></span>
+              </.button>
+            </div>
+          </div>
+
+          <div :if={!@occurrence} id="event-aged-out" class="flex flex-col gap-1 p-4">
+            <p class="text-sm text-content-body">The stack frames and context went with the reports. The reason and top frame above are kept with the error.</p>
+            <p class="text-ui text-content-muted">By firmware and Devices hit most are hidden too, since they’re counted from the same reports.</p>
+          </div>
+
+          <div :if={@occurrence}>
+            <div
+              :if={truncated?(@occurrence)}
+              id="event-truncated"
+              class="mx-4 mt-4 flex items-center gap-2 rounded-card border border-warning/30 bg-warning-soft px-3 py-2 text-ui text-warning-content"
+            >
+              <span class="lucide-triangle-exclamation-point size-4" aria-hidden="true"></span> The report was cut to fit. The device sent {size_label(@occurrence.payload_bytes)}.
+            </div>
+
+            <% frames = frames(@occurrence) %>
+            <ol :if={frames != []} id="event-frames" class="flex flex-col py-2">
+              <li
+                :for={{frame, index} <- Enum.with_index(frames)}
+                data-top={index == 0}
+                class={[
+                  "flex flex-col gap-0.5 border-l-2 px-4 py-2 font-mono text-xs/4.5",
+                  (index == 0 && "border-l-alert bg-alert-soft") || "border-transparent",
+                  index > 1 && "max-sm:hidden"
+                ]}
+              >
+                <span class="break-all text-content-strong">{frame["module"]}.{frame["function"]}</span>
+                <span :if={frame["file"]} class="break-all text-content-muted">{location(frame["file"], frame["line"])}</span>
+              </li>
+            </ol>
+            <%!-- A phone shows the top two frames until asked for the rest. --%>
+            <button
+              :if={length(frames) > 2}
+              id="show-all-frames"
+              type="button"
+              phx-click={JS.remove_class("max-sm:hidden", to: "#event-frames li") |> JS.hide()}
+              class="mx-4 mb-3 cursor-pointer text-ui font-medium text-notice-content hover:underline sm:hidden"
+            >
+              Show {length(frames) - 2} more frames
+            </button>
+
+            <div :if={frames == []} id="event-message" class="flex flex-col gap-2 p-4">
+              <p :if={@occurrence.source == "manual"} class="text-ui text-content-muted">No stack frames: this report was sent by hand. Its message is shown instead.</p>
+              <p :if={@occurrence.source != "manual"} class="text-ui text-content-muted">No stack frames in this report. Its message is shown instead.</p>
+              <pre
+                :if={@occurrence.message != ""}
+                class="max-h-80 overflow-auto rounded-card border border-line-default bg-surface-muted px-3.5 py-3 font-mono text-xs/5 whitespace-pre-wrap text-content-body"
+              >{@occurrence.message}</pre>
+            </div>
+
+            <dl id="event-context" class="flex flex-wrap gap-x-8 gap-y-3 border-t border-line-default px-4 py-3 max-sm:grid max-sm:grid-cols-2 max-sm:gap-x-4">
+              <div class="flex flex-col gap-0.5">
+                <dt class="text-label tracking-[0.06em] text-content-muted uppercase">Kind</dt>
+                <dd class="font-mono text-xs text-content-strong">{@occurrence.kind}</dd>
+              </div>
+              <div class="flex flex-col gap-0.5">
+                <dt class="text-label tracking-[0.06em] text-content-muted uppercase">Source</dt>
+                <dd class="font-mono text-xs text-content-strong">{@occurrence.source}</dd>
+              </div>
+              <div :for={{label, value, known?} <- context_entries(@occurrence.context)} class="flex max-w-60 flex-col gap-0.5">
+                <dt class={(known? && "text-label tracking-[0.06em] text-content-muted uppercase") || "font-mono text-[11px]/4 text-content-muted"}>{label}</dt>
+                <dd class="font-mono text-xs break-all text-content-strong">{value}</dd>
+              </div>
+            </dl>
+          </div>
+        </section>
       </div>
-      <div :if={Enum.empty?(@affected_devices)} class="p-8 text-center text-sm font-extralight text-content-faint">
-        No devices with retained occurrences.
-      </div>
-      <table :if={Enum.any?(@affected_devices)} class="w-full table-fixed text-sm">
-        <colgroup>
-          <col />
-          <col class="w-28" />
-          <col class="w-44" />
-        </colgroup>
-        <thead>
-          <tr class="border-b border-line-default text-left font-extralight text-content-muted">
-            <th class="px-4 py-2 font-normal">Device</th>
-            <th class="py-2 pr-6 font-normal">Occurrences</th>
-            <th class="py-2 pr-4 font-normal">Last seen</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr :for={entry <- @affected_devices} class="border-b border-line-subtle hover:bg-base-900">
-            <td class="px-4 py-2">
-              <.link navigate={~p"/org/#{@current_scope.org}/#{@current_scope.product}/devices/#{entry.device}/errors"} class="font-mono text-base-200 hover:underline">
+
+      <%!-- Counted from the kept reports, so gone when they are. --%>
+      <div :if={@retained_count > 0} class="flex shrink-0 flex-col gap-5 lg:w-85">
+        <section id="by-firmware" class="rounded-card border border-line-default bg-surface-raised">
+          <h2 class="flex h-13 items-center border-b border-line-default px-4 text-sm font-semibold text-content-strong">By firmware</h2>
+          <ul class="flex flex-col gap-3 px-4 py-3.5">
+            <li :for={{row, index} <- Enum.with_index(@by_firmware)} class="flex flex-col gap-1.5">
+              <div class="flex items-center justify-between gap-3 text-xs">
+                <%= case firmware_label(row.firmware_uuid, @firmware) do %>
+                  <% nil -> %>
+                    <span class="text-content-muted">Unknown</span>
+                  <% %{deleted?: true} = label -> %>
+                    <.firmware label={label} class="text-content-body" />
+                  <% label -> %>
+                    <.link navigate={~p"/org/#{@current_scope.org}/#{@product}/firmware/#{row.firmware_uuid}"} class="font-mono text-content-strong hover:underline">
+                      {label.text}
+                    </.link>
+                <% end %>
+                <span class="font-mono text-content-muted">
+                  {delimited(row.count)} · {ngettext("1 device", "%{count} devices", row.device_count)}
+                </span>
+              </div>
+              <div class="h-1 overflow-hidden rounded-full bg-line-subtle">
+                <div
+                  class={["h-full rounded-full", (index == 0 && @group.status == :unresolved && "bg-alert") || "bg-content-faint"]}
+                  style={"width: #{bar_width(row.count, @by_firmware)}"}
+                >
+                </div>
+              </div>
+            </li>
+          </ul>
+        </section>
+
+        <section id="top-devices" class="rounded-card border border-line-default bg-surface-raised">
+          <div class="flex h-13 items-center justify-between border-b border-line-default px-4">
+            <h2 class="text-sm font-semibold text-content-strong">Devices hit most</h2>
+            <span class="text-xs text-content-muted">{ngettext("1 device", "%{count} devices", @device_count)} in 30 days</span>
+          </div>
+          <ul>
+            <li :for={{entry, index} <- Enum.with_index(@top_devices)} class={["flex h-10 items-center gap-2.5 border-b border-line-subtle px-4 last:border-b-0", index > 2 && "max-sm:hidden"]}>
+              <.status_dot class={(online?(entry.device) && "size-1.5 bg-success") || "size-1.5 bg-content-faint"} />
+              <.link
+                navigate={~p"/org/#{@current_scope.org}/#{@product}/devices/#{entry.device}/errors"}
+                class="min-w-0 flex-1 truncate font-mono text-xs text-content-strong hover:underline"
+              >
                 {entry.device.identifier}
               </.link>
-            </td>
-            <td class="py-2 pr-6 font-mono text-content-body">{entry.occurrence_count}</td>
-            <td class="py-2 pr-4 text-content-body">{RelativeTime.from_now(entry.last_seen_at)}</td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
+              <span class="font-mono text-xs text-content-muted">{delimited(entry.occurrence_count)}</span>
+            </li>
+          </ul>
+        </section>
 
-    <div class="flex flex-col rounded-card border border-line-default bg-surface-raised">
-      <div class="flex h-14 items-center justify-between border-b border-line-default px-4">
-        <div class="text-card-title text-content-strong">Recent occurrences</div>
-        <span class="text-sm font-extralight text-content-muted">Showing the last 25.</span>
+        <div :if={tip = firmware_tip(@by_firmware, @retained_count, @firmware, @release)} id="firmware-tip" class="flex gap-2.5 rounded-card bg-surface-muted px-4 py-3 text-xs/4.5 text-content-body">
+          <span class="mt-0.5 lucide-info size-3.5 text-content-muted" aria-hidden="true"></span>
+          {tip}
+        </div>
       </div>
-      <div :if={Enum.empty?(@occurrences)} class="p-8 text-center text-sm font-extralight text-content-faint">
-        No retained occurrences.
-      </div>
-      <table :if={Enum.any?(@occurrences)} class="w-full table-fixed text-sm">
-        <colgroup>
-          <col class="w-52" />
-          <col class="w-40" />
-          <col />
-        </colgroup>
-        <thead>
-          <tr class="border-b border-line-default text-left font-extralight text-content-muted">
-            <th class="px-4 py-2 font-normal">Timestamp ({zone_abbr(@time_zone)})</th>
-            <th class="py-2 pr-6 font-normal">Firmware</th>
-            <th class="py-2 pr-4 font-normal">Reason</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr :for={occurrence <- @occurrences} class="border-b border-line-subtle align-top hover:bg-base-900">
-            <td class="px-4 py-2 font-mono whitespace-nowrap text-content-body">
-              <.local_datetime at={occurrence.timestamp} time_zone={@time_zone} format={:timestamp} zone_label={false} />
-            </td>
-            <td class="truncate py-2 pr-6 font-mono text-xs text-content-muted" title={occurrence.firmware_uuid}>
-              {occurrence.firmware_uuid}
-            </td>
-            <td class="truncate py-2 pr-4 font-mono text-xs text-content-body" title={occurrence.reason}>
-              {occurrence.reason}
-            </td>
-          </tr>
-        </tbody>
-      </table>
     </div>
   </div>
 </NervesHubWeb.Layouts.sidebar>

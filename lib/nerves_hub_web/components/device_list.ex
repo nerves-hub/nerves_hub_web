@@ -636,6 +636,8 @@ defmodule NervesHubWeb.Components.DeviceList do
 
   attr(:pager, :map, required: true, doc: "with `current_page`, `total_pages`, `page_size` and `total_count`")
   attr(:page_sizes, :list, default: [25, 50, 100])
+  attr(:id, :string, default: "device-pager")
+  attr(:noun, :string, default: nil, doc: "what's counted, after the total: `58 unresolved`")
 
   @doc """
   The line under the list: which devices of how many it shows, then the page
@@ -656,16 +658,17 @@ defmodule NervesHubWeb.Components.DeviceList do
       )
 
     ~H"""
-    <div :if={@pager.total_count > 0} id="device-pager" class="flex items-center justify-between gap-4 pt-4 max-sm:justify-end">
+    <div :if={@pager.total_count > 0} id={@id} class="flex items-center justify-between gap-4 pt-4 max-sm:justify-end">
       <p class="text-ui/4 text-content-muted max-sm:hidden">
-        <span class="font-mono text-xs text-content-strong">{delimited(@first)}–{delimited(@last)}</span> of <span class="font-mono text-xs text-content-strong">{delimited(@pager.total_count)}</span>
+        <span class="font-mono text-xs text-content-strong">{delimited(@first)}–{delimited(@last)}</span>
+        of <span class="font-mono text-xs text-content-strong">{delimited(@pager.total_count)}</span>{if @noun, do: " #{@noun}"}
       </p>
       <div class="flex items-center gap-4">
-        <form id="device-pager-size" phx-change="set-paginate-opts" class="flex items-center gap-1.5">
-          <label for="device-pager-size-select" class="text-ui/4 text-content-muted">Per page</label>
+        <form id={"#{@id}-size"} phx-change="set-paginate-opts" class="flex items-center gap-1.5">
+          <label for={"#{@id}-size-select"} class="text-ui/4 text-content-muted">Per page</label>
           <div class="grid grid-cols-1">
             <select
-              id="device-pager-size-select"
+              id={"#{@id}-size-select"}
               name="page-size"
               class="col-start-1 row-start-1 h-7 cursor-pointer appearance-none rounded border border-line-control bg-surface-raised bg-none py-0 pr-6 pl-2 font-mono text-xs text-content-strong focus:outline focus:-outline-offset-1 focus:outline-focus-ring"
             >
