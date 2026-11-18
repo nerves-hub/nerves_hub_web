@@ -64,9 +64,15 @@ defmodule NervesHubWeb.Live.Product.HealthProfiles do
         Enum.find(profiles, &is_nil(&1.platform)) ||
         hd(profiles)
 
-    socket
-    |> load_profile(profile)
-    |> noreply()
+    # The current profile's own link doesn't ask first, as the others do,
+    # so it keeps the draft rather than reloading the profile under it.
+    if socket.assigns[:profile] && socket.assigns.profile.id == profile.id do
+      noreply(socket)
+    else
+      socket
+      |> load_profile(profile)
+      |> noreply()
+    end
   end
 
   # Every input on the page: thresholds and periods, and the metric picker,
@@ -296,6 +302,7 @@ defmodule NervesHubWeb.Live.Product.HealthProfiles do
       |> assign(:edited_preview, nil)
       |> assign(:previewing?, false)
       |> assign(:saved_previewing?, false)
+      |> cancel_async(:saved_preview)
       |> cancel_async(:edited_preview)
       |> assign_impact()
       |> assign_add_options()
@@ -335,7 +342,10 @@ defmodule NervesHubWeb.Live.Product.HealthProfiles do
          {:ok, metrics} <- draft_metrics(draft) do
       %{product: product, current_scope: scope, profile: profile, profiles: profiles} = socket.assigns
 
+      # A later start_async only ignores the earlier task's result, so the
+      # earlier one is stopped rather than left scanning the fleet.
       socket
+      |> cancel_async(:edited_preview)
       |> assign(edited_preview: nil, previewing?: true)
       |> start_async(:edited_preview, fn ->
         HealthProfiles.preview_counts(product, scope.user, profile, profiles, metrics)
@@ -569,7 +579,7 @@ defmodule NervesHubWeb.Live.Product.HealthProfiles do
   defp suggestion_to_offer(observed_stats, row) do
     case suggestion(observed_stats, row) do
       %{warning: warning, alert: alert} = suggestion ->
-        if !(parse_number(row.warning_threshold) == warning and parse_number(row.alert_threshold) == alert),
+        if {parse_number(row.warning_threshold), parse_number(row.alert_threshold)} != {warning, alert},
           do: suggestion
 
       nil ->

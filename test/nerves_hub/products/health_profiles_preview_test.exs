@@ -80,7 +80,7 @@ defmodule NervesHub.Products.HealthProfilesPreviewTest do
 
   test "counts only the devices the profile applies to", %{user: user, org: org, product: product, firmware: firmware} do
     rpi0 = Fixtures.device_fixture(org, product, firmware)
-    esp32 = org |> Fixtures.device_fixture(product, firmware) |> on_platform("esp32")
+    esp32 = Fixtures.device_fixture(org, product, firmware, %{platform: "esp32"})
     report(rpi0, %{"cpu_usage_percent" => 95.0})
     report(esp32, %{"cpu_usage_percent" => 95.0})
 
@@ -159,13 +159,6 @@ defmodule NervesHub.Products.HealthProfilesPreviewTest do
       org_id: device.org_id,
       product_id: device.product_id
     }
-  end
-
-  defp on_platform(device, platform) do
-    device
-    |> Ecto.Changeset.change()
-    |> Ecto.Changeset.put_embed(:firmware_metadata, Ecto.Changeset.change(device.firmware_metadata, platform: platform))
-    |> Repo.update!()
   end
 
   # Each row gets a distinct `established_at`: the ReplacingMergeTree dedupes

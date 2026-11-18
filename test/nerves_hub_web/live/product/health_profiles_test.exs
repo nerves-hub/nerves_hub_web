@@ -204,6 +204,18 @@ defmodule NervesHubWeb.Live.Product.HealthProfilesTest do
       assert_patch(view, "#{path}?profile=#{platform_profile.id}")
     end
 
+    test "the current profile's own link keeps unsaved changes", %{conn: conn, path: path, product: product} do
+      default = HealthProfiles.resolve(product.id, nil)
+      {:ok, view, _html} = live(conn, path)
+
+      render_click(view, "remove-metric", %{"index" => "#{index_of(view, "cpu_usage_percent")}"})
+      view |> element("#health-profile-#{default.id}") |> render_click()
+
+      assert_patch(view, "#{path}?profile=#{default.id}")
+      assert has_element?(view, "#unsaved-changes", "1 unsaved change")
+      refute has_element?(view, "#metric-cpu_usage_percent")
+    end
+
     test "adds only a metric the picker offers", %{conn: conn, path: path} do
       {:ok, view, _html} = live(conn, path)
 

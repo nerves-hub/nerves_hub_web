@@ -208,7 +208,7 @@ defmodule NervesHub.Products.HealthProfilesTest do
 
     test "count each profile's devices, and their health", %{user: user, org: org, product: product, firmware: firmware} do
       [warning, _unknown] = for _ <- 1..2, do: Fixtures.device_fixture(org, product, firmware)
-      org |> Fixtures.device_fixture(product, firmware) |> on_platform("esp32")
+      Fixtures.device_fixture(org, product, firmware, %{platform: "esp32"})
 
       # A deleted device counts nowhere.
       org
@@ -463,13 +463,6 @@ defmodule NervesHub.Products.HealthProfilesTest do
       "alert_threshold" => to_string(metric.alert_threshold),
       "alert_period_seconds" => metric.alert_period_seconds
     }
-  end
-
-  defp on_platform(device, platform) do
-    device
-    |> Ecto.Changeset.change()
-    |> Ecto.Changeset.put_embed(:firmware_metadata, Ecto.Changeset.change(device.firmware_metadata, platform: platform))
-    |> Repo.update!()
   end
 
   defp valid_metric_attrs(key) do
