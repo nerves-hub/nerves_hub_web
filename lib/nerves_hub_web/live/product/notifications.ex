@@ -436,9 +436,8 @@ defmodule NervesHubWeb.Live.Product.Notifications do
   defp empty_level_title(:warning), do: "No warnings"
   defp empty_level_title(:info), do: "No info notifications"
 
-  # What the other tabs hold, for an empty one: "There are 6 warnings and 2
-  # info notifications."
-  # The verb agrees with the first of them: "There is 1 error and 2 warnings."
+  # What the other tabs hold, for an empty one, with the verb agreeing with
+  # the first of them: "There is 1 error and 2 warnings."
   defp elsewhere_sentence(counts, level) do
     [{first, _label} | _] =
       parts =

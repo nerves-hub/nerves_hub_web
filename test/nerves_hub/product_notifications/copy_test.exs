@@ -59,6 +59,12 @@ defmodule NervesHub.ProductNotifications.CopyTest do
 
       assert Copy.card(notification(:device_bulk_create, %{created: 1, failed: 0})).message ==
                "1 device was added, along with its certificate."
+
+      assert Copy.card(notification(:device_bulk_create, %{created: 0, failed: 1})).message ==
+               "The only device in the manifest could not be added. Check that the manifest is valid."
+
+      assert Copy.card(notification(:device_bulk_create, %{created: 0, failed: 4})).message ==
+               "None of the 4 devices in the manifest could be added. Check that the manifest is valid."
     end
 
     test "falls back to what was stored for a notification its copy can't be written for" do

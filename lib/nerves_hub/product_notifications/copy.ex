@@ -93,7 +93,9 @@ defmodule NervesHub.ProductNotifications.Copy do
   @doc """
   What sets one device's notification apart from the others rolled up with
   it, for its row in the card: the extension that failed, how many metrics
-  it sent. `nil` when nothing does.
+  it sent.
+
+  `nil` when nothing does.
   """
   @spec detail(Notification.t()) :: String.t() | nil
   def detail(%Notification{kind: kind, metadata: metadata}), do: detail(kind, stringify(metadata))
@@ -165,6 +167,9 @@ defmodule NervesHub.ProductNotifications.Copy do
 
       {created, 0} ->
         "#{created} devices were added, along with their certificates."
+
+      {0, 1} ->
+        "The only device in the manifest could not be added. Check that the manifest is valid."
 
       {0, failed} ->
         "None of the #{failed} devices in the manifest could be added. Check that the manifest is valid."
