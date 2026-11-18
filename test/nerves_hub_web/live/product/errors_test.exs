@@ -474,6 +474,26 @@ defmodule NervesHubWeb.Live.Product.ErrorsTest do
       assert html =~ ~r/<title>[^<]*: 1<\/title>/
     end
 
+    # A device names the firmware each report came from, so there can be any
+    # number of them.
+    test "lists only the busiest five firmware", %{
+      conn: conn,
+      org: org,
+      product: product,
+      group: group,
+      device: device
+    } do
+      record(
+        device,
+        for(n <- 1..6, do: report("** (RuntimeError) boom", %{"firmware_uuid" => "fw-extra-#{n}"}))
+      )
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/errors/#{group.id}")
+      |> assert_has("#by-firmware li", count: 5)
+      |> refute_has("#firmware-tip")
+    end
+
     test "pages through the kept events", %{conn: conn, org: org, product: product, group: group, device: device} do
       record(device, [
         report("** (RuntimeError) boom", %{

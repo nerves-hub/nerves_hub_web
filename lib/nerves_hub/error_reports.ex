@@ -542,9 +542,9 @@ defmodule NervesHub.ErrorReports do
 
   @doc """
   Occurrences of an issue bucketed by whole UTC hours, from the hour `from`
-  falls in to the hour `to` does. Like `occurrences_by_date/4`, every hour
-  comes back, quiet ones included.
+  falls in to the hour `to` does.
 
+  Like `occurrences_by_date/4`, every hour comes back, quiet ones included.
   There is no time zone here, unlike the daily buckets: a zone half or three
   quarters of an hour off UTC would start its hours somewhere else. The
   caller shifts each hour to local time for its label.
@@ -595,9 +595,12 @@ defmodule NervesHub.ErrorReports do
   @doc """
   An issue's kept occurrences split by the firmware they were reported on,
   most first, as `%{firmware_uuid:, count:, device_count:}`.
+
+  At most `:limit` firmware come back. A device names the firmware its
+  reports were sent from, so there is no telling how many there are.
   """
-  @spec occurrences_by_firmware(ErrorGroup.t()) :: [map()]
-  def occurrences_by_firmware(%ErrorGroup{} = group) do
+  @spec occurrences_by_firmware(ErrorGroup.t(), keyword()) :: [map()]
+  def occurrences_by_firmware(%ErrorGroup{} = group, opts \\ []) do
     ErrorReport
     |> where([r], r.product_id == ^group.product_id and r.fingerprint == ^group.fingerprint)
     |> group_by([r], r.firmware_uuid)
@@ -607,6 +610,7 @@ defmodule NervesHub.ErrorReports do
       device_count: fragment("uniqExact(?)", r.device_id)
     })
     |> order_by([r], desc: count(r.fingerprint))
+    |> limit(^Keyword.get(opts, :limit, @default_limit))
     |> AnalyticsRepo.all()
   end
 

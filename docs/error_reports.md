@@ -189,10 +189,10 @@ An issue is **unresolved**, **resolved** or **muted**.
 - **Mute** when you know about it and do not want it in the queue. A muted
   issue keeps counting and does not reopen.
 
-Resolving or muting from a product's Errors list offers an undo for as long
-as the notice stays up. Undoing a resolve puts back the regressed mark the
-resolve cleared, so an issue that came back still says so. Reopening by hand,
-or unmuting, is not a regression and leaves no mark.
+Resolving or muting from a product's Errors list offers an undo while the
+notice stays up, unless the issue changes in the meantime. Undoing puts back
+what the action cleared, so an issue that came back still says so. Reopening
+by hand, or unmuting, is not a regression and leaves no mark.
 
 The reopen rule is currently blunt: any occurrence after the issue was resolved
 reopens it. On a fleet where half the devices are still running the firmware

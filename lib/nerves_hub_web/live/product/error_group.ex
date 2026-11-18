@@ -26,6 +26,7 @@ defmodule NervesHubWeb.Live.Product.ErrorGroup do
 
   @periods ~w(24h 7d 30d)
   @top_devices 5
+  @top_firmware 5
   # The share of events one firmware has to carry before the page says so.
   @tip_share 0.8
 
@@ -110,7 +111,7 @@ defmodule NervesHubWeb.Live.Product.ErrorGroup do
   defp flash_message(:reopen, _group), do: "Reopened. The error is back in Unresolved."
 
   defp load_reports(%{assigns: %{group: group, product: product}} = socket) do
-    by_firmware = ErrorReports.occurrences_by_firmware(group)
+    by_firmware = ErrorReports.occurrences_by_firmware(group, limit: @top_firmware)
 
     uuids =
       [group.first_seen_firmware_uuid, group.last_seen_firmware_uuid | Enum.map(by_firmware, & &1.firmware_uuid)]
@@ -297,9 +298,10 @@ defmodule NervesHubWeb.Live.Product.ErrorGroup do
   @doc """
   When one firmware carries most of an error's events, a line that says so,
   and where that firmware went if it was released. `nil` otherwise.
+
+  `total` is every kept event, not only those of the firmware listed.
   """
-  def firmware_tip([top, _next | _rest] = rows, firmware, release) do
-    total = rows |> Enum.map(& &1.count) |> Enum.sum()
+  def firmware_tip([top, _next | _rest], total, firmware, release) do
     share = top.count / max(total, 1)
 
     with true <- share >= @tip_share,
@@ -310,7 +312,7 @@ defmodule NervesHubWeb.Live.Product.ErrorGroup do
     end
   end
 
-  def firmware_tip(_rows, _firmware, _release), do: nil
+  def firmware_tip(_rows, _total, _firmware, _release), do: nil
 
   defp release_note(%{version: version, deployment_group: group}, version),
     do: " #{group} was the first deployment group to get it."
@@ -339,9 +341,6 @@ defmodule NervesHubWeb.Live.Product.ErrorGroup do
   def online?(%{latest_connection: %{status: :connected}}), do: true
   def online?(_device), do: false
 
-  @doc "How wide a firmware's bar is, as a share of the busiest one."
-  def bar_width(count, rows) do
-    max = rows |> Enum.map(& &1.count) |> Enum.max(fn -> 1 end) |> max(1)
-    "#{Float.round(count * 100 / max, 1)}%"
-  end
+  @doc "How wide a firmware's bar is, as a share of the busiest one, which comes first."
+  def bar_width(count, [%{count: busiest} | _rows]), do: "#{Float.round(count * 100 / max(busiest, 1), 1)}%"
 end

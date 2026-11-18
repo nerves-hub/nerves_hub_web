@@ -261,7 +261,7 @@
           </ul>
         </section>
 
-        <div :if={tip = firmware_tip(@by_firmware, @firmware, @release)} id="firmware-tip" class="flex gap-2.5 rounded-card bg-surface-muted px-4 py-3 text-xs/4.5 text-content-body">
+        <div :if={tip = firmware_tip(@by_firmware, @retained_count, @firmware, @release)} id="firmware-tip" class="flex gap-2.5 rounded-card bg-surface-muted px-4 py-3 text-xs/4.5 text-content-body">
           <span class="mt-0.5 lucide-info size-3.5 text-content-muted" aria-hidden="true"></span>
           {tip}
         </div>

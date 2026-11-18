@@ -602,6 +602,8 @@ defmodule NervesHub.ErrorReportsTest do
                %{firmware_uuid: "fw-b", count: 1, device_count: 1}
              ] = ErrorReports.occurrences_by_firmware(group)
 
+      assert [%{firmware_uuid: "fw-connection"}] = ErrorReports.occurrences_by_firmware(group, limit: 1)
+
       assert [%{device: %{id: id}, occurrence_count: 2} | _rest] =
                ErrorReports.affected_devices(group, order: :count)
 
