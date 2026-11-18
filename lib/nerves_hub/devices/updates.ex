@@ -12,7 +12,7 @@ defmodule NervesHub.Devices.Updates do
 
   alias Ecto.Changeset
   alias Ecto.Multi
-  alias NervesHub.Accounts.User
+  alias NervesHub.AuditLogs
   alias NervesHub.AuditLogs.DeviceTemplates
   alias NervesHub.DeploymentOrchestratorEvents
   alias NervesHub.DeviceEvents
@@ -591,7 +591,7 @@ defmodule NervesHub.Devices.Updates do
   To set the mode inside a transaction of your own, use `save_update_mode/3`
   and `update_mode_committed/1` instead.
   """
-  @spec set_update_mode(Device.t(), Device.update_mode(), User.t() | :device) ::
+  @spec set_update_mode(Device.t(), Device.update_mode(), AuditLogs.actor() | :device) ::
           {:ok, Device.t()} | {:error, :not_permitted} | {:error, any(), any(), any()}
   def set_update_mode(device, mode, actor) do
     with {:ok, device} <- save_update_mode(device, mode, actor) do
@@ -609,7 +609,7 @@ defmodule NervesHub.Devices.Updates do
   that transaction commits, it would find the old mode and pass the device
   over. Call `update_mode_committed/1` once the transaction has committed.
   """
-  @spec save_update_mode(Device.t(), Device.update_mode(), User.t() | :device) ::
+  @spec save_update_mode(Device.t(), Device.update_mode(), AuditLogs.actor() | :device) ::
           {:ok, Device.t()} | {:error, :not_permitted} | {:error, any(), any(), any()}
   def save_update_mode(device, mode, actor)
 
@@ -625,7 +625,7 @@ defmodule NervesHub.Devices.Updates do
     description =
       case actor do
         :device -> "Device #{device.identifier} set its update mode to #{mode}"
-        user -> "User #{user.name} set the update mode for device #{device.identifier} to #{mode}"
+        actor -> "#{AuditLogs.actor_name(actor)} set the update mode for device #{device.identifier} to #{mode}"
       end
 
     params =
@@ -636,7 +636,7 @@ defmodule NervesHub.Devices.Updates do
       end
 
     # The device itself is the audit actor when it sets its own mode, which is how
-    # the log distinguishes a device opting in from a user changing it for them.
+    # the log distinguishes a device opting in from a actor changing it for them.
     audit_actor = if actor == :device, do: device, else: actor
 
     Devices.update_device_with_audit(device, params, audit_actor, description, :update_mode_changed)
@@ -698,16 +698,16 @@ defmodule NervesHub.Devices.Updates do
   is already not pushed to, and freezing it would silently take away a mode it
   or an operator chose; an already-frozen device has nothing to change.
   """
-  @spec pause_automatic_updates(Device.t(), User.t()) ::
+  @spec pause_automatic_updates(Device.t(), AuditLogs.actor()) ::
           {:ok, Device.t()} | {:error, any(), any(), any()}
-  def pause_automatic_updates(%Device{update_mode: :automatic} = device, user) do
+  def pause_automatic_updates(%Device{update_mode: :automatic} = device, actor) do
     description =
-      "User #{user.name} paused automatic updates for device #{device.identifier} to send firmware manually"
+      "#{AuditLogs.actor_name(actor)} paused automatic updates for device #{device.identifier} to send firmware manually"
 
-    Devices.update_device_with_audit(device, %{update_mode: :off}, user, description, :updates_disabled)
+    Devices.update_device_with_audit(device, %{update_mode: :off}, actor, description, :updates_disabled)
   end
 
-  def pause_automatic_updates(%Device{} = device, _user), do: {:ok, device}
+  def pause_automatic_updates(%Device{} = device, _actor), do: {:ok, device}
 
   @doc """
   Allow or forbid a device putting itself into `:device_managed`.
@@ -716,28 +716,28 @@ defmodule NervesHub.Devices.Updates do
   call to make explicitly with `set_update_mode/3`, so revoking the grant cannot
   quietly drag a fleet back into rollout.
   """
-  @spec set_managed_updates_allowed(Device.t(), boolean(), User.t()) ::
+  @spec set_managed_updates_allowed(Device.t(), boolean(), AuditLogs.actor()) ::
           {:ok, Device.t()} | {:error, any(), any(), any()}
-  def set_managed_updates_allowed(%Device{} = device, enabled, user) when is_boolean(enabled) do
+  def set_managed_updates_allowed(%Device{} = device, enabled, actor) when is_boolean(enabled) do
     description =
-      "User #{user.name} #{(enabled && "allowed") || "disallowed"} device-managed updates for device #{device.identifier}"
+      "#{AuditLogs.actor_name(actor)} #{(enabled && "allowed") || "disallowed"} device-managed updates for device #{device.identifier}"
 
     Devices.update_device_with_audit(
       device,
       %{managed_updates_allowed: enabled},
-      user,
+      actor,
       description,
       :managed_updates_changed
     )
   end
 
-  @spec enable_updates(Device.t() | [Device.t()], User.t()) ::
+  @spec enable_updates(Device.t() | [Device.t()], AuditLogs.actor()) ::
           {:ok, Device.t()} | {:error, any(), any(), any()}
-  def enable_updates(%Device{} = device, user) do
-    description = "User #{user.name} enabled updates for device #{device.identifier}"
+  def enable_updates(%Device{} = device, actor) do
+    description = "#{AuditLogs.actor_name(actor)} enabled updates for device #{device.identifier}"
     params = %{update_mode: :automatic, update_attempts: []}
 
-    case Devices.update_device_with_audit(device, params, user, description, :updates_enabled) do
+    case Devices.update_device_with_audit(device, params, actor, description, :updates_enabled) do
       {:ok, device} = result ->
         _ =
           if device.deployment_id do
@@ -751,12 +751,12 @@ defmodule NervesHub.Devices.Updates do
     end
   end
 
-  @spec disable_updates(Device.t() | [Device.t()], User.t()) ::
+  @spec disable_updates(Device.t() | [Device.t()], AuditLogs.actor()) ::
           {:ok, Device.t()} | {:error, any(), any(), any()}
-  def disable_updates(%Device{} = device, user) do
-    description = "User #{user.name} disabled updates for device #{device.identifier}"
+  def disable_updates(%Device{} = device, actor) do
+    description = "#{AuditLogs.actor_name(actor)} disabled updates for device #{device.identifier}"
     params = %{update_mode: :off}
-    Devices.update_device_with_audit(device, params, user, description, :updates_disabled)
+    Devices.update_device_with_audit(device, params, actor, description, :updates_disabled)
   end
 
   @doc """
@@ -830,9 +830,9 @@ defmodule NervesHub.Devices.Updates do
     |> Repo.exclude_deleted()
   end
 
-  def clear_penalty_box(%Device{} = device, user) do
-    description = "User #{user.name} removed device #{device.identifier} from the penalty box"
+  def clear_penalty_box(%Device{} = device, actor) do
+    description = "#{AuditLogs.actor_name(actor)} removed device #{device.identifier} from the penalty box"
     params = %{updates_blocked_until: nil, update_attempts: []}
-    Devices.update_device_with_audit(device, params, user, description, :penalty_box_cleared)
+    Devices.update_device_with_audit(device, params, actor, description, :penalty_box_cleared)
   end
 end

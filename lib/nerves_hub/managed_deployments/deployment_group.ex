@@ -13,6 +13,7 @@ defmodule NervesHub.ManagedDeployments.DeploymentGroup do
   alias NervesHub.Firmwares.Firmware
   alias NervesHub.ManagedDeployments.DeploymentRelease
   alias NervesHub.ManagedDeployments.WorkflowValidator
+  alias NervesHub.Products.ApiKey
   alias NervesHub.Products.Product
   alias NervesHub.Repo
   alias NervesHub.Types.Tag
@@ -113,8 +114,8 @@ defmodule NervesHub.ManagedDeployments.DeploymentGroup do
   A virtual field for `firmware` is used for simplifying the UI form (and errors), as well
   as the API post payload and errors.
   """
-  @spec create_changeset(map(), Product.t(), Firmware.t(), User.t()) :: Ecto.Changeset.t()
-  def create_changeset(params, product, firmware, user) do
+  @spec create_changeset(map(), Product.t(), Firmware.t(), User.t() | ApiKey.t()) :: Ecto.Changeset.t()
+  def create_changeset(params, product, firmware, created_by) do
     %DeploymentGroup{}
     |> cast(params, [:name, :delta_updatable, :platform, :architecture, :notes])
     |> cast_embed(:conditions, required: true, with: &conditions_changeset/2)
@@ -131,16 +132,17 @@ defmodule NervesHub.ManagedDeployments.DeploymentGroup do
     |> validate_architecture()
     |> unique_constraint(:name, name: :deployments_product_id_name_index)
     |> then(fn changeset ->
-      first_release = first_release_changeset(product, get_field(changeset, :firmware), user)
+      first_release = first_release_changeset(product, get_field(changeset, :firmware), created_by)
 
       put_assoc(changeset, :deployment_releases, [first_release])
     end)
   end
 
-  defp first_release_changeset(product, firmware, created_by_user) do
+  defp first_release_changeset(product, firmware, created_by) do
     change(%DeploymentRelease{})
     |> put_assoc(:firmware, firmware)
-    |> put_assoc(:created_by, created_by_user)
+    |> DeploymentRelease.put_created_by(created_by)
+    |> validate_created_by_api_key(product)
     |> put_change(:number, 1)
     |> validate_required([:firmware])
     |> validate_change(:created_by, fn :created_by, created_by_assoc ->
@@ -155,6 +157,16 @@ defmodule NervesHub.ManagedDeployments.DeploymentGroup do
       |> case do
         nil -> [created_by_id: "invalid associated user"]
         _user -> []
+      end
+    end)
+  end
+
+  defp validate_created_by_api_key(changeset, product) do
+    validate_change(changeset, :created_by_api_key, fn :created_by_api_key, %{data: api_key} ->
+      if api_key.product_id == product.id do
+        []
+      else
+        [created_by_api_key: "belongs to another product"]
       end
     end)
   end

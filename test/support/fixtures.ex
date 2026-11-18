@@ -298,6 +298,12 @@ defmodule NervesHub.Fixtures do
     product
   end
 
+  def api_key_fixture(%Products.Product{} = product, %Accounts.User{} = user, params \\ %{}) do
+    params = Enum.into(params, %{"name" => "api-key-#{counter()}", "role" => "manage"})
+    {:ok, api_key, _token} = Products.ApiKeys.create(product, user, params)
+    api_key
+  end
+
   @spec firmware_file_fixture(OrgKey.t(), Product.t()) :: String.t()
   def firmware_file_fixture(%Accounts.OrgKey{} = org_key, %Products.Product{} = product, params \\ %{}) do
     {:ok, filepath} =

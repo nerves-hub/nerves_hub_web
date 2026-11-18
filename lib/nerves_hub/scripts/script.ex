@@ -72,16 +72,24 @@ defmodule NervesHub.Scripts.Script do
     validate_changeset(params)
     |> put_assoc(:product, product)
     |> foreign_key_constraint(:product_id)
-    |> put_assoc(:created_by, created_by)
+    |> put_assoc(:created_by, user_or_nil(created_by))
     |> foreign_key_constraint(:created_by_id)
   end
 
   def update_changeset(%__MODULE__{} = struct, edited_by, params \\ %{}) do
     struct
     |> validate_changeset(params)
-    |> put_change(:last_updated_by_id, edited_by.id)
+    |> put_change(:last_updated_by_id, user_id(edited_by))
     |> foreign_key_constraint(:last_updated_by_id)
   end
+
+  # `created_by` and `last_updated_by` name users. A product API key leaves them
+  # empty, and the audit entry is what records the key.
+  defp user_or_nil(%User{} = user), do: user
+  defp user_or_nil(_api_key), do: nil
+
+  defp user_id(%User{id: id}), do: id
+  defp user_id(_api_key), do: nil
 
   # Only Elixir is checked. Shell text is stored as written: validating it would
   # mean either shelling out to a `bash` the release image is not guaranteed to

@@ -83,12 +83,12 @@ defmodule NervesHub.DeviceEvents do
   end
 
   @doc """
-  Asks the device to identify itself, as `user`. `via:` names where the
+  Asks the device to identify itself, as `actor`. `via:` names where the
   request came from, for the audit log, when it was not the dashboard or API.
   """
-  def identify(device, user, opts \\ []) do
+  def identify(device, actor, opts \\ []) do
     Repo.transact(fn ->
-      DeviceTemplates.audit_request_action(user, device, :identify, opts[:via])
+      DeviceTemplates.audit_request_action(actor, device, :identify, opts[:via])
 
       broadcast(device, "identify", %{})
 
@@ -97,12 +97,12 @@ defmodule NervesHub.DeviceEvents do
   end
 
   @doc """
-  Asks the device to reboot, as `user`. `via:` names where the request came
+  Asks the device to reboot, as `actor`. `via:` names where the request came
   from, for the audit log, when it was not the dashboard or API.
   """
-  def reboot(device, user, opts \\ []) do
+  def reboot(device, actor, opts \\ []) do
     Repo.transact(fn ->
-      DeviceTemplates.audit_reboot(user, device, opts[:via])
+      DeviceTemplates.audit_reboot(actor, device, opts[:via])
 
       broadcast(device, "reboot", %{})
 
@@ -248,11 +248,11 @@ defmodule NervesHub.DeviceEvents do
   """
   @spec manual_update(Device.t(), Firmware.t(), User.t(), keyword()) ::
           {:ok, Device.t()} | {:error, :already_updating}
-  def manual_update(device, firmware, user, opts \\ []) do
+  def manual_update(device, firmware, actor, opts \\ []) do
     Repo.transact(fn ->
       with {:ok, _inflight_update} <-
              insert_inflight_update(InflightUpdate.manual_requested_changeset(device.id, firmware)) do
-        send_manual_update(device, firmware, user, opts)
+        send_manual_update(device, firmware, actor, opts)
       end
     end)
     |> case do
@@ -280,7 +280,7 @@ defmodule NervesHub.DeviceEvents do
     end
   end
 
-  defp send_manual_update(device, firmware, user, opts) do
+  defp send_manual_update(device, firmware, actor, opts) do
     # When a delta is being sent it is the delta that the device downloads, so
     # it is the delta that describes the download.
     {:ok, firmware_or_delta} =
@@ -296,9 +296,9 @@ defmodule NervesHub.DeviceEvents do
       end
 
     {:ok, meta} = Firmwares.metadata_from_firmware(firmware)
-    {:ok, device} = Updates.pause_automatic_updates(device, user)
+    {:ok, device} = Updates.pause_automatic_updates(device, actor)
 
-    DeviceTemplates.audit_firmware_pushed(user, device, firmware)
+    DeviceTemplates.audit_firmware_pushed(actor, device, firmware)
 
     :ok =
       Integrations.dispatch(device.product_id, "device.firmware_update.scheduled", fn ->

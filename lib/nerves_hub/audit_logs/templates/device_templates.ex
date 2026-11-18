@@ -3,7 +3,6 @@ defmodule NervesHub.AuditLogs.DeviceTemplates do
   Templates for and handling of audit logging for device operations.
   """
 
-  alias NervesHub.Accounts.User
   alias NervesHub.Archives.Archive
   alias NervesHub.AuditLogs
   alias NervesHub.DeviceLink.DeviceInfo
@@ -19,28 +18,30 @@ defmodule NervesHub.AuditLogs.DeviceTemplates do
 
   # `via` names where a request came from when it was not the dashboard or
   # the API, such as Slack.
-  @spec audit_reboot(User.t(), Device.t(), String.t() | nil) :: :ok
-  def audit_reboot(user, device, via \\ nil) do
-    description = "User #{user.name} rebooted device #{device.identifier}#{via(via)}"
-    AuditLogs.audit!(user, device, description, kind: :device_rebooted)
+  @spec audit_reboot(AuditLogs.actor(), Device.t(), String.t() | nil) :: :ok
+  def audit_reboot(actor, device, via \\ nil) do
+    description = "#{AuditLogs.actor_name(actor)} rebooted device #{device.identifier}#{via(via)}"
+    AuditLogs.audit!(actor, device, description, kind: :device_rebooted)
   end
 
-  @spec audit_request_action(User.t(), Device.t(), :identify | :reconnect, String.t() | nil) :: :ok
-  def audit_request_action(user, device, action, via \\ nil) do
+  @spec audit_request_action(AuditLogs.actor(), Device.t(), :identify | :reconnect, String.t() | nil) :: :ok
+  def audit_request_action(actor, device, action, via \\ nil) do
     {wording, kind} =
       case action do
         :identify -> {"identify itself", :identify_requested}
         :reconnect -> {"reconnect", :reconnect_requested}
       end
 
-    description = "User #{user.name} requested the device (#{device.identifier}) #{wording}#{via(via)}"
-    AuditLogs.audit!(user, device, description, kind: kind)
+    description = "#{AuditLogs.actor_name(actor)} requested the device (#{device.identifier}) #{wording}#{via(via)}"
+    AuditLogs.audit!(actor, device, description, kind: kind)
   end
 
-  @spec audit_script_run(User.t(), Device.t(), String.t(), String.t() | nil) :: :ok
-  def audit_script_run(user, device, script_name, via \\ nil) do
-    description = "User #{user.name} ran support script #{script_name} on device #{device.identifier}#{via(via)}"
-    AuditLogs.audit!(user, device, description, kind: :script_run)
+  @spec audit_script_run(AuditLogs.actor(), Device.t(), String.t(), String.t() | nil) :: :ok
+  def audit_script_run(actor, device, script_name, via \\ nil) do
+    description =
+      "#{AuditLogs.actor_name(actor)} ran support script #{script_name} on device #{device.identifier}#{via(via)}"
+
+    AuditLogs.audit!(actor, device, description, kind: :script_run)
   end
 
   defp via(nil), do: ""
@@ -48,16 +49,16 @@ defmodule NervesHub.AuditLogs.DeviceTemplates do
 
   ## Shared secrets
 
-  @spec audit_shared_secret_created(User.t(), Device.t(), SharedSecretAuth.t()) :: :ok
-  def audit_shared_secret_created(user, device, auth) do
-    description = "User #{user.name} created shared secret #{auth.key} for device #{device.identifier}"
-    AuditLogs.audit!(user, device, description, kind: :shared_secret_created)
+  @spec audit_shared_secret_created(AuditLogs.actor(), Device.t(), SharedSecretAuth.t()) :: :ok
+  def audit_shared_secret_created(actor, device, auth) do
+    description = "#{AuditLogs.actor_name(actor)} created shared secret #{auth.key} for device #{device.identifier}"
+    AuditLogs.audit!(actor, device, description, kind: :shared_secret_created)
   end
 
-  @spec audit_shared_secret_deactivated(User.t(), Device.t(), SharedSecretAuth.t()) :: :ok
-  def audit_shared_secret_deactivated(user, device, auth) do
-    description = "User #{user.name} deactivated shared secret #{auth.key} for device #{device.identifier}"
-    AuditLogs.audit!(user, device, description, kind: :shared_secret_deactivated)
+  @spec audit_shared_secret_deactivated(AuditLogs.actor(), Device.t(), SharedSecretAuth.t()) :: :ok
+  def audit_shared_secret_deactivated(actor, device, auth) do
+    description = "#{AuditLogs.actor_name(actor)} deactivated shared secret #{auth.key} for device #{device.identifier}"
+    AuditLogs.audit!(actor, device, description, kind: :shared_secret_deactivated)
   end
 
   ## Firmware and upgrades
@@ -73,20 +74,20 @@ defmodule NervesHub.AuditLogs.DeviceTemplates do
     AuditLogs.audit(device, device, description, kind: :update_attempted)
   end
 
-  @spec audit_pushed_available_update(User.t(), Device.t(), Firmware.t()) :: :ok
-  def audit_pushed_available_update(user, device, firmware) do
+  @spec audit_pushed_available_update(AuditLogs.actor(), Device.t(), Firmware.t()) :: :ok
+  def audit_pushed_available_update(actor, device, firmware) do
     description =
-      "User #{user.name} pushed available firmware update #{firmware.version} #{firmware.uuid} to device #{device.identifier}"
+      "#{AuditLogs.actor_name(actor)} pushed available firmware update #{firmware.version} #{firmware.uuid} to device #{device.identifier}"
 
-    AuditLogs.audit!(user, device, description, kind: :firmware_pushed)
+    AuditLogs.audit!(actor, device, description, kind: :firmware_pushed)
   end
 
-  @spec audit_firmware_pushed(User.t(), Device.t(), Firmware.t()) :: :ok
-  def audit_firmware_pushed(user, device, firmware) do
+  @spec audit_firmware_pushed(AuditLogs.actor(), Device.t(), Firmware.t()) :: :ok
+  def audit_firmware_pushed(actor, device, firmware) do
     description =
-      "User #{user.name} pushed firmware #{firmware.version} #{firmware.uuid} to device #{device.identifier}"
+      "#{AuditLogs.actor_name(actor)} pushed firmware #{firmware.version} #{firmware.uuid} to device #{device.identifier}"
 
-    AuditLogs.audit!(user, device, description, kind: :firmware_pushed)
+    AuditLogs.audit!(actor, device, description, kind: :firmware_pushed)
   end
 
   @spec audit_firmware_metadata_updated(Device.t()) :: :ok
@@ -225,12 +226,12 @@ defmodule NervesHub.AuditLogs.DeviceTemplates do
     AuditLogs.audit!(device, device, description, kind: :update_requested)
   end
 
-  @spec audit_device_deployment_group_update(User.t(), Device.t(), DeploymentGroup.t()) :: :ok
-  def audit_device_deployment_group_update(user, device, deployment_group) do
+  @spec audit_device_deployment_group_update(AuditLogs.actor(), Device.t(), DeploymentGroup.t()) :: :ok
+  def audit_device_deployment_group_update(actor, device, deployment_group) do
     AuditLogs.audit!(
-      user,
+      actor,
       device,
-      "User #{user.name} set #{device.identifier}'s deployment group to #{deployment_group.name}",
+      "#{AuditLogs.actor_name(actor)} set #{device.identifier}'s deployment group to #{deployment_group.name}",
       kind: :deployment_group_set
     )
   end

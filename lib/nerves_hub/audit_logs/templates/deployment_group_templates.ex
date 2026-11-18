@@ -2,56 +2,55 @@ defmodule NervesHub.AuditLogs.DeploymentGroupTemplates do
   @moduledoc """
   Templates for and handling of audit logging for deployment operations.
   """
-  alias NervesHub.Accounts.User
   alias NervesHub.AuditLogs
   alias NervesHub.Devices.Device
   alias NervesHub.ManagedDeployments.DeploymentGroup
   alias NervesHub.ManagedDeployments.DeploymentRelease
   alias NervesHub.ManagedDeployments.DeploymentWorkflowStep
 
-  @spec audit_deployment_created(User.t(), DeploymentGroup.t()) :: :ok
-  def audit_deployment_created(user, deployment_group) do
-    description = "User #{user.name} created deployment group #{deployment_group.name}"
-    AuditLogs.audit!(user, deployment_group, description)
+  @spec audit_deployment_created(AuditLogs.actor(), DeploymentGroup.t()) :: :ok
+  def audit_deployment_created(actor, deployment_group) do
+    description = "#{AuditLogs.actor_name(actor)} created deployment group #{deployment_group.name}"
+    AuditLogs.audit!(actor, deployment_group, description)
   end
 
-  @spec audit_new_deployment_release(User.t(), DeploymentGroup.t()) :: :ok
-  def audit_new_deployment_release(user, deployment_group) do
-    description = "User #{user.name} created a new release for deployment group #{deployment_group.name}"
-    AuditLogs.audit!(user, deployment_group, description)
+  @spec audit_new_deployment_release(AuditLogs.actor(), DeploymentGroup.t()) :: :ok
+  def audit_new_deployment_release(actor, deployment_group) do
+    description = "#{AuditLogs.actor_name(actor)} created a new release for deployment group #{deployment_group.name}"
+    AuditLogs.audit!(actor, deployment_group, description)
   end
 
-  @spec audit_release_required_changed(User.t(), DeploymentGroup.t(), DeploymentRelease.t()) :: :ok
-  def audit_release_required_changed(user, deployment_group, release) do
+  @spec audit_release_required_changed(AuditLogs.actor(), DeploymentGroup.t(), DeploymentRelease.t()) :: :ok
+  def audit_release_required_changed(actor, deployment_group, release) do
     change = if release.required, do: "marked", else: "unmarked"
 
     description =
-      "User #{user.name} #{change} release #{release.number} as required for deployment group #{deployment_group.name}"
+      "#{AuditLogs.actor_name(actor)} #{change} release #{release.number} as required for deployment group #{deployment_group.name}"
 
-    AuditLogs.audit!(user, deployment_group, description)
+    AuditLogs.audit!(actor, deployment_group, description)
   end
 
-  @spec audit_release_connecting_code_changed(User.t(), DeploymentGroup.t(), DeploymentRelease.t()) :: :ok
-  def audit_release_connecting_code_changed(user, deployment_group, release) do
+  @spec audit_release_connecting_code_changed(AuditLogs.actor(), DeploymentGroup.t(), DeploymentRelease.t()) :: :ok
+  def audit_release_connecting_code_changed(actor, deployment_group, release) do
     description =
-      "User #{user.name} changed the connecting code for release #{release.number} of deployment group #{deployment_group.name}"
+      "#{AuditLogs.actor_name(actor)} changed the connecting code for release #{release.number} of deployment group #{deployment_group.name}"
 
-    AuditLogs.audit!(user, deployment_group, description)
+    AuditLogs.audit!(actor, deployment_group, description)
   end
 
-  @spec audit_deployment_updated(User.t(), DeploymentGroup.t()) :: :ok
-  def audit_deployment_updated(user, deployment_group) do
-    description = "User #{user.name} updated deployment group #{deployment_group.name}"
-    AuditLogs.audit!(user, deployment_group, description)
+  @spec audit_deployment_updated(AuditLogs.actor(), DeploymentGroup.t()) :: :ok
+  def audit_deployment_updated(actor, deployment_group) do
+    description = "#{AuditLogs.actor_name(actor)} updated deployment group #{deployment_group.name}"
+    AuditLogs.audit!(actor, deployment_group, description)
   end
 
-  @spec audit_deployment_deleted(User.t(), DeploymentGroup.t()) :: :ok
-  def audit_deployment_deleted(user, deployment_group) do
-    description = "User #{user.name} deleted deployment group #{deployment_group.name}"
-    AuditLogs.audit!(user, deployment_group, description)
+  @spec audit_deployment_deleted(AuditLogs.actor(), DeploymentGroup.t()) :: :ok
+  def audit_deployment_deleted(actor, deployment_group) do
+    description = "#{AuditLogs.actor_name(actor)} deleted deployment group #{deployment_group.name}"
+    AuditLogs.audit!(actor, deployment_group, description)
   end
 
-  @spec audit_deployment_toggle_active(User.t(), DeploymentGroup.t(), String.t()) :: :ok
+  @spec audit_deployment_toggle_active(AuditLogs.actor(), DeploymentGroup.t(), String.t()) :: :ok
   @doc """
   A workflow step failed and stopped the rollout.
 
@@ -71,21 +70,21 @@ defmodule NervesHub.AuditLogs.DeploymentGroupTemplates do
   @doc """
   Somebody approved, skipped or retried a workflow step. `via` names where
   they did it when it was not the deployment group's page, such as a Slack
-  user.
+  actor.
   """
   @spec audit_workflow_step_action(
-          User.t(),
+          AuditLogs.actor(),
           DeploymentGroup.t(),
           DeploymentWorkflowStep.t(),
           :approved | :skipped | :retried,
           String.t() | nil
         ) :: :ok
-  def audit_workflow_step_action(user, deployment_group, step, action, via \\ nil)
+  def audit_workflow_step_action(actor, deployment_group, step, action, via \\ nil)
       when action in [:approved, :skipped, :retried] do
     description =
-      "User #{user.name} #{action} workflow step #{step.number} (#{DeploymentWorkflowStep.label(step)}) for deployment group #{deployment_group.name}#{via(via)}"
+      "#{AuditLogs.actor_name(actor)} #{action} workflow step #{step.number} (#{DeploymentWorkflowStep.label(step)}) for deployment group #{deployment_group.name}#{via(via)}"
 
-    AuditLogs.audit!(user, deployment_group, description)
+    AuditLogs.audit!(actor, deployment_group, description)
   end
 
   defp via(nil), do: ""
@@ -103,9 +102,9 @@ defmodule NervesHub.AuditLogs.DeploymentGroupTemplates do
     AuditLogs.audit!(deployment_group, deployment_group, description)
   end
 
-  def audit_deployment_toggle_active(user, deployment_group, status) do
-    description = "User #{user.name} marked deployment group #{deployment_group.name} #{status}"
-    AuditLogs.audit!(user, deployment_group, description)
+  def audit_deployment_toggle_active(actor, deployment_group, status) do
+    description = "#{AuditLogs.actor_name(actor)} marked deployment group #{deployment_group.name} #{status}"
+    AuditLogs.audit!(actor, deployment_group, description)
   end
 
   @spec audit_deployment_mismatch(Device.t(), DeploymentGroup.t(), String.t()) :: :ok

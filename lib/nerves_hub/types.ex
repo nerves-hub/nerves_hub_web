@@ -76,7 +76,8 @@ defmodule NervesHub.Types do
         "Elixir.NervesHub.ManagedDeployments.DeploymentGroup",
         "Elixir.NervesHub.Devices.Device",
         "Elixir.NervesHub.Firmwares.Firmware",
-        "Elixir.NervesHub.Products.Product"
+        "Elixir.NervesHub.Products.Product",
+        "Elixir.NervesHub.Products.ApiKey"
       ]
     end
   end

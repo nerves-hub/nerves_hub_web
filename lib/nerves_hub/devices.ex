@@ -554,6 +554,11 @@ defmodule NervesHub.Devices do
     :ok
   end
 
+  # Columns that name a user stay empty when a product API key did the work.
+  # The audit entry is what records the key; see `NervesHub.AuditLogs`.
+  defp actor_user_id(%User{id: id}), do: id
+  defp actor_user_id(_api_key), do: nil
+
   @doc """
   Creates a shared secret for a device on a user's behalf, recording who
   created it, and audits it.
@@ -561,13 +566,13 @@ defmodule NervesHub.Devices do
   Returns `{:error, :shared_secrets_not_enabled}` when this platform doesn't
   accept shared secrets, since the device could never connect with one.
   """
-  @spec issue_shared_secret_auth(Device.t(), User.t()) ::
+  @spec issue_shared_secret_auth(Device.t(), AuditLogs.actor()) ::
           {:ok, SharedSecretAuth.t()} | {:error, Changeset.t() | :shared_secrets_not_enabled}
-  def issue_shared_secret_auth(device, user) do
+  def issue_shared_secret_auth(device, actor) do
     if DeviceLink.shared_secrets_enabled?() do
       Repo.transact(fn ->
-        with {:ok, auth} <- create_shared_secret_auth(device, %{created_by_id: user.id}) do
-          DeviceTemplates.audit_shared_secret_created(user, device, auth)
+        with {:ok, auth} <- create_shared_secret_auth(device, %{created_by_id: actor_user_id(actor)}) do
+          DeviceTemplates.audit_shared_secret_created(actor, device, auth)
           {:ok, auth}
         end
       end)
@@ -627,12 +632,12 @@ defmodule NervesHub.Devices do
 
   Takes the same options as `create_device/4`.
   """
-  @spec create_device_with_shared_secret_auth(Product.t(), map(), User.t(), keyword()) ::
+  @spec create_device_with_shared_secret_auth(Product.t(), map(), AuditLogs.actor(), keyword()) ::
           {:ok, {Device.t(), SharedSecretAuth.t()}} | {:error, Changeset.t() | :shared_secrets_not_enabled}
-  def create_device_with_shared_secret_auth(%Product{} = product, params, user, opts \\ []) do
+  def create_device_with_shared_secret_auth(%Product{} = product, params, actor, opts \\ []) do
     Repo.transact(fn ->
-      with {:ok, device} <- create_device(product, params, user, opts),
-           {:ok, auth} <- issue_shared_secret_auth(device, user) do
+      with {:ok, device} <- create_device(product, params, actor, opts),
+           {:ok, auth} <- issue_shared_secret_auth(device, actor) do
         {:ok, {device, auth}}
       end
     end)
@@ -673,22 +678,23 @@ defmodule NervesHub.Devices do
   end
 
   @doc """
-  Add a device to `product` on `user`'s behalf, as `create_device/2` does.
+  Add a device to `product` on `actor`'s behalf, as `create_device/2` does.
 
   ## Options
 
     * `:managed_updates_allowed` - start the device with this grant instead of
       the product's default. When it differs from the default, it is set
       through `Updates.set_managed_updates_allowed/3` in the same transaction
-      as the insert, so `user` gets the same audit entry as for changing it
+      as the insert, so `actor` gets the same audit entry as for changing it
       later. As with `update_device_settings/4`, it is an option rather than a
       param so that params a form posts can't set it.
   """
-  @spec create_device(Product.t(), map(), User.t(), keyword()) :: {:ok, Device.t()} | {:error, Changeset.t()}
-  def create_device(%Product{} = product, params, %User{} = user, opts) do
+  @spec create_device(Product.t(), map(), AuditLogs.actor(), keyword()) ::
+          {:ok, Device.t()} | {:error, Changeset.t()}
+  def create_device(%Product{} = product, params, actor, opts) do
     Repo.transact(fn ->
       with {:ok, device} <- create_device(product, params) do
-        set_managed_updates_allowed(device, opts[:managed_updates_allowed], user)
+        set_managed_updates_allowed(device, opts[:managed_updates_allowed], actor)
       end
     end)
   end
@@ -1129,15 +1135,15 @@ defmodule NervesHub.Devices do
   `kind` says what sort of change it is, for the icon the device's Activity
   tab draws (see `NervesHub.AuditLogs.AuditLog.kinds/0`).
   """
-  @spec update_device_with_audit(Device.t(), map(), User.t() | Device.t(), String.t(), AuditLog.kind()) ::
+  @spec update_device_with_audit(Device.t(), map(), AuditLogs.actor() | Device.t(), String.t(), AuditLog.kind()) ::
           {:ok, Device.t()} | {:error, any(), any(), any()}
-  def update_device_with_audit(device, params, user, description, kind) do
+  def update_device_with_audit(device, params, actor, description, kind) do
     Multi.new()
     |> Multi.run(:update_with_audit, fn _, _ ->
       update_device(device, params, broadcast: false)
     end)
     |> Multi.run(:audit_device, fn _, _ ->
-      AuditLogs.audit(user, device, description, kind: kind)
+      AuditLogs.audit(actor, device, description, kind: kind)
     end)
     |> Repo.transact()
     |> case do
@@ -1175,16 +1181,16 @@ defmodule NervesHub.Devices do
       it is considered straight away. `Device.cast_update_mode/2` turns a
       request's params into this option.
   """
-  @spec update_device_settings(Device.t(), map(), User.t(), keyword()) ::
+  @spec update_device_settings(Device.t(), map(), AuditLogs.actor(), keyword()) ::
           {:ok, Device.t()} | {:error, Changeset.t()}
-  def update_device_settings(%Device{} = device, params, %User{} = user, opts \\ []) do
-    description = "User #{user.name} updated device #{device.identifier}"
+  def update_device_settings(%Device{} = device, params, actor, opts \\ []) do
+    description = "#{AuditLogs.actor_name(actor)} updated device #{device.identifier}"
 
     Repo.transact(fn ->
       with {:ok, updated} <- device |> Device.update_changeset(params) |> Repo.update(),
-           {:ok, _audit_log} <- AuditLogs.audit(user, device, description, kind: :device_updated),
-           {:ok, updated} <- set_managed_updates_allowed(updated, opts[:managed_updates_allowed], user) do
-        set_update_mode(updated, opts[:update_mode], user)
+           {:ok, _audit_log} <- AuditLogs.audit(actor, device, description, kind: :device_updated),
+           {:ok, updated} <- set_managed_updates_allowed(updated, opts[:managed_updates_allowed], actor) do
+        set_update_mode(updated, opts[:update_mode], actor)
       end
     end)
     |> case do

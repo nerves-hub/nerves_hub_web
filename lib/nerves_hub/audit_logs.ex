@@ -1,10 +1,29 @@
 defmodule NervesHub.AuditLogs do
   import Ecto.Query
 
+  alias NervesHub.Accounts.User
   alias NervesHub.AuditLogs.AuditLog
   alias NervesHub.ManagedDeployments.DeploymentGroup
+  alias NervesHub.Products.ApiKey
   alias NervesHub.Repo
   alias NimbleCSV.RFC4180, as: CSV
+
+  @typedoc """
+  Who did something a person could have done: a user, or a product API key
+  that automation used in place of one.
+
+  Devices and deployment groups act on their own too, and are recorded the
+  same way, but they are never interchangeable with a person so they are not
+  part of this.
+  """
+  @type actor() :: User.t() | ApiKey.t()
+
+  @doc """
+  How an actor is named at the start of an audit log description.
+  """
+  @spec actor_name(actor()) :: String.t()
+  def actor_name(%User{name: name}), do: "User #{name}"
+  def actor_name(%ApiKey{name: name}), do: "API key #{name}"
 
   @doc """
   Record that `actor` did something to `resource`.

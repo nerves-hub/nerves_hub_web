@@ -6,6 +6,7 @@ defmodule NervesHub.Firmwares do
   alias NervesHub.Accounts.OrgKey
   alias NervesHub.Accounts.Scope
   alias NervesHub.Accounts.User
+  alias NervesHub.AuditLogs
   alias NervesHub.Devices.Device
   alias NervesHub.Devices.DeviceFirmware
   alias NervesHub.Devices.InflightUpdate
@@ -749,13 +750,13 @@ defmodule NervesHub.Firmwares do
   `NervesHub.Accounts.RemoveAccount`, which destroys firmware rather than
   retiring it.
   """
-  @spec delete_firmware(Firmware.t(), User.t() | nil) ::
+  @spec delete_firmware(Firmware.t(), AuditLogs.actor() | nil) ::
           {:ok, Firmware.t()} | {:error, {:blocked, [deletion_blocker()]} | Ecto.Changeset.t()}
-  def delete_firmware(%Firmware{} = firmware, user \\ nil) do
+  def delete_firmware(%Firmware{} = firmware, actor \\ nil) do
     Repo.transact(fn ->
       with :ok <- check_deletable(firmware),
            {:ok, delta_upload_metadata} <- delete_deltas_for_firmware(firmware),
-           {:ok, firmware} <- soft_delete_firmware(firmware, user) do
+           {:ok, firmware} <- soft_delete_firmware(firmware, actor) do
         _ =
           [firmware.upload_metadata | delta_upload_metadata]
           |> Enum.filter(&uploaded_file?/1)
@@ -809,12 +810,17 @@ defmodule NervesHub.Firmwares do
     {:ok, Enum.map(deltas, & &1.upload_metadata)}
   end
 
-  defp soft_delete_firmware(firmware, user) do
+  # `deleted_by` names a user. A product API key leaves it empty, and the
+  # audit entry is what records the key.
+  defp soft_delete_firmware(firmware, actor) do
     firmware
     |> Repo.soft_delete_changeset()
-    |> Changeset.put_change(:deleted_by_id, user && user.id)
+    |> Changeset.put_change(:deleted_by_id, deleted_by_id(actor))
     |> Repo.update()
   end
+
+  defp deleted_by_id(%User{id: id}), do: id
+  defp deleted_by_id(_api_key_or_nil), do: nil
 
   @spec delete_firmware_delta(FirmwareDelta.t()) ::
           {:ok, FirmwareDelta.t()} | {:error, Ecto.Changeset.t() | Oban.Job.changeset()}

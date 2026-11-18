@@ -3,7 +3,7 @@ defmodule NervesHub.Scripts do
 
   alias Ecto.Changeset
   alias NervesHub.Accounts.Scope
-  alias NervesHub.Accounts.User
+  alias NervesHub.AuditLogs
   alias NervesHub.AuditLogs.ProductTemplates
   alias NervesHub.Filtering, as: CommonFiltering
   alias NervesHub.Products
@@ -113,13 +113,13 @@ defmodule NervesHub.Scripts do
     end
   end
 
-  @spec create(Product.t(), User.t(), map()) :: {:ok, Script.t()} | {:error, Changeset.t()}
-  def create(product, user, params) do
-    Script.create_changeset(product, user, params)
+  @spec create(Product.t(), AuditLogs.actor(), map()) :: {:ok, Script.t()} | {:error, Changeset.t()}
+  def create(product, actor, params) do
+    Script.create_changeset(product, actor, params)
     |> Repo.insert()
     |> case do
       {:ok, script} ->
-        ProductTemplates.audit_script_created(user, product, script)
+        ProductTemplates.audit_script_created(actor, product, script)
         {:ok, script}
 
       {:error, changeset} ->
@@ -127,16 +127,16 @@ defmodule NervesHub.Scripts do
     end
   end
 
-  @spec update(Script.t(), User.t(), map()) :: {:ok, Script.t()} | {:error, Changeset.t()}
-  def update(script, user, params) do
+  @spec update(Script.t(), AuditLogs.actor(), map()) :: {:ok, Script.t()} | {:error, Changeset.t()}
+  def update(script, actor, params) do
     script
-    |> Script.update_changeset(user, params)
+    |> Script.update_changeset(actor, params)
     |> Repo.update()
     |> case do
       {:ok, script} ->
         product = Products.get_product!(script.product_id)
 
-        ProductTemplates.audit_script_updated(user, product, script)
+        ProductTemplates.audit_script_updated(actor, product, script)
 
         {:ok, script}
 
@@ -145,14 +145,14 @@ defmodule NervesHub.Scripts do
     end
   end
 
-  @spec delete(non_neg_integer(), Product.t(), User.t()) ::
+  @spec delete(non_neg_integer(), Product.t(), AuditLogs.actor()) ::
           {:ok, Ecto.Schema.t()} | {:error, Ecto.Changeset.t()}
-  def delete(id, product, user) do
+  def delete(id, product, actor) do
     get_by_product_and_id!(product, id)
     |> Repo.delete()
     |> case do
       {:ok, script} ->
-        ProductTemplates.audit_script_deleted(user, product, script)
+        ProductTemplates.audit_script_deleted(actor, product, script)
 
         {:ok, script}
 
