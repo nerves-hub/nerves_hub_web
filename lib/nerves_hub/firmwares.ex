@@ -5,7 +5,6 @@ defmodule NervesHub.Firmwares do
   alias NervesHub.Accounts.Org
   alias NervesHub.Accounts.OrgKey
   alias NervesHub.Accounts.Scope
-  alias NervesHub.Accounts.User
   alias NervesHub.AuditLogs
   alias NervesHub.Devices.Device
   alias NervesHub.Devices.DeviceFirmware
@@ -810,17 +809,12 @@ defmodule NervesHub.Firmwares do
     {:ok, Enum.map(deltas, & &1.upload_metadata)}
   end
 
-  # `deleted_by` names a user. A product API key leaves it empty, and the
-  # audit entry is what records the key.
   defp soft_delete_firmware(firmware, actor) do
     firmware
     |> Repo.soft_delete_changeset()
-    |> Changeset.put_change(:deleted_by_id, deleted_by_id(actor))
+    |> Changeset.put_change(:deleted_by_id, AuditLogs.actor_user_id(actor))
     |> Repo.update()
   end
-
-  defp deleted_by_id(%User{id: id}), do: id
-  defp deleted_by_id(_api_key_or_nil), do: nil
 
   @spec delete_firmware_delta(FirmwareDelta.t()) ::
           {:ok, FirmwareDelta.t()} | {:error, Ecto.Changeset.t() | Oban.Job.changeset()}

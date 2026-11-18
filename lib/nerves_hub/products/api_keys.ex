@@ -34,7 +34,7 @@ defmodule NervesHub.Products.ApiKeys do
   def list(%Product{id: product_id}) do
     ApiKey
     |> where(product_id: ^product_id)
-    |> order_by([k], asc_nulls_first: k.deactivated_at, desc: k.inserted_at, desc: k.id)
+    |> order_by([k], desc: is_nil(k.deactivated_at), desc: k.inserted_at, desc: k.id)
     |> preload([:created_by, :org_role])
     |> Repo.all()
   end

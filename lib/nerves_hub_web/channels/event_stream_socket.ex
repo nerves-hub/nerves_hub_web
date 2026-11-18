@@ -17,8 +17,8 @@ defmodule NervesHubWeb.EventStreamSocket do
   end
 
   # A socket opened with a product API key gets an id, so deactivating the key
-  # disconnects it. A socket only authenticates on connect, where an API
-  # request does so every time.
+  # or editing its custom role disconnects it. A socket only authenticates on
+  # connect, where an API request does so every time.
   @impl Phoenix.Socket
   def id(%{assigns: %{current_scope: %Scope{api_key: %ApiKey{} = api_key}}}), do: ApiKeys.socket_id(api_key)
   def id(_socket), do: nil

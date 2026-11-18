@@ -177,7 +177,7 @@ defmodule NervesHubWeb.Live.Product.ApiKeys do
           aria-labelledby="api-key-role-label api-key-role-value"
           class="flex h-8.5 w-full cursor-pointer items-center justify-between gap-2 rounded border border-line-control border-b-line-strong bg-base-900 px-2.5 text-ui/4.5 text-content-strong focus-visible:outline-2 focus-visible:-outline-offset-1 focus-visible:outline-focus-ring max-sm:h-11 max-sm:text-base"
         >
-          <span id="api-key-role-value" class="truncate">{role_name(@selected)}</span>
+          <span id="api-key-role-value" class="truncate">{Utils.role_name(@selected)}</span>
           <span
             class={["lucide-chevron-down size-3.5 text-content-muted transition-transform", @dialog.role_menu && "rotate-180"]}
             aria-hidden="true"
@@ -321,6 +321,4 @@ defmodule NervesHubWeb.Live.Product.ApiKeys do
     |> assign(:api_keys, api_keys)
     |> assign(:api_key_count, Enum.count(api_keys, &is_nil(&1.deactivated_at)))
   end
-
-  defp role_name(api_key), do: Utils.role_name(api_key)
 end

@@ -556,11 +556,6 @@ defmodule NervesHub.Devices do
     :ok
   end
 
-  # Columns that name a user stay empty when a product API key did the work.
-  # The audit entry is what records the key; see `NervesHub.AuditLogs`.
-  defp actor_user_id(%User{id: id}), do: id
-  defp actor_user_id(_api_key), do: nil
-
   @doc """
   Creates a shared secret for a device on `actor`'s behalf, recording the user
   who created it (none for a product API key), and audits it.
@@ -573,7 +568,7 @@ defmodule NervesHub.Devices do
   def issue_shared_secret_auth(device, actor) do
     if DeviceLink.shared_secrets_enabled?() do
       Repo.transact(fn ->
-        with {:ok, auth} <- create_shared_secret_auth(device, %{created_by_id: actor_user_id(actor)}) do
+        with {:ok, auth} <- create_shared_secret_auth(device, %{created_by_id: AuditLogs.actor_user_id(actor)}) do
           DeviceTemplates.audit_shared_secret_created(actor, device, auth)
           {:ok, auth}
         end
@@ -605,7 +600,11 @@ defmodule NervesHub.Devices do
       |> where([ssa], ssa.device_id == ^device_id and ssa.key == ^key and is_nil(ssa.deactivated_at))
       |> select([ssa], ssa)
       |> Repo.update_all(
-        set: [deactivated_at: now, deactivated_by_id: actor_user_id(actor), updated_at: DateTime.to_naive(now)]
+        set: [
+          deactivated_at: now,
+          deactivated_by_id: AuditLogs.actor_user_id(actor),
+          updated_at: DateTime.to_naive(now)
+        ]
       )
       |> case do
         {1, [auth]} ->

@@ -26,6 +26,27 @@ defmodule NervesHub.AuditLogs do
   def actor_name(%ApiKey{name: name}), do: "API key #{name}"
 
   @doc """
+  The user behind `actor`, or nil when a product API key acted.
+
+  For a column that names a user, such as who created or deleted something. A
+  key leaves it empty, and the audit entry is what records the key.
+  """
+  @spec actor_user(actor() | nil) :: User.t() | nil
+  def actor_user(%User{} = user), do: user
+  def actor_user(_api_key_or_nil), do: nil
+
+  @doc """
+  The id of `actor_user/1`, for a column that holds a user's id.
+  """
+  @spec actor_user_id(actor() | nil) :: pos_integer() | nil
+  def actor_user_id(actor) do
+    case actor_user(actor) do
+      %User{id: id} -> id
+      nil -> nil
+    end
+  end
+
+  @doc """
   Record that `actor` did something to `resource`.
 
   `opts` are those of `AuditLog.build/4`; pass `:kind` for anything a device's

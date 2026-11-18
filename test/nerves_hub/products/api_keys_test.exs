@@ -1,6 +1,8 @@
 defmodule NervesHub.Products.ApiKeysTest do
   use NervesHub.DataCase, async: true
 
+  import Ecto.Query
+
   alias NervesHub.Accounts
   alias NervesHub.Accounts.OrgRoles
   alias NervesHub.AuditLogs
@@ -274,6 +276,18 @@ defmodule NervesHub.Products.ApiKeysTest do
       {:ok, _, _} = ApiKeys.create(other_product, user, %{"name" => "elsewhere", "role" => "view"})
 
       assert Enum.map(ApiKeys.list(product), & &1.id) == [second.id, first.id]
+    end
+
+    test "lists deactivated keys newest first, whenever they were deactivated", %{user: user, product: product} do
+      {:ok, first, _} = ApiKeys.create(product, user, %{"name" => "first", "role" => "view"})
+      {:ok, second, _} = ApiKeys.create(product, user, %{"name" => "second", "role" => "view"})
+      {:ok, active, _} = ApiKeys.create(product, user, %{"name" => "active", "role" => "view"})
+
+      now = DateTime.utc_now(:second)
+      Repo.update_all(where(ApiKey, id: ^first.id), set: [deactivated_at: DateTime.add(now, -3600)])
+      Repo.update_all(where(ApiKey, id: ^second.id), set: [deactivated_at: now])
+
+      assert Enum.map(ApiKeys.list(product), & &1.id) == [active.id, second.id, first.id]
     end
   end
 

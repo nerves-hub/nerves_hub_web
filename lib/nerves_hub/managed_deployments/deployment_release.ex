@@ -151,9 +151,11 @@ defmodule NervesHub.ManagedDeployments.DeploymentRelease do
   def put_created_by(changeset, user), do: put_assoc(changeset, :created_by, user)
 
   @doc """
-  Refuses a release made by a product API key from another product than
-  `product_id`. A key reaches its own product's routes only, so this guards
-  against a caller passing the wrong key rather than anything a request can do.
+  Refuses a release made by a product API key from a product other than
+  `product_id`.
+
+  A key reaches its own product's routes only, so this guards against a caller
+  passing the wrong key rather than anything a request can do.
   """
   @spec validate_created_by_api_key(Ecto.Changeset.t(), pos_integer()) :: Ecto.Changeset.t()
   def validate_created_by_api_key(changeset, product_id) do

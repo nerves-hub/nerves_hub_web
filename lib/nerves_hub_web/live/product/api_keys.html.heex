@@ -67,7 +67,7 @@
                   Deactivated <.local_datetime at={api_key.deactivated_at} time_zone={@time_zone} format={:short_date} zone_label={false} />
                 </span>
                 <span class="flex flex-wrap items-center gap-x-1.5 text-xs/4 text-content-muted @xl:hidden">
-                  <span class="sm:hidden">{role_name(api_key)}</span>
+                  <span class="sm:hidden">{Utils.role_name(api_key)}</span>
                   <span class="text-content-faint sm:hidden" aria-hidden="true">·</span>
                   <span :if={api_key.last_used_at}>
                     used <.local_datetime at={api_key.last_used_at} time_zone={@time_zone} format={:medium_date} zone_label={false} />
@@ -80,7 +80,7 @@
                 "flex items-center gap-1.5 text-ui max-sm:hidden",
                 if(api_key.deactivated_at, do: "text-content-faint", else: "text-content-body")
               ]}>
-                <span class="truncate">{role_name(api_key)}</span>
+                <span class="truncate">{Utils.role_name(api_key)}</span>
                 <span :if={api_key.org_role_id} class="shrink-0 rounded bg-surface-muted px-1.5 py-0.5 text-xs/4 text-content-muted">custom</span>
               </span>
 
@@ -162,7 +162,7 @@
         <span data-icon="check" class="lucide-check hidden size-3.5 text-success-content" aria-hidden="true"></span>
       </button>
     </div>
-    <:note>{role_name(@dialog.role)} · created just now</:note>
+    <:note>{Utils.role_name(@dialog.role)} · created just now</:note>
     <:actions>
       <.button style="primary" phx-click="cancel-dialog">I've copied it</.button>
     </:actions>
