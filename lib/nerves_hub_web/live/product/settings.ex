@@ -535,10 +535,10 @@ defmodule NervesHubWeb.Live.Product.Settings do
   ]
 
   defp extensions() do
-    order = Keyword.keys(@extension_copy)
+    rank = @extension_copy |> Keyword.keys() |> Enum.with_index() |> Map.new()
 
     Extensions.list()
-    |> Enum.sort_by(&(Enum.find_index(order, fn key -> key == &1 end) || length(order)))
+    |> Enum.sort_by(&Map.get(rank, &1, map_size(rank)))
     |> Enum.map(fn extension ->
       key = to_string(extension)
 
