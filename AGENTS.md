@@ -212,7 +212,9 @@ when adding or removing one.
   `NervesHubWeb.Components.DevicePage.ActivityTab`.
 - Cross-cutting: `clustering.ex`, `product_notifications.ex`, `tracker.ex`,
   `rate_limit.ex`, `cli_session_cache.ex`, `device_link.ex`, `repo.ex`,
-  `analytics_repo.ex`, `application.ex`.
+  `analytics_repo.ex`, `application.ex`. `list_query.ex` holds what the
+  contexts' list functions share: escaping a search for `ilike` and reading a
+  page number or size from params.
 
 ### `lib/nerves_hub_web/` (web)
 
@@ -281,6 +283,9 @@ when adding or removing one.
   mounts. On a phone the sidebar is a drawer, and the top bar reads menu
   button, then the page's breadcrumb (or the product and page names when it
   has none), then the avatar, which holds the user menu the drawer leaves out.
+  `components/product_list.ex` holds what the firmware and archive lists
+  share: the footer pager, the sort arrow, and how a UUID, a size and an
+  upload time are written.
 - `controllers/` — JSON API (`controllers/api/`) and others.
 - `plugs/`, `router.ex`, `endpoint.ex`, `device_endpoint.ex`,
   `health_check_endpoint.ex`, `auth*.ex`.
