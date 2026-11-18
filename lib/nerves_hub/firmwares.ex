@@ -17,6 +17,7 @@ defmodule NervesHub.Firmwares do
   alias NervesHub.Firmwares.UpdateTool
   alias NervesHub.Firmwares.UpdateTool.Fwup
   alias NervesHub.Helpers.Logging
+  alias NervesHub.ListQuery
   alias NervesHub.ManagedDeployments
   alias NervesHub.ManagedDeployments.DeploymentGroup
   alias NervesHub.ManagedDeployments.DeploymentRelease
@@ -197,10 +198,10 @@ defmodule NervesHub.Firmwares do
     sort_direction = if opts[:sort_direction] == "asc", do: :asc, else: :desc
 
     flop = %Flop{
-      page: to_positive_integer(opts[:page], 1),
+      page: ListQuery.positive_integer(opts[:page], 1),
       # The pager offers 25, 50 and 100. Anything bigger only comes from an
       # edited URL, so it is held to the largest of those.
-      page_size: min(to_positive_integer(opts[:page_size], 25), 100)
+      page_size: min(ListQuery.positive_integer(opts[:page_size], 25), 100)
     }
 
     product
@@ -425,7 +426,7 @@ defmodule NervesHub.Firmwares do
   defp where_search(query, nil), do: query
 
   defp where_search(query, search) do
-    prefix = escape_like(String.trim(search)) <> "%"
+    prefix = ListQuery.escape_like(String.trim(search)) <> "%"
 
     where(
       query,
@@ -436,22 +437,6 @@ defmodule NervesHub.Firmwares do
 
   defp where_field(query, _field, nil), do: query
   defp where_field(query, field, value), do: where(query, [firmware: f], field(f, ^field) == ^value)
-
-  # `%` and `_` are wildcards to `ilike`, and a version can hold an underscore.
-  defp escape_like(search) do
-    String.replace(search, ~r/([\\%_])/, "\\\\\\1")
-  end
-
-  defp to_positive_integer(value, _default) when is_integer(value) and value > 0, do: value
-
-  defp to_positive_integer(value, default) when is_binary(value) do
-    case Integer.parse(value) do
-      {integer, ""} when integer > 0 -> integer
-      _ -> default
-    end
-  end
-
-  defp to_positive_integer(_value, default), do: default
 
   defp sort_firmware(query, {direction, :install_count}) do
     order_by(query, [installs: i], [{^direction, coalesce(i.install_count, 0)}, desc: :inserted_at])

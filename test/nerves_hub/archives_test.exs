@@ -100,18 +100,152 @@ defmodule NervesHub.ArchivesTest do
     end
   end
 
-  describe "filter/2" do
-    test "returns archives with non-default sort", %{tmp_dir: tmp_dir} do
+  describe "listing archives" do
+    setup %{tmp_dir: tmp_dir} do
       user = Fixtures.user_fixture()
       org = Fixtures.org_fixture(user)
       product = Fixtures.product_fixture(user, org)
       org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
+      firmware = Fixtures.firmware_fixture(org_key, product, %{version: "1.0.0", dir: tmp_dir})
+
+      calibration =
+        Fixtures.archive_fixture(org_key, product, %{
+          description: "Calibration tables",
+          version: "1.10.0",
+          platform: "rpi4",
+          dir: tmp_dir
+        })
+
+      modem =
+        Fixtures.archive_fixture(org_key, product, %{
+          description: "Modem firmware",
+          version: "1.9.0",
+          platform: "bbb",
+          dir: tmp_dir
+        })
+
+      deployment_group = Fixtures.deployment_group_fixture(firmware, %{user: user})
+
+      {:ok, _} =
+        ManagedDeployments.create_deployment_release(deployment_group, firmware, calibration, user, %{})
+
+      %{product: product, calibration: calibration, modem: modem}
+    end
+
+    test "splits archives by whether a current release delivers them", context do
+      %{product: product, calibration: calibration, modem: modem} = context
+
+      assert ids(Archives.list_archives(product, %{tab: :delivered})) == [calibration.id]
+      assert ids(Archives.list_archives(product, %{tab: :not_delivered})) == [modem.id]
+      assert Archives.list_counts(product) == %{all: 2, delivered: 1, not_delivered: 1}
+    end
+
+    test "searches descriptions anywhere and versions and UUIDs from the start", context do
+      %{product: product, calibration: calibration, modem: modem} = context
+
+      assert ids(Archives.list_archives(product, %{search: "tables"})) == [calibration.id]
+      assert ids(Archives.list_archives(product, %{search: "1.9"})) == [modem.id]
+      assert ids(Archives.list_archives(product, %{search: String.slice(modem.uuid, 0, 8)})) == [modem.id]
+      assert ids(Archives.list_archives(product, %{search: "0.0"})) == []
+    end
+
+    test "filters by platform, and lists the platforms there are", context do
+      %{product: product, modem: modem} = context
+
+      assert ids(Archives.list_archives(product, %{platform: "bbb"})) == [modem.id]
+      assert Archives.platforms(product) == ["bbb", "rpi4"]
+    end
+
+    test "sorts versions by SemVer, not as text", context do
+      %{product: product, calibration: calibration, modem: modem} = context
+
+      assert ids(Archives.list_archives(product, %{sort: "version", sort_direction: "desc"})) == [
+               calibration.id,
+               modem.id
+             ]
+
+      assert ids(Archives.list_archives(product, %{sort: "version", sort_direction: "asc"})) == [
+               modem.id,
+               calibration.id
+             ]
+    end
+
+    test "ignores a sort it doesn't know", context do
+      %{product: product} = context
+
+      assert {[_, _], _meta} = Archives.list_archives(product, %{sort: "storage_key"})
+    end
+
+    defp ids({archives, _meta}), do: Enum.map(archives, & &1.id)
+  end
+
+  describe "who an archive reaches" do
+    setup %{tmp_dir: tmp_dir} do
+      user = Fixtures.user_fixture()
+      org = Fixtures.org_fixture(user)
+      product = Fixtures.product_fixture(user, org)
+      org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
+      old_firmware = Fixtures.firmware_fixture(org_key, product, %{version: "1.0.0", dir: tmp_dir})
+      firmware = Fixtures.firmware_fixture(org_key, product, %{version: "2.0.0", dir: tmp_dir})
       archive = Fixtures.archive_fixture(org_key, product, %{dir: tmp_dir})
 
-      {archives, _meta} =
-        Archives.filter(product, %{sort: "uuid", sort_direction: "asc"})
+      fleet = Fixtures.deployment_group_fixture(firmware, %{user: user, name: "Fleet"})
+      bench = Fixtures.deployment_group_fixture(firmware, %{user: user, name: "Bench"})
 
-      assert Enum.map(archives, & &1.id) == [archive.id]
+      {:ok, {fleet_release, fleet}} =
+        ManagedDeployments.create_deployment_release(fleet, firmware, archive, user, %{})
+
+      # Bench shipped the archive once, then moved on to a release without it.
+      {:ok, {bench_release, bench}} =
+        ManagedDeployments.create_deployment_release(bench, firmware, archive, user, %{})
+
+      {:ok, {_release, bench}} = ManagedDeployments.create_deployment_release(bench, firmware, nil, user, %{})
+
+      Fixtures.device_fixture(org, product, firmware, %{deployment_id: fleet.id})
+      Fixtures.device_fixture(org, product, old_firmware, %{deployment_id: fleet.id})
+      Fixtures.device_fixture(org, product, old_firmware, %{deployment_id: fleet.id})
+      Fixtures.device_fixture(org, product, firmware, %{deployment_id: bench.id})
+
+      %{
+        product: product,
+        archive: archive,
+        fleet: fleet,
+        bench: bench,
+        fleet_release: fleet_release,
+        bench_release: bench_release
+      }
+    end
+
+    test "counts devices that get it now and after updating, by group", context do
+      %{archive: archive, fleet: fleet} = context
+
+      assert %{gets_it_now: 1, gets_it_after_updating: 2, groups: [group]} = Archives.delivery(archive)
+      assert group.deployment_group.id == fleet.id
+      assert group.devices == 3
+      assert group.gets_it == 1
+      assert group.firmware.version == "2.0.0"
+    end
+
+    test "lists every release with it, current ones first", context do
+      %{product: product, archive: archive, fleet: fleet, bench: bench} = context
+
+      archive_id = archive.id
+      assert %{^archive_id => [current, past]} = Archives.releases(product, [archive_id])
+
+      assert current.deployment_group.id == fleet.id
+      assert current.current?
+      assert is_nil(current.replaced_at)
+
+      assert past.deployment_group.id == bench.id
+      refute past.current?
+      assert past.replaced_at
+    end
+
+    test "counts a past release as using it, but not as delivering it", context do
+      %{product: product, archive: archive} = context
+
+      assert Archives.list_counts(product) == %{all: 1, delivered: 1, not_delivered: 0}
+      assert {:error, %Ecto.Changeset{}} = Archives.delete_archive(archive)
     end
   end
 

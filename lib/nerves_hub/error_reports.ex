@@ -28,6 +28,7 @@ defmodule NervesHub.ErrorReports do
   alias NervesHub.ErrorReports.Fingerprint
   alias NervesHub.ErrorReports.GroupBuffer
   alias NervesHub.ErrorReports.Payload
+  alias NervesHub.ListQuery
   alias NervesHub.Products.Product
   alias NervesHub.Repo
 
@@ -222,13 +223,7 @@ defmodule NervesHub.ErrorReports do
   defp filter_search(query, ""), do: query
 
   defp filter_search(query, search) do
-    where(query, [g], ilike(g.reason, ^"%#{escape_like(search)}%"))
-  end
-
-  # `%` and `_` are wildcards to `ilike`, and a reason is full of neither by
-  # accident — a device logging "100%" should be found by searching for "100%".
-  defp escape_like(search) do
-    String.replace(search, ~r/([\\%_])/, "\\\\\\1")
+    where(query, [g], ilike(g.reason, ^"%#{ListQuery.escape_like(search)}%"))
   end
 
   defp sort_groups(query, :count), do: order_by(query, [g], desc: g.occurrence_count)

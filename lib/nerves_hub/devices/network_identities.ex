@@ -32,6 +32,7 @@ defmodule NervesHub.Devices.NetworkIdentities do
   alias NervesHub.Devices.Device
   alias NervesHub.Devices.NetworkIdentity
   alias NervesHub.Devices.PubSub
+  alias NervesHub.ListQuery
   alias NervesHub.Repo
 
   require Logger
@@ -120,8 +121,8 @@ defmodule NervesHub.Devices.NetworkIdentities do
         query
 
       term ->
-        prefix = escape_like(term) <> "%"
-        anywhere = "%" <> escape_like(term) <> "%"
+        prefix = ListQuery.escape_like(term) <> "%"
+        anywhere = "%" <> ListQuery.escape_like(term) <> "%"
 
         query
         |> join(:left, [ei], d in Device, on: d.id == ei.device_id, as: :device)
@@ -136,12 +137,6 @@ defmodule NervesHub.Devices.NetworkIdentities do
   end
 
   defp filter_by_search(query, _search), do: query
-
-  # A search for "abc_" should look for that, not treat the underscore as a
-  # wildcard and match everything.
-  defp escape_like(term) do
-    String.replace(term, ["\\", "%", "_"], fn char -> "\\" <> char end)
-  end
 
   @doc """
   Record an identity by hand, against an organisation.
