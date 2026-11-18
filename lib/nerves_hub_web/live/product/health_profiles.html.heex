@@ -3,215 +3,307 @@
     <NervesHubWeb.Components.ProductSettings.title product={@product} />
   </:top_bar>
 
-  <div class="h-0 flex-1 overflow-y-auto">
+  <div class="flex h-0 flex-1 flex-col overflow-y-auto">
     <NervesHubWeb.Components.ProductSettings.tabs current_scope={@current_scope} tab={:health} profile_count={length(@profiles)} />
 
-    <div class="flex flex-col items-start justify-between gap-4 p-6">
-      <div :for={profile <- @profiles} class="flex w-full flex-col rounded-card border border-line-default bg-surface-raised">
-        <div class="flex h-14 items-center justify-between border-b border-line-default px-4">
-          <div class="text-card-title text-content-strong">
-            <%= if profile.platform do %>
-              Platform: {profile.platform}
-            <% else %>
-              Default profile
-            <% end %>
+    <div class="flex flex-1 max-sm:flex-col">
+      <%!-- The profiles: a column of links from sm up, a select on a phone. --%>
+      <nav id="health-profiles" aria-label="Health profiles" class="flex w-64 shrink-0 flex-col gap-1 border-r border-line-default px-3 py-6 max-sm:hidden">
+        <div class="px-2 pb-2 text-label text-content-muted uppercase">Profiles</div>
+        <.link
+          :for={profile <- @profiles}
+          id={"health-profile-#{profile.id}"}
+          patch={~p"/org/#{@current_scope.org}/#{@current_scope.product}/settings/health?#{[profile: profile.id]}"}
+          aria-current={profile.id == @profile.id && "page"}
+          data-confirm={profile.id != @profile.id && @unsaved > 0 && "Leave this profile? #{changes(@unsaved)} will be lost."}
+          class={[
+            "flex flex-col gap-0.5 rounded-card border px-3 py-2.5",
+            if(profile.id == @profile.id,
+              do: "border-line-default bg-surface-raised shadow-card",
+              else: "border-transparent hover:bg-surface-muted"
+            )
+          ]}
+        >
+          <span class={["text-sm/5 text-content-strong", if(profile.platform, do: "font-mono", else: "font-medium")]}>
+            {profile_name(profile)}
+          </span>
+          <span class="text-ui/4 text-content-muted">
+            {metrics(length(profile.metrics))} · {devices(@device_counts[profile.platform] || 0)}
+          </span>
+        </.link>
+
+        <.add_platform_profile
+          :if={authorized?(:"product:update", @current_scope)}
+          id="add-platform-profile"
+          class="mt-2"
+          platforms={@available_platforms}
+          profiles={@profiles}
+        />
+
+        <p class="mt-4 text-ui/4.5 text-content-muted">
+          A device uses its platform's profile if there is one, and Default otherwise.
+        </p>
+      </nav>
+
+      <div class="flex min-w-0 flex-1 flex-col gap-4 p-6 max-sm:gap-3 max-sm:p-4">
+        <p
+          :if={!authorized?(:"product:update", @current_scope)}
+          id="read-only-notice"
+          class="flex items-center gap-2 rounded-card border border-line-default bg-surface-muted px-4 py-3 text-ui/4.5 text-content-body"
+        >
+          <span class="lucide-eye size-4 text-content-muted" aria-hidden="true"></span>
+          <span>You can see these profiles, but your role in {@current_scope.org.name} can't change them.</span>
+        </p>
+
+        <form id="select-health-profile" phx-change="select-profile" class="flex flex-col gap-2 sm:hidden">
+          <label for="health-profile-select" class="text-label text-content-muted uppercase">Profile</label>
+          <div class="relative">
+            <select
+              id="health-profile-select"
+              name="profile"
+              class="h-12 w-full rounded-card border border-line-default bg-surface-raised pr-9 pl-3 text-sm/5 font-semibold text-content-strong focus:border-primary focus:ring-0"
+            >
+              <option :for={profile <- @profiles} value={profile.id} selected={profile.id == @profile.id}>
+                {profile_name(profile)} · {metrics(length(profile.metrics))} · {devices(@device_counts[profile.platform] || 0)}
+              </option>
+            </select>
           </div>
-          <.button
-            :if={profile.platform}
-            style="danger"
-            type="button"
-            phx-click="delete-profile"
-            phx-value-profile_id={profile.id}
-            data-confirm={"Delete the #{profile.platform} profile? Its devices will use the default profile."}
-            disabled={!authorized?(:"product:update", @current_scope)}
+        </form>
+
+        <.add_platform_profile
+          :if={authorized?(:"product:update", @current_scope)}
+          id="add-platform-profile-phone"
+          class="sm:hidden"
+          platforms={@available_platforms}
+          profiles={@profiles}
+        />
+
+        <%!-- The profile's name and what it covers, with its save buttons from sm up. --%>
+        <div class="flex items-start justify-between gap-6">
+          <div class="flex min-w-0 flex-col gap-1">
+            <h2 id="profile-name" class={["text-xl/7 font-semibold text-content-strong max-sm:hidden", @profile.platform && "font-mono"]}>
+              {profile_name(@profile)}
+            </h2>
+            <p class="max-w-2xl text-sm/5 text-content-muted max-sm:text-ui/4.5">
+              <%= if @profile.platform do %>
+                For the {devices(@device_counts[@profile.platform] || 0)} whose firmware reports the <span class="font-mono">{@profile.platform}</span> platform.
+              <% else %>
+                For the {devices(@device_counts[nil] || 0)} whose platform has no profile of its own.
+              <% end %>
+              A level engages when a metric's median over its period reaches the threshold.
+            </p>
+          </div>
+          <div :if={authorized?(:"product:update", @current_scope)} class="flex shrink-0 items-center gap-2 max-sm:hidden">
+            <span :if={@unsaved > 0} id="unsaved-changes" class="mr-1 text-ui text-warning-content">{changes(@unsaved)}</span>
+            <.button
+              :if={@unsaved == 0 && @profile.platform}
+              id="delete-profile"
+              phx-click="delete-profile"
+              phx-value-profile_id={@profile.id}
+              data-confirm={"Delete the #{@profile.platform} profile? Its devices will use Default."}
+            >
+              <span class="lucide-trash size-4" aria-hidden="true"></span> Delete profile
+            </.button>
+            <.button :if={@unsaved > 0} phx-click="discard">Discard</.button>
+            <.button style="primary" type="submit" form="profile-metrics">Save profile</.button>
+          </div>
+        </div>
+
+        <section id="profile-impact" class="flex flex-col gap-3 rounded-card border border-line-default bg-surface-raised px-4 py-3.5 shadow-card">
+          <% shown = shown_counts(assigns) %>
+          <% deltas = deltas(assigns) %>
+          <% total = shown.healthy + shown.warning + shown.unhealthy + shown.unknown %>
+          <div class="flex flex-wrap items-center justify-between gap-x-6 gap-y-2">
+            <h3 class="flex items-center gap-2 text-sm/5 font-semibold text-content-strong">
+              {if @unsaved > 0, do: "If you save", else: "Right now"}
+              <span
+                :if={@unsaved > 0 && @analytics? && is_nil(deltas)}
+                class="lucide-loader-circle size-3.5 animate-spin text-content-faint"
+                title="Working out what the changes would do"
+                aria-hidden="true"
+              ></span>
+            </h3>
+            <div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-ui text-content-body max-sm:hidden">
+              <.impact_legend id_prefix="impact" shown={shown} deltas={deltas} />
+            </div>
+          </div>
+          <div :if={total > 0} class="flex h-2 gap-0.5 overflow-hidden rounded-full">
+            <div :if={shown.healthy > 0} class="bg-success" style={share(shown.healthy, total)}></div>
+            <div :if={shown.warning > 0} class="bg-warning" style={share(shown.warning, total)}></div>
+            <div :if={shown.unhealthy > 0} class="bg-alert" style={share(shown.unhealthy, total)}></div>
+            <div :if={shown.unknown > 0} class="bg-line-strong" style={share(shown.unknown, total)}></div>
+          </div>
+          <p :if={total == 0} class="text-ui text-content-muted">No devices use this profile yet.</p>
+          <div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-ui text-content-body sm:hidden">
+            <.impact_legend id_prefix="impact-phone" shown={shown} deltas={deltas} />
+          </div>
+        </section>
+
+        <form
+          id="profile-metrics"
+          phx-change="edit"
+          phx-submit="save"
+          class="@container flex flex-col overflow-clip rounded-card border border-line-default bg-surface-raised shadow-card"
+        >
+          <div class="flex items-center justify-between border-b border-line-default px-4 py-3 @3xl:hidden">
+            <h3 class="text-sm/5 font-semibold text-content-strong">Metrics</h3>
+            <span class="text-ui text-content-muted">{length(@draft)} · {Enum.count(@draft, & &1.featured)} featured</span>
+          </div>
+
+          <div class="grid grid-cols-[minmax(0,1fr)_15rem_15rem_4.5rem_2rem] items-center gap-x-4 border-b border-line-default px-4 py-2.5 text-label text-content-muted uppercase @max-3xl:hidden">
+            <span>Metric</span>
+            <span class="flex items-center gap-1.5"><span class="size-1.5 rounded-full bg-warning"></span>Warning at</span>
+            <span class="flex items-center gap-1.5"><span class="size-1.5 rounded-full bg-alert"></span>Unhealthy at</span>
+            <span class="text-center">Featured</span>
+            <span class="sr-only">Remove</span>
+          </div>
+
+          <p :if={@draft == []} class="border-b border-line-default px-4 py-6 text-sm text-content-muted">
+            This profile has no metrics, so its devices' health is always unknown.
+          </p>
+
+          <div
+            :for={{row, index} <- Enum.with_index(@draft)}
+            id={"metric-#{row.key}"}
+            class={[
+              "grid grid-cols-[minmax(0,1fr)_15rem_15rem_4.5rem_2rem] items-center gap-x-4 gap-y-2.5 border-b border-line-default px-4 py-3",
+              "@max-3xl:grid-cols-[minmax(0,1fr)_2rem_2rem] @max-3xl:gap-x-2 @max-3xl:py-3.5",
+              @errors[index] && "bg-alert-soft"
+            ]}
           >
-            Delete profile
+            <div class="flex min-w-0 flex-col gap-0.5">
+              <div class="flex items-center gap-2">
+                <%= cond do %>
+                  <% row.built_in -> %>
+                    <span class="text-sm/5 font-medium text-content-strong">{row_name(row)}</span>
+                    <span class="rounded bg-surface-muted px-1.5 py-0.5 text-xs/4 text-content-muted">built-in</span>
+                  <% label = @custom_labels[row.key] -> %>
+                    <span class="truncate text-sm/5 font-medium text-content-strong">{label}</span>
+                    <span class="truncate font-mono text-xs/4 text-content-muted">{row.key}</span>
+                  <% true -> %>
+                    <span class="truncate font-mono text-sm/5 text-content-strong">{row.key}</span>
+                <% end %>
+                <span :if={is_nil(row.id)} class="rounded bg-primary/10 px-1.5 py-0.5 text-xs/4 text-primary">new</span>
+              </div>
+              <div class="flex flex-wrap items-center gap-x-1 text-ui/4.5 text-content-muted">
+                <%= cond do %>
+                  <% row.built_in -> %>
+                    <span>Times the device disconnected in the period</span>
+                  <% summary = fleet_summary(@observed_stats, row.key) -> %>
+                    <span>{summary}</span>
+                  <% @analytics? -> %>
+                    <span>No readings yet</span>
+                  <% true -> %>
+                <% end %>
+                <%= if suggestion = authorized?(:"product:update", @current_scope) && suggestion_to_offer(@observed_stats, row) do %>
+                  <span :if={fleet_summary(@observed_stats, row.key)} aria-hidden="true">·</span>
+                  <button
+                    type="button"
+                    phx-click="use-suggested"
+                    phx-value-index={index}
+                    title="Unusual for this fleet: Tukey's fences over at least a week of its readings"
+                    class="cursor-pointer text-primary hover:text-primary-hover @max-3xl:basis-full @max-3xl:text-left"
+                  >
+                    Use suggested {Utils.format_number(suggestion.warning)} / {Utils.format_number(suggestion.alert)}
+                  </button>
+                <% end %>
+              </div>
+              <p :for={message <- @errors[index] || []} class="text-ui/4.5 text-alert-content">{message}</p>
+            </div>
+
+            <div class="@max-3xl:col-span-3 @max-3xl:row-start-2">
+              <.level_fields index={index} level="warning" row={row} disabled={!authorized?(:"product:update", @current_scope)} />
+            </div>
+            <div class="@max-3xl:col-span-3 @max-3xl:row-start-3">
+              <.level_fields index={index} level="alert" row={row} disabled={!authorized?(:"product:update", @current_scope)} />
+            </div>
+
+            <div class="flex justify-center @max-3xl:col-start-2 @max-3xl:row-start-1 @max-3xl:self-start">
+              <button
+                type="button"
+                phx-click="toggle-featured"
+                phx-value-index={index}
+                disabled={row.built_in || !authorized?(:"product:update", @current_scope)}
+                aria-pressed={to_string(row.featured)}
+                aria-label={"Feature #{row_name(row)}"}
+                title={
+                  cond do
+                    row.built_in -> "A built-in metric has no tile on the device page"
+                    row.featured -> "Featured: it has a tile at the top of the device page"
+                    true -> "Feature it: give it a tile at the top of the device page"
+                  end
+                }
+                class="flex size-8 cursor-pointer items-center justify-center rounded hover:bg-surface-muted disabled:cursor-default disabled:hover:bg-transparent"
+              >
+                <span
+                  class={[
+                    "size-4",
+                    if(row.featured, do: "lucide-star--fill text-primary", else: "lucide-star text-content-faint")
+                  ]}
+                  aria-hidden="true"
+                ></span>
+              </button>
+            </div>
+
+            <div class="flex justify-center @max-3xl:col-start-3 @max-3xl:row-start-1 @max-3xl:self-start">
+              <button
+                :if={authorized?(:"product:update", @current_scope)}
+                type="button"
+                phx-click="remove-metric"
+                phx-value-index={index}
+                aria-label={"Remove #{row_name(row)}"}
+                title="Remove it from this profile"
+                class="flex size-8 cursor-pointer items-center justify-center rounded text-content-faint hover:bg-surface-muted hover:text-content-strong"
+              >
+                <span class="lucide-x size-4" aria-hidden="true"></span>
+              </button>
+            </div>
+          </div>
+
+          <div
+            :if={authorized?(:"product:update", @current_scope) && add_options(assigns) != []}
+            class="flex items-center gap-4 px-4 py-3 @max-3xl:flex-col @max-3xl:items-stretch @max-3xl:gap-2"
+          >
+            <label class="relative flex h-9 w-72 items-center gap-2 rounded border border-dashed border-line-dashed px-3 text-sm text-content-muted hover:border-line-strong hover:text-content-strong @max-3xl:w-full @max-3xl:justify-center">
+              <span class="lucide-plus size-3.5" aria-hidden="true"></span>
+              <span>Add a metric…</span>
+              <select name="add_key" aria-label="Add a metric" class="absolute inset-0 cursor-pointer opacity-0">
+                <option value="">Add a metric…</option>
+                {Phoenix.HTML.Form.options_for_select(add_options(assigns), nil)}
+              </select>
+            </label>
+            <span class="text-ui text-content-faint @max-3xl:hidden">Any metric your devices report, or a built-in one</span>
+          </div>
+        </form>
+
+        <p class="flex items-center gap-2 text-ui text-content-muted">
+          <span class="lucide-star--fill size-3.5 text-primary" aria-hidden="true"></span> Featured metrics get a tile at the top of the device page.
+        </p>
+
+        <div :if={@profile.platform && authorized?(:"product:update", @current_scope)} class="sm:hidden">
+          <.button
+            id="delete-profile-phone"
+            class="w-full"
+            phx-click="delete-profile"
+            phx-value-profile_id={@profile.id}
+            data-confirm={"Delete the #{@profile.platform} profile? Its devices will use Default."}
+          >
+            <span class="lucide-trash size-4" aria-hidden="true"></span> Delete the {@profile.platform} profile
           </.button>
         </div>
-
-        <div class="flex flex-col gap-3 p-4">
-          <p :if={is_nil(profile.platform)} class="w-2/3 text-sm text-content-muted">
-            A metric engages its warning (orange) or alert (red) level when its median over the measurement period crosses the
-            threshold in the direction the operator points. This profile applies to every device without a platform profile.
-            Featured metrics are shown at the top of the device details page.
-          </p>
-          <div :if={profile.metrics == []} class="text-sm text-content-muted">
-            This profile has no metrics, so its devices always report an unknown health status.
-          </div>
-
-          <form
-            :for={metric <- profile.metrics}
-            id={"metric-#{metric.id}"}
-            phx-submit="update-metric"
-            class="flex flex-col gap-3 rounded-card border border-line-default p-3"
-          >
-            <input type="hidden" name="profile_id" value={profile.id} />
-            <input type="hidden" name="metric_id" value={metric.id} />
-            <div class="flex flex-wrap items-center justify-between gap-2">
-              <div class="flex flex-col">
-                <span class="text-sm font-medium text-content-body">{MetricLabels.label(metric.key, @custom_labels)}</span>
-                <span :if={metric.built_in} class="text-xs text-content-faint">built-in</span>
-                <span :if={!metric.built_in && MetricLabels.label(metric.key, @custom_labels) != metric.key} class="text-xs text-content-faint">{metric.key}</span>
-                <span
-                  :if={seen_range(@observed_stats, metric.key)}
-                  class="text-xs text-content-faint"
-                  title="Lowest and highest value reported across this product's devices, over the retention window"
-                >
-                  {seen_range(@observed_stats, metric.key)}
-                  <span
-                    :if={suggested(@observed_stats, metric.key, metric.operator)}
-                    title="Statistical outlier fences from at least a week of this fleet's history: values this far outside the middle half of readings are unusual for this fleet"
-                  >
-                    · {suggested(@observed_stats, metric.key, metric.operator)}
-                  </span>
-                </span>
-              </div>
-              <div class="flex items-center gap-3">
-                <label class="flex items-center gap-2 text-xs text-content-muted" title="Featured metrics are shown at the top of the device details page">
-                  <input type="hidden" name="metric[featured]" value="false" />
-                  <input
-                    type="checkbox"
-                    name="metric[featured]"
-                    value="true"
-                    checked={metric.featured}
-                    disabled={!authorized?(:"product:update", @current_scope)}
-                    class="rounded border-line-default text-content-muted checked:bg-primary focus:ring-0"
-                  /> Featured
-                </label>
-                <button
-                  type="submit"
-                  title="Save changes"
-                  disabled={!authorized?(:"product:update", @current_scope)}
-                  class="rounded p-1.5 hover:cursor-pointer hover:bg-base-700 disabled:cursor-not-allowed"
-                >
-                  <span class="lucide-save size-4 text-content-muted"></span>
-                </button>
-                <button
-                  type="button"
-                  title="Remove metric"
-                  phx-click="delete-metric"
-                  phx-value-profile_id={profile.id}
-                  phx-value-metric_id={metric.id}
-                  data-confirm={"Remove #{metric.key} from this profile?"}
-                  disabled={!authorized?(:"product:update", @current_scope)}
-                  class="rounded p-1.5 hover:cursor-pointer hover:bg-base-700 disabled:cursor-not-allowed"
-                >
-                  <span class="lucide-trash size-4 text-alert"></span>
-                </button>
-              </div>
-            </div>
-            <div class="flex flex-wrap items-center gap-3">
-              <span
-                :if={metric.built_in}
-                title="A count only goes bad high"
-                class="flex size-9 shrink-0 items-center justify-center font-mono text-lg text-content-faint"
-              >
-                ≥
-              </span>
-              <.operator_flip
-                :if={!metric.built_in}
-                target={"metric-#{metric.id}"}
-                operator={shown_operator(@pending_operators, "metric-#{metric.id}", metric.operator)}
-                disabled={!authorized?(:"product:update", @current_scope)}
-              />
-              <.level_fields
-                level="warning"
-                threshold={metric.warning_threshold}
-                period_seconds={metric.warning_period_seconds}
-                disabled={!authorized?(:"product:update", @current_scope)}
-              />
-              <.level_fields
-                level="alert"
-                threshold={metric.alert_threshold}
-                period_seconds={metric.alert_period_seconds}
-                disabled={!authorized?(:"product:update", @current_scope)}
-              />
-            </div>
-          </form>
-
-          <form
-            id={"add-metric-#{profile.id}"}
-            phx-submit="add-metric"
-            phx-change="suggest-thresholds"
-            class="mt-2 flex flex-col gap-3 rounded-card border border-dashed border-line-dashed p-3"
-          >
-            <input type="hidden" name="profile_id" value={profile.id} />
-            <div class="flex flex-wrap items-center justify-between gap-2">
-              <select
-                name="metric[key]"
-                required
-                disabled={!authorized?(:"product:update", @current_scope)}
-                class="block w-64 rounded border border-line-strong bg-base-900 px-2 py-1 text-content-muted focus:border-base-400 focus:ring-0 sm:text-sm"
-              >
-                <option value="">Add a metric...</option>
-                {Phoenix.HTML.Form.options_for_select(metric_options(assigns, profile), nil)}
-              </select>
-              <div class="flex items-center gap-3">
-                <label class="flex items-center gap-2 text-xs text-content-muted" title="Featured metrics are shown at the top of the device details page">
-                  <input type="hidden" name="metric[featured]" value="false" />
-                  <input
-                    type="checkbox"
-                    name="metric[featured]"
-                    value="true"
-                    disabled={!authorized?(:"product:update", @current_scope)}
-                    class="rounded border-line-default text-content-muted checked:bg-primary focus:ring-0"
-                  /> Featured
-                </label>
-                <.button style="secondary" type="submit" disabled={!authorized?(:"product:update", @current_scope)}>
-                  Add
-                </.button>
-              </div>
-            </div>
-            <div class="flex flex-wrap items-center gap-3">
-              <.operator_flip
-                target={"new-#{profile.id}"}
-                operator={shown_operator(@pending_operators, "new-#{profile.id}", :gte)}
-                disabled={!authorized?(:"product:update", @current_scope)}
-              />
-              <.level_fields
-                level="warning"
-                threshold={suggested_threshold(assigns, "new-#{profile.id}", :warning)}
-                period_seconds={3600}
-                disabled={!authorized?(:"product:update", @current_scope)}
-              />
-              <.level_fields
-                level="alert"
-                threshold={suggested_threshold(assigns, "new-#{profile.id}", :alert)}
-                period_seconds={3600}
-                disabled={!authorized?(:"product:update", @current_scope)}
-              />
-            </div>
-          </form>
-        </div>
       </div>
+    </div>
 
-      <div class="flex w-full flex-col rounded-card border border-line-default bg-surface-raised">
-        <div class="flex h-14 items-center justify-between border-b border-line-default px-4">
-          <div class="text-card-title text-content-strong">Add a platform profile</div>
-        </div>
-        <div class="flex flex-col gap-3 p-4">
-          <p class="w-2/3 text-sm">
-            A platform profile starts as a copy of the default profile and overrides it for devices on that platform. Platforms are
-            taken from the firmware uploaded to this product.
-          </p>
-          <form :if={@available_platforms != []} phx-submit="create-platform-profile" class="flex items-center gap-3">
-            <select
-              name="platform"
-              required
-              disabled={!authorized?(:"product:update", @current_scope)}
-              class="block w-64 rounded border border-line-strong bg-base-900 px-2 py-1 text-content-muted focus:border-base-400 focus:ring-0 sm:text-sm"
-            >
-              <option value="">Choose a platform...</option>
-              {Phoenix.HTML.Form.options_for_select(@available_platforms, nil)}
-            </select>
-            <.button style="secondary" type="submit" disabled={!authorized?(:"product:update", @current_scope)}>
-              Create profile
-            </.button>
-          </form>
-          <p :if={@available_platforms == []} class="text-sm text-content-muted">
-            Every platform seen in this product's firmware already has a profile, or no firmware has been uploaded yet.
-          </p>
-        </div>
+    <%!-- On a phone the save buttons stay in reach at the bottom while there's something to save. --%>
+    <div
+      :if={@unsaved > 0 && authorized?(:"product:update", @current_scope)}
+      id="save-bar"
+      class="sticky bottom-0 flex items-center justify-between gap-3 border-t border-line-default bg-surface-raised px-4 py-3 sm:hidden"
+    >
+      <span class="text-ui text-warning-content">{changes(@unsaved)}</span>
+      <div class="flex gap-2">
+        <.button phx-click="discard">Discard</.button>
+        <.button style="primary" type="submit" form="profile-metrics">Save profile</.button>
       </div>
     </div>
   </div>
