@@ -35,6 +35,17 @@ defmodule NervesHub.Products.ApiKeys do
   end
 
   @doc """
+  How many of a product's keys are still active, for the settings tab's count.
+  """
+  @spec active_count(Product.t()) :: non_neg_integer()
+  def active_count(%Product{id: product_id}) do
+    ApiKey
+    |> where(product_id: ^product_id)
+    |> where([k], is_nil(k.deactivated_at))
+    |> Repo.aggregate(:count)
+  end
+
+  @doc """
   Create a key for a product.
 
   Returns the key's record along with the key itself, which is not stored and

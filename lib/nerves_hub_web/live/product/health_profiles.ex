@@ -4,6 +4,7 @@ defmodule NervesHubWeb.Live.Product.HealthProfiles do
   alias NervesHub.Devices.Metrics
   alias NervesHub.Firmwares
   alias NervesHub.Products
+  alias NervesHub.Products.ApiKeys
   alias NervesHub.Products.HealthProfiles
   alias NervesHubWeb.Components.DeviceHealth.MetricLabels
   alias NervesHubWeb.Components.Utils
@@ -20,6 +21,7 @@ defmodule NervesHubWeb.Live.Product.HealthProfiles do
     |> sidebar_tab(:settings)
     |> assign(:product, product)
     |> assign(:custom_labels, Products.custom_health_metrics_labels(product))
+    |> assign(:api_key_count, ApiKeys.active_count(product))
     |> assign_observed(product)
     |> assign_profiles()
     |> ok()

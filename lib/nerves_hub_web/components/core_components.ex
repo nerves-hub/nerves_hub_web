@@ -348,6 +348,13 @@ defmodule NervesHubWeb.CoreComponents do
   attr(:id, :string, required: true)
   attr(:show, :boolean, default: false)
   attr(:on_cancel, JS, default: %JS{})
+  attr(:width_class, :string, default: nil, doc: "a narrower panel than the default, as a max-width class")
+
+  attr(:body_class, :string,
+    default: "p-4",
+    doc: "padding inside the panel; a dialog that draws its own header and footer bars clears it"
+  )
+
   slot(:inner_block, required: true)
 
   # The root is absolute so it stays out of flow once shown. Showing it sets
@@ -366,7 +373,7 @@ defmodule NervesHubWeb.CoreComponents do
               phx-window-keydown={JS.exec("data-cancel", to: "##{@id}")}
               phx-key="escape"
               phx-click-away={JS.exec("data-cancel", to: "##{@id}")}
-              class="relative hidden rounded-md bg-base-900 p-4 shadow-overlay ring-1 ring-line-default/10 transition"
+              class={["relative mx-auto hidden rounded-md bg-base-900 shadow-overlay ring-1 ring-line-default/10 transition", @width_class, @body_class]}
             >
               <div class="absolute top-6 right-5">
                 <button phx-click={JS.exec("data-cancel", to: "##{@id}")} type="button" class="-m-3 flex-none p-3 opacity-20 hover:opacity-40" aria-label={gettext("close")}>

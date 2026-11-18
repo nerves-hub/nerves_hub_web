@@ -5,6 +5,8 @@ defmodule NervesHubWeb.Components.ProductSettings do
   """
   use NervesHubWeb, :component
 
+  alias Phoenix.LiveView.JS
+
   attr(:product, :map, required: true)
 
   @doc """
@@ -25,6 +27,7 @@ defmodule NervesHubWeb.Components.ProductSettings do
   attr(:current_scope, :map, required: true)
   attr(:tab, :atom, required: true, values: [:general, :health, :api_keys])
   attr(:profile_count, :integer, required: true)
+  attr(:api_key_count, :integer, required: true, doc: "keys that have not been deactivated")
 
   @doc """
   Each tab is its own LiveView, so they navigate rather than patch.
@@ -43,6 +46,9 @@ defmodule NervesHubWeb.Components.ProductSettings do
       </.tab>
       <.tab navigate={~p"/org/#{@current_scope.org}/#{@current_scope.product}/settings/api_keys"} selected={@tab == :api_keys}>
         API keys
+        <span :if={@api_key_count > 0} class="font-mono text-xs font-normal text-content-muted">
+          {@api_key_count}<span class="max-sm:hidden"> active</span>
+        </span>
       </.tab>
     </nav>
     """
@@ -67,6 +73,51 @@ defmodule NervesHubWeb.Components.ProductSettings do
     >
       {render_slot(@inner_block)}
     </.link>
+    """
+  end
+
+  attr(:id, :string, required: true)
+  attr(:title, :string, required: true)
+  attr(:cancel_event, :string, default: "cancel-confirm", doc: "the event Cancel, Escape and a click outside send")
+  attr(:cancel, :boolean, default: true, doc: "whether the footer offers Cancel")
+  slot(:inner_block, required: true)
+  slot(:note, doc: "a line at the start of the footer, opposite the actions")
+  slot(:actions)
+
+  @doc """
+  A modal one assign drives: the page renders it while that assign is set, and
+  Cancel, Escape and a click outside all send `cancel_event` to clear it.
+
+  General and Device health use it to ask before anything that changes every
+  device or cannot be undone. API keys uses it for the create form and for the
+  one-time key, which offers no Cancel because dismissing is the only way out.
+  """
+  def dialog(assigns) do
+    ~H"""
+    <NervesHubWeb.CoreComponents.modal
+      id={@id}
+      show
+      on_cancel={JS.push(@cancel_event)}
+      width_class="max-w-[30rem]"
+      body_class=""
+    >
+      <%!-- Not `overflow-hidden`: a popover inside, such as the role picker, hangs past the footer. --%>
+      <div class="flex flex-col">
+        <div class="flex flex-col gap-3.5 px-5 pt-5 pb-4">
+          <h2 id={"#{@id}-title"} class="pr-8 text-item-title text-content-strong">{@title}</h2>
+          <div id={"#{@id}-description"} class="flex flex-col gap-3 text-ui/4.5 text-content-body">
+            {render_slot(@inner_block)}
+          </div>
+        </div>
+        <div class="flex items-center gap-2 rounded-b-md border-t border-line-default bg-surface-muted px-5 py-3 max-sm:flex-col-reverse max-sm:items-stretch">
+          <p :if={@note != []} class="text-ui/4.5 text-content-muted">{render_slot(@note)}</p>
+          <div class="ml-auto flex justify-end gap-2 max-sm:ml-0 max-sm:flex-col-reverse max-sm:*:h-11 max-sm:*:w-full">
+            <.button :if={@cancel} phx-click={JS.exec("data-cancel", to: "##{@id}")}>Cancel</.button>
+            {render_slot(@actions)}
+          </div>
+        </div>
+      </div>
+    </NervesHubWeb.CoreComponents.modal>
     """
   end
 end

@@ -312,14 +312,20 @@ when adding or removing one.
   `components/product_list.ex` holds what the firmware and archive lists
   share: the footer pager, the sort arrow, and how a UUID, a size and an
   upload time are written.
-  A product's settings are two LiveViews, General (`live/product/settings.ex`)
-  and Device health (`live/product/health_profiles.ex`), sharing their title
-  and tabs from `components/product_settings.ex`. General is titled cards in
-  two columns, like the device page's Settings tab, and both draw their
+  A product's settings are three LiveViews, General (`live/product/settings.ex`),
+  Device health (`live/product/health_profiles.ex`) and API keys
+  (`live/product/api_keys.ex`), sharing their title, tabs and dialog from
+  `components/product_settings.ex`. General is titled cards in two columns,
+  like the device page's Settings tab, and it and Device health draw their
   toggles with `components/switch.ex`. Anything there that changes every
-  device, or can't be undone, asks first in a dialog that one `@confirm`
-  assign drives; each event that opens one checks the same permission as the
-  event that acts.
+  device, or can't be undone, asks first in a dialog that one assign drives
+  (`@confirm` on the first two, `@dialog` on API keys, which uses the same
+  component for its create form and for the one-time key); each event that
+  opens one checks the same permission as the event that acts. The dialog is
+  480px with its own footer bar, so it passes `width_class` and a cleared
+  `body_class` to `CoreComponents.modal`, whose defaults keep every other
+  modal as it was. It must not clip, because the API keys role picker is a
+  popover that hangs past the footer.
 - `controllers/` — JSON API (`controllers/api/`) and others.
 - `plugs/`, `router.ex`, `endpoint.ex`, `device_endpoint.ex`,
   `health_check_endpoint.ex`, `auth*.ex`.

@@ -8,6 +8,30 @@ defmodule NervesHubWeb.Live.Product.ApiKeysTest do
 
   defp keys_path(org, product), do: "/org/#{org.name}/#{product.name}/settings/api_keys"
 
+  defp open_create_dialog(session) do
+    session
+    |> click_button("#create-api-key", "Create key")
+    |> assert_has("#create-api-key-dialog h2", text: "Create an API key")
+  end
+
+  # The role picker is a button and a listbox, not a `<select>`, so that each
+  # role can say what it allows.
+  defp open_role_menu(session) do
+    unwrap(session, fn view -> view |> element("#api-key-role") |> render_click() end)
+  end
+
+  defp pick_role(session, name) do
+    session
+    |> open_role_menu()
+    |> within("#api-key-role-options", &click_button(&1, name))
+  end
+
+  # The dialog's Create key button sits in its footer, outside the form it
+  # submits, which PhoenixTest can't click.
+  defp submit_create(session) do
+    unwrap(session, fn view -> view |> form("#api-key-form") |> render_submit() end)
+  end
+
   describe "the page" do
     test "is a tab of the product's settings", %{conn: conn, org: org, product: product} do
       conn
@@ -17,6 +41,17 @@ defmodule NervesHubWeb.Live.Product.ApiKeysTest do
       |> assert_has("nav a[aria-current='page']", text: "API keys")
       |> assert_has("p", text: "There are no API keys yet.")
       |> refute_has("#read-only-notice")
+      |> refute_has("#create-api-key-dialog")
+    end
+
+    test "counts the active keys on its tab", %{conn: conn, org: org, product: product, user: user} do
+      {:ok, _active, _} = ApiKeys.create(product, user, %{"name" => "CI deploys", "role" => "manage"})
+      {:ok, retired, _} = ApiKeys.create(product, user, %{"name" => "Old runner", "role" => "view"})
+      {:ok, _} = ApiKeys.deactivate(product, user, retired.id)
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/settings")
+      |> assert_has("nav a", text: "API keys 1 active")
     end
 
     test "view-only members are told they can't create or deactivate", %{
@@ -30,7 +65,7 @@ defmodule NervesHubWeb.Live.Product.ApiKeysTest do
       conn
       |> visit(keys_path(org, product))
       |> assert_has("#read-only-notice", text: "can't create or deactivate them")
-      |> refute_has("#api-key-form")
+      |> refute_has("#create-api-key")
     end
   end
 
@@ -39,10 +74,12 @@ defmodule NervesHubWeb.Live.Product.ApiKeysTest do
       session =
         conn
         |> visit(keys_path(org, product))
+        |> open_create_dialog()
         |> fill_in("Name", with: "CI deploys")
-        |> select("Role", option: "Manage")
-        |> click_button("Create key")
-        |> assert_has("#new-api-key", text: "Copy the key for CI deploys")
+        |> pick_role("Manage")
+        |> submit_create()
+        |> assert_has("#new-api-key h2", text: "Copy the key for CI deploys")
+        |> assert_has("#new-api-key", text: "This is the only time it is shown.")
         |> assert_has("#api-key-row-#{hd(ApiKeys.list(product)).id}", text: "Manage")
 
       [token] = Regex.run(~r/nhpk_[0-9A-Za-z]+/, render(session.view))
@@ -51,7 +88,16 @@ defmodule NervesHubWeb.Live.Product.ApiKeysTest do
       assert api_key.name == "CI deploys"
       assert api_key.role == :manage
 
-      # Gone once the page is left, and nothing on the page can bring it back.
+      # Dismissing the dialog is the only way out of it, and nothing on the
+      # page can bring the key back.
+      html =
+        session
+        |> within("#new-api-key", &click_button(&1, "I've copied it"))
+        |> refute_has("#new-api-key")
+        |> then(&render(&1.view))
+
+      refute html =~ token
+
       html =
         conn
         |> visit(keys_path(org, product))
@@ -61,51 +107,110 @@ defmodule NervesHubWeb.Live.Product.ApiKeysTest do
       refute html =~ token
     end
 
+    test "says what each role allows", %{conn: conn, org: org, product: product} do
+      _role = Fixtures.org_role_fixture(org, %{name: "Canary only", device_tags: ["canary"]})
+
+      conn
+      |> visit(keys_path(org, product))
+      |> open_create_dialog()
+      |> assert_has("#create-api-key-dialog", text: "Read this product's devices")
+      |> open_role_menu()
+      |> assert_has("#api-key-role-options", text: "Built-in roles")
+      |> assert_has("#api-key-role-options", text: "Custom roles")
+      |> assert_has("#api-key-role-options", text: "Devices tagged")
+      |> within("#api-key-role-options", &click_button(&1, "Manage"))
+      |> assert_has("#create-api-key-dialog", text: "Everything view can do")
+      |> pick_role("Canary only")
+      |> assert_has("#create-api-key-dialog", text: "Devices tagged")
+    end
+
     test "can be given one of the org's custom roles", %{conn: conn, org: org, product: product} do
       role = Fixtures.org_role_fixture(org, %{name: "Deployer", permissions: ["deployment_group:update"]})
 
       conn
       |> visit(keys_path(org, product))
+      |> open_create_dialog()
       |> fill_in("Name", with: "CI deploys")
-      |> select("Role", option: "Deployer")
-      |> click_button("Create key")
-      |> assert_has("#new-api-key", text: "Copy the key for CI deploys")
+      |> pick_role("Deployer")
+      |> submit_create()
+      |> assert_has("#new-api-key h2", text: "Copy the key for CI deploys")
 
       assert [api_key] = ApiKeys.list(product)
       assert api_key.org_role_id == role.id
     end
 
-    test "needs a name", %{conn: conn, org: org, product: product} do
+    test "needs a name, and keeps the picked role while it is fixed", %{conn: conn, org: org, product: product} do
+      role = Fixtures.org_role_fixture(org, %{name: "Deployer", permissions: ["deployment_group:update"]})
+
       conn
       |> visit(keys_path(org, product))
-      |> click_button("Create key")
+      |> open_create_dialog()
+      |> pick_role("Deployer")
+      |> submit_create()
       |> assert_has("#api-key-form", text: "can't be blank")
       |> refute_has("#new-api-key")
+      |> assert_has("#api-key-form input[name='api_key[role]'][value='custom:#{role.id}']")
+      |> fill_in("Name", with: "CI deploys")
+      |> submit_create()
+      |> assert_has("#new-api-key h2", text: "Copy the key for CI deploys")
 
-      assert ApiKeys.list(product) == []
+      assert [api_key] = ApiKeys.list(product)
+      assert api_key.org_role_id == role.id
     end
 
     test "is not offered the admin role", %{conn: conn, org: org, product: product} do
       conn
       |> visit(keys_path(org, product))
-      |> assert_has("#api-key-form option", text: "View")
-      |> assert_has("#api-key-form option", text: "Manage")
-      |> refute_has("#api-key-form option", text: "Admin")
+      |> open_create_dialog()
+      |> open_role_menu()
+      |> assert_has("#api-key-role-options [role='option']", text: "View")
+      |> assert_has("#api-key-role-options [role='option']", text: "Manage")
+      |> refute_has("#api-key-role-options [role='option']", text: "Admin")
+    end
+
+    test "can be abandoned", %{conn: conn, org: org, product: product} do
+      conn
+      |> visit(keys_path(org, product))
+      |> open_create_dialog()
+      # Cancel, Escape and a click outside all run the modal's own data-cancel,
+      # which pushes the event below.
+      |> assert_has("#create-api-key-dialog[data-cancel]")
+      |> unwrap(&render_click(&1, "cancel-dialog", %{}))
+      |> refute_has("#create-api-key-dialog")
+
+      assert ApiKeys.list(product) == []
     end
   end
 
   describe "deactivating a key" do
-    test "stops it working", %{conn: conn, org: org, product: product, user: user} do
+    test "asks first, then stops it working", %{conn: conn, org: org, product: product, user: user} do
       {:ok, api_key, token} = ApiKeys.create(product, user, %{"name" => "CI deploys", "role" => "manage"})
 
       conn
       |> visit(keys_path(org, product))
-      |> click_button("Deactivate")
+      |> within("#api-key-row-#{api_key.id}", &click_button(&1, "Deactivate"))
+      |> assert_has("#deactivate-api-key h2", text: "Deactivate CI deploys?")
+      |> assert_has("#deactivate-api-key", text: "It has never been used")
+      |> within("#deactivate-api-key", &click_button(&1, "Deactivate key"))
       |> assert_has("div", text: "API key CI deploys has been deactivated.")
+      |> refute_has("#deactivate-api-key")
       |> refute_has("button", text: "Deactivate")
 
       assert Repo.reload!(api_key).deactivated_at
       assert ApiKeys.authenticate(token) == :error
+    end
+
+    test "can be abandoned", %{conn: conn, org: org, product: product, user: user} do
+      {:ok, api_key, _token} = ApiKeys.create(product, user, %{"name" => "CI deploys", "role" => "manage"})
+
+      conn
+      |> visit(keys_path(org, product))
+      |> within("#api-key-row-#{api_key.id}", &click_button(&1, "Deactivate"))
+      |> assert_has("#deactivate-api-key")
+      |> unwrap(&render_click(&1, "cancel-dialog", %{}))
+      |> refute_has("#deactivate-api-key")
+
+      refute Repo.reload!(api_key).deactivated_at
     end
 
     test "is refused for a view-only member", %{conn: conn, org: org, product: product, user: user} do
