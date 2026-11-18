@@ -398,12 +398,17 @@ defmodule NervesHubWeb.Live.Product.Settings do
       )
 
     socket
-    |> assign(:managed_progress, nil)
-    |> assign(:reenabling, MapSet.new())
+    |> clear_running(name)
     |> assign_counts()
     |> put_flash(:error, "Updating the devices failed. Please contact support if this problem persists.")
     |> noreply()
   end
+
+  # Only the run that ended lets go of its guard; another may still be going.
+  defp clear_running(socket, {:set_managed_updates_allowed, _enabled}), do: assign(socket, :managed_progress, nil)
+
+  defp clear_running(socket, {:set_extension, extension, _enabled}),
+    do: update(socket, :reenabling, &MapSet.delete(&1, extension))
 
   defp set_product_extension(socket, extension, enabled) do
     %{product: product} = socket.assigns

@@ -1,6 +1,9 @@
 defmodule NervesHubWeb.Live.Product.SettingsTest do
   use NervesHubWeb.ConnCase.Browser, async: false
   use Mimic
+  use AssertEventually, timeout: 2000, interval: 50
+
+  import ExUnit.CaptureLog
 
   alias NervesHub.Accounts
   alias NervesHub.Devices
@@ -554,6 +557,44 @@ defmodule NervesHubWeb.Live.Product.SettingsTest do
       session
       |> unwrap(&render_click(&1, "set-managed-updates-allowed-for-devices", %{"enabled" => "false"}))
       |> assert_has("#managed-updates-progress", text: "Allowing")
+
+      refute_receive {:started, false, _task}
+
+      send(task, :finish)
+    end
+
+    test "another run crashing leaves this one going", %{conn: conn, org: org, product: product} do
+      test_pid = self()
+
+      stub(BulkActions, :set_managed_updates_allowed_for_product, fn _product, enabled, _user, _opts ->
+        send(test_pid, {:started, enabled, self()})
+
+        receive do
+          :finish -> %{ok: 1, error: 0}
+        end
+      end)
+
+      stub(BulkActions, :set_extension_for_product, fn _product, _extension, _enabled, _user ->
+        raise "boom"
+      end)
+
+      session =
+        conn
+        |> visit("/org/#{org.name}/#{product.name}/settings")
+        |> unwrap(&render_click(&1, "set-managed-updates-allowed-for-devices", %{"enabled" => "true"}))
+
+      assert_receive {:started, true, task}
+
+      capture_log(fn ->
+        unwrap(session, &render_click(&1, "set-extension-for-devices", %{"extension" => "geo", "enabled" => "true"}))
+        assert_eventually(render(session.view) =~ "Updating the devices failed.")
+      end)
+
+      session
+      |> unwrap(&render/1)
+      |> assert_has("#managed-updates-progress", text: "Allowing")
+      |> assert_has("#allow-managed-updates-on-devices[disabled]")
+      |> unwrap(&render_click(&1, "set-managed-updates-allowed-for-devices", %{"enabled" => "false"}))
 
       refute_receive {:started, false, _task}
 
