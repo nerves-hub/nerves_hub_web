@@ -145,6 +145,15 @@ defmodule NervesHub.ErrorReports.ErrorGroup do
     change(group, %{status: :muted, muted_at: DateTime.utc_now(), muted_by_id: user.id})
   end
 
+  @restorable_on_reopen [:regressed_at, :resolved_at, :resolved_by_id, :resolved_in_firmware_uuid]
+
+  @doc """
+  The fields `reopen_changeset/2` puts back when given them, which undo saves
+  before a resolve or mute.
+  """
+  @spec restorable_on_reopen() :: [:regressed_at | :resolved_at | :resolved_by_id | :resolved_in_firmware_uuid, ...]
+  def restorable_on_reopen(), do: @restorable_on_reopen
+
   @doc """
   Returns a group to the queue, from either resolved or muted.
 
@@ -156,7 +165,7 @@ defmodule NervesHub.ErrorReports.ErrorGroup do
   """
   @spec reopen_changeset(t(), keyword()) :: Ecto.Changeset.t()
   def reopen_changeset(%__MODULE__{} = group, opts \\ []) do
-    restored = Map.new(Keyword.take(opts, [:regressed_at, :resolved_at, :resolved_by_id, :resolved_in_firmware_uuid]))
+    restored = Map.new(Keyword.take(opts, @restorable_on_reopen))
 
     changes =
       Map.merge(

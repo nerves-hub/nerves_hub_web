@@ -19,6 +19,7 @@ defmodule NervesHubWeb.Live.Product.Errors do
 
   alias NervesHub.AuditLogs.ProductTemplates
   alias NervesHub.ErrorReports
+  alias NervesHub.ErrorReports.ErrorGroup
   alias NervesHub.Helpers.RelativeTime
   alias NervesHubWeb.Helpers.Timezone
   alias NervesHubWeb.Mounts.RequireEveryDevice
@@ -29,7 +30,6 @@ defmodule NervesHubWeb.Live.Product.Errors do
   @sorts ~w(last_seen first_seen count)
   @page_sizes [25, 50, 100]
   @sparkline_days 14
-  @restored_on_undo [:regressed_at, :resolved_at, :resolved_by_id, :resolved_in_firmware_uuid]
 
   @impl Phoenix.LiveView
   @decorate requires_membership()
@@ -200,7 +200,7 @@ defmodule NervesHubWeb.Live.Product.Errors do
       action: action,
       group_id: group.id,
       name: short_name(group.reason),
-      restore: Map.take(group, @restored_on_undo),
+      restore: Map.take(group, ErrorGroup.restorable_on_reopen()),
       left: {updated.status, changed_at(updated)}
     }
   end

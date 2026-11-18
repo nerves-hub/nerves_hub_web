@@ -296,10 +296,11 @@ defmodule NervesHubWeb.Live.Product.ErrorGroup do
   end
 
   @doc """
-  When one firmware carries most of an error's events, a line that says so,
-  and where that firmware went if it was released. `nil` otherwise.
+  A line saying one firmware carries most of an error's events, and where it went if it was released.
 
-  `total` is every kept event, not only those of the firmware listed.
+  Only when at least two firmware are listed, the busiest is live firmware of
+  the product, and it has at least 80% of `total`, which is every kept event
+  rather than only those listed; `nil` otherwise.
   """
   def firmware_tip([top, _next | _rest], total, firmware, release) do
     share = top.count / max(total, 1)

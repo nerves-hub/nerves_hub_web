@@ -97,10 +97,11 @@ defmodule NervesHubWeb.Components.ErrorReports do
   def location(file, line), do: "#{file}:#{line}"
 
   @doc """
-  What to call the firmware a report was seen on, given the
-  `NervesHub.ErrorReports.firmware_by_uuid/2` lookup: its version, or the start
-  of its UUID when the product no longer has it. Deleted firmware says so.
-  `nil` when the device didn't say.
+  What to call the firmware a report was seen on, given the `NervesHub.ErrorReports.firmware_by_uuid/2` lookup.
+
+  Its version, or the start of its UUID when the product no longer has it.
+  Deleted and unknown firmware are both marked `deleted?`. `nil` when the
+  device didn't say.
   """
   @spec firmware_label(String.t() | nil, map()) :: %{text: String.t(), deleted?: boolean()} | nil
   def firmware_label(uuid, _firmware) when uuid in [nil, ""], do: nil
