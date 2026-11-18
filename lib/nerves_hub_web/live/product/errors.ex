@@ -106,6 +106,20 @@ defmodule NervesHubWeb.Live.Product.Errors do
   def handle_event("undo", _params, %{assigns: %{current_scope: scope, undo: undo}} = socket) do
     group = ErrorReports.get_group!(scope.product, undo.group_id)
 
+    if still_as_left?(group, undo) do
+      apply_undo(socket, group, undo)
+    else
+      # It came back, or someone else changed it, since. Putting back what it
+      # was before would throw that away.
+      socket
+      |> assign(:undo, nil)
+      |> put_flash(:info, "#{undo.name} has changed since, so it was left as it is.")
+      |> fetch_groups()
+      |> noreply()
+    end
+  end
+
+  defp apply_undo(%{assigns: %{current_scope: scope}} = socket, group, undo) do
     case ErrorReports.reopen(group, undo_options(undo)) do
       {:ok, updated} ->
         _ = ProductTemplates.audit_error_group_reopened(scope.user, scope.product, updated)
@@ -123,6 +137,14 @@ defmodule NervesHubWeb.Live.Product.Errors do
   end
 
   defp undo_options(%{restore: restore}), do: Map.to_list(restore)
+
+  defp still_as_left?(group, %{left: {status, at}}) do
+    group.status == status and DateTime.compare(changed_at(group), at) == :eq
+  end
+
+  defp changed_at(%{status: :resolved} = group), do: group.resolved_at
+  defp changed_at(%{status: :muted} = group), do: group.muted_at
+  defp changed_at(_group), do: nil
 
   @impl Phoenix.LiveView
   def handle_async(:stats, {:ok, {fingerprints, stats}}, socket) do
@@ -152,7 +174,7 @@ defmodule NervesHubWeb.Live.Product.Errors do
         _ = audit(action, scope, updated)
 
         socket
-        |> assign(:undo, undo(action, group))
+        |> assign(:undo, undo(action, group, updated))
         |> put_flash_for(action)
         |> fetch_groups()
         |> noreply()
@@ -170,16 +192,20 @@ defmodule NervesHubWeb.Live.Product.Errors do
   # A regressed error still carries the resolve it came back from, and
   # resolving clears the regression, so undo puts back both rather than
   # leaving a plain unresolved error.
-  defp undo(action, group) when action in [:resolve, :mute] do
+  #
+  # `left` is the state the action left the error in, so an undo can tell when
+  # it has moved on since.
+  defp undo(action, group, updated) when action in [:resolve, :mute] do
     %{
       action: action,
       group_id: group.id,
       name: short_name(group.reason),
-      restore: Map.take(group, @restored_on_undo)
+      restore: Map.take(group, @restored_on_undo),
+      left: {updated.status, changed_at(updated)}
     }
   end
 
-  defp undo(_action, _group), do: nil
+  defp undo(_action, _group, _updated), do: nil
 
   defp put_flash_for(socket, :reopen), do: put_flash(socket, :info, "Error moved back to Unresolved.")
   defp put_flash_for(socket, _action), do: socket

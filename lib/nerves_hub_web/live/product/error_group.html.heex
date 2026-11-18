@@ -177,14 +177,15 @@
               :if={length(frames) > 2}
               id="show-all-frames"
               type="button"
-              phx-click={Phoenix.LiveView.JS.remove_class("max-sm:hidden", to: "#event-frames li") |> Phoenix.LiveView.JS.hide()}
+              phx-click={JS.remove_class("max-sm:hidden", to: "#event-frames li") |> JS.hide()}
               class="mx-4 mb-3 cursor-pointer text-ui font-medium text-notice-content hover:underline sm:hidden"
             >
               Show {length(frames) - 2} more frames
             </button>
 
             <div :if={frames == []} id="event-message" class="flex flex-col gap-2 p-4">
-              <p class="text-ui text-content-muted">No stack frames: this report was sent by hand. Its message is shown instead.</p>
+              <p :if={@occurrence.source == "manual"} class="text-ui text-content-muted">No stack frames: this report was sent by hand. Its message is shown instead.</p>
+              <p :if={@occurrence.source != "manual"} class="text-ui text-content-muted">No stack frames in this report. Its message is shown instead.</p>
               <pre
                 :if={@occurrence.message != ""}
                 class="max-h-80 overflow-auto rounded-card border border-line-default bg-surface-muted px-3.5 py-3 font-mono text-xs/5 whitespace-pre-wrap text-content-body"

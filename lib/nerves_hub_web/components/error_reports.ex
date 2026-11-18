@@ -164,11 +164,12 @@ defmodule NervesHubWeb.Components.ErrorReports do
   end
 
   @doc """
-  An error's events over a window, as bars drawn on the server: one per hour
-  or day, red when it falls in the error's open period (`hot?`), grey
-  otherwise. `markers` are dashed lines at a point in the window, from 0 at
-  its start to 1 at its end: `:resolved` grey, `:release` in the notice
-  colour.
+  An error's events over a window, as SVG bars drawn on the server.
+
+  One bar per hour or day, red when it falls in the error's open period
+  (`hot?`), grey otherwise. `markers` are dashed lines at a point in the
+  window, from 0 at its start to 1 at its end: `:resolved` grey, `:release` in
+  the notice colour.
   """
   attr(:id, :string, required: true)
   attr(:bars, :list, required: true, doc: "`%{count:, hot?:, label:}`, oldest first")
@@ -225,10 +226,11 @@ defmodule NervesHubWeb.Components.ErrorReports do
   end
 
   @doc """
-  An occurrence's context, labelled for reading. The vitals the protocol
-  names (`uptime_ms`, `reboot_count`, `free_memory_bytes`) get labels and
-  units; any other key is shown as the device sent it.
-  Returns `[{label, value, known?}]`, the known ones first.
+  An occurrence's context, labelled for reading, as `[{label, value, known?}]`.
+
+  The vitals the protocol names (`uptime_ms`, `reboot_count`,
+  `free_memory_bytes`) get labels and units and come first; any other key is
+  shown as the device sent it, sorted by key. Anything but a map gives `[]`.
   """
   @spec context_entries(map()) :: [{String.t(), String.t(), boolean()}]
   def context_entries(context) when is_map(context) do

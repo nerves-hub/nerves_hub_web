@@ -688,11 +688,11 @@ defmodule NervesHub.ErrorReports do
   @doc """
   Returns an issue to the queue, from either resolved or muted.
 
-  `opts` undoes a resolve: `:regressed_at` puts back the regression it
+  `opts` is for undo: `:regressed_at` puts back the regression a resolve
   cleared, and `:resolved_at`, `:resolved_by_id` and
   `:resolved_in_firmware_uuid` put back an earlier resolve that a regression
-  left on the issue. Undoing a resolve then leaves the issue as it was rather
-  than as a plain unresolved one.
+  left on the issue, which a plain reopen would clear. Undoing a resolve or a
+  mute then leaves the issue as it was rather than as a plain unresolved one.
   """
   @spec reopen(ErrorGroup.t(), keyword()) :: {:ok, ErrorGroup.t()} | {:error, Ecto.Changeset.t()}
   def reopen(%ErrorGroup{} = group, opts \\ []) do

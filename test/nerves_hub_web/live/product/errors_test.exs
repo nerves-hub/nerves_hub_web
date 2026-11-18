@@ -353,6 +353,31 @@ defmodule NervesHubWeb.Live.Product.ErrorsTest do
       |> assert_has("#error-list a", text: "** (RuntimeError) boom")
     end
 
+    test "undo leaves an error alone once it has come back", %{conn: conn, org: org, product: product} do
+      [group] = groups(product)
+      regressed_at = DateTime.utc_now()
+
+      session =
+        conn
+        |> visit("/org/#{org.name}/#{product.name}/errors")
+        |> click_button("Resolve")
+
+      # A device reports it again while the undo is still offered.
+      {1, _} =
+        Repo.update_all(from(g in ErrorGroup, where: g.id == ^group.id),
+          set: [status: :unresolved, regressed_at: regressed_at]
+        )
+
+      session
+      |> click_button("Undo")
+      |> refute_has("#error-undo")
+      |> assert_has("div", text: "RuntimeError has changed since, so it was left as it is.")
+
+      assert [%ErrorGroup{status: :unresolved} = kept] = groups(product)
+      assert DateTime.compare(kept.regressed_at, regressed_at) == :eq
+      refute is_nil(kept.resolved_at)
+    end
+
     test "muting updates the status and writes an audit log", %{conn: conn, org: org, product: product} do
       conn
       |> visit("/org/#{org.name}/#{product.name}/errors")
@@ -470,9 +495,26 @@ defmodule NervesHubWeb.Live.Product.ErrorsTest do
 
       conn
       |> visit("/org/#{org.name}/#{product.name}/errors/#{group.id}")
-      |> assert_has("#event-message", text: "No stack frames")
+      |> assert_has("#event-message", text: "No stack frames in this report")
       |> assert_has("#event-message pre", text: "payment-gateway: 502")
       |> refute_has("#event-frames")
+    end
+
+    test "says a report without frames was sent by hand only when it was", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device
+    } do
+      record(device, [
+        report("upstream returned 502", %{"frames" => [], "source" => "manual", "message" => "payment-gateway: 502"})
+      ])
+
+      group = Enum.find(groups(product), &(&1.reason == "upstream returned 502"))
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/errors/#{group.id}")
+      |> assert_has("#event-message", text: "this report was sent by hand")
     end
 
     test "says what's gone once every report has aged out", %{conn: conn, org: org, product: product, group: group} do
