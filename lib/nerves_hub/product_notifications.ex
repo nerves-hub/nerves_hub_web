@@ -670,7 +670,10 @@ defmodule NervesHub.ProductNotifications do
       |> update([n],
         set: [
           last_occurred_at: fragment("EXCLUDED.last_occurred_at"),
-          occurrence_count: fragment("?.occurrence_count + 1", n)
+          occurrence_count: fragment("?.occurrence_count + 1", n),
+          # One raised without a kind, by a node on a release from before
+          # kinds, gets one when it happens again.
+          kind: fragment("COALESCE(?.kind, EXCLUDED.kind)", n)
         ]
       )
 

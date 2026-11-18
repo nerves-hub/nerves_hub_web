@@ -106,6 +106,23 @@ defmodule NervesHub.ProductNotificationsTest do
     assert notification |> Map.get(:occurrence_count) == 3
   end
 
+  test "a notification raised without a kind gets one when it happens again", %{product: product} do
+    notification =
+      NervesHub.ProductNotifications.create_duplicate_device_identifier_notification!(
+        product.id,
+        "abc",
+        :shared_secrets
+      )
+
+    # As a node on a release from before kinds would have raised it.
+    Repo.update_all(from(n in Notification, where: n.id == ^notification.id), set: [kind: nil])
+
+    NervesHub.ProductNotifications.create_duplicate_device_identifier_notification!(product.id, "abc", :shared_secrets)
+
+    assert %Notification{kind: :duplicate_device_identifier, occurrence_count: 2} =
+             Repo.get!(Notification, notification.id)
+  end
+
   test "a broadcast is sent to the product's channel when a notification is created",
        %{product: product} do
     NervesHub.ProductNotifications.subscribe(product.id)
