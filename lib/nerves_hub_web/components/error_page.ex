@@ -1,6 +1,6 @@
 defmodule NervesHubWeb.Components.ErrorPage do
   @moduledoc """
-  The 400, 404 and 500 pages: the perfboard backdrop of the auth pages, a
+  The 400, 404 and 500 pages: a perfboard backdrop, a
   drawing of the fault, and the message under it.
 
   Error pages render without a layout, from both endpoints
