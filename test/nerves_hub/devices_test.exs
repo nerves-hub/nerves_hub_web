@@ -1325,6 +1325,54 @@ defmodule NervesHub.DevicesTest do
     } do
       assert {:error, :unknown_extension} = BulkActions.set_extension_for_product(product, "teleport", true, user)
     end
+
+    test "set_managed_updates_allowed_for_product/4 reports its progress", %{
+      devices: [already_granted | _],
+      bulk_product: product,
+      bulk_user: user
+    } do
+      {:ok, _} = Updates.set_managed_updates_allowed(already_granted, true, user)
+      test_pid = self()
+
+      %{ok: 2} =
+        BulkActions.set_managed_updates_allowed_for_product(product, true, user,
+          on_progress: fn done, total -> send(test_pid, {:progress, done, total}) end
+        )
+
+      # Counted out of the devices that differ, before the first and after the last.
+      assert_received {:progress, 0, 2}
+      assert_received {:progress, 2, 2}
+    end
+
+    test "extension_counts/1 counts the devices each extension is on for", %{
+      devices: [off, _on, deleted],
+      bulk_product: product,
+      device: other_products_device
+    } do
+      {:ok, _} = Devices.disable_extension_setting(off, "geo")
+      {:ok, _} = Devices.delete_device(deleted)
+      {:ok, _} = Devices.disable_extension_setting(other_products_device, "health")
+
+      %{total: total, on: on} = Devices.extension_counts(product)
+
+      assert total == 2
+      assert on["geo"] == 1
+      assert on["health"] == 2
+      # Every extension the platform has is counted, on or not.
+      assert Map.keys(on) == Enum.map(NervesHub.Extensions.list(), &to_string/1) |> Enum.sort()
+    end
+
+    test "managed_updates_allowed_count/1 counts the devices that may choose, leaving out deleted ones", %{
+      devices: [granted, _ungranted, deleted],
+      bulk_product: product,
+      bulk_user: user
+    } do
+      {:ok, _} = Updates.set_managed_updates_allowed(granted, true, user)
+      {:ok, deleted} = Updates.set_managed_updates_allowed(deleted, true, user)
+      {:ok, _} = Devices.delete_device(deleted)
+
+      assert Devices.managed_updates_allowed_count(product) == 1
+    end
   end
 
   describe "clear_penalty_box_for_devices/2" do

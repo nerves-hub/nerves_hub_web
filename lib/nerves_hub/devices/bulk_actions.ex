@@ -19,6 +19,9 @@ defmodule NervesHub.Devices.BulkActions do
   alias NervesHub.Repo
   alias NervesHub.TaskSupervisor, as: Tasks
 
+  # How often `set_managed_updates_allowed_for_product/4` reports progress.
+  @progress_every 25
+
   def async_bulk_create(org_id, product_id, import_list, format, tags \\ [])
 
   def async_bulk_create(org_id, product_id, import_list, format, tags) when not is_binary(import_list) do
@@ -429,23 +432,44 @@ defmodule NervesHub.Devices.BulkActions do
   does with a query. A connection re-reads its device when told it changed, and
   told before the change commits it reads the old grant and keeps showing it
   until it reconnects.
+
+  ## Options
+
+    * `:on_progress` - called as `on_progress.(done, total)` before the first
+      device and then every #{@progress_every} devices and after the last, so a
+      page can show how far it has got. `total` is the devices that differ.
   """
-  @spec set_managed_updates_allowed_for_product(Product.t(), boolean(), User.t()) ::
+  @spec set_managed_updates_allowed_for_product(Product.t(), boolean(), User.t(), keyword()) ::
           %{ok: non_neg_integer(), error: non_neg_integer()}
-  def set_managed_updates_allowed_for_product(%Product{} = product, enabled, user) when is_boolean(enabled) do
-    Device
-    |> where([d], d.product_id == ^product.id)
-    |> where([d], d.managed_updates_allowed != ^enabled)
-    |> Repo.exclude_deleted()
-    |> select([d], d.id)
-    |> Repo.all()
+  def set_managed_updates_allowed_for_product(%Product{} = product, enabled, user, opts \\ [])
+      when is_boolean(enabled) do
+    on_progress = Keyword.get(opts, :on_progress, fn _done, _total -> :ok end)
+
+    ids =
+      Device
+      |> where([d], d.product_id == ^product.id)
+      |> where([d], d.managed_updates_allowed != ^enabled)
+      |> Repo.exclude_deleted()
+      |> select([d], d.id)
+      |> Repo.all()
+
+    total = length(ids)
+    _ = on_progress.(0, total)
+
+    ids
     |> Stream.chunk_every(500)
     |> Stream.flat_map(fn ids -> Repo.all(from(d in Device, where: d.id in ^ids)) end)
-    |> Enum.reduce(%{ok: 0, error: 0}, fn device, acc ->
-      case Updates.set_managed_updates_allowed(device, enabled, user) do
-        {:ok, _device} -> %{acc | ok: acc.ok + 1}
-        _error -> %{acc | error: acc.error + 1}
-      end
+    |> Stream.with_index(1)
+    |> Enum.reduce(%{ok: 0, error: 0}, fn {device, done}, acc ->
+      acc =
+        case Updates.set_managed_updates_allowed(device, enabled, user) do
+          {:ok, _device} -> %{acc | ok: acc.ok + 1}
+          _error -> %{acc | error: acc.error + 1}
+        end
+
+      if rem(done, @progress_every) == 0 or done == total, do: on_progress.(done, total)
+
+      acc
     end)
   end
 

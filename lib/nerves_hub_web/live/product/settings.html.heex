@@ -1,367 +1,371 @@
 <NervesHubWeb.Layouts.sidebar flash={@flash} current_scope={@current_scope} sidebar_tab={@sidebar_tab}>
-  <:header>
-    <h1 class="text-page-title text-content-strong">Product Settings</h1>
-  </:header>
+  <:top_bar>
+    <.title product={@product} />
+  </:top_bar>
 
-  <%!-- Separate LiveViews rather than actions of one, so these navigate. --%>
-  <:tabbed_nav
-    path={~p"/org/#{@current_scope.org}/#{@current_scope.product}/settings"}
-    selected={@tab == :general}
-    navigate={true}
-    label="General"
-  />
-  <:tabbed_nav
-    path={~p"/org/#{@current_scope.org}/#{@current_scope.product}/settings/health"}
-    selected={@tab == :health}
-    navigate={true}
-    label="Device Health"
-  />
+  <div class="flex h-0 flex-1 flex-col overflow-y-auto">
+    <.tabs current_scope={@current_scope} tab={:general} profile_count={@profile_count} />
 
-  <div class="h-0 flex-1 overflow-y-auto">
-    <div class="flex flex-col items-start justify-between gap-4 p-6">
-      <div class="flex w-full flex-col rounded-card border border-line-default bg-surface-raised">
-        <div class="flex h-14 items-center justify-between border-b border-line-default px-4">
-          <div class="text-card-title text-content-strong">General settings</div>
-        </div>
-        <div class="flex gap-6 p-4">
-          <div class="flex w-1/2 flex-col gap-6">
-            <.input field={@form[:name]} label="Name" hint="Once created, a product name cannot be changed" disabled />
-          </div>
-        </div>
-      </div>
+    <div class="@container flex flex-col gap-4 p-6 max-sm:gap-3 max-sm:p-3">
+      <p
+        :if={!authorized?(:"product:update", @current_scope)}
+        id="read-only-notice"
+        class="flex items-center gap-2 rounded-card border border-line-default bg-surface-muted px-4 py-3 text-ui/4.5 text-content-body"
+      >
+        <span class="lucide-eye size-4 text-content-muted" aria-hidden="true"></span>
+        <span>You can see these settings, but your role in {@current_scope.org.name} can't change them.</span>
+      </p>
 
-      <div class="flex w-full flex-col rounded-card border border-line-default bg-surface-raised">
-        <div class="flex h-14 items-center justify-between border-b border-line-default px-4">
-          <div class="text-card-title text-content-strong">Device Extensions</div>
-        </div>
-
-        <div class="flex flex-col gap-3 p-4">
-          <div class="flex flex-col gap-3">
-            <p class="w-2/3 text-sm">
-              Device extensions are encapsulated features which use isolated channels for communication. The use of isolated channels ensures that firmware updates are not affected, while allowing NervesHub to manage, monitor, and introspect your fleet.
-            </p>
-            <p class="w-2/3 text-sm">
-              When enabled, NervesHub will request the extensions a device currently supports and then check against product and device settings to see if the extension should be attached to the connection.
-            </p>
-            <p class="w-2/3 text-sm">
-              Extensions most be allowed at the product level. They can also be configured at the device level for more granular control when needed.
-            </p>
-            <p class="w-2/3 text-sm">
-              Enabling or disabling an extension on all devices changes each device's own setting. It takes effect only while the extension is allowed here.
-            </p>
-          </div>
-
-          <%!-- The buttons wrap below the description when the row is too narrow for both. --%>
-          <div :for={{key, description} <- @available_extensions} class="flex min-h-16 flex-wrap items-center gap-x-6 gap-y-3 p-2">
-            <div class="flex min-w-0 flex-1 basis-72 items-center gap-6">
-              <div class="flex h-8 shrink-0 items-center rounded-full border border-line-default bg-base-800 px-2 py-1">
-                <input
-                  id={"extension-#{key}"}
-                  name={key}
-                  type="checkbox"
-                  class="rounded border-line-default text-content-muted checked:bg-primary focus:ring-0"
-                  phx-click="update-extension"
-                  phx-value-extension={key}
-                  checked={@product.extensions[key]}
-                  disabled={!authorized?(:"product:update", @current_scope)}
-                />
+      <%!-- One column below @4xl, where the columns dissolve so the cards can take the phone's order. --%>
+      <div class="flex flex-col gap-4 max-sm:gap-3 @4xl:grid @4xl:grid-cols-2 @4xl:items-start">
+        <div class="contents min-w-0 @4xl:flex @4xl:flex-col @4xl:gap-4">
+          <section id="general-settings" class={[card_class(), "order-1 @4xl:order-0"]}>
+            <.card_header title="General" />
+            <div class="flex items-center justify-between gap-6 border-t border-line-default px-4 py-3.5 max-sm:flex-col max-sm:items-stretch max-sm:gap-2">
+              <div class="flex min-w-0 flex-col gap-0.5">
+                <span class="text-sm/5 font-medium text-content-strong">Name</span>
+                <span class="text-ui/4.5 text-content-muted">Devices and the CLI use it, so it can't be changed.</span>
               </div>
-              <div class="flex min-w-0 flex-col">
-                <div class="flex gap-2">
-                  <div class="font-medium text-content-body">
-                    {Extensions.display_name(key)}
-                  </div>
-                </div>
-                <div class="text-xs text-content-muted">
-                  {description}
-                </div>
+              <div class="flex h-9 w-64 shrink-0 items-center gap-2 rounded border border-line-default bg-surface-muted pr-1 pl-3 max-sm:w-full">
+                <span id="product-name" class="min-w-0 flex-1 truncate font-mono text-sm text-content-strong">{@product.name}</span>
+                <button
+                  id="copy-product-name"
+                  type="button"
+                  phx-hook="CopyToClipboard"
+                  data-copy-value={@product.name}
+                  aria-label="Copy the product name"
+                  title="Copy"
+                  class="flex size-7 shrink-0 cursor-pointer items-center justify-center rounded text-content-faint hover:bg-surface-raised hover:text-content-strong"
+                >
+                  <span data-icon="copy" class="lucide-copy size-3.5" aria-hidden="true"></span>
+                  <span data-icon="check" class="lucide-check hidden size-3.5 text-success-content" aria-hidden="true"></span>
+                </button>
               </div>
             </div>
-            <div class="flex flex-wrap gap-2">
-              <.button
-                id={"enable-extension-#{key}-on-devices"}
-                phx-click="set-extension-for-devices"
-                phx-value-extension={key}
-                phx-value-enabled="true"
-                data-confirm={"Enable the #{Extensions.display_name(key)} extension on every device in this product?"}
-                disabled={!authorized?(:"device:update", @current_scope)}
-              >
-                Enable on all devices
-              </.button>
-              <.button
-                id={"disable-extension-#{key}-on-devices"}
-                phx-click="set-extension-for-devices"
-                phx-value-extension={key}
-                phx-value-enabled="false"
-                data-confirm={"Disable the #{Extensions.display_name(key)} extension on every device in this product?"}
-                disabled={!authorized?(:"device:update", @current_scope)}
-              >
-                Disable on all devices
-              </.button>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div class="flex w-full flex-col rounded-card border border-line-default bg-surface-raised">
-        <div class="flex h-14 items-center justify-between border-b border-line-default px-4">
-          <div class="text-card-title text-content-strong">Device-managed updates</div>
-        </div>
-
-        <div class="flex flex-col gap-3 p-4">
-          <div class="flex flex-col gap-3">
-            <p class="w-2/3 text-sm">
-              A device that may choose its own update mode can move itself between automatic and device managed. A device-managed device decides when to take the firmware its deployment group names, rather than having it pushed.
-            </p>
-          </div>
-
-          <div class="flex min-h-16 items-center gap-6 p-2">
-            <div class="flex h-8 shrink-0 items-center rounded-full border border-line-default bg-base-800 px-2 py-1">
-              <input
-                id="default-managed-updates-allowed"
-                name="default-managed-updates-allowed"
-                type="checkbox"
-                class="rounded border-line-default text-content-muted checked:bg-primary focus:ring-0"
-                phx-click="update-default-managed-updates-allowed"
-                checked={@product.default_managed_updates_allowed}
-                disabled={!authorized?(:"product:update", @current_scope)}
-              />
-            </div>
-            <div class="flex flex-col">
-              <div class="font-medium text-content-body">Let new devices choose their update mode</div>
-              <div class="text-xs text-content-muted">
-                Devices added to this product from now on start with this setting. Existing devices keep their own.
+            <div class="flex items-center justify-between gap-6 border-t border-line-default px-4 py-3.5">
+              <div class="flex min-w-0 flex-col gap-0.5">
+                <span class="text-sm/5 font-medium text-content-strong">Organization</span>
+                <span class="text-ui/4.5 text-content-muted">
+                  Created <.local_datetime at={@product.inserted_at} time_zone={@time_zone} format={:medium_date} zone_label={false} />
+                </span>
               </div>
+              <span class="w-64 shrink-0 truncate text-sm/5 text-content-body max-sm:w-auto">{@current_scope.org.name}</span>
             </div>
-          </div>
+          </section>
 
-          <div class="flex min-h-16 flex-wrap items-center gap-x-6 gap-y-3 p-2">
-            <div class="flex min-w-0 flex-1 basis-72 flex-col">
-              <div class="font-medium text-content-body">Existing devices</div>
-              <div class="text-xs text-content-muted">
-                Change the setting on every device already in this product. Disallowing does not move a device that is already device managed.
-              </div>
-            </div>
-            <div class="flex flex-wrap gap-2">
-              <.button
-                id="allow-managed-updates-on-devices"
-                phx-click="set-managed-updates-allowed-for-devices"
-                phx-value-enabled="true"
-                data-confirm="Let every device in this product choose its own update mode?"
-                disabled={!authorized?(:"device:toggle-updates", @current_scope)}
-              >
-                Allow on all devices
-              </.button>
-              <.button
-                id="disallow-managed-updates-on-devices"
-                phx-click="set-managed-updates-allowed-for-devices"
-                phx-value-enabled="false"
-                data-confirm="Stop every device in this product choosing its own update mode?"
-                disabled={!authorized?(:"device:toggle-updates", @current_scope)}
-              >
-                Disallow on all devices
-              </.button>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div class="flex w-full flex-col rounded-card border border-line-default bg-surface-raised">
-        <div class="flex h-14 items-center justify-between border-b border-line-default px-4">
-          <div class="text-card-title text-content-strong">Firmware</div>
-        </div>
-
-        <div class="flex flex-col gap-3 p-4">
-          <div class="flex h-16 items-center gap-6 p-2">
-            <div class="flex h-8 items-center rounded-full border border-line-default bg-base-800 px-2 py-1">
-              <input
+          <section id="firmware-settings" class={[card_class(), "order-3 @4xl:order-0"]}>
+            <.card_header title="Firmware" description="What this product accepts as an upload. fwup firmware is always accepted and always signed." />
+            <label for="require-unique-firmware-version" class="flex cursor-pointer items-center justify-between gap-6 border-t border-line-default px-4 py-3.5">
+              <span class="flex min-w-0 flex-col gap-0.5">
+                <span class="text-sm/5 font-medium text-content-strong">Require unique firmware versions</span>
+                <span class="text-ui/4.5 text-content-muted">Refuse an upload whose version, platform and architecture match one already here.</span>
+              </span>
+              <.switch
                 id="require-unique-firmware-version"
                 name="require-unique-firmware-version"
-                type="checkbox"
-                class="rounded border-line-default text-content-muted checked:bg-primary focus:ring-0"
-                phx-click="update-require-unique-firmware-version"
                 checked={@product.require_unique_firmware_version}
                 disabled={!authorized?(:"product:update", @current_scope)}
+                phx-click="update-require-unique-firmware-version"
               />
-            </div>
-            <div class="flex flex-col">
-              <div class="font-medium text-content-body">Require unique firmware versions</div>
-              <div class="text-xs text-content-muted">
-                Reject uploaded firmware whose version already exists for this product's platform and architecture.
+            </label>
+            <div :for={tool <- @optional_tools} id={"firmware-format-#{tool.name}"} class="flex items-center justify-between gap-6 border-t border-line-default px-4 py-3.5">
+              <div class="flex min-w-0 flex-col gap-1">
+                <label for={"allow-#{tool.name}-firmware"} class="flex cursor-pointer flex-wrap items-center gap-2">
+                  <span class="text-sm/5 font-medium text-content-strong">{tool.label}</span>
+                  <span class="rounded bg-surface-muted px-1.5 py-0.5 font-mono text-xs/4 text-content-muted">{tool.extension}</span>
+                </label>
+                <%= cond do %>
+                  <% tool[:note] -> %>
+                    <span class="text-ui/4.5 text-content-muted">{tool.note}</span>
+                  <% accepts?(@product, tool) -> %>
+                    <label for={"allow-unsigned-#{tool.name}-firmware"} class="flex cursor-pointer items-center gap-2 text-ui/4.5 text-content-body" title={tool.unsigned_description}>
+                      <input
+                        id={"allow-unsigned-#{tool.name}-firmware"}
+                        name={"allow-unsigned-#{tool.name}-firmware"}
+                        type="checkbox"
+                        checked={Map.get(@product, tool.unsigned_field)}
+                        disabled={!authorized?(:"product:update", @current_scope)}
+                        phx-click="update-allow-unsigned"
+                        phx-value-tool={tool.name}
+                        class="size-3.5 rounded-sm border-line-control bg-surface-raised text-primary focus:ring-0 focus:ring-offset-0 disabled:opacity-60"
+                      />
+                      {tool.unsigned_label}
+                    </label>
+                  <% true -> %>
+                    <span class="text-ui/4.5 text-content-muted">Turn on to choose whether unsigned {tool.noun} are allowed.</span>
+                <% end %>
               </div>
-            </div>
-          </div>
-
-          <div :for={tool <- @optional_tools} class="flex h-16 items-center gap-6 p-2">
-            <div class="flex h-8 items-center rounded-full border border-line-default bg-base-800 px-2 py-1">
-              <input
+              <.switch
                 id={"allow-#{tool.name}-firmware"}
                 name={"allow-#{tool.name}-firmware"}
-                type="checkbox"
-                class="rounded border-line-default text-content-muted checked:bg-primary focus:ring-0"
+                checked={accepts?(@product, tool)}
+                disabled={!authorized?(:"product:update", @current_scope)}
                 phx-click="update-allowed-update-tool"
                 phx-value-tool={tool.name}
-                checked={Product.accepts_update_tool?(@product, tool.name)}
-                disabled={!authorized?(:"product:update", @current_scope)}
               />
             </div>
-            <div class="flex flex-col">
-              <div class="font-medium text-content-body">Accept {tool.label}</div>
-              <div class="text-xs text-content-muted">{tool.description}</div>
-            </div>
-          </div>
+          </section>
 
-          <div
-            :for={tool <- @optional_tools}
-            :if={tool[:unsigned_field] && Product.accepts_update_tool?(@product, tool.name)}
-            class="flex h-16 items-center gap-6 p-2"
-          >
-            <div class="flex h-8 items-center rounded-full border border-line-default bg-base-800 px-2 py-1">
-              <input
-                id={"allow-unsigned-#{tool.name}-firmware"}
-                name={"allow-unsigned-#{tool.name}-firmware"}
-                type="checkbox"
-                class="rounded border-line-default text-content-muted checked:bg-primary focus:ring-0"
-                phx-click="update-allow-unsigned"
-                phx-value-tool={tool.name}
-                checked={Map.get(@product, tool.unsigned_field)}
-                disabled={!authorized?(:"product:update", @current_scope)}
-              />
-            </div>
-            <div class="flex flex-col">
-              <div class="font-medium text-content-body">{tool.unsigned_label}</div>
-              <div class="text-xs text-content-muted">{tool.unsigned_description}</div>
-            </div>
-          </div>
-        </div>
-      </div>
+          <section id="shared-secrets" class={[card_class(), "order-4 @4xl:order-0"]}>
+            <.card_header title="Shared secrets">
+              For devices that connect without a certificate.
+              <.link href="https://docs.nerves-hub.org/nerves-hub-link/shared-secrets" target="_blank" class="text-primary hover:underline light:text-indigo-600">How it works</.link>
+              <:action :if={@shared_auth_enabled && authorized?(:"product:update", @current_scope)}>
+                <.button id="create-shared-secret" phx-click="add-shared-secret">
+                  <span class="lucide-plus size-3.5" aria-hidden="true"></span> Create secret
+                </.button>
+              </:action>
+            </.card_header>
 
-      <div class="flex w-full flex-col rounded-card border border-line-default bg-surface-raised">
-        <div class="flex h-14 items-center justify-between border-b border-line-default px-4">
-          <div class="text-card-title text-content-strong">Device Shared Secret Authentication</div>
-        </div>
-
-        <div class="flex flex-col gap-3 p-4">
-          <div class="flex flex-col gap-3">
-            <p class="w-2/3 text-sm">
-              Shared Secret authentication allows Devices to connect to Nerves Hub using a shared key and secret.
-              When a Device connects for the first time the Device will be registered with the Product ("Just-in-Time registration").
-            </p>
-            <p class="w-2/3 text-sm">
-              This authentication strategy is useful for small deployments of Devices, or when prototyping a new Product.
-            </p>
-            <p class="w-2/3 text-sm">
-              We highly recommend using Device Certificates for situations where security is paramount.
-            </p>
-            <p class="w-2/3 text-sm">
-              Please refer to the <.link class="underline" navigate="https://docs.nerves-hub.org/nerves-hub-link/shared-secrets">documentation</.link>
-              on how to configure this with <.link class="underline" navigate="https://github.com/nerves-hub/nerves_hub_link">NervesHubLink</.link>.
-            </p>
-          </div>
-        </div>
-
-        <%= if @shared_auth_enabled do %>
-          <div :if={Enum.any?(@shared_secrets)} class="listing flex flex-col gap-3 pt-6">
-            <table>
-              <thead class="border-y border-line-default">
-                <tr>
-                  <th>Key</th>
-                  <th>Created at</th>
-                  <th>Deactivated at</th>
-                  <th class="min-w-60"></th>
-                </tr>
-              </thead>
-              <tr :for={auth <- @shared_secrets} class="item">
-                <td>
-                  <code>{auth.key}</code>
-                </td>
-                <td>
-                  <.local_datetime at={auth.inserted_at} time_zone={@time_zone} format={:date} zone_label={false} />
-                </td>
-                <td>
-                  <.local_datetime at={auth.deactivated_at} time_zone={@time_zone} format={:date} zone_label={false} />
-                </td>
-                <td>
-                  <div :if={is_nil(auth.deactivated_at)} class="flex h-full items-center justify-start gap-3">
-                    <%!-- Left out rather than disabled: the secret lets a device connect and register itself, so it is only sent to members who could manage it. --%>
-                    <input :if={authorized?(:"product:update", @current_scope)} type="hidden" id={"shared-secret-#{auth.id}"} value={auth.secret} />
-
-                    <.button
-                      :if={authorized?(:"product:update", @current_scope)}
-                      value={auth.id}
-                      id={"shared-secret-#{auth.id}-button"}
-                      phx-hook="SharedSecretClipboardClick"
-                      aria-label="Copy secret"
-                    >
-                      Copy secret
-                    </.button>
-
-                    <.button
-                      phx-click="deactivate-shared-secret"
-                      phx-value-shared_secret_id={auth.id}
-                      disabled={!authorized?(:"product:update", @current_scope)}
-                      data-confirm="Are you sure you want to deactivate this shared secret?"
-                      aria-label="Deactivate secret"
-                    >
-                      Deactivate
-                    </.button>
+            <%= cond do %>
+              <% !@shared_auth_enabled -> %>
+                <p class="border-t border-line-default px-4 py-3.5 text-ui/4.5 text-warning-content">
+                  Shared secret authentication hasn't been turned on for this platform. Ask whoever runs it.
+                </p>
+              <% @shared_secrets == [] -> %>
+                <p class="border-t border-line-default px-4 py-3.5 text-ui/4.5 text-content-muted">
+                  There are no shared secrets yet.
+                </p>
+              <% true -> %>
+                <div class="border-t border-line-default">
+                  <div class="grid grid-cols-[minmax(0,1fr)_7rem_6rem] items-center gap-4 border-b border-line-default px-4 py-2.5 text-label text-content-muted uppercase max-sm:hidden">
+                    <span>Key</span>
+                    <span>Created</span>
+                    <span></span>
                   </div>
-                </td>
-              </tr>
-            </table>
-          </div>
+                  <div
+                    :for={auth <- @shared_secrets}
+                    id={"shared-secret-row-#{auth.id}"}
+                    class={[
+                      "grid grid-cols-[minmax(0,1fr)_7rem_6rem] items-center gap-4 border-b border-line-default px-4 py-3 last:border-b-0 max-sm:grid-cols-[minmax(0,1fr)_auto]",
+                      auth.id == @new_secret_id && "bg-primary/5"
+                    ]}
+                  >
+                    <div class="flex min-w-0 flex-col items-start gap-1">
+                      <div class="flex max-w-full min-w-0 items-center gap-2">
+                        <code class={[
+                          "min-w-0 font-mono text-ui break-all",
+                          if(auth.deactivated_at, do: "text-content-faint line-through", else: "text-content-strong")
+                        ]}>
+                          {auth.key}
+                        </code>
+                        <%!-- Left out rather than disabled: the secret lets a device connect and register itself, so it is only sent to members who could manage it. --%>
+                        <button
+                          :if={is_nil(auth.deactivated_at) && authorized?(:"product:update", @current_scope)}
+                          id={"shared-secret-#{auth.id}"}
+                          type="button"
+                          phx-hook="CopyToClipboard"
+                          data-copy-value={auth.secret}
+                          aria-label={"Copy the secret for #{auth.key}"}
+                          title="Copy secret"
+                          class="flex size-6 shrink-0 cursor-pointer items-center justify-center rounded text-content-faint hover:bg-surface-muted hover:text-content-strong max-sm:size-9"
+                        >
+                          <span data-icon="copy" class="lucide-copy size-3.5" aria-hidden="true"></span>
+                          <span data-icon="check" class="lucide-check hidden size-3.5 text-success-content" aria-hidden="true"></span>
+                        </button>
+                        <span :if={auth.id == @new_secret_id} class="rounded bg-primary/10 px-1.5 py-0.5 text-xs/4 font-medium text-primary light:text-indigo-600">New</span>
+                      </div>
+                      <span :if={is_nil(auth.deactivated_at)} class="text-xs/4 text-content-muted sm:hidden">
+                        Created <.local_datetime at={auth.inserted_at} time_zone={@time_zone} format={:medium_date} zone_label={false} />
+                      </span>
+                      <span :if={auth.deactivated_at} class="rounded bg-surface-muted px-1.5 py-0.5 text-xs/4 text-content-muted">
+                        Deactivated <.local_datetime at={auth.deactivated_at} time_zone={@time_zone} format={:short_date} zone_label={false} />
+                      </span>
+                    </div>
+                    <span class={["text-ui max-sm:hidden", if(auth.deactivated_at, do: "text-content-faint", else: "text-content-body")]}>
+                      <.local_datetime at={auth.inserted_at} time_zone={@time_zone} format={:medium_date} zone_label={false} />
+                    </span>
+                    <div class="flex justify-end">
+                      <button
+                        :if={is_nil(auth.deactivated_at) && authorized?(:"product:update", @current_scope)}
+                        type="button"
+                        phx-click="prepare-deactivate-secret"
+                        phx-value-shared_secret_id={auth.id}
+                        aria-label={"Deactivate #{auth.key}"}
+                        class="cursor-pointer text-ui text-content-body hover:text-alert-content max-sm:h-9"
+                      >
+                        Deactivate
+                      </button>
+                    </div>
+                  </div>
+                </div>
+            <% end %>
+          </section>
+        </div>
 
-          <div :if={Enum.empty?(@shared_secrets)} class="flex flex-col gap-3 border-t border-line-default p-4">
-            <div class="flex flex-col gap-3">
-              <p class="w-2/3 text-sm text-warning">
-                You don't have any Shared Secrets configured.
-              </p>
-            </div>
-          </div>
-
-          <div class="flex border-t border-line-default p-4">
-            <.button
-              phx-click="add-shared-secret"
-              disabled={!authorized?(:"product:update", @current_scope)}
-              data-confirm="Are you sure you want to generate a new Shared Secret?"
-              aria-label="Create a Shared Secret"
+        <div class="contents min-w-0 @4xl:flex @4xl:flex-col @4xl:gap-4">
+          <section id="device-extensions" class={[card_class(), "order-2 @4xl:order-0"]}>
+            <.card_header
+              title="Device extensions"
+              description="Features a device runs alongside NervesHubLink. Turning one off here turns it off on every device."
             >
-              <.icon name="add" />Create a Shared Secret
-            </.button>
-          </div>
-        <% else %>
-          <div class="flex flex-col gap-3 border-t border-line-default p-4">
-            <div class="flex flex-col gap-3">
-              <p class="w-2/3 text-sm text-warning">
-                Shared Secret authentication hasn't been enabled for your platform.
-              </p>
-              <p class="w-2/3 text-sm text-warning">
-                Please contact your system admin.
-              </p>
-            </div>
-          </div>
-        <% end %>
-      </div>
+              <:aside>{extensions_on(@product, @extensions)} of {length(@extensions)} on</:aside>
+            </.card_header>
 
-      <div class="flex w-full flex-col rounded-card border border-line-default bg-surface-raised">
-        <div class="flex items-center gap-6 border-t border-line-default p-4">
-          <div>
-            <.button
-              style="danger"
-              type="button"
-              phx-click="delete-product"
-              data-confirm="Are you sure you want to delete this product? This action cannot be undone."
-              disabled={!authorized?(:"product:delete", @current_scope)}
+            <label
+              :for={extension <- @extensions}
+              for={"extension-#{extension.key}"}
+              id={"extension-row-#{extension.key}"}
+              class="flex cursor-pointer items-center justify-between gap-6 border-t border-line-default px-4 py-3.5 max-sm:grid max-sm:grid-cols-[minmax(0,1fr)_auto] max-sm:gap-x-4 max-sm:gap-y-1"
             >
-              <span class="lucide-trash size-4 text-alert" aria-hidden="true"></span>
-              <span class="text-sm font-medium text-alert">Delete product</span>
-            </.button>
-          </div>
-          <div>
-            Important: This action cannot be undone.
-          </div>
+              <%!-- On a phone the count drops under the description, so the outer span dissolves into the row's grid. --%>
+              <span class="flex min-w-0 flex-col gap-0.5">
+                <span class="text-sm/5 font-medium text-content-strong">{extension.name}</span>
+                <span class="text-ui/4.5 text-content-muted">{extension.description}</span>
+              </span>
+              <span class="flex shrink-0 items-center gap-4 max-sm:contents">
+                <span
+                  id={"extension-count-#{extension.key}"}
+                  class={[
+                    "font-mono text-xs whitespace-nowrap max-sm:col-start-1 max-sm:row-start-2",
+                    cond do
+                      !product_extension_on?(@product, extension.key) -> "text-content-faint"
+                      Map.get(@extensions_on_devices, extension.key, 0) < @device_total -> "text-warning-content"
+                      true -> "text-content-muted"
+                    end
+                  ]}
+                >
+                  <%= if product_extension_on?(@product, extension.key) do %>
+                    on {delimited(Map.get(@extensions_on_devices, extension.key, 0))} of {delimited(@device_total)}
+                  <% else %>
+                    off
+                  <% end %>
+                </span>
+                <span class="flex max-sm:col-start-2 max-sm:row-span-2 max-sm:row-start-1 max-sm:self-center">
+                  <.switch
+                    id={"extension-#{extension.key}"}
+                    name={extension.key}
+                    checked={product_extension_on?(@product, extension.key) && !asking_to_turn_off?(@confirm, extension.key)}
+                    disabled={!authorized?(:"product:update", @current_scope)}
+                    phx-click="update-extension"
+                    phx-value-extension={extension.key}
+                  />
+                </span>
+              </span>
+            </label>
+
+            <p
+              :for={{extension, off} <- turned_off_on_devices(@product, @extensions, @extensions_on_devices, @device_total)}
+              id={"extension-turned-off-#{extension.key}"}
+              class="border-t border-line-default bg-surface-muted px-4 py-2.5 text-ui/4.5 text-content-muted"
+            >
+              {delimited(off)} {if off == 1, do: "device has", else: "devices have"} {extension.name} turned off in {if off == 1, do: "its", else: "their"} own setting.
+              <%= cond do %>
+                <% MapSet.member?(@reenabling, extension.key) -> %>
+                  <span class="text-content-body">Turning it back on…</span>
+                <% authorized?(:"device:update", @current_scope) -> %>
+                  <button
+                    id={"reenable-extension-#{extension.key}"}
+                    type="button"
+                    phx-click="prepare-reenable-extension"
+                    phx-value-extension={extension.key}
+                    class="cursor-pointer text-primary hover:underline light:text-indigo-600"
+                  >
+                    Turn it back on for {if off == 1, do: "it", else: "them"}
+                  </button>
+                <% true -> %>
+              <% end %>
+            </p>
+          </section>
+
+          <section id="managed-updates" class={[card_class(), "order-5 @4xl:order-0"]}>
+            <.card_header
+              title="Device-managed updates"
+              description="A device that manages its own updates asks for firmware instead of being sent it by a deployment group."
+            />
+            <label for="default-managed-updates-allowed" class="flex cursor-pointer items-center justify-between gap-6 border-t border-line-default px-4 py-3.5">
+              <span class="flex min-w-0 flex-col gap-0.5">
+                <span class="text-sm/5 font-medium text-content-strong">Let new devices choose their update mode</span>
+                <span class="text-ui/4.5 text-content-muted">Applies to devices created from now on.</span>
+              </span>
+              <.switch
+                id="default-managed-updates-allowed"
+                name="default-managed-updates-allowed"
+                checked={@product.default_managed_updates_allowed}
+                disabled={!authorized?(:"product:update", @current_scope)}
+                phx-click="update-default-managed-updates-allowed"
+              />
+            </label>
+            <div
+              id="existing-devices-managed-updates"
+              class={[
+                "flex items-center justify-between gap-6 border-t border-line-default px-4 py-3.5 max-sm:flex-col max-sm:items-stretch max-sm:gap-3",
+                @managed_progress && "bg-primary/5"
+              ]}
+            >
+              <div class="flex min-w-0 flex-col gap-0.5">
+                <span class="text-sm/5 font-medium text-content-strong">Existing devices</span>
+                <span id="managed-updates-count" class="text-ui/4.5 text-content-muted">
+                  <span class="font-mono text-content-strong">{delimited(@managed_count)}</span> of {delimited(@device_total)} can choose their update mode.
+                </span>
+                <div :if={@managed_progress} id="managed-updates-progress" class="mt-1.5 flex items-center gap-2.5" role="status">
+                  <div class="h-1 w-30 shrink-0 overflow-hidden rounded-full bg-line-default">
+                    <div
+                      class="h-full rounded-full bg-primary transition-[width]"
+                      style={"width: #{if @managed_progress.total in [nil, 0], do: 0, else: round(@managed_progress.done * 100 / @managed_progress.total)}%"}
+                    >
+                    </div>
+                  </div>
+                  <span class="text-xs/4 text-content-body">
+                    {if @managed_progress.enabled, do: "Allowing", else: "Revoking"}
+                    <span :if={@managed_progress.total}>
+                      · <span class="font-mono">{delimited(@managed_progress.done)}</span> of <span class="font-mono">{delimited(@managed_progress.total)}</span> done
+                    </span>
+                  </span>
+                </div>
+              </div>
+              <div :if={authorized?(:"device:toggle-updates", @current_scope)} class="flex shrink-0 gap-2 max-sm:*:h-11 max-sm:*:flex-1">
+                <.button
+                  id="allow-managed-updates-on-devices"
+                  phx-click="prepare-managed-updates"
+                  phx-value-enabled="true"
+                  disabled={!is_nil(@managed_progress) || @managed_count == @device_total}
+                >
+                  Allow on all
+                </.button>
+                <.button
+                  id="revoke-managed-updates-on-devices"
+                  phx-click="prepare-managed-updates"
+                  phx-value-enabled="false"
+                  disabled={!is_nil(@managed_progress) || @managed_count == 0}
+                >
+                  Revoke on all
+                </.button>
+              </div>
+            </div>
+          </section>
         </div>
       </div>
+
+      <section
+        :if={authorized?(:"product:delete", @current_scope)}
+        id="delete-product"
+        class="flex items-center justify-between gap-6 rounded-card border border-alert/50 bg-surface-raised px-4 py-3.5 max-sm:flex-col max-sm:items-stretch max-sm:gap-3"
+      >
+        <div class="flex min-w-0 flex-col gap-0.5">
+          <h2 class="text-sm/5 font-semibold text-content-strong">Delete {@product.name}</h2>
+          <p class="text-ui/4.5 text-content-muted">
+            <%= if @device_total > 0 do %>
+              Only possible once it has no devices. {delimited(@device_total)} {if @device_total == 1, do: "device is", else: "devices are"} still here.
+              <.link navigate={~p"/org/#{@current_scope.org}/#{@current_scope.product}/devices"} class="text-primary hover:underline light:text-indigo-600">Go to devices</.link>
+            <% else %>
+              Its firmware, archives, deployment groups, support scripts and settings go with it. This can't be undone.
+            <% end %>
+          </p>
+        </div>
+        <.button id="delete-product-button" style="danger" phx-click="prepare-delete" disabled={@device_total > 0} class="max-sm:h-11">
+          Delete product
+        </.button>
+      </section>
     </div>
   </div>
+
+  <.confirm_dialog
+    :if={@confirm}
+    confirm={@confirm}
+    product={@product}
+    delete_name={@delete_name}
+    device_total={@device_total}
+    extensions_on_devices={@extensions_on_devices}
+  />
 </NervesHubWeb.Layouts.sidebar>

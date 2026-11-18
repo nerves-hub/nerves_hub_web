@@ -86,6 +86,17 @@ defmodule NervesHub.Products.HealthProfiles do
     |> Repo.all()
   end
 
+  @doc """
+  How many health profiles a product has, default included.
+  """
+  @spec count_for_product(Product.t()) :: non_neg_integer()
+  def count_for_product(%Product{id: product_id}) do
+    HealthProfile
+    |> where(product_id: ^product_id)
+    |> select([p], count(p.id))
+    |> Repo.one!()
+  end
+
   @spec get_profile!(Product.t(), pos_integer()) :: HealthProfile.t()
   def get_profile!(%Product{id: product_id}, id) do
     HealthProfile

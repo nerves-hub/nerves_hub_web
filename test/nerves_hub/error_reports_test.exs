@@ -8,10 +8,12 @@ defmodule NervesHub.ErrorReportsTest do
   alias NervesHub.Analytics.Buffer
   alias NervesHub.AnalyticsRepo
   alias NervesHub.DeviceLink.DeviceInfo
+  alias NervesHub.Devices.Device
   alias NervesHub.ErrorReports
   alias NervesHub.ErrorReports.ErrorGroup
   alias NervesHub.ErrorReports.ErrorReport
   alias NervesHub.ErrorReports.GroupBuffer
+  alias NervesHub.Firmwares.Firmware
   alias NervesHub.Fixtures
   alias NervesHub.Repo
 
@@ -40,6 +42,7 @@ defmodule NervesHub.ErrorReportsTest do
       product: product,
       device: device,
       other_device: other_device,
+      firmware: firmware,
       device_info: device_info(device)
     }
   end
@@ -427,6 +430,23 @@ defmodule NervesHub.ErrorReportsTest do
       assert Enum.find(entries, &(&1.device.id == device.id)).occurrence_count == 2
     end
 
+    # The reports keep the product they were sent under; the device list must
+    # not show a device to the members of a product it has left.
+    test "affected_devices/2 drops devices moved to another product", %{
+      group: group,
+      device: device,
+      user: user,
+      org: org
+    } do
+      other_product = Fixtures.product_fixture(user, org, %{name: "elsewhere"})
+      {1, _} = Repo.update_all(from(d in Device, where: d.id == ^device.id), set: [product_id: other_product.id])
+
+      entries = ErrorReports.affected_devices(group)
+
+      assert length(entries) == 1
+      refute Enum.any?(entries, &(&1.device.id == device.id))
+    end
+
     test "affected_devices/2 drops devices that no longer exist", %{group: group, device: device} do
       Repo.delete!(device)
 
@@ -490,6 +510,146 @@ defmodule NervesHub.ErrorReportsTest do
 
       assert {:ok, again} = ErrorReports.resolve(regressed, user)
       assert again.regressed_at == nil
+    end
+  end
+
+  describe "the errors pages' queries" do
+    test "search matches the top frame as well as the reason", %{device_info: info, product: product} do
+      {:ok, 2} =
+        ErrorReports.record_batch(info, [
+          report(%{"reason" => "camera", "frames" => [%{"module" => "MyApp.Camera", "function" => "capture/1"}]}),
+          report(%{"reason" => "other"})
+        ])
+
+      settle()
+
+      assert {[%{reason: "camera"}], _meta} = ErrorReports.groups_for_product(product, search: "Camera.capture")
+      assert {[%{reason: "other"}], _meta} = ErrorReports.groups_for_product(product, search: "oth")
+    end
+
+    test "the firmware filter keeps groups last seen on that version", %{
+      device: device,
+      product: product,
+      firmware: firmware
+    } do
+      {:ok, 1} = ErrorReports.record_batch(device_info(device, firmware.uuid), [report(%{"reason" => "known"})])
+      {:ok, 1} = ErrorReports.record_batch(device_info(device, "fw-elsewhere"), [report(%{"reason" => "elsewhere"})])
+      settle()
+
+      assert {[%{reason: "known"}], _meta} = ErrorReports.groups_for_product(product, firmware: firmware.version)
+      assert %{unresolved: 1} = ErrorReports.status_counts(product, firmware: firmware.version)
+      assert ErrorReports.last_seen_versions(product) == [firmware.version]
+    end
+
+    test "firmware_by_uuid names live and deleted firmware and leaves out unknown UUIDs", %{
+      product: product,
+      firmware: firmware
+    } do
+      assert ErrorReports.firmware_by_uuid(product, [firmware.uuid, "unknown", nil]) ==
+               %{firmware.uuid => %{version: firmware.version, deleted?: false}}
+
+      {1, _} =
+        Repo.update_all(from(f in Firmware, where: f.id == ^firmware.id),
+          set: [deleted_at: DateTime.utc_now()]
+        )
+
+      assert %{deleted?: true} = ErrorReports.firmware_by_uuid(product, [firmware.uuid])[firmware.uuid]
+    end
+
+    test "first_release is the first deployment group given a version", %{
+      product: product,
+      firmware: firmware,
+      user: user
+    } do
+      assert ErrorReports.first_release(product, firmware.version) == nil
+      assert ErrorReports.first_release(product, nil) == nil
+
+      deployment_group = Fixtures.deployment_group_fixture(firmware, %{user: user})
+
+      assert %{version: version, deployment_group: name, at: %DateTime{}} =
+               ErrorReports.first_release(product, firmware.version)
+
+      assert version == firmware.version
+      assert name == deployment_group.name
+    end
+
+    test "last_resolved_at is the latest resolve", %{device_info: info, product: product, user: user} do
+      assert ErrorReports.last_resolved_at(product) == nil
+
+      {:ok, 1} = ErrorReports.record_batch(info, [report()])
+      settle()
+      [group] = groups(product)
+      {:ok, resolved} = ErrorReports.resolve(group, user)
+
+      assert ErrorReports.last_resolved_at(product) == resolved.resolved_at
+    end
+
+    test "reports are split by firmware, counted and paged", %{
+      device_info: info,
+      device: device,
+      other_device: other_device,
+      product: product
+    } do
+      {:ok, 2} = ErrorReports.record_batch(info, [report(%{"timestamp" => at(2)}), report(%{"timestamp" => at(1)})])
+      {:ok, 1} = ErrorReports.record_batch(device_info(other_device, "fw-b"), [report(%{"timestamp" => at(3)})])
+      settle()
+      [group] = groups(product)
+
+      assert ErrorReports.retained_count(group) == 3
+
+      assert [
+               %{firmware_uuid: "fw-connection", count: 2, device_count: 1},
+               %{firmware_uuid: "fw-b", count: 1, device_count: 1}
+             ] = ErrorReports.occurrences_by_firmware(group)
+
+      assert [%{firmware_uuid: "fw-connection"}] = ErrorReports.occurrences_by_firmware(group, limit: 1)
+
+      assert [%{device: %{id: id}, occurrence_count: 2} | _rest] =
+               ErrorReports.affected_devices(group, order: :count)
+
+      assert id == device.id
+
+      [newest, middle, oldest] = ErrorReports.occurrences(group)
+      assert [^middle] = ErrorReports.occurrences(group, offset: 1, limit: 1)
+      assert [^oldest] = ErrorReports.occurrences(group, offset: 2, limit: 1)
+      assert newest.device_id == device.id
+    end
+
+    test "occurrences_by_hour fills every hour", %{device_info: info, product: product} do
+      now = DateTime.utc_now()
+
+      {:ok, 1} =
+        ErrorReports.record_batch(info, [
+          report(%{"timestamp" => now |> DateTime.add(-2, :hour) |> DateTime.to_iso8601()})
+        ])
+
+      settle()
+      [group] = groups(product)
+
+      hours = ErrorReports.occurrences_by_hour(group, DateTime.add(now, -23, :hour), now)
+
+      assert length(hours) == 24
+      assert hours |> Enum.map(& &1.count) |> Enum.sum() == 1
+      assert Enum.at(hours, 21).count == 1
+    end
+
+    test "list_stats gives each group's days and devices", %{
+      device_info: info,
+      other_device: other_device,
+      product: product
+    } do
+      {:ok, 2} = ErrorReports.record_batch(info, [report(%{"timestamp" => at(0)}), report(%{"timestamp" => at(2)})])
+      {:ok, 1} = ErrorReports.record_batch(device_info(other_device), [report(%{"timestamp" => at(0)})])
+      settle()
+      [group] = groups(product)
+
+      stats = ErrorReports.list_stats(product, [group], 14, "Etc/UTC")
+      assert %{daily: daily, device_count: 2} = stats[group.fingerprint]
+
+      assert length(daily) == 14
+      assert List.last(daily) == 2
+      assert Enum.at(daily, 11) == 1
+      assert ErrorReports.list_stats(product, [], 14, "Etc/UTC") == %{}
     end
   end
 end

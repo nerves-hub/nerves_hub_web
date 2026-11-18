@@ -145,18 +145,41 @@ defmodule NervesHub.ErrorReports.ErrorGroup do
     change(group, %{status: :muted, muted_at: DateTime.utc_now(), muted_by_id: user.id})
   end
 
+  @restorable_on_reopen [:regressed_at, :resolved_at, :resolved_by_id, :resolved_in_firmware_uuid]
+
+  @doc """
+  The fields `reopen_changeset/2` puts back when given them, which undo saves
+  before a resolve or mute.
+  """
+  @spec restorable_on_reopen() :: [:regressed_at | :resolved_at | :resolved_by_id | :resolved_in_firmware_uuid, ...]
+  def restorable_on_reopen(), do: @restorable_on_reopen
+
   @doc """
   Returns a group to the queue, from either resolved or muted.
+
+  A plain reopen is not a regression, so `regressed_at` is left alone unless
+  `:regressed_at` is given, and the resolve is cleared unless `:resolved_at`,
+  `:resolved_by_id` and `:resolved_in_firmware_uuid` are. Undo uses them to
+  put back what a resolve or mute replaced: the regression a resolve cleared,
+  and the earlier resolve a regressed group still carries.
   """
-  @spec reopen_changeset(t()) :: Ecto.Changeset.t()
-  def reopen_changeset(%__MODULE__{} = group) do
-    change(group, %{
-      status: :unresolved,
-      resolved_at: nil,
-      resolved_by_id: nil,
-      resolved_in_firmware_uuid: nil,
-      muted_at: nil,
-      muted_by_id: nil
-    })
+  @spec reopen_changeset(t(), keyword()) :: Ecto.Changeset.t()
+  def reopen_changeset(%__MODULE__{} = group, opts \\ []) do
+    restored = Map.new(Keyword.take(opts, @restorable_on_reopen))
+
+    changes =
+      Map.merge(
+        %{
+          status: :unresolved,
+          resolved_at: nil,
+          resolved_by_id: nil,
+          resolved_in_firmware_uuid: nil,
+          muted_at: nil,
+          muted_by_id: nil
+        },
+        restored
+      )
+
+    change(group, changes)
   end
 end

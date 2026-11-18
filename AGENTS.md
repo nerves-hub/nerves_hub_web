@@ -149,6 +149,12 @@ when adding or removing one.
 - `error_reports.ex` / `error_reports/` — exceptions devices report, grouped
   into issues. Split across both stores: the group in Postgres, the
   occurrences in ClickHouse. See [docs/error_reports.md](docs/error_reports.md).
+  A product's Errors list (`live/product/errors.ex`) is read from PostgreSQL
+  and filters on the issue row (reason, top frame, last-seen firmware); its
+  sparklines and device counts load afterwards from ClickHouse in one task, and
+  show a dash if it doesn't answer. An issue's page (`live/product/error_group.ex`)
+  draws its chart on the server. What both pages share (badges, firmware labels,
+  the sparkline and chart) is in `NervesHubWeb.Components.ErrorReports`.
 - `webhooks.ex` / `webhooks/` — webhooks: device events POSTed to endpoints
   an organization configures, for every product or a chosen few (org
   Integrations page, or `API.WebhookController`). Events arrive through
@@ -232,7 +238,9 @@ when adding or removing one.
   `create_*` functions, not by hand, so they read as the real ones do.
 - Cross-cutting: `clustering.ex`, `tracker.ex`,
   `rate_limit.ex`, `cli_session_cache.ex`, `device_link.ex`, `repo.ex`,
-  `analytics_repo.ex`, `application.ex`.
+  `analytics_repo.ex`, `application.ex`. `list_query.ex` holds what the
+  contexts' list functions share: escaping a search for `ilike` and reading a
+  page number or size from params.
 
 ### `lib/nerves_hub_web/` (web)
 
@@ -301,6 +309,17 @@ when adding or removing one.
   mounts. On a phone the sidebar is a drawer, and the top bar reads menu
   button, then the page's breadcrumb (or the product and page names when it
   has none), then the avatar, which holds the user menu the drawer leaves out.
+  `components/product_list.ex` holds what the firmware and archive lists
+  share: the footer pager, the sort arrow, and how a UUID, a size and an
+  upload time are written.
+  A product's settings are two LiveViews, General (`live/product/settings.ex`)
+  and Device health (`live/product/health_profiles.ex`), sharing their title
+  and tabs from `components/product_settings.ex`. General is titled cards in
+  two columns, like the device page's Settings tab, and both draw their
+  toggles with `components/switch.ex`. Anything there that changes every
+  device, or can't be undone, asks first in a dialog that one `@confirm`
+  assign drives; each event that opens one checks the same permission as the
+  event that acts.
 - `controllers/` — JSON API (`controllers/api/`) and others.
 - `plugs/`, `router.ex`, `endpoint.ex`, `device_endpoint.ex`,
   `health_check_endpoint.ex`, `auth*.ex`.

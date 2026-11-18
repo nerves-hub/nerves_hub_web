@@ -158,6 +158,7 @@ defmodule NervesHub.Devices.DeviceConnectionHistoryTest do
       changes = DeviceConnectionHistory.mark_as_stale_and_disconnected_changeset(history).changes
 
       assert changes.disconnected_reason == "Stale connection"
+      assert changes.disconnected_at == history.last_seen_at
       assert changes.version > history.version
     end
   end

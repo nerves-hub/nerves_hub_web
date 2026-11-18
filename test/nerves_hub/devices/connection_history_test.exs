@@ -4,6 +4,7 @@ defmodule NervesHub.Devices.ConnectionHistoryTest do
   use NervesHub.DataCase, async: false
   use AssertEventually, timeout: 2000, interval: 50
 
+  alias NervesHub.Analytics.Buffer
   alias NervesHub.AnalyticsRepo
   alias NervesHub.Devices.Connections
   alias NervesHub.Devices.DeviceConnection
@@ -96,6 +97,33 @@ defmodule NervesHub.Devices.ConnectionHistoryTest do
 
       assert history.device_id == device.id
       refute is_nil(history.disconnected_at)
+    end
+
+    test "a reconnect closes the connection it replaces, as last seen", %{device: device} do
+      {:ok, replaced} = Connections.device_connecting(device.org_id, device.product_id, device.id)
+      :ok = Connections.device_connected(replaced.id)
+      last_seen_at = Connections.get_latest_for_device(device.id).last_seen_at
+
+      {:ok, connection} = Connections.device_connecting(device.org_id, device.product_id, device.id)
+
+      assert_eventually(
+        [%DeviceConnectionHistory{disconnected_reason: "Reconnected"} = closed] = history_for(replaced.id)
+      )
+
+      assert DateTime.compare(closed.disconnected_at, last_seen_at) == :eq
+      assert_eventually([%DeviceConnectionHistory{disconnected_at: nil}] = history_for(connection.id))
+    end
+
+    test "a reconnect leaves a connection that already disconnected as it was", %{device: device} do
+      {:ok, replaced} = Connections.device_connecting(device.org_id, device.product_id, device.id)
+      :ok = Connections.device_connected(replaced.id)
+      :ok = Connections.device_disconnected(replaced.id, "Manual disconnect")
+
+      {:ok, _connection} = Connections.device_connecting(device.org_id, device.product_id, device.id)
+
+      :ok = Buffer.flush(DeviceConnectionHistory)
+
+      assert [%DeviceConnectionHistory{disconnected_reason: "Manual disconnect"}] = history_for(replaced.id)
     end
 
     test "device_heartbeat/1 records a history row", %{device: device} do
@@ -207,14 +235,16 @@ defmodule NervesHub.Devices.ConnectionHistoryTest do
       DateTime.add(DateTime.utc_now(), -(interval + max_jitter + 2), :minute)
     end
 
-    test "records a disconnected history row for stale open connections", %{device: device} do
-      ref = insert_open_connection(device, stale_time())
+    test "records a disconnected history row for stale open connections, as last seen", %{device: device} do
+      last_seen_at = stale_time()
+      ref = insert_open_connection(device, last_seen_at)
 
       :ok = Connections.clean_stale_connections_from_analytics()
 
       assert_eventually(
         Enum.any?(history_for(ref), fn h ->
-          not is_nil(h.disconnected_at) and h.disconnected_reason == "Stale connection"
+          h.disconnected_reason == "Stale connection" and not is_nil(h.disconnected_at) and
+            DateTime.compare(h.disconnected_at, last_seen_at) == :eq
         end)
       )
     end

@@ -21,9 +21,11 @@ defmodule NervesHub.Archives do
   import Ecto.Query
 
   alias NervesHub.Archives.Archive
+  alias NervesHub.Devices.Device
   alias NervesHub.Firmwares.Firmware
   alias NervesHub.Firmwares.UpdateTool
   alias NervesHub.Fwup
+  alias NervesHub.ListQuery
   alias NervesHub.ManagedDeployments.DeploymentGroup
   alias NervesHub.ManagedDeployments.DeploymentRelease
   alias NervesHub.Products.Product
@@ -40,25 +42,226 @@ defmodule NervesHub.Archives do
     |> Repo.one()
   end
 
-  @spec filter(Product.t(), map()) :: {[Archive.t()], Flop.Meta.t()}
-  def filter(product, opts \\ %{}) do
-    opts = Map.reject(opts, fn {_key, val} -> is_nil(val) end)
+  @typedoc """
+  Which of a product's archives the archive list shows.
 
-    sort = Map.get(opts, :sort, "inserted_at")
-    sort_direction = Map.get(opts, :sort_direction, "desc")
+  `:delivered` is an archive in some deployment group's current release, which
+  is the only way an archive reaches devices; `:not_delivered` is the rest.
+  """
+  @type list_tab() :: :all | :delivered | :not_delivered
 
-    sort_opts = {String.to_existing_atom(sort_direction), String.to_existing_atom(sort)}
+  @type list_opts() :: %{
+          optional(:tab) => list_tab(),
+          optional(:search) => String.t() | nil,
+          optional(:platform) => String.t() | nil,
+          optional(:sort) => String.t(),
+          optional(:sort_direction) => String.t(),
+          optional(:page) => String.t() | pos_integer(),
+          optional(:page_size) => String.t() | pos_integer()
+        }
+
+  @list_sorts ~w(inserted_at version)
+
+  @doc """
+  A page of the product's archives, for the archive list.
+
+  `opts` picks the tab (see `t:list_tab/0`), narrows by `search` (part of a
+  description, or the start of a version, UUID or VCS identifier) and
+  `platform`, and sorts by `inserted_at` (the default) or `version`. A page
+  holds 25 archives unless `page_size` says otherwise, and never more than 100.
+  """
+  @spec list_archives(Product.t(), list_opts()) :: {[Archive.t()], Flop.Meta.t()}
+  def list_archives(%Product{} = product, opts \\ %{}) do
+    opts = Map.reject(opts, fn {_key, val} -> is_nil(val) or val == "" end)
+
+    sort = if opts[:sort] in @list_sorts, do: opts[:sort], else: "inserted_at"
+    sort_direction = if opts[:sort_direction] == "asc", do: :asc, else: :desc
 
     flop = %Flop{
-      page: String.to_integer(Map.get(opts, :page, "1")),
-      page_size: String.to_integer(Map.get(opts, :page_size, "25"))
+      page: ListQuery.positive_integer(opts[:page], 1),
+      # The pager offers 25, 50 and 100. Anything bigger only comes from an
+      # edited URL, so it is held to the largest of those.
+      page_size: min(ListQuery.positive_integer(opts[:page_size], 25), 100)
     }
 
     Archive
-    |> where([f], f.product_id == ^product.id)
-    |> order_by(^sort_opts)
+    |> from(as: :archive)
+    |> where([archive: a], a.product_id == ^product.id)
+    |> where_tab(Map.get(opts, :tab, :all))
+    |> where_search(opts[:search])
+    |> where_platform(opts[:platform])
+    |> sort_archives({sort_direction, String.to_existing_atom(sort)})
     |> Flop.run(flop)
   end
+
+  @doc """
+  How many of the product's archives each tab of the archive list holds.
+  """
+  @spec list_counts(Product.t()) :: %{
+          all: non_neg_integer(),
+          delivered: non_neg_integer(),
+          not_delivered: non_neg_integer()
+        }
+  def list_counts(%Product{} = product) do
+    counts =
+      Archive
+      |> from(as: :archive)
+      |> where([archive: a], a.product_id == ^product.id)
+      |> select([archive: a], %{
+        all: count(a.id),
+        delivered: filter(count(a.id), exists(current_release_with_query()))
+      })
+      |> Repo.one()
+
+    Map.put(counts, :not_delivered, counts.all - counts.delivered)
+  end
+
+  @doc """
+  The platforms of the product's archives, in order, for the platform filter.
+  """
+  @spec platforms(Product.t()) :: [String.t()]
+  def platforms(%Product{} = product) do
+    Archive
+    |> where([a], a.product_id == ^product.id)
+    |> distinct(true)
+    |> select([a], a.platform)
+    |> order_by([a], a.platform)
+    |> Repo.all()
+  end
+
+  @doc """
+  Every deployment release of the product that includes each of the given
+  archives, keyed by archive id.
+
+  Each release carries its deployment group and firmware, whether it is the
+  group's current release, and when the group's next release replaced it
+  (`nil` while it is current). Current releases come first, then the rest
+  newest first. Any of these releases, past ones included, stops the archive
+  being deleted: a group's history keeps the archive it shipped with.
+  """
+  @spec releases(Product.t(), [pos_integer()]) :: %{
+          pos_integer() => [
+            %{
+              deployment_group: DeploymentGroup.t(),
+              firmware: Firmware.t(),
+              current?: boolean(),
+              released_at: NaiveDateTime.t(),
+              replaced_at: NaiveDateTime.t() | nil
+            }
+          ]
+        }
+  def releases(_product, []), do: %{}
+
+  def releases(%Product{} = product, archive_ids) do
+    DeploymentRelease
+    |> join(:inner, [dr], dg in assoc(dr, :deployment_group))
+    |> join(:inner, [dr], f in assoc(dr, :firmware))
+    |> join(:left, [dr], next in DeploymentRelease,
+      on: next.deployment_group_id == dr.deployment_group_id and next.number == dr.number + 1
+    )
+    |> where([dr, dg], dr.archive_id in ^archive_ids and dg.product_id == ^product.id)
+    |> select([dr, dg, f, next], %{
+      archive_id: dr.archive_id,
+      deployment_group: dg,
+      firmware: f,
+      current?: dg.current_deployment_release_id == dr.id,
+      released_at: dr.inserted_at,
+      replaced_at: next.inserted_at
+    })
+    |> Repo.all()
+    # Both sorts are stable, so the current releases end up first and each
+    # half stays newest first.
+    |> Enum.sort_by(& &1.released_at, {:desc, NaiveDateTime})
+    |> Enum.sort_by(&(not &1.current?))
+    |> Enum.group_by(& &1.archive_id, &Map.delete(&1, :archive_id))
+  end
+
+  @doc """
+  Who an archive reaches, for the archive's page.
+
+  An archive is sent to a device in a deployment group whose current release
+  includes it, once the device runs that release's firmware (see
+  `archive_for_deployment_group/2`). For each such group this counts its
+  devices and how many get the archive now; the rest get it after they update.
+  `:gets_it_now` and `:gets_it_after_updating` add those up across the groups.
+  """
+  @spec delivery(Archive.t()) :: %{
+          groups: [
+            %{
+              deployment_group: DeploymentGroup.t(),
+              firmware: Firmware.t(),
+              devices: non_neg_integer(),
+              gets_it: non_neg_integer()
+            }
+          ],
+          gets_it_now: non_neg_integer(),
+          gets_it_after_updating: non_neg_integer()
+        }
+  def delivery(%Archive{} = archive) do
+    groups =
+      DeploymentGroup
+      |> join(:inner, [dg], cr in assoc(dg, :current_release))
+      |> join(:inner, [_dg, cr], f in assoc(cr, :firmware))
+      |> join(:left, [dg], d in Device, on: d.deployment_id == dg.id and is_nil(d.deleted_at))
+      |> where([_dg, cr], cr.archive_id == ^archive.id)
+      |> group_by([dg, _cr, f], [dg.id, f.id])
+      |> select([dg, _cr, f, d], %{
+        deployment_group: dg,
+        firmware: f,
+        devices: count(d.id),
+        gets_it: filter(count(d.id), fragment("? ->> 'uuid'", d.firmware_metadata) == f.uuid)
+      })
+      |> order_by([dg], dg.name)
+      |> Repo.all()
+
+    %{
+      groups: groups,
+      gets_it_now: Enum.sum_by(groups, & &1.gets_it),
+      gets_it_after_updating: Enum.sum_by(groups, &(&1.devices - &1.gets_it))
+    }
+  end
+
+  defp current_release_with_query() do
+    DeploymentGroup
+    |> join(:inner, [dg], cr in assoc(dg, :current_release))
+    |> where([_dg, cr], cr.archive_id == parent_as(:archive).id)
+    |> select(1)
+  end
+
+  defp where_tab(query, :delivered), do: where(query, exists(current_release_with_query()))
+  defp where_tab(query, :not_delivered), do: where(query, not exists(current_release_with_query()))
+  defp where_tab(query, _all), do: query
+
+  defp where_search(query, nil), do: query
+
+  defp where_search(query, search) do
+    escaped = ListQuery.escape_like(String.trim(search))
+    prefix = escaped <> "%"
+    anywhere = "%" <> escaped <> "%"
+
+    where(
+      query,
+      [archive: a],
+      ilike(a.description, ^anywhere) or ilike(a.version, ^prefix) or
+        ilike(type(a.uuid, :string), ^prefix) or ilike(a.vcs_identifier, ^prefix)
+    )
+  end
+
+  defp where_platform(query, nil), do: query
+  defp where_platform(query, platform), do: where(query, [archive: a], a.platform == ^platform)
+
+  # Versions sort by SemVer precedence: see `NervesHub.Firmwares` for why the
+  # sort key needs `COLLATE "C"`.
+  defp sort_archives(query, {direction, :version}) do
+    nulls = if direction == :asc, do: :asc_nulls_last, else: :desc_nulls_last
+
+    order_by(query, [archive: a], [
+      {^nulls, fragment(~s|semver_sort_key(?) COLLATE "C"|, a.version)},
+      desc: a.inserted_at
+    ])
+  end
+
+  defp sort_archives(query, {direction, field}), do: order_by(query, ^[{direction, field}, desc: :id])
 
   @spec all_by_product(Product.t()) :: [Archive.t()]
   def all_by_product(product) do
