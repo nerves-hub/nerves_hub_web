@@ -4,6 +4,7 @@ defmodule NervesHub.Devices.ConnectionHistoryTest do
   use NervesHub.DataCase, async: false
   use AssertEventually, timeout: 2000, interval: 50
 
+  alias NervesHub.Analytics.Buffer
   alias NervesHub.AnalyticsRepo
   alias NervesHub.Devices.Connections
   alias NervesHub.Devices.DeviceConnection
@@ -120,10 +121,7 @@ defmodule NervesHub.Devices.ConnectionHistoryTest do
 
       {:ok, _connection} = Connections.device_connecting(device.org_id, device.product_id, device.id)
 
-      assert_eventually([%DeviceConnectionHistory{disconnected_reason: "Manual disconnect"}] = history_for(replaced.id))
-
-      # allow any (incorrectly) buffered close to land before checking again
-      Process.sleep(200)
+      :ok = Buffer.flush(DeviceConnectionHistory)
 
       assert [%DeviceConnectionHistory{disconnected_reason: "Manual disconnect"}] = history_for(replaced.id)
     end

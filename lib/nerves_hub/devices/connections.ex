@@ -34,11 +34,11 @@ defmodule NervesHub.Devices.Connections do
   `client_library`) are recorded as unknown when left out.
 
   A device often reconnects before the server has noticed its old socket is
-  gone. Once the row is replaced, nothing can close the old connection: its
-  socket's `device_disconnected/2` and `clean_stale_connections/0` both look
-  it up by the row. So if the previous connection is still open, it is closed
-  here instead, as last seen, with the reason `"Reconnected"`, and its
-  `device.disconnected` event goes out if it had got as far as connecting.
+  gone. If the previous connection is still open, it is closed as of its
+  `last_seen_at` with the reason `"Reconnected"`, because once the row is
+  replaced neither its socket's `device_disconnected/2` nor
+  `clean_stale_connections/0` can find it. Its `device.disconnected` event
+  goes out only if it had reached `:connected`.
   """
   @spec device_connecting(
           pos_integer(),
