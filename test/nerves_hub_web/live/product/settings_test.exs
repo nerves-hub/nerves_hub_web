@@ -352,7 +352,7 @@ defmodule NervesHubWeb.Live.Product.SettingsTest do
       conn
       |> visit("/org/#{org.name}/#{product.name}/settings")
       |> assert_has("#extension-count-geo", text: "on 1 of 2")
-      |> assert_has("#extension-turned-off-geo", text: "1 device has Geo turned off on its own.")
+      |> assert_has("#extension-turned-off-geo", text: "1 device has Geo turned off in its own setting.")
       |> click_button("Turn it back on for it")
       |> assert_has("#confirm-dialog h2", text: "Turn Geo back on for 1 device?")
       |> click_button("Turn on for 1 device")
@@ -363,6 +363,31 @@ defmodule NervesHubWeb.Live.Product.SettingsTest do
 
       assert Repo.reload(device).extensions.geo
       assert Repo.reload(second).extensions.geo
+    end
+
+    test "turning one back on is refused while it's already running", %{conn: conn, org: org, product: product} do
+      test_pid = self()
+
+      stub(BulkActions, :set_extension_for_product, fn _product, extension, _enabled, _user ->
+        send(test_pid, {:started, extension, self()})
+
+        receive do
+          :finish -> {:ok, 1}
+        end
+      end)
+
+      session =
+        conn
+        |> visit("/org/#{org.name}/#{product.name}/settings")
+        |> unwrap(&render_click(&1, "set-extension-for-devices", %{"extension" => "geo", "enabled" => "true"}))
+
+      assert_receive {:started, "geo", task}
+
+      unwrap(session, &render_click(&1, "set-extension-for-devices", %{"extension" => "geo", "enabled" => "true"}))
+
+      refute_receive {:started, "geo", _task}
+
+      send(task, :finish)
     end
 
     test "an unknown extension is refused", %{conn: conn, org: org, product: product} do
@@ -507,6 +532,34 @@ defmodule NervesHubWeb.Live.Product.SettingsTest do
       |> refute_has("#managed-updates-progress")
     end
 
+    # The buttons are disabled while one runs, but the event can still be sent.
+    test "a second run is refused while one is going", %{conn: conn, org: org, product: product} do
+      test_pid = self()
+
+      stub(BulkActions, :set_managed_updates_allowed_for_product, fn _product, enabled, _user, _opts ->
+        send(test_pid, {:started, enabled, self()})
+
+        receive do
+          :finish -> %{ok: 1, error: 0}
+        end
+      end)
+
+      session =
+        conn
+        |> visit("/org/#{org.name}/#{product.name}/settings")
+        |> unwrap(&render_click(&1, "set-managed-updates-allowed-for-devices", %{"enabled" => "true"}))
+
+      assert_receive {:started, true, task}
+
+      session
+      |> unwrap(&render_click(&1, "set-managed-updates-allowed-for-devices", %{"enabled" => "false"}))
+      |> assert_has("#managed-updates-progress", text: "Allowing")
+
+      refute_receive {:started, false, _task}
+
+      send(task, :finish)
+    end
+
     test "says how many devices couldn't be changed", %{conn: conn, org: org, product: product} do
       stub(BulkActions, :set_managed_updates_allowed_for_product, fn _product, _enabled, _user, _opts ->
         %{ok: 3, error: 2}
@@ -557,8 +610,6 @@ defmodule NervesHubWeb.Live.Product.SettingsTest do
 
   describe "shared secrets" do
     setup do
-      # Put back what was configured, not a value of our own, so tests that run
-      # after these see the same setting as the rest.
       original = Application.get_env(:nerves_hub, NervesHubWeb.DeviceSocket)
       Application.put_env(:nerves_hub, NervesHubWeb.DeviceSocket, shared_secrets: [enabled: true])
       on_exit(fn -> Application.put_env(:nerves_hub, NervesHubWeb.DeviceSocket, original) end)

@@ -12,7 +12,7 @@ defmodule NervesHubWeb.Components.Switch do
   attr(:rest, :global)
 
   @doc """
-  A switch. It acts through the `phx-click` it is given, so it needs no form.
+  Acts through the `phx-click` it is given, so it needs no form.
   """
   def switch(assigns) do
     ~H"""

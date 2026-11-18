@@ -9,7 +9,9 @@ defmodule NervesHubWeb.Components.ProductSettings do
 
   @doc """
   The page title for the layout's `top_bar`, with the product's name beside it
-  from `sm` up. On a phone the name is in the drawer's product switcher.
+  from `sm` up.
+
+  On a phone the name is in the drawer's product switcher.
   """
   def title(assigns) do
     ~H"""
@@ -25,7 +27,7 @@ defmodule NervesHubWeb.Components.ProductSettings do
   attr(:profile_count, :integer, required: true)
 
   @doc """
-  The tabs. Each is its own LiveView, so they navigate rather than patch.
+  Each tab is its own LiveView, so they navigate rather than patch.
   """
   def tabs(assigns) do
     ~H"""

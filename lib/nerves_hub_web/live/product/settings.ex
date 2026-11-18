@@ -114,19 +114,26 @@ defmodule NervesHubWeb.Live.Product.Settings do
   end
 
   # Sets the extension in every device's own setting. The page only offers
-  # turning it back on, for devices that had it turned off one at a time.
+  # turning it back on, for devices that have it off in their own setting.
+  #
+  # One run per extension at a time: the page hides the link while one runs,
+  # but the event can be sent regardless.
   @decorate requires_permission(:"device:update")
   def handle_event("set-extension-for-devices", %{"extension" => extension, "enabled" => enabled}, socket) do
-    %{product: product, current_scope: %{user: user}} = socket.assigns
+    %{product: product, current_scope: %{user: user}, reenabling: running} = socket.assigns
     enabled = enabled == "true"
+    socket = assign(socket, :confirm, nil)
 
-    socket
-    |> assign(:confirm, nil)
-    |> update(:reenabling, &MapSet.put(&1, extension))
-    |> start_async({:set_extension, extension, enabled}, fn ->
-      BulkActions.set_extension_for_product(product, extension, enabled, user)
-    end)
-    |> noreply()
+    if MapSet.member?(running, extension) do
+      noreply(socket)
+    else
+      socket
+      |> update(:reenabling, &MapSet.put(&1, extension))
+      |> start_async({:set_extension, extension, enabled}, fn ->
+        BulkActions.set_extension_for_product(product, extension, enabled, user)
+      end)
+      |> noreply()
+    end
   end
 
   ## Device-managed updates
@@ -156,21 +163,28 @@ defmodule NervesHubWeb.Live.Product.Settings do
     |> noreply()
   end
 
+  # One run at a time. The page disables the buttons while one runs, but the
+  # event can be sent regardless, and an allow and a revoke running together
+  # would leave devices in a mix of both.
   @decorate requires_permission(:"device:toggle-updates")
   def handle_event("set-managed-updates-allowed-for-devices", %{"enabled" => enabled}, socket) do
-    %{product: product, current_scope: %{user: user}} = socket.assigns
+    %{product: product, current_scope: %{user: user}, managed_progress: running} = socket.assigns
     enabled = enabled == "true"
     page = self()
+    socket = assign(socket, :confirm, nil)
 
     on_progress = fn done, total -> send(page, {:managed_updates_progress, done, total}) end
 
-    socket
-    |> assign(:confirm, nil)
-    |> assign(:managed_progress, %{enabled: enabled, done: 0, total: nil})
-    |> start_async({:set_managed_updates_allowed, enabled}, fn ->
-      BulkActions.set_managed_updates_allowed_for_product(product, enabled, user, on_progress: on_progress)
-    end)
-    |> noreply()
+    if running do
+      noreply(socket)
+    else
+      socket
+      |> assign(:managed_progress, %{enabled: enabled, done: 0, total: nil})
+      |> start_async({:set_managed_updates_allowed, enabled}, fn ->
+        BulkActions.set_managed_updates_allowed_for_product(product, enabled, user, on_progress: on_progress)
+      end)
+      |> noreply()
+    end
   end
 
   ## Firmware

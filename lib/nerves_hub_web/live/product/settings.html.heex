@@ -19,7 +19,6 @@
       <%!-- One column below @4xl, where the columns dissolve so the cards can take the phone's order. --%>
       <div class="flex flex-col gap-4 max-sm:gap-3 @4xl:grid @4xl:grid-cols-2 @4xl:items-start">
         <div class="contents min-w-0 @4xl:flex @4xl:flex-col @4xl:gap-4">
-          <%!-- General --%>
           <section id="general-settings" class={[card_class(), "order-1 @4xl:order-0"]}>
             <.card_header title="General" />
             <div class="flex items-center justify-between gap-6 border-t border-line-default px-4 py-3.5 max-sm:flex-col max-sm:items-stretch max-sm:gap-2">
@@ -54,7 +53,6 @@
             </div>
           </section>
 
-          <%!-- Firmware --%>
           <section id="firmware-settings" class={[card_class(), "order-3 @4xl:order-0"]}>
             <.card_header title="Firmware" description="What this product accepts as an upload. fwup firmware is always accepted and always signed." />
             <label for="require-unique-firmware-version" class="flex cursor-pointer items-center justify-between gap-6 border-t border-line-default px-4 py-3.5">
@@ -108,7 +106,6 @@
             </div>
           </section>
 
-          <%!-- Shared secrets --%>
           <section id="shared-secrets" class={[card_class(), "order-4 @4xl:order-0"]}>
             <.card_header title="Shared secrets">
               For devices that connect without a certificate.
@@ -197,7 +194,6 @@
         </div>
 
         <div class="contents min-w-0 @4xl:flex @4xl:flex-col @4xl:gap-4">
-          <%!-- Device extensions --%>
           <section id="device-extensions" class={[card_class(), "order-2 @4xl:order-0"]}>
             <.card_header
               title="Device extensions"
@@ -253,7 +249,7 @@
               id={"extension-turned-off-#{extension.key}"}
               class="border-t border-line-default bg-surface-muted px-4 py-2.5 text-ui/4.5 text-content-muted"
             >
-              {delimited(off)} {if off == 1, do: "device has", else: "devices have"} {extension.name} turned off on {if off == 1, do: "its", else: "their"} own.
+              {delimited(off)} {if off == 1, do: "device has", else: "devices have"} {extension.name} turned off in {if off == 1, do: "its", else: "their"} own setting.
               <%= cond do %>
                 <% MapSet.member?(@reenabling, extension.key) -> %>
                   <span class="text-content-body">Turning it back on…</span>
@@ -272,7 +268,6 @@
             </p>
           </section>
 
-          <%!-- Device-managed updates --%>
           <section id="managed-updates" class={[card_class(), "order-5 @4xl:order-0"]}>
             <.card_header
               title="Device-managed updates"
@@ -342,7 +337,6 @@
         </div>
       </div>
 
-      <%!-- Delete --%>
       <section
         :if={authorized?(:"product:delete", @current_scope)}
         id="delete-product"
