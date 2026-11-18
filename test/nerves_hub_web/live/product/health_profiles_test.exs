@@ -313,6 +313,19 @@ defmodule NervesHubWeb.Live.Product.HealthProfilesTest do
       assert HealthProfiles.resolve(product.id, firmware.platform).platform == nil
     end
 
+    test "aren't added over unsaved changes", %{conn: conn, path: path, product: product, firmware: firmware} do
+      {:ok, view, _html} = live(conn, path)
+
+      render_click(view, "remove-metric", %{"index" => "#{index_of(view, "cpu_usage_percent")}"})
+      html = view |> form("#add-platform-profile", %{"platform" => firmware.platform}) |> render_change()
+
+      assert html =~ "Save or discard your changes before adding a profile."
+      assert HealthProfiles.resolve(product.id, firmware.platform).platform == nil
+      assert has_element?(view, "#profile-name", "Default")
+      assert has_element?(view, "#unsaved-changes", "1 unsaved change")
+      assert has_element?(view, "#add-platform-profile-platform-1")
+    end
+
     test "can't be added until firmware reports a platform", %{conn: conn, user: user, org: org} do
       product = Fixtures.product_fixture(user, org, %{name: "NoFirmware"})
 

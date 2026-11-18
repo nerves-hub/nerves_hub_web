@@ -183,6 +183,17 @@ defmodule NervesHubWeb.Live.Product.HealthProfiles do
     end
   end
 
+  # Creating a profile opens it, which would drop the draft, so with unsaved
+  # changes it doesn't, and its select is put back as the profile select is.
+  @decorate requires_permission(:"product:update")
+  def handle_event("create-platform-profile", %{"platform" => platform}, socket)
+      when platform != "" and socket.assigns.unsaved > 0 do
+    socket
+    |> update(:select_resets, &(&1 + 1))
+    |> put_flash(:error, "Save or discard your changes before adding a profile.")
+    |> noreply()
+  end
+
   @decorate requires_permission(:"product:update")
   def handle_event("create-platform-profile", %{"platform" => platform}, socket) when platform != "" do
     case HealthProfiles.create_platform_profile(socket.assigns.product, platform) do
@@ -223,19 +234,31 @@ defmodule NervesHubWeb.Live.Product.HealthProfiles do
   end
 
   def handle_async(:saved_preview, {:ok, counts}, socket) do
-    {:noreply, assign(socket, saved_preview: counts, saved_previewing?: false)}
+    socket
+    |> assign(saved_preview: counts, saved_previewing?: false)
+    |> assign_impact()
+    |> noreply()
   end
 
   def handle_async(:saved_preview, {:exit, _reason}, socket) do
-    {:noreply, assign(socket, saved_preview: nil, saved_previewing?: false)}
+    socket
+    |> assign(saved_preview: nil, saved_previewing?: false)
+    |> assign_impact()
+    |> noreply()
   end
 
   def handle_async(:edited_preview, {:ok, counts}, socket) do
-    {:noreply, assign(socket, edited_preview: counts, previewing?: false)}
+    socket
+    |> assign(edited_preview: counts, previewing?: false)
+    |> assign_impact()
+    |> noreply()
   end
 
   def handle_async(:edited_preview, {:exit, _reason}, socket) do
-    {:noreply, assign(socket, edited_preview: nil, previewing?: false)}
+    socket
+    |> assign(edited_preview: nil, previewing?: false)
+    |> assign_impact()
+    |> noreply()
   end
 
   defp assign_profiles(socket) do
@@ -274,6 +297,8 @@ defmodule NervesHubWeb.Live.Product.HealthProfiles do
       |> assign(:previewing?, false)
       |> assign(:saved_previewing?, false)
       |> cancel_async(:edited_preview)
+      |> assign_impact()
+      |> assign_add_options()
 
     # Only for someone who could save: there's nothing to compare it with
     # otherwise, and it runs across the product's whole fleet.
@@ -292,11 +317,19 @@ defmodule NervesHubWeb.Live.Product.HealthProfiles do
   # the edited metrics when they all read as numbers.
   defp draft_changed(socket) do
     %{draft: draft, saved: saved} = socket.assigns
-    unsaved = unsaved_changes(saved, draft)
-    socket = assign(socket, :unsaved, unsaved)
 
-    # Only for someone who could save it: the preview runs across the
-    # product's whole fleet.
+    socket
+    |> assign(:unsaved, unsaved_changes(saved, draft))
+    |> assign_add_options()
+    |> preview_draft()
+    |> assign_impact()
+  end
+
+  # Only for someone who could save it: the preview runs across the
+  # product's whole fleet.
+  defp preview_draft(socket) do
+    %{draft: draft, unsaved: unsaved} = socket.assigns
+
     with true <- socket.assigns.analytics? and unsaved > 0,
          true <- authorized?(:"product:update", socket.assigns.current_scope),
          {:ok, metrics} <- draft_metrics(draft) do
@@ -551,17 +584,22 @@ defmodule NervesHubWeb.Live.Product.HealthProfiles do
     end
   end
 
-  defp add_options(assigns) do
-    taken = MapSet.new(assigns.draft, & &1.key)
+  # The metrics the picker offers: those not in the draft yet.
+  defp assign_add_options(socket) do
+    %{draft: draft, reported_keys: reported_keys} = socket.assigns
+    taken = MapSet.new(draft, & &1.key)
 
     built_in =
       for {key, %{label: label}} <- Enum.sort(HealthProfiles.built_in_metrics()),
           not MapSet.member?(taken, key),
           do: {label, key}
 
-    reported = for key <- assigns.reported_keys, not MapSet.member?(taken, key), do: {key, key}
+    reported = for key <- reported_keys, not MapSet.member?(taken, key), do: {key, key}
 
-    Enum.reject([{"Built-in", built_in}, {"Reported by devices", reported}], fn {_group, options} -> options == [] end)
+    options =
+      Enum.reject([{"Built-in", built_in}, {"Reported by devices", reported}], fn {_group, options} -> options == [] end)
+
+    assign(socket, :add_options, options)
   end
 
   defp period_options(seconds) do
@@ -598,15 +636,24 @@ defmodule NervesHubWeb.Live.Product.HealthProfiles do
   defp changes(count), do: "#{count} unsaved changes"
 
   # The counts the impact card shows: today's, moved by what the edits would
-  # change, once the preview has worked it out.
-  defp shown_counts(assigns) do
-    case deltas(assigns) do
-      nil ->
-        assigns.health_counts
+  # change, once the preview has worked it out. Kept in assigns rather than
+  # worked out in the template, so LiveView only re-sends the card when one
+  # of them changes.
+  defp assign_impact(socket) do
+    %{health_counts: health_counts} = socket.assigns
+    deltas = deltas(socket.assigns)
 
-      deltas ->
-        Map.new(assigns.health_counts, fn {status, count} -> {status, max(count + deltas[status], 0)} end)
-    end
+    shown =
+      case deltas do
+        nil -> health_counts
+        deltas -> Map.new(health_counts, fn {status, count} -> {status, max(count + deltas[status], 0)} end)
+      end
+
+    assign(socket,
+      shown_counts: shown,
+      deltas: deltas,
+      shown_total: shown.healthy + shown.warning + shown.unhealthy + shown.unknown
+    )
   end
 
   defp deltas(%{unsaved: unsaved, saved_preview: %{} = saved, edited_preview: %{} = edited}) when unsaved > 0 do
@@ -647,6 +694,7 @@ defmodule NervesHubWeb.Live.Product.HealthProfiles do
   attr(:class, :any, default: nil)
   attr(:platforms, :list, required: true)
   attr(:profiles, :list, required: true)
+  attr(:resets, :integer, required: true)
 
   # A profile is for a platform the product's firmware reports, picked from
   # those without one. With none left the button stays, disabled, saying why.
@@ -656,8 +704,13 @@ defmodule NervesHubWeb.Live.Product.HealthProfiles do
       <%= if @platforms != [] do %>
         <.button type="label" class="relative w-full">
           <span class="lucide-plus" aria-hidden="true"></span>
-          Add a platform profile
-          <select name="platform" aria-label="Add a platform profile" class="absolute inset-0 cursor-pointer opacity-0">
+          Add a platform profile <%!-- A new id puts the select back when the server refuses a pick. --%>
+          <select
+            id={"#{@id}-platform-#{@resets}"}
+            name="platform"
+            aria-label="Add a platform profile"
+            class="absolute inset-0 cursor-pointer opacity-0"
+          >
             <option value="">Choose a platform</option>
             {Phoenix.HTML.Form.options_for_select(@platforms, nil)}
           </select>

@@ -442,18 +442,18 @@ defmodule NervesHub.Products.HealthProfiles do
   end
 
   @doc """
-  Saves a profile's metrics as `metrics` lists them, in one transaction:
-  each entry with an `"id"` of one of the profile's metrics updates it, each
-  without one adds a metric, and the profile's metrics left out are removed.
+  Saves a profile's metrics as `metrics` lists them, in one transaction.
 
-  The rules of `add_metric/2` and `update_metric/2` apply to each. The
-  profile row is locked and its metrics read inside the transaction, not
-  taken from `profile`, so a save made from a page loaded before someone
-  else changed the profile still leaves it as `metrics` lists them: an
-  `"id"` that's no longer the profile's adds the metric again. Returns the
-  saved profile; the position in `metrics` of the first entry that didn't
-  validate, with its changeset; or `{:error, :profile_not_found}` when the
-  profile has been deleted.
+  An entry with the `"id"` of one of the profile's metrics updates it, one
+  without adds a metric, and the profile's metrics left out are removed; the
+  rules of `add_metric/2` and `update_metric/2` apply to each. The profile
+  row is locked and its metrics read inside the transaction rather than
+  taken from `profile`, so a save from a page loaded before someone else
+  changed the profile still leaves it as `metrics` lists it: an `"id"`
+  that's no longer the profile's adds the metric again. Returns the saved
+  profile; `{:error, index, changeset}` for the first entry in `metrics`
+  that didn't validate; or `{:error, :profile_not_found}` when the profile
+  has been deleted.
   """
   @spec save_metrics(HealthProfile.t(), [map()]) ::
           {:ok, HealthProfile.t()}
