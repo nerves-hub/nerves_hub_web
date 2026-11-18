@@ -26,9 +26,10 @@ defmodule NervesHubWeb.Router do
   alias Live.Product.Notifications
   alias Live.SupportScripts.Edit
   alias NervesHubWeb.API.Plugs.Device
-  alias NervesHubWeb.API.Plugs.FetchCurrentUser
+  alias NervesHubWeb.API.Plugs.FetchCurrentScope
   alias NervesHubWeb.API.Plugs.Product
   alias NervesHubWeb.API.Plugs.RequireAuthenticatedUser
+  alias NervesHubWeb.API.Plugs.RequireAuthenticatedUserOrApiKey
   alias NervesHubWeb.API.UI
   alias NervesHubWeb.Integrations.Slack
   alias NervesHubWeb.Integrations.Slack.VerifyRequest
@@ -64,7 +65,7 @@ defmodule NervesHubWeb.Router do
   pipeline :api do
     plug(:accepts, ["json", "text"])
     plug(PutApiSpec, module: NervesHubWeb.ApiSpec)
-    plug(FetchCurrentUser)
+    plug(FetchCurrentScope)
     plug(:assign_org_to_scope)
     plug(:require_org_two_factor, :api)
     plug(:assign_product_to_scope)
@@ -72,6 +73,10 @@ defmodule NervesHubWeb.Router do
 
   pipeline :api_require_authenticated_user do
     plug(RequireAuthenticatedUser)
+  end
+
+  pipeline :api_require_authenticated_user_or_api_key do
+    plug(RequireAuthenticatedUserOrApiKey)
   end
 
   pipeline :api_product do
@@ -104,7 +109,7 @@ defmodule NervesHubWeb.Router do
     post("/users/login", UserController, :login)
 
     scope "/devices/:identifier" do
-      pipe_through([:api_require_authenticated_user, :api_device])
+      pipe_through([:api_require_authenticated_user_or_api_key, :api_device])
 
       get("/", DeviceController, :show)
 
@@ -122,6 +127,99 @@ defmodule NervesHubWeb.Router do
       get("/metrics", DeviceMetricController, :index)
     end
 
+    # A product API key works on these as well as a user API token does.
+    # `assign_org_to_scope` and `assign_product_to_scope` keep a key to its own
+    # product, and the controllers' permission plugs check its role.
+    scope "/orgs/:org_name/products/:product_name" do
+      pipe_through([:api_require_authenticated_user_or_api_key, :api_product])
+
+      get("/", ProductController, :show)
+
+      scope "/devices" do
+        get("/", DeviceController, :index)
+        post("/", DeviceController, :create)
+        post("/import", DeviceController, :bulk_import)
+        post("/auth", DeviceController, :auth)
+
+        scope "/:identifier" do
+          pipe_through([:api_device])
+
+          get("/", DeviceController, :show)
+          put("/", DeviceController, :update)
+          delete("/", DeviceController, :delete)
+
+          post("/reboot", DeviceController, :reboot)
+          post("/reconnect", DeviceController, :reconnect)
+          post("/code", DeviceController, :code)
+          post("/upgrade", DeviceController, :upgrade)
+          post("/move", DeviceController, :move)
+          delete("/penalty", DeviceController, :penalty)
+
+          scope "/scripts", as: :device do
+            post("/:name_or_id", ScriptController, :send)
+          end
+
+          scope "/logs" do
+            get("/", DeviceLogController, :index)
+          end
+
+          scope "/metrics" do
+            get("/", DeviceMetricController, :index)
+          end
+
+          scope "/network_identities" do
+            get("/", NetworkIdentityController, :index)
+          end
+
+          scope "/certificates" do
+            get("/", DeviceCertificateController, :index)
+            get("/:serial", DeviceCertificateController, :show)
+            post("/", DeviceCertificateController, :create)
+            delete("/:serial", DeviceCertificateController, :delete)
+          end
+
+          scope "/shared_secrets" do
+            get("/", DeviceSharedSecretController, :index)
+            post("/", DeviceSharedSecretController, :create)
+            delete("/:key", DeviceSharedSecretController, :delete)
+          end
+        end
+      end
+
+      scope "/firmwares" do
+        get("/", FirmwareController, :index)
+        get("/:uuid", FirmwareController, :show)
+        post("/", FirmwareController, :create)
+        delete("/:uuid", FirmwareController, :delete)
+        get("/:uuid/download", FirmwareController, :download)
+      end
+
+      scope "/archives" do
+        get("/", ArchiveController, :index)
+        get("/:uuid", ArchiveController, :show)
+        post("/", ArchiveController, :create)
+        get("/:uuid/download", ArchiveController, :download)
+      end
+
+      scope "/deployments" do
+        get("/", DeploymentGroupController, :index)
+        post("/", DeploymentGroupController, :create)
+        get("/:name", DeploymentGroupController, :show)
+        put("/:name", DeploymentGroupController, :update)
+        delete("/:name", DeploymentGroupController, :delete)
+      end
+
+      scope "/scripts" do
+        get("/", ScriptController, :index)
+        get("/:id", ScriptController, :show)
+        post("/", ScriptController, :create)
+        put("/:id", ScriptController, :update)
+        delete("/:id", ScriptController, :delete)
+      end
+    end
+
+    # Everything else is about a user or a whole organization, or changes the
+    # product itself, none of which a key reaches.
     scope "/" do
       pipe_through([:api_require_authenticated_user])
 
@@ -180,92 +278,9 @@ defmodule NervesHubWeb.Router do
             scope "/:product_name" do
               pipe_through([:api_product])
 
-              get("/", ProductController, :show)
               put("/", ProductController, :update)
               patch("/", ProductController, :update)
               delete("/", ProductController, :delete)
-
-              scope "/devices" do
-                get("/", DeviceController, :index)
-                post("/", DeviceController, :create)
-                post("/import", DeviceController, :bulk_import)
-                post("/auth", DeviceController, :auth)
-
-                scope "/:identifier" do
-                  pipe_through([:api_device])
-
-                  get("/", DeviceController, :show)
-                  put("/", DeviceController, :update)
-                  delete("/", DeviceController, :delete)
-
-                  post("/reboot", DeviceController, :reboot)
-                  post("/reconnect", DeviceController, :reconnect)
-                  post("/code", DeviceController, :code)
-                  post("/upgrade", DeviceController, :upgrade)
-                  post("/move", DeviceController, :move)
-                  delete("/penalty", DeviceController, :penalty)
-
-                  scope "/scripts", as: :device do
-                    post("/:name_or_id", ScriptController, :send)
-                  end
-
-                  scope "/logs" do
-                    get("/", DeviceLogController, :index)
-                  end
-
-                  scope "/metrics" do
-                    get("/", DeviceMetricController, :index)
-                  end
-
-                  scope "/network_identities" do
-                    get("/", NetworkIdentityController, :index)
-                  end
-
-                  scope "/certificates" do
-                    get("/", DeviceCertificateController, :index)
-                    get("/:serial", DeviceCertificateController, :show)
-                    post("/", DeviceCertificateController, :create)
-                    delete("/:serial", DeviceCertificateController, :delete)
-                  end
-
-                  scope "/shared_secrets" do
-                    get("/", DeviceSharedSecretController, :index)
-                    post("/", DeviceSharedSecretController, :create)
-                    delete("/:key", DeviceSharedSecretController, :delete)
-                  end
-                end
-              end
-
-              scope "/firmwares" do
-                get("/", FirmwareController, :index)
-                get("/:uuid", FirmwareController, :show)
-                post("/", FirmwareController, :create)
-                delete("/:uuid", FirmwareController, :delete)
-                get("/:uuid/download", FirmwareController, :download)
-              end
-
-              scope "/archives" do
-                get("/", ArchiveController, :index)
-                get("/:uuid", ArchiveController, :show)
-                post("/", ArchiveController, :create)
-                get("/:uuid/download", ArchiveController, :download)
-              end
-
-              scope "/deployments" do
-                get("/", DeploymentGroupController, :index)
-                post("/", DeploymentGroupController, :create)
-                get("/:name", DeploymentGroupController, :show)
-                put("/:name", DeploymentGroupController, :update)
-                delete("/:name", DeploymentGroupController, :delete)
-              end
-
-              scope "/scripts" do
-                get("/", ScriptController, :index)
-                get("/:id", ScriptController, :show)
-                post("/", ScriptController, :create)
-                put("/:id", ScriptController, :update)
-                delete("/:id", ScriptController, :delete)
-              end
             end
           end
         end

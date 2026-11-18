@@ -3,11 +3,13 @@ defmodule NervesHub.Accounts.Scope do
   alias NervesHub.Accounts.OrgRole
   alias NervesHub.Accounts.Permissions
   alias NervesHub.Accounts.User
+  alias NervesHub.Products.ApiKey
   alias NervesHub.Products.Product
 
-  defstruct org: nil, permissions: MapSet.new(), product: nil, role: nil, user: nil
+  defstruct api_key: nil, org: nil, permissions: MapSet.new(), product: nil, role: nil, user: nil
 
   @type t :: %__MODULE__{
+          api_key: ApiKey.t() | nil,
           org: Org.t() | nil,
           permissions: MapSet.t(Permissions.permission()),
           product: Product.t() | nil,
@@ -20,6 +22,27 @@ defmodule NervesHub.Accounts.Scope do
   end
 
   def for_user(nil), do: nil
+
+  @doc """
+  The scope of a request made with a product API key.
+
+  Everything in it comes from the key: its product, that product's
+  organization, and the role the key holds, with no user. A key whose custom
+  role has since been deleted holds no role, and so no permissions.
+  """
+  @spec for_api_key(ApiKey.t()) :: t()
+  def for_api_key(%ApiKey{product: %Product{org: %Org{} = org} = product} = api_key) do
+    %__MODULE__{api_key: api_key, org: org, product: product}
+    |> put_role(ApiKey.assigned_role(api_key))
+  end
+
+  @doc """
+  Who is acting: the API key when the request came with one, otherwise the
+  user. What the audit log records; see `NervesHub.AuditLogs.actor_name/1`.
+  """
+  @spec actor(t()) :: User.t() | ApiKey.t() | nil
+  def actor(%__MODULE__{api_key: %ApiKey{} = api_key}), do: api_key
+  def actor(%__MODULE__{user: user}), do: user
 
   def put_org(%__MODULE__{} = scope, %Org{} = org) do
     %{scope | org: org}

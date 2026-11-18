@@ -44,7 +44,15 @@ defmodule NervesHubWeb.ApiSpec do
         securitySchemes: %{
           "bearer_auth" => %SecurityScheme{
             type: "http",
-            scheme: "bearer"
+            scheme: "bearer",
+            description: """
+            A user API token, or a product API key created in a product's settings.
+
+            A product API key only works on the routes for its own product, under
+            `/api/orgs/{org_name}/products/{product_name}`, and on `/api/devices/{identifier}`
+            for that product's devices. What it may do there is decided by the role it
+            holds, the same way a member's role decides what they may do.
+            """
           }
         },
         responses: %{

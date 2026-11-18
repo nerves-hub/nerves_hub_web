@@ -32,6 +32,7 @@ defmodule NervesHub.Devices do
   alias NervesHub.ManagedDeployments.InflightDeploymentCheck
   alias NervesHub.ProductNotifications
   alias NervesHub.Products
+  alias NervesHub.Products.ApiKey
   alias NervesHub.Products.Product
   alias NervesHub.Repo
   alias NervesHub.Types.Tag
@@ -172,6 +173,7 @@ defmodule NervesHub.Devices do
   # right for a caller that already knows its user sees all of them.
   defp maybe_where_visible(query, nil), do: query
   defp maybe_where_visible(query, %User{} = user), do: Visibility.where_visible(query, user)
+  defp maybe_where_visible(query, %ApiKey{} = api_key), do: Visibility.where_visible(query, api_key)
 
   def get_device_count_by_org_id_and_product_id(org_id, product_id) do
     query =
@@ -375,7 +377,7 @@ defmodule NervesHub.Devices do
 
   defp get_by_identifier_query(%Scope{org: org} = scope, identifier, preload_assoc) when not is_nil(org) do
     Device
-    |> Visibility.where_visible(scope.user)
+    |> Visibility.where_visible(scope)
     |> join(:left, [d], o in assoc(d, :org), as: :org)
     |> where(identifier: ^identifier)
     |> where(org_id: ^org.id)
@@ -595,17 +597,19 @@ defmodule NervesHub.Devices do
   """
   @spec deactivate_shared_secret_auth(Device.t(), String.t(), User.t()) ::
           {:ok, SharedSecretAuth.t()} | {:error, :not_found}
-  def deactivate_shared_secret_auth(%Device{id: device_id} = device, key, user) do
+  def deactivate_shared_secret_auth(%Device{id: device_id} = device, key, actor) do
     now = DateTime.truncate(DateTime.utc_now(), :second)
 
     Repo.transact(fn ->
       SharedSecretAuth
       |> where([ssa], ssa.device_id == ^device_id and ssa.key == ^key and is_nil(ssa.deactivated_at))
       |> select([ssa], ssa)
-      |> Repo.update_all(set: [deactivated_at: now, deactivated_by_id: user.id, updated_at: DateTime.to_naive(now)])
+      |> Repo.update_all(
+        set: [deactivated_at: now, deactivated_by_id: actor_user_id(actor), updated_at: DateTime.to_naive(now)]
+      )
       |> case do
         {1, [auth]} ->
-          DeviceTemplates.audit_shared_secret_deactivated(user, device, auth)
+          DeviceTemplates.audit_shared_secret_deactivated(actor, device, auth)
           {:ok, auth}
 
         {0, []} ->
@@ -1231,6 +1235,18 @@ defmodule NervesHub.Devices do
   defp set_update_mode(device, _mode, _user), do: {:ok, device}
 
   @spec get_devices_by_id(Scope.t(), [non_neg_integer()]) :: [Device.t()]
+  # A product API key reaches one product, so there is no membership to join
+  # through; its own role still decides which of that product's devices it sees.
+  def get_devices_by_id(%Scope{api_key: %ApiKey{} = api_key, product: product}, ids) when is_list(ids) do
+    Device
+    |> Visibility.where_visible(api_key)
+    |> join(:left, [d], o in assoc(d, :org), as: :org)
+    |> where([d], d.id in ^ids)
+    |> where(product_id: ^product.id)
+    |> where_org_not_deleted()
+    |> Repo.all()
+  end
+
   def get_devices_by_id(%Scope{user: user}, ids) when is_list(ids) do
     Device
     |> Visibility.where_visible(user)
