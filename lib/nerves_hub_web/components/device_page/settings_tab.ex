@@ -1,6 +1,8 @@
 defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
   use NervesHubWeb, tab_component: :settings
 
+  import NervesHubWeb.Components.Switch, only: [switch: 1]
+
   alias NervesHub.Certificate
   alias NervesHub.DeviceLink
   alias NervesHub.Devices
@@ -473,40 +475,6 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
         {render_slot(@action)}
       </div>
     </div>
-    """
-  end
-
-  attr(:id, :string, required: true)
-  attr(:name, :string, required: true)
-  attr(:checked, :boolean, required: true)
-  attr(:disabled, :boolean, default: false)
-  attr(:rest, :global)
-
-  # A checkbox drawn as a switch. It acts as soon as it is flipped, through the
-  # `phx-click` it is given, so it needs no form.
-  defp switch(assigns) do
-    ~H"""
-    <span class="relative inline-flex h-4.5 w-8 shrink-0">
-      <input
-        type="checkbox"
-        role="switch"
-        id={@id}
-        name={@name}
-        checked={@checked}
-        disabled={@disabled}
-        class={[
-          "peer size-full cursor-pointer appearance-none rounded-full border-0 bg-line-strong bg-none p-0 text-primary transition-colors light:text-indigo-600",
-          "checked:bg-current checked:bg-none focus:ring-0 focus:ring-offset-0",
-          "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring",
-          "disabled:cursor-not-allowed disabled:opacity-60 [&:disabled:not(:checked)]:bg-line-default"
-        ]}
-        {@rest}
-      />
-      <span
-        class="pointer-events-none absolute top-0.5 left-0.5 size-3.5 rounded-full bg-white shadow-control transition-transform peer-checked:translate-x-3.5"
-        aria-hidden="true"
-      ></span>
-    </span>
     """
   end
 

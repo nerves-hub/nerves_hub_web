@@ -281,6 +281,14 @@ when adding or removing one.
   mounts. On a phone the sidebar is a drawer, and the top bar reads menu
   button, then the page's breadcrumb (or the product and page names when it
   has none), then the avatar, which holds the user menu the drawer leaves out.
+  A product's settings are two LiveViews, General (`live/product/settings.ex`)
+  and Device health (`live/product/health_profiles.ex`), sharing their title
+  and tabs from `components/product_settings.ex`. General is titled cards in
+  two columns, like the device page's Settings tab, and both draw their
+  toggles with `components/switch.ex`. Anything there that changes every
+  device, or can't be undone, asks first in a dialog that one `@confirm`
+  assign drives; each event that opens one checks the same permission as the
+  event that acts.
 - `controllers/` — JSON API (`controllers/api/`) and others.
 - `plugs/`, `router.ex`, `endpoint.ex`, `device_endpoint.ex`,
   `health_check_endpoint.ex`, `auth*.ex`.

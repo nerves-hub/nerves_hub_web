@@ -3,45 +3,95 @@ defmodule NervesHubWeb.Live.Product.SettingsTest do
   use Mimic
 
   alias NervesHub.Accounts
+  alias NervesHub.Devices
+  alias NervesHub.Devices.BulkActions
   alias NervesHub.Fixtures
   alias NervesHub.Products
   alias NervesHub.Repo
 
+  describe "the page" do
+    test "is titled for the product, with its two tabs", %{conn: conn, org: org, product: product} do
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/settings")
+      |> assert_has("h1", text: "Product settings")
+      |> assert_has("nav a[aria-current='page']", text: "General")
+      |> assert_has("nav a", text: "Device health")
+      |> refute_has("#read-only-notice")
+    end
+
+    test "view-only members are told they can't change anything", %{conn: conn, org: org, user: user, product: product} do
+      {:ok, _} = Accounts.change_org_user_role(Accounts.get_org_user!(org, user.id), :view)
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/settings")
+      |> assert_has("#read-only-notice", text: "your role in #{org.name} can't change them")
+      |> assert_has("#require-unique-firmware-version[disabled]")
+      |> refute_has("#delete-product")
+    end
+  end
+
   describe "delete product" do
-    test "soft deletes the product", %{conn: conn, org: org, user: user} do
+    test "asks for the product's name, then soft deletes it", %{conn: conn, org: org, user: user} do
       product = Fixtures.product_fixture(user, org)
 
       conn
       |> visit("/org/#{org.name}/#{product.name}/settings")
-      |> assert_has("h1", text: "Product Settings")
       |> click_button("Delete product")
-      |> assert_has("div", text: "Product deleted successfully.")
+      |> assert_has("#confirm-dialog h2", text: "Delete #{product.name}?")
+      |> assert_has("#confirm-dialog button[disabled]", text: "Delete #{product.name}")
+      |> unwrap(fn view ->
+        view |> form("#delete-product-form", %{name: product.name}) |> render_submit()
+      end)
       |> assert_path("/org/#{org.name}")
+      |> assert_has("div", text: "Deleted #{product.name}.")
 
-      product = NervesHub.Repo.reload(product)
-      refute is_nil(product.deleted_at)
+      refute is_nil(Repo.reload(product).deleted_at)
     end
 
-    test "shows error when product has firmware or devices", %{conn: conn, org: org, user: user} do
+    test "a name that doesn't match deletes nothing", %{conn: conn, org: org, user: user} do
+      product = Fixtures.product_fixture(user, org)
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/settings")
+      |> click_button("Delete product")
+      |> unwrap(fn view ->
+        view |> form("#delete-product-form", %{name: "not-#{product.name}"}) |> render_submit()
+      end)
+      |> assert_has("#confirm-dialog")
+
+      assert is_nil(Repo.reload(product).deleted_at)
+    end
+
+    test "is refused while the product has devices", %{conn: conn, org: org, product: product} do
+      session =
+        conn
+        |> visit("/org/#{org.name}/#{product.name}/settings")
+        |> assert_has("#delete-product", text: "1 device is still here")
+        |> assert_has("#delete-product-button[disabled]")
+
+      # Counted again when asked, not trusted from the page.
+      session
+      |> unwrap(&render_click(&1, "delete-product", %{"name" => product.name}))
+      |> assert_has("div", text: "#{product.name} still has devices, so it can't be deleted.")
+
+      assert is_nil(Repo.reload(product).deleted_at)
+    end
+
+    test "shows an error when deleting fails", %{conn: conn, org: org, user: user} do
       product = Fixtures.product_fixture(user, org)
 
       stub(Products, :delete_product, fn _ ->
         {:error,
-         %Ecto.Changeset{
-           errors: [base: {"cannot delete", []}],
-           data: %{},
-           changes: %{},
-           types: %{},
-           valid?: false
-         }}
+         %Ecto.Changeset{errors: [base: {"cannot delete", []}], data: %{}, changes: %{}, types: %{}, valid?: false}}
       end)
 
       conn
       |> visit("/org/#{org.name}/#{product.name}/settings")
       |> click_button("Delete product")
-      |> assert_has("div",
-        text: "There was an error deleting the Product. Please delete all Firmware and Devices first."
-      )
+      |> unwrap(fn view ->
+        view |> form("#delete-product-form", %{name: product.name}) |> render_submit()
+      end)
+      |> assert_has("div", text: "#{product.name} couldn't be deleted.")
     end
   end
 
@@ -51,7 +101,7 @@ defmodule NervesHubWeb.Live.Product.SettingsTest do
 
       conn
       |> visit("/org/#{org.name}/#{product.name}/settings")
-      |> assert_has("div", text: "Require unique firmware versions")
+      |> assert_has("span", text: "Require unique firmware versions")
     end
   end
 
@@ -64,7 +114,7 @@ defmodule NervesHubWeb.Live.Product.SettingsTest do
       product = Fixtures.product_fixture(user, org)
       {:ok, view, html} = live(conn, "/org/#{org.name}/#{product.name}/settings")
 
-      assert html =~ "Accept ESP-IDF application images"
+      assert html =~ "ESP-IDF application images"
       # Only meaningful once the format is accepted at all.
       refute html =~ "Allow unsigned ESP-IDF images"
 
@@ -102,7 +152,7 @@ defmodule NervesHubWeb.Live.Product.SettingsTest do
       product = Fixtures.product_fixture(user, org)
       {:ok, view, html} = live(conn, "/org/#{org.name}/#{product.name}/settings")
 
-      assert html =~ "Accept AtomVM packbeam archives"
+      assert html =~ "AtomVM packbeam archives"
 
       html =
         view
@@ -220,41 +270,62 @@ defmodule NervesHubWeb.Live.Product.SettingsTest do
   end
 
   describe "extensions" do
-    test "lists extensions by display name", %{conn: conn, org: org, user: user} do
-      product = Fixtures.product_fixture(user, org)
+    test "lists extensions by name, with how many devices each is on for", %{conn: conn, org: org, product: product} do
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/settings")
+      |> assert_has("#extension-row-local_shell", text: "Local shell")
+      |> assert_has("#extension-row-network_identity", text: "Network identity")
+      |> assert_has("#extension-count-geo", text: "on 1 of 1")
+      |> refute_has("[id^=extension-turned-off-]")
+    end
+
+    test "turning one on doesn't ask", %{conn: conn, org: org, product: product} do
+      {:ok, _} = Products.disable_extension_setting(product, "health")
 
       conn
       |> visit("/org/#{org.name}/#{product.name}/settings")
-      |> assert_has("div", text: "Local Shell")
-      |> assert_has("div", text: "Network Identity")
-      |> refute_has("div", text: "Local_shell")
+      |> assert_has("#extension-count-health", text: "off")
+      |> unwrap(&render_click(&1, "update-extension", %{"extension" => "health", "value" => "on"}))
+      |> refute_has("#confirm-dialog")
+      |> assert_has("div", text: "Turned Health on for #{product.name}.")
+      |> assert_has("#extension-health[checked]")
+
+      assert Repo.reload(product).extensions.health
     end
 
-    test "enables an extension", %{conn: conn, org: org, user: user} do
-      product = Fixtures.product_fixture(user, org)
+    test "turning one off asks first", %{conn: conn, org: org, product: product} do
+      session =
+        conn
+        |> visit("/org/#{org.name}/#{product.name}/settings")
+        |> unwrap(&render_click(&1, "update-extension", %{"extension" => "health"}))
+        |> assert_has("#confirm-dialog h2", text: "Turn off Health for every device?")
+        |> assert_has("#confirm-dialog", text: "1 device has it on now")
 
+      assert Repo.reload(product).extensions.health
+
+      session
+      |> within("#confirm-dialog", &click_button(&1, "Turn off Health"))
+      |> assert_has("div", text: "Turned Health off for #{product.name}.")
+      |> assert_has("#extension-count-health", text: "off")
+
+      refute Repo.reload(product).extensions.health
+    end
+
+    # The switch flips in the browser before the dialog asks, so the page has
+    # to draw it on again when the answer is no.
+    test "the switch is off while it asks, and on again after Cancel", %{conn: conn, org: org, product: product} do
       conn
       |> visit("/org/#{org.name}/#{product.name}/settings")
-      |> unwrap(fn view ->
-        render_click(view, "update-extension", %{"extension" => "health", "value" => "on"})
-      end)
-      |> assert_has("div", text: "The Health extension was enabled successfully.")
+      |> unwrap(&render_click(&1, "update-extension", %{"extension" => "geo"}))
+      |> refute_has("#extension-geo[checked]")
+      |> unwrap(&render_click(&1, "cancel-confirm", %{}))
+      |> refute_has("#confirm-dialog")
+      |> assert_has("#extension-geo[checked]")
+
+      assert Repo.reload(product).extensions.geo
     end
 
-    test "disables an extension", %{conn: conn, org: org, user: user} do
-      product = Fixtures.product_fixture(user, org)
-
-      conn
-      |> visit("/org/#{org.name}/#{product.name}/settings")
-      |> unwrap(fn view ->
-        render_click(view, "update-extension", %{"extension" => "health", "value" => "off"})
-      end)
-      |> assert_has("div", text: "The Health extension was disabled successfully.")
-    end
-
-    test "shows error when extension update fails", %{conn: conn, org: org, user: user} do
-      product = Fixtures.product_fixture(user, org)
-
+    test "shows an error when the extension can't be changed", %{conn: conn, org: org, product: product} do
       stub(Products, :enable_extension_setting, fn _, _ ->
         {:error,
          %Ecto.Changeset{errors: [base: {"cannot update", []}], data: %{}, changes: %{}, types: %{}, valid?: false}}
@@ -262,15 +333,13 @@ defmodule NervesHubWeb.Live.Product.SettingsTest do
 
       conn
       |> visit("/org/#{org.name}/#{product.name}/settings")
-      |> unwrap(fn view ->
-        render_click(view, "update-extension", %{"extension" => "health", "value" => "on"})
-      end)
+      |> unwrap(&render_click(&1, "update-extension", %{"extension" => "health", "value" => "on"}))
       |> assert_has("div",
         text: "Failed to update the Health extension. Please contact support if this problem persists."
       )
     end
 
-    test "disables an extension on every device in the product", %{
+    test "devices that turned one off on their own can have it turned back on", %{
       conn: conn,
       org: org,
       product: product,
@@ -278,34 +347,22 @@ defmodule NervesHubWeb.Live.Product.SettingsTest do
       device: device
     } do
       second = Fixtures.device_fixture(org, product, firmware)
+      {:ok, _} = Devices.disable_extension_setting(device, "geo")
 
       conn
       |> visit("/org/#{org.name}/#{product.name}/settings")
-      |> click_button("#disable-extension-geo-on-devices", "Disable on all devices")
+      |> assert_has("#extension-count-geo", text: "on 1 of 2")
+      |> assert_has("#extension-turned-off-geo", text: "1 device has Geo turned off on its own.")
+      |> click_button("Turn it back on for it")
+      |> assert_has("#confirm-dialog h2", text: "Turn Geo back on for 1 device?")
+      |> click_button("Turn on for 1 device")
       |> unwrap(&render_async/1)
-      |> assert_has("div", text: "Disabled the Geo extension on 2 device(s).")
-      |> refute_has("div", text: "Updating devices, please wait...")
-
-      refute Repo.reload(device).extensions.geo
-      refute Repo.reload(second).extensions.geo
-      assert Repo.reload(device).extensions.health
-    end
-
-    test "enables an extension on every device in the product", %{
-      conn: conn,
-      org: org,
-      product: product,
-      device: device
-    } do
-      {:ok, _} = NervesHub.Devices.disable_extension_setting(device, "geo")
-
-      conn
-      |> visit("/org/#{org.name}/#{product.name}/settings")
-      |> click_button("#enable-extension-geo-on-devices", "Enable on all devices")
-      |> unwrap(&render_async/1)
-      |> assert_has("div", text: "Enabled the Geo extension on 1 device(s).")
+      |> assert_has("div", text: "Turned Geo back on for 1 device.")
+      |> assert_has("#extension-count-geo", text: "on 2 of 2")
+      |> refute_has("#extension-turned-off-geo")
 
       assert Repo.reload(device).extensions.geo
+      assert Repo.reload(second).extensions.geo
     end
 
     test "an unknown extension is refused", %{conn: conn, org: org, product: product} do
@@ -325,27 +382,30 @@ defmodule NervesHubWeb.Live.Product.SettingsTest do
       product: product,
       device: device
     } do
+      {:ok, _} = Devices.disable_extension_setting(device, "geo")
       {:ok, _} = Accounts.change_org_user_role(Accounts.get_org_user!(org, user.id), :view)
 
       session =
         conn
         |> visit("/org/#{org.name}/#{product.name}/settings")
-        |> assert_has("#disable-extension-geo-on-devices[disabled]")
+        |> assert_has("#extension-geo[disabled]")
+        |> assert_has("#extension-turned-off-geo")
+        |> refute_has("#reenable-extension-geo")
 
       Process.flag(:trap_exit, true)
 
       assert {{%NervesHubWeb.UnauthorizedError{}, _}, _} =
                catch_exit(render_click(session.view, "update-extension", %{"extension" => "geo", "value" => "off"}))
 
-      session = visit(conn, "/org/#{org.name}/#{product.name}/settings")
+      for event <- ["prepare-reenable-extension", "set-extension-for-devices"] do
+        session = visit(conn, "/org/#{org.name}/#{product.name}/settings")
 
-      assert {{%NervesHubWeb.UnauthorizedError{}, _}, _} =
-               catch_exit(
-                 render_click(session.view, "set-extension-for-devices", %{"extension" => "geo", "enabled" => "false"})
-               )
+        assert {{%NervesHubWeb.UnauthorizedError{}, _}, _} =
+                 catch_exit(render_click(session.view, event, %{"extension" => "geo", "enabled" => "true"}))
+      end
 
       assert Repo.reload(product).extensions.geo
-      assert Repo.reload(device).extensions.geo
+      refute Repo.reload(device).extensions.geo
     end
   end
 
@@ -353,7 +413,7 @@ defmodule NervesHubWeb.Live.Product.SettingsTest do
     test "new devices can be let choose their update mode", %{conn: conn, org: org, product: product} do
       conn
       |> visit("/org/#{org.name}/#{product.name}/settings")
-      |> assert_has("div", text: "Let new devices choose their update mode")
+      |> assert_has("span", text: "Let new devices choose their update mode")
       |> unwrap(fn view ->
         render_click(view, "update-default-managed-updates-allowed", %{"value" => "on"})
       end)
@@ -376,7 +436,7 @@ defmodule NervesHubWeb.Live.Product.SettingsTest do
       refute Repo.reload(product).default_managed_updates_allowed
     end
 
-    test "every device in the product can be allowed, and disallowed", %{
+    test "every device in the product can be allowed, and revoked, after asking", %{
       conn: conn,
       org: org,
       product: product,
@@ -388,21 +448,77 @@ defmodule NervesHubWeb.Live.Product.SettingsTest do
       session =
         conn
         |> visit("/org/#{org.name}/#{product.name}/settings")
-        |> click_button("Allow on all devices")
+        |> assert_has("#managed-updates-count", text: "0 of 2 can choose their update mode.")
+        |> assert_has("#revoke-managed-updates-on-devices[disabled]")
+        |> click_button("#allow-managed-updates-on-devices", "Allow on all")
+        |> assert_has("#confirm-dialog h2", text: "Let every device choose its update mode?")
+        |> assert_has("#confirm-dialog", text: "2 devices can't choose now")
+
+      refute Repo.reload(device).managed_updates_allowed
+
+      session =
+        session
+        |> within("#confirm-dialog", &click_button(&1, "Allow on all"))
         |> unwrap(&render_async/1)
-        |> assert_has("div", text: "Allowed device-managed updates on 2 device(s).")
-        |> refute_has("div", text: "Updating devices, please wait...")
+        |> assert_has("div", text: "Every device in #{product.name} can now choose its update mode.")
+        |> assert_has("#managed-updates-count", text: "2 of 2 can choose their update mode.")
+        |> refute_has("#managed-updates-progress")
 
       assert Repo.reload(device).managed_updates_allowed
       assert Repo.reload(second).managed_updates_allowed
 
       session
-      |> click_button("Disallow on all devices")
+      |> click_button("#revoke-managed-updates-on-devices", "Revoke on all")
+      |> assert_has("#confirm-dialog", text: "2 devices can choose now")
+      |> within("#confirm-dialog", &click_button(&1, "Revoke on all"))
       |> unwrap(&render_async/1)
-      |> assert_has("div", text: "Disallowed device-managed updates on 2 device(s).")
+      |> assert_has("div", text: "No device in #{product.name} can choose its update mode now.")
 
       refute Repo.reload(device).managed_updates_allowed
       refute Repo.reload(second).managed_updates_allowed
+    end
+
+    test "shows how far it has got, with both buttons waiting", %{conn: conn, org: org, product: product} do
+      test_pid = self()
+
+      stub(BulkActions, :set_managed_updates_allowed_for_product, fn _product, _enabled, _user, opts ->
+        opts[:on_progress].(1, 4)
+        send(test_pid, {:started, self()})
+
+        receive do
+          :finish -> %{ok: 4, error: 0}
+        end
+      end)
+
+      session =
+        conn
+        |> visit("/org/#{org.name}/#{product.name}/settings")
+        |> unwrap(&render_click(&1, "set-managed-updates-allowed-for-devices", %{"enabled" => "true"}))
+
+      assert_receive {:started, task}
+
+      session
+      |> unwrap(&render/1)
+      |> assert_has("#managed-updates-progress", text: "Allowing · 1 of 4 done")
+      |> assert_has("#allow-managed-updates-on-devices[disabled]")
+      |> assert_has("#revoke-managed-updates-on-devices[disabled]")
+      |> tap(fn _ -> send(task, :finish) end)
+      |> unwrap(&render_async/1)
+      |> refute_has("#managed-updates-progress")
+    end
+
+    test "says how many devices couldn't be changed", %{conn: conn, org: org, product: product} do
+      stub(BulkActions, :set_managed_updates_allowed_for_product, fn _product, _enabled, _user, _opts ->
+        %{ok: 3, error: 2}
+      end)
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/settings")
+      |> unwrap(fn view ->
+        render_click(view, "set-managed-updates-allowed-for-devices", %{"enabled" => "true"})
+        render_async(view)
+      end)
+      |> assert_has("div", text: "2 devices couldn't be changed. Allow on all again to try them.")
     end
 
     test "view-only members cannot change the default or the devices", %{
@@ -418,17 +534,19 @@ defmodule NervesHubWeb.Live.Product.SettingsTest do
         conn
         |> visit("/org/#{org.name}/#{product.name}/settings")
         |> assert_has("#default-managed-updates-allowed[disabled]")
-        |> assert_has("#allow-managed-updates-on-devices[disabled]")
+        |> refute_has("#allow-managed-updates-on-devices")
 
       Process.flag(:trap_exit, true)
 
       assert {{%NervesHubWeb.UnauthorizedError{}, _}, _} =
                catch_exit(render_click(session.view, "update-default-managed-updates-allowed", %{"value" => "on"}))
 
-      session = visit(conn, "/org/#{org.name}/#{product.name}/settings")
+      for event <- ["prepare-managed-updates", "set-managed-updates-allowed-for-devices"] do
+        session = visit(conn, "/org/#{org.name}/#{product.name}/settings")
 
-      assert {{%NervesHubWeb.UnauthorizedError{}, _}, _} =
-               catch_exit(render_click(session.view, "set-managed-updates-allowed-for-devices", %{"enabled" => "true"}))
+        assert {{%NervesHubWeb.UnauthorizedError{}, _}, _} =
+                 catch_exit(render_click(session.view, event, %{"enabled" => "true"}))
+      end
 
       refute Repo.reload(product).default_managed_updates_allowed
       refute Repo.reload(device).managed_updates_allowed
@@ -437,7 +555,8 @@ defmodule NervesHubWeb.Live.Product.SettingsTest do
 
   describe "shared secrets" do
     setup do
-      Application.put_env(:nerves_hub, NervesHubWeb.DeviceSocket, shared_secrets: [enabled: false])
+      Application.put_env(:nerves_hub, NervesHubWeb.DeviceSocket, shared_secrets: [enabled: true])
+      on_exit(fn -> Application.put_env(:nerves_hub, NervesHubWeb.DeviceSocket, shared_secrets: [enabled: false]) end)
     end
 
     test "shared secrets not enabled", %{conn: conn, org: org, user: user} do
@@ -447,52 +566,52 @@ defmodule NervesHubWeb.Live.Product.SettingsTest do
 
       conn
       |> visit("/org/#{org.name}/#{product.name}/settings")
-      |> assert_has("p", text: "Shared Secret authentication hasn't been enabled for your platform.")
+      |> assert_has("p", text: "Shared secret authentication hasn't been turned on for this platform.")
+      |> refute_has("#create-shared-secret")
     end
 
-    test "add shared secret", %{conn: conn, org: org, user: user} do
-      Application.put_env(:nerves_hub, NervesHubWeb.DeviceSocket, shared_secrets: [enabled: true])
-
+    test "creating one doesn't ask, and marks it new", %{conn: conn, org: org, user: user} do
       product = Fixtures.product_fixture(user, org)
 
-      conn =
+      session =
         conn
         |> visit("/org/#{org.name}/#{product.name}/settings")
-        |> click_button("Create a Shared Secret")
+        |> assert_has("#shared-secrets p", text: "There are no shared secrets yet.")
+        |> click_button("Create secret")
+        |> refute_has("#confirm-dialog")
 
-      for ss <- Products.load_shared_secret_auth(product).shared_secret_auths do
-        assert_has(conn, "td", text: ss.key)
-      end
+      [auth] = Products.load_shared_secret_auth(product).shared_secret_auths
+
+      session
+      |> assert_has("#shared-secret-row-#{auth.id} code", text: auth.key)
+      |> assert_has("#shared-secret-row-#{auth.id}", text: "New")
     end
 
-    test "deactivate shared secret", %{conn: conn, org: org, user: user} do
-      Application.put_env(:nerves_hub, NervesHubWeb.DeviceSocket, shared_secrets: [enabled: true])
-
+    test "deactivating one asks first", %{conn: conn, org: org, user: user} do
       product = Fixtures.product_fixture(user, org)
+      {:ok, auth} = Products.create_shared_secret_auth(product)
 
-      {:ok, _} = Products.create_shared_secret_auth(product)
+      session =
+        conn
+        |> visit("/org/#{org.name}/#{product.name}/settings")
+        |> assert_has("#shared-secret-row-#{auth.id} code", text: auth.key)
+        |> click_button("#shared-secret-row-#{auth.id} button", "Deactivate")
+        |> assert_has("#confirm-dialog h2", text: "Deactivate this shared secret?")
 
-      conn
-      |> visit("/org/#{org.name}/#{product.name}/settings")
-      |> tap(fn conn ->
-        for ss <- Products.load_shared_secret_auth(product).shared_secret_auths do
-          assert_has(conn, "td", text: ss.key)
-        end
-      end)
-      |> click_button("Deactivate")
-      |> tap(fn conn ->
-        for ss <- Products.load_shared_secret_auth(product).shared_secret_auths do
-          refute is_nil(ss.deactivated_at)
-          assert_has(conn, "time", text: Date.to_string(ss.deactivated_at))
-        end
-      end)
+      assert is_nil(Repo.reload(auth).deactivated_at)
+
+      session
+      |> within("#confirm-dialog", &click_button(&1, "Deactivate secret"))
+      |> assert_has("div", text: "Deactivated #{auth.key}.")
+      |> assert_has("#shared-secret-row-#{auth.id}", text: "Deactivated")
+      |> refute_has("#shared-secret-#{auth.id}")
+
+      refute is_nil(Repo.reload(auth).deactivated_at)
     end
 
     # A shared secret lets a device connect and register itself, which a
     # view-only member cannot otherwise do.
     test "view-only members see the key but not the secret", %{conn: conn, org: org, user: user} do
-      Application.put_env(:nerves_hub, NervesHubWeb.DeviceSocket, shared_secrets: [enabled: true])
-
       product = Fixtures.product_fixture(user, org)
       {:ok, auth} = Products.create_shared_secret_auth(product)
 
@@ -500,18 +619,18 @@ defmodule NervesHubWeb.Live.Product.SettingsTest do
 
       conn
       |> visit("/org/#{org.name}/#{product.name}/settings")
-      |> assert_has("td", text: auth.key)
+      |> assert_has("#shared-secret-row-#{auth.id} code", text: auth.key)
       |> unwrap(fn view ->
         html = render(view)
         refute html =~ auth.secret
         html
       end)
-      |> refute_has("button", text: "Copy secret")
+      |> refute_has("#shared-secret-#{auth.id}")
+      |> refute_has("#create-shared-secret")
+      |> refute_has("#shared-secret-row-#{auth.id} button", text: "Deactivate")
     end
 
     test "manage members can copy the secret", %{conn: conn, org: org, user: user} do
-      Application.put_env(:nerves_hub, NervesHubWeb.DeviceSocket, shared_secrets: [enabled: true])
-
       product = Fixtures.product_fixture(user, org)
       {:ok, auth} = Products.create_shared_secret_auth(product)
 
@@ -519,9 +638,11 @@ defmodule NervesHubWeb.Live.Product.SettingsTest do
 
       conn
       |> visit("/org/#{org.name}/#{product.name}/settings")
-      # The hook copies from the input whose id ends in the button's value.
-      |> assert_has("button[phx-hook='SharedSecretClipboardClick'][value='#{auth.id}']", text: "Copy secret")
-      |> assert_has("#shared-secret-#{auth.id}", value: auth.secret)
+      |> assert_has("#shared-secret-#{auth.id}[phx-hook='CopyToClipboard']")
+      |> unwrap(fn view ->
+        assert view |> element("#shared-secret-#{auth.id}") |> render() =~ ~s(data-copy-value="#{auth.secret}")
+        render(view)
+      end)
     end
   end
 end
@@ -544,7 +665,7 @@ defmodule NervesHubWeb.Live.Product.SettingsPlatformGateTest do
     product = Fixtures.product_fixture(user, org)
     {:ok, _view, html} = live(conn, "/org/#{org.name}/#{product.name}/settings")
 
-    refute html =~ "Accept ESP-IDF application images"
+    refute html =~ "ESP-IDF application images"
   end
 
   test "the atomvm settings are hidden when the platform has not enabled atomvm", %{
@@ -558,7 +679,7 @@ defmodule NervesHubWeb.Live.Product.SettingsPlatformGateTest do
     product = Fixtures.product_fixture(user, org)
     {:ok, _view, html} = live(conn, "/org/#{org.name}/#{product.name}/settings")
 
-    refute html =~ "Accept AtomVM packbeam archives"
+    refute html =~ "AtomVM packbeam archives"
   end
 
   test "a format with no unsigned variant does not crash the unsigned toggle", %{
@@ -572,7 +693,7 @@ defmodule NervesHubWeb.Live.Product.SettingsPlatformGateTest do
     product = Fixtures.product_fixture(user, org)
     {:ok, view, html} = live(conn, "/org/#{org.name}/#{product.name}/settings")
 
-    assert html =~ "Accept RAUC bundles"
+    assert html =~ "RAUC bundles"
     # RAUC will not build an unsigned bundle, so no toggle is rendered for it.
     refute html =~ "Allow unsigned RAUC"
 
