@@ -136,6 +136,14 @@ defmodule NervesHub.Products.HealthProfilesTest do
       assert Enum.find(saved.metrics, &(&1.key == cpu.key)).id != cpu.id
     end
 
+    test "says when the profile has been deleted", %{product: product} do
+      {:ok, platform_profile} = HealthProfiles.create_platform_profile(product, "rpi4")
+      {:ok, _} = HealthProfiles.delete_profile(platform_profile)
+
+      assert HealthProfiles.save_metrics(platform_profile, Enum.map(platform_profile.metrics, &metric_attrs/1)) ==
+               {:error, :profile_not_found}
+    end
+
     test "saves nothing when one metric doesn't validate, and says which", %{profile: profile} do
       # Changes a kept metric too, which mustn't be saved either.
       [first | rest] = profile.metrics

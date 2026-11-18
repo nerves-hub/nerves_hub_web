@@ -175,14 +175,15 @@ defmodule NervesHub.Products.HealthProfiles do
       disconnected =
         if disconnects, do: Connections.fleet_disconnection_levels(product.org_id, product.id, disconnects), else: %{}
 
+      # The disconnects built-in judges every device, healthy when it
+      # hasn't disconnected enough, as `HealthEvaluation` does.
+      disconnects_default = if disconnects, do: 0
+
       Enum.reduce(device_ids, %{healthy: 0, warning: 0, unhealthy: 0, unknown: 0}, fn device_id, acc ->
-        # The disconnects built-in judges every device, healthy when it
-        # hasn't disconnected enough, as `HealthEvaluation` does.
         level =
-          case {Map.get(reported, device_id), Map.get(disconnected, device_id, if(disconnects, do: 0))} do
-            {nil, nil} -> nil
-            {a, b} -> max(a || 0, b || 0)
-          end
+          [Map.get(reported, device_id), Map.get(disconnected, device_id, disconnects_default)]
+          |> Enum.reject(&is_nil/1)
+          |> Enum.max(fn -> nil end)
 
         Map.update!(acc, status_for_level(level), &(&1 + 1))
       end)
@@ -446,16 +447,49 @@ defmodule NervesHub.Products.HealthProfiles do
   without one adds a metric, and the profile's metrics left out are removed.
 
   The rules of `add_metric/2` and `update_metric/2` apply to each. The
-  profile's metrics are read as they are now, not from `profile`, so a save
-  made from a page loaded before someone else changed the profile still
-  leaves it as `metrics` lists them: an `"id"` that's no longer the
-  profile's adds the metric again. Returns the saved profile, or the
-  position in `metrics` of the first entry that didn't validate, with its
-  changeset.
+  profile row is locked and its metrics read inside the transaction, not
+  taken from `profile`, so a save made from a page loaded before someone
+  else changed the profile still leaves it as `metrics` lists them: an
+  `"id"` that's no longer the profile's adds the metric again. Returns the
+  saved profile; the position in `metrics` of the first entry that didn't
+  validate, with its changeset; or `{:error, :profile_not_found}` when the
+  profile has been deleted.
   """
   @spec save_metrics(HealthProfile.t(), [map()]) ::
-          {:ok, HealthProfile.t()} | {:error, non_neg_integer(), Ecto.Changeset.t()}
-  def save_metrics(%HealthProfile{} = profile, metrics) do
+          {:ok, HealthProfile.t()}
+          | {:error, non_neg_integer(), Ecto.Changeset.t()}
+          | {:error, :profile_not_found}
+  def save_metrics(%HealthProfile{id: profile_id, product_id: product_id}, metrics) do
+    Multi.new()
+    |> Multi.run(:profile, fn repo, _changes ->
+      HealthProfile
+      |> where(id: ^profile_id, product_id: ^product_id)
+      |> lock("FOR UPDATE")
+      |> repo.one()
+      |> case do
+        nil -> {:error, :profile_not_found}
+        locked -> {:ok, locked}
+      end
+    end)
+    |> Multi.merge(fn %{profile: locked} -> save_metrics_multi(locked, metrics) end)
+    |> Multi.run(:saved, fn repo, _changes ->
+      {:ok, HealthProfile |> where(id: ^profile_id) |> preload(:metrics) |> repo.one!()}
+    end)
+    |> Repo.transact()
+    |> case do
+      {:ok, %{saved: saved}} ->
+        :ok = Cache.invalidate(product_id)
+        {:ok, saved}
+
+      {:error, :profile, :profile_not_found, _changes} ->
+        {:error, :profile_not_found}
+
+      {:error, {:metric, index}, changeset, _changes} ->
+        {:error, index, changeset}
+    end
+  end
+
+  defp save_metrics_multi(profile, metrics) do
     existing =
       HealthProfileMetric
       |> where(health_profile_id: ^profile.id)
@@ -474,8 +508,9 @@ defmodule NervesHub.Products.HealthProfiles do
     |> Enum.reduce(Multi.delete_all(Multi.new(), :remove, removed), fn {attrs, index}, multi ->
       case Map.fetch(existing, parse_id(attrs["id"])) do
         {:ok, metric} ->
-          # A metric removed elsewhere after `existing` was read fails its
-          # row rather than raising.
+          # Single metric edits don't take the profile's lock, so one
+          # removed after `existing` was read fails its row rather than
+          # raising.
           changeset = edit_metric_changeset(metric, attrs)
 
           Multi.update(multi, {:metric, index}, changeset,
@@ -487,15 +522,6 @@ defmodule NervesHub.Products.HealthProfiles do
           Multi.insert(multi, {:metric, index}, new_metric_changeset(profile, attrs))
       end
     end)
-    |> Repo.transact()
-    |> case do
-      {:ok, _changes} ->
-        :ok = Cache.invalidate(profile.product_id)
-        {:ok, get_profile!(%Product{id: profile.product_id}, profile.id)}
-
-      {:error, {:metric, index}, changeset, _changes} ->
-        {:error, index, changeset}
-    end
   end
 
   defp parse_id(id) when is_integer(id), do: id

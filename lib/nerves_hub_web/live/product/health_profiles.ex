@@ -49,6 +49,7 @@ defmodule NervesHubWeb.Live.Product.HealthProfiles do
     |> assign(:product, product)
     |> assign(:custom_labels, Products.custom_health_metrics_labels(product))
     |> assign(:analytics?, Application.get_env(:nerves_hub, :analytics_enabled, false))
+    |> assign(:select_resets, 0)
     |> assign_observed(product)
     |> assign_profiles()
     |> ok()
@@ -133,12 +134,21 @@ defmodule NervesHubWeb.Live.Product.HealthProfiles do
     |> noreply()
   end
 
-  # On a phone the profiles are a select rather than a column of links.
+  # On a phone the profiles are a select rather than a column of links. A
+  # select can't ask first as the links do, so with unsaved changes it
+  # doesn't switch, and is put back by giving it a new id.
   @decorate requires_membership()
   def handle_event("select-profile", %{"profile" => profile_id}, socket) do
-    socket
-    |> push_patch(to: profile_path(socket, profile_id))
-    |> noreply()
+    if socket.assigns.unsaved > 0 and profile_id != to_string(socket.assigns.profile.id) do
+      socket
+      |> update(:select_resets, &(&1 + 1))
+      |> put_flash(:error, "Save or discard your changes before switching profiles.")
+      |> noreply()
+    else
+      socket
+      |> push_patch(to: profile_path(socket, profile_id))
+      |> noreply()
+    end
   end
 
   @decorate requires_permission(:"product:update")
@@ -146,17 +156,30 @@ defmodule NervesHubWeb.Live.Product.HealthProfiles do
     draft = merge_inputs(socket.assigns.draft, params["metrics"] || %{})
     profile = socket.assigns.profile
 
-    if Enum.any?(HealthProfiles.all_for_product(socket.assigns.product), &(&1.id == profile.id)) do
-      save(socket, profile, draft)
-    else
-      socket
-      |> assign_profiles()
-      |> put_flash(
-        :error,
-        "The #{profile_name(profile)} profile was deleted by someone else, so your changes weren't saved."
-      )
-      |> push_patch(to: profile_path(socket, nil))
-      |> noreply()
+    case HealthProfiles.save_metrics(profile, Enum.map(draft, &row_attrs/1)) do
+      {:ok, saved} ->
+        socket
+        |> assign_profiles()
+        |> load_profile(saved)
+        |> put_flash(:info, "The #{profile_name(saved)} profile was saved.")
+        |> noreply()
+
+      {:error, index, changeset} ->
+        socket
+        |> assign(:draft, draft)
+        |> assign(:errors, %{index => error_messages(changeset)})
+        |> put_flash(:error, "The profile wasn't saved. Check #{row_name(Enum.at(draft, index))}.")
+        |> noreply()
+
+      {:error, :profile_not_found} ->
+        socket
+        |> assign_profiles()
+        |> put_flash(
+          :error,
+          "The #{profile_name(profile)} profile was deleted by someone else, so your changes weren't saved."
+        )
+        |> push_patch(to: profile_path(socket, nil))
+        |> noreply()
     end
   end
 
@@ -199,28 +222,20 @@ defmodule NervesHubWeb.Live.Product.HealthProfiles do
     end
   end
 
-  def handle_async(:saved_preview, {:ok, counts}, socket), do: {:noreply, assign(socket, :saved_preview, counts)}
-  def handle_async(:saved_preview, {:exit, _reason}, socket), do: {:noreply, assign(socket, :saved_preview, nil)}
+  def handle_async(:saved_preview, {:ok, counts}, socket) do
+    {:noreply, assign(socket, saved_preview: counts, saved_previewing?: false)}
+  end
 
-  def handle_async(:edited_preview, {:ok, counts}, socket), do: {:noreply, assign(socket, :edited_preview, counts)}
-  def handle_async(:edited_preview, {:exit, _reason}, socket), do: {:noreply, assign(socket, :edited_preview, nil)}
+  def handle_async(:saved_preview, {:exit, _reason}, socket) do
+    {:noreply, assign(socket, saved_preview: nil, saved_previewing?: false)}
+  end
 
-  defp save(socket, profile, draft) do
-    case HealthProfiles.save_metrics(profile, Enum.map(draft, &row_attrs/1)) do
-      {:ok, saved} ->
-        socket
-        |> assign_profiles()
-        |> load_profile(saved)
-        |> put_flash(:info, "The #{profile_name(saved)} profile was saved.")
-        |> noreply()
+  def handle_async(:edited_preview, {:ok, counts}, socket) do
+    {:noreply, assign(socket, edited_preview: counts, previewing?: false)}
+  end
 
-      {:error, index, changeset} ->
-        socket
-        |> assign(:draft, draft)
-        |> assign(:errors, %{index => error_messages(changeset)})
-        |> put_flash(:error, "The profile wasn't saved. Check #{row_name(Enum.at(draft, index))}.")
-        |> noreply()
-    end
+  def handle_async(:edited_preview, {:exit, _reason}, socket) do
+    {:noreply, assign(socket, edited_preview: nil, previewing?: false)}
   end
 
   defp assign_profiles(socket) do
@@ -256,10 +271,16 @@ defmodule NervesHubWeb.Live.Product.HealthProfiles do
       |> assign(:health_counts, HealthProfiles.health_counts(product, scope.user, profile, profiles))
       |> assign(:saved_preview, nil)
       |> assign(:edited_preview, nil)
+      |> assign(:previewing?, false)
+      |> assign(:saved_previewing?, false)
       |> cancel_async(:edited_preview)
 
-    if socket.assigns.analytics? do
-      start_async(socket, :saved_preview, fn ->
+    # Only for someone who could save: there's nothing to compare it with
+    # otherwise, and it runs across the product's whole fleet.
+    if socket.assigns.analytics? and authorized?(:"product:update", scope) do
+      socket
+      |> assign(:saved_previewing?, true)
+      |> start_async(:saved_preview, fn ->
         HealthProfiles.preview_counts(product, scope.user, profile, profiles, profile.metrics)
       end)
     else
@@ -282,7 +303,7 @@ defmodule NervesHubWeb.Live.Product.HealthProfiles do
       %{product: product, current_scope: scope, profile: profile, profiles: profiles} = socket.assigns
 
       socket
-      |> assign(:edited_preview, nil)
+      |> assign(edited_preview: nil, previewing?: true)
       |> start_async(:edited_preview, fn ->
         HealthProfiles.preview_counts(product, scope.user, profile, profiles, metrics)
       end)
@@ -290,7 +311,7 @@ defmodule NervesHubWeb.Live.Product.HealthProfiles do
       _nothing_to_preview ->
         socket
         |> cancel_async(:edited_preview)
-        |> assign(:edited_preview, nil)
+        |> assign(edited_preview: nil, previewing?: false)
     end
   end
 
@@ -303,12 +324,20 @@ defmodule NervesHubWeb.Live.Product.HealthProfiles do
       built_in: metric.built_in,
       featured: metric.featured,
       operator: metric.operator || :gte,
-      warning_threshold: Utils.format_number(metric.warning_threshold),
+      warning_threshold: threshold_input(metric.warning_threshold),
       warning_period_seconds: metric.warning_period_seconds,
-      alert_threshold: Utils.format_number(metric.alert_threshold),
+      alert_threshold: threshold_input(metric.alert_threshold),
       alert_period_seconds: metric.alert_period_seconds
     }
   end
+
+  # A stored threshold as its input shows it, without losing precision: a
+  # save sends every row back, so a rounded 0.00005 would be saved as 0.0001.
+  defp threshold_input(value) when is_float(value) and value == trunc(value),
+    do: value |> trunc() |> Integer.to_string()
+
+  defp threshold_input(value) when is_float(value), do: Float.to_string(value)
+  defp threshold_input(value), do: Utils.format_number(value)
 
   defp new_row(key, observed_stats) do
     built_in? = Map.has_key?(HealthProfiles.built_in_metrics(), key)

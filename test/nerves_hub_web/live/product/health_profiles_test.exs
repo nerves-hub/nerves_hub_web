@@ -164,6 +164,46 @@ defmodule NervesHubWeb.Live.Product.HealthProfilesTest do
       refute has_element?(view, "#metric-fps", "new")
     end
 
+    test "saving keeps other metrics' thresholds exactly", %{conn: conn, path: path, product: product} do
+      mem = default_metric(product, "mem_used_percent")
+      {:ok, _} = HealthProfiles.update_metric(mem, %{"warning_threshold" => 0.00005, "alert_threshold" => 0.00007})
+
+      {:ok, view, _html} = live(conn, path)
+
+      view
+      |> form("#profile-metrics", %{
+        "metrics" => %{"#{index_of(view, "cpu_usage_percent")}" => %{"warning_threshold" => "60"}}
+      })
+      |> render_change()
+
+      view |> form("#profile-metrics") |> render_submit()
+
+      mem = default_metric(product, "mem_used_percent")
+      assert {mem.warning_threshold, mem.alert_threshold} == {0.00005, 0.00007}
+    end
+
+    test "the phone's profile select won't switch away from unsaved changes", %{
+      conn: conn,
+      path: path,
+      product: product,
+      firmware: firmware
+    } do
+      {:ok, platform_profile} = HealthProfiles.create_platform_profile(product, firmware.platform)
+      {:ok, view, _html} = live(conn, path)
+
+      render_click(view, "remove-metric", %{"index" => "#{index_of(view, "cpu_usage_percent")}"})
+      html = render_change(view, "select-profile", %{"profile" => "#{platform_profile.id}"})
+
+      assert html =~ "Save or discard your changes before switching profiles."
+      assert has_element?(view, "#profile-name", "Default")
+      assert has_element?(view, "#unsaved-changes", "1 unsaved change")
+      assert has_element?(view, "#select-health-profile-1")
+
+      render_click(view, "discard")
+      render_change(view, "select-profile", %{"profile" => "#{platform_profile.id}"})
+      assert_patch(view, "#{path}?profile=#{platform_profile.id}")
+    end
+
     test "adds only a metric the picker offers", %{conn: conn, path: path} do
       {:ok, view, _html} = live(conn, path)
 
@@ -434,6 +474,17 @@ defmodule NervesHubWeb.Live.Product.HealthProfilesTest do
       assert has_element?(view, "#impact-warning", "1 warning")
       assert has_element?(view, "#impact-warning", "+1")
     end
+  end
+
+  test "doesn't show the preview working while a threshold isn't a number", %{conn: conn, path: path} do
+    {:ok, view, _html} = live(conn, path)
+    render_async(view)
+
+    # cpu_temp has no readings, so it's added with empty thresholds.
+    view |> form("#profile-metrics", %{"add_key" => "cpu_temp"}) |> render_change()
+
+    assert has_element?(view, "#profile-impact", "If you save")
+    refute has_element?(view, ~s(#profile-impact [title="Working out what the changes would do"]))
   end
 
   # The position of a metric's row in the draft, which its inputs and buttons

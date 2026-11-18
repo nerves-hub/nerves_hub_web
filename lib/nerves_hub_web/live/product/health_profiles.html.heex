@@ -55,7 +55,7 @@
           <span>You can see these profiles, but your role in {@current_scope.org.name} can't change them.</span>
         </p>
 
-        <form id="select-health-profile" phx-change="select-profile" class="flex flex-col gap-2 sm:hidden">
+        <form id={"select-health-profile-#{@select_resets}"} phx-change="select-profile" class="flex flex-col gap-2 sm:hidden">
           <label for="health-profile-select" class="text-label text-content-muted uppercase">Profile</label>
           <div class="relative">
             <select
@@ -117,7 +117,7 @@
             <h3 class="flex items-center gap-2 text-sm/5 font-semibold text-content-strong">
               {if @unsaved > 0, do: "If you save", else: "Right now"}
               <span
-                :if={@unsaved > 0 && @analytics? && is_nil(deltas)}
+                :if={@unsaved > 0 && is_nil(deltas) && (@previewing? || @saved_previewing?)}
                 class="lucide-loader-circle size-3.5 animate-spin text-content-faint"
                 title="Working out what the changes would do"
                 aria-hidden="true"
