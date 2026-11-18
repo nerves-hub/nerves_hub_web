@@ -216,6 +216,64 @@ defmodule NervesHub.ProductNotificationsTest do
     end
   end
 
+  describe "resolve_duplicate_device_identifier_notification!/2" do
+    test "clears the identifier's notification in the product, and tells the page", %{
+      user: user,
+      org: org,
+      product: product
+    } do
+      other_product = Fixtures.product_fixture(user, org)
+
+      _ =
+        NervesHub.ProductNotifications.create_duplicate_device_identifier_notification!(
+          product.id,
+          "abc",
+          :shared_secrets
+        )
+
+      _ =
+        NervesHub.ProductNotifications.create_duplicate_device_identifier_notification!(
+          product.id,
+          "def",
+          :shared_secrets
+        )
+
+      _ =
+        NervesHub.ProductNotifications.create_duplicate_device_identifier_notification!(
+          other_product.id,
+          "abc",
+          :shared_secrets
+        )
+
+      NervesHub.ProductNotifications.subscribe(product.id)
+
+      assert {:ok, :resolved} =
+               NervesHub.ProductNotifications.resolve_duplicate_device_identifier_notification!(product.id, "abc")
+
+      assert_receive %Broadcast{event: "resolved"}
+
+      left =
+        Notification
+        |> select([n], {n.product_id, n.event_key})
+        |> Repo.all()
+        |> Enum.sort()
+
+      assert left == [
+               {product.id, "duplicate_device_identifier-def"},
+               {other_product.id, "duplicate_device_identifier-abc"}
+             ]
+    end
+
+    test "is quiet when there's nothing to clear", %{product: product} do
+      NervesHub.ProductNotifications.subscribe(product.id)
+
+      assert {:ok, :none} =
+               NervesHub.ProductNotifications.resolve_duplicate_device_identifier_notification!(product.id, "abc")
+
+      refute_receive %Broadcast{}
+    end
+  end
+
   defp scope(user, product), do: user |> Scope.for_user() |> Scope.put_product(product)
 
   describe "levels" do
@@ -378,22 +436,26 @@ defmodule NervesHub.ProductNotificationsTest do
       NervesHub.ProductNotifications.subjects(scope(user, product), notifications)
     end
 
-    test "a device in the product, deleted from it, or moved out of it", %{
+    test "a device in the product, soft-deleted from it, moved out of it, or deleted elsewhere", %{
       user: user,
       org: org,
       product: product,
       firmware: firmware
     } do
+      other_product = Fixtures.product_fixture(user, org)
       here = Fixtures.device_fixture(org, product, firmware)
-      deleted = Fixtures.device_fixture(org, product, firmware)
-      {:ok, _} = Devices.delete_device(deleted)
-      moved = Fixtures.device_fixture(org, Fixtures.product_fixture(user, org), firmware)
+      soft_deleted = Fixtures.device_fixture(org, product, firmware)
+      {:ok, _} = Devices.delete_device(soft_deleted)
+      moved = Fixtures.device_fixture(org, other_product, firmware)
+      deleted_elsewhere = Fixtures.device_fixture(org, other_product, firmware)
+      {:ok, _} = Devices.delete_device(deleted_elsewhere)
 
       notifications =
         for device <- [
               here,
-              deleted,
+              soft_deleted,
               %{moved | product_id: product.id},
+              %{deleted_elsewhere | product_id: product.id},
               %Device{product_id: product.id, identifier: "gone"}
             ] do
           NervesHub.ProductNotifications.create_missing_firmware_metadata_notification!(device)
@@ -403,13 +465,16 @@ defmodule NervesHub.ProductNotificationsTest do
 
       assert [
                %{kind: :device, label: here_label, state: :live, ref: here_ref},
-               %{state: :deleted, ref: nil},
+               %{kind: :device, state: :soft_deleted, ref: soft_deleted_ref},
                %{state: :moved, ref: nil},
+               %{state: :deleted, ref: nil},
                %{state: :deleted, label: "gone"}
              ] = Enum.map(notifications, &subjects[&1.id])
 
       assert here_label == here.identifier
       assert here_ref == here.identifier
+      # Its page is still there, to restore it from.
+      assert soft_deleted_ref == soft_deleted.identifier
     end
 
     test "a deployment group, found by its ID after it was renamed", %{user: user, product: product, firmware: firmware} do
