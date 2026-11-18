@@ -636,7 +636,7 @@ defmodule NervesHub.Devices.Updates do
       end
 
     # The device itself is the audit actor when it sets its own mode, which is how
-    # the log distinguishes a device opting in from a actor changing it for them.
+    # the log distinguishes a device opting in from a user or API key changing it for them.
     audit_actor = if actor == :device, do: device, else: actor
 
     Devices.update_device_with_audit(device, params, audit_actor, description, :update_mode_changed)

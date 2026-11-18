@@ -152,7 +152,6 @@ defmodule NervesHub.Products.ApiKeyActorTest do
     test "gets a shared secret with no user against it", context do
       %{product: product, api_key: api_key} = context
 
-      Mimic.copy(NervesHub.DeviceLink)
       Mimic.stub(NervesHub.DeviceLink, :shared_secrets_enabled?, fn -> true end)
 
       assert {:ok, {device, auth}} =

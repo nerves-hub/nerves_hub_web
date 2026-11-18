@@ -142,7 +142,7 @@ defmodule NervesHub.ManagedDeployments.DeploymentGroup do
     change(%DeploymentRelease{})
     |> put_assoc(:firmware, firmware)
     |> DeploymentRelease.put_created_by(created_by)
-    |> validate_created_by_api_key(product)
+    |> DeploymentRelease.validate_created_by_api_key(product.id)
     |> put_change(:number, 1)
     |> validate_required([:firmware])
     |> validate_change(:created_by, fn :created_by, created_by_assoc ->
@@ -157,16 +157,6 @@ defmodule NervesHub.ManagedDeployments.DeploymentGroup do
       |> case do
         nil -> [created_by_id: "invalid associated user"]
         _user -> []
-      end
-    end)
-  end
-
-  defp validate_created_by_api_key(changeset, product) do
-    validate_change(changeset, :created_by_api_key, fn :created_by_api_key, %{data: api_key} ->
-      if api_key.product_id == product.id do
-        []
-      else
-        [created_by_api_key: "belongs to another product"]
       end
     end)
   end

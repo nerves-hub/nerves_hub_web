@@ -66,7 +66,7 @@ defmodule NervesHub.ManagedDeployments.DeploymentRelease do
     |> validate_required([:firmware])
     |> validate_firmware(deployment_group)
     |> validate_differs_from_current_release(deployment_group)
-    |> validate_created_by_api_key(deployment_group)
+    |> validate_created_by_api_key(deployment_group.product_id)
     |> validate_change(:created_by, fn :created_by, created_by_assoc ->
       created_by = created_by_assoc.data
 
@@ -150,9 +150,15 @@ defmodule NervesHub.ManagedDeployments.DeploymentRelease do
   def put_created_by(changeset, %ApiKey{} = api_key), do: put_assoc(changeset, :created_by_api_key, api_key)
   def put_created_by(changeset, user), do: put_assoc(changeset, :created_by, user)
 
-  defp validate_created_by_api_key(changeset, deployment_group) do
+  @doc """
+  Refuses a release made by a product API key from another product than
+  `product_id`. A key reaches its own product's routes only, so this guards
+  against a caller passing the wrong key rather than anything a request can do.
+  """
+  @spec validate_created_by_api_key(Ecto.Changeset.t(), pos_integer()) :: Ecto.Changeset.t()
+  def validate_created_by_api_key(changeset, product_id) do
     validate_change(changeset, :created_by_api_key, fn :created_by_api_key, %{data: api_key} ->
-      if api_key.product_id == deployment_group.product_id do
+      if api_key.product_id == product_id do
         []
       else
         [created_by_api_key: "belongs to another product"]

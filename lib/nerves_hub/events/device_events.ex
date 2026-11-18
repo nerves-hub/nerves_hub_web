@@ -3,7 +3,7 @@ defmodule NervesHub.DeviceEvents do
   Encapsulation of events to be sent to devices or the device channel
   """
 
-  alias NervesHub.Accounts.User
+  alias NervesHub.AuditLogs
   alias NervesHub.AuditLogs.DeviceTemplates
   alias NervesHub.Devices
   alias NervesHub.Devices.Device
@@ -237,7 +237,7 @@ defmodule NervesHub.DeviceEvents do
   end
 
   @doc """
-  A person sent firmware to the device.
+  A person, or a product API key, sent firmware to the device.
 
   Refused with `{:error, :already_updating}` when the device has an update in
   progress, for the reason `device_requested_update/1` gives: the device would
@@ -246,7 +246,7 @@ defmodule NervesHub.DeviceEvents do
   again once the running update ends, or once
   `NervesHub.Workers.ExpireInflightUpdates` clears it.
   """
-  @spec manual_update(Device.t(), Firmware.t(), User.t(), keyword()) ::
+  @spec manual_update(Device.t(), Firmware.t(), AuditLogs.actor(), keyword()) ::
           {:ok, Device.t()} | {:error, :already_updating}
   def manual_update(device, firmware, actor, opts \\ []) do
     Repo.transact(fn ->

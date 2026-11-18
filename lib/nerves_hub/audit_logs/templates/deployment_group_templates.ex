@@ -70,7 +70,7 @@ defmodule NervesHub.AuditLogs.DeploymentGroupTemplates do
   @doc """
   Somebody approved, skipped or retried a workflow step. `via` names where
   they did it when it was not the deployment group's page, such as a Slack
-  actor.
+  user.
   """
   @spec audit_workflow_step_action(
           AuditLogs.actor(),

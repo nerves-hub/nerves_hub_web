@@ -16,7 +16,7 @@ defmodule NervesHub.AuditLogs.ProductTemplates do
     AuditLogs.audit!(actor, product, description)
   end
 
-  @spec audit_script_created(AuditLogs.actor(), Product.t(), Script.t()) :: :ok
+  @spec audit_script_updated(AuditLogs.actor(), Product.t(), Script.t()) :: :ok
   def audit_script_updated(actor, product, script) do
     description =
       "#{AuditLogs.actor_name(actor)} updated script named #{script.name} with id #{script.id} for product #{product.name}"

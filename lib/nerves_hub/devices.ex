@@ -562,8 +562,8 @@ defmodule NervesHub.Devices do
   defp actor_user_id(_api_key), do: nil
 
   @doc """
-  Creates a shared secret for a device on a user's behalf, recording who
-  created it, and audits it.
+  Creates a shared secret for a device on `actor`'s behalf, recording the user
+  who created it (none for a product API key), and audits it.
 
   Returns `{:error, :shared_secrets_not_enabled}` when this platform doesn't
   accept shared secrets, since the device could never connect with one.
@@ -584,9 +584,9 @@ defmodule NervesHub.Devices do
   end
 
   @doc """
-  Deactivates one of a device's active shared secrets on a user's behalf, so
-  the device can no longer connect with it, recording who deactivated it, and
-  audits it.
+  Deactivates one of a device's active shared secrets on `actor`'s behalf, so
+  the device can no longer connect with it, recording the user who deactivated
+  it (none for a product API key), and audits it.
 
   A single update, so the key's ownership, that it is still active, and the
   change itself can't be split by a concurrent request. Returns
@@ -595,7 +595,7 @@ defmodule NervesHub.Devices do
   Connections authenticated with the key are then closed. The device's other
   connections, made with a certificate or another key, stay up.
   """
-  @spec deactivate_shared_secret_auth(Device.t(), String.t(), User.t()) ::
+  @spec deactivate_shared_secret_auth(Device.t(), String.t(), AuditLogs.actor()) ::
           {:ok, SharedSecretAuth.t()} | {:error, :not_found}
   def deactivate_shared_secret_auth(%Device{id: device_id} = device, key, actor) do
     now = DateTime.truncate(DateTime.utc_now(), :second)
