@@ -355,7 +355,7 @@
               Only possible once it has no devices. {delimited(@device_total)} {if @device_total == 1, do: "device is", else: "devices are"} still here.
               <.link navigate={~p"/org/#{@current_scope.org}/#{@current_scope.product}/devices"} class="text-primary hover:underline light:text-indigo-600">Go to devices</.link>
             <% else %>
-              Its firmware, archives, deployment groups and settings go with it. This can't be undone.
+              Its firmware, archives, deployment groups, support scripts and settings go with it. This can't be undone.
             <% end %>
           </p>
         </div>

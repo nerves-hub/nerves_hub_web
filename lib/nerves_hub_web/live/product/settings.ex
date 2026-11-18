@@ -61,7 +61,7 @@ defmodule NervesHubWeb.Live.Product.Settings do
     |> assign(:shared_secrets, sort_secrets(product.shared_secret_auths))
     |> assign(:shared_auth_enabled, DeviceLink.shared_secrets_enabled?())
     |> assign(:new_secret_id, nil)
-    |> assign(:profile_count, length(HealthProfiles.all_for_product(product)))
+    |> assign(:profile_count, HealthProfiles.count_for_product(product))
     |> assign(:extensions, extensions())
     |> assign(:optional_tools, optional_tools())
     |> assign(:confirm, nil)
@@ -350,15 +350,10 @@ defmodule NervesHubWeb.Live.Product.Settings do
   end
 
   def handle_async({:set_managed_updates_allowed, enabled}, {:ok, results}, socket) do
-    message =
-      if enabled,
-        do: "Every device in #{socket.assigns.product.name} can now choose its update mode.",
-        else: "No device in #{socket.assigns.product.name} can choose its update mode now."
-
     socket
     |> assign(:managed_progress, nil)
     |> assign_counts()
-    |> put_flash(:info, message)
+    |> put_managed_updates_flash(results, enabled)
     |> put_failed_flash(results.error, enabled)
     |> noreply()
   end
@@ -417,6 +412,29 @@ defmodule NervesHubWeb.Live.Product.Settings do
         |> put_flash(:error, "Failed to update the #{name} extension. Please contact support if this problem persists.")
         |> noreply()
     end
+  end
+
+  # "Every device" only when none failed; otherwise how many did change, beside
+  # the error saying how many didn't.
+  defp put_managed_updates_flash(socket, %{error: 0}, enabled) do
+    name = socket.assigns.product.name
+
+    message =
+      if enabled,
+        do: "Every device in #{name} can now choose its update mode.",
+        else: "No device in #{name} can choose its update mode now."
+
+    put_flash(socket, :info, message)
+  end
+
+  defp put_managed_updates_flash(socket, %{ok: 0}, _enabled), do: socket
+
+  defp put_managed_updates_flash(socket, %{ok: ok}, enabled) do
+    put_flash(
+      socket,
+      :info,
+      "#{devices(ok)} #{if enabled, do: "can now", else: "can no longer"} choose #{if ok == 1, do: "its", else: "their"} update mode."
+    )
   end
 
   defp put_failed_flash(socket, 0, _enabled), do: socket
@@ -487,14 +505,14 @@ defmodule NervesHubWeb.Live.Product.Settings do
   # ones a fleet usually runs first. An extension missing here still shows,
   # last, with its module's own description.
   @extension_copy [
-    health: {"Health", "Periodic reports of CPU, memory, disk and temperature."},
-    metrics: {"Metrics", "Custom metrics your firmware reports, charted on the device page."},
-    geo: {"Geo", "Location from IP or GPS, for the map."},
+    health: {"Health", "Metrics, firmware metadata and alarms, reported together."},
+    metrics: {"Metrics", "The device's metrics on their own, without Health's metadata and alarms."},
+    geo: {"Geo", "Location from GeoIP, or a source you set up on the device, for the map."},
     logging: {"Logging", "Stream device logs to the Logs tab."},
     error_reports: {"Error reports", "Crashes and exceptions, grouped on the Errors page."},
     local_shell: {"Local shell", "A shell on the device's OS, beside the IEx console."},
-    alarms: {"Alarms", "Alarms the device raises and clears."},
-    network_identity: {"Network identity", "The device's address on networks like NetBird or iroh."}
+    alarms: {"Alarms", "Alarms sent as they're raised and cleared, not on Health's schedule."},
+    network_identity: {"Network identity", "Identities the device holds on networks like NetBird or iroh."}
   ]
 
   defp extensions() do
@@ -602,7 +620,7 @@ defmodule NervesHubWeb.Live.Product.Settings do
     ~H"""
     <.dialog id="confirm-dialog" title={"Turn #{@name} back on for #{devices(@confirm.count)}?"}>
       <p>
-        Someone turned {@name} off on each of {if @confirm.count == 1, do: "this device's own page", else: "these devices' own pages"}. This turns it on for them, the same as doing it one device at a time.
+        {if @confirm.count == 1, do: "This device has", else: "These devices have"} {@name} turned off in {if @confirm.count == 1, do: "its", else: "their"} own setting. This turns it on for them, the same as doing it one device at a time.
       </p>
       <:actions>
         <.button style="primary" phx-click="set-extension-for-devices" phx-value-extension={@confirm.extension} phx-value-enabled="true">
@@ -616,7 +634,7 @@ defmodule NervesHubWeb.Live.Product.Settings do
   defp confirm_dialog(%{confirm: %{kind: :managed_updates, enabled: true}} = assigns) do
     ~H"""
     <.dialog id="confirm-dialog" title="Let every device choose its update mode?">
-      <p>A device that can choose may switch itself to device-managed, and then asks for firmware instead of taking it from its deployment group.</p>
+      <p>A device that can choose may switch itself to device-managed. It then asks for its deployment group's firmware instead of being sent it.</p>
       <ul class="flex flex-col gap-1.5 rounded bg-surface-muted px-3 py-2.5">
         <li class="flex gap-2">
           <span class="text-content-faint">•</span><span><span class="font-mono">{delimited(@confirm.count)}</span> {if @confirm.count == 1, do: "device can't", else: "devices can't"} choose now</span>

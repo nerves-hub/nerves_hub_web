@@ -518,6 +518,8 @@ defmodule NervesHubWeb.Live.Product.SettingsTest do
         render_click(view, "set-managed-updates-allowed-for-devices", %{"enabled" => "true"})
         render_async(view)
       end)
+      |> assert_has("div", text: "3 devices can now choose their update mode.")
+      |> refute_has("div", text: "Every device in #{product.name}")
       |> assert_has("div", text: "2 devices couldn't be changed. Allow on all again to try them.")
     end
 
@@ -555,8 +557,11 @@ defmodule NervesHubWeb.Live.Product.SettingsTest do
 
   describe "shared secrets" do
     setup do
+      # Put back what was configured, not a value of our own, so tests that run
+      # after these see the same setting as the rest.
+      original = Application.get_env(:nerves_hub, NervesHubWeb.DeviceSocket)
       Application.put_env(:nerves_hub, NervesHubWeb.DeviceSocket, shared_secrets: [enabled: true])
-      on_exit(fn -> Application.put_env(:nerves_hub, NervesHubWeb.DeviceSocket, shared_secrets: [enabled: false]) end)
+      on_exit(fn -> Application.put_env(:nerves_hub, NervesHubWeb.DeviceSocket, original) end)
     end
 
     test "shared secrets not enabled", %{conn: conn, org: org, user: user} do

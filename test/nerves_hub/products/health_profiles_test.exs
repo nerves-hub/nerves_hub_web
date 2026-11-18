@@ -46,6 +46,14 @@ defmodule NervesHub.Products.HealthProfilesTest do
       assert {:error, changeset} = HealthProfiles.create_default_profile(product.id)
       assert %{platform: ["already has a health profile"]} = errors_on(changeset)
     end
+
+    test "count_for_product/1 counts the default and each platform profile", %{product: product} do
+      assert HealthProfiles.count_for_product(product) == 1
+
+      {:ok, _profile} = HealthProfiles.create_platform_profile(product, "rpi4")
+
+      assert HealthProfiles.count_for_product(product) == 2
+    end
   end
 
   describe "platform profiles" do
