@@ -357,13 +357,9 @@ defmodule NervesHub.Devices.Metrics do
   Each metric is judged as `health_breach_counts/4` and
   `NervesHub.Devices.HealthEvaluation` judge one device, and a device takes
   the worst level among its metrics. A device with no readings in any of the
-  metrics' windows is left out, since it has no level.
-
-  For previewing a change to a health profile before it's saved, so it skips
-  what judging a report needs: readings still in the write buffer aren't
-  counted. One query: ClickHouse judges each device's metrics and returns
-  one row per device. Callers are expected to check that analytics is
-  enabled first.
+  metrics' windows has no level and is left out. For previewing an unsaved
+  health profile, so readings still in the write buffer aren't counted. One
+  query; callers are expected to check that analytics is enabled first.
   """
   @spec fleet_health_levels(pos_integer(), [struct()], integer()) :: %{optional(pos_integer()) => 0 | 1 | 2}
   def fleet_health_levels(_product_id, [] = _metrics, _now_minute), do: %{}

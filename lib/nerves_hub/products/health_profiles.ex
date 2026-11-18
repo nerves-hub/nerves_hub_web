@@ -445,29 +445,46 @@ defmodule NervesHub.Products.HealthProfiles do
   each entry with an `"id"` of one of the profile's metrics updates it, each
   without one adds a metric, and the profile's metrics left out are removed.
 
-  The rules of `add_metric/2` and `update_metric/2` apply to each. Returns
-  the saved profile, or the position in `metrics` of the first entry that
-  didn't validate, with its changeset.
+  The rules of `add_metric/2` and `update_metric/2` apply to each. The
+  profile's metrics are read as they are now, not from `profile`, so a save
+  made from a page loaded before someone else changed the profile still
+  leaves it as `metrics` lists them: an `"id"` that's no longer the
+  profile's adds the metric again. Returns the saved profile, or the
+  position in `metrics` of the first entry that didn't validate, with its
+  changeset.
   """
   @spec save_metrics(HealthProfile.t(), [map()]) ::
           {:ok, HealthProfile.t()} | {:error, non_neg_integer(), Ecto.Changeset.t()}
   def save_metrics(%HealthProfile{} = profile, metrics) do
-    existing = Map.new(profile.metrics, &{&1.id, &1})
-    kept = for attrs <- metrics, id = parse_id(attrs["id"]), Map.has_key?(existing, id), into: MapSet.new(), do: id
+    existing =
+      HealthProfileMetric
+      |> where(health_profile_id: ^profile.id)
+      |> Repo.all()
+      |> Map.new(&{&1.id, &1})
+
+    kept = for attrs <- metrics, id = parse_id(attrs["id"]), Map.has_key?(existing, id), do: id
 
     # Removals go first, so a metric removed and added back in one save
-    # doesn't trip over its own key.
-    multi =
-      profile.metrics
-      |> Enum.reject(&MapSet.member?(kept, &1.id))
-      |> Enum.reduce(Multi.new(), fn metric, multi -> Multi.delete(multi, {:remove, metric.id}, metric) end)
+    # doesn't trip over its own key. Deleting by query also removes a
+    # metric added elsewhere since `existing` was read.
+    removed = where(HealthProfileMetric, [m], m.health_profile_id == ^profile.id and m.id not in ^kept)
 
     metrics
     |> Enum.with_index()
-    |> Enum.reduce(multi, fn {attrs, index}, multi ->
+    |> Enum.reduce(Multi.delete_all(Multi.new(), :remove, removed), fn {attrs, index}, multi ->
       case Map.fetch(existing, parse_id(attrs["id"])) do
-        {:ok, metric} -> Multi.update(multi, {:metric, index}, edit_metric_changeset(metric, attrs))
-        :error -> Multi.insert(multi, {:metric, index}, new_metric_changeset(profile, attrs))
+        {:ok, metric} ->
+          # A metric removed elsewhere after `existing` was read fails its
+          # row rather than raising.
+          changeset = edit_metric_changeset(metric, attrs)
+
+          Multi.update(multi, {:metric, index}, changeset,
+            stale_error_field: :key,
+            stale_error_message: "was removed by someone else while you were editing"
+          )
+
+        :error ->
+          Multi.insert(multi, {:metric, index}, new_metric_changeset(profile, attrs))
       end
     end)
     |> Repo.transact()
@@ -517,13 +534,6 @@ defmodule NervesHub.Products.HealthProfiles do
         else: ["id", "key", "built_in", "health_profile_id"]
 
     HealthProfileMetric.changeset(metric, Map.drop(attrs, fixed))
-  end
-
-  @spec get_metric!(HealthProfile.t(), pos_integer()) :: HealthProfileMetric.t()
-  def get_metric!(%HealthProfile{id: profile_id}, id) do
-    HealthProfileMetric
-    |> where(health_profile_id: ^profile_id, id: ^id)
-    |> Repo.one!()
   end
 
   @spec delete_metric(HealthProfileMetric.t()) :: :ok

@@ -119,6 +119,23 @@ defmodule NervesHub.Products.HealthProfilesTest do
       assert product.id |> HealthProfiles.resolve(nil) |> Map.fetch!(:metrics) |> length() == length(saved.metrics)
     end
 
+    test "a save from a stale copy of the profile leaves it as the save lists it", %{profile: profile} do
+      [cpu, disk | _] = Enum.sort_by(profile.metrics, & &1.key)
+
+      # Since `profile` was loaded, someone else removed cpu and added a
+      # metric of their own.
+      :ok = HealthProfiles.delete_metric(cpu)
+      {:ok, _} = HealthProfiles.add_metric(profile, valid_metric_attrs("cpu_temp"))
+
+      metrics = Enum.map(profile.metrics, &metric_attrs/1)
+
+      assert {:ok, saved} = HealthProfiles.save_metrics(profile, metrics)
+
+      assert saved.metrics |> Enum.map(& &1.key) |> Enum.sort() == profile.metrics |> Enum.map(& &1.key) |> Enum.sort()
+      assert Enum.find(saved.metrics, &(&1.key == disk.key)).id == disk.id
+      assert Enum.find(saved.metrics, &(&1.key == cpu.key)).id != cpu.id
+    end
+
     test "saves nothing when one metric doesn't validate, and says which", %{profile: profile} do
       # Changes a kept metric too, which mustn't be saved either.
       [first | rest] = profile.metrics

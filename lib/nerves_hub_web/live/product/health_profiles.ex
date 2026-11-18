@@ -146,20 +146,17 @@ defmodule NervesHubWeb.Live.Product.HealthProfiles do
     draft = merge_inputs(socket.assigns.draft, params["metrics"] || %{})
     profile = socket.assigns.profile
 
-    case HealthProfiles.save_metrics(profile, Enum.map(draft, &row_attrs/1)) do
-      {:ok, saved} ->
-        socket
-        |> assign_profiles()
-        |> load_profile(saved)
-        |> put_flash(:info, "The #{profile_name(saved)} profile was saved.")
-        |> noreply()
-
-      {:error, index, changeset} ->
-        socket
-        |> assign(:draft, draft)
-        |> assign(:errors, %{index => error_messages(changeset)})
-        |> put_flash(:error, "The profile wasn't saved. Check #{row_name(Enum.at(draft, index))}.")
-        |> noreply()
+    if Enum.any?(HealthProfiles.all_for_product(socket.assigns.product), &(&1.id == profile.id)) do
+      save(socket, profile, draft)
+    else
+      socket
+      |> assign_profiles()
+      |> put_flash(
+        :error,
+        "The #{profile_name(profile)} profile was deleted by someone else, so your changes weren't saved."
+      )
+      |> push_patch(to: profile_path(socket, nil))
+      |> noreply()
     end
   end
 
@@ -207,6 +204,24 @@ defmodule NervesHubWeb.Live.Product.HealthProfiles do
 
   def handle_async(:edited_preview, {:ok, counts}, socket), do: {:noreply, assign(socket, :edited_preview, counts)}
   def handle_async(:edited_preview, {:exit, _reason}, socket), do: {:noreply, assign(socket, :edited_preview, nil)}
+
+  defp save(socket, profile, draft) do
+    case HealthProfiles.save_metrics(profile, Enum.map(draft, &row_attrs/1)) do
+      {:ok, saved} ->
+        socket
+        |> assign_profiles()
+        |> load_profile(saved)
+        |> put_flash(:info, "The #{profile_name(saved)} profile was saved.")
+        |> noreply()
+
+      {:error, index, changeset} ->
+        socket
+        |> assign(:draft, draft)
+        |> assign(:errors, %{index => error_messages(changeset)})
+        |> put_flash(:error, "The profile wasn't saved. Check #{row_name(Enum.at(draft, index))}.")
+        |> noreply()
+    end
+  end
 
   defp assign_profiles(socket) do
     %{product: product, current_scope: scope} = socket.assigns
@@ -259,7 +274,10 @@ defmodule NervesHubWeb.Live.Product.HealthProfiles do
     unsaved = unsaved_changes(saved, draft)
     socket = assign(socket, :unsaved, unsaved)
 
+    # Only for someone who could save it: the preview runs across the
+    # product's whole fleet.
     with true <- socket.assigns.analytics? and unsaved > 0,
+         true <- authorized?(:"product:update", socket.assigns.current_scope),
          {:ok, metrics} <- draft_metrics(draft) do
       %{product: product, current_scope: scope, profile: profile, profiles: profiles} = socket.assigns
 
@@ -362,13 +380,15 @@ defmodule NervesHubWeb.Live.Product.HealthProfiles do
     end
   end
 
+  # Only a key the picker offers: a built-in, or one the fleet reports.
   defp add_picked(socket, key) when is_binary(key) and key != "" do
     key = String.trim(key)
+    offered? = Map.has_key?(HealthProfiles.built_in_metrics(), key) or key in socket.assigns.reported_keys
 
-    if Enum.any?(socket.assigns.draft, &(&1.key == key)) do
-      socket
-    else
+    if offered? and not Enum.any?(socket.assigns.draft, &(&1.key == key)) do
       update(socket, :draft, &(&1 ++ [new_row(key, socket.assigns.observed_stats)]))
+    else
+      socket
     end
   end
 
@@ -417,11 +437,12 @@ defmodule NervesHubWeb.Live.Product.HealthProfiles do
   end
 
   # The draft as metrics the preview can judge, or :error while a threshold
-  # doesn't read as a number.
+  # doesn't read as a number or a period is one a save would refuse.
   defp draft_metrics(draft) do
     Enum.reduce_while(draft, {:ok, []}, fn row, {:ok, acc} ->
       with warning when is_float(warning) <- parse_number(row.warning_threshold),
-           alert when is_float(alert) <- parse_number(row.alert_threshold) do
+           alert when is_float(alert) <- parse_number(row.alert_threshold),
+           true <- valid_period?(row.warning_period_seconds) and valid_period?(row.alert_period_seconds) do
         metric = %HealthProfileMetric{
           key: row.key,
           built_in: row.built_in,
@@ -438,6 +459,8 @@ defmodule NervesHubWeb.Live.Product.HealthProfiles do
       end
     end)
   end
+
+  defp valid_period?(seconds), do: seconds in 60..HealthProfileMetric.max_period_seconds()
 
   defp row_attrs(row) do
     %{

@@ -164,6 +164,34 @@ defmodule NervesHubWeb.Live.Product.HealthProfilesTest do
       refute has_element?(view, "#metric-fps", "new")
     end
 
+    test "adds only a metric the picker offers", %{conn: conn, path: path} do
+      {:ok, view, _html} = live(conn, path)
+
+      render_change(view, "edit", %{"add_key" => "not_reported_by_anything"})
+
+      refute has_element?(view, "#metric-not_reported_by_anything")
+      refute has_element?(view, "#unsaved-changes")
+    end
+
+    test "a profile deleted by someone else while it's edited isn't saved", %{
+      conn: conn,
+      path: path,
+      product: product,
+      firmware: firmware
+    } do
+      {:ok, profile} = HealthProfiles.create_platform_profile(product, firmware.platform)
+      {:ok, view, _html} = live(conn, "#{path}?profile=#{profile.id}")
+
+      render_click(view, "remove-metric", %{"index" => "#{index_of(view, "cpu_usage_percent")}"})
+      {:ok, _} = HealthProfiles.delete_profile(profile)
+
+      html = view |> form("#profile-metrics") |> render_submit()
+
+      assert html =~ "The #{firmware.platform} profile was deleted by someone else"
+      assert_patch(view, path)
+      assert has_element?(view, "#profile-name", "Default")
+    end
+
     test "adds the disconnects built-in with a day's thresholds", %{conn: conn, path: path, product: product} do
       {:ok, view, _html} = live(conn, path)
 
