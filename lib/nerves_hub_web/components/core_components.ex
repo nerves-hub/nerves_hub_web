@@ -317,7 +317,7 @@ defmodule NervesHubWeb.CoreComponents do
         :if={@enabled}
         role="tooltip"
         class={[
-          "tooltip-content absolute top-0 left-0 z-20 hidden rounded border border-line-default bg-surface-overlay px-2 py-1.5 text-xs shadow-overlay",
+          "tooltip-content absolute top-0 left-0 z-20 hidden rounded-md border border-line-default bg-surface-overlay px-2 py-1.5 text-xs shadow-overlay",
           @content_class
         ]}
       >
@@ -366,7 +366,7 @@ defmodule NervesHubWeb.CoreComponents do
               phx-window-keydown={JS.exec("data-cancel", to: "##{@id}")}
               phx-key="escape"
               phx-click-away={JS.exec("data-cancel", to: "##{@id}")}
-              class="relative hidden rounded-md bg-base-900 p-4 shadow-overlay ring-1 ring-line-default/10 transition"
+              class="relative hidden rounded-md border border-line-default bg-surface-overlay p-4 shadow-overlay transition"
             >
               <div class="absolute top-6 right-5">
                 <button phx-click={JS.exec("data-cancel", to: "##{@id}")} type="button" class="-m-3 flex-none p-3 opacity-20 hover:opacity-40" aria-label={gettext("close")}>
@@ -796,7 +796,7 @@ defmodule NervesHubWeb.CoreComponents do
       <select
         id={@id}
         name={@name}
-        class="mt-2 block w-full rounded border border-line-control border-b-line-strong bg-base-900 px-2 py-1.5 text-content-muted focus:ring-2 focus:ring-focus-ring sm:text-sm"
+        class="mt-2 block w-full rounded border border-line-control border-b-line-strong bg-surface-raised px-2 py-1.5 text-content-muted focus:ring-2 focus:ring-focus-ring sm:text-sm"
         multiple={@multiple}
         {@rest}
       >
@@ -819,7 +819,7 @@ defmodule NervesHubWeb.CoreComponents do
         id={@id}
         name={@name}
         class={[
-          "mt-2 block w-full rounded bg-base-900 px-2 py-1.5 text-content-muted focus:ring-2 sm:text-sm/6",
+          "mt-2 block w-full rounded bg-surface-raised px-2 py-1.5 text-content-muted focus:ring-2 sm:text-sm/6",
           @class || "min-h-24",
           @errors == [] && "border-line-control border-b-line-strong focus:ring-focus-ring",
           @errors != [] && "border-alert focus:ring-alert"
@@ -846,7 +846,7 @@ defmodule NervesHubWeb.CoreComponents do
         id={@id}
         value={Phoenix.HTML.Form.normalize_value(@type, @value)}
         class={[
-          "mt-2 block w-full rounded bg-base-900 px-2 py-1.5 text-content-muted focus:ring-2 sm:text-sm",
+          "mt-2 block w-full rounded bg-surface-raised px-2 py-1.5 text-content-muted focus:ring-2 sm:text-sm",
           @errors == [] && "border-line-control border-b-line-strong focus:ring-focus-ring",
           @errors != [] && "border-alert focus:ring-alert"
         ]}
@@ -875,7 +875,7 @@ defmodule NervesHubWeb.CoreComponents do
         id={@id}
         value={Phoenix.HTML.Form.normalize_value(@type, @value)}
         class={[
-          "mt-2 block w-full rounded bg-base-900 px-2 py-1.5 text-content-muted focus:ring-2 sm:text-sm",
+          "mt-2 block w-full rounded bg-surface-raised px-2 py-1.5 text-content-muted focus:ring-2 sm:text-sm",
           @errors == [] && "border-line-control border-b-line-strong focus:ring-focus-ring",
           @errors != [] && "border-alert focus:ring-alert"
         ]}
@@ -938,7 +938,7 @@ defmodule NervesHubWeb.CoreComponents do
           autocomplete="off"
           data-tag-input
           class={[
-            "block w-full rounded bg-base-900 px-2 py-1.5 text-content-muted focus:ring-2 sm:text-sm",
+            "block w-full rounded bg-surface-raised px-2 py-1.5 text-content-muted focus:ring-2 sm:text-sm",
             @errors == [] && "border-line-control border-b-line-strong focus:ring-focus-ring",
             @errors != [] && "border-alert focus:ring-alert"
           ]}
@@ -950,7 +950,7 @@ defmodule NervesHubWeb.CoreComponents do
           data-tag-suggestions
           role="listbox"
           hidden
-          class="absolute z-10 mt-1 max-h-56 w-full overflow-y-auto rounded-md border border-line-strong bg-base-900 py-1 shadow-overlay"
+          class="absolute z-10 mt-1 max-h-56 w-full overflow-y-auto rounded-md border border-line-default bg-surface-overlay py-1 shadow-overlay"
         >
         </ul>
       </div>

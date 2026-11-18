@@ -321,12 +321,11 @@
   --perfboard-dot: var(--color-line-subtle);
 
   /* Fixed layout rails — semantic dimensions for the app chrome (theme-independent).
-     Exposed as w-sidebar / h-topbar / h-header / h-row / h-nav-item utilities below. */
-  --sidebar-width: 264px;
+     Exposed as w-sidebar / h-topbar / h-header / h-row utilities below. */
+  --sidebar-width: 280px;
   --topbar-height: 56px;
   --header-height: 90px;
   --row-height: 52px;
-  --nav-item-height: 44px;
 
   /* Elevation, in three steps (see the shadow-* utilities below). Dark
      shadows are black at a high alpha: one in the canvas colour (#141417)
@@ -602,9 +601,6 @@ html:has(#product-sidebar[data-attention="waiting"]) .menu-attention {
 }
 @utility h-row {
   height: var(--row-height);
-}
-@utility h-nav-item {
-  height: var(--nav-item-height);
 }
 /* Holds a label at the width of its semibold weight, so text that turns
    semibold when selected doesn't push what follows it. The element needs
