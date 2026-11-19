@@ -2,6 +2,7 @@ defmodule NervesHubWeb.API.ScriptController do
   use NervesHubWeb, :api_controller
   use OpenApiSpex.ControllerSpecs
 
+  alias NervesHub.Accounts.Scope
   alias NervesHub.Scripts
   alias NervesHubWeb.API.ErrorJSON
   alias NervesHubWeb.API.OpenAPI.SchemaHelpers
@@ -109,7 +110,7 @@ defmodule NervesHubWeb.API.ScriptController do
   )
 
   def create(%{assigns: %{current_scope: scope}} = conn, params) do
-    with {:ok, script} <- Scripts.create(scope.product, scope.user, params) do
+    with {:ok, script} <- Scripts.create(scope.product, Scope.actor(scope), params) do
       render(conn, :show, script: script)
     end
   end
@@ -153,7 +154,7 @@ defmodule NervesHubWeb.API.ScriptController do
   def update(%{assigns: %{current_scope: scope}} = conn, params) do
     with {id, ""} when is_integer(id) and id > 0 <- Integer.parse(params["id"]),
          {:ok, script} <- Scripts.get(scope.product, id),
-         {:ok, script} <- Scripts.update(script, scope.user, params) do
+         {:ok, script} <- Scripts.update(script, Scope.actor(scope), params) do
       render(conn, :show, script: script)
     end
   end
@@ -219,7 +220,7 @@ defmodule NervesHubWeb.API.ScriptController do
 
   def delete(%{assigns: %{current_scope: scope}} = conn, params) do
     with {id, ""} when is_integer(id) and id > 0 <- Integer.parse(params["id"]),
-         {:ok, _script} <- Scripts.delete(id, scope.product, scope.user) do
+         {:ok, _script} <- Scripts.delete(id, scope.product, Scope.actor(scope)) do
       send_resp(conn, :no_content, "")
     end
   end

@@ -1,0 +1,195 @@
+<NervesHubWeb.Layouts.sidebar flash={@flash} current_scope={@current_scope} sidebar_tab={@sidebar_tab}>
+  <:top_bar>
+    <.title product={@product} />
+  </:top_bar>
+
+  <div class="flex h-0 flex-1 flex-col overflow-y-auto">
+    <.tabs current_scope={@current_scope} tab={:api_keys} profile_count={@profile_count} api_key_count={@api_key_count} />
+
+    <div class="@container flex flex-col gap-4 p-6 max-sm:gap-3 max-sm:p-3">
+      <p
+        :if={!authorized?(:"product:update", @current_scope)}
+        id="read-only-notice"
+        class="flex items-center gap-2 rounded-card border border-line-default bg-surface-muted px-4 py-3 text-ui/4.5 text-content-body"
+      >
+        <span class="lucide-eye size-4 text-content-muted" aria-hidden="true"></span>
+        <span>You can see this product's API keys, but your role in {@current_scope.org.name} can't create or deactivate them.</span>
+      </p>
+
+      <section id="api-keys" class="flex w-full flex-col overflow-clip rounded-card border border-line-default bg-surface-raised shadow-card">
+        <div class="flex items-start justify-between gap-6 px-4 py-3.5 max-sm:flex-col max-sm:items-stretch max-sm:gap-3">
+          <div class="flex min-w-0 flex-col gap-0.5">
+            <h2 class="text-sm/5 font-semibold text-content-strong">API keys</h2>
+            <p class="text-ui/4.5 text-content-muted">
+              For automation that uses the API for this product without a person's account behind it. A key works on this product only, and keeps working when whoever made it leaves.
+            </p>
+          </div>
+          <div :if={authorized?(:"product:update", @current_scope)} class="flex shrink-0 max-sm:*:w-full">
+            <.button id="create-api-key" phx-click="open-create">
+              <span class="lucide-plus size-3.5" aria-hidden="true"></span> Create key
+            </.button>
+          </div>
+        </div>
+
+        <%= if @api_keys == [] do %>
+          <p class="border-t border-line-default px-4 py-3.5 text-ui/4.5 text-content-muted">
+            There are no API keys yet.
+          </p>
+        <% else %>
+          <div class="border-t border-line-default">
+            <div class="grid grid-cols-[minmax(0,1fr)_10rem_8rem_8rem_6rem] items-center gap-4 border-b border-line-default px-4 py-2.5 text-label text-content-muted uppercase max-sm:hidden @max-3xl:grid-cols-[minmax(0,1fr)_10rem_8rem_6rem] @max-xl:grid-cols-[minmax(0,1fr)_10rem_6rem]">
+              <span>Name</span>
+              <span>Role</span>
+              <span class="@max-xl:hidden">Last used</span>
+              <span class="@max-3xl:hidden">Created</span>
+              <span></span>
+            </div>
+            <div
+              :for={api_key <- @api_keys}
+              id={"api-key-row-#{api_key.id}"}
+              class="grid grid-cols-[minmax(0,1fr)_10rem_8rem_8rem_6rem] items-center gap-4 border-b border-line-default px-4 py-3 last:border-b-0 max-sm:grid-cols-[minmax(0,1fr)_auto] @max-3xl:grid-cols-[minmax(0,1fr)_10rem_8rem_6rem] @max-xl:grid-cols-[minmax(0,1fr)_10rem_6rem]"
+            >
+              <div class="flex min-w-0 flex-col items-start gap-1">
+                <span class={[
+                  "min-w-0 text-ui break-all",
+                  if(api_key.deactivated_at, do: "text-content-faint line-through", else: "text-content-strong")
+                ]}>
+                  {api_key.name}
+                </span>
+                <span class="flex flex-wrap items-center gap-x-1.5 text-xs/4 text-content-muted">
+                  <span :if={api_key.created_by}>Created by {api_key.created_by.name}</span>
+                  <span :if={api_key.created_by} class="text-content-faint @3xl:hidden" aria-hidden="true">·</span>
+                  <span class="@3xl:hidden">
+                    <.local_datetime at={api_key.inserted_at} time_zone={@time_zone} format={:medium_date} zone_label={false} />
+                  </span>
+                </span>
+                <span :if={api_key.deactivated_at} class="rounded bg-surface-muted px-1.5 py-0.5 text-xs/4 text-content-muted">
+                  Deactivated <.local_datetime at={api_key.deactivated_at} time_zone={@time_zone} format={:short_date} zone_label={false} />
+                </span>
+                <span class="flex flex-wrap items-center gap-x-1.5 text-xs/4 text-content-muted @xl:hidden">
+                  <span class="sm:hidden">{Utils.role_name(api_key)}</span>
+                  <span class="text-content-faint sm:hidden" aria-hidden="true">·</span>
+                  <span :if={api_key.last_used_at}>
+                    used <.local_datetime at={api_key.last_used_at} time_zone={@time_zone} format={:medium_date} zone_label={false} />
+                  </span>
+                  <span :if={is_nil(api_key.last_used_at)}>never used</span>
+                </span>
+              </div>
+
+              <span class={[
+                "flex items-center gap-1.5 text-ui max-sm:hidden",
+                if(api_key.deactivated_at, do: "text-content-faint", else: "text-content-body")
+              ]}>
+                <span class="truncate">{Utils.role_name(api_key)}</span>
+                <span :if={api_key.org_role_id} class="shrink-0 rounded bg-surface-muted px-1.5 py-0.5 text-xs/4 text-content-muted">custom</span>
+              </span>
+
+              <span class={["text-ui max-sm:hidden @max-xl:hidden", if(api_key.deactivated_at, do: "text-content-faint", else: "text-content-body")]}>
+                <%= if api_key.last_used_at do %>
+                  <.local_datetime at={api_key.last_used_at} time_zone={@time_zone} format={:medium_date} zone_label={false} />
+                <% else %>
+                  Never
+                <% end %>
+              </span>
+
+              <span class={["text-ui max-sm:hidden @max-3xl:hidden", if(api_key.deactivated_at, do: "text-content-faint", else: "text-content-body")]}>
+                <.local_datetime at={api_key.inserted_at} time_zone={@time_zone} format={:medium_date} zone_label={false} />
+              </span>
+
+              <div class="flex justify-end">
+                <button
+                  :if={is_nil(api_key.deactivated_at) && authorized?(:"product:update", @current_scope)}
+                  type="button"
+                  phx-click="confirm-deactivate"
+                  phx-value-id={api_key.id}
+                  aria-label={"Deactivate #{api_key.name}"}
+                  class="cursor-pointer text-ui text-content-body hover:text-alert-content max-sm:h-9"
+                >
+                  Deactivate
+                </button>
+              </div>
+            </div>
+          </div>
+        <% end %>
+      </section>
+
+      <p class="flex items-start gap-2 px-1 text-xs/4.5 text-content-muted">
+        <span class="mt-px lucide-info size-3.5 text-content-faint" aria-hidden="true"></span>
+        <span>A key is shown once, when it is created, and can do what its role allows.</span>
+      </p>
+    </div>
+  </div>
+
+  <.dialog :if={@dialog && @dialog.kind == :create} id="create-api-key-dialog" title="Create an API key" cancel_event="cancel-dialog">
+    <.form for={@form} id="api-key-form" phx-change="validate" phx-submit="create" class="flex flex-col gap-3.5">
+      <.input
+        field={@form[:name]}
+        label="Name"
+        placeholder="CI deploys"
+        hint="Shown in the key list and in the audit log."
+        autocomplete="off"
+        phx-mounted={JS.focus()}
+      />
+      <.role_field dialog={@dialog} groups={@role_groups} errors={@form[:role].errors ++ @form[:org_role_id].errors} />
+    </.form>
+    <:actions>
+      <.button style="primary" type="submit" form="api-key-form">Create key</.button>
+    </:actions>
+  </.dialog>
+
+  <.dialog
+    :if={@dialog && @dialog.kind == :reveal}
+    id="new-api-key"
+    title={"Copy the key for #{@dialog.name}"}
+    cancel_event="cancel-dialog"
+    cancel={false}
+  >
+    <p>
+      This is the only time it is shown. Only a hash of it is stored, so nothing here can show it again. If it is lost, deactivate it and create another.
+    </p>
+    <div class="flex items-center gap-2 rounded border border-line-default bg-surface-muted px-3 py-2.5">
+      <code id="new-api-key-token" class="min-w-0 flex-1 font-mono text-ui break-all text-content-strong">{@dialog.token}</code>
+      <button
+        id="copy-new-api-key"
+        type="button"
+        phx-hook="CopyToClipboard"
+        data-copy-value={@dialog.token}
+        aria-label={"Copy the key for #{@dialog.name}"}
+        title="Copy key"
+        class="flex size-6 shrink-0 cursor-pointer items-center justify-center rounded text-content-faint hover:bg-surface-raised hover:text-content-strong max-sm:size-9"
+      >
+        <span data-icon="copy" class="lucide-copy size-3.5" aria-hidden="true"></span>
+        <span data-icon="check" class="lucide-check hidden size-3.5 text-success-content" aria-hidden="true"></span>
+      </button>
+    </div>
+    <:note>{Utils.role_name(@dialog.role)} · created just now</:note>
+    <:actions>
+      <.button style="primary" phx-click="cancel-dialog">I've copied it</.button>
+    </:actions>
+  </.dialog>
+
+  <.dialog
+    :if={@dialog && @dialog.kind == :deactivate}
+    id="deactivate-api-key"
+    title={"Deactivate #{@dialog.api_key.name}?"}
+    cancel_event="cancel-dialog"
+  >
+    <p>Anything using this key stops working straight away, and it can't be turned back on.</p>
+    <ul class="flex flex-col gap-1.5 rounded bg-surface-muted px-3 py-2.5">
+      <li class="flex gap-2">
+        <span class="text-content-faint" aria-hidden="true">•</span>
+        <span :if={@dialog.api_key.last_used_at}>
+          Last used <.local_datetime at={@dialog.api_key.last_used_at} time_zone={@time_zone} format={:medium_date} zone_label={false} />, so something may still be using it
+        </span>
+        <span :if={is_nil(@dialog.api_key.last_used_at)}>It has never been used</span>
+      </li>
+      <li class="flex gap-2">
+        <span class="text-content-faint" aria-hidden="true">•</span>
+        <span>It stays in the list, marked deactivated</span>
+      </li>
+    </ul>
+    <:actions>
+      <.button style="danger-solid" phx-click="deactivate" phx-value-id={@dialog.api_key.id}>Deactivate key</.button>
+    </:actions>
+  </.dialog>
+</NervesHubWeb.Layouts.sidebar>

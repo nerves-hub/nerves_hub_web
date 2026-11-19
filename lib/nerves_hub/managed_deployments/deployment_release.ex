@@ -10,6 +10,7 @@ defmodule NervesHub.ManagedDeployments.DeploymentRelease do
   alias NervesHub.Firmwares.Firmware
   alias NervesHub.ManagedDeployments.DeploymentGroup
   alias NervesHub.ManagedDeployments.DeploymentWorkflowStep
+  alias NervesHub.Products.ApiKey
   alias NervesHub.Repo
 
   @type t :: %__MODULE__{}
@@ -35,6 +36,8 @@ defmodule NervesHub.ManagedDeployments.DeploymentRelease do
     belongs_to(:firmware, Firmware)
     belongs_to(:archive, Archive)
     belongs_to(:created_by, User)
+    # Set instead of `created_by` when a product API key made the release.
+    belongs_to(:created_by_api_key, ApiKey)
 
     field(:description, :string)
     field(:notes, :string)
@@ -49,13 +52,13 @@ defmodule NervesHub.ManagedDeployments.DeploymentRelease do
     timestamps()
   end
 
-  def new_changeset(deployment_group, firmware \\ nil, archive \\ nil, params \\ %{}, user \\ nil) do
+  def new_changeset(deployment_group, firmware \\ nil, archive \\ nil, params \\ %{}, created_by \\ nil) do
     change(%__MODULE__{})
     |> cast(params, [:description, :notes, :required, :connecting_code, :connecting_code_mode])
     |> put_assoc(:deployment_group, deployment_group)
     |> put_assoc(:firmware, firmware)
     |> put_assoc(:archive, archive)
-    |> put_assoc(:created_by, user)
+    |> put_created_by(created_by)
     |> generate_workflow_steps(deployment_group.workflow_definition)
     |> put_change(:number, 1)
     |> validate_length(:description, max: 100)
@@ -63,6 +66,7 @@ defmodule NervesHub.ManagedDeployments.DeploymentRelease do
     |> validate_required([:firmware])
     |> validate_firmware(deployment_group)
     |> validate_differs_from_current_release(deployment_group)
+    |> validate_created_by_api_key(deployment_group.product_id)
     |> validate_change(:created_by, fn :created_by, created_by_assoc ->
       created_by = created_by_assoc.data
 
@@ -137,6 +141,31 @@ defmodule NervesHub.ManagedDeployments.DeploymentRelease do
       %{id: id} -> id
       _ -> nil
     end
+  end
+
+  @doc """
+  Records who made a release: a person, or a product API key.
+  """
+  @spec put_created_by(Ecto.Changeset.t(), User.t() | ApiKey.t() | nil) :: Ecto.Changeset.t()
+  def put_created_by(changeset, %ApiKey{} = api_key), do: put_assoc(changeset, :created_by_api_key, api_key)
+  def put_created_by(changeset, user), do: put_assoc(changeset, :created_by, user)
+
+  @doc """
+  Refuses a release made by a product API key from a product other than
+  `product_id`.
+
+  A key reaches its own product's routes only, so this guards against a caller
+  passing the wrong key rather than anything a request can do.
+  """
+  @spec validate_created_by_api_key(Ecto.Changeset.t(), pos_integer()) :: Ecto.Changeset.t()
+  def validate_created_by_api_key(changeset, product_id) do
+    validate_change(changeset, :created_by_api_key, fn :created_by_api_key, %{data: api_key} ->
+      if api_key.product_id == product_id do
+        []
+      else
+        [created_by_api_key: "belongs to another product"]
+      end
+    end)
   end
 
   defp validate_firmware(changeset, deployment_group) do

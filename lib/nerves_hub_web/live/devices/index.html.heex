@@ -37,7 +37,7 @@
       >
         <span class="lucide-download size-4" aria-hidden="true"></span>
       </.button>
-      <.button type="link" style="primary" navigate={~p"/org/#{@current_scope.org}/#{@current_scope.product}/devices/new"} aria-label="Add new device">
+      <.button :if={authorized?(:"device:create", @current_scope)} id="add-device-button" type="link" style="primary" patch={@new_device_path} aria-label="Add device">
         <span class="lucide-plus--bold" aria-hidden="true"></span> Add<span class="max-sm:hidden"> device</span>
       </.button>
     </div>
@@ -429,6 +429,16 @@
     data={@peek}
     current_scope={@current_scope}
     docked={@current_filters.state == "attention"}
+  />
+
+  <.live_component
+    :if={@live_action == :new and authorized?(:"device:create", @current_scope)}
+    module={AddDevice}
+    id="add-device"
+    current_scope={@current_scope}
+    product={@product}
+    available_tags={@available_tags}
+    return_to={@list_path}
   />
 
   <DeviceColumns.panel :if={@columns_open?} selected={get_in(@current_scope.user.display_preferences.device_list_columns)} />

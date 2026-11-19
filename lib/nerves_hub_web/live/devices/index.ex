@@ -21,6 +21,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
   alias NervesHub.ManagedDeployments
   alias NervesHub.Products
   alias NervesHub.Tracker
+  alias NervesHubWeb.Components.AddDevice
   alias NervesHubWeb.Components.AdvancedSearch
   alias NervesHubWeb.Components.BulkBar
   alias NervesHubWeb.Components.CAHelpers
@@ -150,6 +151,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
     |> assign(:filter_find, "")
     |> assign(:facets, %{})
     |> assign(:facets_for, nil)
+    |> assign(:added_device_id, nil)
     |> refresh_device_list_timer()
     |> ok()
   end
@@ -171,12 +173,29 @@ defmodule NervesHubWeb.Live.Devices.Index do
     |> assign(:paginate_opts, pagination_opts)
     |> assign(:currently_filtering, filters != @default_filters)
     |> assign(:params, unsigned_params)
+    |> assign_add_device()
     |> assign_state_tabs()
     |> assign_display_devices()
     |> maybe_assign_available_deployment_groups_for_filtered_platform()
     |> assign_filter_data()
     |> noreply()
   end
+
+  # Add device is a dialog over the list at `/devices/new`, which keeps the
+  # list's query so that closing it patches back to the same list. A device
+  # given its own secret there is watched until the dialog closes, to say when
+  # it connects.
+  defp assign_add_device(%{assigns: %{current_scope: scope}} = socket) do
+    query = self_query(socket, %{})
+
+    socket
+    |> assign(:list_path, ~p"/org/#{scope.org}/#{scope.product}/devices?#{query}")
+    |> assign(:new_device_path, ~p"/org/#{scope.org}/#{scope.product}/devices/new?#{query}")
+    |> forget_added_device()
+  end
+
+  defp forget_added_device(%{assigns: %{live_action: :new}} = socket), do: socket
+  defp forget_added_device(socket), do: assign(socket, :added_device_id, nil)
 
   # A selection belongs to the tab it was made on. Switching tabs could
   # otherwise leave devices selected that the new tab doesn't show.
@@ -221,17 +240,19 @@ defmodule NervesHubWeb.Live.Devices.Index do
   end
 
   defp self_path(%{assigns: %{current_scope: scope}} = socket, extra) do
+    ~p"/org/#{scope.org}/#{scope.product}/devices?#{self_query(socket, extra)}"
+  end
+
+  # The list's filters, page and sort, with `extra` changed.
+  defp self_query(socket, extra) do
     params = Enum.into(stringify_keys(extra), socket.assigns.params)
     pagination = pagination_changes(params)
     filter = DeviceFiltering.filter_changes(params)
     sort = DeviceFiltering.sort_changes(params)
 
-    query =
-      filter
-      |> Map.merge(pagination)
-      |> Map.merge(sort)
-
-    ~p"/org/#{scope.org}/#{scope.product}/devices?#{query}"
+    filter
+    |> Map.merge(pagination)
+    |> Map.merge(sort)
   end
 
   defp refresh_device_list_timer(socket) do
@@ -969,6 +990,10 @@ defmodule NervesHubWeb.Live.Devices.Index do
   def handle_info(%Broadcast{topic: topic, event: "connection:change", payload: %{status: "online"}}, socket) do
     device_id = parse_device_id(topic)
 
+    if device_id == socket.assigns.added_device_id do
+      send_update(AddDevice, id: "add-device", connected: true)
+    end
+
     socket
     |> update(:received_connection_change_identifiers, &Map.put(&1, device_id, "online"))
     |> safe_refresh()
@@ -1017,6 +1042,14 @@ defmodule NervesHubWeb.Live.Devices.Index do
   def handle_info(%Broadcast{}, socket) do
     socket
     |> safe_refresh()
+    |> noreply()
+  end
+
+  # The device the Add device dialog just added: list it, and watch it.
+  def handle_info({AddDevice, {:added, device}}, socket) do
+    socket
+    |> assign(:added_device_id, device.id)
+    |> assign_display_devices()
     |> noreply()
   end
 
@@ -1763,7 +1796,13 @@ defmodule NervesHubWeb.Live.Devices.Index do
   # which is an `AsyncResult` the display code resets on its own schedule.
   defp sync_device_subscriptions(socket, devices) do
     subscribed = socket.assigns.subscribed_device_ids
-    wanted = MapSet.new(devices, & &1.id)
+
+    # The device the Add device dialog is waiting on, even off this page.
+    wanted =
+      case socket.assigns.added_device_id do
+        nil -> MapSet.new(devices, & &1.id)
+        id -> devices |> MapSet.new(& &1.id) |> MapSet.put(id)
+      end
 
     Enum.each(MapSet.difference(subscribed, wanted), fn device_id ->
       PubSub.unsubscribe(device_id)

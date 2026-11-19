@@ -10,6 +10,7 @@ defmodule NervesHubWeb.API.DeviceSharedSecretController do
   use NervesHubWeb, :api_controller
   use OpenApiSpex.ControllerSpecs
 
+  alias NervesHub.Accounts.Scope
   alias NervesHub.Devices
   alias NervesHubWeb.API.OpenAPI.SchemaHelpers
   alias NervesHubWeb.API.Plugs.RefuseDeletedDevice
@@ -64,8 +65,8 @@ defmodule NervesHubWeb.API.DeviceSharedSecretController do
       ] ++ @auth_error_responses
   )
 
-  def create(%{assigns: %{current_scope: %{user: user}, device: device}} = conn, _params) do
-    with {:ok, auth} <- Devices.issue_shared_secret_auth(device, user) do
+  def create(%{assigns: %{current_scope: scope, device: device}} = conn, _params) do
+    with {:ok, auth} <- Devices.issue_shared_secret_auth(device, Scope.actor(scope)) do
       conn
       |> put_status(:created)
       |> render(:created, shared_secret: auth)
@@ -87,8 +88,8 @@ defmodule NervesHubWeb.API.DeviceSharedSecretController do
       ] ++ @auth_error_responses
   )
 
-  def delete(%{assigns: %{current_scope: %{user: user}, device: device}} = conn, %{"key" => key}) do
-    with {:ok, _auth} <- Devices.deactivate_shared_secret_auth(device, key, user) do
+  def delete(%{assigns: %{current_scope: scope, device: device}} = conn, %{"key" => key}) do
+    with {:ok, _auth} <- Devices.deactivate_shared_secret_auth(device, key, Scope.actor(scope)) do
       send_resp(conn, :no_content, "")
     end
   end

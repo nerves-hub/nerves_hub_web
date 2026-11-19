@@ -13,7 +13,7 @@ defmodule NervesHubWeb.Live.Product.SettingsTest do
   alias NervesHub.Repo
 
   describe "the page" do
-    test "is titled for the product, with its two tabs", %{conn: conn, org: org, product: product} do
+    test "is titled for the product, with its tabs", %{conn: conn, org: org, product: product} do
       conn
       |> visit("/org/#{org.name}/#{product.name}/settings")
       |> assert_has("h1", text: "Product settings")

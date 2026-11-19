@@ -2,6 +2,7 @@ defmodule NervesHubWeb.API.DeviceController do
   use NervesHubWeb, :api_controller
 
   alias NervesHub.Accounts
+  alias NervesHub.Accounts.Scope
   alias NervesHub.Consoles
   alias NervesHub.DeviceEvents
   alias NervesHub.Devices
@@ -13,6 +14,7 @@ defmodule NervesHubWeb.API.DeviceController do
   alias NervesHub.Devices.Updates
   alias NervesHub.Firmwares
   alias NervesHub.Products
+  alias NervesHub.Products.ApiKey
   alias NervesHubWeb.API.PaginationHelpers
   alias NervesHubWeb.API.Plugs.RefuseDeletedDevice
   alias NervesHubWeb.Endpoint
@@ -46,7 +48,7 @@ defmodule NervesHubWeb.API.DeviceController do
     opts = %{
       pagination: PaginationHelpers.atomize_pagination_params(Map.get(params, "pagination", %{})),
       filters: filters,
-      visible_to: conn.assigns.current_scope.user
+      visible_to: Scope.actor(conn.assigns.current_scope)
     }
 
     opts =
@@ -84,8 +86,8 @@ defmodule NervesHubWeb.API.DeviceController do
 
   defp validate_advanced_query(_filters, _product_id), do: :ok
 
-  def create(%{assigns: %{current_scope: %{org: org, user: user}, product: product}} = conn, params) do
-    with {:ok, device, shared_secret} <- create_device(product, params, user) do
+  def create(%{assigns: %{current_scope: %{org: org} = scope, product: product}} = conn, params) do
+    with {:ok, device, shared_secret} <- create_device(product, params, Scope.actor(scope)) do
       device = Devices.get_by_identifier_with_deployment_and_release!(device.identifier)
 
       conn
@@ -98,7 +100,7 @@ defmodule NervesHubWeb.API.DeviceController do
     end
   end
 
-  defp create_device(product, params, user) do
+  defp create_device(product, params, actor) do
     device_params = device_params(params)
 
     with {:ok, shared_secret?} <- cast_shared_secret(params),
@@ -107,11 +109,11 @@ defmodule NervesHubWeb.API.DeviceController do
 
       if shared_secret? do
         with {:ok, {device, auth}} <-
-               Devices.create_device_with_shared_secret_auth(product, device_params, user, opts) do
+               Devices.create_device_with_shared_secret_auth(product, device_params, actor, opts) do
           {:ok, device, auth}
         end
       else
-        with {:ok, device} <- Devices.create_device(product, device_params, user, opts) do
+        with {:ok, device} <- Devices.create_device(product, device_params, actor, opts) do
           {:ok, device, nil}
         end
       end
@@ -158,13 +160,13 @@ defmodule NervesHubWeb.API.DeviceController do
     send_resp(conn, :no_content, "")
   end
 
-  def update(%{assigns: %{current_scope: %{user: user}, device: device}} = conn, params) do
+  def update(%{assigns: %{current_scope: scope, device: device}} = conn, params) do
     device_params = device_params(params)
 
     with {:ok, allowed} <- cast_managed_updates_allowed(device_params),
          {:ok, mode} <- Device.cast_update_mode(device, device_params),
          {:ok, updated_device} <-
-           Devices.update_device_settings(device, device_params, user,
+           Devices.update_device_settings(device, device_params, Scope.actor(scope),
              managed_updates_allowed: allowed,
              update_mode: mode
            ) do
@@ -219,8 +221,8 @@ defmodule NervesHubWeb.API.DeviceController do
     end
   end
 
-  def reboot(%{assigns: %{current_scope: %{user: user}, device: device}} = conn, _params) do
-    DeviceEvents.reboot(device, user)
+  def reboot(%{assigns: %{current_scope: scope, device: device}} = conn, _params) do
+    DeviceEvents.reboot(device, Scope.actor(scope))
 
     send_resp(conn, :no_content, "")
   end
@@ -267,20 +269,25 @@ defmodule NervesHubWeb.API.DeviceController do
           []
         end
 
-      with {:ok, _device} <- DeviceEvents.manual_update(device, firmware, scope.user, opts) do
+      with {:ok, _device} <- DeviceEvents.manual_update(device, firmware, Scope.actor(scope), opts) do
         send_resp(conn, :no_content, "")
       end
     end
   end
 
-  def penalty(%{assigns: %{device: device, current_scope: %{user: user}}} = conn, _params) do
-    case Updates.clear_penalty_box(device, user) do
+  def penalty(%{assigns: %{device: device, current_scope: scope}} = conn, _params) do
+    case Updates.clear_penalty_box(device, Scope.actor(scope)) do
       {:ok, _device} ->
         send_resp(conn, :no_content, "")
 
       {:error, _, _, _} ->
         {:error, "Failed to clear penalty box. Please contact support if this persists."}
     end
+  end
+
+  # Moving a device hands it to another product, and a key only has the one.
+  def move(%{assigns: %{current_scope: %Scope{api_key: %ApiKey{}}}}, _params) do
+    raise NervesHubWeb.UnauthorizedError
   end
 
   def move(%{assigns: %{device: device, current_scope: %{user: user}}} = conn, %{

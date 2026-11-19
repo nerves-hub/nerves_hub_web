@@ -265,7 +265,7 @@ defmodule NervesHubWeb.Live.Org.Show do
         <p class="text-ui/4.5 font-medium text-content-body">No devices yet</p>
         <p class="text-xs text-content-muted">Upload firmware, then connect a device with a shared secret or a certificate.</p>
       </div>
-      <.link navigate={~p"/org/#{@org}/#{@product}/devices/new"} class={["inline-flex items-center gap-1.5 text-ui/4 font-medium", text_link()]}>
+      <.link navigate={~p"/org/#{@org}/#{@product}/devices"} class={["inline-flex items-center gap-1.5 text-ui/4 font-medium", text_link()]}>
         Connect your first device <span class="lucide-arrow-right size-3.5" aria-hidden="true"></span>
       </.link>
     </div>

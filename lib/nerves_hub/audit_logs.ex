@@ -1,10 +1,50 @@
 defmodule NervesHub.AuditLogs do
   import Ecto.Query
 
+  alias NervesHub.Accounts.User
   alias NervesHub.AuditLogs.AuditLog
   alias NervesHub.ManagedDeployments.DeploymentGroup
+  alias NervesHub.Products.ApiKey
   alias NervesHub.Repo
   alias NimbleCSV.RFC4180, as: CSV
+
+  @typedoc """
+  Who did something a person could have done: a user, or a product API key
+  that automation used in place of one.
+
+  Devices and deployment groups act on their own too, and are recorded the
+  same way, but they are never interchangeable with a person so they are not
+  part of this.
+  """
+  @type actor() :: User.t() | ApiKey.t()
+
+  @doc """
+  How an actor is named at the start of an audit log description.
+  """
+  @spec actor_name(actor()) :: String.t()
+  def actor_name(%User{name: name}), do: "User #{name}"
+  def actor_name(%ApiKey{name: name}), do: "API key #{name}"
+
+  @doc """
+  The user behind `actor`, or nil when a product API key acted.
+
+  For a column that names a user, such as who created or deleted something. A
+  key leaves it empty, and the audit entry is what records the key.
+  """
+  @spec actor_user(actor() | nil) :: User.t() | nil
+  def actor_user(%User{} = user), do: user
+  def actor_user(_api_key_or_nil), do: nil
+
+  @doc """
+  The id of `actor_user/1`, for a column that holds a user's id.
+  """
+  @spec actor_user_id(actor() | nil) :: pos_integer() | nil
+  def actor_user_id(actor) do
+    case actor_user(actor) do
+      %User{id: id} -> id
+      nil -> nil
+    end
+  end
 
   @doc """
   Record that `actor` did something to `resource`.

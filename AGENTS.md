@@ -299,7 +299,13 @@ when adding or removing one.
   devices brings up `components/bulk_bar.ex`, a bar floating over the list whose buttons each
   open one popover (`bulk_menu` in the LiveView) for an action on all of
   them; every bulk action handler closes it, since a `phx-submit` command
-  only sends its first push. A product with no devices shows
+  only sends its first push. Add device opens `components/add_device.ex`, a
+  dialog over the list at `/devices/new` (the list's own `:new` action, so
+  its query stays put). It adds a device matched by identifier through the
+  product's shared secret, one with a secret of its own (shown once, then
+  it waits for the device to connect), or one with its certificate. The
+  tags line names the deployment groups they match
+  (`ManagedDeployments.deployment_groups_matching_tags/2`). A product with no devices shows
   `components/device_onboarding.ex` and looks for its first one every few
   seconds; filters that match nothing show `DeviceList.no_matches/1`, which
   counts what removing each would bring back. A different list (filters, tab,
@@ -321,20 +327,29 @@ when adding or removing one.
   `components/product_list.ex` holds what the firmware and archive lists
   share: the footer pager, the sort arrow, and how a UUID, a size and an
   upload time are written.
-  A product's settings are two LiveViews, General (`live/product/settings.ex`)
-  and Device health (`live/product/health_profiles.ex`), sharing their title
-  and tabs from `components/product_settings.ex`. General is titled cards in
-  two columns, like the device page's Settings tab, and draws its toggles
-  with `components/switch.ex`. Anything there that changes every device, or
-  can't be undone, asks first in a dialog that one `@confirm` assign drives;
-  each event that opens one checks the same permission as the event that
-  acts. Device health edits one profile at a time as a draft, saved whole by
+  A product's settings are three LiveViews, General (`live/product/settings.ex`),
+  Device health (`live/product/health_profiles.ex`) and API keys
+  (`live/product/api_keys.ex`), sharing their title, tabs and dialog from
+  `components/product_settings.ex`. General is titled cards in two columns,
+  like the device page's Settings tab, and draws its toggles with
+  `components/switch.ex`. Anything there that changes every device, or can't
+  be undone, asks first in a dialog that one assign drives (`@confirm` on
+  General, `@dialog` on API keys, which uses the same component for its
+  create form, for deactivating a key and for the one-time key); each event
+  that opens one checks the same permission as the event that acts. The
+  dialog is 480px with its own footer bar, so it passes `width_class` and a
+  cleared `body_class` to `CoreComponents.modal`, whose defaults suit every
+  other modal. One without Cancel, such as the one-time key, also turns off
+  the modal's Escape, click outside and close button (`dismissible`), so a
+  stray click can't throw the key away. The dialog must not clip, because the
+  API keys role picker is a popover that hangs past the footer. Device health
+  edits one profile at a time as a draft, saved whole by
   `HealthProfiles.save_metrics/2`. While there are unsaved changes it shows
   what saving would do to the profile's devices: today's `device_health`
   counts, moved by the difference between ClickHouse previews of the saved
   and edited metrics (`HealthProfiles.preview_counts/5`), which judge every
-  device the way `HealthEvaluation` does but leave out readings still in
-  the analytics buffer.
+  device the way `HealthEvaluation` does but leave out readings still in the
+  analytics buffer.
 - `controllers/` — JSON API (`controllers/api/`) and others.
 - `plugs/`, `router.ex`, `endpoint.ex`, `device_endpoint.ex`,
   `health_check_endpoint.ex`, `auth*.ex`.
