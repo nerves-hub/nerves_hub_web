@@ -87,6 +87,13 @@ defmodule NervesHub.ProductNotifications.CopyTest do
              }
     end
 
+    test "writes counts with thousands separators" do
+      latest = notification(:duplicate_device_identifier, %{identifier: "sp-0042"})
+
+      assert %{title: "1,204 devices tried to connect with identifiers already in use."} =
+               Copy.rollup(:duplicate_device_identifier, 1_204, 1_204, latest)
+    end
+
     test "a card of one notification is that notification's card" do
       latest = notification(:missing_firmware_metadata, %{identifier: "sp-0042"})
 

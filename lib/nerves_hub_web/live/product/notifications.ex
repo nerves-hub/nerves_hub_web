@@ -1,6 +1,10 @@
 defmodule NervesHubWeb.Live.Product.Notifications do
   use NervesHubWeb, :live_view
 
+  # Counts are written with thousands separators, which `ngettext` can't do:
+  # it puts the bare number in `%{count}`.
+  import NervesHubWeb.Components.Fleet, only: [count_noun: 3, delimited: 1]
+
   alias NervesHub.Accounts.Scope
   alias NervesHub.Branding
   alias NervesHub.ProductNotifications
@@ -143,7 +147,7 @@ defmodule NervesHubWeb.Live.Product.Notifications do
 
     socket
     |> assign(:confirming_dismiss_all, false)
-    |> put_flash(:info, "Dismissed #{ngettext("1 notification", "all %{count} notifications", counts.all)}")
+    |> put_flash(:info, "Dismissed #{all_notifications(counts.all)}")
     |> push_patch(to: notifications_path(scope, %{}))
     |> noreply()
   end
@@ -280,10 +284,20 @@ defmodule NervesHubWeb.Live.Product.Notifications do
 
   # What an opened card lists: its devices, or its notifications when some
   # device has more than one.
-  defp held(%{count: count, devices: count}), do: ngettext("1 device", "%{count} devices", count)
-  defp held(%{count: count}), do: ngettext("1 notification", "%{count} notifications", count)
+  defp held(%{count: count, devices: count}), do: count_noun(count, "device", "devices")
+  defp held(%{count: count}), do: count_noun(count, "notification", "notifications")
 
-  defp dismissed_card_flash(nil, count), do: "Dismissed #{ngettext("1 notification", "%{count} notifications", count)}"
+  defp times(count), do: count_noun(count, "time", "times")
+
+  # "1 notification" or "all 1,204 notifications", and for a button "1" or
+  # "all 1,204".
+  defp all_notifications(1), do: "1 notification"
+  defp all_notifications(count), do: "all #{delimited(count)} notifications"
+
+  defp all_of(1), do: "1"
+  defp all_of(count), do: "all #{delimited(count)}"
+
+  defp dismissed_card_flash(nil, count), do: "Dismissed #{count_noun(count, "notification", "notifications")}"
   defp dismissed_card_flash(card, _count), do: "Dismissed “#{card.title}”"
 
   # The sidebar counts notifications once, as the page mounts, and this is the
@@ -414,16 +428,18 @@ defmodule NervesHubWeb.Live.Product.Notifications do
   # approved, retried or skipped, so it has no dismiss button.
   defp clears_itself?(card), do: card.kind == :workflow_halted
 
-  defp subject_path(_scope, %{state: state}) when state != :live, do: nil
-
-  defp subject_path(scope, %{kind: :device, ref: identifier}),
+  # A soft-deleted device's page is still there, to restore it from.
+  defp subject_path(scope, %{kind: :device, state: state, ref: identifier}) when state in [:live, :soft_deleted],
     do: ~p"/org/#{scope.org}/#{scope.product}/devices/#{identifier}"
+
+  defp subject_path(_scope, %{state: state}) when state != :live, do: nil
 
   defp subject_path(scope, %{kind: :deployment_group, ref: name}),
     do: ~p"/org/#{scope.org}/#{scope.product}/deployment_groups/#{name}"
 
   defp subject_path(scope, _subject), do: ~p"/org/#{scope.org}/settings/integrations"
 
+  defp subject_state_label(:soft_deleted), do: "soft deleted"
   defp subject_state_label(:deleted), do: "deleted"
   defp subject_state_label(:moved), do: "moved"
   defp subject_state_label(:removed), do: "removed"
@@ -443,9 +459,9 @@ defmodule NervesHubWeb.Live.Product.Notifications do
       parts =
       Enum.reject(
         [
-          error: &ngettext("1 error", "%{count} errors", &1),
-          warning: &ngettext("1 warning", "%{count} warnings", &1),
-          info: &ngettext("1 info notification", "%{count} info notifications", &1)
+          error: &count_noun(&1, "error", "errors"),
+          warning: &count_noun(&1, "warning", "warnings"),
+          info: &count_noun(&1, "info notification", "info notifications")
         ],
         fn {key, _label} -> key == level or counts[key] == 0 end
       )
@@ -462,22 +478,27 @@ defmodule NervesHubWeb.Live.Product.Notifications do
   attr(:subject, :map, required: true)
 
   # What a notification is about: a link while it's there, and its name and
-  # what became of it once it isn't.
+  # what became of it once it isn't. A soft-deleted device is both: its page
+  # is where it's restored from.
   defp subject(assigns) do
     assigns = assign(assigns, :path, subject_path(assigns.scope, assigns.subject))
 
     ~H"""
-    <.link
-      :if={@path}
-      navigate={@path}
-      title={@subject.label}
-      class={[
-        "max-w-full truncate text-notice-content hover:underline light:text-indigo-600",
-        (@subject.kind == :deployment_group && "text-ui") || "font-mono"
-      ]}
-    >
-      {@subject.label}
-    </.link>
+    <span :if={@path} class="flex max-w-full min-w-0 items-baseline gap-1.5">
+      <.link
+        navigate={@path}
+        title={@subject.label}
+        class={[
+          "min-w-0 truncate text-notice-content hover:underline light:text-indigo-600",
+          (@subject.kind == :deployment_group && "text-ui") || "font-mono"
+        ]}
+      >
+        {@subject.label}
+      </.link>
+      <span :if={@subject.state != :live} class="shrink-0 font-mono whitespace-nowrap text-content-faint">
+        · {subject_state_label(@subject.state)}
+      </span>
+    </span>
     <span :if={!@path} title={@subject.label} class={["max-w-full truncate text-content-faint", @subject.kind != :deployment_group && "font-mono"]}>
       {@subject.label} · {subject_state_label(@subject.state)}
     </span>
@@ -500,7 +521,7 @@ defmodule NervesHubWeb.Live.Product.Notifications do
 
     ~H"""
     <div id="notifications-pager" class="flex items-center justify-between gap-4 pt-2">
-      <p class="min-w-0 truncate font-mono text-xs text-content-body">{@first}–{@last} of {@pager.total_count}</p>
+      <p class="min-w-0 truncate font-mono text-xs text-content-body">{delimited(@first)}–{delimited(@last)} of {delimited(@pager.total_count)}</p>
 
       <div class="flex shrink-0 items-center gap-4">
         <form id="notifications-page-size" phx-change="set-paginate-opts" class="flex items-center gap-1.5">
@@ -556,7 +577,7 @@ defmodule NervesHubWeb.Live.Product.Notifications do
       <div class="flex max-w-lg flex-col gap-4">
         <div class="flex flex-col gap-2">
           <h2 id="dismiss-all-dialog-title" class="text-section-title text-content-strong">
-            Dismiss {ngettext("1 notification", "all %{count} notifications", @count)}?
+            Dismiss {all_notifications(@count)}?
           </h2>
           <p id="dismiss-all-dialog-description" class="text-ui text-content-body">
             This clears them for everyone on this product, on every tab. Any that happen again will come back.
@@ -565,7 +586,7 @@ defmodule NervesHubWeb.Live.Product.Notifications do
         <div class="flex justify-end gap-2">
           <.button phx-click={JS.exec("data-cancel", to: "#dismiss-all-dialog")}>Cancel</.button>
           <.button style="contrast" phx-click="dismiss-all">
-            Dismiss {ngettext("1", "all %{count}", @count)}
+            Dismiss {all_of(@count)}
           </.button>
         </div>
       </div>
