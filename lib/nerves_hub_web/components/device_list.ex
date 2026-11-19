@@ -12,6 +12,7 @@ defmodule NervesHubWeb.Components.DeviceList do
 
   import Number.Delimit, only: [number_to_delimited: 2]
 
+  alias NervesHub.Devices.Connections
   alias NervesHub.Devices.Device
   alias NervesHub.Devices.DeviceFiltering
   alias NervesHub.Devices.Updates
@@ -232,13 +233,15 @@ defmodule NervesHubWeb.Components.DeviceList do
   @type attention_reason ::
           {:failing, String.t() | nil, pos_integer()}
           | {:unhealthy, String.t()}
-          | {:not_seen, DateTime.t()}
+          | {:not_seen, DateTime.t() | nil}
           | nil
 
   @doc """
   Why a device needs attention, by the Needs attention tab's own rules
   (`DeviceFiltering.reason_dynamic/1`): updates on hold after repeated
-  failures, then unhealthy, then not seen in #{@not_seen_days} days.
+  failures, then unhealthy, then not seen in #{@not_seen_days} days. A not
+  seen reason has no time when the device's last connection is older than
+  any connection record (`Connections.last_seen_unrecorded?/2`).
 
   A device can need attention for more than one reason; `prefer` is the
   reason the list is filtered to, which comes first when the device has it.
@@ -263,6 +266,10 @@ defmodule NervesHubWeb.Components.DeviceList do
 
   defp reason_for("not_seen", %Device{latest_connection: %{last_seen_at: %DateTime{} = seen}}) do
     if DateTime.diff(DateTime.utc_now(), seen) >= not_seen_seconds(), do: {:not_seen, seen}
+  end
+
+  defp reason_for("not_seen", %Device{latest_connection: connection} = device) do
+    if Connections.last_seen_unrecorded?(device, connection), do: {:not_seen, nil}
   end
 
   defp reason_for(_reason, _device), do: nil
@@ -396,6 +403,12 @@ defmodule NervesHubWeb.Components.DeviceList do
 
     ~H"""
     <span class="truncate text-xs/4 text-alert-content max-sm:text-ui/4 max-sm:font-medium max-sm:whitespace-normal">Unhealthy · {@summary}</span>
+    """
+  end
+
+  defp why_line(%{why: {:not_seen, nil}} = assigns) do
+    ~H"""
+    <span class="truncate text-xs/4 text-content-muted max-sm:text-ui/4 max-sm:whitespace-normal">Last seen unknown</span>
     """
   end
 
@@ -598,7 +611,9 @@ defmodule NervesHubWeb.Components.DeviceList do
 
   @doc """
   How long a device has been connected, or how long since it was last seen.
-  A device not seen in #{@not_seen_days} days or more is in red.
+  A device not seen in #{@not_seen_days} days or more is in red, as is one
+  whose last connection is older than any connection record
+  (`Connections.last_seen_unrecorded?/2`).
   """
   def connection(%{status: "online"} = assigns) do
     ~H"""
@@ -620,8 +635,14 @@ defmodule NervesHubWeb.Components.DeviceList do
   end
 
   def connection(assigns) do
+    assigns =
+      assign(assigns, :unrecorded?, Connections.last_seen_unrecorded?(assigns.device, assigns.device.latest_connection))
+
     ~H"""
-    <span class="text-ui/4 text-content-faint">Never connected</span>
+    <span :if={@unrecorded?} class="text-ui/4 text-alert-content" title="Last connected before connection records were kept">
+      Last seen unknown
+    </span>
+    <span :if={!@unrecorded?} class="text-ui/4 text-content-faint">Never connected</span>
     """
   end
 

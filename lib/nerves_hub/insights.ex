@@ -15,9 +15,11 @@ defmodule NervesHub.Insights do
   the list it links to:
 
     * connection: online; offline under 7 days, which also takes a device
-      still connecting or with no connection row; disconnected 7 to 14 days
-      ago; disconnected over 14 days ago; and never connected, a device still
-      `registered`. `connection_filters/0` has the filter for each.
+      still connecting; disconnected 7 to 14 days ago; disconnected over 14
+      days ago, which also takes a device that has connected but has no
+      connection row (`NervesHub.Devices.Connections.last_seen_unrecorded?/2`);
+      and never connected, a device still `registered`.
+      `connection_filters/0` has the filter for each.
     * health: healthy, warning, unhealthy and unknown, where a device that has
       never reported its health counts as unknown, as the `health_status`
       filter treats it.
@@ -167,8 +169,7 @@ defmodule NervesHub.Insights do
     %{
       online: [connection: "connected"],
       recent: [
-        advanced_query:
-          ~s{connection != "connected" and connection != "not_seen" and (connection != "disconnected" or last_seen > "7 days ago")}
+        advanced_query: ~s(connection != "connected" and connection != "not_seen" and not last_seen < "7 days ago")
       ],
       week: [advanced_query: ~s(last_seen < "7 days ago" and last_seen > "14 days ago")],
       stale: [connection: "not_seen_in_fourteen_days"],
@@ -178,9 +179,10 @@ defmodule NervesHub.Insights do
 
   # One row per firmware version, health status and connection group. Each
   # connection group is exactly what its filter in `connection_filters/0`
-  # lists: never connected is a device still `registered`, and `last_seen`
-  # only matches disconnected devices, so one still connecting, or with no
-  # connection row at all, falls to recently seen.
+  # lists: never connected is a device still `registered`, a provisioned one
+  # with no connection row was last seen before connection rows were kept, and
+  # `last_seen` only matches disconnected devices otherwise, so one still
+  # connecting falls to recently seen.
   defp composition_rows(product, now) do
     seven_days_ago = DateTime.add(now, -7, :day)
     fourteen_days_ago = DateTime.add(now, -14, :day)
@@ -201,6 +203,7 @@ defmodule NervesHub.Insights do
             CASE
               WHEN ? = 'connected' THEN 'online'
               WHEN ? = 'registered' THEN 'never'
+              WHEN ? IS NULL THEN 'stale'
               WHEN ? = 'disconnected' AND ? < ? THEN 'stale'
               WHEN ? = 'disconnected' AND ? < ? THEN 'week'
               ELSE 'recent'
@@ -208,6 +211,7 @@ defmodule NervesHub.Insights do
             """,
             lc.status,
             d.status,
+            lc.id,
             lc.status,
             lc.last_seen_at,
             ^fourteen_days_ago,

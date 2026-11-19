@@ -130,6 +130,12 @@ when adding or removing one.
   any other only if it opts in with a `custom#` prefix. Those rules are a wire
   contract with device clients; see
   [docs/device_client_identification.md](docs/device_client_identification.md).
+  A device keeps one connection row (`latest_device_connections`), which
+  started empty in April 2026, so a provisioned device with no row last
+  connected before then (`Connections.last_seen_unrecorded?/2`). It is not
+  "never connected" (that is a device still `registered`): `last_seen <`
+  filters match it, Insights counts it as not seen in 14 days, and pages show
+  its last seen as unknown.
 - `managed_deployments.ex` / `managed_deployments/` — deployment groups and the
   `Distributed.Orchestrator` (one per deployment). A release with a workflow
   is walked a step at a time (`Workflows`, `WorkflowCoordinator`); each step

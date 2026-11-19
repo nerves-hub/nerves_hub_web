@@ -48,13 +48,14 @@ defmodule NervesHub.InsightsTest do
       # never connected
       device(ctx, "1.0.0", status: :registered)
 
-      # provisioned, with no connection row to say when it was last seen
+      # provisioned, with no connection row: it last connected before
+      # connection rows were kept, so long ago
       device(ctx, "1.0.0", status: :provisioned)
 
       composition = Insights.composition(ctx.product, @now)
 
       assert composition.total == 13
-      assert composition.connection == %{online: 1, recent: 4, week: 3, stale: 4, never: 1}
+      assert composition.connection == %{online: 1, recent: 3, week: 3, stale: 5, never: 1}
     end
 
     test "counts in each connection group exactly the devices its filter lists", ctx do

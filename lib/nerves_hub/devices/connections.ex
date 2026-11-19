@@ -8,6 +8,7 @@ defmodule NervesHub.Devices.Connections do
   alias NervesHub.AnalyticsRepo
   alias NervesHub.Devices
   alias NervesHub.Devices.ClientLibrary
+  alias NervesHub.Devices.Device
   alias NervesHub.Devices.DeviceConnection
   alias NervesHub.Devices.DeviceConnectionHistory
   alias NervesHub.Integrations
@@ -15,6 +16,21 @@ defmodule NervesHub.Devices.Connections do
   alias NervesHub.Repo
   alias NervesHub.Tracker
   alias NervesHub.Webhooks.Payloads
+
+  @doc """
+  Whether `device` has connected but its last connection is older than any
+  connection record: it is provisioned, which its first connection does, and
+  `connection`, its row in `latest_device_connections`, is nil.
+
+  That table started empty when it replaced `device_connections`, and every
+  connection since writes a row, so these devices last connected before it
+  existed. They count as last seen long ago (the `last_seen <` filter matches
+  them) rather than as never connected, and pages show their last seen as
+  unknown.
+  """
+  @spec last_seen_unrecorded?(Device.t(), DeviceConnection.t() | nil) :: boolean()
+  def last_seen_unrecorded?(%Device{status: :provisioned}, nil), do: true
+  def last_seen_unrecorded?(_device, _connection), do: false
 
   @doc """
   Get latest inserted connection for a device.
