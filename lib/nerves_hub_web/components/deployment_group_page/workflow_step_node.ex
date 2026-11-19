@@ -21,13 +21,13 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.WorkflowStepNode do
     waiting: {"#f59e0b", "Waiting"},
     in_progress: {"#615fff", "In Progress"},
     completed: {"#22c55e", "Completed"},
-    skipped: {"#a1a1aa", "Skipped"},
+    skipped: {"#9f9fa9", "Skipped"},
     error: {"#ef4444", "Failed"}
   }
 
   @impl Phoenix.LiveComponent
   def update(%{node: node} = assigns, socket) do
-    {colour, status_label} = Map.get(@colours, node.data[:status], {"#a1a1aa", "Unknown"})
+    {colour, status_label} = Map.get(@colours, node.data[:status], {"#9f9fa9", "Unknown"})
 
     socket
     |> assign(assigns)

@@ -645,7 +645,7 @@ defmodule NervesHubWeb.Components.DevicePage.Header do
       <span :if={@opts[:dot]} class="size-1.5 rounded-full bg-warning" aria-label="Needs attention"></span>
       <.badge :if={@opts[:count]} count>{@opts[:count]}</.badge>
       <%!-- The selected tab's bar, which a hovered tab previews in grey. --%>
-      <span class="absolute inset-x-3 -bottom-px hidden h-0.5 rounded-[1px] bg-line-strong group-hover:block group-aria-[current=page]:block group-aria-[current=page]:bg-primary"></span>
+      <span class="absolute inset-x-3 -bottom-px hidden h-0.5 rounded-full bg-line-strong group-hover:block group-aria-[current=page]:block group-aria-[current=page]:bg-primary"></span>
     </.link>
     """
   end

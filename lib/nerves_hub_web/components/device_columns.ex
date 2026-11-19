@@ -64,11 +64,11 @@ defmodule NervesHubWeb.Components.DeviceColumns do
     >
       <header class="flex h-13 shrink-0 items-center justify-between border-b border-line-subtle pr-3 pl-5">
         <div class="flex items-baseline gap-2">
-          <h2 id="columns-panel-title" class="text-list-title text-content-strong">Columns</h2>
+          <h2 id="columns-panel-title" class="text-card-title text-content-strong">Columns</h2>
           <span id="columns-shown" class="text-xs text-content-muted">{@shown} of {@total} shown</span>
         </div>
         <div class="flex items-center gap-1.5">
-          <kbd class="inline-flex items-center rounded-[3px] border border-line-default px-1.25 py-px font-sans text-[11px]/3.5 font-normal text-content-faint">
+          <kbd class="inline-flex items-center rounded border border-line-default px-1.25 py-px font-sans text-2xs/3.5 font-normal text-content-faint">
             esc
           </kbd>
           <button
@@ -94,7 +94,7 @@ defmodule NervesHubWeb.Components.DeviceColumns do
           <div class="flex flex-col">
             <div class="flex items-start gap-2.5 py-2.25">
               <span class="flex h-4 shrink-0 items-center">
-                <span class="flex size-3.5 items-center justify-center rounded-[3px] bg-line-control" aria-hidden="true">
+                <span class="flex size-3.5 items-center justify-center rounded-xs bg-line-control" aria-hidden="true">
                   <span class="lucide-check--bold size-2.5 text-white"></span>
                 </span>
               </span>
@@ -117,7 +117,7 @@ defmodule NervesHubWeb.Components.DeviceColumns do
                   name="columns[]"
                   value={column}
                   checked={to_string(column) in @selected}
-                  class="size-3.5 shrink-0 rounded-[3px] border-line-control bg-surface-raised checked:bg-primary focus:ring-0 focus:ring-offset-0 focus-visible:ring-2 focus-visible:ring-focus-ring"
+                  class="size-3.5 shrink-0 rounded-xs border-line-control bg-surface-raised checked:bg-primary focus:ring-0 focus:ring-offset-0 focus-visible:ring-2 focus-visible:ring-focus-ring"
                 />
               </span>
               <span class="flex min-w-0 flex-1 flex-col gap-0.5">

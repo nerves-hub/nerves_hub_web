@@ -392,7 +392,7 @@ defmodule NervesHubWeb.Components.ProductSidebar do
             @switcher_open && "bg-surface-raised shadow-card"
           ]}
         >
-          <span class="truncate text-lg/6.5 font-semibold tracking-[-0.01em] text-content-strong">{@scope.product.name}</span>
+          <span class="truncate text-section-title/6.5 text-content-strong">{@scope.product.name}</span>
           <span class="lucide-chevrons-up-down size-4 text-content-faint" aria-hidden="true"></span>
         </button>
       </div>
@@ -416,7 +416,7 @@ defmodule NervesHubWeb.Components.ProductSidebar do
         <span class="flex size-9 items-center justify-center rounded-lg bg-zinc-900 text-sm font-semibold text-zinc-50 dark:bg-zinc-700">
           {monogram(@scope.product.name)}
         </span>
-        <span class="font-mono text-[10px]/3 text-content-faint" title="Devices online">{online_percent(@status.online)}</span>
+        <span class="font-mono text-2xs/3.5 text-content-faint" title="Devices online">{online_percent(@status.online)}</span>
       </button>
     </div>
     """
@@ -497,7 +497,7 @@ defmodule NervesHubWeb.Components.ProductSidebar do
   # the line's colour, or the brand's for a neutral badge.
   defp rail_marker(%{count: count} = assigns) when is_integer(count) and count > 0 do
     ~H"""
-    <span class="absolute -top-1.5 -right-2 hidden h-3.5 min-w-3.5 items-center justify-center rounded-full bg-alert px-1 text-[9px]/3 font-semibold text-white ring-2 ring-surface-muted collapsed:flex">
+    <span class="absolute -top-2 -right-2.5 hidden h-4.5 min-w-4.5 items-center justify-center rounded-full bg-alert px-1.25 text-2xs/3.5 font-medium text-white tabular-nums ring-2 ring-surface-muted collapsed:flex">
       {delimited(@count)}
     </span>
     """
@@ -566,7 +566,7 @@ defmodule NervesHubWeb.Components.ProductSidebar do
         ]}
       >
         <div class="flex shrink-0 items-center justify-between pt-2 pr-1.5 pl-4 sm:hidden">
-          <span class="text-[17px]/6 font-semibold text-content-strong">Switch product</span>
+          <span class="text-card-title text-content-strong">Switch product</span>
           <button type="button" aria-label="Close" phx-click="close_switcher" phx-target={@myself} class="flex size-11 cursor-pointer items-center justify-center text-content-muted">
             <span class="lucide-x size-5" aria-hidden="true"></span>
           </button>
@@ -618,7 +618,7 @@ defmodule NervesHubWeb.Components.ProductSidebar do
           <div :if={@other_orgs != []} class="flex flex-col gap-0.5 border-t border-line-subtle px-1.5 pt-2 pb-1.5">
             <span class="px-2.5 pb-1 text-xs/4 text-content-faint">Other organizations</span>
             <.link :for={org <- @other_orgs} navigate={~p"/org/#{org}"} class="flex items-center gap-2.5 rounded-md px-2.5 py-2 hover:bg-surface-muted">
-              <span class="flex size-5 shrink-0 items-center justify-center rounded border border-line-default text-[10px] font-semibold text-content-muted" aria-hidden="true">
+              <span class="flex size-5 shrink-0 items-center justify-center rounded border border-line-default text-2xs font-semibold text-content-muted" aria-hidden="true">
                 {org.name |> String.first() |> String.upcase()}
               </span>
               <span class="min-w-0 flex-1 truncate text-sm/4.5 text-content-strong">{org.name}</span>

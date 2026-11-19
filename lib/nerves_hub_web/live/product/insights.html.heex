@@ -4,7 +4,7 @@
         the title in the page instead, under the layout's own bar. --%>
   <:top_bar>
     <div class="flex items-baseline gap-3 max-sm:hidden">
-      <h1 class="text-base/6 font-semibold text-content-strong">Insights</h1>
+      <h1 class="text-card-title text-content-strong">Insights</h1>
       <span id="device-count" class="font-mono text-xs text-content-faint">
         {delimited(@fleet_size)} {if(@fleet_size == 1, do: "device", else: "devices")}
       </span>
@@ -24,7 +24,7 @@
       </div>
       <div class="flex items-baseline justify-between gap-3">
         <div class="flex items-baseline gap-2">
-          <h1 class="text-xl/7 font-semibold tracking-[-0.01em] text-content-strong">Insights</h1>
+          <h1 class="text-page-title/7 text-content-strong">Insights</h1>
           <span class="font-mono text-xs text-content-muted">
             {delimited(@fleet_size)} {if(@fleet_size == 1, do: "device", else: "devices")}
           </span>
@@ -81,7 +81,7 @@
 
         <.list_column id="notifications" title="Notifications" meta={@notification_count}>
           <.list_row :for={entry <- @notifications}>
-            <span data-level={entry.level} class="size-1.5 shrink-0 rounded-full bg-(--color-chart-other) data-[level=error]:bg-(--color-chart-alert) data-[level=warning]:bg-(--color-chart-4)"></span>
+            <span data-level={entry.level} class="size-1.5 shrink-0 rounded-full bg-(--color-chart-other) data-[level=error]:bg-alert data-[level=warning]:bg-(--color-chart-4)"></span>
             <span class="min-w-0 flex-1 truncate text-content-strong">
               {entry.title}<span :if={entry.occurrences > 1} class="font-mono text-content-faint"> ×{delimited(entry.occurrences)}</span>
             </span>

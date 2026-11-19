@@ -16,7 +16,7 @@ defmodule NervesHubWeb.Components.ProductSettings do
   def title(assigns) do
     ~H"""
     <div class="flex min-w-0 items-baseline gap-3">
-      <h1 class="text-base/6 font-semibold text-content-strong">Product settings</h1>
+      <h1 class="text-card-title text-content-strong">Product settings</h1>
       <span class="truncate font-mono text-xs text-content-muted max-sm:hidden">{@product.name}</span>
     </div>
     """

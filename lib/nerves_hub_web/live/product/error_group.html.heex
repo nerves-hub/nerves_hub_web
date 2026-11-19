@@ -5,7 +5,7 @@
         Errors
       </.link>
       <span class="lucide-chevron-right size-3.5 text-content-faint" aria-hidden="true"></span>
-      <span aria-current="page" class="truncate text-base/6 font-semibold text-content-strong">{short_name(@group.reason)}</span>
+      <span aria-current="page" class="truncate text-card-title text-content-strong">{short_name(@group.reason)}</span>
       <span class="truncate font-mono text-xs text-content-muted max-sm:hidden">{top_bar_note(@group, @time_zone)}</span>
     </nav>
   </:top_bar>
@@ -23,7 +23,7 @@
           <.issue_badge group={@group} />
           <span id="error-header-note" class="text-ui text-content-muted">{header_note(@group, @firmware, @time_zone)}</span>
         </div>
-        <h1 class="font-mono text-lg/7 font-semibold wrap-break-word text-content-strong max-sm:text-[15px]/6">{@group.reason}</h1>
+        <h1 class="font-mono text-lg/7 font-semibold wrap-break-word text-content-strong max-sm:text-base/6">{@group.reason}</h1>
         <p :if={top_frame(@group)} class="font-mono text-xs wrap-break-word text-content-muted sm:truncate">{top_frame(@group)}</p>
       </div>
 
@@ -49,22 +49,22 @@
               comes from the 30 days of reports. --%>
         <div id="error-stats" class="grid grid-cols-4 rounded-card border border-line-default bg-surface-raised max-md:grid-cols-2">
           <div class="flex flex-col gap-1 px-4 py-3.5 max-md:border-b max-md:border-line-subtle">
-            <span class="text-label tracking-[0.06em] text-content-muted uppercase">Events</span>
-            <span class="font-mono text-figure-sm text-content-strong">{delimited(@group.occurrence_count)}</span>
+            <span class="text-label text-content-muted uppercase">Events</span>
+            <span class="font-mono text-figure-sm font-normal text-content-strong">{delimited(@group.occurrence_count)}</span>
             <span class="text-xs text-content-muted">since {day_label(@group.first_seen_at, @time_zone)}, all time</span>
           </div>
           <div class="flex flex-col gap-1 border-l border-line-subtle px-4 py-3.5 max-md:border-b">
-            <span class="text-label tracking-[0.06em] text-content-muted uppercase">Devices</span>
+            <span class="text-label text-content-muted uppercase">Devices</span>
             <%= if @retained_count > 0 do %>
-              <span class="font-mono text-figure-sm text-content-strong">{delimited(@device_count)}</span>
+              <span class="font-mono text-figure-sm font-normal text-content-strong">{delimited(@device_count)}</span>
               <span class="text-xs text-content-muted">in the last 30 days</span>
             <% else %>
-              <span class="font-mono text-figure-sm text-content-faint">—</span>
+              <span class="font-mono text-figure-sm font-normal text-content-faint">—</span>
               <span class="text-xs text-content-muted">no reports in 30 days</span>
             <% end %>
           </div>
           <div class="flex flex-col gap-1 border-l border-line-subtle px-4 py-3.5 max-md:border-l-0">
-            <span class="text-label tracking-[0.06em] text-content-muted uppercase">First seen</span>
+            <span class="text-label text-content-muted uppercase">First seen</span>
             <span class="truncate text-figure-sm text-content-strong">
               <%= if label = firmware_label(@group.first_seen_firmware_uuid, @firmware) do %>
                 <.firmware label={label} class="[&>span]:text-xs" />
@@ -75,7 +75,7 @@
             <span class="text-xs text-content-muted">{to_local_string(@group.first_seen_at, @time_zone, :medium_date, false)}</span>
           </div>
           <div class="flex flex-col gap-1 border-l border-line-subtle px-4 py-3.5">
-            <span class="text-label tracking-[0.06em] text-content-muted uppercase">Last seen</span>
+            <span class="text-label text-content-muted uppercase">Last seen</span>
             <span class="truncate text-figure-sm text-content-strong">
               <%= if label = firmware_label(@group.last_seen_firmware_uuid, @firmware) do %>
                 <.firmware label={label} class="[&>span]:text-xs" />
@@ -194,15 +194,15 @@
 
             <dl id="event-context" class="flex flex-wrap gap-x-8 gap-y-3 border-t border-line-default px-4 py-3 max-sm:grid max-sm:grid-cols-2 max-sm:gap-x-4">
               <div class="flex flex-col gap-0.5">
-                <dt class="text-label tracking-[0.06em] text-content-muted uppercase">Kind</dt>
+                <dt class="text-label text-content-muted uppercase">Kind</dt>
                 <dd class="font-mono text-xs text-content-strong">{@occurrence.kind}</dd>
               </div>
               <div class="flex flex-col gap-0.5">
-                <dt class="text-label tracking-[0.06em] text-content-muted uppercase">Source</dt>
+                <dt class="text-label text-content-muted uppercase">Source</dt>
                 <dd class="font-mono text-xs text-content-strong">{@occurrence.source}</dd>
               </div>
               <div :for={{label, value, known?} <- context_entries(@occurrence.context)} class="flex max-w-60 flex-col gap-0.5">
-                <dt class={(known? && "text-label tracking-[0.06em] text-content-muted uppercase") || "font-mono text-[11px]/4 text-content-muted"}>{label}</dt>
+                <dt class={(known? && "text-label text-content-muted uppercase") || "font-mono text-2xs/4 text-content-muted"}>{label}</dt>
                 <dd class="font-mono text-xs break-all text-content-strong">{value}</dd>
               </div>
             </dl>

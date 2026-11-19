@@ -3,7 +3,7 @@
     <div class="flex w-full max-w-248 flex-col gap-4 px-4 pt-6 md:gap-7 md:pt-10">
       <div class="flex items-center gap-4">
         <span
-          class="flex size-12 shrink-0 items-center justify-center rounded-lg border border-line-default bg-surface-raised text-xl/6 font-semibold text-content-body shadow-card md:size-13 md:rounded-[10px] md:text-[22px]/6.5"
+          class="flex size-12 shrink-0 items-center justify-center rounded-lg border border-line-default bg-surface-raised text-xl/6 font-semibold text-content-body shadow-card md:size-13 md:text-2xl/7"
           aria-hidden="true"
         >
           {Fleet.monogram(@current_scope.org.name)}
@@ -37,7 +37,7 @@
           <span class={[tab.icon, "size-3.75 group-aria-[current=page]:hidden"]} aria-hidden="true"></span>
           <span class={[tab.selected_icon, "hidden size-3.75 group-aria-[current=page]:block"]} aria-hidden="true"></span>
           <span class="reserve-semibold-width flex flex-col" data-label={tab.label}>{tab.label}</span>
-          <span :if={tab.count} class="rounded-full bg-surface-muted px-1.5 py-0.5 text-[11px]/3.5 font-medium text-content-muted tabular-nums">
+          <span :if={tab.count} class="rounded-full bg-surface-muted px-1.5 py-0.5 text-2xs/3.5 font-medium text-content-muted tabular-nums">
             {Fleet.delimited(tab.count)}
           </span>
         </.link>

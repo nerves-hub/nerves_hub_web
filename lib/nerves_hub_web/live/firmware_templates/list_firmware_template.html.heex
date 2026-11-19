@@ -1,7 +1,7 @@
 <NervesHubWeb.Layouts.sidebar flash={@flash} current_scope={@current_scope} sidebar_tab={@sidebar_tab}>
   <:top_bar>
     <div class="flex min-w-0 items-baseline gap-3">
-      <h1 class="text-base/6 font-semibold text-content-strong">Firmware</h1>
+      <h1 class="text-card-title text-content-strong">Firmware</h1>
       <span :if={@counts.all > 0} class="truncate font-mono text-xs text-content-muted max-sm:hidden">
         {ngettext("1 build", "%{count} builds", @counts.all)} · {ngettext("1 version", "%{count} versions", @counts.versions)}
       </span>
@@ -149,7 +149,7 @@
           <div
             :if={@tab != :deleted}
             role="row"
-            class="flex h-9 items-center gap-3 border-b border-line-default bg-surface-muted px-4 text-label tracking-[0.06em] text-content-muted uppercase @max-3xl:hidden"
+            class="flex h-9 items-center gap-3 border-b border-line-default bg-surface-muted px-4 text-label text-content-muted uppercase @max-3xl:hidden"
           >
             <button
               type="button"
@@ -189,7 +189,7 @@
           <div
             :if={@tab == :deleted}
             role="row"
-            class="flex h-9 items-center gap-3 border-b border-line-default bg-surface-muted px-4 text-label tracking-[0.06em] text-content-muted uppercase @max-3xl:hidden"
+            class="flex h-9 items-center gap-3 border-b border-line-default bg-surface-muted px-4 text-label text-content-muted uppercase @max-3xl:hidden"
           >
             <span role="columnheader" class="w-36 shrink-0">Version</span>
             <span role="columnheader" class="w-16 shrink-0 @max-[960px]:hidden">Tool</span>
@@ -265,18 +265,18 @@
             <div role="cell" class="flex w-36 shrink-0 flex-col gap-0.5 @max-3xl:order-1 @max-3xl:w-auto">
               <.link patch={~p"/org/#{@current_scope.org}/#{@product}/firmware/#{firmware}"} title={firmware.uuid} class="flex flex-col gap-0.5 hover:underline">
                 <span class={[
-                  "flex items-center gap-1.5 font-mono text-ui/4.5 font-medium @max-3xl:text-[15px] @max-3xl:font-semibold",
+                  "flex items-center gap-1.5 font-mono text-ui/4.5 font-medium @max-3xl:text-card-title",
                   (firmware.install_count > 0 && "text-content-strong") || "text-content-body"
                 ]}>
                   {firmware.version}
                   <.badge :if={firmware.uuid == @new_firmware_uuid} tone="success">New</.badge>
                 </span>
-                <span class="font-mono text-[11px]/3.5 text-content-faint">{short_uuid(firmware.uuid)}</span>
+                <span class="font-mono text-2xs/3.5 text-content-faint">{short_uuid(firmware.uuid)}</span>
               </.link>
             </div>
 
             <div role="cell" class="w-16 shrink-0 @max-3xl:order-3 @max-3xl:w-auto @3xl:@max-[960px]:hidden">
-              <.tag mono class="text-[11px]">{firmware.tool}</.tag>
+              <.tag mono class="text-2xs">{firmware.tool}</.tag>
             </div>
 
             <div
@@ -294,7 +294,7 @@
                 <span class="h-1 w-16 overflow-hidden rounded-full bg-line-subtle @max-3xl:flex-1" aria-hidden="true">
                   <span class="block h-1 rounded-full bg-success" style={"width: #{share_of_devices(firmware.install_count, @device_count)}%"}></span>
                 </span>
-                <span class="font-mono text-[11px] text-content-muted">{share_label(firmware.install_count, @device_count)}</span>
+                <span class="font-mono text-2xs text-content-muted">{share_label(firmware.install_count, @device_count)}</span>
               <% else %>
                 <span class="text-ui text-content-faint">Not running</span>
               <% end %>
@@ -439,11 +439,11 @@
             <div role="cell" class="w-36 shrink-0 @max-3xl:order-1 @max-3xl:w-auto">
               <.link patch={~p"/org/#{@current_scope.org}/#{@product}/firmware/#{firmware}"} title={firmware.uuid} class="flex flex-col gap-0.5 hover:underline">
                 <span class="font-mono text-ui/4.5 text-content-body">{firmware.version}</span>
-                <span class="font-mono text-[11px]/3.5 text-content-faint">{short_uuid(firmware.uuid)}</span>
+                <span class="font-mono text-2xs/3.5 text-content-faint">{short_uuid(firmware.uuid)}</span>
               </.link>
             </div>
             <div role="cell" class="w-16 shrink-0 @max-3xl:order-3 @max-3xl:w-auto @3xl:@max-[960px]:hidden">
-              <.tag mono class="text-[11px]">{firmware.tool}</.tag>
+              <.tag mono class="text-2xs">{firmware.tool}</.tag>
             </div>
             <div role="cell" class="w-36 shrink-0 truncate font-mono text-xs text-content-muted @max-3xl:order-2 @max-3xl:mr-auto @max-3xl:w-auto @3xl:@max-4xl:hidden">
               {firmware.platform} · {firmware.architecture}

@@ -1830,7 +1830,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
     [
       "flex w-10 cursor-pointer items-center pl-4 peer-disabled:cursor-not-allowed peer-disabled:opacity-40",
       "[&>.checkbox-box]:flex [&>.checkbox-box]:size-3.5 [&>.checkbox-box]:items-center [&>.checkbox-box]:justify-center",
-      "[&>.checkbox-box]:rounded-[3px] [&>.checkbox-box]:border [&>.checkbox-box]:border-line-control [&>.checkbox-box]:bg-surface-raised",
+      "[&>.checkbox-box]:rounded-xs [&>.checkbox-box]:border [&>.checkbox-box]:border-line-control [&>.checkbox-box]:bg-surface-raised",
       "peer-checked:[&>.checkbox-box]:border-primary peer-checked:[&>.checkbox-box]:bg-primary",
       "peer-focus-visible:[&>.checkbox-box]:outline-2 peer-focus-visible:[&>.checkbox-box]:outline-offset-2",
       "peer-focus-visible:[&>.checkbox-box]:outline-focus-ring"

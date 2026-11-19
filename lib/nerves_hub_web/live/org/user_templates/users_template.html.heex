@@ -3,7 +3,7 @@
     <section :if={@invites != []} id="invites" aria-labelledby="invites-title" class="flex flex-col gap-2.5">
       <div class="flex min-h-8 items-center justify-between gap-4">
         <div class="flex items-baseline gap-2">
-          <h2 id="invites-title" class="text-list-title text-content-strong">Waiting to join</h2>
+          <h2 id="invites-title" class="text-card-title text-content-strong">Waiting to join</h2>
           <span class="text-ui text-content-faint">{length(@invites)}</span>
         </div>
         <.invite_button org={@org} />
@@ -68,7 +68,7 @@
     <section id="members" aria-labelledby="members-title" class="flex flex-col gap-2.5">
       <div class="flex min-h-8 items-center justify-between gap-4">
         <div class="flex items-baseline gap-2">
-          <h2 id="members-title" class="text-list-title text-content-strong">Members</h2>
+          <h2 id="members-title" class="text-card-title text-content-strong">Members</h2>
           <span class="text-ui text-content-faint">{length(@org_users)}</span>
         </div>
         <div class="flex items-center gap-4">

@@ -91,7 +91,7 @@ defmodule NervesHubWeb.Components.FleetTrends do
     >
       <div class="flex flex-col gap-2.5 @min-[640px]:flex-row @min-[640px]:items-baseline @min-[640px]:justify-between">
         <div class="flex items-baseline justify-between gap-3 @min-[640px]:justify-start">
-          <h2 class="text-list-title text-content-strong">{@title}</h2>
+          <h2 class="text-card-title text-content-strong">{@title}</h2>
           <span :if={@release} id="trends-release" class="flex items-center gap-1.5 text-xs text-content-muted">
             <span class="h-3 w-0 shrink-0 border-l-[1.5px] border-dashed border-indigo-500"></span>
             <span class="font-mono">{@release.version}</span> released {@release.label}
@@ -142,7 +142,7 @@ defmodule NervesHubWeb.Components.FleetTrends do
         <div class="flex min-w-0 flex-col gap-0.5">
           <h3 class="text-ui/4.5 font-medium text-content-muted sm:text-content-body">Firmware adoption</h3>
           <div :if={@adoption.headline} class="flex min-w-0 flex-wrap items-baseline gap-x-2">
-            <span class="font-mono text-figure-md text-content-strong">{@adoption.headline.share}</span>
+            <span class="font-mono text-figure font-normal text-content-strong">{@adoption.headline.share}</span>
             <span class="text-xs text-content-muted">
               on <span class="font-mono">{@adoption.headline.version}</span><span class="max-sm:hidden">, {@adoption.headline.since}</span>
             </span>
@@ -209,7 +209,7 @@ defmodule NervesHubWeb.Components.FleetTrends do
           <span
             :if={@release}
             class={[
-              "absolute rounded-[3px] bg-indigo-500 px-1.25 py-px font-mono text-[10px]/3.5 text-white",
+              "absolute rounded bg-indigo-500 px-1.25 py-px font-mono text-[10px]/3.5 text-white",
               if(@view == :stacked, do: "bottom-1 @min-[640px]:bottom-2", else: "top-2")
             ]}
             style={"left: calc(#{@release.x * 100}% + 4px)"}
@@ -221,7 +221,7 @@ defmodule NervesHubWeb.Components.FleetTrends do
         <div class="relative w-17 shrink-0 @max-[639px]:hidden">
           <span
             :for={label <- if(@view == :stacked, do: @adoption.labels, else: @adoption.line_labels)}
-            class={["absolute left-0 flex gap-1.5 font-mono text-[11px]/3.25 whitespace-nowrap", label.newest && "font-semibold"]}
+            class={["absolute left-0 flex gap-1.5 font-mono text-2xs/3.25 whitespace-nowrap", label.newest && "font-semibold"]}
             style={"top: #{label.top}px"}
           >
             <span style={"color: #{label.color}"}>{label.version}</span>
@@ -231,8 +231,8 @@ defmodule NervesHubWeb.Components.FleetTrends do
       </div>
 
       <div class="flex flex-wrap gap-1 @min-[640px]:hidden">
-        <span :for={label <- @adoption.legend} class="flex w-21 shrink-0 items-center gap-1.5 font-mono text-[11px]/3.5">
-          <span class="size-2 shrink-0 rounded-[2px]" style={"background: #{label.swatch}"}></span>
+        <span :for={label <- @adoption.legend} class="flex w-21 shrink-0 items-center gap-1.5 font-mono text-2xs/3.5">
+          <span class="size-2 shrink-0 rounded-xs" style={"background: #{label.swatch}"}></span>
           <span class={if label.newest, do: "text-content-strong", else: "text-content-muted"}>{label.version}</span>
           <span class={if label.newest, do: "font-semibold text-content-strong", else: "text-content-muted"}>{label.value}</span>
         </span>
@@ -262,12 +262,12 @@ defmodule NervesHubWeb.Components.FleetTrends do
         <svg viewBox={"0 0 #{@width} #{@height}"} preserveAspectRatio="none" class="block h-14 min-w-0 flex-1" aria-hidden="true">
           <g :for={bar <- @updates.bars}>
             <rect :if={bar.ok > 0} x={bar.x * @width} y={@baseline - 1 - bar.ok} width={bar.width * @width} height={bar.ok} rx="1" style="fill: var(--color-chart-3)" />
-            <rect :if={bar.failed > 0} x={bar.x * @width} y={@baseline + 1} width={bar.width * @width} height={bar.failed} rx="1" style="fill: var(--color-chart-alert)" />
+            <rect :if={bar.failed > 0} x={bar.x * @width} y={@baseline + 1} width={bar.width * @width} height={bar.failed} rx="1" style="fill: var(--color-alert)" />
           </g>
           <line x1="0" x2={@width} y1={@baseline} y2={@baseline} vector-effect="non-scaling-stroke" class="stroke-zinc-600 light:stroke-zinc-400" />
           <.release_line :if={@release} x={@release.x * @width} height={@height} width="1.5" />
         </svg>
-        <div class="flex w-17 shrink-0 flex-col justify-between text-[11px]/3.25 @max-[639px]:hidden">
+        <div class="flex w-17 shrink-0 flex-col justify-between text-2xs/3.25 @max-[639px]:hidden">
           <span class="flex flex-col">
             <span class="text-content-muted">Updates</span>
             <span class="font-mono text-success-content">{@updates.succeeded} ok</span>
@@ -286,7 +286,7 @@ defmodule NervesHubWeb.Components.FleetTrends do
   defp axis(assigns) do
     ~H"""
     <div class="flex gap-3">
-      <div class="relative h-3.5 min-w-0 flex-1 font-mono text-[11px]/3.5 text-content-faint">
+      <div class="relative h-3.5 min-w-0 flex-1 font-mono text-2xs/3.5 text-content-faint">
         <span
           :for={{tick, index} <- Enum.with_index(@axis)}
           class={[
@@ -317,10 +317,10 @@ defmodule NervesHubWeb.Components.FleetTrends do
       <div class="flex items-baseline justify-between gap-3">
         <div class="flex items-baseline gap-2">
           <h3 class="text-ui/4.5 text-content-strong sm:font-medium sm:text-content-body">{@title}</h3>
-          <span class="font-mono text-figure-xs text-content-strong">{@line.value}</span>
+          <span class="font-mono text-figure-sm font-normal text-content-strong">{@line.value}</span>
           <span class={["font-mono text-xs", @line.delta_class]}>{@line.delta}</span>
         </div>
-        <span class="font-mono text-[11px]/3.5 text-content-faint">{@line.range}</span>
+        <span class="font-mono text-2xs/3.5 text-content-faint">{@line.range}</span>
       </div>
       <svg viewBox={"0 0 #{@width} #{@height}"} preserveAspectRatio="none" class="block h-16 w-full sm:h-24" aria-hidden="true">
         <line x1="0" x2={@width} y1={@height - 0.5} y2={@height - 0.5} vector-effect="non-scaling-stroke" style="stroke: var(--color-line-default)" />

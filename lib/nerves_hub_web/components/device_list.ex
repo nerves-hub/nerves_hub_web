@@ -148,7 +148,7 @@ defmodule NervesHubWeb.Components.DeviceList do
   def past_last_page(assigns) do
     ~H"""
     <div id="past-last-page" class={["flex flex-col items-center rounded-card border border-dashed border-line-default px-6 pt-16 pb-18 text-center", @class]}>
-      <p class="text-list-title text-content-strong">Nothing on this page</p>
+      <p class="text-card-title text-content-strong">Nothing on this page</p>
       <p class="mt-1 max-w-md text-ui/5 text-content-muted">The list has fewer pages than this now.</p>
       <.button id="past-last-page-first" size="sm" class="mt-4" phx-click="paginate" phx-value-page="1">Go to the first page</.button>
     </div>
@@ -181,7 +181,7 @@ defmodule NervesHubWeb.Components.DeviceList do
       <span class="mb-4 flex size-9 items-center justify-center rounded-full bg-surface-muted">
         <span class="lucide-search-x size-4 text-content-muted" aria-hidden="true"></span>
       </span>
-      <p class="text-list-title text-content-strong">
+      <p class="text-card-title text-content-strong">
         {if @search_only, do: "No devices match this search", else: no_matches_title(@removable)}
       </p>
       <p :if={@suggestions} class="mt-1 max-w-md text-ui/5 text-content-muted">
@@ -578,7 +578,7 @@ defmodule NervesHubWeb.Components.DeviceList do
       <span :if={@progress.percent > 0} class="flex h-1 w-12 rounded-full bg-line-subtle" aria-hidden="true">
         <span class="h-1 rounded-full bg-primary" style={"width: #{min(@progress.percent, 100)}%"}></span>
       </span>
-      <span class="font-mono text-[11px]/3.5 text-content-muted">
+      <span class="font-mono text-2xs/3.5 text-content-muted">
         {if @progress.percent > 0, do: "#{@progress.stage} #{@progress.percent}%", else: @progress.stage}
       </span>
     </span>
@@ -776,7 +776,7 @@ defmodule NervesHubWeb.Components.DeviceList do
             <tr class="h-9 border-b border-line-default bg-surface [&>th]:pr-4 [&>th]:text-label [&>th]:text-content-faint [&>th]:uppercase">
               <th class="w-8 p-0">
                 <span class="flex h-9 w-10 items-center pl-4" aria-hidden="true">
-                  <span class="size-3.5 rounded-[3px] border border-line-control bg-surface-raised"></span>
+                  <span class="size-3.5 rounded-xs border border-line-control bg-surface-raised"></span>
                 </span>
               </th>
               <th class="w-52">
@@ -794,7 +794,7 @@ defmodule NervesHubWeb.Components.DeviceList do
             <tr :for={row <- 0..(@rows - 1)} class="h-11 border-b border-line-subtle last:border-b-0 [&>td]:pr-4">
               <td class="p-0">
                 <span class="flex h-11 w-10 items-center pl-4">
-                  <span class="size-3.5 rounded-[3px] border border-line-control bg-surface-raised"></span>
+                  <span class="size-3.5 rounded-xs border border-line-control bg-surface-raised"></span>
                 </span>
               </td>
               <td>

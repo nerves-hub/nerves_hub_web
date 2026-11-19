@@ -160,7 +160,7 @@ defmodule NervesHubWeb.Live.Org.Integrations.Components do
 
   defp more_chip(assigns) do
     ~H"""
-    <span class="flex h-4.5 shrink-0 items-center rounded bg-surface-muted px-1.5 text-[11px]/3.5 font-medium text-content-muted">
+    <span class="flex h-4.5 shrink-0 items-center rounded bg-surface-muted px-1.5 text-2xs/3.5 font-medium text-content-muted">
       +{@count}
     </span>
     """
@@ -173,7 +173,7 @@ defmodule NervesHubWeb.Live.Org.Integrations.Components do
 
   def status_chip(%{status: :failing} = assigns) do
     ~H"""
-    <span class="inline-flex h-4.5 items-center gap-1 rounded bg-alert-soft px-1.5 text-[11px]/3.5 font-medium text-alert-content">
+    <span class="inline-flex h-4.5 items-center gap-1 rounded bg-alert-soft px-1.5 text-2xs/3.5 font-medium text-alert-content">
       <span class="lucide-circle-exclamation-point--bold size-3" aria-hidden="true"></span> Failing
     </span>
     """
@@ -181,7 +181,7 @@ defmodule NervesHubWeb.Live.Org.Integrations.Components do
 
   def status_chip(%{status: :off} = assigns) do
     ~H"""
-    <span class="inline-flex h-4.5 items-center rounded bg-surface-muted px-1.5 text-[11px]/3.5 font-medium text-content-muted">Off</span>
+    <span class="inline-flex h-4.5 items-center rounded bg-surface-muted px-1.5 text-2xs/3.5 font-medium text-content-muted">Off</span>
     """
   end
 
@@ -306,7 +306,7 @@ defmodule NervesHubWeb.Live.Org.Integrations.Components do
             phx-window-keydown={JS.exec("data-cancel", to: "##{@id}")}
             phx-key="escape"
             phx-click-away={JS.exec("data-cancel", to: "##{@id}")}
-            class="relative hidden w-full max-w-150 rounded-[10px] border border-line-default bg-surface-raised shadow-overlay transition"
+            class="relative hidden w-full max-w-150 rounded-md border border-line-default bg-surface-overlay shadow-overlay transition"
           >
             <div class="flex items-center gap-3 border-b border-line-subtle px-5 pt-5 pb-4 sm:px-6">
               <span class="flex size-8 shrink-0 items-center justify-center rounded-lg bg-surface-muted">

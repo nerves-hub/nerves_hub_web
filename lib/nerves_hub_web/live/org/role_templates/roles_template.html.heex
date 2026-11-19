@@ -4,9 +4,9 @@
       <div class="flex min-w-0 flex-col gap-1">
         <div class="flex items-baseline gap-2">
           <h2 id="roles-title" class="text-group-title text-content-strong">Roles</h2>
-          <span class="text-[13px] text-content-faint">{length(Permissions.built_in_roles()) + length(@custom_roles)}</span>
+          <span class="text-ui text-content-faint">{length(Permissions.built_in_roles()) + length(@custom_roles)}</span>
         </div>
-        <p class="text-[13px] text-content-muted">
+        <p class="text-ui text-content-muted">
           A member's role decides what they can change in {@org.name}. Every member can view its products, devices and settings.
         </p>
       </div>
@@ -23,8 +23,8 @@
 
     <div class="overflow-hidden rounded-lg border border-line-default bg-surface-raised shadow-card" role="table" aria-label={"#{@org.name} roles"}>
       <div role="row" class="hidden h-9 items-center gap-4 border-b border-line-subtle bg-surface px-5 md:flex">
-        <span role="columnheader" class="flex-1 text-[11px]/3.5 font-medium tracking-[0.06em] text-content-faint uppercase">Role</span>
-        <span role="columnheader" class="w-22.5 text-right text-[11px]/3.5 font-medium tracking-[0.06em] text-content-faint uppercase">Members</span>
+        <span role="columnheader" class="flex-1 text-label text-content-faint uppercase">Role</span>
+        <span role="columnheader" class="w-22.5 text-right text-label text-content-faint uppercase">Members</span>
         <span class="w-36" aria-hidden="true"></span>
       </div>
 
@@ -39,11 +39,11 @@
             <.link navigate={role_path(@org, role)} class="text-sm/4.5 font-medium text-content-strong hover:underline">
               {Utils.role_name(role)}
             </.link>
-            <span class="inline-flex items-center rounded bg-surface-muted px-1.5 text-[11px]/4.5 font-medium text-content-muted">Built-in</span>
+            <span class="inline-flex items-center rounded bg-surface-muted px-1.5 text-2xs/4.5 font-medium text-content-muted">Built-in</span>
           </div>
           <p class="text-xs text-content-muted">{built_in_description(role)}</p>
         </div>
-        <div role="cell" class="w-22.5 shrink-0 text-right text-[13px] text-content-body tabular-nums">
+        <div role="cell" class="w-22.5 shrink-0 text-right text-ui text-content-body tabular-nums">
           {member_count(@member_counts, role)}
         </div>
         <div role="cell" class="hidden w-36 shrink-0 md:block"></div>
@@ -63,7 +63,7 @@
           <p :if={role.description in [nil, ""]} class="text-xs text-content-faint">No description</p>
           <p :if={device_scope_label(role)} class="text-xs text-content-faint">{device_scope_label(role)}</p>
         </div>
-        <div role="cell" class="w-22.5 shrink-0 text-right text-[13px] text-content-body tabular-nums">
+        <div role="cell" class="w-22.5 shrink-0 text-right text-ui text-content-body tabular-nums">
           {member_count(@member_counts, role)}
         </div>
         <div role="cell" class="flex w-36 shrink-0 justify-end gap-2">

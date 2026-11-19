@@ -236,7 +236,7 @@ defmodule NervesHubWeb.Live.Org.Show do
   defp stat(assigns) do
     ~H"""
     <div class={["flex min-w-0 flex-col gap-2 bg-surface-raised", stat_size(@size)]}>
-      <dt class="text-label text-content-faint uppercase">{@label}</dt>
+      <dt class="truncate text-label text-content-faint uppercase" title={@label}>{@label}</dt>
       <dd class={["flex items-center text-content-strong tabular-nums", stat_figure(@size)]}>{render_slot(@inner_block)}</dd>
       <dd :if={@detail != []} class="text-xs text-content-muted">{render_slot(@detail)}</dd>
     </div>

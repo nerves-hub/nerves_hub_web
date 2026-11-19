@@ -3,7 +3,7 @@
     <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-6">
       <div class="flex min-w-0 flex-col gap-1">
         <div class="flex items-baseline gap-2">
-          <h2 id="cas-title" class="text-list-title text-content-strong">Certificate authorities</h2>
+          <h2 id="cas-title" class="text-card-title text-content-strong">Certificate authorities</h2>
           <span class="text-ui text-content-faint">{length(@certificates)}</span>
         </div>
         <p class="text-ui/4.5 text-content-muted">Devices can connect with a certificate signed by one of these.</p>
@@ -47,7 +47,7 @@
               </h3>
               <span
                 :if={cert.jitp}
-                class="inline-flex items-center gap-1 rounded bg-notice-soft px-1.5 text-[11px]/4.5 font-medium text-notice-content"
+                class="inline-flex items-center gap-1 rounded bg-notice-soft px-1.5 text-2xs/4.5 font-medium text-notice-content"
               >
                 <span class="lucide-plus size-3" aria-hidden="true"></span> Adds new devices to {cert.jitp.product.name}
               </span>

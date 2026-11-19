@@ -59,7 +59,7 @@ defmodule NervesHubWeb.Components.DevicePage.ActivityTab do
 
           <div :if={@days != []} class="flex flex-col px-4 pb-1.5">
             <section :for={{day, entries} <- @days} aria-label={day}>
-              <h3 class="flex h-8.5 items-center border-t border-line-subtle pt-1.5 text-label font-medium tracking-[0.06em] text-content-faint uppercase">
+              <h3 class="flex h-8.5 items-center border-t border-line-subtle pt-1.5 text-label font-medium text-content-faint uppercase">
                 {day}
               </h3>
               <ul>

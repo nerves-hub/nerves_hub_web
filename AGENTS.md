@@ -388,10 +388,17 @@ when adding or removing one.
   `@theme` block of `assets/css/app.css`, so use the name, not a bracketed
   size: `text-ui` (13px interface text, with `/4` or `/4.5` for its line
   height), `text-label` (the 11px uppercase label over a column or a figure),
-  `text-item-title` (the name over a card), and `text-figure` /
-  `text-figure-sm` for big numbers. Every card, panel and dashed placeholder
-  is `rounded-card` (4px), along with its `rounded-t-card` header and
-  `rounded-b-card` footer. Controls keep `rounded`, and menus `rounded-md`.
+  `text-2xs` (11px that isn't a label: a keyboard key, a count badge, a
+  chart's legend; nothing smaller outside a chart), five headings
+  (`text-home-title`, `text-page-title`, `text-section-title`,
+  `text-card-title` for a card, list, panel or top bar title, and
+  `text-group-title`), and three figures (`text-figure-xl`, `text-figure`,
+  `text-figure-sm`). A count on a card is the sans at the token's weight; a
+  value read as a reading is `font-mono text-figure font-normal`. Every card,
+  panel and dashed placeholder is `rounded-card` (4px), along with its
+  `rounded-t-card` header and `rounded-b-card` footer. Controls keep
+  `rounded`, menus `rounded-md`, meters `rounded-full`, and checkboxes and
+  legend swatches `rounded-xs`.
 - **Boundaries:** contexts (`lib/nerves_hub/`) hold business logic; web modules
   stay thin and call into them. Match the surrounding module's conventions,
   error handling, and naming rather than importing your own.

@@ -260,7 +260,7 @@ defmodule NervesHubWeb.Live.Org.CertificateAuthorities do
 
   defp validity_chip(assigns) do
     ~H"""
-    <span class={["rounded px-1.5 text-[11px]/4.5 font-medium", validity_class(elem(@validity, 0)), @class]}>{elem(@validity, 1)}</span>
+    <span class={["rounded px-1.5 text-2xs/4.5 font-medium", validity_class(elem(@validity, 0)), @class]}>{elem(@validity, 1)}</span>
     """
   end
 

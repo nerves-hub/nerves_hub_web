@@ -92,7 +92,7 @@
   --color-surface: #141417; /* app canvas / page background */
   --color-surface-muted: #18181b; /* sidebar, panels, table head */
   --color-surface-raised: #1c1c1f; /* cards, chips, inputs — between surface-muted and zinc-800 */
-  --color-surface-overlay: #18181b; /* menus, popovers, modals */
+  --color-surface-overlay: #222226; /* menus, popovers, modals: above a card, so a menu lifts off it */
 
   /* Hairlines. Named `line-*` because a `b-*` name reads as Tailwind's
      bottom-side syntax: `border-b-default` coloured all four sides.
@@ -195,23 +195,20 @@
   --text-section-title: 1.125rem; /* 18px: a section of a page */
   --text-section-title--line-height: 1.75rem;
   --text-section-title--font-weight: 600;
-  --text-item-title: 1.0625rem; /* 17px: the name over a card or a group of rows, such as a product card */
-  --text-item-title--line-height: 1.375rem;
-  --text-item-title--font-weight: 600;
-  --text-item-title--letter-spacing: -0.01em;
-  --text-list-title: 0.9375rem; /* 15px: the title over a list or table, on an organization's pages */
-  --text-list-title--line-height: 1.25rem;
-  --text-list-title--font-weight: 600;
-  --text-list-title--letter-spacing: -0.005em;
-  --text-card-title: 1rem; /* 16px: card and sidebar headers */
+  /* 16px: a card's or the sidebar's header, the title over a list or
+     table, the name over a product's or an organization's card, a panel or
+     sheet's title, and the top bar's title. */
+  --text-card-title: 1rem;
   --text-card-title--line-height: 1.5rem;
-  --text-card-title--font-weight: 500;
+  --text-card-title--font-weight: 600;
   --text-group-title: 0.875rem; /* 14px: a group inside a card */
   --text-group-title--line-height: 1.25rem;
   --text-group-title--font-weight: 600;
 
-  /* Figures: a count or measure shown large on a card, such as devices
-     online. Two sizes, one weight. */
+  /* Figures: three sizes. A count on a card, such as devices online, is the
+     sans at the token's weight. A value read as a reading (a page's
+     headline, a chart's figure, a detail page's stat row, a device's health)
+     is mono at its regular weight: `font-mono text-figure font-normal`. */
   --text-figure: 1.5rem; /* 24px: a card with the room, such as a product's own card */
   --text-figure--line-height: 1.75rem;
   --text-figure--font-weight: 600;
@@ -220,22 +217,11 @@
   --text-figure-sm--line-height: 1.5rem;
   --text-figure-sm--font-weight: 600;
   --text-figure-sm--letter-spacing: -0.02em;
-  /* A page's headline count, set in mono at its regular weight, such as the
-     fleet size over a product's Insights. xl from 640px, lg on a phone. */
+  /* A page's headline, such as the fleet size over a product's Insights,
+     from 640px; text-figure below that. */
   --text-figure-xl: 2rem; /* 32px */
   --text-figure-xl--line-height: 2.5rem;
   --text-figure-xl--letter-spacing: -0.03em;
-  --text-figure-lg: 1.75rem; /* 28px */
-  --text-figure-lg--line-height: 2.125rem;
-  --text-figure-lg--letter-spacing: -0.02em;
-  /* A chart's own figure, in mono at its regular weight, over the trends
-     on a product's Insights: md for firmware adoption, xs for the online
-     and healthy lines. */
-  --text-figure-md: 1.375rem; /* 22px */
-  --text-figure-md--line-height: 1.75rem;
-  --text-figure-md--letter-spacing: -0.02em;
-  --text-figure-xs: 1.125rem; /* 18px */
-  --text-figure-xs--line-height: 1.5rem;
 
   /* Small text, beside Tailwind's xs (12px) and sm (14px). */
   /* 13px: interface text, such as buttons, menus, table cells and summaries.
@@ -248,6 +234,10 @@
   --text-label--line-height: 0.875rem;
   --text-label--font-weight: 500;
   --text-label--letter-spacing: 0.06em;
+  /* 11px, not uppercase: a keyboard key, a count badge, a chart's legend.
+     The smallest interface text; only labels drawn inside a chart go below. */
+  --text-2xs: 0.6875rem;
+  --text-2xs--line-height: 0.875rem;
 
   /* 4px: every card, panel and dashed placeholder, so their corners match
      from page to page. Controls (rounded) and menus (rounded-md) have their own. */
@@ -289,15 +279,15 @@
   --color-chart-4: #c98500;
   --color-chart-5: #d55181;
   --color-chart-6: #008300;
-  --color-chart-other: #71717a;
+  --color-chart-other: var(--color-zinc-500);
 
-  /* The red that marks unhealthy and long-unseen devices in a chart. */
-  --color-chart-alert: #e5484d;
   /* The shading behind a figure in the Insights cross-tab: a cell is tinted
-     with chart-4 (warning), chart-alert (unhealthy) or this grey (unknown,
+     with chart-4 (warning), alert (unhealthy) or this grey (unknown,
      offline) by its share of the row, times --shade-strength, which dark
-     raises so the tints read on the dark surface. */
-  --color-shade-offline: #71717a;
+     raises so the tints read on the dark surface. A chart marks unhealthy
+     and long-unseen devices with --color-alert, the red the rest of the
+     interface uses. */
+  --color-shade-offline: var(--color-zinc-500);
   --shade-strength: 1.5;
 
   /* A version's name written beside its chart colour, as the adoption chart
@@ -382,8 +372,7 @@
   --color-chart-4: #eda100;
   --color-chart-5: #e87ba4;
   --color-chart-6: #008300;
-  --color-chart-other: #a1a1aa;
-  --color-chart-alert: #e7000b;
+  --color-chart-other: var(--color-zinc-400);
   --shade-strength: 1;
   --color-release: var(--color-indigo-500);
 
@@ -391,7 +380,9 @@
   --color-content-strong: var(--color-zinc-900); /* zinc-900 */
   --color-content-body: var(--color-zinc-700); /* zinc-700 */
   --color-content-muted: var(--color-zinc-600); /* zinc-600 */
-  --color-content-faint: var(--color-zinc-500); /* zinc-500, 4.8:1 on white; dark has its own */
+  /* A step darker than zinc-500 (4.4:1 on surface-muted), so labels hold
+     4.5:1 on every light surface: 4.7:1 on surface-muted, 5.2:1 on white. */
+  --color-content-faint: #6c6c76;
 
   /* Hairlines follow the design file: cards and rules sit lighter on white
      than their dark-mode counterparts do on the dark canvas. line-strong
@@ -421,6 +412,16 @@
   --shadow-control: 0 1px 2px rgb(24 24 27 / 0.12);
   --shadow-filter-slider:
     -16px 0 32px -4px rgb(24 24 27 / 0.08), 0 4px 4px -4px rgb(24 24 27 / 0.08);
+}
+
+/* An overlay sits above the cards in dark, so what is muted inside it (a
+   hovered menu item, an active option) lifts to zinc-800 rather than
+   dipping below the overlay. Light keeps its own surface-muted. */
+.bg-surface-overlay {
+  --color-surface-muted: var(--color-zinc-800);
+}
+[data-theme="light"] .bg-surface-overlay {
+  --color-surface-muted: #f4f4f5;
 }
 
 @custom-variant dark (&:where([data-theme=dark], [data-theme=dark] *));

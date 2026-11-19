@@ -550,14 +550,14 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
     <div id={"health-tile-#{@tile.id}"} class={["flex min-w-0 flex-col gap-1.5", phone_tile_class(@tile)]}>
       <span class="text-xs font-medium text-content-muted max-sm:text-sm max-sm:font-normal max-sm:text-content-body">{@tile.label}</span>
       <div class="flex h-7.5 items-baseline gap-3 max-sm:h-6 max-sm:gap-2">
-        <span class="w-12.5 shrink-0 text-2xl/7.5 font-medium tracking-[-0.02em] text-content-strong max-sm:w-auto max-sm:text-xl/6">
+        <span class="w-15 shrink-0 font-mono text-figure font-normal text-content-strong max-sm:w-auto max-sm:text-figure-sm">
           {load_value(@tile.values["load_1min"])}
         </span>
-        <span class="w-9.5 shrink-0 text-base font-medium text-content-body max-sm:w-auto max-sm:text-sm">{load_value(@tile.values["load_5min"])}</span>
-        <span class="w-9.5 shrink-0 text-base font-medium text-content-body max-sm:w-auto max-sm:text-sm">{load_value(@tile.values["load_15min"])}</span>
+        <span class="w-10 shrink-0 font-mono text-base text-content-body max-sm:w-auto max-sm:text-sm">{load_value(@tile.values["load_5min"])}</span>
+        <span class="w-10 shrink-0 font-mono text-base text-content-body max-sm:w-auto max-sm:text-sm">{load_value(@tile.values["load_15min"])}</span>
       </div>
       <div class="flex h-4 items-center gap-3 text-xs text-content-faint max-sm:hidden">
-        <span class="w-12.5 shrink-0">1 min</span><span class="w-9.5 shrink-0">5 min</span><span class="w-9.5 shrink-0">15 min</span>
+        <span class="w-15 shrink-0">1 min</span><span class="w-10 shrink-0">5 min</span><span class="w-10 shrink-0">15 min</span>
       </div>
       <span class="text-xs text-content-faint sm:hidden">1 · 5 · 15 min</span>
       <.tile_footnote spec={@spec} engaged={@engaged} prefix="15 min: " />
@@ -585,7 +585,7 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
         {@tile.label}<span :if={@tile.detail} class="font-normal max-sm:text-xs max-sm:text-content-faint"> · {@tile.detail}</span>
       </span>
       <div class="flex h-7.5 items-baseline gap-0.5 max-sm:h-6">
-        <span class="text-2xl/7.5 font-medium tracking-[-0.02em] text-content-strong max-sm:text-xl/6">{@tile.value}</span>
+        <span class="font-mono text-figure font-normal text-content-strong max-sm:text-figure-sm">{@tile.value}</span>
         <span :if={@tile.unit} class="text-sm text-content-muted">{@tile.unit}</span>
       </div>
       <div :if={@tile.percent} class="relative flex h-4 items-center max-sm:col-span-2" aria-hidden="true">
@@ -594,7 +594,7 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
         </div>
         <span
           :for={{level, threshold} <- bar_ticks(@spec)}
-          class={["absolute top-0.75 h-2.5 w-0.5 rounded-[1px]", if(level == :alert, do: "bg-alert", else: "bg-warning")]}
+          class={["absolute top-0.75 h-2.5 w-0.5 rounded-full", if(level == :alert, do: "bg-alert", else: "bg-warning")]}
           style={"left: #{threshold}%"}
         ></span>
       </div>

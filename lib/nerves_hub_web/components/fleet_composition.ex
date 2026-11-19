@@ -27,7 +27,7 @@ defmodule NervesHubWeb.Components.FleetComposition do
 
   @healthy "var(--color-chart-3)"
   @warning "var(--color-chart-4)"
-  @alert "var(--color-chart-alert)"
+  @alert "var(--color-alert)"
   @unknown "var(--color-line-control)"
 
   attr(:composition, :map, required: true, doc: "from `NervesHub.Insights.composition/2`")
@@ -63,7 +63,7 @@ defmodule NervesHubWeb.Components.FleetComposition do
         <div class="flex flex-col gap-1.5 @min-[640px]:gap-1">
           <div class="text-label text-content-faint uppercase @min-[640px]:font-semibold">What the fleet is made of</div>
           <div class="flex items-baseline gap-2 @min-[640px]:gap-2.5">
-            <span class="font-mono text-figure-lg text-content-strong @min-[640px]:text-figure-xl">{delimited(@total)}</span>
+            <span class="font-mono text-figure font-normal text-content-strong @min-[640px]:text-figure-xl">{delimited(@total)}</span>
             <span class="text-ui/4.5 text-content-muted @min-[640px]:text-sm">
               {if @total == 1, do: "device", else: "devices"}<span class="hidden @min-[640px]:inline">, each counted once in every bar</span>
             </span>
@@ -156,7 +156,7 @@ defmodule NervesHubWeb.Components.FleetComposition do
         <div class="text-xs text-content-muted">{render_slot(@summary)}</div>
       </div>
       <div class="flex min-w-0 flex-1 flex-col gap-2 @min-[640px]:gap-2.5">
-        <div class="flex h-2.5 gap-px overflow-hidden rounded-[3px] @min-[640px]:h-7 @min-[640px]:gap-0.5" role="img" aria-label={bar_label(@title, @segments, @total)}>
+        <div class="flex h-2.5 gap-px overflow-hidden rounded-full @min-[640px]:h-7 @min-[640px]:gap-0.5 @min-[640px]:rounded" role="img" aria-label={bar_label(@title, @segments, @total)}>
           <div :for={segment <- @segments} :if={segment.count > 0} class="h-full min-w-0.75" style={"flex: #{segment.count} 1 0%; background: #{segment.color}"}></div>
         </div>
         <div class="flex flex-wrap gap-x-3.5 gap-y-1 @min-[640px]:gap-x-7">
@@ -196,7 +196,7 @@ defmodule NervesHubWeb.Components.FleetComposition do
   # seen 7–14 d"), so a segment can carry a `short` one for under 640px.
   defp legend_body(assigns) do
     ~H"""
-    <span class="size-2 shrink-0 rounded-[2px]" style={"background: #{@segment.color}"}></span>
+    <span class="size-2 shrink-0 rounded-xs" style={"background: #{@segment.color}"}></span>
     <span class={["group-hover:underline", @segment[:mono] && "font-mono"]}>
       <span :if={@segment[:short]} class="@min-[640px]:hidden">{@segment.short}</span><span class={@segment[:short] && "hidden @min-[640px]:inline"}>{@segment.label}</span>
     </span>
@@ -309,13 +309,13 @@ defmodule NervesHubWeb.Components.FleetComposition do
     <section id="version-health" class="flex min-w-0 flex-col">
       <div class="hidden flex-col @min-[787px]:flex">
         <div class="flex items-baseline justify-between gap-4 pb-3">
-          <h2 class="text-list-title text-content-strong">Health and connection by firmware version</h2>
+          <h2 class="text-card-title text-content-strong">Health and connection by firmware version</h2>
           <p class="text-xs text-content-faint">Shading is the share of that version's devices</p>
         </div>
 
         <table class="w-196.75 table-fixed border-collapse">
           <thead>
-            <tr class="h-8 border-b border-line-default text-left text-label tracking-[0.04em] text-content-faint uppercase">
+            <tr class="h-8 border-b border-line-default text-left text-label text-content-faint uppercase">
               <th class="w-24 pl-2 font-medium">Version</th>
               <th class="w-52.75 font-medium">Devices</th>
               <th :for={heading <- ~w(Healthy Warning Unhealthy Unknown Offline)} class="w-24 pr-3 text-right font-medium">{heading}</th>
@@ -326,7 +326,7 @@ defmodule NervesHubWeb.Components.FleetComposition do
               :for={{row, index} <- @indexed}
               id={"version-row-#{index}"}
               data-flagged={flagged?(row, @flagged)}
-              class={["h-10 border-b border-line-subtle font-mono text-ui/4.5 last:border-line-default", flagged?(row, @flagged) && "shadow-[inset_2px_0_0_var(--color-chart-alert)]"]}
+              class={["h-10 border-b border-line-subtle font-mono text-ui/4.5 last:border-line-default", flagged?(row, @flagged) && "shadow-[inset_2px_0_0_var(--color-alert)]"]}
             >
               <td class="pl-2">
                 <.version_name row={row} color={version_color(row, index)} devices_path={@devices_path} />
@@ -334,8 +334,8 @@ defmodule NervesHubWeb.Components.FleetComposition do
               <td>
                 <div class="flex items-center gap-2.5">
                   <span class="w-10 shrink-0 text-right text-content-strong">{delimited(row.count)}</span>
-                  <span class="h-1.5 w-35 shrink-0 rounded-[3px] bg-surface-muted">
-                    <span class="block h-full rounded-[3px]" style={"width: #{row.count / @composition.total * 100}%; background: #{version_color(row, index)}"}></span>
+                  <span class="h-1.5 w-35 shrink-0 rounded-full bg-surface-muted">
+                    <span class="block h-full rounded-full" style={"width: #{row.count / @composition.total * 100}%; background: #{version_color(row, index)}"}></span>
                   </span>
                 </div>
               </td>
@@ -380,8 +380,8 @@ defmodule NervesHubWeb.Components.FleetComposition do
       </div>
 
       <div class="flex flex-col @min-[787px]:hidden">
-        <h2 class="text-list-title text-content-strong">Health by firmware version</h2>
-        <div class="flex h-9.5 items-center gap-2.5 border-b border-line-default pt-2 text-label tracking-[0.04em] text-content-faint uppercase">
+        <h2 class="text-card-title text-content-strong">Health by firmware version</h2>
+        <div class="flex h-9.5 items-center gap-2.5 border-b border-line-default pt-2 text-label text-content-faint uppercase">
           <span class="w-19 shrink-0">Version</span>
           <span class="w-10 shrink-0 text-right">Count</span>
           <span class="flex-1">Health</span>
@@ -391,11 +391,11 @@ defmodule NervesHubWeb.Components.FleetComposition do
           <li
             :for={{row, index} <- @indexed}
             data-flagged={flagged?(row, @flagged)}
-            class={["flex h-11 items-center gap-2.5 border-b border-line-subtle last:border-line-default", flagged?(row, @flagged) && "bg-(--color-chart-alert)/4"]}
+            class={["flex h-11 items-center gap-2.5 border-b border-line-subtle last:border-line-default", flagged?(row, @flagged) && "bg-alert/4"]}
           >
             <span class="w-19 shrink-0"><.version_name row={row} color={version_color(row, index)} devices_path={@devices_path} /></span>
             <span class="w-10 shrink-0 text-right font-mono text-ui/4.5 text-content-strong">{delimited(row.count)}</span>
-            <span class="min-w-0 flex-1"><.health_bar health={row.health} class="h-2 rounded-[2px]" /></span>
+            <span class="min-w-0 flex-1"><.health_bar health={row.health} class="h-2 rounded-full" /></span>
             <span class={["w-19 shrink-0 text-right font-mono text-ui/4.5", if(flagged?(row, @flagged), do: "font-semibold text-alert-content", else: "text-content-strong")]}>
               {percent(Insights.not_healthy(row.health), row.count)}
             </span>
@@ -403,7 +403,7 @@ defmodule NervesHubWeb.Components.FleetComposition do
         </ul>
         <div class="flex flex-wrap gap-x-3 gap-y-1 pt-2.5">
           <span :for={{label, color} <- health_colors()} class="flex items-center gap-1.25 text-xs text-content-muted">
-            <span class="size-2 shrink-0 rounded-[2px]" style={"background: #{color}"}></span>
+            <span class="size-2 shrink-0 rounded-xs" style={"background: #{color}"}></span>
             {label}
           </span>
         </div>
@@ -422,7 +422,7 @@ defmodule NervesHubWeb.Components.FleetComposition do
 
     ~H"""
     <span class="flex min-w-0 items-center gap-2">
-      <span class="size-2 shrink-0 rounded-[2px]" style={"background: #{@color}"}></span>
+      <span class="size-2 shrink-0 rounded-xs" style={"background: #{@color}"}></span>
       <.link :if={@href} navigate={@href} class={["truncate hover:underline", version_text_class(@row)]}>{row_label(@row)}</.link>
       <span :if={!@href} class={["truncate", version_text_class(@row)]}>{row_label(@row)}</span>
     </span>
@@ -511,7 +511,7 @@ defmodule NervesHubWeb.Components.FleetComposition do
   end
 
   defp shade_color("warning"), do: "var(--color-chart-4)"
-  defp shade_color("alert"), do: "var(--color-chart-alert)"
+  defp shade_color("alert"), do: "var(--color-alert)"
   defp shade_color("offline"), do: "var(--color-shade-offline)"
 
   defp totals(composition, offline) do
@@ -570,14 +570,14 @@ defmodule NervesHubWeb.Components.FleetComposition do
       )
 
     ~H"""
-    <.stands_out_card id="stands-out" accent="border-l-(--color-chart-alert)" label="Stands out" label_class="text-alert-content">
+    <.stands_out_card id="stands-out" accent="border-l-alert" label="Stands out" label_class="text-alert-content">
       <:headline>
         <span class="font-mono">{@row.version}</span> is {@fleet_share} of the fleet and {@unhealthy_share}.
       </:headline>
       {delimited(@row_not_healthy)} of its {delimited(@row.count)} devices are warning, unhealthy or unknown. {@comparison}
       <:extra>
         <div class="flex flex-col gap-1.5">
-          <.meter value={@rate} color="var(--color-chart-alert)" value_class="text-alert-content">
+          <.meter value={@rate} color="var(--color-alert)" value_class="text-alert-content">
             Not healthy on <span class="font-mono">{@row.version}</span>
           </.meter>
           <.meter value={@fleet_rate} color="var(--color-content-faint)" class="pt-1.5">Fleet average</.meter>
@@ -622,8 +622,8 @@ defmodule NervesHubWeb.Components.FleetComposition do
             <span class={["w-14 shrink-0 truncate text-xs", if(row.kind == :version, do: "font-mono text-content-strong", else: "text-content-muted")]}>
               {row_label(row)}
             </span>
-            <span class="relative h-1.5 w-50 min-w-0 shrink rounded-[3px] bg-surface-muted">
-              <span class="absolute inset-y-0 left-0 rounded-[3px]" style={"width: #{Insights.rate(row) / @scale * 100}%; background: #{version_color(row, index)}"}></span>
+            <span class="relative h-1.5 w-50 min-w-0 shrink rounded-full bg-surface-muted">
+              <span class="absolute inset-y-0 left-0 rounded-full" style={"width: #{Insights.rate(row) / @scale * 100}%; background: #{version_color(row, index)}"}></span>
               <span class="absolute -top-0.75 h-3 w-[1.5px] bg-content-strong" style={"left: #{@fleet_rate / @scale * 100}%"}></span>
             </span>
             <span class="shrink-0 font-mono text-xs text-content-strong">{percent(Insights.rate(row))}</span>
@@ -687,14 +687,14 @@ defmodule NervesHubWeb.Components.FleetComposition do
       <:extra>
         <div class="flex flex-col gap-2">
           <div :if={@row.kind == :version} class="text-xs text-content-muted">Health on <span class="font-mono">{@row.version}</span></div>
-          <.health_bar health={@row.health} unknown="var(--color-chart-other)" class="h-2 rounded-[3px]" />
+          <.health_bar health={@row.health} unknown="var(--color-chart-other)" class="h-2 rounded-full" />
           <div class="flex flex-wrap gap-x-3.5 gap-y-1">
             <span
               :for={{{label, color}, status} <- Enum.zip(health_colors("var(--color-chart-other)"), [:healthy, :warning, :unhealthy, :unknown])}
               :if={@row.health[status] > 0}
               class="flex items-center gap-1.5 text-xs text-content-muted"
             >
-              <span class="size-2 shrink-0 rounded-[2px]" style={"background: #{color}"}></span>
+              <span class="size-2 shrink-0 rounded-xs" style={"background: #{color}"}></span>
               <span><span class="font-mono">{delimited(@row.health[status])}</span> {String.downcase(label)}</span>
             </span>
           </div>
@@ -754,7 +754,7 @@ defmodule NervesHubWeb.Components.FleetComposition do
       ]}
     >
       <div class={["text-label font-semibold uppercase", @label_class]}>{@label}</div>
-      <p class="text-item-title/6 font-medium text-content-strong @min-[640px]:text-lg/6.5">{render_slot(@headline)}</p>
+      <p class="text-base/6 font-medium text-content-strong @min-[640px]:text-lg/6.5">{render_slot(@headline)}</p>
       <p class="text-ui/5 text-content-muted">{render_slot(@inner_block)}</p>
       <div :if={@extra != []} class="pt-0.5 @min-[640px]:pt-1">{render_slot(@extra)}</div>
       <div :if={@action != []} class="flex gap-2 pt-1 @min-[640px]:pt-1.5">{render_slot(@action)}</div>
@@ -776,8 +776,8 @@ defmodule NervesHubWeb.Components.FleetComposition do
         <span class="text-content-muted">{render_slot(@inner_block)}</span>
         <span class={["font-mono", @value_class]}>{@label || percent(@value)}</span>
       </div>
-      <div class="h-1.5 rounded-[3px] bg-surface-muted">
-        <div class="h-full rounded-[3px]" style={"width: #{@value * 100}%; background: #{@color}"}></div>
+      <div class="h-1.5 rounded-full bg-surface-muted">
+        <div class="h-full rounded-full" style={"width: #{@value * 100}%; background: #{@color}"}></div>
       </div>
     </div>
     """

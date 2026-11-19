@@ -408,7 +408,7 @@ defmodule NervesHubWeb.Components.DevicePage.LogsTab do
               <%!-- On a phone the time and level sit over the message, which
                     wraps instead of scrolling sideways. --%>
               <div class={[
-                "flex items-start gap-4 rounded-[3px] px-2 py-0.75 font-mono text-xs/4.5",
+                "flex items-start gap-4 rounded px-2 py-0.75 font-mono text-xs/4.5",
                 "max-sm:flex-wrap max-sm:gap-x-2.5 max-sm:gap-y-0.5 max-sm:rounded-none max-sm:border-b max-sm:border-line-subtle max-sm:px-3 max-sm:py-1.75",
                 alert_level?(line.level) && "bg-alert-soft max-sm:border-l-2 max-sm:border-l-alert max-sm:pl-2.5"
               ]}>

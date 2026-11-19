@@ -171,7 +171,7 @@ defmodule NervesHubWeb.Components.DevicePeek do
         </div>
 
         <section aria-labelledby="peek-activity" class="border-b border-line-default px-6 py-5">
-          <h3 id="peek-activity" class="text-label font-medium tracking-[0.06em] text-content-faint uppercase">Recent activity</h3>
+          <h3 id="peek-activity" class="text-label font-medium text-content-faint uppercase">Recent activity</h3>
           <ul :if={!@data.ok?} class="mt-3 flex flex-col gap-3" aria-hidden="true">
             <li :for={_ <- 1..3} class="h-4 w-2/3 animate-pulse rounded bg-surface-muted"></li>
           </ul>
@@ -250,7 +250,7 @@ defmodule NervesHubWeb.Components.DevicePeek do
 
     ~H"""
     <section id="peek-why" class="border-b border-line-default px-6 py-5">
-      <p class="text-label font-medium tracking-[0.06em] text-alert-content uppercase">Update failing</p>
+      <p class="text-label font-medium text-alert-content uppercase">Update failing</p>
       <p class="mt-1.5 text-base/5.5 font-semibold text-content-strong">
         <span class="font-mono">{@version}</span> has failed {times(@failures)}{latest_reason(@data)}
       </p>
@@ -290,7 +290,7 @@ defmodule NervesHubWeb.Components.DevicePeek do
     ~H"""
     <section id="peek-why" class="border-b border-line-default px-6 py-5">
       <p class={[
-        "text-label font-medium tracking-[0.06em] uppercase",
+        "text-label font-medium uppercase",
         if(@health.status == :unhealthy, do: "text-alert-content", else: "text-warning-content")
       ]}>
         {if @health.status == :unhealthy, do: "Unhealthy", else: "Warning"}
@@ -301,7 +301,7 @@ defmodule NervesHubWeb.Components.DevicePeek do
       <dl :if={@data.ok? && metrics(@data.result.metrics) != []} class="mt-4 grid grid-cols-4 overflow-hidden rounded-card border border-line-default">
         <div :for={{label, value} <- metrics(@data.result.metrics)} class="border-l border-line-subtle px-3 py-2.5 first:border-l-0">
           <dt class="text-label font-medium text-content-faint uppercase">{label}</dt>
-          <dd class="mt-0.5 font-mono text-figure-sm text-content-strong">{value}</dd>
+          <dd class="mt-0.5 font-mono text-figure-sm font-normal text-content-strong">{value}</dd>
         </div>
       </dl>
     </section>
@@ -313,7 +313,7 @@ defmodule NervesHubWeb.Components.DevicePeek do
 
     ~H"""
     <section id="peek-why" class="border-b border-line-default px-6 py-5">
-      <p class="text-label font-medium tracking-[0.06em] text-alert-content uppercase">Not seen in {Fleet.duration(@seconds)}</p>
+      <p class="text-label font-medium text-alert-content uppercase">Not seen in {Fleet.duration(@seconds)}</p>
       <p class="mt-1.5 text-base/5.5 font-semibold text-content-strong">
         Last seen {Calendar.strftime(@device.latest_connection.last_seen_at, "%-d %b %Y")}{last_ip(@device)}
       </p>
@@ -326,7 +326,7 @@ defmodule NervesHubWeb.Components.DevicePeek do
 
     ~H"""
     <section id="peek-why" class="border-b border-line-default px-6 py-5">
-      <p class="text-label font-medium tracking-[0.06em] text-notice-content uppercase">Updating</p>
+      <p class="text-label font-medium text-notice-content uppercase">Updating</p>
       <p class="mt-1.5 text-base/5.5 font-semibold text-content-strong">
         {if @version, do: "Installing ", else: "Installing an update"}<span :if={@version} class="font-mono">{@version}</span>
       </p>
@@ -363,7 +363,7 @@ defmodule NervesHubWeb.Components.DevicePeek do
 
   defp kbd(assigns) do
     ~H"""
-    <kbd class="inline-flex h-4.5 min-w-4.5 items-center justify-center rounded-[3px] border border-line-default px-1 font-sans text-[11px]/3.5 text-content-muted">
+    <kbd class="inline-flex h-4.5 min-w-4.5 items-center justify-center rounded border border-line-default px-1 font-sans text-2xs/3.5 text-content-muted">
       {render_slot(@inner_block)}
     </kbd>
     """

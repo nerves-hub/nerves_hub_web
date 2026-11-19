@@ -5,7 +5,7 @@
         Archives
       </.link>
       <span class="lucide-chevron-right size-3.5 text-content-faint" aria-hidden="true"></span>
-      <span aria-current="page" class="truncate font-mono text-[15px]/6 font-semibold text-content-strong">{@archive.version}</span>
+      <span aria-current="page" class="truncate font-mono text-card-title text-content-strong">{@archive.version}</span>
       <span class="truncate font-mono text-xs text-content-muted max-sm:hidden">{@archive.platform} · {@archive.architecture}</span>
     </nav>
 
@@ -30,8 +30,8 @@
     <div class="flex flex-col gap-6 px-4 pt-5 pb-8 @3xl:px-8 @3xl:pt-7">
       <div class="flex flex-col gap-2.5">
         <div class="flex flex-wrap items-baseline gap-x-3.5 gap-y-1">
-          <h1 class="font-mono text-[34px]/10 font-semibold tracking-[-0.02em] text-content-strong">{@archive.version}</h1>
-          <p :if={@archive.description} class="text-[15px]/5 text-content-body">{@archive.description}</p>
+          <h1 class="font-mono text-figure-xl font-semibold text-content-strong">{@archive.version}</h1>
+          <p :if={@archive.description} class="text-sm/5 text-content-body">{@archive.description}</p>
         </div>
         <div class="flex flex-wrap items-center gap-2">
           <%!-- Squarer and flatter than `<.tag>`. --%>
@@ -72,14 +72,14 @@
             <dl class="grid grid-cols-2 gap-x-10 gap-y-5 border-b border-line-subtle px-5 pt-5 pb-4.5 @3xl:flex">
               <div class="flex flex-col gap-1">
                 <dt class="text-label text-content-muted uppercase">Gets it now</dt>
-                <dd id="archive-gets-it-now" class="font-mono text-[28px]/8.5 font-medium tracking-[-0.02em] text-content-strong">{delimited(@delivery.gets_it_now)}</dd>
+                <dd id="archive-gets-it-now" class="font-mono text-figure font-normal text-content-strong">{delimited(@delivery.gets_it_now)}</dd>
                 <dd class="text-ui text-content-body">on their group’s release firmware</dd>
               </div>
               <div class="flex flex-col gap-1">
                 <dt class="text-label text-content-muted uppercase">Gets it after updating</dt>
                 <dd
                   id="archive-gets-it-after-updating"
-                  class={["font-mono text-[28px]/8.5 font-medium tracking-[-0.02em]", (@delivery.gets_it_after_updating > 0 && "text-notice-content") || "text-content-strong"]}
+                  class={["font-mono text-figure font-normal", (@delivery.gets_it_after_updating > 0 && "text-notice-content") || "text-content-strong"]}
                 >
                   {delimited(@delivery.gets_it_after_updating)}
                 </dd>
@@ -87,7 +87,7 @@
               </div>
               <div class="col-span-2 flex flex-col gap-1">
                 <dt class="text-label text-content-muted uppercase">Releases with it</dt>
-                <dd id="archive-releases-count" class="font-mono text-[28px]/8.5 font-medium tracking-[-0.02em] text-content-strong">{length(@releases)}</dd>
+                <dd id="archive-releases-count" class="font-mono text-figure font-normal text-content-strong">{length(@releases)}</dd>
                 <dd class="text-ui text-content-body">{current} current, {length(@releases) - current} past</dd>
               </div>
             </dl>

@@ -329,7 +329,7 @@ defmodule NervesHubWeb.Live.Org.Users do
       :if={!@user.profile_picture_url}
       data-tint={@tint}
       class={[
-        "flex size-7.5 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold",
+        "flex size-7.5 shrink-0 items-center justify-center rounded-full text-2xs font-semibold",
         "data-[tint=0]:bg-notice-soft data-[tint=0]:text-notice-content data-[tint=1]:bg-success-soft data-[tint=1]:text-success-content",
         "data-[tint=2]:bg-warning-soft data-[tint=2]:text-warning-content data-[tint=3]:bg-alert-soft data-[tint=3]:text-alert-content"
       ]}
