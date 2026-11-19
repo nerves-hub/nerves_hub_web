@@ -39,10 +39,10 @@ defmodule NervesHubWeb.Live.Product.NotificationsTest do
 
   @code_failure "A device could not run its connecting code."
 
-  # Moves a notification back in time, so tests can put it in a day's group
-  # or an order.
-  defp last_occurred!(notification, seconds_ago) do
-    at = DateTime.utc_now() |> DateTime.add(-seconds_ago, :second) |> DateTime.truncate(:second)
+  # Moves a notification back in time from `from`, so tests can put it in a
+  # day's group or an order.
+  defp last_occurred!(notification, seconds_ago, from \\ DateTime.utc_now()) do
+    at = from |> DateTime.add(-seconds_ago, :second) |> DateTime.truncate(:second)
 
     Notification
     |> Repo.get!(notification.id)
@@ -50,13 +50,18 @@ defmodule NervesHubWeb.Live.Product.NotificationsTest do
     |> Repo.update!()
   end
 
-  # `count` cards, the first the most recent, a minute apart, about devices
-  # "abc-01", "abc-02" and so on.
-  defp many!(product, count) do
+  # `count` cards, the first the most recent, a minute apart going back from
+  # `from`, about devices "abc-01", "abc-02" and so on.
+  defp many!(product, count, from \\ DateTime.utc_now()) do
     for n <- 1..count do
-      product |> code_failure!(identifier(n)) |> last_occurred!(n * 60)
+      product |> code_failure!(identifier(n)) |> last_occurred!(n * 60, from)
     end
   end
+
+  # Noon today in UTC, the zone the page uses when the browser sends none.
+  # Cards a minute apart back from it stay in today whatever the time, where
+  # cards back from now cross midnight for the first minutes of the day.
+  defp noon_today(), do: DateTime.new!(Date.utc_today(), ~T[12:00:00])
 
   defp identifier(n), do: "abc-#{String.pad_leading(Integer.to_string(n), 2, "0")}"
 
@@ -440,7 +445,7 @@ defmodule NervesHubWeb.Live.Product.NotificationsTest do
 
   describe "pages" do
     test "a page that starts partway through a day says it continues", %{conn: conn, org: org, product: product} do
-      _ = many!(product, 30)
+      _ = many!(product, 30, noon_today())
 
       conn
       |> visit(page_path(org, product))
