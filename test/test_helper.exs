@@ -49,6 +49,7 @@ Mimic.copy(NervesHub.Devices.Metrics)
 Mimic.copy(:telemetry)
 Mimic.copy(System)
 Mimic.copy(Ueberauth)
+Mimic.copy(Phoenix.Channel.Server)
 
 [capture_log: true, exclude: [:pending]]
 |> then(fn opts ->

@@ -9,12 +9,15 @@ defmodule NervesHub.DeviceEventsTest do
   """
 
   use NervesHub.DataCase, async: true
+  use Mimic
 
   alias NervesHub.Accounts
   alias NervesHub.DeviceEvents
+  alias NervesHub.Devices.Deployments
   alias NervesHub.FirmwareUpdates
   alias NervesHub.Fixtures
   alias NervesHub.Products
+  alias Phoenix.Channel.Server, as: ChannelServer
   alias Phoenix.Socket.Broadcast
 
   setup %{tmp_dir: tmp_dir} do
@@ -110,6 +113,33 @@ defmodule NervesHub.DeviceEventsTest do
       # the first request is the one still recorded
       assert %{firmware_uuid: firmware_uuid} = FirmwareUpdates.inflight_update_for(device)
       assert firmware_uuid == new_firmware.uuid
+    end
+  end
+
+  describe "schedule_update/3" do
+    # Told inside the transaction, the device's first report used to crash on
+    # the inflight row's unique index.
+    test "tells the device only once the inflight update is committed", context do
+      %{device: device, org_key: org_key, product: product, tmp_dir: tmp_dir, user: user} = context
+
+      new_firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+      deployment_group = Fixtures.deployment_group_fixture(new_firmware, %{is_active: true, user: user})
+      device = Deployments.update_deployment_group(device, deployment_group)
+
+      test = self()
+
+      stub(ChannelServer, :broadcast, fn pubsub, topic, event, payload ->
+        send(test, {:told, event, Repo.in_transaction?()})
+        call_original(ChannelServer, :broadcast, [pubsub, topic, event, payload])
+      end)
+
+      assert {:ok, inflight_update} = DeviceEvents.schedule_update(device.id, deployment_group)
+
+      assert_received {:told, "update", false}
+      assert_received %Broadcast{event: "update", payload: %{update_available: true}}
+
+      assert inflight_update.firmware_uuid == new_firmware.uuid
+      assert FirmwareUpdates.inflight_update_for(device).id == inflight_update.id
     end
   end
 

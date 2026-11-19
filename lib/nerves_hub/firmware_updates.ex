@@ -439,14 +439,21 @@ defmodule NervesHub.FirmwareUpdates do
     |> Repo.one!()
     |> case do
       %{inflight_update: nil} = device ->
-        inflight_update =
-          InflightUpdate.empty_requested_changeset(device.id)
-          |> Repo.insert!()
-          # the record was built here rather than by the query above, so the
-          # association is unloaded. It has no deployment_id, so nil is correct.
-          |> Map.put(:deployment_group, nil)
+        # Another request can be recording an update for this device at the same
+        # moment, in a transaction the read above could not see. The insert waits
+        # for it to commit and then gives way, and the device is read again with
+        # its row, rather than the conflict being raised.
+        InflightUpdate.empty_requested_changeset(device.id)
+        |> Repo.insert!(on_conflict: :nothing, conflict_target: :device_id)
+        |> case do
+          %InflightUpdate{id: nil} ->
+            fetch_device(device_id, opts)
 
-        Map.put(device, :inflight_update, inflight_update)
+          inflight_update ->
+            # the record was built here rather than by the query above, so the
+            # association is unloaded. It has no deployment_id, so nil is correct.
+            Map.put(device, :inflight_update, Map.put(inflight_update, :deployment_group, nil))
+        end
 
       device ->
         device
