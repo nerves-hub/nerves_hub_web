@@ -187,7 +187,7 @@ defmodule NervesHubWeb.Components.DevicePage.Header do
           "not-data-[connection-status=connected]:ring-line-subtle light:not-data-[connection-status=connected]:ring-surface-muted"
         ]}
       />
-      <span class="min-w-0 truncate font-mono text-[0.9375rem]/5 font-semibold text-content-strong">{@device.identifier}</span>
+      <span class="min-w-0 truncate font-mono text-card-title text-content-strong">{@device.identifier}</span>
       <span :if={@device.firmware_metadata} class="ml-2 shrink-0 font-mono text-xs text-content-muted">
         {@device.firmware_metadata.version}
       </span>
@@ -267,7 +267,7 @@ defmodule NervesHubWeb.Components.DevicePage.Header do
 
         <div class="flex items-center justify-between gap-3 px-4 pt-2.5 pb-3.5">
           <div class="flex min-w-0 flex-col gap-0.5">
-            <h2 id="device-more-sheet-title" class="truncate font-mono text-[0.9375rem]/5 font-semibold text-content-strong">{@device.identifier}</h2>
+            <h2 id="device-more-sheet-title" class="truncate font-mono text-card-title text-content-strong">{@device.identifier}</h2>
             <span class="truncate text-ui/4.5 text-content-muted">{@org.name} / {@product.name}</span>
           </div>
           <button

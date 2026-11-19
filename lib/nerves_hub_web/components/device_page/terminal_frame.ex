@@ -50,7 +50,7 @@ defmodule NervesHubWeb.Components.DevicePage.TerminalFrame do
         <div :if={@status == :connected} class="hidden h-14 shrink-0 items-center gap-2.5 border-b border-line-default bg-surface-raised pr-2 pl-4 terminal-typing:flex">
           <span class="size-2 shrink-0 rounded-full bg-success" aria-hidden="true"></span>
           <div class="flex min-w-0 flex-1 flex-col">
-            <span class="truncate font-mono text-[0.9375rem]/5 font-semibold text-content-strong">{@identifier}</span>
+            <span class="truncate font-mono text-card-title text-content-strong">{@identifier}</span>
             <span class="text-xs text-content-muted">{@name} · connected</span>
           </div>
           <button type="button" data-terminal-done class="flex h-11 cursor-pointer items-center px-2.5 text-base font-semibold text-primary">
@@ -81,7 +81,7 @@ defmodule NervesHubWeb.Components.DevicePage.TerminalFrame do
               class="hidden h-6.5 cursor-pointer items-center gap-1.5 rounded border border-white/10 px-2 text-neutral-300 hover:border-white/20 max-sm:hidden!"
               title="Send ⌥ (Option) to the device as Meta, for shortcuts such as M-b and M-f. Leave this off to type characters like [ ] { } | on non-US keyboard layouts."
             >
-              <input type="checkbox" id="option-as-meta" class="size-3 rounded-sm border-white/30 bg-transparent text-primary checked:bg-primary focus:ring-0" />
+              <input type="checkbox" id="option-as-meta" class="size-3 rounded-xs border-white/30 bg-transparent text-primary checked:bg-primary focus:ring-0" />
               <span>⌥ as Meta</span>
             </label>
             <label
