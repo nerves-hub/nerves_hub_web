@@ -284,9 +284,7 @@
   /* The shading behind a figure in the Insights cross-tab: a cell is tinted
      with chart-4 (warning), alert (unhealthy) or this grey (unknown,
      offline) by its share of the row, times --shade-strength, which dark
-     raises so the tints read on the dark surface. A chart marks unhealthy
-     and long-unseen devices with --color-alert, the red the rest of the
-     interface uses. */
+     raises so the tints read on the dark surface. */
   --color-shade-offline: var(--color-zinc-500);
   --shade-strength: 1.5;
 
