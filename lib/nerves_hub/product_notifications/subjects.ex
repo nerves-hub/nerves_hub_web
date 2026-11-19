@@ -26,10 +26,10 @@ defmodule NervesHub.ProductNotifications.Subjects do
   @typedoc """
   A notification's subject.
 
-  `state` is `:live` when it can be linked to. A device is `:soft_deleted`
-  while it's soft-deleted from this product, where its page can still be
-  opened to restore it, `:deleted` once it's gone for good or was deleted from
-  another product, and `:moved` when it is now in another of the
+  `state` is `:live` while the subject is still there. A device is
+  `:soft_deleted` while it's soft-deleted from this product, where its page
+  can still be opened to restore it, `:deleted` once it's gone for good or was
+  deleted from another product, and `:moved` when it is now in another of the
   organization's products. Anything else that has gone is `:removed`.
 
   `ref` is what a live or soft-deleted subject's page is found by: a device's

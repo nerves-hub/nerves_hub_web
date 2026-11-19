@@ -342,7 +342,8 @@ defmodule NervesHub.ProductNotifications.Copy do
   defp reason_clause(%{"reason" => reason}) when is_binary(reason) and reason != "", do: ": #{reason}"
   defp reason_clause(_m), do: ""
 
-  # Counts are written with thousands separators: "1,204 devices".
+  # Anything but an integer, such as a count missing from older metadata,
+  # passes through as it is.
   defp delimited(number) when is_integer(number), do: Number.Delimit.number_to_delimited(number, precision: 0)
   defp delimited(number), do: number
 

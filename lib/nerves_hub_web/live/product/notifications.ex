@@ -1,6 +1,8 @@
 defmodule NervesHubWeb.Live.Product.Notifications do
   use NervesHubWeb, :live_view
 
+  # Counts are written with thousands separators, which `ngettext` can't do:
+  # it puts the bare number in `%{count}`.
   import NervesHubWeb.Components.Fleet, only: [count_noun: 3, delimited: 1]
 
   alias NervesHub.Accounts.Scope
@@ -12,8 +14,6 @@ defmodule NervesHubWeb.Live.Product.Notifications do
   alias NervesHubWeb.Mounts.RequireEveryDevice
   alias Phoenix.Socket.Broadcast
 
-  # Counts are written with thousands separators, which `ngettext` can't do:
-  # it puts the bare number in `%{count}`.
   on_mount(RequireEveryDevice)
 
   @default_page_size 25
