@@ -469,7 +469,7 @@ defmodule NervesHubWeb.Router do
       live("/org/:org_name/:product_name/errors", Errors)
       live("/org/:org_name/:product_name/errors/:id", ErrorGroup)
       live("/org/:org_name/:product_name/devices", Live.Devices.Index)
-      live("/org/:org_name/:product_name/devices/new", Live.Devices.New)
+      live("/org/:org_name/:product_name/devices/new", Live.Devices.Index, :new)
       live("/org/:org_name/:product_name/devices/:device_identifier", Live.Devices.Show, :details)
 
       live(

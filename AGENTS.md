@@ -130,6 +130,12 @@ when adding or removing one.
   any other only if it opts in with a `custom#` prefix. Those rules are a wire
   contract with device clients; see
   [docs/device_client_identification.md](docs/device_client_identification.md).
+  A device keeps one connection row (`latest_device_connections`), which
+  started empty in April 2026, so a provisioned device with no row last
+  connected before then (`Connections.last_seen_unrecorded?/2`). It is not
+  "never connected" (that is a device still `registered`): `last_seen <`
+  filters match it, Insights counts it as not seen in 14 days, and pages show
+  its last seen as unknown.
 - `managed_deployments.ex` / `managed_deployments/` — deployment groups and the
   `Distributed.Orchestrator` (one per deployment). A release with a workflow
   is walked a step at a time (`Workflows`, `WorkflowCoordinator`); each step
@@ -203,8 +209,11 @@ when adding or removing one.
 - `insights.ex` / `insights/` - what a product's fleet is made of, for its
   Insights page: devices counted by connection, health and firmware version
   from PostgreSQL alone, and the version whose devices stand out as less
-  healthy than the fleet. Its groupings match the devices list's filters, so
-  each count links to the devices it counts. `insights/trends.ex` is how the
+  healthy than the fleet. Stands out counts only devices online or seen in
+  the last 7 days (`Insights.active_query/0`): a device that's gone can't
+  report its health and stays on the firmware it left with, so counting it
+  flags old versions for their dead devices. Its groupings match the devices
+  list's filters, so each count links to the devices it counts. `insights/trends.ex` is how the
   fleet moved over a period (adoption, update outcomes, online, healthy),
   from ClickHouse. History keeps only changes, so the shares are walked back
   from today's live counts and are shares of today's fleet. A version's
@@ -290,7 +299,13 @@ when adding or removing one.
   devices brings up `components/bulk_bar.ex`, a bar floating over the list whose buttons each
   open one popover (`bulk_menu` in the LiveView) for an action on all of
   them; every bulk action handler closes it, since a `phx-submit` command
-  only sends its first push. A product with no devices shows
+  only sends its first push. Add device opens `components/add_device.ex`, a
+  dialog over the list at `/devices/new` (the list's own `:new` action, so
+  its query stays put). It adds a device matched by identifier through the
+  product's shared secret, one with a secret of its own (shown once, then
+  it waits for the device to connect), or one with its certificate. The
+  tags line names the deployment groups they match
+  (`ManagedDeployments.deployment_groups_matching_tags/2`). A product with no devices shows
   `components/device_onboarding.ex` and looks for its first one every few
   seconds; filters that match nothing show `DeviceList.no_matches/1`, which
   counts what removing each would bring back. A different list (filters, tab,

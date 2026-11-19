@@ -19,7 +19,8 @@
 // one at a time to a list shown beside it, such as tag chips: Enter, a comma or
 // picking a suggestion pushes that event with `{tag}` and empties the field,
 // rather than leaving the tag in it. Enter with something typed doesn't submit
-// the form around it, so adding a tag never saves a half-finished form.
+// the form around it, so adding a tag never saves a half-finished form. The
+// event goes to the LiveComponent the field is in, or the LiveView if none.
 export default {
   mounted() {
     this.input = this.el.querySelector("[data-tag-input]")
@@ -196,7 +197,7 @@ export default {
   },
 
   commit(tag) {
-    this.pushEvent(this.commitEvent, { tag })
+    this.pushEventTo(this.el, this.commitEvent, { tag })
     this.input.value = ""
     this.hide()
   },

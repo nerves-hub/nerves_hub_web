@@ -55,6 +55,22 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
       |> assert_has("h1", text: "no-firmware-device")
+      |> assert_has("span", text: "Never connected")
+    end
+
+    test "with its last seen unknown when it connected before connection records were kept", %{
+      conn: conn,
+      org: org,
+      product: product,
+      fixture: %{firmware: firmware}
+    } do
+      # provisioned by its first connection, but with no connection row
+      device = Fixtures.device_fixture(org, product, firmware, %{status: :provisioned})
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      |> assert_has("span", text: "last seen unknown")
+      |> refute_has("span", text: "Never connected")
     end
 
     test "with a button for copying the identifier", %{

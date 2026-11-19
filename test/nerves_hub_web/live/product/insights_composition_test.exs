@@ -16,14 +16,17 @@ defmodule NervesHubWeb.Live.Product.InsightsCompositionTest do
   defp insights_path(org, product), do: ~p"/org/#{org}/#{product}/insights"
   defp devices_path(org, product, params), do: ~p"/org/#{org}/#{product}/devices?#{params}"
 
+  # The active devices that aren't healthy, as the Stands out card links to them.
+  @active_not_healthy ~s(health_status != "healthy" and connection != "not_seen" and not last_seen < "7 days ago")
+
   # `count` devices reporting `version` (no firmware at all when it's nil),
-  # each with `health`.
-  defp devices_on(%{org: org, product: product, firmware: firmware}, version, count, health \\ :healthy) do
+  # each with `health`. They have never connected.
+  defp devices_on(%{org: org, product: product, firmware: firmware}, version, count, health \\ :healthy, params \\ %{}) do
     {:ok, metadata} = Firmwares.metadata_from_firmware(firmware)
     firmware_metadata = if version, do: %{metadata | version: version}
 
     for _ <- 1..count do
-      device = Fixtures.device_fixture(org, product, firmware, %{firmware_metadata: firmware_metadata})
+      device = Fixtures.device_fixture(org, product, firmware, Map.put(params, :firmware_metadata, firmware_metadata))
 
       {:ok, _} =
         Health.save_device_health(%{
@@ -32,6 +35,19 @@ defmodule NervesHubWeb.Live.Product.InsightsCompositionTest do
           "status" => health,
           "status_reasons" => %{}
         })
+
+      device
+    end
+  end
+
+  # As `devices_on/4`, but each was last seen a day ago, so the Stands out
+  # card counts it.
+  defp seen_on(ctx, version, count, health \\ :healthy) do
+    for device <- devices_on(ctx, version, count, health, %{status: :provisioned}) do
+      Fixtures.device_connection_fixture(device, %{
+        status: :disconnected,
+        last_seen_at: DateTime.add(DateTime.utc_now(), -1, :day)
+      })
 
       device
     end
@@ -109,9 +125,9 @@ defmodule NervesHubWeb.Live.Product.InsightsCompositionTest do
 
   describe "the version table and stands-out card" do
     test "name a version whose devices are much less healthy than the fleet's", %{conn: conn} = ctx do
-      devices_on(ctx, "2.0.0", 30)
-      devices_on(ctx, "1.0.0", 4)
-      devices_on(ctx, "1.0.0", 6, :unhealthy)
+      seen_on(ctx, "2.0.0", 30)
+      seen_on(ctx, "1.0.0", 4)
+      seen_on(ctx, "1.0.0", 6, :unhealthy)
 
       conn
       |> visit(insights_path(ctx.org, ctx.product))
@@ -121,10 +137,13 @@ defmodule NervesHubWeb.Live.Product.InsightsCompositionTest do
       |> assert_has("#version-health tfoot", text: "Total 40")
       |> within("#stands-out", fn session ->
         session
-        |> assert_has("p", text: "1.0.0 is 25% of the fleet and 100% of its unhealthy devices.")
-        |> assert_has("p", text: "6 of its 10 devices are warning, unhealthy or unknown. On 2.0.0 none are.")
-        |> assert_has("a[href='#{devices_path(ctx.org, ctx.product, firmware_version: "1.0.0")}']",
-          text: "View 10 devices"
+        |> assert_has("p", text: "6 of 10 devices on 1.0.0 aren't healthy, against 1 in 7 across the fleet.")
+        |> assert_has("p", text: "All 6 are unhealthy. Every device on 2.0.0 is healthy.")
+        # every device was seen this week, so there is no one to leave out
+        |> refute_has("p", text: "Counts the")
+        |> assert_has(
+          "a[href='#{devices_path(ctx.org, ctx.product, firmware_version: "1.0.0", advanced_query: @active_not_healthy)}']",
+          text: "View 6 not healthy"
         )
       end)
     end
@@ -170,41 +189,68 @@ defmodule NervesHubWeb.Live.Product.InsightsCompositionTest do
       |> refute_has("#version-health tbody tr:last-child td a")
     end
 
-    test "take the share of devices that aren't healthy when none are unhealthy", %{conn: conn} = ctx do
-      devices_on(ctx, "2.0.0", 27)
-      devices_on(ctx, "2.0.0", 3, :warning)
-      devices_on(ctx, "1.0.0", 4)
-      devices_on(ctx, "1.0.0", 6, :warning)
+    test "say what each device that isn't healthy is", %{conn: conn} = ctx do
+      seen_on(ctx, "2.0.0", 27)
+      seen_on(ctx, "2.0.0", 3, :warning)
+      seen_on(ctx, "1.0.0", 4)
+      seen_on(ctx, "1.0.0", 3, :warning)
+      seen_on(ctx, "1.0.0", 2, :unhealthy)
+      seen_on(ctx, "1.0.0", 1, :unknown)
 
       conn
       |> visit(insights_path(ctx.org, ctx.product))
       |> within("#stands-out", fn session ->
         session
-        |> assert_has("p", text: "1.0.0 is 25% of the fleet and 67% of its devices that aren't healthy.")
-        |> assert_has("p", text: "6 of its 10 devices are warning, unhealthy or unknown. On 2.0.0 it is 1 in 10.")
+        |> assert_has("p", text: "6 of 10 devices on 1.0.0 aren't healthy, against 1 in 4 across the fleet.")
+        |> assert_has("p",
+          text: "2 are unhealthy, 3 have warnings and 1 isn't reporting health. On 2.0.0 it's 1 in 10."
+        )
+      end)
+    end
+
+    test "leave out devices that haven't been seen in the last 7 days", %{conn: conn} = ctx do
+      seen_on(ctx, "2.0.0", 18)
+      seen_on(ctx, "2.0.0", 2, :unhealthy)
+      # gone for weeks or never connected, with no health to report
+      devices_on(ctx, "1.0.0", 12, :unknown, %{status: :provisioned})
+      devices_on(ctx, "1.0.0", 3, :unknown)
+
+      conn
+      |> visit(insights_path(ctx.org, ctx.product))
+      |> refute_has("#version-health tr[data-flagged]")
+      |> within("#stands-out", fn session ->
+        session
+        |> assert_has("p", text: "Nothing stands out.")
+        |> assert_has("p", text: "Counts the 20 of 35 devices seen in the last 7 days.")
+        |> assert_has("span[title='No device on it was seen in the last 7 days']", text: "None seen")
+        |> assert_has("a[href='#{devices_path(ctx.org, ctx.product, advanced_query: @active_not_healthy)}']",
+          text: "View 2 not healthy"
+        )
       end)
     end
 
     test "say a version needs enough devices to stand out", %{conn: conn} = ctx do
-      devices_on(ctx, "2.0.0", 40)
-      devices_on(ctx, "2.0.0", 2, :warning)
-      devices_on(ctx, "1.0.0", 2)
-      devices_on(ctx, "1.0.0", 3, :warning)
+      seen_on(ctx, "2.0.0", 40)
+      seen_on(ctx, "2.0.0", 2, :warning)
+      seen_on(ctx, "1.0.0", 2)
+      seen_on(ctx, "1.0.0", 3, :warning)
 
       conn
       |> visit(insights_path(ctx.org, ctx.product))
       |> within("#stands-out", fn session ->
         session
         |> assert_has("p", text: "Nothing stands out.")
-        |> assert_has("p", text: "No version of 10 or more devices is twice the fleet's 10.6% not healthy")
+        |> assert_has("p",
+          text: "No version of 10 or more devices has 3 or more not healthy at twice the fleet's 10.6%"
+        )
       end)
     end
 
     test "say when nothing stands out", %{conn: conn} = ctx do
-      devices_on(ctx, "2.0.0", 18)
-      devices_on(ctx, "2.0.0", 2, :warning)
-      devices_on(ctx, "1.0.0", 9)
-      devices_on(ctx, "1.0.0", 1, :warning)
+      seen_on(ctx, "2.0.0", 18)
+      seen_on(ctx, "2.0.0", 2, :warning)
+      seen_on(ctx, "1.0.0", 9)
+      seen_on(ctx, "1.0.0", 1, :warning)
 
       conn
       |> visit(insights_path(ctx.org, ctx.product))
@@ -216,15 +262,17 @@ defmodule NervesHubWeb.Live.Product.InsightsCompositionTest do
           text:
             "Every version is within a point of the fleet's 10.0% not healthy, so the 3 devices that need a look aren't tied to one firmware."
         )
-        |> assert_has("a[href='#{devices_path(ctx.org, ctx.product, advanced_query: ~s(health_status != "healthy"))}']",
+        |> assert_has("a[href='#{devices_path(ctx.org, ctx.product, advanced_query: @active_not_healthy)}']",
           text: "View 3 not healthy"
         )
       end)
     end
 
     test "say when every device is healthy", %{conn: conn} = ctx do
-      devices_on(ctx, "2.0.0", 3)
-      devices_on(ctx, "1.0.0", 2)
+      seen_on(ctx, "2.0.0", 3)
+      seen_on(ctx, "1.0.0", 2)
+
+      offline_this_week = ~s(connection != "connected" and connection != "not_seen" and not last_seen < "7 days ago")
 
       conn
       |> visit(insights_path(ctx.org, ctx.product))
@@ -232,6 +280,22 @@ defmodule NervesHubWeb.Live.Product.InsightsCompositionTest do
         session
         |> assert_has("p", text: "All 5 devices are healthy.")
         |> assert_has("p", text: "The 5 offline were healthy when they last reported.")
+        |> assert_has("a[href='#{devices_path(ctx.org, ctx.product, advanced_query: offline_this_week)}']",
+          text: "View 5 offline"
+        )
+      end)
+    end
+
+    test "say when no device was seen in the last 7 days", %{conn: conn} = ctx do
+      devices_on(ctx, "2.0.0", 3)
+      devices_on(ctx, "1.0.0", 2, :unknown)
+
+      conn
+      |> visit(insights_path(ctx.org, ctx.product))
+      |> within("#stands-out", fn session ->
+        session
+        |> assert_has("p", text: "No device seen in the last 7 days.")
+        |> assert_has("p", text: "none of the 5 has been.")
         |> assert_has("a[href='#{devices_path(ctx.org, ctx.product, advanced_query: ~s(connection != "connected"))}']",
           text: "View 5 offline"
         )
@@ -239,8 +303,8 @@ defmodule NervesHubWeb.Live.Product.InsightsCompositionTest do
     end
 
     test "have nothing to compare with one version, and leave out the total", %{conn: conn} = ctx do
-      devices_on(ctx, "1.0.0", 2)
-      devices_on(ctx, "1.0.0", 1, :warning)
+      seen_on(ctx, "1.0.0", 2)
+      seen_on(ctx, "1.0.0", 1, :warning)
 
       conn
       |> visit(insights_path(ctx.org, ctx.product))

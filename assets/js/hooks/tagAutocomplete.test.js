@@ -16,7 +16,8 @@ function hook({ value = "", listHidden = true, activeIndex = -1 } = {}) {
     input: { value, focus() {} },
     list: { hidden: listHidden, innerHTML: "" },
     activeIndex,
-    pushEvent: (event, payload) => pushed.push([event, payload]),
+    el: {},
+    pushEventTo: (_target, event, payload) => pushed.push([event, payload]),
   })
 
   return { instance, pushed }

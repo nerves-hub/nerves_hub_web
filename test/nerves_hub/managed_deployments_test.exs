@@ -696,6 +696,36 @@ defmodule NervesHub.ManagedDeploymentsTest do
     end
   end
 
+  describe "deployment_groups_matching_tags/2" do
+    test "names the active groups whose tags the tags satisfy", %{user: user, product: product, firmware: firmware} do
+      group = fn name, conditions, active? ->
+        Fixtures.deployment_group_fixture(firmware, %{
+          name: name,
+          conditions: Map.put(conditions, "version", ""),
+          is_active: active?,
+          user: user
+        })
+      end
+
+      group.("all of them", %{"tags" => ["prod", "gothenburg"]}, true)
+      group.("any of them", %{"tags" => ["prod", "malmo"], "tag_operator" => "or"}, true)
+      group.("not all of them", %{"tags" => ["prod", "malmo"]}, true)
+      group.("no tags", %{"tags" => []}, true)
+      group.("inactive", %{"tags" => ["prod"]}, false)
+
+      {:ok, _locked} =
+        "locked"
+        |> group.(%{"tags" => ["prod"]}, true)
+        |> ManagedDeployments.update_deployment_group(%{lock_device_membership: true}, user)
+
+      names = fn tags -> Enum.map(ManagedDeployments.deployment_groups_matching_tags(product, tags), & &1.name) end
+
+      assert names.(["prod", "gothenburg"]) == ["all of them", "any of them"]
+      assert names.(["dev"]) == []
+      assert names.([]) == []
+    end
+  end
+
   describe "devices matching deployments" do
     test "finds all matching deployments", state do
       %{user: user, org: org, product: product, firmware: firmware} = state
