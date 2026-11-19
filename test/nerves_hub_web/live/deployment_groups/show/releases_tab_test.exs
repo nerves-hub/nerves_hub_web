@@ -439,6 +439,25 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show.ReleasesTabTest do
     assert_has(conn, "div", text: "Firmware: 1.0.0")
   end
 
+  test "names the product API key that made a release", %{
+    conn: conn,
+    user: user,
+    org: org,
+    org_key: org_key,
+    product: product,
+    deployment_group: deployment_group,
+    tmp_dir: tmp_dir
+  } do
+    api_key = Fixtures.api_key_fixture(product, user, %{"name" => "CI deploys"})
+    new_firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir, version: "1.0.1"})
+
+    {:ok, _} = ManagedDeployments.create_deployment_release(deployment_group, new_firmware, nil, api_key, %{})
+
+    conn
+    |> visit("/org/#{org.name}/#{product.name}/deployment_groups/#{deployment_group.name}/releases")
+    |> assert_has("span", text: "API key CI deploys")
+  end
+
   test "badges a release whose firmware has been deleted", %{
     conn: conn,
     user: user,

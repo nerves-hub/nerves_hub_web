@@ -3,6 +3,7 @@ defmodule NervesHub.ManagedDeployments do
 
   alias Ecto.Changeset
   alias NervesHub.Accounts.User
+  alias NervesHub.AuditLogs
   alias NervesHub.AuditLogs.DeploymentGroupTemplates
   alias NervesHub.AuditLogs.DeviceTemplates
   alias NervesHub.DeploymentOrchestratorEvents
@@ -311,9 +312,9 @@ defmodule NervesHub.ManagedDeployments do
   - Records audit logs depending on changes
   - Creates deployment release record if firmware_id or archive_id changed
   """
-  @spec update_deployment_group(DeploymentGroup.t(), map, User.t()) ::
+  @spec update_deployment_group(DeploymentGroup.t(), map, AuditLogs.actor()) ::
           {:ok, DeploymentGroup.t()} | {:error, Changeset.t()}
-  def update_deployment_group(deployment_group, params, _user) do
+  def update_deployment_group(deployment_group, params, _actor) do
     changeset = DeploymentGroup.update_changeset(deployment_group, params)
 
     Repo.transact(fn ->
@@ -352,10 +353,10 @@ defmodule NervesHub.ManagedDeployments do
     Repo.preload(deployment_group, [current_release: [:firmware, :archive, :steps]], force: force)
   end
 
-  def create_deployment_release(deployment_group, firmware, archive, user, params, opts \\ []) do
+  def create_deployment_release(deployment_group, firmware, archive, actor, params, opts \\ []) do
     Repo.transact(fn ->
       deployment_group = lock_current_release(deployment_group)
-      dr_changeset = DeploymentRelease.new_changeset(deployment_group, firmware, archive, params, user)
+      dr_changeset = DeploymentRelease.new_changeset(deployment_group, firmware, archive, params, actor)
 
       previous_release_id = deployment_group.current_deployment_release_id
 
@@ -363,7 +364,7 @@ defmodule NervesHub.ManagedDeployments do
            :ok <- WorkflowEvents.release_replaced(previous_release_id, release),
            {:ok, deployment_group} = recalculate_current_release(deployment_group),
            deployment_group = load_current_release(deployment_group, force: true),
-           :ok <- maybe_audit_new_deployment_release(user, deployment_group, opts),
+           :ok <- maybe_audit_new_deployment_release(actor, deployment_group, opts),
            {:ok, _} <- maybe_trigger_delta_generation(deployment_group, release),
            {:ok, release} <- recalculate_release_delta_status(release) do
         {:ok, {release, deployment_group}}
@@ -409,9 +410,9 @@ defmodule NervesHub.ManagedDeployments do
     |> load_current_release(force: true)
   end
 
-  defp maybe_audit_new_deployment_release(user, deployment_group, opts) do
+  defp maybe_audit_new_deployment_release(actor, deployment_group, opts) do
     if Keyword.get(opts, :audit, true) do
-      DeploymentGroupTemplates.audit_new_deployment_release(user, deployment_group)
+      DeploymentGroupTemplates.audit_new_deployment_release(actor, deployment_group)
     else
       :ok
     end
@@ -708,14 +709,14 @@ defmodule NervesHub.ManagedDeployments do
     Ecto.Changeset.change(%DeploymentGroup{})
   end
 
-  @spec create_deployment_group(map(), Product.t(), Firmware.t(), User.t()) ::
+  @spec create_deployment_group(map(), Product.t(), Firmware.t(), AuditLogs.actor()) ::
           {:ok, DeploymentGroup.t()} | {:error, Changeset.t()}
-  def create_deployment_group(params, %Product{} = product, firmware, user) do
+  def create_deployment_group(params, %Product{} = product, firmware, actor) do
     Repo.transact(fn ->
-      changeset = DeploymentGroup.create_changeset(params, product, firmware, user)
+      changeset = DeploymentGroup.create_changeset(params, product, firmware, actor)
 
       with {:ok, deployment_group} <- Repo.insert(changeset) do
-        DeploymentGroupTemplates.audit_deployment_created(user, deployment_group)
+        DeploymentGroupTemplates.audit_deployment_created(actor, deployment_group)
         recalculate_current_release(deployment_group)
       end
     end)
@@ -988,7 +989,7 @@ defmodule NervesHub.ManagedDeployments do
     |> order_by([r], desc: r.inserted_at, desc: r.id)
     # `deleted_by` because release history outlives the firmware it names: a
     # deleted release firmware is badged with who retired it.
-    |> preload([:created_by, :archive, firmware: :deleted_by])
+    |> preload([:created_by, :created_by_api_key, :archive, firmware: :deleted_by])
     |> Repo.all()
   end
 

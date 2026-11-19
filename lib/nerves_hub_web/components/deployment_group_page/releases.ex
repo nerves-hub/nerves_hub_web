@@ -220,7 +220,10 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Releases do
                     <span :if={release.created_by}>
                       {release.created_by.name}
                     </span>
-                    <span :if={!release.created_by} class="text-content-faint italic">
+                    <span :if={!release.created_by && release.created_by_api_key}>
+                      API key {release.created_by_api_key.name}
+                    </span>
+                    <span :if={!release.created_by && !release.created_by_api_key} class="text-content-faint italic">
                       Unknown
                     </span>
                   </div>

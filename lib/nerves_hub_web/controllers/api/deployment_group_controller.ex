@@ -2,6 +2,7 @@ defmodule NervesHubWeb.API.DeploymentGroupController do
   use NervesHubWeb, :api_controller
   use OpenApiSpex.ControllerSpecs
 
+  alias NervesHub.Accounts.Scope
   alias NervesHub.Archives
   alias NervesHub.AuditLogs.DeploymentGroupTemplates
   alias NervesHub.Firmwares
@@ -58,10 +59,11 @@ defmodule NervesHubWeb.API.DeploymentGroupController do
       ] ++ @auth_error_responses
   )
 
-  def create(%{assigns: %{current_scope: %{org: org, product: product, user: user}}} = conn, params) do
+  def create(%{assigns: %{current_scope: %{org: org, product: product} = scope}} = conn, params) do
     firmware = Firmwares.get_by_uuid(product, Map.get(params, "firmware"))
 
-    with {:ok, deployment_group} <- ManagedDeployments.create_deployment_group(params, product, firmware, user) do
+    with {:ok, deployment_group} <-
+           ManagedDeployments.create_deployment_group(params, product, firmware, Scope.actor(scope)) do
       conn
       |> put_status(:created)
       |> put_resp_header(
@@ -119,7 +121,7 @@ defmodule NervesHubWeb.API.DeploymentGroupController do
       ] ++ @auth_error_responses
   )
 
-  def update(%{assigns: %{current_scope: %{product: product, user: user}}} = conn, %{
+  def update(%{assigns: %{current_scope: %{product: product} = scope}} = conn, %{
         "name" => name,
         "deployment" => deployment_group_params
       })
@@ -140,14 +142,14 @@ defmodule NervesHubWeb.API.DeploymentGroupController do
              deployment_group,
              firmware,
              archive,
-             user,
+             Scope.actor(scope),
              release_params
            ) do
       render(conn, :show, deployment_group: updated_deployment_group)
     end
   end
 
-  def update(%{assigns: %{current_scope: %{product: product, user: user}}} = conn, %{
+  def update(%{assigns: %{current_scope: %{product: product} = scope}} = conn, %{
         "name" => name,
         "deployment" => deployment_group_params
       }) do
@@ -155,8 +157,8 @@ defmodule NervesHubWeb.API.DeploymentGroupController do
            ManagedDeployments.get_deployment_group_by_name(product, name),
          params = maybe_active_from_state(deployment_group_params),
          {:ok, updated_deployment_group} <-
-           ManagedDeployments.update_deployment_group(deployment_group, params, user) do
-      DeploymentGroupTemplates.audit_deployment_updated(user, deployment_group)
+           ManagedDeployments.update_deployment_group(deployment_group, params, Scope.actor(scope)) do
+      DeploymentGroupTemplates.audit_deployment_updated(Scope.actor(scope), deployment_group)
 
       render(conn, :show, deployment_group: updated_deployment_group)
     end

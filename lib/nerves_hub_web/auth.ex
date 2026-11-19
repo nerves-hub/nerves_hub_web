@@ -14,6 +14,8 @@ defmodule NervesHubWeb.Auth do
   alias NervesHub.Accounts.TwoFactor
   alias NervesHub.Accounts.User
   alias NervesHub.Accounts.UserToken
+  alias NervesHub.Products.ApiKey
+  alias NervesHub.Products.ApiKeys
   alias NervesHubWeb.API.ErrorJSON
 
   # Make the remember me cookie valid for 60 days.
@@ -315,6 +317,34 @@ defmodule NervesHubWeb.Auth do
     end
   end
 
+  @doc """
+  The scope for a token presented to the API: a user API token, or a product
+  API key.
+  """
+  @spec fetch_api_scope(String.t()) :: {:ok, Scope.t()} | :error
+  def fetch_api_scope(token) when is_binary(token) do
+    if ApiKey.token?(token) do
+      with {:ok, api_key} <- ApiKeys.authenticate(token) do
+        {:ok, Scope.for_api_key(api_key)}
+      end
+    else
+      with {:ok, user, user_token} <- Accounts.fetch_user_by_api_token(token),
+           :ok <- Accounts.mark_last_used(user_token) do
+        {:ok, Scope.for_user(user)}
+      else
+        _ -> :error
+      end
+    end
+  end
+
+  # A product API key's scope arrives with its org and product already on it,
+  # and is only good for those. A URL naming any other is not found, whatever
+  # the person who created the key can reach.
+  def assign_org_to_scope(%{assigns: %{current_scope: %Scope{api_key: %ApiKey{}} = scope}} = conn, _opts) do
+    ensure_api_key_scope!(conn.params["org_name"], scope.org.name)
+    conn
+  end
+
   def assign_org_to_scope(conn, _opts) do
     current_scope = conn.assigns.current_scope
 
@@ -377,6 +407,11 @@ defmodule NervesHubWeb.Auth do
     "#{name} requires two-factor authentication. Turn it on to reach the organization again."
   end
 
+  def assign_product_to_scope(%{assigns: %{current_scope: %Scope{api_key: %ApiKey{}} = scope}} = conn, _opts) do
+    ensure_api_key_scope!(conn.params["product_name"], scope.product.name)
+    conn
+  end
+
   def assign_product_to_scope(conn, _opts) do
     current_scope = conn.assigns.current_scope
 
@@ -388,6 +423,10 @@ defmodule NervesHubWeb.Auth do
       conn
     end
   end
+
+  defp ensure_api_key_scope!(nil, _scope_name), do: :ok
+  defp ensure_api_key_scope!(name, name), do: :ok
+  defp ensure_api_key_scope!(_name, _scope_name), do: raise(NervesHubWeb.NotFoundError)
 
   def on_mount(:assign_org_to_scope, %{"org_name" => org_name}, _session, socket) do
     socket =

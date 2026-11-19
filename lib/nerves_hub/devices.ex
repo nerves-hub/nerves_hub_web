@@ -33,6 +33,7 @@ defmodule NervesHub.Devices do
   alias NervesHub.ManagedDeployments.InflightDeploymentCheck
   alias NervesHub.ProductNotifications
   alias NervesHub.Products
+  alias NervesHub.Products.ApiKey
   alias NervesHub.Products.Product
   alias NervesHub.Repo
   alias NervesHub.Types.Tag
@@ -173,6 +174,7 @@ defmodule NervesHub.Devices do
   # right for a caller that already knows its user sees all of them.
   defp maybe_where_visible(query, nil), do: query
   defp maybe_where_visible(query, %User{} = user), do: Visibility.where_visible(query, user)
+  defp maybe_where_visible(query, %ApiKey{} = api_key), do: Visibility.where_visible(query, api_key)
 
   def get_device_count_by_org_id_and_product_id(org_id, product_id) do
     query =
@@ -376,7 +378,7 @@ defmodule NervesHub.Devices do
 
   defp get_by_identifier_query(%Scope{org: org} = scope, identifier, preload_assoc) when not is_nil(org) do
     Device
-    |> Visibility.where_visible(scope.user)
+    |> Visibility.where_visible(scope)
     |> join(:left, [d], o in assoc(d, :org), as: :org)
     |> where(identifier: ^identifier)
     |> where(org_id: ^org.id)
@@ -556,19 +558,19 @@ defmodule NervesHub.Devices do
   end
 
   @doc """
-  Creates a shared secret for a device on a user's behalf, recording who
-  created it, and audits it.
+  Creates a shared secret for a device on `actor`'s behalf, recording the user
+  who created it (none for a product API key), and audits it.
 
   Returns `{:error, :shared_secrets_not_enabled}` when this platform doesn't
   accept shared secrets, since the device could never connect with one.
   """
-  @spec issue_shared_secret_auth(Device.t(), User.t()) ::
+  @spec issue_shared_secret_auth(Device.t(), AuditLogs.actor()) ::
           {:ok, SharedSecretAuth.t()} | {:error, Changeset.t() | :shared_secrets_not_enabled}
-  def issue_shared_secret_auth(device, user) do
+  def issue_shared_secret_auth(device, actor) do
     if DeviceLink.shared_secrets_enabled?() do
       Repo.transact(fn ->
-        with {:ok, auth} <- create_shared_secret_auth(device, %{created_by_id: user.id}) do
-          DeviceTemplates.audit_shared_secret_created(user, device, auth)
+        with {:ok, auth} <- create_shared_secret_auth(device, %{created_by_id: AuditLogs.actor_user_id(actor)}) do
+          DeviceTemplates.audit_shared_secret_created(actor, device, auth)
           {:ok, auth}
         end
       end)
@@ -578,9 +580,9 @@ defmodule NervesHub.Devices do
   end
 
   @doc """
-  Deactivates one of a device's active shared secrets on a user's behalf, so
-  the device can no longer connect with it, recording who deactivated it, and
-  audits it.
+  Deactivates one of a device's active shared secrets on `actor`'s behalf, so
+  the device can no longer connect with it, recording the user who deactivated
+  it (none for a product API key), and audits it.
 
   A single update, so the key's ownership, that it is still active, and the
   change itself can't be split by a concurrent request. Returns
@@ -589,19 +591,25 @@ defmodule NervesHub.Devices do
   Connections authenticated with the key are then closed. The device's other
   connections, made with a certificate or another key, stay up.
   """
-  @spec deactivate_shared_secret_auth(Device.t(), String.t(), User.t()) ::
+  @spec deactivate_shared_secret_auth(Device.t(), String.t(), AuditLogs.actor()) ::
           {:ok, SharedSecretAuth.t()} | {:error, :not_found}
-  def deactivate_shared_secret_auth(%Device{id: device_id} = device, key, user) do
+  def deactivate_shared_secret_auth(%Device{id: device_id} = device, key, actor) do
     now = DateTime.truncate(DateTime.utc_now(), :second)
 
     Repo.transact(fn ->
       SharedSecretAuth
       |> where([ssa], ssa.device_id == ^device_id and ssa.key == ^key and is_nil(ssa.deactivated_at))
       |> select([ssa], ssa)
-      |> Repo.update_all(set: [deactivated_at: now, deactivated_by_id: user.id, updated_at: DateTime.to_naive(now)])
+      |> Repo.update_all(
+        set: [
+          deactivated_at: now,
+          deactivated_by_id: AuditLogs.actor_user_id(actor),
+          updated_at: DateTime.to_naive(now)
+        ]
+      )
       |> case do
         {1, [auth]} ->
-          DeviceTemplates.audit_shared_secret_deactivated(user, device, auth)
+          DeviceTemplates.audit_shared_secret_deactivated(actor, device, auth)
           {:ok, auth}
 
         {0, []} ->
@@ -628,12 +636,12 @@ defmodule NervesHub.Devices do
 
   Takes the same options as `create_device/4`.
   """
-  @spec create_device_with_shared_secret_auth(Product.t(), map(), User.t(), keyword()) ::
+  @spec create_device_with_shared_secret_auth(Product.t(), map(), AuditLogs.actor(), keyword()) ::
           {:ok, {Device.t(), SharedSecretAuth.t()}} | {:error, Changeset.t() | :shared_secrets_not_enabled}
-  def create_device_with_shared_secret_auth(%Product{} = product, params, user, opts \\ []) do
+  def create_device_with_shared_secret_auth(%Product{} = product, params, actor, opts \\ []) do
     Repo.transact(fn ->
-      with {:ok, device} <- create_device(product, params, user, opts),
-           {:ok, auth} <- issue_shared_secret_auth(device, user) do
+      with {:ok, device} <- create_device(product, params, actor, opts),
+           {:ok, auth} <- issue_shared_secret_auth(device, actor) do
         {:ok, {device, auth}}
       end
     end)
@@ -697,22 +705,23 @@ defmodule NervesHub.Devices do
   end
 
   @doc """
-  Add a device to `product` on `user`'s behalf, as `create_device/2` does.
+  Add a device to `product` on `actor`'s behalf, as `create_device/2` does.
 
   ## Options
 
     * `:managed_updates_allowed` - start the device with this grant instead of
       the product's default. When it differs from the default, it is set
       through `Updates.set_managed_updates_allowed/3` in the same transaction
-      as the insert, so `user` gets the same audit entry as for changing it
+      as the insert, so `actor` gets the same audit entry as for changing it
       later. As with `update_device_settings/4`, it is an option rather than a
       param so that params a form posts can't set it.
   """
-  @spec create_device(Product.t(), map(), User.t(), keyword()) :: {:ok, Device.t()} | {:error, Changeset.t()}
-  def create_device(%Product{} = product, params, %User{} = user, opts) do
+  @spec create_device(Product.t(), map(), AuditLogs.actor(), keyword()) ::
+          {:ok, Device.t()} | {:error, Changeset.t()}
+  def create_device(%Product{} = product, params, actor, opts) do
     Repo.transact(fn ->
       with {:ok, device} <- create_device(product, params) do
-        set_managed_updates_allowed(device, opts[:managed_updates_allowed], user)
+        set_managed_updates_allowed(device, opts[:managed_updates_allowed], actor)
       end
     end)
   end
@@ -1153,15 +1162,15 @@ defmodule NervesHub.Devices do
   `kind` says what sort of change it is, for the icon the device's Activity
   tab draws (see `NervesHub.AuditLogs.AuditLog.kinds/0`).
   """
-  @spec update_device_with_audit(Device.t(), map(), User.t() | Device.t(), String.t(), AuditLog.kind()) ::
+  @spec update_device_with_audit(Device.t(), map(), AuditLogs.actor() | Device.t(), String.t(), AuditLog.kind()) ::
           {:ok, Device.t()} | {:error, any(), any(), any()}
-  def update_device_with_audit(device, params, user, description, kind) do
+  def update_device_with_audit(device, params, actor, description, kind) do
     Multi.new()
     |> Multi.run(:update_with_audit, fn _, _ ->
       update_device(device, params, broadcast: false)
     end)
     |> Multi.run(:audit_device, fn _, _ ->
-      AuditLogs.audit(user, device, description, kind: kind)
+      AuditLogs.audit(actor, device, description, kind: kind)
     end)
     |> Repo.transact()
     |> case do
@@ -1199,16 +1208,16 @@ defmodule NervesHub.Devices do
       it is considered straight away. `Device.cast_update_mode/2` turns a
       request's params into this option.
   """
-  @spec update_device_settings(Device.t(), map(), User.t(), keyword()) ::
+  @spec update_device_settings(Device.t(), map(), AuditLogs.actor(), keyword()) ::
           {:ok, Device.t()} | {:error, Changeset.t()}
-  def update_device_settings(%Device{} = device, params, %User{} = user, opts \\ []) do
-    description = "User #{user.name} updated device #{device.identifier}"
+  def update_device_settings(%Device{} = device, params, actor, opts \\ []) do
+    description = "#{AuditLogs.actor_name(actor)} updated device #{device.identifier}"
 
     Repo.transact(fn ->
       with {:ok, updated} <- device |> Device.update_changeset(params) |> Repo.update(),
-           {:ok, _audit_log} <- AuditLogs.audit(user, device, description, kind: :device_updated),
-           {:ok, updated} <- set_managed_updates_allowed(updated, opts[:managed_updates_allowed], user) do
-        set_update_mode(updated, opts[:update_mode], user)
+           {:ok, _audit_log} <- AuditLogs.audit(actor, device, description, kind: :device_updated),
+           {:ok, updated} <- set_managed_updates_allowed(updated, opts[:managed_updates_allowed], actor) do
+        set_update_mode(updated, opts[:update_mode], actor)
       end
     end)
     |> case do
@@ -1249,6 +1258,18 @@ defmodule NervesHub.Devices do
   defp set_update_mode(device, _mode, _user), do: {:ok, device}
 
   @spec get_devices_by_id(Scope.t(), [non_neg_integer()]) :: [Device.t()]
+  # A product API key reaches one product, so there is no membership to join
+  # through; its own role still decides which of that product's devices it sees.
+  def get_devices_by_id(%Scope{api_key: %ApiKey{} = api_key, product: product}, ids) when is_list(ids) do
+    Device
+    |> Visibility.where_visible(api_key)
+    |> join(:left, [d], o in assoc(d, :org), as: :org)
+    |> where([d], d.id in ^ids)
+    |> where(product_id: ^product.id)
+    |> where_org_not_deleted()
+    |> Repo.all()
+  end
+
   def get_devices_by_id(%Scope{user: user}, ids) when is_list(ids) do
     Device
     |> Visibility.where_visible(user)

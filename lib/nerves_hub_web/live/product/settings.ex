@@ -1,7 +1,7 @@
 defmodule NervesHubWeb.Live.Product.Settings do
   use NervesHubWeb, :live_view
 
-  import NervesHubWeb.Components.ProductSettings, only: [title: 1, tabs: 1]
+  import NervesHubWeb.Components.ProductSettings, only: [title: 1, tabs: 1, dialog: 1]
   import NervesHubWeb.Components.Switch, only: [switch: 1]
   import Number.Delimit, only: [number_to_delimited: 2]
 
@@ -11,6 +11,7 @@ defmodule NervesHubWeb.Live.Product.Settings do
   alias NervesHub.Extensions
   alias NervesHub.Firmwares.UpdateTool
   alias NervesHub.Products
+  alias NervesHub.Products.ApiKeys
   alias NervesHub.Products.HealthProfiles
   alias NervesHub.Products.Product
   alias NervesHubWeb.Mounts.RequireEveryDevice
@@ -62,6 +63,7 @@ defmodule NervesHubWeb.Live.Product.Settings do
     |> assign(:shared_auth_enabled, DeviceLink.shared_secrets_enabled?())
     |> assign(:new_secret_id, nil)
     |> assign(:profile_count, HealthProfiles.count_for_product(product))
+    |> assign(:api_key_count, ApiKeys.active_count(product))
     |> assign(:extensions, extensions())
     |> assign(:optional_tools, optional_tools())
     |> assign(:confirm, nil)
@@ -729,29 +731,6 @@ defmodule NervesHubWeb.Live.Product.Settings do
         </.button>
       </:actions>
     </.dialog>
-    """
-  end
-
-  attr(:id, :string, required: true)
-  attr(:title, :string, required: true)
-  slot(:inner_block, required: true)
-  slot(:actions)
-
-  # Cancel, Escape and a click outside all send `cancel-confirm`.
-  defp dialog(assigns) do
-    ~H"""
-    <NervesHubWeb.CoreComponents.modal id={@id} show on_cancel={JS.push("cancel-confirm")}>
-      <div class="flex max-w-lg flex-col gap-4">
-        <h2 id={"#{@id}-title"} class="pr-8 text-section-title text-content-strong">{@title}</h2>
-        <div id={"#{@id}-description"} class="flex flex-col gap-3 text-ui/5 text-content-body">
-          {render_slot(@inner_block)}
-        </div>
-        <div class="flex justify-end gap-2 max-sm:flex-col-reverse max-sm:*:h-11 max-sm:*:w-full">
-          <.button phx-click={JS.exec("data-cancel", to: "##{@id}")}>Cancel</.button>
-          {render_slot(@actions)}
-        </div>
-      </div>
-    </NervesHubWeb.CoreComponents.modal>
     """
   end
 end

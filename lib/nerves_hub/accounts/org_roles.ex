@@ -14,6 +14,7 @@ defmodule NervesHub.Accounts.OrgRoles do
   alias NervesHub.Accounts.OrgRole
   alias NervesHub.Accounts.OrgUser
   alias NervesHub.Accounts.PubSub, as: AccessPubSub
+  alias NervesHub.Products.ApiKeys
   alias NervesHub.Repo
 
   @doc """
@@ -65,7 +66,9 @@ defmodule NervesHub.Accounts.OrgRoles do
   Every member holding the role is told their membership changed, as when an
   admin gives them another role: pages they have open mount again with the new
   permissions, and consoles, local shells and device event streams the role no
-  longer allows close (see `NervesHub.Accounts.PubSub`).
+  longer allows close (see `NervesHub.Accounts.PubSub`). Any socket open with
+  a product API key holding the role is disconnected, to reconnect with the
+  role as it now is.
   """
   @spec update_org_role(OrgRole.t(), map()) :: {:ok, OrgRole.t()} | {:error, Changeset.t()}
   def update_org_role(%OrgRole{} = role, params) do
@@ -77,6 +80,8 @@ defmodule NervesHub.Accounts.OrgRoles do
       |> Repo.all()
       |> Enum.each(&AccessPubSub.broadcast_membership_changed(role.org_id, &1))
 
+      :ok = ApiKeys.disconnect_holders(role)
+
       {:ok, role}
     end
   end
@@ -84,9 +89,10 @@ defmodule NervesHub.Accounts.OrgRoles do
   @doc """
   Deletes a custom role nobody uses.
 
-  Returns `{:error, :in_use}` while a member holds the role or an outstanding
-  invite offers it. Deleting it then would quietly change what those people
-  can do, so they have to be moved to another role first.
+  Returns `{:error, :in_use}` while a member holds the role, an outstanding
+  invite offers it, or a product API key holds it. Deleting it then would
+  quietly change what those people, or that automation, can do, so they have to
+  be moved to another role first.
   """
   @spec delete_org_role(OrgRole.t()) :: {:ok, OrgRole.t()} | {:error, :in_use} | {:error, Changeset.t()}
   def delete_org_role(%OrgRole{} = role) do
@@ -134,7 +140,7 @@ defmodule NervesHub.Accounts.OrgRoles do
     end)
   end
 
-  defp in_use?(%OrgRole{id: id, org_id: org_id}) do
+  defp in_use?(%OrgRole{id: id, org_id: org_id} = role) do
     held? =
       org_id
       |> active_members()
@@ -149,7 +155,7 @@ defmodule NervesHub.Accounts.OrgRoles do
       |> where([i], is_nil(i.declined_at))
       |> Repo.exists?()
 
-    held? or offered?
+    held? or offered? or ApiKeys.any_with_org_role?(role)
   end
 
   defp active_members(org_id) do
