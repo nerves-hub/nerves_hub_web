@@ -15,6 +15,7 @@ defmodule NervesHubWeb.Components.DevicePeek do
 
   import NervesHubWeb.Helpers.Authorization, only: [authorized?: 2]
 
+  alias NervesHub.Devices.Connections
   alias NervesHub.Devices.Device
   alias NervesHub.Devices.DeviceFiltering
   alias NervesHubWeb.Components.DeviceList
@@ -38,13 +39,15 @@ defmodule NervesHubWeb.Components.DevicePeek do
           nil
           | {:failing, String.t(), pos_integer()}
           | {:health, map()}
-          | {:not_seen, non_neg_integer()}
+          | {:not_seen, non_neg_integer() | nil}
           | {:updating, map(), String.t() | nil}
 
   @doc """
   What the panel's "why" section is about, if anything: an update the device
   keeps failing, a warning or unhealthy health report, not being seen for
   #{DeviceFiltering.not_seen_days()} days or more, or an update it is installing, in that order.
+  How long it hasn't been seen is nil when its last connection is older than
+  any connection record (`Connections.last_seen_unrecorded?/2`).
   """
   @spec reason(Device.t(), String.t() | nil, map() | nil) :: reason()
   def reason(device, status, progress) do
@@ -64,6 +67,7 @@ defmodule NervesHubWeb.Components.DevicePeek do
       {"online", _seconds, {:updating, progress, version}} -> {:updating, progress, version}
       {"online", _seconds, _state} -> nil
       {_status, seconds, _state} when is_integer(seconds) and seconds >= not_seen -> {:not_seen, seconds}
+      {_status, :unrecorded, _state} -> {:not_seen, nil}
       {_status, _seconds, {:updating, progress, version}} -> {:updating, progress, version}
       _ -> nil
     end
@@ -72,7 +76,9 @@ defmodule NervesHubWeb.Components.DevicePeek do
   defp last_seen_seconds(%Device{latest_connection: %{last_seen_at: %DateTime{} = seen}}),
     do: max(DateTime.diff(DateTime.utc_now(), seen), 0)
 
-  defp last_seen_seconds(_device), do: nil
+  defp last_seen_seconds(%Device{latest_connection: connection} = device) do
+    if Connections.last_seen_unrecorded?(device, connection), do: :unrecorded
+  end
 
   attr(:device, Device, required: true)
   attr(:status, :string, default: nil, doc: ~s("online" or "offline", as the list tracks it))
@@ -308,6 +314,16 @@ defmodule NervesHubWeb.Components.DevicePeek do
     """
   end
 
+  defp why(%{reason: {:not_seen, nil}} = assigns) do
+    ~H"""
+    <section id="peek-why" class="border-b border-line-default px-6 py-5">
+      <p class="text-label font-medium tracking-[0.06em] text-alert-content uppercase">Last seen unknown</p>
+      <p class="mt-1.5 text-base/5.5 font-semibold text-content-strong">Last connected before connection records were kept</p>
+      <p :if={@device.first_seen_at} class="mt-1 text-ui/5 text-content-muted">First seen {Calendar.strftime(@device.first_seen_at, "%-d %b %Y")}</p>
+    </section>
+    """
+  end
+
   defp why(%{reason: {:not_seen, seconds}} = assigns) do
     assigns = assign(assigns, :seconds, seconds)
 
@@ -377,11 +393,14 @@ defmodule NervesHubWeb.Components.DevicePeek do
 
   defp connection_label(_device, true), do: "Connected"
   defp connection_label(%Device{latest_connection: %{last_seen_at: %DateTime{}}}, false), do: "Last seen"
-  defp connection_label(_device, false), do: "Connection"
+  defp connection_label(device, false), do: if(unrecorded?(device), do: "Last seen", else: "Connection")
 
   defp connection_time(%Device{latest_connection: %{established_at: %DateTime{} = at}}, true), do: ago(at)
   defp connection_time(%Device{latest_connection: %{last_seen_at: %DateTime{} = at}}, false), do: ago(at)
-  defp connection_time(_device, _online?), do: "Never connected"
+  defp connection_time(device, _online?), do: if(unrecorded?(device), do: "Unknown", else: "Never connected")
+
+  defp unrecorded?(%Device{latest_connection: connection} = device),
+    do: Connections.last_seen_unrecorded?(device, connection)
 
   # "12 minutes ago", or "just now" under a minute.
   defp ago(%DateTime{} = at) do

@@ -8,6 +8,12 @@ defmodule NervesHub.Insights do
   page shows, and `stands_out/1` picks out a version whose devices are
   notably less healthy than the rest of the fleet.
 
+  `stands_out/1` judges health on active devices alone: online, or seen in the
+  last 7 days (the online and offline under 7 days connection groups,
+  `active_query/0`). A device that has been gone for weeks can't report its
+  health, and it stays on whatever firmware it had when it left, so counting
+  it would flag whichever old version has the most devices that are gone.
+
   Everything here reads PostgreSQL alone, so the page shows it whether or not
   the deployment runs analytics.
 
@@ -15,9 +21,11 @@ defmodule NervesHub.Insights do
   the list it links to:
 
     * connection: online; offline under 7 days, which also takes a device
-      still connecting or with no connection row; disconnected 7 to 14 days
-      ago; disconnected over 14 days ago; and never connected, a device still
-      `registered`. `connection_filters/0` has the filter for each.
+      still connecting; disconnected 7 to 14 days ago; disconnected over 14
+      days ago, which also takes a device that has connected but has no
+      connection row (`NervesHub.Devices.Connections.last_seen_unrecorded?/2`);
+      and never connected, a device still `registered`.
+      `connection_filters/0` has the filter for each.
     * health: healthy, warning, unhealthy and unknown, where a device that has
       never reported its health counts as unknown, as the `health_status`
       filter treats it.
@@ -50,13 +58,16 @@ defmodule NervesHub.Insights do
 
   @typedoc """
   The devices on one firmware version: how many, their health, and how many
-  aren't online. `version` is nil for devices that haven't reported one.
+  aren't online, then how many are active (online or seen in the last 7 days)
+  and their health. `version` is nil for devices that haven't reported one.
   """
   @type version_counts() :: %{
           version: String.t() | nil,
           count: pos_integer(),
           health: health_counts(),
-          offline: non_neg_integer()
+          offline: non_neg_integer(),
+          active: non_neg_integer(),
+          active_health: health_counts()
         }
 
   @typedoc """
@@ -64,12 +75,15 @@ defmodule NervesHub.Insights do
 
   `versions` is every reported version, largest first and the newest of
   equal-sized ones first. `newest_version` is the highest version any device
-  reports, by semantic version order.
+  reports, by semantic version order. `active` is how many devices are online
+  or were seen in the last 7 days, and `active_health` their health.
   """
   @type composition() :: %{
           total: non_neg_integer(),
           connection: connection_counts(),
           health: health_counts(),
+          active: non_neg_integer(),
+          active_health: health_counts(),
           versions: [version_counts()],
           newest_version: String.t() | nil
         }
@@ -86,34 +100,49 @@ defmodule NervesHub.Insights do
           folded: non_neg_integer(),
           count: pos_integer(),
           health: health_counts(),
-          offline: non_neg_integer()
+          offline: non_neg_integer(),
+          active: non_neg_integer(),
+          active_health: health_counts()
         }
 
   @typedoc """
   What the Insights page's "Stands out" card says, from `stands_out/1`:
 
-    * `:version` - `row` has at least twice the fleet's share of devices
-      that aren't healthy;
-    * `:even` - no version of at least `min_devices` devices does, and `rows`
-      gives each version's share for comparison;
-    * `:all_healthy` - every device is healthy;
+    * `:version` - `row` stands out: at least `min_devices` active devices,
+      at least `min_not_healthy` of them not healthy, and at least twice the
+      fleet's share of active devices that aren't healthy;
+    * `:even` - no version does, and `rows` gives each version's share for
+      comparison;
+    * `:all_healthy` - every active device is healthy, and `offline` of them
+      aren't online;
     * `:single` - every device is on one version, `row`, so there is nothing
-      to compare.
+      to compare;
+    * `:inactive` - no device is active, so there is nothing to judge.
 
-  `fleet_rate` is the fleet's share of devices that aren't healthy, and
-  `not_healthy` how many that is.
+  `active` is how many devices are active, `fleet_rate` the share of them
+  that aren't healthy, and `not_healthy` how many that is.
   """
   @type stands_out() ::
-          %{kind: :version, row: version_row(), rate: float(), fleet_rate: float(), not_healthy: non_neg_integer()}
+          %{
+            kind: :version,
+            row: version_row(),
+            rate: float(),
+            fleet_rate: float(),
+            not_healthy: pos_integer(),
+            active: pos_integer()
+          }
           | %{
               kind: :even,
               rows: [version_row()],
               fleet_rate: float(),
               not_healthy: non_neg_integer(),
-              min_devices: pos_integer()
+              active: pos_integer(),
+              min_devices: pos_integer(),
+              min_not_healthy: pos_integer()
             }
-          | %{kind: :all_healthy, total: pos_integer(), offline: non_neg_integer()}
-          | %{kind: :single, row: version_row(), fleet_rate: float(), not_healthy: non_neg_integer()}
+          | %{kind: :all_healthy, active: pos_integer(), offline: non_neg_integer()}
+          | %{kind: :single, row: version_row(), not_healthy: non_neg_integer(), active: pos_integer()}
+          | %{kind: :inactive, total: pos_integer()}
 
   # Versions shown by name; past this they're folded into one "others" row,
   # so the composition bar and the table stay readable at a glance.
@@ -123,9 +152,17 @@ defmodule NervesHub.Insights do
   # at least this many times the fleet's...
   @stands_out_ratio 2
 
-  # ...and it has at least this many devices, so one bad device on a version
-  # of three doesn't read as a finding.
+  # ...and it has at least this many active devices, so one bad device on a
+  # version of three doesn't read as a finding...
   @stands_out_min_devices 10
+
+  # ...and at least this many of them aren't healthy. Once the fleet's share
+  # is 5% or under, a single device in a version of ten is twice it.
+  @stands_out_min_not_healthy 3
+
+  # The connection groups whose devices are active: online, or seen in the
+  # last 7 days. `active_query/0` lists them.
+  @active_groups [:online, :recent]
 
   @no_connection %{online: 0, recent: 0, week: 0, stale: 0, never: 0}
   @no_health %{healthy: 0, warning: 0, unhealthy: 0, unknown: 0}
@@ -147,10 +184,14 @@ defmodule NervesHub.Insights do
       |> Enum.map(fn {version, version_rows} -> version_counts(version, version_rows) end)
       |> Enum.sort_by(&{&1.count, &1.sort_key}, :desc)
 
+    active_rows = Enum.filter(rows, &(&1.connection in @active_groups))
+
     %{
       total: Enum.sum_by(rows, & &1.count),
       connection: tally(rows, @no_connection, :connection),
       health: tally(rows, @no_health, :health),
+      active: Enum.sum_by(active_rows, & &1.count),
+      active_health: tally(active_rows, @no_health, :health),
       versions: Enum.map(by_version, &Map.delete(&1, :sort_key)),
       newest_version: newest_version(by_version)
     }
@@ -167,8 +208,7 @@ defmodule NervesHub.Insights do
     %{
       online: [connection: "connected"],
       recent: [
-        advanced_query:
-          ~s{connection != "connected" and connection != "not_seen" and (connection != "disconnected" or last_seen > "7 days ago")}
+        advanced_query: ~s(connection != "connected" and connection != "not_seen" and not last_seen < "7 days ago")
       ],
       week: [advanced_query: ~s(last_seen < "7 days ago" and last_seen > "14 days ago")],
       stale: [connection: "not_seen_in_fourteen_days"],
@@ -176,11 +216,21 @@ defmodule NervesHub.Insights do
     }
   end
 
+  @doc """
+  The advanced query for the active devices `stands_out/1` judges: online, or
+  seen in the last 7 days. It lists exactly the online and offline under 7
+  days groups `composition/2` counts, so it can be added to another query to
+  link to the active devices among them.
+  """
+  @spec active_query() :: String.t()
+  def active_query(), do: ~s(connection != "not_seen" and not last_seen < "7 days ago")
+
   # One row per firmware version, health status and connection group. Each
   # connection group is exactly what its filter in `connection_filters/0`
-  # lists: never connected is a device still `registered`, and `last_seen`
-  # only matches disconnected devices, so one still connecting, or with no
-  # connection row at all, falls to recently seen.
+  # lists: never connected is a device still `registered`, a provisioned one
+  # with no connection row was last seen before connection rows were kept, and
+  # `last_seen` only matches disconnected devices otherwise, so one still
+  # connecting falls to recently seen.
   defp composition_rows(product, now) do
     seven_days_ago = DateTime.add(now, -7, :day)
     fourteen_days_ago = DateTime.add(now, -14, :day)
@@ -201,6 +251,7 @@ defmodule NervesHub.Insights do
             CASE
               WHEN ? = 'connected' THEN 'online'
               WHEN ? = 'registered' THEN 'never'
+              WHEN ? IS NULL THEN 'stale'
               WHEN ? = 'disconnected' AND ? < ? THEN 'stale'
               WHEN ? = 'disconnected' AND ? < ? THEN 'week'
               ELSE 'recent'
@@ -208,6 +259,7 @@ defmodule NervesHub.Insights do
             """,
             lc.status,
             d.status,
+            lc.id,
             lc.status,
             lc.last_seen_at,
             ^fourteen_days_ago,
@@ -227,12 +279,16 @@ defmodule NervesHub.Insights do
   end
 
   defp version_counts(version, rows) do
+    active_rows = Enum.filter(rows, &(&1.connection in @active_groups))
+
     %{
       version: version,
       sort_key: rows |> Enum.map(& &1.sort_key) |> Enum.max(),
       count: Enum.sum_by(rows, & &1.count),
       health: tally(rows, @no_health, :health),
-      offline: rows |> Enum.reject(&(&1.connection == :online)) |> Enum.sum_by(& &1.count)
+      offline: rows |> Enum.reject(&(&1.connection == :online)) |> Enum.sum_by(& &1.count),
+      active: Enum.sum_by(active_rows, & &1.count),
+      active_health: tally(active_rows, @no_health, :health)
     }
   end
 
@@ -278,10 +334,15 @@ defmodule NervesHub.Insights do
       version: nil,
       folded: length(rows),
       count: Enum.sum_by(rows, & &1.count),
-      health: Map.new(@no_health, fn {status, _} -> {status, Enum.sum_by(rows, & &1.health[status])} end),
-      offline: Enum.sum_by(rows, & &1.offline)
+      health: sum_health(rows, :health),
+      offline: Enum.sum_by(rows, & &1.offline),
+      active: Enum.sum_by(rows, & &1.active),
+      active_health: sum_health(rows, :active_health)
     }
   end
+
+  defp sum_health(rows, key),
+    do: Map.new(@no_health, fn {status, _} -> {status, Enum.sum_by(rows, &Map.fetch!(&1, key)[status])} end)
 
   @doc """
   How many of a set of counts aren't healthy: warning, unhealthy or unknown.
@@ -294,30 +355,33 @@ defmodule NervesHub.Insights do
   What the "Stands out" card says about `composition`, or nil for a product
   with no devices. See `t:stands_out/0`.
 
-  A version stands out when its share of devices that aren't healthy is at
-  least #{@stands_out_ratio} times the fleet's and it has at least
-  #{@stands_out_min_devices} devices. Of several that do, the one with the
-  highest share is named. Only a reported version can stand out, not the
-  devices with no version or the folded others.
+  Health is judged on active devices alone, those online or seen in the last
+  7 days. A version stands out when it has at least
+  #{@stands_out_min_devices} active devices, at least
+  #{@stands_out_min_not_healthy} of them aren't healthy, and that share is at
+  least #{@stands_out_ratio} times the fleet's. Of several that do, the one
+  with the highest share is named. Only a reported version can stand out, not
+  the devices with no version or the folded others.
   """
   @spec stands_out(composition()) :: stands_out() | nil
   def stands_out(%{total: 0}), do: nil
 
-  def stands_out(%{total: total, health: health} = composition) do
+  def stands_out(%{active: 0, total: total}), do: %{kind: :inactive, total: total}
+
+  def stands_out(%{active: active, active_health: health} = composition) do
     rows = versions(composition)
     not_healthy = not_healthy(health)
-    fleet_rate = not_healthy / total
+    fleet_rate = not_healthy / active
 
     cond do
       match?([_], rows) ->
-        %{kind: :single, row: hd(rows), fleet_rate: fleet_rate, not_healthy: not_healthy}
+        %{kind: :single, row: hd(rows), not_healthy: not_healthy, active: active}
 
       not_healthy == 0 ->
-        offline = Enum.sum_by(rows, & &1.offline)
-        %{kind: :all_healthy, total: total, offline: offline}
+        %{kind: :all_healthy, active: active, offline: composition.connection.recent}
 
       row = standout_row(rows, fleet_rate) ->
-        %{kind: :version, row: row, rate: rate(row), fleet_rate: fleet_rate, not_healthy: not_healthy}
+        %{kind: :version, row: row, rate: rate(row), fleet_rate: fleet_rate, not_healthy: not_healthy, active: active}
 
       true ->
         %{
@@ -325,7 +389,9 @@ defmodule NervesHub.Insights do
           rows: rows,
           fleet_rate: fleet_rate,
           not_healthy: not_healthy,
-          min_devices: @stands_out_min_devices
+          active: active,
+          min_devices: @stands_out_min_devices,
+          min_not_healthy: @stands_out_min_not_healthy
         }
     end
   end
@@ -333,14 +399,18 @@ defmodule NervesHub.Insights do
   defp standout_row(rows, fleet_rate) do
     rows
     |> Enum.filter(fn row ->
-      row.kind == :version and row.count >= @stands_out_min_devices and rate(row) >= fleet_rate * @stands_out_ratio
+      row.kind == :version and row.active >= @stands_out_min_devices and
+        not_healthy(row.active_health) >= @stands_out_min_not_healthy and
+        rate(row) >= fleet_rate * @stands_out_ratio
     end)
-    |> Enum.max_by(&{rate(&1), &1.count}, fn -> nil end)
+    |> Enum.max_by(&{rate(&1), &1.active}, fn -> nil end)
   end
 
   @doc """
-  The share of a row's devices that aren't healthy, from 0 to 1.
+  The share of a row's active devices that aren't healthy, from 0 to 1, or
+  nil when none of its devices are active.
   """
-  @spec rate(%{count: pos_integer(), health: health_counts()}) :: float()
-  def rate(%{count: count, health: health}), do: not_healthy(health) / count
+  @spec rate(%{active: non_neg_integer(), active_health: health_counts()}) :: float() | nil
+  def rate(%{active: 0}), do: nil
+  def rate(%{active: active, active_health: health}), do: not_healthy(health) / active
 end

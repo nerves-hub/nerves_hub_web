@@ -13,6 +13,7 @@ defmodule NervesHubWeb.Components.DevicePage.Header do
 
   import NervesHubWeb.Helpers.Authorization
 
+  alias NervesHub.Devices.Connections
   alias NervesHub.Devices.Device
   alias NervesHub.Devices.Updates
   alias NervesHub.Helpers.RelativeTime
@@ -75,7 +76,7 @@ defmodule NervesHubWeb.Components.DevicePage.Header do
           </button>
           <%!-- On a phone the summary drops under the name, lined up with it. --%>
           <span class="flex max-sm:w-full max-sm:pl-5.5">
-            <.connection_summary connection={@device_connection} />
+            <.connection_summary connection={@device_connection} device={@device} />
           </span>
         </div>
 
@@ -373,6 +374,7 @@ defmodule NervesHubWeb.Components.DevicePage.Header do
   end
 
   attr(:connection, :any, required: true)
+  attr(:device, Device, required: true)
 
   defp connection_summary(%{connection: %{status: :connected}} = assigns) do
     ~H"""
@@ -399,8 +401,14 @@ defmodule NervesHubWeb.Components.DevicePage.Header do
   end
 
   defp connection_summary(assigns) do
+    assigns = assign(assigns, :unrecorded?, Connections.last_seen_unrecorded?(assigns.device, assigns.connection))
+
     ~H"""
-    <span class="shrink-0 pl-0.5 text-sm/4.5 text-content-muted">Never connected</span>
+    <span :if={@unrecorded?} class="flex shrink-0 items-baseline gap-1.25 pl-0.5 text-sm/4.5" title="Last connected before connection records were kept">
+      <span class="font-medium text-content-muted">Offline</span>
+      <span class="text-content-muted">last seen unknown</span>
+    </span>
+    <span :if={!@unrecorded?} class="shrink-0 pl-0.5 text-sm/4.5 text-content-muted">Never connected</span>
     """
   end
 

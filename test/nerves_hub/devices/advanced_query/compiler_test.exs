@@ -186,6 +186,19 @@ defmodule NervesHub.Devices.AdvancedQuery.CompilerTest do
       assert run(product, ~s|last_seen < "14 days ago"|) == []
     end
 
+    test "last_seen counts a device that connected before connection rows were kept as seen long ago", %{
+      product: product,
+      org: org,
+      firmware: firmware
+    } do
+      # provisioned by its first connection, but with no connection row
+      Fixtures.device_fixture(org, product, firmware, %{identifier: "unrecorded", tags: [], status: :provisioned})
+
+      assert run(product, ~s|last_seen < "4 weeks ago"|) == ["unrecorded"]
+      assert run(product, ~s|last_seen > "3 days ago"|) == []
+      assert run(product, ~s|not last_seen < "7 days ago"|) == ["connected", "never_connected", "tagged", "untagged"]
+    end
+
     test "health_status equality", %{product: product} do
       assert run(product, ~s|health_status = "healthy"|) == ["tagged"]
       assert run(product, ~s|health_status = "warning"|) == ["connected"]
