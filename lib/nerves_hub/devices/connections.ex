@@ -18,13 +18,12 @@ defmodule NervesHub.Devices.Connections do
   alias NervesHub.Webhooks.Payloads
 
   @doc """
-  Whether `device` has connected but its last connection is older than any
-  connection record: it is provisioned, which its first connection does, and
-  `connection`, its row in `latest_device_connections`, is nil.
+  Whether `device` last connected before `latest_device_connections` existed.
 
-  That table started empty when it replaced `device_connections`, and every
-  connection since writes a row, so these devices last connected before it
-  existed. They count as last seen long ago (the `last_seen <` filter matches
+  True when the device is provisioned, which its first connection does, and
+  `connection`, its row in that table, is nil. The table started empty when it
+  replaced `device_connections`, and every connection since writes a row.
+  These devices count as last seen long ago (the `last_seen <` filter matches
   them) rather than as never connected, and pages show their last seen as
   unknown.
   """

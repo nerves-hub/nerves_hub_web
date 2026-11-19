@@ -746,7 +746,7 @@ defmodule NervesHubWeb.Components.FleetComposition do
   defp active_note(%{active: active, total: total}),
     do: "Counts the #{delimited(active)} of #{delimited(total)} devices seen in the last 7 days."
 
-  # "1 in 198", or "3 of 4" when that would round to 1 in 1.
+  # "1 in 198", or "3 of 4" when count is more than half of total.
   defp one_in(count, total) when total / count < 2, do: "#{delimited(count)} of #{delimited(total)}"
   defp one_in(count, total), do: "1 in #{delimited(round(total / count))}"
 

@@ -157,7 +157,7 @@ defmodule NervesHub.Insights do
   @stands_out_min_devices 10
 
   # ...and at least this many of them aren't healthy. Once the fleet's share
-  # is under 1%, twice it is a single device in a version of ten.
+  # is 5% or under, a single device in a version of ten is twice it.
   @stands_out_min_not_healthy 3
 
   # The connection groups whose devices are active: online, or seen in the
