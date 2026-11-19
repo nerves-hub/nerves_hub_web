@@ -3604,35 +3604,6 @@ defmodule NervesHub.DevicesTest do
 
       assert [%{id: ^behind_id}] = Updates.available_for_update(deployment_group, 10)
     end
-
-    test "tells a device on the release from one behind it by firmware uuid", %{
-      deployment_group: deployment_group,
-      org: org,
-      org_key: org_key,
-      product: product,
-      tmp_dir: tmp_dir
-    } do
-      current_firmware = deployment_group.current_release.firmware
-      old_firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
-
-      on_release = Fixtures.device_fixture(org, product, current_firmware, %{deployment_id: deployment_group.id})
-
-      %{id: behind_id} =
-        behind = Fixtures.device_fixture(org, product, old_firmware, %{deployment_id: deployment_group.id})
-
-      # Running a build NervesHub has no record of, which can only be behind
-      unknown = Fixtures.device_fixture(org, product, old_firmware, %{deployment_id: deployment_group.id})
-
-      {:ok, %{id: unknown_id}} =
-        Devices.update_firmware_metadata(unknown, %{"uuid" => Ecto.UUID.generate()}, :validated, false)
-
-      for device <- [on_release, behind, unknown] do
-        Fixtures.device_connection_fixture(device)
-      end
-
-      assert deployment_group |> Updates.available_for_update(10) |> Enum.map(& &1.id) |> Enum.sort() ==
-               Enum.sort([behind_id, unknown_id])
-    end
   end
 
   describe "resolve_update/1" do

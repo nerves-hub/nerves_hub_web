@@ -158,9 +158,10 @@ defmodule NervesHub.Devices.Updates do
     # release.
     #
     # Compared by uuid against the release's own firmware rather than through
-    # `:firmware`, so a device already on the release is ruled out before
-    # Postgres looks up its firmware. A finished rollout then costs no firmware
-    # lookups at all. Through `:firmware`, a generic plan for this prepared
+    # `:firmware`. That needs only the device row and the release's one firmware
+    # row, so Postgres can rule out a device already on the release before it
+    # looks up the device's firmware, and a finished rollout needs few or no
+    # firmware lookups. Through `:firmware`, a generic plan for this prepared
     # statement looked up every device in the group, by
     # `firmwares_product_id_deleted_at_index`, which doesn't narrow by uuid.
     #
