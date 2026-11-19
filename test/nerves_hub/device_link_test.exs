@@ -401,6 +401,27 @@ defmodule NervesHub.DeviceLinkTest do
 
       assert %DeviceConnection{id: ^ref, lib: nil, lib_version: nil} = Connections.get_latest_for_device(device.id)
     end
+
+    # A device that collided with a soft-deleted one, and connected once that
+    # was restored or removed.
+    test "clears the notification that its identifier was in use", %{device: device, product: product} do
+      device_info = %{to_device_info(device) | org_id: device.org_id}
+
+      _ =
+        ProductNotifications.create_duplicate_device_identifier_notification!(
+          product.id,
+          device.identifier,
+          :shared_secrets
+        )
+
+      other =
+        ProductNotifications.create_duplicate_device_identifier_notification!(product.id, "other", :shared_secrets)
+
+      assert {:ok, %DeviceInfo{}} = DeviceLink.connect(device_info, "203.0.113.7")
+
+      assert [%Notification{id: other_id}] = Repo.all(Notification)
+      assert other_id == other.id
+    end
   end
 
   describe "join/2" do

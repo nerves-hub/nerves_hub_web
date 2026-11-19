@@ -320,6 +320,13 @@ defmodule NervesHub.ProductNotifications do
     )
   end
 
+  @doc """
+  A device tried to join `product_id` under an identifier another device
+  already has, often one that was soft-deleted.
+
+  Cleared by `resolve_duplicate_device_identifier_notification!/2` once a
+  device with the identifier connects to the product.
+  """
   @spec create_duplicate_device_identifier_notification!(
           product_id :: pos_integer(),
           identifier :: String.t(),
@@ -332,9 +339,25 @@ defmodule NervesHub.ProductNotifications do
       :duplicate_device_identifier,
       :warning,
       %{identifier: identifier, auth_type: auth_type},
-      "duplicate_device_identifier-#{identifier}"
+      duplicate_device_identifier_key(identifier)
     )
   end
+
+  @doc """
+  Take back the notice that a device couldn't connect under `identifier`,
+  because a device with it has now connected to the product.
+
+  Called on every connection, so a device that once collided with a
+  soft-deleted one, and connected after it was restored or removed, stops
+  being flagged. Returns `{:ok, :none}` for the usual connection, with
+  nothing to take back.
+  """
+  @spec resolve_duplicate_device_identifier_notification!(pos_integer(), String.t()) :: {:ok, :resolved | :none}
+  def resolve_duplicate_device_identifier_notification!(product_id, identifier) do
+    resolve!(product_id, duplicate_device_identifier_key(identifier), [])
+  end
+
+  defp duplicate_device_identifier_key(identifier), do: "duplicate_device_identifier-#{identifier}"
 
   @spec create_wrong_websocket_host_notification!(device_info :: DeviceInfo.t(), host :: String.t()) ::
           Notification.t()

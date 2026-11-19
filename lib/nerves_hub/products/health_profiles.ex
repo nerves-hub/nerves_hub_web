@@ -24,7 +24,14 @@ defmodule NervesHub.Products.HealthProfiles do
   import Ecto.Query
 
   alias Ecto.Multi
+  alias NervesHub.Accounts.User
+  alias NervesHub.Devices.Connections
+  alias NervesHub.Devices.Device
+  alias NervesHub.Devices.DeviceHealth
+  alias NervesHub.Devices.HealthEvaluation
   alias NervesHub.Devices.HealthStatus
+  alias NervesHub.Devices.Metrics
+  alias NervesHub.Devices.Visibility
   alias NervesHub.Products.HealthProfile
   alias NervesHub.Products.HealthProfileMetric
   alias NervesHub.Products.HealthProfiles.Cache
@@ -95,6 +102,121 @@ defmodule NervesHub.Products.HealthProfiles do
     |> where(product_id: ^product_id)
     |> select([p], count(p.id))
     |> Repo.one!()
+  end
+
+  @doc """
+  How many of the product's devices each of its profiles applies to, keyed
+  by the profile's platform (`nil` for the default profile).
+
+  A device takes its platform's profile if there is one, and the default
+  otherwise. Counts only the devices `user` can see.
+  """
+  @spec device_counts(Product.t(), User.t(), [HealthProfile.t()]) :: %{optional(String.t() | nil) => non_neg_integer()}
+  def device_counts(%Product{} = product, %User{} = user, profiles) do
+    platforms = profiles |> Enum.map(& &1.platform) |> Enum.reject(&is_nil/1)
+
+    counts =
+      product
+      |> devices_query(user)
+      |> group_by([d], fragment("?->>'platform'", d.firmware_metadata))
+      |> select([d], {fragment("?->>'platform'", d.firmware_metadata), count(d.id)})
+      |> Repo.all()
+
+    Enum.reduce(counts, Map.new(profiles, &{&1.platform, 0}), fn {platform, count}, acc ->
+      profile_platform = if platform in platforms, do: platform
+      Map.update(acc, profile_platform, count, &(&1 + count))
+    end)
+  end
+
+  @doc """
+  How many of the devices `profile` applies to are healthy, warning,
+  unhealthy or unknown right now, as their health was last judged.
+
+  `profiles` is every profile of the product, which decides the devices the
+  default profile is left with. Counts only the devices `user` can see.
+  """
+  @spec health_counts(Product.t(), User.t(), HealthProfile.t(), [HealthProfile.t()]) ::
+          %{HealthEvaluation.status() => non_neg_integer()}
+  def health_counts(%Product{} = product, %User{} = user, %HealthProfile{} = profile, profiles) do
+    counts =
+      product
+      |> profile_devices_query(user, profile, profiles)
+      |> join(:left, [d], h in DeviceHealth, on: h.device_id == d.id)
+      |> group_by([d, h], h.status)
+      |> select([d, h], {h.status, count(d.id)})
+      |> Repo.all()
+
+    Enum.reduce(counts, %{healthy: 0, warning: 0, unhealthy: 0, unknown: 0}, fn {status, count}, acc ->
+      Map.update!(acc, status || :unknown, &(&1 + count))
+    end)
+  end
+
+  @doc """
+  How many of the devices `profile` applies to `metrics` would judge
+  healthy, warning, unhealthy or unknown right now.
+
+  For showing what a change to a profile does before it's saved: pass the
+  edited metrics, and the saved ones to compare. Readings still in the write
+  buffer aren't counted, so this can lag the devices' own health by a few
+  seconds; comparing two previews cancels that out. Counts only the devices
+  `user` can see. Needs analytics; `nil` without it.
+  """
+  @spec preview_counts(Product.t(), User.t(), HealthProfile.t(), [HealthProfile.t()], [HealthProfileMetric.t()]) ::
+          %{HealthEvaluation.status() => non_neg_integer()} | nil
+  def preview_counts(%Product{} = product, %User{} = user, %HealthProfile{} = profile, profiles, metrics) do
+    if Application.get_env(:nerves_hub, :analytics_enabled, false) do
+      device_ids = product |> profile_devices_query(user, profile, profiles) |> select([d], d.id) |> Repo.all()
+      now_minute = HealthEvaluation.minute(DateTime.utc_now())
+
+      {built_in, regular} = Enum.split_with(metrics, & &1.built_in)
+      reported = Metrics.fleet_health_levels(product.id, regular, now_minute)
+      disconnects = Enum.find(built_in, &(&1.key == "disconnects"))
+
+      disconnected =
+        if disconnects, do: Connections.fleet_disconnection_levels(product.org_id, product.id, disconnects), else: %{}
+
+      # The disconnects built-in judges every device, healthy when it
+      # hasn't disconnected enough, as `HealthEvaluation` does.
+      disconnects_default = if disconnects, do: 0
+
+      Enum.reduce(device_ids, %{healthy: 0, warning: 0, unhealthy: 0, unknown: 0}, fn device_id, acc ->
+        level =
+          [Map.get(reported, device_id), Map.get(disconnected, device_id, disconnects_default)]
+          |> Enum.reject(&is_nil/1)
+          |> Enum.max(fn -> nil end)
+
+        Map.update!(acc, status_for_level(level), &(&1 + 1))
+      end)
+    end
+  end
+
+  defp status_for_level(nil), do: :unknown
+  defp status_for_level(0), do: :healthy
+  defp status_for_level(1), do: :warning
+  defp status_for_level(2), do: :unhealthy
+
+  # The product's devices, as `user` can see them.
+  defp devices_query(%Product{id: product_id}, user) do
+    Device
+    |> where([d], d.product_id == ^product_id and is_nil(d.deleted_at))
+    |> Visibility.where_visible(user)
+  end
+
+  # The devices `profile` applies to: those on its platform, or for the
+  # default profile, those on a platform no other profile covers.
+  defp profile_devices_query(product, user, %HealthProfile{platform: nil}, profiles) do
+    others = profiles |> Enum.map(& &1.platform) |> Enum.reject(&is_nil/1)
+
+    where(
+      devices_query(product, user),
+      [d],
+      is_nil(fragment("?->>'platform'", d.firmware_metadata)) or
+        fragment("?->>'platform'", d.firmware_metadata) not in ^others
+    )
+  end
+
+  defp profile_devices_query(product, user, %HealthProfile{platform: platform}, _profiles) do
+    where(devices_query(product, user), [d], fragment("?->>'platform'", d.firmware_metadata) == ^platform)
   end
 
   @spec get_profile!(Product.t(), pos_integer()) :: HealthProfile.t()
@@ -299,20 +421,9 @@ defmodule NervesHub.Products.HealthProfiles do
   """
   @spec add_metric(HealthProfile.t(), map()) ::
           {:ok, HealthProfileMetric.t()} | {:error, Ecto.Changeset.t()}
-  def add_metric(%HealthProfile{id: profile_id, product_id: product_id}, attrs) do
-    built_in? = Map.has_key?(@built_in_metrics, String.trim(attrs["key"] || ""))
-
-    attrs =
-      attrs
-      |> Map.put("health_profile_id", profile_id)
-      |> Map.put("built_in", built_in?)
-
-    # A built-in defines its own unhealthy direction (a disconnect count only
-    # goes bad high), so the operator is not the caller's to choose.
-    attrs = if built_in?, do: Map.put(attrs, "operator", "gte"), else: attrs
-
-    %HealthProfileMetric{}
-    |> HealthProfileMetric.changeset(attrs)
+  def add_metric(%HealthProfile{product_id: product_id} = profile, attrs) do
+    profile
+    |> new_metric_changeset(attrs)
     |> Repo.insert()
     |> tap_ok(product_id)
   end
@@ -324,22 +435,131 @@ defmodule NervesHub.Products.HealthProfiles do
   @spec update_metric(HealthProfileMetric.t(), map()) ::
           {:ok, HealthProfileMetric.t()} | {:error, Ecto.Changeset.t()}
   def update_metric(%HealthProfileMetric{} = metric, attrs) do
-    fixed =
-      if metric.built_in,
-        do: ["key", "built_in", "health_profile_id", "operator"],
-        else: ["key", "built_in", "health_profile_id"]
-
     metric
-    |> HealthProfileMetric.changeset(Map.drop(attrs, fixed))
+    |> edit_metric_changeset(attrs)
     |> Repo.update()
     |> tap_ok(product_id_of(metric))
   end
 
-  @spec get_metric!(HealthProfile.t(), pos_integer()) :: HealthProfileMetric.t()
-  def get_metric!(%HealthProfile{id: profile_id}, id) do
-    HealthProfileMetric
-    |> where(health_profile_id: ^profile_id, id: ^id)
-    |> Repo.one!()
+  @doc """
+  Saves a profile's metrics as `metrics` lists them, in one transaction.
+
+  An entry with the `"id"` of one of the profile's metrics updates it, one
+  without adds a metric, and the profile's metrics left out are removed; the
+  rules of `add_metric/2` and `update_metric/2` apply to each. The profile
+  row is locked and its metrics read inside the transaction rather than
+  taken from `profile`, so a save from a page loaded before someone else
+  changed the profile still leaves it as `metrics` lists it: an `"id"`
+  that's no longer the profile's adds the metric again. Returns the saved
+  profile; `{:error, index, changeset}` for the first entry in `metrics`
+  that didn't validate; or `{:error, :profile_not_found}` when the profile
+  has been deleted.
+  """
+  @spec save_metrics(HealthProfile.t(), [map()]) ::
+          {:ok, HealthProfile.t()}
+          | {:error, non_neg_integer(), Ecto.Changeset.t()}
+          | {:error, :profile_not_found}
+  def save_metrics(%HealthProfile{id: profile_id, product_id: product_id}, metrics) do
+    Multi.new()
+    |> Multi.run(:profile, fn repo, _changes ->
+      HealthProfile
+      |> where(id: ^profile_id, product_id: ^product_id)
+      |> lock("FOR UPDATE")
+      |> repo.one()
+      |> case do
+        nil -> {:error, :profile_not_found}
+        locked -> {:ok, locked}
+      end
+    end)
+    |> Multi.merge(fn %{profile: locked} -> save_metrics_multi(locked, metrics) end)
+    |> Multi.run(:saved, fn repo, _changes ->
+      {:ok, HealthProfile |> where(id: ^profile_id) |> preload(:metrics) |> repo.one!()}
+    end)
+    |> Repo.transact()
+    |> case do
+      {:ok, %{saved: saved}} ->
+        :ok = Cache.invalidate(product_id)
+        {:ok, saved}
+
+      {:error, :profile, :profile_not_found, _changes} ->
+        {:error, :profile_not_found}
+
+      {:error, {:metric, index}, changeset, _changes} ->
+        {:error, index, changeset}
+    end
+  end
+
+  defp save_metrics_multi(profile, metrics) do
+    existing =
+      HealthProfileMetric
+      |> where(health_profile_id: ^profile.id)
+      |> Repo.all()
+      |> Map.new(&{&1.id, &1})
+
+    kept = for attrs <- metrics, id = parse_id(attrs["id"]), Map.has_key?(existing, id), do: id
+
+    # Removals go first, so a metric removed and added back in one save
+    # doesn't trip over its own key. Deleting by query also removes a
+    # metric added elsewhere since `existing` was read.
+    removed = where(HealthProfileMetric, [m], m.health_profile_id == ^profile.id and m.id not in ^kept)
+
+    metrics
+    |> Enum.with_index()
+    |> Enum.reduce(Multi.delete_all(Multi.new(), :remove, removed), fn {attrs, index}, multi ->
+      case Map.fetch(existing, parse_id(attrs["id"])) do
+        {:ok, metric} ->
+          # Single metric edits don't take the profile's lock, so one
+          # removed after `existing` was read fails its row rather than
+          # raising.
+          changeset = edit_metric_changeset(metric, attrs)
+
+          Multi.update(multi, {:metric, index}, changeset,
+            stale_error_field: :key,
+            stale_error_message: "was removed by someone else while you were editing"
+          )
+
+        :error ->
+          Multi.insert(multi, {:metric, index}, new_metric_changeset(profile, attrs))
+      end
+    end)
+  end
+
+  defp parse_id(id) when is_integer(id), do: id
+
+  defp parse_id(id) when is_binary(id) do
+    case Integer.parse(id) do
+      {id, ""} -> id
+      _not_an_id -> nil
+    end
+  end
+
+  defp parse_id(_none), do: nil
+
+  # `built_in` is decided from the key, never taken from the caller: a key is
+  # a built-in exactly when it's registered in `built_in_metrics/0`.
+  defp new_metric_changeset(%HealthProfile{id: profile_id}, attrs) do
+    built_in? = Map.has_key?(@built_in_metrics, String.trim(attrs["key"] || ""))
+
+    attrs =
+      attrs
+      |> Map.delete("id")
+      |> Map.put("health_profile_id", profile_id)
+      |> Map.put("built_in", built_in?)
+
+    # A built-in defines its own unhealthy direction (a disconnect count only
+    # goes bad high), so the operator is not the caller's to choose.
+    attrs = if built_in?, do: Map.put(attrs, "operator", "gte"), else: attrs
+
+    HealthProfileMetric.changeset(%HealthProfileMetric{}, attrs)
+  end
+
+  defp edit_metric_changeset(%HealthProfileMetric{} = metric, attrs) do
+    fixed =
+      if metric.built_in,
+        do: ["id", "key", "built_in", "health_profile_id", "operator"],
+        else: ["id", "key", "built_in", "health_profile_id"]
+
+    HealthProfileMetric.changeset(metric, Map.drop(attrs, fixed))
   end
 
   @spec delete_metric(HealthProfileMetric.t()) :: :ok

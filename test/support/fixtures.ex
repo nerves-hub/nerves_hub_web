@@ -424,6 +424,8 @@ defmodule NervesHub.Fixtures do
       ) do
     {:ok, metadata} = Firmwares.metadata_from_firmware(firmware)
     {fwup_version, params} = Map.pop(params, :fwup_version, "1.0.0")
+    # The platform the device reports, when it isn't the firmware's.
+    {platform, params} = Map.pop(params, :platform, metadata.platform)
 
     # Fixtures set state a user can't, such as the firmware a device reports or
     # its deployment group, so this goes through the general changeset rather
@@ -434,7 +436,7 @@ defmodule NervesHub.Fixtures do
       org_id: org.id,
       product_id: product.id,
       managed_updates_allowed: product.default_managed_updates_allowed,
-      firmware_metadata: Map.put(metadata, :fwup_version, fwup_version),
+      firmware_metadata: Map.merge(metadata, %{fwup_version: fwup_version, platform: platform}),
       identifier: "device-#{counter()}"
     }
     |> Map.merge(params)
