@@ -551,11 +551,16 @@ defmodule NervesHubWeb.Components.FleetComposition do
   @doc """
   The "Stands out" card: the version whose devices are least healthy against
   the fleet, or why there isn't one.
+
+  It judges health on active devices alone, those online or seen in the last
+  7 days, and says how many of the fleet that is when it isn't all of it.
+  Each count it links to lists the devices it counted.
   """
   def stands_out(%{stands_out: %{kind: :version}} = assigns) do
-    %{row: row, rate: rate, fleet_rate: fleet_rate, not_healthy: fleet_not_healthy} = assigns.stands_out
-    %{composition: composition} = assigns
-    row_not_healthy = Insights.not_healthy(row.health)
+    %{row: row, rate: rate, fleet_rate: fleet_rate, not_healthy: fleet_not_healthy, active: active} =
+      assigns.stands_out
+
+    row_not_healthy = Insights.not_healthy(row.active_health)
 
     assigns =
       assign(assigns,
@@ -563,18 +568,23 @@ defmodule NervesHubWeb.Components.FleetComposition do
         rate: rate,
         fleet_rate: fleet_rate,
         row_not_healthy: row_not_healthy,
-        fleet_share: percent(row.count, composition.total, 0),
-        unhealthy_share: unhealthy_share(row, composition, fleet_not_healthy),
-        comparison: comparison(row, composition, fleet_not_healthy),
-        href: devices_href(assigns.devices_path, firmware_version: row.version)
+        fleet_share: one_in(fleet_not_healthy, active),
+        breakdown: breakdown(row.active_health),
+        comparison: comparison(row, assigns.composition),
+        note: active_note(assigns.composition),
+        href: devices_href(assigns.devices_path, firmware_version: row.version, advanced_query: active_not_healthy())
       )
 
     ~H"""
-    <.stands_out_card id="stands-out" accent="border-l-(--color-chart-alert)" label="Stands out" label_class="text-alert-content">
+    <.stands_out_card id="stands-out" accent="border-l-(--color-chart-alert)" label="Stands out" label_class="text-alert-content" note={@note}>
       <:headline>
-        <span class="font-mono">{@row.version}</span> is {@fleet_share} of the fleet and {@unhealthy_share}.
+        <%= if @row_not_healthy == @row.active do %>
+          None of the {delimited(@row.active)} devices on <span class="font-mono">{@row.version}</span> is healthy, against {@fleet_share} across the fleet.
+        <% else %>
+          {delimited(@row_not_healthy)} of {delimited(@row.active)} devices on <span class="font-mono">{@row.version}</span> aren't healthy, against {@fleet_share} across the fleet.
+        <% end %>
       </:headline>
-      {delimited(@row_not_healthy)} of its {delimited(@row.count)} devices are warning, unhealthy or unknown. {@comparison}
+      {@breakdown} {@comparison}
       <:extra>
         <div class="flex flex-col gap-1.5">
           <.meter value={@rate} color="var(--color-chart-alert)" value_class="text-alert-content">
@@ -584,38 +594,35 @@ defmodule NervesHubWeb.Components.FleetComposition do
         </div>
       </:extra>
       <:action>
-        <.button type="link" style="contrast" navigate={@href}>View {delimited(@row.count)} {if @row.count == 1, do: "device", else: "devices"}</.button>
+        <.button type="link" style="contrast" navigate={@href}>View {delimited(@row_not_healthy)} not healthy</.button>
       </:action>
     </.stands_out_card>
     """
   end
 
   def stands_out(%{stands_out: %{kind: :even}} = assigns) do
-    %{rows: rows, fleet_rate: fleet_rate} = assigns.stands_out
+    %{rows: rows, fleet_rate: fleet_rate, not_healthy: not_healthy} = assigns.stands_out
     rates = Enum.map(rows, &Insights.rate/1)
     # the scale leaves room past the highest rate, so the longest bar never fills its track
-    scale = rates |> Enum.max() |> max(fleet_rate) |> Kernel.*(1.5)
+    scale = rates |> Enum.reject(&is_nil/1) |> Enum.max(fn -> 0 end) |> max(fleet_rate) |> Kernel.*(1.5)
+    # a version with no device seen this week isn't close to anything
+    close? = Enum.all?(rates, &(&1 && abs(&1 - fleet_rate) <= 0.01))
 
     assigns =
       assign(assigns,
         rows: Enum.with_index(rows),
         fleet_rate: fleet_rate,
         scale: scale,
-        close: Enum.all?(rates, &(abs(&1 - fleet_rate) <= 0.01)),
-        not_healthy: assigns.stands_out.not_healthy,
-        min_devices: assigns.stands_out.min_devices,
-        href: devices_href(assigns.devices_path, advanced_query: @not_healthy)
+        not_healthy: not_healthy,
+        explanation: even_explanation(assigns.stands_out, close?),
+        note: active_note(assigns.composition),
+        href: devices_href(assigns.devices_path, advanced_query: active_not_healthy())
       )
 
     ~H"""
-    <.stands_out_card id="stands-out" accent="border-l-line-control" label="Stands out" label_class="text-content-faint">
+    <.stands_out_card id="stands-out" accent="border-l-line-control" label="Stands out" label_class="text-content-faint" note={@note}>
       <:headline>Nothing stands out.</:headline>
-      {if @close, do: "Every version is within a point of", else: "No version of #{@min_devices} or more devices is twice"} the fleet's {percent(@fleet_rate)} not healthy, so the {delimited(@not_healthy)} {if @not_healthy ==
-                                                                                                                                                                                                                   1,
-                                                                                                                                                                                                                 do:
-                                                                                                                                                                                                                   "device that needs a look isn't",
-                                                                                                                                                                                                                 else:
-                                                                                                                                                                                                                   "devices that need a look aren't"} tied to one firmware.
+      {@explanation}
       <:extra>
         <div class="flex flex-col gap-2 pt-0.5">
           <div :for={{row, index} <- @rows} class="flex items-center gap-2.5">
@@ -623,10 +630,11 @@ defmodule NervesHubWeb.Components.FleetComposition do
               {row_label(row)}
             </span>
             <span class="relative h-1.5 w-50 min-w-0 shrink rounded-[3px] bg-surface-muted">
-              <span class="absolute inset-y-0 left-0 rounded-[3px]" style={"width: #{Insights.rate(row) / @scale * 100}%; background: #{version_color(row, index)}"}></span>
+              <span :if={Insights.rate(row)} class="absolute inset-y-0 left-0 rounded-[3px]" style={"width: #{Insights.rate(row) / @scale * 100}%; background: #{version_color(row, index)}"}></span>
               <span class="absolute -top-0.75 h-3 w-[1.5px] bg-content-strong" style={"left: #{@fleet_rate / @scale * 100}%"}></span>
             </span>
-            <span class="shrink-0 font-mono text-xs text-content-strong">{percent(Insights.rate(row))}</span>
+            <span :if={Insights.rate(row)} class="shrink-0 font-mono text-xs text-content-strong">{percent(Insights.rate(row))}</span>
+            <span :if={!Insights.rate(row)} class="shrink-0 text-xs text-content-faint" title="No device on it was seen in the last 7 days">None seen</span>
           </div>
           <div class="flex items-center gap-1.5 pt-0.5 text-xs text-content-faint">
             <span class="h-3 w-[1.5px] shrink-0 bg-content-strong"></span>
@@ -642,19 +650,20 @@ defmodule NervesHubWeb.Components.FleetComposition do
   end
 
   def stands_out(%{stands_out: %{kind: :all_healthy}} = assigns) do
-    %{total: total, offline: offline} = assigns.stands_out
+    %{active: active, offline: offline} = assigns.stands_out
 
     assigns =
       assign(assigns,
-        total: total,
+        active: active,
         offline: offline,
-        href: devices_href(assigns.devices_path, advanced_query: ~s(connection != "connected"))
+        note: active_note(assigns.composition),
+        href: devices_href(assigns.devices_path, Insights.connection_filters().recent)
       )
 
     ~H"""
-    <.stands_out_card id="stands-out" accent="border-l-(--color-chart-3)" label="All healthy" label_class="text-success-content">
-      <:headline>{if @total == 1, do: "The one device is healthy.", else: "All #{delimited(@total)} devices are healthy."}</:headline>
-      No version has a warning, unhealthy or unknown device.
+    <.stands_out_card id="stands-out" accent="border-l-(--color-chart-3)" label="All healthy" label_class="text-success-content" note={@note}>
+      <:headline>{if @active == 1, do: "The one device is healthy.", else: "All #{delimited(@active)} devices are healthy."}</:headline>
+      None is unhealthy, has a warning or isn't reporting health.
       <span :if={@offline > 0}>{if @offline == 1, do: "The 1 offline was", else: "The #{delimited(@offline)} offline were"} healthy when they last reported.</span>
       <:extra>
         <.meter value={1.0} label="100%" color="var(--color-chart-3)" value_class="text-success-content">Healthy</.meter>
@@ -673,11 +682,12 @@ defmodule NervesHubWeb.Components.FleetComposition do
       assign(assigns,
         row: row,
         not_healthy: not_healthy,
-        href: devices_href(assigns.devices_path, advanced_query: @not_healthy)
+        note: active_note(assigns.composition),
+        href: devices_href(assigns.devices_path, advanced_query: active_not_healthy())
       )
 
     ~H"""
-    <.stands_out_card id="stands-out" accent="border-l-line-control" label="Stands out" label_class="text-content-faint">
+    <.stands_out_card id="stands-out" accent="border-l-line-control" label="Stands out" label_class="text-content-faint" note={@note}>
       <:headline>Nothing to compare yet.</:headline>
       <%= if @row.kind == :version do %>
         Every device runs <span class="font-mono">{@row.version}</span>, so there is no other version to measure it against. When a second version ships, this card compares them.
@@ -687,15 +697,15 @@ defmodule NervesHubWeb.Components.FleetComposition do
       <:extra>
         <div class="flex flex-col gap-2">
           <div :if={@row.kind == :version} class="text-xs text-content-muted">Health on <span class="font-mono">{@row.version}</span></div>
-          <.health_bar health={@row.health} unknown="var(--color-chart-other)" class="h-2 rounded-[3px]" />
+          <.health_bar health={@row.active_health} unknown="var(--color-chart-other)" class="h-2 rounded-[3px]" />
           <div class="flex flex-wrap gap-x-3.5 gap-y-1">
             <span
               :for={{{label, color}, status} <- Enum.zip(health_colors("var(--color-chart-other)"), [:healthy, :warning, :unhealthy, :unknown])}
-              :if={@row.health[status] > 0}
+              :if={@row.active_health[status] > 0}
               class="flex items-center gap-1.5 text-xs text-content-muted"
             >
               <span class="size-2 shrink-0 rounded-[2px]" style={"background: #{color}"}></span>
-              <span><span class="font-mono">{delimited(@row.health[status])}</span> {String.downcase(label)}</span>
+              <span><span class="font-mono">{delimited(@row.active_health[status])}</span> {String.downcase(label)}</span>
             </span>
           </div>
         </div>
@@ -707,28 +717,89 @@ defmodule NervesHubWeb.Components.FleetComposition do
     """
   end
 
-  # "21% of its unhealthy devices" when the fleet has some; a fleet whose
-  # trouble is all warnings and unknowns has none to take a share of, so the
-  # share is then of the devices that aren't healthy.
-  defp unhealthy_share(row, %{health: %{unhealthy: unhealthy}}, _fleet_not_healthy) when unhealthy > 0,
-    do: "#{percent(row.health.unhealthy, unhealthy, 0)} of its unhealthy devices"
+  def stands_out(%{stands_out: %{kind: :inactive}} = assigns) do
+    assigns =
+      assign(assigns,
+        total: assigns.stands_out.total,
+        href: devices_href(assigns.devices_path, advanced_query: ~s(connection != "connected"))
+      )
 
-  defp unhealthy_share(row, _composition, fleet_not_healthy),
-    do: "#{percent(Insights.not_healthy(row.health), fleet_not_healthy, 0)} of its devices that aren't healthy"
+    ~H"""
+    <.stands_out_card id="stands-out" accent="border-l-line-control" label="Stands out" label_class="text-content-faint">
+      <:headline>No device seen in the last 7 days.</:headline>
+      This card compares the health of devices seen in the last 7 days, and {if @total == 1,
+        do: "the one device hasn't been.",
+        else: "none of the #{delimited(@total)} has been."}
+      <:action>
+        <.button type="link" navigate={@href}>View {delimited(@total)} offline</.button>
+      </:action>
+    </.stands_out_card>
+    """
+  end
 
-  # How the newest version compares, as "1 in N" devices not healthy. When the
-  # flagged version is the newest, or there is no newest, the whole fleet is
-  # the comparison instead.
-  defp comparison(row, composition, fleet_not_healthy) do
+  # The active devices that aren't healthy, as an advanced query.
+  defp active_not_healthy(), do: @not_healthy <> " and " <> Insights.active_query()
+
+  # How many of the fleet the card counted, when it isn't all of it.
+  defp active_note(%{active: total, total: total}), do: nil
+
+  defp active_note(%{active: active, total: total}),
+    do: "Counts the #{delimited(active)} of #{delimited(total)} devices seen in the last 7 days."
+
+  # "1 in 198", or "3 of 4" when that would round to 1 in 1.
+  defp one_in(count, total) when total / count < 2, do: "#{delimited(count)} of #{delimited(total)}"
+  defp one_in(count, total), do: "1 in #{delimited(round(total / count))}"
+
+  # What the devices that aren't healthy are: "All 8 are unhealthy." or
+  # "6 are unhealthy, 1 has a warning and 1 isn't reporting health."
+  defp breakdown(health) do
+    case Enum.filter(
+           [unhealthy: health.unhealthy, warning: health.warning, unknown: health.unknown],
+           &(elem(&1, 1) > 0)
+         ) do
+      [unhealthy: count] -> "All #{delimited(count)} are unhealthy."
+      [warning: count] -> "All #{delimited(count)} have warnings."
+      [unknown: _count] -> "None of them is reporting health."
+      parts -> parts |> Enum.map(&status_phrase/1) |> join_and() |> Kernel.<>(".")
+    end
+  end
+
+  defp status_phrase({:unhealthy, 1}), do: "1 is unhealthy"
+  defp status_phrase({:unhealthy, count}), do: "#{delimited(count)} are unhealthy"
+  defp status_phrase({:warning, 1}), do: "1 has a warning"
+  defp status_phrase({:warning, count}), do: "#{delimited(count)} have warnings"
+  defp status_phrase({:unknown, 1}), do: "1 isn't reporting health"
+  defp status_phrase({:unknown, count}), do: "#{delimited(count)} aren't reporting health"
+
+  defp join_and([only]), do: only
+  defp join_and(parts), do: Enum.join(Enum.drop(parts, -1), ", ") <> " and " <> List.last(parts)
+
+  # How the newest version's active devices compare, when it isn't the
+  # version named and any of them are active. The headline already gives the
+  # fleet.
+  defp comparison(row, composition) do
     case Enum.find(composition.versions, &(&1.version == composition.newest_version)) do
-      %{version: version} = newest when version != row.version ->
-        case Insights.not_healthy(newest.health) do
-          0 -> "On #{version} none are."
-          count -> "On #{version} it is 1 in #{round(newest.count / count)}."
+      %{version: version, active: active} = newest when version != row.version and active > 0 ->
+        case Insights.not_healthy(newest.active_health) do
+          0 -> "Every device on #{version} is healthy."
+          count -> "On #{version} it's #{one_in(count, active)}."
         end
 
       _ ->
-        "Across the fleet it is 1 in #{round(composition.total / fleet_not_healthy)}."
+        nil
+    end
+  end
+
+  defp even_explanation(%{not_healthy: not_healthy, fleet_rate: fleet_rate} = stands_out, close?) do
+    devices =
+      if not_healthy == 1,
+        do: "the 1 device that needs a look isn't",
+        else: "the #{delimited(not_healthy)} devices that need a look aren't"
+
+    if close? do
+      "Every version is within a point of the fleet's #{percent(fleet_rate)} not healthy, so #{devices} tied to one firmware."
+    else
+      "No version of #{stands_out.min_devices} or more devices has #{stands_out.min_not_healthy} or more not healthy at twice the fleet's #{percent(fleet_rate)}, so #{devices} tied to one firmware."
     end
   end
 
@@ -736,6 +807,7 @@ defmodule NervesHubWeb.Components.FleetComposition do
   attr(:accent, :string, required: true, doc: "the left edge's border colour class")
   attr(:label, :string, required: true)
   attr(:label_class, :string, required: true)
+  attr(:note, :string, default: nil, doc: "a small line under the figures, such as which devices were counted")
   slot(:headline, required: true)
   slot(:inner_block, required: true, doc: "the sentence under the headline")
   slot(:extra)
@@ -757,6 +829,7 @@ defmodule NervesHubWeb.Components.FleetComposition do
       <p class="text-item-title/6 font-medium text-content-strong @min-[640px]:text-lg/6.5">{render_slot(@headline)}</p>
       <p class="text-ui/5 text-content-muted">{render_slot(@inner_block)}</p>
       <div :if={@extra != []} class="pt-0.5 @min-[640px]:pt-1">{render_slot(@extra)}</div>
+      <p :if={@note} class="text-xs text-content-faint">{@note}</p>
       <div :if={@action != []} class="flex gap-2 pt-1 @min-[640px]:pt-1.5">{render_slot(@action)}</div>
     </aside>
     """

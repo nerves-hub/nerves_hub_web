@@ -209,8 +209,11 @@ when adding or removing one.
 - `insights.ex` / `insights/` - what a product's fleet is made of, for its
   Insights page: devices counted by connection, health and firmware version
   from PostgreSQL alone, and the version whose devices stand out as less
-  healthy than the fleet. Its groupings match the devices list's filters, so
-  each count links to the devices it counts. `insights/trends.ex` is how the
+  healthy than the fleet. Stands out counts only devices online or seen in
+  the last 7 days (`Insights.active_query/0`): a device that's gone can't
+  report its health and stays on the firmware it left with, so counting it
+  flags old versions for their dead devices. Its groupings match the devices
+  list's filters, so each count links to the devices it counts. `insights/trends.ex` is how the
   fleet moved over a period (adoption, update outcomes, online, healthy),
   from ClickHouse. History keeps only changes, so the shares are walked back
   from today's live counts and are shares of today's fleet. A version's

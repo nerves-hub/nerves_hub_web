@@ -28,6 +28,8 @@ defmodule NervesHub.InsightsTest do
                total: 0,
                connection: %{online: 0, recent: 0, week: 0, stale: 0, never: 0},
                health: %{healthy: 0, warning: 0, unhealthy: 0, unknown: 0},
+               active: 0,
+               active_health: %{healthy: 0, warning: 0, unhealthy: 0, unknown: 0},
                versions: [],
                newest_version: nil
              }
@@ -89,6 +91,16 @@ defmodule NervesHub.InsightsTest do
 
         assert length(devices) == counts[group], "#{group}: #{inspect(filters)}"
       end
+
+      opts = %{
+        sort: {:asc, :identifier},
+        filters: %{advanced_query: Insights.active_query(), display_deleted: "exclude"},
+        pagination: %{page_size: 100}
+      }
+
+      {active, _meta} = Devices.filter(ctx.product, ctx.user, opts)
+
+      assert length(active) == counts.online + counts.recent
     end
 
     test "counts a device that has never reported its health as unknown", ctx do
@@ -121,21 +133,51 @@ defmodule NervesHub.InsightsTest do
                  version: "2.0.0",
                  count: 3,
                  health: %{healthy: 3, warning: 0, unhealthy: 0, unknown: 0},
-                 offline: 3
+                 offline: 3,
+                 active: 0,
+                 active_health: %{healthy: 0, warning: 0, unhealthy: 0, unknown: 0}
                },
                %{
                  version: "1.0.0",
                  count: 2,
                  health: %{healthy: 0, warning: 1, unhealthy: 0, unknown: 1},
-                 offline: 1
+                 offline: 1,
+                 active: 1,
+                 active_health: %{healthy: 0, warning: 1, unhealthy: 0, unknown: 0}
                },
                %{
                  version: nil,
                  count: 1,
                  health: %{healthy: 0, warning: 0, unhealthy: 0, unknown: 1},
-                 offline: 1
+                 offline: 1,
+                 active: 0,
+                 active_health: %{healthy: 0, warning: 0, unhealthy: 0, unknown: 0}
                }
              ]
+    end
+
+    test "counts as active only the devices online or seen in the last 7 days", ctx do
+      online = device(ctx, "1.0.0", status: :provisioned)
+      set_health(online, :unhealthy)
+      Fixtures.device_connection_fixture(online, %{status: :connected, last_seen_at: @now})
+
+      recent = device(ctx, "1.0.0", status: :provisioned)
+      Fixtures.device_connection_fixture(recent, %{status: :disconnected, last_seen_at: days_ago(3)})
+
+      for days <- [10, 20] do
+        gone = device(ctx, "1.0.0", status: :provisioned)
+        Fixtures.device_connection_fixture(gone, %{status: :disconnected, last_seen_at: days_ago(days)})
+      end
+
+      # connected before connection rows were kept, and never connected
+      device(ctx, "1.0.0", status: :provisioned)
+      device(ctx, "1.0.0")
+
+      composition = Insights.composition(ctx.product, @now)
+
+      assert composition.active == 2
+      assert composition.active_health == %{healthy: 0, warning: 0, unhealthy: 1, unknown: 1}
+      assert [%{active: 2, health: %{unknown: 5}}] = composition.versions
     end
 
     test "orders equal-sized versions newest first and finds the newest by semantic version", ctx do
@@ -204,7 +246,9 @@ defmodule NervesHub.InsightsTest do
                folded: 3,
                count: 6,
                health: %{healthy: 4, warning: 1, unhealthy: 1, unknown: 0},
-               offline: 6
+               offline: 6,
+               active: 6,
+               active_health: %{healthy: 4, warning: 1, unhealthy: 1, unknown: 0}
              } = composition |> Insights.versions() |> List.last()
     end
 
@@ -223,14 +267,26 @@ defmodule NervesHub.InsightsTest do
     test "has nothing to compare when every device is on one version" do
       composition = composition_of([{"1.0.0", 20, healthy: 15, warning: 5}])
 
-      assert %{kind: :single, row: %{version: "1.0.0"}, fleet_rate: 0.25, not_healthy: 5} =
+      assert %{kind: :single, row: %{version: "1.0.0"}, not_healthy: 5, active: 20} =
                Insights.stands_out(composition)
     end
 
     test "says every device is healthy" do
       composition = composition_of([{"2.0.0", 20, healthy: 20}, {"1.0.0", 10, healthy: 10}])
 
-      assert %{kind: :all_healthy, total: 30, offline: 30} = Insights.stands_out(composition)
+      assert %{kind: :all_healthy, active: 30, offline: 30} = Insights.stands_out(composition)
+    end
+
+    test "says every device is healthy when only devices that are gone aren't" do
+      composition = composition_of([{"2.0.0", 20, [healthy: 20]}, {"1.0.0", 10, [unknown: 10], []}])
+
+      assert %{kind: :all_healthy, active: 20} = Insights.stands_out(composition)
+    end
+
+    test "has nothing to judge when no device was seen in the last 7 days" do
+      composition = composition_of([{"2.0.0", 20, [healthy: 20], []}, {"1.0.0", 10, [unknown: 10], []}])
+
+      assert Insights.stands_out(composition) == %{kind: :inactive, total: 30}
     end
 
     test "names a version with at least twice the fleet's share of devices that aren't healthy" do
@@ -241,8 +297,22 @@ defmodule NervesHub.InsightsTest do
           {"1.0.0", 40, healthy: 23, warning: 9, unhealthy: 4, unknown: 4}
         ])
 
-      assert %{kind: :version, row: %{version: "1.0.0"}, rate: 0.425, not_healthy: 22} =
+      assert %{kind: :version, row: %{version: "1.0.0"}, rate: 0.425, not_healthy: 22, active: 160} =
                Insights.stands_out(composition)
+    end
+
+    test "judges health on devices seen in the last 7 days, not ones that are gone" do
+      # 0.25.1's 75 devices were all last seen weeks ago, and never reported health
+      composition =
+        composition_of([
+          {"0.29.0", 100, [healthy: 97, unhealthy: 3]},
+          {"0.25.1", 75, [unknown: 75], []}
+        ])
+
+      assert %{kind: :even, fleet_rate: 0.03, not_healthy: 3, active: 100, rows: rows} =
+               Insights.stands_out(composition)
+
+      assert [0.03, nil] = Enum.map(rows, &Insights.rate/1)
     end
 
     test "names the worst of several versions that stand out" do
@@ -261,6 +331,15 @@ defmodule NervesHub.InsightsTest do
 
       assert %{kind: :even, fleet_rate: fleet_rate, not_healthy: 14, min_devices: 10} = Insights.stands_out(composition)
       assert_in_delta fleet_rate, 14 / 109, 0.0001
+    end
+
+    test "ignores a version with fewer than three devices that aren't healthy" do
+      # the fleet is 0.2% not healthy, so twice that is a single device
+      two = composition_of([{"2.0.0", 990, healthy: 990}, {"1.0.0", 12, healthy: 10, unhealthy: 2}])
+      three = composition_of([{"2.0.0", 990, healthy: 990}, {"1.0.0", 12, healthy: 9, unhealthy: 3}])
+
+      assert %{kind: :even, min_not_healthy: 3} = Insights.stands_out(two)
+      assert %{kind: :version, row: %{version: "1.0.0"}} = Insights.stands_out(three)
     end
 
     test "never names the devices with no version or the folded others" do
@@ -313,21 +392,49 @@ defmodule NervesHub.InsightsTest do
   defp days_ago(days), do: DateTime.add(@now, -days, :day)
 
   # A composition as `Insights.composition/2` returns it, from
-  # `{version, count, health}` in the order given. Every device is offline.
+  # `{version, count, health}` or `{version, count, health, active_health}` in
+  # the order given. Every device is offline. With no `active_health` every
+  # device was seen in the last 7 days; with one, only those it counts were,
+  # and the rest weren't seen in 14 days.
   defp composition_of(versions) do
     no_health = %{healthy: 0, warning: 0, unhealthy: 0, unknown: 0}
 
     versions =
-      Enum.map(versions, fn {version, count, health} ->
-        %{version: version, count: count, health: Map.merge(no_health, Map.new(health)), offline: count}
+      Enum.map(versions, fn
+        {version, count, health} ->
+          health = Map.merge(no_health, Map.new(health))
+          %{version: version, count: count, health: health, offline: count, active: count, active_health: health}
+
+        {version, count, health, active_health} ->
+          active_health = Map.merge(no_health, Map.new(active_health))
+
+          %{
+            version: version,
+            count: count,
+            health: Map.merge(no_health, Map.new(health)),
+            offline: count,
+            active: active_health |> Map.values() |> Enum.sum(),
+            active_health: active_health
+          }
       end)
 
+    total = Enum.sum_by(versions, & &1.count)
+    active = Enum.sum_by(versions, & &1.active)
+
     %{
-      total: Enum.sum_by(versions, & &1.count),
-      connection: %{online: 0, recent: 0, week: 0, stale: 0, never: Enum.sum_by(versions, & &1.count)},
-      health: Map.new(no_health, fn {status, _} -> {status, Enum.sum_by(versions, & &1.health[status])} end),
+      total: total,
+      connection: %{online: 0, recent: active, week: 0, stale: total - active, never: 0},
+      health: sum_health(versions, :health),
+      active: active,
+      active_health: sum_health(versions, :active_health),
       versions: versions,
       newest_version: nil
     }
+  end
+
+  defp sum_health(versions, key) do
+    Map.new([:healthy, :warning, :unhealthy, :unknown], fn status ->
+      {status, Enum.sum_by(versions, &Map.fetch!(&1, key)[status])}
+    end)
   end
 end
