@@ -434,6 +434,52 @@ defmodule NervesHub.Devices.Connections do
     |> AnalyticsRepo.one(settings: [final: 1])
   end
 
+  @doc """
+  The devices in a product that disconnected often enough to reach a level
+  of the "disconnects" built-in health metric, as `%{device_id => level}`:
+  1 warning, 2 unhealthy.
+
+  Judged as `NervesHub.Devices.HealthEvaluation` judges one device: a
+  level engages when the count over its period reaches its threshold. Every
+  other device is healthy on this metric, so it's left out. For previewing a
+  change to a health profile before it's saved. One query; callers are
+  expected to check that analytics is enabled first.
+  """
+  @spec fleet_disconnection_levels(pos_integer(), pos_integer(), %{
+          warning_threshold: number(),
+          warning_period_seconds: pos_integer(),
+          alert_threshold: number(),
+          alert_period_seconds: pos_integer()
+        }) :: %{optional(pos_integer()) => 1 | 2}
+  def fleet_disconnection_levels(org_id, product_id, metric) do
+    now = DateTime.utc_now()
+    warning_cutoff = DateTime.shift(now, second: -metric.warning_period_seconds)
+    alert_cutoff = DateTime.shift(now, second: -metric.alert_period_seconds)
+    widest = if DateTime.before?(warning_cutoff, alert_cutoff), do: warning_cutoff, else: alert_cutoff
+    warning_threshold = :erlang.float(metric.warning_threshold)
+    alert_threshold = :erlang.float(metric.alert_threshold)
+
+    DeviceConnectionHistory
+    |> where([dc], dc.org_id == ^org_id and dc.product_id == ^product_id)
+    |> where([dc], not is_nil(dc.disconnected_at))
+    |> where([dc], dc.disconnected_at >= ^widest)
+    |> group_by([dc], dc.device_id)
+    |> select(
+      [dc],
+      {dc.device_id,
+       fragment(
+         "multiIf(countIf(disconnected_at >= ?) >= ?, 2, countIf(disconnected_at >= ?) >= ?, 1, 0)",
+         ^alert_cutoff,
+         ^alert_threshold,
+         ^warning_cutoff,
+         ^warning_threshold
+       )}
+    )
+    |> AnalyticsRepo.all(settings: [final: 1])
+    |> Map.new()
+    |> Map.reject(fn {_device_id, level} -> level == 0 end)
+  end
+
   # A gap between connections shorter than this is a reconnect, not time
   # offline worth showing.
   @shortest_offline_seconds 60

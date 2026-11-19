@@ -324,11 +324,17 @@ when adding or removing one.
   A product's settings are two LiveViews, General (`live/product/settings.ex`)
   and Device health (`live/product/health_profiles.ex`), sharing their title
   and tabs from `components/product_settings.ex`. General is titled cards in
-  two columns, like the device page's Settings tab, and both draw their
-  toggles with `components/switch.ex`. Anything there that changes every
-  device, or can't be undone, asks first in a dialog that one `@confirm`
-  assign drives; each event that opens one checks the same permission as the
-  event that acts.
+  two columns, like the device page's Settings tab, and draws its toggles
+  with `components/switch.ex`. Anything there that changes every device, or
+  can't be undone, asks first in a dialog that one `@confirm` assign drives;
+  each event that opens one checks the same permission as the event that
+  acts. Device health edits one profile at a time as a draft, saved whole by
+  `HealthProfiles.save_metrics/2`. While there are unsaved changes it shows
+  what saving would do to the profile's devices: today's `device_health`
+  counts, moved by the difference between ClickHouse previews of the saved
+  and edited metrics (`HealthProfiles.preview_counts/5`), which judge every
+  device the way `HealthEvaluation` does but leave out readings still in
+  the analytics buffer.
 - `controllers/` — JSON API (`controllers/api/`) and others.
 - `plugs/`, `router.ex`, `endpoint.ex`, `device_endpoint.ex`,
   `health_check_endpoint.ex`, `auth*.ex`.
