@@ -110,6 +110,11 @@ defmodule NervesHubWeb.Components.DeviceListTest do
       assert DeviceList.attention_reason(device(latest_connection: seen_days_ago(3))) == nil
     end
 
+    test "has no time for a device that connected before connection records were kept" do
+      assert DeviceList.attention_reason(device(status: :provisioned, latest_connection: nil)) == {:not_seen, nil}
+      assert DeviceList.attention_reason(device(status: :registered, latest_connection: nil)) == nil
+    end
+
     test "puts a failing update first, unless the list is filtered to another reason" do
       device = failing(latest_health: unhealthy(), latest_connection: seen_days_ago(20))
 

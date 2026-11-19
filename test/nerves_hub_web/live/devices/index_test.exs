@@ -1293,6 +1293,20 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       |> refute_has("button", text: "Columns")
     end
 
+    test "a device that connected before connection records were kept needs attention as not seen", %{
+      conn: conn,
+      fixture: %{org: org, product: product, firmware: firmware} = fixture
+    } do
+      # provisioned by its first connection, but with no connection row
+      unrecorded = Fixtures.device_fixture(org, product, firmware, %{status: :provisioned})
+
+      conn
+      |> visit(device_index_path(fixture))
+      |> assert_has("#device-row-#{unrecorded.id}", text: "Last seen unknown", timeout: 1000)
+      |> visit(device_index_path(fixture) <> "?state=attention&reason=not_seen")
+      |> assert_has("#attention-list #device-row-#{unrecorded.id}", text: "Last seen unknown", timeout: 1000)
+    end
+
     test "a reason narrows the Needs attention list, and the tabs leave it behind", %{
       conn: conn,
       fixture: fixture,
@@ -1394,6 +1408,21 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       |> assert_has("#device-row-#{device2.id}", timeout: 1000)
       |> unwrap(fn view -> view |> element("#device-row-#{device2.id}") |> render_click() end)
       |> assert_has("#peek-why", text: "Not seen in 20 days")
+    end
+
+    test "says a device's last seen is unknown when it connected before connection records were kept", %{
+      conn: conn,
+      fixture: %{org: org, product: product, firmware: firmware} = fixture
+    } do
+      unrecorded =
+        Fixtures.device_fixture(org, product, firmware, %{status: :provisioned, first_seen_at: ~U[2025-03-04 10:00:00Z]})
+
+      conn
+      |> visit(device_index_path(fixture))
+      |> assert_has("#device-row-#{unrecorded.id}", timeout: 1000)
+      |> unwrap(fn view -> view |> element("#device-row-#{unrecorded.id}") |> render_click() end)
+      |> assert_has("#peek-why", text: "Last seen unknown")
+      |> assert_has("#peek-why", text: "First seen 4 Mar 2025")
     end
 
     test "the arrow keys move along the page, and escape closes it", %{conn: conn, fixture: fixture, device2: device2} do
