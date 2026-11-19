@@ -2,6 +2,7 @@ defmodule NervesHub.Products.HealthProfilesTest do
   use NervesHub.DataCase, async: true
 
   alias NervesHub.Devices.Device
+  alias NervesHub.Devices.Health
   alias NervesHub.Fixtures
   alias NervesHub.Products
   alias NervesHub.Products.HealthProfile
@@ -85,6 +86,153 @@ defmodule NervesHub.Products.HealthProfilesTest do
 
       assert {:ok, _} = HealthProfiles.delete_profile(profile)
       assert [%{platform: nil}] = HealthProfiles.all_for_product(product)
+    end
+  end
+
+  describe "save_metrics/2" do
+    setup %{product: product} do
+      {:ok, %{profile: HealthProfiles.resolve(product.id, nil)}}
+    end
+
+    test "updates, adds and removes metrics in one save", %{profile: profile, product: product} do
+      [cpu, disk | _] = Enum.sort_by(profile.metrics, & &1.key)
+      kept = profile.metrics -- [disk]
+
+      metrics =
+        Enum.map(kept, fn metric ->
+          attrs = metric_attrs(metric)
+          if metric.id == cpu.id, do: %{attrs | "warning_threshold" => "55", "featured" => false}, else: attrs
+        end) ++ [Map.put(valid_metric_attrs("cpu_temp"), "operator", "lte") |> Map.put("alert_threshold", "60")]
+
+      assert {:ok, saved} = HealthProfiles.save_metrics(profile, metrics)
+
+      keys = Enum.map(saved.metrics, & &1.key)
+      assert "cpu_temp" in keys
+      refute disk.key in keys
+
+      saved_cpu = Enum.find(saved.metrics, &(&1.id == cpu.id))
+      assert saved_cpu.warning_threshold == 55.0
+      assert saved_cpu.featured == false
+      assert Enum.find(saved.metrics, &(&1.key == "cpu_temp")).operator == :lte
+
+      # The cache was dropped, so evaluation sees the save straight away.
+      assert product.id |> HealthProfiles.resolve(nil) |> Map.fetch!(:metrics) |> length() == length(saved.metrics)
+    end
+
+    test "a save from a stale copy of the profile leaves it as the save lists it", %{profile: profile} do
+      [cpu, disk | _] = Enum.sort_by(profile.metrics, & &1.key)
+
+      # Since `profile` was loaded, someone else removed cpu and added a
+      # metric of their own.
+      :ok = HealthProfiles.delete_metric(cpu)
+      {:ok, _} = HealthProfiles.add_metric(profile, valid_metric_attrs("cpu_temp"))
+
+      metrics = Enum.map(profile.metrics, &metric_attrs/1)
+
+      assert {:ok, saved} = HealthProfiles.save_metrics(profile, metrics)
+
+      assert saved.metrics |> Enum.map(& &1.key) |> Enum.sort() == profile.metrics |> Enum.map(& &1.key) |> Enum.sort()
+      assert Enum.find(saved.metrics, &(&1.key == disk.key)).id == disk.id
+      assert Enum.find(saved.metrics, &(&1.key == cpu.key)).id != cpu.id
+    end
+
+    test "says when the profile has been deleted", %{product: product} do
+      {:ok, platform_profile} = HealthProfiles.create_platform_profile(product, "rpi4")
+      {:ok, _} = HealthProfiles.delete_profile(platform_profile)
+
+      assert HealthProfiles.save_metrics(platform_profile, Enum.map(platform_profile.metrics, &metric_attrs/1)) ==
+               {:error, :profile_not_found}
+    end
+
+    test "saves nothing when one metric doesn't validate, and says which", %{profile: profile} do
+      # Changes a kept metric too, which mustn't be saved either.
+      [first | rest] = profile.metrics
+      bad = %{valid_metric_attrs("cpu_temp") | "alert_threshold" => "10"}
+      metrics = [%{metric_attrs(first) | "warning_threshold" => "1"} | Enum.map(rest, &metric_attrs/1)] ++ [bad]
+
+      assert {:error, index, changeset} = HealthProfiles.save_metrics(profile, metrics)
+      assert index == length(profile.metrics)
+      assert %{alert_threshold: [_]} = errors_on(changeset)
+
+      saved = HealthProfiles.resolve(profile.product_id, nil)
+      refute Enum.any?(saved.metrics, &(&1.key == "cpu_temp"))
+      assert Enum.find(saved.metrics, &(&1.id == first.id)).warning_threshold == first.warning_threshold
+    end
+
+    test "a metric removed and added back in one save is replaced", %{profile: profile} do
+      [cpu | rest] = Enum.sort_by(profile.metrics, & &1.key)
+      readded = cpu |> metric_attrs() |> Map.delete("id") |> Map.put("warning_threshold", "42")
+
+      assert {:ok, saved} = HealthProfiles.save_metrics(profile, Enum.map(rest, &metric_attrs/1) ++ [readded])
+
+      new_cpu = Enum.find(saved.metrics, &(&1.key == cpu.key))
+      assert new_cpu.id != cpu.id
+      assert new_cpu.warning_threshold == 42.0
+    end
+
+    test "can't touch another profile's metrics", %{profile: profile, product: product} do
+      {:ok, other} = HealthProfiles.create_platform_profile(product, "rpi4")
+      foreign = hd(other.metrics)
+
+      # An id from another profile is treated as a new metric for this one.
+      attrs = foreign |> metric_attrs() |> Map.put("key", "cpu_temp")
+      assert {:ok, _} = HealthProfiles.save_metrics(profile, Enum.map(profile.metrics, &metric_attrs/1) ++ [attrs])
+
+      assert Repo.reload(foreign).key == foreign.key
+    end
+
+    test "a built-in keeps its direction", %{profile: profile} do
+      disconnects = %{valid_metric_attrs("disconnects") | "warning_threshold" => "3", "alert_threshold" => "10"}
+
+      assert {:ok, saved} =
+               HealthProfiles.save_metrics(
+                 profile,
+                 Enum.map(profile.metrics, &metric_attrs/1) ++ [Map.put(disconnects, "operator", "lte")]
+               )
+
+      metric = Enum.find(saved.metrics, &(&1.key == "disconnects"))
+      assert metric.built_in
+      assert metric.operator == :gte
+    end
+  end
+
+  describe "device_counts/3 and health_counts/4" do
+    @describetag :tmp_dir
+
+    setup %{user: user, org: org, product: product, tmp_dir: tmp_dir} do
+      org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
+      firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+
+      {:ok, %{firmware: firmware}}
+    end
+
+    test "count each profile's devices, and their health", %{user: user, org: org, product: product, firmware: firmware} do
+      [warning, _unknown] = for _ <- 1..2, do: Fixtures.device_fixture(org, product, firmware)
+      Fixtures.device_fixture(org, product, firmware, %{platform: "esp32"})
+
+      # A deleted device counts nowhere.
+      org
+      |> Fixtures.device_fixture(product, firmware)
+      |> Ecto.Changeset.change(deleted_at: DateTime.utc_now(:second))
+      |> Repo.update!()
+
+      {:ok, _} = Health.save_device_health(%{"device_id" => warning.id, "status" => :warning})
+
+      {:ok, esp32_profile} = HealthProfiles.create_platform_profile(product, "esp32")
+      profiles = HealthProfiles.all_for_product(product)
+      default = Enum.find(profiles, &is_nil(&1.platform))
+
+      assert HealthProfiles.device_counts(product, user, profiles) == %{nil => 2, "esp32" => 1}
+
+      assert HealthProfiles.health_counts(product, user, default, profiles) ==
+               %{healthy: 0, warning: 1, unhealthy: 0, unknown: 1}
+
+      assert HealthProfiles.health_counts(product, user, esp32_profile, profiles) ==
+               %{healthy: 0, warning: 0, unhealthy: 0, unknown: 1}
+
+      # Without a profile of its own, the esp32 device falls to Default.
+      {:ok, _} = HealthProfiles.delete_profile(esp32_profile)
+      assert HealthProfiles.device_counts(product, user, HealthProfiles.all_for_product(product)) == %{nil => 3}
     end
   end
 
@@ -302,6 +450,19 @@ defmodule NervesHub.Products.HealthProfilesTest do
       %{gte: big} = HealthProfiles.suggested_thresholds(stats(q1: 1_000_000.0, q3: 2_345_678.0))
       assert big.warning == 4_360_000.0
     end
+  end
+
+  defp metric_attrs(metric) do
+    %{
+      "id" => metric.id,
+      "key" => metric.key,
+      "featured" => metric.featured,
+      "operator" => to_string(metric.operator),
+      "warning_threshold" => to_string(metric.warning_threshold),
+      "warning_period_seconds" => metric.warning_period_seconds,
+      "alert_threshold" => to_string(metric.alert_threshold),
+      "alert_period_seconds" => metric.alert_period_seconds
+    }
   end
 
   defp valid_metric_attrs(key) do

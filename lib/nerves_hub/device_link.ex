@@ -621,6 +621,14 @@ defmodule NervesHub.DeviceLink do
            ClientLibrary.from_user_agent(user_agent)
          ) do
       {:ok, %DeviceConnection{id: connection_id}} ->
+        # This device now holds the identifier, so a notification that another
+        # device held it is out of date.
+        {:ok, _} =
+          ProductNotifications.resolve_duplicate_device_identifier_notification!(
+            device_info.product_id,
+            device_info.device_identifier
+          )
+
         {:ok, %{device_info | connection_ref: connection_id}}
 
       {:error, _changeset} = error ->

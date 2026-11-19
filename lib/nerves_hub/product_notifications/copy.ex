@@ -76,7 +76,7 @@ defmodule NervesHub.ProductNotifications.Copy do
 
   def rollup(:extension_failure, 1, count, _latest) do
     %{
-      title: "A device had #{count} extension failures.",
+      title: "A device had #{delimited(count)} extension failures.",
       message:
         "The extensions stay on in #{platform()}, but won't work on this device until the causes are fixed, " <>
           "usually in its firmware."
@@ -105,9 +105,10 @@ defmodule NervesHub.ProductNotifications.Copy do
 
   defp detail(:extension_failure, %{"extension" => extension}), do: extension
 
-  defp detail(:oversized_metric_keys, %{"count" => count}), do: "#{count} long #{plural(count, "name", "names")}"
+  defp detail(:oversized_metric_keys, %{"count" => count}),
+    do: "#{delimited(count)} long #{plural(count, "name", "names")}"
 
-  defp detail(:too_many_metrics, %{"reported" => reported}), do: "#{reported} metrics"
+  defp detail(:too_many_metrics, %{"reported" => reported}), do: "#{delimited(reported)} metrics"
   defp detail(_kind, _metadata), do: nil
 
   defp writable?(nil, _metadata), do: false
@@ -166,16 +167,16 @@ defmodule NervesHub.ProductNotifications.Copy do
         "1 device was added, along with its certificate."
 
       {created, 0} ->
-        "#{created} devices were added, along with their certificates."
+        "#{delimited(created)} devices were added, along with their certificates."
 
       {0, 1} ->
         "The only device in the manifest could not be added. Check that the manifest is valid."
 
       {0, failed} ->
-        "None of the #{failed} devices in the manifest could be added. Check that the manifest is valid."
+        "None of the #{delimited(failed)} devices in the manifest could be added. Check that the manifest is valid."
 
       {created, failed} ->
-        "#{created} #{plural(created, "device was", "devices were")} added, and #{failed} could not be. " <>
+        "#{delimited(created)} #{plural(created, "device was", "devices were")} added, and #{delimited(failed)} could not be. " <>
           "Check the manifest for the #{plural(failed, "one", "ones")} that failed."
     end
   end
@@ -202,7 +203,7 @@ defmodule NervesHub.ProductNotifications.Copy do
   defp message(:oversized_metric_keys, m, form) do
     count = m["count"]
 
-    "#{it(form, m)} sent #{count} #{plural(count, "metric", "metrics")} with names longer than " <>
+    "#{it(form, m)} sent #{delimited(count)} #{plural(count, "metric", "metrics")} with names longer than " <>
       "#{m["max_bytes"]} bytes, starting with '#{String.slice(m["example_key"], 0, 64)}'. " <>
       "Those readings were dropped and the rest of the report was kept. " <>
       "Shorten the metric names the device reports."
@@ -222,8 +223,8 @@ defmodule NervesHub.ProductNotifications.Copy do
   defp message(:too_many_metrics, m, form) do
     max = m["max_keys"]
 
-    "#{it(form, m)} sent #{m["reported"]} metrics in one report, and #{platform()} stores at most #{max}. " <>
-      "The first #{max} metric names in alphabetical order were kept, so the same readings are dropped each time."
+    "#{it(form, m)} sent #{delimited(m["reported"])} metrics in one report, and #{platform()} stores at most #{delimited(max)}. " <>
+      "The first #{delimited(max)} metric names in alphabetical order were kept, so the same readings are dropped each time."
   end
 
   defp message(:update_mode_revert_failed, m, form) do
@@ -247,7 +248,7 @@ defmodule NervesHub.ProductNotifications.Copy do
       %{"reason" => "failed"} ->
         failed = m["failed_count"] || 0
 
-        "#{step} failed: #{failed} #{plural(failed, "device", "devices")} could not take the update. " <>
+        "#{step} failed: #{delimited(failed)} #{plural(failed, "device", "devices")} could not take the update. " <>
           "No more devices will update to this release until the step is retried or skipped."
 
       _awaiting_approval ->
@@ -267,7 +268,7 @@ defmodule NervesHub.ProductNotifications.Copy do
 
   defp rolled_up(:duplicate_device_identifier, count, _m) do
     %{
-      title: "#{count} devices tried to connect with identifiers already in use.",
+      title: "#{delimited(count)} devices tried to connect with identifiers already in use.",
       message:
         "Other devices already have these identifiers, possibly ones that were soft-deleted. " <>
           "Remove those devices, or give the new ones different identifiers."
@@ -276,7 +277,7 @@ defmodule NervesHub.ProductNotifications.Copy do
 
   defp rolled_up(:extension_failure, count, _m) do
     %{
-      title: "#{count} devices could not start an extension.",
+      title: "#{delimited(count)} devices could not start an extension.",
       message:
         "The extensions stay on in #{platform()}, but won't work on these devices until the cause is fixed, " <>
           "usually in their firmware."
@@ -285,7 +286,7 @@ defmodule NervesHub.ProductNotifications.Copy do
 
   defp rolled_up(:missing_firmware_metadata, count, _m) do
     %{
-      title: "#{count} devices connected without firmware metadata.",
+      title: "#{delimited(count)} devices connected without firmware metadata.",
       message:
         "They reported no firmware UUID (`nerves_fw_uuid` in their U-Boot environment), " <>
           "so #{platform()} can't tell which firmware they're running."
@@ -296,30 +297,30 @@ defmodule NervesHub.ProductNotifications.Copy do
     longer_than = if max = m["max_bytes"], do: "longer than #{max} bytes", else: "too long to store"
 
     %{
-      title: "#{count} devices reported metric names too long to store.",
+      title: "#{delimited(count)} devices reported metric names too long to store.",
       message: "Readings with names #{longer_than} were dropped, and the rest of each report was kept."
     }
   end
 
   defp rolled_up(:soft_deleted_device, count, _m) do
     %{
-      title: "#{count} soft-deleted devices were permanently deleted.",
+      title: "#{delimited(count)} soft-deleted devices were permanently deleted.",
       message: "Soft-deleted devices are permanently deleted after two weeks."
     }
   end
 
   defp rolled_up(:too_many_metrics, count, m) do
-    kept = if max = m["max_keys"], do: "Only the first #{max} metric names", else: "Only some of the metrics"
+    kept = if max = m["max_keys"], do: "Only the first #{delimited(max)} metric names", else: "Only some of the metrics"
 
     %{
-      title: "#{count} devices reported more metrics than #{platform()} stores.",
+      title: "#{delimited(count)} devices reported more metrics than #{platform()} stores.",
       message: "#{kept} in each report, in alphabetical order, were kept."
     }
   end
 
   defp rolled_up(:update_mode_revert_failed, count, _m) do
     %{
-      title: "#{count} devices could not be returned to automatic updates.",
+      title: "#{delimited(count)} devices could not be returned to automatic updates.",
       message:
         "They're set to manage their own updates, but their firmware is too old to do that. " <>
           "They get no firmware until you set their update mode or send them firmware by hand."
@@ -330,7 +331,7 @@ defmodule NervesHub.ProductNotifications.Copy do
     instead_of = if host = m["host"], do: " instead of #{host}", else: ""
 
     %{
-      title: "#{count} devices connected to the wrong host.",
+      title: "#{delimited(count)} devices connected to the wrong host.",
       message: "They connected to the management host#{instead_of}, and were redirected."
     }
   end
@@ -340,6 +341,11 @@ defmodule NervesHub.ProductNotifications.Copy do
 
   defp reason_clause(%{"reason" => reason}) when is_binary(reason) and reason != "", do: ": #{reason}"
   defp reason_clause(_m), do: ""
+
+  # Anything but an integer, such as a count missing from older metadata,
+  # passes through as it is.
+  defp delimited(number) when is_integer(number), do: Number.Delimit.number_to_delimited(number, precision: 0)
+  defp delimited(number), do: number
 
   defp plural(1, one, _many), do: one
   defp plural(_count, _one, many), do: many

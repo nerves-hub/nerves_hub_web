@@ -39,10 +39,10 @@ defmodule NervesHubWeb.Live.Product.NotificationsTest do
 
   @code_failure "A device could not run its connecting code."
 
-  # Moves a notification back in time, so tests can put it in a day's group
-  # or an order.
-  defp last_occurred!(notification, seconds_ago) do
-    at = DateTime.utc_now() |> DateTime.add(-seconds_ago, :second) |> DateTime.truncate(:second)
+  # Moves a notification back in time from `from`, so tests can put it in a
+  # day's group or an order.
+  defp last_occurred!(notification, seconds_ago, from \\ DateTime.utc_now()) do
+    at = from |> DateTime.add(-seconds_ago, :second) |> DateTime.truncate(:second)
 
     Notification
     |> Repo.get!(notification.id)
@@ -50,13 +50,18 @@ defmodule NervesHubWeb.Live.Product.NotificationsTest do
     |> Repo.update!()
   end
 
-  # `count` cards, the first the most recent, a minute apart, about devices
-  # "abc-01", "abc-02" and so on.
-  defp many!(product, count) do
+  # `count` cards, the first the most recent, a minute apart going back from
+  # `from`, about devices "abc-01", "abc-02" and so on.
+  defp many!(product, count, from \\ DateTime.utc_now()) do
     for n <- 1..count do
-      product |> code_failure!(identifier(n)) |> last_occurred!(n * 60)
+      product |> code_failure!(identifier(n)) |> last_occurred!(n * 60, from)
     end
   end
+
+  # Noon today in UTC, the zone the page uses when the browser sends none.
+  # Cards a minute apart back from it stay in today whatever the time, where
+  # cards back from now cross midnight for the first minutes of the day.
+  defp noon_today(), do: DateTime.new!(Date.utc_today(), ~T[12:00:00])
 
   defp identifier(n), do: "abc-#{String.pad_leading(Integer.to_string(n), 2, "0")}"
 
@@ -123,20 +128,40 @@ defmodule NervesHubWeb.Live.Product.NotificationsTest do
     } do
       other_product = Fixtures.product_fixture(user, org)
       moved = Fixtures.device_fixture(org, other_product, firmware)
-      deleted = Fixtures.device_fixture(org, product, firmware)
-      {:ok, _} = Devices.delete_device(deleted)
+      soft_deleted = Fixtures.device_fixture(org, product, firmware)
+      {:ok, _} = Devices.delete_device(soft_deleted)
 
       # Each of a different kind, so none are rolled up together.
       _ = ProductNotifications.create_missing_firmware_metadata_notification!(device)
       _ = code_failure!(product, moved.identifier)
-      _ = ProductNotifications.create_update_mode_revert_failed_notification!(deleted)
+      _ = ProductNotifications.create_update_mode_revert_failed_notification!(soft_deleted)
+      _ = duplicate_identifier!(product, "gone")
 
       conn
       |> visit(page_path(org, product))
       |> assert_has("a[href='/org/#{org.name}/#{product.name}/devices/#{device.identifier}']", text: device.identifier)
       |> assert_has("article span", text: "#{moved.identifier} · moved")
-      |> assert_has("article span", text: "#{deleted.identifier} · deleted")
       |> refute_has("a", text: moved.identifier)
+      # A soft-deleted device's page is where it's restored from.
+      |> assert_has("a[href='/org/#{org.name}/#{product.name}/devices/#{soft_deleted.identifier}']",
+        text: soft_deleted.identifier
+      )
+      |> assert_has("article span", text: "· soft deleted")
+      |> assert_has("article span", text: "gone · deleted")
+      |> refute_has("a", text: "gone")
+    end
+
+    test "writes counts with thousands separators", %{conn: conn, org: org, product: product} do
+      notification = code_failure!(product, "abc")
+
+      Notification
+      |> Repo.get!(notification.id)
+      |> Ecto.Changeset.change(occurrence_count: 1_157_161)
+      |> Repo.update!()
+
+      conn
+      |> visit(page_path(org, product))
+      |> assert_has("#notification-#{notification.id}", text: "1,157,161 times")
     end
 
     test "a stopped workflow has no dismiss button, since it clears itself", %{
@@ -420,7 +445,7 @@ defmodule NervesHubWeb.Live.Product.NotificationsTest do
 
   describe "pages" do
     test "a page that starts partway through a day says it continues", %{conn: conn, org: org, product: product} do
-      _ = many!(product, 30)
+      _ = many!(product, 30, noon_today())
 
       conn
       |> visit(page_path(org, product))
