@@ -250,13 +250,30 @@ defmodule NervesHub.Devices.AdvancedQuery.Compiler do
   end
 
   # `last_seen > "7 days ago"` => last connection more recent than the cutoff;
-  # `<` => older. Devices that have never connected have a null last_seen_at and
-  # match neither.
-  defp comparison_dynamic("last_seen", ">", value),
-    do: dynamic([latest_connection: lc], lc.last_seen_at > ^last_seen_cutoff(value) and lc.status == :disconnected)
+  # `<` => older. Devices that have never connected match neither.
+  #
+  # A device that has connected but has no connection row last connected
+  # before `latest_device_connections` existed: the table started empty, and
+  # every connection since writes a row. That is older than any cutoff here
+  # (the longest is 4 weeks) once an instance has run with the table for a
+  # month, so it matches `<`. See `NervesHub.Devices.Connections.last_seen_unrecorded?/2`.
+  #
+  # Both are false rather than NULL where a device has no row or no time, so
+  # `not last_seen < "7 days ago"` keeps the devices that don't match.
+  defp comparison_dynamic("last_seen", ">", value) do
+    dynamic(
+      [latest_connection: lc],
+      coalesce(lc.last_seen_at > ^last_seen_cutoff(value) and lc.status == :disconnected, false)
+    )
+  end
 
-  defp comparison_dynamic("last_seen", "<", value),
-    do: dynamic([latest_connection: lc], lc.last_seen_at < ^last_seen_cutoff(value) and lc.status == :disconnected)
+  defp comparison_dynamic("last_seen", "<", value) do
+    dynamic(
+      [device: d, latest_connection: lc],
+      coalesce(lc.last_seen_at < ^last_seen_cutoff(value) and lc.status == :disconnected, false) or
+        (is_nil(lc.id) and d.status == :provisioned)
+    )
+  end
 
   # A device with no health record reads as "unknown", matching the sidebar filter.
   defp comparison_dynamic("health_status", "=", "unknown"),
