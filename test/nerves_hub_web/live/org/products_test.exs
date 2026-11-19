@@ -124,7 +124,7 @@ defmodule NervesHubWeb.Live.Org.ProductsTest do
       conn
       |> visit("/org/#{org.name}")
       |> assert_has("#product-#{product.id}", text: "No devices yet")
-      |> assert_has("#product-#{product.id} a[href='/org/#{org.name}/#{product.name}/devices/new']",
+      |> assert_has("#product-#{product.id} a[href='/org/#{org.name}/#{product.name}/devices']",
         text: "Connect your first device"
       )
       |> refute_has("#all-clear")

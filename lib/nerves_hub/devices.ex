@@ -15,6 +15,7 @@ defmodule NervesHub.Devices do
   alias NervesHub.DeviceEvents
   alias NervesHub.DeviceLink
   alias NervesHub.Devices.AdvancedQuery
+  alias NervesHub.Devices.Certificates
   alias NervesHub.Devices.Device
   alias NervesHub.Devices.DeviceCertificate
   alias NervesHub.Devices.DeviceFiltering
@@ -634,6 +635,29 @@ defmodule NervesHub.Devices do
       with {:ok, device} <- create_device(product, params, user, opts),
            {:ok, auth} <- issue_shared_secret_auth(device, user) do
         {:ok, {device, auth}}
+      end
+    end)
+  end
+
+  @doc """
+  Creates a device together with the certificate it will connect with, on a
+  user's behalf, in one transaction.
+
+  For a certificate no CA the org registered has signed, such as a
+  self-signed one, which would otherwise be refused when the device first
+  connects. When the certificate can't be saved (another device has it, say),
+  the device isn't created either, and the error is the certificate's
+  changeset.
+
+  Takes the same options as `create_device/4`.
+  """
+  @spec create_device_with_certificate(Product.t(), map(), User.t(), X509.Certificate.t(), keyword()) ::
+          {:ok, Device.t()} | {:error, Changeset.t()}
+  def create_device_with_certificate(%Product{} = product, params, user, otp_cert, opts \\ []) do
+    Repo.transact(fn ->
+      with {:ok, device} <- create_device(product, params, user, opts),
+           {:ok, _certificate} <- Certificates.create_device_certificate(device, otp_cert) do
+        {:ok, device}
       end
     end)
   end

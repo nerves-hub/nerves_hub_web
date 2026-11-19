@@ -299,7 +299,13 @@ when adding or removing one.
   devices brings up `components/bulk_bar.ex`, a bar floating over the list whose buttons each
   open one popover (`bulk_menu` in the LiveView) for an action on all of
   them; every bulk action handler closes it, since a `phx-submit` command
-  only sends its first push. A product with no devices shows
+  only sends its first push. Add device opens `components/add_device.ex`, a
+  dialog over the list at `/devices/new` (the list's own `:new` action, so
+  its query stays put). It adds a device matched by identifier through the
+  product's shared secret, one with a secret of its own (shown once, then
+  it waits for the device to connect), or one with its certificate. The
+  tags line names the deployment groups they match
+  (`ManagedDeployments.deployment_groups_matching_tags/2`). A product with no devices shows
   `components/device_onboarding.ex` and looks for its first one every few
   seconds; filters that match nothing show `DeviceList.no_matches/1`, which
   counts what removing each would bring back. A different list (filters, tab,

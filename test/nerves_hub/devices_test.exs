@@ -1873,6 +1873,45 @@ defmodule NervesHub.DevicesTest do
     end
   end
 
+  describe "create_device_with_certificate/4" do
+    setup do
+      key = X509.PrivateKey.new_ec(:secp256r1)
+      %{otp_cert: X509.Certificate.self_signed(key, "/CN=provisioned-device")}
+    end
+
+    test "creates the device with its certificate, which then identifies it", %{
+      product: product,
+      user: user,
+      otp_cert: otp_cert
+    } do
+      assert {:ok, device} =
+               Devices.create_device_with_certificate(product, %{identifier: "provisioned-device"}, user, otp_cert)
+
+      assert {:ok, %Device{id: id}} = Certificates.get_device_by_x509(otp_cert)
+      assert id == device.id
+    end
+
+    test "creates no device when its certificate belongs to another", %{
+      product: product,
+      user: user,
+      otp_cert: otp_cert
+    } do
+      assert {:ok, _} = Devices.create_device_with_certificate(product, %{identifier: "first-device"}, user, otp_cert)
+
+      assert {:error, %Changeset{data: %DeviceCertificate{}}} =
+               Devices.create_device_with_certificate(product, %{identifier: "second-device"}, user, otp_cert)
+
+      assert {:error, :not_found} = Devices.get_device_by(identifier: "second-device")
+    end
+
+    test "saves no certificate when the device can't be created", %{product: product, user: user, otp_cert: otp_cert} do
+      assert {:error, %Changeset{data: %Device{}}} =
+               Devices.create_device_with_certificate(product, %{identifier: ""}, user, otp_cert)
+
+      assert {:error, _} = Certificates.get_device_by_x509(otp_cert)
+    end
+  end
+
   describe "mark_last_used/1" do
     test "records when a key was last used, without touching updated_at", %{device: device} do
       {:ok, auth} = Devices.create_shared_secret_auth(device)

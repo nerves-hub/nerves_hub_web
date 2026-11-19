@@ -59,6 +59,31 @@ defmodule NervesHub.ManagedDeployments do
   end
 
   @doc """
+  The active deployment groups in `product` whose tag conditions `tags`
+  satisfy, ordered by name.
+
+  Only tags are compared, for a device that hasn't connected yet: once it
+  connects it still has to run firmware for the group's platform and
+  architecture to join (see `matching_deployment_groups/2`). A group with no
+  tag conditions, which any device satisfies, isn't listed, and nor is one
+  that has locked its membership.
+  """
+  @spec deployment_groups_matching_tags(Product.t(), [String.t()]) :: [DeploymentGroup.t()]
+  def deployment_groups_matching_tags(_product, []), do: []
+
+  def deployment_groups_matching_tags(%Product{id: product_id}, tags) do
+    DeploymentGroup
+    |> where([d], d.product_id == ^product_id and d.is_active and not d.lock_device_membership)
+    |> order_by(:name)
+    |> Repo.all()
+    |> Enum.filter(&tags_satisfy?(&1.conditions, tags))
+  end
+
+  defp tags_satisfy?(%{tags: []}, _tags), do: false
+  defp tags_satisfy?(%{tag_operator: :or, tags: group_tags}, tags), do: Enum.any?(group_tags, &(&1 in tags))
+  defp tags_satisfy?(%{tags: group_tags}, tags), do: Enum.all?(group_tags, &(&1 in tags))
+
+  @doc """
   How many deployment groups each of the given products has. A product with
   none is left out of the map.
   """
