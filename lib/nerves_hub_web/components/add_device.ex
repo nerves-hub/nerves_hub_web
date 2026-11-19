@@ -11,9 +11,10 @@ defmodule NervesHubWeb.Components.AddDevice do
   is closed on purpose. One with a certificate nothing signed has it uploaded.
 
   The list (`NervesHubWeb.Live.Devices.Index`) owns the URL: closing the
-  dialog patches back to it. It is told `{__MODULE__, {:added, device}}` when a
-  device given its own secret is added, so it can show the new device and
-  watch for it to connect, and says so with `send_update(..., connected: true)`.
+  dialog patches back to it. When a device given its own secret is added, the
+  component sends the list `{__MODULE__, {:added, device}}` so it can show the
+  device and watch for it to connect; the list reports the connection with
+  `send_update(..., connected: true)`.
   """
   use NervesHubWeb, :live_component
 
@@ -559,7 +560,9 @@ defmodule NervesHubWeb.Components.AddDevice do
 
   defp connection_help("product"), do: "Nothing to set up. It's matched by its identifier when it first connects."
   defp connection_help("own"), do: "Made when you add it and shown once, to put on the device."
-  defp connection_help("certificate"), do: "Upload it as a PEM file, unless one of your CA certificates signed it."
+
+  defp connection_help("certificate"),
+    do: "Upload it as a PEM or DER file, unless one of your CA certificates signed it."
 
   attr(:upload, :any, required: true)
   attr(:error, :string, default: nil)

@@ -60,7 +60,7 @@ defmodule NervesHub.ManagedDeployments do
 
   @doc """
   The active deployment groups in `product` whose tag conditions `tags`
-  satisfy, by name.
+  satisfy, ordered by name.
 
   Only tags are compared, for a device that hasn't connected yet: once it
   connects it still has to run firmware for the group's platform and
