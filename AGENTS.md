@@ -320,20 +320,21 @@ when adding or removing one.
   `components/switch.ex`. Anything there that changes every device, or can't
   be undone, asks first in a dialog that one assign drives (`@confirm` on
   General, `@dialog` on API keys, which uses the same component for its
-  create form and for the one-time key); each event that opens one checks the
-  same permission as the event that acts. The dialog is 480px with its own
-  footer bar, so it passes `width_class` and a cleared `body_class` to
-  `CoreComponents.modal`, whose defaults suit every other modal. One without
-  Cancel, such as the one-time key, also turns off the modal's Escape, click
-  outside and close button (`dismissible`), so a stray click can't throw the
-  key away. It must not clip, because the API keys role picker is a popover
-  that hangs past the footer. Device health edits one profile at a time as a
-  draft, saved whole by `HealthProfiles.save_metrics/2`. While there are
-  unsaved changes it shows what saving would do to the profile's devices:
-  today's `device_health` counts, moved by the difference between ClickHouse
-  previews of the saved and edited metrics (`HealthProfiles.preview_counts/5`),
-  which judge every device the way `HealthEvaluation` does but leave out
-  readings still in the analytics buffer.
+  create form, for deactivating a key and for the one-time key); each event
+  that opens one checks the same permission as the event that acts. The
+  dialog is 480px with its own footer bar, so it passes `width_class` and a
+  cleared `body_class` to `CoreComponents.modal`, whose defaults suit every
+  other modal. One without Cancel, such as the one-time key, also turns off
+  the modal's Escape, click outside and close button (`dismissible`), so a
+  stray click can't throw the key away. The dialog must not clip, because the
+  API keys role picker is a popover that hangs past the footer. Device health
+  edits one profile at a time as a draft, saved whole by
+  `HealthProfiles.save_metrics/2`. While there are unsaved changes it shows
+  what saving would do to the profile's devices: today's `device_health`
+  counts, moved by the difference between ClickHouse previews of the saved
+  and edited metrics (`HealthProfiles.preview_counts/5`), which judge every
+  device the way `HealthEvaluation` does but leave out readings still in the
+  analytics buffer.
 - `controllers/` — JSON API (`controllers/api/`) and others.
 - `plugs/`, `router.ex`, `endpoint.ex`, `device_endpoint.ex`,
   `health_check_endpoint.ex`, `auth*.ex`.

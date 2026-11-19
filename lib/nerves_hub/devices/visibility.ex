@@ -24,8 +24,8 @@ defmodule NervesHub.Devices.Visibility do
   alias NervesHub.Products.ApiKey
 
   @doc """
-  Limits a device query to the devices `subject` can see: a user, a product API
-  key, or the scope of whichever is acting.
+  Limits a device query to the devices a user or a product API key can see.
+  Takes either one, or the scope of whichever is acting.
 
   The devices must be the query's first binding.
   """
