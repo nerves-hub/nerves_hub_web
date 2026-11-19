@@ -133,6 +133,7 @@ defmodule NervesHub.Devices.Updates do
       as: :inflight_update
     )
     |> ManagedDeployments.join_current_release()
+    |> join_release_firmware()
     |> join_firmware()
     |> ManagedDeployments.join_target_release(deployment_group)
     |> join_firmware_deltas()
@@ -154,8 +155,12 @@ defmodule NervesHub.Devices.Updates do
     |> where([latest_connection: lc], lc.status == :connected)
     # A device not on the current release always has a release to take, whichever
     # one `:target_release` says it is, so this can compare against the current
-    # release.
-    |> where([firmware: f, current_release: cr], is_nil(f.id) or f.id != cr.firmware_id)
+    # release. By uuid, not through `:firmware`, so a device already on it is
+    # ruled out without looking up its firmware.
+    |> where(
+      [device: d, release_firmware: rf],
+      fragment("(? #>> '{\"uuid\"}') IS DISTINCT FROM ?", d.firmware_metadata, rf.uuid)
+    )
     |> where([inflight_update: ifu], is_nil(ifu))
     # Only include devices where: delta is completed OR no delta row exists
     |> where([firmware_delta: fd], is_nil(fd.id) or fd.status == :completed)
@@ -203,6 +208,12 @@ defmodule NervesHub.Devices.Updates do
           is_nil(f.deleted_at),
       as: :firmware
     )
+  end
+
+  # The current release's firmware. No `deleted_at` check is needed: firmware a
+  # group's current release names can't be deleted (`Firmwares.deletion_blockers/1`).
+  defp join_release_firmware(query) do
+    join(query, :inner, [current_release: cr], rf in Firmware, on: rf.id == cr.firmware_id, as: :release_firmware)
   end
 
   defp join_firmware_deltas(query) do
