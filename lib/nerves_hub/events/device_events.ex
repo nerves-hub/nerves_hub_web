@@ -142,6 +142,17 @@ defmodule NervesHub.DeviceEvents do
         send_scheduled_update(device, deployment_group, target_release, inflight_update, opts)
       end
     end)
+    |> case do
+      # Only once the inflight row is committed. The device answers within a
+      # round trip, and its first report looks for that row: told any sooner, it
+      # finds none, inserts its own, and collides with this one as it commits.
+      {:ok, {device, update_payload, inflight_update}} ->
+        broadcast(device, "update", update_payload)
+        {:ok, inflight_update}
+
+      res ->
+        res
+    end
   end
 
   defp send_scheduled_update(device, deployment_group, target_release, inflight_update, opts) do
@@ -171,11 +182,9 @@ defmodule NervesHub.DeviceEvents do
         )
     end
 
-    broadcast(device, "update", update_payload)
-
-    # The broadcast goes out even when there is nothing to send (the device is
-    # blocked, or already running the target), and only a real update is an
-    # event worth telling anyone about.
+    # The device is told even when there is nothing to send (it is blocked, or
+    # already running the target), and only a real update is an event worth
+    # telling anyone about.
     if update_payload.update_available do
       :ok =
         Integrations.dispatch(device.product_id, "device.firmware_update.scheduled", fn ->
@@ -193,7 +202,7 @@ defmodule NervesHub.DeviceEvents do
       firmware_uuid: inflight_update.firmware_uuid
     })
 
-    {:ok, inflight_update}
+    {:ok, {device, update_payload, inflight_update}}
   end
 
   @doc """

@@ -148,6 +148,50 @@ defmodule NervesHub.FirmwareUpdatesTest do
     end
   end
 
+  describe "status_update/4 racing the update it reports on" do
+    # A device can report on an update before the transaction recording it has
+    # committed. Its read then finds no inflight row, and its insert waits on
+    # that transaction and collides with the row it commits. The row goes in
+    # here between the read and the insert, which is where that commit lands.
+    test "reports against the row that was recorded rather than raising", %{
+      deployment_group: deployment_group,
+      device: device
+    } do
+      deployment_group = ManagedDeployments.load_current_release(deployment_group)
+
+      record_update_after_the_read(device, deployment_group)
+
+      assert :ok = FirmwareUpdates.status_update("received", device.id)
+
+      assert %{status: :received, deployment_id: deployment_id} = FirmwareUpdates.inflight_update_for(device)
+      assert deployment_id == deployment_group.id
+    end
+  end
+
+  # Inserts the deployment group's inflight row the first time this process
+  # reads from `devices`, which is the status update reading the device.
+  defp record_update_after_the_read(device, deployment_group) do
+    test = self()
+    handler_id = "record-update-after-the-read-#{System.unique_integer([:positive])}"
+
+    :telemetry.attach(
+      handler_id,
+      [:nerves_hub, :repo, :query],
+      fn _event, _measurements, %{source: source}, _config ->
+        if self() == test and source == "devices" do
+          :telemetry.detach(handler_id)
+
+          {:ok, _inflight_update} =
+            InflightUpdate.deployment_requested_changeset(deployment_group, device.id, false)
+            |> Repo.insert()
+        end
+      end,
+      nil
+    )
+
+    on_exit(fn -> :telemetry.detach(handler_id) end)
+  end
+
   defp assert_actor(log, %type{id: id}) do
     assert log.actor_type == type
     assert log.actor_id == id
