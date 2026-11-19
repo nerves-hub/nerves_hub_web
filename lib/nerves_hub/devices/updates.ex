@@ -155,18 +155,8 @@ defmodule NervesHub.Devices.Updates do
     |> where([latest_connection: lc], lc.status == :connected)
     # A device not on the current release always has a release to take, whichever
     # one `:target_release` says it is, so this can compare against the current
-    # release.
-    #
-    # Compared by uuid against the release's own firmware rather than through
-    # `:firmware`. That needs only the device row and the release's one firmware
-    # row, so Postgres can rule out a device already on the release before it
-    # looks up the device's firmware, and a finished rollout needs few or no
-    # firmware lookups. Through `:firmware`, a generic plan for this prepared
-    # statement looked up every device in the group, by
-    # `firmwares_product_id_deleted_at_index`, which doesn't narrow by uuid.
-    #
-    # A device whose firmware NervesHub has no live row for has a different
-    # uuid from the release's, so it stays in, as before.
+    # release. By uuid, not through `:firmware`, so a device already on it is
+    # ruled out without looking up its firmware.
     |> where(
       [device: d, release_firmware: rf],
       fragment("(? #>> '{\"uuid\"}') IS DISTINCT FROM ?", d.firmware_metadata, rf.uuid)
