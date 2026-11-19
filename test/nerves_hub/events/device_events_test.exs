@@ -117,9 +117,8 @@ defmodule NervesHub.DeviceEventsTest do
   end
 
   describe "schedule_update/3" do
-    # The device answers within a round trip, and the first thing it reports
-    # looks for the inflight row. Told before that row is committed, it finds
-    # none and inserts its own, which collides with this one as it commits.
+    # Told inside the transaction, the device's first report used to crash on
+    # the inflight row's unique index.
     test "tells the device only once the inflight update is committed", context do
       %{device: device, org_key: org_key, product: product, tmp_dir: tmp_dir, user: user} = context
 
