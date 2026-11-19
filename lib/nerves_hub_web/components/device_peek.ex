@@ -317,7 +317,7 @@ defmodule NervesHubWeb.Components.DevicePeek do
   defp why(%{reason: {:not_seen, nil}} = assigns) do
     ~H"""
     <section id="peek-why" class="border-b border-line-default px-6 py-5">
-      <p class="text-label font-medium tracking-[0.06em] text-alert-content uppercase">Last seen unknown</p>
+      <p class="text-label text-alert-content uppercase">Last seen unknown</p>
       <p class="mt-1.5 text-base/5.5 font-semibold text-content-strong">Last connected before connection records were kept</p>
       <p :if={@device.first_seen_at} class="mt-1 text-ui/5 text-content-muted">First seen {Calendar.strftime(@device.first_seen_at, "%-d %b %Y")}</p>
     </section>
