@@ -1,7 +1,7 @@
 <NervesHubWeb.Layouts.sidebar flash={@flash} current_scope={@current_scope} sidebar_tab={@sidebar_tab}>
   <:top_bar>
     <div class="flex min-w-0 items-baseline gap-3">
-      <h1 class="text-base/6 font-semibold text-content-strong">Errors</h1>
+      <h1 class="text-card-title text-content-strong">Errors</h1>
       <span class="truncate font-mono text-xs text-content-muted max-sm:hidden">reported by devices · kept 30 days</span>
     </div>
   </:top_bar>
@@ -111,7 +111,7 @@
         <div
           :if={@groups != []}
           role="row"
-          class="flex h-9 items-center gap-6 rounded-t-card border-b border-line-default bg-surface-muted px-4 text-label tracking-[0.06em] text-content-muted uppercase @max-3xl:hidden"
+          class="flex h-9 items-center gap-6 rounded-t-card border-b border-line-default bg-surface-muted px-4 text-label text-content-muted uppercase @max-3xl:hidden"
         >
           <span role="columnheader" class="min-w-0 flex-1">Error</span>
           <span role="columnheader" class="w-30 shrink-0 @max-5xl:hidden">Last 14 days</span>

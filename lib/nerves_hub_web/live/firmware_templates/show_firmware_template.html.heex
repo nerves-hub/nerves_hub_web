@@ -5,7 +5,7 @@
         Firmware
       </.link>
       <span class="lucide-chevron-right size-3.5 text-content-faint" aria-hidden="true"></span>
-      <span aria-current="page" class="truncate font-mono text-[15px]/6 font-semibold text-content-strong">{@firmware.version}</span>
+      <span aria-current="page" class="truncate font-mono text-card-title text-content-strong">{@firmware.version}</span>
       <span class="truncate font-mono text-xs text-content-muted max-sm:hidden">{@firmware.platform} · {@firmware.architecture}</span>
     </nav>
 
@@ -30,8 +30,8 @@
     <div class="flex flex-col gap-6 px-4 pt-5 pb-8 @3xl:px-8 @3xl:pt-7">
       <div class="flex flex-col gap-2.5">
         <div class="flex flex-wrap items-baseline gap-x-3.5 gap-y-1">
-          <h1 class="font-mono text-[34px]/10 font-semibold tracking-[-0.02em] text-content-strong">{@firmware.version}</h1>
-          <p :if={@firmware.description} class="text-[15px]/5 text-content-body">{@firmware.description}</p>
+          <h1 class="font-mono text-figure-xl font-semibold text-content-strong">{@firmware.version}</h1>
+          <p :if={@firmware.description} class="text-sm/5 text-content-body">{@firmware.description}</p>
         </div>
         <div class="flex flex-wrap items-center gap-2">
           <%!-- Squarer and flatter than `<.tag>`. --%>
@@ -84,19 +84,19 @@
             <dl class="grid grid-cols-2 gap-x-10 gap-y-5 border-b border-line-subtle px-5 pt-5 pb-4.5 @3xl:flex">
               <div class="flex flex-col gap-1">
                 <dt class="text-label text-content-muted uppercase">Running on</dt>
-                <dd id="firmware-running" class="font-mono text-[28px]/8.5 font-medium tracking-[-0.02em] text-content-strong">{delimited(@usage.running)}</dd>
+                <dd id="firmware-running" class="font-mono text-figure font-normal text-content-strong">{delimited(@usage.running)}</dd>
                 <dd class="text-ui text-content-body">{share_label(@usage.running, @usage.product_devices)} of {@product.name} devices</dd>
               </div>
               <div class="flex flex-col gap-1">
                 <dt class="text-label text-content-muted uppercase">Updating to it</dt>
-                <dd id="firmware-updating" class={["font-mono text-[28px]/8.5 font-medium tracking-[-0.02em]", (@usage.updating > 0 && "text-notice-content") || "text-content-strong"]}>
+                <dd id="firmware-updating" class={["font-mono text-figure font-normal", (@usage.updating > 0 && "text-notice-content") || "text-content-strong"]}>
                   {delimited(@usage.updating)}
                 </dd>
                 <dd class="text-ui text-content-body">right now</dd>
               </div>
               <div class="flex flex-col gap-1">
                 <dt class="text-label text-content-muted uppercase">Failed to install</dt>
-                <dd id="firmware-failed" class="font-mono text-[28px]/8.5 font-medium tracking-[-0.02em]">
+                <dd id="firmware-failed" class="font-mono text-figure font-normal">
                   <%= cond do %>
                     <% @failed_installs.loading -> %>
                       <span class="text-content-faint">…</span>
@@ -112,7 +112,7 @@
               </div>
               <div class="flex flex-col gap-1">
                 <dt class="text-label text-content-muted uppercase">Installed, all time</dt>
-                <dd id="firmware-installed" class="font-mono text-[28px]/8.5 font-medium tracking-[-0.02em] text-content-strong">{delimited(@usage.installed)}</dd>
+                <dd id="firmware-installed" class="font-mono text-figure font-normal text-content-strong">{delimited(@usage.installed)}</dd>
                 <dd class="text-ui text-content-body">{ngettext("device", "devices", @usage.installed)}</dd>
               </div>
             </dl>

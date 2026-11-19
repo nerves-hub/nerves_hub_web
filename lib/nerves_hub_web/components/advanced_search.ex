@@ -70,7 +70,7 @@ defmodule NervesHubWeb.Components.AdvancedSearch do
             id="search-icon"
             phx-update="ignore"
             data-role="search-icon"
-            class="pointer-events-none col-start-1 row-start-1 mr-1.5 inline-flex h-4.5 items-center self-center justify-self-end rounded-[3px] border border-line-default px-1.25 text-[11px]/3.5 text-content-muted max-sm:invisible"
+            class="pointer-events-none col-start-1 row-start-1 mr-1.5 inline-flex h-4.5 items-center self-center justify-self-end rounded border border-line-default px-1.25 text-2xs/3.5 text-content-muted max-sm:invisible"
           >
             /
           </kbd>

@@ -1,7 +1,7 @@
 <NervesHubWeb.Layouts.sidebar flash={@flash} current_scope={@current_scope} sidebar_tab={@sidebar_tab}>
   <:top_bar>
     <div class={["flex min-w-0 items-baseline gap-3", (@selecting? or @selected_devices != []) && "max-sm:hidden"]}>
-      <h1 class="text-base/6 font-semibold text-content-strong">Devices</h1>
+      <h1 class="text-card-title text-content-strong">Devices</h1>
       <span :if={!@devices.ok?} class="inline-block h-2 w-16 animate-pulse self-center rounded-full bg-base-800 motion-reduce:animate-none">
         <span class="sr-only">Loading...</span>
       </span>
@@ -12,7 +12,7 @@
     <%!-- On a phone, choosing devices takes over the title: how many, and
           Done to stop. The bulk bar along the bottom has the actions. --%>
     <div :if={@selecting? or @selected_devices != []} id="phone-selection" class="flex min-w-0 flex-1 items-center gap-3 sm:hidden">
-      <span class="text-base/6 font-semibold whitespace-nowrap text-content-strong">
+      <span class="text-card-title whitespace-nowrap text-content-strong">
         <span class="font-mono">{Number.Delimit.number_to_delimited(if(@select_all_matching, do: @total_entries, else: length(@selected_devices)), precision: 0)}</span> selected
       </span>
       <button
@@ -158,7 +158,7 @@
             <span :if={@current_filters.state == "attention"} class="mb-3 flex size-11 items-center justify-center rounded-full bg-success-soft">
               <span class="lucide-check--bold size-4.5 text-success-content" aria-hidden="true"></span>
             </span>
-            <p class="text-list-title text-content-strong">{empty_tab_title(@current_filters)}</p>
+            <p class="text-card-title text-content-strong">{empty_tab_title(@current_filters)}</p>
             <p class="max-w-md text-ui/5 text-content-muted">{empty_tab_detail(@current_filters)}</p>
           </div>
         <% Enum.empty?(devices) && @currently_filtering -> %>

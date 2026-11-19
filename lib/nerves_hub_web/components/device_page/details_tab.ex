@@ -1481,14 +1481,14 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
     <div class="flex min-w-0 flex-col gap-1.5">
       <span class="text-xs font-medium text-content-muted">Load average</span>
       <div class="flex h-7.5 items-baseline gap-3">
-        <span class={["w-12.5 shrink-0 text-2xl/7.5 font-medium tracking-[-0.02em]", level_text(@engaged, "text-content-strong")]}>
+        <span class={["w-15 shrink-0 font-mono text-figure font-normal", level_text(@engaged, "text-content-strong")]}>
           {load_value(@latest_metrics["load_1min"])}
         </span>
-        <span class="w-9.5 shrink-0 text-base font-medium text-content-body">{load_value(@latest_metrics["load_5min"])}</span>
-        <span class="w-9.5 shrink-0 text-base font-medium text-content-body">{load_value(@latest_metrics["load_15min"])}</span>
+        <span class="w-10 shrink-0 font-mono text-base text-content-body">{load_value(@latest_metrics["load_5min"])}</span>
+        <span class="w-10 shrink-0 font-mono text-base text-content-body">{load_value(@latest_metrics["load_15min"])}</span>
       </div>
       <div class="flex h-4 items-center gap-3 text-xs text-content-faint">
-        <span class="w-12.5 shrink-0">1 min</span><span class="w-9.5 shrink-0">5 min</span><span class="w-9.5 shrink-0">15 min</span>
+        <span class="w-15 shrink-0">1 min</span><span class="w-10 shrink-0">5 min</span><span class="w-10 shrink-0">15 min</span>
       </div>
       <.engaged_reason engaged={@engaged} />
     </div>
@@ -1504,10 +1504,10 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
         {@reading.label}<span :if={@reading.size} class="font-normal"> · {@reading.size}</span>
       </span>
       <div :if={@reading.value} class="flex h-7.5 items-baseline gap-1">
-        <span class={["text-2xl/7.5 font-medium tracking-[-0.02em]", level_text(@engaged, "text-content-strong")]}>{@reading.value}</span>
+        <span class={["font-mono text-figure font-normal", level_text(@engaged, "text-content-strong")]}>{@reading.value}</span>
         <span :if={@reading.unit} class="text-sm text-content-muted">{@reading.unit}</span>
       </div>
-      <span :if={!@reading.value} class="h-7.5 text-2xl/7.5 font-medium tracking-[-0.02em] text-content-faint">—</span>
+      <span :if={!@reading.value} class="h-7.5 font-mono text-figure font-normal text-content-faint">—</span>
       <div :if={@reading.percent || @reading.aside} class="flex h-4 items-center gap-2.5">
         <div :if={@reading.percent} class="flex h-1 grow rounded-full bg-line-default">
           <div class={["h-1 rounded-full", level_bar(@engaged)]} style={"width: #{min(max(@reading.percent, 0), 100)}%"}></div>

@@ -201,11 +201,11 @@ defmodule NervesHubWeb.Components.DeviceFilters do
       <div class="mx-auto mt-2 h-1 w-9 shrink-0 rounded-full bg-line-strong sm:hidden" aria-hidden="true"></div>
       <header class="flex h-13 shrink-0 items-center justify-between border-b border-line-subtle pr-3 pl-5 max-sm:h-12 max-sm:border-b-0 max-sm:pl-4">
         <div class="flex items-baseline gap-2">
-          <h2 id="filter-panel-title" class="text-list-title text-content-strong">Filters</h2>
+          <h2 id="filter-panel-title" class="text-card-title text-content-strong">Filters</h2>
           <span id="filters-applied" class="text-xs text-content-muted">{@applied} applied</span>
         </div>
         <div class="flex items-center gap-1.5">
-          <kbd class="inline-flex items-center rounded-[3px] border border-line-default px-1.25 py-px font-sans text-[11px]/3.5 font-normal text-content-faint max-sm:hidden">
+          <kbd class="inline-flex items-center rounded border border-line-default px-1.25 py-px font-sans text-2xs/3.5 font-normal text-content-faint max-sm:hidden">
             esc
           </kbd>
           <button
@@ -535,7 +535,7 @@ defmodule NervesHubWeb.Components.DeviceFilters do
             name={"#{@key}[]"}
             value={value}
             checked={value in @selected}
-            class="size-3.5 shrink-0 rounded-[3px] border-line-control bg-surface-raised checked:bg-primary focus:ring-0 focus:ring-offset-0 focus-visible:ring-2 focus-visible:ring-focus-ring"
+            class="size-3.5 shrink-0 rounded-xs border-line-control bg-surface-raised checked:bg-primary focus:ring-0 focus:ring-offset-0 focus-visible:ring-2 focus-visible:ring-focus-ring"
           />
           <span
             title={value}
@@ -637,7 +637,7 @@ defmodule NervesHubWeb.Components.DeviceFilters do
         name={@key}
         value="true"
         checked={Map.get(@filters, @key) == true}
-        class="size-3.5 rounded-[3px] border-line-control bg-surface-raised checked:bg-primary focus:ring-0 focus:ring-offset-0 focus-visible:ring-2 focus-visible:ring-focus-ring"
+        class="size-3.5 rounded-xs border-line-control bg-surface-raised checked:bg-primary focus:ring-0 focus:ring-offset-0 focus-visible:ring-2 focus-visible:ring-focus-ring"
       />
       {label(@key)}
     </label>

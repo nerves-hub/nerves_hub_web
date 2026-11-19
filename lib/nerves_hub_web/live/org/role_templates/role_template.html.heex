@@ -3,7 +3,7 @@
     <NervesHubWeb.Layouts.org_heading title={Utils.role_name(@role)} back={~p"/org/#{@org}/settings/roles"} back_label="Back to roles">
       {if is_atom(@role), do: built_in_description(@role), else: @role.description}
       <:actions>
-        <span :if={is_atom(@role)} class="inline-flex items-center rounded bg-surface-muted px-1.5 text-[11px]/4.5 font-medium text-content-muted">Built-in</span>
+        <span :if={is_atom(@role)} class="inline-flex items-center rounded bg-surface-muted px-1.5 text-2xs/4.5 font-medium text-content-muted">Built-in</span>
         <.button :if={is_struct(@role, OrgRole) && authorized?(:"org_role:update", @current_scope)} type="link" navigate={~p"/org/#{@org}/settings/roles/#{@role.id}/edit"}>
           <span class="lucide-pencil size-3.5" aria-hidden="true"></span> Edit role
         </.button>

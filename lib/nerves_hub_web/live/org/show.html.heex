@@ -109,7 +109,7 @@
         <article id={"product-#{product.id}"} class="product-card flex flex-col overflow-hidden rounded-card border border-line-default bg-surface-raised shadow-card">
           <div class="flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:justify-between md:px-6 md:py-5">
             <div class="flex min-w-0 flex-col gap-1">
-              <h2 class="truncate text-page-title/6.5 text-content-strong">
+              <h2 class="truncate text-section-title text-content-strong">
                 <.link navigate={~p"/org/#{@org}/#{product}/insights"} class="hover:underline">{product.name}</.link>
               </h2>
               <p class="text-ui/4.5 text-content-muted">
@@ -170,7 +170,7 @@
       <% length(@entry.products) <= @card_limit -> %>
         <section aria-labelledby="products-title" class="flex flex-col gap-4">
           <div class="flex items-center gap-2">
-            <h2 id="products-title" class="text-list-title text-content-strong">Products</h2>
+            <h2 id="products-title" class="text-card-title text-content-strong">Products</h2>
             <.badge count>{length(@entry.products)}</.badge>
           </div>
           <div class="grid gap-4 md:grid-cols-2">
@@ -183,7 +183,7 @@
               <% label = deployment_groups_label(@fleet, product.id) %>
               <.link navigate={~p"/org/#{@org}/#{product}/insights"} class="group flex items-center justify-between gap-3 px-5 py-4.5">
                 <div class="flex min-w-0 flex-col gap-0.75">
-                  <h3 class="truncate text-item-title text-content-strong group-hover:underline">{product.name}</h3>
+                  <h3 class="truncate text-card-title text-content-strong group-hover:underline">{product.name}</h3>
                   <p class="truncate text-xs text-content-muted">
                     <.separated items={[update_tools(product), label && String.downcase(label)]} />
                   </p>
@@ -229,7 +229,7 @@
         <section aria-labelledby="products-title" class="flex flex-col gap-3">
           <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div class="flex items-center gap-2">
-              <h2 id="products-title" class="text-list-title text-content-strong">Products</h2>
+              <h2 id="products-title" class="text-card-title text-content-strong">Products</h2>
               <.badge count>{length(@entry.products)}</.badge>
             </div>
             <form id="products-filter" phx-change="filter" phx-submit="filter" class="flex gap-2">

@@ -176,7 +176,7 @@ defmodule NervesHubWeb.CoreComponents do
 
   # A dot sits 2px closer to the start than the label does to the end.
   defp badge_size(true, _size, _dot),
-    do: "inline-flex h-4.5 min-w-4.5 items-center justify-center px-1.25 text-[11px]/3.5 font-medium tabular-nums"
+    do: "inline-flex h-4.5 min-w-4.5 items-center justify-center px-1.25 text-2xs/3.5 font-medium tabular-nums"
 
   defp badge_size(false, "sm", false), do: "px-2 py-0.5 text-xs font-medium"
   defp badge_size(false, "sm", true), do: "inline-flex items-center gap-1.25 py-0.5 pr-2 pl-1.5 text-xs font-medium"

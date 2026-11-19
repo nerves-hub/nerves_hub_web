@@ -96,11 +96,11 @@
         </span>
       </button>
 
-      <div :if={!assigns[:top_bar] && @current_scope.product} id="phone-title" class="flex min-w-0 items-center gap-1.5 pl-1.5 text-[0.9375rem]/5 sm:hidden">
-        <span class="min-w-0 truncate text-content-muted">{@current_scope.product.name}</span>
+      <div :if={!assigns[:top_bar] && @current_scope.product} id="phone-title" class="flex min-w-0 items-center gap-1.5 pl-1.5 text-card-title sm:hidden">
+        <span class="min-w-0 truncate font-normal text-content-muted">{@current_scope.product.name}</span>
         <%= if label = ProductSidebar.page_label(assigns[:sidebar_tab]) do %>
-          <span class="text-content-faint" aria-hidden="true">/</span>
-          <span class="shrink-0 font-medium text-content-strong">{label}</span>
+          <span class="font-normal text-content-faint" aria-hidden="true">/</span>
+          <span class="shrink-0 text-content-strong">{label}</span>
         <% end %>
       </div>
 

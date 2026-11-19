@@ -18,7 +18,7 @@ defmodule NervesHubWeb.Components.ProductSettings do
   def title(assigns) do
     ~H"""
     <div class="flex min-w-0 items-baseline gap-3">
-      <h1 class="text-base/6 font-semibold text-content-strong">Product settings</h1>
+      <h1 class="text-card-title text-content-strong">Product settings</h1>
       <span class="truncate font-mono text-xs text-content-muted max-sm:hidden">{@product.name}</span>
     </div>
     """
@@ -111,7 +111,7 @@ defmodule NervesHubWeb.Components.ProductSettings do
       <%!-- Not `overflow-hidden`: a popover inside, such as the role picker, hangs past the footer. --%>
       <div class="flex flex-col">
         <div class="flex flex-col gap-3.5 px-5 pt-5 pb-4">
-          <h2 id={"#{@id}-title"} class="pr-8 text-item-title text-content-strong">{@title}</h2>
+          <h2 id={"#{@id}-title"} class="pr-8 text-card-title text-content-strong">{@title}</h2>
           <div id={"#{@id}-description"} class="flex flex-col gap-3 text-ui/4.5 text-content-body">
             {render_slot(@inner_block)}
           </div>

@@ -725,7 +725,7 @@ defmodule NervesHubWeb.Components.AddDevice do
     ~H"""
     <header class="flex shrink-0 items-start justify-between gap-4 border-b border-line-default px-6 pt-5 pb-4.5 max-sm:px-4">
       <div class="flex min-w-0 flex-col gap-1">
-        <h2 id={"#{@id}-title"} class="text-section-title break-all text-content-strong">{render_slot(@title)}</h2>
+        <h2 id={"#{@id}-title"} class="text-card-title break-all text-content-strong">{render_slot(@title)}</h2>
         <p class="max-w-115 text-ui/4.5 text-content-muted">{render_slot(@inner_block)}</p>
       </div>
       <.link patch={@return_to} aria-label="Close" class="flex size-7 shrink-0 items-center justify-center rounded text-content-muted hover:bg-surface-muted hover:text-content-strong">

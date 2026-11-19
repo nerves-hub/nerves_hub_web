@@ -44,7 +44,7 @@ defmodule NervesHubWeb.Components.ErrorReports do
       :if={@kind}
       data-badge={@kind}
       class={[
-        "inline-flex shrink-0 items-center rounded-sm px-1.5 py-px text-[10px]/4 font-semibold tracking-[0.06em] uppercase",
+        "inline-flex shrink-0 items-center rounded-sm px-1.5 py-px text-label/4 font-semibold uppercase",
         badge_tone(@kind),
         @class
       ]}
@@ -219,7 +219,7 @@ defmodule NervesHubWeb.Components.ErrorReports do
           class={(marker.kind == :release && "stroke-notice") || "stroke-content-faint"}
         />
       </svg>
-      <div class="flex justify-between border-t border-line-subtle pt-1.5 font-mono text-[11px]/4 text-content-faint">
+      <div class="flex justify-between border-t border-line-subtle pt-1.5 font-mono text-2xs/4 text-content-faint">
         <span :for={{label, index} <- Enum.with_index(@axis)} class={index not in [0, length(@axis) - 1] && "max-sm:hidden"}>{label}</span>
       </div>
     </div>

@@ -166,7 +166,7 @@
 
         <div :if={length(@orgs) >= 3} class="flex flex-col gap-2.5">
           <div :if={stars_chosen?} class="flex items-center justify-between gap-4">
-            <h2 id="starred-title" class="flex items-center gap-2 text-list-title text-content-strong">
+            <h2 id="starred-title" class="flex items-center gap-2 text-card-title text-content-strong">
               <span class="lucide-star--fill size-4 text-warning" aria-hidden="true"></span> Starred
             </h2>
             <p class="text-xs text-content-muted">{length(sectioned)} of {count_noun(length(@orgs), "organization", "organizations")}</p>
@@ -225,7 +225,7 @@
       </div>
 
       <section :if={@pinned_devices != []} id="pinned-devices" aria-labelledby="pinned-title" class="flex flex-col gap-2.5">
-        <h2 id="pinned-title" class="text-list-title text-content-strong">Pinned devices</h2>
+        <h2 id="pinned-title" class="text-card-title text-content-strong">Pinned devices</h2>
         <div class="overflow-hidden rounded-card border border-line-default bg-surface-raised shadow-card">
           <.link
             :for={device <- if @show_all_pinned?, do: @pinned_devices, else: limit_devices(@pinned_devices)}
@@ -270,7 +270,7 @@
         <% [entry] = @orgs %>
         <section aria-labelledby="products-title" class="flex flex-col gap-2.5">
           <div class="flex items-center justify-between gap-4">
-            <h2 id="products-title" class="text-list-title text-content-strong">Products</h2>
+            <h2 id="products-title" class="text-card-title text-content-strong">Products</h2>
             <.button :if={authorized?(:"product:create", entry.role)} type="link" navigate={~p"/org/#{entry.org}/new"}>
               <span class="lucide-plus size-4" aria-hidden="true"></span> New product
             </.button>
@@ -291,7 +291,7 @@
             <div class="flex min-w-0 flex-1 flex-col md:flex-row md:items-center md:gap-3">
               <div class="flex min-w-0 items-center gap-1.5">
                 <.link navigate={~p"/org/#{entry.org}"} class="group flex min-w-0 items-center gap-0.5">
-                  <h2 id={"org-title-#{entry.org.id}"} class="truncate text-item-title text-content-strong group-hover:underline">
+                  <h2 id={"org-title-#{entry.org.id}"} class="truncate text-card-title text-content-strong group-hover:underline">
                     {entry.org.name}
                   </h2>
                   <span class="lucide-chevron-right size-4 text-content-faint" aria-hidden="true"></span>
@@ -314,7 +314,7 @@
 
         <section :if={others != []} id="other-orgs" aria-labelledby="other-orgs-title" class="flex flex-col gap-2.5">
           <div class="flex items-center justify-between gap-4">
-            <h2 id="other-orgs-title" class="flex items-baseline gap-2 text-list-title text-content-strong">
+            <h2 id="other-orgs-title" class="flex items-baseline gap-2 text-card-title text-content-strong">
               Other organizations <span class="text-ui font-normal text-content-muted">{length(others)}</span>
             </h2>
             <p class="hidden text-xs text-content-muted sm:block">

@@ -180,7 +180,7 @@ defmodule NervesHubWeb.Components.Fleet do
     ~H"""
     <section id="needs-attention" aria-labelledby="attention-title" class="flex flex-col gap-2.5">
       <div class="flex items-center gap-2">
-        <h2 id="attention-title" class="text-list-title text-content-strong">Needs attention</h2>
+        <h2 id="attention-title" class="text-card-title text-content-strong">Needs attention</h2>
         <.badge tone="warning" count>{length(@items)}</.badge>
       </div>
       <div class="divide-y divide-line-subtle rounded-card border border-line-default bg-surface-raised shadow-card">
