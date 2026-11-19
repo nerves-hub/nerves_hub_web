@@ -30,7 +30,7 @@
             phx-click={hide_actions_menu() |> JS.push("confirm-dismiss-all")}
             class="flex h-9 cursor-pointer items-center gap-2 rounded px-2 text-left text-ui text-content-body hover:bg-surface-muted"
           >
-            <span class="lucide-check-check size-3.5 text-content-muted" aria-hidden="true"></span> Dismiss {ngettext("1", "all %{count}", @counts.all)}
+            <span class="lucide-check-check size-3.5 text-content-muted" aria-hidden="true"></span> Dismiss {all_of(@counts.all)}
           </button>
         </div>
       </div>
@@ -52,7 +52,7 @@
       >
         <.status_dot :if={tab.dot} class={["size-1.5", tab.dot]} />
         {tab.label}
-        <span class="font-mono text-xs font-normal text-content-faint group-aria-[current=page]:text-content-muted">{tab.count}</span>
+        <span class="font-mono text-xs font-normal text-content-faint group-aria-[current=page]:text-content-muted">{delimited(tab.count)}</span>
       </.link>
     </nav>
 
@@ -60,7 +60,7 @@
       <div :if={@dismissed_by} id="dismissed-by" role="status" class="flex items-center gap-2.5 rounded-card border border-line-default bg-surface-raised px-3 py-2.5">
         <span class="lucide-info size-3.5 text-content-muted" aria-hidden="true"></span>
         <span class="flex-1 text-ui text-content-body">
-          {@dismissed_by.name} dismissed {(@dismissed_by.count && ngettext("1 notification", "all %{count} notifications", @dismissed_by.count)) ||
+          {@dismissed_by.name} dismissed {(@dismissed_by.count && all_notifications(@dismissed_by.count)) ||
             "all notifications"}.
         </span>
         <button type="button" phx-click="hide-dismissed-by" aria-label="Close" class="flex size-6 cursor-pointer items-center justify-center rounded text-content-faint hover:text-content-strong">
@@ -71,7 +71,7 @@
       <div :if={@arrived_elsewhere > 0} id="arrived-elsewhere" role="status" class="flex items-center gap-2.5 rounded-card border border-primary/30 bg-notice-soft px-3 py-2.5">
         <.status_dot class="size-1.5 bg-primary" />
         <span class="flex-1 text-ui text-content-body">
-          {ngettext("1 new notification", "%{count} new notifications", @arrived_elsewhere)} on the first page
+          {count_noun(@arrived_elsewhere, "new notification", "new notifications")} on the first page
         </span>
         <.link patch={list_path(assigns, %{"page_number" => nil})} class="text-ui font-medium text-notice-content hover:underline light:text-indigo-600">
           Go to newest
@@ -96,7 +96,7 @@
         <h2 class="text-section-title text-content-strong">{empty_level_title(@level)}</h2>
         <p class="text-ui text-content-muted">{elsewhere_sentence(@counts, @level)}</p>
         <.link patch={level_path(assigns, nil)} class="pt-1 text-ui font-medium text-notice-content hover:underline light:text-indigo-600">
-          Show all {@counts.all}
+          Show all {delimited(@counts.all)}
         </.link>
       </div>
 
@@ -145,7 +145,7 @@
               <%= cond do %>
                 <% card.count > 1 -> %>
                   <span class={["font-mono text-content-strong", MapSet.member?(@fresh.bumped, card.key) && "font-medium text-notice-content! light:text-indigo-600!"]}>
-                    {ngettext("1 device", "%{count} devices", card.devices)}
+                    {count_noun(card.devices, "device", "devices")}
                   </span>
                   <span class="text-content-faint sm:hidden" aria-hidden="true">·</span>
                 <% subject = @subjects[card.latest.id] -> %>
@@ -155,7 +155,7 @@
               <% end %>
               <span class="whitespace-nowrap text-content-muted">
                 <span :if={card.occurrences > 1} class={card.count == 1 && MapSet.member?(@fresh.bumped, card.key) && "font-medium text-notice-content light:text-indigo-600"}>
-                  {ngettext("1 time", "%{count} times", card.occurrences)} ·
+                  {times(card.occurrences)} ·
                 </span>
                 <time datetime={DateTime.to_iso8601(card.last_occurred_at)} title={to_local_string(card.last_occurred_at, @time_zone)}>
                   {when_label(card.last_occurred_at, group.bucket, @time_zone)}
@@ -199,7 +199,7 @@
           >
             <div class="flex h-9 items-center gap-3 text-label tracking-[0.06em] text-content-muted uppercase max-sm:hidden">
               <span class="flex-1">Device</span>
-              <span class="w-16 text-right">Times</span>
+              <span class="w-20 text-right">Times</span>
               <span class="w-32 text-right">Last</span>
               <span :if={authorized?(:"product:notifications:dismiss", @current_scope)} class="w-16"></span>
             </div>
@@ -214,9 +214,9 @@
                   <.subject :if={@subjects[notification.id]} scope={@current_scope} subject={@subjects[notification.id]} />
                   <span :if={detail = Copy.detail(notification)} class="min-w-0 truncate font-mono text-content-muted" title={detail}>{detail}</span>
                 </span>
-                <span class="text-content-muted sm:w-16 sm:text-right">
-                  <span class="sm:hidden">{ngettext("1 time", "%{count} times", notification.occurrence_count)} ·</span>
-                  <span class="font-mono max-sm:hidden">{notification.occurrence_count}</span>
+                <span class="text-content-muted sm:w-20 sm:text-right">
+                  <span class="sm:hidden">{times(notification.occurrence_count)} ·</span>
+                  <span class="font-mono max-sm:hidden">{delimited(notification.occurrence_count)}</span>
                 </span>
                 <time
                   datetime={DateTime.to_iso8601(notification.last_occurred_at)}
@@ -258,7 +258,7 @@
                 phx-click="dismiss-card"
                 phx-value-key={card.key}
               >
-                Dismiss all {card.count}
+                Dismiss all {delimited(card.count)}
               </.button>
             </div>
           </div>

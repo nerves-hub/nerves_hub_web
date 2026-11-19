@@ -128,20 +128,40 @@ defmodule NervesHubWeb.Live.Product.NotificationsTest do
     } do
       other_product = Fixtures.product_fixture(user, org)
       moved = Fixtures.device_fixture(org, other_product, firmware)
-      deleted = Fixtures.device_fixture(org, product, firmware)
-      {:ok, _} = Devices.delete_device(deleted)
+      soft_deleted = Fixtures.device_fixture(org, product, firmware)
+      {:ok, _} = Devices.delete_device(soft_deleted)
 
       # Each of a different kind, so none are rolled up together.
       _ = ProductNotifications.create_missing_firmware_metadata_notification!(device)
       _ = code_failure!(product, moved.identifier)
-      _ = ProductNotifications.create_update_mode_revert_failed_notification!(deleted)
+      _ = ProductNotifications.create_update_mode_revert_failed_notification!(soft_deleted)
+      _ = duplicate_identifier!(product, "gone")
 
       conn
       |> visit(page_path(org, product))
       |> assert_has("a[href='/org/#{org.name}/#{product.name}/devices/#{device.identifier}']", text: device.identifier)
       |> assert_has("article span", text: "#{moved.identifier} · moved")
-      |> assert_has("article span", text: "#{deleted.identifier} · deleted")
       |> refute_has("a", text: moved.identifier)
+      # A soft-deleted device's page is where it's restored from.
+      |> assert_has("a[href='/org/#{org.name}/#{product.name}/devices/#{soft_deleted.identifier}']",
+        text: soft_deleted.identifier
+      )
+      |> assert_has("article span", text: "· soft deleted")
+      |> assert_has("article span", text: "gone · deleted")
+      |> refute_has("a", text: "gone")
+    end
+
+    test "writes counts with thousands separators", %{conn: conn, org: org, product: product} do
+      notification = code_failure!(product, "abc")
+
+      Notification
+      |> Repo.get!(notification.id)
+      |> Ecto.Changeset.change(occurrence_count: 1_157_161)
+      |> Repo.update!()
+
+      conn
+      |> visit(page_path(org, product))
+      |> assert_has("#notification-#{notification.id}", text: "1,157,161 times")
     end
 
     test "a stopped workflow has no dismiss button, since it clears itself", %{

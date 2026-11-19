@@ -26,19 +26,20 @@ defmodule NervesHub.ProductNotifications.Subjects do
   @typedoc """
   A notification's subject.
 
-  `state` is `:live` when it can be linked to. A device is `:deleted` once
-  deleted, from this product or for good, and `:moved` when it is now in
-  another of the organization's products. Anything else that has gone is
-  `:removed`.
+  `state` is `:live` while the subject is still there. A device is
+  `:soft_deleted` while it's soft-deleted from this product, where its page
+  can still be opened to restore it, `:deleted` once it's gone for good or was
+  deleted from another product, and `:moved` when it is now in another of the
+  organization's products. Anything else that has gone is `:removed`.
 
-  `ref` is what a live subject's page is found by: a device's identifier, a
-  deployment group's name as it is now. Integrations are all on the
-  organization's Integrations page, and have none.
+  `ref` is what a live or soft-deleted subject's page is found by: a device's
+  identifier, a deployment group's name as it is now. Integrations are all on
+  the organization's Integrations page, and have none.
   """
   @type t :: %{
           kind: :device | :deployment_group | :webhook | :slack | :chat,
           label: String.t(),
-          state: :live | :deleted | :moved | :removed,
+          state: :live | :soft_deleted | :deleted | :moved | :removed,
           ref: String.t() | nil
         }
 
@@ -144,7 +145,7 @@ defmodule NervesHub.ProductNotifications.Subjects do
       found =
         cond do
           Enum.any?(rows, &match?({id, nil} when id == product.id, &1)) -> :live
-          Enum.any?(rows, &match?({id, _deleted_at} when id == product.id, &1)) -> :deleted
+          Enum.any?(rows, &match?({id, _deleted_at} when id == product.id, &1)) -> :soft_deleted
           Enum.any?(rows, &match?({_id, nil}, &1)) -> :moved
           true -> :deleted
         end
@@ -201,7 +202,7 @@ defmodule NervesHub.ProductNotifications.Subjects do
   # What `lookup/2` found for a subject: a device's state and identifier, a
   # deployment group's name now, or `:live` for an integration.
   defp subject_state(:device, nil), do: {:deleted, nil}
-  defp subject_state(:device, {:live, identifier}), do: {:live, identifier}
+  defp subject_state(:device, {state, identifier}) when state in [:live, :soft_deleted], do: {state, identifier}
   defp subject_state(:device, {state, _identifier}), do: {state, nil}
   defp subject_state(_kind, nil), do: {:removed, nil}
   defp subject_state(:deployment_group, name), do: {:live, name}
