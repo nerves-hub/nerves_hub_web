@@ -43,23 +43,20 @@ defmodule NervesHub.AuditLogs.ProductTemplates do
   @spec audit_api_key_created(User.t(), Product.t(), ApiKey.t()) :: :ok
   def audit_api_key_created(user, product, api_key) do
     description =
-      "User #{user.name} created API key #{api_key.name} with the #{role_name(api_key)} role for product #{product.name}"
+      "#{AuditLogs.actor_name(user)} created API key #{api_key.name} with the #{role_name(api_key)} role for product #{product.name}"
 
     AuditLogs.audit!(user, product, description)
   end
 
   @spec audit_api_key_deactivated(User.t(), Product.t(), ApiKey.t()) :: :ok
   def audit_api_key_deactivated(user, product, api_key) do
-    description = "User #{user.name} deactivated API key #{api_key.name} for product #{product.name}"
+    description = "#{AuditLogs.actor_name(user)} deactivated API key #{api_key.name} for product #{product.name}"
 
     AuditLogs.audit!(user, product, description)
   end
 
-  # A custom role deleted since the key was made leaves the key granting
-  # nothing, which is worth saying plainly in the log.
   defp role_name(api_key) do
     case ApiKey.assigned_role(api_key) do
-      nil -> "deleted custom"
       %OrgRole{name: name} -> "#{name} custom"
       role -> to_string(role)
     end
