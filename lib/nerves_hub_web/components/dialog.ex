@@ -26,15 +26,12 @@ defmodule NervesHubWeb.Components.Dialog do
   such as a firmware version. The `subtitle` slot goes right under the title,
   for what pins down exactly what the dialog is about, such as the UUID of
   the firmware it deletes. A dialog holding a list is `wide`, and so are the
-  other dialogs on its page. The `note` slot is a line at the start of the
-  footer, opposite the buttons, such as what a new API key was given.
+  other dialogs on its page. The `note` slot holds a line such as what a new
+  API key was given.
 
-  A dialog that mustn't close by accident, such as one showing a secret only
-  once, sets `dismissible` to false: no Cancel, and Escape and a click outside
-  do nothing, so only its own buttons close it.
-
-  Nothing in it clips, so a popover inside it, such as the API key role
-  picker, can hang past the footer.
+  One showing a secret only once sets `dismissible` to false. Nothing in it
+  clips, so a popover inside it, such as the API key role picker, can hang
+  past the footer.
   """
   attr(:id, :string, required: true)
   attr(:title, :string, default: nil)

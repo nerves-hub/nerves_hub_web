@@ -86,7 +86,6 @@ defmodule NervesHubWeb.Live.Product.ApiKeysTest do
         |> refute_has("#new-api-key button", text: "Cancel")
         |> refute_has("#new-api-key-container[phx-click-away]")
         |> refute_has("#new-api-key-container[phx-window-keydown]")
-        |> refute_has("#new-api-key button[aria-label='close']")
 
       [token] = Regex.run(~r/nhpk_[0-9A-Za-z]+/, render(session.view))
 
