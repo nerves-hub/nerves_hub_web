@@ -1,9 +1,10 @@
 defmodule NervesHubWeb.Components.DeploymentGroupPage.Dialogs do
   @moduledoc """
-  What a deployment group's page asks before pausing or resuming the group,
-  or moving devices into or out of it, drawn with `Dialog.confirm/1` as in the
-  group page states boards. Asking before approving or skipping a step is
-  `DeploymentGroups.confirm_dialog/1`, which the list shares.
+  The confirm dialogs on a deployment group's page.
+
+  Pausing or resuming the group and moving devices into or out of it ask
+  first here, drawn with `Dialog.confirm/1`. Approving or skipping a step
+  falls through to `DeploymentGroups.confirm_dialog/1`, which the list shares.
   """
   use NervesHubWeb, :component
   use Gettext, backend: NervesHubWeb.Gettext
