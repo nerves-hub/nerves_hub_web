@@ -71,16 +71,26 @@ defmodule NervesHub.Products do
     query
   end
 
+  @doc """
+  How many of a product's devices the scope's user can see are connected, and
+  how many aren't, as `{connected, disconnected}`. A device with no connection
+  row counts as disconnected. `{0, 0}` for a deleted or missing product.
+
+  Both counts come from one pass over the product's devices.
+  """
+  @spec get_product_counts(Scope.t(), pos_integer()) :: {non_neg_integer(), non_neg_integer()}
   def get_product_counts(%Scope{user: user}, product_id) do
-    from(p in Product, as: :product, where: p.id == ^product_id)
-    |> add_connected_devices_count(user)
-    |> add_disconnected_devices_count(user)
+    Device
+    |> Visibility.where_visible(user)
+    |> join(:inner, [d], p in Product, on: p.id == d.product_id and is_nil(p.deleted_at))
+    |> join(:left, [d], lc in assoc(d, :latest_connection))
+    |> where([d], d.product_id == ^product_id)
     |> Repo.exclude_deleted()
+    |> select([_d, _p, lc], {
+      filter(count(), lc.status == :connected),
+      filter(count(), is_nil(lc.id) or lc.status != :connected)
+    })
     |> Repo.one()
-    |> case do
-      nil -> {0, 0}
-      product -> {product.connected_devices_count, product.disconnected_devices_count}
-    end
   end
 
   defp add_disconnected_devices_count(query, %User{} = user) do
