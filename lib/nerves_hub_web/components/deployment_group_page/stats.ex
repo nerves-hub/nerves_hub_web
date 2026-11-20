@@ -163,15 +163,17 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Stats do
   end
 
   def render(assigns) do
-    assigns =
-      assign(
-        assigns,
-        :dashed?,
-        assigns.selected == :all and
-          assigns.windows
-          |> release_rows(assigns.downloads, assigns.history, assigns.deployment_group, assigns.time_zone)
-          |> Enum.any?(& &1.dashed?)
-      )
+    # Built once here, since both the note above the table and the table itself
+    # need them.
+    rows =
+      if assigns.selected == :all do
+        %{windows: windows, downloads: downloads, history: history, deployment_group: group, time_zone: zone} = assigns
+        release_rows(windows, downloads, history, group, zone)
+      else
+        []
+      end
+
+    assigns = assign(assigns, rows: rows, dashed?: Enum.any?(rows, & &1.dashed?))
 
     ~H"""
     <div id="deployment-group-stats" class="@container flex flex-col gap-4 p-4 sm:gap-5 sm:p-6">
@@ -203,7 +205,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Stats do
       </div>
 
       <%= if @selected == :all do %>
-        <.all_releases windows={@windows} downloads={@downloads} history={@history} deployment_group={@deployment_group} path={@path} time_zone={@time_zone} />
+        <.all_releases rows={@rows} history={@history} deployment_group={@deployment_group} path={@path} time_zone={@time_zone} />
       <% else %>
         <.one_release
           window={@selected}
@@ -655,21 +657,13 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Stats do
 
   ## All releases
 
-  attr(:windows, :list, required: true)
-  attr(:downloads, :map, required: true)
+  attr(:rows, :list, required: true, doc: "from `release_rows/5`")
   attr(:history, :any, required: true)
   attr(:deployment_group, :map, required: true)
   attr(:path, :string, required: true)
   attr(:time_zone, :string, required: true)
 
   defp all_releases(assigns) do
-    assigns =
-      assign(
-        assigns,
-        :rows,
-        release_rows(assigns.windows, assigns.downloads, assigns.history, assigns.deployment_group, assigns.time_zone)
-      )
-
     assigns = assign(assigns, :totals, totals(assigns.rows, assigns.history))
 
     ~H"""

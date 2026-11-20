@@ -12,14 +12,14 @@ defmodule NervesHub.ManagedDeployments.Rollout do
 
   Every device in a group is in exactly one of these, checked in this order:
 
-    * `:updated` — it runs the release's firmware.
-    * `:updates_off` — its updates are turned off, so it never gets the release.
-    * `:updating` — it is taking the update now.
-    * `:penalty_box` — it failed too many times in a row and is held back for a
+    * `:updated` - it runs the release's firmware.
+    * `:updates_off` - its updates are turned off, so it never gets the release.
+    * `:updating` - it is taking the update now.
+    * `:penalty_box` - it failed too many times in a row and is held back for a
       while. A workflow step counts these devices as failed.
-    * `:failed` — its last attempt failed and it will be offered the update
+    * `:failed` - its last attempt failed and it will be offered the update
       again.
-    * `:waiting` — none of the above: its turn hasn't come, or the group is
+    * `:waiting` - none of the above: its turn hasn't come, or the group is
       paused.
   """
 
@@ -335,12 +335,12 @@ defmodule NervesHub.ManagedDeployments.Rollout do
   What a group's rollout needs from someone, if anything, given its counts and
   the step it is stopped or waiting on.
 
-    * `:paused` — the group is paused, so nothing moves until it is resumed.
-    * `:stopped` — a step failed and is waiting to be retried or skipped.
-    * `:awaiting_approval` — a step is waiting to be approved.
-    * `:no_devices` — the group has no devices.
-    * `:up_to_date` — every device that can take the release has it.
-    * `:rolling_out` — anything else: the release is on its way.
+    * `:paused` - the group is paused, so nothing moves until it is resumed.
+    * `:stopped` - a step failed and is waiting to be retried or skipped.
+    * `:awaiting_approval` - a step is waiting to be approved.
+    * `:no_devices` - the group has no devices.
+    * `:up_to_date` - every device that can take the release has it.
+    * `:rolling_out` - anything else: the release is on its way.
   """
   @spec status(DeploymentGroup.t(), counts(), DeploymentWorkflowStep.t() | nil, DeploymentWorkflowStep.t() | nil) ::
           status()

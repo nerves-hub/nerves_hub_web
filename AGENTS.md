@@ -355,19 +355,29 @@ when adding or removing one.
   (`components/deployment_group_page/overview.ex`): a callout for a held
   step, the rollout and its steps, the devices the release didn't reach, and
   the release and matching rules. What both share (status badges, step bars,
-  the approve and skip dialogs, and `DeploymentGroups.act/3`, which looks the
-  step up again before acting) is in `components/deployment_groups.ex`, along
+  the approve and skip dialogs, and `DeploymentGroups.act/3`, which acts
+  through `Workflows.act_on_held_step/3` so a step somebody already dealt with
+  is refused) is in `components/deployment_groups.ex`, along
   with the form fields the Releases and Settings tabs draw (`field_class/2`,
   `textarea_class/2`, `select_control/1`).
+  The group page asks before pausing or resuming the group and before moving
+  devices into or out of it (`components/deployment_group_page/dialogs.ex`).
+  One `@confirm` assign drives every dialog on the page, approve and skip
+  included, and each refresh keeps it only while it would still change
+  something; pausing and resuming set the group's state rather than flip it.
   Both pages reload their counts every few seconds while open. The group
   page's other tabs are LiveComponents in `components/deployment_group_page/`:
   Releases (the release history, and the New and Edit release dialogs, opened
-  from `?new=release`), Stats (`?release=` picks a release or `all`; its
+  from `?new=release`; deleting a delta asks first, since every group sending
+  the release shares it, and Remove connecting code only empties the field
+  until the dialog is saved), Stats (`?release=` picks a release or `all`; its
   ClickHouse numbers load in a task and only when the choice changes), Activity
   (the group's audit log by day, paged in the URL, drawn as the device page's
   Activity tab is, so a change to one belongs in both) and Settings (cards that
   each save only their own fields, the workflow upload, and deleting the
-  group). There's no Devices tab: the header's device count links to the
+  group; turning delta updates on or off needs
+  `deployment_group:toggle_delta_updates`, as it does in the API, and saving
+  drops the field for a member without it). There's no Devices tab: the header's device count links to the
   devices list, filtered to the group.
   A product's settings are three LiveViews, General (`live/product/settings.ex`),
   Device health (`live/product/health_profiles.ex`) and API keys

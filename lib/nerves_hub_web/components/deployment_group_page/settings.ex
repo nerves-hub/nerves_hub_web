@@ -108,6 +108,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
     assigns =
       assign(assigns,
         can_update?: authorized?(:"deployment_group:update", assigns.current_scope),
+        can_toggle_deltas?: authorized?(:"deployment_group:toggle_delta_updates", assigns.current_scope),
         steps: Workflows.definition_steps(assigns.deployment_group.workflow_definition)
       )
 
@@ -275,7 +276,12 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
               form={@forms.sending}
               field={:delta_updatable}
               label="Delta updates"
-              hint="Build a delta from the versions devices are on, and send that instead of the full image."
+              hint={
+                if @can_toggle_deltas?,
+                  do: "Build a delta from the versions devices are on, and send that instead of the full image.",
+                  else: "Build a delta from the versions devices are on, and send that instead of the full image. Your role can’t turn this on or off."
+              }
+              disabled={!@can_toggle_deltas?}
             />
             <.row label="Queue order" for={@forms.sending[:queue_management].id} hint="Which waiting devices update first.">
               <DeploymentGroups.select_control
@@ -566,27 +572,36 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
   attr(:field, :atom, required: true)
   attr(:label, :string, required: true)
   attr(:hint, :string, default: nil)
+  attr(:disabled, :boolean, default: false, doc: "for a member whose role can't change this one field")
   slot(:hint_block, doc: "the hint, when it is worked out from the form")
 
-  # A switch in a form: the hidden "false" goes when it's off.
+  # A switch in a form: the hidden "false" goes when it's off. A disabled one
+  # sends nothing, its hidden "false" included.
   defp switch_row(assigns) do
     assigns = assign(assigns, :field, assigns.form[assigns.field])
 
     ~H"""
     <div class="flex items-center justify-between gap-6 border-t border-line-default px-4 py-3.5">
       <div class="flex min-w-0 flex-col gap-1">
-        <label for={@field.id} class="cursor-pointer text-sm/5 font-medium text-content-strong group-disabled/paced:cursor-not-allowed group-disabled/paced:text-content-muted">
+        <label
+          for={@field.id}
+          class={[
+            "text-sm/5 font-medium group-disabled/paced:cursor-not-allowed group-disabled/paced:text-content-muted",
+            if(@disabled, do: "cursor-not-allowed text-content-muted", else: "cursor-pointer text-content-strong")
+          ]}
+        >
           {@label}
         </label>
         <span :if={@hint} id={"#{@field.id}-hint"} class="text-ui/4.5 text-content-muted">{@hint}</span>
         <span :for={hint <- @hint_block} id={"#{@field.id}-hint"} class="text-ui/4.5 text-content-muted">{render_slot(hint)}</span>
       </div>
-      <input type="hidden" name={@field.name} value="false" />
+      <input type="hidden" name={@field.name} value="false" disabled={@disabled} />
       <Switch.switch
         id={@field.id}
         name={@field.name}
         value="true"
         checked={Phoenix.HTML.Form.normalize_value("checkbox", @field.value)}
+        disabled={@disabled}
         aria-describedby={"#{@field.id}-hint"}
       />
     </div>
@@ -770,6 +785,14 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
 
   defp with_unadded_tag(card_params, _new_tag), do: card_params
 
+  # Turning delta updates on or off is a permission of its own, as it is for
+  # the API, so a member without it can save the rest of the card but not that.
+  defp keep_permitted(card_params, scope) do
+    if authorized?(:"deployment_group:toggle_delta_updates", scope),
+      do: card_params,
+      else: Map.delete(card_params, "delta_updatable")
+  end
+
   # The card a form's params come from, and those params cut down to its
   # fields.
   defp card_params(params) do
@@ -855,7 +878,11 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
     %{current_scope: %{org: org, product: product, user: user}, deployment_group: deployment_group} = socket.assigns
     %{name: old_name} = deployment_group
     {card, card_params} = card_params(params)
-    card_params = with_unadded_tag(card_params, params["new_tag"])
+
+    card_params =
+      card_params
+      |> with_unadded_tag(params["new_tag"])
+      |> keep_permitted(socket.assigns.current_scope)
 
     case ManagedDeployments.update_deployment_group(deployment_group, card_params, user) do
       {:ok, %{name: name} = updated} when name != old_name ->

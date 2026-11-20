@@ -371,14 +371,25 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show.ReleasesTabTest do
     [release] = ManagedDeployments.list_deployment_releases(deployment_group)
 
     {:ok, release} =
-      ManagedDeployments.update_deployment_release_connecting_code(release, %{"connecting_code" => "dbg(:hello)"}, user)
+      ManagedDeployments.update_deployment_release(release, %{"connecting_code" => "dbg(:hello)"}, user)
 
     conn
     |> visit(~p"/org/#{org}/#{product}/deployment_groups/#{deployment_group}/releases")
     |> assert_has("#release-#{release.id}-connecting-code", text: "runs after the group’s code")
     |> click_button("#release-#{release.id}-edit", "Edit release")
     |> click_button("#edit-release-remove-connecting-code", "Remove connecting code")
-    |> assert_has("p", text: "Connecting code removed from release #{release.number}")
+    # It only empties the field: nothing changes until the dialog is saved.
+    |> assert_has("#edit-release textarea", text: "", exact: true)
+    |> assert_has("#edit-release-form_connecting_code-hint",
+      text: "Saving removes release #{release.number}’s connecting code. Devices won’t run it when they connect."
+    )
+    |> refute_has("#edit-release-remove-connecting-code")
+    |> then(fn session ->
+      assert Repo.reload(release).connecting_code == "dbg(:hello)"
+      session
+    end)
+    |> click_button("Save changes")
+    |> assert_has("p", text: "Release #{release.number} saved")
     |> refute_has("#release-#{release.id}-connecting-code")
 
     assert is_nil(Repo.reload(release).connecting_code)
@@ -446,6 +457,48 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show.ReleasesTabTest do
     assert_received %Broadcast{event: "release/delta_status", payload: %{from: :failed, to: :preparing}}
     refute_received %Broadcast{event: "release/delta_status", payload: %{to: :ready}}
     refute_enqueued(worker: DeleteFirmware)
+  end
+
+  test "deletes a built delta after asking, for every group sending the release", %{
+    conn: conn,
+    org: org,
+    org_key: org_key,
+    product: product,
+    user: user,
+    firmware: firmware,
+    deployment_group: deployment_group,
+    tmp_dir: tmp_dir
+  } do
+    next_firmware = Fixtures.firmware_fixture(org_key, product, %{version: "2.0.0", dir: tmp_dir})
+
+    {:ok, {release, deployment_group}} =
+      ManagedDeployments.create_deployment_release(deployment_group, next_firmware, nil, user, %{})
+
+    _ = Fixtures.device_fixture(org, product, firmware, %{deployment_id: deployment_group.id})
+    delta = Fixtures.firmware_delta_fixture(firmware, next_firmware, %{status: :completed})
+    {:ok, _} = ManagedDeployments.recalculate_release_delta_statuses(deployment_group)
+
+    conn
+    |> visit(~p"/org/#{org}/#{product}/deployment_groups/#{deployment_group}/releases")
+    |> assert_has("#release-delta-#{delta.id}", text: "Ready")
+    |> click_button("#release-delta-#{delta.id} button", "Delete")
+    |> assert_has("#delete-delta h2", text: "Delete the delta from #{firmware.version}?")
+    |> assert_has("#delete-delta-subtitle", text: "#{firmware.version} → #{next_firmware.version}")
+    |> assert_has("#delete-delta p",
+      text: "Every deployment group sending #{next_firmware.version} shares this delta, so that goes for all of them."
+    )
+    |> then(fn session ->
+      # Nothing is deleted until the dialog's own button is pressed.
+      assert [%{id: id}] = ManagedDeployments.release_deltas(Repo.reload(release))
+      assert id == delta.id
+      session
+    end)
+    |> within("#delete-delta", &click_button(&1, "Delete delta"))
+    |> assert_has("p", text: "Deleted the delta from #{firmware.version}")
+    |> refute_has("#delete-delta")
+    |> refute_has("#release-delta-#{delta.id}")
+
+    assert [] == ManagedDeployments.release_deltas(Repo.reload(release))
   end
 
   test "counts a second failure that leaves the release's status where it was", %{

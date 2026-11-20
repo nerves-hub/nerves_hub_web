@@ -110,13 +110,13 @@ defmodule NervesHub.ManagedDeployments.ReleaseConnectingCodeTest do
     end
   end
 
-  describe "update_deployment_release_connecting_code/3" do
+  describe "changing a release's connecting code" do
     test "changes the code devices get next time they connect, and audits it", context do
       release = add_release(context, context.next_firmware, %{connecting_code: "release"})
       device = device_on(context, context.next_firmware)
 
       assert {:ok, release} =
-               ManagedDeployments.update_deployment_release_connecting_code(
+               ManagedDeployments.update_deployment_release(
                  release,
                  %{"connecting_code" => "changed", "connecting_code_mode" => "first"},
                  context.user
@@ -133,7 +133,7 @@ defmodule NervesHub.ManagedDeployments.ReleaseConnectingCodeTest do
       release = add_release(context, context.next_firmware, %{connecting_code: "release"})
 
       assert {:error, changeset} =
-               ManagedDeployments.update_deployment_release_connecting_code(
+               ManagedDeployments.update_deployment_release(
                  release,
                  %{"connecting_code_mode" => "sometimes"},
                  context.user

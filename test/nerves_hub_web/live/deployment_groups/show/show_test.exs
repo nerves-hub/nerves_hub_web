@@ -83,6 +83,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.ShowTest do
     # The case's own device matches the group too.
     |> assert_has("p", text: "2 devices outside the group match.")
     |> click_button("Move them in")
+    |> within("#move-devices-in", &click_button(&1, "Move devices"))
     |> assert_has("div",
       text: "There was an issue moving devices to #{deployment_group.name}",
       timeout: 1000
@@ -107,6 +108,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.ShowTest do
     # The case's own device matches the group too.
     |> assert_has("p", text: "2 devices outside the group match.")
     |> click_button("Move them in")
+    |> within("#move-devices-in", &click_button(&1, "Move devices"))
     |> assert_has("div",
       text: "1 devices moved to #{deployment_group.name}",
       timeout: 1000
@@ -133,6 +135,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.ShowTest do
     # The case's own device matches the group too.
     |> assert_has("p", text: "2 devices outside the group match.")
     |> click_button("Move them in")
+    |> within("#move-devices-in", &click_button(&1, "Move devices"))
     |> assert_has("div",
       text: "couldn't move 1 devices",
       exact: false,

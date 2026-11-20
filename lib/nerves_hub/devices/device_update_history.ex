@@ -50,7 +50,7 @@ defmodule NervesHub.Devices.DeviceUpdateHistory do
     field(:reason, Ch, type: "String", default: "")
 
     # Seconds from the update being sent to the attempt ending, or 0 when
-    # unknown — see the migration that added it.
+    # unknown. See the migration that added it.
     field(:duration_seconds, Ch, type: "UInt32", default: 0)
   end
 

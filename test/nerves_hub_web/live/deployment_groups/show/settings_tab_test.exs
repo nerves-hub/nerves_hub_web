@@ -4,6 +4,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show.SettingsTabTest do
   alias NervesHub.AuditLogs
   alias NervesHub.Devices.Deployments
   alias NervesHub.Devices.Device
+  alias NervesHub.Fixtures
   alias NervesHub.ManagedDeployments
   alias NervesHub.ManagedDeployments.DeploymentGroup
   alias NervesHub.Repo
@@ -235,6 +236,48 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show.SettingsTabTest do
     |> submit()
 
     assert Repo.reload(deployment_group).delta_updatable
+  end
+
+  describe "a member who can edit the group but not turn delta updates on or off" do
+    setup %{org: org, user: user} do
+      role = Fixtures.org_role_fixture(org, %{permissions: ["deployment_group:update"]})
+      {:ok, _} = NervesHub.Accounts.change_org_user_role(NervesHub.Accounts.get_org_user!(org, user.id), role)
+      :ok
+    end
+
+    test "sees the switch off limits, and can still save the rest of the card", %{
+      conn: conn,
+      path: path,
+      deployment_group: deployment_group
+    } do
+      conn
+      |> visit(path)
+      |> assert_has("#settings-sending_delta_updatable[disabled]")
+      |> assert_has("#settings-sending_delta_updatable-hint", text: "Your role can’t turn this on or off.")
+      |> select("Queue order", option: "Connected most recently")
+      |> submit()
+      |> assert_has("[role=alert]", text: "Sending updates saved")
+
+      deployment_group = Repo.reload(deployment_group)
+      assert deployment_group.queue_management == :LIFO
+      refute deployment_group.delta_updatable
+    end
+
+    test "can't turn delta updates on by sending it anyway", %{
+      conn: conn,
+      path: path,
+      deployment_group: deployment_group
+    } do
+      conn
+      |> visit(path)
+      |> unwrap(fn view ->
+        view
+        |> element("#settings-sending-form")
+        |> render_submit(%{"sending" => %{"delta_updatable" => "true"}})
+      end)
+
+      refute Repo.reload(deployment_group).delta_updatable
+    end
   end
 
   test "can configure the priority queue", %{conn: conn, deployment_group: deployment_group} do

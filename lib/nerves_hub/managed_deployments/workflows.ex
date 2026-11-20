@@ -579,6 +579,35 @@ defmodule NervesHub.ManagedDeployments.Workflows do
     end)
   end
 
+  @doc """
+  Approves, skips or retries the step a deployment group's current release is
+  held on, as `user`, and tells the group's orchestrator to look again. Approve
+  acts on the step awaiting approval, skip and retry on the failed one.
+
+  The step is looked up afresh rather than taken from a page, so one somebody
+  else has already dealt with is refused with `:moved_on` instead of acted on
+  twice.
+  """
+  @spec act_on_held_step(:approve | :skip | :retry, DeploymentGroup.t(), User.t()) ::
+          {:ok, DeploymentWorkflowStep.t()} | {:error, :moved_on}
+  def act_on_held_step(action, %DeploymentGroup{} = deployment_group, %User{} = user)
+      when action in [:approve, :skip, :retry] do
+    release_id = deployment_group.current_deployment_release_id
+    step = if action == :approve, do: awaiting_approval(release_id), else: failed_step(release_id)
+
+    with %DeploymentWorkflowStep{} <- step,
+         {:ok, step} <- act_on_step(action, deployment_group, step, user) do
+      :ok = ManagedDeployments.broadcast(deployment_group, "deployments/update")
+      {:ok, step}
+    else
+      _ -> {:error, :moved_on}
+    end
+  end
+
+  defp act_on_step(:approve, deployment_group, step, user), do: approve_step(deployment_group, step, user)
+  defp act_on_step(:skip, deployment_group, step, user), do: skip_step(deployment_group, step, user)
+  defp act_on_step(:retry, deployment_group, step, user), do: retry_step(deployment_group, step, user)
+
   # A workflow that has stopped raises a notification, since nothing else would
   # say so. Starting again takes it back: the list is what needs attention now,
   # not everything that ever did.

@@ -1,11 +1,10 @@
 defmodule NervesHubWeb.Live.DeploymentGroups.Show do
   @moduledoc """
-  A deployment group's page. Its header says what the group is releasing and
-  to which devices, with the group's status and the buttons to pause it,
-  import devices into it from a CSV, or make a new release. Under it are the
-  Overview, Releases, Activity and Settings tabs.
+  A deployment group's page, with its Overview, Releases, Stats, Activity and Settings tabs.
 
-  The Overview shows how far the current release has got: a callout when the
+  The header says what the group is releasing and to which devices, with the
+  group's status and the buttons to pause it, import devices into it from a
+  CSV, or make a new release. The Overview shows how far the current release has got: a callout when the
   group needs someone, the rollout bar and its steps, the devices the release
   didn't reach, and a rail with the release and how the group matches devices.
   Its counts come from `NervesHub.ManagedDeployments.Rollout` and are reloaded
@@ -26,6 +25,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
   alias NervesHub.Products
   alias NervesHub.Products.ApiKey
   alias NervesHubWeb.Components.DeploymentGroupPage.Activity, as: ActivityTab
+  alias NervesHubWeb.Components.DeploymentGroupPage.Dialogs
   alias NervesHubWeb.Components.DeploymentGroupPage.Overview
   alias NervesHubWeb.Components.DeploymentGroupPage.Releases, as: ReleasesTab
   alias NervesHubWeb.Components.DeploymentGroupPage.Settings, as: SettingsTab
@@ -69,7 +69,6 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
     |> sidebar_tab(:deployments)
     |> assign(:deployment_group, deployment_group)
     |> selected_tab()
-    |> assign_overview()
     |> ok()
   end
 
@@ -89,23 +88,24 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
   end
 
   @impl Phoenix.LiveView
+  # Pausing stops a rollout part-way and resuming sends firmware to more
+  # devices, so both ask first. Opening the dialog checks the same permission
+  # as acting on it.
   @decorate requires_permission(:"deployment_group:toggle")
-  def handle_event("toggle", _params, socket) do
-    %{deployment_group: deployment_group, user: user} = socket.assigns
-
-    value = !deployment_group.is_active
-
-    {:ok, _deployment_group} =
-      ManagedDeployments.update_deployment_group(deployment_group, %{is_active: value}, user)
-
-    active_str = if value, do: "active", else: "inactive"
-    DeploymentGroupTemplates.audit_deployment_toggle_active(user, deployment_group, active_str)
+  def handle_event("ask-toggle", _params, socket) do
+    %{entry: entry, deployment_group: deployment_group} = socket.assigns
+    action = if deployment_group.is_active, do: :pause, else: :resume
 
     socket
-    |> put_flash(:info, "Deployment group #{(value && "resumed") || "paused"}")
-    |> reload()
+    |> assign(:confirm, {action, entry})
     |> noreply()
   end
+
+  @decorate requires_permission(:"deployment_group:toggle")
+  def handle_event("pause", _params, socket), do: set_active(socket, false)
+
+  @decorate requires_permission(:"deployment_group:toggle")
+  def handle_event("resume", _params, socket), do: set_active(socket, true)
 
   # Approving and skipping send firmware to more devices, so both ask first.
   # Opening the dialog checks the same permission as acting on it.
@@ -156,6 +156,20 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
   end
 
   @decorate requires_permission(:"device:set-deployment-group")
+  def handle_event("ask-move-in", _params, socket) do
+    socket
+    |> ask_about_devices(:move_in, :matched_outside)
+    |> noreply()
+  end
+
+  @decorate requires_permission(:"device:set-deployment-group")
+  def handle_event("ask-remove-unmatched", _params, socket) do
+    socket
+    |> ask_about_devices(:remove_unmatched, :unmatched_inside)
+    |> noreply()
+  end
+
+  @decorate requires_permission(:"device:set-deployment-group")
   def handle_event("move-matched-devices-to-deployment-group", _params, socket) do
     %{assigns: %{current_scope: scope, deployment_group: deployment_group}} = socket
 
@@ -173,6 +187,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
     end
 
     socket
+    |> assign(:confirm, nil)
     |> start_async(:move_devices_to_deployment, move_devices)
     |> put_flash(:info, "Moving devices to deployment, this may take a moment")
     |> noreply()
@@ -200,6 +215,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
     end
 
     socket
+    |> assign(:confirm, nil)
     |> start_async(:remove_devices_from_deployment, remove_devices)
     |> put_flash(:info, "Removing devices from deployment, this may take a moment")
     |> noreply()
@@ -492,10 +508,10 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
 
     socket
     |> assign(:entry, entry)
-    |> refresh_confirm()
     |> then(fn socket ->
       if socket.assigns.tab == :summary, do: assign_overview_details(socket), else: socket
     end)
+    |> refresh_confirm()
   end
 
   defp assign_overview_details(%{assigns: %{deployment_group: deployment_group}} = socket) do
@@ -518,18 +534,73 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
     end
   end
 
-  # A dialog left open while the page refreshes shows the step as it now
-  # stands, and closes if the group moved on.
+  # A dialog left open while the page refreshes shows things as they now
+  # stand, and closes once there's nothing left for it to do: the step moved
+  # on, someone else paused or resumed the group, or no devices are left to
+  # move. The device counts are only kept on the Overview, where the buttons
+  # are.
   defp refresh_confirm(%{assigns: %{confirm: {:approve, _entry}, entry: %{awaiting_step: %{}} = entry}} = socket),
     do: assign(socket, :confirm, {:approve, entry})
 
   defp refresh_confirm(%{assigns: %{confirm: {:skip, _entry}, entry: %{failed_step: %{}} = entry}} = socket),
     do: assign(socket, :confirm, {:skip, entry})
 
+  defp refresh_confirm(%{assigns: %{confirm: {:pause, _entry}, entry: %{group: %{is_active: true}} = entry}} = socket),
+    do: assign(socket, :confirm, {:pause, entry})
+
+  defp refresh_confirm(
+         %{assigns: %{confirm: {:resume, _entry}, entry: %{group: %{is_active: false}} = entry}} = socket
+       ), do: assign(socket, :confirm, {:resume, entry})
+
+  defp refresh_confirm(%{assigns: %{confirm: {:move_in, _}, tab: :summary, matched_outside: count}} = socket)
+       when count > 0, do: assign(socket, :confirm, {:move_in, count})
+
+  defp refresh_confirm(%{assigns: %{confirm: {:remove_unmatched, _}, tab: :summary, unmatched_inside: count}} = socket)
+       when count > 0, do: assign(socket, :confirm, {:remove_unmatched, count})
+
   defp refresh_confirm(socket), do: assign(socket, :confirm, nil)
 
   defp ask(socket, _action, nil), do: socket
   defp ask(socket, action, _step), do: assign(socket, :confirm, {action, socket.assigns.entry})
+
+  # The counts are the Overview's, so there's nothing to ask about elsewhere.
+  defp ask_about_devices(%{assigns: %{tab: :summary}} = socket, action, count_key) do
+    case socket.assigns[count_key] do
+      count when is_integer(count) and count > 0 -> assign(socket, :confirm, {action, count})
+      _ -> socket
+    end
+  end
+
+  defp ask_about_devices(socket, _action, _count_key), do: socket
+
+  # Sets the group's state rather than flipping it, so a page left open since
+  # someone else paused or resumed the group can't undo what they did.
+  defp set_active(socket, active?) do
+    %{deployment_group: deployment_group, product: product, user: user} = socket.assigns
+    deployment_group = ManagedDeployments.get_by_product_and_id!(product, deployment_group.id)
+    socket = assign(socket, :confirm, nil)
+
+    if deployment_group.is_active == active? do
+      socket
+      |> put_flash(:info, "#{deployment_group.name} is already #{(active? && "running") || "paused"}")
+      |> reload()
+      |> noreply()
+    else
+      {:ok, _deployment_group} =
+        ManagedDeployments.update_deployment_group(deployment_group, %{is_active: active?}, user)
+
+      DeploymentGroupTemplates.audit_deployment_toggle_active(
+        user,
+        deployment_group,
+        (active? && "active") || "inactive"
+      )
+
+      socket
+      |> put_flash(:info, "Deployment group #{(active? && "resumed") || "paused"}")
+      |> reload()
+      |> noreply()
+    end
+  end
 
   defp act(socket, action) do
     %{deployment_group: deployment_group, user: user} = socket.assigns

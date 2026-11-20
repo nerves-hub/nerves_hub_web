@@ -1,14 +1,14 @@
 defmodule NervesHubWeb.Components.Dialog do
   @moduledoc """
-  The design system's dialog, for asking before something that changes every
-  device, sends firmware to more of them, or can't be undone: a title, a
-  sentence or two, and Cancel beside the action under a divider. On a phone
-  it's a sheet from the bottom, its buttons stacked across it, the action
-  first.
+  The design system's dialog, for asking before an action.
 
-  Forms that add or edit something mostly open in dialogs of their own, such
-  as the integration and release dialogs. A short form can use this one
-  instead, as creating an API key does.
+  It asks before something that changes every device, sends firmware to more
+  of them, or can't be undone: a title, a sentence or two, and Cancel beside
+  the action under a divider. On a phone it's a sheet from the bottom, its
+  buttons stacked across it, the action first. Forms that add or edit
+  something mostly open in dialogs of their own, such as the integration and
+  release dialogs. A short form can use this one instead, as creating an API
+  key does.
   """
   use NervesHubWeb, :component
 

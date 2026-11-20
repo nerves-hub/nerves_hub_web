@@ -7,7 +7,7 @@ defmodule NervesHubWeb.Components.DeploymentGroups do
 
   `load/1` turns deployment groups into entries carrying their counts from
   `NervesHub.ManagedDeployments.Rollout`, with two queries for any number of
-  groups. `act/4` approves, skips or retries the step a group is held on, for
+  groups. `act/3` approves, skips or retries the step a group is held on, for
   both pages.
 
   The forms on a group's pages (the release dialogs and the Settings cards)
@@ -20,8 +20,8 @@ defmodule NervesHubWeb.Components.DeploymentGroups do
   import NervesHubWeb.Components.Fleet, only: [delimited: 1]
 
   alias NervesHub.Accounts.User
-  alias NervesHub.ManagedDeployments
   alias NervesHub.ManagedDeployments.DeploymentGroup
+  alias NervesHub.ManagedDeployments.DeploymentRelease
   alias NervesHub.ManagedDeployments.DeploymentWorkflowStep
   alias NervesHub.ManagedDeployments.Rollout
   alias NervesHub.ManagedDeployments.Workflows
@@ -148,36 +148,38 @@ defmodule NervesHubWeb.Components.DeploymentGroups do
   def needs_you?(%{status: status}), do: status in [:awaiting_approval, :stopped]
 
   @doc """
-  Approves, skips or retries the step a group is held on, as `user`, and
-  nudges the group's orchestrator to carry on. The step is looked up again
-  rather than taken from the page, so one somebody else already dealt with is
-  refused instead of acted on twice.
+  A release's one-line summary for the list and a group's Overview: the first
+  line of its description, or of its notes when it has no description. Nil
+  when it has neither.
+  """
+  @spec release_line(DeploymentRelease.t()) :: String.t() | nil
+  def release_line(release) do
+    [release.description, release.notes]
+    |> Enum.find(&(is_binary(&1) and String.trim(&1) != ""))
+    |> case do
+      nil -> nil
+      text -> text |> String.split("\n", parts: 2) |> hd() |> String.trim()
+    end
+  end
+
+  @doc """
+  Approves, skips or retries the step a group is held on, as `user`, through
+  `NervesHub.ManagedDeployments.Workflows.act_on_held_step/3`, which refuses a
+  step somebody else already dealt with.
 
   Returns the flash to show.
   """
   @spec act(:approve | :skip | :retry, DeploymentGroup.t(), User.t()) ::
           {:info | :error, String.t()}
   def act(action, deployment_group, user) do
-    release_id = deployment_group.current_deployment_release_id
+    case Workflows.act_on_held_step(action, deployment_group, user) do
+      {:ok, step} ->
+        {:info, done_message(action, step)}
 
-    step =
-      case action do
-        :approve -> Workflows.awaiting_approval(release_id)
-        _ -> Workflows.failed_step(release_id)
-      end
-
-    with %DeploymentWorkflowStep{} <- step,
-         {:ok, _step} <- run(action, deployment_group, step, user) do
-      :ok = ManagedDeployments.broadcast(deployment_group, "deployments/update")
-      {:info, done_message(action, step)}
-    else
-      _ -> {:error, "#{deployment_group.name} has moved on since the page loaded. Nothing was changed."}
+      {:error, :moved_on} ->
+        {:error, "#{deployment_group.name} has moved on since the page loaded. Nothing was changed."}
     end
   end
-
-  defp run(:approve, deployment_group, step, user), do: Workflows.approve_step(deployment_group, step, user)
-  defp run(:skip, deployment_group, step, user), do: Workflows.skip_step(deployment_group, step, user)
-  defp run(:retry, deployment_group, step, user), do: Workflows.retry_step(deployment_group, step, user)
 
   defp done_message(:approve, step), do: "#{step_name(step)} approved. The release carries on with the next step."
   defp done_message(:skip, step), do: "#{step_name(step)} skipped. Its devices are picked up by a later step."

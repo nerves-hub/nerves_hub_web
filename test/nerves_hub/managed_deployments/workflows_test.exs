@@ -249,6 +249,42 @@ defmodule NervesHub.ManagedDeployments.WorkflowsTest do
     end
   end
 
+  describe "act_on_held_step/3" do
+    test "approves the step the release is waiting on, and nudges the orchestrator", context do
+      definition = %{"version" => 1, "steps" => [%{"name" => "Sign-off", "type" => "approval_required"}]}
+      %{release: release, deployment_group: deployment_group} = with_workflow(context, definition)
+      [step | _] = Workflows.release_steps(release.id)
+      {:ok, _waiting} = Workflows.start_step(deployment_group, step)
+
+      :ok = Phoenix.PubSub.subscribe(NervesHub.PubSub, "deployment:#{deployment_group.id}")
+
+      assert {:ok, approved} = Workflows.act_on_held_step(:approve, deployment_group, context.user)
+      assert approved.id == step.id
+      assert approved.approved_by_id == context.user.id
+      assert_receive %Broadcast{event: "deployments/update"}
+    end
+
+    test "retries the failed step", context do
+      %{release: release, deployment_group: deployment_group} = with_workflow(context)
+      [step | _] = Workflows.release_steps(release.id)
+      {:ok, started} = Workflows.start_step(deployment_group, step)
+      {:ok, _failed} = Workflows.fail_step(deployment_group, started, 1)
+
+      assert {:ok, %{status: :in_progress}} = Workflows.act_on_held_step(:retry, deployment_group, context.user)
+    end
+
+    test "refuses a step somebody else already dealt with", context do
+      %{release: release, deployment_group: deployment_group} = with_workflow(context)
+      [step | _] = Workflows.release_steps(release.id)
+      {:ok, started} = Workflows.start_step(deployment_group, step)
+      {:ok, _failed} = Workflows.fail_step(deployment_group, started, 1)
+
+      assert {:ok, _skipped} = Workflows.act_on_held_step(:skip, deployment_group, context.user)
+      assert {:error, :moved_on} = Workflows.act_on_held_step(:skip, deployment_group, context.user)
+      assert {:error, :moved_on} = Workflows.act_on_held_step(:approve, deployment_group, context.user)
+    end
+  end
+
   describe "a step somebody changes" do
     test "is audited as theirs", context do
       %{user: user} = context
