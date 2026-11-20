@@ -31,6 +31,7 @@ defmodule NervesHubWeb.Live.Org.Integrations.SlackSection do
   alias NervesHub.Integrations.Slack
   alias NervesHub.Integrations.Slack.Subscription
   alias NervesHub.Integrations.Slack.Subscriptions
+  alias NervesHubWeb.Components.Dialog
   alias Phoenix.LiveView.AsyncResult
   alias Phoenix.LiveView.JS
 

@@ -29,6 +29,7 @@ defmodule NervesHubWeb.Live.Org.Integrations do
   alias NervesHub.Webhooks
   alias NervesHub.Webhooks.Events
   alias NervesHub.Webhooks.Webhook
+  alias NervesHubWeb.Components.Dialog
   alias NervesHubWeb.Live.Org.Integrations.ChatWebhookSection
   alias NervesHubWeb.Live.Org.Integrations.SlackSection
   alias NervesHubWeb.Mounts.OrgCounts

@@ -445,14 +445,14 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Releases do
       )
 
     ~H"""
-    <.release_dialog
+    <Dialog.form_dialog
       id="new-release"
       title={"New release for #{@deployment_group.name}"}
-      subtitle="The group starts sending it as soon as it’s created."
       on_cancel={JS.patch(releases_path(@current_scope, @deployment_group))}
     >
+      <:subtitle>The group starts sending it as soon as it’s created.</:subtitle>
       <.form :let={f} for={@form} id="release-form" phx-change="validate-release" phx-submit="create-release" phx-target={@myself}>
-        <div class="flex flex-col gap-5 p-5 max-sm:px-4">
+        <Dialog.form_body>
           <.field field={f[:firmware]} label="Firmware">
             <:help>
               For <span class="font-mono">{@current.firmware.platform} · {@current.firmware.architecture}</span>, newest first
@@ -525,13 +525,13 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Releases do
           </div>
 
           <.what_happens entry={@entry} deployment_group={@deployment_group} firmware={@firmware} />
-        </div>
+        </Dialog.form_body>
 
-        <.dialog_footer dialog="new-release">
+        <Dialog.form_footer dialog="new-release">
           <.button style="primary" type="submit"><span class="lucide-plus" aria-hidden="true"></span> Create release</.button>
-        </.dialog_footer>
+        </Dialog.form_footer>
       </.form>
-    </.release_dialog>
+    </Dialog.form_dialog>
     """
   end
 
@@ -566,12 +566,12 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Releases do
 
   defp edit_release_dialog(assigns) do
     ~H"""
-    <.release_dialog id="edit-release" title={"Edit release #{@release.number}"} on_cancel={JS.push("close-edit", target: @myself)}>
-      <:description>
+    <Dialog.form_dialog id="edit-release" title={"Edit release #{@release.number}"} on_cancel={JS.push("close-edit", target: @myself)}>
+      <:subtitle>
         <span class="font-mono">{@release.firmware.version}</span><span :if={present?(@release.description)}> · {@release.description}</span>
-      </:description>
+      </:subtitle>
       <.form :let={f} for={@form} id="edit-release-form" phx-change="validate-edit" phx-submit="save-release" phx-target={@myself}>
-        <div class="flex flex-col gap-5 p-5 max-sm:px-4">
+        <Dialog.form_body>
           <div class="rounded-card border border-line-default">
             <.required_switch form={f} id="edit-release-required" />
           </div>
@@ -584,9 +584,9 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Releases do
           <p class="flex items-start gap-2.5 rounded-md bg-surface-muted p-3 text-ui/4.5 text-content-body">
             <span class="mt-px lucide-lock size-4 text-notice" aria-hidden="true"></span> The firmware, archive, description and notes stay as they were released. To change those, make a new release.
           </p>
-        </div>
+        </Dialog.form_body>
 
-        <.dialog_footer dialog="edit-release">
+        <Dialog.form_footer dialog="edit-release">
           <:start>
             <.button
               :if={present?(f[:connecting_code].value)}
@@ -600,9 +600,9 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Releases do
             </.button>
           </:start>
           <.button style="primary" type="submit">Save changes</.button>
-        </.dialog_footer>
+        </Dialog.form_footer>
       </.form>
-    </.release_dialog>
+    </Dialog.form_dialog>
     """
   end
 
@@ -760,82 +760,6 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Releases do
         <span :for={help <- @help} id={"#{@field.id}-hint"}>{render_slot(help)}</span>
         <span :for={counter <- @counter} class="ml-auto font-mono tabular-nums">{render_slot(counter)}</span>
       </div>
-    </div>
-    """
-  end
-
-  attr(:id, :string, required: true)
-  attr(:title, :string, required: true)
-  attr(:subtitle, :string, default: nil)
-  attr(:on_cancel, JS, required: true)
-  slot(:description, doc: "a subtitle with markup, in place of `subtitle`")
-  slot(:inner_block, required: true)
-
-  # Opens when it's rendered and closes when it's removed. It uses the core
-  # modal's ids, so `CoreComponents.show_modal/2` and `hide_modal/2` drive it.
-  # On a phone it's a sheet from the bottom.
-  defp release_dialog(assigns) do
-    ~H"""
-    <div
-      id={@id}
-      phx-mounted={CoreComponents.show_modal(@id)}
-      phx-remove={CoreComponents.hide_modal(@id)}
-      data-cancel={JS.exec(@on_cancel, "phx-remove")}
-      class="absolute z-50 hidden"
-    >
-      <div id={"#{@id}-bg"} class="fixed inset-0 bg-backdrop transition-opacity" aria-hidden="true" />
-      <div class="fixed inset-0 overflow-y-auto" role="dialog" aria-modal="true" aria-labelledby={"#{@id}-title"} tabindex="0">
-        <div class="flex min-h-full items-end justify-center pt-12 sm:items-start sm:px-4 sm:py-14">
-          <.focus_wrap
-            id={"#{@id}-container"}
-            phx-window-keydown={JS.exec("data-cancel", to: "##{@id}")}
-            phx-key="escape"
-            phx-click-away={JS.exec("data-cancel", to: "##{@id}")}
-            class="relative hidden w-full rounded-t-xl border-t border-line-default bg-surface-overlay shadow-overlay transition sm:max-w-140 sm:rounded-md sm:border"
-          >
-            <div class="flex justify-center pt-2 pb-1 sm:hidden" aria-hidden="true">
-              <span class="h-1 w-9 rounded-full bg-line-default"></span>
-            </div>
-            <div class="flex items-start gap-3 border-b border-line-subtle px-4 pt-3 pb-4 sm:px-5 sm:pt-5">
-              <div class="flex min-w-0 flex-1 flex-col gap-1.5 sm:gap-2">
-                <h2 id={"#{@id}-title"} class="text-card-title font-semibold wrap-break-word text-content-strong">{@title}</h2>
-                <p :if={@subtitle} class="text-ui/5 text-content-muted">{@subtitle}</p>
-                <p :for={description <- @description} class="text-ui/5 text-content-muted">{render_slot(description)}</p>
-              </div>
-              <button
-                type="button"
-                phx-click={JS.exec("data-cancel", to: "##{@id}")}
-                aria-label="Close"
-                class="-mt-0.5 -mr-1.5 flex size-7 shrink-0 cursor-pointer items-center justify-center rounded text-content-faint hover:bg-surface-muted hover:text-content-strong focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
-              >
-                <span class="lucide-x--bold size-3.5" aria-hidden="true"></span>
-              </button>
-            </div>
-            <div id={"#{@id}-content"}>
-              {render_slot(@inner_block)}
-            </div>
-          </.focus_wrap>
-        </div>
-      </div>
-    </div>
-    """
-  end
-
-  attr(:dialog, :string, required: true)
-  slot(:start, doc: "an action at the start of the row, which sets its own `mr-auto`")
-  slot(:inner_block, required: true)
-
-  # Cancel and the dialog's action on the right. On a phone they stack across
-  # the sheet, the action first.
-  defp dialog_footer(assigns) do
-    ~H"""
-    <div class={[
-      "flex items-center justify-end gap-2 border-t border-line-subtle px-5 py-3",
-      "max-sm:flex-col-reverse max-sm:items-stretch max-sm:px-4 max-sm:pb-6 max-sm:*:h-10 max-sm:*:rounded-md max-sm:*:text-sm"
-    ]}>
-      {render_slot(@start)}
-      <.button phx-click={JS.exec("data-cancel", to: "##{@dialog}")}>Cancel</.button>
-      {render_slot(@inner_block)}
     </div>
     """
   end

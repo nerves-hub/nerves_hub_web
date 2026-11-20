@@ -45,15 +45,10 @@
     </:menu>
   </.integration_row>
 
-  <.dialog
-    :if={@form}
-    id={dialog_id(@provider)}
-    service={@provider}
-    title={dialog_title(@provider, @editing)}
-    on_cancel={JS.push("cancel", target: @myself)}
-  >
+  <Dialog.form_dialog :if={@form} id={dialog_id(@provider)} title={dialog_title(@provider, @editing)} on_cancel={JS.push("cancel", target: @myself)} wide>
+    <:icon><.service_logo service={@provider} class="size-4.25" /></:icon>
     <.form for={@form} id={"#{@provider}-channel-form"} phx-change="validate" phx-submit="save" phx-target={@myself}>
-      <.dialog_body>
+      <Dialog.form_body>
         <.steps :if={@editing == :new && @provider == :teams} title="In Teams">
           <:step>Open the channel’s ⋯ menu and choose <strong class="font-medium text-content-body">Workflows</strong>.</:step>
           <:step>Pick the <strong class="font-medium text-content-body">Send webhook alerts to a channel</strong> template.</:step>
@@ -81,13 +76,13 @@
 
         <.products_field form={@form} id={"#{@provider}"} products={@products} />
         <.events_field form={@form} id={"#{@provider}"} columns={@event_columns} />
-      </.dialog_body>
+      </Dialog.form_body>
 
-      <.dialog_footer dialog={dialog_id(@provider)}>
+      <Dialog.form_footer dialog={dialog_id(@provider)}>
         <.button style="primary" type="submit" phx-disable-with="Saving…">
           {if @editing == :new, do: "Add channel", else: "Save channel"}
         </.button>
-      </.dialog_footer>
+      </Dialog.form_footer>
     </.form>
-  </.dialog>
+  </Dialog.form_dialog>
 </div>

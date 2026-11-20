@@ -341,9 +341,13 @@ when adding or removing one.
   (deleting firmware, turning an extension off for every device, approving a
   step) goes through `Dialog.confirm/1` in `components/dialog.ex`, the design
   system's dialog: 440px, or 480px when it holds a list, with Cancel and the
-  action under a divider, and a sheet from the bottom on a phone. Most forms
-  open in dialogs of their own (integrations, releases); a short one, such as
-  creating an API key, can use `Dialog.confirm/1`.
+  action under a divider, and a sheet from the bottom on a phone. A form that
+  adds or edits something opens in `Dialog.form_dialog/1` from the same file
+  (560px, or 600px when `wide`, with an optional icon tile and subtitle), its
+  fields in `Dialog.form_body/1` and its buttons in `Dialog.form_footer/1`, as
+  the release and integration dialogs do, so a new one uses it rather than
+  writing its own. A short form, such as creating an API key, can use
+  `Dialog.confirm/1`.
   `components/product_list.ex` holds what the firmware and archive lists
   share: the footer pager, the sort arrow, and how a UUID, a size and an
   upload time are written.

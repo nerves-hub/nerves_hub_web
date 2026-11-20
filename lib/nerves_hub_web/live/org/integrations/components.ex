@@ -3,8 +3,9 @@ defmodule NervesHubWeb.Live.Org.Integrations.Components do
   What the Integrations page's chat channels and webhooks share, so that the
   Slack, Teams and Discord sections (`SlackSection`, `ChatWebhookSection`)
   and the page's own webhooks read as two tables of one kind of thing: a
-  row and its menu, the dialog it is added and edited in, and that dialog's
-  fields.
+  row and its menu, and the fields of the dialog it is added and edited in,
+  which is `NervesHubWeb.Components.Dialog.form_dialog/1` with the service's
+  logo in its `icon` slot.
 
   The functions after the components are for the forms behind those
   dialogs, which all take a set of products and a set of events the same
@@ -270,89 +271,6 @@ defmodule NervesHubWeb.Live.Org.Integrations.Components do
         <span :if={@detail} class="text-xs text-content-faint">{@detail}</span>
       </span>
     </button>
-    """
-  end
-
-  @doc """
-  A dialog an integration is added or edited in. The content is the dialog's
-  form, laid out with `dialog_body/1` and `dialog_footer/1`.
-
-  It opens when it is rendered and closes when it is removed, so the
-  LiveView or component behind it shows it while it has a form open.
-  `on_cancel` runs on Escape, a click outside, the close button and Cancel,
-  and should close that form. It uses the core modal's ids, so
-  `CoreComponents.show_modal/2` and `hide_modal/2` drive it.
-  """
-  attr(:id, :string, required: true)
-  attr(:service, :atom, required: true)
-  attr(:title, :string, required: true)
-  attr(:on_cancel, JS, required: true)
-  slot(:inner_block, required: true)
-
-  def dialog(assigns) do
-    ~H"""
-    <div
-      id={@id}
-      phx-mounted={CoreComponents.show_modal(@id)}
-      phx-remove={CoreComponents.hide_modal(@id)}
-      data-cancel={JS.exec(@on_cancel, "phx-remove")}
-      class="absolute z-50 hidden"
-    >
-      <div id={"#{@id}-bg"} class="fixed inset-0 bg-backdrop transition-opacity" aria-hidden="true" />
-      <div class="fixed inset-0 overflow-y-auto" role="dialog" aria-modal="true" aria-labelledby={"#{@id}-title"} tabindex="0">
-        <div class="flex min-h-full items-start justify-center px-4 py-8 sm:py-14">
-          <.focus_wrap
-            id={"#{@id}-container"}
-            phx-window-keydown={JS.exec("data-cancel", to: "##{@id}")}
-            phx-key="escape"
-            phx-click-away={JS.exec("data-cancel", to: "##{@id}")}
-            class="relative hidden w-full max-w-150 rounded-md border border-line-default bg-surface-overlay shadow-overlay transition"
-          >
-            <div class="flex items-center gap-3 border-b border-line-subtle px-5 pt-5 pb-4 sm:px-6">
-              <span class="flex size-8 shrink-0 items-center justify-center rounded-lg bg-surface-muted">
-                <.service_logo service={@service} class="size-4.25" />
-              </span>
-              <h2 id={"#{@id}-title"} class="min-w-0 flex-1 text-base/5.5 font-semibold wrap-break-word text-content-strong">{@title}</h2>
-              <button
-                type="button"
-                phx-click={JS.exec("data-cancel", to: "##{@id}")}
-                aria-label="Close"
-                class="flex size-7 shrink-0 items-center justify-center rounded text-content-muted hover:cursor-pointer hover:bg-surface-muted hover:text-content-strong"
-              >
-                <span class="lucide-x size-4.5" aria-hidden="true"></span>
-              </button>
-            </div>
-            <div id={"#{@id}-content"}>
-              {render_slot(@inner_block)}
-            </div>
-          </.focus_wrap>
-        </div>
-      </div>
-    </div>
-    """
-  end
-
-  @doc "A dialog's fields."
-  slot(:inner_block, required: true)
-
-  def dialog_body(assigns) do
-    ~H"""
-    <div class="flex flex-col gap-5 p-5 sm:px-6">
-      {render_slot(@inner_block)}
-    </div>
-    """
-  end
-
-  @doc "A dialog's Cancel button and, in `inner_block`, its submit button. `dialog` is the dialog's id."
-  attr(:dialog, :string, required: true)
-  slot(:inner_block, required: true)
-
-  def dialog_footer(assigns) do
-    ~H"""
-    <div class="flex items-center justify-end gap-2 rounded-b-[10px] border-t border-line-subtle bg-surface px-5 py-3.5 sm:px-6">
-      <.button type="button" phx-click={JS.exec("data-cancel", to: "##{@dialog}")}>Cancel</.button>
-      {render_slot(@inner_block)}
-    </div>
     """
   end
 
