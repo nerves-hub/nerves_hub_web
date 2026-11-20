@@ -963,29 +963,15 @@ defmodule NervesHub.ManagedDeployments do
   end
 
   @doc """
-  Mark or unmark a release as required.
-
-  Changing it changes which firmware some devices are sent next, so the deltas
-  those devices need are queued, the group's status is recalculated against them,
-  and the orchestrator is told to look again.
-  """
-  @spec set_deployment_release_required(DeploymentRelease.t(), boolean(), User.t()) ::
-          {:ok, DeploymentRelease.t()} | {:error, Changeset.t() | :not_found}
-  def set_deployment_release_required(%DeploymentRelease{} = release, required, %User{} = user)
-      when is_boolean(required) do
-    release
-    |> DeploymentRelease.required_changeset(required)
-    |> save_release_changes(user)
-  end
-
-  @doc """
   Change what can still change on a release once it's made: whether it's
   required, its connecting code, and where that code runs. The Edit release
   dialog saves all of them at once.
 
   Each change is audited on its own, and only if it changed. Marking or
-  unmarking a release required does what `set_deployment_release_required/3`
-  does; a new connecting code reaches devices the next time they connect.
+  unmarking a release required changes which firmware some devices are sent
+  next, so the deltas those devices need are queued, the group's status is
+  recalculated against them, and the orchestrator is told to look again. A new
+  connecting code reaches devices the next time they connect.
   """
   @spec update_deployment_release(DeploymentRelease.t(), map(), User.t()) ::
           {:ok, DeploymentRelease.t()} | {:error, Changeset.t() | :not_found}
@@ -1032,20 +1018,6 @@ defmodule NervesHub.ManagedDeployments do
       {:error, _} = error ->
         error
     end
-  end
-
-  @doc """
-  Change the code a release's devices run when they connect, and where it runs
-  relative to the deployment group's connecting code.
-
-  Devices get the change the next time they connect.
-  """
-  @spec update_deployment_release_connecting_code(DeploymentRelease.t(), map(), User.t()) ::
-          {:ok, DeploymentRelease.t()} | {:error, Changeset.t() | :not_found}
-  def update_deployment_release_connecting_code(%DeploymentRelease{} = release, params, %User{} = user) do
-    release
-    |> DeploymentRelease.connecting_code_changeset(params)
-    |> save_release_changes(user)
   end
 
   @doc """

@@ -1057,13 +1057,16 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Releases do
       %Ecto.Association.NotLoaded{} -> nil
       %{__struct__: ^mod, id: id} -> id
       %Ecto.Changeset{data: %{id: id}} -> id
-      "" -> nil
-      nil -> nil
-      value when is_binary(value) -> String.to_integer(value)
+      value when is_binary(value) -> parse_id(value)
       value -> value
     end
-  rescue
-    ArgumentError -> nil
+  end
+
+  defp parse_id(value) do
+    case Integer.parse(value) do
+      {id, ""} -> id
+      _ -> nil
+    end
   end
 
   defp firmware_options(firmwares) do

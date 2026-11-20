@@ -100,32 +100,11 @@ defmodule NervesHub.ManagedDeployments.DeploymentRelease do
   end
 
   @doc """
-  Mark or unmark a release as required.
+  What can still change on a release once it's made, all at once: whether it's
+  required, its connecting code, and where that code runs.
 
   A required release is one every device in the deployment group passes through:
   a device that has not reached it yet is updated to it before anything newer.
-  """
-  @spec required_changeset(t(), boolean()) :: Ecto.Changeset.t()
-  def required_changeset(%__MODULE__{} = release, required) do
-    release
-    |> cast(%{required: required}, [:required])
-    |> validate_required([:required])
-  end
-
-  @doc """
-  Change the code a release's devices run when they connect, and where it runs
-  relative to the deployment group's connecting code.
-  """
-  @spec connecting_code_changeset(t(), map()) :: Ecto.Changeset.t()
-  def connecting_code_changeset(%__MODULE__{} = release, params) do
-    release
-    |> cast(params, [:connecting_code, :connecting_code_mode])
-    |> validate_required([:connecting_code_mode])
-  end
-
-  @doc """
-  What can still change on a release once it's made, all at once: whether it's
-  required, its connecting code, and where that code runs.
   """
   @spec edit_changeset(t(), map()) :: Ecto.Changeset.t()
   def edit_changeset(%__MODULE__{} = release, params) do

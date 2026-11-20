@@ -224,7 +224,7 @@
                   <span class="truncate font-mono text-ui font-medium text-content-strong">{entry.group.current_release.firmware.version}</span>
                   <span class="shrink-0 text-xs text-content-muted">{day_label(entry.group.current_release.inserted_at, @time_zone)}</span>
                 </span>
-                <span :if={line = release_line(entry.group.current_release)} class="truncate text-xs text-content-muted">{line}</span>
+                <span :if={line = DeploymentGroups.release_line(entry.group.current_release)} class="truncate text-xs text-content-muted">{line}</span>
               </div>
 
               <div role="cell" class="flex w-56 shrink-0 flex-col gap-1.5 @max-3xl:order-3 @max-3xl:w-full">
