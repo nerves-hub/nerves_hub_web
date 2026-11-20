@@ -81,7 +81,9 @@ defmodule NervesHubWeb.Live.Product.ApiKeysTest do
         |> assert_has("#new-api-key h2", text: "Copy the key for CI deploys")
         |> assert_has("#new-api-key", text: "This is the only time it is shown.")
         |> assert_has("#api-key-row-#{hd(ApiKeys.list(product)).id}", text: "Manage")
-        # Escape, a click outside or the close button would throw the key away.
+        |> assert_has("#new-api-key-note", text: "Manage · created just now")
+        # Cancel, Escape or a click outside would throw the key away.
+        |> refute_has("#new-api-key button", text: "Cancel")
         |> refute_has("#new-api-key-container[phx-click-away]")
         |> refute_has("#new-api-key-container[phx-window-keydown]")
         |> refute_has("#new-api-key button[aria-label='close']")
@@ -211,8 +213,10 @@ defmodule NervesHubWeb.Live.Product.ApiKeysTest do
       conn
       |> visit(keys_path(org, product))
       |> open_create_dialog()
-      # Cancel, Escape and a click outside all run the modal's own data-cancel,
-      # which pushes the event below.
+      # Cancel, Escape and a click outside all run the dialog's own
+      # data-cancel, which pushes the event below.
+      |> assert_has("#create-api-key-dialog button", text: "Cancel")
+      |> assert_has("#create-api-key-dialog-container[phx-click-away]")
       |> assert_has("#create-api-key-dialog[data-cancel]")
       |> unwrap(&render_click(&1, "cancel-dialog", %{}))
       |> refute_has("#create-api-key-dialog")
@@ -245,7 +249,7 @@ defmodule NervesHubWeb.Live.Product.ApiKeysTest do
       conn
       |> visit(keys_path(org, product))
       |> within("#api-key-row-#{api_key.id}", &click_button(&1, "Deactivate"))
-      |> assert_has("#deactivate-api-key")
+      |> assert_has("#deactivate-api-key button", text: "Cancel")
       |> unwrap(&render_click(&1, "cancel-dialog", %{}))
       |> refute_has("#deactivate-api-key")
 

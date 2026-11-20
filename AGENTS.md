@@ -341,8 +341,9 @@ when adding or removing one.
   (deleting firmware, turning an extension off for every device, approving a
   step) goes through `Dialog.confirm/1` in `components/dialog.ex`, the design
   system's dialog: 440px, or 480px when it holds a list, with Cancel and the
-  action under a divider, and a sheet from the bottom on a phone. Forms open
-  in dialogs of their own (integrations, releases).
+  action under a divider, and a sheet from the bottom on a phone. Most forms
+  open in dialogs of their own (integrations, releases); a short one, such as
+  creating an API key, can use `Dialog.confirm/1`.
   `components/product_list.ex` holds what the firmware and archive lists
   share: the footer pager, the sort arrow, and how a UUID, a size and an
   upload time are written.
@@ -374,16 +375,13 @@ when adding or removing one.
   `components/product_settings.ex`. General is titled cards in two columns,
   like the device page's Settings tab, and draws its toggles with
   `components/switch.ex`. Anything there that changes every device, or can't
-  be undone, asks first in a dialog that one assign drives (`@confirm` on
-  General, through `Dialog.confirm/1`, and `@dialog` on API keys); each event
-  that opens one checks the same permission as the event that acts. API keys
-  draws its create form, deactivating a key and the one-time key with
-  `ProductSettings.dialog/1`, 480px with its own footer bar, so it passes
-  `width_class` and a cleared `body_class` to `CoreComponents.modal`, whose
-  defaults suit every other modal. One without Cancel, such as the one-time
-  key, also turns off the modal's Escape, click outside and close button
-  (`dismissible`), so a stray click can't throw the key away. The dialog must
-  not clip, because the API keys role picker is a popover that hangs past the
+  be undone, asks first in a `Dialog.confirm/1` that one assign drives
+  (`@confirm` on General, `@dialog` on API keys); each event that opens one
+  checks the same permission as the event that acts. API keys uses it for its
+  create form and deactivating a key too, and for the one-time key, which sets
+  `dismissible` to false: no Cancel, and Escape and a click outside do
+  nothing, so a stray click can't throw the key away. The dialog must not
+  clip, because the API keys role picker is a popover that hangs past the
   footer. Device health edits one profile at a time as a draft, saved whole by
   `HealthProfiles.save_metrics/2`. While there are unsaved changes it shows
   what saving would do to the profile's devices: today's `device_health`
