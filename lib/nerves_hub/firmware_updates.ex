@@ -59,7 +59,9 @@ defmodule NervesHub.FirmwareUpdates do
         UpdateHistory.record(device, :succeeded,
           deployment_id: inflight_field(device.inflight_update, :deployment_id),
           source_firmware_uuid: firmware_uuid(previous_metadata),
-          target_firmware_uuid: device.firmware_metadata.uuid
+          target_firmware_uuid: device.firmware_metadata.uuid,
+          # The inflight row is written as the update is sent.
+          started_at: inflight_field(device.inflight_update, :inserted_at)
         )
 
       device

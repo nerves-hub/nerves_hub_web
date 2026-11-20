@@ -1,52 +1,72 @@
 defmodule NervesHubWeb.Components.Breadcrumb do
   @moduledoc """
-  The breadcrumb trail shown at the top of detail, new, and edit pages.
+  The breadcrumb in the top bar of a detail, new or edit page, drawn as the
+  design system's top bar draws it: the list the page belongs to as a link
+  (16/24 500 in `content-faint`), a 14px chevron, then the page's own item
+  (16/24 600 in `content-strong`, in mono for an identifier or a version).
+  An optional note follows it in mono 12/16, hidden on a phone.
 
-  It renders a back-link to the parent listing (a left arrow followed by a root
-  label) and then one or more `/`-separated crumbs.
+  Every such page uses this rather than drawing its own, so they all match.
   """
   use Phoenix.Component
 
   @doc """
-  Renders a breadcrumb trail.
+  Renders a breadcrumb.
 
-  The link target is supplied via one of the standard navigation attributes
-  (`navigate`, `patch`, or `href`); they are forwarded to `Phoenix.Component.link/1`.
+  The parent link takes one of the standard navigation attributes (`navigate`,
+  `patch` or `href`), forwarded to `Phoenix.Component.link/1`. Its label is
+  the list's name as the sidebar gives it ("Devices", "Deployment groups").
+  The last crumb is the page itself and is marked `aria-current="page"`.
 
   ## Examples
 
-      <.breadcrumb navigate={~p"/org/\#{@org}/\#{@product}/devices"} root_label="All Devices">
-        <:crumb>{@device.identifier}</:crumb>
+      <.breadcrumb navigate={~p"/org/\#{@org}/\#{@product}/devices"} root_label="Devices">
+        <:crumb mono>{@device.identifier}</:crumb>
       </.breadcrumb>
 
-  Crumbs (and the root label) accept extra classes, which is useful for
-  responsive visibility:
+      <.breadcrumb navigate={~p"/org/\#{@org}/\#{@product}/firmware"} root_label="Firmware">
+        <:crumb mono>{@firmware.version}</:crumb>
+        <:note>{@firmware.platform} · {@firmware.architecture}</:note>
+      </.breadcrumb>
 
-      <.breadcrumb navigate={~p"..."} root_label="All Devices" root_class="hidden whitespace-nowrap md:block">
-        <:crumb class="hidden lg:block">{@device.identifier}</:crumb>
+  The parent label, the crumbs and the whole breadcrumb take extra classes,
+  for hiding them at some widths:
+
+      <.breadcrumb navigate={~p"..."} root_label="Devices" root_class="sm:hidden md:block">
+        <:crumb mono class="hidden lg:flex">{@device.identifier}</:crumb>
       </.breadcrumb>
   """
-  attr(:root_label, :string, required: true, doc: "label for the back-link to the parent listing")
-  attr(:root_class, :string, default: nil, doc: "extra classes for the root label, e.g. responsive visibility")
-  attr(:class, :string, default: nil, doc: "extra classes for the breadcrumb wrapper")
+  attr(:root_label, :string, required: true, doc: "the name of the list the page belongs to, linking back to it")
+  attr(:root_class, :string, default: nil, doc: "extra classes for the parent link, e.g. responsive visibility")
+  attr(:class, :any, default: nil, doc: "extra classes for the breadcrumb")
   attr(:rest, :global, include: ~w(navigate patch href))
 
-  slot :crumb, doc: "a trailing crumb, rendered after a `/` separator" do
-    attr(:class, :string, doc: "extra classes applied to the crumb and its leading separator")
+  slot :crumb, doc: "an item after the parent, behind a chevron; the last is the page itself" do
+    attr(:mono, :boolean, doc: "set in mono, for an identifier or a version")
+    attr(:class, :string, doc: "extra classes for the crumb and its chevron")
   end
 
+  slot(:note, doc: "a mono aside after the last crumb, hidden on a phone")
+
   def breadcrumb(assigns) do
+    assigns = assign(assigns, :last, length(assigns.crumb) - 1)
+
     ~H"""
-    <div class={["flex items-center gap-2.5", @class]}>
-      <.link class="back-link flex items-center gap-2.5" {@rest}>
-        <span class="lucide-arrow-left size-4 text-content-muted" aria-hidden="true"></span>
-        <span class={["text-content-muted", @root_class]}>{@root_label}</span>
+    <nav aria-label="Breadcrumb" class={["flex min-w-0 items-center gap-2", @class]}>
+      <.link class={["text-base font-medium whitespace-nowrap text-content-faint hover:text-content-strong", @root_class]} {@rest}>
+        {@root_label}
       </.link>
-      <span :for={crumb <- @crumb} class="contents">
-        <span class={["text-content-muted", crumb[:class]]}>/</span>
-        <span class={["font-semibold text-content-strong", crumb[:class]]}>{render_slot(crumb)}</span>
+      <span :for={{crumb, index} <- Enum.with_index(@crumb)} class={["flex min-w-0 items-center gap-2", crumb[:class]]}>
+        <span class="lucide-chevron-right--bold size-3.5 text-content-faint" aria-hidden="true"></span>
+        <span
+          aria-current={if index == @last, do: "page"}
+          class={["truncate text-card-title text-content-strong", crumb[:mono] && "font-mono"]}
+        >
+          {render_slot(crumb)}
+        </span>
       </span>
-    </div>
+      <span :for={note <- @note} class="truncate font-mono text-xs text-content-muted max-sm:hidden">{render_slot(note)}</span>
+    </nav>
     """
   end
 end

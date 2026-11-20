@@ -80,4 +80,32 @@ defmodule NervesHub.AuditLogsTest do
       assert error[:validation] == :inclusion
     end
   end
+
+  describe "actor_devices/1" do
+    setup do
+      Fixtures.standard_fixture()
+    end
+
+    test "loads the devices that wrote the entries, keyed by id", context do
+      %{user: user, device: device, deployment_group: deployment_group} = context
+
+      :ok = AuditLogs.audit!(user, deployment_group, "User did something")
+      :ok = AuditLogs.audit!(device, deployment_group, "Device did something")
+      :ok = AuditLogs.audit!(deployment_group, deployment_group, "Group did something")
+
+      assert deployment_group |> AuditLogs.logs_for() |> AuditLogs.actor_devices() == %{
+               device.id => %{identifier: device.identifier, deleted?: false}
+             }
+    end
+
+    test "marks a deleted device", %{device: device, deployment_group: deployment_group} do
+      :ok = AuditLogs.audit!(device, deployment_group, "Device did something")
+      {:ok, _} = NervesHub.Devices.delete_device(device)
+
+      device_id = device.id
+
+      assert %{^device_id => %{deleted?: true}} =
+               deployment_group |> AuditLogs.logs_for() |> AuditLogs.actor_devices()
+    end
+  end
 end

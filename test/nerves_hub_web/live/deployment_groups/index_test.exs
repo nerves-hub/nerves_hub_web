@@ -1,333 +1,347 @@
 defmodule NervesHubWeb.Live.DeploymentGroups.IndexTest do
-  use NervesHubWeb.ConnCase.Browser, async: true
+  # Approving, skipping and retrying a step go through the workflow code,
+  # which the other workflow tests run synchronously too.
+  use NervesHubWeb.ConnCase.Browser, async: false
 
+  alias NervesHub.Accounts.OrgUser
   alias NervesHub.Devices
+  alias NervesHub.Devices.Deployments
   alias NervesHub.Fixtures
   alias NervesHub.ManagedDeployments
-  alias NervesHubWeb.Components.ListSettingsSidebar
+  alias NervesHub.ManagedDeployments.Workflows
+  alias NervesHub.Repo
 
-  test "no deployment groups", %{conn: conn, user: user, org: org} do
+  @workflow %{
+    "version" => 1,
+    "steps" => [
+      %{
+        "name" => "Canary",
+        "matching_conditions" => %{"tags" => ["canary"]},
+        "failure_tolerance" => %{"devices" => 1}
+      },
+      %{"name" => "Sign-off", "type" => "approval_required"}
+    ]
+  }
+
+  defp groups_path(org, product), do: "/org/#{org.name}/#{product.name}/deployment_groups"
+
+  # A group whose current release walks @workflow.
+  defp workflow_group(%{user: user, org_key: org_key, product: product, tmp_dir: tmp_dir}) do
+    firmware = Fixtures.firmware_fixture(org_key, product, %{version: "1.0.0", dir: tmp_dir})
+
+    group = Fixtures.deployment_group_fixture(firmware, %{is_active: true, name: "Workflow Group", user: user})
+    {:ok, group} = ManagedDeployments.update_deployment_group(group, %{workflow_definition: @workflow}, user)
+
+    next_firmware = Fixtures.firmware_fixture(org_key, product, %{version: "1.1.0", dir: tmp_dir})
+
+    {:ok, {release, _}} =
+      ManagedDeployments.create_deployment_release(group, next_firmware, nil, user, %{}, broadcast: false)
+
+    [canary, sign_off, _catch_all] = Workflows.release_steps(release.id)
+
+    %{workflow_group: group, canary: canary, sign_off: sign_off}
+  end
+
+  # The canary step is done and the sign-off waits for someone.
+  defp await_sign_off(%{workflow_group: group, canary: canary, sign_off: sign_off}) do
+    canary |> Ecto.Changeset.change(status: :completed) |> Repo.update!()
+    {:ok, sign_off} = Workflows.start_step(group, sign_off)
+
+    %{sign_off: sign_off}
+  end
+
+  # The canary step went over its failure limit.
+  defp stop_canary(%{workflow_group: group, canary: canary}) do
+    {:ok, canary} = Workflows.start_step(group, canary)
+
+    %{canary: canary |> Ecto.Changeset.change(status: :error) |> Repo.update!()}
+  end
+
+  test "a product with no groups shows how to make one", %{conn: conn, user: user, org: org} do
     product = Fixtures.product_fixture(user, org, %{name: "Spaghetti"})
 
     conn
-    |> visit("/org/#{org.name}/#{product.name}/deployment_groups")
-    |> assert_has("span", text: "#{product.name} doesn’t have any deployment groups configured.")
+    |> visit(groups_path(org, product))
+    |> assert_has("#deployment-groups-empty h2", text: "Make your first deployment group")
+    |> assert_has("#deployment-groups-empty a", text: "Upload firmware")
+    |> assert_has("#deployment-groups-empty a", text: "New deployment group")
+    |> refute_has("#needs-you")
+    |> refute_has("#deployment-group-filters")
   end
 
-  test "has deployment groups", %{
+  test "a group that needs nothing runs on its own", %{
     conn: conn,
     org: org,
     product: product,
-    deployment_group: deployment_group
+    deployment_group: group
   } do
     conn
-    |> visit("/org/#{org.name}/#{product.name}/deployment_groups")
-    |> assert_has("h1", text: "Deployment Groups")
-    |> assert_has("a", text: deployment_group.name)
-    |> assert_has("td", text: "0")
+    |> visit(groups_path(org, product))
+    |> assert_has("h1", text: "Deployment groups")
+    |> assert_has("span", text: "1 group · 0 devices")
+    |> assert_has("#needs-you", text: "Nothing needs you.")
+    |> assert_has("#group-#{group.id} a", text: group.name)
+    |> assert_has("#group-#{group.id}", text: "Paused")
+    |> assert_has("#group-#{group.id}", text: "Sends nothing until resumed")
   end
 
-  test "device counts don't include deleted devices", %{
+  test "device counts leave out deleted devices", %{
     conn: conn,
     org: org,
     product: product,
-    deployment_group: deployment_group,
+    deployment_group: group,
     device: device
   } do
-    conn
-    |> visit("/org/#{org.name}/#{product.name}/deployment_groups")
-    |> assert_has("h1", text: "Deployment Groups")
-    |> assert_has("a", text: deployment_group.name)
-    |> assert_has("td", text: "0")
+    device = Deployments.update_deployment_group(device, group)
 
     conn
-    |> visit("/org/#{org.name}/#{product.name}/deployment_groups")
-    |> assert_has("h1", text: "Deployment Groups")
-    |> assert_has("a", text: deployment_group.name)
-    |> assert_has("td", text: "1")
+    |> visit(groups_path(org, product))
+    |> assert_has("#group-#{group.id}", text: "1 device")
 
-    Devices.delete_device(device)
+    {:ok, _} = Devices.delete_device(device)
 
     conn
-    |> visit("/org/#{org.name}/#{product.name}/deployment_groups")
-    |> assert_has("h1", text: "Deployment Groups")
-    |> assert_has("a", text: deployment_group.name)
-    |> assert_has("td", text: "0")
+    |> visit(groups_path(org, product))
+    |> assert_has("#group-#{group.id}", text: "0 devices")
   end
 
-  describe "filtering" do
-    test "filter deployment groups on name", %{
-      conn: conn,
-      org: org,
-      product: product,
-      deployment_group: deployment_group
-    } do
-      conn
-      |> visit("/org/#{org.name}/#{product.name}/deployment_groups")
-      |> assert_has("h1", text: "Deployment Groups")
-      |> assert_has("a", text: deployment_group.name)
-      |> unwrap(fn view ->
-        render_change(view, "update-filters", %{"name" => deployment_group.name})
-      end)
-      |> assert_has("a", text: deployment_group.name)
-      |> unwrap(fn view ->
-        render_change(view, "update-filters", %{"name" => "blah"})
-      end)
-      |> refute_has("a", text: deployment_group.name)
-    end
-
-    test "filter deployment groups on platform", %{
-      conn: conn,
-      org: org,
-      product: product,
-      deployment_group: deployment_group
-    } do
-      platform = deployment_group.current_release.firmware.platform
-
-      conn
-      |> visit("/org/#{org.name}/#{product.name}/deployment_groups")
-      |> assert_has("td", text: platform)
-      |> unwrap(fn view ->
-        render_change(view, "update-filters", %{"platform" => platform})
-      end)
-      |> assert_has("td", text: platform)
-      |> unwrap(fn view ->
-        render_change(view, "update-filters", %{"platform" => "blah"})
-      end)
-      |> refute_has("td", text: platform)
-    end
-
-    test "filter deployment groups on architecture", %{
-      conn: conn,
-      org: org,
-      product: product,
-      deployment_group: deployment_group
-    } do
-      architecture = deployment_group.current_release.firmware.architecture
-
-      conn
-      |> visit("/org/#{org.name}/#{product.name}/deployment_groups")
-      |> assert_has("td", text: architecture)
-      |> unwrap(fn view ->
-        render_change(view, "update-filters", %{"architecture" => architecture})
-      end)
-      |> assert_has("td", text: architecture)
-      |> unwrap(fn view ->
-        render_change(view, "update-filters", %{"architecture" => "blah"})
-      end)
-      |> refute_has("td", text: architecture)
-    end
-
-    test "reset filters", %{
-      conn: conn,
-      org: org,
-      product: product,
-      deployment_group: deployment_group
-    } do
-      conn
-      |> visit("/org/#{org.name}/#{product.name}/deployment_groups")
-      |> assert_has("a", text: deployment_group.name)
-      |> unwrap(fn view ->
-        render_change(view, "update-filters", %{"name" => "blah"})
-      end)
-      |> refute_has("a", text: deployment_group.name)
-      |> unwrap(fn view ->
-        render_change(view, "reset-filters", %{})
-      end)
-      |> assert_has("a", text: deployment_group.name)
-    end
+  test "says how many devices no group reaches", %{conn: conn, org: org, product: product} do
+    conn
+    |> visit(groups_path(org, product))
+    |> assert_has("a[href$='devices?deployment_id=-1']", text: "1 device")
+    |> assert_has("p", text: "isn’t in any group, so no release reaches it.")
   end
 
-  describe "customize columns listed" do
-    test "all columns are shown, as the default", %{conn: conn, fixture: fixture} do
-      %{user: user} = fixture
+  test "the grid view is remembered", %{
+    conn: conn,
+    org: org,
+    product: product,
+    user: user,
+    deployment_group: group
+  } do
+    conn
+    |> visit(groups_path(org, product))
+    |> assert_has("button[aria-label='List'][aria-pressed='true']")
+    |> assert_has("#group-#{group.id}")
+    |> unwrap(&(&1 |> element("button[aria-label='Grid']") |> render_click()))
+    |> assert_has("button[aria-label='Grid'][aria-pressed='true']")
+    |> assert_has("#group-card-#{group.id}", text: group.name)
+    |> refute_has("#group-#{group.id}")
 
-      assert is_nil(user.display_preferences)
+    assert Repo.reload(user).display_preferences.deployment_group_view == :grid
 
-      conn
-      |> visit("/org/#{fixture.org.name}/#{fixture.product.name}/deployment_groups")
-      |> assert_has("th", text: "Platform")
-      |> assert_has("th", text: "Architecture")
-      |> assert_has("th", text: "Devices")
-      |> assert_has("th", text: "Releases")
-      |> assert_has("th", text: "Firmware version")
-      |> assert_has("th", text: "Device Tags")
-      |> assert_has("th", text: "Version Constraint")
-    end
+    conn
+    |> visit(groups_path(org, product))
+    |> assert_has("#group-card-#{group.id}")
+  end
 
-    for {column, label} <- [
-          {:platform, "Platform"},
-          {:architecture, "Architecture"},
-          {:device_count, "Devices"},
-          {:release_count, "Releases"},
-          {:firmware_version, "Firmware version"},
-          {:tags, "Tags"},
-          {:version_constraint, "Version Constraint"}
-        ] do
-      @column column
-      @label label
-      @friendly_column_name to_string(@column) |> String.split("_") |> Enum.map_join(" ", &String.capitalize/1)
-
-      test "#{column} column can be removed", %{conn: conn, fixture: fixture} do
-        %{user: user} = fixture
-
-        assert is_nil(user.display_preferences)
-
+  describe "search and filters" do
+    test "search matches names, tags and firmware versions, in any case", %{
+      conn: conn,
+      org: org,
+      product: product,
+      deployment_group: group
+    } do
+      for search <- [String.upcase(group.name), "BETA-EDGE", "1.0"] do
         conn
-        |> visit("/org/#{fixture.org.name}/#{fixture.product.name}/deployment_groups")
-        |> assert_has("th", text: @label)
-        # the show settings button is shown using JS, so no `click_button` is needed
-        |> uncheck(@friendly_column_name)
-        |> refute_has("th", text: @label, timeout: 1_000)
-      end
-
-      test "#{column} column can be added", %{conn: conn, fixture: %{user: user} = fixture} do
-        assert is_nil(user.display_preferences)
-
-        default_column_payload = %{
-          "_target" => [to_string(@column)],
-          "architecture" => true,
-          "device_count" => true,
-          "firmware_version" => true,
-          "platform" => true,
-          "release_count" => true,
-          "tags" => true,
-          "version_constraint" => true
-        }
-
-        {:ok, _user} =
-          ListSettingsSidebar.update_displayed_columns(
-            user,
-            :deployment_group_list_columns,
-            Map.put(default_column_payload, to_string(@column), "false")
-          )
-
-        conn
-        |> visit("/org/#{fixture.org.name}/#{fixture.product.name}/deployment_groups")
-        |> refute_has("th", text: @label)
-        # the show settings button is shown using JS, so no `click_button` is needed
-        |> check(@friendly_column_name)
-        |> assert_has("th", text: @label, timeout: 1_000)
+        |> visit(groups_path(org, product) <> "?" <> URI.encode_query(search: search))
+        |> assert_has("#group-#{group.id}")
       end
     end
-  end
 
-  describe "sorting" do
-    test "renders the list with a non-default sort column", %{
+    test "a search that matches nothing says so and can be cleared", %{
       conn: conn,
       org: org,
       product: product,
-      deployment_group: deployment_group
+      deployment_group: group
     } do
       conn
-      |> visit("/org/#{org.name}/#{product.name}/deployment_groups?sort=platform&sort_direction=desc")
-      |> assert_has("a", text: deployment_group.name)
+      |> visit(groups_path(org, product))
+      |> fill_in("Search deployment groups", with: "nothing like it")
+      |> assert_has("#deployment-groups-no-matches", text: "No groups match “nothing like it”")
+      |> refute_has("#group-#{group.id}")
+      |> refute_has("#needs-you")
+      |> click_button("Clear search")
+      |> assert_path(groups_path(org, product))
+      |> assert_has("#group-#{group.id}")
     end
 
-    test "sort by a new column", %{
+    test "filters on platform and firmware version", %{
       conn: conn,
       org: org,
       product: product,
-      deployment_group: deployment_group
+      deployment_group: group
     } do
       conn
-      |> visit("/org/#{org.name}/#{product.name}/deployment_groups")
-      |> assert_has("a", text: deployment_group.name)
-      |> unwrap(fn view ->
-        render_change(view, "sort", %{"sort" => "platform"})
-      end)
-      |> assert_has("a", text: deployment_group.name)
-    end
+      |> visit(groups_path(org, product) <> "?platform=platform&firmware=1.0.0")
+      |> assert_has("#group-#{group.id}")
 
-    test "sort by the same column toggles direction", %{
-      conn: conn,
-      org: org,
-      product: product,
-      deployment_group: deployment_group
-    } do
       conn
-      |> visit("/org/#{org.name}/#{product.name}/deployment_groups?sort=name&sort_direction=asc")
-      |> assert_has("a", text: deployment_group.name)
-      |> unwrap(fn view ->
-        render_change(view, "sort", %{"sort" => "name"})
-      end)
-      |> assert_has("a", text: deployment_group.name)
+      |> visit(groups_path(org, product) <> "?platform=elsewhere")
+      |> assert_has("#deployment-groups-no-matches", text: "No groups match these filters")
+      |> refute_has("#group-#{group.id}")
+      |> click_button("Clear filters")
+      |> assert_has("#group-#{group.id}")
+
+      conn
+      |> visit(groups_path(org, product) <> "?firmware=9.9.9")
+      |> refute_has("#group-#{group.id}")
     end
   end
 
-  describe "version display" do
-    test "shows '-' when deployment group has an empty version condition", %{
+  describe "a step waiting for approval" do
+    setup [:workflow_group, :await_sign_off]
+
+    test "puts its group under Needs you", %{conn: conn, org: org, product: product, workflow_group: group} do
+      conn
+      |> visit(groups_path(org, product))
+      |> assert_has("#needs-you-#{group.id}", text: "Awaiting approval")
+      |> assert_has("#needs-you-#{group.id}", text: "Approving Sign-off lets the release carry on.")
+      |> assert_has("#needs-you-#{group.id} button", text: "Approve and continue")
+      |> refute_has("#group-#{group.id}")
+    end
+
+    test "is approved once the dialog is confirmed", %{
       conn: conn,
       org: org,
       product: product,
-      deployment_group: deployment_group,
-      user: user
-    } do
-      {:ok, deployment_group} =
-        ManagedDeployments.update_deployment_group(
-          deployment_group,
-          %{conditions: %{"version" => "", "tags" => []}},
-          user
-        )
-
-      conn
-      |> visit("/org/#{org.name}/#{product.name}/deployment_groups")
-      |> assert_has("a", text: deployment_group.name)
-      |> assert_has("td", text: "-")
-    end
-  end
-
-  describe "pagination" do
-    test "no pagination when less than 25 deployment groups", %{
-      conn: conn,
-      org: org,
-      product: product
-    } do
-      conn
-      |> visit("/org/#{org.name}/#{product.name}/deployment_groups")
-      |> refute_has("button", text: "25", timeout: 1000)
-    end
-
-    test "change page size", %{
-      conn: conn,
-      org: org,
-      product: product,
-      deployment_group: deployment_group
-    } do
-      conn
-      |> visit("/org/#{org.name}/#{product.name}/deployment_groups")
-      |> assert_has("a", text: deployment_group.name)
-      |> unwrap(fn view ->
-        render_change(view, "set-paginate-opts", %{"page-size" => "50"})
-      end)
-      |> assert_has("a", text: deployment_group.name)
-    end
-
-    test "pagination with more than 25 deployment groups", %{
-      conn: conn,
       user: user,
-      org: org,
-      product: product,
-      deployment_group: deployment_group
+      workflow_group: group,
+      sign_off: sign_off
     } do
-      for i <- 1..26 do
-        Fixtures.deployment_group_fixture(deployment_group.current_release.firmware, %{
-          name: "Deployment-group-#{i}",
-          user: user
-        })
-      end
+      conn
+      |> visit(groups_path(org, product))
+      |> within("#needs-you-#{group.id}", &click_button(&1, "Approve and continue"))
+      |> assert_has("#approve-step h2", text: "Approve Sign-off for Workflow Group?")
 
-      deployment_groups = ManagedDeployments.get_deployment_groups_by_product(product)
-      [first_deployment_group | _] = deployment_groups |> Enum.sort_by(& &1.name)
+      refute Repo.reload(sign_off).approved_at
 
       conn
-      |> visit("/org/#{org.name}/#{product.name}/deployment_groups")
-      |> assert_has("a", text: first_deployment_group.name, timeout: 1000)
-      |> assert_has("button", text: "25", timeout: 1000)
-      |> assert_has("button", text: "50", timeout: 1000)
-      |> assert_has("button", text: "2", timeout: 1000)
-      |> click_button("button[phx-click='paginate'][phx-value-page='2']", "2")
-      |> refute_has("a", text: first_deployment_group.name, timeout: 1000)
+      |> visit(groups_path(org, product))
+      |> within("#needs-you-#{group.id}", &click_button(&1, "Approve and continue"))
+      |> within("#approve-step", &click_button(&1, "Approve and continue"))
+      |> assert_has("div", text: "Sign-off approved.")
+      |> refute_has("#approve-step")
+      |> refute_has("#needs-you-#{group.id}")
+
+      approved = Repo.reload(sign_off)
+
+      assert approved.approved_by_id == user.id
+      assert approved.approved_at
     end
+
+    test "a step approved elsewhere since the page loaded is left alone", %{
+      conn: conn,
+      org: org,
+      product: product,
+      user: user,
+      workflow_group: group,
+      sign_off: sign_off
+    } do
+      session =
+        conn
+        |> visit(groups_path(org, product))
+        |> within("#needs-you-#{group.id}", &click_button(&1, "Approve and continue"))
+
+      {:ok, _} = Workflows.approve_step(group, sign_off, user)
+
+      session
+      |> within("#approve-step", &click_button(&1, "Approve and continue"))
+      |> assert_has("div", text: "Workflow Group has moved on since the page loaded. Nothing was changed.")
+    end
+  end
+
+  describe "a step stopped on failures" do
+    setup [:workflow_group, :stop_canary]
+
+    test "puts its group under Needs you", %{conn: conn, org: org, product: product, workflow_group: group} do
+      conn
+      |> visit(groups_path(org, product))
+      |> assert_has("#needs-you-#{group.id}", text: "Stopped")
+      |> assert_has("#needs-you-#{group.id}", text: "stopped at Canary.")
+      |> assert_has("#needs-you-#{group.id} button", text: "Skip step")
+      |> assert_has("#needs-you-#{group.id} button", text: "Retry step")
+    end
+
+    test "counts the waiting devices, except on the phone's line beside the step", %{
+      conn: conn,
+      org: org,
+      product: product,
+      workflow_group: group,
+      device: device
+    } do
+      Deployments.update_deployment_group(device, group)
+
+      conn
+      |> visit(groups_path(org, product))
+      |> assert_has("#needs-you-#{group.id} span", text: "0 updated · 1 waiting", exact: true)
+      |> assert_has("#needs-you-#{group.id} span", text: "0 updated", exact: true)
+    end
+
+    test "is skipped once the dialog is confirmed", %{
+      conn: conn,
+      org: org,
+      product: product,
+      workflow_group: group,
+      canary: canary
+    } do
+      conn
+      |> visit(groups_path(org, product))
+      |> within("#needs-you-#{group.id}", &click_button(&1, "Skip step"))
+      |> assert_has("#skip-step h2", text: "Skip Canary for Workflow Group?")
+      |> assert_has("#skip-step", text: "moves on to Sign-off without Canary finishing.")
+      |> within("#skip-step", &click_button(&1, "Skip step"))
+      |> assert_has("div", text: "Canary skipped.")
+
+      assert Repo.reload(canary).status == :skipped
+    end
+
+    test "is retried straight away", %{conn: conn, org: org, product: product, workflow_group: group, canary: canary} do
+      conn
+      |> visit(groups_path(org, product))
+      |> within("#needs-you-#{group.id}", &click_button(&1, "Retry step"))
+      |> assert_has("div", text: "Canary restarted.")
+      |> refute_has("#needs-you-#{group.id}")
+
+      assert Repo.reload(canary).status == :in_progress
+    end
+  end
+
+  describe "a member with the view role" do
+    setup [:workflow_group, :await_sign_off]
+
+    setup do
+      Repo.update_all(OrgUser, set: [role: :view])
+      :ok
+    end
+
+    test "sees what is held but not the buttons that move it on", %{
+      conn: conn,
+      org: org,
+      product: product,
+      workflow_group: group
+    } do
+      conn
+      |> visit(groups_path(org, product))
+      |> assert_has("#needs-you-#{group.id}", text: "Awaiting approval")
+      |> refute_has("button", text: "Approve and continue")
+      |> refute_has("a", text: "New deployment group")
+    end
+
+    test "can't approve a step", %{conn: conn, org: org, product: product, workflow_group: group, sign_off: sign_off} do
+      for event <- ["approve", "confirm-approve"] do
+        session = visit(conn, groups_path(org, product))
+
+        assert_unauthorized(fn -> render_click(session.view, event, %{"id" => to_string(group.id)}) end)
+      end
+
+      refute Repo.reload(sign_off).approved_at
+    end
+  end
+
+  defp assert_unauthorized(fun) do
+    Process.flag(:trap_exit, true)
+
+    assert {{%NervesHubWeb.UnauthorizedError{}, _}, _} = catch_exit(fun.())
   end
 end

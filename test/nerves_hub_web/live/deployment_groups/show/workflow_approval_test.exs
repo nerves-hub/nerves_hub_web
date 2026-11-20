@@ -34,7 +34,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show.WorkflowApprovalTest do
     visit(conn, "/org/#{org.name}/#{product.name}/deployment_groups/#{deployment_group.name}")
   end
 
-  test "no banner while the approval step has not been reached", %{
+  test "no callout while the approval step has not been reached", %{
     conn: conn,
     org: org,
     product: product,
@@ -42,10 +42,12 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show.WorkflowApprovalTest do
   } do
     conn
     |> visit_group(org, product, deployment_group)
+    |> refute_has("#deployment-group-callout")
     |> refute_has("button", text: "Approve and continue")
+    |> assert_has("#step-1", text: "Not yet")
   end
 
-  test "the banner appears once the step is in progress", %{
+  test "the callout appears once the step is in progress", %{
     conn: conn,
     org: org,
     product: product,
@@ -57,13 +59,15 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show.WorkflowApprovalTest do
 
     conn
     |> visit_group(org, product, deployment_group)
-    |> assert_has("div", text: "Waiting on you: Sign-off")
-    |> assert_has("div", text: "Check the canaries look healthy")
-    |> assert_has("button", text: "Approve and continue")
+    |> assert_has("#deployment-group-callout", text: "Step 1, Sign-off, is waiting for approval.")
+    |> assert_has("#deployment-group-callout button", text: "Approve and continue")
+    |> assert_has("#step-1", text: "Check the canaries look healthy")
+    |> assert_has("#step-1", text: "Needs approval")
+    |> assert_has("#deployment-group-header", text: "Awaiting approval")
   end
 
   # Steps stored before names were required still have none, and the generated
-  # catch_all never does. The banner has to read sensibly for those rather than
+  # catch_all never does. The callout has to read sensibly for those rather than
   # showing a gap where the name would be.
   test "a step with no name falls back to its type", %{
     conn: conn,
@@ -82,11 +86,11 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show.WorkflowApprovalTest do
 
     conn
     |> visit_group(org, product, deployment_group)
-    |> assert_has("div", text: "Waiting on you: Approval required")
-    |> assert_has("button", text: "Approve and continue")
+    |> assert_has("#deployment-group-callout", text: "Step 1, Approval, is waiting for approval.")
+    |> assert_has("#deployment-group-callout button", text: "Approve and continue")
   end
 
-  test "approving records who approved it and clears the banner", %{
+  test "approving asks first, then records who approved it and clears the callout", %{
     conn: conn,
     org: org,
     product: product,
@@ -100,8 +104,12 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show.WorkflowApprovalTest do
     conn
     |> visit_group(org, product, deployment_group)
     |> click_button("Approve and continue")
-    |> assert_has("div", text: "Step approved")
+    |> assert_has("#approve-step h2", text: "Approve Sign-off for Workflow Group?")
+    |> within("#approve-step", &click_button(&1, "Approve and continue"))
+    |> assert_has("div", text: "Sign-off approved.")
+    |> refute_has("#deployment-group-callout")
     |> refute_has("button", text: "Approve and continue")
+    |> assert_has("#step-1", text: "Approved")
 
     approved = Repo.reload(step)
 

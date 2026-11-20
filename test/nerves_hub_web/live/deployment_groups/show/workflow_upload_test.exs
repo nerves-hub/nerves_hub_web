@@ -51,7 +51,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show.WorkflowUploadTest do
 
     conn
     |> visit(settings_path(org, product, deployment_group))
-    |> upload("Upload Workflow Definition", path)
+    |> upload("Upload", path)
     |> assert_has("div", text: "could not be read as JSON")
 
     refute Repo.reload(deployment_group).workflow_definition
@@ -72,32 +72,33 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show.WorkflowUploadTest do
 
     conn
     |> visit(settings_path(org, product, deployment_group))
-    |> upload("Upload Workflow Definition", path)
+    |> upload("Upload", path)
     |> assert_has("div", text: "not valid")
 
     refute Repo.reload(deployment_group).workflow_definition
   end
 
-  # Driven through LiveViewTest rather than the page helper: a good upload sends
-  # the browser to the deployment group, and the helper carries on talking to the
-  # view it just navigated away from.
-  test "a valid definition is stored, and takes you to the deployment group", %{
+  @tag :tmp_dir
+  test "a valid definition is stored, and its steps listed", %{
     conn: conn,
     org: org,
     product: product,
-    deployment_group: deployment_group
+    deployment_group: deployment_group,
+    tmp_dir: tmp_dir
   } do
-    {:ok, view, _html} = live(conn, settings_path(org, product, deployment_group))
+    path =
+      write(
+        tmp_dir,
+        "good.json",
+        ~s({"version": 1, "steps": [{"name": "Canary", "matching_conditions": {"tags": ["canary"]}}]})
+      )
 
-    contents = ~s({"version": 1, "steps": [{"name": "Canary", "matching_conditions": {"tags": ["canary"]}}]})
-
-    upload =
-      file_input(view, "#deployment-form", :workflow_definition, [
-        %{name: "good.json", content: contents, type: "application/json"}
-      ])
-
-    assert {:error, {:live_redirect, %{to: to}}} = render_upload(upload, "good.json")
-    assert to =~ "/deployment_groups/"
+    conn
+    |> visit(settings_path(org, product, deployment_group))
+    |> upload("Upload", path)
+    |> assert_has("[role=alert]", text: "Workflow saved. It applies from the next release.")
+    |> assert_has("#workflow-steps li", text: "Canary")
+    |> assert_has("#replace-workflow", text: "Replace")
 
     assert %{"steps" => [%{"name" => "Canary"}]} = Repo.reload(deployment_group).workflow_definition
   end
@@ -117,8 +118,10 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show.WorkflowUploadTest do
 
     conn
     |> visit(settings_path(org, product, deployment_group))
-    |> click_link("Delete Workflow Definition")
-    |> assert_has("div", text: "removed successfully")
+    |> click_button("Remove workflow")
+    |> within("#settings-confirm", &click_button(&1, "Remove workflow"))
+    |> assert_has("[role=alert]", text: "Workflow removed")
+    |> refute_has("#workflow-steps")
 
     refute Repo.reload(deployment_group).workflow_definition
   end

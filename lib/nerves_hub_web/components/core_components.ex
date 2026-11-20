@@ -115,8 +115,10 @@ defmodule NervesHubWeb.CoreComponents do
   @doc """
   Renders a status dot, such as a device's connection state.
 
-  Every status dot is the same size, whether it sits in a table row or beside
-  a page title. Give it a colour with `class`, either fixed or as `data-*`
+  A status dot is 8px, whether it sits in a table row or beside a page title.
+  Where the design system draws a smaller one (6px inside a badge or on the
+  line under a sidebar link), pass that `size-*` in `class` and it replaces
+  the 8px. Give it a colour with `class`, either fixed or as `data-*`
   variants keyed on an attribute passed through.
 
   Chart legend keys are not status dots and keep their own size.
@@ -130,9 +132,20 @@ defmodule NervesHubWeb.CoreComponents do
   attr(:rest, :global)
 
   def status_dot(assigns) do
+    assigns = assign(assigns, :default_size, if(!sized?(assigns.class), do: "size-2"))
+
     ~H"""
-    <span class={["inline-block size-2 shrink-0 rounded-full", @class]} {@rest}></span>
+    <span class={["inline-block shrink-0 rounded-full", @default_size, @class]} {@rest}></span>
     """
+  end
+
+  # Whether the caller set its own size. Both on one element, `size-2` would
+  # beat a smaller `size-*`, as Tailwind writes it later in the stylesheet.
+  defp sized?(class) do
+    class
+    |> List.wrap()
+    |> List.flatten()
+    |> Enum.any?(&(is_binary(&1) and String.match?(&1, ~r/(?:^|\s)size-/)))
   end
 
   @doc """
@@ -140,7 +153,8 @@ defmodule NervesHubWeb.CoreComponents do
   the number beside a page title.
 
   `tone` picks the colour, each a tinted fill with matching text: `neutral`
-  (the default), `notice`, `success`, `warning` or `alert`. For a label a user
+  (the default), `notice`, `success`, `warning`, `alert` or `waiting`, the
+  sky blue of something waiting on a person, such as a step to approve. For a label a user
   gave something, such as a device tag, use `tag/1`.
 
   `dot` leads the label with a status dot in the tone's colour, for a state
@@ -157,7 +171,7 @@ defmodule NervesHubWeb.CoreComponents do
       <.badge tone="alert">Failing</.badge>
       <.badge tone="success" dot>Healthy</.badge>
   """
-  attr(:tone, :string, default: "neutral", values: ~w(neutral notice success warning alert))
+  attr(:tone, :string, default: "neutral", values: ~w(neutral notice success warning alert waiting))
   attr(:size, :string, default: "sm", values: ~w(sm md))
   attr(:dot, :boolean, default: false)
   attr(:count, :boolean, default: false)
@@ -190,6 +204,7 @@ defmodule NervesHubWeb.CoreComponents do
   defp badge_dot("success"), do: "bg-success"
   defp badge_dot("warning"), do: "bg-warning"
   defp badge_dot("alert"), do: "bg-alert"
+  defp badge_dot("waiting"), do: "bg-waiting"
 
   # A neutral count is outlined, so it holds its shape beside a label without
   # reading as a status.
@@ -201,6 +216,7 @@ defmodule NervesHubWeb.CoreComponents do
   defp badge_tone("success", _count), do: "bg-success-soft text-success-content"
   defp badge_tone("warning", _count), do: "bg-warning-soft text-warning-content"
   defp badge_tone("alert", _count), do: "bg-alert-soft text-alert-content"
+  defp badge_tone("waiting", _count), do: "bg-waiting-soft text-waiting-content"
 
   @doc """
   Renders a tag: a label a user gave something, such as a device tag, or an

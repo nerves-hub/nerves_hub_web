@@ -50,6 +50,7 @@ defmodule NervesHub.ManagedDeployments.Workflows do
   alias NervesHub.FirmwareUpdates
   alias NervesHub.ManagedDeployments
   alias NervesHub.ManagedDeployments.DeploymentGroup
+  alias NervesHub.ManagedDeployments.DeploymentRelease
   alias NervesHub.ManagedDeployments.DeploymentWorkflowStep
   alias NervesHub.ManagedDeployments.WorkflowEvents
   alias NervesHub.ProductNotifications
@@ -59,6 +60,20 @@ defmodule NervesHub.ManagedDeployments.Workflows do
   require Logger
 
   @join_table "deployment_workflow_steps_devices"
+
+  @doc """
+  The steps a release made now would walk through, from a group's workflow
+  definition, with the catch_all a release adds after them. Built, not saved,
+  for showing a definition before any release has used it.
+  """
+  @spec definition_steps(map() | nil) :: [DeploymentWorkflowStep.t()]
+  def definition_steps(nil), do: []
+
+  def definition_steps(workflow_definition) do
+    workflow_definition
+    |> DeploymentRelease.workflow_step_changesets()
+    |> Enum.map(&Changeset.apply_changes/1)
+  end
 
   @doc """
   The steps of a release, in order.
