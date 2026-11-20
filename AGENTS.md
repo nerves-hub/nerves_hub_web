@@ -354,8 +354,9 @@ when adding or removing one.
   (`components/deployment_group_page/overview.ex`): a callout for a held
   step, the rollout and its steps, the devices the release didn't reach, and
   the release and matching rules. What both share (status badges, step bars,
-  the approve and skip dialogs, and `DeploymentGroups.act/3`, which looks the
-  step up again before acting) is in `components/deployment_groups.ex`, along
+  the approve and skip dialogs, and `DeploymentGroups.act/3`, which acts
+  through `Workflows.act_on_held_step/3` so a step somebody already dealt with
+  is refused) is in `components/deployment_groups.ex`, along
   with the form fields the Releases and Settings tabs draw (`field_class/2`,
   `textarea_class/2`, `select_control/1`).
   Both pages reload their counts every few seconds while open. The group

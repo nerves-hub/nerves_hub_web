@@ -1,12 +1,12 @@
 defmodule NervesHubWeb.Components.Breadcrumb do
   @moduledoc """
-  The breadcrumb in the top bar of a detail, new or edit page, drawn as the
-  design system's top bar draws it: the list the page belongs to as a link
-  (16/24 500 in `content-faint`), a 14px chevron, then the page's own item
-  (16/24 600 in `content-strong`, in mono for an identifier or a version).
-  An optional note follows it in mono 12/16, hidden on a phone.
+  The breadcrumb in the top bar of a detail, new or edit page.
 
-  Every such page uses this rather than drawing its own, so they all match.
+  It is drawn as the design system's top bar draws it: the list the page
+  belongs to as a link (16/24 500 in `content-faint`), a 14px chevron, then the
+  page's own item (16/24 600 in `content-strong`, in mono for an identifier or a
+  version). An optional note follows in mono 12/16, hidden on a phone. Every
+  such page uses this rather than drawing its own, so they all match.
   """
   use Phoenix.Component
 

@@ -308,7 +308,7 @@ defmodule NervesHub.ManagedDeployments.ReleaseStats do
   def outcomes_by_release(%DeploymentGroup{} = deployment_group, windows) do
     oldest_first = Enum.reverse(windows)
     uuids = oldest_first |> Enum.map(&release_firmware_uuid(&1.release)) |> Enum.uniq()
-    # The end of each window in microseconds, where the newest has none.
+    # The end of each window in microseconds, the newest's far in the future.
     ends = Enum.map(oldest_first, &if(&1.to, do: DateTime.to_unix(&1.to, :microsecond), else: 9_000_000_000_000_000))
     failures = failure_names()
 

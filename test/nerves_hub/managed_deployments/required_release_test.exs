@@ -146,10 +146,10 @@ defmodule NervesHub.ManagedDeployments.RequiredReleaseTest do
       %{deployment_group: deployment_group, release2: release2, release3: release3} = add_releases(context, [])
       refute ManagedDeployments.earlier_required_release?(deployment_group)
 
-      {:ok, _} = ManagedDeployments.set_deployment_release_required(release3, true, context.user)
+      {:ok, _} = ManagedDeployments.update_deployment_release(release3, %{required: true}, context.user)
       refute ManagedDeployments.earlier_required_release?(deployment_group)
 
-      {:ok, _} = ManagedDeployments.set_deployment_release_required(release2, true, context.user)
+      {:ok, _} = ManagedDeployments.update_deployment_release(release2, %{required: true}, context.user)
       assert ManagedDeployments.earlier_required_release?(deployment_group)
     end
 
@@ -160,7 +160,7 @@ defmodule NervesHub.ManagedDeployments.RequiredReleaseTest do
       loaded = ManagedDeployments.load_earlier_required_release(deployment_group)
       refute ManagedDeployments.earlier_required_release?(loaded)
 
-      {:ok, _} = ManagedDeployments.set_deployment_release_required(release2, true, context.user)
+      {:ok, _} = ManagedDeployments.update_deployment_release(release2, %{required: true}, context.user)
 
       # The loaded group answers from its snapshot, which is what keeps a pass
       # over a workflow's steps from asking the same question for every step
@@ -331,7 +331,7 @@ defmodule NervesHub.ManagedDeployments.RequiredReleaseTest do
     end
   end
 
-  describe "set_deployment_release_required/3" do
+  describe "marking a release required" do
     test "goes through even when the deltas it asks for can't be queued", context do
       {:ok, deployment_group} =
         ManagedDeployments.update_deployment_group(context.deployment_group, %{delta_updatable: true}, context.user)
@@ -345,7 +345,7 @@ defmodule NervesHub.ManagedDeployments.RequiredReleaseTest do
         {:error, :failed_to_insert_delta}
       end)
 
-      assert {:ok, release2} = ManagedDeployments.set_deployment_release_required(release2, true, context.user)
+      assert {:ok, release2} = ManagedDeployments.update_deployment_release(release2, %{required: true}, context.user)
       assert release2.required
     end
 
@@ -355,7 +355,7 @@ defmodule NervesHub.ManagedDeployments.RequiredReleaseTest do
 
       :ok = NervesHub.PubSub |> Phoenix.PubSub.subscribe("deployment:#{deployment_group.id}")
 
-      assert {:ok, release2} = ManagedDeployments.set_deployment_release_required(release2, true, context.user)
+      assert {:ok, release2} = ManagedDeployments.update_deployment_release(release2, %{required: true}, context.user)
       assert release2.required
       assert ManagedDeployments.target_release(deployment_group, device).id == release2.id
       assert_receive %Broadcast{event: "deployments/update"}
@@ -363,7 +363,7 @@ defmodule NervesHub.ManagedDeployments.RequiredReleaseTest do
       assert [audit_log | _] = AuditLogs.logs_for(deployment_group)
       assert audit_log.description =~ "marked release 2 as required"
 
-      assert {:ok, release2} = ManagedDeployments.set_deployment_release_required(release2, false, context.user)
+      assert {:ok, release2} = ManagedDeployments.update_deployment_release(release2, %{required: false}, context.user)
       refute Repo.reload(release2).required
       assert ManagedDeployments.target_release(deployment_group, device).id == release3.id
     end
@@ -475,7 +475,7 @@ defmodule NervesHub.ManagedDeployments.RequiredReleaseTest do
     test "stops updating or waiting for a device claimed before its release was marked required", context do
       %{deployment_group: deployment_group, canary_step: canary_step, release2: release2} = context
 
-      {:ok, release2} = ManagedDeployments.set_deployment_release_required(release2, false, context.user)
+      {:ok, release2} = ManagedDeployments.update_deployment_release(release2, %{required: false}, context.user)
 
       device = connected_device(context, deployment_group, context.fw1, %{tags: ["canary"]})
 
@@ -484,7 +484,7 @@ defmodule NervesHub.ManagedDeployments.RequiredReleaseTest do
       assert [_] = Updates.available_for_workflow_step(deployment_group, canary_step, 10)
       refute Workflows.step_complete?(deployment_group, canary_step)
 
-      {:ok, _} = ManagedDeployments.set_deployment_release_required(release2, true, context.user)
+      {:ok, _} = ManagedDeployments.update_deployment_release(release2, %{required: true}, context.user)
 
       assert step_device_ids(deployment_group, canary_step) == [device.id]
       assert Updates.available_for_workflow_step(deployment_group, canary_step, 10) == []

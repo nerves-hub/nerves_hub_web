@@ -298,15 +298,6 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Index do
     "Step #{Enum.find_index(steps, &(&1.id == step.id)) + 1} of #{length(steps)} · #{DeploymentGroups.step_name(step)}"
   end
 
-  defp release_line(release) do
-    [release.description, release.notes]
-    |> Enum.find(&(is_binary(&1) and String.trim(&1) != ""))
-    |> case do
-      nil -> nil
-      text -> text |> String.split("\n", parts: 2) |> hd() |> String.trim()
-    end
-  end
-
   # A held group in the list view: why it is held, its steps, and the buttons
   # that move it on.
   attr(:entry, :map, required: true)
@@ -398,7 +389,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Index do
         <dt class="pt-0.5 text-label text-content-faint uppercase">Release</dt>
         <dd class="flex min-w-0 items-baseline gap-2">
           <span class="shrink-0 font-mono text-ui font-medium text-content-strong">{@entry.group.current_release.firmware.version}</span>
-          <span class="truncate text-ui text-content-body">{release_line(@entry.group.current_release)}</span>
+          <span class="truncate text-ui text-content-body">{DeploymentGroups.release_line(@entry.group.current_release)}</span>
           <span class="ml-auto shrink-0 text-xs text-content-muted">{day_label(@entry.group.current_release.inserted_at, @time_zone)}</span>
         </dd>
 

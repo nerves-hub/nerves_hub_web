@@ -343,7 +343,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Overview do
       <section class="flex flex-col">
         <h2 class="border-b border-line-default pb-2 text-label text-content-muted uppercase">Current release</h2>
         <dl class="flex flex-col divide-y divide-line-subtle text-ui">
-          <.rail_item :if={line = release_text(@release)} label="Notes">
+          <.rail_item :if={line = DeploymentGroups.release_line(@release)} label="Notes">
             <span class="text-content-strong">{line}</span>
           </.rail_item>
           <.rail_item label="Firmware">
@@ -480,14 +480,5 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Overview do
     <% end %>
     <span :if={@rest > 0}> and {@rest} more</span>
     """
-  end
-
-  defp release_text(release) do
-    [release.description, release.notes]
-    |> Enum.find(&(is_binary(&1) and String.trim(&1) != ""))
-    |> case do
-      nil -> nil
-      text -> text |> String.split("\n", parts: 2) |> hd() |> String.trim()
-    end
   end
 end

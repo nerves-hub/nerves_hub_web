@@ -371,7 +371,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show.ReleasesTabTest do
     [release] = ManagedDeployments.list_deployment_releases(deployment_group)
 
     {:ok, release} =
-      ManagedDeployments.update_deployment_release_connecting_code(release, %{"connecting_code" => "dbg(:hello)"}, user)
+      ManagedDeployments.update_deployment_release(release, %{"connecting_code" => "dbg(:hello)"}, user)
 
     conn
     |> visit(~p"/org/#{org}/#{product}/deployment_groups/#{deployment_group}/releases")
