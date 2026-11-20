@@ -936,7 +936,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Releases do
 
   @decorate requires_permission(:"deployment_group:update")
   def handle_event("save-release", %{"release" => params}, socket) do
-    save_release(socket, params, &"Release #{&1.number} saved")
+    save_release(socket, params)
   end
 
   # Empties the field rather than saving, so Save changes removes the code
@@ -1007,7 +1007,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Releases do
     end
   end
 
-  defp save_release(socket, params, flash_message) do
+  defp save_release(socket, params) do
     %{current_scope: scope} = socket.assigns
 
     with %DeploymentRelease{} = release <- editing_release(socket),
@@ -1016,7 +1016,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Releases do
       |> assign(:releases, ManagedDeployments.list_deployment_releases(socket.assigns.deployment_group))
       |> assign(:editing_id, nil)
       |> assign(:edit_form, nil)
-      |> send_flash(:info, flash_message.(release))
+      |> send_flash(:info, "Release #{release.number} saved")
       |> noreply()
     else
       {:error, %Ecto.Changeset{} = changeset} ->
