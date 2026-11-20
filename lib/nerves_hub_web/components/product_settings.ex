@@ -1,7 +1,7 @@
 defmodule NervesHubWeb.Components.ProductSettings do
   @moduledoc """
   What a product's settings pages share: the title in the top bar and the tabs
-  under it. They ask in `NervesHubWeb.Components.Dialog.confirm/1`.
+  under it.
   """
   use NervesHubWeb, :component
 

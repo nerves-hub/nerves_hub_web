@@ -8,9 +8,6 @@ defmodule NervesHubWeb.Live.Product.ApiKeys do
   else on this page can show it again, because only its hash is kept, so that
   dialog can only be closed with its own button.
 
-  Every dialog here, deactivating a key included, is the design system's
-  `NervesHubWeb.Components.Dialog.confirm/1`.
-
   Minting a key takes `product:update`, the same permission as a shared secret.
   A custom role can hold that without the rest of manage, so the picker only
   offers roles that grant nothing beyond the member's own, and
