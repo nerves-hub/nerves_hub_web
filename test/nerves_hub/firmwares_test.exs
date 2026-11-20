@@ -99,6 +99,26 @@ defmodule NervesHub.FirmwaresTest do
     end
   end
 
+  describe "get_newest_firmware/1" do
+    test "is the firmware uploaded last, whatever its version, and leaves out deleted firmware", %{
+      user: user,
+      org: org,
+      org_key: org_key,
+      firmware: firmware,
+      product: product,
+      tmp_dir: tmp_dir
+    } do
+      older_version = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir, version: "0.0.1"})
+
+      assert Firmwares.get_newest_firmware(product).id == older_version.id
+
+      {:ok, _} = Firmwares.delete_firmware(older_version, user)
+
+      assert Firmwares.get_newest_firmware(product).id == firmware.id
+      assert Firmwares.get_newest_firmware(Fixtures.product_fixture(user, org, %{name: "Empty"})) == nil
+    end
+  end
+
   describe "delete_firmware/2" do
     test "marks the firmware deleted and queues the file for removal", %{
       user: user,
