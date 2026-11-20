@@ -69,7 +69,6 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
     |> sidebar_tab(:deployments)
     |> assign(:deployment_group, deployment_group)
     |> selected_tab()
-    |> assign_overview()
     |> ok()
   end
 
