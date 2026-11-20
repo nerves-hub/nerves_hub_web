@@ -188,6 +188,10 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show.OverviewTabTest do
   test "you can pause and resume the group", %{conn: conn, path: path, deployment_group: deployment_group} do
     conn
     |> click_button("Pause")
+    |> assert_has("#pause-group h2", text: "Pause #{deployment_group.name}?")
+    |> assert_has("#pause-group p", text: "It stops sending 1.0.0, even to devices that connect, until it’s resumed.")
+    |> within("#pause-group", &click_button(&1, "Pause"))
+    |> refute_has("#pause-group")
     |> assert_path(path)
     |> assert_has("#deployment-group-callout", text: "This group is paused.")
     |> assert_has("#deployment-group-header", text: "Paused")
@@ -202,6 +206,12 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show.OverviewTabTest do
       session
     end)
     |> click_button("Resume")
+    |> assert_has("#resume-group h2", text: "Resume #{deployment_group.name}?")
+    |> assert_has("#resume-group p",
+      text: "It starts sending 1.0.0 again, though no device in it is waiting for it now."
+    )
+    |> within("#resume-group", &click_button(&1, "Resume"))
+    |> refute_has("#resume-group")
     |> assert_path(path)
     |> refute_has("#deployment-group-callout")
     |> assert_has("button", text: "Pause")
@@ -215,6 +225,57 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show.OverviewTabTest do
 
       session
     end)
+  end
+
+  test "cancelling the pause dialog leaves the group running", %{conn: conn, deployment_group: deployment_group} do
+    conn
+    |> click_button("Pause")
+    |> assert_has("#pause-group")
+    # Cancel runs the dialog's on_cancel through JS, which pushes this.
+    |> unwrap(&render_click(&1, "cancel-confirm", %{}))
+    |> refute_has("#pause-group")
+    |> assert_has("#deployment-group-header button", text: "Pause")
+
+    {:ok, reloaded} = ManagedDeployments.get_deployment_group(deployment_group.id)
+    assert reloaded.is_active
+  end
+
+  test "pausing a group someone else already paused changes nothing", %{
+    conn: conn,
+    user: user,
+    deployment_group: deployment_group
+  } do
+    session = click_button(conn, "Pause")
+
+    {:ok, _} = ManagedDeployments.update_deployment_group(deployment_group, %{is_active: false}, user)
+    logs = AuditLogs.logs_for(deployment_group)
+
+    # The pause lands before the page hears of the other one.
+    session
+    |> unwrap(&render_click(&1, "pause", %{}))
+    |> assert_has("div", text: "#{deployment_group.name} is already paused")
+    |> refute_has("#pause-group")
+
+    {:ok, reloaded} = ManagedDeployments.get_deployment_group(deployment_group.id)
+    refute reloaded.is_active
+    assert AuditLogs.logs_for(deployment_group) == logs
+  end
+
+  test "the pause dialog closes once the group is paused elsewhere", %{
+    conn: conn,
+    user: user,
+    deployment_group: deployment_group
+  } do
+    session = click_button(conn, "Pause")
+
+    {:ok, _} = ManagedDeployments.update_deployment_group(deployment_group, %{is_active: false}, user)
+
+    session
+    |> unwrap(fn view ->
+      send(view.pid, :refresh)
+      render(view)
+    end)
+    |> refute_has("#pause-group")
   end
 
   test "says nothing about matching when every device in the group matches", %{conn: conn} do
@@ -235,6 +296,8 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show.OverviewTabTest do
     |> visit(path)
     |> assert_has("aside p", text: "1 device in the group no longer matches.")
     |> click_button("Remove it")
+    |> assert_has("#remove-unmatched-devices h2", text: "Remove 1 device from #{deployment_group.name}?")
+    |> within("#remove-unmatched-devices", &click_button(&1, "Remove devices"))
     |> assert_has("div", text: "1 devices removed from #{deployment_group.name}", timeout: 1000)
     |> refute_has("aside", text: "in the group no longer")
 
@@ -256,6 +319,9 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show.OverviewTabTest do
     # The case's own device matches the group too.
     |> assert_has("aside p", text: "2 devices outside the group match.")
     |> click_button("Move them in")
+    |> assert_has("#move-devices-in h2", text: "Move 2 devices into #{deployment_group.name}?")
+    |> assert_has("#move-devices-in p", text: "Once they’re in, they get its releases, starting with 1.0.0.")
+    |> within("#move-devices-in", &click_button(&1, "Move devices"))
     |> assert_has("div", text: "2 devices moved to #{deployment_group.name}", timeout: 1000)
     |> refute_has("aside", text: "outside the group")
 
@@ -430,8 +496,20 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show.OverviewTabTest do
       assert Repo.reload(device).deployment_id == deployment_group.id
     end
 
+    test "can't ask to move matching devices in", %{session: session} do
+      assert_unauthorized(fn -> render_click(session.view, "ask-move-in", %{}) end)
+    end
+
+    test "can't ask to remove unmatched devices", %{session: session} do
+      assert_unauthorized(fn -> render_click(session.view, "ask-remove-unmatched", %{}) end)
+    end
+
+    test "can't ask to pause the group", %{session: session} do
+      assert_unauthorized(fn -> render_click(session.view, "ask-toggle", %{}) end)
+    end
+
     test "can't pause the group", %{session: session, deployment_group: deployment_group} do
-      assert_unauthorized(fn -> render_click(session.view, "toggle", %{}) end)
+      assert_unauthorized(fn -> render_click(session.view, "pause", %{}) end)
 
       {:ok, reloaded} = ManagedDeployments.get_deployment_group(deployment_group.id)
       assert reloaded.is_active
