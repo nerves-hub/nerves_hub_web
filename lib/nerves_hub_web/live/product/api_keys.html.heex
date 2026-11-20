@@ -37,7 +37,7 @@
           </p>
         <% else %>
           <div class="border-t border-line-default">
-            <div class="grid grid-cols-[minmax(0,1fr)_10rem_8rem_8rem_6rem] items-center gap-4 border-b border-line-default px-4 py-2.5 text-label text-content-muted uppercase max-sm:hidden @max-3xl:grid-cols-[minmax(0,1fr)_10rem_8rem_6rem] @max-xl:grid-cols-[minmax(0,1fr)_10rem_6rem]">
+            <div class="grid grid-cols-[minmax(0,1fr)_10rem_8rem_8rem_6rem] items-center gap-4 border-b border-line-default px-4 py-2.5 text-label text-content-muted uppercase max-sm:hidden sm:@max-3xl:grid-cols-[minmax(0,1fr)_10rem_8rem_6rem] sm:@max-xl:grid-cols-[minmax(0,1fr)_10rem_6rem]">
               <span>Name</span>
               <span>Role</span>
               <span class="@max-xl:hidden">Last used</span>
@@ -47,7 +47,7 @@
             <div
               :for={api_key <- @api_keys}
               id={"api-key-row-#{api_key.id}"}
-              class="grid grid-cols-[minmax(0,1fr)_10rem_8rem_8rem_6rem] items-center gap-4 border-b border-line-default px-4 py-3 last:border-b-0 max-sm:grid-cols-[minmax(0,1fr)_auto] @max-3xl:grid-cols-[minmax(0,1fr)_10rem_8rem_6rem] @max-xl:grid-cols-[minmax(0,1fr)_10rem_6rem]"
+              class="grid grid-cols-[minmax(0,1fr)_10rem_8rem_8rem_6rem] items-center gap-4 border-b border-line-default px-4 py-3 last:border-b-0 max-sm:grid-cols-[minmax(0,1fr)_auto] sm:@max-3xl:grid-cols-[minmax(0,1fr)_10rem_8rem_6rem] sm:@max-xl:grid-cols-[minmax(0,1fr)_10rem_6rem]"
             >
               <div class="flex min-w-0 flex-col items-start gap-1">
                 <span class={[
