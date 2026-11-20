@@ -389,7 +389,7 @@ defmodule NervesHub.Devices.DeviceFiltering do
       {:ok, tags} ->
         Enum.reduce(tags, query, fn tag, query ->
           case tag do
-            "-" <> tag ->
+            "-" <> tag when tag != "" ->
               where(
                 query,
                 [d],
