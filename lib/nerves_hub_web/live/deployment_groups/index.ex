@@ -15,6 +15,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Index do
 
   alias NervesHub.Accounts
   alias NervesHub.Accounts.User.DisplayPreferences
+  alias NervesHub.Firmwares
   alias NervesHub.ManagedDeployments
   alias NervesHubWeb.Components.DeploymentGroups
   alias NervesHubWeb.Mounts.RequireEveryDevice
@@ -141,7 +142,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Index do
       entries |> Enum.map(& &1.group.current_release.firmware.platform) |> Enum.uniq() |> Enum.sort()
     )
     |> assign(:versions, versions(entries))
-    |> assign(:newest_firmware, entries == [] && newest_firmware(scope.product))
+    |> assign(:newest_firmware, entries == [] && Firmwares.get_newest_firmware(scope.product))
   end
 
   defp versions(entries) do
@@ -155,14 +156,6 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Index do
     case {Version.parse(a), Version.parse(b)} do
       {{:ok, a}, {:ok, b}} -> Version.compare(a, b)
       _ -> if a >= b, do: :gt, else: :lt
-    end
-  end
-
-  # The empty page's first step, which a product with firmware has done.
-  defp newest_firmware(product) do
-    case NervesHub.Firmwares.get_firmwares_by_product(product.id) do
-      [] -> nil
-      firmwares -> Enum.max_by(firmwares, & &1.inserted_at, NaiveDateTime)
     end
   end
 

@@ -1,14 +1,14 @@
 defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
   @moduledoc """
-  A deployment group's Settings tab: titled cards in two columns, like a
-  product's General settings, drawn from the design system's cards and form
-  controls.
+  A deployment group's Settings tab.
 
-  Each card with fields is its own form and saves itself. Changing one brings
-  up a bar at its foot with Discard and Save, saying what saving would do
-  where that isn't obvious (devices that would leave the group, links that
-  stop working). The workflow card acts as soon as a file is picked, and
-  removing the workflow or deleting the group asks first.
+  It is titled cards in two columns, like a product's General settings, drawn
+  from the design system's cards and form controls. Each card with fields is
+  its own form and saves itself. Changing one brings up a bar at its foot with
+  Discard and Save, saying what saving would do where that isn't obvious
+  (devices that would leave the group, links that stop working). The workflow
+  card acts as soon as a file is picked, and removing the workflow or deleting
+  the group asks first.
 
   The page refreshes every few seconds, so a card with unsaved changes keeps
   them, and only a card without any follows the group as it changes.
