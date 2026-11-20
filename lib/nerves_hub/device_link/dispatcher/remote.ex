@@ -53,6 +53,10 @@ defmodule NervesHub.DeviceLink.Dispatcher.Remote do
   that reached its node and did not finish in time is not retried: it raises
   `TimeoutError`. A call that fails because the platform itself raised is not
   retried either — that is an answer, not an outage.
+
+  Each call carries the caller's trace with it, and `run/3` continues it on the
+  node that takes the call. So what the platform does for a device, its queries
+  included, lands in the trace of the device message that caused it.
   """
 
   @behaviour NervesHub.DeviceLink.Dispatcher
@@ -62,6 +66,8 @@ defmodule NervesHub.DeviceLink.Dispatcher.Remote do
   alias NervesHub.DeviceLink.Dispatcher.NoHandlersError
   alias NervesHub.DeviceLink.Dispatcher.TimeoutError
   alias NervesHub.DeviceLink.Handlers
+
+  require OpenTelemetry.Tracer, as: Tracer
 
   @default_timeout to_timeout(second: 5)
   @default_attempts 2
@@ -74,6 +80,44 @@ defmodule NervesHub.DeviceLink.Dispatcher.Remote do
     |> attempt(function, args, attempts())
   end
 
+  @doc """
+  Runs a `NervesHub.DeviceLink` call that `call/2` sent here from another node.
+
+  `trace_context` is the calling node's trace, as
+  `:otel_propagator_text_map.inject/1` wrote it. The span opened here, named
+  `DeviceLink.<function>`, is a child of the caller's span, and follows the
+  caller's sampling decision: a trace the caller kept is kept here, and one it
+  dropped is dropped here too. With no trace to continue, the span starts one.
+
+  ## Called over `:erpc` by other applications in the cluster
+
+  **Its only caller in nerves_hub_web is `call/2`, which sends it to another
+  node, and that is expected. It is not unused — do not remove it.** See
+  "Cross-application contracts" in `AGENTS.md`.
+
+  It returns what the `DeviceLink` function returns, and raises what it raises,
+  unchanged. Its name and arguments are the published part: a caller deployed
+  with this `call/2` sends `run/3` to every node it calls. A node from before
+  `run/3` answers `:undef`, and `call/2` then calls `DeviceLink` directly, so the
+  platform has to be deployed first only for the trace to carry across.
+  """
+  @spec run(trace_context :: [{String.t(), String.t()}], function :: atom(), args :: [term()]) :: term()
+  def run(trace_context, function, args) do
+    ctx = :otel_propagator_text_map.extract_to(:otel_ctx.new(), trace_context)
+
+    Tracer.with_span ctx, "DeviceLink.#{function}", %{kind: :server} do
+      try do
+        apply(DeviceLink, function, args)
+      catch
+        # Raised again as it came, so the caller sees exactly what it would have
+        # seen calling `DeviceLink` itself.
+        kind, reason ->
+          Tracer.set_status(:error, Exception.format_banner(kind, reason, __STACKTRACE__))
+          :erlang.raise(kind, reason, __STACKTRACE__)
+      end
+    end
+  end
+
   defp attempt([], function, _args, _remaining), do: raise(NoHandlersError, function: function)
   defp attempt(_nodes, function, _args, 0), do: raise(NoHandlersError, function: function)
 
@@ -81,7 +125,7 @@ defmodule NervesHub.DeviceLink.Dispatcher.Remote do
     timeout = timeout()
 
     try do
-      :erpc.call(node, DeviceLink, function, args, timeout)
+      run_on(node, function, args, timeout)
     catch
       # The node could not be reached, so the call never started there. Retried
       # on the next node. A remote exception is not caught here, so a bug in the
@@ -120,6 +164,18 @@ defmodule NervesHub.DeviceLink.Dispatcher.Remote do
 
         raise TimeoutError, function: function, node: node, timeout: timeout
     end
+  end
+
+  # A node on a release from before `run/3` answers `:undef` straight away, and
+  # gets the call the way it used to, without the trace. That keeps calls working
+  # while a caller is ahead of the platform, during a rollout or after a rollback.
+  # An `:undef` from anywhere else, such as a `DeviceLink` function the node has
+  # never heard of, is raised as before.
+  defp run_on(node, function, args, timeout) do
+    :erpc.call(node, __MODULE__, :run, [:otel_propagator_text_map.inject([]), function, args], timeout)
+  catch
+    :error, {:exception, :undef, [{__MODULE__, :run, _args, _location} | _stack]} ->
+      :erpc.call(node, DeviceLink, function, args, timeout)
   end
 
   # Which device a call concerns, so it lands on the same node each time.
