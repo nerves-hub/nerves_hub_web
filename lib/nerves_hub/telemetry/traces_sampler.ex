@@ -74,9 +74,9 @@ defmodule NervesHub.Telemetry.TracesSampler do
   attributes it started with.
   """
   @spec kind(atom() | String.t(), term()) :: kind()
-  def kind(name, attributes) do
-    attributes = if is_map(attributes), do: attributes, else: %{}
+  def kind(name, attributes) when not is_map(attributes), do: kind(name, %{})
 
+  def kind(name, attributes) do
     cond do
       FilteredSampler.drop_trace?(name, attributes) -> :none
       name in @oban_polling_queries -> :none
@@ -88,7 +88,9 @@ defmodule NervesHub.Telemetry.TracesSampler do
   end
 
   # `opentelemetry_phoenix` names LiveView spans after the view, and the device
-  # list's own refresh spans follow it.
+  # list's own refresh spans follow it. A LiveComponent's events are named after
+  # the LiveView it's in, not the component, because it names them from
+  # `socket.view` and a component's socket is its LiveView's.
   defp live_view?(name) when is_binary(name), do: String.starts_with?(name, "NervesHubWeb.Live.")
   defp live_view?(_name), do: false
 
