@@ -40,6 +40,9 @@ defmodule NervesHubWeb.Live.Product.HealthProfiles do
     {"24 h", 86_400}
   ]
 
+  # A kind of preview with none running or waiting. See `request_preview/3`.
+  @idle_preview %{running: nil, next: nil, current?: false}
+
   @decorate requires_membership()
   def mount(_params, _session, socket) do
     product = socket.assigns.current_scope.product
@@ -52,6 +55,7 @@ defmodule NervesHubWeb.Live.Product.HealthProfiles do
     |> assign(:api_key_count, ApiKeys.active_count(product))
     |> assign(:analytics?, Application.get_env(:nerves_hub, :analytics_enabled, false))
     |> assign(:select_resets, 0)
+    |> assign(:previews, %{saved_preview: @idle_preview, edited_preview: @idle_preview})
     |> assign_observed(product)
     |> assign_profiles()
     |> ok()
@@ -241,36 +245,62 @@ defmodule NervesHubWeb.Live.Product.HealthProfiles do
     end
   end
 
-  def handle_async({:saved_preview, ref}, {:ok, counts}, %{assigns: %{saved_preview_ref: ref}} = socket) do
-    socket
-    |> assign(saved_preview: counts, saved_previewing?: false)
-    |> assign_impact()
-    |> noreply()
+  # The running preview of `kind` has ended. Its result is shown unless a
+  # newer preview was asked for since, and the one waiting, if any, starts.
+  def handle_async({kind, ref}, result, socket) do
+    %{running: ^ref, current?: current?, next: next} = socket.assigns.previews[kind]
+    socket = if current?, do: show_preview(socket, kind, result), else: socket
+    socket = put_preview(socket, kind, @idle_preview)
+
+    if next do
+      socket |> start_preview(kind, next) |> noreply()
+    else
+      noreply(socket)
+    end
   end
 
-  def handle_async({:saved_preview, ref}, {:exit, _reason}, %{assigns: %{saved_preview_ref: ref}} = socket) do
+  defp show_preview(socket, :saved_preview, result) do
     socket
-    |> assign(saved_preview: nil, saved_previewing?: false)
+    |> assign(saved_preview: counts_from(result), saved_previewing?: false)
     |> assign_impact()
-    |> noreply()
   end
 
-  def handle_async({:edited_preview, ref}, {:ok, counts}, %{assigns: %{edited_preview_ref: ref}} = socket) do
+  defp show_preview(socket, :edited_preview, result) do
     socket
-    |> assign(edited_preview: counts, previewing?: false)
+    |> assign(edited_preview: counts_from(result), previewing?: false)
     |> assign_impact()
-    |> noreply()
   end
 
-  def handle_async({:edited_preview, ref}, {:exit, _reason}, %{assigns: %{edited_preview_ref: ref}} = socket) do
-    socket
-    |> assign(edited_preview: nil, previewing?: false)
-    |> assign_impact()
-    |> noreply()
+  defp counts_from({:ok, counts}), do: counts
+  defp counts_from({:exit, _reason}), do: nil
+
+  # One preview of each kind runs at a time, since each runs across the
+  # product's whole fleet. One asked for while another runs waits in place
+  # of any already waiting, and the running one's result is dropped when it
+  # ends. The running one isn't stopped: stopping it mid-query would drop its
+  # database connection, and ClickHouse finishes a read-only query whose
+  # client has gone anyway.
+  defp request_preview(socket, kind, fun) do
+    case socket.assigns.previews[kind] do
+      %{running: nil} -> start_preview(socket, kind, fun)
+      preview -> put_preview(socket, kind, %{preview | next: fun, current?: false})
+    end
   end
 
-  # A preview that a later edit, a save or another profile replaced.
-  def handle_async({_preview, _replaced_ref}, _result, socket), do: noreply(socket)
+  # With nothing to preview, drops the one waiting and the running one's result.
+  defp drop_preview(socket, kind) do
+    put_preview(socket, kind, %{socket.assigns.previews[kind] | next: nil, current?: false})
+  end
+
+  defp start_preview(socket, kind, fun) do
+    ref = make_ref()
+
+    socket
+    |> put_preview(kind, %{running: ref, next: nil, current?: true})
+    |> start_async({kind, ref}, fun)
+  end
+
+  defp put_preview(socket, kind, preview), do: update(socket, :previews, &Map.put(&1, kind, preview))
 
   defp assign_profiles(socket) do
     %{product: product, current_scope: scope} = socket.assigns
@@ -291,12 +321,6 @@ defmodule NervesHubWeb.Live.Product.HealthProfiles do
 
   # Shows `profile` as saved, with no draft changes, and starts working out
   # what its saved metrics make of its devices, to compare edits against.
-  #
-  # Each preview runs under a ref of its own, and a result only lands while
-  # its ref is still the current one. One that's replaced runs to the end
-  # rather than being stopped: stopping it mid-query would drop its database
-  # connection, and ClickHouse finishes a read-only query whose client has
-  # gone anyway.
   defp load_profile(socket, profile) do
     %{product: product, current_scope: scope, profiles: profiles} = socket.assigns
     saved = Enum.map(profile.metrics, &row/1)
@@ -311,25 +335,22 @@ defmodule NervesHubWeb.Live.Product.HealthProfiles do
       |> assign(:health_counts, HealthProfiles.health_counts(product, scope.user, profile, profiles))
       |> assign(:saved_preview, nil)
       |> assign(:edited_preview, nil)
-      |> assign(:saved_preview_ref, nil)
-      |> assign(:edited_preview_ref, nil)
       |> assign(:previewing?, false)
       |> assign(:saved_previewing?, false)
+      |> drop_preview(:edited_preview)
       |> assign_impact()
       |> assign_add_options()
 
     # Only for someone who could save: there's nothing to compare it with
     # otherwise, and it runs across the product's whole fleet.
     if socket.assigns.analytics? and authorized?(:"product:update", scope) do
-      ref = make_ref()
-
       socket
-      |> assign(saved_previewing?: true, saved_preview_ref: ref)
-      |> start_async({:saved_preview, ref}, fn ->
+      |> assign(:saved_previewing?, true)
+      |> request_preview(:saved_preview, fn ->
         HealthProfiles.preview_counts(product, scope.user, profile, profiles, profile.metrics)
       end)
     else
-      socket
+      drop_preview(socket, :saved_preview)
     end
   end
 
@@ -355,16 +376,16 @@ defmodule NervesHubWeb.Live.Product.HealthProfiles do
          {:ok, metrics} <- draft_metrics(draft) do
       %{product: product, current_scope: scope, profile: profile, profiles: profiles} = socket.assigns
 
-      ref = make_ref()
-
       socket
-      |> assign(edited_preview: nil, edited_preview_ref: ref, previewing?: true)
-      |> start_async({:edited_preview, ref}, fn ->
+      |> assign(edited_preview: nil, previewing?: true)
+      |> request_preview(:edited_preview, fn ->
         HealthProfiles.preview_counts(product, scope.user, profile, profiles, metrics)
       end)
     else
       _nothing_to_preview ->
-        assign(socket, edited_preview: nil, edited_preview_ref: nil, previewing?: false)
+        socket
+        |> assign(edited_preview: nil, previewing?: false)
+        |> drop_preview(:edited_preview)
     end
   end
 

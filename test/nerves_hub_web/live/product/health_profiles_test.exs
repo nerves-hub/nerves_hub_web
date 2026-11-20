@@ -503,7 +503,7 @@ defmodule NervesHubWeb.Live.Product.HealthProfilesTest do
 
     # Stopping a preview while it holds a connection drops that connection,
     # which in tests is the sandbox's only one, and the save after it fails.
-    test "an edit while the last preview is still querying doesn't stop it", %{
+    test "edits while a preview runs wait for it, and only the last is previewed", %{
       conn: conn,
       path: path,
       product: product
@@ -511,11 +511,13 @@ defmodule NervesHubWeb.Live.Product.HealthProfilesTest do
       test = self()
 
       # The preview of the first edit holds a connection until the test has
-      # made the second.
+      # made the others.
       stub(HealthProfiles, :preview_counts, fn product, user, profile, profiles, metrics ->
-        if Enum.any?(metrics, &(&1.key == "cpu_usage_percent" and &1.warning_threshold == 60.0)) do
+        %{warning_threshold: cpu} = Enum.find(metrics, &(&1.key == "cpu_usage_percent"))
+
+        if cpu == 60.0 do
           Repo.checkout(fn ->
-            send(test, {:previewing, self()})
+            send(test, {:previewing, 60.0, self()})
 
             receive do
               :edited_again -> :ok
@@ -523,6 +525,8 @@ defmodule NervesHubWeb.Live.Product.HealthProfilesTest do
               1_000 -> :ok
             end
           end)
+        else
+          send(test, {:previewing, cpu, self()})
         end
 
         call_original(HealthProfiles, :preview_counts, [product, user, profile, profiles, metrics])
@@ -539,15 +543,19 @@ defmodule NervesHubWeb.Live.Product.HealthProfilesTest do
       end
 
       edit.("60")
-      assert_receive {:previewing, preview}, 1_000
+      assert_receive {:previewing, 60.0, preview}, 1_000
       edit.("65")
+      edit.("70")
       assert Process.alive?(preview)
       send(preview, :edited_again)
+
+      assert_receive {:previewing, 70.0, _preview}, 1_000
+      refute_received {:previewing, 65.0, _preview}
 
       view |> form("#profile-metrics") |> render_submit()
       render_async(view)
 
-      assert default_metric(product, "cpu_usage_percent").warning_threshold == 65.0
+      assert default_metric(product, "cpu_usage_percent").warning_threshold == 70.0
     end
   end
 
