@@ -964,8 +964,7 @@ defmodule NervesHub.ManagedDeployments do
 
   @doc """
   Change what can still change on a release once it's made: whether it's
-  required, its connecting code, and where that code runs. The Edit release
-  dialog saves all of them at once.
+  required, its connecting code, and where that code runs.
 
   Each change is audited on its own, and only if it changed. Marking or
   unmarking a release required changes which firmware some devices are sent

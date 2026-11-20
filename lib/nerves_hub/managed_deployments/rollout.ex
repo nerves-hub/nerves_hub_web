@@ -85,14 +85,7 @@ defmodule NervesHub.ManagedDeployments.Rollout do
     ids = Enum.map(deployment_groups, & &1.id)
 
     states =
-      Device
-      |> from(as: :device)
-      |> join(:inner, [device: d], dg in DeploymentGroup, on: dg.id == d.deployment_id, as: :deployment_group)
-      |> join(:inner, [deployment_group: dg], r in DeploymentRelease,
-        on: r.id == dg.current_deployment_release_id,
-        as: :release
-      )
-      |> join(:inner, [release: r], f in Firmware, on: f.id == r.firmware_id, as: :firmware)
+      devices_with_current_firmware()
       |> join(:left, [device: d, deployment_group: dg], i in InflightUpdate,
         on: i.device_id == d.id and i.deployment_id == dg.id,
         as: :inflight
@@ -160,25 +153,12 @@ defmodule NervesHub.ManagedDeployments.Rollout do
     release_ids = Enum.map(deployment_groups, & &1.current_deployment_release_id)
 
     claimed =
-      @step_devices
-      |> from(as: :step_device)
-      |> join(:inner, [step_device: sd], s in DeploymentWorkflowStep,
-        on: s.id == sd.deployment_workflow_step_id,
+      devices_with_current_firmware()
+      |> join(:inner, [device: d], sd in @step_devices, on: sd.device_id == d.id, as: :step_device)
+      |> join(:inner, [step_device: sd, release: r], s in DeploymentWorkflowStep,
+        on: s.id == sd.deployment_workflow_step_id and s.deployment_release_id == r.id,
         as: :step
       )
-      |> join(:inner, [step: s], dg in DeploymentGroup,
-        on: dg.current_deployment_release_id == s.deployment_release_id,
-        as: :deployment_group
-      )
-      |> join(:inner, [step_device: sd, deployment_group: dg], d in Device,
-        on: d.id == sd.device_id and d.deployment_id == dg.id,
-        as: :device
-      )
-      |> join(:inner, [deployment_group: dg], r in DeploymentRelease,
-        on: r.id == dg.current_deployment_release_id,
-        as: :release
-      )
-      |> join(:inner, [release: r], f in Firmware, on: f.id == r.firmware_id, as: :firmware)
       |> where([deployment_group: dg], dg.id in ^ids)
       |> where([device: d], is_nil(d.deleted_at))
       |> group_by([step: s], s.id)
@@ -202,14 +182,7 @@ defmodule NervesHub.ManagedDeployments.Rollout do
       |> select([step_device: sd, step: s], %{device_id: sd.device_id, release_id: s.deployment_release_id})
 
     unclaimed =
-      Device
-      |> from(as: :device)
-      |> join(:inner, [device: d], dg in DeploymentGroup, on: dg.id == d.deployment_id, as: :deployment_group)
-      |> join(:inner, [deployment_group: dg], r in DeploymentRelease,
-        on: r.id == dg.current_deployment_release_id,
-        as: :release
-      )
-      |> join(:inner, [release: r], f in Firmware, on: f.id == r.firmware_id, as: :firmware)
+      devices_with_current_firmware()
       |> join(:left, [device: d, deployment_group: dg], c in subquery(claims),
         on: c.device_id == d.id and c.release_id == dg.current_deployment_release_id,
         as: :claim
@@ -240,6 +213,19 @@ defmodule NervesHub.ManagedDeployments.Rollout do
   end
 
   defp empty_step_counts(), do: %{devices: 0, updated: 0, failed: 0}
+
+  # Devices in a deployment group, with the group, its current release and that
+  # release's firmware joined as `:deployment_group`, `:release` and `:firmware`.
+  defp devices_with_current_firmware() do
+    Device
+    |> from(as: :device)
+    |> join(:inner, [device: d], dg in DeploymentGroup, on: dg.id == d.deployment_id, as: :deployment_group)
+    |> join(:inner, [deployment_group: dg], r in DeploymentRelease,
+      on: r.id == dg.current_deployment_release_id,
+      as: :release
+    )
+    |> join(:inner, [release: r], f in Firmware, on: f.id == r.firmware_id, as: :firmware)
+  end
 
   @doc """
   The group's devices the release hasn't reached and won't without help: those
