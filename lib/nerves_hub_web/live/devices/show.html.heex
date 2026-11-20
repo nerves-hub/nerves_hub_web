@@ -1,12 +1,7 @@
 <NervesHubWeb.Layouts.sidebar flash={@flash} current_scope={@current_scope} sidebar_tab={@sidebar_tab}>
   <:top_bar>
-    <.breadcrumb
-      navigate={~p"/org/#{@org}/#{@product}/devices"}
-      root_label="All Devices"
-      root_class="whitespace-nowrap sm:hidden md:block"
-      class="header-scrolled:max-sm:hidden"
-    >
-      <:crumb class="hidden lg:block">{@device.identifier}</:crumb>
+    <.breadcrumb navigate={~p"/org/#{@org}/#{@product}/devices"} root_label="Devices" root_class="sm:hidden md:block" class="header-scrolled:max-sm:hidden">
+      <:crumb mono class="hidden lg:flex">{@device.identifier}</:crumb>
     </.breadcrumb>
 
     <Header.compact_bar device={@device} device_connection={@device_connection} org={@org} product={@product} />

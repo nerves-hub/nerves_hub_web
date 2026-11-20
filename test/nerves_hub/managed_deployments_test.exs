@@ -1774,4 +1774,51 @@ defmodule NervesHub.ManagedDeploymentsTest do
       assert ManagedDeployments.count_by_product([]) == %{}
     end
   end
+
+  describe "count_version_mismatches/2" do
+    test "counts the group's devices a requirement would turn away", context do
+      %{org: org, org_key: org_key, product: product, firmware: firmware, deployment_group: deployment_group} = context
+      newer = Fixtures.firmware_fixture(org_key, product, %{version: "2.0.0", dir: context.tmp_dir})
+
+      for fw <- [firmware, firmware, newer] do
+        Fixtures.device_fixture(org, product, fw, %{deployment_id: deployment_group.id})
+      end
+
+      # Devices outside the group, or deleted, don't count.
+      Fixtures.device_fixture(org, product, firmware)
+
+      {:ok, _} =
+        org
+        |> Fixtures.device_fixture(product, firmware, %{deployment_id: deployment_group.id})
+        |> Devices.delete_device()
+
+      assert ManagedDeployments.count_version_mismatches(deployment_group, ">= 2.0.0") == 2
+      assert ManagedDeployments.count_version_mismatches(deployment_group, "< 2.0.0") == 1
+      assert ManagedDeployments.count_version_mismatches(deployment_group, "~> 1.0 or ~> 2.0") == 0
+    end
+
+    test "is none for an empty requirement, which matches every version", %{deployment_group: deployment_group} do
+      assert ManagedDeployments.count_version_mismatches(deployment_group, "") == 0
+      assert ManagedDeployments.count_version_mismatches(deployment_group, nil) == 0
+    end
+  end
+
+  describe "get_by_product_and_id!/2" do
+    test "loads the group with its device count, as by name", context do
+      %{org: org, product: product, firmware: firmware, deployment_group: deployment_group} = context
+      Fixtures.device_fixture(org, product, firmware, %{deployment_id: deployment_group.id})
+
+      by_id = ManagedDeployments.get_by_product_and_id!(product, deployment_group.id)
+      by_name = ManagedDeployments.get_by_product_and_name!(product, deployment_group.name, true)
+
+      assert by_id.device_count == 1
+      assert by_id == by_name
+    end
+
+    test "won't load another product's group", %{product2: product2, deployment_group: deployment_group} do
+      assert_raise Ecto.NoResultsError, fn ->
+        ManagedDeployments.get_by_product_and_id!(product2, deployment_group.id)
+      end
+    end
+  end
 end

@@ -133,6 +133,7 @@ defmodule NervesHubWeb.Live.ArchivesTest do
       conn
       |> visit("/org/#{org.name}/#{product.name}/archives/#{archive.uuid}")
       |> click_button("button[aria-label='Delete archive']", "Delete")
+      |> assert_has("#delete-archive-dialog-subtitle", text: archive.uuid)
       |> assert_has("#delete-archive-dialog", text: "The file is removed for good.")
       |> within("#delete-archive-dialog", &click_button(&1, "Delete archive"))
       |> assert_path("/org/#{org.name}/#{product.name}/archives")

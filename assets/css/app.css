@@ -7,8 +7,6 @@
 @import "mapbox-gl/dist/mapbox-gl.css";
 @import "@mapbox/mapbox-gl-geocoder/dist/mapbox-gl-geocoder.css";
 
-@import "../../deps/live_flow/assets/css/live_flow.css";
-
 @import "tailwindcss" source(none);
 
 @source "../css";
@@ -19,14 +17,6 @@
 @plugin "../vendor/lucideicons";
 @plugin "../vendor/animatedelay";
 @plugin "tailwind-scrollbar";
-
-@plugin "../../deps/live_flow/assets/js/live_flow/liveflow-theme" {
-  name: "light";
-}
-@plugin "../../deps/live_flow/assets/js/live_flow/liveflow-theme" {
-  name: "dark";
-  default: true;
-}
 
 @import "@artusdev/tailwind-underlines";
 
@@ -83,7 +73,12 @@
 }
 
 @theme {
-  --default-font-family: "Inter", var(--font-sans);
+  /* Inter is the sans, so `font-sans` (used to step back out of mono) is
+     Inter too, not Tailwind's system-ui stack. */
+  --font-sans:
+    "Inter", ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji",
+    "Segoe UI Symbol", "Noto Color Emoji";
+  --default-font-family: var(--font-sans);
   --font-mono:
     "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
     "Courier New", monospace;
