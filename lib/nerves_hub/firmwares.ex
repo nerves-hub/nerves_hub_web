@@ -125,6 +125,17 @@ defmodule NervesHub.Firmwares do
     |> Repo.all()
   end
 
+  @doc "The firmware uploaded to a product most recently, or nil if it has none."
+  @spec get_newest_firmware(Product.t()) :: Firmware.t() | nil
+  def get_newest_firmware(%Product{id: product_id}) do
+    Firmware
+    |> where([f], f.product_id == ^product_id)
+    |> Repo.exclude_deleted()
+    |> order_by(desc: :inserted_at, desc: :id)
+    |> limit(1)
+    |> Repo.one()
+  end
+
   @spec get_firmwares_by_product(integer()) :: [Firmware.t()]
   def get_firmwares_by_product(product_id) do
     Firmware
