@@ -1,11 +1,10 @@
 defmodule NervesHubWeb.Live.DeploymentGroups.Show do
   @moduledoc """
-  A deployment group's page. Its header says what the group is releasing and
-  to which devices, with the group's status and the buttons to pause it,
-  import devices into it from a CSV, or make a new release. Under it are the
-  Overview, Releases, Activity and Settings tabs.
+  A deployment group's page, with its Overview, Releases, Stats, Activity and Settings tabs.
 
-  The Overview shows how far the current release has got: a callout when the
+  The header says what the group is releasing and to which devices, with the
+  group's status and the buttons to pause it, import devices into it from a
+  CSV, or make a new release. The Overview shows how far the current release has got: a callout when the
   group needs someone, the rollout bar and its steps, the devices the release
   didn't reach, and a rail with the release and how the group matches devices.
   Its counts come from `NervesHub.ManagedDeployments.Rollout` and are reloaded

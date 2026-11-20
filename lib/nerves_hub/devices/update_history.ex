@@ -113,12 +113,12 @@ defmodule NervesHub.Devices.UpdateHistory do
 
   ## Options
 
-    * `:deployment_id` — the deployment group that asked for the update, if any.
-    * `:source_firmware_uuid` — the firmware the device was running.
-    * `:target_firmware_uuid` — the firmware it was being moved to.
-    * `:reason` — what the device said, where it said anything.
-    * `:timestamp` — when the attempt ended, defaulting to now.
-    * `:started_at` — when the update was sent, so the row can say how long
+    * `:deployment_id` - the deployment group that asked for the update, if any.
+    * `:source_firmware_uuid` - the firmware the device was running.
+    * `:target_firmware_uuid` - the firmware it was being moved to.
+    * `:reason` - what the device said, where it said anything.
+    * `:timestamp` - when the attempt ended, defaulting to now.
+    * `:started_at` - when the update was sent, so the row can say how long
       it took. Left out, the duration is recorded as unknown (0).
 
   Raises the `device.firmware_update.finished` event (`NervesHub.Integrations`).

@@ -380,7 +380,7 @@ defmodule NervesHub.ManagedDeployments do
 
   @doc """
   Who made a release: the user, or the product API key when one made it. Nil
-  when neither is recorded, as for releases made before releases recorded it.
+  when neither is recorded, as for releases made before authors were recorded.
   """
   @spec release_author(DeploymentRelease.t()) :: User.t() | ApiKey.t() | nil
   def release_author(%DeploymentRelease{} = release) do
