@@ -92,7 +92,7 @@ defmodule NervesHub.DeviceLink.Dispatcher.Remote do
   ## Called over `:erpc` by other applications in the cluster
 
   **Its only caller in nerves_hub_web is `call/2`, which sends it to another
-  node, and that is expected. It is not unused — do not remove it.** See
+  node, and that is expected. It is not unused. Do not remove it.** See
   "Cross-application contracts" in `AGENTS.md`.
 
   It returns what the `DeviceLink` function returns, and raises what it raises,
