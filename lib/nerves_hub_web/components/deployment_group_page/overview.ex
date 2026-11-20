@@ -392,8 +392,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Overview do
           <button
             :if={authorized?(:"device:set-deployment-group", @current_scope)}
             type="button"
-            phx-click="move-matched-devices-to-deployment-group"
-            data-confirm={"This will move #{count_noun(@matched_outside, "device", "devices")} into #{@group.name}. Continue?"}
+            phx-click="ask-move-in"
             class="cursor-pointer font-medium text-notice-content hover:underline"
           >
             Move {ngettext("it", "them", @matched_outside)} in
@@ -404,8 +403,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Overview do
           <button
             :if={authorized?(:"device:set-deployment-group", @current_scope)}
             type="button"
-            phx-click="remove-unmatched-devices-from-deployment-group"
-            data-confirm={"This will remove #{count_noun(@unmatched_inside, "device", "devices")} from #{@group.name}. Continue?"}
+            phx-click="ask-remove-unmatched"
             class="cursor-pointer font-medium text-notice-content hover:underline"
           >
             Remove {ngettext("it", "them", @unmatched_inside)}

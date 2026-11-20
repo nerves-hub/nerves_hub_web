@@ -359,10 +359,17 @@ when adding or removing one.
   is refused) is in `components/deployment_groups.ex`, along
   with the form fields the Releases and Settings tabs draw (`field_class/2`,
   `textarea_class/2`, `select_control/1`).
+  The group page asks before pausing or resuming the group and before moving
+  devices into or out of it (`components/deployment_group_page/dialogs.ex`).
+  One `@confirm` assign drives every dialog on the page, approve and skip
+  included, and each refresh keeps it only while it would still change
+  something; pausing and resuming set the group's state rather than flip it.
   Both pages reload their counts every few seconds while open. The group
   page's other tabs are LiveComponents in `components/deployment_group_page/`:
   Releases (the release history, and the New and Edit release dialogs, opened
-  from `?new=release`), Stats (`?release=` picks a release or `all`; its
+  from `?new=release`; deleting a delta asks first, since every group sending
+  the release shares it, and Remove connecting code only empties the field
+  until the dialog is saved), Stats (`?release=` picks a release or `all`; its
   ClickHouse numbers load in a task and only when the choice changes), Activity
   (the group's audit log by day, paged in the URL, drawn as the device page's
   Activity tab is, so a change to one belongs in both) and Settings (cards that

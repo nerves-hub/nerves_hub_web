@@ -28,6 +28,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Releases do
   alias NervesHub.ManagedDeployments
   alias NervesHub.ManagedDeployments.DeploymentRelease
   alias NervesHubWeb.Components.DeploymentGroups
+  alias NervesHubWeb.Components.Dialog
   alias NervesHubWeb.Components.Switch
   alias NervesHubWeb.CoreComponents
   alias Phoenix.HTML.Form
@@ -80,6 +81,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Releases do
     |> assign_new(:show_connecting_code, fn -> false end)
     |> assign_new(:editing_id, fn -> nil end)
     |> assign_new(:edit_form, fn -> nil end)
+    |> assign_new(:deleting_delta, fn -> nil end)
     |> load_deltas()
     |> then(&if(opening?, do: start_new_release(&1), else: &1))
     |> ok()
@@ -151,6 +153,8 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Releases do
       />
 
       <.edit_release_dialog :if={@editing && @edit_form} release={@editing} form={@edit_form} myself={@myself} />
+
+      <.delete_delta_dialog :if={@deleting_delta} delta={@deleting_delta} myself={@myself} />
     </div>
     """
   end
@@ -317,7 +321,6 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Releases do
                 phx-click="retry-delta"
                 phx-value-id={delta.id}
                 phx-target={@myself}
-                data-confirm="Other deployment groups using this delta are affected as well. Continue?"
               >
                 Retry
               </.button>
@@ -325,10 +328,9 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Releases do
                 :if={delta.status == :completed}
                 size="sm"
                 style="danger"
-                phx-click="delete-delta"
+                phx-click="ask-delete-delta"
                 phx-value-id={delta.id}
                 phx-target={@myself}
-                data-confirm="Other deployment groups using this delta are affected as well. Continue?"
               >
                 Delete
               </.button>
@@ -533,6 +535,31 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Releases do
     """
   end
 
+  attr(:delta, :map, required: true)
+  attr(:myself, :any, required: true)
+
+  # A delta is built from one firmware to another and every group sending the
+  # target shares it, so deleting it here deletes it for all of them.
+  defp delete_delta_dialog(assigns) do
+    ~H"""
+    <Dialog.confirm id="delete-delta" on_cancel={JS.push("cancel-delete-delta", target: @myself)}>
+      <:heading>Delete the delta from <span class="font-mono">{@delta.source.version}</span>?</:heading>
+      <:subtitle>
+        <span class="font-mono">{@delta.source.version} → {@delta.target.version} · {format_megabytes(@delta.size)}</span>
+      </:subtitle>
+      <p>
+        Devices on <span class="font-mono text-content-strong">{@delta.source.version}</span>
+        get the full <span :if={@delta.target.size}>{format_megabytes(@delta.target.size)} of </span><span class="font-mono text-content-strong">{@delta.target.version}</span>
+        instead. Every deployment group sending <span class="font-mono text-content-strong">{@delta.target.version}</span>
+        shares this delta, so that goes for all of them.
+      </p>
+      <:actions>
+        <.button style="danger-solid" phx-click="delete-delta" phx-value-id={@delta.id} phx-target={@myself}>Delete delta</.button>
+      </:actions>
+    </Dialog.confirm>
+    """
+  end
+
   attr(:release, DeploymentRelease, required: true)
   attr(:form, Form, required: true)
   attr(:myself, :any, required: true)
@@ -549,7 +576,10 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Releases do
             <.required_switch form={f} id="edit-release-required" />
           </div>
 
-          <.connecting_code_fields form={f} />
+          <.connecting_code_fields
+            form={f}
+            removing={if present?(@release.connecting_code) and not present?(f[:connecting_code].value), do: @release}
+          />
 
           <p class="flex items-start gap-2.5 rounded-md bg-surface-muted p-3 text-ui/4.5 text-content-body">
             <span class="mt-px lucide-lock size-4 text-notice" aria-hidden="true"></span> The firmware, archive, description and notes stay as they were released. To change those, make a new release.
@@ -559,12 +589,11 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Releases do
         <.dialog_footer dialog="edit-release">
           <:start>
             <.button
-              :if={present?(@release.connecting_code)}
+              :if={present?(f[:connecting_code].value)}
               id="edit-release-remove-connecting-code"
               style="danger"
               phx-click="remove-connecting-code"
               phx-target={@myself}
-              data-confirm="Devices running this release will no longer run its connecting code when they connect. Continue?"
               class="mr-auto max-sm:mr-0"
             >
               Remove connecting code
@@ -601,10 +630,20 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Releases do
 
   attr(:form, Form, required: true)
 
+  attr(:removing, :any,
+    default: nil,
+    doc: "the release being edited, when saving would remove its connecting code"
+  )
+
   defp connecting_code_fields(assigns) do
     ~H"""
     <.field field={@form[:connecting_code]} label="Connecting code">
-      <:help>Elixir, run in the console when a device first connects</:help>
+      <:help :if={!@removing}>Elixir, run in the console when a device first connects</:help>
+      <:help :if={@removing}>
+        <span class="text-content-body">
+          Saving removes release {@removing.number}’s connecting code. Devices won’t run it when they connect.
+        </span>
+      </:help>
       <textarea
         id={@form[:connecting_code].id}
         name={@form[:connecting_code].name}
@@ -900,9 +939,21 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Releases do
     save_release(socket, params, &"Release #{&1.number} saved")
   end
 
+  # Empties the field rather than saving, so Save changes removes the code
+  # and Cancel keeps it, and nothing needs asking in a second dialog.
   @decorate requires_permission(:"deployment_group:update")
   def handle_event("remove-connecting-code", _params, socket) do
-    save_release(socket, %{"connecting_code" => nil}, &"Connecting code removed from release #{&1.number}")
+    case editing_release(socket) do
+      nil ->
+        noreply(socket)
+
+      release ->
+        params = Map.put(socket.assigns.edit_form.params, "connecting_code", "")
+
+        socket
+        |> assign(:edit_form, edit_form(release, params, :validate))
+        |> noreply()
+    end
   end
 
   @decorate requires_permission(:"deployment_group:update")
@@ -921,8 +972,27 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Releases do
     end
   end
 
+  # Every group sending the release shares a delta, so deleting one asks
+  # first. Opening the dialog checks the same permission as deleting.
+  @decorate requires_permission(:"deployment_group:update")
+  def handle_event("ask-delete-delta", %{"id" => id}, socket) do
+    case find_delta(socket, id) do
+      %{status: :completed} = delta -> socket |> assign(:deleting_delta, delta) |> noreply()
+      _ -> noreply(socket)
+    end
+  end
+
+  @decorate requires_membership()
+  def handle_event("cancel-delete-delta", _params, socket) do
+    socket
+    |> assign(:deleting_delta, nil)
+    |> noreply()
+  end
+
   @decorate requires_permission(:"deployment_group:update")
   def handle_event("delete-delta", %{"id" => id}, socket) do
+    socket = assign(socket, :deleting_delta, nil)
+
     case find_delta(socket, id) do
       nil ->
         noreply(socket)
@@ -1034,8 +1104,21 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Releases do
       |> Enum.filter(&(MapSet.member?(expanded, &1.id) and Map.has_key?(counts, &1.id)))
       |> Map.new(&{&1.id, ManagedDeployments.release_deltas(&1)})
 
-    assign(socket, :deltas, deltas)
+    socket
+    |> assign(:deltas, deltas)
+    |> refresh_deleting_delta()
   end
+
+  # The delete dialog closes once the delta it asks about is gone or no
+  # longer built, whoever changed it.
+  defp refresh_deleting_delta(%{assigns: %{deleting_delta: %{id: id}}} = socket) do
+    case find_delta(socket, id) do
+      %{status: :completed} = delta -> assign(socket, :deleting_delta, delta)
+      _ -> assign(socket, :deleting_delta, nil)
+    end
+  end
+
+  defp refresh_deleting_delta(socket), do: socket
 
   # Each release beside when the next one replaced it. The list is newest
   # first, so the newest is replaced by nothing.

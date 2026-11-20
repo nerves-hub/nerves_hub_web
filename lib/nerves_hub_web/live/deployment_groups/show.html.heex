@@ -17,8 +17,7 @@
           <.button
             :if={authorized?(:"deployment_group:toggle", @current_scope)}
             type="button"
-            phx-click="toggle"
-            data-confirm={"Are you sure you want to #{(@deployment_group.is_active && "pause") || "resume"} #{@deployment_group.name}?"}
+            phx-click="ask-toggle"
           >
             <span class={(@deployment_group.is_active && "lucide-pause") || "lucide-play"} aria-hidden="true"></span>
             {(@deployment_group.is_active && "Pause") || "Resume"}
@@ -165,5 +164,5 @@
     />
   </div>
 
-  <DeploymentGroups.confirm_dialog :if={@confirm} confirm={@confirm} />
+  <Dialogs.confirm_dialog :if={@confirm} confirm={@confirm} deployment_group={@deployment_group} />
 </NervesHubWeb.Layouts.sidebar>
