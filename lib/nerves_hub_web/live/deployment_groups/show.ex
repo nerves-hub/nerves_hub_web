@@ -463,8 +463,6 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
   # do that get an upload configured at all, and LiveView refuses anyone else's
   # before any of the file arrives. `handle_progress/3` checks again before
   # importing.
-  # Only a member who can move devices between groups gets the upload, so a
-  # viewer's browser can't send a file at all.
   defp allow_csv_import(socket) do
     if authorized?(:"device:set-deployment-group", socket.assigns.current_scope) do
       socket
