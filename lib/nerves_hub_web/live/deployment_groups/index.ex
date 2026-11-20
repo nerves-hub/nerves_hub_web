@@ -1,13 +1,13 @@
 defmodule NervesHubWeb.Live.DeploymentGroups.Index do
   @moduledoc """
-  A product's deployment groups, split by what they need: groups held on a
-  step waiting for approval or stopped on failures come first, under Needs
-  you, with the button that moves each on. The rest run on their own, as rows
-  or as cards (the user's `deployment_group_view` preference).
+  A product's deployment groups, split into Needs you and Running on their own.
 
-  A product has a handful of groups, so all of them load at once and the
-  search and filters narrow them here rather than in SQL. The page reloads
-  their counts every few seconds while it is open.
+  Groups held on a step waiting for approval or stopped on failures come first,
+  under Needs you, with the button that moves each on. The rest are shown as
+  rows or as cards, by the user's `deployment_group_view` preference. A product
+  has a handful of groups, so all of them load at once and the search and
+  filters narrow them here rather than in SQL. The page reloads their counts
+  every few seconds while it is open.
   """
   use NervesHubWeb, :live_view
 
