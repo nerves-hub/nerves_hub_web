@@ -403,26 +403,29 @@ defmodule NervesHub.ManagedDeployments.ReleaseStats do
       )
       |> history_before(window.to)
 
+    %{failed_devices: failed_devices, recovered_devices: recovered_devices} = devices(base, failures)
+
     %{
-      attempts: attempts(base),
-      timeline: timeline(base, window, now)
+      attempts: attempts(base, failures),
+      timeline: timeline(base, failures, window, now),
+      failed_devices: failed_devices,
+      recovered_devices: recovered_devices,
+      durations: durations(base, delta_sources),
+      reasons: reasons(base, failures),
+      sources: sources(base, failures)
     }
-    |> Map.merge(devices(base, failures))
-    |> Map.put(:durations, durations(base, delta_sources))
-    |> Map.put(:reasons, reasons(base, failures))
-    |> Map.put(:sources, sources(base, failures))
   end
 
   defp history_before(query, nil), do: query
   defp history_before(query, to), do: where(query, [h], h.timestamp < ^to)
 
-  defp attempts(base) do
+  defp attempts(base, failures) do
     counts =
       from(h in base, group_by: h.status, select: {h.status, fragment("count()")})
       |> AnalyticsRepo.all(timeout: @timeout)
       |> Map.new()
 
-    failed = Enum.sum(for status <- failure_names(), do: Map.get(counts, status, 0))
+    failed = Enum.sum(for status <- failures, do: Map.get(counts, status, 0))
 
     %{
       succeeded: Map.get(counts, "succeeded", 0),
@@ -457,7 +460,7 @@ defmodule NervesHub.ManagedDeployments.ReleaseStats do
     %{failed_devices: failed, recovered_devices: recovered}
   end
 
-  defp timeline(base, window, now) do
+  defp timeline(base, failures, window, now) do
     bucket_seconds = timeline_bucket_seconds(window, now)
     from_us = DateTime.to_unix(window.from, :microsecond)
     bucket_us = bucket_seconds * 1_000_000
@@ -469,7 +472,7 @@ defmodule NervesHub.ManagedDeployments.ReleaseStats do
         select: {
           fragment("intDiv(toUnixTimestamp64Micro(?) - ?, ?)", h.timestamp, ^from_us, ^bucket_us),
           fragment("countIf(? = 'succeeded')", h.status),
-          fragment("countIf(has(?, ?))", ^failure_names(), h.status)
+          fragment("countIf(has(?, ?))", ^failures, h.status)
         }
       )
       |> AnalyticsRepo.all(timeout: @timeout)
