@@ -54,6 +54,21 @@ defmodule NervesHubWeb.Live.Product.ApiKeysTest do
       |> assert_has("nav a", text: "API keys 1 active")
     end
 
+    # Tailwind emits container queries after media queries, so an unscoped
+    # `@max-xl:grid-cols-…` beat `max-sm:`, gave a phone's row three columns
+    # and squeezed the name into a sliver. The columns that drop as the list
+    # narrows only apply from `sm` up.
+    test "keeps a row on a phone to its name and Deactivate", %{conn: conn, org: org, product: product, user: user} do
+      {:ok, api_key, _} = ApiKeys.create(product, user, %{"name" => "CI deploys", "role" => "manage"})
+      row = "#api-key-row-#{api_key.id}"
+
+      conn
+      |> visit(keys_path(org, product))
+      |> assert_has(~s|#{row}[class~="max-sm:grid-cols-[minmax(0,1fr)_auto]"]|)
+      |> assert_has(~s|#{row}[class~="sm:@max-xl:grid-cols-[minmax(0,1fr)_10rem_6rem]"]|)
+      |> refute_has(~s|#{row}[class*=" @max-"]|)
+    end
+
     test "view-only members are told they can't create or deactivate", %{
       conn: conn,
       org: org,
