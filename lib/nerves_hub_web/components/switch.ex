@@ -1,7 +1,8 @@
 defmodule NervesHubWeb.Components.Switch do
   @moduledoc """
   A checkbox drawn as a switch, for settings that take effect as soon as they
-  are flipped: the device page's Settings tab and product settings.
+  are flipped (the device page's Settings tab and product settings), or that a
+  form saves with the rest of its fields, as the release dialogs do.
   """
   use Phoenix.Component
 
@@ -9,10 +10,12 @@ defmodule NervesHubWeb.Components.Switch do
   attr(:name, :string, required: true)
   attr(:checked, :boolean, required: true)
   attr(:disabled, :boolean, default: false)
-  attr(:rest, :global)
+  attr(:rest, :global, include: ~w(value form))
 
   @doc """
-  Acts through the `phx-click` it is given, so it needs no form.
+  Acts through the `phx-click` it is given, so it needs no form. In a form,
+  give it `value="true"` after a hidden input of the same name holding
+  `"false"`, so the form sends either.
   """
   def switch(assigns) do
     ~H"""

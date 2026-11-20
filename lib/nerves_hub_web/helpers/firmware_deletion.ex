@@ -1,6 +1,6 @@
 defmodule NervesHubWeb.Helpers.FirmwareDeletion do
   @moduledoc """
-  Turns `NervesHub.Firmwares` deletion blockers and warnings into operator copy.
+  Turns `NervesHub.Firmwares` deletion blockers into operator copy.
 
   The same sentence has to appear in three places — the tooltip on a disabled
   delete button, the flash when a delete is refused anyway, and the API's error
@@ -37,28 +37,6 @@ defmodule NervesHubWeb.Helpers.FirmwareDeletion do
 
   def blocker_message({:inflight_updates, count}) do
     "#{count} devices are updating to this firmware right now. Deleting it would break those updates."
-  end
-
-  @doc """
-  What to tell a user before they confirm a deletion, or `nil` if there is
-  nothing worth saying.
-  """
-  @spec warnings_message([Firmwares.deletion_warning()]) :: String.t() | nil
-  def warnings_message([]), do: nil
-
-  def warnings_message(warnings) do
-    Enum.map_join(warnings, " ", &warning_message/1)
-  end
-
-  @spec warning_message(Firmwares.deletion_warning()) :: String.t()
-  def warning_message({:delta_source, 1}) do
-    "One firmware delta is built from this firmware. Deleting it means devices running " <>
-      "this version will download whole firmware instead of a delta."
-  end
-
-  def warning_message({:delta_source, count}) do
-    "#{count} firmware deltas are built from this firmware. Deleting it means devices running " <>
-      "this version will download whole firmware instead of deltas."
   end
 
   @doc """

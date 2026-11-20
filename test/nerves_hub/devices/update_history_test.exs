@@ -8,7 +8,10 @@ defmodule NervesHub.Devices.UpdateHistoryTest do
   alias NervesHub.AnalyticsRepo
   alias NervesHub.Devices
   alias NervesHub.Devices.DeviceUpdateHistory
+  alias NervesHub.Devices.InflightUpdate
   alias NervesHub.Devices.UpdateHistory
+  alias NervesHub.Firmwares
+  alias NervesHub.FirmwareUpdates
   alias NervesHub.Fixtures
 
   setup %{tmp_dir: tmp_dir} do
@@ -152,6 +155,25 @@ defmodule NervesHub.Devices.UpdateHistoryTest do
       assert DateTime.compare(row.timestamp, at) == :eq
     end
 
+    test "records how long the attempt took from when the update was sent", %{device: device} do
+      ended_at = DateTime.utc_now()
+
+      :ok = UpdateHistory.record(device, :succeeded, timestamp: ended_at, started_at: DateTime.add(ended_at, -330))
+
+      # inflight rows carry naive timestamps
+      sent_naive = ended_at |> DateTime.add(-90) |> DateTime.to_naive()
+      :ok = UpdateHistory.record(device, :succeeded, timestamp: ended_at, started_at: sent_naive)
+
+      # a clock that moved backwards is not a negative duration
+      :ok = UpdateHistory.record(device, :succeeded, timestamp: ended_at, started_at: DateTime.add(ended_at, 60))
+
+      :ok = UpdateHistory.record(device, :succeeded, timestamp: ended_at)
+
+      assert_eventually(length(history_for(device)) == 4)
+
+      assert device |> history_for() |> Enum.map(& &1.duration_seconds) |> Enum.sort() == [0, 0, 90, 330]
+    end
+
     test "every status is recordable", %{device: device} do
       for status <- UpdateHistory.statuses() do
         :ok = UpdateHistory.record(device, status)
@@ -160,6 +182,42 @@ defmodule NervesHub.Devices.UpdateHistoryTest do
       expected = Enum.map(UpdateHistory.statuses(), &Atom.to_string/1)
 
       assert_eventually(Enum.sort(Enum.map(history_for(device), & &1.status)) == Enum.sort(expected))
+    end
+  end
+
+  describe "a device rejoining on the firmware it was sent" do
+    test "records how long the update took", %{
+      device: device,
+      firmware: firmware,
+      org: org,
+      product: product,
+      user: user,
+      tmp_dir: tmp_dir
+    } do
+      org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
+      target = Fixtures.firmware_fixture(org_key, product, %{version: "2.0.0", dir: tmp_dir})
+      deployment_group = Fixtures.deployment_group_fixture(target, %{user: user})
+
+      sent_at =
+        DateTime.utc_now() |> DateTime.add(-4, :minute) |> DateTime.to_naive() |> NaiveDateTime.truncate(:second)
+
+      {:ok, _} =
+        deployment_group
+        |> InflightUpdate.deployment_requested_changeset(device.id, false)
+        |> Ecto.Changeset.put_change(:inserted_at, sent_at)
+        |> Repo.insert()
+
+      {:ok, source_metadata} = Firmwares.metadata_from_firmware(firmware)
+      {:ok, target_metadata} = Firmwares.metadata_from_firmware(target)
+      {:ok, device} = Devices.update_firmware_metadata(device, target_metadata, :unknown, false)
+
+      assert {:ok, _device} = FirmwareUpdates.firmware_update_successful(device, source_metadata)
+
+      assert_eventually([row] = history_for(device))
+
+      assert row.status == "succeeded"
+      assert row.deployment_id == deployment_group.id
+      assert row.duration_seconds in 240..250
     end
   end
 

@@ -9,6 +9,7 @@ defmodule NervesHubWeb.Live.Product.Notifications do
   alias NervesHub.Branding
   alias NervesHub.ProductNotifications
   alias NervesHub.ProductNotifications.Copy
+  alias NervesHubWeb.Components.Dialog
   alias NervesHubWeb.Components.ProductSidebar
   alias NervesHubWeb.Helpers.Timezone
   alias NervesHubWeb.Mounts.RequireEveryDevice
@@ -573,24 +574,12 @@ defmodule NervesHubWeb.Live.Product.Notifications do
 
   defp dismiss_all_dialog(assigns) do
     ~H"""
-    <NervesHubWeb.CoreComponents.modal id="dismiss-all-dialog" show on_cancel={JS.push("cancel-dismiss-all")}>
-      <div class="flex max-w-lg flex-col gap-4">
-        <div class="flex flex-col gap-2">
-          <h2 id="dismiss-all-dialog-title" class="text-section-title text-content-strong">
-            Dismiss {all_notifications(@count)}?
-          </h2>
-          <p id="dismiss-all-dialog-description" class="text-ui text-content-body">
-            This clears them for everyone on this product, on every tab. Any that happen again will come back.
-          </p>
-        </div>
-        <div class="flex justify-end gap-2">
-          <.button phx-click={JS.exec("data-cancel", to: "#dismiss-all-dialog")}>Cancel</.button>
-          <.button style="contrast" phx-click="dismiss-all">
-            Dismiss {all_of(@count)}
-          </.button>
-        </div>
-      </div>
-    </NervesHubWeb.CoreComponents.modal>
+    <Dialog.confirm id="dismiss-all-dialog" title={"Dismiss #{all_notifications(@count)}?"} on_cancel={JS.push("cancel-dismiss-all")}>
+      <p>This clears them for everyone on this product, on every tab. Any that happen again will come back.</p>
+      <:actions>
+        <.button style="contrast" phx-click="dismiss-all">Dismiss {all_of(@count)}</.button>
+      </:actions>
+    </Dialog.confirm>
     """
   end
 

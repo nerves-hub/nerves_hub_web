@@ -123,6 +123,17 @@ defmodule NervesHub.ManagedDeployments.DeploymentRelease do
     |> validate_required([:connecting_code_mode])
   end
 
+  @doc """
+  What can still change on a release once it's made, all at once: whether it's
+  required, its connecting code, and where that code runs.
+  """
+  @spec edit_changeset(t(), map()) :: Ecto.Changeset.t()
+  def edit_changeset(%__MODULE__{} = release, params) do
+    release
+    |> cast(params, [:required, :connecting_code, :connecting_code_mode])
+    |> validate_required([:required, :connecting_code_mode])
+  end
+
   # A release with the same firmware and archive as the current one would send
   # devices nothing new. Required and connecting code are changed on the
   # release itself, so they're no reason to create another.
@@ -183,14 +194,21 @@ defmodule NervesHub.ManagedDeployments.DeploymentRelease do
   defp generate_workflow_steps(changeset, nil), do: changeset
 
   defp generate_workflow_steps(changeset, workflow_definition) do
+    put_assoc(changeset, :steps, workflow_step_changesets(workflow_definition))
+  end
+
+  @doc """
+  The steps a release made from `workflow_definition` walks through, as
+  changesets, ending in the catch_all a definition may leave out.
+  """
+  @spec workflow_step_changesets(map()) :: [Ecto.Changeset.t()]
+  def workflow_step_changesets(workflow_definition) do
     {steps, _} =
       Enum.map_reduce(workflow_definition["steps"] || [], 1, fn step, count ->
         {DeploymentWorkflowStep.new_changeset(step, count), count + 1}
       end)
 
-    steps = maybe_add_catch_all(steps)
-
-    put_assoc(changeset, :steps, steps)
+    maybe_add_catch_all(steps)
   end
 
   # A definition that has been through the schema always has at least one step, so

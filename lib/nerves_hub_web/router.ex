@@ -548,6 +548,12 @@ defmodule NervesHubWeb.Router do
       )
 
       live(
+        "/org/:org_name/:product_name/deployment_groups/:name/stats",
+        Live.DeploymentGroups.Show,
+        :stats
+      )
+
+      live(
         "/org/:org_name/:product_name/deployment_groups/:name/activity",
         Live.DeploymentGroups.Show,
         :activity

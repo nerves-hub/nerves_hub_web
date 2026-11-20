@@ -93,10 +93,10 @@ defmodule NervesHubWeb.Components.ProductSettings do
   A modal one assign drives: the page renders it while that assign is set, and
   Cancel, Escape and a click outside all send `cancel_event` to clear it.
 
-  General uses it to ask before anything that changes every device or cannot be
-  undone. API keys uses it for the create form, for deactivating a key, and for
-  the one-time key, which can't be cancelled: a stray click outside would throw
-  the key away, so only its own button closes it.
+  API keys uses it for the create form, for deactivating a key, and for the
+  one-time key, which can't be cancelled: a stray click outside would throw the
+  key away, so only its own button closes it. General asks before a change with
+  `NervesHubWeb.Components.Dialog.confirm/1`.
   """
   def dialog(assigns) do
     ~H"""

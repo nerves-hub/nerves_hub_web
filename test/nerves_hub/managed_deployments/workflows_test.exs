@@ -315,4 +315,20 @@ defmodule NervesHub.ManagedDeployments.WorkflowsTest do
       assert Workflows.awaiting_approval_in_products([]) == []
     end
   end
+
+  describe "definition_steps/1" do
+    test "builds a definition's steps, numbered, with the catch_all a release adds" do
+      assert [canary, everyone, catch_all] = Workflows.definition_steps(@definition)
+
+      assert %{number: 1, name: "Canary", type: :update_devices, concurrency: 10} = canary
+      assert canary.matching_conditions.tags == ["canary"]
+      assert canary.matching_conditions.match_limit == 20
+      assert %{number: 2, name: "Everyone else"} = everyone
+      assert %{number: 3, type: :catch_all} = catch_all
+    end
+
+    test "is none without a definition" do
+      assert Workflows.definition_steps(nil) == []
+    end
+  end
 end

@@ -1,7 +1,7 @@
 defmodule NervesHubWeb.Live.Product.Settings do
   use NervesHubWeb, :live_view
 
-  import NervesHubWeb.Components.ProductSettings, only: [title: 1, tabs: 1, dialog: 1]
+  import NervesHubWeb.Components.ProductSettings, only: [title: 1, tabs: 1]
   import NervesHubWeb.Components.Switch, only: [switch: 1]
   import Number.Delimit, only: [number_to_delimited: 2]
 
@@ -14,6 +14,7 @@ defmodule NervesHubWeb.Live.Product.Settings do
   alias NervesHub.Products.ApiKeys
   alias NervesHub.Products.HealthProfiles
   alias NervesHub.Products.Product
+  alias NervesHubWeb.Components.Dialog
   alias NervesHubWeb.Mounts.RequireEveryDevice
 
   on_mount(RequireEveryDevice)
@@ -622,16 +623,16 @@ defmodule NervesHubWeb.Live.Product.Settings do
       assign(assigns, name: extension_name(extension), on: Map.get(assigns.extensions_on_devices, extension, 0))
 
     ~H"""
-    <.dialog id="confirm-dialog" title={"Turn off #{@name} for every device?"}>
+    <Dialog.confirm id="confirm-dialog" title={"Turn off #{@name} for every device?"} on_cancel={JS.push("cancel-confirm")} wide>
       <p>Devices in {@product.name} stop using it once they hear of the change. Each keeps its own setting, so turning it back on here restores it.</p>
-      <ul class="flex flex-col gap-1.5 rounded bg-surface-muted px-3 py-2.5">
+      <ul class="flex flex-col gap-1.5 rounded-card bg-surface-muted px-3 py-2.5 text-content-body">
         <li class="flex gap-2"><span class="text-content-faint">•</span><span><span class="font-mono">{delimited(@on)}</span> {if @on == 1, do: "device has", else: "devices have"} it on now</span></li>
         <li class="flex gap-2"><span class="text-content-faint">•</span><span>Connected devices drop it straight away; the rest when they next connect</span></li>
       </ul>
       <:actions>
         <.button style="contrast" phx-click="confirm-extension-off" phx-value-extension={@confirm.extension}>Turn off {@name}</.button>
       </:actions>
-    </.dialog>
+    </Dialog.confirm>
     """
   end
 
@@ -639,7 +640,7 @@ defmodule NervesHubWeb.Live.Product.Settings do
     assigns = assign(assigns, :name, extension_name(assigns.confirm.extension))
 
     ~H"""
-    <.dialog id="confirm-dialog" title={"Turn #{@name} back on for #{devices(@confirm.count)}?"}>
+    <Dialog.confirm id="confirm-dialog" title={"Turn #{@name} back on for #{devices(@confirm.count)}?"} on_cancel={JS.push("cancel-confirm")} wide>
       <p>
         {if @confirm.count == 1, do: "This device has", else: "These devices have"} {@name} turned off in {if @confirm.count == 1, do: "its", else: "their"} own setting. This turns it on for them, the same as doing it one device at a time.
       </p>
@@ -648,15 +649,15 @@ defmodule NervesHubWeb.Live.Product.Settings do
           Turn on for {devices(@confirm.count)}
         </.button>
       </:actions>
-    </.dialog>
+    </Dialog.confirm>
     """
   end
 
   defp confirm_dialog(%{confirm: %{kind: :managed_updates, enabled: true}} = assigns) do
     ~H"""
-    <.dialog id="confirm-dialog" title="Let every device choose its update mode?">
+    <Dialog.confirm id="confirm-dialog" title="Let every device choose its update mode?" on_cancel={JS.push("cancel-confirm")} wide>
       <p>A device that can choose may switch itself to device-managed. It then asks for its deployment group's firmware instead of being sent it.</p>
-      <ul class="flex flex-col gap-1.5 rounded bg-surface-muted px-3 py-2.5">
+      <ul class="flex flex-col gap-1.5 rounded-card bg-surface-muted px-3 py-2.5 text-content-body">
         <li class="flex gap-2">
           <span class="text-content-faint">•</span><span><span class="font-mono">{delimited(@confirm.count)}</span> {if @confirm.count == 1, do: "device can't", else: "devices can't"} choose now</span>
         </li>
@@ -665,15 +666,15 @@ defmodule NervesHubWeb.Live.Product.Settings do
       <:actions>
         <.button style="primary" phx-click="set-managed-updates-allowed-for-devices" phx-value-enabled="true">Allow on all</.button>
       </:actions>
-    </.dialog>
+    </Dialog.confirm>
     """
   end
 
   defp confirm_dialog(%{confirm: %{kind: :managed_updates, enabled: false}} = assigns) do
     ~H"""
-    <.dialog id="confirm-dialog" title="Stop every device choosing its update mode?">
+    <Dialog.confirm id="confirm-dialog" title="Stop every device choosing its update mode?" on_cancel={JS.push("cancel-confirm")} wide>
       <p>A device that is already device-managed stays that way. It just can't switch again.</p>
-      <ul class="flex flex-col gap-1.5 rounded bg-surface-muted px-3 py-2.5">
+      <ul class="flex flex-col gap-1.5 rounded-card bg-surface-muted px-3 py-2.5 text-content-body">
         <li class="flex gap-2">
           <span class="text-content-faint">•</span><span><span class="font-mono">{delimited(@confirm.count)}</span> {if @confirm.count == 1, do: "device can", else: "devices can"} choose now</span>
         </li>
@@ -682,7 +683,7 @@ defmodule NervesHubWeb.Live.Product.Settings do
       <:actions>
         <.button style="primary" phx-click="set-managed-updates-allowed-for-devices" phx-value-enabled="false">Revoke on all</.button>
       </:actions>
-    </.dialog>
+    </Dialog.confirm>
     """
   end
 
@@ -690,19 +691,19 @@ defmodule NervesHubWeb.Live.Product.Settings do
     assigns = assign(assigns, :auth, auth)
 
     ~H"""
-    <.dialog id="confirm-dialog" title="Deactivate this shared secret?">
+    <Dialog.confirm id="confirm-dialog" title="Deactivate this shared secret?" on_cancel={JS.push("cancel-confirm")} wide>
       <p class="font-mono text-xs break-all text-content-strong">{@auth.key}</p>
       <p>Devices that sign in with it can't connect again until they're given another one. It stays in the list, marked deactivated.</p>
       <:actions>
         <.button style="danger-solid" phx-click="deactivate-shared-secret" phx-value-shared_secret_id={@auth.id}>Deactivate secret</.button>
       </:actions>
-    </.dialog>
+    </Dialog.confirm>
     """
   end
 
   defp confirm_dialog(%{confirm: %{kind: :delete_product}} = assigns) do
     ~H"""
-    <.dialog id="confirm-dialog" title={"Delete #{@product.name}?"}>
+    <Dialog.confirm id="confirm-dialog" title={"Delete #{@product.name}?"} on_cancel={JS.push("cancel-confirm")} wide>
       <%= if @device_total > 0 do %>
         <p class="rounded-card border border-alert/40 bg-alert-soft p-3 text-alert-content">
           It still has {devices(@device_total)}, so it can't be deleted.
@@ -730,7 +731,7 @@ defmodule NervesHubWeb.Live.Product.Settings do
           Delete {@product.name}
         </.button>
       </:actions>
-    </.dialog>
+    </Dialog.confirm>
     """
   end
 end

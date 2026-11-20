@@ -7,6 +7,7 @@ defmodule NervesHubWeb.Live.Archives do
   alias NervesHub.Archives
   alias NervesHub.Archives.Archive
   alias NervesHub.Uploads
+  alias NervesHubWeb.Components.Dialog
   alias NervesHubWeb.Mounts.RequireEveryDevice
 
   on_mount(RequireEveryDevice)
@@ -521,39 +522,32 @@ defmodule NervesHubWeb.Live.Archives do
   # page. When a release has used it, it says so instead.
   defp delete_dialog(assigns) do
     ~H"""
-    <NervesHubWeb.CoreComponents.modal id="delete-archive-dialog" show on_cancel={JS.push("cancel-delete")}>
-      <div class="flex max-w-lg flex-col gap-4">
-        <div class="flex flex-col gap-1">
-          <h2 id="delete-archive-dialog-title" class="text-section-title text-content-strong">
-            Delete {archive_name(@deleting.archive)} <span class="font-mono">{@deleting.archive.version}</span>
-            for <span class="font-mono">{@deleting.archive.platform} · {@deleting.archive.architecture}</span>?
-          </h2>
-          <p id="delete-archive-dialog-description" class="font-mono text-xs text-content-faint">{@deleting.archive.uuid}</p>
-        </div>
+    <Dialog.confirm id="delete-archive-dialog" on_cancel={JS.push("cancel-delete")} wide>
+      <:heading>
+        Delete {archive_name(@deleting.archive)} <span class="font-mono">{@deleting.archive.version}</span>
+        for <span class="font-mono">{@deleting.archive.platform} · {@deleting.archive.architecture}</span>?
+      </:heading>
+      <:subtitle><span class="font-mono">{@deleting.archive.uuid}</span></:subtitle>
 
-        <%= if @deleting.blocked_by != [] do %>
-          <p class="rounded-card border border-alert/40 bg-alert-soft p-3 text-ui text-alert-content">
-            {blocked_message(@deleting.blocked_by)}
-          </p>
-        <% else %>
-          <p class="text-ui text-content-body">
-            The file is removed for good. Archives have no Deleted tab, so to get it back you would upload the file again.
-          </p>
-          <ul class="flex flex-col gap-1.5 rounded-card bg-surface-muted p-3 text-ui text-content-body">
-            <li class="flex items-center gap-2"><.status_dot class="size-1.5 bg-content-faint" /> No release has ever used it</li>
-            <li class="flex items-center gap-2"><.status_dot class="size-1.5 bg-content-faint" /> No device is sent it</li>
-            <li class="flex items-center gap-2"><.status_dot class="size-1.5 bg-content-faint" /> Its UUID is free to upload again</li>
-          </ul>
-        <% end %>
+      <%= if @deleting.blocked_by != [] do %>
+        <p class="rounded-card border border-alert/40 bg-alert-soft p-3 text-alert-content">
+          {blocked_message(@deleting.blocked_by)}
+        </p>
+      <% else %>
+        <p>The file is removed for good. Archives have no Deleted tab, so to get it back you would upload the file again.</p>
+        <ul class="flex flex-col gap-1.5 rounded-card bg-surface-muted px-3 py-2.5 text-content-body">
+          <li class="flex items-center gap-2"><.status_dot class="size-1.5 bg-content-faint" /> No release has ever used it</li>
+          <li class="flex items-center gap-2"><.status_dot class="size-1.5 bg-content-faint" /> No device is sent it</li>
+          <li class="flex items-center gap-2"><.status_dot class="size-1.5 bg-content-faint" /> Its UUID is free to upload again</li>
+        </ul>
+      <% end %>
 
-        <div class="flex justify-end gap-2">
-          <.button phx-click={JS.exec("data-cancel", to: "#delete-archive-dialog")}>Cancel</.button>
-          <.button :if={@deleting.blocked_by == []} style="danger-solid" phx-click="delete-archive" phx-value-archive_uuid={@deleting.archive.uuid}>
-            Delete archive
-          </.button>
-        </div>
-      </div>
-    </NervesHubWeb.CoreComponents.modal>
+      <:actions :if={@deleting.blocked_by == []}>
+        <.button style="danger-solid" phx-click="delete-archive" phx-value-archive_uuid={@deleting.archive.uuid}>
+          Delete archive
+        </.button>
+      </:actions>
+    </Dialog.confirm>
     """
   end
 end

@@ -347,7 +347,9 @@ defmodule NervesHubWeb.Live.FirmwareTest do
       conn
       |> visit("/org/#{org.name}/#{product.name}/firmware/#{firmware.uuid}")
       |> click_button("button[aria-label='Delete firmware']", "Delete")
-      |> assert_has("#delete-firmware-dialog", text: "The file is removed and can’t be restored.")
+      |> assert_has("#delete-firmware-dialog",
+        text: "The file is removed and can’t be downloaded or sent to devices again."
+      )
       |> click_button("#delete-firmware-dialog button", "Delete firmware")
       |> assert_path("/org/#{org.name}/#{product.name}/firmware")
       |> assert_has("div", text: "Firmware successfully deleted")
@@ -882,12 +884,30 @@ defmodule NervesHubWeb.Live.FirmwareTest do
       |> visit("/org/#{org.name}/#{product.name}/firmware")
       |> refute_has("#delete-firmware-dialog")
       |> click_button("#firmware-#{firmware.uuid} [role='menuitem']", "Delete…")
-      |> assert_has("#delete-firmware-dialog h2", text: firmware.version)
-      |> assert_has("#delete-firmware-dialog", text: "1 device runs it.")
+      |> assert_has("#delete-firmware-dialog h2",
+        text: "Delete #{firmware.version} for #{firmware.platform} · #{firmware.architecture}?"
+      )
+      |> assert_has("#delete-firmware-dialog-subtitle", text: firmware.uuid)
+      |> assert_has("#delete-firmware-dialog li", text: "1 device is running it")
+      |> refute_has("#delete-firmware-dialog li", text: "deleted too")
       |> within("#delete-firmware-dialog", &click_button(&1, "Delete firmware"))
       |> assert_has("div", text: "Firmware successfully deleted")
       |> refute_has("#delete-firmware-dialog")
       |> refute_has("#firmware-#{firmware.uuid}")
+    end
+
+    test "says how many deltas built from it go with it", %{conn: conn, user: user, org: org, tmp_dir: tmp_dir} do
+      product = Fixtures.product_fixture(user, org)
+      org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
+      firmware = Fixtures.firmware_fixture(org_key, product, %{version: "1.0.0", dir: tmp_dir})
+      newer = Fixtures.firmware_fixture(org_key, product, %{version: "1.1.0", dir: tmp_dir})
+      _delta = Fixtures.firmware_delta_fixture(firmware, newer)
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/firmware")
+      |> click_button("#firmware-#{firmware.uuid} [role='menuitem']", "Delete…")
+      |> assert_has("#delete-firmware-dialog li", text: "No device is running it")
+      |> assert_has("#delete-firmware-dialog li", text: "1 delta built from it is deleted too")
     end
 
     test "cancelling leaves the firmware alone", %{conn: conn, user: user, org: org, tmp_dir: tmp_dir} do
