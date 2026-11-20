@@ -374,7 +374,9 @@ when adding or removing one.
   (the group's audit log by day, paged in the URL, drawn as the device page's
   Activity tab is, so a change to one belongs in both) and Settings (cards that
   each save only their own fields, the workflow upload, and deleting the
-  group). There's no Devices tab: the header's device count links to the
+  group; turning delta updates on or off needs
+  `deployment_group:toggle_delta_updates`, as it does in the API, and saving
+  drops the field for a member without it). There's no Devices tab: the header's device count links to the
   devices list, filtered to the group.
   A product's settings are three LiveViews, General (`live/product/settings.ex`),
   Device health (`live/product/health_profiles.ex`) and API keys

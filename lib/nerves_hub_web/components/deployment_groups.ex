@@ -7,7 +7,7 @@ defmodule NervesHubWeb.Components.DeploymentGroups do
 
   `load/1` turns deployment groups into entries carrying their counts from
   `NervesHub.ManagedDeployments.Rollout`, with two queries for any number of
-  groups. `act/4` approves, skips or retries the step a group is held on, for
+  groups. `act/3` approves, skips or retries the step a group is held on, for
   both pages.
 
   The forms on a group's pages (the release dialogs and the Settings cards)
