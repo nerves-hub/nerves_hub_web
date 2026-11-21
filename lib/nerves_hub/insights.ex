@@ -231,7 +231,28 @@ defmodule NervesHub.Insights do
   # with no connection row was last seen before connection rows were kept, and
   # `last_seen` only matches disconnected devices otherwise, so one still
   # connecting falls to recently seen.
+  #
+  # The semver key is taken from each group's version after grouping, not from
+  # every device: `semver_sort_key/1` runs a regex, and a large fleet is a few
+  # dozen groups but hundreds of thousands of devices.
   defp composition_rows(product, now) do
+    product
+    |> composition_groups(now)
+    |> subquery()
+    |> select([g], %{
+      version: g.version,
+      health: g.health,
+      connection: g.connection,
+      sort_key: fragment(~s|semver_sort_key(?) COLLATE "C"|, g.version),
+      count: g.count
+    })
+    |> Repo.all()
+    |> Enum.map(fn row ->
+      %{row | health: String.to_existing_atom(row.health), connection: String.to_existing_atom(row.connection)}
+    end)
+  end
+
+  defp composition_groups(product, now) do
     seven_days_ago = DateTime.add(now, -7, :day)
     fourteen_days_ago = DateTime.add(now, -14, :day)
 
@@ -269,13 +290,8 @@ defmodule NervesHub.Insights do
           ),
           :connection
         ),
-      sort_key: fragment(~s|MAX(semver_sort_key(? ->> 'version') COLLATE "C")|, d.firmware_metadata),
       count: count(d.id)
     })
-    |> Repo.all()
-    |> Enum.map(fn row ->
-      %{row | health: String.to_existing_atom(row.health), connection: String.to_existing_atom(row.connection)}
-    end)
   end
 
   defp version_counts(version, rows) do
