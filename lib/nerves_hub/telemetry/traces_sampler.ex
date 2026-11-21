@@ -9,7 +9,7 @@ defmodule NervesHub.Telemetry.TracesSampler do
   queries with it. All the sampler knows is the span's name and the attributes
   it started with: a request is still named after its method, not its route.
 
-  There are five kinds, each with its own rate:
+  There are six kinds, each with its own rate:
 
     * `:requests` - requests to the web UI and API, and LiveView mounts,
       params and events. There are few of them, someone is waiting on each,
@@ -26,6 +26,13 @@ defmodule NervesHub.Telemetry.TracesSampler do
       buffer flushes about twice a second on every node, so these are kept at
       `SENTRY_TRACING_RATE` or 1%, whichever is lower. That is still enough to
       see how long inserts take, which nothing else reports.
+    * `:reports` - what a device's extensions send all day: health and metrics
+      reports, alarms, and log lines, along with the health evaluation each
+      health report queues. Every device sends them every few minutes, so they
+      are kept at the same rate as flushes. Told apart by the event a span
+      starts with, on the extensions channel's span or on a
+      `DeviceLink.extension_message` a node holding the device's socket sent
+      without a decision of its own.
     * `:none` - never kept: what `NervesHub.Telemetry.FilteredSampler` drops
       (health checks, static files, the LiveView socket, device heartbeats),
       Oban's own polling queries, and a database transaction's `begin`,
@@ -43,10 +50,27 @@ defmodule NervesHub.Telemetry.TracesSampler do
   alias OpenTelemetry.SemConv.Incubating.MessagingAttributes
   alias OpenTelemetry.SemConv.URLAttributes
 
-  @type kind() :: :requests | :jobs | :default | :flushes | :none
+  @type kind() :: :requests | :jobs | :default | :flushes | :reports | :none
   @type rates() :: [requests: float(), jobs: float(), default: float()]
 
-  @max_flush_rate 0.01
+  # The most of flushes and reports kept, whatever `SENTRY_TRACING_RATE` says.
+  @max_frequent_rate 0.01
+
+  # What a device's extensions send by themselves, every few minutes for every
+  # device: `NervesHub.Extensions.Health`, `Metrics`, `Alarms` and `Logging`.
+  @report_events [
+    "health:report",
+    "metrics:report",
+    "alarms:snapshot",
+    "alarms:raised",
+    "alarms:cleared",
+    "logging:send"
+  ]
+
+  @report_spans ["Channels.ExtensionsChannel.handle_in", "DeviceLink.extension_message"]
+
+  # Queued by each health report, and run in a trace of its own.
+  @health_evaluation_span "Devices.HealthEvaluation.Queue.evaluate"
 
   # Oban's producers, stager, pruner and peer election, polling between jobs.
   # A job's own queries are children of its span, so they never start a trace.
@@ -79,7 +103,7 @@ defmodule NervesHub.Telemetry.TracesSampler do
   def sample_rate(%{transaction_context: context}, rates) do
     case kind(context.name, Map.get(context, :attributes)) do
       :none -> 0.0
-      :flushes -> min(Keyword.fetch!(rates, :default), @max_flush_rate)
+      kind when kind in [:flushes, :reports] -> min(Keyword.fetch!(rates, :default), @max_frequent_rate)
       kind -> Keyword.fetch!(rates, kind)
     end
   end
@@ -93,15 +117,18 @@ defmodule NervesHub.Telemetry.TracesSampler do
 
   def kind(name, attributes) do
     cond do
-      FilteredSampler.drop_trace?(name, attributes) -> :none
-      name in @oban_polling_queries -> :none
-      attributes[:"db.statement"] in @transaction_statements -> :none
+      never_kept?(name, attributes) -> :none
       attributes[MessagingAttributes.messaging_system()] == :oban -> :jobs
       flush?(name) -> :flushes
-      live_view?(name) -> :requests
-      request?(attributes) -> :requests
+      report?(name, attributes) -> :reports
+      live_view?(name) or request?(attributes) -> :requests
       true -> :default
     end
+  end
+
+  defp never_kept?(name, attributes) do
+    FilteredSampler.drop_trace?(name, attributes) or name in @oban_polling_queries or
+      attributes[:"db.statement"] in @transaction_statements
   end
 
   # `opentelemetry_phoenix` names LiveView spans after the view, and the device
@@ -113,6 +140,13 @@ defmodule NervesHub.Telemetry.TracesSampler do
 
   defp flush?(name) when is_binary(name), do: String.starts_with?(name, "Analytics.Buffer.flush[")
   defp flush?(_name), do: false
+
+  defp report?(@health_evaluation_span, _attributes), do: true
+
+  defp report?(name, attributes) when name in @report_spans,
+    do: attributes[:"nerves_hub.channel.event"] in @report_events
+
+  defp report?(_name, _attributes), do: false
 
   defp request?(attributes) do
     path = attributes[URLAttributes.url_path()] || ""

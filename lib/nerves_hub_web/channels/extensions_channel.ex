@@ -23,6 +23,8 @@ defmodule NervesHubWeb.ExtensionsChannel do
   alias NervesHubWeb.Channels.Platform
   alias Phoenix.Socket.Broadcast
 
+  require OpenTelemetry.Tracer, as: Tracer
+
   @impl Phoenix.Channel
   @decorate with_span("Channels.ExtensionsChannel.join")
   def join("extensions", extension_versions, %{assigns: %{device_info: device_info}} = socket) do
@@ -57,11 +59,29 @@ defmodule NervesHubWeb.ExtensionsChannel do
     end
   end
 
+  # The span is opened here rather than with `@decorate with_span`, which starts
+  # it with no attributes and adds them after. A sampler sees only what a span
+  # starts with, and keeps fewer of the reports and log lines extensions send
+  # all day by looking at the event.
   @impl Phoenix.Channel
-  @decorate with_span("Channels.ExtensionsChannel.handle_in")
   def handle_in(scoped_event, payload, socket) do
-    :ok = DeviceInfo.set_span_attributes(socket.assigns.device_info, %{"nerves_hub.channel.event": scoped_event})
+    attributes =
+      socket.assigns.device_info
+      |> DeviceInfo.trace_attributes()
+      |> Map.put(:"nerves_hub.channel.event", scoped_event)
 
+    Tracer.with_span "Channels.ExtensionsChannel.handle_in", %{attributes: attributes} do
+      try do
+        extension_message(scoped_event, payload, socket)
+      catch
+        kind, reason ->
+          Tracer.set_status(:error, Exception.format_banner(kind, reason, __STACKTRACE__))
+          :erlang.raise(kind, reason, __STACKTRACE__)
+      end
+    end
+  end
+
+  defp extension_message(scoped_event, payload, socket) do
     case Platform.ask(socket, :extension_message, fn ->
            DeviceLink.extension_message(socket.assigns.extensions, scoped_event, payload)
          end) do

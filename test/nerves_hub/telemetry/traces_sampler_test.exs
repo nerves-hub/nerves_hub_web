@@ -64,6 +64,36 @@ defmodule NervesHub.Telemetry.TracesSamplerTest do
       end
     end
 
+    test "what extensions send all day is a report, from the channel or another node" do
+      for name <- ["Channels.ExtensionsChannel.handle_in", "DeviceLink.extension_message"],
+          event <- [
+            "health:report",
+            "metrics:report",
+            "alarms:snapshot",
+            "alarms:raised",
+            "alarms:cleared",
+            "logging:send"
+          ] do
+        assert TracesSampler.kind(name, %{"nerves_hub.channel.event": event}) == :reports
+      end
+    end
+
+    test "a health evaluation is a report" do
+      assert TracesSampler.kind("Devices.HealthEvaluation.Queue.evaluate", %{}) == :reports
+    end
+
+    test "an extension's other messages are default" do
+      for event <- ["health:attached", "logging:attached", "geo:location:update", "network_identity:report"] do
+        assert TracesSampler.kind("Channels.ExtensionsChannel.handle_in", %{"nerves_hub.channel.event": event}) ==
+                 :default
+      end
+    end
+
+    test "a report's event on any other span is default" do
+      assert TracesSampler.kind("Channels.DeviceChannel.handle_in", %{"nerves_hub.channel.event": "health:report"}) ==
+               :default
+    end
+
     test "health checks, static files and the LiveView socket are never kept" do
       for path <- ["/status/alive", "/assets/js/app.js", "/fonts/inter.woff2", "/live/websocket", "/"] do
         {name, attributes} = request(path)
@@ -122,6 +152,13 @@ defmodule NervesHub.Telemetry.TracesSamplerTest do
 
       assert TracesSampler.sample_rate(flush, @rates) == 0.01
       assert TracesSampler.sample_rate(flush, Keyword.put(@rates, :default, 0.001)) == 0.001
+    end
+
+    test "keeps reports at the default rate, but never more than 1%" do
+      report = sampling_context("Channels.ExtensionsChannel.handle_in", %{"nerves_hub.channel.event": "health:report"})
+
+      assert TracesSampler.sample_rate(report, @rates) == 0.01
+      assert TracesSampler.sample_rate(report, Keyword.put(@rates, :default, 0.001)) == 0.001
     end
 
     test "returns 0.0 for what is never kept, whatever the rates" do
