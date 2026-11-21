@@ -27,6 +27,7 @@ defmodule NervesHubWeb.Live.Org.Integrations.ChatWebhookSection do
   alias NervesHub.Integrations.ChannelEvents
   alias NervesHub.Integrations.ChatWebhooks
   alias NervesHub.Integrations.ChatWebhooks.ChatWebhook
+  alias NervesHubWeb.Components.Dialog
   alias Phoenix.LiveView.JS
 
   @impl Phoenix.LiveComponent

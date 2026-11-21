@@ -277,9 +277,16 @@
       </div>
     </div>
 
-    <.dialog :if={@form} id="webhook-dialog" service={:webhook} title={if @editing == :new, do: "Add a webhook", else: "Edit #{webhook_name(@editing)}"} on_cancel={JS.push("cancel")}>
+    <Dialog.form_dialog
+      :if={@form}
+      id="webhook-dialog"
+      title={if @editing == :new, do: "Add a webhook", else: "Edit #{webhook_name(@editing)}"}
+      on_cancel={JS.push("cancel")}
+      wide
+    >
+      <:icon><.service_logo service={:webhook} class="size-4.25" /></:icon>
       <.form for={@form} id="webhook-form" phx-change="validate" phx-submit="save">
-        <.dialog_body>
+        <Dialog.form_body>
           <div class="flex flex-col gap-4">
             <.text_field field={@form[:url]} type="url" label="URL" mono placeholder="https://example.com/nerves-hub/events" autocomplete="off" />
             <.text_field field={@form[:description]} label="Name" placeholder="Data warehouse ingest">
@@ -300,14 +307,14 @@
             One not answered with a 2xx is retried for about two and a half hours. An endpoint that accepts nothing for a day,
             or answers <code>410 Gone</code>, is turned off, and each product it was sending events for is told so.
           </p>
-        </.dialog_body>
+        </Dialog.form_body>
 
-        <.dialog_footer dialog="webhook-dialog">
+        <Dialog.form_footer dialog="webhook-dialog">
           <.button style="primary" type="submit" phx-disable-with="Saving…">
             {if @editing == :new, do: "Add webhook", else: "Save webhook"}
           </.button>
-        </.dialog_footer>
+        </Dialog.form_footer>
       </.form>
-    </.dialog>
+    </Dialog.form_dialog>
   </section>
 </NervesHubWeb.Layouts.org>

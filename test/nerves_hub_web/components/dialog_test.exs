@@ -154,4 +154,76 @@ defmodule NervesHubWeb.Components.DialogTest do
       refute wide |> LazyHTML.query("#ask-container.sm\\:max-w-120") |> Enum.empty?()
     end
   end
+
+  describe "form_dialog/1" do
+    test "holds a form under its title, with Cancel before the form's own button" do
+      html =
+        render(%{}, fn assigns ->
+          ~H"""
+          <Dialog.form_dialog id="edit" title="Edit release 7" on_cancel={JS.push("close")}>
+            <:subtitle>2.4.1 · Battery saver</:subtitle>
+            <form id="edit-form">
+              <Dialog.form_body><input name="name" /></Dialog.form_body>
+              <Dialog.form_footer dialog="edit">
+                <:start><button id="remove">Remove connecting code</button></:start>
+                <button id="save" type="submit">Save changes</button>
+              </Dialog.form_footer>
+            </form>
+          </Dialog.form_dialog>
+          """
+        end)
+
+      assert html |> LazyHTML.query("#edit-title") |> LazyHTML.text() == "Edit release 7"
+      assert html |> LazyHTML.query("#edit-title + #edit-subtitle") |> LazyHTML.text() == "2.4.1 · Battery saver"
+      refute html |> LazyHTML.query("[role=dialog][aria-describedby='edit-subtitle']") |> Enum.empty?()
+      refute html |> LazyHTML.query("#edit-content #edit-form input[name=name]") |> Enum.empty?()
+
+      footer = LazyHTML.query(html, "#edit-form > div:last-child")
+
+      assert footer |> LazyHTML.query("button") |> Enum.map(&String.trim(LazyHTML.text(&1))) == [
+               "Remove connecting code",
+               "Cancel",
+               "Save changes"
+             ]
+
+      # Cancel mustn't submit the form it sits in.
+      assert footer |> LazyHTML.query("button:not([id])") |> LazyHTML.attribute("type") == ["button"]
+      refute html |> LazyHTML.query("#edit-container button[aria-label='Close']") |> Enum.empty?()
+    end
+
+    test "puts the icon in a tile before the title, and leaves the subtitle out when it has none" do
+      html =
+        render(%{}, fn assigns ->
+          ~H"""
+          <Dialog.form_dialog id="add" title="Add a webhook" on_cancel={JS.push("cancel")} wide>
+            <:icon><span id="logo"></span></:icon>
+            <form></form>
+          </Dialog.form_dialog>
+          """
+        end)
+
+      refute html |> LazyHTML.query("#add-container span:has(> #logo) + div > #add-title") |> Enum.empty?()
+      assert html |> LazyHTML.query("#add-subtitle") |> Enum.empty?()
+      assert html |> LazyHTML.query("[role=dialog][aria-describedby]") |> Enum.empty?()
+    end
+
+    test "is 560px wide, or 600px when wide" do
+      narrow =
+        render(%{}, fn assigns ->
+          ~H|<Dialog.form_dialog id="add" title="Add" on_cancel={JS.push("cancel")}>
+  <form></form>
+</Dialog.form_dialog>|
+        end)
+
+      wide =
+        render(%{}, fn assigns ->
+          ~H|<Dialog.form_dialog id="add" title="Add" on_cancel={JS.push("cancel")} wide>
+  <form></form>
+</Dialog.form_dialog>|
+        end)
+
+      refute narrow |> LazyHTML.query("#add-container.sm\\:max-w-140") |> Enum.empty?()
+      refute wide |> LazyHTML.query("#add-container.sm\\:max-w-150") |> Enum.empty?()
+    end
+  end
 end

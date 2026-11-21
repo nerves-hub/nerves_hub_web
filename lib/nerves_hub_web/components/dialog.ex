@@ -1,14 +1,18 @@
 defmodule NervesHubWeb.Components.Dialog do
   @moduledoc """
-  The design system's dialog, for asking before an action.
+  The design system's dialogs: one for asking before an action, and one for a
+  form that adds or edits something.
 
-  It asks before something that changes every device, sends firmware to more
-  of them, or can't be undone: a title, a sentence or two, and Cancel beside
-  the action under a divider. On a phone it's a sheet from the bottom, its
-  buttons stacked across it, the action first. Forms that add or edit
-  something mostly open in dialogs of their own, such as the integration and
-  release dialogs. A short form can use this one instead, as creating an API
-  key does.
+  `confirm/1` asks before something that changes every device, sends firmware
+  to more of them, or can't be undone: a title, a sentence or two, and Cancel
+  beside the action under a divider. A short form can use it too, as creating
+  an API key does.
+
+  `form_dialog/1` holds a longer form, such as a release or an integration,
+  with `form_body/1` for its fields and `form_footer/1` for its buttons.
+
+  On a phone both are a sheet from the bottom, their buttons stacked across
+  it, the action first.
   """
   use NervesHubWeb, :component
 
@@ -106,6 +110,130 @@ defmodule NervesHubWeb.Components.Dialog do
           </.focus_wrap>
         </div>
       </div>
+    </div>
+    """
+  end
+
+  @doc """
+  A dialog a form adds or edits something in, such as a release or an
+  integration. Like `confirm/1`, it opens when it's rendered, and Escape, a
+  click outside, the close button and Cancel all run `on_cancel`, which should
+  close the form. It uses the core modal's ids, so
+  `CoreComponents.show_modal/2` and `hide_modal/2` drive it.
+
+  It hangs from the top of the page and grows downward, 560px wide, or 600px
+  when `wide`, as the integration dialogs are for their two columns of events.
+  On a phone it's a sheet from the bottom.
+
+  The content is the form, with its fields in `form_body/1` and its buttons in
+  `form_footer/1`. The `icon` slot puts a tile before the title, such as an
+  integration's service logo, and the `subtitle` slot a line under it.
+  """
+  attr(:id, :string, required: true)
+  attr(:title, :string, required: true)
+  attr(:on_cancel, JS, required: true)
+  attr(:wide, :boolean, default: false, doc: "600px from `sm` up rather than 560px")
+
+  slot(:icon, doc: "a tile before the title, such as an integration's service logo")
+  slot(:subtitle, doc: "a line under the title")
+  slot(:inner_block, required: true)
+
+  def form_dialog(assigns) do
+    ~H"""
+    <div
+      id={@id}
+      phx-mounted={CoreComponents.show_modal(@id)}
+      phx-remove={CoreComponents.hide_modal(@id)}
+      data-cancel={JS.exec(@on_cancel, "phx-remove")}
+      class="absolute z-50 hidden"
+    >
+      <div id={"#{@id}-bg"} class="fixed inset-0 bg-backdrop transition-opacity" aria-hidden="true" />
+      <div
+        class="fixed inset-0 overflow-y-auto"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={"#{@id}-title"}
+        aria-describedby={@subtitle != [] && "#{@id}-subtitle"}
+        tabindex="0"
+      >
+        <div class="flex min-h-full items-end justify-center pt-12 sm:items-start sm:px-4 sm:py-14">
+          <.focus_wrap
+            id={"#{@id}-container"}
+            phx-window-keydown={JS.exec("data-cancel", to: "##{@id}")}
+            phx-key="escape"
+            phx-click-away={JS.exec("data-cancel", to: "##{@id}")}
+            class={[
+              "relative hidden w-full rounded-t-xl border-t border-line-default bg-surface-overlay shadow-overlay transition sm:rounded-md sm:border",
+              if(@wide, do: "sm:max-w-150", else: "sm:max-w-140")
+            ]}
+          >
+            <div class="flex justify-center pt-2 pb-1 sm:hidden" aria-hidden="true">
+              <span class="h-1 w-9 rounded-full bg-line-default"></span>
+            </div>
+            <div class={[
+              "flex gap-3 border-b border-line-subtle px-4 pt-3 pb-4 sm:px-5 sm:pt-5",
+              if(@icon == [], do: "items-start", else: "items-center")
+            ]}>
+              <span :for={icon <- @icon} class="flex size-8 shrink-0 items-center justify-center rounded-lg bg-surface-muted">
+                {render_slot(icon)}
+              </span>
+              <div class="flex min-w-0 flex-1 flex-col gap-1.5 sm:gap-2">
+                <h2 id={"#{@id}-title"} class="text-card-title font-semibold wrap-break-word text-content-strong">{@title}</h2>
+                <p :if={@subtitle != []} id={"#{@id}-subtitle"} class="text-ui/5 text-content-muted">{render_slot(@subtitle)}</p>
+              </div>
+              <button
+                type="button"
+                phx-click={JS.exec("data-cancel", to: "##{@id}")}
+                aria-label="Close"
+                class={[
+                  "-mr-1.5 flex size-7 shrink-0 cursor-pointer items-center justify-center rounded text-content-faint hover:bg-surface-muted hover:text-content-strong focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring",
+                  @icon == [] && "-mt-0.5"
+                ]}
+              >
+                <span class="lucide-x--bold size-3.5" aria-hidden="true"></span>
+              </button>
+            </div>
+            <div id={"#{@id}-content"}>
+              {render_slot(@inner_block)}
+            </div>
+          </.focus_wrap>
+        </div>
+      </div>
+    </div>
+    """
+  end
+
+  @doc "A form dialog's fields, 20px apart."
+  slot(:inner_block, required: true)
+
+  def form_body(assigns) do
+    ~H"""
+    <div class="flex flex-col gap-5 p-5 max-sm:px-4">
+      {render_slot(@inner_block)}
+    </div>
+    """
+  end
+
+  @doc """
+  A form dialog's buttons: Cancel, then the form's own in `inner_block`, the
+  one that acts last. `dialog` is the dialog's id. The `start` slot holds an
+  action at the start of the row, such as removing a release's connecting
+  code, which sets its own `mr-auto`. On a phone they stack across the sheet,
+  the action first.
+  """
+  attr(:dialog, :string, required: true)
+  slot(:start, doc: "an action at the start of the row, which sets its own `mr-auto`")
+  slot(:inner_block, required: true)
+
+  def form_footer(assigns) do
+    ~H"""
+    <div class={[
+      "flex items-center justify-end gap-2 border-t border-line-subtle px-5 py-3",
+      "max-sm:flex-col-reverse max-sm:items-stretch max-sm:px-4 max-sm:pb-6 max-sm:*:h-10 max-sm:*:rounded-md max-sm:*:text-sm"
+    ]}>
+      {render_slot(@start)}
+      <.button phx-click={JS.exec("data-cancel", to: "##{@dialog}")}>Cancel</.button>
+      {render_slot(@inner_block)}
     </div>
     """
   end

@@ -49,9 +49,10 @@
     </.integration_row>
   <% end %>
 
-  <.dialog :if={@form} id="slack-dialog" service={:slack} title={dialog_title(@editing)} on_cancel={JS.push("cancel", target: @myself)}>
+  <Dialog.form_dialog :if={@form} id="slack-dialog" title={dialog_title(@editing)} on_cancel={JS.push("cancel", target: @myself)} wide>
+    <:icon><.service_logo service={:slack} class="size-4.25" /></:icon>
     <.form for={@form} id="slack-subscription-form" phx-change="validate" phx-submit="save" phx-target={@myself}>
-      <.dialog_body>
+      <Dialog.form_body>
         <div :if={match?({:new, _}, @editing)} class="flex flex-col gap-1.5">
           <label for="slack-subscription-channel" class="text-ui/4 font-medium text-content-body">Channel</label>
           <div :if={@channels.loading} class="flex h-9 items-center gap-2 text-ui text-content-muted">
@@ -77,13 +78,13 @@
 
         <.products_field form={@form} id="slack" products={@products} />
         <.events_field form={@form} id="slack" columns={@event_columns} />
-      </.dialog_body>
+      </Dialog.form_body>
 
-      <.dialog_footer dialog="slack-dialog">
+      <Dialog.form_footer dialog="slack-dialog">
         <.button style="primary" type="submit" phx-disable-with="Saving…">
           {if match?({:new, _}, @editing), do: "Add channel", else: "Save channel"}
         </.button>
-      </.dialog_footer>
+      </Dialog.form_footer>
     </.form>
-  </.dialog>
+  </Dialog.form_dialog>
 </div>
