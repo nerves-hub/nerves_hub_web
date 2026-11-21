@@ -578,7 +578,9 @@ Read in every environment.
 | `SENTRY_DSN_URL` | — | Sentry DSN. Without it, nothing is sent. |
 | `SENTRY_ENABLE_LOGGING` | `false` | Forward logs at `info` and above to Sentry, not just exceptions. |
 | `SENTRY_ENABLE_TRACING` | `false` | Send traces to Sentry via OpenTelemetry. |
-| `SENTRY_TRACING_RATE` | `0.05` | Fraction of transactions sampled. Oban's own polling queries are sampled at 1% regardless. |
+| `SENTRY_TRACING_RATE` | `0.05` | Fraction of traces kept for device connections and messages, deployment orchestrators, and queries outside any request. Health checks, static files, device heartbeats and Oban's own polling queries are never kept. See `NervesHub.Telemetry.TracesSampler`. |
+| `SENTRY_REQUEST_TRACING_RATE` | `1.0` | Fraction of traces kept for web UI and API requests and LiveView events. |
+| `SENTRY_JOB_TRACING_RATE` | `1.0` | Fraction of traces kept for Oban jobs. |
 | `OTLP_ENDPOINT` | — | Send traces to an OTLP collector over HTTP instead. Only used when `SENTRY_ENABLE_TRACING` is off; with neither set, trace export is disabled entirely. |
 | `OTLP_SAMPLER_RATIO` | — | Fraction of root traces sampled, as a float, e.g. `0.05`. Must contain a decimal point. |
 | `OTLP_AUTH_HEADER` | — | Name of an auth header to send with exports, e.g. `authorization`. |

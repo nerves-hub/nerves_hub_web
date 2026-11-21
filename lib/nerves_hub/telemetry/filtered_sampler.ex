@@ -15,6 +15,8 @@ defmodule NervesHub.Telemetry.FilteredSampler do
     "/"
   ]
 
+  # A heartbeat is the busiest thing a device does and tells nothing a trace
+  # would, and dropping its span drops the queries it makes along with it.
   @ignored_span_names [
     "Channels.DeviceSocket.heartbeat",
     "nerves_hub.repo.query:schema_migrations"
