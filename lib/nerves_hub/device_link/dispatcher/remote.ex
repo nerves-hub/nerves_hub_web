@@ -88,7 +88,10 @@ defmodule NervesHub.DeviceLink.Dispatcher.Remote do
   `:otel_propagator_text_map.inject/1` wrote it. The span opened here, named
   `DeviceLink.<function>`, is a child of the caller's span, and follows the
   caller's sampling decision: a trace the caller kept is kept here, and one it
-  dropped is dropped here too. With no trace to continue, the span starts one.
+  dropped is dropped here too. Sentry reads that decision from the trace state's
+  `sentry-sampled`, so the caller's sampler has to put it there in a form its
+  propagators send; without it, the call is sampled again here, on its own.
+  With no trace to continue, the span starts one.
   It carries the device's ids (`NervesHub.DeviceLink.DeviceInfo.trace_attributes/1`)
   when the call is about a device, and the event or extension when it's about
   one of those.

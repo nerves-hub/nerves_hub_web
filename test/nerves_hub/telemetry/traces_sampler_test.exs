@@ -71,8 +71,10 @@ defmodule NervesHub.Telemetry.TracesSamplerTest do
       end
     end
 
-    test "device heartbeats are never kept" do
-      assert TracesSampler.kind("Channels.DeviceSocket.heartbeat", %{}) == :none
+    test "device heartbeats are never kept, here or sent from a node holding the socket" do
+      for name <- ["Channels.DeviceSocket.heartbeat", "DeviceLink.heartbeat"] do
+        assert TracesSampler.kind(name, %{}) == :none
+      end
     end
 
     test "Oban's polling queries are never kept" do
