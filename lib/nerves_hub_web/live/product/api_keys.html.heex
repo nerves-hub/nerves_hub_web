@@ -120,7 +120,7 @@
     </div>
   </div>
 
-  <.dialog :if={@dialog && @dialog.kind == :create} id="create-api-key-dialog" title="Create an API key" cancel_event="cancel-dialog">
+  <Dialog.confirm :if={@dialog && @dialog.kind == :create} id="create-api-key-dialog" title="Create an API key" on_cancel={JS.push("cancel-dialog")} wide>
     <.form for={@form} id="api-key-form" phx-change="validate" phx-submit="create" class="flex flex-col gap-3.5">
       <.input
         field={@form[:name]}
@@ -135,19 +135,20 @@
     <:actions>
       <.button style="primary" type="submit" form="api-key-form">Create key</.button>
     </:actions>
-  </.dialog>
+  </Dialog.confirm>
 
-  <.dialog
+  <Dialog.confirm
     :if={@dialog && @dialog.kind == :reveal}
     id="new-api-key"
     title={"Copy the key for #{@dialog.name}"}
-    cancel_event="cancel-dialog"
-    cancel={false}
+    on_cancel={JS.push("cancel-dialog")}
+    dismissible={false}
+    wide
   >
     <p>
       This is the only time it is shown. Only a hash of it is stored, so nothing here can show it again. If it is lost, deactivate it and create another.
     </p>
-    <div class="flex items-center gap-2 rounded border border-line-default bg-surface-muted px-3 py-2.5">
+    <div class="flex items-center gap-2 rounded-card border border-line-default bg-surface-muted px-3 py-2.5">
       <code id="new-api-key-token" class="min-w-0 flex-1 font-mono text-ui break-all text-content-strong">{@dialog.token}</code>
       <button
         id="copy-new-api-key"
@@ -166,30 +167,30 @@
     <:actions>
       <.button style="primary" phx-click="cancel-dialog">I've copied it</.button>
     </:actions>
-  </.dialog>
+  </Dialog.confirm>
 
-  <.dialog
+  <Dialog.confirm
     :if={@dialog && @dialog.kind == :deactivate}
     id="deactivate-api-key"
     title={"Deactivate #{@dialog.api_key.name}?"}
-    cancel_event="cancel-dialog"
+    on_cancel={JS.push("cancel-dialog")}
+    wide
   >
     <p>Anything using this key stops working straight away, and it can't be turned back on.</p>
-    <ul class="flex flex-col gap-1.5 rounded bg-surface-muted px-3 py-2.5">
-      <li class="flex gap-2">
-        <span class="text-content-faint" aria-hidden="true">•</span>
+    <ul class="flex flex-col gap-1.5 rounded-card bg-surface-muted px-3 py-2.5 text-content-body">
+      <li class="flex items-center gap-2">
+        <.status_dot class="size-1.5 bg-content-faint" />
         <span :if={@dialog.api_key.last_used_at}>
           Last used <.local_datetime at={@dialog.api_key.last_used_at} time_zone={@time_zone} format={:medium_date} zone_label={false} />, so something may still be using it
         </span>
         <span :if={is_nil(@dialog.api_key.last_used_at)}>It has never been used</span>
       </li>
-      <li class="flex gap-2">
-        <span class="text-content-faint" aria-hidden="true">•</span>
-        <span>It stays in the list, marked deactivated</span>
+      <li class="flex items-center gap-2">
+        <.status_dot class="size-1.5 bg-content-faint" /> It stays in the list, marked deactivated
       </li>
     </ul>
     <:actions>
       <.button style="danger-solid" phx-click="deactivate" phx-value-id={@dialog.api_key.id}>Deactivate key</.button>
     </:actions>
-  </.dialog>
+  </Dialog.confirm>
 </NervesHubWeb.Layouts.sidebar>

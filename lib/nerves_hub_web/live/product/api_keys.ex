@@ -5,7 +5,8 @@ defmodule NervesHubWeb.Live.Product.ApiKeys do
   Creating one is a dialog: a name, and a role picked from a list that says
   what each role allows. It is followed by a second dialog holding the key
   itself, which is shown once and only to the person who created it. Nothing
-  else on this page can show it again, because only its hash is kept.
+  else on this page can show it again, because only its hash is kept, so that
+  dialog can only be closed with its own button.
 
   Minting a key takes `product:update`, the same permission as a shared secret.
   A custom role can hold that without the rest of manage, so the picker only
@@ -15,7 +16,7 @@ defmodule NervesHubWeb.Live.Product.ApiKeys do
 
   use NervesHubWeb, :live_view
 
-  import NervesHubWeb.Components.ProductSettings, only: [title: 1, tabs: 1, dialog: 1]
+  import NervesHubWeb.Components.ProductSettings, only: [title: 1, tabs: 1]
 
   alias NervesHub.Accounts.OrgRole
   alias NervesHub.Accounts.OrgRoles
@@ -23,6 +24,7 @@ defmodule NervesHubWeb.Live.Product.ApiKeys do
   alias NervesHub.Products.ApiKey
   alias NervesHub.Products.ApiKeys
   alias NervesHub.Products.HealthProfiles
+  alias NervesHubWeb.Components.Dialog
   alias NervesHubWeb.Components.Utils
   alias NervesHubWeb.CoreComponents
   alias NervesHubWeb.Mounts.RequireEveryDevice
@@ -157,8 +159,12 @@ defmodule NervesHubWeb.Live.Product.ApiKeys do
   # a button and a listbox rather than a `<select>`; the form carries the
   # picked value in a hidden input.
   #
-  # Escape closes the whole dialog rather than just this list: the modal
+  # Escape closes the whole dialog rather than just this list: the dialog
   # listens for it on the window, and a popover inside can't take it back.
+  #
+  # The list hangs past the dialog's footer, which doesn't clip it. On a phone
+  # the dialog is a sheet at the bottom of the screen, so it opens upwards
+  # over the name field instead, where there is room.
   defp role_field(assigns) do
     assigns =
       assign(assigns, :selected, with(%{role: role} <- role_option(assigns.groups, assigns.dialog.role), do: role))
@@ -189,7 +195,7 @@ defmodule NervesHubWeb.Live.Product.ApiKeys do
           id="api-key-role-options"
           role="listbox"
           aria-labelledby="api-key-role-label"
-          class="absolute inset-x-0 top-full z-10 mt-1 flex max-h-72 flex-col overflow-y-auto rounded-md border border-line-control bg-surface-overlay py-1.5 shadow-overlay"
+          class="absolute inset-x-0 top-full z-10 mt-1 flex max-h-72 flex-col overflow-y-auto rounded-md border border-line-control bg-surface-overlay py-1.5 shadow-overlay max-sm:top-auto max-sm:bottom-full max-sm:mt-0 max-sm:mb-1"
         >
           <div :for={{{group, options}, index} <- Enum.with_index(@groups)} class={["flex flex-col", index > 0 && "mt-1 border-t border-line-default pt-1"]}>
             <p class="px-3 py-1.5 text-label text-content-muted uppercase">{group}</p>
