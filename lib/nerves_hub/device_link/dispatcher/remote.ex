@@ -221,8 +221,6 @@ defmodule NervesHub.DeviceLink.Dispatcher.Remote do
 
   defp extensions_device_info(_extensions), do: nil
 
-  # What the span for a call carries: the device, and the event or extension
-  # the call is about.
   defp trace_attributes(function, args) do
     device =
       case device_info(function, args) do
