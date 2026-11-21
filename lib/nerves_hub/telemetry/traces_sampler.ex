@@ -27,8 +27,9 @@ defmodule NervesHub.Telemetry.TracesSampler do
       `SENTRY_TRACING_RATE` or 1%, whichever is lower. That is still enough to
       see how long inserts take, which nothing else reports.
     * `:reports` - what a device's extensions send all day: health and metrics
-      reports, alarms, and log lines, along with the health evaluation each
-      health report queues. Every device sends them every few minutes, so they
+      reports, alarms, log lines and network identities, along with the health
+      evaluation each health report queues. Every device sends them every few
+      minutes, so they
       are kept at the same rate as flushes. Told apart by the event a span
       starts with, on the extensions channel's span or on a
       `DeviceLink.extension_message` a node holding the device's socket sent
@@ -57,14 +58,17 @@ defmodule NervesHub.Telemetry.TracesSampler do
   @max_frequent_rate 0.01
 
   # What a device's extensions send by themselves, every few minutes for every
-  # device: `NervesHub.Extensions.Health`, `Metrics`, `Alarms` and `Logging`.
+  # device: `NervesHub.Extensions.Health`, `Metrics`, `Alarms`, `Logging` and
+  # `NetworkIdentity`. A network identity is only sent when it changes, but one
+  # whose details hold addresses that move changes on every poll.
   @report_events [
     "health:report",
     "metrics:report",
     "alarms:snapshot",
     "alarms:raised",
     "alarms:cleared",
-    "logging:send"
+    "logging:send",
+    "network_identity:report"
   ]
 
   @report_spans ["Channels.ExtensionsChannel.handle_in", "DeviceLink.extension_message"]

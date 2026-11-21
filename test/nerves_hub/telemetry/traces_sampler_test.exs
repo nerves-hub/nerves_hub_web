@@ -72,7 +72,8 @@ defmodule NervesHub.Telemetry.TracesSamplerTest do
             "alarms:snapshot",
             "alarms:raised",
             "alarms:cleared",
-            "logging:send"
+            "logging:send",
+            "network_identity:report"
           ] do
         assert TracesSampler.kind(name, %{"nerves_hub.channel.event": event}) == :reports
       end
@@ -83,7 +84,7 @@ defmodule NervesHub.Telemetry.TracesSamplerTest do
     end
 
     test "an extension's other messages are default" do
-      for event <- ["health:attached", "logging:attached", "geo:location:update", "network_identity:report"] do
+      for event <- ["health:attached", "logging:attached", "geo:location:update", "network_identity:attached"] do
         assert TracesSampler.kind("Channels.ExtensionsChannel.handle_in", %{"nerves_hub.channel.event": event}) ==
                  :default
       end
