@@ -1,39 +1,55 @@
 defmodule NervesHubWeb.Components.DeploymentGroupPage.Releases do
-  use NervesHubWeb, :live_component
+  @moduledoc """
+  A deployment group's Releases tab: every release the group has made, newest
+  first, and the New release and Edit release dialogs.
 
+  Each row says what the release sent (its firmware, archive, delta updates and
+  connecting code), where it stands, and who made it. Opening a row shows its
+  notes, its connecting code, and its delta updates, one sub-row per version
+  devices update from, on the table's own columns. The current release starts
+  open.
+
+  New release opens from `?new=release`, which the page header's button patches
+  to from any tab. Edit release changes what can still change on a release:
+  whether it's required, and its connecting code. Firmware, archive,
+  description and notes stay as they were released.
+  """
+  use NervesHubWeb, :live_component
+  use Gettext, backend: NervesHubWeb.Gettext
+
+  import NervesHubWeb.Components.Fleet, only: [delimited: 1, count_noun: 3]
+  import NervesHubWeb.Components.ProductList, only: [format_megabytes: 1]
   import NervesHubWeb.Helpers.FirmwareDeletion, only: [deleted_summary: 2]
 
   alias NervesHub.Archives
+  alias NervesHub.Archives.Archive
   alias NervesHub.Firmwares
   alias NervesHub.Firmwares.Firmware
   alias NervesHub.ManagedDeployments
   alias NervesHub.ManagedDeployments.DeploymentRelease
-  alias NervesHubWeb.Components.Utils
+  alias NervesHubWeb.Components.DeploymentGroups
+  alias NervesHubWeb.Components.Dialog
+  alias NervesHubWeb.Components.Switch
   alias NervesHubWeb.CoreComponents
   alias Phoenix.HTML.Form
+  alias Phoenix.HTML.FormField
   alias Phoenix.LiveView.JS
-  alias Phoenix.Naming
+
+  @description_max 100
+  @notes_max 1_000
 
   @impl Phoenix.LiveComponent
   def update(%{event: {:firmware_created, firmware}}, socket) do
-    firmwares = Firmwares.get_firmwares_for_deployment_group(socket.assigns.deployment_group)
-
     socket
-    |> assign(:firmwares, firmwares)
-    |> send_flash(
-      :notice,
+    |> refresh_firmware_choices(
       "New firmware #{firmware.version} (#{String.slice(firmware.uuid, 0..7)}) is available for selection"
     )
     |> ok()
   end
 
   def update(%{event: {:firmware_deleted, firmware}}, socket) do
-    firmwares = Firmwares.get_firmwares_for_deployment_group(socket.assigns.deployment_group)
-
     socket
-    |> assign(:firmwares, firmwares)
-    |> send_flash(
-      :notice,
+    |> refresh_firmware_choices(
       "Firmware list has been updated. Firmware #{firmware.version} (#{String.slice(firmware.uuid, 0..7)}) has been deleted by another user."
     )
     |> ok()
@@ -42,774 +58,1154 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Releases do
   def update(%{event: :delta_status_updated}, socket) do
     socket
     |> assign(:delta_counts, ManagedDeployments.release_delta_counts(socket.assigns.deployment_group))
-    |> assign_shown_deltas()
+    |> load_deltas()
     |> ok()
   end
 
+  # The page refreshes every few seconds and hands down a fresh group each time,
+  # so anything typed into a dialog is kept here rather than rebuilt: the new
+  # release's form is made when its dialog opens, and the edit form when Edit
+  # is clicked.
   def update(assigns, socket) do
-    archives = Archives.all_by_product(assigns.deployment_group.product)
-    firmwares = Firmwares.get_firmwares_for_deployment_group(assigns.deployment_group)
-
-    changeset = DeploymentRelease.new_changeset(assigns.deployment_group)
-
-    releases = ManagedDeployments.list_deployment_releases(assigns.deployment_group)
+    opening? = assigns.open_new_release and not Map.get(socket.assigns, :open_new_release, false)
 
     socket
     |> assign(assigns)
-    |> assign(:archives, archives)
-    |> assign(:firmwares, firmwares)
-    |> assign(:form, to_form(changeset))
-    |> assign(:releases, releases)
+    |> assign(:releases, ManagedDeployments.list_deployment_releases(assigns.deployment_group))
     |> assign(:delta_counts, ManagedDeployments.release_delta_counts(assigns.deployment_group))
-    |> assign(:show_rollout_options, false)
-    |> assign_new(:deltas_release, fn -> nil end)
-    |> assign_new(:deltas, fn -> [] end)
-    # Kept across updates from the parent, which would otherwise clear a release
-    # edit that's still open
-    |> assign_new(:editing_release, fn -> nil end)
-    |> assign_new(:connecting_code_form, fn -> nil end)
+    |> assign_new(:expanded, fn -> MapSet.new([assigns.deployment_group.current_deployment_release_id]) end)
+    |> assign_new(:deltas, fn -> %{} end)
+    |> assign_new(:new_form, fn -> nil end)
+    |> assign_new(:firmwares, fn -> [] end)
+    |> assign_new(:archives, fn -> [] end)
+    |> assign_new(:show_connecting_code, fn -> false end)
+    |> assign_new(:editing_id, fn -> nil end)
+    |> assign_new(:edit_form, fn -> nil end)
+    |> assign_new(:deleting_delta, fn -> nil end)
+    |> load_deltas()
+    |> then(&if(opening?, do: start_new_release(&1), else: &1))
     |> ok()
   end
 
   @impl Phoenix.LiveComponent
   def render(assigns) do
+    assigns =
+      assign(assigns,
+        rows: rows(assigns.releases),
+        any_required?: Enum.any?(assigns.releases, & &1.required),
+        editing: assigns.editing_id && Enum.find(assigns.releases, &(&1.id == assigns.editing_id))
+      )
+
     ~H"""
-    <div class="flex flex-col gap-6 p-6">
-      <div class="w-full">
-        <div class="flex flex-col rounded-card border border-line-default bg-surface-raised">
-          <div class="flex h-14 items-center justify-between border-b border-line-default px-4">
-            <div class="text-card-title text-content-strong">Release History</div>
-
-            <.button style="secondary" type="submit" phx-click={CoreComponents.show_modal("new-release")}>
-              <.icon name="add" /> Create new release
-            </.button>
-          </div>
-
-          <div :if={@releases == []} class="flex flex-col items-center justify-center gap-4 p-12">
-            <div class="text-content-muted">No releases have been created.</div>
-            <div class="text-sm text-content-faint">
-              Release history will appear here when you change the firmware version above.
-            </div>
-          </div>
-
-          <div :if={@releases != []} class="overflow-x-auto">
-            <div class="w-full">
-              <div :for={release <- @releases} class="border-b border-line-subtle hover:bg-base-800/50">
-                <div class="flex w-full">
-                  <div class="w-44 px-4 py-3 text-sm text-content-body">
-                    <div class="flex flex-col">
-                      <.local_datetime at={release.inserted_at} time_zone={@time_zone} format={:long_date} zone_label={false} />
-                      <.local_datetime at={release.inserted_at} time_zone={@time_zone} format={:time} class="text-xs text-content-faint" />
-                    </div>
-
-                    <.badge
-                      :if={release.required}
-                      id={"release-#{release.id}-required"}
-                      title="Devices that haven't reached this release are updated to it before any newer release"
-                      class="mt-2 block w-fit"
-                    >
-                      Required
-                    </.badge>
-                  </div>
-
-                  <div class="flex min-w-0 grow flex-col gap-2 px-4 py-3 text-sm">
-                    <div class="flex">
-                      <span :if={release.description} class="grow font-semibold text-content-body">
-                        {release.description}
-                      </span>
-                      <span :if={!release.description} class="grow font-medium text-content-muted">
-                        No description
-                      </span>
-
-                      <.link
-                        :if={release.notes}
-                        phx-click={CoreComponents.show_modal("release-notes-#{release.id}")}
-                        class="font-medium text-content-body underline decoration-dashed hover:decoration-solid"
-                      >
-                        Show notes
-                      </.link>
-                      <CoreComponents.modal
-                        id={"release-notes-#{release.id}"}
-                        on_cancel={Phoenix.LiveView.JS.patch(~p"/org/#{@current_scope.org}/#{@current_scope.product}/deployment_groups/#{@deployment_group}/releases")}
-                      >
-                        <div class="p-4">
-                          <h2 class="pb-5 text-section-title text-content-strong">Release notes</h2>
-                          <div class="bg-base-800/50 p-5 whitespace-break-spaces">{release.notes}</div>
-                        </div>
-                      </CoreComponents.modal>
-                    </div>
-
-                    <%!-- Wraps rather than squashes: this column is narrow, and a deleted
-                    release's firmware carries an extra badge. --%>
-                    <div class="flex flex-wrap gap-x-4 gap-y-1">
-                      <div class="flex items-center gap-1.5">
-                        <span class="text-content-muted">Firmware:</span>
-                        <span class="font-medium text-content-body">
-                          {release.firmware.version}
-                        </span>
-                        <span class="font-mono text-content-body">
-                          <.link class="underline decoration-dashed hover:decoration-solid" navigate={~p"/org/#{@current_scope.org}/#{@current_scope.product}/firmware/#{release.firmware.uuid}"}>
-                            ({String.slice(release.firmware.uuid, 0..7)})
-                          </.link>
-                        </span>
-                        <%!-- Release history outlives the firmware it names. The link still
-                        resolves — the firmware page renders its own deleted state — but
-                        without this the history reads as though the firmware is still there. --%>
-                        <.badge :if={Firmware.deleted?(release.firmware)} title={deleted_summary(release.firmware, @time_zone)}>
-                          Deleted
-                        </.badge>
-                      </div>
-
-                      <div class="text-sm whitespace-nowrap">
-                        <span class="text-content-muted">Archive:</span>
-                        <span :if={release.archive} class="font-medium text-content-body">
-                          {release.archive.version}
-                        </span>
-                        <span :if={release.archive} class="font-mono text-content-muted">
-                          <.link class="underline decoration-dashed hover:decoration-solid" navigate={~p"/org/#{@current_scope.org}/#{@current_scope.product}/archives/#{release.archive.uuid}"}>
-                            ({String.slice(release.archive.uuid, 0..7)})
-                          </.link>
-                        </span>
-                        <span :if={!release.archive} class="font-medium text-content-muted">
-                          None
-                        </span>
-                      </div>
-
-                      <div :if={@delta_counts[release.id]} class="text-sm">
-                        <span class="text-content-muted">Deltas:</span>
-                        <.link
-                          id={"release-#{release.id}-deltas"}
-                          phx-click={show_release_deltas(release, @myself)}
-                          class="font-medium text-content-body underline decoration-dashed hover:decoration-solid"
-                        >
-                          {@delta_counts[release.id].total}
-                        </.link>
-                        <span :if={@delta_counts[release.id].failed > 0} class="font-medium text-alert">
-                          ({@delta_counts[release.id].failed} failed)
-                        </span>
-                      </div>
-
-                      <div class="text-sm">
-                        <span class="text-content-muted">Connecting code:</span>
-                        <.link
-                          :if={release.connecting_code}
-                          id={"release-#{release.id}-connecting-code"}
-                          phx-click={CoreComponents.show_modal("release-connecting-code-#{release.id}")}
-                          class="font-medium text-content-body underline decoration-dashed hover:decoration-solid"
-                        >
-                          {connecting_code_mode_summary(release.connecting_code_mode)}
-                        </.link>
-                        <span :if={!release.connecting_code} class="font-medium text-content-muted">
-                          None
-                        </span>
-                        <CoreComponents.modal :if={release.connecting_code} id={"release-connecting-code-#{release.id}"}>
-                          <div class="flex flex-col gap-5 p-4">
-                            <h2 class="text-section-title text-content-strong">Connecting code</h2>
-                            <p class="text-sm text-content-muted">
-                              {connecting_code_mode_summary(release.connecting_code_mode)}. Devices running this release run it when they connect.
-                            </p>
-                            <pre class="overflow-x-auto bg-base-800/50 p-5 text-sm text-content-body">{release.connecting_code}</pre>
-                          </div>
-                        </CoreComponents.modal>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div class="flex w-54 flex-col gap-0.5 px-8 py-3 text-sm text-content-muted">
-                    <span>Released by:</span>
-                    <span :if={release.created_by}>
-                      {release.created_by.name}
-                    </span>
-                    <span :if={!release.created_by && release.created_by_api_key}>
-                      API key {release.created_by_api_key.name}
-                    </span>
-                    <span :if={!release.created_by && !release.created_by_api_key} class="text-content-faint italic">
-                      Unknown
-                    </span>
-                  </div>
-
-                  <div :if={authorized?(:"deployment_group:update", @current_scope)} class="flex items-center px-4 py-3">
-                    <.button id={"release-#{release.id}-edit"} style="secondary" type="button" phx-click={edit_release(release, @myself)}>
-                      Edit
-                    </.button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
+    <div id="deployment-group-releases" class="flex flex-col gap-3 p-4 sm:p-6">
+      <section aria-label="Releases" class="overflow-clip rounded-card border border-line-default bg-surface-raised shadow-card">
+        <div class={[
+          "h-9 border-b border-line-default bg-surface-muted px-4 text-label text-content-faint uppercase max-sm:hidden",
+          "sm:grid sm:grid-cols-[8rem_minmax(0,1fr)_11rem_11rem_1rem] sm:items-center sm:gap-x-4"
+        ]}>
+          <span>Release</span>
+          <span>What’s in it</span>
+          <span>Status</span>
+          <span>Released by</span>
         </div>
-      </div>
-      <CoreComponents.modal id="new-release" on_cancel={Phoenix.LiveView.JS.patch(~p"/org/#{@current_scope.org}/#{@current_scope.product}/deployment_groups/#{@deployment_group}/releases")}>
-        <.form :let={f} id="release-form" for={@form} phx-change="validate-release" phx-submit="update-release" phx-target={@myself}>
-          <div class="flex h-14 items-center justify-between border-b border-line-default px-4">
-            <div class="text-card-title text-content-strong">Release settings</div>
-          </div>
 
-          <div class="flex flex-col gap-6 p-4">
-            <div class="flex w-1/2 flex-col gap-6">
-              <.input
-                field={f[:description]}
-                type="text"
-                label="Description"
-                hint="Optional release description, max 100 characters."
-              />
-            </div>
+        <p :if={@releases == []} class="px-4 py-10 text-center text-ui text-content-muted">
+          No releases yet.
+        </p>
 
-            <div class="flex w-1/2 flex-col gap-6">
-              <.input
-                field={f[:firmware]}
-                value={firmware_or_archive_value(f[:firmware], NervesHub.Firmwares.Firmware)}
-                type="select"
-                options={firmware_dropdown_options(@firmwares)}
-                label="Firmware version"
-                prompt="Select a Firmware version"
-                hint="Firmware listed is the same platform and architecture as the currently selected firmware."
-              />
-            </div>
-
-            <div class="flex w-1/2 flex-col gap-6">
-              <.input
-                field={f[:archive]}
-                value={firmware_or_archive_value(f[:archive], NervesHub.Archives.Archive)}
-                type="select"
-                options={archive_dropdown_options(@archives)}
-                prompt="Select an Archive"
-                label="Additional Archive version"
-              />
-            </div>
-
-            <div class="flex w-1/2 flex-col gap-6">
-              <.input
-                field={f[:notes]}
-                type="textarea"
-                label="Notes"
-                hint="Optional release notes which describe or explain whats included in the update, max 500 characters."
-              />
-            </div>
-
-            <div class="flex w-1/2 flex-col gap-6">
-              <.input field={f[:required]} type="checkbox" label="Required release">
-                <:rich_hint>
-                  Devices that haven't reached this release are updated to it before any newer release. This can be changed later from the release history.
-                </:rich_hint>
-              </.input>
-            </div>
-
-            <.connecting_code_inputs form={f} />
-
-            <.rollout_options show_rollout_options={@show_rollout_options} myself={@myself} />
-
-            <div>
-              <.button style="primary" type="submit">
-                <.icon name="save" /> Create release
-              </.button>
-            </div>
-          </div>
-        </.form>
-      </CoreComponents.modal>
-
-      <CoreComponents.modal id="release-deltas">
-        <div :if={@deltas_release} class="flex flex-col gap-5 p-4">
-          <h2 class="text-section-title text-content-strong">Deltas for release {@deltas_release.number}</h2>
-          <p class="text-sm text-content-muted">
-            What this release's devices download instead of the whole firmware, from what each of them is running now.
-          </p>
-
-          <div class="listing">
-            <table>
-              <thead>
-                <tr>
-                  <th class="rounded-tl-card">From</th>
-                  <th>Status</th>
-                  <th>Size</th>
-                  <th>Saving</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr :for={delta <- @deltas} id={"release-delta-#{delta.id}"} class="border-b border-line-subtle last:border-0">
-                  <td>{delta.source.version}</td>
-                  <td>
-                    <div
-                      data-status={delta.status}
-                      class="data-[status=failed]:text-alert data-[status=processing]:text-warning data-[status=timed_out]:text-alert"
-                    >
-                      {if delta.status == :completed, do: "Ready", else: Naming.humanize(delta.status)}
-                    </div>
-                  </td>
-                  <td>{if delta.status == :completed, do: Sizeable.filesize(delta.size), else: "-"}</td>
-                  <td>
-                    {if delta.status == :completed, do: Sizeable.filesize(delta.target_size - delta.size), else: "-"}
-                  </td>
-                  <td>
-                    <div :if={authorized?(:"deployment_group:update", @current_scope)} class="flex items-center gap-2">
-                      <.link
-                        :if={delta.status in [:failed, :timed_out]}
-                        class="cursor-pointer text-content-body underline"
-                        phx-click="retry-delta"
-                        phx-value-id={delta.id}
-                        phx-target={@myself}
-                        data-confirm="Other deployment groups using this delta are affected as well. Continue?"
-                      >
-                        Retry
-                      </.link>
-                      <.link
-                        :if={delta.status in [:failed, :timed_out, :completed]}
-                        class="cursor-pointer text-content-body underline"
-                        phx-click="delete-delta"
-                        phx-value-id={delta.id}
-                        phx-target={@myself}
-                        data-confirm="Other deployment groups using this delta are affected as well. Continue?"
-                      >
-                        Delete
-                      </.link>
-                      <span :if={delta.status == :processing}>-</span>
-                    </div>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
+        <div :for={{release, replaced_at} <- @rows} id={"release-#{release.id}"} class="border-b border-line-subtle last:border-0">
+          <.summary
+            release={release}
+            replaced_at={replaced_at}
+            current?={release.id == @deployment_group.current_deployment_release_id}
+            open?={MapSet.member?(@expanded, release.id)}
+            entry={@entry}
+            delta_counts={@delta_counts[release.id]}
+            time_zone={@time_zone}
+            myself={@myself}
+          />
+          <.details
+            :if={MapSet.member?(@expanded, release.id)}
+            release={release}
+            deltas={Map.get(@deltas, release.id, [])}
+            current_scope={@current_scope}
+            time_zone={@time_zone}
+            myself={@myself}
+          />
         </div>
-      </CoreComponents.modal>
+      </section>
 
-      <CoreComponents.modal id="edit-release">
-        <div :if={@editing_release}>
-          <div class="flex h-14 items-center justify-between border-b border-line-default px-4">
-            <div class="text-card-title text-content-strong">Edit release {@editing_release.number}</div>
-          </div>
+      <p :if={@any_required?} class="flex items-center gap-2 text-xs text-content-muted">
+        <.badge tone="warning">Required</.badge>
+        A device that hasn’t reached a required release gets it before any newer one.
+      </p>
 
-          <div class="flex flex-col gap-3 border-b border-line-default p-4">
-            <div class="text-sm font-medium text-content-strong">Required release</div>
-            <p class="text-sm text-content-muted">
-              {if @editing_release.required, do: "This release is required.", else: "This release isn't required."} Devices that haven't reached a required release are updated to it before any newer release.
-            </p>
-            <div>
+      <.new_release_dialog
+        :if={@open_new_release && @new_form}
+        form={@new_form}
+        deployment_group={@deployment_group}
+        entry={@entry}
+        firmwares={@firmwares}
+        archives={@archives}
+        show_connecting_code={@show_connecting_code}
+        current_scope={@current_scope}
+        myself={@myself}
+      />
+
+      <.edit_release_dialog :if={@editing && @edit_form} release={@editing} form={@edit_form} myself={@myself} />
+
+      <.delete_delta_dialog :if={@deleting_delta} delta={@deleting_delta} myself={@myself} />
+    </div>
+    """
+  end
+
+  attr(:release, DeploymentRelease, required: true)
+  attr(:replaced_at, :any, required: true)
+  attr(:current?, :boolean, required: true)
+  attr(:open?, :boolean, required: true)
+  attr(:entry, :map, required: true)
+  attr(:delta_counts, :map, default: nil)
+  attr(:time_zone, :string, required: true)
+  attr(:myself, :any, required: true)
+
+  defp summary(assigns) do
+    ~H"""
+    <button
+      type="button"
+      phx-click="toggle-release"
+      phx-value-id={@release.id}
+      phx-target={@myself}
+      aria-expanded={to_string(@open?)}
+      aria-controls={"release-#{@release.id}-details"}
+      class={[
+        "relative flex w-full cursor-pointer flex-col gap-2 px-4 py-2.5 text-left hover:bg-surface-muted sm:min-h-13",
+        "focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-focus-ring",
+        "sm:grid sm:grid-cols-[8rem_minmax(0,1fr)_11rem_11rem_1rem] sm:items-start sm:gap-x-4 sm:gap-y-0"
+      ]}
+    >
+      <span class="flex flex-col gap-0.5 max-sm:pr-8">
+        <span class="flex flex-wrap items-center gap-x-2 gap-y-1">
+          <span class="font-mono text-ui/4 font-medium text-content-strong">{@release.firmware.version}</span>
+          <.badge :if={@release.required} id={"release-#{@release.id}-required"} tone="warning">Required</.badge>
+          <.badge :if={Firmware.deleted?(@release.firmware)} id={"release-#{@release.id}-deleted"}>Deleted</.badge>
+        </span>
+        <span class="text-xs/4 text-content-muted">Release {@release.number}</span>
+      </span>
+
+      <span class="flex min-w-0 flex-col gap-0.5">
+        <span :if={present?(@release.description)} class="text-ui/4 font-medium wrap-break-word text-content-strong">{@release.description}</span>
+        <span :if={!present?(@release.description)} class="text-ui/4 text-content-faint">No description</span>
+        <span class="text-xs/4 text-content-muted">
+          <.contents release={@release} delta_counts={@delta_counts} />
+        </span>
+      </span>
+
+      <span class="text-ui/4 text-content-muted">
+        <DeploymentGroups.status_badge :if={@current?} status={@entry.status} />
+        <span :if={!@current? && @replaced_at}>Replaced {day_label(@replaced_at, @time_zone)}</span>
+      </span>
+
+      <span class="flex flex-col gap-0.5 max-sm:flex-row max-sm:gap-1">
+        <span :if={@release.created_by} class="text-ui/4 text-content-strong">{@release.created_by.name}</span>
+        <span :if={!@release.created_by && @release.created_by_api_key} class="text-ui/4 text-content-strong">
+          API key {@release.created_by_api_key.name}
+        </span>
+        <span :if={!@release.created_by && !@release.created_by_api_key} class="text-ui/4 text-content-faint">Unknown</span>
+        <span class="text-xs/4 text-content-muted max-sm:text-ui/4">
+          <span class="sm:hidden">· </span>{to_local_string(@release.inserted_at, @time_zone, :short_datetime, false)}
+        </span>
+      </span>
+
+      <span
+        class={[
+          "lucide-chevron-down size-4 text-content-faint transition-transform max-sm:absolute max-sm:top-3 max-sm:right-4",
+          @open? && "rotate-180"
+        ]}
+        aria-hidden="true"
+      ></span>
+    </button>
+    """
+  end
+
+  attr(:release, DeploymentRelease, required: true)
+  attr(:delta_counts, :map, default: nil)
+
+  # "Archive 1.6.0 · 2 delta updates, 1 failed · Connecting code", or
+  # "Firmware only" for a release that sent nothing else.
+  defp contents(assigns) do
+    parts =
+      Enum.reject(
+        [
+          assigns.release.archive && :archive,
+          assigns.delta_counts && :deltas,
+          present?(assigns.release.connecting_code) && :connecting_code
+        ],
+        &(&1 in [nil, false])
+      )
+
+    assigns = assign(assigns, :parts, parts)
+
+    ~H"""
+    <span :if={@parts == []}>Firmware only</span>
+    <%= for {part, index} <- Enum.with_index(@parts) do %>
+      <span :if={index > 0}> · </span><.content_part part={part} release={@release} delta_counts={@delta_counts} />
+    <% end %>
+    """
+  end
+
+  attr(:part, :atom, required: true)
+  attr(:release, DeploymentRelease, required: true)
+  attr(:delta_counts, :map, default: nil)
+
+  defp content_part(%{part: :archive} = assigns) do
+    ~H"""
+    <span>Archive <span class="font-mono">{@release.archive.version}</span></span>
+    """
+  end
+
+  defp content_part(%{part: :deltas} = assigns) do
+    ~H"""
+    <span id={"release-#{@release.id}-delta-count"}>
+      {ngettext("1 delta update", "%{count} delta updates", @delta_counts.total)}<span :if={@delta_counts.failed > 0}>, <span class="text-alert-content">{delimited(@delta_counts.failed)} failed</span></span>
+    </span>
+    """
+  end
+
+  defp content_part(%{part: :connecting_code} = assigns) do
+    ~H"""
+    <span>Connecting code</span>
+    """
+  end
+
+  attr(:release, DeploymentRelease, required: true)
+  attr(:deltas, :list, required: true)
+  attr(:current_scope, :map, required: true)
+  attr(:time_zone, :string, required: true)
+  attr(:myself, :any, required: true)
+
+  defp details(assigns) do
+    ~H"""
+    <div
+      id={"release-#{@release.id}-details"}
+      class="px-4 pb-4 sm:grid sm:grid-cols-[8rem_minmax(0,1fr)_11rem_11rem_1rem] sm:gap-x-4"
+    >
+      <div class="flex min-w-0 flex-col gap-4 sm:col-span-3 sm:col-start-2">
+        <div :if={present?(@release.notes)} class="flex flex-col gap-1.5">
+          <span class="text-xs/4 text-content-muted">Notes</span>
+          <p class="max-w-160 text-ui/5 whitespace-pre-line text-content-body">{@release.notes}</p>
+        </div>
+
+        <div :if={present?(@release.connecting_code)} class="flex max-w-160 flex-col gap-1.5">
+          <span id={"release-#{@release.id}-connecting-code"} class="text-xs/4 text-content-muted">
+            Connecting code · {connecting_code_mode_summary(@release.connecting_code_mode)}
+          </span>
+          <pre class="overflow-x-auto rounded-card border border-line-default bg-surface-muted px-3 py-2.5 font-mono text-xs/5 text-content-strong">{@release.connecting_code}</pre>
+        </div>
+
+        <div :if={@deltas != []} id={"release-#{@release.id}-deltas"} class="flex flex-col">
+          <span class="pb-1.5 text-xs/4 text-content-muted">Delta updates</span>
+          <div
+            :for={delta <- @deltas}
+            id={"release-delta-#{delta.id}"}
+            class="flex min-h-10 flex-wrap items-center gap-x-4 gap-y-1 border-t border-line-subtle py-1.5 text-ui/4 sm:grid sm:grid-cols-[minmax(0,1fr)_11rem_11rem]"
+          >
+            <span class="flex min-w-0 flex-wrap items-baseline gap-x-6 gap-y-0.5">
+              <span class="w-24 shrink-0 text-content-body">From <span class="font-mono">{delta.source.version}</span></span>
+              <.delta_detail delta={delta} firmware={@release.firmware} />
+            </span>
+            <.delta_status status={delta.status} />
+            <span :if={authorized?(:"deployment_group:update", @current_scope)} class="flex">
               <.button
-                id="edit-release-toggle-required"
-                style="secondary"
-                type="button"
-                phx-click="toggle-release-required"
-                phx-value-release_id={@editing_release.id}
+                :if={delta.status in [:failed, :timed_out]}
+                size="sm"
+                phx-click="retry-delta"
+                phx-value-id={delta.id}
                 phx-target={@myself}
-                data-confirm={required_confirmation(@editing_release)}
               >
-                {if @editing_release.required, do: "Unmark required", else: "Mark required"}
+                Retry
               </.button>
-            </div>
+              <.button
+                :if={delta.status == :completed}
+                size="sm"
+                style="danger"
+                phx-click="ask-delete-delta"
+                phx-value-id={delta.id}
+                phx-target={@myself}
+              >
+                Delete
+              </.button>
+            </span>
           </div>
+          <p :if={@release.firmware.size} class="border-t border-line-subtle pt-2 text-xs/4 text-content-muted">
+            Devices on any other version get the full <span class="font-mono">{format_megabytes(@release.firmware.size)}</span>.
+          </p>
+        </div>
 
-          <.form
-            :let={f}
-            id="connecting-code-form"
-            for={@connecting_code_form}
-            phx-change="validate-connecting-code"
-            phx-submit="save-connecting-code"
+        <div class="flex flex-wrap items-center gap-x-4 gap-y-2 pt-1">
+          <.button
+            :if={authorized?(:"deployment_group:update", @current_scope)}
+            id={"release-#{@release.id}-edit"}
+            size="sm"
+            phx-click="edit-release"
+            phx-value-id={@release.id}
             phx-target={@myself}
           >
-            <div class="flex flex-col gap-6 p-4">
-              <.connecting_code_inputs form={f} />
+            <span class="lucide-pencil" aria-hidden="true"></span> Edit release
+          </.button>
+          <span class="flex flex-wrap items-center gap-1.5 text-xs/4 text-content-muted">
+            Firmware
+            <.link
+              navigate={~p"/org/#{@current_scope.org}/#{@current_scope.product}/firmware/#{@release.firmware.uuid}"}
+              class="font-mono text-notice-content hover:underline"
+            >
+              {@release.firmware.version}
+            </.link>
+            · <span class="font-mono">{String.slice(@release.firmware.uuid, 0..7)}</span>
+            <%!-- Release history outlives the firmware it names. The link still
+            resolves, since the firmware page renders its own deleted state. --%>
+            <span :if={Firmware.deleted?(@release.firmware)} title={deleted_summary(@release.firmware, @time_zone)}>
+              · deleted
+            </span>
+          </span>
+        </div>
+      </div>
+    </div>
+    """
+  end
 
-              <div class="flex gap-2">
-                <.button style="primary" type="submit">
-                  <.icon name="save" /> Save connecting code
-                </.button>
+  attr(:delta, :map, required: true)
+  attr(:firmware, Firmware, required: true)
 
-                <.button
-                  :if={@editing_release.connecting_code}
-                  id="edit-release-remove-connecting-code"
-                  style="secondary"
-                  type="button"
-                  phx-click="remove-connecting-code"
-                  phx-target={@myself}
-                  data-confirm="Devices running this release will no longer run its connecting code when they connect. Continue?"
-                >
-                  Remove connecting code
-                </.button>
+  defp delta_detail(%{delta: %{status: :completed}} = assigns) do
+    ~H"""
+    <span class="text-xs/4 text-content-muted">
+      <span class="font-mono">{format_megabytes(@delta.size)}</span>
+      <span :if={smaller = percent_smaller(@delta)}> · {smaller}% smaller</span>
+    </span>
+    """
+  end
+
+  defp delta_detail(%{delta: %{status: :processing}} = assigns) do
+    ~H"""
+    <span class="text-xs/4 text-content-muted">Building from <span class="font-mono">{@delta.source.version}</span></span>
+    """
+  end
+
+  defp delta_detail(assigns) do
+    ~H"""
+    <span class="text-xs/4 text-content-muted">
+      Devices on <span class="font-mono">{@delta.source.version}</span>
+      get the full <span :if={@firmware.size} class="font-mono">{format_megabytes(@firmware.size)}</span><span :if={!@firmware.size}>firmware</span>
+    </span>
+    """
+  end
+
+  attr(:status, :atom, required: true)
+
+  defp delta_status(%{status: :completed} = assigns) do
+    ~H"""
+    <span class="flex items-center gap-1.5 text-content-body"><span class="lucide-circle-check--bold size-3.5 text-success" aria-hidden="true"></span>Ready</span>
+    """
+  end
+
+  defp delta_status(%{status: :processing} = assigns) do
+    ~H"""
+    <span class="flex items-center gap-1.5 text-content-body">
+      <span class="lucide-loader-circle--bold size-3.5 animate-spin text-content-muted motion-reduce:animate-none" aria-hidden="true"></span>Building
+    </span>
+    """
+  end
+
+  defp delta_status(assigns) do
+    ~H"""
+    <span class="flex items-center gap-1.5 text-content-body">
+      <span class="lucide-circle-x--bold size-3.5 text-alert" aria-hidden="true"></span>{(@status == :timed_out && "Timed out") || "Failed"}
+    </span>
+    """
+  end
+
+  attr(:form, Form, required: true)
+  attr(:deployment_group, :map, required: true)
+  attr(:entry, :map, required: true)
+  attr(:firmwares, :list, required: true)
+  attr(:archives, :list, required: true)
+  attr(:show_connecting_code, :boolean, required: true)
+  attr(:current_scope, :map, required: true)
+  attr(:myself, :any, required: true)
+
+  defp new_release_dialog(assigns) do
+    current = assigns.deployment_group.current_release
+    firmware_id = field_id(assigns.form[:firmware], Firmware)
+
+    assigns =
+      assign(assigns,
+        current: current,
+        firmware: Enum.find(assigns.firmwares, &(&1.id == firmware_id)),
+        archive_id: field_id(assigns.form[:archive], Archive)
+      )
+
+    ~H"""
+    <.release_dialog
+      id="new-release"
+      title={"New release for #{@deployment_group.name}"}
+      subtitle="The group starts sending it as soon as it’s created."
+      on_cancel={JS.patch(releases_path(@current_scope, @deployment_group))}
+    >
+      <.form :let={f} for={@form} id="release-form" phx-change="validate-release" phx-submit="create-release" phx-target={@myself}>
+        <div class="flex flex-col gap-5 p-5 max-sm:px-4">
+          <.field field={f[:firmware]} label="Firmware">
+            <:help>
+              For <span class="font-mono">{@current.firmware.platform} · {@current.firmware.architecture}</span>, newest first
+            </:help>
+            <DeploymentGroups.select_control
+              id={f[:firmware].id}
+              name={f[:firmware].name}
+              error={error?(f[:firmware])}
+              aria-describedby={"#{f[:firmware].id}-hint"}
+            >
+              <option value="">Choose firmware</option>
+              {Form.options_for_select(firmware_options(@firmwares), field_id(f[:firmware], Firmware))}
+            </DeploymentGroups.select_control>
+          </.field>
+
+          <.field field={f[:description]} label="Description">
+            <:counter>{text_length(f[:description].value)}/{description_max()}</:counter>
+            <input
+              type="text"
+              id={f[:description].id}
+              name={f[:description].name}
+              value={f[:description].value}
+              class={DeploymentGroups.field_class(error?(f[:description]))}
+            />
+          </.field>
+
+          <.field field={f[:notes]} label="Notes" optional>
+            <:counter>{text_length(f[:notes].value)}/{delimited(notes_max())}</:counter>
+            <textarea
+              id={f[:notes].id}
+              name={f[:notes].name}
+              rows="3"
+              class={DeploymentGroups.textarea_class(error?(f[:notes]))}
+            >{Form.normalize_value("textarea", f[:notes].value)}</textarea>
+          </.field>
+
+          <.field field={f[:archive]} label="Archive" optional>
+            <:help>Sent to devices along with the firmware</:help>
+            <DeploymentGroups.select_control
+              id={f[:archive].id}
+              name={f[:archive].name}
+              error={error?(f[:archive])}
+              aria-describedby={"#{f[:archive].id}-hint"}
+            >
+              <option value="">None</option>
+              {Form.options_for_select(archive_options(@archives, @current), @archive_id)}
+            </DeploymentGroups.select_control>
+          </.field>
+
+          <div class="flex flex-col rounded-card border border-line-default">
+            <.required_switch form={f} id="new-release-required" />
+            <div class="border-t border-line-subtle">
+              <button
+                type="button"
+                phx-click="toggle-new-connecting-code"
+                phx-target={@myself}
+                aria-expanded={to_string(@show_connecting_code)}
+                class="flex w-full cursor-pointer items-start gap-2.5 px-4 py-3 text-left focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-focus-ring"
+              >
+                <span class={["lucide-chevron-right size-4 text-content-faint transition-transform", @show_connecting_code && "rotate-90"]} aria-hidden="true"></span>
+                <span class="flex flex-col gap-1">
+                  <span class="text-ui/4 font-medium text-content-body">Connecting code</span>
+                  <span class="text-xs/4 text-content-muted">Elixir run in each device’s console when it first connects, with or instead of the group’s.</span>
+                </span>
+              </button>
+              <div :if={@show_connecting_code} class="flex flex-col gap-4 px-4 pb-4">
+                <.connecting_code_fields form={f} />
               </div>
             </div>
-          </.form>
+          </div>
+
+          <.what_happens entry={@entry} deployment_group={@deployment_group} firmware={@firmware} />
         </div>
-      </CoreComponents.modal>
+
+        <.dialog_footer dialog="new-release">
+          <.button style="primary" type="submit"><span class="lucide-plus" aria-hidden="true"></span> Create release</.button>
+        </.dialog_footer>
+      </.form>
+    </.release_dialog>
+    """
+  end
+
+  attr(:delta, :map, required: true)
+  attr(:myself, :any, required: true)
+
+  # A delta is built from one firmware to another and every group sending the
+  # target shares it, so deleting it here deletes it for all of them.
+  defp delete_delta_dialog(assigns) do
+    ~H"""
+    <Dialog.confirm id="delete-delta" on_cancel={JS.push("cancel-delete-delta", target: @myself)}>
+      <:heading>Delete the delta from <span class="font-mono">{@delta.source.version}</span>?</:heading>
+      <:subtitle>
+        <span class="font-mono">{@delta.source.version} → {@delta.target.version} · {format_megabytes(@delta.size)}</span>
+      </:subtitle>
+      <p>
+        Devices on <span class="font-mono text-content-strong">{@delta.source.version}</span>
+        get the full <span :if={@delta.target.size}>{format_megabytes(@delta.target.size)} of </span><span class="font-mono text-content-strong">{@delta.target.version}</span>
+        instead. Every deployment group sending <span class="font-mono text-content-strong">{@delta.target.version}</span>
+        shares this delta, so that goes for all of them.
+      </p>
+      <:actions>
+        <.button style="danger-solid" phx-click="delete-delta" phx-value-id={@delta.id} phx-target={@myself}>Delete delta</.button>
+      </:actions>
+    </Dialog.confirm>
+    """
+  end
+
+  attr(:release, DeploymentRelease, required: true)
+  attr(:form, Form, required: true)
+  attr(:myself, :any, required: true)
+
+  defp edit_release_dialog(assigns) do
+    ~H"""
+    <.release_dialog id="edit-release" title={"Edit release #{@release.number}"} on_cancel={JS.push("close-edit", target: @myself)}>
+      <:description>
+        <span class="font-mono">{@release.firmware.version}</span><span :if={present?(@release.description)}> · {@release.description}</span>
+      </:description>
+      <.form :let={f} for={@form} id="edit-release-form" phx-change="validate-edit" phx-submit="save-release" phx-target={@myself}>
+        <div class="flex flex-col gap-5 p-5 max-sm:px-4">
+          <div class="rounded-card border border-line-default">
+            <.required_switch form={f} id="edit-release-required" />
+          </div>
+
+          <.connecting_code_fields
+            form={f}
+            removing={if present?(@release.connecting_code) and not present?(f[:connecting_code].value), do: @release}
+          />
+
+          <p class="flex items-start gap-2.5 rounded-md bg-surface-muted p-3 text-ui/4.5 text-content-body">
+            <span class="mt-px lucide-lock size-4 text-notice" aria-hidden="true"></span> The firmware, archive, description and notes stay as they were released. To change those, make a new release.
+          </p>
+        </div>
+
+        <.dialog_footer dialog="edit-release">
+          <:start>
+            <.button
+              :if={present?(f[:connecting_code].value)}
+              id="edit-release-remove-connecting-code"
+              style="danger"
+              phx-click="remove-connecting-code"
+              phx-target={@myself}
+              class="mr-auto max-sm:mr-0"
+            >
+              Remove connecting code
+            </.button>
+          </:start>
+          <.button style="primary" type="submit">Save changes</.button>
+        </.dialog_footer>
+      </.form>
+    </.release_dialog>
+    """
+  end
+
+  attr(:form, Form, required: true)
+  attr(:id, :string, required: true)
+
+  defp required_switch(assigns) do
+    ~H"""
+    <div class="flex items-center justify-between gap-4 px-4 py-3">
+      <div class="flex flex-col gap-1">
+        <label for={@id} class="cursor-pointer text-ui/4 font-medium text-content-body">Required release</label>
+        <span id={"#{@id}-hint"} class="text-xs/4 text-content-muted">A device that hasn’t reached it gets it before any newer release.</span>
+      </div>
+      <input type="hidden" name={@form[:required].name} value="false" />
+      <Switch.switch
+        id={@id}
+        name={@form[:required].name}
+        value="true"
+        checked={Form.normalize_value("checkbox", @form[:required].value)}
+        aria-describedby={"#{@id}-hint"}
+      />
     </div>
     """
   end
 
   attr(:form, Form, required: true)
 
-  defp connecting_code_inputs(assigns) do
-    ~H"""
-    <div class="flex w-2/3 flex-col gap-6">
-      <.input field={@form[:connecting_code]} type="textarea" rows={6} label="Connecting code" phx-debounce="500">
-        <:rich_hint>
-          Runs when a device running this release connects. Make sure this is valid Elixir and will not crash the device.
-        </:rich_hint>
-      </.input>
-    </div>
+  attr(:removing, :any,
+    default: nil,
+    doc: "the release being edited, when saving would remove its connecting code"
+  )
 
-    <div class="flex w-1/2 flex-col gap-6">
-      <.input
-        field={@form[:connecting_code_mode]}
-        type="select"
-        options={connecting_code_mode_options()}
-        label="Run order"
-        hint="Where this code runs relative to the deployment group's connecting code. Device specific connecting code always runs last."
-      />
+  defp connecting_code_fields(assigns) do
+    ~H"""
+    <.field field={@form[:connecting_code]} label="Connecting code">
+      <:help :if={!@removing}>Elixir, run in the console when a device first connects</:help>
+      <:help :if={@removing}>
+        <span class="text-content-body">
+          Saving removes release {@removing.number}’s connecting code. Devices won’t run it when they connect.
+        </span>
+      </:help>
+      <textarea
+        id={@form[:connecting_code].id}
+        name={@form[:connecting_code].name}
+        rows="5"
+        phx-debounce="500"
+        spellcheck="false"
+        aria-describedby={"#{@form[:connecting_code].id}-hint"}
+        class={DeploymentGroups.textarea_class(error?(@form[:connecting_code]), "font-mono")}
+      >{Form.normalize_value("textarea", @form[:connecting_code].value)}</textarea>
+    </.field>
+
+    <.field field={@form[:connecting_code_mode]} label="Runs">
+      <:help>The group’s code is in its settings.</:help>
+      <DeploymentGroups.select_control
+        id={@form[:connecting_code_mode].id}
+        name={@form[:connecting_code_mode].name}
+        error={error?(@form[:connecting_code_mode])}
+        aria-describedby={"#{@form[:connecting_code_mode].id}-hint"}
+      >
+        {Form.options_for_select(connecting_code_mode_options(), @form[:connecting_code_mode].value)}
+      </DeploymentGroups.select_control>
+    </.field>
+    """
+  end
+
+  attr(:entry, :map, required: true)
+  attr(:deployment_group, :map, required: true)
+  attr(:firmware, :any, required: true)
+
+  # What creating the release sets off, from what the page already knows.
+  defp what_happens(assigns) do
+    current = assigns.deployment_group.current_release
+
+    assigns =
+      assign(assigns,
+        current: current,
+        behind: max(assigns.entry.counts.total - assigns.entry.counts.updated, 0),
+        first_step: List.first(assigns.entry.steps)
+      )
+
+    ~H"""
+    <ul id="new-release-what-happens" class="flex flex-col gap-1.5 rounded-md bg-surface-muted p-3 text-ui/4.5 text-content-body">
+      <li class="flex gap-2">
+        <span class="mt-1.75 size-1 shrink-0 rounded-full bg-content-faint" aria-hidden="true"></span>
+        <span>
+          Replaces <span class="font-mono">{@current.firmware.version}</span><.held entry={@entry} />.
+          <span :if={@behind > 0}>
+            The {count_noun(@behind, "device", "devices")} that {if @behind == 1, do: "doesn’t", else: "don’t"} have it will get <.new_version firmware={@firmware} /> instead.
+          </span>
+        </span>
+      </li>
+      <li class="flex gap-2">
+        <span class="mt-1.75 size-1 shrink-0 rounded-full bg-content-faint" aria-hidden="true"></span>
+        <span :if={@first_step}>Starts again at step 1, {DeploymentGroups.step_name(@first_step)}.</span>
+        <span :if={!@first_step}>Every device that matches gets it the next time it connects.</span>
+      </li>
+      <li class="flex gap-2">
+        <span class="mt-1.75 size-1 shrink-0 rounded-full bg-content-faint" aria-hidden="true"></span>
+        <span :if={@deployment_group.delta_updatable}>Delta updates get built from the versions the group’s devices are on.</span>
+        <span :if={!@deployment_group.delta_updatable}>Delta updates are off, so devices download the full firmware.</span>
+      </li>
+    </ul>
+    """
+  end
+
+  attr(:entry, :map, required: true)
+
+  defp held(%{entry: %{status: :awaiting_approval, awaiting_step: %{} = step}} = assigns) do
+    assigns = assign(assigns, :step, step)
+
+    ~H"""
+    , which is waiting at {DeploymentGroups.step_name(@step)}
+    """
+  end
+
+  defp held(%{entry: %{status: :stopped, failed_step: %{} = step}} = assigns) do
+    assigns = assign(assigns, :step, step)
+
+    ~H"""
+    , which stopped at {DeploymentGroups.step_name(@step)}
+    """
+  end
+
+  defp held(assigns), do: ~H""
+
+  attr(:firmware, :any, required: true)
+
+  defp new_version(%{firmware: %Firmware{}} = assigns) do
+    ~H"""
+    <span class="font-mono">{@firmware.version}</span>
+    """
+  end
+
+  defp new_version(assigns), do: ~H"the new firmware"
+
+  attr(:field, FormField, required: true)
+  attr(:label, :string, required: true)
+  attr(:optional, :boolean, default: false)
+  slot(:help, doc: "what to know about the field; the control's `aria-describedby` is the field's id with `-hint`")
+  slot(:counter, doc: "how much of its limit the value uses, at the far end under the control")
+  slot(:inner_block, required: true)
+
+  # A label over the control, the field's errors once it's been used, and what
+  # to know about it underneath.
+  defp field(assigns) do
+    ~H"""
+    <div class="flex flex-col gap-2">
+      <label for={@field.id} class="text-ui/4 font-medium text-content-body">
+        {@label}<span :if={@optional} class="font-normal text-content-muted"> · optional</span>
+      </label>
+      {render_slot(@inner_block)}
+      <DeploymentGroups.field_error :for={message <- field_errors(@field)}>{message}</DeploymentGroups.field_error>
+      <div :if={@help != [] or @counter != []} class="flex items-start gap-4 text-xs/4 text-content-muted">
+        <span :for={help <- @help} id={"#{@field.id}-hint"}>{render_slot(help)}</span>
+        <span :for={counter <- @counter} class="ml-auto font-mono tabular-nums">{render_slot(counter)}</span>
+      </div>
     </div>
     """
   end
 
-  @impl Phoenix.LiveComponent
-  @decorate requires_membership()
-  def handle_event("toggle-rollout-options", _params, socket) do
-    socket
-    |> assign(:show_rollout_options, !socket.assigns.show_rollout_options)
-    |> noreply()
-  end
+  attr(:id, :string, required: true)
+  attr(:title, :string, required: true)
+  attr(:subtitle, :string, default: nil)
+  attr(:on_cancel, JS, required: true)
+  slot(:description, doc: "a subtitle with markup, in place of `subtitle`")
+  slot(:inner_block, required: true)
 
-  @decorate requires_membership()
-  def handle_event("validate-release", %{"deployment_release" => params}, socket) do
-    %{
-      current_scope: scope,
-      deployment_group: deployment_group
-    } =
-      socket.assigns
-
-    firmware = Firmwares.get_by_id(scope.product, params["firmware"])
-    archive = Archives.get_by_id(scope.product, params["archive"])
-
-    changeset = DeploymentRelease.new_changeset(deployment_group, firmware, archive, params, scope.user)
-
-    socket
-    |> assign(:form, to_form(changeset, action: :validate))
-    |> noreply()
-  end
-
-  @decorate requires_permission(:"deployment_group:update")
-  def handle_event("update-release", %{"deployment_release" => params}, socket) do
-    %{
-      current_scope: scope,
-      deployment_group: deployment_group
-    } =
-      socket.assigns
-
-    firmware = Firmwares.get_by_id(scope.product, params["firmware"])
-    archive = Archives.get_by_id(scope.product, params["archive"])
-
-    case ManagedDeployments.create_deployment_release(deployment_group, firmware, archive, scope.user, params) do
-      {:ok, {_release, deployment_group}} ->
-        releases = ManagedDeployments.list_deployment_releases(deployment_group)
-        changeset = DeploymentRelease.new_changeset(deployment_group)
-
-        socket
-        |> assign(:deployment_group, deployment_group)
-        |> assign(:releases, releases)
-        |> assign(:form, to_form(changeset))
-        |> push_event("close-modal", %{id: "new-release"})
-        |> send_flash(:info, "Release settings updated")
-        |> noreply()
-
-      {:error, changeset} ->
-        socket
-        |> send_flash(
-          :error,
-          "An error occurred while updating the release settings. Please check the form for errors."
-        )
-        |> assign(:form, to_form(changeset))
-        |> noreply()
-    end
-  end
-
-  @decorate requires_permission(:"deployment_group:update")
-  def handle_event("toggle-release-required", %{"release_id" => release_id}, socket) do
-    %{current_scope: scope, releases: releases} = socket.assigns
-
-    release = Enum.find(releases, &(to_string(&1.id) == release_id))
-
-    case release && ManagedDeployments.set_deployment_release_required(release, !release.required, scope.user) do
-      {:ok, updated} ->
-        message =
-          if updated.required,
-            do: "Release #{updated.number} is now required",
-            else: "Release #{updated.number} is no longer required"
-
-        socket
-        |> reload_releases()
-        |> send_flash(:info, message)
-        |> noreply()
-
-      _ ->
-        socket
-        |> send_flash(:error, "The release could not be updated. Please try again.")
-        |> noreply()
-    end
-  end
-
-  @decorate requires_membership()
-  def handle_event("show-release-deltas", %{"release_id" => release_id}, socket) do
-    case Enum.find(socket.assigns.releases, &(to_string(&1.id) == to_string(release_id))) do
-      nil ->
-        noreply(socket)
-
-      release ->
-        socket
-        |> assign(:deltas_release, release)
-        |> assign(:deltas, ManagedDeployments.release_deltas(release))
-        |> noreply()
-    end
-  end
-
-  @decorate requires_permission(:"deployment_group:update")
-  def handle_event("retry-delta", %{"id" => id}, socket) do
-    %{deltas: deltas} = socket.assigns
-
-    delta = Enum.find(deltas, &(to_string(&1.id) == id))
-
-    {:ok, _} = Firmwares.retry_firmware_delta(delta)
-
-    socket
-    |> refresh_deltas()
-    |> send_flash(:info, "Building the delta from #{delta.source.version} again")
-    |> noreply()
-  end
-
-  @decorate requires_permission(:"deployment_group:update")
-  def handle_event("delete-delta", %{"id" => id}, socket) do
-    %{deltas: deltas} = socket.assigns
-
-    delta = Enum.find(deltas, &(to_string(&1.id) == id))
-
-    {:ok, _} = Firmwares.delete_firmware_delta(delta)
-
-    socket
-    |> refresh_deltas()
-    |> send_flash(:info, "Deleted the delta from #{delta.source.version}")
-    |> noreply()
-  end
-
-  @decorate requires_permission(:"deployment_group:update")
-  def handle_event("edit-release", %{"release_id" => release_id}, socket) do
-    %{releases: releases} = socket.assigns
-
-    case Enum.find(releases, &(to_string(&1.id) == to_string(release_id))) do
-      nil ->
-        noreply(socket)
-
-      release ->
-        socket
-        |> assign(:editing_release, release)
-        |> assign(:connecting_code_form, connecting_code_form(release, %{}))
-        |> noreply()
-    end
-  end
-
-  @decorate requires_membership()
-  def handle_event("validate-connecting-code", %{"release_connecting_code" => params}, socket) do
-    socket
-    |> assign(:connecting_code_form, connecting_code_form(socket.assigns.editing_release, params, :validate))
-    |> noreply()
-  end
-
-  @decorate requires_permission(:"deployment_group:update")
-  def handle_event("save-connecting-code", %{"release_connecting_code" => params}, socket) do
-    save_connecting_code(socket, params, &"Connecting code for release #{&1.number} saved")
-  end
-
-  @decorate requires_permission(:"deployment_group:update")
-  def handle_event("remove-connecting-code", _params, socket) do
-    save_connecting_code(socket, %{"connecting_code" => nil}, &"Connecting code removed from release #{&1.number}")
-  end
-
-  defp save_connecting_code(socket, params, flash_message) do
-    %{current_scope: scope, editing_release: release} = socket.assigns
-
-    case ManagedDeployments.update_deployment_release_connecting_code(release, params, scope.user) do
-      {:ok, release} ->
-        socket
-        |> reload_releases()
-        |> push_event("close-modal", %{id: "edit-release"})
-        |> send_flash(:info, flash_message.(release))
-        |> noreply()
-
-      {:error, changeset} ->
-        socket
-        |> assign(:connecting_code_form, to_form(changeset, as: :release_connecting_code))
-        |> noreply()
-    end
-  end
-
-  # The release being edited is refreshed along with the list, so an open edit
-  # modal shows the change. Its connecting code form is left alone, keeping
-  # anything typed there that hasn't been saved.
-  defp reload_releases(socket) do
-    releases = ManagedDeployments.list_deployment_releases(socket.assigns.deployment_group)
-
-    editing_release =
-      socket.assigns.editing_release &&
-        Enum.find(releases, socket.assigns.editing_release, &(&1.id == socket.assigns.editing_release.id))
-
-    socket
-    |> assign(:releases, releases)
-    |> assign(:editing_release, editing_release)
-  end
-
-  defp connecting_code_form(release, params, action \\ nil) do
-    release
-    |> DeploymentRelease.connecting_code_changeset(params)
-    |> to_form(as: :release_connecting_code, action: action)
-  end
-
-  defp connecting_code_mode_options() do
-    [
-      [key: "After the deployment group's code", value: :last],
-      [key: "Before the deployment group's code", value: :first],
-      [key: "Override the deployment group's code", value: :override]
-    ]
-  end
-
-  defp connecting_code_mode_summary(:last), do: "Runs after the group's code"
-  defp connecting_code_mode_summary(:first), do: "Runs before the group's code"
-  defp connecting_code_mode_summary(:override), do: "Overrides the group's code"
-
-  defp show_release_deltas(release, myself) do
-    %JS{}
-    |> JS.push("show-release-deltas", value: %{release_id: release.id}, target: myself)
-    |> CoreComponents.show_modal("release-deltas")
-  end
-
-  defp refresh_deltas(socket) do
-    socket
-    |> assign(:delta_counts, ManagedDeployments.release_delta_counts(socket.assigns.deployment_group))
-    |> assign_shown_deltas()
-  end
-
-  defp assign_shown_deltas(socket) do
-    case socket.assigns[:deltas_release] do
-      nil -> socket
-      release -> assign(socket, :deltas, ManagedDeployments.release_deltas(release))
-    end
-  end
-
-  defp edit_release(release, myself) do
-    %JS{}
-    |> JS.push("edit-release", value: %{release_id: release.id}, target: myself)
-    |> CoreComponents.show_modal("edit-release")
-  end
-
-  defp required_confirmation(%{required: true}) do
-    "Devices will no longer be held at this release on their way to newer ones. Continue?"
-  end
-
-  defp required_confirmation(%{required: false}) do
-    "Devices that haven't reached this release will be updated to it before any newer release. Continue?"
-  end
-
-  defp firmware_or_archive_value(form_field, mod) do
-    cond do
-      is_struct(form_field.value, Ecto.Association.NotLoaded) ->
-        nil
-
-      is_struct(form_field.value, mod) ->
-        form_field.value.id
-
-      is_struct(form_field.value, Ecto.Changeset) ->
-        form_field.value.data.id
-
-      true ->
-        form_field.value
-    end
-  end
-
-  defp firmware_dropdown_options(firmwares) do
-    firmwares
-    |> Enum.sort_by(
-      fn firmware ->
-        case Version.parse(firmware.version) do
-          {:ok, version} ->
-            version
-
-          :error ->
-            %Version{major: 0, minor: 0, patch: 0}
-        end
-      end,
-      {:desc, Version}
-    )
-    |> Enum.map(&[value: &1.id, key: firmware_display_name(&1)])
-  end
-
-  defp archive_dropdown_options(archives) do
-    archives
-    |> Enum.sort_by(
-      fn archive ->
-        case Version.parse(archive.version) do
-          {:ok, version} ->
-            version
-
-          :error ->
-            %Version{major: 0, minor: 0, patch: 0}
-        end
-      end,
-      {:desc, Version}
-    )
-    |> Enum.map(&[value: &1.id, key: archive_display_name(&1)])
-  end
-
-  defp archive_display_name(%{} = a) do
-    "#{a.version} - #{a.platform} - #{a.architecture} (#{String.slice(a.uuid, 0..7)})"
-  end
-
-  defp firmware_display_name(%Firmware{} = f) do
-    "#{f.version} - #{f.platform} - #{f.architecture} (#{String.slice(f.uuid, 0..7)})"
-  end
-
-  # keeping some code around while the feature is being developed
-  defp rollout_options(assigns) do
+  # Opens when it's rendered and closes when it's removed. It uses the core
+  # modal's ids, so `CoreComponents.show_modal/2` and `hide_modal/2` drive it.
+  # On a phone it's a sheet from the bottom.
+  defp release_dialog(assigns) do
     ~H"""
-    <div class="hidden w-full border-t border-line-default pt-6">
-      <button
-        type="button"
-        phx-click="toggle-rollout-options"
-        phx-target={@myself}
-        class="flex items-center gap-2 text-sm font-medium text-content-body hover:text-base-100"
-      >
-        <span class={["lucide-chevron-right--bold size-3 transition-transform", @show_rollout_options && "rotate-90"]} aria-hidden="true"></span> Rollout options
-      </button>
-
-      <div :if={@show_rollout_options} class="mt-4 w-1/2">
-        <.input
-          field={@form[:release_network_interfaces]}
-          type="select"
-          options={network_interface_options()}
-          multiple
-          label="Allowed network interfaces"
-          hint="Select which network interfaces devices must be on to receive this release. Leave empty to allow all interfaces."
-        />
-
-        <div class="mt-4">
-          <.input
-            field={@form[:release_tags]}
-            value={Utils.tags_to_string(@form[:release_tags])}
-            label="Release tags"
-            placeholder="eg. batch-123, production"
-            hint="Devices must have ALL of these tags to receive this release. Leave empty to allow all devices."
-          />
+    <div
+      id={@id}
+      phx-mounted={CoreComponents.show_modal(@id)}
+      phx-remove={CoreComponents.hide_modal(@id)}
+      data-cancel={JS.exec(@on_cancel, "phx-remove")}
+      class="absolute z-50 hidden"
+    >
+      <div id={"#{@id}-bg"} class="fixed inset-0 bg-backdrop transition-opacity" aria-hidden="true" />
+      <div class="fixed inset-0 overflow-y-auto" role="dialog" aria-modal="true" aria-labelledby={"#{@id}-title"} tabindex="0">
+        <div class="flex min-h-full items-end justify-center pt-12 sm:items-start sm:px-4 sm:py-14">
+          <.focus_wrap
+            id={"#{@id}-container"}
+            phx-window-keydown={JS.exec("data-cancel", to: "##{@id}")}
+            phx-key="escape"
+            phx-click-away={JS.exec("data-cancel", to: "##{@id}")}
+            class="relative hidden w-full rounded-t-xl border-t border-line-default bg-surface-overlay shadow-overlay transition sm:max-w-140 sm:rounded-md sm:border"
+          >
+            <div class="flex justify-center pt-2 pb-1 sm:hidden" aria-hidden="true">
+              <span class="h-1 w-9 rounded-full bg-line-default"></span>
+            </div>
+            <div class="flex items-start gap-3 border-b border-line-subtle px-4 pt-3 pb-4 sm:px-5 sm:pt-5">
+              <div class="flex min-w-0 flex-1 flex-col gap-1.5 sm:gap-2">
+                <h2 id={"#{@id}-title"} class="text-card-title font-semibold wrap-break-word text-content-strong">{@title}</h2>
+                <p :if={@subtitle} class="text-ui/5 text-content-muted">{@subtitle}</p>
+                <p :for={description <- @description} class="text-ui/5 text-content-muted">{render_slot(description)}</p>
+              </div>
+              <button
+                type="button"
+                phx-click={JS.exec("data-cancel", to: "##{@id}")}
+                aria-label="Close"
+                class="-mt-0.5 -mr-1.5 flex size-7 shrink-0 cursor-pointer items-center justify-center rounded text-content-faint hover:bg-surface-muted hover:text-content-strong focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
+              >
+                <span class="lucide-x--bold size-3.5" aria-hidden="true"></span>
+              </button>
+            </div>
+            <div id={"#{@id}-content"}>
+              {render_slot(@inner_block)}
+            </div>
+          </.focus_wrap>
         </div>
       </div>
     </div>
     """
   end
 
+  attr(:dialog, :string, required: true)
+  slot(:start, doc: "an action at the start of the row, which sets its own `mr-auto`")
+  slot(:inner_block, required: true)
+
+  # Cancel and the dialog's action on the right. On a phone they stack across
+  # the sheet, the action first.
+  defp dialog_footer(assigns) do
+    ~H"""
+    <div class={[
+      "flex items-center justify-end gap-2 border-t border-line-subtle px-5 py-3",
+      "max-sm:flex-col-reverse max-sm:items-stretch max-sm:px-4 max-sm:pb-6 max-sm:*:h-10 max-sm:*:rounded-md max-sm:*:text-sm"
+    ]}>
+      {render_slot(@start)}
+      <.button phx-click={JS.exec("data-cancel", to: "##{@dialog}")}>Cancel</.button>
+      {render_slot(@inner_block)}
+    </div>
+    """
+  end
+
+  @impl Phoenix.LiveComponent
+  @decorate requires_membership()
+  def handle_event("toggle-release", %{"id" => id}, socket) do
+    case find_release(socket, id) do
+      nil ->
+        noreply(socket)
+
+      release ->
+        expanded = socket.assigns.expanded
+
+        expanded =
+          if MapSet.member?(expanded, release.id),
+            do: MapSet.delete(expanded, release.id),
+            else: MapSet.put(expanded, release.id)
+
+        socket
+        |> assign(:expanded, expanded)
+        |> load_deltas()
+        |> noreply()
+    end
+  end
+
+  @decorate requires_membership()
+  def handle_event("toggle-new-connecting-code", _params, socket) do
+    socket
+    |> assign(:show_connecting_code, !socket.assigns.show_connecting_code)
+    |> noreply()
+  end
+
+  @decorate requires_membership()
+  def handle_event("validate-release", %{"deployment_release" => params}, socket) do
+    socket
+    |> assign(:new_form, new_release_form(socket, params, :validate))
+    |> noreply()
+  end
+
+  @decorate requires_permission(:"deployment_group:update")
+  def handle_event("create-release", %{"deployment_release" => params}, socket) do
+    %{current_scope: scope, deployment_group: deployment_group} = socket.assigns
+
+    firmware = Firmwares.get_by_id(scope.product, params["firmware"])
+    archive = Archives.get_by_id(scope.product, params["archive"])
+
+    case ManagedDeployments.create_deployment_release(deployment_group, firmware, archive, scope.user, params) do
+      {:ok, {release, _deployment_group}} ->
+        socket
+        |> assign(:expanded, MapSet.new([release.id]))
+        |> assign(:new_form, nil)
+        |> send_flash(:info, "Release #{release.number} created with #{firmware.version}")
+        |> push_patch(to: releases_path(scope, deployment_group))
+        |> noreply()
+
+      {:error, %Ecto.Changeset{} = changeset} ->
+        socket
+        |> assign(:new_form, to_form(changeset, action: :insert))
+        |> noreply()
+
+      {:error, _reason} ->
+        socket
+        |> send_flash(:error, "The release could not be created. Please try again.")
+        |> noreply()
+    end
+  end
+
+  @decorate requires_permission(:"deployment_group:update")
+  def handle_event("edit-release", %{"id" => id}, socket) do
+    case find_release(socket, id) do
+      nil ->
+        noreply(socket)
+
+      release ->
+        socket
+        |> assign(:editing_id, release.id)
+        |> assign(:edit_form, edit_form(release, %{}))
+        |> noreply()
+    end
+  end
+
+  @decorate requires_membership()
+  def handle_event("close-edit", _params, socket) do
+    socket
+    |> assign(:editing_id, nil)
+    |> assign(:edit_form, nil)
+    |> noreply()
+  end
+
+  @decorate requires_membership()
+  def handle_event("validate-edit", %{"release" => params}, socket) do
+    case editing_release(socket) do
+      nil -> noreply(socket)
+      release -> socket |> assign(:edit_form, edit_form(release, params, :validate)) |> noreply()
+    end
+  end
+
+  @decorate requires_permission(:"deployment_group:update")
+  def handle_event("save-release", %{"release" => params}, socket) do
+    save_release(socket, params)
+  end
+
+  # Empties the field rather than saving, so Save changes removes the code
+  # and Cancel keeps it, and nothing needs asking in a second dialog.
+  @decorate requires_permission(:"deployment_group:update")
+  def handle_event("remove-connecting-code", _params, socket) do
+    case editing_release(socket) do
+      nil ->
+        noreply(socket)
+
+      release ->
+        params = Map.put(socket.assigns.edit_form.params, "connecting_code", "")
+
+        socket
+        |> assign(:edit_form, edit_form(release, params, :validate))
+        |> noreply()
+    end
+  end
+
+  @decorate requires_permission(:"deployment_group:update")
+  def handle_event("retry-delta", %{"id" => id}, socket) do
+    case find_delta(socket, id) do
+      nil ->
+        noreply(socket)
+
+      delta ->
+        {:ok, _} = Firmwares.retry_firmware_delta(delta)
+
+        socket
+        |> refresh_deltas()
+        |> send_flash(:info, "Building the delta from #{delta.source.version} again")
+        |> noreply()
+    end
+  end
+
+  # Every group sending the release shares a delta, so deleting one asks
+  # first. Opening the dialog checks the same permission as deleting.
+  @decorate requires_permission(:"deployment_group:update")
+  def handle_event("ask-delete-delta", %{"id" => id}, socket) do
+    case find_delta(socket, id) do
+      %{status: :completed} = delta -> socket |> assign(:deleting_delta, delta) |> noreply()
+      _ -> noreply(socket)
+    end
+  end
+
+  @decorate requires_membership()
+  def handle_event("cancel-delete-delta", _params, socket) do
+    socket
+    |> assign(:deleting_delta, nil)
+    |> noreply()
+  end
+
+  @decorate requires_permission(:"deployment_group:update")
+  def handle_event("delete-delta", %{"id" => id}, socket) do
+    socket = assign(socket, :deleting_delta, nil)
+
+    case find_delta(socket, id) do
+      nil ->
+        noreply(socket)
+
+      delta ->
+        {:ok, _} = Firmwares.delete_firmware_delta(delta)
+
+        socket
+        |> refresh_deltas()
+        |> send_flash(:info, "Deleted the delta from #{delta.source.version}")
+        |> noreply()
+    end
+  end
+
+  defp save_release(socket, params) do
+    %{current_scope: scope} = socket.assigns
+
+    with %DeploymentRelease{} = release <- editing_release(socket),
+         {:ok, release} <- ManagedDeployments.update_deployment_release(release, params, scope.user) do
+      socket
+      |> assign(:releases, ManagedDeployments.list_deployment_releases(socket.assigns.deployment_group))
+      |> assign(:editing_id, nil)
+      |> assign(:edit_form, nil)
+      |> send_flash(:info, "Release #{release.number} saved")
+      |> noreply()
+    else
+      {:error, %Ecto.Changeset{} = changeset} ->
+        socket
+        |> assign(:edit_form, to_form(changeset, as: :release, action: :update))
+        |> noreply()
+
+      _ ->
+        socket
+        |> send_flash(:error, "The release could not be saved. Please try again.")
+        |> noreply()
+    end
+  end
+
+  defp start_new_release(socket) do
+    %{deployment_group: deployment_group} = socket.assigns
+    current = deployment_group.current_release
+
+    socket
+    |> assign(:firmwares, Firmwares.get_firmwares_for_deployment_group(deployment_group))
+    |> assign(:archives, Archives.all_by_product(deployment_group.product))
+    |> assign(:show_connecting_code, false)
+    |> then(fn socket ->
+      # The archive carries over from the current release, since most releases
+      # change the firmware alone.
+      assign(socket, :new_form, new_release_form(socket, %{"archive" => current && current.archive_id}))
+    end)
+  end
+
+  defp new_release_form(socket, params, action \\ nil) do
+    %{current_scope: scope, deployment_group: deployment_group} = socket.assigns
+
+    firmware = Firmwares.get_by_id(scope.product, params["firmware"])
+    archive = Archives.get_by_id(scope.product, params["archive"])
+
+    deployment_group
+    |> DeploymentRelease.new_changeset(firmware, archive, params, scope.user)
+    |> to_form(action: action)
+  end
+
+  defp refresh_firmware_choices(socket, message) do
+    if socket.assigns[:open_new_release] && socket.assigns[:new_form] do
+      socket
+      |> assign(:firmwares, Firmwares.get_firmwares_for_deployment_group(socket.assigns.deployment_group))
+      |> send_flash(:notice, message)
+    else
+      socket
+    end
+  end
+
+  defp edit_form(release, params, action \\ nil) do
+    release
+    |> DeploymentRelease.edit_changeset(params)
+    |> to_form(as: :release, action: action)
+  end
+
+  defp editing_release(socket) do
+    socket.assigns.editing_id && Enum.find(socket.assigns.releases, &(&1.id == socket.assigns.editing_id))
+  end
+
+  defp find_release(socket, id) do
+    Enum.find(socket.assigns.releases, &(to_string(&1.id) == to_string(id)))
+  end
+
+  defp find_delta(socket, id) do
+    socket.assigns.deltas
+    |> Map.values()
+    |> List.flatten()
+    |> Enum.find(&(to_string(&1.id) == to_string(id)))
+  end
+
+  defp refresh_deltas(socket) do
+    socket
+    |> assign(:delta_counts, ManagedDeployments.release_delta_counts(socket.assigns.deployment_group))
+    |> load_deltas()
+  end
+
+  # Only the releases devices are headed for have deltas, so only those that
+  # are open and counted are looked up.
+  defp load_deltas(socket) do
+    %{expanded: expanded, releases: releases, delta_counts: counts} = socket.assigns
+
+    deltas =
+      releases
+      |> Enum.filter(&(MapSet.member?(expanded, &1.id) and Map.has_key?(counts, &1.id)))
+      |> Map.new(&{&1.id, ManagedDeployments.release_deltas(&1)})
+
+    socket
+    |> assign(:deltas, deltas)
+    |> refresh_deleting_delta()
+  end
+
+  # The delete dialog closes once the delta it asks about is gone or no
+  # longer built, whoever changed it.
+  defp refresh_deleting_delta(%{assigns: %{deleting_delta: %{id: id}}} = socket) do
+    case find_delta(socket, id) do
+      %{status: :completed} = delta -> assign(socket, :deleting_delta, delta)
+      _ -> assign(socket, :deleting_delta, nil)
+    end
+  end
+
+  defp refresh_deleting_delta(socket), do: socket
+
+  # Each release beside when the next one replaced it. The list is newest
+  # first, so the newest is replaced by nothing.
+  defp rows(releases), do: Enum.zip(releases, [nil | Enum.map(releases, & &1.inserted_at)])
+
+  defp releases_path(scope, deployment_group),
+    do: ~p"/org/#{scope.org}/#{scope.product}/deployment_groups/#{deployment_group}/releases"
+
+  defp field_errors(field) do
+    if Phoenix.Component.used_input?(field),
+      do: Enum.map(field.errors, &CoreComponents.translate_error/1),
+      else: []
+  end
+
+  defp error?(field), do: field_errors(field) != []
+
+  defp field_id(field, mod) do
+    case field.value do
+      %Ecto.Association.NotLoaded{} -> nil
+      %{__struct__: ^mod, id: id} -> id
+      %Ecto.Changeset{data: %{id: id}} -> id
+      value when is_binary(value) -> parse_id(value)
+      value -> value
+    end
+  end
+
+  defp parse_id(value) do
+    case Integer.parse(value) do
+      {id, ""} -> id
+      _ -> nil
+    end
+  end
+
+  defp firmware_options(firmwares) do
+    firmwares
+    |> Enum.sort_by(&parsed_version/1, {:desc, Version})
+    |> Enum.map(fn firmware ->
+      size = firmware.size && " · #{format_megabytes(firmware.size)}"
+      [value: firmware.id, key: "#{firmware.version} · #{String.slice(firmware.uuid, 0..7)}#{size}"]
+    end)
+  end
+
+  defp archive_options(archives, current) do
+    archives
+    |> Enum.sort_by(&parsed_version/1, {:desc, Version})
+    |> Enum.map(fn archive ->
+      sent_with = current && current.archive_id == archive.id && " · the archive #{current.firmware.version} sends"
+      [value: archive.id, key: "#{archive.version} · #{String.slice(archive.uuid, 0..7)}#{sent_with || ""}"]
+    end)
+  end
+
+  defp parsed_version(%{version: version}) do
+    case Version.parse(version) do
+      {:ok, version} -> version
+      :error -> %Version{major: 0, minor: 0, patch: 0}
+    end
+  end
+
+  defp percent_smaller(%{size: size, target_size: target_size})
+       when is_integer(size) and is_integer(target_size) and target_size > 0 do
+    round((target_size - size) * 100 / target_size)
+  end
+
+  defp percent_smaller(_delta), do: nil
+
+  defp text_length(value) when is_binary(value), do: String.length(value)
+  defp text_length(_value), do: 0
+
+  defp description_max(), do: @description_max
+  defp notes_max(), do: @notes_max
+
+  defp present?(value), do: is_binary(value) and String.trim(value) != ""
+
+  defp connecting_code_mode_options() do
+    [
+      [key: "After the group’s code", value: :last],
+      [key: "Before the group’s code", value: :first],
+      [key: "Instead of the group’s code", value: :override]
+    ]
+  end
+
+  defp connecting_code_mode_summary(:last), do: "runs after the group’s code"
+  defp connecting_code_mode_summary(:first), do: "runs before the group’s code"
+  defp connecting_code_mode_summary(:override), do: "runs instead of the group’s code"
+
   defp send_flash(socket, type, message) do
     send(self(), {:flash, type, message})
     socket
-  end
-
-  defp network_interface_options() do
-    [
-      [key: "Wi-Fi", value: :wifi],
-      [key: "Ethernet", value: :ethernet],
-      [key: "Cellular", value: :cellular],
-      [key: "Unknown", value: :unknown]
-    ]
   end
 end

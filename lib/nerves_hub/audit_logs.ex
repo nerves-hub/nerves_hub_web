@@ -3,6 +3,7 @@ defmodule NervesHub.AuditLogs do
 
   alias NervesHub.Accounts.User
   alias NervesHub.AuditLogs.AuditLog
+  alias NervesHub.Devices.Device
   alias NervesHub.ManagedDeployments.DeploymentGroup
   alias NervesHub.Products.ApiKey
   alias NervesHub.Repo
@@ -121,6 +122,24 @@ defmodule NervesHub.AuditLogs do
     # you cannot order_by from a union in Ecto, but a subquery works
     # https://github.com/elixir-ecto/ecto/issues/2825#issuecomment-439725204
     from(al in subquery(union_query), order_by: [desc: al.inserted_at])
+  end
+
+  @doc """
+  The devices that wrote `logs`, keyed by id, for a feed that names the device
+  each of its entries is about. Each is a plain map of its `:identifier` and
+  whether it is `:deleted?`. A device that no longer exists is left out, so the
+  feed falls back on the description.
+  """
+  @spec actor_devices([AuditLog.t()]) :: %{integer() => %{identifier: String.t(), deleted?: boolean()}}
+  def actor_devices(logs) do
+    ids = for %{actor_type: Device, actor_id: id} <- logs, uniq: true, do: id
+
+    from(d in Device,
+      where: d.id in ^ids,
+      select: {d.id, %{identifier: d.identifier, deleted?: not is_nil(d.deleted_at)}}
+    )
+    |> Repo.all()
+    |> Map.new()
   end
 
   def format_for_csv(audit_logs) do

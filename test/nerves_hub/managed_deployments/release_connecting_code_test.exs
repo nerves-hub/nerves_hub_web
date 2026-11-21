@@ -110,13 +110,13 @@ defmodule NervesHub.ManagedDeployments.ReleaseConnectingCodeTest do
     end
   end
 
-  describe "update_deployment_release_connecting_code/3" do
+  describe "changing a release's connecting code" do
     test "changes the code devices get next time they connect, and audits it", context do
       release = add_release(context, context.next_firmware, %{connecting_code: "release"})
       device = device_on(context, context.next_firmware)
 
       assert {:ok, release} =
-               ManagedDeployments.update_deployment_release_connecting_code(
+               ManagedDeployments.update_deployment_release(
                  release,
                  %{"connecting_code" => "changed", "connecting_code_mode" => "first"},
                  context.user
@@ -133,13 +133,50 @@ defmodule NervesHub.ManagedDeployments.ReleaseConnectingCodeTest do
       release = add_release(context, context.next_firmware, %{connecting_code: "release"})
 
       assert {:error, changeset} =
-               ManagedDeployments.update_deployment_release_connecting_code(
+               ManagedDeployments.update_deployment_release(
                  release,
                  %{"connecting_code_mode" => "sometimes"},
                  context.user
                )
 
       assert {"is invalid", _} = changeset.errors[:connecting_code_mode]
+    end
+  end
+
+  describe "update_deployment_release/3" do
+    test "saves required and the connecting code at once, auditing each", context do
+      release = add_release(context, context.next_firmware, %{})
+      before = AuditLogs.logs_for(context.deployment_group)
+
+      assert {:ok, release} =
+               ManagedDeployments.update_deployment_release(
+                 release,
+                 %{"required" => "true", "connecting_code" => "changed", "connecting_code_mode" => "override"},
+                 context.user
+               )
+
+      assert release.required
+      assert release.connecting_code == "changed"
+      assert release.connecting_code_mode == :override
+
+      descriptions = Enum.map(AuditLogs.logs_for(context.deployment_group) -- before, & &1.description)
+      assert Enum.any?(descriptions, &(&1 =~ "marked release #{release.number} as required"))
+      assert Enum.any?(descriptions, &(&1 =~ "changed the connecting code for release #{release.number}"))
+      assert length(descriptions) == 2
+    end
+
+    test "audits nothing when nothing changed", context do
+      release = add_release(context, context.next_firmware, %{connecting_code: "release"})
+      before = AuditLogs.logs_for(context.deployment_group)
+
+      assert {:ok, _release} =
+               ManagedDeployments.update_deployment_release(
+                 release,
+                 %{"required" => "false", "connecting_code" => "release", "connecting_code_mode" => "last"},
+                 context.user
+               )
+
+      assert AuditLogs.logs_for(context.deployment_group) == before
     end
   end
 end

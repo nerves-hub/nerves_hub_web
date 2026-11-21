@@ -1,28 +1,46 @@
 defmodule NervesHubWeb.Live.DeploymentGroups.Show do
+  @moduledoc """
+  A deployment group's page, with its Overview, Releases, Stats, Activity and Settings tabs.
+
+  The header says what the group is releasing and to which devices, with the
+  group's status and the buttons to pause it, import devices into it from a
+  CSV, or make a new release. The Overview shows how far the current release has got: a callout when the
+  group needs someone, the rollout bar and its steps, the devices the release
+  didn't reach, and a rail with the release and how the group matches devices.
+  Its counts come from `NervesHub.ManagedDeployments.Rollout` and are reloaded
+  every few seconds while the page is open.
+  """
   use NervesHubWeb, :live_view
 
-  alias LiveFlow.Edge
-  alias LiveFlow.Handle
-  alias LiveFlow.Node
-  alias LiveFlow.State
+  import NervesHubWeb.Components.Fleet, only: [count_noun: 3]
+
+  alias NervesHub.Accounts.User
   alias NervesHub.AuditLogs.DeploymentGroupTemplates
   alias NervesHub.Devices.BulkActions
   alias NervesHub.Devices.Deployments
   alias NervesHub.Firmwares
-  alias NervesHub.FirmwareUpdates
   alias NervesHub.Helpers.Logging
   alias NervesHub.ManagedDeployments
-  alias NervesHub.ManagedDeployments.Workflows
+  alias NervesHub.ManagedDeployments.Rollout
   alias NervesHub.Products
+  alias NervesHub.Products.ApiKey
   alias NervesHubWeb.Components.DeploymentGroupPage.Activity, as: ActivityTab
+  alias NervesHubWeb.Components.DeploymentGroupPage.Dialogs
+  alias NervesHubWeb.Components.DeploymentGroupPage.Overview
   alias NervesHubWeb.Components.DeploymentGroupPage.Releases, as: ReleasesTab
   alias NervesHubWeb.Components.DeploymentGroupPage.Settings, as: SettingsTab
-  alias NervesHubWeb.Components.DeploymentGroupPage.Summary, as: SummaryTab
-  alias NervesHubWeb.Components.DeploymentGroupPage.WorkflowStepNode
+  alias NervesHubWeb.Components.DeploymentGroupPage.Stats, as: StatsTab
+  alias NervesHubWeb.Components.DeploymentGroups
   alias NervesHubWeb.Mounts.RequireEveryDevice
+  alias NimbleCSV.RFC4180, as: CSV
   alias Phoenix.Socket.Broadcast
 
   on_mount(RequireEveryDevice)
+
+  @refresh_interval to_timeout(second: 5)
+
+  # How many of the devices the release didn't reach the Overview lists.
+  @unreached_shown 5
 
   @impl Phoenix.LiveView
   @decorate requires_membership()
@@ -38,95 +56,90 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
       :ok = Products.PubSub.subscribe(product.id)
       :ok = socket.endpoint.subscribe("deployment:#{deployment_group.id}")
       :ok = socket.endpoint.subscribe("deployment_release:#{deployment_group.current_deployment_release_id}")
+      schedule_refresh()
     end
 
     socket
     |> assign(%{org: org, product: product, user: user})
     |> assign(:delta_target_firmware_ids, [])
+    |> assign(:confirm, nil)
+    |> allow_csv_import()
     |> follow_delta_targets(deployment_group)
-    |> assign(:flow, parse_workflow(deployment_group.current_release.steps))
-    |> assign_awaiting_approval(deployment_group)
     |> page_title("Deployment Group - #{deployment_group.name} - #{product.name}")
     |> sidebar_tab(:deployments)
-    |> selected_tab()
     |> assign(:deployment_group, deployment_group)
-    |> schedule_inflight_updates_updater()
+    |> selected_tab()
     |> ok()
   end
 
   @impl Phoenix.LiveView
   @decorate requires_membership()
-  def handle_params(_params, _uri, socket) do
+  def handle_params(params, _uri, socket) do
     socket
+    |> assign(
+      :open_new_release,
+      params["new"] == "release" and authorized?(:"deployment_group:update", socket.assigns.current_scope)
+    )
+    |> assign(:activity_page, ActivityTab.page_params(params))
+    |> assign(:stats_release, params["release"])
     |> selected_tab()
+    |> assign_overview()
     |> noreply()
   end
 
-  defp schedule_inflight_updates_updater(socket) do
-    if connected?(socket) do
-      Process.send_after(self(), :update_inflight_updates, 5000)
-      socket
-    else
-      socket
-    end
-  end
-
-  # Ignore events from LiveFlow
   @impl Phoenix.LiveView
-  @decorate requires_membership()
-  def handle_event("lf:" <> _, _params, socket) do
-    {:noreply, socket}
+  # Pausing stops a rollout part-way and resuming sends firmware to more
+  # devices, so both ask first. Opening the dialog checks the same permission
+  # as acting on it.
+  @decorate requires_permission(:"deployment_group:toggle")
+  def handle_event("ask-toggle", _params, socket) do
+    %{entry: entry, deployment_group: deployment_group} = socket.assigns
+    action = if deployment_group.is_active, do: :pause, else: :resume
+
+    socket
+    |> assign(:confirm, {action, entry})
+    |> noreply()
   end
 
   @decorate requires_permission(:"deployment_group:toggle")
-  def handle_event("toggle", _params, socket) do
-    %{deployment_group: deployment_group, user: user} = socket.assigns
+  def handle_event("pause", _params, socket), do: set_active(socket, false)
 
-    value = !deployment_group.is_active
+  @decorate requires_permission(:"deployment_group:toggle")
+  def handle_event("resume", _params, socket), do: set_active(socket, true)
 
-    {:ok, deployment_group} =
-      ManagedDeployments.update_deployment_group(deployment_group, %{is_active: value}, user)
-
-    active_str = if value, do: "active", else: "inactive"
-    DeploymentGroupTemplates.audit_deployment_toggle_active(user, deployment_group, active_str)
-
+  # Approving and skipping send firmware to more devices, so both ask first.
+  # Opening the dialog checks the same permission as acting on it.
+  @decorate requires_permission(:"deployment_group:update")
+  def handle_event("approve", _params, socket) do
     socket
-    |> put_flash(:info, "Deployment #{(value && "resumed") || "paused"}")
-    |> assign(:deployment_group, deployment_group)
+    |> ask(:approve, socket.assigns.entry.awaiting_step)
     |> noreply()
   end
 
   @decorate requires_permission(:"deployment_group:update")
-  def handle_event("approve-workflow-step", _params, socket) do
-    %{deployment_group: deployment_group, user: user, awaiting_approval: step} = socket.assigns
+  def handle_event("skip", _params, socket) do
+    socket
+    |> ask(:skip, socket.assigns.entry.failed_step)
+    |> noreply()
+  end
 
-    with %{} <- step,
-         {:ok, _step} <- Workflows.approve_step(deployment_group, step, user) do
-      # Approving only clears the block. The orchestrator is what completes the
-      # step and starts the next one, so nudge it rather than leaving the page
-      # looking unchanged until its next periodic run.
-      :ok = ManagedDeployments.broadcast(deployment_group, "deployments/update")
-
-      socket
-      |> assign(:awaiting_approval, nil)
-      |> put_flash(:info, "Step approved. The deployment will carry on with the next step.")
-      |> noreply()
-    else
-      # Somebody else approved or skipped it between the page rendering and the
-      # click.
-      _ -> socket |> assign(:awaiting_approval, nil) |> noreply()
-    end
+  @decorate requires_membership()
+  def handle_event("cancel-confirm", _params, socket) do
+    socket
+    |> assign(:confirm, nil)
+    |> noreply()
   end
 
   @decorate requires_permission(:"deployment_group:update")
-  def handle_event("workflow-step-retry", %{"number" => number}, socket) do
-    workflow_step_action(socket, :retry, number)
-  end
+  def handle_event("confirm-approve", _params, socket), do: act(socket, :approve)
 
   @decorate requires_permission(:"deployment_group:update")
-  def handle_event("workflow-step-skip", %{"number" => number}, socket) do
-    workflow_step_action(socket, :skip, number)
-  end
+  def handle_event("confirm-skip", _params, socket), do: act(socket, :skip)
+
+  # Retrying only offers the update again to the devices that failed it, so
+  # it runs straight away.
+  @decorate requires_permission(:"deployment_group:update")
+  def handle_event("retry", _params, socket), do: act(socket, :retry)
 
   @decorate requires_permission(:"deployment_group:delete")
   def handle_event("delete", _params, socket) do
@@ -139,6 +152,20 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
     socket
     |> put_flash(:info, "Deployment Group successfully deleted")
     |> push_navigate(to: ~p"/org/#{org}/#{product}/deployment_groups")
+    |> noreply()
+  end
+
+  @decorate requires_permission(:"device:set-deployment-group")
+  def handle_event("ask-move-in", _params, socket) do
+    socket
+    |> ask_about_devices(:move_in, :matched_outside)
+    |> noreply()
+  end
+
+  @decorate requires_permission(:"device:set-deployment-group")
+  def handle_event("ask-remove-unmatched", _params, socket) do
+    socket
+    |> ask_about_devices(:remove_unmatched, :unmatched_inside)
     |> noreply()
   end
 
@@ -160,6 +187,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
     end
 
     socket
+    |> assign(:confirm, nil)
     |> start_async(:move_devices_to_deployment, move_devices)
     |> put_flash(:info, "Moving devices to deployment, this may take a moment")
     |> noreply()
@@ -187,12 +215,91 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
     end
 
     socket
+    |> assign(:confirm, nil)
     |> start_async(:remove_devices_from_deployment, remove_devices)
     |> put_flash(:info, "Removing devices from deployment, this may take a moment")
     |> noreply()
   end
 
+  @decorate requires_membership()
+  def handle_event("validate-csv", _params, socket), do: {:noreply, socket}
+
+  @decorate requires_permission(:"device:set-deployment-group")
+  def handle_progress(:device_csv, %{done?: true} = entry, socket) do
+    %{deployment_group: deployment_group, current_scope: %{product: product, user: user}} =
+      socket.assigns
+
+    result =
+      consume_uploaded_entry(socket, entry, fn %{path: path} ->
+        {:ok, parse_identifiers_from_csv(path)}
+      end)
+
+    socket =
+      case result do
+        {:error, :invalid_csv} ->
+          put_flash(socket, :error, "CSV must have a single 'identifier' column header")
+
+        {:ok, []} ->
+          put_flash(socket, :error, "CSV contained no identifier values")
+
+        {:ok, identifiers} ->
+          socket
+          |> start_async(:import_devices_from_csv, fn ->
+            BulkActions.move_many_to_deployment_group_by_identifiers(
+              product,
+              identifiers,
+              deployment_group,
+              user
+            )
+          end)
+          |> put_flash(:info, "Importing devices from CSV, this may take a moment")
+      end
+
+    {:noreply, socket}
+  end
+
+  @decorate requires_membership()
+  def handle_progress(:device_csv, _entry, socket), do: {:noreply, socket}
+
   @impl Phoenix.LiveView
+  def handle_async(:import_devices_from_csv, {:ok, %{ok: updated, error: 0}}, socket) do
+    socket
+    |> put_flash(:info, "#{updated} devices imported from CSV into #{socket.assigns.deployment_group.name}")
+    |> reload()
+    |> noreply()
+  end
+
+  def handle_async(:import_devices_from_csv, {:ok, %{ok: updated, error: ignored}}, socket) do
+    %{deployment_group: deployment_group} = socket.assigns
+
+    :ok =
+      Logging.log_to_sentry(
+        deployment_group,
+        "There was an issue importing devices from CSV into a deployment group.",
+        %{updated_count: updated, ignored_count: ignored, deployment_group_id: deployment_group.id}
+      )
+
+    socket
+    |> put_flash(
+      :error,
+      "#{updated} devices imported into #{deployment_group.name}. However, we couldn't import #{ignored} devices. We've been notified and are looking into it."
+    )
+    |> reload()
+    |> noreply()
+  end
+
+  def handle_async(:import_devices_from_csv, {:exit, reason}, socket) do
+    %{deployment_group: deployment_group} = socket.assigns
+    :ok = Logging.log_to_sentry(deployment_group, reason)
+
+    socket
+    |> put_flash(
+      :error,
+      "There was an issue importing devices from CSV into #{deployment_group.name}. We've been notified and are looking into it."
+    )
+    |> noreply()
+  end
+
   def handle_async(:move_devices_to_deployment, {:ok, {:error, updated_count, ignored_count}}, socket) do
     %{assigns: %{deployment_group: deployment_group}} = socket
 
@@ -200,51 +307,38 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
       Logging.log_to_sentry(
         deployment_group,
         "There was an issue moving devices to a deployment group.",
-        %{
-          updated_count: updated_count,
-          ignored_count: ignored_count,
-          deployment_group_id: deployment_group.id
-        }
+        %{updated_count: updated_count, ignored_count: ignored_count, deployment_group_id: deployment_group.id}
       )
-
-    send_update(SummaryTab, id: "deployment_group_summary", event: :update_matched_devices_count)
 
     socket
     |> put_flash(
       :error,
-      "#{updated_count} devices moved to #{socket.assigns.deployment_group.name}. However, we couldn't move #{ignored_count} devices. We've been notified and are looking into it."
+      "#{updated_count} devices moved to #{deployment_group.name}. However, we couldn't move #{ignored_count} devices. We've been notified and are looking into it."
     )
+    |> reload()
     |> noreply()
   end
 
-  @impl Phoenix.LiveView
   def handle_async(:move_devices_to_deployment, {:ok, devices_updated_count}, socket) do
-    send_update(SummaryTab, id: "deployment_group_summary", event: :update_matched_devices_count)
-
     socket
-    |> put_flash(
-      :info,
-      "#{devices_updated_count} devices moved to #{socket.assigns.deployment_group.name}"
-    )
+    |> put_flash(:info, "#{devices_updated_count} devices moved to #{socket.assigns.deployment_group.name}")
+    |> reload()
     |> noreply()
   end
 
-  @impl Phoenix.LiveView
   def handle_async(:move_devices_to_deployment, {:exit, reason}, socket) do
     %{assigns: %{deployment_group: deployment_group}} = socket
     :ok = Logging.log_to_sentry(deployment_group, reason)
-
-    send_update(SummaryTab, id: "deployment_group_summary", event: :update_matched_devices_count)
 
     socket
     |> put_flash(
       :error,
       "There was an issue moving devices to #{deployment_group.name}. We've been notified and are looking into it."
     )
+    |> reload()
     |> noreply()
   end
 
-  @impl Phoenix.LiveView
   def handle_async(:remove_devices_from_deployment, {:ok, {:error, updated_count, ignored_count}}, socket) do
     %{assigns: %{deployment_group: deployment_group}} = socket
 
@@ -252,102 +346,59 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
       Logging.log_to_sentry(
         deployment_group,
         "There was an issue removing devices from a deployment group.",
-        %{
-          updated_count: updated_count,
-          ignored_count: ignored_count,
-          deployment_group_id: deployment_group.id
-        }
+        %{updated_count: updated_count, ignored_count: ignored_count, deployment_group_id: deployment_group.id}
       )
-
-    send_update(SummaryTab, id: "deployment_group_summary", event: :update_matched_devices_count)
 
     socket
     |> put_flash(
       :error,
-      "#{updated_count} devices removed from #{socket.assigns.deployment_group.name}. However, we couldn't remove #{ignored_count} devices. We've been notified and are looking into it."
+      "#{updated_count} devices removed from #{deployment_group.name}. However, we couldn't remove #{ignored_count} devices. We've been notified and are looking into it."
     )
+    |> reload()
     |> noreply()
   end
 
-  @impl Phoenix.LiveView
   def handle_async(:remove_devices_from_deployment, {:ok, devices_removed_count}, socket) do
-    send_update(SummaryTab, id: "deployment_group_summary", event: :update_matched_devices_count)
-
     socket
-    |> put_flash(
-      :info,
-      "#{devices_removed_count} devices removed from #{socket.assigns.deployment_group.name}"
-    )
+    |> put_flash(:info, "#{devices_removed_count} devices removed from #{socket.assigns.deployment_group.name}")
+    |> reload()
     |> noreply()
   end
 
-  @impl Phoenix.LiveView
   def handle_async(:remove_devices_from_deployment, {:exit, reason}, socket) do
     %{assigns: %{deployment_group: deployment_group}} = socket
     :ok = Logging.log_to_sentry(deployment_group, reason)
-
-    send_update(SummaryTab, id: "deployment_group_summary", event: :update_matched_devices_count)
 
     socket
     |> put_flash(
       :error,
       "There was an issue removing devices from #{deployment_group.name}. We've been notified and are looking into it."
     )
+    |> reload()
     |> noreply()
   end
 
   @impl Phoenix.LiveView
-  def handle_info(:update_inflight_updates, %{assigns: %{tab: :summary}} = socket) do
-    Process.send_after(self(), :update_inflight_updates, 5000)
-
-    %{assigns: %{deployment_group: deployment_group}} = socket
-
-    inflight_updates = FirmwareUpdates.inflight_updates_for(deployment_group)
-
-    send_update(SummaryTab, id: "deployment_group_summary", event: :update_inflight_info)
+  def handle_info(:refresh, socket) do
+    schedule_refresh()
 
     socket
-    |> assign(:inflight_updates, inflight_updates)
-    |> assign(:up_to_date_count, Deployments.up_to_date_count(deployment_group))
-    |> assign(:waiting_for_update_count, Deployments.waiting_for_update_count(deployment_group))
-    |> assign(:updating_count, Deployments.updating_count(deployment_group))
+    |> reload()
     |> noreply()
   end
 
-  def handle_info(:update_inflight_updates, socket) do
-    Process.send_after(self(), :update_inflight_updates, 5000)
-    noreply(socket)
-  end
-
   def handle_info(%Broadcast{event: "deployments/update"}, socket) do
-    %{assigns: %{deployment_group: deployment_group}} = socket
-
-    updated_deployment =
-      ManagedDeployments.get_by_product_and_name!(deployment_group.product, deployment_group.name, true)
-
-    send_update(SummaryTab, id: "deployment_group_summary", updated_deployment: updated_deployment)
-
     socket
-    |> follow_release_steps(deployment_group, updated_deployment)
-    |> follow_delta_targets(updated_deployment)
-    |> assign(:deployment_group, updated_deployment)
-    |> assign(:firmware, updated_deployment.current_release.firmware)
+    |> reload()
     |> noreply()
   end
 
   # A release's deltas finished, failed, or started building
   def handle_info(%Broadcast{event: "release/delta_status"}, socket) do
-    %{assigns: %{deployment_group: deployment_group}} = socket
-
-    updated_deployment =
-      ManagedDeployments.get_by_product_and_name!(deployment_group.product, deployment_group.name, true)
-
-    send_update(SummaryTab, id: "deployment_group_summary", updated_deployment: updated_deployment)
     send_update(ReleasesTab, id: "deployment_group_releases", event: :delta_status_updated)
 
     socket
-    |> follow_delta_targets(updated_deployment)
-    |> assign(:deployment_group, updated_deployment)
+    |> reload()
     |> noreply()
   end
 
@@ -369,72 +420,27 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
     {:noreply, socket}
   end
 
-  def handle_info(%Broadcast{event: "stat:logged"}, socket) do
-    send_update(SummaryTab, id: "deployment_group_summary", event: :stat_logged)
-
-    {:noreply, socket}
-  end
-
   # One delta finishing or failing usually leaves every release's status where it
   # was -- a second failure among several is still `:failed` -- so the counts have
   # to follow the deltas themselves rather than `release/delta_status`, which only
   # fires on a change.
   def handle_info(%Broadcast{topic: "firmware:" <> _, event: "delta/status_update"}, socket) do
-    send_update(SummaryTab, id: "deployment_group_summary", event: :firmware_deltas_updated)
     send_update(ReleasesTab, id: "deployment_group_releases", event: :delta_status_updated)
-    {:noreply, socket}
+
+    socket
+    |> assign_overview()
+    |> noreply()
   end
 
-  def handle_info(
-        %Broadcast{
-          topic: "deployment_release:" <> _,
-          event: "step/updated",
-          payload: %{number: number, status: status}
-        },
-        socket
-      ) do
+  def handle_info(%Broadcast{topic: "deployment_release:" <> _, event: "step/updated"}, socket) do
     socket
-    |> assign(:flow, update_step_status(socket.assigns.flow, number, status))
-    |> assign_awaiting_approval(socket.assigns.deployment_group)
+    |> reload()
     |> noreply()
   end
 
   # Ignore other broadcasts
   def handle_info(%Broadcast{}, socket) do
     {:noreply, socket}
-  end
-
-  def handle_info({:lf_node_click, _}, socket) do
-    {:noreply, socket}
-  end
-
-  # The skip control is on the step nodes, which are components of LiveFlow's own
-  # component, so what it asks for arrives here as a message rather than an event.
-  def handle_info({:workflow_step_action, action, number}, socket) do
-    workflow_step_action(socket, action, number)
-  end
-
-  # The diagram's hook is inside LiveFlow's own live_component and pushes its
-  # events there, not here, so measurements reach us through the component's
-  # `on_nodes_change` callback rather than a `handle_event`.
-  def handle_info({:workflow_nodes_changed, changes}, socket) do
-    flow = Enum.reduce(changes, socket.assigns.flow, &apply_node_change(&2, &1))
-
-    socket
-    |> assign(:flow, flow)
-    |> noreply()
-  end
-
-  @impl Phoenix.LiveView
-  def handle_info(:refresh_device_count, socket) do
-    %{assigns: %{deployment_group: deployment_group}} = socket
-
-    updated_deployment =
-      ManagedDeployments.get_by_product_and_name!(deployment_group.product, deployment_group.name, true)
-
-    socket
-    |> assign(:deployment_group, updated_deployment)
-    |> noreply()
   end
 
   @impl Phoenix.LiveView
@@ -444,24 +450,165 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
     |> noreply()
   end
 
-  defp selected_tab(socket) do
-    assign(socket, :tab, socket.assigns.live_action || :details)
+  defp schedule_refresh() do
+    _ = Process.send_after(self(), :refresh, @refresh_interval)
+    :ok
   end
 
-  # A new release carries its own steps, broadcast on its own topic. Move the
-  # subscription across and rebuild the diagram from the new steps.
-  defp follow_release_steps(socket, previous, updated) do
-    previous_id = previous.current_deployment_release_id
-    updated_id = updated.current_deployment_release_id
+  defp selected_tab(socket) do
+    assign(socket, :tab, socket.assigns.live_action || :summary)
+  end
 
-    if connected?(socket) and previous_id != updated_id do
-      :ok = socket.endpoint.unsubscribe("deployment_release:#{previous_id}")
-      :ok = socket.endpoint.subscribe("deployment_release:#{updated_id}")
+  # Importing moves devices into the deployment group, so only members who may
+  # do that get an upload configured at all, and LiveView refuses anyone else's
+  # before any of the file arrives. `handle_progress/3` checks again before
+  # importing.
+  defp allow_csv_import(socket) do
+    if authorized?(:"device:set-deployment-group", socket.assigns.current_scope) do
+      socket
+      |> assign(:csv_import?, true)
+      |> allow_upload(:device_csv,
+        accept: ~w(.csv),
+        max_entries: 1,
+        auto_upload: true,
+        progress: &handle_progress/3
+      )
+    else
+      assign(socket, :csv_import?, false)
+    end
+  end
+
+  # The group as it stands now, with a new release's topic followed in place of
+  # the old one's. Found by id, since a rename broadcasts an update too.
+  defp reload(socket) do
+    %{deployment_group: previous, product: product} = socket.assigns
+
+    deployment_group = ManagedDeployments.get_by_product_and_id!(product, previous.id)
+
+    %{current_deployment_release_id: was} = previous
+    %{current_deployment_release_id: now} = deployment_group
+
+    if connected?(socket) and was != now do
+      :ok = socket.endpoint.unsubscribe("deployment_release:#{was}")
+      :ok = socket.endpoint.subscribe("deployment_release:#{now}")
     end
 
     socket
-    |> assign(:flow, parse_workflow(updated.current_release.steps))
-    |> assign_awaiting_approval(updated)
+    |> follow_delta_targets(deployment_group)
+    |> assign(:deployment_group, deployment_group)
+    |> assign_overview()
+  end
+
+  # What the header needs on every tab, and what the Overview adds when it's
+  # the one open.
+  defp assign_overview(%{assigns: %{deployment_group: deployment_group}} = socket) do
+    [entry] = DeploymentGroups.load([deployment_group])
+
+    socket
+    |> assign(:entry, entry)
+    |> then(fn socket ->
+      if socket.assigns.tab == :summary, do: assign_overview_details(socket), else: socket
+    end)
+    |> refresh_confirm()
+  end
+
+  defp assign_overview_details(%{assigns: %{deployment_group: deployment_group}} = socket) do
+    release = deployment_group.current_release
+    matched = ManagedDeployments.matched_devices_count(deployment_group, in_deployment: true)
+
+    socket
+    |> assign(:unreached, Rollout.unreached(deployment_group, @unreached_shown))
+    |> assign(:matched_outside, ManagedDeployments.matched_devices_count(deployment_group, in_deployment: false))
+    |> assign(:unmatched_inside, max(socket.assigns.entry.counts.total - matched, 0))
+    |> assign(:deltas, Firmwares.get_deltas_by_target_firmware(release.firmware))
+    |> assign(:released_by, released_by(release))
+  end
+
+  defp released_by(release) do
+    case ManagedDeployments.release_author(release) do
+      %User{name: name} -> name
+      %ApiKey{name: name} -> "API key #{name}"
+      nil -> nil
+    end
+  end
+
+  # A dialog left open while the page refreshes shows things as they now
+  # stand, and closes once there's nothing left for it to do: the step moved
+  # on, someone else paused or resumed the group, or no devices are left to
+  # move. The device counts are only kept on the Overview, where the buttons
+  # are.
+  defp refresh_confirm(%{assigns: %{confirm: {:approve, _entry}, entry: %{awaiting_step: %{}} = entry}} = socket),
+    do: assign(socket, :confirm, {:approve, entry})
+
+  defp refresh_confirm(%{assigns: %{confirm: {:skip, _entry}, entry: %{failed_step: %{}} = entry}} = socket),
+    do: assign(socket, :confirm, {:skip, entry})
+
+  defp refresh_confirm(%{assigns: %{confirm: {:pause, _entry}, entry: %{group: %{is_active: true}} = entry}} = socket),
+    do: assign(socket, :confirm, {:pause, entry})
+
+  defp refresh_confirm(
+         %{assigns: %{confirm: {:resume, _entry}, entry: %{group: %{is_active: false}} = entry}} = socket
+       ), do: assign(socket, :confirm, {:resume, entry})
+
+  defp refresh_confirm(%{assigns: %{confirm: {:move_in, _}, tab: :summary, matched_outside: count}} = socket)
+       when count > 0, do: assign(socket, :confirm, {:move_in, count})
+
+  defp refresh_confirm(%{assigns: %{confirm: {:remove_unmatched, _}, tab: :summary, unmatched_inside: count}} = socket)
+       when count > 0, do: assign(socket, :confirm, {:remove_unmatched, count})
+
+  defp refresh_confirm(socket), do: assign(socket, :confirm, nil)
+
+  defp ask(socket, _action, nil), do: socket
+  defp ask(socket, action, _step), do: assign(socket, :confirm, {action, socket.assigns.entry})
+
+  # The counts are the Overview's, so there's nothing to ask about elsewhere.
+  defp ask_about_devices(%{assigns: %{tab: :summary}} = socket, action, count_key) do
+    case socket.assigns[count_key] do
+      count when is_integer(count) and count > 0 -> assign(socket, :confirm, {action, count})
+      _ -> socket
+    end
+  end
+
+  defp ask_about_devices(socket, _action, _count_key), do: socket
+
+  # Sets the group's state rather than flipping it, so a page left open since
+  # someone else paused or resumed the group can't undo what they did.
+  defp set_active(socket, active?) do
+    %{deployment_group: deployment_group, product: product, user: user} = socket.assigns
+    deployment_group = ManagedDeployments.get_by_product_and_id!(product, deployment_group.id)
+    socket = assign(socket, :confirm, nil)
+
+    if deployment_group.is_active == active? do
+      socket
+      |> put_flash(:info, "#{deployment_group.name} is already #{(active? && "running") || "paused"}")
+      |> reload()
+      |> noreply()
+    else
+      {:ok, _deployment_group} =
+        ManagedDeployments.update_deployment_group(deployment_group, %{is_active: active?}, user)
+
+      DeploymentGroupTemplates.audit_deployment_toggle_active(
+        user,
+        deployment_group,
+        (active? && "active") || "inactive"
+      )
+
+      socket
+      |> put_flash(:info, "Deployment group #{(active? && "resumed") || "paused"}")
+      |> reload()
+      |> noreply()
+    end
+  end
+
+  defp act(socket, action) do
+    %{deployment_group: deployment_group, user: user} = socket.assigns
+    {level, message} = DeploymentGroups.act(action, deployment_group, user)
+
+    socket
+    |> assign(:confirm, nil)
+    |> put_flash(level, message)
+    |> reload()
+    |> noreply()
   end
 
   # Deltas are built towards firmware, and announced on the target firmware's own
@@ -483,216 +630,40 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
     end
   end
 
-  defp workflow_step_action(socket, action, number) when is_binary(number) do
-    workflow_step_action(socket, action, String.to_integer(number))
-  end
+  defp parse_identifiers_from_csv(path) do
+    path
+    |> File.stream!()
+    |> CSV.parse_stream(skip_headers: false)
+    |> Enum.reduce({nil, []}, fn
+      [header], {nil, []} ->
+        if String.trim(header) == "identifier", do: {:ok, []}, else: {:error, :bad_header}
 
-  defp workflow_step_action(socket, action, number) do
-    authorized!(:"deployment_group:update", socket.assigns.current_scope)
+      [id], {:ok, acc} ->
+        {:ok, [String.trim(id) | acc]}
 
-    %{deployment_group: deployment_group} = socket.assigns
-
-    deployment_group.current_deployment_release_id
-    |> Workflows.release_steps()
-    |> Enum.find(&(&1.number == number))
+      _, {:error, _} = err ->
+        err
+    end)
     |> case do
-      nil ->
-        noreply(socket)
-
-      step ->
-        socket
-        |> apply_step_action(action, step)
-        |> assign_workflow(deployment_group)
-        |> noreply()
+      {:ok, ids} -> {:ok, Enum.reverse(ids)}
+      _ -> {:error, :invalid_csv}
     end
   end
 
-  defp apply_step_action(socket, :skip, step) do
-    %{deployment_group: deployment_group, user: user} = socket.assigns
+  defp group_path(org, product, deployment_group, tab \\ nil)
 
-    case Workflows.skip_step(deployment_group, step, user) do
-      {:ok, _skipped} ->
-        # Skipping only clears the way; the orchestrator is what moves the
-        # workflow on to the next step.
-        :ok = ManagedDeployments.broadcast(deployment_group, "deployments/update")
+  defp group_path(org, product, deployment_group, nil),
+    do: ~p"/org/#{org}/#{product}/deployment_groups/#{deployment_group}"
 
-        put_flash(socket, :info, "Step skipped. Its devices will be picked up by a later step.")
+  defp group_path(org, product, deployment_group, "releases"),
+    do: ~p"/org/#{org}/#{product}/deployment_groups/#{deployment_group}/releases"
 
-      {:error, :not_skippable} ->
-        put_flash(socket, :error, "That step can no longer be skipped.")
-    end
-  end
+  defp group_path(org, product, deployment_group, "stats"),
+    do: ~p"/org/#{org}/#{product}/deployment_groups/#{deployment_group}/stats"
 
-  defp apply_step_action(socket, :retry, step) do
-    %{deployment_group: deployment_group, user: user} = socket.assigns
+  defp group_path(org, product, deployment_group, "activity"),
+    do: ~p"/org/#{org}/#{product}/deployment_groups/#{deployment_group}/activity"
 
-    case Workflows.retry_step(deployment_group, step, user) do
-      {:ok, _retried} ->
-        :ok = ManagedDeployments.broadcast(deployment_group, "deployments/update")
-
-        put_flash(socket, :info, "Step restarted. Its devices will be offered the update again.")
-
-      {:error, :not_retryable} ->
-        put_flash(socket, :error, "Only a failed step can be retried.")
-    end
-  end
-
-  # The diagram is built from the steps as they stand, so any change to one is
-  # picked up by rebuilding it.
-  defp assign_workflow(socket, deployment_group) do
-    steps = Workflows.release_steps(deployment_group.current_deployment_release_id)
-
-    socket
-    |> assign(:flow, parse_workflow(steps))
-    |> assign_awaiting_approval(deployment_group)
-  end
-
-  # What the workflow is stopped on, if anything: a step waiting to be approved,
-  # or one that failed and is waiting to be retried or skipped.
-  defp assign_awaiting_approval(socket, deployment_group) do
-    release_id = deployment_group.current_deployment_release_id
-
-    socket
-    |> assign(:awaiting_approval, Workflows.awaiting_approval(release_id))
-    |> assign(:failed_step, Workflows.failed_step(release_id))
-  end
-
-  # A deployment group with no workflow has no flow to update.
-  defp update_step_status(nil, _number, _status), do: nil
-
-  defp update_step_status(flow, number, status) do
-    case Map.get(flow.nodes, "step-#{number}") do
-      nil ->
-        flow
-
-      node ->
-        node = %{node | data: %{node.data | status: status}}
-        %{flow | nodes: Map.put(flow.nodes, "step-#{number}", node)}
-    end
-  end
-
-  defp parse_workflow([]), do: nil
-
-  defp parse_workflow(steps) do
-    total_count = length(steps)
-
-    nodes = Enum.map(steps, &create_node(&1, total_count))
-    edges = Enum.map(steps, &create_edge(&1, total_count)) |> Enum.reject(&is_nil/1)
-
-    State.new(nodes: nodes, edges: edges)
-  end
-
-  # LiveFlow hangs a handle halfway down a node (`position.y + height / 2`) and
-  # positions nodes from their top-left, so nodes of different heights would be
-  # joined by sloping arrows. Rather than pad every node out to a common height,
-  # each one is placed so that its own middle sits on a shared centre line: a step
-  # with no description stays short, and the arrows still run level.
-  #
-  # Only the browser knows how tall a node ended up, so the heights below are a
-  # starting guess and `apply_node_change/2` re-centres each node once it reports
-  # what it measured.
-  @node_width 230
-  @node_gap 60
-  @node_centre_y 60
-
-  @estimated_height_with_description 92
-  @estimated_height 58
-
-  # `.lf-node-content` pads by 15px either side and `.lf-node` draws a 1px border.
-  # The width is pinned so the columns line up; the height is left to the content.
-  @node_padding_x 32
-
-  defp create_node(step, total_count) do
-    step_data = WorkflowStepNode.node_data(step, @node_width - @node_padding_x)
-
-    height = estimated_height(step)
-
-    node =
-      Node.new(
-        "step-#{step.number}",
-        %{x: (@node_width + @node_gap) * (step.number - 1), y: centre_offset(height)},
-        step_data,
-        type: :status,
-        draggable: "false",
-        deletable: false,
-        handles: create_handles(step, total_count)
-      )
-
-    %{node | width: @node_width, height: height}
-  end
-
-  defp estimated_height(%{description: description}) when description in [nil, ""], do: @estimated_height
-  defp estimated_height(_step), do: @estimated_height_with_description
-
-  defp centre_offset(nil), do: @node_centre_y
-  defp centre_offset(height), do: @node_centre_y - height / 2
-
-  # An edge runs from a source handle to a target handle, so a step needs one of
-  # each: the arrow leaves on the right and arrives on the left. Handles are
-  # looked up by type, and the first match wins, so making them all sources put
-  # every outgoing edge on the node's left-hand side and left every arrowhead
-  # with no target to aim at.
-  defp create_handles(%{number: 1}, _total_count) do
-    [Handle.source(:right, connectable: false)]
-  end
-
-  defp create_handles(%{number: num}, total_count) when num == total_count do
-    [Handle.target(:left, connectable: false)]
-  end
-
-  defp create_handles(_step, _total_count) do
-    [Handle.target(:left, connectable: false), Handle.source(:right, connectable: false)]
-  end
-
-  defp create_edge(%{number: num}, total_count) when num == total_count, do: nil
-
-  defp create_edge(%{number: num}, _total_count) do
-    Edge.new("e#{num}", "step-#{num}", "step-#{num + 1}",
-      selectable: false,
-      deletable: false,
-      marker_end: %{type: :arrow_closed, height: 8, width: 8, stroke_width: 0.5}
-    )
-  end
-
-  defp node_types(), do: WorkflowStepNode.node_types()
-
-  # Private helper for applying node changes
-  defp apply_node_change(flow, %{"type" => "position", "id" => id, "position" => pos} = change) do
-    case Map.get(flow.nodes, id) do
-      nil ->
-        flow
-
-      node ->
-        updated = %{node | position: %{x: pos["x"] / 1, y: pos["y"] / 1}, dragging: Map.get(change, "dragging", false)}
-        %{flow | nodes: Map.put(flow.nodes, id, updated)}
-    end
-  end
-
-  # Re-centre on the measured height. The browser reports a size only when it
-  # actually changes, so moving a node in response does not start a loop.
-  defp apply_node_change(flow, %{"type" => "dimensions", "id" => id} = change) do
-    case Map.get(flow.nodes, id) do
-      nil ->
-        flow
-
-      node ->
-        height = Map.get(change, "height")
-
-        updated = %{
-          node
-          | width: Map.get(change, "width"),
-            height: height,
-            measured: true,
-            position: %{node.position | y: centre_offset(height)}
-        }
-
-        %{flow | nodes: Map.put(flow.nodes, id, updated)}
-    end
-  end
-
-  defp apply_node_change(flow, %{"type" => "remove", "id" => id}) do
-    State.remove_node(flow, id)
-  end
-
-  defp apply_node_change(flow, _change), do: flow
+  defp group_path(org, product, deployment_group, "settings"),
+    do: ~p"/org/#{org}/#{product}/deployment_groups/#{deployment_group}/settings"
 end

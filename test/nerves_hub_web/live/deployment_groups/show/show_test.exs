@@ -38,16 +38,17 @@ defmodule NervesHubWeb.Live.DeploymentGroups.ShowTest do
     })
   end
 
-  test "handle_info :update_inflight_updates while on summary tab", %{conn: conn} do
+  test "a refresh on the Overview tab reloads the group", %{conn: conn, deployment_group: deployment_group} do
     conn
     |> unwrap(fn view ->
-      send(view.pid, :update_inflight_updates)
+      send(view.pid, :refresh)
       render(view)
     end)
-    |> assert_has("h1", exact: false)
+    |> assert_has("h1", text: deployment_group.name)
+    |> assert_has("#rollout")
   end
 
-  test "handle_info :update_inflight_updates on non-summary tab does not crash", %{
+  test "a refresh on another tab does not crash", %{
     conn: conn,
     org: org,
     product: product,
@@ -56,9 +57,10 @@ defmodule NervesHubWeb.Live.DeploymentGroups.ShowTest do
     conn
     |> visit("/org/#{org.name}/#{product.name}/deployment_groups/#{deployment_group.name}/settings")
     |> unwrap(fn view ->
-      send(view.pid, :update_inflight_updates)
+      send(view.pid, :refresh)
       render(view)
     end)
+    |> assert_has("h1", text: deployment_group.name)
   end
 
   test "move-matched-devices exit path shows flash error", %{
@@ -78,8 +80,10 @@ defmodule NervesHubWeb.Live.DeploymentGroups.ShowTest do
 
     conn
     |> visit("/org/#{org.name}/#{product.name}/deployment_groups/#{deployment_group.name}")
-    |> assert_has("span", text: "match outside of deployment group", exact: false, timeout: 1000)
-    |> click_button("Move device")
+    # The case's own device matches the group too.
+    |> assert_has("p", text: "2 devices outside the group match.")
+    |> click_button("Move them in")
+    |> within("#move-devices-in", &click_button(&1, "Move devices"))
     |> assert_has("div",
       text: "There was an issue moving devices to #{deployment_group.name}",
       timeout: 1000
@@ -101,8 +105,10 @@ defmodule NervesHubWeb.Live.DeploymentGroups.ShowTest do
 
     conn
     |> visit("/org/#{org.name}/#{product.name}/deployment_groups/#{deployment_group.name}")
-    |> assert_has("span", text: "match outside of deployment group", exact: false, timeout: 1000)
-    |> click_button("Move device")
+    # The case's own device matches the group too.
+    |> assert_has("p", text: "2 devices outside the group match.")
+    |> click_button("Move them in")
+    |> within("#move-devices-in", &click_button(&1, "Move devices"))
     |> assert_has("div",
       text: "1 devices moved to #{deployment_group.name}",
       timeout: 1000
@@ -126,8 +132,10 @@ defmodule NervesHubWeb.Live.DeploymentGroups.ShowTest do
 
     conn
     |> visit("/org/#{org.name}/#{product.name}/deployment_groups/#{deployment_group.name}")
-    |> assert_has("span", text: "match outside of deployment group", exact: false, timeout: 1000)
-    |> click_button("Move device")
+    # The case's own device matches the group too.
+    |> assert_has("p", text: "2 devices outside the group match.")
+    |> click_button("Move them in")
+    |> within("#move-devices-in", &click_button(&1, "Move devices"))
     |> assert_has("div",
       text: "couldn't move 1 devices",
       exact: false,

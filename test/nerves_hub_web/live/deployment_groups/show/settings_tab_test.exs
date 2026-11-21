@@ -4,120 +4,168 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show.SettingsTabTest do
   alias NervesHub.AuditLogs
   alias NervesHub.Devices.Deployments
   alias NervesHub.Devices.Device
+  alias NervesHub.Fixtures
   alias NervesHub.ManagedDeployments
   alias NervesHub.ManagedDeployments.DeploymentGroup
   alias NervesHub.Repo
 
   setup %{conn: conn} = context do
+    path =
+      "/org/#{context.org.name}/#{context.product.name}/deployment_groups/#{context.deployment_group.name}/settings"
+
     conn =
       conn
-      |> visit(
-        "/org/#{context.org.name}/#{context.product.name}/deployment_groups/#{context.deployment_group.name}/settings"
-      )
-      |> assert_has("div", text: "General settings")
+      |> visit(path)
+      |> assert_has("#deployment-group-settings")
 
-    %{context | conn: conn}
+    context
+    |> Map.put(:conn, conn)
+    |> Map.put(:path, path)
   end
 
-  test "can update queue management", %{
-    conn: conn,
-    deployment_group: deployment_group
-  } do
+  defp add_tag(session, tag) do
+    unwrap(session, fn view -> view |> element("#settings-matching-tags") |> render_hook("add-tag", %{"tag" => tag}) end)
+  end
+
+  defp remove_tag(session, tag), do: click_button(session, "[aria-label='Remove #{tag}']", "")
+
+  test "can update the queue order", %{conn: conn, deployment_group: deployment_group} do
     assert deployment_group.queue_management == :FIFO
 
     conn
-    |> select("Queue management", option: "LIFO")
+    |> select("Queue order", option: "Connected most recently")
     |> submit()
+    |> assert_has("[role=alert]", text: "Sending updates saved")
 
     assert Repo.reload(deployment_group).queue_management == :LIFO
   end
 
   test "can update only version", %{conn: conn, deployment_group: deployment_group} do
     conn
-    |> fill_in("Version requirement", with: "1.2.3")
+    |> fill_in("Firmware version", with: "1.2.3")
     |> submit()
 
     deployment_group = Repo.reload(deployment_group)
     assert deployment_group.conditions.version == "1.2.3"
   end
 
-  test "can update only tags", %{conn: conn, deployment_group: deployment_group} do
-    conn
-    |> fill_in("Tag(s) distributed to", with: "a, b")
-    |> submit()
-
-    deployment_group = Repo.reload(deployment_group)
-    assert deployment_group.conditions.tags == ["a", "b"]
-  end
-
-  test "can update tags and version", %{conn: conn, deployment_group: deployment_group} do
-    conn
-    |> fill_in("Tag(s) distributed to", with: "a, b")
-    |> fill_in("Version requirement", with: "1.2.3")
-    |> submit()
-
-    deployment_group = Repo.reload(deployment_group)
-    assert deployment_group.conditions.tags == ["a", "b"]
-    assert deployment_group.conditions.version == "1.2.3"
-  end
-
-  test "update the chosen resource, and adds an audit log", %{
-    conn: conn,
-    org: org,
-    product: product,
-    deployment_group: deployment_group
-  } do
-    conn =
+  test "tags are added and removed in the card, and saved with it", %{conn: conn, deployment_group: deployment_group} do
+    session =
       conn
-      |> assert_has("#product-switcher-toggle", text: product.name)
-      |> fill_in("Name", with: "Moussaka")
-      |> fill_in("Tag(s) distributed to", with: "josh, lars")
-      |> fill_in("Version requirement", with: "4.3.2")
-      |> click_button("Save changes")
+      |> assert_has("#settings-matching-form [data-tag]", count: 2)
+      |> add_tag("gamma")
+      |> remove_tag("beta")
+      |> assert_has("#settings-matching-form [data-tag='gamma']")
+      |> refute_has("#settings-matching-form [data-tag='beta']")
+      |> assert_has("#settings-matching-form input[name='matching[conditions][tags]'][value='beta-edge,gamma']")
 
-    {:ok, reloaded_deployment_group} =
-      ManagedDeployments.get_deployment_group(deployment_group.id)
+    # Nothing is saved until the card is.
+    assert Repo.reload(deployment_group).conditions.tags == ["beta", "beta-edge"]
 
-    conn
-    |> assert_path(URI.encode("/org/#{org.name}/#{product.name}/deployment_groups/#{reloaded_deployment_group.name}"))
-    |> assert_has("div", text: "Deployment Group updated")
+    session
+    |> within("#settings-matching-form", &click_button(&1, "Save"))
+    |> refute_has("#settings-matching-save")
 
-    assert reloaded_deployment_group.name == "Moussaka"
-    assert reloaded_deployment_group.conditions.version == "4.3.2"
-    assert Enum.sort(reloaded_deployment_group.conditions.tags) == Enum.sort(~w(josh lars))
-
-    [audit_log_one, audit_log_two, audit_log_three] = AuditLogs.logs_for(reloaded_deployment_group)
-
-    assert audit_log_one.resource_type == DeploymentGroup
-    assert audit_log_two.description =~ ~r/conditions changed/
-    assert audit_log_three.description =~ ~r/created deployment group/
+    assert Repo.reload(deployment_group).conditions.tags == ["beta-edge", "gamma"]
   end
 
-  test "failed update shows errors", %{
+  test "a tag typed but not added is saved with the card", %{conn: conn, deployment_group: deployment_group} do
+    conn
+    |> fill_in("Tags", with: "gamma")
+    |> assert_has("#settings-matching-save")
+    |> within("#settings-matching-form", &click_button(&1, "Save"))
+    |> assert_has("#settings-matching-form [data-tag='gamma']")
+    |> refute_has("#settings-matching-save")
+
+    assert Repo.reload(deployment_group).conditions.tags == ["beta", "beta-edge", "gamma"]
+  end
+
+  test "a tag with a space is refused", %{conn: conn} do
+    conn
+    |> add_tag("two words")
+    |> assert_has("#settings-matching-form p", text: "tags cannot contain spaces")
+  end
+
+  test "can update tags, how they match, and version together", %{conn: conn, deployment_group: deployment_group} do
+    conn
+    |> remove_tag("beta")
+    |> remove_tag("beta-edge")
+    |> add_tag("a")
+    |> add_tag("b")
+    |> choose("Allow any")
+    |> fill_in("Firmware version", with: "1.2.3")
+    |> within("#settings-matching-form", &click_button(&1, "Save"))
+    |> refute_has("#settings-matching-save")
+
+    deployment_group = Repo.reload(deployment_group)
+    assert deployment_group.conditions.tags == ["a", "b"]
+    assert deployment_group.conditions.tag_operator == :or
+    assert deployment_group.conditions.version == "1.2.3"
+
+    [user_log, conditions_log | _] = AuditLogs.logs_for(deployment_group)
+
+    assert user_log.description =~ ~r/updated deployment group/
+    assert conditions_log.description =~ ~r/conditions changed/
+  end
+
+  test "renaming the group moves the page to its new name, and adds an audit log", %{
     conn: conn,
     org: org,
     product: product,
     deployment_group: deployment_group
   } do
     conn
-    |> assert_has("#product-switcher-toggle", text: product.name)
-    |> fill_in("Version requirement", with: "1.2.3.4.5.6")
-    |> click_button("Save changes")
-    |> assert_path("/org/#{org.name}/#{product.name}/deployment_groups/#{deployment_group.name}/settings")
-    |> assert_has("div", text: "must be valid Elixir version requirement string")
+    |> fill_in("Name", with: "Moussaka")
+    |> assert_has("#settings-general-save", text: "Links that use the old name stop working.")
+    |> within("#settings-general-form", &click_button(&1, "Save"))
+    |> assert_path("/org/#{org.name}/#{product.name}/deployment_groups/Moussaka/settings")
+    |> assert_has("[role=alert]", text: "General saved")
+    |> assert_has("h1", text: "Moussaka")
+
+    assert Repo.reload(deployment_group).name == "Moussaka"
+
+    [audit_log | _] = AuditLogs.logs_for(deployment_group)
+
+    assert audit_log.resource_type == DeploymentGroup
+    assert audit_log.description =~ ~r/updated deployment group Moussaka/
   end
 
-  test "can clear tags and version", %{
-    conn: conn,
-    org: org,
-    product: product,
-    deployment_group: deployment_group
-  } do
+  test "a card only saves its own fields", %{conn: conn, deployment_group: deployment_group} do
     conn
-    |> fill_in("Tag(s) distributed to", with: "")
-    |> fill_in("Version requirement", with: "")
-    |> click_button("Save changes")
-    |> assert_path(URI.encode("/org/#{org.name}/#{product.name}/deployment_groups/#{deployment_group.name}"))
+    |> fill_in("Name", with: "Not saved")
+    |> fill_in("Firmware version", with: "~> 1.0")
+    |> within("#settings-matching-form", &click_button(&1, "Save"))
+    |> assert_has("#settings-general-save")
+
+    deployment_group = Repo.reload(deployment_group)
+    assert deployment_group.conditions.version == "~> 1.0"
+    refute deployment_group.name == "Not saved"
+  end
+
+  test "discarding puts a card back", %{conn: conn, deployment_group: deployment_group} do
+    conn
+    |> fill_in("Name", with: "Not saved")
+    |> within("#settings-general-form", &click_button(&1, "Discard"))
+    |> refute_has("#settings-general-save")
+    |> assert_has("input[value='#{deployment_group.name}']")
+  end
+
+  test "failed update shows errors", %{conn: conn, path: path, deployment_group: deployment_group} do
+    conn
+    |> fill_in("Firmware version", with: "1.2.3.4.5.6")
+    |> within("#settings-matching-form", &click_button(&1, "Save"))
+    |> assert_path(path)
+    |> assert_has("p", text: "must be valid Elixir version requirement string")
+
+    assert Repo.reload(deployment_group).conditions.version == deployment_group.conditions.version
+  end
+
+  test "can clear tags and version", %{conn: conn, deployment_group: deployment_group} do
+    conn
+    |> remove_tag("beta")
+    |> remove_tag("beta-edge")
+    |> fill_in("Firmware version", with: "")
+    |> submit()
 
     deployment_group = Repo.reload(deployment_group)
 
@@ -125,27 +173,20 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show.SettingsTabTest do
     assert deployment_group.conditions.tags == []
   end
 
-  test "you can delete a deployment group with no devices attached to it", %{
+  test "says how many devices a new version requirement sends out of the group", %{
     conn: conn,
-    org: org,
-    product: product,
-    deployment_group: deployment_group
+    deployment_group: deployment_group,
+    device: device
   } do
-    Repo.delete_all(Device)
+    _device = Deployments.update_deployment_group(device, deployment_group)
 
     conn
-    |> visit("/org/#{org.name}/#{product.name}/deployment_groups/#{deployment_group.name}/settings")
-    |> assert_has("h1", text: deployment_group.name)
-    |> click_link("Delete")
-    |> assert_path(URI.encode("/org/#{org.name}/#{product.name}/deployment_groups"))
-    |> assert_has("div", text: "Deployment Group successfully deleted")
-
-    assert ManagedDeployments.get_deployment_group(deployment_group.id) ==
-             {:error, :not_found}
-
-    [log | _] = AuditLogs.logs_for(deployment_group)
-
-    assert log.description =~ ~r/deleted deployment/
+    |> fill_in("Firmware version", with: "> 2.0.0")
+    |> assert_has("#settings-matching-save",
+      text: "1 device in the group doesn’t meet > 2.0.0, and leaves it when it next connects."
+    )
+    |> check("Lock membership")
+    |> assert_has("#settings-matching-save", text: "Devices already in the group stay in it.")
   end
 
   test "can update notes", %{conn: conn, deployment_group: deployment_group} do
@@ -157,12 +198,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show.SettingsTabTest do
     assert deployment_group.notes == "Created for the summer campaign hardware batch"
   end
 
-  test "can clear notes", %{
-    conn: conn,
-    org: org,
-    product: product,
-    deployment_group: deployment_group
-  } do
+  test "can clear notes", %{conn: conn, path: path, deployment_group: deployment_group} do
     conn
     |> fill_in("Notes", with: "some reason")
     |> submit()
@@ -170,38 +206,85 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show.SettingsTabTest do
     assert Repo.reload(deployment_group).notes == "some reason"
 
     conn
-    |> visit("/org/#{org.name}/#{product.name}/deployment_groups/#{deployment_group.name}/settings")
+    |> visit(path)
     |> fill_in("Notes", with: "")
     |> submit()
 
     assert Repo.reload(deployment_group).notes == nil
   end
 
-  test "can enable and disable lock_device_membership", %{
-    conn: conn,
-    org: org,
-    product: product,
-    deployment_group: deployment_group
-  } do
+  test "can lock and unlock membership", %{conn: conn, path: path, deployment_group: deployment_group} do
     conn
-    |> check("Lock device membership")
+    |> check("Lock membership")
     |> submit()
 
     assert Repo.reload(deployment_group).lock_device_membership
 
     conn
-    |> visit("/org/#{org.name}/#{product.name}/deployment_groups/#{deployment_group.name}/settings")
-    |> uncheck("Lock device membership")
+    |> visit(path)
+    |> uncheck("Lock membership")
     |> submit()
 
     refute Repo.reload(deployment_group).lock_device_membership
   end
 
+  test "can turn delta updates on", %{conn: conn, deployment_group: deployment_group} do
+    refute deployment_group.delta_updatable
+
+    conn
+    |> check("Delta updates")
+    |> submit()
+
+    assert Repo.reload(deployment_group).delta_updatable
+  end
+
+  describe "a member who can edit the group but not turn delta updates on or off" do
+    setup %{org: org, user: user} do
+      role = Fixtures.org_role_fixture(org, %{permissions: ["deployment_group:update"]})
+      {:ok, _} = NervesHub.Accounts.change_org_user_role(NervesHub.Accounts.get_org_user!(org, user.id), role)
+      :ok
+    end
+
+    test "sees the switch off limits, and can still save the rest of the card", %{
+      conn: conn,
+      path: path,
+      deployment_group: deployment_group
+    } do
+      conn
+      |> visit(path)
+      |> assert_has("#settings-sending_delta_updatable[disabled]")
+      |> assert_has("#settings-sending_delta_updatable-hint", text: "Your role can’t turn this on or off.")
+      |> select("Queue order", option: "Connected most recently")
+      |> submit()
+      |> assert_has("[role=alert]", text: "Sending updates saved")
+
+      deployment_group = Repo.reload(deployment_group)
+      assert deployment_group.queue_management == :LIFO
+      refute deployment_group.delta_updatable
+    end
+
+    test "can't turn delta updates on by sending it anyway", %{
+      conn: conn,
+      path: path,
+      deployment_group: deployment_group
+    } do
+      conn
+      |> visit(path)
+      |> unwrap(fn view ->
+        view
+        |> element("#settings-sending-form")
+        |> render_submit(%{"sending" => %{"delta_updatable" => "true"}})
+      end)
+
+      refute Repo.reload(deployment_group).delta_updatable
+    end
+  end
+
   test "can configure the priority queue", %{conn: conn, deployment_group: deployment_group} do
     conn
-    |> check("Enable priority queue")
-    |> fill_in("Priority Queue Concurrent Updates", with: "3")
-    |> fill_in("Firmware Version Threshold", with: "1.2.0")
+    |> check("Priority queue")
+    |> fill_in("At once", with: "3")
+    |> fill_in("On this version or older", with: "1.2.0")
     |> submit()
 
     deployment_group = Repo.reload(deployment_group)
@@ -212,16 +295,99 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show.SettingsTabTest do
 
   test "an invalid priority queue threshold shows an error", %{conn: conn, deployment_group: deployment_group} do
     conn
-    |> check("Enable priority queue")
-    |> fill_in("Firmware Version Threshold", with: "not-a-version")
+    |> check("Priority queue")
+    |> fill_in("On this version or older", with: "not-a-version")
     |> submit()
     |> assert_has("p", text: "must be a valid semantic version")
 
     refute Repo.reload(deployment_group).priority_queue_enabled
   end
 
+  test "can change the penalty box", %{conn: conn, deployment_group: deployment_group} do
+    conn
+    |> fill_in("After this many failed attempts", with: "4")
+    |> fill_in("Or this many close together", with: "6")
+    |> fill_in("Within seconds", with: "600")
+    |> fill_in("It stays in the penalty box for", with: "60")
+    |> submit()
+
+    deployment_group = Repo.reload(deployment_group)
+    assert deployment_group.device_failure_threshold == 4
+    assert deployment_group.device_failure_rate_amount == 6
+    assert deployment_group.device_failure_rate_seconds == 600
+    assert deployment_group.penalty_timeout_minutes == 60
+  end
+
+  test "a workflow takes over how many devices update at once", %{
+    conn: conn,
+    path: path,
+    user: user,
+    deployment_group: deployment_group
+  } do
+    definition = %{
+      "version" => 1,
+      "steps" => [
+        %{"name" => "Canary", "matching_conditions" => %{"tags" => ["canary", "LTE"], "match_limit" => 5}},
+        %{"name" => "Sign-off", "type" => "approval_required"}
+      ]
+    }
+
+    {:ok, _} = ManagedDeployments.update_deployment_group(deployment_group, %{workflow_definition: definition}, user)
+
+    conn
+    |> visit(path)
+    |> assert_has("#workflow-steps li", count: 3)
+    |> assert_has("#workflow-steps li", text: "Up to 5 devices tagged canary, LTE")
+    |> assert_has("#workflow-steps li", text: "Stops after 1 failure")
+    |> assert_has("#workflow-steps li", text: "Remaining devices")
+    |> assert_has("fieldset[disabled] #settings-sending_concurrent_updates")
+    |> assert_has("fieldset[disabled] #settings-sending_priority_queue_enabled")
+  end
+
+  test "a member who can only view sees the settings but can't change them", %{
+    conn: conn,
+    path: path,
+    org: org,
+    user: user
+  } do
+    {:ok, _} = NervesHub.Accounts.change_org_user_role(NervesHub.Accounts.get_org_user!(org, user.id), :view)
+
+    conn
+    |> visit(path)
+    |> assert_has("#read-only-notice")
+    |> assert_has("#settings-general-form fieldset[disabled]")
+    |> refute_has("#settings-delete")
+    |> refute_has("#upload-workflow")
+  end
+
+  test "you can delete a deployment group with no devices attached to it", %{
+    conn: conn,
+    path: path,
+    org: org,
+    product: product,
+    deployment_group: deployment_group
+  } do
+    Repo.delete_all(Device)
+
+    conn
+    |> visit(path)
+    |> assert_has("#settings-delete", text: "No devices are in it.")
+    |> click_button("Delete group")
+    |> within("#settings-confirm", &click_button(&1, "Delete #{deployment_group.name}"))
+    |> assert_path(URI.encode("/org/#{org.name}/#{product.name}/deployment_groups"))
+    |> assert_has("div", text: "Deployment Group successfully deleted")
+
+    assert ManagedDeployments.get_deployment_group(deployment_group.id) ==
+             {:error, :not_found}
+
+    [log | _] = AuditLogs.logs_for(deployment_group)
+
+    assert log.description =~ ~r/deleted deployment/
+  end
+
   test "you can delete a deployment group with devices attached to it", %{
     conn: conn,
+    path: path,
     org: org,
     product: product,
     deployment_group: deployment_group,
@@ -232,9 +398,10 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show.SettingsTabTest do
     assert Enum.count(Repo.all_by(Device, deployment_id: deployment_group.id)) == 1
 
     conn
-    |> visit("/org/#{org.name}/#{product.name}/deployment_groups/#{deployment_group.name}/settings")
-    |> assert_has("h1", text: deployment_group.name)
-    |> click_link("Delete")
+    |> visit(path)
+    |> click_button("Delete group")
+    |> assert_has("#settings-confirm", text: "Its 1 device leaves it")
+    |> within("#settings-confirm", &click_button(&1, "Delete #{deployment_group.name}"))
     |> assert_path(URI.encode("/org/#{org.name}/#{product.name}/deployment_groups"))
     |> assert_has("div", text: "Deployment Group successfully deleted")
 

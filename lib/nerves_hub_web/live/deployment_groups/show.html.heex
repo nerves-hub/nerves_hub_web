@@ -1,87 +1,125 @@
 <NervesHubWeb.Layouts.sidebar flash={@flash} current_scope={@current_scope} sidebar_tab={@sidebar_tab}>
   <:top_bar>
-    <.breadcrumb navigate={~p"/org/#{@org}/#{@product}/deployment_groups"} root_label="All Deployment Groups">
-      <:crumb>{@deployment_group.name}</:crumb>
+    <.breadcrumb navigate={~p"/org/#{@org}/#{@product}/deployment_groups"} root_label="Deployment groups">
+      <:crumb class="max-sm:hidden">{@deployment_group.name}</:crumb>
     </.breadcrumb>
-
-    <div class="mr-6 ml-auto flex items-center gap-2">
-      <.button
-        :if={authorized?(:"deployment_group:toggle", @current_scope)}
-        aria-label={"#{(@deployment_group.is_active && "Pause") || "Resume"} deployment"}
-        type="button"
-        phx-click="toggle"
-        data-confirm={"Are you sure you want to #{(@deployment_group.is_active && "pause") || "resume"} the deployment?"}
-      >
-        <.icon name="power" />{(@deployment_group.is_active && "Pause") || "Resume"}
-      </.button>
-    </div>
   </:top_bar>
 
-  <:big_header>
-    <div class="flex items-center gap-3">
-      <.status_dot data-is-active={(@deployment_group.is_active && "true") || "false"} class="data-[is-active=false]:bg-base-500 data-[is-active=true]:bg-success" />
-      <h1 class="text-page-title text-content-strong">
-        {@deployment_group.name}
-      </h1>
-      <div
-        :if={@deployment_group.current_release.delta_status == :preparing}
-        phx-remove={JS.hide(transition: {"ease-in duration-1000", "opacity-100", "opacity-0"}, blocking: false)}
-        class="pulsing-div flex items-center gap-1 rounded-full border border-line-default bg-notice py-0.5 pr-3 pl-2.5"
-      >
-        <span class="text-xs text-content-strong">Preparing: Generating Deltas</span>
-      </div>
-
-      <.badge :if={@deployment_group.current_release.delta_status == :failed} tone="alert">
-        Error: Deltas failed to generate
-      </.badge>
-    </div>
-
-    <div class="flex items-center gap-2">
-      <.link
-        navigate={~p"/org/#{@org}/#{@product}/devices?deployment_id=#{@deployment_group.id}"}
-        class="flex h-7 cursor-pointer items-center rounded bg-base-800 px-2 py-1 transition-colors hover:bg-base-700"
-      >
-        <span class="mr-1 text-sm text-content-muted">Devices:</span>
-
-        <div class="flex items-center">
-          <span class="mr-1 text-sm text-content-body">{@deployment_group.device_count || 0}</span>
-        </div>
-      </.link>
-
-      <div class="flex h-7 items-center rounded bg-base-800 px-2 py-1">
-        <span class="mr-1 text-sm text-content-muted">Platform:</span>
-
-        <div class="flex items-center">
-          <span class="mr-1 font-mono text-sm text-content-body">{@deployment_group.current_release.firmware.platform}</span>
-        </div>
-      </div>
-
-      <div class="flex h-7 items-center rounded bg-base-800 px-2 py-1">
-        <span class="mr-1 text-sm text-content-muted">Arch:</span>
-
-        <div class="flex items-center">
-          <span class="mr-1 font-mono text-sm text-content-body">{@deployment_group.current_release.firmware.architecture}</span>
-        </div>
-      </div>
-    </div>
-  </:big_header>
-
-  <:tabbed_nav label="Summary" selected={@tab == :summary} path={~p"/org/#{@org}/#{@product}/deployment_groups/#{@deployment_group}"} />
-  <:tabbed_nav label="Releases" selected={@tab == :releases} path={~p"/org/#{@org}/#{@product}/deployment_groups/#{@deployment_group}/releases"} />
-  <:tabbed_nav label="Activity" selected={@tab == :activity} path={~p"/org/#{@org}/#{@product}/deployment_groups/#{@deployment_group}/activity"} />
-  <:tabbed_nav label="Settings" selected={@tab == :settings} path={~p"/org/#{@org}/#{@product}/deployment_groups/#{@deployment_group}/settings"} />
-
   <div class="flex h-0 flex-1 flex-col overflow-y-auto">
-    <.live_component
+    <header id="deployment-group-header" class="flex shrink-0 flex-col gap-4 p-4 sm:px-6 sm:pt-6">
+      <div class="flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
+        <div class="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
+          <h1 class="min-w-0 truncate text-page-title text-content-strong">{@deployment_group.name}</h1>
+          <DeploymentGroups.status_badge status={@entry.status} />
+        </div>
+
+        <div class="flex flex-wrap items-center gap-2 max-sm:w-full max-sm:*:flex-1 max-sm:*:justify-center">
+          <.button
+            :if={authorized?(:"deployment_group:toggle", @current_scope)}
+            type="button"
+            phx-click="ask-toggle"
+          >
+            <span class={(@deployment_group.is_active && "lucide-pause") || "lucide-play"} aria-hidden="true"></span>
+            {(@deployment_group.is_active && "Pause") || "Resume"}
+          </.button>
+
+          <%!-- The form is display: contents, so the row's *: classes miss the
+                button inside it; it stretches on a phone by its own. --%>
+          <form :if={@csv_import?} id="device-csv-form" phx-change="validate-csv" class="contents">
+            <.button type="label" for={@uploads.device_csv.ref} class="max-sm:flex-1 max-sm:justify-center">
+              <span class="lucide-upload" aria-hidden="true"></span> Import<span class="max-sm:hidden"> devices</span>
+            </.button>
+            <.live_file_input upload={@uploads.device_csv} class="hidden" />
+          </form>
+
+          <.button
+            :if={authorized?(:"deployment_group:update", @current_scope)}
+            id="new-release-button"
+            style="primary"
+            type="link"
+            patch={group_path(@org, @product, @deployment_group, "releases") <> "?new=release"}
+          >
+            <span class="lucide-plus" aria-hidden="true"></span> New<span class="max-sm:hidden"> release</span>
+          </.button>
+        </div>
+      </div>
+
+      <dl class="flex flex-wrap gap-x-10 gap-y-3">
+        <div class="flex flex-col gap-1">
+          <dt class="text-label text-content-faint uppercase">Release</dt>
+          <dd class="text-ui text-content-muted">
+            <span class="font-mono font-medium text-content-strong">{@deployment_group.current_release.firmware.version}</span>
+            since {day_label(@deployment_group.current_release.inserted_at, @time_zone)}
+          </dd>
+        </div>
+        <div class="flex flex-col gap-1">
+          <dt class="text-label text-content-faint uppercase">Firmware for</dt>
+          <dd class="font-mono text-ui text-content-strong">
+            {@deployment_group.current_release.firmware.platform} <span class="text-content-faint">·</span> {@deployment_group.current_release.firmware.architecture}
+          </dd>
+        </div>
+        <div class="flex flex-col gap-1">
+          <dt class="text-label text-content-faint uppercase">Matches</dt>
+          <dd class="flex flex-wrap items-center gap-1.5 text-ui text-content-muted">
+            <.tag :for={tag <- @deployment_group.conditions.tags} mono>{tag}</.tag>
+            <.link
+              navigate={~p"/org/#{@org}/#{@product}/devices?deployment_id=#{@deployment_group.id}"}
+              class="underline decoration-line-control underline-offset-3 hover:text-content-strong hover:decoration-current"
+            >
+              {count_noun(@entry.counts.total, "device", "devices")}
+            </.link>
+          </dd>
+        </div>
+        <div class="flex flex-col gap-1">
+          <dt class="text-label text-content-faint uppercase">Workflow</dt>
+          <dd class="text-ui text-content-strong">
+            {if @entry.steps == [], do: "All at once", else: ngettext("1 step", "%{count} steps", length(@entry.steps))}
+          </dd>
+        </div>
+      </dl>
+    </header>
+
+    <%!-- On a phone the page scrolls as one, and the tabs stick to its top. --%>
+    <nav
+      id="deployment-group-tabs"
+      aria-label="Deployment group"
+      class="scrollbar-none flex h-13 shrink-0 items-end gap-6 overflow-x-auto border-b border-line-default px-4 max-sm:sticky max-sm:top-0 max-sm:z-20 max-sm:h-11 max-sm:gap-5 max-sm:bg-surface sm:px-6"
+    >
+      <.link
+        :for={
+          {key, label, path, count} <- [
+            {:summary, "Overview", group_path(@org, @product, @deployment_group), nil},
+            {:releases, "Releases", group_path(@org, @product, @deployment_group, "releases"), @deployment_group.releases_count},
+            {:stats, "Stats", group_path(@org, @product, @deployment_group, "stats"), nil},
+            {:activity, "Activity", group_path(@org, @product, @deployment_group, "activity"), nil},
+            {:settings, "Settings", group_path(@org, @product, @deployment_group, "settings"), nil}
+          ]
+        }
+        patch={path}
+        aria-current={if key == @tab, do: "page"}
+        class={[
+          "flex shrink-0 items-center gap-2 border-b-2 pb-3 text-sm/5 whitespace-nowrap max-sm:gap-1.5 max-sm:pb-2.5 max-sm:text-ui/4",
+          if(key == @tab,
+            do: "border-primary font-semibold text-content-strong",
+            else: "border-transparent text-content-body hover:text-content-strong"
+          )
+        ]}
+      >
+        <span class="reserve-semibold-width flex flex-col" data-label={label}>{label}</span>
+        <.badge :if={count} count>{count}</.badge>
+      </.link>
+    </nav>
+
+    <Overview.render
       :if={@tab == :summary}
-      module={SummaryTab}
-      id="deployment_group_summary"
-      deployment_group={@deployment_group}
+      entry={@entry}
+      unreached={@unreached}
+      matched_outside={@matched_outside}
+      unmatched_inside={@unmatched_inside}
+      deltas={@deltas}
+      released_by={@released_by}
       current_scope={@current_scope}
-      flow={@flow}
-      flow_nodes={node_types()}
-      awaiting_approval={@awaiting_approval}
-      failed_step={@failed_step}
+      time_zone={@time_zone}
     />
 
     <.live_component
@@ -89,12 +127,42 @@
       module={ReleasesTab}
       id="deployment_group_releases"
       deployment_group={@deployment_group}
+      entry={@entry}
+      current_scope={@current_scope}
+      time_zone={@time_zone}
+      open_new_release={@open_new_release}
+    />
+
+    <.live_component
+      :if={@tab == :stats}
+      module={StatsTab}
+      id="deployment_group_stats"
+      deployment_group={@deployment_group}
+      selection={@stats_release}
+      path={group_path(@org, @product, @deployment_group, "stats")}
       current_scope={@current_scope}
       time_zone={@time_zone}
     />
 
-    <.live_component :if={@tab == :activity} module={ActivityTab} id="deployment_group_activity" deployment_group={@deployment_group} current_scope={@current_scope} time_zone={@time_zone} />
+    <.live_component
+      :if={@tab == :activity}
+      module={ActivityTab}
+      id="deployment_group_activity"
+      deployment_group={@deployment_group}
+      page={@activity_page}
+      current_scope={@current_scope}
+      time_zone={@time_zone}
+    />
 
-    <.live_component :if={@tab == :settings} module={SettingsTab} id="deployment_group_settings" deployment_group={@deployment_group} current_scope={@current_scope} />
+    <.live_component
+      :if={@tab == :settings}
+      module={SettingsTab}
+      id="deployment_group_settings"
+      deployment_group={@deployment_group}
+      device_count={@entry.counts.total}
+      current_scope={@current_scope}
+    />
   </div>
+
+  <Dialogs.confirm_dialog :if={@confirm} confirm={@confirm} deployment_group={@deployment_group} />
 </NervesHubWeb.Layouts.sidebar>

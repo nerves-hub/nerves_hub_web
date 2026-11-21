@@ -18,12 +18,12 @@ defmodule NervesHub.Firmwares.PubSub do
   ## Membership follows a moving target
 
   Unlike the other groups in this migration, the subscriber's key changes while
-  the process lives: the summary tab follows the deployment group's current
-  release, which moves when a new release is activated. Callers must therefore
-  leave the previous target — process-death cleanup alone would let memberships
-  accumulate for the lifetime of the LiveView, and `:group` membership is
-  replicated to every node, unlike a local `Phoenix.PubSub` subscription. See
-  `NervesHubWeb.Components.DeploymentGroupPage.Summary`.
+  the process lives: a deployment group's page follows the firmware its
+  current and required releases send, which moves when a new release is
+  activated. Callers must therefore leave the previous target, since
+  process-death cleanup alone would let memberships accumulate for the lifetime
+  of the LiveView, and `:group` membership is replicated to every node, unlike a
+  local `Phoenix.PubSub` subscription. See `NervesHubWeb.Live.DeploymentGroups.Show`.
 
   Default `:group` cluster, so a delta status published by the build worker
   reaches the LiveView regardless of which node role ran the build.

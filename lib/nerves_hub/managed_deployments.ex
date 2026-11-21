@@ -18,6 +18,7 @@ defmodule NervesHub.ManagedDeployments do
   alias NervesHub.ManagedDeployments.DeploymentWorkflowStep
   alias NervesHub.ManagedDeployments.Orchestrator
   alias NervesHub.ManagedDeployments.WorkflowEvents
+  alias NervesHub.Products.ApiKey
   alias NervesHub.Products.Product
   alias NervesHub.Repo
   alias Phoenix.Channel.Server, as: PhoenixChannelServer
@@ -155,21 +156,44 @@ defmodule NervesHub.ManagedDeployments do
   def get_by_product_and_name!(product, name, with_device_count \\ false)
 
   def get_by_product_and_name!(product, name, true) do
+    product
+    |> by_product_query()
+    |> where(name: ^name)
+    |> with_device_count()
+    |> Repo.one!()
+  end
+
+  def get_by_product_and_name!(product, name, false) do
+    product
+    |> by_product_query()
+    |> where(name: ^name)
+    |> Repo.one!()
+  end
+
+  @doc """
+  The group with `id` in `product`, loaded as `get_by_product_and_name!/3`
+  loads it with its device count. A page with a group open reloads it this
+  way, so it keeps the group when someone renames it.
+  """
+  @spec get_by_product_and_id!(Product.t(), pos_integer()) :: DeploymentGroup.t()
+  def get_by_product_and_id!(product, id) do
+    product
+    |> by_product_query()
+    |> where(id: ^id)
+    |> with_device_count()
+    |> Repo.one!()
+  end
+
+  defp with_device_count(query) do
     subquery =
       Device
       |> select([d], %{device_count: count()})
       |> Repo.exclude_deleted()
       |> where([d], d.deployment_id == parent_as(:deployment_group).id)
 
-    get_by_product_and_name_query(product, name)
+    query
     |> join(:left_lateral, [d], dev in subquery(subquery), on: true, as: :devices)
     |> select_merge([_f, devices: devices], %{device_count: devices.device_count})
-    |> Repo.one!()
-  end
-
-  def get_by_product_and_name!(product, name, false) do
-    get_by_product_and_name_query(product, name)
-    |> Repo.one!()
   end
 
   @spec get_by_product_and_platforms(Product.t(), [binary()]) :: [DeploymentGroup.t()]
@@ -199,14 +223,15 @@ defmodule NervesHub.ManagedDeployments do
   @spec get_deployment_group_by_name(Product.t(), String.t()) ::
           {:ok, DeploymentGroup.t()} | {:error, :not_found}
   def get_deployment_group_by_name(product, name) do
-    get_by_product_and_name_query(product, name)
+    product
+    |> by_product_query()
+    |> where(name: ^name)
     |> Repo.fetch()
   end
 
-  defp get_by_product_and_name_query(%Product{id: product_id}, name) do
+  defp by_product_query(%Product{id: product_id}) do
     DeploymentGroup
     |> from(as: :deployment_group)
-    |> where(name: ^name)
     |> where(product_id: ^product_id)
     |> join(:left, [deployment_group: d], p in assoc(d, :product), as: :product)
     |> join_current_release(true)
@@ -351,6 +376,19 @@ defmodule NervesHub.ManagedDeployments do
   def load_current_release(deployment_group, opts \\ []) do
     force = Keyword.get(opts, :force, false)
     Repo.preload(deployment_group, [current_release: [:firmware, :archive, :steps]], force: force)
+  end
+
+  @doc """
+  Who made a release: the user, or the product API key when one made it. Nil
+  when neither is recorded, as for releases made before authors were recorded.
+  """
+  @spec release_author(DeploymentRelease.t()) :: User.t() | ApiKey.t() | nil
+  def release_author(%DeploymentRelease{} = release) do
+    case Repo.preload(release, [:created_by, :created_by_api_key]) do
+      %{created_by: %User{} = user} -> user
+      %{created_by_api_key: %ApiKey{} = api_key} -> api_key
+      _ -> nil
+    end
   end
 
   def create_deployment_release(deployment_group, firmware, archive, actor, params, opts \\ []) do
@@ -925,58 +963,60 @@ defmodule NervesHub.ManagedDeployments do
   end
 
   @doc """
-  Mark or unmark a release as required.
+  Change what can still change on a release once it's made: whether it's
+  required, its connecting code, and where that code runs.
 
-  Changing it changes which firmware some devices are sent next, so the deltas
-  those devices need are queued, the group's status is recalculated against them,
-  and the orchestrator is told to look again.
+  Each change is audited on its own, and only if it changed. Marking or
+  unmarking a release required changes which firmware some devices are sent
+  next, so the deltas those devices need are queued, the group's status is
+  recalculated against them, and the orchestrator is told to look again. A new
+  connecting code reaches devices the next time they connect.
   """
-  @spec set_deployment_release_required(DeploymentRelease.t(), boolean(), User.t()) ::
+  @spec update_deployment_release(DeploymentRelease.t(), map(), User.t()) ::
           {:ok, DeploymentRelease.t()} | {:error, Changeset.t() | :not_found}
-  def set_deployment_release_required(%DeploymentRelease{} = release, required, %User{} = user)
-      when is_boolean(required) do
-    Repo.transact(fn ->
-      with {:ok, release} <- Repo.update(DeploymentRelease.required_changeset(release, required)),
-           {:ok, deployment_group} <- get_deployment_group(release.deployment_group_id),
-           :ok <- DeploymentGroupTemplates.audit_release_required_changed(user, deployment_group, release) do
-        # Queueing the deltas can fail on its own, and says so in the log and in
-        # Sentry. The release is still required either way, devices that have no
-        # delta are sent the whole firmware, and the group's status below reports
-        # whatever the deltas did.
-        _ = maybe_trigger_delta_generation(deployment_group, release)
+  def update_deployment_release(%DeploymentRelease{} = release, params, %User{} = user) do
+    release
+    |> DeploymentRelease.edit_changeset(params)
+    |> save_release_changes(user)
+  end
 
-        {:ok, _releases} = recalculate_release_delta_statuses(deployment_group)
+  defp save_release_changes(%Changeset{} = changeset, user) do
+    required_changed? = Changeset.changed?(changeset, :required)
+
+    code_changed? =
+      Changeset.changed?(changeset, :connecting_code) or Changeset.changed?(changeset, :connecting_code_mode)
+
+    Repo.transact(fn ->
+      with {:ok, release} <- Repo.update(changeset),
+           {:ok, deployment_group} <- get_deployment_group(release.deployment_group_id) do
+        if required_changed? do
+          :ok = DeploymentGroupTemplates.audit_release_required_changed(user, deployment_group, release)
+
+          # Queueing the deltas can fail on its own, and says so in the log and in
+          # Sentry. The release is still required either way, devices that have no
+          # delta are sent the whole firmware, and the group's status below reports
+          # whatever the deltas did.
+          _ = maybe_trigger_delta_generation(deployment_group, release)
+
+          {:ok, _releases} = recalculate_release_delta_statuses(deployment_group)
+          :ok
+        end
+
+        if code_changed? do
+          :ok = DeploymentGroupTemplates.audit_release_connecting_code_changed(user, deployment_group, release)
+        end
 
         {:ok, {release, deployment_group}}
       end
     end)
     |> case do
       {:ok, {release, deployment_group}} ->
-        :ok = broadcast(deployment_group, "deployments/update")
+        if required_changed?, do: :ok = broadcast(deployment_group, "deployments/update")
         {:ok, release}
 
       {:error, _} = error ->
         error
     end
-  end
-
-  @doc """
-  Change the code a release's devices run when they connect, and where it runs
-  relative to the deployment group's connecting code.
-
-  Devices get the change the next time they connect.
-  """
-  @spec update_deployment_release_connecting_code(DeploymentRelease.t(), map(), User.t()) ::
-          {:ok, DeploymentRelease.t()} | {:error, Changeset.t()}
-  def update_deployment_release_connecting_code(%DeploymentRelease{} = release, params, %User{} = user) do
-    Repo.transact(fn ->
-      with {:ok, release} <- Repo.update(DeploymentRelease.connecting_code_changeset(release, params)) do
-        deployment_group = Repo.get!(DeploymentGroup, release.deployment_group_id)
-        :ok = DeploymentGroupTemplates.audit_release_connecting_code_changed(user, deployment_group, release)
-
-        {:ok, release}
-      end
-    end)
   end
 
   @doc """
@@ -1114,6 +1154,27 @@ defmodule NervesHub.ManagedDeployments do
       device.firmware_metadata.architecture != deployment_group.architecture -> "mismatched architecture"
       true -> nil
     end
+  end
+
+  @doc """
+  How many of the group's devices don't meet `version_requirement`. Were it
+  the group's requirement, with membership unlocked, each would leave the
+  group the next time it connects. An empty requirement matches every
+  version.
+  """
+  @spec count_version_mismatches(DeploymentGroup.t(), String.t() | nil) :: non_neg_integer()
+  def count_version_mismatches(_deployment_group, requirement) when requirement in [nil, ""], do: 0
+
+  def count_version_mismatches(%DeploymentGroup{id: id}, version_requirement) do
+    Device
+    |> Repo.exclude_deleted()
+    |> where([d], d.deployment_id == ^id and not is_nil(d.firmware_metadata))
+    |> group_by([d], d.firmware_metadata["version"])
+    |> select([d], {d.firmware_metadata["version"], count()})
+    |> Repo.all()
+    |> Enum.reduce(0, fn {version, count}, total ->
+      if version_mismatch?(version, version_requirement), do: total + count, else: total
+    end)
   end
 
   defp version_mismatch?(_device_version, ""), do: false

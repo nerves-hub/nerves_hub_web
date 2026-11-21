@@ -121,8 +121,9 @@ when adding or removing one.
   per-node `HealthEvaluation.Queue` with a fixed number of workers, so a slow
   ClickHouse never holds up a device's message), metrics, firmware update
   history (`update_history.ex` — how each update
-  attempt ended, split across both stores: the device's consecutive failure
-  count in Postgres, the history itself in ClickHouse), and network identities
+  attempt ended, and for a success how long it took from being sent, split
+  across both stores: the device's consecutive failure count in Postgres, the
+  history itself in ClickHouse), and network identities
   (a device's identity on networks NervesHub doesn't run, such as iroh or
   NetBird). Each connection records the client library and version the device
   connected with (`lib` / `lib_version`), read from the `User-Agent` of its
@@ -140,6 +141,16 @@ when adding or removing one.
   `Distributed.Orchestrator` (one per deployment). A release with a workflow
   is walked a step at a time (`Workflows`, `WorkflowCoordinator`); each step
   transition is announced to webhooks and Slack (`WorkflowEvents`).
+  `Rollout` is how far a release has got, for the web UI: each group's and
+  step's device counts from Postgres alone, the group's status (paused,
+  stopped, awaiting approval, ...), and the devices it won't reach without
+  help (penalty box, failed, updates off).
+  `ReleaseStats` is how each release went, for a group's Stats tab, counted
+  over the release's window (from when it was made until the next one): what
+  its updates downloaded from `update_stats` in Postgres, and how attempts
+  ended and how long they took from `device_update_history` in ClickHouse.
+  The history began after some releases went out, so `kept?/2` says whether a
+  release's numbers are whole, and the page shows a dash where they aren't.
 - `firmwares.ex` / `firmwares/` and `archives.ex` / `archives/` — firmware and
   archive artifacts, uploads, and firmware **delta** building.
 - `products.ex` / `products/` — products and product settings, including
@@ -324,26 +335,66 @@ when adding or removing one.
   mounts. On a phone the sidebar is a drawer, and the top bar reads menu
   button, then the page's breadcrumb (or the product and page names when it
   has none), then the avatar, which holds the user menu the drawer leaves out.
+  Every detail, new and edit page draws its breadcrumb with
+  `components/breadcrumb.ex` (the list's name, a chevron, then the item), so
+  a new page uses it rather than writing its own. Asking before an action
+  (deleting firmware, turning an extension off for every device, approving a
+  step) goes through `Dialog.confirm/1` in `components/dialog.ex`, the design
+  system's dialog: 440px, or 480px when it holds a list, with Cancel and the
+  action under a divider, and a sheet from the bottom on a phone. Forms open
+  in dialogs of their own (integrations, releases).
   `components/product_list.ex` holds what the firmware and archive lists
   share: the footer pager, the sort arrow, and how a UUID, a size and an
   upload time are written.
+  A product's deployment groups (`live/deployment_groups/index.ex`) are split
+  into Needs you (a step waiting for approval or stopped on failures, with the
+  button that moves it on) and Running on their own, shown as rows or cards
+  by the user's `deployment_group_view` preference. A group's page
+  (`live/deployment_groups/show.ex`) opens on its Overview
+  (`components/deployment_group_page/overview.ex`): a callout for a held
+  step, the rollout and its steps, the devices the release didn't reach, and
+  the release and matching rules. What both share (status badges, step bars,
+  the approve and skip dialogs, and `DeploymentGroups.act/3`, which acts
+  through `Workflows.act_on_held_step/3` so a step somebody already dealt with
+  is refused) is in `components/deployment_groups.ex`, along
+  with the form fields the Releases and Settings tabs draw (`field_class/2`,
+  `textarea_class/2`, `select_control/1`).
+  The group page asks before pausing or resuming the group and before moving
+  devices into or out of it (`components/deployment_group_page/dialogs.ex`).
+  One `@confirm` assign drives every dialog on the page, approve and skip
+  included, and each refresh keeps it only while it would still change
+  something; pausing and resuming set the group's state rather than flip it.
+  Both pages reload their counts every few seconds while open. The group
+  page's other tabs are LiveComponents in `components/deployment_group_page/`:
+  Releases (the release history, and the New and Edit release dialogs, opened
+  from `?new=release`; deleting a delta asks first, since every group sending
+  the release shares it, and Remove connecting code only empties the field
+  until the dialog is saved), Stats (`?release=` picks a release or `all`; its
+  ClickHouse numbers load in a task and only when the choice changes), Activity
+  (the group's audit log by day, paged in the URL, drawn as the device page's
+  Activity tab is, so a change to one belongs in both) and Settings (cards that
+  each save only their own fields, the workflow upload, and deleting the
+  group; turning delta updates on or off needs
+  `deployment_group:toggle_delta_updates`, as it does in the API, and saving
+  drops the field for a member without it). There's no Devices tab: the header's device count links to the
+  devices list, filtered to the group.
   A product's settings are three LiveViews, General (`live/product/settings.ex`),
   Device health (`live/product/health_profiles.ex`) and API keys
-  (`live/product/api_keys.ex`), sharing their title, tabs and dialog from
+  (`live/product/api_keys.ex`), sharing their title and tabs from
   `components/product_settings.ex`. General is titled cards in two columns,
   like the device page's Settings tab, and draws its toggles with
   `components/switch.ex`. Anything there that changes every device, or can't
   be undone, asks first in a dialog that one assign drives (`@confirm` on
-  General, `@dialog` on API keys, which uses the same component for its
-  create form, for deactivating a key and for the one-time key); each event
-  that opens one checks the same permission as the event that acts. The
-  dialog is 480px with its own footer bar, so it passes `width_class` and a
-  cleared `body_class` to `CoreComponents.modal`, whose defaults suit every
-  other modal. One without Cancel, such as the one-time key, also turns off
-  the modal's Escape, click outside and close button (`dismissible`), so a
-  stray click can't throw the key away. The dialog must not clip, because the
-  API keys role picker is a popover that hangs past the footer. Device health
-  edits one profile at a time as a draft, saved whole by
+  General, through `Dialog.confirm/1`, and `@dialog` on API keys); each event
+  that opens one checks the same permission as the event that acts. API keys
+  draws its create form, deactivating a key and the one-time key with
+  `ProductSettings.dialog/1`, 480px with its own footer bar, so it passes
+  `width_class` and a cleared `body_class` to `CoreComponents.modal`, whose
+  defaults suit every other modal. One without Cancel, such as the one-time
+  key, also turns off the modal's Escape, click outside and close button
+  (`dismissible`), so a stray click can't throw the key away. The dialog must
+  not clip, because the API keys role picker is a popover that hangs past the
+  footer. Device health edits one profile at a time as a draft, saved whole by
   `HealthProfiles.save_metrics/2`. While there are unsaved changes it shows
   what saving would do to the profile's devices: today's `device_health`
   counts, moved by the difference between ClickHouse previews of the saved
@@ -400,12 +451,14 @@ when adding or removing one.
   with `for` set to the upload's ref.
 - **Fonts:** Inter (the sans) and JetBrains Mono (`--font-mono`) are vendored
   in `priv/static/fonts/`, each straight from its upstream release with its OFL
-  license, and declared with `@font-face` in `assets/css/app.css`. The
-  maintenance page declares Inter in its own inline CSS (`MaintenanceEndpoint`
-  serves `fonts` for it). JetBrains Mono has no variable woff2, so only the
-  weights mono text uses are there (400, 500, 600); a heavier or italic mono
-  style needs its file added. xterm and chart.js draw on a canvas, so they name
-  the font themselves in `assets/js` and wait for it with `whenFontsLoaded`.
+  license, and declared with `@font-face` in `assets/css/app.css`. `@theme`
+  sets `--font-sans` to Inter, so `font-sans` (stepping back out of mono) is
+  Inter rather than Tailwind's system-ui stack. The maintenance page declares
+  Inter in its own inline CSS (`MaintenanceEndpoint` serves `fonts` for it).
+  JetBrains Mono has no variable woff2, so only the weights mono text uses are
+  there (400, 500, 600); a heavier or italic mono style needs its file added.
+  xterm and chart.js draw on a canvas, so they name the font themselves in
+  `assets/js` and wait for it with `whenFontsLoaded`.
   Self-hosted instances may have no internet access, so don't load fonts or
   other assets from a third-party CDN.
 - **Type sizes and card corners:** sizes off Tailwind's scale are named in the

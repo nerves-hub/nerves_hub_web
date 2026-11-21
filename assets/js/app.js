@@ -22,7 +22,6 @@ import DevicePageScroll from "./hooks/devicePageScroll.js"
 import DeviceLocationMapWithGeocoder from "./hooks/deviceLocationMapWithGeocoder.js"
 import Flash from "./hooks/flash.js"
 import HighlightCode from "./hooks/highlightCode.js"
-import { LiveFlowHook } from "live_flow"
 import LoadMoreOnVisible from "./hooks/loadMoreOnVisible.js"
 import LocalShell from "./hooks/localShell.js"
 import LogDayStarts from "./hooks/logDayStarts.js"
@@ -36,7 +35,6 @@ import TagAutocomplete from "./hooks/tagAutocomplete.js"
 import ThemeSwitcher from "./hooks/themeSwitcher.js"
 import ToolTip from "./hooks/toolTip.js"
 import UpdatingTimeAgo from "./hooks/updatingTimeAgo.js"
-import WorkflowDiagramFit from "./hooks/workflowDiagramFit.js"
 import WorldMap from "./hooks/worldMap.js"
 
 
@@ -83,7 +81,6 @@ let liveSocket = new LiveSocket("/live", Socket, {
     DevicePageScroll,
     Flash,
     HighlightCode,
-    LiveFlow: LiveFlowHook,
     LoadMoreOnVisible,
     LogDayStarts,
     LocalShell,
@@ -97,7 +94,6 @@ let liveSocket = new LiveSocket("/live", Socket, {
     ThemeSwitcher,
     ToolTip,
     UpdatingTimeAgo,
-    WorkflowDiagramFit,
     WorldMap,
   },
 })

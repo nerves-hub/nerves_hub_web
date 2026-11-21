@@ -54,6 +54,12 @@ defmodule NervesHub.Accounts.User.DisplayPreferences do
 
   def health_chart_styles(), do: @all_health_chart_styles
 
+  # How the deployment groups list lays out its groups: rows in a table, or
+  # cards in a grid.
+  @all_deployment_group_views [:list, :grid]
+
+  def deployment_group_views(), do: @all_deployment_group_views
+
   @type t() :: %__MODULE__{}
 
   embedded_schema do
@@ -90,6 +96,10 @@ defmodule NervesHub.Accounts.User.DisplayPreferences do
 
     # How the user has picked to draw the Health tab's charts. Nil draws lines.
     field(:health_chart_style, KnownAtom, values: @all_health_chart_styles, default: nil)
+
+    # How the user has picked to lay out the deployment groups list. Nil is a
+    # list.
+    field(:deployment_group_view, KnownAtom, values: @all_deployment_group_views, default: nil)
   end
 
   def changeset(%DisplayPreferences{} = preferences, attrs \\ %{}) do
@@ -100,7 +110,8 @@ defmodule NervesHub.Accounts.User.DisplayPreferences do
       :device_details_left,
       :device_details_right,
       :map_style,
-      :health_chart_style
+      :health_chart_style,
+      :deployment_group_view
     ])
     |> validate_device_details_layout()
   end
@@ -152,6 +163,14 @@ defmodule NervesHub.Accounts.User.DisplayPreferences do
   @spec health_chart_style(t() | nil) :: :line | :scatter
   def health_chart_style(%DisplayPreferences{health_chart_style: :scatter}), do: :scatter
   def health_chart_style(_preferences), do: :line
+
+  @doc """
+  How the user has picked to lay out the deployment groups list: `:list`
+  unless they picked `:grid`.
+  """
+  @spec deployment_group_view(t() | nil) :: :list | :grid
+  def deployment_group_view(%DisplayPreferences{deployment_group_view: :grid}), do: :grid
+  def deployment_group_view(_preferences), do: :list
 
   # A box can only be in one place.
   defp validate_device_details_layout(changeset) do

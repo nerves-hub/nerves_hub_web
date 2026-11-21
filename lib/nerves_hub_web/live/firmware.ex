@@ -12,6 +12,7 @@ defmodule NervesHubWeb.Live.Firmware do
   alias NervesHub.Firmwares.UpdateTool
   alias NervesHub.Firmwares.Upload
   alias NervesHub.Products
+  alias NervesHubWeb.Components.Dialog
   alias NervesHubWeb.Helpers.FirmwareDeletion
   alias NervesHubWeb.Mounts.RequireEveryDevice
   alias Phoenix.LiveView.AsyncResult
@@ -777,47 +778,43 @@ defmodule NervesHubWeb.Live.Firmware do
   # firmware's page. When something blocks the delete it says what instead.
   defp delete_dialog(assigns) do
     ~H"""
-    <NervesHubWeb.CoreComponents.modal id="delete-firmware-dialog" show on_cancel={JS.push("cancel-delete")}>
-      <div class="flex max-w-lg flex-col gap-4">
-        <div class="flex flex-col gap-1">
-          <h2 id="delete-firmware-dialog-title" class="text-section-title text-content-strong">
-            Delete <span class="font-mono">{@deleting.firmware.version}</span>
-            <span class="font-mono text-sm font-normal text-content-muted">{@deleting.firmware.platform}</span>?
-          </h2>
-          <p id="delete-firmware-dialog-description" class="font-mono text-xs text-content-faint">{@deleting.firmware.uuid}</p>
-        </div>
+    <Dialog.confirm id="delete-firmware-dialog" on_cancel={JS.push("cancel-delete")} wide>
+      <:heading>
+        Delete <span class="font-mono">{@deleting.firmware.version}</span> for <span class="font-mono">{@deleting.firmware.platform} · {@deleting.firmware.architecture}</span>?
+      </:heading>
+      <:subtitle><span class="font-mono">{@deleting.firmware.uuid}</span></:subtitle>
 
-        <%= if @deleting.blockers != [] do %>
-          <p class="rounded-card border border-alert/40 bg-alert-soft p-3 text-ui text-alert-content">
-            {FirmwareDeletion.blockers_message(@deleting.blockers)}
-          </p>
-        <% else %>
-          <ul class="flex flex-col gap-2 text-ui text-content-body">
-            <li :if={@deleting.install_count > 0} class="flex gap-2">
-              <span class="mt-0.5 lucide-cpu size-3.5 text-content-muted" aria-hidden="true"></span>
-              <span>
-                {ngettext("1 device runs it.", "%{count} devices run it.", @deleting.install_count)} They keep running it, but can’t download it again.
-              </span>
-            </li>
-            <li :if={warning = FirmwareDeletion.warnings_message(@deleting.warnings)} class="flex gap-2">
-              <span class="mt-0.5 lucide-git-compare size-3.5 text-content-muted" aria-hidden="true"></span>
-              <span>{warning}</span>
-            </li>
-            <li class="flex gap-2">
-              <span class="mt-0.5 lucide-archive size-3.5 text-content-muted" aria-hidden="true"></span>
-              <span>The file is removed and can’t be restored. Its row stays under Deleted, so device history still says what ran.</span>
-            </li>
-          </ul>
-        <% end %>
+      <%= if @deleting.blockers != [] do %>
+        <p class="rounded-card border border-alert/40 bg-alert-soft p-3 text-alert-content">
+          {FirmwareDeletion.blockers_message(@deleting.blockers)}
+        </p>
+      <% else %>
+        <p>The file is removed and can’t be downloaded or sent to devices again. Devices already running it keep running it.</p>
+        <ul class="flex flex-col gap-1.5 rounded-card bg-surface-muted px-3 py-2.5 text-content-body">
+          <li class="flex items-center gap-2">
+            <.status_dot class="size-1.5 bg-content-faint" />
+            <span :if={@deleting.install_count > 0}>
+              <span class="font-mono text-content-strong">{delimited(@deleting.install_count)}</span>
+              {ngettext("device is", "devices are", @deleting.install_count)} running it
+            </span>
+            <span :if={@deleting.install_count == 0}>No device is running it</span>
+          </li>
+          <li :if={deltas = @deleting.warnings[:delta_source]} class="flex items-center gap-2">
+            <.status_dot class="size-1.5 bg-content-faint" />
+            {ngettext("1 delta built from it is deleted too", "%{count} deltas built from it are deleted too", deltas)}
+          </li>
+          <li class="flex items-center gap-2">
+            <.status_dot class="size-1.5 bg-content-faint" /> Its row stays under Deleted, with its device history
+          </li>
+        </ul>
+      <% end %>
 
-        <div class="flex justify-end gap-2">
-          <.button phx-click={JS.exec("data-cancel", to: "#delete-firmware-dialog")}>Cancel</.button>
-          <.button :if={@deleting.blockers == []} style="danger-solid" phx-click="delete-firmware" phx-value-firmware_uuid={@deleting.firmware.uuid}>
-            Delete firmware
-          </.button>
-        </div>
-      </div>
-    </NervesHubWeb.CoreComponents.modal>
+      <:actions :if={@deleting.blockers == []}>
+        <.button style="danger-solid" phx-click="delete-firmware" phx-value-firmware_uuid={@deleting.firmware.uuid}>
+          Delete firmware
+        </.button>
+      </:actions>
+    </Dialog.confirm>
     """
   end
 

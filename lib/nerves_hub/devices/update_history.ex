@@ -113,11 +113,13 @@ defmodule NervesHub.Devices.UpdateHistory do
 
   ## Options
 
-    * `:deployment_id` — the deployment group that asked for the update, if any.
-    * `:source_firmware_uuid` — the firmware the device was running.
-    * `:target_firmware_uuid` — the firmware it was being moved to.
-    * `:reason` — what the device said, where it said anything.
-    * `:timestamp` — when the attempt ended, defaulting to now.
+    * `:deployment_id` - the deployment group that asked for the update, if any.
+    * `:source_firmware_uuid` - the firmware the device was running.
+    * `:target_firmware_uuid` - the firmware it was being moved to.
+    * `:reason` - what the device said, where it said anything.
+    * `:timestamp` - when the attempt ended, defaulting to now.
+    * `:started_at` - when the update was sent, so the row can say how long
+      it took. Left out, the duration is recorded as unknown (0).
 
   Raises the `device.firmware_update.finished` event (`NervesHub.Integrations`).
 
@@ -150,7 +152,8 @@ defmodule NervesHub.Devices.UpdateHistory do
           status: Atom.to_string(status),
           source_firmware_uuid: uuid(opts[:source_firmware_uuid]),
           target_firmware_uuid: uuid(opts[:target_firmware_uuid]),
-          reason: reason(opts[:reason])
+          reason: reason(opts[:reason]),
+          duration_seconds: duration_seconds(opts[:started_at], timestamp)
         })
       )
     end
@@ -195,6 +198,15 @@ defmodule NervesHub.Devices.UpdateHistory do
   end
 
   defp move_counter(_device, :rescheduled, _timestamp), do: {0, nil}
+
+  # Whole seconds, and never negative: a clock that moved between the update
+  # being sent and the attempt ending must not wrap a UInt32.
+  defp duration_seconds(nil, _ended_at), do: 0
+
+  defp duration_seconds(%NaiveDateTime{} = started_at, ended_at),
+    do: duration_seconds(DateTime.from_naive!(started_at, "Etc/UTC"), ended_at)
+
+  defp duration_seconds(%DateTime{} = started_at, ended_at), do: max(DateTime.diff(ended_at, started_at), 0)
 
   defp uuid(nil), do: ""
   defp uuid(uuid) when is_binary(uuid), do: uuid

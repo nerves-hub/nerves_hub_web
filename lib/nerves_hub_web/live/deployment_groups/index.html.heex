@@ -1,144 +1,264 @@
 <NervesHubWeb.Layouts.sidebar flash={@flash} current_scope={@current_scope} sidebar_tab={@sidebar_tab}>
-  <:header>
-    <h1 class="text-page-title text-content-strong">All Deployment Groups</h1>
-    <.badge class="mr-auto">{@pager_meta.total_count}</.badge>
-    <form :if={Enum.any?(@entries) || @currently_filtering} id="deployment-filters-form" class="flex items-center" phx-change="update-filters">
-      <div class="grid grid-cols-1">
-        <input
-          type="text"
-          class="col-start-1 row-start-1 block h-9 w-64 gap-2 rounded border border-line-strong bg-surface-muted px-3 py-1 text-sm font-normal text-content-muted"
-          name="search"
-          id="deployment_group_search_top"
-          placeholder="Search..."
-          title="Search"
-          value={@current_filters[:search]}
-          phx-debounce="500"
-        />
+  <:top_bar>
+    <div class="flex min-w-0 items-baseline gap-3">
+      <h1 class="text-base/6 font-semibold text-content-strong">Deployment groups</h1>
+      <span :if={@entries != []} class="truncate font-mono text-xs text-content-muted max-sm:hidden">
+        {ngettext("1 group", "%{count} groups", length(@entries))} · {count_noun(@grouped_devices, "device", "devices")}
+      </span>
+    </div>
 
-        <span class="pointer-events-none col-start-1 row-start-1 mr-3 lucide-search size-4 self-center justify-self-end text-content-muted" aria-hidden="true"></span>
+    <.button
+      :if={authorized?(:"deployment_group:create", @current_scope)}
+      style="primary"
+      type="link"
+      navigate={~p"/org/#{@current_scope.org}/#{@current_scope.product}/deployment_groups/new"}
+      class="shrink-0 sm:mr-6"
+    >
+      <span class="lucide-plus" aria-hidden="true"></span> New<span class="max-sm:hidden"> deployment group</span>
+    </.button>
+  </:top_bar>
+
+  <div class="h-0 flex-1 overflow-y-auto">
+    <div class="flex flex-col gap-6 p-4 sm:p-6">
+      <%!-- A product with no groups at all. --%>
+      <div :if={@entries == []} id="deployment-groups-empty" class="flex flex-col items-center gap-4 rounded-card border border-dashed border-line-dashed px-6 py-12 text-center">
+        <span class="flex size-10 items-center justify-center rounded-full bg-notice-soft">
+          <span class="lucide-rocket size-5 text-notice-content" aria-hidden="true"></span>
+        </span>
+        <div class="flex flex-col gap-1">
+          <h2 class="text-section-title text-content-strong">Make your first deployment group</h2>
+          <p class="max-w-lg text-sm text-content-muted">
+            A deployment group sends a firmware release to the devices whose tags match it, all at once or in steps you sign off.
+            <span :if={@ungrouped_devices > 0}>
+              Until there is one, {@current_scope.product.name}’s {count_noun(@ungrouped_devices, "device keeps", "devices keep")} the firmware they have.
+            </span>
+          </p>
+        </div>
+        <ol class="grid w-full max-w-2xl gap-px overflow-hidden rounded-card border border-line-default bg-line-default text-left sm:grid-cols-3">
+          <li class="flex flex-col gap-1 bg-surface-raised p-3">
+            <span class="flex items-center gap-1.5 font-mono text-xs text-content-faint">
+              <span :if={@newest_firmware} class="lucide-check--bold size-3 text-success" aria-hidden="true"></span> 01
+            </span>
+            <span class="text-ui font-medium text-content-strong">Upload firmware</span>
+            <span :if={@newest_firmware} class="truncate text-xs text-content-muted">
+              Newest is <span class="font-mono">{@newest_firmware.version}</span>, from {day_label(@newest_firmware.inserted_at, @time_zone)}
+            </span>
+            <.link :if={!@newest_firmware} navigate={~p"/org/#{@current_scope.org}/#{@current_scope.product}/firmware"} class="text-xs text-notice-content hover:underline">
+              Upload firmware
+            </.link>
+          </li>
+          <li class="flex flex-col gap-1 bg-surface-raised p-3">
+            <span class="font-mono text-xs text-content-faint">02</span>
+            <span class="text-ui font-medium text-content-strong">Pick devices by tag</span>
+            <span class="text-xs text-content-muted">Such as <span class="font-mono">production</span> or <span class="font-mono">lab</span></span>
+          </li>
+          <li class="flex flex-col gap-1 bg-surface-raised p-3">
+            <span class="font-mono text-xs text-content-faint">03</span>
+            <span class="text-ui font-medium text-content-strong">Release it</span>
+            <span class="text-xs text-content-muted">To every device, or a step at a time</span>
+          </li>
+        </ol>
+        <div class="flex items-center gap-2">
+          <.button
+            :if={authorized?(:"deployment_group:create", @current_scope)}
+            style="primary"
+            type="link"
+            navigate={~p"/org/#{@current_scope.org}/#{@current_scope.product}/deployment_groups/new"}
+          >
+            <span class="lucide-plus" aria-hidden="true"></span> New deployment group
+          </.button>
+          <a href="https://docs.nerves-hub.org/setup/deployments" target="_blank" class="px-2 text-ui font-medium text-notice-content hover:underline">
+            How deployments work
+          </a>
+        </div>
       </div>
-    </form>
-    <.button type="link" navigate={~p"/org/#{@current_scope.org}/#{@current_scope.product}/deployment_groups/new"} aria-label="Add a new deployment group">
-      <.icon name="add" /> Create Deployment Group
-    </.button>
-    <.button type="button" square aria-label="Filter deployment groups" phx-click={FilterSidebar.show_filter_sidebar()}>
-      <.icon name="filter" />
-    </.button>
-    <.button type="button" square aria-label="List settings" phx-click={ListSettingsSidebar.show_settings_sidebar()}>
-      <.icon name="settings" />
-    </.button>
-  </:header>
 
-  <div id="deployment-groups-container" class="h-0 flex-1 overflow-y-auto">
-    <%= if Enum.empty?(@entries) do %>
-      <!-- TODO: Go over empty-state with new design -->
-      <div class="flex h-full items-center justify-center pb-16">
-        <span class="text-xl font-medium text-content-strong">{@current_scope.product.name} doesn’t have any deployment groups configured.</span>
+      <form :if={@entries != []} id="deployment-group-filters" phx-change="filter" phx-submit="filter" class="flex flex-wrap items-center gap-2">
+        <label class="flex h-8 min-w-0 flex-1 items-center gap-2 rounded border border-line-control bg-surface-raised px-2.5 focus-within:border-primary max-sm:basis-full">
+          <span class="lucide-search size-3.5 text-content-faint" aria-hidden="true"></span>
+          <span class="sr-only">Search deployment groups</span>
+          <input
+            type="search"
+            name="search"
+            value={@filters.search}
+            placeholder="Search groups, tags or versions"
+            autocomplete="off"
+            phx-debounce="300"
+            class="h-full min-w-0 flex-1 border-0 bg-transparent p-0 text-ui text-content-strong placeholder:text-content-faint focus:ring-0"
+          />
+        </label>
+
+        <label
+          :if={length(@platforms) > 1 || @filters.platform}
+          class={[
+            "flex h-8 items-center gap-1.5 rounded border px-2.5 text-ui text-content-body max-sm:flex-1",
+            (@filters.platform && "border-primary/50 bg-notice-soft") || "border-line-control bg-surface-raised"
+          ]}
+        >
+          Platform
+          <select name="platform" class="h-full border-0 bg-transparent py-0 pr-7 pl-0 font-mono text-xs text-content-strong focus:ring-0 max-sm:min-w-0 max-sm:flex-1">
+            <option value="">Any</option>
+            {Phoenix.HTML.Form.options_for_select(@platforms, @filters.platform)}
+          </select>
+        </label>
+
+        <label
+          :if={length(@versions) > 1 || @filters.firmware}
+          class={[
+            "flex h-8 items-center gap-1.5 rounded border px-2.5 text-ui text-content-body max-sm:flex-1",
+            (@filters.firmware && "border-primary/50 bg-notice-soft") || "border-line-control bg-surface-raised"
+          ]}
+        >
+          Firmware
+          <select name="firmware" class="h-full border-0 bg-transparent py-0 pr-7 pl-0 font-mono text-xs text-content-strong focus:ring-0 max-sm:min-w-0 max-sm:flex-1">
+            <option value="">Any</option>
+            {Phoenix.HTML.Form.options_for_select(@versions, @filters.firmware)}
+          </select>
+        </label>
+
+        <%!-- A phone shows cards whichever is picked. --%>
+        <div role="group" aria-label="View" class="flex h-8 shrink-0 overflow-hidden rounded border border-line-control bg-surface-raised max-sm:hidden">
+          <button
+            :for={{value, icon, label} <- [{:list, "lucide-list", "List"}, {:grid, "lucide-layout-grid", "Grid"}]}
+            type="button"
+            phx-click="set-view"
+            phx-value-view={value}
+            aria-pressed={to_string(view(@current_scope.user) == value)}
+            aria-label={label}
+            title={label}
+            class="flex w-8 cursor-pointer items-center justify-center text-content-faint not-last:border-r not-last:border-line-control hover:text-content-strong aria-pressed:bg-line-subtle aria-pressed:text-content-strong"
+          >
+            <span class={[icon, "size-4"]} aria-hidden="true"></span>
+          </button>
+        </div>
+      </form>
+
+      <%!-- Filters that leave nothing. --%>
+      <div
+        :if={@filtering? && @needs_you == [] && @on_their_own == []}
+        id="deployment-groups-no-matches"
+        class="flex flex-col items-center gap-3 rounded-card border border-dashed border-line-dashed px-6 py-10 text-center"
+      >
+        <div class="flex flex-col gap-1">
+          <h2 class="text-ui font-semibold text-content-strong">
+            {if @filters.search != "", do: "No groups match “#{@filters.search}”", else: "No groups match these filters"}
+          </h2>
+          <p class="text-ui text-content-muted">Search looks at group names, tags and firmware versions.</p>
+        </div>
+        <.button type="button" phx-click="clear-filters">{if @filters.search != "", do: "Clear search", else: "Clear filters"}</.button>
       </div>
-    <% else %>
-      <div class="listing">
-        <table class="">
-          <thead>
-            <tr>
-              <th phx-click="sort" phx-value-sort="name" class="w-1/5 cursor-pointer">
-                <Sorting.sort_icon text="Name" field="name" selected_field={@current_sort} selected_direction={@sort_direction} />
-              </th>
-              <th :if={show_column?(@current_scope.user, :platform)} phx-click="sort" phx-value-sort="platform" class="cursor-pointer">
-                <Sorting.sort_icon text="Platform" field="platform" selected_field={@current_sort} selected_direction={@sort_direction} />
-              </th>
-              <th :if={show_column?(@current_scope.user, :architecture)} phx-click="sort" phx-value-sort="architecture" class="cursor-pointer">
-                <Sorting.sort_icon text="Architecture" field="architecture" selected_field={@current_sort} selected_direction={@sort_direction} />
-              </th>
-              <th :if={show_column?(@current_scope.user, :device_count)} phx-click="sort" phx-value-sort="device_count" class="cursor-pointer">
-                <Sorting.sort_icon text="Devices" field="device_count" selected_field={@current_sort} selected_direction={@sort_direction} />
-              </th>
-              <th :if={show_column?(@current_scope.user, :release_count)} phx-click="sort" phx-value-sort="releases_count" class="cursor-pointer">
-                <Sorting.sort_icon text="Releases" field="releases_count" selected_field={@current_sort} selected_direction={@sort_direction} />
-              </th>
-              <th :if={show_column?(@current_scope.user, :firmware_version)} phx-click="sort" phx-value-sort="firmware_version" class="min-w-fit cursor-pointer">
-                <Sorting.sort_icon text="Firmware version" field="firmware_version" selected_field={@current_sort} selected_direction={@sort_direction} />
-              </th>
-              <th :if={show_column?(@current_scope.user, :tags)}>
-                Device Tags
-              </th>
-              <th :if={show_column?(@current_scope.user, :version_constraint)}>
-                Version Constraint
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr :for={deployment_group <- @entries} class={["border-b border-line-subtle"]}>
-              <td>
-                <.link navigate={~p"/org/#{@current_scope.org}/#{@current_scope.product}/deployment_groups/#{deployment_group}"}>
-                  <div class="flex h-10 w-full items-center gap-2">
-                    <.status_dot class={(deployment_group.is_active && "bg-success") || "bg-base-500"} />
 
-                    {deployment_group.name}
-                  </div>
+      <section :if={@entries != [] && (@needs_you != [] || !@filtering?)} id="needs-you" aria-labelledby="needs-you-title" class="@container flex flex-col gap-3">
+        <h2 id="needs-you-title" class="flex items-center gap-2 text-sm/5 font-semibold text-content-strong">
+          Needs you
+          <.badge count>{length(@needs_you)}</.badge>
+        </h2>
+
+        <div :if={@needs_you == []} class="flex items-center gap-2.5 rounded-card border border-dashed border-line-dashed px-4 py-3.5 text-ui text-content-body">
+          <span class="flex size-4 shrink-0 items-center justify-center rounded-full bg-success-soft">
+            <span class="lucide-check--bold size-2.5 text-success-content" aria-hidden="true"></span>
+          </span>
+          Nothing needs you. A group shows up here when a step waits for your approval or stops on failures.
+        </div>
+
+        <div :if={@needs_you != []} class={["grid gap-3", view(@current_scope.user) == :grid && "@4xl:grid-cols-2"]}>
+          <%= for entry <- @needs_you do %>
+            <.group_card :if={view(@current_scope.user) == :grid} entry={entry} current_scope={@current_scope} time_zone={@time_zone} />
+            <.held_card :if={view(@current_scope.user) == :list} entry={entry} current_scope={@current_scope} />
+          <% end %>
+        </div>
+      </section>
+
+      <section :if={@on_their_own != []} id="on-their-own" aria-labelledby="on-their-own-title" class="@container/section flex flex-col gap-3">
+        <h2 id="on-their-own-title" class="flex items-center gap-2 text-sm/5 font-semibold text-content-strong">
+          Running on their own
+          <.badge count>{length(@on_their_own)}</.badge>
+        </h2>
+
+        <div :if={view(@current_scope.user) == :grid} class="grid gap-3 @4xl/section:grid-cols-2">
+          <.group_card :for={entry <- @on_their_own} entry={entry} current_scope={@current_scope} time_zone={@time_zone} />
+        </div>
+
+        <%!-- Sized by the room it gets, not the viewport: the sidebar can be
+              open or collapsed at any width. Below 48rem each row is a card. --%>
+        <div :if={view(@current_scope.user) == :list} class="@container">
+          <div role="table" aria-label="Running on their own" class="flex flex-col @3xl:overflow-clip @3xl:rounded-card @3xl:border @3xl:border-line-default @3xl:bg-surface-raised @3xl:shadow-card">
+            <div
+              role="row"
+              class="flex h-9 items-center gap-3 rounded-t-card border-b border-line-default bg-surface-muted px-4 text-label text-content-faint uppercase @max-3xl:hidden"
+            >
+              <span role="columnheader" class="w-52 shrink-0">Group</span>
+              <span role="columnheader" class="w-52 shrink-0 @max-4xl:hidden">Release</span>
+              <span role="columnheader" class="w-56 shrink-0">Rollout</span>
+              <span role="columnheader" class="w-48 shrink-0">Status</span>
+              <span role="columnheader" class="min-w-0 flex-1 @max-5xl:hidden">Matches</span>
+            </div>
+
+            <div
+              :for={entry <- @on_their_own}
+              id={"group-#{entry.group.id}"}
+              role="row"
+              class={[
+                "relative flex min-h-13 items-center gap-3 border-b border-line-subtle px-4 py-2 last:border-b-0 hover:bg-surface-muted",
+                "@max-3xl:mb-2 @max-3xl:flex-wrap @max-3xl:gap-x-2 @max-3xl:gap-y-2.5 @max-3xl:rounded-card @max-3xl:border @max-3xl:border-line-default @max-3xl:bg-surface-raised @max-3xl:p-4 @max-3xl:shadow-card @max-3xl:last:border-b"
+              ]}
+            >
+              <div role="cell" class="flex w-52 shrink-0 flex-col gap-0.5 @max-3xl:order-1 @max-3xl:w-auto @max-3xl:min-w-0 @max-3xl:flex-1">
+                <.link
+                  navigate={group_path(@current_scope, entry.group)}
+                  class="truncate text-ui font-medium text-content-strong after:absolute after:inset-0 hover:underline @max-3xl:text-card-title @max-3xl:font-semibold"
+                >
+                  {entry.group.name}
                 </.link>
-              </td>
-
-              <td :if={show_column?(@current_scope.user, :platform)}>
-                {deployment_group.platform}
-              </td>
-
-              <td :if={show_column?(@current_scope.user, :architecture)}>
-                {deployment_group.architecture}
-              </td>
-
-              <td :if={show_column?(@current_scope.user, :device_count)}>
-                {deployment_group.device_count || 0}
-              </td>
-
-              <td :if={show_column?(@current_scope.user, :release_count)}>
-                {deployment_group.releases_count || 0}
-              </td>
-
-              <td :if={show_column?(@current_scope.user, :firmware_version)} class="min-w-fit">
-                <span class="inline-block items-center rounded bg-base-800 px-2 py-1 whitespace-nowrap">
-                  <.link navigate={~p"/org/#{@current_scope.org}/#{@current_scope.product}/firmware/#{deployment_group.current_release.firmware}"} class="flex items-center">
-                    <span class="mr-1 text-sm text-content-body">
-                      {deployment_group.current_release.firmware.version} ({String.slice(deployment_group.current_release.firmware.uuid, 0..7)})
-                    </span>
-                    <span class="lucide-info size-4 text-content-muted" aria-hidden="true"></span>
-                  </.link>
+                <span class="truncate font-mono text-2xs text-content-muted @max-3xl:hidden">
+                  {entry.group.current_release.firmware.platform} · {entry.group.current_release.firmware.architecture} · {count_noun(entry.counts.total, "device", "devices")}
                 </span>
-              </td>
+                <span class="flex items-baseline gap-2 @3xl:hidden">
+                  <span class="font-mono text-ui font-medium text-content-strong">{entry.group.current_release.firmware.version}</span>
+                  <span class="text-xs text-content-muted">{day_label(entry.group.current_release.inserted_at, @time_zone)}</span>
+                </span>
+              </div>
 
-              <td :if={show_column?(@current_scope.user, :tags)}>
-                <div class="flex items-center gap-1">
-                  <%= if Enum.count(tags(deployment_group)) > 0 do %>
-                    <%= for tag <- tags(deployment_group) do %>
-                      <.tag>
-                        {tag}
-                      </.tag>
-                    <% end %>
-                  <% else %>
-                    -
-                  <% end %>
-                </div>
-              </td>
+              <div role="cell" class="flex w-52 shrink-0 flex-col gap-0.5 pr-4 @max-4xl:hidden">
+                <span class="flex items-baseline gap-2">
+                  <span class="truncate font-mono text-ui font-medium text-content-strong">{entry.group.current_release.firmware.version}</span>
+                  <span class="shrink-0 text-xs text-content-muted">{day_label(entry.group.current_release.inserted_at, @time_zone)}</span>
+                </span>
+                <span :if={line = DeploymentGroups.release_line(entry.group.current_release)} class="truncate text-xs text-content-muted">{line}</span>
+              </div>
 
-              <td :if={show_column?(@current_scope.user, :version_contraint)}>
-                {version(deployment_group)}
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    <% end %>
+              <div role="cell" class="flex w-56 shrink-0 flex-col gap-1.5 @max-3xl:order-3 @max-3xl:w-full">
+                <span class="flex w-50 items-baseline justify-between @max-3xl:w-full">
+                  <span class="font-mono text-xs text-content-strong">
+                    {delimited(entry.counts.updated)} <span class="text-content-muted">of</span> {delimited(entry.counts.total)}
+                  </span>
+                  <span class="font-mono text-2xs text-content-muted">{DeploymentGroups.percent_updated(entry.counts)}%</span>
+                </span>
+                <DeploymentGroups.rollout_bar counts={entry.counts} class="w-50 @max-3xl:w-full" />
+              </div>
+
+              <div role="cell" class="flex w-48 shrink-0 flex-col items-start gap-1 @max-3xl:contents">
+                <DeploymentGroups.status_badge status={entry.status} class="@max-3xl:order-2 @max-3xl:self-start" />
+                <span :if={detail = status_detail(entry)} class="text-xs text-content-muted @max-3xl:order-4 @max-3xl:flex-1">{detail}</span>
+              </div>
+
+              <div role="cell" class="flex min-w-0 flex-1 flex-wrap items-center gap-1.5 @max-3xl:order-5 @max-3xl:flex-none @3xl:@max-5xl:hidden">
+                <.tag :for={tag <- entry.group.conditions.tags} mono>{tag}</.tag>
+                <span :if={entry.group.conditions.tags == []} class="text-xs text-content-faint">Any device</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <p :if={@entries != [] && @ungrouped_devices > 0} class="text-xs text-content-muted">
+        <.link navigate={~p"/org/#{@current_scope.org}/#{@current_scope.product}/devices?deployment_id=-1"} class="text-notice-content hover:underline">
+          {count_noun(@ungrouped_devices, "device", "devices")}
+        </.link>
+        {ngettext("isn’t", "aren’t", @ungrouped_devices)} in any group, so no release reaches {ngettext("it", "them", @ungrouped_devices)}.
+      </p>
+    </div>
   </div>
 
-  <FilterSidebar.render current_filters={@current_filters}>
-    <:filter attr="name" label="Name" type={:text} />
-    <:filter attr="platform" label="Platform" type={:select} values={[{"All", ""} | Enum.map(@platforms, &{if(&1, do: &1, else: "Unknown"), &1})]} />
-    <:filter attr="architecture" label="Architecture" type={:select} values={[{"All", ""} | Enum.map(@architectures, &{if(&1, do: &1, else: "Unknown"), &1})]} />
-  </FilterSidebar.render>
-
-  <ListSettingsSidebar.render
-    available_columns={NervesHub.Accounts.User.DisplayPreferences.deployment_group_list_columns()}
-    selected_columns={get_in(@current_scope.user.display_preferences.deployment_group_list_columns)}
-  />
-
-  <:pagination pager={@pager_meta} page_sizes={@paginate_opts.page_sizes} />
+  <DeploymentGroups.confirm_dialog :if={@confirm} confirm={@confirm} />
 </NervesHubWeb.Layouts.sidebar>
