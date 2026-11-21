@@ -24,9 +24,10 @@ defmodule NervesHub.Telemetry.TracesSampler do
       `SENTRY_TRACING_RATE`, `0.05` by default.
     * `:none` - never kept: what `NervesHub.Telemetry.FilteredSampler` drops
       (health checks, static files, the LiveView socket, device heartbeats),
-      and Oban's own polling queries. Dropping them here rather than in
-      Sentry's inbound filters means they are never sent, and a heartbeat's
-      queries are dropped along with it.
+      Oban's own polling queries, and a database transaction's `begin`,
+      `commit` or `rollback` that starts a trace. Dropping them here rather
+      than in Sentry's inbound filters means they are never sent, and a
+      heartbeat's queries are dropped along with it.
 
   Websocket upgrades count as `:default`, not `:requests`: the span lasts as
   long as the connection, and `/socket` is the device socket on the device
@@ -47,6 +48,13 @@ defmodule NervesHub.Telemetry.TracesSampler do
     "nerves_hub.repo.query:oban_jobs",
     "nerves_hub.repo.query:oban_peers"
   ]
+
+  # What Ecto sends to open and close a transaction. One that starts a trace is
+  # from a transaction run outside any span, and is all its trace would hold:
+  # the queries in between each start a trace of their own. Matched on
+  # `db.statement`, which `opentelemetry_ecto` still writes rather than its
+  # replacement, `db.query.text`.
+  @transaction_statements ["begin", "commit", "rollback"]
 
   @doc """
   The share of traces like this one to keep, for Sentry's `traces_sampler`.
@@ -80,6 +88,7 @@ defmodule NervesHub.Telemetry.TracesSampler do
     cond do
       FilteredSampler.drop_trace?(name, attributes) -> :none
       name in @oban_polling_queries -> :none
+      attributes[:"db.statement"] in @transaction_statements -> :none
       attributes[MessagingAttributes.messaging_system()] == :oban -> :jobs
       live_view?(name) -> :requests
       request?(attributes) -> :requests

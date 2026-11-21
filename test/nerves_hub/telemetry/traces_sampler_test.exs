@@ -81,6 +81,18 @@ defmodule NervesHub.Telemetry.TracesSamplerTest do
       end
     end
 
+    test "a transaction's begin, commit or rollback is never kept when it starts a trace" do
+      for statement <- ["begin", "commit", "rollback"] do
+        assert TracesSampler.kind("nerves_hub.repo.query", %{"db.statement": statement}) == :none
+      end
+    end
+
+    test "any other query that starts a trace is default" do
+      for statement <- ["SELECT pg_try_advisory_xact_lock($1)", "INSERT INTO \"begin\" VALUES ($1)"] do
+        assert TracesSampler.kind("nerves_hub.repo.query", %{"db.statement": statement}) == :default
+      end
+    end
+
     test "a span that started without attributes is still classified" do
       assert TracesSampler.kind("Channels.DeviceChannel.join", :undefined) == :default
       assert TracesSampler.kind(:GET, nil) == :default
