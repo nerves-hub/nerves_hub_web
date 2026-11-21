@@ -46,7 +46,6 @@ defmodule NervesHub.Telemetry.TracesSampler do
   @type kind() :: :requests | :jobs | :default | :flushes | :none
   @type rates() :: [requests: float(), jobs: float(), default: float()]
 
-  # The most of `:flushes` traces kept, whatever the default rate.
   @max_flush_rate 0.01
 
   # Oban's producers, stager, pruner and peer election, polling between jobs.
