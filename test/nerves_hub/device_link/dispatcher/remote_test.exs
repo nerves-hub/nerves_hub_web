@@ -10,12 +10,25 @@ defmodule NervesHub.DeviceLink.Dispatcher.RemoteTest do
 
   use ExUnit.Case, async: false
 
+  alias NervesHub.DeviceLink
   alias NervesHub.DeviceLink.DeviceInfo
   alias NervesHub.DeviceLink.Dispatcher.Local
   alias NervesHub.DeviceLink.Dispatcher.NoHandlersError
   alias NervesHub.DeviceLink.Dispatcher.Remote
   alias NervesHub.DeviceLink.Handlers
   alias NervesHub.Extensions.Geo
+
+  require OpenTelemetry.Tracer, as: Tracer
+  require Record
+
+  Record.defrecordp(:span, Record.extract(:span, from_lib: "opentelemetry/include/otel_span.hrl"))
+
+  # An exporter that declines to start, which puts the span processor back the
+  # way it starts when no exporter is configured: off, and holding nothing.
+  defmodule NoExporter do
+    @moduledoc false
+    def init(_config), do: :ignore
+  end
 
   @versions %{"health" => "0.0.1", "geo" => "0.0.1", "local_shell" => "0.0.1"}
 
@@ -110,6 +123,64 @@ defmodule NervesHub.DeviceLink.Dispatcher.RemoteTest do
     end
   end
 
+  # Spans come to this process through the SDK's own span processor, which every
+  # tracer already reports to. Other tests' spans arrive too, so each test looks
+  # only at its own trace.
+  describe "the trace a call is made in" do
+    setup do
+      :ok = :otel_batch_processor.set_exporter(:otel_exporter_pid, self())
+      on_exit(fn -> :ok = :otel_batch_processor.set_exporter(NoExporter, []) end)
+    end
+
+    test "carries on in a span the platform opens for the call" do
+      caller =
+        Tracer.with_span "Channels.DeviceChannel.handle_in" do
+          assert is_boolean(Remote.call(:shared_secrets_enabled?, []))
+          Tracer.current_span_ctx()
+        end
+
+      caller_span_id = OpenTelemetry.Span.span_id(caller)
+
+      assert [span(name: "DeviceLink.shared_secrets_enabled?", parent_span_id: ^caller_span_id, kind: :server)] =
+               caller |> OpenTelemetry.Span.trace_id() |> exported() |> Enum.reject(&(span(&1, :name) =~ "Channels."))
+    end
+
+    test "a trace the caller kept is kept, with Sentry's decision in the trace state" do
+      trace_id = continue_trace(sampled?: true)
+
+      assert is_boolean(Remote.call(:shared_secrets_enabled?, []))
+
+      assert [span(name: "DeviceLink.shared_secrets_enabled?", tracestate: tracestate)] = exported(trace_id)
+      assert :otel_tracestate.get("sentry-sampled", tracestate) == "true"
+    end
+
+    test "a trace the caller dropped is dropped" do
+      trace_id = continue_trace(sampled?: false)
+
+      assert is_boolean(Remote.call(:shared_secrets_enabled?, []))
+
+      assert exported(trace_id) == []
+    end
+  end
+
+  # How other applications' nodes call this one. They can't be checked from here,
+  # so this pins what they rely on.
+  describe "run/3, as another node calls it" do
+    test "answers as the DeviceLink function does" do
+      assert :erpc.call(node(), Remote, :run, [[], :shared_secrets_enabled?, []]) ==
+               DeviceLink.shared_secrets_enabled?()
+    end
+
+    test "raises what the DeviceLink function raises, unchanged" do
+      # No clause takes a status update without a status. Rescued and raised again
+      # on the way, it would come back as a FunctionClauseError instead.
+      assert catch_error(Local.call(:status_update, [nil, %{}])) == :function_clause
+
+      assert {:exception, :function_clause, _stack} =
+               catch_error(:erpc.call(node(), Remote, :run, [[], :status_update, [nil, %{}]]))
+    end
+  end
+
   describe "route_key / call dispatch coverage" do
     test "verify_peer routes by DER bytes (hashes the cert)" do
       # :verify_peer routes by :erlang.phash2(der) — just call it and observe
@@ -137,6 +208,39 @@ defmodule NervesHub.DeviceLink.Dispatcher.RemoteTest do
     test "extensions_device_id returns nil for non-matching map" do
       # Route key for extension_message with empty map should not raise (falls back to nil routing)
       assert catch_error(Remote.call(:extension_message, [%{}, "health", "foo", %{}]))
+    end
+  end
+
+  # Joins a trace as a caller holds it once its own sampler has decided. Sentry's
+  # sampler writes its decision into the trace state, and a span continuing the
+  # trace inherits it from there.
+  defp continue_trace(sampled?: sampled?) do
+    trace_id = :rand.uniform(2 ** 128 - 1)
+    span_id = :rand.uniform(2 ** 64 - 1)
+    flags = if sampled?, do: "01", else: "00"
+
+    _token =
+      :otel_propagator_text_map.extract([
+        {"traceparent", "00-#{hex(trace_id, 32)}-#{hex(span_id, 16)}-#{flags}"},
+        {"tracestate", "sentry-sampled=#{sampled?}"}
+      ])
+
+    trace_id
+  end
+
+  defp hex(id, length), do: id |> Integer.to_string(16) |> String.downcase() |> String.pad_leading(length, "0")
+
+  defp exported(trace_id) do
+    :otel_tracer_provider.force_flush()
+    collect_exported(trace_id, [])
+  end
+
+  defp collect_exported(trace_id, spans) do
+    receive do
+      {:span, span(trace_id: ^trace_id) = span} -> collect_exported(trace_id, [span | spans])
+      {:span, _other} -> collect_exported(trace_id, spans)
+    after
+      200 -> Enum.reverse(spans)
     end
   end
 

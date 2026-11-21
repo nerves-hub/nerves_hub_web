@@ -229,6 +229,28 @@ defmodule NervesHub.DeviceLink.Dispatcher.RemoteFailureTest do
     end
   end
 
+  describe "a node on a release from before run/3" do
+    setup %{first: {_first, first_pid}} do
+      # The dispatcher as such a release has it, without `run/3`.
+      _ = :peer.call(first_pid, Code, :compile_string, ["defmodule #{inspect(Remote)}, do: nil"])
+
+      on_exit(fn ->
+        _ = :peer.call(first_pid, :code, :purge, [Remote])
+        {:module, Remote} = :peer.call(first_pid, :code, :load_file, [Remote])
+      end)
+    end
+
+    test "gets the call the old way, and answers it", ctx do
+      %{first: {first, _}, second: {second, _}} = ctx
+
+      assert Remote.call(:connect, [%{device_id: ctx.device_id}, nil]) == {:answered_by, first}
+
+      assert_received {:called, ^first, :connect}
+      refute_received {:called, ^second, _}
+      refute_received {:telemetry, _, _}
+    end
+  end
+
   # ------------------------------------------------------------------ helpers
 
   defp behave(peer_pid, behaviour), do: :ok = :peer.call(peer_pid, RemoteDispatchStub, :set, [self(), behaviour])
