@@ -50,6 +50,9 @@ defmodule NervesHub.Devices.HealthEvaluation.Queue do
   Every finished evaluation emits `[:nerves_hub, :health_evaluation,
   :evaluated]`, with how long it waited and how long it ran.
 
+  Nothing here survives a restart. Pending evaluations are lost when the node
+  stops, and the device's next report evaluates again.
+
   ## Tracing
 
   An evaluation is a trace of its own, under a
@@ -57,9 +60,6 @@ defmodule NervesHub.Devices.HealthEvaluation.Queue do
   report's. It can start up to `:max_age` after the report and judge several
   reports at once, so it belongs to none of them alone. It links to the span of
   the newest report it judges instead, when that report's trace is kept.
-
-  Nothing here survives a restart. Pending evaluations are lost when the node
-  stops, and the device's next report evaluates again.
   """
 
   use GenServer
