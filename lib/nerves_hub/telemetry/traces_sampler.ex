@@ -9,7 +9,7 @@ defmodule NervesHub.Telemetry.TracesSampler do
   queries with it. All the sampler knows is the span's name and the attributes
   it started with: a request is still named after its method, not its route.
 
-  There are four kinds, each with its own rate:
+  There are five kinds, each with its own rate:
 
     * `:requests` - requests to the web UI and API, and LiveView mounts,
       params and events. There are few of them, someone is waiting on each,
@@ -22,6 +22,10 @@ defmodule NervesHub.Telemetry.TracesSampler do
       deployment orchestrators, and queries run outside any request. Device
       traffic dwarfs everything else, which is why this rate is the small one.
       `SENTRY_TRACING_RATE`, `0.05` by default.
+    * `:flushes` - an analytics buffer writing a batch to ClickHouse. A busy
+      buffer flushes about twice a second on every node, so these are kept at
+      `SENTRY_TRACING_RATE` or 1%, whichever is lower. That is still enough to
+      see how long inserts take, which nothing else reports.
     * `:none` - never kept: what `NervesHub.Telemetry.FilteredSampler` drops
       (health checks, static files, the LiveView socket, device heartbeats),
       Oban's own polling queries, and a database transaction's `begin`,
@@ -39,8 +43,11 @@ defmodule NervesHub.Telemetry.TracesSampler do
   alias OpenTelemetry.SemConv.Incubating.MessagingAttributes
   alias OpenTelemetry.SemConv.URLAttributes
 
-  @type kind() :: :requests | :jobs | :default | :none
+  @type kind() :: :requests | :jobs | :default | :flushes | :none
   @type rates() :: [requests: float(), jobs: float(), default: float()]
+
+  # The most of `:flushes` traces kept, whatever the default rate.
+  @max_flush_rate 0.01
 
   # Oban's producers, stager, pruner and peer election, polling between jobs.
   # A job's own queries are children of its span, so they never start a trace.
@@ -73,6 +80,7 @@ defmodule NervesHub.Telemetry.TracesSampler do
   def sample_rate(%{transaction_context: context}, rates) do
     case kind(context.name, Map.get(context, :attributes)) do
       :none -> 0.0
+      :flushes -> min(Keyword.fetch!(rates, :default), @max_flush_rate)
       kind -> Keyword.fetch!(rates, kind)
     end
   end
@@ -90,6 +98,7 @@ defmodule NervesHub.Telemetry.TracesSampler do
       name in @oban_polling_queries -> :none
       attributes[:"db.statement"] in @transaction_statements -> :none
       attributes[MessagingAttributes.messaging_system()] == :oban -> :jobs
+      flush?(name) -> :flushes
       live_view?(name) -> :requests
       request?(attributes) -> :requests
       true -> :default
@@ -102,6 +111,9 @@ defmodule NervesHub.Telemetry.TracesSampler do
   # `socket.view` and a component's socket is its LiveView's.
   defp live_view?(name) when is_binary(name), do: String.starts_with?(name, "NervesHubWeb.Live.")
   defp live_view?(_name), do: false
+
+  defp flush?(name) when is_binary(name), do: String.starts_with?(name, "Analytics.Buffer.flush[")
+  defp flush?(_name), do: false
 
   defp request?(attributes) do
     path = attributes[URLAttributes.url_path()] || ""

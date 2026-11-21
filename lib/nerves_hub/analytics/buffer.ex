@@ -14,6 +14,10 @@ defmodule NervesHub.Analytics.Buffer do
   next one, so a slow ClickHouse produces fewer, larger batches rather than a
   pile-up of concurrent inserts.
 
+  Each flush is a trace of its own, under an `Analytics.Buffer.flush[<table>]`
+  span. A busy buffer flushes about twice a second, so
+  `NervesHub.Telemetry.TracesSampler` keeps few of them.
+
   Analytics data is sampled telemetry, not a system of record. If the buffer
   passes `:max_buffer_size` (ClickHouse being down or unreachable, say), the
   oldest half is dropped so the node stays up and recent rows still get through.
@@ -24,6 +28,7 @@ defmodule NervesHub.Analytics.Buffer do
   use GenServer
 
   require Logger
+  require OpenTelemetry.Tracer, as: Tracer
 
   @default_max_batch_size 1_000
   @default_max_delay to_timeout(millisecond: 500)
@@ -231,17 +236,19 @@ defmodule NervesHub.Analytics.Buffer do
   defp write([], _state), do: :ok
 
   defp write(rows, state) do
-    started_at = System.monotonic_time()
+    Tracer.with_span "Analytics.Buffer.flush[#{state.schema.__schema__(:source)}]" do
+      started_at = System.monotonic_time()
 
-    _ = NervesHub.AnalyticsRepo.insert_all(state.schema, rows, settings: [async_insert: 1])
+      _ = NervesHub.AnalyticsRepo.insert_all(state.schema, rows, settings: [async_insert: 1])
 
-    :telemetry.execute(
-      [:nerves_hub, :analytics, :buffer, :flush],
-      %{count: length(rows), duration: System.monotonic_time() - started_at},
-      %{schema: state.schema}
-    )
+      :telemetry.execute(
+        [:nerves_hub, :analytics, :buffer, :flush],
+        %{count: length(rows), duration: System.monotonic_time() - started_at},
+        %{schema: state.schema}
+      )
 
-    :ok
+      :ok
+    end
   rescue
     error ->
       Logger.error("Analytics buffer flush failed",

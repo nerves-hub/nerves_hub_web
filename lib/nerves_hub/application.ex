@@ -25,6 +25,7 @@ defmodule NervesHub.Application do
   alias NervesHub.Telemetry.Customizations
   alias NervesHub.Telemetry.LiveViewTrace
   alias NervesHubWeb.Integrations.Slack.Socket
+  alias OpenTelemetry.SemConv.Incubating.DBAttributes
   alias PlugAttack.Storage.Ets, as: PlugAttackEts
 
   require Logger
@@ -156,6 +157,16 @@ defmodule NervesHub.Application do
       NervesHub.Repo.config()
       |> Keyword.fetch!(:telemetry_prefix)
       |> OpentelemetryEcto.setup(db_statement: :enabled)
+
+    # `opentelemetry_ecto` doesn't recognise the ClickHouse adapter, so it would
+    # leave `db.system` off, and Sentry only shows a span as a query with it.
+    :ok =
+      NervesHub.AnalyticsRepo.config()
+      |> Keyword.fetch!(:telemetry_prefix)
+      |> OpentelemetryEcto.setup(
+        db_statement: :enabled,
+        additional_attributes: %{DBAttributes.db_system() => DBAttributes.db_system_values().clickhouse}
+      )
 
     :ok
   end
