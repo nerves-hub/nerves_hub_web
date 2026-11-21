@@ -87,7 +87,7 @@ defmodule NervesHub.Devices.HealthEvaluation.QueueTracingTest do
 
   defp device_info(), do: %DeviceInfo{device_id: 1, device_identifier: "device-1", connection_ref: "first"}
 
-  # The span the evaluation ran in, once it has finished, and its span with it.
+  # Drains the queue and returns the span the evaluation ran in.
   defp evaluated(queue) do
     :ok = Queue.drain(server: queue)
     assert_receive {:evaluated_in, span_ctx}
