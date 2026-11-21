@@ -93,6 +93,10 @@ defmodule NervesHub.Telemetry.TracesSamplerTest do
       end
     end
 
+    test "an analytics buffer's flush is a flush" do
+      assert TracesSampler.kind("Analytics.Buffer.flush[device_log_lines]", %{}) == :flushes
+    end
+
     test "a span that started without attributes is still classified" do
       assert TracesSampler.kind("Channels.DeviceChannel.join", :undefined) == :default
       assert TracesSampler.kind(:GET, nil) == :default
@@ -109,6 +113,13 @@ defmodule NervesHub.Telemetry.TracesSamplerTest do
 
       message = sampling_context("Channels.ExtensionsChannel.handle_in", %{})
       assert TracesSampler.sample_rate(message, @rates) == 0.05
+    end
+
+    test "keeps flushes at the default rate, but never more than 1%" do
+      flush = sampling_context("Analytics.Buffer.flush[device_messages]", %{})
+
+      assert TracesSampler.sample_rate(flush, @rates) == 0.01
+      assert TracesSampler.sample_rate(flush, Keyword.put(@rates, :default, 0.001)) == 0.001
     end
 
     test "returns 0.0 for what is never kept, whatever the rates" do
