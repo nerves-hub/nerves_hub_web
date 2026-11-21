@@ -17,6 +17,7 @@ defmodule NervesHubWeb.ExtensionsChannel do
   use OpenTelemetryDecorator
 
   alias NervesHub.DeviceLink.Client, as: DeviceLink
+  alias NervesHub.DeviceLink.DeviceInfo
   alias NervesHub.Extensions
   alias NervesHubWeb.Channels.Effects
   alias NervesHubWeb.Channels.Platform
@@ -25,6 +26,8 @@ defmodule NervesHubWeb.ExtensionsChannel do
   @impl Phoenix.Channel
   @decorate with_span("Channels.ExtensionsChannel.join")
   def join("extensions", extension_versions, %{assigns: %{device_info: device_info}} = socket) do
+    :ok = DeviceInfo.set_span_attributes(device_info)
+
     case Platform.ask(socket, :extensions_join, fn ->
            DeviceLink.extensions_join(device_info, extension_versions)
          end) do
@@ -57,6 +60,8 @@ defmodule NervesHubWeb.ExtensionsChannel do
   @impl Phoenix.Channel
   @decorate with_span("Channels.ExtensionsChannel.handle_in")
   def handle_in(scoped_event, payload, socket) do
+    :ok = DeviceInfo.set_span_attributes(socket.assigns.device_info, %{"nerves_hub.channel.event": scoped_event})
+
     case Platform.ask(socket, :extension_message, fn ->
            DeviceLink.extension_message(socket.assigns.extensions, scoped_event, payload)
          end) do
@@ -83,6 +88,7 @@ defmodule NervesHubWeb.ExtensionsChannel do
 
   @decorate with_span("Channels.ExtensionsChannel.handle_info[Broadcast]")
   def handle_info(%Broadcast{event: event, payload: payload}, socket) do
+    :ok = DeviceInfo.set_span_attributes(socket.assigns.device_info, %{"nerves_hub.channel.event": event})
     push(socket, event, payload)
     {:noreply, socket}
   end
@@ -90,6 +96,8 @@ defmodule NervesHubWeb.ExtensionsChannel do
   # A timer armed through `Effects` delivering; `timer_fired/2` re-arms it.
   @decorate with_span("Channels.ExtensionsChannel.handle_info[timer]")
   def handle_info({:timeout, _ref, _payload} = timer, socket) do
+    :ok = DeviceInfo.set_span_attributes(socket.assigns.device_info)
+
     case Effects.timer_fired(socket, timer) do
       {:deliver, {mod, msg}, socket} -> extension_info(socket, mod, msg)
       {:drop, socket} -> {:noreply, socket}
@@ -108,6 +116,8 @@ defmodule NervesHubWeb.ExtensionsChannel do
   # already re-armed an interval. Keeping it when the platform does not answer
   # keeps the timer: the delivery is dropped, the next one still comes.
   defp extension_info(socket, mod, msg) do
+    :ok = DeviceInfo.set_span_attributes(socket.assigns.device_info, %{"nerves_hub.extension": inspect(mod)})
+
     case Platform.ask(socket, :extension_info, fn ->
            DeviceLink.extension_info(socket.assigns.extensions, mod, msg)
          end) do

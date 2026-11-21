@@ -154,6 +154,21 @@ defmodule NervesHub.DeviceLink.Dispatcher.RemoteTest do
       assert :otel_tracestate.get("sentry-sampled", tracestate) == "true"
     end
 
+    test "says which device a call is about, and what about it" do
+      trace_id = continue_trace(sampled?: true)
+
+      {_attach_list, extensions} = Remote.call(:extensions_join, [device_info(), @versions])
+      assert Remote.call(:extension_message, [extensions, "nope:hello", %{}]) == :unknown
+
+      spans = for span(name: name, attributes: attributes) <- exported(trace_id), into: %{}, do: {name, attributes}
+      device = %{"nerves_hub.device.id": 4242, "nerves_hub.product.id": 2, "nerves_hub.org.id": 1}
+
+      assert :otel_attributes.map(spans["DeviceLink.extensions_join"]) == device
+
+      assert :otel_attributes.map(spans["DeviceLink.extension_message"]) ==
+               Map.put(device, :"nerves_hub.channel.event", "nope:hello")
+    end
+
     test "a trace the caller dropped is dropped" do
       trace_id = continue_trace(sampled?: false)
 

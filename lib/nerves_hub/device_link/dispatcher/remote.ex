@@ -62,6 +62,7 @@ defmodule NervesHub.DeviceLink.Dispatcher.Remote do
   @behaviour NervesHub.DeviceLink.Dispatcher
 
   alias NervesHub.DeviceLink
+  alias NervesHub.DeviceLink.DeviceInfo
   alias NervesHub.DeviceLink.Dispatcher
   alias NervesHub.DeviceLink.Dispatcher.NoHandlersError
   alias NervesHub.DeviceLink.Dispatcher.TimeoutError
@@ -88,6 +89,9 @@ defmodule NervesHub.DeviceLink.Dispatcher.Remote do
   `DeviceLink.<function>`, is a child of the caller's span, and follows the
   caller's sampling decision: a trace the caller kept is kept here, and one it
   dropped is dropped here too. With no trace to continue, the span starts one.
+  It carries the device's ids (`NervesHub.DeviceLink.DeviceInfo.trace_attributes/1`)
+  when the call is about a device, and the event or extension when it's about
+  one of those.
 
   ## Called over `:erpc` by other applications in the cluster
 
@@ -105,7 +109,7 @@ defmodule NervesHub.DeviceLink.Dispatcher.Remote do
   def run(trace_context, function, args) do
     ctx = :otel_propagator_text_map.extract_to(:otel_ctx.new(), trace_context)
 
-    Tracer.with_span ctx, "DeviceLink.#{function}", %{kind: :server} do
+    Tracer.with_span ctx, "DeviceLink.#{function}", %{kind: :server, attributes: trace_attributes(function, args)} do
       try do
         apply(DeviceLink, function, args)
       catch
@@ -180,35 +184,61 @@ defmodule NervesHub.DeviceLink.Dispatcher.Remote do
 
   # Which device a call concerns, so it lands on the same node each time.
   #
-  # A function missing from this list routes arbitrarily, which is only safe
-  # while nothing it reaches keeps per-device state on a node.
+  # A function missing from `device_info/2` routes arbitrarily, which is only
+  # safe while nothing it reaches keeps per-device state on a node.
   # No device is known during a handshake -- that is what is being established --
   # so the certificate stands in for one. Handshakes for the same device then
   # land on the same node.
   defp route_key(:verify_peer, [der | _]), do: :erlang.phash2(der)
 
-  defp route_key(:connect, [device_info | _]), do: device_info.device_id
-  defp route_key(:device_join, [device_info | _]), do: device_info.device_id
-  defp route_key(:extensions_join, [device_info | _]), do: device_info.device_id
+  defp route_key(function, args) do
+    case device_info(function, args) do
+      nil -> nil
+      device_info -> device_info.device_id
+    end
+  end
 
-  defp route_key(function, [session | _]) when function in [:device_message, :device_notify, :device_broadcast],
-    do: session.device_info.device_id
+  # The device a call concerns, where its arguments say.
+  defp device_info(function, [device_info | _]) when function in [:connect, :device_join, :extensions_join],
+    do: device_info
 
-  defp route_key(function, [extensions | _]) when function in [:extension_message, :extension_info],
-    do: extensions_device_id(extensions)
+  defp device_info(function, [session | _]) when function in [:device_message, :device_notify, :device_broadcast],
+    do: session.device_info
+
+  defp device_info(function, [extensions | _]) when function in [:extension_message, :extension_info],
+    do: extensions_device_info(extensions)
 
   # authenticate/1 has no device yet, and the connection lifecycle calls are
   # keyed by a connection reference that no node keeps anything under.
-  defp route_key(_function, _args), do: nil
+  defp device_info(_function, _args), do: nil
 
-  defp extensions_device_id(extensions) when is_map(extensions) do
+  defp extensions_device_info(extensions) when is_map(extensions) do
     Enum.find_value(extensions, fn
-      {_key, %{state: %{device_info: %{device_id: device_id}}}} -> device_id
+      {_key, %{state: %{device_info: %{device_id: _device_id} = device_info}}} -> device_info
       _ -> nil
     end)
   end
 
-  defp extensions_device_id(_extensions), do: nil
+  defp extensions_device_info(_extensions), do: nil
+
+  defp trace_attributes(function, args) do
+    device =
+      case device_info(function, args) do
+        %DeviceInfo{} = device_info -> DeviceInfo.trace_attributes(device_info)
+        _ -> %{}
+      end
+
+    Map.merge(device, subject_attributes(function, args))
+  end
+
+  defp subject_attributes(function, [_session_or_extensions, event | _])
+       when function in [:device_message, :device_broadcast, :extension_message] and is_binary(event),
+       do: %{"nerves_hub.channel.event": event}
+
+  defp subject_attributes(:extension_info, [_extensions, module | _]) when is_atom(module),
+    do: %{"nerves_hub.extension": inspect(module)}
+
+  defp subject_attributes(_function, _args), do: %{}
 
   defp timeout(), do: config(:timeout, @default_timeout)
   defp attempts(), do: config(:attempts, @default_attempts)

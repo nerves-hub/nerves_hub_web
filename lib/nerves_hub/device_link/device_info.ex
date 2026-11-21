@@ -15,6 +15,8 @@ defmodule NervesHub.DeviceLink.DeviceInfo do
   release; read `device_update_mode` instead.
   """
 
+  alias OpenTelemetry.Tracer
+
   defstruct [
     :allowed_extensions,
     :connection_ref,
@@ -46,4 +48,33 @@ defmodule NervesHub.DeviceLink.DeviceInfo do
           org_id: pos_integer() | nil,
           product_id: pos_integer() | nil
         }
+
+  @doc """
+  The device's ids, as attributes for a span about it, so its traces can be
+  found by device, product or organization.
+
+  Ids only. A device's identifier is often its serial number.
+  """
+  @spec trace_attributes(t()) :: %{atom() => pos_integer()}
+  def trace_attributes(%__MODULE__{} = device_info) do
+    %{
+      "nerves_hub.device.id": device_info.device_id,
+      "nerves_hub.product.id": device_info.product_id,
+      "nerves_hub.org.id": device_info.org_id
+    }
+    |> Map.reject(fn {_key, id} -> is_nil(id) end)
+  end
+
+  @doc """
+  Puts the device's ids on the current span, with any `attributes` saying what
+  the span is about, such as the event a device sent.
+
+  The device and extensions channels both call it, so their spans are tagged
+  alike.
+  """
+  @spec set_span_attributes(t(), map()) :: :ok
+  def set_span_attributes(%__MODULE__{} = device_info, attributes \\ %{}) do
+    _ = device_info |> trace_attributes() |> Map.merge(attributes) |> Tracer.set_attributes()
+    :ok
+  end
 end
