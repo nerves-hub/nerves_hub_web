@@ -52,6 +52,14 @@ defmodule NervesHub.Devices.HealthEvaluation.Queue do
 
   Nothing here survives a restart. Pending evaluations are lost when the node
   stops, and the device's next report evaluates again.
+
+  ## Tracing
+
+  An evaluation is a trace of its own, under a
+  `Devices.HealthEvaluation.Queue.evaluate` span, rather than part of the
+  report's. It can start up to `:max_age` after the report and judge several
+  reports at once, so it belongs to none of them alone. It links to the span of
+  the newest report it judges instead, when that report's trace is kept.
   """
 
   use GenServer
@@ -60,6 +68,7 @@ defmodule NervesHub.Devices.HealthEvaluation.Queue do
   alias NervesHub.Helpers.Logging
 
   require Logger
+  require OpenTelemetry.Tracer, as: Tracer
 
   @max_concurrency 10
   @default_max_age to_timeout(minute: 1)
@@ -72,7 +81,7 @@ defmodule NervesHub.Devices.HealthEvaluation.Queue do
 
   defmodule Entry do
     @moduledoc false
-    defstruct [:callers, :device_info, :enqueued_at, :samples]
+    defstruct [:callers, :device_info, :enqueued_at, :samples, links: []]
   end
 
   defmodule State do
@@ -135,7 +144,15 @@ defmodule NervesHub.Devices.HealthEvaluation.Queue do
     # how an evaluation queued from a test reaches that test's connection.
     callers = [self() | Process.get(:"$callers", [])]
 
-    GenServer.cast(server, {:enqueue, device_info, samples, callers})
+    GenServer.cast(server, {:enqueue, device_info, samples, callers, report_links()})
+  end
+
+  # The report's span, for its evaluation to link to. Only a span that is being
+  # recorded: a link to a trace that was not kept leads nowhere.
+  defp report_links() do
+    span_ctx = Tracer.current_span_ctx()
+
+    if :otel_span.is_recording(span_ctx), do: [:opentelemetry.link(span_ctx)], else: []
   end
 
   @doc """
@@ -175,7 +192,7 @@ defmodule NervesHub.Devices.HealthEvaluation.Queue do
   end
 
   @impl GenServer
-  def handle_cast({:enqueue, device_info, samples, callers}, state) do
+  def handle_cast({:enqueue, device_info, samples, callers, links}, state) do
     device_id = device_info.device_id
 
     state =
@@ -185,7 +202,8 @@ defmodule NervesHub.Devices.HealthEvaluation.Queue do
             entry
             | device_info: device_info,
               samples: merge_samples(entry.samples, samples),
-              callers: callers
+              callers: callers,
+              links: links
           }
 
           %{state | pending: Map.put(state.pending, device_id, entry)}
@@ -195,7 +213,8 @@ defmodule NervesHub.Devices.HealthEvaluation.Queue do
             device_info: device_info,
             samples: merge_samples([], samples),
             enqueued_at: System.monotonic_time(),
-            callers: callers
+            callers: callers,
+            links: links
           }
 
           state = %{state | pending: Map.put(state.pending, device_id, entry)}
@@ -278,14 +297,17 @@ defmodule NervesHub.Devices.HealthEvaluation.Queue do
     }
   end
 
-  # Runs in the task.
+  # Runs in the task. Without a span of its own, every query the evaluation
+  # makes would start a trace by itself.
   defp evaluate(evaluator, entry) do
     Process.put(:"$callers", entry.callers)
 
-    case evaluator.(entry.device_info, entry.samples) do
-      :ok -> :ok
-      # `evaluate_and_save/2` failing to save has already logged and reported it.
-      :error -> :error
+    Tracer.with_span "Devices.HealthEvaluation.Queue.evaluate", %{links: entry.links} do
+      case evaluator.(entry.device_info, entry.samples) do
+        :ok -> :ok
+        # `evaluate_and_save/2` failing to save has already logged and reported it.
+        :error -> :error
+      end
     end
   rescue
     exception -> {:error, exception, __STACKTRACE__}
