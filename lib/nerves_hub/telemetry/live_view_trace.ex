@@ -14,7 +14,7 @@ defmodule NervesHub.Telemetry.LiveViewTrace do
   Only the page load joins the request's trace: the connected mount of a page
   the browser has just loaded, and its `handle_params`. The trace is let go
   after the first render, so the events, timers and refreshes that follow start
-  traces of their own, as before. A reconnect (`"_mounts"` above 0) or a live
+  traces of their own. A reconnect (`"_mounts"` above 0) or a live
   navigation (`"_live_referer"` set) starts its own trace too, because the
   session it mounts with is from an earlier page. So does a nested LiveView.
 
