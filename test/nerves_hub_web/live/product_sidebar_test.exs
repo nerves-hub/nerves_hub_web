@@ -29,6 +29,26 @@ defmodule NervesHubWeb.ProductSidebarTest do
       |> assert_has("#product-online", text: "0 / 1")
     end
 
+    test "counts connected devices online, and every other device that isn't deleted as offline", %{
+      conn: conn,
+      org: org,
+      product: product,
+      firmware: firmware
+    } do
+      # The setup's device has never connected, so it has no connection row.
+      online = Fixtures.device_fixture(org, product, firmware)
+      Fixtures.device_connection_fixture(online, %{status: :connected})
+      offline = Fixtures.device_fixture(org, product, firmware)
+      Fixtures.device_connection_fixture(offline, %{status: :disconnected})
+      deleted = Fixtures.device_fixture(org, product, firmware)
+      Fixtures.device_connection_fixture(deleted, %{status: :connected})
+      {:ok, _} = NervesHub.Devices.delete_device(deleted)
+
+      conn
+      |> visit_product(org, product)
+      |> assert_has("#product-online", text: "1 / 3")
+    end
+
     test "a phone's top bar names the product and the page, and offers the user menu", %{
       conn: conn,
       org: org,
