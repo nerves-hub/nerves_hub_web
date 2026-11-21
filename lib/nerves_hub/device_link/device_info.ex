@@ -46,4 +46,20 @@ defmodule NervesHub.DeviceLink.DeviceInfo do
           org_id: pos_integer() | nil,
           product_id: pos_integer() | nil
         }
+
+  @doc """
+  The device's ids, as attributes for a span about it, so its traces can be
+  found by device, product or organization.
+
+  Ids only. A device's identifier is often its serial number.
+  """
+  @spec trace_attributes(t()) :: %{atom() => pos_integer()}
+  def trace_attributes(%__MODULE__{} = device_info) do
+    %{
+      "nerves_hub.device.id": device_info.device_id,
+      "nerves_hub.product.id": device_info.product_id,
+      "nerves_hub.org.id": device_info.org_id
+    }
+    |> Map.reject(fn {_key, id} -> is_nil(id) end)
+  end
 end

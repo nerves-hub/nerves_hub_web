@@ -36,8 +36,10 @@ defmodule NervesHubWeb.DeviceChannel do
   use OpenTelemetryDecorator
 
   alias NervesHub.DeviceLink.Client, as: DeviceLink
+  alias NervesHub.DeviceLink.DeviceInfo
   alias NervesHubWeb.Channels.Effects
   alias NervesHubWeb.Channels.Platform
+  alias OpenTelemetry.Tracer
 
   require Logger
 
@@ -52,6 +54,7 @@ defmodule NervesHubWeb.DeviceChannel do
   @decorate with_span("Channels.DeviceChannel.join")
   def join(topic, params, %{assigns: %{device_info: device_info}} = socket) do
     Logger.metadata(device_id: device_info.device_id, device_identifier: device_info.device_identifier)
+    :ok = set_span_attributes(device_info)
 
     # Checked before the platform is asked, so a join to another device's topic
     # never reaches it.
@@ -84,12 +87,15 @@ defmodule NervesHubWeb.DeviceChannel do
   @impl Phoenix.Channel
   @decorate with_span("Channels.DeviceChannel.handle_in")
   def handle_in(event, payload, socket) do
+    :ok = set_span_attributes(socket.assigns.device_info, %{"nerves_hub.channel.event": event})
     advance(socket, :device_message, &DeviceLink.device_message(&1, event, payload))
   end
 
   @impl Phoenix.Channel
   @decorate with_span("Channels.DeviceChannel.handle_info")
   def handle_info(message, socket) do
+    :ok = set_span_attributes(socket.assigns.device_info)
+
     # Timers armed through `Effects` deliver in an envelope; the rest passes through.
     case Effects.timer_fired(socket, message) do
       {:deliver, message, socket} -> advance(socket, :device_notify, &DeviceLink.device_notify(&1, message))
@@ -101,7 +107,15 @@ defmodule NervesHubWeb.DeviceChannel do
   @impl Phoenix.Channel
   @decorate with_span("Channels.DeviceChannel.handle_out")
   def handle_out(event, payload, socket) do
+    :ok = set_span_attributes(socket.assigns.device_info, %{"nerves_hub.channel.event": event})
     advance(socket, :device_broadcast, &DeviceLink.device_broadcast(&1, event, payload))
+  end
+
+  # Which device a span here is about, and what about it, so its traces can be
+  # found by either.
+  defp set_span_attributes(device_info, attributes \\ %{}) do
+    _ = device_info |> DeviceInfo.trace_attributes() |> Map.merge(attributes) |> Tracer.set_attributes()
+    :ok
   end
 
   defp advance(socket, function, fun) do
