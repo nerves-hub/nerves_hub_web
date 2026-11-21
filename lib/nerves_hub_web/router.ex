@@ -25,6 +25,7 @@ defmodule NervesHubWeb.Router do
   alias Live.Product.Insights
   alias Live.Product.Notifications
   alias Live.SupportScripts.Edit
+  alias NervesHub.Telemetry.LiveViewTrace
   alias NervesHubWeb.API.Plugs.Device
   alias NervesHubWeb.API.Plugs.FetchCurrentScope
   alias NervesHubWeb.API.Plugs.Product
@@ -417,6 +418,7 @@ defmodule NervesHubWeb.Router do
     pipe_through([:browser, :require_authenticated_user])
 
     live_session :default,
+      session: {LiveViewTrace, :session, []},
       on_mount: [
         {NervesHubWeb.Auth, :mount_current_scope},
         {NervesHubWeb.Auth, :assign_org_to_scope},
