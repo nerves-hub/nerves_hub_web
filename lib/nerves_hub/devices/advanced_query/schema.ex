@@ -76,8 +76,10 @@ defmodule NervesHub.Devices.AdvancedQuery.Schema do
       operators: ["=", "!="],
       values: &__MODULE__.connection_values/1
     },
-    # The value is a relative time; `last_seen > "7 days ago"` means the device's
-    # last connection is more recent than 7 days ago, `<` means older (stale).
+    # The value is a relative time, and it only matches offline devices: an
+    # online device is being seen now. `last_seen > "7 days ago"` means an
+    # offline device was last seen less than 7 days ago, `<` means longer ago
+    # (stale).
     "last_seen" => %{
       operators: [">", "<"],
       values: &__MODULE__.last_seen_values/1
