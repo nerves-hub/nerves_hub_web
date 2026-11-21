@@ -24,7 +24,6 @@ defmodule NervesHub.Accounts do
   alias NervesHub.DeviceEvents
   alias NervesHub.Devices.CACertificate
   alias NervesHub.Devices.Device
-  alias NervesHub.Devices.DeviceConnection
   alias NervesHub.Devices.Pinning
   alias NervesHub.Devices.Visibility
   alias NervesHub.Firmwares.Firmware
@@ -811,58 +810,46 @@ defmodule NervesHub.Accounts do
     }
   end
 
-  def get_org_device_counts(%Scope{user: user}, org_id) do
-    products = products_subquery(user)
+  @doc """
+  How many devices the scope's user can see in an org are connected, and how
+  many aren't, as `{connected, disconnected}`: for the whole org under `:org`,
+  and for each of its products that isn't deleted, keyed by product id, under
+  `:products`. A product with no devices the user can see has `{0, 0}`, and a
+  device with no connection row counts as disconnected.
 
-    rows =
+  Every count comes from one pass over the org's devices, grouped by product.
+  """
+  @spec get_org_device_counts(Scope.t(), pos_integer()) :: %{
+          org: {non_neg_integer(), non_neg_integer()},
+          products: %{pos_integer() => {non_neg_integer(), non_neg_integer()}}
+        }
+  def get_org_device_counts(%Scope{user: user}, org_id) do
+    product_ids =
       Product
       |> Repo.exclude_deleted()
       |> where([p], p.org_id == ^org_id)
-      |> join(:left, [p], pc in subquery(products), on: pc.id == p.id)
-      |> select([p, pc], %{
-        product_id: p.id,
-        connected: pc.connected_devices_count,
-        disconnected: pc.disconnected_devices_count
-      })
+      |> select([p], p.id)
       |> Repo.all()
 
-    product_counts = Map.new(rows, &{&1.product_id, {&1.connected, &1.disconnected}})
-    connected = Enum.sum(Enum.map(rows, & &1.connected))
-    disconnected = Enum.sum(Enum.map(rows, & &1.disconnected))
-
-    %{org: {connected, disconnected}, products: product_counts}
-  end
-
-  # Counts only the devices `user` can see.
-  defp products_subquery(user) do
-    connected_devices_count =
-      Device
-      |> Visibility.where_visible(user)
-      |> join(:inner, [d], dc in DeviceConnection, on: d.id == dc.device_id)
-      |> where([_d, dc], dc.product_id == parent_as(:product).id)
-      |> where([_d, dc], dc.status == :connected)
-      |> where([d], is_nil(d.deleted_at))
-      |> select([d], %{count: count()})
-
-    # Must join from Device so devices with no connection row are counted as disconnected
-    disconnected_devices_count =
+    counted =
       Device
       |> Visibility.where_visible(user)
       |> join(:left, [d], lc in assoc(d, :latest_connection))
-      |> where([d], d.product_id == parent_as(:product).id)
-      |> where([_d, lc], is_nil(lc) or lc.status != :connected)
+      |> where([d], d.org_id == ^org_id and d.product_id in ^product_ids)
       |> Repo.exclude_deleted()
-      |> select([d], %{count: count()})
+      |> group_by([d], d.product_id)
+      |> select([d, lc], {
+        d.product_id,
+        {filter(count(), lc.status == :connected), filter(count(), is_nil(lc.id) or lc.status != :connected)}
+      })
+      |> Repo.all()
+      |> Map.new()
 
-    Product
-    |> from(as: :product)
-    |> join(:left_lateral, [p], cdc in subquery(connected_devices_count), on: true, as: :connected_devices_count)
-    |> join(:left_lateral, [p], ddc in subquery(disconnected_devices_count), on: true, as: :disconnected_devices_count)
-    |> select_merge([_, connected_devices_count: cdc, disconnected_devices_count: ddc], %{
-      connected_devices_count: cdc.count,
-      disconnected_devices_count: ddc.count
-    })
-    |> Repo.exclude_deleted()
+    product_counts = Map.new(product_ids, &{&1, Map.get(counted, &1, {0, 0})})
+    connected = product_counts |> Map.values() |> Enum.sum_by(&elem(&1, 0))
+    disconnected = product_counts |> Map.values() |> Enum.sum_by(&elem(&1, 1))
+
+    %{org: {connected, disconnected}, products: product_counts}
   end
 
   def get_user_by_email(email) do

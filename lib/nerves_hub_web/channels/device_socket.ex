@@ -40,14 +40,9 @@ defmodule NervesHubWeb.DeviceSocket do
   # connection. Unanswered or not, it counts as done: the next one is an
   # interval away, and asking again on every frame would only add load while
   # the platform is slow.
-  @decorate with_span("Channels.DeviceSocket.heartbeat")
   defp heartbeat(%{assigns: %{device_info: device_info}} = socket) do
     if update_heartbeat?(socket) do
-      _ =
-        Platform.ask(socket, :heartbeat, fn ->
-          DeviceLink.heartbeat(device_info.connection_ref)
-        end)
-
+      send_heartbeat(socket, device_info)
       update_last_heartbeat(socket)
     else
       socket
@@ -55,6 +50,18 @@ defmodule NervesHubWeb.DeviceSocket do
   end
 
   defp heartbeat(socket), do: socket
+
+  # The span is here rather than on `heartbeat/1`, which runs on every frame
+  # the device sends. Samplers drop it by name, and the spans under it with it.
+  @decorate with_span("Channels.DeviceSocket.heartbeat")
+  defp send_heartbeat(socket, device_info) do
+    _ =
+      Platform.ask(socket, :heartbeat, fn ->
+        DeviceLink.heartbeat(device_info.connection_ref)
+      end)
+
+    :ok
+  end
 
   defp update_heartbeat?(%{assigns: %{last_heartbeat: last_heartbeat}}) do
     seconds_ago = System.monotonic_time(:second) - last_heartbeat

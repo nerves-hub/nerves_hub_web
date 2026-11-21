@@ -1,5 +1,6 @@
 defmodule NervesHubWeb.Live.Product.HealthProfilesTest do
   use NervesHubWeb.ConnCase.Browser, async: false
+  use Mimic
 
   import Ecto.Query, only: [where: 2]
 
@@ -498,6 +499,63 @@ defmodule NervesHubWeb.Live.Product.HealthProfilesTest do
       assert has_element?(view, "#impact-healthy", "−1")
       assert has_element?(view, "#impact-warning", "1 warning")
       assert has_element?(view, "#impact-warning", "+1")
+    end
+
+    # Stopping a preview while it holds a connection drops that connection,
+    # which in tests is the sandbox's only one, and the save after it fails.
+    test "edits while a preview runs wait for it, and only the last is previewed", %{
+      conn: conn,
+      path: path,
+      product: product
+    } do
+      test = self()
+
+      # The preview of the first edit holds a connection until the test has
+      # made the others.
+      stub(HealthProfiles, :preview_counts, fn product, user, profile, profiles, metrics ->
+        %{warning_threshold: cpu} = Enum.find(metrics, &(&1.key == "cpu_usage_percent"))
+
+        if cpu == 60.0 do
+          Repo.checkout(fn ->
+            send(test, {:previewing, 60.0, self()})
+
+            receive do
+              :edited_again -> :ok
+            after
+              1_000 -> :ok
+            end
+          end)
+        else
+          send(test, {:previewing, cpu, self()})
+        end
+
+        call_original(HealthProfiles, :preview_counts, [product, user, profile, profiles, metrics])
+      end)
+
+      {:ok, view, _html} = live(conn, path)
+      render_async(view)
+      cpu = index_of(view, "cpu_usage_percent")
+
+      edit = fn threshold ->
+        view
+        |> form("#profile-metrics", %{"metrics" => %{"#{cpu}" => %{"warning_threshold" => threshold}}})
+        |> render_change()
+      end
+
+      edit.("60")
+      assert_receive {:previewing, 60.0, preview}, 1_000
+      edit.("65")
+      edit.("70")
+      assert Process.alive?(preview)
+      send(preview, :edited_again)
+
+      assert_receive {:previewing, 70.0, _preview}, 1_000
+      refute_received {:previewing, 65.0, _preview}
+
+      view |> form("#profile-metrics") |> render_submit()
+      render_async(view)
+
+      assert default_metric(product, "cpu_usage_percent").warning_threshold == 70.0
     end
   end
 
