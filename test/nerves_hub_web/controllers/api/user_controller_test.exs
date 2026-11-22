@@ -8,6 +8,7 @@ defmodule NervesHubWeb.API.UserControllerTest do
   alias NervesHub.Fixtures
   alias NervesHub.PlugAttack.Storage, as: PlugAttackStorage
   alias NervesHub.Repo
+  alias NervesHubWeb.Plugs.Attack
   alias PlugAttack.Storage.Ets, as: PlugAttackEts
 
   test "me", %{conn: conn, user: user} do
@@ -389,9 +390,11 @@ defmodule NervesHubWeb.API.UserControllerTest do
     test "polling is limited to 120 a minute, then refused with a 429 saying when to retry", %{conn: conn} do
       %{"token" => token} = start_cli_login(conn)
 
-      for _ <- 1..120 do
-        assert waiting?(conn, token)
-      end
+      # Counted straight into the bucket, so the requests below don't straddle
+      # the end of a minute and start a fresh count.
+      for _ <- 1..119, do: Attack.cli_poll_throttle(conn.remote_ip)
+
+      assert waiting?(conn, token)
 
       conn = get(conn, ~p"/api/auth/cli_session/#{token}")
 

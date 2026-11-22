@@ -103,6 +103,13 @@ defmodule NervesHubWeb.Plugs.AttackTest do
       assert Jason.decode!(conn.resp_body) == %{"errors" => %{"detail" => "Too many requests"}}
     end
 
+    test "refuses a block that isn't a throttle without a Retry-After" do
+      conn = Attack.block_action(Plug.Test.conn(:get, "/"), true, [])
+
+      assert conn.status == 429
+      assert Plug.Conn.get_resp_header(conn, "retry-after") == []
+    end
+
     test "never says to retry in less than a second" do
       conn =
         Attack.block_action(

@@ -178,7 +178,8 @@ defmodule NervesHubWeb.Plugs.Attack do
   @doc """
   Refuses a throttled request with `429 Too Many Requests`, and a `Retry-After`
   of the seconds until its count starts again, so a CLI can wait that long
-  rather than give up.
+  rather than give up. A block that isn't a throttle has no count to wait out,
+  so it gets the 429 without a `Retry-After`.
   """
   @impl PlugAttack
   def block_action(conn, {:throttle, data}, _opts) do
@@ -186,6 +187,13 @@ defmodule NervesHubWeb.Plugs.Attack do
 
     conn
     |> Plug.Conn.put_resp_header("retry-after", Integer.to_string(retry_after))
+    |> too_many_requests()
+  end
+
+  def block_action(conn, _data, _opts), do: too_many_requests(conn)
+
+  defp too_many_requests(conn) do
+    conn
     |> Plug.Conn.put_resp_content_type("application/json")
     |> Plug.Conn.send_resp(:too_many_requests, Jason.encode!(%{errors: %{detail: "Too many requests"}}))
     |> Plug.Conn.halt()

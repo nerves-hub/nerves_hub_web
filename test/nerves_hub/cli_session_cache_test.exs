@@ -354,6 +354,17 @@ defmodule NervesHub.CLISessionCacheTest do
       assert {:ok, %{status: :collected, user_token: nil}} = CLISessionCache.get(token)
     end
 
+    test "finds nothing once the login expires, even before the cache clears it", %{user: user, token: token} do
+      :ok = Accounts.verify_cli_session_token(user, token)
+      {:ok, cli_session} = CLISessionCache.get(token)
+
+      expired = DateTime.utc_now() |> DateTime.add(-1, :second) |> DateTime.to_unix()
+      :ok = CLISessionCache.put(token, %{cli_session | expires_at: expired})
+
+      assert {:error, :not_found} = Accounts.check_cli_session_ready(token)
+      assert {:ok, %{status: :ready}} = CLISessionCache.get(token)
+    end
+
     test "finds nothing for a token no login has" do
       assert {:error, :not_found} = Accounts.check_cli_session_ready(Ecto.UUID.generate())
     end

@@ -2103,7 +2103,8 @@ defmodule NervesHub.Accounts do
   A login someone has confirmed comes back `:ready` with its API token the
   first time it's asked for, and is stored as `:collected` with the token
   dropped. Every node's copy of it drops the token too, so asking again,
-  whoever asks, finds `:collected` and no token until the login expires.
+  whoever asks, finds `:collected` and no token until the login expires, when
+  it isn't found at all.
 
   A CLI that never got the response that carried the token has to start
   another login. The token it missed still exists, labelled with the login's
@@ -2115,7 +2116,13 @@ defmodule NervesHub.Accounts do
   """
   @spec check_cli_session_ready(String.t()) :: {:ok, UserCLISession.t()} | {:error, :not_found}
   def check_cli_session_ready(token) do
+    now = DateTime.to_unix(DateTime.utc_now())
+
     CLISessionCache.get_and_update(token, fn
+      # The cache only clears expired logins once a minute.
+      {:ok, %{expires_at: expires_at}} when expires_at < now ->
+        {{:error, :not_found}, :noop}
+
       {:ok, %{status: :ready} = cli_session} ->
         {{:ok, cli_session}, {:put, %{cli_session | status: :collected, user_token: nil}}}
 
