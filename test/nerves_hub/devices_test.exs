@@ -228,6 +228,31 @@ defmodule NervesHub.DevicesTest do
       assert Repo.aggregate(Device, :count) == 5
     end
 
+    test "an entry that can't be read counts as failed, and the rest are imported", %{org: org, product: product} do
+      Repo.delete_all(Device)
+
+      json_import_data =
+        "test/fixtures/devices_bulk_create/microchip_trust_and_go_manifest.json"
+        |> File.read!()
+        |> JSON.decode!()
+        |> List.update_at(1, &Map.put(&1, "payload", "not base64!"))
+        |> JSON.encode!()
+
+      assert {4, 1} == BulkActions.bulk_create(org.id, product.id, json_import_data, "microchip_trust_and_go")
+      assert Repo.aggregate(Device, :count) == 4
+    end
+
+    test "a manifest that can't be read imports nothing", %{org: org, product: product} do
+      Repo.delete_all(Device)
+
+      json_import_data = File.read!("test/fixtures/devices_bulk_create/microchip_trust_and_go_manifest.json")
+
+      assert {0, 0} == BulkActions.bulk_create(org.id, product.id, json_import_data, "csv")
+      assert {0, 0} == BulkActions.bulk_create(org.id, product.id, "{}", "microchip_trust_and_go")
+      assert {0, 0} == BulkActions.bulk_create(org.id, product.id, "not json", "microchip_trust_and_go")
+      assert Repo.aggregate(Device, :count) == 0
+    end
+
     test "imported devices take the product's default grant", %{org: org, product: product} do
       Repo.delete_all(Device)
 
@@ -300,6 +325,36 @@ defmodule NervesHub.DevicesTest do
 
       assert Repo.aggregate(Device, :count) == 5
       assert Repo.aggregate(Notification, :count) == 1
+    end
+  end
+
+  describe "async_bulk_create/5 with a manifest it can't read" do
+    test "refuses it before starting, naming each problem", %{org: org, product: product} do
+      Repo.delete_all(Device)
+
+      json_import_data =
+        "test/fixtures/devices_bulk_create/microchip_trust_and_go_manifest.json"
+        |> File.read!()
+        |> JSON.decode!()
+        |> List.update_at(1, &Map.put(&1, "payload", "not base64!"))
+        |> List.update_at(3, &Map.delete(&1, "header"))
+
+      assert {:error, {:invalid_manifest, problems}} =
+               BulkActions.async_bulk_create(org.id, product.id, json_import_data, "microchip_trust_and_go")
+
+      assert problems == [
+               {"entries[1].payload", "is not valid base64"},
+               {"entries[3].header", "is required"}
+             ]
+
+      assert {:error, {:invalid_manifest, [{"format", _}]}} =
+               BulkActions.async_bulk_create(org.id, product.id, json_import_data, "csv")
+
+      assert {:error, {:invalid_manifest, [{"entries", _}]}} =
+               BulkActions.async_bulk_create(org.id, product.id, nil, "microchip_trust_and_go")
+
+      assert Repo.aggregate(Device, :count) == 0
+      assert Repo.aggregate(Notification, :count) == 0
     end
   end
 

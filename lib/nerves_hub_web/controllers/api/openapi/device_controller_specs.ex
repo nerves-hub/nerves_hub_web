@@ -109,6 +109,10 @@ defmodule NervesHubWeb.API.OpenAPI.DeviceControllerSpecs do
     204 => %OpenApiSpex.Response{description: "No content"}
   }
 
+  @certificate_auth_refused %{
+    403 => response("Forbidden", "application/json", DeviceCertificateSchemas.DeviceCertificateAuthRefused)
+  }
+
   @common_errors SchemaHelpers.common_errors()
   @not_found_error SchemaHelpers.not_found_error()
   @validation_error SchemaHelpers.validation_error()
@@ -254,7 +258,9 @@ defmodule NervesHubWeb.API.OpenAPI.DeviceControllerSpecs do
 
     import_operation =
       device_operation(
-        "Bulk create Devices from a manifest. Only a Microchip Trust and Go manifest is currently supported.",
+        "Bulk create Devices from a manifest. Only a Microchip Trust and Go manifest is currently supported. " <>
+          "The manifest is read before the import starts: an unknown format, or an entry that can't be read, " <>
+          "gets a 422 keyed by where each problem is, such as `entries[3].payload`, and no device is created.",
         :bulk_import,
         [@organization_parameter, @product_parameter],
         opts.tags,
@@ -492,12 +498,12 @@ defmodule NervesHubWeb.API.OpenAPI.DeviceControllerSpecs do
 
     auth_operation =
       device_operation(
-        "Test a Devices Certificate authentication",
+        "Test a Devices Certificate authentication. Only a device in the product in the path matches.",
         :auth,
         [@organization_parameter, @product_parameter],
         ["Devices"],
         request_body: request_body,
-        response: @device_response
+        response: Map.merge(@device_response, Map.merge(@certificate_auth_refused, @validation_error))
       )
 
     add_to_paths(

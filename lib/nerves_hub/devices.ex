@@ -340,6 +340,17 @@ defmodule NervesHub.Devices do
     |> Repo.fetch()
   end
 
+  @doc """
+  The device with this id, if it is in the product and not deleted.
+  """
+  @spec get_device_by_product(Product.t(), pos_integer()) :: {:ok, Device.t()} | {:error, :not_found}
+  def get_device_by_product(%Product{id: product_id}, device_id) do
+    Device
+    |> where(product_id: ^product_id, id: ^device_id)
+    |> Repo.exclude_deleted()
+    |> Repo.fetch()
+  end
+
   @spec get_by_identifier!(String.t()) :: Device.t()
   def get_by_identifier!(identifier) when is_binary(identifier) do
     Device

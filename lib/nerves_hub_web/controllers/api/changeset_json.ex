@@ -7,6 +7,12 @@ defmodule NervesHubWeb.API.ChangesetJSON do
     %{errors: %{detail: message}}
   end
 
+  def error(%{errors: errors}) when is_map(errors) do
+    # Errors already keyed the way a changeset's are, each with a list of
+    # messages, for validation done without a changeset.
+    %{errors: errors}
+  end
+
   def error(%{changeset: changeset}) do
     # When encoded, the changeset returns its errors
     # as a JSON object. So we just pass it forward.

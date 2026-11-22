@@ -222,6 +222,22 @@ defmodule NervesHubWeb.API.FallbackController do
     })
   end
 
+  # Validation done without a changeset, such as a device manifest that can't
+  # be read: each problem is keyed by where it is, such as `entries[3].payload`,
+  # as a changeset's errors are keyed by field.
+  def call(conn, {:error, {reason, problems}})
+      when reason in [:invalid_manifest, :invalid_params] and is_list(problems) do
+    errors =
+      Enum.reduce(problems, %{}, fn {path, message}, acc ->
+        Map.update(acc, path, [message], &(&1 ++ [message]))
+      end)
+
+    conn
+    |> put_status(:unprocessable_entity)
+    |> put_view(ChangesetJSON)
+    |> render(:error, errors: errors)
+  end
+
   def call(conn, {:error, {_key, message}}) do
     conn
     |> put_status(:unprocessable_entity)

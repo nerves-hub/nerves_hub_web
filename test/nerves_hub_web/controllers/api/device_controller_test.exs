@@ -13,6 +13,7 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
   alias NervesHub.Devices.Device
   alias NervesHub.Devices.Updates
   alias NervesHub.Fixtures
+  alias NervesHub.Products.ApiKeys
   alias NervesHub.Products.Notification
   alias NervesHub.Repo
   alias NervesHub.Scripts.Runner
@@ -389,7 +390,10 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
     end
 
     test "not all devices are successfully imported", %{conn: conn, org: org, product: product} do
-      json_import_data = File.read!("test/fixtures/devices_bulk_create/microchip_trust_and_go_manifest.json")
+      # Two entries carry a certificate that decodes but isn't valid X.509: the
+      # manifest is accepted, and they count as failed in the notification.
+      json_import_data =
+        File.read!("test/fixtures/devices_bulk_create/microchip_trust_and_go_manifest_two_failures.json")
 
       conn =
         conn
@@ -401,7 +405,169 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
 
       eventually assert Repo.aggregate(Device, :count) == 5
       eventually assert Repo.aggregate(Notification, :count) == 1
+
+      assert %{"created" => 5, "failed" => 2} = Repo.one!(Notification).metadata
     end
+
+    test "the format defaults to microchip_trust_and_go", %{conn: conn, org: org, product: product} do
+      conn = post_manifest(conn, org, product, manifest(), format: nil)
+
+      assert response(conn, 201) == ""
+
+      eventually assert Repo.aggregate(Device, :count) == 5
+    end
+
+    test "a non-object in publicKeySet.keys before the key with x5c is skipped",
+         %{conn: conn, org: org, product: product} do
+      entries =
+        List.update_at(manifest(), 2, fn entry ->
+          update_payload(entry, fn payload ->
+            update_in(payload, ["publicKeySet", "keys"], &["not a key", 7 | &1])
+          end)
+        end)
+
+      assert response(post_manifest(conn, org, product, entries), 201)
+
+      eventually assert Repo.aggregate(Device, :count) == 5
+    end
+
+    # Each breaks the third entry of an otherwise valid manifest:
+    # {what, where (the entry or its decoded payload), keys, new value or :delete,
+    # the error's key, its message}
+    @malformed_entries [
+      {"no header", :entry, ["header"], :delete, "entries[2].header", "is required"},
+      {"a header that isn't an object", :entry, ["header"], "SN1234", "entries[2].header", "must be an object"},
+      {"no uniqueId", :entry, ["header", "uniqueId"], :delete, "entries[2].header.uniqueId",
+       "must be a non-empty string"},
+      {"a uniqueId that isn't a string", :entry, ["header", "uniqueId"], 1234, "entries[2].header.uniqueId",
+       "must be a non-empty string"},
+      {"no payload", :entry, ["payload"], :delete, "entries[2].payload", "is required"},
+      {"a payload that isn't a string", :entry, ["payload"], %{"publicKeySet" => %{}}, "entries[2].payload",
+       "must be a string"},
+      {"a payload that isn't base64", :entry, ["payload"], "not base64!", "entries[2].payload", "is not valid base64"},
+      {"a payload that isn't JSON", :entry, ["payload"], {:base64, "not json"}, "entries[2].payload",
+       "does not decode to a JSON object"},
+      {"a payload that is a JSON array", :entry, ["payload"], {:base64, "[1, 2]"}, "entries[2].payload",
+       "does not decode to a JSON object"},
+      {"no publicKeySet", :payload, ["publicKeySet"], :delete, "entries[2].payload.publicKeySet.keys",
+       "must be a list"},
+      {"publicKeySet.keys that isn't a list", :payload, ["publicKeySet", "keys"], %{"x5c" => []},
+       "entries[2].payload.publicKeySet.keys", "must be a list"},
+      {"no key with x5c", :payload, ["publicKeySet", "keys"], [%{"kty" => "EC"}, "junk"],
+       "entries[2].payload.publicKeySet.keys", "has no key with an x5c certificate chain"},
+      {"an empty x5c", :payload, ["publicKeySet", "keys"], [%{"x5c" => []}], "entries[2].payload.publicKeySet.keys.x5c",
+       "must be a non-empty list of base64-encoded certificates"},
+      {"an x5c that isn't a list", :payload, ["publicKeySet", "keys"], [%{"x5c" => "MIIB"}],
+       "entries[2].payload.publicKeySet.keys.x5c", "must be a non-empty list of base64-encoded certificates"},
+      {"an x5c holding a non-string", :payload, ["publicKeySet", "keys"], [%{"x5c" => [42]}],
+       "entries[2].payload.publicKeySet.keys.x5c", "must be a non-empty list of base64-encoded certificates"},
+      {"an x5c certificate that isn't base64", :payload, ["publicKeySet", "keys"], [%{"x5c" => ["not base64!"]}],
+       "entries[2].payload.publicKeySet.keys.x5c[0]", "is not valid base64"}
+    ]
+
+    for {what, where, keys, value, key, message} <- @malformed_entries do
+      test "an entry with #{what} is refused, and nothing is imported", %{conn: conn, org: org, product: product} do
+        entries =
+          List.update_at(
+            manifest(),
+            2,
+            &break_entry(&1, unquote(where), unquote(keys), unquote(Macro.escape(value)))
+          )
+
+        conn = post_manifest(conn, org, product, entries)
+
+        assert json_response(conn, 422) == %{"errors" => %{unquote(key) => [unquote(message)]}}
+        assert_nothing_imported()
+      end
+    end
+
+    test "an entry that isn't an object is refused", %{conn: conn, org: org, product: product} do
+      entries = List.replace_at(manifest(), 2, "SN1234")
+
+      conn = post_manifest(conn, org, product, entries)
+
+      assert json_response(conn, 422) == %{"errors" => %{"entries[2]" => ["must be an object"]}}
+      assert_nothing_imported()
+    end
+
+    test "every malformed entry is named", %{conn: conn, org: org, product: product} do
+      entries =
+        manifest()
+        |> List.update_at(0, &Map.delete(&1, "payload"))
+        |> List.update_at(4, &break_entry(&1, :payload, ["publicKeySet"], :delete))
+
+      conn = post_manifest(conn, org, product, entries)
+
+      assert json_response(conn, 422) == %{
+               "errors" => %{
+                 "entries[0].payload" => ["is required"],
+                 "entries[4].payload.publicKeySet.keys" => ["must be a list"]
+               }
+             }
+
+      assert_nothing_imported()
+    end
+
+    test "an unknown format is refused", %{conn: conn, org: org, product: product} do
+      conn = post_manifest(conn, org, product, manifest(), format: "csv")
+
+      assert json_response(conn, 422) == %{"errors" => %{"format" => ["must be one of: microchip_trust_and_go"]}}
+      assert_nothing_imported()
+    end
+
+    test "a body that isn't a list is refused", %{conn: conn, org: org, product: product} do
+      for body <- [%{"header" => %{"uniqueId" => "SN1234"}}, "SN1234", 42] do
+        conn = post_manifest(conn, org, product, body)
+
+        assert json_response(conn, 422) == %{"errors" => %{"entries" => ["must be a JSON array of manifest entries"]}}
+      end
+
+      assert_nothing_imported()
+    end
+
+    test "an empty list is refused", %{conn: conn, org: org, product: product} do
+      conn = post_manifest(conn, org, product, [])
+
+      assert json_response(conn, 422) == %{"errors" => %{"entries" => ["must have at least one entry"]}}
+      assert_nothing_imported()
+    end
+  end
+
+  defp manifest() do
+    "test/fixtures/devices_bulk_create/microchip_trust_and_go_manifest.json"
+    |> File.read!()
+    |> JSON.decode!()
+  end
+
+  defp post_manifest(conn, org, product, entries, opts \\ []) do
+    format = Keyword.get(opts, :format, "microchip_trust_and_go")
+
+    conn
+    |> put_req_header("content-type", "application/json")
+    |> then(&if(format, do: put_req_header(&1, "format", format), else: &1))
+    |> post(Routes.api_device_path(conn, :bulk_import, org.name, product.name), JSON.encode!(entries))
+  end
+
+  defp break_entry(entry, :entry, keys, value), do: put_or_delete(entry, keys, value)
+
+  defp break_entry(entry, :payload, keys, value) do
+    update_payload(entry, &put_or_delete(&1, keys, value))
+  end
+
+  defp update_payload(entry, fun) do
+    payload = entry["payload"] |> Base.decode64!(padding: false) |> JSON.decode!() |> fun.()
+    Map.put(entry, "payload", payload |> JSON.encode!() |> Base.encode64(padding: false))
+  end
+
+  defp put_or_delete(map, keys, :delete), do: map |> pop_in(keys) |> elem(1)
+  defp put_or_delete(map, keys, {:base64, raw}), do: put_in(map, keys, Base.encode64(raw, padding: false))
+  defp put_or_delete(map, keys, value), do: put_in(map, keys, value)
+
+  # The manifest is refused before the import starts, so there is no task to
+  # wait for: had one started, the notification would say so.
+  defp assert_nothing_imported() do
+    assert Repo.aggregate(Device, :count) == 0
+    assert Repo.aggregate(Notification, :count) == 0
   end
 
   describe "index" do
@@ -1305,6 +1471,76 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
 
       assert json_response(conn, 200)["data"]
     end
+
+    test "refuses a device in another of the org's products", %{conn: conn, user: user, org: org, tmp_dir: tmp_dir} do
+      product = Fixtures.product_fixture(user, org)
+      other_product = Fixtures.product_fixture(user, org)
+      org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
+      firmware = Fixtures.firmware_fixture(org_key, other_product, %{dir: tmp_dir})
+      device = Fixtures.device_fixture(org, other_product, firmware)
+      cert64 = device_cert64(org, device)
+
+      conn = post(conn, Routes.api_device_path(conn, :auth, org.name, product.name), %{"certificate" => cert64})
+      assert Jason.decode!(response(conn, 403)) == %{"status" => "Unauthorized"}
+
+      conn = post(conn, Routes.api_device_path(conn, :auth, org.name, other_product.name), %{"certificate" => cert64})
+      assert json_response(conn, 200)["data"]["identifier"] == device.identifier
+    end
+
+    test "a product API key doesn't match a device in another of the org's products",
+         %{user: user, org: org, tmp_dir: tmp_dir} do
+      product = Fixtures.product_fixture(user, org)
+      other_product = Fixtures.product_fixture(user, org)
+      org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
+      firmware = Fixtures.firmware_fixture(org_key, other_product, %{dir: tmp_dir})
+      device = Fixtures.device_fixture(org, other_product, firmware)
+      cert64 = device_cert64(org, device)
+
+      {:ok, _api_key, token} = ApiKeys.create(product, user, %{"name" => "CI", "role" => "view"})
+      conn = build_auth_conn(token)
+
+      conn = post(conn, Routes.api_device_path(conn, :auth, org.name, product.name), %{"certificate" => cert64})
+      assert Jason.decode!(response(conn, 403)) == %{"status" => "Unauthorized"}
+    end
+
+    test "an unknown certificate gets the same 403", %{conn: conn, user: user, org: org} do
+      product = Fixtures.product_fixture(user, org)
+      %{cert: ca, key: ca_key} = Fixtures.ca_certificate_fixture(org)
+
+      cert64 =
+        X509.PrivateKey.new_ec(:secp256r1)
+        |> X509.PublicKey.derive()
+        |> X509.Certificate.new("CN=unknown", ca, ca_key)
+        |> X509.Certificate.to_pem()
+        |> Base.encode64()
+
+      conn = post(conn, Routes.api_device_path(conn, :auth, org.name, product.name), %{"certificate" => cert64})
+      assert Jason.decode!(response(conn, 403)) == %{"status" => "Unauthorized"}
+    end
+
+    test "a body without a certificate is a 422", %{conn: conn, user: user, org: org} do
+      product = Fixtures.product_fixture(user, org)
+      path = Routes.api_device_path(conn, :auth, org.name, product.name)
+
+      for body <- [%{}, %{"certificate" => 42}, %{"cert" => "abc"}] do
+        assert json_response(post(conn, path, body), 422) == %{
+                 "errors" => %{"certificate" => ["is required, as a base64-encoded PEM certificate"]}
+               }
+      end
+    end
+  end
+
+  defp device_cert64(org, device) do
+    %{cert: ca, key: ca_key} = Fixtures.ca_certificate_fixture(org)
+
+    cert =
+      X509.PrivateKey.new_ec(:secp256r1)
+      |> X509.PublicKey.derive()
+      |> X509.Certificate.new("CN=#{device.identifier}", ca, ca_key)
+
+    _device_certificate = Fixtures.device_certificate_fixture(device, cert)
+
+    cert |> X509.Certificate.to_pem() |> Base.encode64()
   end
 
   describe "upgrade firmware" do

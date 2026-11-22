@@ -23,7 +23,7 @@ defmodule NervesHubWeb.API.Schemas.DeviceCertificateSchemas do
 
   defmodule DeviceCertificateAuthRequest do
     OpenApiSpex.schema(%{
-      description: "POST body for testing certificate auth for a Device",
+      description: "POST body for testing certificate auth for a Device in the product in the path",
       type: :object,
       properties: %{
         certificate: %Schema{type: :string}
@@ -32,6 +32,21 @@ defmodule NervesHubWeb.API.Schemas.DeviceCertificateSchemas do
       example: %{
         "certificate" => "Base64 encoded certificate"
       }
+    })
+  end
+
+  defmodule DeviceCertificateAuthRefused do
+    OpenApiSpex.schema(%{
+      description: """
+      The certificate doesn't belong to a device in the product in the path that the caller can see.
+      The same response is sent whether the certificate is unknown, belongs to a device in another
+      product, or can't be read.
+      """,
+      type: :object,
+      properties: %{
+        status: %Schema{type: :string}
+      },
+      example: %{"status" => "Unauthorized"}
     })
   end
 
