@@ -1,10 +1,15 @@
 defmodule NervesHubWeb.API.Schemas.DeploymentGroupSchemas do
+  alias NervesHubWeb.API.OpenAPI.SchemaHelpers
   alias OpenApiSpex.Schema
 
   require OpenApiSpex
 
   defmodule Firmware do
+    # Titled apart from `FirmwareSchemas.Firmware`: the spec keys schemas by
+    # title, so two called "Firmware" would leave one standing in for both.
     OpenApiSpex.schema(%{
+      title: "ReleaseFirmware",
+      description: "The firmware a release sends",
       type: :object,
       properties: %{
         version: %Schema{type: :string},
@@ -31,8 +36,8 @@ defmodule NervesHubWeb.API.Schemas.DeploymentGroupSchemas do
           description: "Devices that have not reached a required release are updated to it before any newer release"
         },
         firmware: Firmware,
-        inserted_at: %Schema{type: :string, format: :"date-time"},
-        updated_at: %Schema{type: :string, format: :"date-time"}
+        inserted_at: SchemaHelpers.naive_timestamp("When it was created"),
+        updated_at: SchemaHelpers.naive_timestamp("When it was last changed")
       },
       example: %{
         "number" => 3,
@@ -43,8 +48,8 @@ defmodule NervesHubWeb.API.Schemas.DeploymentGroupSchemas do
           "platform" => "rpi0",
           "uuid" => "d9f8c63a-1234-5678-abcd-ef0123456789"
         },
-        "inserted_at" => "2024-01-01T00:00:00Z",
-        "updated_at" => "2024-01-01T00:00:00Z"
+        "inserted_at" => "2024-01-01T00:00:00",
+        "updated_at" => "2024-01-01T00:00:00"
       }
     })
   end
@@ -79,6 +84,11 @@ defmodule NervesHubWeb.API.Schemas.DeploymentGroupSchemas do
         state: %Schema{type: :string, enum: ["on", "off"]},
         firmware_uuid: %Schema{type: :string},
         current_release: CurrentRelease,
+        archive_uuid: %Schema{
+          type: :string,
+          description: "The UUID of the archive the current release sends with its firmware, if any",
+          nullable: true
+        },
         conditions: Conditions,
         delta_updatable: %Schema{type: :boolean},
         device_count: %Schema{type: :integer},
@@ -102,9 +112,10 @@ defmodule NervesHubWeb.API.Schemas.DeploymentGroupSchemas do
             "platform" => "rpi0",
             "uuid" => "d9f8c63a-1234-5678-abcd-ef0123456789"
           },
-          "inserted_at" => "2024-01-01T00:00:00Z",
-          "updated_at" => "2024-01-01T00:00:00Z"
+          "inserted_at" => "2024-01-01T00:00:00",
+          "updated_at" => "2024-01-01T00:00:00"
         },
+        "archive_uuid" => nil,
         "conditions" => %{
           "version" => ">= 1.0.0",
           "tags" => ["beta"]

@@ -9,6 +9,7 @@ defmodule NervesHubWeb.API.UserController do
   alias NervesHubWeb.API.Schemas.UserAuthCLISessionStatusResponse
   alias NervesHubWeb.API.Schemas.UserAuthWithNoteRequest
   alias NervesHubWeb.API.Schemas.UserResponse
+  alias NervesHubWeb.API.Schemas.UserTokenResponse
   alias NervesHubWeb.Helpers.ClientIP
   alias NervesHubWeb.Plugs.Attack
 
@@ -35,7 +36,7 @@ defmodule NervesHubWeb.API.UserController do
     summary: "Authenticate a user",
     request_body: {"Authentication attributes", "application/json", UserAuthWithNoteRequest, required: true},
     responses: [
-      ok: {"User response", "application/json", UserResponse},
+      ok: {"User and API token", "application/json", UserTokenResponse},
       unauthorized: {"Unauthorized", "application/json", ErrorSchemas.ErrorResponse}
     ],
     security: []
@@ -52,7 +53,7 @@ defmodule NervesHubWeb.API.UserController do
     summary: "Authenticate a user (deprecated)",
     request_body: {"Authentication attributes", "application/json", UserAuthWithNoteRequest, required: true},
     responses: [
-      ok: {"User response", "application/json", UserResponse},
+      ok: {"User and API token", "application/json", UserTokenResponse},
       unauthorized: {"Unauthorized", "application/json", ErrorSchemas.ErrorResponse}
     ],
     security: []

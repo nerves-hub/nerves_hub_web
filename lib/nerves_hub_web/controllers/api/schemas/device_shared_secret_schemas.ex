@@ -1,4 +1,5 @@
 defmodule NervesHubWeb.API.Schemas.DeviceSharedSecretSchemas do
+  alias NervesHubWeb.API.OpenAPI.SchemaHelpers
   alias OpenApiSpex.Schema
 
   require OpenApiSpex
@@ -23,13 +24,13 @@ defmodule NervesHubWeb.API.Schemas.DeviceSharedSecretSchemas do
           nullable: true,
           description: "When the device last connected with the secret, or null if it never has"
         },
-        inserted_at: %Schema{type: :string, format: :"date-time"}
+        inserted_at: SchemaHelpers.naive_timestamp("When it was created")
       },
       example: %{
         "key" => "nhd_[43 URL-safe characters]",
         "deactivated_at" => nil,
         "last_used" => "2026-10-08T12:30:00Z",
-        "inserted_at" => "2026-10-08T12:00:00Z"
+        "inserted_at" => "2026-10-08T12:00:00"
       }
     })
   end
@@ -53,7 +54,7 @@ defmodule NervesHubWeb.API.Schemas.DeviceSharedSecretSchemas do
         "secret" => "[43 random characters]",
         "deactivated_at" => nil,
         "last_used" => nil,
-        "inserted_at" => "2026-10-08T12:00:00Z"
+        "inserted_at" => "2026-10-08T12:00:00"
       }
     })
   end

@@ -20,12 +20,13 @@ defmodule NervesHubWeb.API.Schemas.ProductSchemas do
         },
         allowed_update_tools: %Schema{
           type: :array,
-          items: %Schema{type: :string, enum: ["fwup", "esp-idf", "atomvm"]},
+          items: %Schema{type: :string, enum: ["fwup", "esp-idf", "atomvm", "rauc"]},
           description: """
           The firmware formats this product accepts. `fwup` is always present.
 
           A format also has to be enabled for the instance before a product can
-          list it — see the ESP-IDF support documentation.
+          list it (`ESP_IDF_FIRMWARE_ENABLED`, `ATOMVM_FIRMWARE_ENABLED` or
+          `RAUC_FIRMWARE_ENABLED`).
           """
         },
         allow_unsigned_esp_idf_firmware: %Schema{
@@ -123,21 +124,17 @@ defmodule NervesHubWeb.API.Schemas.ProductSchemas do
 
   defmodule ProductCreationRequest do
     OpenApiSpex.schema(%{
-      description: "POST body for creating a product",
+      description: """
+      POST body for creating a product. Only `name` is read; set the product's other settings
+      through an update.
+      """,
       type: :object,
       properties: %{
-        product: %Schema{
-          properties: %{
-            name: %Schema{type: :string}
-          },
-          required: [:name]
-        }
+        name: %Schema{type: :string}
       },
-      required: [:product],
+      required: [:name],
       example: %{
-        "product" => %{
-          "name" => "ExampleProduct"
-        }
+        "name" => "ExampleProduct"
       }
     })
   end
@@ -156,7 +153,7 @@ defmodule NervesHubWeb.API.Schemas.ProductSchemas do
         require_unique_firmware_version: %Schema{type: :boolean},
         allowed_update_tools: %Schema{
           type: :array,
-          items: %Schema{type: :string, enum: ["fwup", "esp-idf", "atomvm"]}
+          items: %Schema{type: :string, enum: ["fwup", "esp-idf", "atomvm", "rauc"]}
         },
         allow_unsigned_esp_idf_firmware: %Schema{type: :boolean},
         allow_unsigned_atomvm_firmware: %Schema{type: :boolean},

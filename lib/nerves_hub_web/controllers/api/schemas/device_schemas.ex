@@ -7,33 +7,52 @@ defmodule NervesHubWeb.API.Schemas.DeviceSchemas do
   defmodule Device do
     require OpenApiSpex
 
+    @connection_status_description """
+    The device's connection state: `connecting` while its socket is open but not yet confirmed,
+    `connected`, `disconnected`, or `not_seen` for a device with no recorded connection.
+    """
+
     OpenApiSpex.schema(%{
       type: :object,
       properties: %{
         identifier: %Schema{type: :string},
-        description: %Schema{type: :string},
-        tags: %Schema{type: :string},
-        online: %Schema{type: :boolean},
-        connection_status: %Schema{type: :string, enum: ["connected", "disconnected"]},
+        description: %Schema{type: :string, nullable: true},
+        tags: %Schema{type: :array, items: %Schema{type: :string}, nullable: true},
+        online: %Schema{
+          type: :string,
+          description: "The same value as `connection_status`. Despite its name it is not a boolean.",
+          enum: ["connecting", "connected", "disconnected", "not_seen"],
+          deprecated: true
+        },
+        connection_status: %Schema{
+          type: :string,
+          description: @connection_status_description,
+          enum: ["connecting", "connected", "disconnected", "not_seen"]
+        },
         firmware_metadata: %Schema{
           type: :object,
+          nullable: true,
           properties: %{
-            id: %Schema{type: :string},
-            misc: %Schema{type: :string},
+            id: %Schema{type: :string, nullable: true},
+            misc: %Schema{type: :string, nullable: true},
             uuid: %Schema{type: :string},
-            author: %Schema{type: :string},
+            author: %Schema{type: :string, nullable: true},
             product: %Schema{type: :string},
             version: %Schema{type: :string},
             platform: %Schema{type: :string},
-            description: %Schema{type: :string},
+            description: %Schema{type: :string, nullable: true},
             architecture: %Schema{type: :string},
-            fwup_version: %Schema{type: :string},
-            vcs_identifier: %Schema{type: :string}
+            fwup_version: %Schema{type: :string, nullable: true},
+            vcs_identifier: %Schema{type: :string, nullable: true}
           }
         },
-        version: %Schema{type: :string},
+        version: %Schema{
+          type: :string,
+          description: "The firmware version the device reports, or `unknown` when it hasn't reported one."
+        },
         deployment_group: %Schema{
           type: :object,
+          nullable: true,
           properties: %{
             name: %Schema{type: :string},
             is_active: %Schema{type: :boolean},
@@ -58,21 +77,31 @@ defmodule NervesHubWeb.API.Schemas.DeviceSchemas do
         updates_blocked_until: %Schema{
           type: :string,
           description: "Device penalty box expiration timestamp",
-          format: :"date-time"
+          format: :"date-time",
+          nullable: true
         },
         org_name: %Schema{type: :string},
         product_name: %Schema{type: :string},
         last_communication: %Schema{
           type: :string,
-          format: :"date-time",
+          description: """
+          When the device was last seen, written as `2050-04-20 00:33:09.123456Z` (a space rather
+          than a `T`, so not strictly RFC 3339), or `never` for a device with no recorded
+          connection.
+          """,
           deprecated: true
+        },
+        deleted: %Schema{
+          type: :boolean,
+          description:
+            "Whether the device has been deleted. A deleted device can be restored in the web UI until the instance removes it for good."
         }
       },
       example: %{
         "identifier" => "abc123",
         "description" => "A great device",
-        "tags" => "prod, customerABC",
-        "online" => true,
+        "tags" => ["prod", "customerABC"],
+        "online" => "connected",
         "connection_status" => "connected",
         "firmware_metadata" => %{
           "id" => "3f2264c3-cc52-2ba9-b77d-e441f8bb91b6",
@@ -95,10 +124,13 @@ defmodule NervesHubWeb.API.Schemas.DeviceSchemas do
           "name" => "Prod Deployment"
         },
         "updates_enabled" => true,
-        "updates_blocked_until" => "2050-04-20T00:33:09Z",
+        "update_mode" => "automatic",
+        "managed_updates_allowed" => false,
+        "updates_blocked_until" => nil,
         "org_name" => "BigCompany",
         "product_name" => "AmazingProduct",
-        "last_communication" => "2050-04-20T00:33:09Z"
+        "last_communication" => "2050-04-20 00:33:09.123456Z",
+        "deleted" => false
       }
     })
   end
@@ -110,40 +142,7 @@ defmodule NervesHubWeb.API.Schemas.DeviceSchemas do
       properties: %{
         data: Device
       },
-      example: %{
-        "data" => %{
-          "identifier" => "abc123",
-          "description" => "A great device",
-          "tags" => "prod, customerABC",
-          "online" => true,
-          "connection_status" => "connected",
-          "firmware_metadata" => %{
-            "id" => "3f2264c3-cc52-2ba9-b77d-e441f8bb91b6",
-            "misc" => "extra comments",
-            "uuid" => "6fd2bbc8-52b8-4826-5c2a-189968d0de23",
-            "author" => "",
-            "product" => "AmazingProduct",
-            "version" => "1.2.3",
-            "platform" => "rpi5",
-            "description" => "Prod Firmware",
-            "architecture" => "arm",
-            "fwup_version" => "1.10.1",
-            "vcs_identifier" => ""
-          },
-          "version" => "1.2.3",
-          "deployment_group" => %{
-            "firmware_uuid" => "6fd2bbc8-52b8-4826-5c2a-189968d0de23",
-            "firmware_version" => "1.2.3",
-            "is_active" => true,
-            "name" => "Prod Deployment"
-          },
-          "updates_enabled" => true,
-          "updates_blocked_until" => "2050-04-20T00:33:09Z",
-          "org_name" => "BigCompany",
-          "product_name" => "AmazingProduct",
-          "last_communication" => "2050-04-20T00:33:09Z"
-        }
-      }
+      example: %{"data" => Device.schema().example}
     })
   end
 
@@ -198,70 +197,16 @@ defmodule NervesHubWeb.API.Schemas.DeviceSchemas do
       },
       example: %{
         "data" => [
-          %{
-            "identifier" => "abc123",
-            "description" => "A great device",
-            "tags" => "prod, customerABC",
-            "online" => true,
-            "connection_status" => "connected",
-            "firmware_metadata" => %{
-              "id" => "3f2264c3-cc52-2ba9-b77d-e441f8bb91b6",
-              "misc" => "extra comments",
-              "uuid" => "6fd2bbc8-52b8-4826-5c2a-189968d0de23",
-              "author" => "",
-              "product" => "AmazingProduct",
-              "version" => "1.2.3",
-              "platform" => "rpi5",
-              "description" => "Prod Firmware",
-              "architecture" => "arm",
-              "fwup_version" => "1.10.1",
-              "vcs_identifier" => ""
-            },
-            "version" => "1.2.3",
-            "deployment_group" => %{
-              "firmware_uuid" => "6fd2bbc8-52b8-4826-5c2a-189968d0de23",
-              "firmware_version" => "1.2.3",
-              "is_active" => true,
-              "name" => "Prod Deployment"
-            },
-            "updates_enabled" => true,
-            "updates_blocked_until" => "2050-04-20T00:33:09Z",
-            "org_name" => "BigCompany",
-            "product_name" => "AmazingProduct",
-            "last_communication" => "2050-04-20T00:33:09Z"
-          },
-          %{
+          Device.schema().example,
+          Map.merge(Device.schema().example, %{
             "identifier" => "def456",
             "description" => "Another great device",
-            "tags" => "prod, customerDEF",
-            "online" => false,
-            "connection_status" => "disconnected",
-            "firmware_metadata" => %{
-              "id" => "3f2264c3-cc52-2ba9-b77d-e441f8bb91b6",
-              "misc" => "extra comments",
-              "uuid" => "6fd2bbc8-52b8-4826-5c2a-189968d0de23",
-              "author" => "",
-              "product" => "AmazingProduct",
-              "version" => "1.2.3",
-              "platform" => "rpi5",
-              "description" => "Prod Firmware",
-              "architecture" => "arm",
-              "fwup_version" => "1.10.1",
-              "vcs_identifier" => ""
-            },
-            "version" => "1.2.3",
-            "deployment_group" => %{
-              "firmware_uuid" => "6fd2bbc8-52b8-4826-5c2a-189968d0de23",
-              "firmware_version" => "1.2.3",
-              "is_active" => true,
-              "name" => "Prod Deployment"
-            },
-            "updates_enabled" => true,
-            "updates_blocked_until" => "2050-04-20T00:33:09Z",
-            "org_name" => "BigCompany",
-            "product_name" => "AmazingProduct",
-            "last_communication" => "2050-04-20T00:33:09Z"
-          }
+            "tags" => ["prod", "customerDEF"],
+            "online" => "not_seen",
+            "connection_status" => "not_seen",
+            "deployment_group" => nil,
+            "last_communication" => "never"
+          })
         ],
         "pagination" => %{
           "page_number" => 1,
@@ -275,10 +220,21 @@ defmodule NervesHubWeb.API.Schemas.DeviceSchemas do
 
   defmodule DeviceBulkImport do
     OpenApiSpex.schema(%{
-      description: "POST body for bulk creating a list of Devices",
-      type: :object,
-      properties: nil,
-      example: ["Please refer to the Microchip Trust and Go Manifest documentation"]
+      description: """
+      POST body for bulk creating Devices: the manifest's JSON array of entries, as the manifest
+      file holds it. Each entry's shape is set by the manifest's format; see the Microchip Trust
+      and Go Manifest documentation.
+      """,
+      type: :array,
+      items: %Schema{type: :object},
+      example: [
+        %{
+          "header" => %{"uniqueId" => "SN1234"},
+          "payload" => "<base64url-encoded JWS payload>",
+          "protected" => "<base64url-encoded JWS header>",
+          "signature" => "<base64url-encoded signature>"
+        }
+      ]
     })
   end
 
@@ -340,7 +296,6 @@ defmodule NervesHubWeb.API.Schemas.DeviceSchemas do
             "Also create the device's own shared secret, in the same transaction. The key and secret are returned as `data.shared_secret`, the only time the secret is returned. When device shared secrets are not enabled on this platform, the request is refused and no device is created."
         }
       },
-      required: [:device],
       example: %{
         "device" => %{
           "identifier" => "abc123",
@@ -375,7 +330,6 @@ defmodule NervesHubWeb.API.Schemas.DeviceSchemas do
             end)
         }
       },
-      required: [:device],
       example: %{
         "device" => %{
           "description" => "Example Device",
