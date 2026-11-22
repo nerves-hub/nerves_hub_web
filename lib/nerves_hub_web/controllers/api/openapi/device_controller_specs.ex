@@ -97,6 +97,12 @@ defmodule NervesHubWeb.API.OpenAPI.DeviceControllerSpecs do
     200 => response("Device Response", "application/json", DeviceSchemas.DeviceResponse)
   }
 
+  # An update answers 201 rather than 200. That is what the server has always
+  # sent, so it is documented as it is rather than changed under clients.
+  @device_update_response %{
+    201 => response("Device Response", "application/json", DeviceSchemas.DeviceResponse)
+  }
+
   @device_creation_response %{
     201 => response("Device Response", "application/json", DeviceSchemas.DeviceCreateResponse)
   }
@@ -112,6 +118,31 @@ defmodule NervesHubWeb.API.OpenAPI.DeviceControllerSpecs do
   @certificate_auth_refused %{
     403 => response("Forbidden", "application/json", DeviceCertificateSchemas.DeviceCertificateAuthRefused)
   }
+
+  # The import carries on in the background after the response, so a 201 says
+  # the manifest was accepted, not that every device in it was created. The
+  # body is empty.
+  @bulk_import_response %{
+    201 => %OpenApiSpex.Response{description: "Manifest accepted; the devices are created in the background"}
+  }
+
+  @bulk_import_headers [
+    %OpenApiSpex.Parameter{
+      name: :format,
+      in: :header,
+      description: "The manifest's format",
+      required: false,
+      schema: %OpenApiSpex.Schema{type: :string, enum: ["microchip_trust_and_go"], default: "microchip_trust_and_go"}
+    },
+    %OpenApiSpex.Parameter{
+      name: :tags,
+      in: :header,
+      description: "Comma-separated tags to give every device the manifest creates",
+      required: false,
+      schema: %OpenApiSpex.Schema{type: :string},
+      example: "prod,batch-12"
+    }
+  ]
 
   @common_errors SchemaHelpers.common_errors()
   @not_found_error SchemaHelpers.not_found_error()
@@ -188,8 +219,7 @@ defmodule NervesHubWeb.API.OpenAPI.DeviceControllerSpecs do
     add_to_paths(openapi, opts.path_prefix, %OpenApiSpex.PathItem{
       get: show_device_action(@path_structures[:long], :long),
       delete: delete_device_action(@path_structures[:long]),
-      put: update_device_action(@path_structures[:long]),
-      post: create_device_action(@path_structures[:long])
+      put: update_device_action(@path_structures[:long])
     })
   end
 
@@ -212,7 +242,8 @@ defmodule NervesHubWeb.API.OpenAPI.DeviceControllerSpecs do
             ],
             ["Devices"],
             response: @device_list_response
-          )
+          ),
+        post: create_device_action()
       }
     )
   end
@@ -230,7 +261,7 @@ defmodule NervesHubWeb.API.OpenAPI.DeviceControllerSpecs do
     )
   end
 
-  def create_device_action(opts) do
+  def create_device_action() do
     request_body =
       request_body(
         "Device creation request body",
@@ -239,7 +270,7 @@ defmodule NervesHubWeb.API.OpenAPI.DeviceControllerSpecs do
         required: true
       )
 
-    device_operation("Create a Device", :create, opts.parameters, opts.tags,
+    device_operation("Create a Device", :create, [@organization_parameter, @product_parameter], ["Devices"],
       request_body: request_body,
       response: Map.merge(@device_creation_response, @validation_error)
     )
@@ -262,10 +293,10 @@ defmodule NervesHubWeb.API.OpenAPI.DeviceControllerSpecs do
           "The manifest is read before the import starts: an unknown format, or an entry that can't be read, " <>
           "gets a 422 keyed by where each problem is, such as `entries[3].payload`, and no device is created.",
         :bulk_import,
-        [@organization_parameter, @product_parameter],
+        [@organization_parameter, @product_parameter | @bulk_import_headers],
         opts.tags,
         request_body: request_body,
-        response: Map.merge(@no_content_response, @validation_error)
+        response: Map.merge(@bulk_import_response, @validation_error)
       )
 
     add_to_paths(openapi, "/api/orgs/{org_name}/products/{product_name}/devices/import", %OpenApiSpex.PathItem{
@@ -284,7 +315,7 @@ defmodule NervesHubWeb.API.OpenAPI.DeviceControllerSpecs do
 
     device_operation("Update a Device", :update, opts.parameters, opts.tags,
       request_body: request_body,
-      response: Map.merge(@device_response, Map.merge(@not_found_error, @validation_error))
+      response: Map.merge(@device_update_response, Map.merge(@not_found_error, @validation_error))
     )
   end
 

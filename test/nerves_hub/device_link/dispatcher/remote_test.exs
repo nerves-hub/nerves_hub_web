@@ -8,7 +8,9 @@ defmodule NervesHub.DeviceLink.Dispatcher.RemoteTest do
   and that difference would only show up in production.
   """
 
-  use ExUnit.Case, async: false
+  # Not async: a call runs in a process erpc starts, which only reaches the
+  # database through the shared sandbox.
+  use NervesHub.DataCase, async: false
 
   alias NervesHub.DeviceLink
   alias NervesHub.DeviceLink.DeviceInfo
@@ -16,7 +18,12 @@ defmodule NervesHub.DeviceLink.Dispatcher.RemoteTest do
   alias NervesHub.DeviceLink.Dispatcher.NoHandlersError
   alias NervesHub.DeviceLink.Dispatcher.Remote
   alias NervesHub.DeviceLink.Handlers
+  alias NervesHub.DeviceLink.Session
+  alias NervesHub.Devices.Connections
+  alias NervesHub.Devices.Device
+  alias NervesHub.Devices.DeviceConnection
   alias NervesHub.Extensions.Geo
+  alias NervesHub.Fixtures
 
   require OpenTelemetry.Tracer, as: Tracer
   require Record
@@ -32,7 +39,19 @@ defmodule NervesHub.DeviceLink.Dispatcher.RemoteTest do
 
   @versions %{"health" => "0.0.1", "geo" => "0.0.1", "local_shell" => "0.0.1"}
 
-  defp device_info(device_id \\ 4242) do
+  defp device_info(device_id \\ 4242)
+
+  defp device_info(%Device{} = device) do
+    %DeviceInfo{
+      allowed_extensions: [:health, :geo, :local_shell],
+      device_id: device.id,
+      device_identifier: device.identifier,
+      org_id: device.org_id,
+      product_id: device.product_id
+    }
+  end
+
+  defp device_info(device_id) do
     %DeviceInfo{
       allowed_extensions: [:health, :geo, :local_shell],
       connection_ref: "d3d1a1f0-0000-4000-8000-000000000001",
@@ -196,34 +215,53 @@ defmodule NervesHub.DeviceLink.Dispatcher.RemoteTest do
     end
   end
 
-  describe "route_key / call dispatch coverage" do
-    test "verify_peer routes by DER bytes (hashes the cert)" do
-      # :verify_peer routes by :erlang.phash2(der) — just call it and observe
-      # it either raises (platform error) or succeeds, but doesn't crash routing
-      der = <<0, 1, 2, 3>>
-      assert catch_error(Remote.call(:verify_peer, [der, :new]))
+  # One node handles every call here, so which node a call lands on can't be
+  # seen. What can is that each kind of argument the router reads a device from
+  # gets through it, and the call is then carried out for that device, as
+  # DeviceLink itself would carry it out.
+  describe "routing each kind of call" do
+    test "a handshake routes by its certificate" do
+      # Not a certificate, which the handler finds out when it decodes it.
+      assert {:exception, {:badmatch, {:error, {:asn1, _reason}}}, _stack} =
+               catch_error(Remote.call(:verify_peer, [<<0, 1, 2, 3>>, :new]))
     end
 
-    test "connect routes by device_id" do
-      info = device_info(9999)
-      assert catch_error(Remote.call(:connect, [info]))
+    test "connect routes by the device it is given", %{tmp_dir: tmp_dir} do
+      device = device_fixture(tmp_dir)
+
+      assert {:ok, %DeviceInfo{connection_ref: ref}} = Remote.call(:connect, [device_info(device)])
+      assert %DeviceConnection{id: ^ref} = Connections.get_latest_for_device(device.id)
     end
 
-    test "device_join routes by device_id" do
-      info = device_info(8888)
-      assert catch_error(Remote.call(:device_join, [info, @versions]))
+    test "device_join routes by the device it is given", %{tmp_dir: tmp_dir} do
+      device = device_fixture(tmp_dir)
+      {:ok, %DeviceInfo{connection_ref: ref} = device_info} = Remote.call(:connect, [device_info(device)])
+      device_id = device.id
+
+      assert {:ok, %Session{device_info: %DeviceInfo{device_id: ^device_id, connection_ref: ^ref}}, _effects} =
+               Remote.call(:device_join, [device_info, %{"device_api_version" => "2.2.0"}])
     end
 
-    test "extensions_device_id extracted from extensions map" do
+    test "an extension message routes by the device its extensions belong to" do
       {_attach_list, extensions} = Remote.call(:extensions_join, [device_info(7777), @versions])
 
-      assert catch_error(Remote.call(:extension_message, [extensions, "health", "foo", %{}]))
+      assert Remote.call(:extension_message, [extensions, "health:hello", %{}]) ==
+               Local.call(:extension_message, [extensions, "health:hello", %{}])
     end
 
-    test "extensions_device_id returns nil for non-matching map" do
-      # Route key for extension_message with empty map should not raise (falls back to nil routing)
-      assert catch_error(Remote.call(:extension_message, [%{}, "health", "foo", %{}]))
+    test "an extension message with no device in its extensions is still carried out" do
+      assert Remote.call(:extension_message, [%{}, "health:hello", %{}]) == :unknown
     end
+  end
+
+  defp device_fixture(tmp_dir) do
+    user = Fixtures.user_fixture()
+    org = Fixtures.org_fixture(user)
+    product = Fixtures.product_fixture(user, org)
+    org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
+    firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+
+    Fixtures.device_fixture(org, product, firmware)
   end
 
   # Joins a trace as a caller holds it once its own sampler has decided. Sentry's

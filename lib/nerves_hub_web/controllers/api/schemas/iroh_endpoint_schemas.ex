@@ -1,4 +1,5 @@
 defmodule NervesHubWeb.API.Schemas.IrohEndpointSchemas do
+  alias NervesHubWeb.API.OpenAPI.SchemaHelpers
   alias OpenApiSpex.Schema
 
   require OpenApiSpex
@@ -49,8 +50,8 @@ defmodule NervesHubWeb.API.Schemas.IrohEndpointSchemas do
         },
         details: %Schema{type: :object, additionalProperties: true},
         last_reported_at: %Schema{type: :string, format: :"date-time", nullable: true},
-        inserted_at: %Schema{type: :string, format: :"date-time"},
-        updated_at: %Schema{type: :string, format: :"date-time"},
+        inserted_at: SchemaHelpers.naive_timestamp("When it was created"),
+        updated_at: SchemaHelpers.naive_timestamp("When it was last changed"),
         owner: IrohEndpointOwner
       },
       example: %{
@@ -60,8 +61,8 @@ defmodule NervesHubWeb.API.Schemas.IrohEndpointSchemas do
         "source" => "device_reported",
         "details" => %{},
         "last_reported_at" => "2026-08-16T09:14:00Z",
-        "inserted_at" => "2026-08-14T11:02:31Z",
-        "updated_at" => "2026-08-16T09:14:00Z",
+        "inserted_at" => "2026-08-14T11:02:31",
+        "updated_at" => "2026-08-16T09:14:00",
         "owner" => %{
           "type" => "device",
           "device_identifier" => "example_device",
@@ -123,8 +124,8 @@ defmodule NervesHubWeb.API.Schemas.IrohEndpointSchemas do
             "source" => "device_reported",
             "details" => %{},
             "last_reported_at" => "2026-08-16T09:14:00Z",
-            "inserted_at" => "2026-08-14T11:02:31Z",
-            "updated_at" => "2026-08-16T09:14:00Z",
+            "inserted_at" => "2026-08-14T11:02:31",
+            "updated_at" => "2026-08-16T09:14:00",
             "owner" => %{
               "type" => "device",
               "device_identifier" => "example_device",
@@ -139,8 +140,8 @@ defmodule NervesHubWeb.API.Schemas.IrohEndpointSchemas do
             "source" => "operator",
             "details" => %{},
             "last_reported_at" => nil,
-            "inserted_at" => "2026-08-15T08:41:12Z",
-            "updated_at" => "2026-08-15T08:41:12Z",
+            "inserted_at" => "2026-08-15T08:41:12",
+            "updated_at" => "2026-08-15T08:41:12",
             "owner" => %{
               "type" => "user",
               "device_identifier" => nil,
@@ -166,8 +167,8 @@ defmodule NervesHubWeb.API.Schemas.IrohEndpointSchemas do
           "source" => "device_reported",
           "details" => %{},
           "last_reported_at" => "2026-08-16T09:14:00Z",
-          "inserted_at" => "2026-08-14T11:02:31Z",
-          "updated_at" => "2026-08-16T09:14:00Z",
+          "inserted_at" => "2026-08-14T11:02:31",
+          "updated_at" => "2026-08-16T09:14:00",
           "owner" => %{
             "type" => "device",
             "device_identifier" => "example_device",
