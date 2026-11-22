@@ -10,10 +10,10 @@ alias NervesHub.Firmwares.Upload.S3
 alias NervesHub.Integrations.Slack
 alias NervesHub.Repo
 alias NervesHub.Telemetry.FilteredSampler
+alias NervesHub.Telemetry.SentrySampler
 alias NervesHub.Telemetry.TracesSampler
 alias NervesHub.Types.Encrypted
 alias NervesHub.Workers.SentryFilter
-alias Sentry.OpenTelemetry.Sampler
 alias Sentry.OpenTelemetry.SpanProcessor
 alias Swoosh.Adapters.SMTP
 alias Ueberauth.Strategy.Google.OAuth
@@ -996,7 +996,7 @@ cond do
       jobs: tracing_rate.("SENTRY_JOB_TRACING_RATE", "1.0"),
       default: tracing_rate.("SENTRY_TRACING_RATE", "0.05")
 
-    config :opentelemetry, sampler: {Sampler, []}
+    config :opentelemetry, sampler: {SentrySampler, []}
     config :opentelemetry, span_processor: {SpanProcessor, []}
 
     config :sentry, traces_sampler: &TracesSampler.sample_rate/1

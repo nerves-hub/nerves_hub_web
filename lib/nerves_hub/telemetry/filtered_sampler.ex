@@ -17,8 +17,13 @@ defmodule NervesHub.Telemetry.FilteredSampler do
 
   # A heartbeat is the busiest thing a device does and tells nothing a trace
   # would, and dropping its span drops the queries it makes along with it.
+  # `DeviceLink.heartbeat` is the same heartbeat, sent here by a node that holds
+  # the device's socket. That node drops its own span, and this one should
+  # follow, but a caller that sends no Sentry decision would leave it to be
+  # sampled again here.
   @ignored_span_names [
     "Channels.DeviceSocket.heartbeat",
+    "DeviceLink.heartbeat",
     "nerves_hub.repo.query:schema_migrations"
   ]
 
