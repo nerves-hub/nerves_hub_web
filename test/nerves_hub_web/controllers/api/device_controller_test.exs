@@ -564,7 +564,7 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
   defp put_or_delete(map, keys, value), do: put_in(map, keys, value)
 
   # The manifest is refused before the import starts, so there is no task to
-  # wait for: had one started, the notification would say so.
+  # wait for.
   defp assert_nothing_imported() do
     assert Repo.aggregate(Device, :count) == 0
     assert Repo.aggregate(Notification, :count) == 0
