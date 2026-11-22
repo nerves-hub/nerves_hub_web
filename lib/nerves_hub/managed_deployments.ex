@@ -971,16 +971,20 @@ defmodule NervesHub.ManagedDeployments do
   next, so the deltas those devices need are queued, the group's status is
   recalculated against them, and the orchestrator is told to look again. A new
   connecting code reaches devices the next time they connect.
+
+  `actor` is who made the change, a user or a product API key, and is who the
+  audit log names.
   """
-  @spec update_deployment_release(DeploymentRelease.t(), map(), User.t()) ::
+  @spec update_deployment_release(DeploymentRelease.t(), map(), AuditLogs.actor()) ::
           {:ok, DeploymentRelease.t()} | {:error, Changeset.t() | :not_found}
-  def update_deployment_release(%DeploymentRelease{} = release, params, %User{} = user) do
+  def update_deployment_release(%DeploymentRelease{} = release, params, actor)
+      when is_struct(actor, User) or is_struct(actor, ApiKey) do
     release
     |> DeploymentRelease.edit_changeset(params)
-    |> save_release_changes(user)
+    |> save_release_changes(actor)
   end
 
-  defp save_release_changes(%Changeset{} = changeset, user) do
+  defp save_release_changes(%Changeset{} = changeset, actor) do
     required_changed? = Changeset.changed?(changeset, :required)
 
     code_changed? =
@@ -990,7 +994,7 @@ defmodule NervesHub.ManagedDeployments do
       with {:ok, release} <- Repo.update(changeset),
            {:ok, deployment_group} <- get_deployment_group(release.deployment_group_id) do
         if required_changed? do
-          :ok = DeploymentGroupTemplates.audit_release_required_changed(user, deployment_group, release)
+          :ok = DeploymentGroupTemplates.audit_release_required_changed(actor, deployment_group, release)
 
           # Queueing the deltas can fail on its own, and says so in the log and in
           # Sentry. The release is still required either way, devices that have no
@@ -1003,7 +1007,7 @@ defmodule NervesHub.ManagedDeployments do
         end
 
         if code_changed? do
-          :ok = DeploymentGroupTemplates.audit_release_connecting_code_changed(user, deployment_group, release)
+          :ok = DeploymentGroupTemplates.audit_release_connecting_code_changed(actor, deployment_group, release)
         end
 
         {:ok, {release, deployment_group}}
@@ -1024,13 +1028,31 @@ defmodule NervesHub.ManagedDeployments do
   """
   @spec list_deployment_releases(DeploymentGroup.t()) :: [DeploymentRelease.t()]
   def list_deployment_releases(%DeploymentGroup{id: deployment_group_id}) do
+    deployment_group_id
+    |> releases_query()
+    |> order_by([r], desc: r.inserted_at, desc: r.id)
+    |> Repo.all()
+  end
+
+  @doc """
+  A deployment group's release by its number, which counts up from 1 within
+  the group. Loaded as `list_deployment_releases/1` loads each release.
+  """
+  @spec get_deployment_release_by_number(DeploymentGroup.t(), integer()) ::
+          {:ok, DeploymentRelease.t()} | {:error, :not_found}
+  def get_deployment_release_by_number(%DeploymentGroup{id: deployment_group_id}, number) when is_integer(number) do
+    deployment_group_id
+    |> releases_query()
+    |> where([r], r.number == ^number)
+    |> Repo.fetch()
+  end
+
+  defp releases_query(deployment_group_id) do
     DeploymentRelease
     |> where([r], r.deployment_group_id == ^deployment_group_id)
-    |> order_by([r], desc: r.inserted_at, desc: r.id)
     # `deleted_by` because release history outlives the firmware it names: a
     # deleted release firmware is badged with who retired it.
     |> preload([:created_by, :created_by_api_key, :archive, firmware: :deleted_by])
-    |> Repo.all()
   end
 
   @spec broadcast(DeploymentGroup.t() | atom(), String.t(), map()) :: :ok | {:error, term()}

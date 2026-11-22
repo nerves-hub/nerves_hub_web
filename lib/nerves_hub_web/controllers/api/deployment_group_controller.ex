@@ -102,6 +102,12 @@ defmodule NervesHubWeb.API.DeploymentGroupController do
 
   operation(:update,
     summary: "Update a Deployment Group",
+    description: """
+    A body with `firmware` (or `archive`) creates a new release and changes nothing
+    else on the group. The Deployment Group releases endpoints,
+    `/deployments/{name}/releases`, do that on their own, and can also list releases
+    and change a release once it's made.
+    """,
     parameters: [
       org_name: [in: :path, description: "Organization Name", type: :string, example: "example_org"],
       product_name: [in: :path, description: "Product Name", type: :string, example: "example_product"],

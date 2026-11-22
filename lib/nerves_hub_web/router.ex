@@ -208,6 +208,11 @@ defmodule NervesHubWeb.Router do
         get("/:name", DeploymentGroupController, :show)
         put("/:name", DeploymentGroupController, :update)
         delete("/:name", DeploymentGroupController, :delete)
+
+        get("/:name/releases", DeploymentReleaseController, :index)
+        post("/:name/releases", DeploymentReleaseController, :create)
+        get("/:name/releases/:number", DeploymentReleaseController, :show)
+        patch("/:name/releases/:number", DeploymentReleaseController, :update)
       end
 
       scope "/scripts" do

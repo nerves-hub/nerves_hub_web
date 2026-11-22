@@ -178,5 +178,27 @@ defmodule NervesHub.ManagedDeployments.ReleaseConnectingCodeTest do
 
       assert AuditLogs.logs_for(context.deployment_group) == before
     end
+
+    test "takes a product API key, and audits it by name", context do
+      release = add_release(context, context.next_firmware, %{})
+      api_key = Fixtures.api_key_fixture(context.product, context.user, %{"name" => "CI"})
+
+      assert {:ok, release} =
+               ManagedDeployments.update_deployment_release(
+                 release,
+                 %{"required" => "true", "connecting_code" => "changed"},
+                 api_key
+               )
+
+      assert release.required
+      assert release.connecting_code == "changed"
+
+      descriptions = Enum.map(AuditLogs.logs_by(api_key), & &1.description)
+
+      assert Enum.sort(descriptions) == [
+               "API key CI changed the connecting code for release #{release.number} of deployment group #{context.deployment_group.name}",
+               "API key CI marked release #{release.number} as required for deployment group #{context.deployment_group.name}"
+             ]
+    end
   end
 end
