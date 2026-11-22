@@ -1575,7 +1575,7 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
   end
 
   describe "changing a device's tags" do
-    setup %{user: user, user2: user2, org: org, tmp_dir: tmp_dir} do
+    setup %{user: user, org: org, tmp_dir: tmp_dir} do
       product = Fixtures.product_fixture(user, org)
       org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
       firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
