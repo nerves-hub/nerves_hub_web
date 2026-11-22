@@ -47,7 +47,8 @@ defmodule NervesHubWeb.APISpecAssertions do
 
   @doc """
   Assert that `conn`'s response is the one the spec documents for its route.
-  Returns `conn`.
+
+  Returns `conn`. Fields named in `:absent` may be missing from the body.
   """
   def assert_documented_response(%Plug.Conn{} = conn, opts \\ []) do
     spec = spec()

@@ -20,8 +20,10 @@ defmodule NervesHubWeb.API.OpenAPI.SchemaHelpers do
   end
 
   @doc """
-  Tags in a request body. `NervesHub.Types.Tag` casts a list or one
-  comma-separated string; responses always give a list.
+  Tags in a request body.
+
+  `NervesHub.Types.Tag` casts a list or one comma-separated string; responses
+  always give a list.
   """
   def request_tags() do
     %OpenApiSpex.Schema{
