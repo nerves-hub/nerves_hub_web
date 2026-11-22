@@ -291,6 +291,74 @@ defmodule NervesHub.CLISessionCacheTest do
     end
   end
 
+  describe "collecting a confirmed CLI login's API token" do
+    setup do
+      user = Fixtures.user_fixture()
+      {:ok, %{token: token}} = Accounts.generate_cli_session_token("nh")
+
+      %{user: user, token: token}
+    end
+
+    test "waits until someone confirms the login", %{token: token} do
+      assert {:ok, %{status: :waiting, user_token: nil}} = Accounts.check_cli_session_ready(token)
+      assert {:ok, %{status: :waiting}} = Accounts.check_cli_session_ready(token)
+    end
+
+    test "hands the token over once, then drops it from the cache", %{user: user, token: token} do
+      :ok = Accounts.verify_cli_session_token(user, token)
+
+      assert {:ok, %{status: :ready, user_token: "nhu_" <> _ = user_token}} = Accounts.check_cli_session_ready(token)
+      assert {:ok, %{id: user_id}, _api_token} = Accounts.fetch_user_by_api_token(user_token)
+      assert user_id == user.id
+
+      # Whoever asks next, the CLI retrying or someone else holding the
+      # login's token, gets no token.
+      for _ <- 1..3 do
+        assert {:ok, %{status: :collected, user_token: nil}} = Accounts.check_cli_session_ready(token)
+      end
+
+      assert {:ok, %{status: :collected, user_token: nil, user_id: user_id}} = CLISessionCache.get(token)
+      assert user_id == user.id
+    end
+
+    test "tells every other web node the token is gone", %{user: user, token: token} do
+      :ok = Accounts.verify_cli_session_token(user, token)
+
+      # Listen as a peer node's cache would.
+      :ok = Group.join(NervesHub.Group, "cli_session_cache", %{}, cluster: "web")
+
+      assert {:ok, %{status: :ready}} = Accounts.check_cli_session_ready(token)
+
+      assert_receive {:put, _origin, ^token, %UserCLISession{status: :collected, user_token: nil}}
+    end
+
+    test "only one of many concurrent polls gets the token", %{user: user, token: token} do
+      :ok = Accounts.verify_cli_session_token(user, token)
+
+      statuses =
+        1..10
+        |> Enum.map(fn _ -> Task.async(fn -> Accounts.check_cli_session_ready(token) end) end)
+        |> Task.await_many()
+        |> Enum.map(fn {:ok, cli_session} -> {cli_session.status, cli_session.user_token} end)
+
+      assert [{:ready, "nhu_" <> _}] = Enum.filter(statuses, &match?({:ready, _}, &1))
+      assert Enum.count(statuses, &(&1 == {:collected, nil})) == 9
+    end
+
+    test "the person who confirmed it can still confirm it again, and nobody else can", %{user: user, token: token} do
+      :ok = Accounts.verify_cli_session_token(user, token)
+      {:ok, %{status: :ready}} = Accounts.check_cli_session_ready(token)
+
+      assert :ok = Accounts.verify_cli_session_token(user, token)
+      assert {:error, :already_verified} = Accounts.verify_cli_session_token(Fixtures.user_fixture(), token)
+      assert {:ok, %{status: :collected, user_token: nil}} = CLISessionCache.get(token)
+    end
+
+    test "finds nothing for a token no login has" do
+      assert {:error, :not_found} = Accounts.check_cli_session_ready(Ecto.UUID.generate())
+    end
+  end
+
   defp create_cli_session(mins_ago) do
     token = Ecto.UUID.generate()
 

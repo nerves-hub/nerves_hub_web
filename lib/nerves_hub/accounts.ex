@@ -1975,10 +1975,10 @@ defmodule NervesHub.Accounts do
 
         {:ok, {:put, cli_session}}
 
-      {:ok, %{status: :ready, user_id: user_id}} when user_id == user.id ->
+      {:ok, %{status: status, user_id: user_id}} when status in [:ready, :collected] and user_id == user.id ->
         {:ok, :noop}
 
-      {:ok, %{status: :ready}} ->
+      {:ok, %{status: status}} when status in [:ready, :collected] ->
         {{:error, :already_verified}, :noop}
 
       _ ->
@@ -2097,13 +2097,29 @@ defmodule NervesHub.Accounts do
     end
   end
 
+  @doc """
+  The CLI login `token` polls, handing over its API token exactly once.
+
+  A login someone has confirmed comes back `:ready` with its API token the
+  first time it's asked for, and is stored as `:collected` with the token
+  dropped. Every node's copy of it drops the token too, so asking again,
+  whoever asks, finds `:collected` and no token until the login expires.
+
+  A CLI that never got the response that carried the token has to start
+  another login. The token it missed still exists, labelled with the login's
+  note, until the user revokes it.
+
+  Each web node keeps its own copy of the cache, so a node that hasn't yet
+  heard a login was collected can still hand its token out, for as long as the
+  update takes to reach it.
+  """
+  @spec check_cli_session_ready(String.t()) :: {:ok, UserCLISession.t()} | {:error, :not_found}
   def check_cli_session_ready(token) do
     CLISessionCache.get_and_update(token, fn
       {:ok, %{status: :ready} = cli_session} ->
-        cli_session = %{cli_session | status: :verified}
-        {{:ok, cli_session}, {:put, cli_session}}
+        {{:ok, cli_session}, {:put, %{cli_session | status: :collected, user_token: nil}}}
 
-      {:ok, %{status: :waiting} = cli_session} ->
+      {:ok, %{status: status} = cli_session} when status in [:waiting, :collected] ->
         {{:ok, cli_session}, :noop}
 
       _ ->

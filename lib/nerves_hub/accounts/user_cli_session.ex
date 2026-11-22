@@ -6,6 +6,10 @@ defmodule NervesHub.Accounts.UserCLISession do
   `confirmation_code`, which they type in on the web to find the login.
   `requested_at` and `requested_from` say when and from where the CLI started
   it, so whoever confirms can tell whether it was them.
+
+  It is `:waiting` until someone confirms it, then `:ready`, holding the API
+  token it was confirmed with, until the CLI collects that token. From then
+  until it expires it is `:collected`, and the token is gone from it.
   """
 
   @type t() :: %__MODULE__{
@@ -14,7 +18,7 @@ defmodule NervesHub.Accounts.UserCLISession do
           note: String.t() | nil,
           requested_at: integer() | nil,
           requested_from: String.t() | nil,
-          status: :waiting | :ready | :verified | nil,
+          status: :waiting | :ready | :collected | nil,
           token: String.t() | nil,
           user_id: pos_integer() | nil,
           user_token: String.t() | nil

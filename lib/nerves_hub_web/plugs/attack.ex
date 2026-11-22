@@ -34,13 +34,19 @@ defmodule NervesHubWeb.Plugs.Attack do
     end
   end
 
-  # Starting a CLI login has an allowance of its own rather than a share of the
-  # one below. nh polls every two seconds while it waits, which is all thirty a
-  # minute, so a start counted there would cost the first minute of every login
-  # a refused poll.
+  # Starting a CLI login and polling one each have an allowance of their own
+  # rather than a share of the one below. nh polls every two seconds while it
+  # waits, which is all thirty a minute of that one, leaving nothing for a
+  # second login from the same address or a poll that arrives a little early.
   rule "throttle CLI logins by ip", conn do
     if conn.private[:phoenix_action] == :cli_session do
       cli_login_throttle(client_ip(conn))
+    end
+  end
+
+  rule "throttle CLI login polling by ip", conn do
+    if conn.private[:phoenix_action] == :check_cli_session do
+      cli_poll_throttle(client_ip(conn))
     end
   end
 
@@ -73,6 +79,30 @@ defmodule NervesHubWeb.Plugs.Attack do
     time = opts[:time] || System.system_time(:millisecond)
 
     do_throttle({:cli_login, ip}, time: time, limit: 10, period: to_timeout(minute: 10))
+  end
+
+  @doc """
+  Limits how often one address can poll CLI logins: 120 times a minute.
+
+  nh polls every two seconds for the five minutes a login waits, which is 30 a
+  minute, so this lets four people behind one address log in at once, or one
+  CLI poll twice as fast, before any of them is refused.
+
+  Counted per address, not per login token. The token is in the path, so a
+  caller making tokens up would get a fresh allowance, and add a row to the
+  rate limit table, with each one. Polling a token is how a login is collected,
+  but a real one is a random UUID (122 random bits), so guessing at 120 a
+  minute, even on every web node at once, never finds one.
+
+  Counted on this node only, like `cli_login_throttle/2`. What a flood of polls
+  would wear out is this node's `NervesHub.CLISessionCache` process, which
+  every poll calls, and a node is only spared that by a count of its own.
+  """
+  @spec cli_poll_throttle(term(), keyword()) :: {:allow | :block, {:throttle, keyword()}}
+  def cli_poll_throttle(ip, opts \\ []) do
+    time = opts[:time] || System.system_time(:millisecond)
+
+    do_throttle({:cli_poll, ip}, time: time, limit: 120, period: to_timeout(minute: 1))
   end
 
   @doc """
@@ -143,6 +173,22 @@ defmodule NervesHubWeb.Plugs.Attack do
     time = opts[:time] || System.system_time(:millisecond)
 
     do_throttle({:confirm_identity, user_id}, time: time, limit: 5, period: to_timeout(minute: 10))
+  end
+
+  @doc """
+  Refuses a throttled request with `429 Too Many Requests`, and a `Retry-After`
+  of the seconds until its count starts again, so a CLI can wait that long
+  rather than give up.
+  """
+  @impl PlugAttack
+  def block_action(conn, {:throttle, data}, _opts) do
+    retry_after = max(div(data[:expires_at] - System.system_time(:millisecond) + 999, 1000), 1)
+
+    conn
+    |> Plug.Conn.put_resp_header("retry-after", Integer.to_string(retry_after))
+    |> Plug.Conn.put_resp_content_type("application/json")
+    |> Plug.Conn.send_resp(:too_many_requests, Jason.encode!(%{errors: %{detail: "Too many requests"}}))
+    |> Plug.Conn.halt()
   end
 
   defp do_throttle(key, opts) do

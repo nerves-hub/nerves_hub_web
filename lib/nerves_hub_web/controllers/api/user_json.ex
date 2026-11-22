@@ -21,8 +21,8 @@ defmodule NervesHubWeb.API.UserJSON do
     %{data: %{status: :ready, user_token: user_token}}
   end
 
-  def check_cli_session(%{status: :waiting}) do
-    %{data: %{status: :waiting}}
+  def check_cli_session(%{status: status}) when status in [:waiting, :collected] do
+    %{data: %{status: status}}
   end
 
   defp user(user) do

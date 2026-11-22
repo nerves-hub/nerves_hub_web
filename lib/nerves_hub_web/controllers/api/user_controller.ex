@@ -99,6 +99,11 @@ defmodule NervesHubWeb.API.UserController do
 
   operation(:check_cli_session,
     summary: "Check the CLI authentication progress",
+    description: """
+    Poll until the status is `ready`, which carries the API token. The token is
+    handed out once: asking again finds `collected` and no token, until the
+    login expires, about five minutes after it started, and this returns 404.
+    """,
     parameters: [
       token: [
         in: :path,
@@ -120,8 +125,11 @@ defmodule NervesHubWeb.API.UserController do
       {:ok, %{status: :waiting}} ->
         render(conn, status: :waiting)
 
-      {:ok, cli_session} ->
-        render(conn, status: :ready, user_token: cli_session.user_token)
+      {:ok, %{status: :ready, user_token: user_token}} ->
+        render(conn, status: :ready, user_token: user_token)
+
+      {:ok, %{status: :collected}} ->
+        render(conn, status: :collected)
 
       {:error, :not_found} ->
         raise NervesHubWeb.NotFoundError
