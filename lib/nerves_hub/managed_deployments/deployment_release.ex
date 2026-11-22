@@ -61,10 +61,16 @@ defmodule NervesHub.ManagedDeployments.DeploymentRelease do
   @edit_fields [:required, :connecting_code, :connecting_code_mode]
 
   @doc """
-  A new release of `deployment_group`, which becomes its current release.
+  A changeset for a new release of `deployment_group`, numbered after its last.
 
-  Takes its description, notes, whether it's required, and its connecting code
-  and where that runs from `params`, and ignores anything else there.
+  `firmware` and `archive` come already loaded. From `params` it takes the
+  description, notes, whether it's required, and the connecting code and where
+  that runs, and ignores anything else there. It's refused if the firmware and
+  archive are the same as the current release's.
+
+  Inserting it doesn't make it the group's current release:
+  `NervesHub.ManagedDeployments.create_deployment_release/6` does that. The
+  Releases tab also builds one only to check a form's input.
   """
   @spec new_changeset(DeploymentGroup.t(), Firmware.t() | nil, Archive.t() | nil, map(), User.t() | ApiKey.t() | nil) ::
           Ecto.Changeset.t()
