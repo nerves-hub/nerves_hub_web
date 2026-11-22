@@ -8,8 +8,8 @@ defmodule NervesHubWeb.API.Schemas.DeviceSchemas do
     require OpenApiSpex
 
     @connection_status_description """
-    The device's connection state: `connected`, `disconnected`, or `not_seen` for a device with
-    no recorded connection.
+    The device's connection state: `connecting` while its socket is open but not yet confirmed,
+    `connected`, `disconnected`, or `not_seen` for a device with no recorded connection.
     """
 
     OpenApiSpex.schema(%{
@@ -21,13 +21,13 @@ defmodule NervesHubWeb.API.Schemas.DeviceSchemas do
         online: %Schema{
           type: :string,
           description: "The same value as `connection_status`. Despite its name it is not a boolean.",
-          enum: ["connected", "disconnected", "not_seen"],
+          enum: ["connecting", "connected", "disconnected", "not_seen"],
           deprecated: true
         },
         connection_status: %Schema{
           type: :string,
           description: @connection_status_description,
-          enum: ["connected", "disconnected", "not_seen"]
+          enum: ["connecting", "connected", "disconnected", "not_seen"]
         },
         firmware_metadata: %Schema{
           type: :object,

@@ -19,6 +19,20 @@ defmodule NervesHubWeb.API.OpenAPI.SchemaHelpers do
     }
   end
 
+  @doc """
+  Tags in a request body. `NervesHub.Types.Tag` casts a list or one
+  comma-separated string; responses always give a list.
+  """
+  def request_tags() do
+    %OpenApiSpex.Schema{
+      description: "A list of tags, or one comma-separated string of them. A tag cannot contain spaces.",
+      oneOf: [
+        %OpenApiSpex.Schema{type: :array, items: %OpenApiSpex.Schema{type: :string}},
+        %OpenApiSpex.Schema{type: :string}
+      ]
+    }
+  end
+
   def auth_error_responses() do
     [
       unauthorized: {"Unauthorized", "application/json", ErrorSchemas.ErrorResponse},

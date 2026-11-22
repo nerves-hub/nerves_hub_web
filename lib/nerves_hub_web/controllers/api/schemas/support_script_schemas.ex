@@ -128,22 +128,6 @@ defmodule NervesHubWeb.API.Schemas.SupportScriptSchemas do
     })
   end
 
-  # A script's tags are cast by `NervesHub.Types.Tag`, which takes a list or
-  # one comma-separated string. They are always returned as a list.
-  defmodule RequestTags do
-    @moduledoc false
-
-    def schema() do
-      %Schema{
-        description: "A list of tags, or one comma-separated string of them. A tag cannot contain spaces.",
-        oneOf: [
-          %Schema{type: :array, items: %Schema{type: :string}},
-          %Schema{type: :string}
-        ]
-      }
-    end
-  end
-
   defmodule SupportScriptCreationRequest do
     OpenApiSpex.schema(%{
       description: "POST body for adding a Support Script to a Product",
@@ -157,7 +141,7 @@ defmodule NervesHubWeb.API.Schemas.SupportScriptSchemas do
           default: "elixir",
           description: "How the device should interpret `text`. Defaults to Elixir."
         },
-        tags: RequestTags.schema()
+        tags: SchemaHelpers.request_tags()
       },
       required: [:name, :text],
       example: %{
@@ -182,7 +166,7 @@ defmodule NervesHubWeb.API.Schemas.SupportScriptSchemas do
           default: "elixir",
           description: "How the device should interpret `text`. Defaults to Elixir."
         },
-        tags: RequestTags.schema()
+        tags: SchemaHelpers.request_tags()
       },
       example: %{
         "name" => "Clean Disk",

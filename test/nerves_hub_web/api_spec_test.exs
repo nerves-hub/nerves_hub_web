@@ -88,7 +88,7 @@ defmodule NervesHubWeb.ApiSpecTest do
       Fixtures.device_connection_fixture(connected)
       never_seen = Fixtures.device_fixture(org, product, firmware)
 
-      %{connected: connected, never_seen: never_seen}
+      %{connected: connected, never_seen: never_seen, firmware: firmware}
     end
 
     test "list", %{conn: conn, org: org, product: product} do
@@ -118,6 +118,20 @@ defmodule NervesHubWeb.ApiSpecTest do
         |> Map.fetch!("data")
 
       assert %{"online" => "not_seen", "connection_status" => "not_seen", "last_communication" => "never"} = data
+    end
+
+    test "show a device that is still connecting", %{conn: conn, org: org, product: product} = context do
+      device = Fixtures.device_fixture(org, product, context.firmware)
+      Fixtures.device_connection_fixture(device, %{status: :connecting})
+
+      data =
+        conn
+        |> get(~p"/api/devices/#{device.identifier}")
+        |> assert_documented_response()
+        |> json_response(200)
+        |> Map.fetch!("data")
+
+      assert %{"online" => "connecting", "connection_status" => "connecting"} = data
     end
 
     test "create", %{conn: conn, org: org, product: product} do
