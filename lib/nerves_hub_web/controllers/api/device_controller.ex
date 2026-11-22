@@ -327,10 +327,9 @@ defmodule NervesHubWeb.API.DeviceController do
   end
 
   # Tags decide which deployment groups a device can join, and which members
-  # see it, so changing them needs its own permission. It looks for tags where
-  # `update/2` reads them, through `device_params/1`: under "device" when the
-  # body has a "device" object, at the top level otherwise. Checking anywhere
-  # else lets a client send tags in the place that isn't checked.
+  # see it, so changing them needs its own permission. Read them through
+  # `device_params/1`, as `update/2` does, or a client can send tags where
+  # they are saved but not checked.
   #
   # Adding a device doesn't need it: its first tags are part of adding it, as
   # they are in the web UI's Add device dialog.
