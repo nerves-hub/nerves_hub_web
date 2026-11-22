@@ -165,10 +165,17 @@ defmodule NervesHubWeb.API.DeploymentReleaseController do
     end
   end
 
+  # A release number is a Postgres `integer`, which can't be given anything
+  # bigger to compare with, so a number past it names no release.
+  @max_release_number 2_147_483_647
+
   defp get_release(deployment_group, number) do
     case Integer.parse(number) do
-      {number, ""} -> ManagedDeployments.get_deployment_release_by_number(deployment_group, number)
-      _ -> {:error, :not_found}
+      {number, ""} when number in 1..@max_release_number//1 ->
+        ManagedDeployments.get_deployment_release_by_number(deployment_group, number)
+
+      _ ->
+        {:error, :not_found}
     end
   end
 

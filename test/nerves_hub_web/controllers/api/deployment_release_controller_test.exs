@@ -92,6 +92,8 @@ defmodule NervesHubWeb.API.DeploymentReleaseControllerTest do
     test "is not found for a release the group doesn't have", %{conn: conn} = context do
       assert json_response(get(conn, release_path(context, 2)), 404)
       assert json_response(get(conn, release_path(context, "first")), 404)
+      assert json_response(get(conn, release_path(context, 0)), 404)
+      assert json_response(get(conn, release_path(context, 99_999_999_999)), 404)
     end
 
     test "is not found for a group that doesn't exist", %{conn: conn} = context do
