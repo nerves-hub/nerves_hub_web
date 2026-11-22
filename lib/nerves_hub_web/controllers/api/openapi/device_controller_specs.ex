@@ -122,6 +122,24 @@ defmodule NervesHubWeb.API.OpenAPI.DeviceControllerSpecs do
     201 => %OpenApiSpex.Response{description: "Manifest accepted; the devices are created in the background"}
   }
 
+  @bulk_import_headers [
+    %OpenApiSpex.Parameter{
+      name: :format,
+      in: :header,
+      description: "The manifest's format",
+      required: false,
+      schema: %OpenApiSpex.Schema{type: :string, enum: ["microchip_trust_and_go"], default: "microchip_trust_and_go"}
+    },
+    %OpenApiSpex.Parameter{
+      name: :tags,
+      in: :header,
+      description: "Comma-separated tags to give every device the manifest creates",
+      required: false,
+      schema: %OpenApiSpex.Schema{type: :string},
+      example: "prod,batch-12"
+    }
+  ]
+
   @common_errors SchemaHelpers.common_errors()
   @not_found_error SchemaHelpers.not_found_error()
   @validation_error SchemaHelpers.validation_error()
@@ -269,7 +287,7 @@ defmodule NervesHubWeb.API.OpenAPI.DeviceControllerSpecs do
       device_operation(
         "Bulk create Devices from a manifest. Only a Microchip Trust and Go manifest is currently supported.",
         :bulk_import,
-        [@organization_parameter, @product_parameter],
+        [@organization_parameter, @product_parameter | @bulk_import_headers],
         opts.tags,
         request_body: request_body,
         response: Map.merge(@bulk_import_response, @validation_error)

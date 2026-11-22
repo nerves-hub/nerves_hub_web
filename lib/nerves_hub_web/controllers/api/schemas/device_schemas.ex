@@ -94,7 +94,7 @@ defmodule NervesHubWeb.API.Schemas.DeviceSchemas do
         deleted: %Schema{
           type: :boolean,
           description:
-            "Whether the device has been deleted. A deleted device is kept, and can be restored, for 12 days."
+            "Whether the device has been deleted. A deleted device can be restored in the web UI until the instance removes it for good."
         }
       },
       example: %{
@@ -227,7 +227,14 @@ defmodule NervesHubWeb.API.Schemas.DeviceSchemas do
       """,
       type: :array,
       items: %Schema{type: :object},
-      example: [%{"uniqueId" => "0123c5ac79a1e3fe01", "publicKeySet" => %{"keys" => []}}]
+      example: [
+        %{
+          "header" => %{"uniqueId" => "SN1234"},
+          "payload" => "<base64url-encoded JWS payload>",
+          "protected" => "<base64url-encoded JWS header>",
+          "signature" => "<base64url-encoded signature>"
+        }
+      ]
     })
   end
 
@@ -289,7 +296,6 @@ defmodule NervesHubWeb.API.Schemas.DeviceSchemas do
             "Also create the device's own shared secret, in the same transaction. The key and secret are returned as `data.shared_secret`, the only time the secret is returned. When device shared secrets are not enabled on this platform, the request is refused and no device is created."
         }
       },
-      required: [:device],
       example: %{
         "device" => %{
           "identifier" => "abc123",
@@ -324,7 +330,6 @@ defmodule NervesHubWeb.API.Schemas.DeviceSchemas do
             end)
         }
       },
-      required: [:device],
       example: %{
         "device" => %{
           "description" => "Example Device",

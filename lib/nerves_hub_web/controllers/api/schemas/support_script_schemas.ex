@@ -17,7 +17,8 @@ defmodule NervesHubWeb.API.Schemas.SupportScriptSchemas do
         updated_at: SchemaHelpers.naive_timestamp("When it was last changed"),
         created_by: %Schema{
           type: :object,
-          description: "Who created the script. Left out when that user no longer exists.",
+          description:
+            "The user who created the script. Left out when no user did, as for a script a product API key created.",
           properties: %{
             id: %Schema{type: :integer},
             name: %Schema{type: :string},
@@ -170,7 +171,7 @@ defmodule NervesHubWeb.API.Schemas.SupportScriptSchemas do
 
   defmodule SupportScriptUpdateRequest do
     OpenApiSpex.schema(%{
-      description: "POST body for updating a Support Script",
+      description: "PUT body for updating a Support Script",
       type: :object,
       properties: %{
         name: %Schema{type: :string},

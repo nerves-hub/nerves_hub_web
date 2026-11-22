@@ -91,8 +91,11 @@ defmodule NervesHubWeb.APISpecAssertions do
   defp response_schema(%Reference{} = ref, spec),
     do: ref |> Reference.resolve_response(spec.components.responses) |> response_schema(spec)
 
-  defp response_schema(%{content: %{"application/json" => %{schema: schema}}}, _spec), do: schema
   defp response_schema(%{content: content}, _spec) when content in [nil, %{}], do: nil
+  defp response_schema(%{content: %{"application/json" => %{schema: schema}}}, _spec), do: schema
+
+  defp response_schema(%{content: content}, _spec),
+    do: flunk("Only JSON responses are checked; this one is documented as #{content |> Map.keys() |> Enum.join(", ")}")
 
   defp assert_same_fields(nil, _schema, _spec, _path, _absent), do: :ok
 
