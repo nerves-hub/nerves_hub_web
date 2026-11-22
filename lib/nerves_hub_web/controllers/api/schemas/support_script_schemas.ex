@@ -1,4 +1,5 @@
 defmodule NervesHubWeb.API.Schemas.SupportScriptSchemas do
+  alias NervesHubWeb.API.OpenAPI.SchemaHelpers
   alias OpenApiSpex.Schema
 
   require OpenApiSpex
@@ -7,32 +8,34 @@ defmodule NervesHubWeb.API.Schemas.SupportScriptSchemas do
     OpenApiSpex.schema(%{
       type: :object,
       properties: %{
-        id: %Schema{type: :string},
+        id: %Schema{type: :integer},
         name: %Schema{type: :string},
         text: %Schema{type: :string},
         language: %Schema{type: :string, enum: ["elixir", "shell"], default: "elixir"},
-        tags: %Schema{type: :string},
-        inserted_at: %Schema{type: :string, format: "date-time"},
-        updated_at: %Schema{type: :string, format: "date-time"},
+        tags: %Schema{type: :array, items: %Schema{type: :string}, nullable: true},
+        inserted_at: SchemaHelpers.naive_timestamp("When it was created"),
+        updated_at: SchemaHelpers.naive_timestamp("When it was last changed"),
         created_by: %Schema{
           type: :object,
+          description:
+            "The user who created the script. Left out when no user did, as for a script a product API key created.",
           properties: %{
-            id: %Schema{type: :string},
+            id: %Schema{type: :integer},
             name: %Schema{type: :string},
             email: %Schema{type: :string}
           }
         }
       },
       example: %{
-        "id" => "1",
+        "id" => 1,
         "name" => "Clean Disk",
         "text" => "Clean.disk()",
         "language" => "elixir",
-        "tags" => "cleanup",
-        "inserted_at" => "2026-03-28T08:10:20Z",
-        "updated_at" => "2026-06-23T08:10:20Z",
+        "tags" => ["cleanup"],
+        "inserted_at" => "2026-03-28T08:10:20",
+        "updated_at" => "2026-06-23T08:10:20",
         "created_by" => %{
-          "id" => "1",
+          "id" => 1,
           "name" => "Waffles t'Doggo",
           "email" => "waffles@doggo.com"
         }
@@ -44,16 +47,16 @@ defmodule NervesHubWeb.API.Schemas.SupportScriptSchemas do
     OpenApiSpex.schema(%{
       type: :object,
       properties: %{
-        id: %Schema{type: :string},
+        id: %Schema{type: :integer},
         name: %Schema{type: :string},
         language: %Schema{type: :string, enum: ["elixir", "shell"], default: "elixir"},
-        tags: %Schema{type: :string}
+        tags: %Schema{type: :array, items: %Schema{type: :string}, nullable: true}
       },
       example: %{
-        "id" => "1",
+        "id" => 1,
         "name" => "Clean Disk",
         "language" => "elixir",
-        "tags" => "cleanup"
+        "tags" => ["cleanup"]
       }
     })
   end
@@ -77,16 +80,16 @@ defmodule NervesHubWeb.API.Schemas.SupportScriptSchemas do
       example: %{
         "data" => [
           %{
-            "id" => "1",
+            "id" => 1,
             "name" => "Clean Disk",
             "language" => "elixir",
-            "tags" => "cleanup"
+            "tags" => ["cleanup"]
           },
           %{
-            "id" => "2",
+            "id" => 2,
             "name" => "Dim the lights",
             "language" => "shell",
-            "tags" => "lights"
+            "tags" => ["lights"]
           }
         ],
         "pagination" => %{
@@ -108,15 +111,15 @@ defmodule NervesHubWeb.API.Schemas.SupportScriptSchemas do
       },
       example: %{
         "data" => %{
-          "id" => "1",
+          "id" => 1,
           "name" => "Snoot Boop",
           "text" => "Snoot.boop()",
           "language" => "elixir",
-          "tags" => "snoots",
-          "inserted_at" => "2026-03-28T08:10:20Z",
-          "updated_at" => "2026-06-23T08:10:20Z",
+          "tags" => ["snoots"],
+          "inserted_at" => "2026-03-28T08:10:20",
+          "updated_at" => "2026-06-23T08:10:20",
           "created_by" => %{
-            "id" => "1",
+            "id" => 1,
             "name" => "Waffles t'Doggo",
             "email" => "waffles@doggo.com"
           }
@@ -138,21 +141,21 @@ defmodule NervesHubWeb.API.Schemas.SupportScriptSchemas do
           default: "elixir",
           description: "How the device should interpret `text`. Defaults to Elixir."
         },
-        tags: %Schema{type: :string}
+        tags: SchemaHelpers.request_tags()
       },
       required: [:name, :text],
       example: %{
         "name" => "Clean Disk",
         "text" => "Disk.clean()",
         "language" => "elixir",
-        "tags" => "cleanup"
+        "tags" => ["cleanup"]
       }
     })
   end
 
   defmodule SupportScriptUpdateRequest do
     OpenApiSpex.schema(%{
-      description: "POST body for updating a Support Script",
+      description: "PUT body for updating a Support Script",
       type: :object,
       properties: %{
         name: %Schema{type: :string},
@@ -163,13 +166,13 @@ defmodule NervesHubWeb.API.Schemas.SupportScriptSchemas do
           default: "elixir",
           description: "How the device should interpret `text`. Defaults to Elixir."
         },
-        tags: %Schema{type: :string}
+        tags: SchemaHelpers.request_tags()
       },
       example: %{
         "name" => "Clean Disk",
         "text" => "Disk.clean()",
         "language" => "elixir",
-        "tags" => "cleanup"
+        "tags" => ["cleanup"]
       }
     })
   end

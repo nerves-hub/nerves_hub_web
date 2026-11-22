@@ -552,6 +552,18 @@ moment a consumer changed.
   - `NervesHubWeb.ChannelCase` — channel tests.
   - `NervesHub.Fixtures` for fixtures; `SocketClient` simulates a real device
     connection.
+- **The OpenAPI spec is checked against real responses.**
+  `test/nerves_hub_web/api_spec_test.exs` checks that every documented path is
+  routed, every schema example fits its schema, and no two schemas share a
+  title (the spec keys them by title, so one would replace the other). It also
+  sends real requests through
+  `NervesHubWeb.APISpecAssertions.assert_documented_response/2`, which fails
+  on an undocumented status code, a field sent but not documented, or one
+  documented but never sent. A change to an API response or status code
+  updates the spec in the same PR, and a new endpoint adds a case there.
+  Record timestamps (`inserted_at`, `updated_at`) are naive and go out with
+  no offset, so their schemas use `SchemaHelpers.naive_timestamp/1`, not
+  `format: :"date-time"`.
 - **UI / LiveView tests use [`PhoenixTest`](https://hexdocs.pm/phoenix_test).**
   Browser-style tests (`use NervesHubWeb.ConnCase.Browser`) drive the app through
   one high-level, page-oriented API that behaves the same on dead and live views,

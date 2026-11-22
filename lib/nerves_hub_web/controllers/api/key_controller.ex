@@ -43,11 +43,16 @@ defmodule NervesHubWeb.API.KeyController do
     description: """
     The `scheme` decides how `key` is validated and what it can verify:
 
-      * `ed25519` (the default) — an fwup signing key, base64 encoded, as
-        produced by `fwup -g`. Verifies `.fw` archives.
-      * `secure_boot_v2_rsa` — a PEM-encoded RSA-3072 public key, the public
+      * `ed25519` (the default): an fwup signing key, base64 encoded, as
+        produced by `fwup -g`. Verifies `.fw` archives and AtomVM `.avm`
+        packbeams.
+      * `secure_boot_v2_rsa`: a PEM-encoded RSA-3072 public key, the public
         half of an `espsecure.py` Secure Boot v2 signing key. Verifies ESP-IDF
         `.bin` images.
+      * `x509_certificate`: a PEM-encoded X.509 certificate, the trust anchor
+        RAUC's CMS signatures are checked against. A certificate rather than a
+        bare public key, because CMS verification checks a chain. Verifies RAUC
+        `.raucb` bundles.
 
     A key is only ever a candidate for firmware of its own scheme.
     """,
