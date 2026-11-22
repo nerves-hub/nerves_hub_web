@@ -41,7 +41,7 @@ defmodule NervesHub.Devices.BulkActions do
   def async_bulk_create(org_id, product_id, import_list, format, tags \\ []) do
     with {:ok, entries} <- validate_manifest(format, import_list) do
       Task.Supervisor.start_child(Tasks, fn ->
-        {successful_count, unsuccessful_count} = create_entries(org_id, product_id, Enum.map(entries, &{:ok, &1}), tags)
+        {successful_count, unsuccessful_count} = create_entries(org_id, product_id, entries, tags)
 
         _ =
           ProductNotifications.create_device_async_bulk_create_notification!(
@@ -67,53 +67,32 @@ defmodule NervesHub.Devices.BulkActions do
     end
   end
 
-  @doc """
-  Create devices from a manifest given as JSON, returning how many were
-  created and how many failed.
-
-  An entry that can't be read counts as failed rather than stopping the
-  import. A manifest that can't be read at all creates nothing and counts as
-  `{0, 0}`; `async_bulk_create/5` refuses those before they get here.
-  """
-  @spec bulk_create(pos_integer(), pos_integer(), binary(), String.t() | nil, term()) ::
-          {non_neg_integer(), non_neg_integer()}
-  def bulk_create(org_id, product_id, import_list, format, tags \\ []) do
-    case BulkImport.parse_file(format, import_list) do
-      {:ok, results} -> create_entries(org_id, product_id, results, tags)
-      {:error, _problems} -> {0, 0}
-    end
-  end
-
-  defp create_entries(org_id, product_id, results, tags) do
+  defp create_entries(org_id, product_id, entries, tags) do
     product =
       Product
       |> where(org_id: ^org_id, id: ^product_id)
       |> Repo.exclude_deleted()
       |> Repo.one!()
 
-    results
-    |> Enum.map(fn
-      {:error, _problem} = error ->
-        error
+    entries
+    |> Enum.map(fn details ->
+      changeset =
+        Device.changeset(%Device{}, %{
+          org_id: product.org_id,
+          product_id: product.id,
+          identifier: details.device_identifier,
+          tags: tags,
+          managed_updates_allowed: product.default_managed_updates_allowed
+        })
 
-      {:ok, details} ->
-        changeset =
-          Device.changeset(%Device{}, %{
-            org_id: product.org_id,
-            product_id: product.id,
-            identifier: details.device_identifier,
-            tags: tags,
-            managed_updates_allowed: product.default_managed_updates_allowed
-          })
-
-        Repo.transact(fn ->
-          with {:ok, device} <- Repo.insert(changeset),
-               {:ok, pem} <- details.pem,
-               {:ok, otp_cert} <- Certificate.from_pem_or_der(pem),
-               {:ok, _db_cert} <- Certificates.create_device_certificate(device, otp_cert) do
-            {:ok, device}
-          end
-        end)
+      Repo.transact(fn ->
+        with {:ok, device} <- Repo.insert(changeset),
+             {:ok, pem} <- details.pem,
+             {:ok, otp_cert} <- Certificate.from_pem_or_der(pem),
+             {:ok, _db_cert} <- Certificates.create_device_certificate(device, otp_cert) do
+          {:ok, device}
+        end
+      end)
     end)
     |> Enum.frequencies_by(fn result -> elem(result, 0) end)
     |> then(fn res ->

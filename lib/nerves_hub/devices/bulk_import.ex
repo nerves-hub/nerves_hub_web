@@ -1,20 +1,14 @@
 defmodule NervesHub.Devices.BulkImport do
   @moduledoc """
-  Reads the device manifests `POST .../devices/import` accepts.
+  Reads the device manifests `POST .../devices/import` accepts, without raising.
 
-  Nothing here raises on a malformed manifest. A problem with the manifest as a
-  whole (an unknown format, a body that isn't a list) is an error for the whole
-  manifest; a problem with one entry is an error for that entry, so the caller
-  can refuse the manifest before importing anything, or count the entry as
-  failed and carry on.
-
-  Each problem is a `{path, message}` pair. The path names where in the request
-  the problem is, such as `"format"`, `"entries"` or
-  `"entries[3].payload"`, counting entries from 0.
-
-  A certificate that decodes but isn't a valid X.509 certificate is not a parse
-  problem: the entry comes back with `pem: {:error, _}`, and the import counts
-  it as failed when it tries to create the device.
+  A problem with the whole manifest (an unknown format, a body that isn't a
+  non-empty list) fails the manifest; a problem with one entry fails only that
+  entry, so the caller can refuse the manifest or count the entry as failed and
+  carry on. Each problem is a `{path, message}` pair naming where it is, such as
+  `"format"`, `"entries"` or `"entries[3].payload"`, counting entries from 0. A
+  certificate that decodes but isn't valid X.509 is not a parse problem: the
+  entry comes back with `pem: {:error, _}` and fails when the device is created.
   """
 
   @default_format "microchip_trust_and_go"

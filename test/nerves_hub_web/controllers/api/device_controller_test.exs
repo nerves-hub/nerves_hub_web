@@ -1524,7 +1524,7 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
 
       for body <- [%{}, %{"certificate" => 42}, %{"cert" => "abc"}] do
         assert json_response(post(conn, path, body), 422) == %{
-                 "errors" => %{"certificate" => ["is required, as a base64-encoded PEM certificate"]}
+                 "errors" => %{"certificate" => ["must be a base64-encoded PEM certificate"]}
                }
       end
     end

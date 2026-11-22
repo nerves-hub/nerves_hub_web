@@ -135,10 +135,6 @@ defmodule NervesHubWeb.API.DeviceController do
     end
   end
 
-  # The manifest is read before the import starts, so one that can't be read
-  # gets a 422 naming each problem, and nothing is created. The devices are
-  # then created in the background, and a 201 only says the manifest was
-  # accepted: a notification on the product says how many were created.
   def bulk_import(%{assigns: %{current_scope: %{org: org}, product: product}} = conn, params) do
     format = get_req_header(conn, "format") |> List.first()
     tags = get_req_header(conn, "tags") |> List.first()
@@ -232,7 +228,7 @@ defmodule NervesHubWeb.API.DeviceController do
   end
 
   def auth(_conn, _params) do
-    {:error, {:invalid_params, [{"certificate", "is required, as a base64-encoded PEM certificate"}]}}
+    {:error, {:invalid_params, [{"certificate", "must be a base64-encoded PEM certificate"}]}}
   end
 
   def reboot(%{assigns: %{current_scope: scope, device: device}} = conn, _params) do

@@ -227,10 +227,7 @@ defmodule NervesHubWeb.API.FallbackController do
   # as a changeset's errors are keyed by field.
   def call(conn, {:error, {reason, problems}})
       when reason in [:invalid_manifest, :invalid_params] and is_list(problems) do
-    errors =
-      Enum.reduce(problems, %{}, fn {path, message}, acc ->
-        Map.update(acc, path, [message], &(&1 ++ [message]))
-      end)
+    errors = Enum.group_by(problems, &elem(&1, 0), &elem(&1, 1))
 
     conn
     |> put_status(:unprocessable_entity)

@@ -187,86 +187,7 @@ defmodule NervesHub.DevicesTest do
     end
   end
 
-  describe "bulk_create/4" do
-    test "all valid entries, with format :microchip_trust_and_go", %{org: org, product: product} do
-      Repo.delete_all(Device)
-
-      assert Repo.aggregate(Device, :count) == 0
-
-      json_import_data = File.read!("test/fixtures/devices_bulk_create/microchip_trust_and_go_manifest.json")
-
-      assert {5, 0} == BulkActions.bulk_create(org.id, product.id, json_import_data, "microchip_trust_and_go")
-
-      assert Repo.aggregate(Device, :count) == 5
-    end
-
-    test "all valid entries, with format :microchip_trust_and_go, and tags", %{org: org, product: product} do
-      Repo.delete_all(Device)
-
-      assert Repo.aggregate(Device, :count) == 0
-
-      json_import_data = File.read!("test/fixtures/devices_bulk_create/microchip_trust_and_go_manifest.json")
-
-      assert {5, 0} ==
-               BulkActions.bulk_create(org.id, product.id, json_import_data, "microchip_trust_and_go", "snoot-boop")
-
-      assert Repo.aggregate(Device, :count) == 5
-
-      assert Repo.all(Device) |> Enum.all?(fn d -> d.tags == ["snoot-boop"] end)
-    end
-
-    test "two invalid entries, with format :microchip_trust_and_go", %{org: org, product: product} do
-      Repo.delete_all(Device)
-
-      assert Repo.aggregate(Device, :count) == 0
-
-      json_import_data =
-        File.read!("test/fixtures/devices_bulk_create/microchip_trust_and_go_manifest_two_failures.json")
-
-      assert {5, 2} == BulkActions.bulk_create(org.id, product.id, json_import_data, "microchip_trust_and_go")
-
-      assert Repo.aggregate(Device, :count) == 5
-    end
-
-    test "an entry that can't be read counts as failed, and the rest are imported", %{org: org, product: product} do
-      Repo.delete_all(Device)
-
-      json_import_data =
-        "test/fixtures/devices_bulk_create/microchip_trust_and_go_manifest.json"
-        |> File.read!()
-        |> JSON.decode!()
-        |> List.update_at(1, &Map.put(&1, "payload", "not base64!"))
-        |> JSON.encode!()
-
-      assert {4, 1} == BulkActions.bulk_create(org.id, product.id, json_import_data, "microchip_trust_and_go")
-      assert Repo.aggregate(Device, :count) == 4
-    end
-
-    test "a manifest that can't be read imports nothing", %{org: org, product: product} do
-      Repo.delete_all(Device)
-
-      json_import_data = File.read!("test/fixtures/devices_bulk_create/microchip_trust_and_go_manifest.json")
-
-      assert {0, 0} == BulkActions.bulk_create(org.id, product.id, json_import_data, "csv")
-      assert {0, 0} == BulkActions.bulk_create(org.id, product.id, "{}", "microchip_trust_and_go")
-      assert {0, 0} == BulkActions.bulk_create(org.id, product.id, "not json", "microchip_trust_and_go")
-      assert Repo.aggregate(Device, :count) == 0
-    end
-
-    test "imported devices take the product's default grant", %{org: org, product: product} do
-      Repo.delete_all(Device)
-
-      {:ok, product} = Products.update_product(product, %{default_managed_updates_allowed: true})
-
-      json_import_data = File.read!("test/fixtures/devices_bulk_create/microchip_trust_and_go_manifest.json")
-
-      assert {5, 0} == BulkActions.bulk_create(org.id, product.id, json_import_data, "microchip_trust_and_go")
-
-      assert Repo.all(Device) |> Enum.all?(& &1.managed_updates_allowed)
-    end
-  end
-
-  describe "async_bulk_create/4" do
+  describe "async_bulk_create/5" do
     test "all valid entries, with format :microchip_trust_and_go", %{org: org, product: product} do
       Repo.delete_all(Device)
 
@@ -325,6 +246,24 @@ defmodule NervesHub.DevicesTest do
 
       assert Repo.aggregate(Device, :count) == 5
       assert Repo.aggregate(Notification, :count) == 1
+      assert %{"created" => 5, "failed" => 2} = Repo.one!(Notification).metadata
+    end
+
+    test "imported devices take the product's default grant", %{org: org, product: product} do
+      Repo.delete_all(Device)
+
+      {:ok, product} = Products.update_product(product, %{default_managed_updates_allowed: true})
+
+      json_import_data = File.read!("test/fixtures/devices_bulk_create/microchip_trust_and_go_manifest.json")
+
+      assert {:ok, task_pid} =
+               BulkActions.async_bulk_create(org.id, product.id, json_import_data, "microchip_trust_and_go")
+
+      ref = Process.monitor(task_pid)
+      assert_receive {:DOWN, ^ref, _, _, :normal}
+
+      assert Repo.aggregate(Device, :count) == 5
+      assert Repo.all(Device) |> Enum.all?(& &1.managed_updates_allowed)
     end
   end
 
