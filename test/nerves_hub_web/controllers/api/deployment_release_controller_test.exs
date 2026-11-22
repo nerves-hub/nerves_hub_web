@@ -195,6 +195,20 @@ defmodule NervesHubWeb.API.DeploymentReleaseControllerTest do
       assert json_response(conn, 422)["errors"] == %{"connecting_code_mode" => ["is invalid"]}
     end
 
+    test "refuses null for required or the connecting code mode", context do
+      %{conn: conn, next_firmware: next_firmware} = context
+
+      conn1 = post_json(conn, releases_path(context), %{"firmware" => next_firmware.uuid, "required" => nil})
+      assert json_response(conn1, 422)["errors"] == %{"required" => ["can't be blank"]}
+
+      conn2 =
+        post_json(conn, releases_path(context), %{"firmware" => next_firmware.uuid, "connecting_code_mode" => nil})
+
+      assert json_response(conn2, 422)["errors"] == %{"connecting_code_mode" => ["can't be blank"]}
+
+      assert [%{number: 1}] = ManagedDeployments.list_deployment_releases(context.deployment_group)
+    end
+
     test "is not found for a group that doesn't exist", context do
       %{conn: conn, next_firmware: next_firmware} = context
       conn = post_json(conn, releases_path(context, "missing"), %{"firmware" => next_firmware.uuid})

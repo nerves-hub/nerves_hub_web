@@ -24,10 +24,6 @@ defmodule NervesHubWeb.API.DeploymentReleaseController do
 
   @auth_error_responses SchemaHelpers.auth_error_responses()
 
-  # The fields each write takes from the body. Anything else in it is ignored.
-  @create_fields ["required", "description", "notes", "connecting_code", "connecting_code_mode"]
-  @update_fields ["required", "connecting_code", "connecting_code_mode"]
-
   # The same checks as the deployment group page's Releases tab.
   plug(:require_membership when action in [:index, :show])
   plug(:require_every_device)
@@ -99,7 +95,7 @@ defmodule NervesHubWeb.API.DeploymentReleaseController do
              firmware,
              archive,
              Scope.actor(scope),
-             Map.take(params, @create_fields)
+             params
            ),
          {:ok, release} <- ManagedDeployments.get_deployment_release_by_number(deployment_group, release.number) do
       conn
@@ -157,7 +153,7 @@ defmodule NervesHubWeb.API.DeploymentReleaseController do
     with {:ok, deployment_group} <- ManagedDeployments.get_deployment_group_by_name(product, name),
          {:ok, release} <- get_release(deployment_group, number),
          {:ok, release} <-
-           ManagedDeployments.update_deployment_release(release, Map.take(params, @update_fields), Scope.actor(scope)),
+           ManagedDeployments.update_deployment_release(release, params, Scope.actor(scope)),
          # Marking a release required can change its delta status, which is
          # recorded after the update.
          {:ok, release} <- ManagedDeployments.get_deployment_release_by_number(deployment_group, release.number) do

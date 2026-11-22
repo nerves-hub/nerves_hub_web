@@ -1035,8 +1035,11 @@ defmodule NervesHub.ManagedDeployments do
   end
 
   @doc """
-  A deployment group's release by its number, which counts up from 1 within
-  the group. Loaded as `list_deployment_releases/1` loads each release.
+  Fetches a deployment group's release by its number, which counts up from 1
+  within the group.
+
+  Preloads the authors, the archive, and the firmware with who deleted it, the
+  same as `list_deployment_releases/1`.
   """
   @spec get_deployment_release_by_number(DeploymentGroup.t(), integer()) ::
           {:ok, DeploymentRelease.t()} | {:error, :not_found}

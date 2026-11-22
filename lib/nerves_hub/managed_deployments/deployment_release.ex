@@ -52,9 +52,25 @@ defmodule NervesHub.ManagedDeployments.DeploymentRelease do
     timestamps()
   end
 
+  # What a release takes from params when it's made. Its firmware and archive
+  # are given to `new_changeset/5` already found, and with the description and
+  # notes they're fixed from then on.
+  @create_fields [:description, :notes, :required, :connecting_code, :connecting_code_mode]
+
+  # What can still change once it's made, through `edit_changeset/2`.
+  @edit_fields [:required, :connecting_code, :connecting_code_mode]
+
+  @doc """
+  A new release of `deployment_group`, which becomes its current release.
+
+  Takes its description, notes, whether it's required, and its connecting code
+  and where that runs from `params`, and ignores anything else there.
+  """
+  @spec new_changeset(DeploymentGroup.t(), Firmware.t() | nil, Archive.t() | nil, map(), User.t() | ApiKey.t() | nil) ::
+          Ecto.Changeset.t()
   def new_changeset(deployment_group, firmware \\ nil, archive \\ nil, params \\ %{}, created_by \\ nil) do
     change(%__MODULE__{})
-    |> cast(params, [:description, :notes, :required, :connecting_code, :connecting_code_mode])
+    |> cast(params, @create_fields)
     |> put_assoc(:deployment_group, deployment_group)
     |> put_assoc(:firmware, firmware)
     |> put_assoc(:archive, archive)
@@ -63,7 +79,8 @@ defmodule NervesHub.ManagedDeployments.DeploymentRelease do
     |> put_change(:number, 1)
     |> validate_length(:description, max: 100)
     |> validate_length(:notes, max: 1_000)
-    |> validate_required([:firmware])
+    # A `null` in a request is cast over the defaults, and the columns refuse it.
+    |> validate_required([:firmware, :required, :connecting_code_mode])
     |> validate_firmware(deployment_group)
     |> validate_differs_from_current_release(deployment_group)
     |> validate_created_by_api_key(deployment_group.product_id)
@@ -109,7 +126,7 @@ defmodule NervesHub.ManagedDeployments.DeploymentRelease do
   @spec edit_changeset(t(), map()) :: Ecto.Changeset.t()
   def edit_changeset(%__MODULE__{} = release, params) do
     release
-    |> cast(params, [:required, :connecting_code, :connecting_code_mode])
+    |> cast(params, @edit_fields)
     |> validate_required([:required, :connecting_code_mode])
   end
 
