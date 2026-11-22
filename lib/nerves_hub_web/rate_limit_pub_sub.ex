@@ -3,7 +3,7 @@ defmodule NervesHubWeb.RateLimitPubSub do
   Keeps PlugAttack IP-throttle counts in sync across web nodes.
 
   Only the web endpoint runs the throttle, so this is scoped to the named "web"
-  Group cluster — device nodes neither run this process nor carry its
+  Group cluster: device nodes neither run this process nor carry its
   membership. The originating node has already applied the increment inline in
   `Attack.ip_throttle/1`; dispatching to the group tells the *other* web nodes
   to apply the same increment, so their local ETS agrees and the per-IP limit

@@ -403,15 +403,12 @@ defmodule NervesHubWeb.API.UserControllerTest do
       assert String.to_integer(retry_after) in 1..60
     end
 
-    # Polls used to share the address's allowance with anything else limited by
-    # it, which nh's polling filled on its own.
     test "polling and starting logins don't count against each other", %{conn: conn} do
       %{"token" => token} = start_cli_login(conn)
 
       for _ <- 1..120, do: assert(waiting?(conn, token))
 
-      logins = for _ <- 1..9, do: start_cli_login(conn)
-      assert length(logins) == 9
+      for _ <- 1..9, do: start_cli_login(conn)
 
       # A different address still polls.
       assert waiting?(%{conn | remote_ip: {198, 51, 100, 8}}, token)

@@ -39,6 +39,55 @@ defmodule NervesHub.CLISessionCacheTest do
     refute_receive {:put, _origin, ^token, _}, 200
   end
 
+  describe "a write from a peer node" do
+    setup do
+      expires_at = DateTime.utc_now() |> DateTime.add(5, :minute) |> DateTime.to_unix()
+      waiting = %UserCLISession{token: Ecto.UUID.generate(), status: :waiting, expires_at: expires_at}
+
+      %{
+        waiting: waiting,
+        ready: %{waiting | status: :ready, user_id: 1, user_token: "nhu_secret"},
+        collected: %{waiting | status: :collected, user_id: 1}
+      }
+    end
+
+    test "moves a login forward", %{waiting: waiting, ready: ready, collected: collected} do
+      :ok = CLISessionCache.put(waiting.token, waiting)
+
+      for cli_session <- [ready, collected] do
+        send(CLISessionCache, {:put, :peer@example, waiting.token, cli_session})
+        assert eventually(fn -> CLISessionCache.get(waiting.token) == {:ok, cli_session} end)
+      end
+    end
+
+    # Writes from two nodes reach a third in no set order: the confirming
+    # node's :ready can arrive after the polled node's :collected.
+    test "that arrives late can't put a collected token back", %{waiting: waiting, ready: ready, collected: collected} do
+      :ok = CLISessionCache.put(collected.token, collected)
+
+      send(CLISessionCache, {:put, :confirmed@example, ready.token, ready})
+      send(CLISessionCache, {:put, :started@example, waiting.token, waiting})
+
+      # The cache handles its messages in order, so once it answers, both have
+      # been dropped.
+      _ = :sys.get_state(CLISessionCache)
+      assert CLISessionCache.get(collected.token) == {:ok, collected}
+    end
+
+    test "for a collected login from a node on an older release counts as collected", %{
+      ready: ready,
+      collected: collected
+    } do
+      verified = %{collected | status: :verified}
+      :ok = CLISessionCache.put(verified.token, verified)
+
+      send(CLISessionCache, {:put, :confirmed@example, ready.token, ready})
+
+      _ = :sys.get_state(CLISessionCache)
+      assert CLISessionCache.get(verified.token) == {:ok, verified}
+    end
+  end
+
   test "warm-up excludes the local node and no-ops when it is the only cache member" do
     # The running cache has joined the "web" group, so it is the only member in
     # this single-node test cluster. Warm-up must exclude self (never RPC itself)

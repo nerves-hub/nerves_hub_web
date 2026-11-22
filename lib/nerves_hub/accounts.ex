@@ -2098,21 +2098,18 @@ defmodule NervesHub.Accounts do
   end
 
   @doc """
-  The CLI login `token` polls, handing over its API token exactly once.
+  Polls the CLI login `token`, handing its API token to the first poll after
+  someone confirms it.
 
-  A login someone has confirmed comes back `:ready` with its API token the
-  first time it's asked for, and is stored as `:collected` with the token
-  dropped. Every node's copy of it drops the token too, so asking again,
-  whoever asks, finds `:collected` and no token until the login expires, when
-  it isn't found at all.
+  A `:waiting` login comes back as it is. A `:ready` one comes back with its API
+  token, and is stored on every web node as `:collected` with the token dropped,
+  so later polls, whoever makes them, find `:collected` and no token. An expired
+  login isn't found at all.
 
-  A CLI that never got the response that carried the token has to start
-  another login. The token it missed still exists, labelled with the login's
-  note, until the user revokes it.
-
-  Each web node keeps its own copy of the cache, so a node that hasn't yet
-  heard a login was collected can still hand its token out, for as long as the
-  update takes to reach it.
+  A node the `:collected` write hasn't reached yet can still hand the token out,
+  for as long as the write takes to get there. A CLI that missed the response
+  carrying the token has to start another login. The token it missed stays on
+  the account, under the login's note, until the user revokes it.
   """
   @spec check_cli_session_ready(String.t()) :: {:ok, UserCLISession.t()} | {:error, :not_found}
   def check_cli_session_ready(token) do
