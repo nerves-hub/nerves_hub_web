@@ -327,9 +327,15 @@ defmodule NervesHubWeb.API.DeviceController do
   end
 
   # Tags decide which deployment groups a device can join, and which members
-  # see it, so changing them needs its own permission.
+  # see it, so changing them needs its own permission. It looks for tags where
+  # `update/2` reads them, through `device_params/1`: under "device" when the
+  # body has a "device" object, at the top level otherwise. Checking anywhere
+  # else lets a client send tags in the place that isn't checked.
+  #
+  # Adding a device doesn't need it: its first tags are part of adding it, as
+  # they are in the web UI's Add device dialog.
   defp require_tags_permission(%{params: params} = conn, _opts) do
-    if Map.has_key?(params, "tags"), do: require_permission(conn, :"device:tags"), else: conn
+    if Map.has_key?(device_params(params), "tags"), do: require_permission(conn, :"device:tags"), else: conn
   end
 
   # Moving a device into another org adds a device there, so the user has to be

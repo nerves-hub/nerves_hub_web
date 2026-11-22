@@ -1536,6 +1536,9 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
 
       assert json_response(put(conn, path, %{"description" => "on the bench"}), 201)
       assert_error_sent(401, fn -> put(conn, path, %{"tags" => "production"}) end)
+      assert_error_sent(401, fn -> put(conn, path, %{"device" => %{"tags" => "production"}}) end)
+
+      assert Repo.reload!(visible).tags == ["support"]
     end
 
     test "can't list the product's firmware", %{conn2: conn, org: org, product: product} do
@@ -1568,6 +1571,60 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
                visible.identifier
 
       assert response(post(conn, path, %{"certificate" => hidden_cert64}), 403)
+    end
+  end
+
+  describe "changing a device's tags" do
+    setup %{user: user, user2: user2, org: org, tmp_dir: tmp_dir} do
+      product = Fixtures.product_fixture(user, org)
+      org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
+      firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+      device = Fixtures.device_fixture(org, product, firmware, %{tags: ["bench"]})
+
+      %{device: device, product: product}
+    end
+
+    defp give_role(org, user, permissions) do
+      role = Fixtures.org_role_fixture(org, %{permissions: permissions})
+      {:ok, _} = Accounts.add_org_user(org, user, %{org_role_id: role.id})
+      :ok
+    end
+
+    test "needs device:tags, wherever the body puts the tags",
+         %{conn2: conn, user2: user2, org: org, product: product, device: device} do
+      :ok = give_role(org, user2, ["device:update"])
+      path = Routes.api_device_path(conn, :update, org.name, product.name, device.identifier)
+
+      assert_error_sent(401, fn -> put(conn, path, %{"device" => %{"tags" => "production"}}) end)
+      assert_error_sent(401, fn -> put(conn, path, %{"tags" => "production"}) end)
+
+      # Top-level tags beside a "device" object aren't saved, so they don't
+      # need the permission; the nested ones are what's checked.
+      body = %{"tags" => "production", "device" => %{"description" => "on the bench"}}
+      assert json_response(put(conn, path, body), 201)["data"]["tags"] == ["bench"]
+
+      assert_error_sent(401, fn ->
+        put(conn, path, %{"tags" => "bench", "device" => %{"tags" => "production"}})
+      end)
+
+      assert Repo.reload!(device).tags == ["bench"]
+    end
+
+    test "changes them with device:tags, wherever the body puts the tags",
+         %{conn2: conn, user2: user2, org: org, product: product, device: device} do
+      :ok = give_role(org, user2, ["device:update", "device:tags"])
+      path = Routes.api_device_path(conn, :update, org.name, product.name, device.identifier)
+
+      assert json_response(put(conn, path, %{"device" => %{"tags" => "nested"}}), 201)["data"]["tags"] == ["nested"]
+      assert json_response(put(conn, path, %{"tags" => "top-level"}), 201)["data"]["tags"] == ["top-level"]
+    end
+
+    test "aren't needed to add a device with tags", %{conn2: conn, user2: user2, org: org, product: product} do
+      :ok = give_role(org, user2, ["device:create"])
+      path = Routes.api_device_path(conn, :create, org.name, product.name)
+
+      body = %{"device" => %{"identifier" => "new-tagged", "tags" => "bench"}}
+      assert json_response(post(conn, path, body), 201)["data"]["tags"] == ["bench"]
     end
   end
 
