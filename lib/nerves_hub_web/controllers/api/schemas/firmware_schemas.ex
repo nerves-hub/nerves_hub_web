@@ -1,4 +1,5 @@
 defmodule NervesHubWeb.API.Schemas.FirmwareSchemas do
+  alias NervesHubWeb.API.OpenAPI.SchemaHelpers
   alias NervesHubWeb.API.Schemas.ErrorSchemas.ChangesetErrorResponse
   alias NervesHubWeb.API.Schemas.ErrorSchemas.ErrorResponse
   alias OpenApiSpex.Schema
@@ -13,18 +14,18 @@ defmodule NervesHubWeb.API.Schemas.FirmwareSchemas do
         version: %Schema{type: :string},
         architecture: %Schema{type: :string},
         platform: %Schema{type: :string},
-        author: %Schema{type: :string},
+        author: %Schema{type: :string, nullable: true},
         product: %Schema{type: :string, description: "Product name"},
         tool: %Schema{
           type: :string,
           description: "The update tool that handles this firmware, determined from the uploaded file",
-          enum: ["fwup", "esp-idf"]
+          enum: ["fwup", "esp-idf", "atomvm", "rauc"]
         },
         description: %Schema{type: :string, nullable: true},
         misc: %Schema{type: :string, nullable: true},
         vcs_identifier: %Schema{type: :string, nullable: true},
         size: %Schema{type: :integer, description: "Size in bytes"},
-        inserted_at: %Schema{type: :string, format: :"date-time"}
+        inserted_at: SchemaHelpers.naive_timestamp("When it was created")
       },
       example: %{
         "uuid" => "d9f8c63a-1234-5678-abcd-ef0123456789",
@@ -69,6 +70,22 @@ defmodule NervesHubWeb.API.Schemas.FirmwareSchemas do
     })
   end
 
+  defmodule FirmwareUploadRequest do
+    OpenApiSpex.schema(%{
+      description: "The firmware file, sent as the `firmware` field of a multipart form",
+      type: :object,
+      properties: %{
+        firmware: %Schema{
+          type: :string,
+          format: :binary,
+          description:
+            "An fwup archive (`.fw`), ESP-IDF image (`.bin`), AtomVM packbeam (`.avm`) or RAUC bundle (`.raucb`)"
+        }
+      },
+      required: [:firmware]
+    })
+  end
+
   defmodule FirmwareUploadErrorResponse do
     OpenApiSpex.schema(%{
       description: """
@@ -105,16 +122,7 @@ defmodule NervesHubWeb.API.Schemas.FirmwareSchemas do
         }
       },
       example: %{
-        "data" => [
-          %{
-            "uuid" => "d9f8c63a-1234-5678-abcd-ef0123456789",
-            "version" => "1.0.0",
-            "architecture" => "arm",
-            "platform" => "rpi0",
-            "author" => "NervesHub",
-            "product" => "MyProduct"
-          }
-        ]
+        "data" => [Firmware.schema().example]
       }
     })
   end
