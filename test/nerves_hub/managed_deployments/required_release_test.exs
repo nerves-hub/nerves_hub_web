@@ -359,6 +359,23 @@ defmodule NervesHub.ManagedDeployments.RequiredReleaseTest do
     end
   end
 
+  describe "turning a group's delta updates on" do
+    test "goes through even when the deltas it asks for can't be queued", context do
+      {:ok, deployment_group} =
+        ManagedDeployments.update_deployment_group(context.deployment_group, %{delta_updatable: false}, context.user)
+
+      %{deployment_group: deployment_group} = add_releases(%{context | deployment_group: deployment_group}, [])
+      _ = connected_device(context, deployment_group, context.fw1)
+      refuse_delta_jobs()
+
+      assert {:ok, deployment_group} =
+               ManagedDeployments.update_deployment_group(deployment_group, %{delta_updatable: true}, context.user)
+
+      assert deployment_group.delta_updatable
+      assert Repo.reload(deployment_group).delta_updatable
+    end
+  end
+
   describe "marking a release required" do
     test "goes through even when the deltas it asks for can't be queued", context do
       {:ok, deployment_group} =

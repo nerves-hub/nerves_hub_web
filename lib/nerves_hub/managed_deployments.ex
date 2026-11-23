@@ -345,17 +345,21 @@ defmodule NervesHub.ManagedDeployments do
     Repo.transact(fn ->
       with {:ok, deployment_group} <- Repo.update(changeset),
            :ok <- create_audit_logs!(deployment_group, changeset) do
-        {:ok, _} = maybe_trigger_delta_generation(deployment_group, changeset)
-
-        deployment_group = load_current_release(deployment_group, force: true)
-
-        {:ok, _releases} = recalculate_release_delta_statuses(deployment_group)
-
         {:ok, deployment_group}
       end
     end)
     |> case do
       {:ok, deployment_group} ->
+        # After the commit, as in `create_deployment_release/6`: queueing a
+        # delta runs a transaction of its own, and one that fails would undo
+        # the change, turning delta updates on included. A delta that can't be
+        # queued says so in the log and in Sentry, and its devices are sent
+        # the whole firmware. Before the broadcast, so the orchestrator sees
+        # the releases waiting on the deltas that were queued.
+        _ = maybe_trigger_delta_generation(deployment_group, changeset)
+        {:ok, _releases} = recalculate_release_delta_statuses(deployment_group)
+        deployment_group = load_current_release(deployment_group, force: true)
+
         :ok = broadcast(deployment_group, "deployments/update")
 
         if Map.has_key?(changeset.changes, :is_active) do
