@@ -83,6 +83,14 @@ defmodule NervesHub.ManagedDeployments.Orchestrator do
     {:ok, state}
   end
 
+  # A release left reading `:preparing` holds its devices back, so the backup
+  # tick settles any whose recalculation never ran. One that changes is
+  # broadcast as `release/delta_status`, which triggers an update here.
+  defp settle_delta_statuses(state) do
+    {:ok, _releases} = ManagedDeployments.settle_delta_statuses(state.deployment_group)
+    :ok
+  end
+
   def terminate(reason, state) do
     Logger.info("Orchestrator terminated",
       deployment_id: state.deployment_group.id,
@@ -153,6 +161,7 @@ defmodule NervesHub.ManagedDeployments.Orchestrator do
 
   # if we don't have a `timer_ref` we can run `trigger_update`
   def handle_info(:trigger_interval, %State{timer_ref: nil} = state) do
+    :ok = settle_delta_statuses(state)
     deployment_group = trigger_update(state)
 
     {:noreply, %{state | deployment_group: deployment_group}}
@@ -160,6 +169,7 @@ defmodule NervesHub.ManagedDeployments.Orchestrator do
 
   # we can ignore `trigger_interval` since we have a `timer_ref`
   def handle_info(:trigger_interval, state) do
+    :ok = settle_delta_statuses(state)
     {:noreply, state}
   end
 

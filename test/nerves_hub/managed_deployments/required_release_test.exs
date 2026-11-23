@@ -2,6 +2,7 @@ defmodule NervesHub.ManagedDeployments.RequiredReleaseTest do
   use NervesHub.DataCase, async: true
   use Mimic
 
+  import Ecto.Changeset, only: [get_field: 2]
   import Ecto.Query, only: [select: 3]
 
   alias NervesHub.AuditLogs
@@ -13,6 +14,7 @@ defmodule NervesHub.ManagedDeployments.RequiredReleaseTest do
   alias NervesHub.FirmwareUpdates
   alias NervesHub.Fixtures
   alias NervesHub.ManagedDeployments
+  alias NervesHub.ManagedDeployments.DeploymentRelease
   alias NervesHub.ManagedDeployments.Orchestrator.WorkflowCoordinator
   alias NervesHub.ManagedDeployments.Workflows
   alias NervesHub.Repo
@@ -356,6 +358,76 @@ defmodule NervesHub.ManagedDeployments.RequiredReleaseTest do
 
       assert deployment_group.current_deployment_release_id == release.id
       assert [%{number: 2}, %{number: 1}] = ManagedDeployments.list_deployment_releases(deployment_group)
+    end
+  end
+
+  describe "a release that will queue deltas" do
+    test "starts preparing in a group that's on with delta updates on, and ready otherwise", context do
+      %{deployment_group: deployment_group, fw2: fw2} = context
+      on = %{deployment_group | is_active: true, delta_updatable: true}
+
+      assert get_field(DeploymentRelease.new_changeset(on, fw2), :delta_status) == :preparing
+
+      for group <- [%{on | is_active: false}, %{on | delta_updatable: false}] do
+        assert get_field(DeploymentRelease.new_changeset(group, fw2), :delta_status) == :ready
+      end
+    end
+
+    test "is held when marked required, and not when unmarked", context do
+      %{deployment_group: deployment_group, release2: release2} = add_releases(context, [])
+      on = %{deployment_group | is_active: true, delta_updatable: true}
+
+      marking = DeploymentRelease.edit_changeset(release2, %{required: true})
+      assert get_field(DeploymentRelease.hold_for_deltas(marking, on), :delta_status) == :preparing
+
+      editing_code = DeploymentRelease.edit_changeset(release2, %{connecting_code: "IO.puts(1)"})
+      assert get_field(DeploymentRelease.hold_for_deltas(editing_code, on), :delta_status) == :ready
+    end
+
+    test "waits once saved while a delta it queued is building", context do
+      {:ok, deployment_group} =
+        ManagedDeployments.update_deployment_group(context.deployment_group, %{delta_updatable: true}, context.user)
+
+      _ = connected_device(context, deployment_group, context.fw1)
+
+      {:ok, {release, _}} =
+        ManagedDeployments.create_deployment_release(deployment_group, context.fw2, nil, context.user, %{})
+
+      assert Repo.reload(release).delta_status == :preparing
+    end
+
+    test "is ready once saved when it has no delta to wait for", context do
+      {:ok, deployment_group} =
+        ManagedDeployments.update_deployment_group(context.deployment_group, %{delta_updatable: true}, context.user)
+
+      {:ok, {release, _}} =
+        ManagedDeployments.create_deployment_release(deployment_group, context.fw2, nil, context.user, %{})
+
+      assert release.delta_status == :ready
+      assert Repo.reload(release).delta_status == :ready
+    end
+
+    test "is settled by settle_delta_statuses/1 when its recalculation never ran", context do
+      {:ok, deployment_group} =
+        ManagedDeployments.update_deployment_group(context.deployment_group, %{delta_updatable: true}, context.user)
+
+      _ = connected_device(context, deployment_group, context.fw1)
+
+      # The node going down after the release committed, before the deltas
+      # were queued and the status recalculated.
+      stub(Firmwares, :attempt_firmware_delta, fn _source, _target, _recalculate -> raise "node went down" end)
+
+      assert_raise RuntimeError, fn ->
+        ManagedDeployments.create_deployment_release(deployment_group, context.fw2, nil, context.user, %{})
+      end
+
+      [stuck | _] = ManagedDeployments.list_deployment_releases(deployment_group)
+      assert stuck.number == 2
+      assert stuck.delta_status == :preparing
+
+      assert {:ok, [settled]} = ManagedDeployments.settle_delta_statuses(deployment_group)
+      assert settled.id == stuck.id
+      assert settled.delta_status == :ready
     end
   end
 

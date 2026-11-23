@@ -71,12 +71,16 @@ defmodule NervesHub.ManagedDeployments.DeploymentRelease do
   Inserting it doesn't make it the group's current release:
   `NervesHub.ManagedDeployments.create_deployment_release/6` does that. The
   Releases tab also builds one only to check a form's input.
+
+  In a group that's on with delta updates on, it starts `:preparing`, as
+  `hold_for_deltas/2` says.
   """
   @spec new_changeset(DeploymentGroup.t(), Firmware.t() | nil, Archive.t() | nil, map(), User.t() | ApiKey.t() | nil) ::
           Ecto.Changeset.t()
   def new_changeset(deployment_group, firmware \\ nil, archive \\ nil, params \\ %{}, created_by \\ nil) do
     change(%__MODULE__{})
     |> cast(params, @create_fields)
+    |> hold_for_deltas(deployment_group)
     |> put_assoc(:deployment_group, deployment_group)
     |> put_assoc(:firmware, firmware)
     |> put_assoc(:archive, archive)
@@ -111,6 +115,31 @@ defmodule NervesHub.ManagedDeployments.DeploymentRelease do
       put_change(changeset, :number, number)
     end)
   end
+
+  @doc """
+  Holds a release's devices back until its deltas are queued, when saving
+  `changeset` will queue some: a new release, or one just marked required, in a
+  group that's on with delta updates on.
+
+  The deltas are queued after the release commits, since queueing runs a
+  transaction of its own. Until then nothing has been queued for the release to
+  wait on, and a release reading `:ready` would be sent as whole firmware. So it
+  reads `:preparing`, and the recalculation that follows the queueing settles
+  it. If that never runs, the deployment group's orchestrator settles it on its
+  next tick (`NervesHub.ManagedDeployments.settle_delta_statuses/1`).
+  """
+  @spec hold_for_deltas(Ecto.Changeset.t(), DeploymentGroup.t()) :: Ecto.Changeset.t()
+  def hold_for_deltas(changeset, %DeploymentGroup{is_active: true, delta_updatable: true}) do
+    new? = is_nil(changeset.data.id)
+
+    if new? or get_change(changeset, :required) == true do
+      put_change(changeset, :delta_status, :preparing)
+    else
+      changeset
+    end
+  end
+
+  def hold_for_deltas(changeset, _deployment_group), do: changeset
 
   @doc """
   Record whether the deltas this release's devices need are ready.

@@ -495,6 +495,25 @@ defmodule NervesHub.ManagedDeployments do
   end
 
   @doc """
+  Recalculate every release of a deployment group that reads `:preparing`.
+
+  A release starts `:preparing` when saving it queues deltas
+  (`DeploymentRelease.hold_for_deltas/2`), and the recalculation after the
+  queueing settles it. One whose recalculation never ran, because the node
+  went down between the two, would hold its devices back for good, so the
+  group's orchestrator calls this on its two-minute tick. A release whose
+  deltas are still building stays `:preparing`, and one no device is headed
+  for becomes `:ready`.
+  """
+  @spec settle_delta_statuses(DeploymentGroup.t()) :: {:ok, [DeploymentRelease.t()]}
+  def settle_delta_statuses(%DeploymentGroup{id: deployment_group_id}) do
+    DeploymentRelease
+    |> where([r], r.deployment_group_id == ^deployment_group_id and r.delta_status == :preparing)
+    |> Repo.all()
+    |> recalculate_delta_statuses()
+  end
+
+  @doc """
   The firmware a deployment group's devices are headed for.
 
   Every delta the group is waiting on is built towards one of these, so a page
@@ -1001,8 +1020,8 @@ defmodule NervesHub.ManagedDeployments do
       Changeset.changed?(changeset, :connecting_code) or Changeset.changed?(changeset, :connecting_code_mode)
 
     Repo.transact(fn ->
-      with {:ok, release} <- Repo.update(changeset),
-           {:ok, deployment_group} <- get_deployment_group(release.deployment_group_id) do
+      with {:ok, deployment_group} <- get_deployment_group(changeset.data.deployment_group_id),
+           {:ok, release} <- changeset |> DeploymentRelease.hold_for_deltas(deployment_group) |> Repo.update() do
         if required_changed? do
           :ok = DeploymentGroupTemplates.audit_release_required_changed(actor, deployment_group, release)
         end

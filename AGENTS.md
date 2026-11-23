@@ -397,7 +397,11 @@ when adding or removing one.
   with a release. `deployment_group:update` is the group's own settings.
   Queueing a release's deltas runs a transaction of its own, so it happens after
   the release's commits: a failed nested `Repo.transact` rolls back the outer
-  one too, even when its result is ignored.
+  one too, even when its result is ignored. So a release that will queue deltas
+  starts `:preparing` (`DeploymentRelease.hold_for_deltas/2`) until the
+  recalculation after the queueing settles it, and the group's orchestrator
+  settles any left behind on its two-minute tick
+  (`ManagedDeployments.settle_delta_statuses/1`).
   A product's settings are three LiveViews, General (`live/product/settings.ex`),
   Device health (`live/product/health_profiles.ex`) and API keys
   (`live/product/api_keys.ex`), sharing their title and tabs from
