@@ -13,7 +13,6 @@ defmodule NervesHub.GroupSupervisorTest do
   alias NervesHub.CLISessionCache
   alias NervesHub.GroupClusterConnection
   alias NervesHub.GroupSupervisor
-  alias NervesHubWeb.RateLimitPubSub
 
   defp child_ids(children), do: Enum.map(children, & &1.id)
 
@@ -28,8 +27,7 @@ defmodule NervesHub.GroupSupervisorTest do
     assert [
              {Group, NervesHub.Group},
              GroupClusterConnection,
-             CLISessionCache,
-             RateLimitPubSub
+             CLISessionCache
            ] == child_ids(children)
   end
 
@@ -50,7 +48,7 @@ defmodule NervesHub.GroupSupervisorTest do
     assert opts[:replicated_peer_lease_timeout] == 30_000
   end
 
-  test "device nodes run neither web-cluster member" do
+  test "device nodes don't run the web-cluster member" do
     previous = Application.fetch_env(:nerves_hub, :app)
     Application.put_env(:nerves_hub, :app, "device")
 
@@ -76,6 +74,5 @@ defmodule NervesHub.GroupSupervisorTest do
 
     assert {GroupClusterConnection, true} in running
     assert {CLISessionCache, true} in running
-    assert {RateLimitPubSub, true} in running
   end
 end
