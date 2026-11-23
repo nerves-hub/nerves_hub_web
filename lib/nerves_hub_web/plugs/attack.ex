@@ -86,8 +86,10 @@ defmodule NervesHubWeb.Plugs.Attack do
   minute, even on every web node at once, never finds one.
 
   Counted on this node only, like `cli_login_throttle/2`. What a flood of polls
-  would wear out is this node's `NervesHub.CLISessionCache` process, which
-  every poll calls, and a node is only spared that by a count of its own.
+  would wear out is the `NervesHub.CLISessionCache` process of each login's
+  owner, which every poll calls and which can be on any web node. Made-up
+  tokens spread over all of them, so this node's own count is what caps how
+  much of that it sends.
   """
   @spec cli_poll_throttle(term(), keyword()) :: {:allow | :block, {:throttle, keyword()}}
   def cli_poll_throttle(ip, opts \\ []) do
