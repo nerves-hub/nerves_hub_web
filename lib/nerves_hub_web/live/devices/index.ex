@@ -12,6 +12,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
   alias NervesHub.Devices.BulkActions
   alias NervesHub.Devices.CACertificates
   alias NervesHub.Devices.Device
+  alias NervesHub.Devices.DeviceConnection
   alias NervesHub.Devices.DeviceFiltering
   alias NervesHub.Devices.Metrics
   alias NervesHub.Devices.PubSub
@@ -30,6 +31,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
   alias NervesHubWeb.Components.DeviceList
   alias NervesHubWeb.Components.DeviceOnboarding
   alias NervesHubWeb.Components.DevicePeek
+  alias NervesHubWeb.Components.DeviceSleep
   alias NervesHubWeb.Components.ListSettingsSidebar
   alias NervesHubWeb.Components.Sorting
   alias Phoenix.LiveView.AsyncResult
@@ -1002,12 +1004,13 @@ defmodule NervesHubWeb.Live.Devices.Index do
     |> noreply()
   end
 
-  def handle_info(%Broadcast{topic: topic, event: "connection:change", payload: %{status: "offline"}}, socket) do
+  def handle_info(%Broadcast{topic: topic, event: "connection:change", payload: %{status: "offline"} = payload}, socket) do
     device_id = parse_device_id(topic)
+    status = offline_status(payload)
 
     socket
-    |> update(:received_connection_change_identifiers, &Map.put(&1, device_id, "offline"))
-    |> update_device_statuses(device_id, "offline")
+    |> update(:received_connection_change_identifiers, &Map.put(&1, device_id, status))
+    |> update_device_statuses(device_id, status)
     |> noreply()
   end
 
@@ -1244,7 +1247,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
       Map.new(updated_devices, fn device ->
         status = socket.assigns.received_connection_change_identifiers[device.id]
 
-        {device.id, status || Tracker.connection_status(device)}
+        {device.id, status || device_status(device)}
       end)
 
     socket
@@ -1664,6 +1667,25 @@ defmodule NervesHubWeb.Live.Devices.Index do
     else
       to_pluralize <> "s"
     end
+  end
+
+  # "online", or for a device that is not, whether it is asleep or overdue.
+  defp device_status(device) do
+    case Tracker.connection_status(device) do
+      "online" -> "online"
+      _offline -> DeviceSleep.list_status(device.latest_connection)
+    end
+  end
+
+  # The connection that just ended, as `Tracker.offline/1` describes it. A
+  # broadcast from a node that does not send the details reads as offline.
+  defp offline_status(payload) do
+    DeviceSleep.list_status(%DeviceConnection{
+      status: :disconnected,
+      disconnected_reason: payload[:disconnected_reason],
+      disconnected_at: payload[:disconnected_at],
+      expected_wake_at: payload[:expected_wake_at]
+    })
   end
 
   defp pagination_changes(params) do

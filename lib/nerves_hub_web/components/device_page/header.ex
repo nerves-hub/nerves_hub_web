@@ -17,6 +17,7 @@ defmodule NervesHubWeb.Components.DevicePage.Header do
   alias NervesHub.Devices.Device
   alias NervesHub.Devices.Updates
   alias NervesHub.Helpers.RelativeTime
+  alias NervesHubWeb.Components.DeviceSleep
   alias NervesHubWeb.Components.DeviceUpdateStatus
   alias NervesHubWeb.Components.UpdateProgress
   alias NervesHubWeb.Live.Devices.Show
@@ -33,6 +34,11 @@ defmodule NervesHubWeb.Components.DevicePage.Header do
   attr(:firmware_update_progress, :any, default: nil)
   attr(:inflight_version, :string, default: nil)
 
+  attr(:sleep_clock, DateTime,
+    default: nil,
+    doc: "the time a sleeping device is judged at, which the page moves on while it sleeps"
+  )
+
   attr(:end_tabs, :list,
     default: [],
     doc: "the tabs `tabs/1` puts at the right, which a phone reaches from the More sheet instead"
@@ -46,7 +52,7 @@ defmodule NervesHubWeb.Components.DevicePage.Header do
       <div class="flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
         <div class="group/identifier flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
           <span
-            data-connection-status={connection_status(@device_connection)}
+            data-connection-status={connection_status(@device_connection, @sleep_clock)}
             class={
               [
                 # A 4px halo in every state: tinted green when online, neutral
@@ -55,6 +61,7 @@ defmodule NervesHubWeb.Components.DevicePage.Header do
                 "data-[connection-status=connected]:bg-status-online data-[connection-status=connected]:ring-success-soft",
                 "data-[connection-status=connecting]:animate-pulse data-[connection-status=connecting]:bg-status-connecting",
                 "data-[connection-status=disconnected]:bg-status-offline data-[connection-status=unknown]:bg-status-offline",
+                "data-[connection-status=asleep]:bg-status-asleep data-[connection-status=overdue]:bg-warning",
                 "not-data-[connection-status=connected]:ring-line-subtle light:not-data-[connection-status=connected]:ring-surface-muted"
               ]
             }
@@ -78,6 +85,7 @@ defmodule NervesHubWeb.Components.DevicePage.Header do
           <span class="flex max-sm:w-full max-sm:pl-5.5">
             <.connection_summary connection={@device_connection} device={@device} />
           </span>
+          <DeviceSleep.sleep_badge id="device-sleep-status" connection={@device_connection} now={@sleep_clock} time_zone={@time_zone} />
         </div>
 
         <%!-- A phone has the row of buttons under the facts instead. --%>
@@ -168,6 +176,7 @@ defmodule NervesHubWeb.Components.DevicePage.Header do
   attr(:device_connection, :any, required: true)
   attr(:org, :any, required: true)
   attr(:product, :any, required: true)
+  attr(:sleep_clock, DateTime, default: nil)
 
   def compact_bar(assigns) do
     ~H"""
@@ -180,10 +189,11 @@ defmodule NervesHubWeb.Components.DevicePage.Header do
         <span class="lucide-chevron-left size-5" aria-hidden="true"></span>
       </.link>
       <span
-        data-connection-status={connection_status(@device_connection)}
+        data-connection-status={connection_status(@device_connection, @sleep_clock)}
         class={[
           "mr-2 ml-1 size-2 shrink-0 rounded-full bg-status-offline ring-3",
           "data-[connection-status=connected]:bg-status-online data-[connection-status=connected]:ring-success-soft",
+          "data-[connection-status=asleep]:bg-status-asleep data-[connection-status=overdue]:bg-warning",
           "data-[connection-status=connecting]:animate-pulse data-[connection-status=connecting]:bg-status-connecting",
           "not-data-[connection-status=connected]:ring-line-subtle light:not-data-[connection-status=connected]:ring-surface-muted"
         ]}
@@ -658,10 +668,18 @@ defmodule NervesHubWeb.Components.DevicePage.Header do
     """
   end
 
-  defp connection_status(%{status: status}) when status in [:connected, :connecting, :disconnected],
-    do: to_string(status)
+  # A device that said it was going to sleep shows as asleep, or overdue once
+  # it is later than it said, rather than offline.
+  defp connection_status(nil, _now), do: "unknown"
 
-  defp connection_status(_connection), do: "unknown"
+  defp connection_status(%{status: status} = connection, now) when status in [:connected, :connecting, :disconnected] do
+    case DeviceSleep.list_status(connection, now || DateTime.utc_now()) do
+      sleep when sleep in ["asleep", "overdue"] -> sleep
+      _ -> to_string(status)
+    end
+  end
+
+  defp connection_status(_connection, _now), do: "unknown"
 
   defp last_seen(connection), do: connection.last_seen_at || connection.disconnected_at
 

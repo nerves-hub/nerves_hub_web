@@ -229,7 +229,27 @@ defmodule NervesHub.DeviceLink do
     end
   end
 
-  defp do_device_message(session, "rebooting", _payload), do: {session, []}
+  # The device is about to go, and says why, so the connection ends with a
+  # reason rather than looking like a failure. See `Connections.device_leaving/3`.
+  defp do_device_message(session, "rebooting", _payload) do
+    _ = Connections.device_leaving(session.device_info.connection_ref, :rebooting)
+    {session, []}
+  end
+
+  # A device that sleeps between reports, saying so before it goes, and how
+  # long for when it knows. See docs/device_sleep.md.
+  defp do_device_message(session, "sleeping", payload) do
+    payload = if is_map(payload), do: payload, else: %{}
+
+    _ =
+      Connections.device_leaving(
+        session.device_info.connection_ref,
+        sleep_reason(payload["mode"]),
+        expected_wake_at(payload["duration_ms"])
+      )
+
+    {session, []}
+  end
 
   # How the connecting code pushed after the device joined went.
   defp do_device_message(session, "scripts/run", %{"ref" => "connecting_code"} = payload) do
@@ -650,10 +670,29 @@ defmodule NervesHub.DeviceLink do
   Returns an error when the reference is stale — the device may already have
   reconnected elsewhere, replacing the connection row — which callers can ignore.
   """
-  @spec disconnect(connection_ref :: String.t(), reason :: String.t() | nil) :: :ok | {:error, any()}
+  @spec disconnect(connection_ref :: String.t(), reason :: Devices.DisconnectReason.t() | nil) ::
+          :ok | {:error, any()}
   def disconnect(connection_ref, reason \\ nil) do
     Connections.device_disconnected(connection_ref, reason)
   end
+
+  # Anything but light sleep is taken as deep: it is what a device that sleeps
+  # between reports almost always does, and a device that leaves `mode` out is
+  # still better recorded as asleep than as gone.
+  defp sleep_reason("light"), do: :light_sleep
+  defp sleep_reason(_mode), do: :deep_sleep
+
+  # The longest sleep taken at its word. A duration beyond it is more likely a
+  # mistake in units than a device meaning to be gone for over a year, and is
+  # recorded as a sleep with no time given rather than a date nobody will see.
+  @max_sleep_ms to_timeout(day: 366)
+
+  defp expected_wake_at(duration_ms)
+       when is_integer(duration_ms) and duration_ms > 0 and duration_ms <= @max_sleep_ms do
+    DateTime.add(DateTime.utc_now(), duration_ms, :millisecond)
+  end
+
+  defp expected_wake_at(_duration_ms), do: nil
 
   @spec join(DeviceInfo.t(), params :: map()) :: {:ok, DeviceInfo.t()} | {:error, any()}
   def join(device_info, params) do

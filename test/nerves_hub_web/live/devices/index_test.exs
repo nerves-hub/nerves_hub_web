@@ -146,6 +146,46 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       end)
       |> assert_has(online_indicator)
     end
+
+    test "a device that went to sleep is shown asleep when it goes offline", %{
+      conn: conn,
+      fixture: fixture,
+      online_indicator: online_indicator
+    } do
+      %{device: device, org: org, product: product} = fixture
+      {:ok, connection} = Connections.device_connecting(device.org_id, device.product_id, device.id)
+      :ok = Connections.device_connected(connection.id)
+
+      conn
+      |> visit(~p"/org/#{org}/#{product}/devices")
+      |> assert_has(online_indicator, timeout: 1000)
+      |> unwrap(fn view ->
+        send(view.pid, %Broadcast{
+          topic: "internal:device:#{device.id}",
+          event: "connection:change",
+          payload: %{
+            status: "offline",
+            disconnected_reason: :deep_sleep,
+            disconnected_at: DateTime.utc_now(),
+            expected_wake_at: DateTime.add(DateTime.utc_now(), 5, :minute)
+          }
+        })
+
+        render(view)
+      end)
+      |> assert_has("span.bg-status-asleep")
+    end
+
+    test "a device already asleep is shown asleep on load", %{conn: conn, fixture: fixture} do
+      %{device: device, org: org, product: product} = fixture
+      {:ok, connection} = Connections.device_connecting(device.org_id, device.product_id, device.id)
+      :ok = Connections.device_leaving(connection.id, :deep_sleep, DateTime.add(DateTime.utc_now(), 5, :minute))
+      :ok = Connections.device_disconnected(connection.id)
+
+      conn
+      |> visit(~p"/org/#{org}/#{product}/devices")
+      |> assert_has("span[title^='Asleep, back in'] span.bg-status-asleep", timeout: 1000)
+    end
   end
 
   describe "device firmware updates" do

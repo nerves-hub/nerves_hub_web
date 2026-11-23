@@ -16,6 +16,7 @@ defmodule NervesHubWeb.Components.DeviceList do
   alias NervesHub.Devices.Device
   alias NervesHub.Devices.DeviceFiltering
   alias NervesHub.Devices.Updates
+  alias NervesHubWeb.Components.DeviceSleep
   alias NervesHubWeb.Components.Fleet
   alias NervesHubWeb.Components.HealthStatus
   alias NervesHubWeb.Components.Sorting
@@ -334,7 +335,10 @@ defmodule NervesHubWeb.Components.DeviceList do
   def format_number(value), do: to_string(value)
 
   attr(:device, Device, required: true)
-  attr(:status, :string, default: nil, doc: ~s("online" or "offline", as the page tracks it))
+  attr(:status, :string,
+    default: nil,
+    doc: ~s("online", "offline", or "asleep" or "overdue" for a device that said it was going to sleep, as the page tracks it)
+  )
   attr(:reason, :string, default: "", doc: "the reason the list is filtered to, shown first")
   attr(:peeked, :boolean, default: false)
   attr(:path, :string, required: true, doc: "the device's page")
@@ -358,8 +362,8 @@ defmodule NervesHubWeb.Components.DeviceList do
       ]}
     >
       <.status_dot
-        class={["size-1.75 shrink-0 max-sm:mt-1.75", if(@status == "online", do: "bg-status-online", else: "bg-status-offline")]}
-        title={if @status == "online", do: "Online", else: "Offline"}
+        class={["size-1.75 shrink-0 max-sm:mt-1.75", DeviceSleep.dot_class(@status)]}
+        title={DeviceSleep.dot_title(@status, @device.latest_connection)}
       />
       <div class="flex min-w-0 grow flex-col gap-0.75 max-sm:gap-1.5">
         <.link
@@ -607,7 +611,10 @@ defmodule NervesHubWeb.Components.DeviceList do
   end
 
   attr(:device, Device, required: true)
-  attr(:status, :string, default: nil, doc: ~s("online" or "offline", as the page tracks it))
+  attr(:status, :string,
+    default: nil,
+    doc: ~s("online", "offline", or "asleep" or "overdue" for a device that said it was going to sleep, as the page tracks it)
+  )
 
   @doc """
   How long a device has been connected, or how long since it was last seen.
@@ -618,6 +625,16 @@ defmodule NervesHubWeb.Components.DeviceList do
   def connection(%{status: "online"} = assigns) do
     ~H"""
     <span class="text-ui/4 text-content-body">{connected_for(@device.latest_connection) || "Online"}</span>
+    """
+  end
+
+  def connection(%{status: status} = assigns) when status in ["asleep", "overdue"] do
+    assigns = assign(assigns, :summary, DeviceSleep.describe(assigns.device.latest_connection))
+
+    ~H"""
+    <span class={["text-ui/4", if(@status == "overdue", do: "text-warning-content", else: "text-content-muted")]}>
+      {@summary}
+    </span>
     """
   end
 

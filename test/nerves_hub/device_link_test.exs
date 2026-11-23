@@ -450,6 +450,63 @@ defmodule NervesHub.DeviceLinkTest do
     end
   end
 
+  describe "device_message/3 sleeping and rebooting" do
+    setup %{device: device} do
+      device_info = connected_device_info(device)
+      :ok = Connections.device_connected(device_info.connection_ref)
+
+      {:ok, %{session: %Session{device_info: device_info}}}
+    end
+
+    test "sleeping records deep sleep and when the device will be back", %{device: device, session: session} do
+      before = DateTime.utc_now()
+
+      assert {_session, []} =
+               DeviceLink.device_message(session, "sleeping", %{"mode" => "deep", "duration_ms" => 300_000})
+
+      connection = Connections.get_latest_for_device(device.id)
+      assert connection.disconnected_reason == :deep_sleep
+      assert connection.status == :connected
+
+      assert DateTime.diff(connection.expected_wake_at, before, :second) in 299..301
+    end
+
+    test "sleeping in light mode records light sleep", %{device: device, session: session} do
+      DeviceLink.device_message(session, "sleeping", %{"mode" => "light", "duration_ms" => 1_000})
+
+      assert Connections.get_latest_for_device(device.id).disconnected_reason == :light_sleep
+    end
+
+    # A device waiting on a GPIO or the ULP has no time to give.
+    test "sleeping with no duration records no wake time", %{device: device, session: session} do
+      DeviceLink.device_message(session, "sleeping", %{"mode" => "deep"})
+
+      assert %DeviceConnection{disconnected_reason: :deep_sleep, expected_wake_at: nil} =
+               Connections.get_latest_for_device(device.id)
+    end
+
+    test "a duration that is not a sensible number of milliseconds is ignored", %{device: device, session: session} do
+      for duration <- [-5, 0, "300000", 1.5, to_timeout(day: 400)] do
+        DeviceLink.device_message(session, "sleeping", %{"duration_ms" => duration})
+
+        assert %DeviceConnection{disconnected_reason: :deep_sleep, expected_wake_at: nil} =
+                 Connections.get_latest_for_device(device.id)
+      end
+    end
+
+    test "sleeping with no payload at all is taken as deep sleep", %{device: device, session: session} do
+      assert {_session, []} = DeviceLink.device_message(session, "sleeping", nil)
+
+      assert Connections.get_latest_for_device(device.id).disconnected_reason == :deep_sleep
+    end
+
+    test "rebooting records the reason", %{device: device, session: session} do
+      assert {_session, []} = DeviceLink.device_message(session, "rebooting", %{})
+
+      assert Connections.get_latest_for_device(device.id).disconnected_reason == :rebooting
+    end
+  end
+
   describe "device_message/3 progress events" do
     setup %{device: device, firmware: firmware} do
       {:ok, inflight_update} = Fixtures.inflight_update(device, firmware)

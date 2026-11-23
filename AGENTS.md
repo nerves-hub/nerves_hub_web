@@ -137,6 +137,10 @@ when adding or removing one.
   "never connected" (that is a device still `registered`): `last_seen <`
   filters match it, Insights counts it as not seen in 14 days, and pages show
   its last seen as unknown.
+  Each connection also records why it ended (`disconnect_reason.ex`, an enum
+  stored as a string), and a device that says it is going to sleep is shown
+  as asleep until it is due back rather than offline; see
+  [docs/device_sleep.md](docs/device_sleep.md).
 - `managed_deployments.ex` / `managed_deployments/` — deployment groups and the
   `Distributed.Orchestrator` (one per deployment). A release with a workflow
   is walked a step at a time (`Workflows`, `WorkflowCoordinator`); each step

@@ -164,6 +164,9 @@
   --color-status-online: var(--color-emerald-500);
   --color-status-offline: var(--color-zinc-500);
   --color-status-connecting: var(--color-indigo-500);
+  /* Said it was going to sleep and is not yet due back: away on purpose,
+     so a cool tone rather than the offline grey. Overdue uses warning. */
+  --color-status-asleep: var(--color-sky-600);
 
   /* Text roles. Use these for text, not the base-* ramp they replaced:
      text-base-50/300/400/500 were the same colours under a second name.

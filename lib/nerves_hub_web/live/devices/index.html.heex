@@ -324,10 +324,10 @@
                       <.status_dot
                         class={[
                           "size-1.75",
-                          if(@device_statuses.result[device.id] == "online", do: "bg-status-online", else: "bg-status-offline"),
+                          DeviceSleep.dot_class(@device_statuses.result[device.id]),
                           (@selecting? or @selected_devices != []) && "max-sm:hidden"
                         ]}
-                        title={if @device_statuses.result[device.id] == "online", do: "Online", else: "Offline"}
+                        title={DeviceSleep.dot_title(@device_statuses.result[device.id], device.latest_connection)}
                       />
                       <.link
                         navigate={~p"/org/#{@org}/#{@product}/devices/#{device}"}

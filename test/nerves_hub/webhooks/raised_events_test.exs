@@ -107,7 +107,15 @@ defmodule NervesHub.Webhooks.RaisedEventsTest do
 
       assert [data] = raised("device.disconnected")
       assert data["device"] == device_summary(device)
-      assert %{"id" => id, "disconnected_at" => disconnected_at, "reason" => nil} = data["connection"]
+
+      assert %{
+               "id" => id,
+               "disconnected_at" => disconnected_at,
+               "reason" => nil,
+               "reason_code" => nil,
+               "expected_wake_at" => nil
+             } = data["connection"]
+
       assert id == connection.id
       assert disconnected_at
     end
@@ -121,7 +129,14 @@ defmodule NervesHub.Webhooks.RaisedEventsTest do
 
       assert [data] = raised("device.disconnected")
       assert data["device"] == device_summary(device)
-      assert %{"id" => id, "reason" => "Reconnected", "disconnected_at" => disconnected_at} = data["connection"]
+
+      assert %{
+               "id" => id,
+               "reason" => "Reconnected",
+               "reason_code" => "duplicate_connection",
+               "disconnected_at" => disconnected_at
+             } = data["connection"]
+
       assert id == replaced.id
       assert disconnected_at == DateTime.to_iso8601(last_seen_at)
     end
@@ -151,6 +166,36 @@ defmodule NervesHub.Webhooks.RaisedEventsTest do
       assert [%{"connection" => %{"reason" => nil}}] = raised("device.disconnected")
     end
 
+    # It woke before its old socket closed: the sleep it announced says more
+    # than that it reconnected.
+    test "device.disconnected, for a sleeping device's connection a reconnect replaced", %{
+      device: device,
+      org: org,
+      product: product
+    } do
+      {:ok, replaced} = Connections.device_connecting(org.id, product.id, device.id)
+      :ok = Connections.device_connected(replaced.id)
+      :ok = Connections.device_leaving(replaced.id, :light_sleep)
+
+      {:ok, _connection} = Connections.device_connecting(org.id, product.id, device.id)
+
+      assert [%{"connection" => %{"reason_code" => "light_sleep"}}] = raised("device.disconnected")
+    end
+
+    test "device.disconnected, for a device that went to sleep", %{device: device, org: org, product: product} do
+      wake_at = DateTime.add(DateTime.utc_now(), 5, :minute)
+      {:ok, connection} = Connections.device_connecting(org.id, product.id, device.id)
+      :ok = Connections.device_leaving(connection.id, :deep_sleep, wake_at)
+      :ok = Connections.device_disconnected(connection.id)
+
+      assert [data] = raised("device.disconnected")
+
+      assert %{"reason" => "Deep sleep", "reason_code" => "deep_sleep", "expected_wake_at" => expected_wake_at} =
+               data["connection"]
+
+      assert {:ok, ^wake_at, 0} = DateTime.from_iso8601(expected_wake_at)
+    end
+
     test "device.disconnected, for a connection the stale sweep closed", %{device: device, product: product} do
       interval = Application.get_env(:nerves_hub, :device_last_seen_update_interval_minutes)
       long_ago = DateTime.add(DateTime.utc_now(), -(interval + 30), :minute)
@@ -162,7 +207,7 @@ defmodule NervesHub.Webhooks.RaisedEventsTest do
 
       assert [data] = raised("device.disconnected")
       assert data["device"] == device_summary(device)
-      assert %{"id" => id, "reason" => "Stale connection"} = data["connection"]
+      assert %{"id" => id, "reason" => "Stale connection", "reason_code" => "stale_connection"} = data["connection"]
       assert id == connection.id
     end
   end

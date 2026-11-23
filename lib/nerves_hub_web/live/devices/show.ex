@@ -7,6 +7,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
   alias NervesHub.DeviceEvents
   alias NervesHub.Devices
   alias NervesHub.Devices.Connections
+  alias NervesHub.Devices.DeviceConnection
   alias NervesHub.Devices.Pinning
   alias NervesHub.Devices.PubSub
   alias NervesHub.Devices.Updates
@@ -59,6 +60,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
       Consoles.PubSub.subscribe_console_watcher(device.id)
       Extensions.PubSub.subscribe_reports(device.id)
       Products.PubSub.subscribe(product.id)
+      schedule_sleep_clock()
     end
 
     socket
@@ -71,6 +73,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
     |> load_inprogress_firmware_update()
     |> assign(:pinned?, Pinning.device_pinned?(user.id, device.id))
     |> load_error_issue_count(product, device)
+    |> assign(:sleep_clock, DateTime.utc_now())
     |> setup_presence_tracking()
     |> setup_tab_components(@tab_components)
     |> ok()
@@ -81,6 +84,19 @@ defmodule NervesHubWeb.Live.Devices.Show do
     socket
     |> update_tab_component_hooks()
     |> noreply()
+  end
+
+  # A sleeping device's "back in 5 minutes", and its turn to overdue, follow
+  # the clock rather than any message, so the header is redrawn while the
+  # device is asleep. Awake, the tick changes nothing and nothing is sent.
+  def handle_info(:sleep_clock, socket) do
+    schedule_sleep_clock()
+
+    if DeviceConnection.sleep_state(socket.assigns.device_connection) do
+      {:noreply, assign(socket, :sleep_clock, DateTime.utc_now())}
+    else
+      {:noreply, socket}
+    end
   end
 
   def handle_info(:reload_device, socket) do
@@ -254,7 +270,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
 
     DeviceTemplates.audit_request_action(user, device, :reconnect)
 
-    socket.endpoint.broadcast("device_socket:#{device.id}", "disconnect", %{})
+    :ok = DeviceEvents.reconnect(device)
 
     {:noreply, put_flash(socket, :info, "Device reconnection requested")}
   end
@@ -503,6 +519,15 @@ defmodule NervesHubWeb.Live.Devices.Show do
     is_nil(connection) || connection.status != :connected
   end
 
+  @sleep_clock_interval to_timeout(second: 30)
+
+  defp schedule_sleep_clock() do
+    _ = Process.send_after(self(), :sleep_clock, @sleep_clock_interval)
+    :ok
+  end
+
+  # The header dot: the connection's own status, except that a device asleep
+  # or overdue shows as that rather than as disconnected.
   defp general_assigns(socket, device) do
     socket
     |> assign(:device, device)

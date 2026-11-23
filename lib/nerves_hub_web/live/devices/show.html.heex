@@ -4,7 +4,7 @@
       <:crumb mono class="hidden lg:flex">{@device.identifier}</:crumb>
     </.breadcrumb>
 
-    <Header.compact_bar device={@device} device_connection={@device_connection} org={@org} product={@product} />
+    <Header.compact_bar device={@device} device_connection={@device_connection} org={@org} product={@product} sleep_clock={@sleep_clock} />
 
     <%!-- On a phone the top bar's avatar is you; the others viewing the
           device show from sm up. --%>
@@ -46,6 +46,7 @@
         firmware_update_stage={@firmware_update_stage}
         firmware_update_progress={@firmware_update_progress}
         inflight_version={@inflight_version}
+        sleep_clock={@sleep_clock}
       />
     </div>
 

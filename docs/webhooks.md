@@ -195,17 +195,32 @@ is running, as far as NervesHub knows:
     "id": "0199dd3c-2f6e-7b1a-9d0e-3c5c2a1b4f00",
     "established_at": "2026-10-13T09:41:06.871203Z",
     "disconnected_at": "2026-10-13T11:02:44.510022Z",
-    "reason": null
+    "reason": "Deep sleep",
+    "reason_code": "deep_sleep",
+    "expected_wake_at": "2026-10-13T11:07:44.498310Z"
   }
 }
 ```
 
-`reason` is `"Stale connection"` when NervesHub closed a connection whose
-device had stopped sending heartbeats, which is how a device that lost power
-or network is noticed. It is `"Reconnected"` when the device connected again
-before NervesHub noticed the old connection had gone; the event is sent as the
-new connection starts, and `disconnected_at` is when the old one was last
-seen. Otherwise it is `null`.
+`reason_code` says why the connection ended, when NervesHub knows, and is
+`null` when it does not. Match on it rather than on `reason`, which is the
+same thing written for people and may be reworded.
+
+| `reason_code` | `reason` | When |
+| --- | --- | --- |
+| `light_sleep`, `deep_sleep` | Light sleep, Deep sleep | The device said it was going to sleep. See [devices that sleep](device_sleep.md). |
+| `rebooting` | Rebooting | The device said it was rebooting. |
+| `stale_connection` | Stale connection | The device stopped sending heartbeats and NervesHub closed its connection, which is how a device that lost power or network is noticed. |
+| `duplicate_connection` | Reconnected | The device connected again before NervesHub noticed this connection had gone. The event is sent as the new connection starts, and `disconnected_at` is when the old one was last seen. |
+| `reconnect_requested` | Reconnect requested | Someone asked the device to reconnect, from the web UI or the API. |
+| `key_revoked` | Device key deactivated | The shared secret key the device authenticated with was deactivated. |
+| `platform_update` | Server restarted | The NervesHub node holding the connection shut down, as during a deploy. |
+
+`reason` was the only field before `reason_code` was added, and
+`"Stale connection"` and `"Reconnected"` keep the text they had then.
+
+`expected_wake_at` is when a device that went to sleep said it would be back,
+and is `null` otherwise, including for a sleeping device that gave no time.
 
 ### `device.health_reported`
 
