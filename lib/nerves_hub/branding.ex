@@ -3,9 +3,8 @@ defmodule NervesHub.Branding do
   How this instance names itself to people.
 
   NervesHub is run under other names (NervesCloud, for one), so text that
-  names the product to the people using it, such as Slack messages and the
-  buttons on them, asks here rather than saying "NervesHub". Set with
-  `FRIENDLY_PLATFORM_NAME`.
+  names the product to the people using it, in the web UI or a Slack message,
+  asks here rather than saying "NervesHub". Set with `FRIENDLY_PLATFORM_NAME`.
   """
 
   @doc "The name people know this instance by. `NervesHub` unless configured."

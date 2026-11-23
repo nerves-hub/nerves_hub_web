@@ -142,7 +142,7 @@ defmodule NervesHubWeb.Live.Org.Integrations.SlackSection do
     socket
     |> close_form()
     |> changed()
-    |> flash(:info, "NervesHub stopped posting to ##{subscription.channel_name}.")
+    |> flash(:info, "#{Branding.friendly_platform_name()} stopped posting to ##{subscription.channel_name}.")
     |> noreply()
   end
 
@@ -204,7 +204,7 @@ defmodule NervesHubWeb.Live.Org.Integrations.SlackSection do
 
         socket.assigns.current_scope
         |> Subscriptions.create_subscription(connection, params)
-        |> saved(socket, "NervesHub will post to ##{channel.name}.")
+        |> saved(socket, "#{Branding.friendly_platform_name()} will post to ##{channel.name}.")
     end
   end
 
@@ -284,7 +284,9 @@ defmodule NervesHubWeb.Live.Org.Integrations.SlackSection do
   defp dialog_title({:new, _connection}), do: "Add a Slack channel"
   defp dialog_title(%Subscription{channel_name: name}), do: "Edit ##{name}"
 
-  defp error_message({:rate_limited, seconds}), do: "Slack asked NervesHub to wait #{seconds} seconds"
+  defp error_message({:rate_limited, seconds}),
+    do: "Slack asked #{Branding.friendly_platform_name()} to wait #{seconds} seconds"
+
   defp error_message(error), do: to_string(error)
 
   defp row_id(subscription), do: "slack-subscription-#{subscription.id}"

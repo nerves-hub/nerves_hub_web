@@ -22,6 +22,7 @@ defmodule NervesHub.Extensions.Logging.Batched do
 
   @behaviour NervesHub.Extensions
 
+  alias NervesHub.Branding
   alias NervesHub.Devices.LogLines
   alias NervesHub.Extensions.Logging
 
@@ -94,7 +95,8 @@ defmodule NervesHub.Extensions.Logging.Batched do
     LogLines.async_create(device_info, %{
       "timestamp" => DateTime.utc_now(),
       "level" => "warning",
-      "message" => "NervesHub dropped #{dropped} log lines: a message may carry at most #{@max_lines_per_message}"
+      "message" =>
+        "#{Branding.friendly_platform_name()} dropped #{dropped} log lines: a message may carry at most #{@max_lines_per_message}"
     })
   end
 end

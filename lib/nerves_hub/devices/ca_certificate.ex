@@ -4,6 +4,7 @@ defmodule NervesHub.Devices.CACertificate do
   import Ecto.Changeset
 
   alias NervesHub.Accounts.Org
+  alias NervesHub.Branding
   alias NervesHub.Devices.CACertificate
   alias NervesHub.Devices.CACertificate.JITP
 
@@ -22,11 +23,6 @@ defmodule NervesHub.Devices.CACertificate do
     :check_expiration,
     :last_used
   ]
-
-  # A device certificate names its signer by its AKI, which is matched against
-  # the CA's SKI, so a CA without an SKI could never sign a device in.
-  @missing_ski_message "is missing. Add a Subject Key Identifier extension to the CA certificate, " <>
-                         "which NervesHub uses to match device certificates to it"
 
   @derive {Phoenix.Param, key: :serial}
   schema "ca_certificates" do
@@ -53,7 +49,7 @@ defmodule NervesHub.Devices.CACertificate do
       # nothing reads a CA's AKI, so it is stored when present and not required.
       |> cast(params, [:aki, :ski] ++ @required_params ++ @optional_params)
       |> validate_required(@required_params)
-      |> validate_required(:ski, message: @missing_ski_message)
+      |> validate_required(:ski, message: missing_ski_message())
       |> validate_not_expired_when_checked()
       |> unique_constraint(:serial, name: :ca_certificates_serial_index)
 
@@ -65,6 +61,13 @@ defmodule NervesHub.Devices.CACertificate do
   # already-expired CA that way would leave it unable to register any device.
   # Only checked on create: turning it on later, to stop an expired CA
   # registering devices, is what the setting is for.
+  # A device certificate names its signer by its AKI, which is matched against
+  # the CA's SKI, so a CA without an SKI could never sign a device in.
+  defp missing_ski_message() do
+    "is missing. Add a Subject Key Identifier extension to the CA certificate, " <>
+      "which #{Branding.friendly_platform_name()} uses to match device certificates to it"
+  end
+
   defp validate_not_expired_when_checked(changeset) do
     not_after = get_field(changeset, :not_after)
 

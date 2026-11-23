@@ -14,6 +14,7 @@ defmodule NervesHub.Extensions.NetworkIdentity do
 
   @behaviour NervesHub.Extensions
 
+  alias NervesHub.Branding
   alias NervesHub.Devices.NetworkIdentities
 
   require Logger
@@ -25,7 +26,7 @@ defmodule NervesHub.Extensions.NetworkIdentity do
   @impl NervesHub.Extensions
   def description() do
     """
-    Reporting of identities the device holds on networks NervesHub doesn't run,
+    Reporting of identities the device holds on networks #{Branding.friendly_platform_name()} doesn't run,
     such as an iroh endpoint id or a NetBird, Tailscale or WireGuard public key.
     """
   end

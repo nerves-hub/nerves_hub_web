@@ -186,7 +186,9 @@ defmodule NervesHubWeb.AccountController do
         conn = delete_session(conn, :login_redirect_path)
 
         if email_confirmed do
-          Auth.sign_in(conn, new_org_user.user, user_params, flash: "Welcome to NervesHub!")
+          Auth.sign_in(conn, new_org_user.user, user_params,
+            flash: "Welcome to #{NervesHub.Branding.friendly_platform_name()}!"
+          )
         else
           # Whoever registered from the copied link may not own the address, so,
           # as with signing up, nobody is signed in until it's confirmed. The
