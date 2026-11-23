@@ -406,12 +406,12 @@ defmodule NervesHubWeb.API.UserControllerTest do
     test "polling and starting logins don't count against each other", %{conn: conn} do
       %{"token" => token} = start_cli_login(conn)
 
-      for _ <- 1..120, do: assert(waiting?(conn, token))
-
+      # Ten starts in the middle of 120 polls, each its whole allowance: if
+      # polls counted towards starts the starts would be refused, and if starts
+      # counted towards polls the last polls would be.
+      for _ <- 1..60, do: assert(waiting?(conn, token))
       for _ <- 1..9, do: start_cli_login(conn)
-
-      # A different address still polls.
-      assert waiting?(%{conn | remote_ip: {198, 51, 100, 8}}, token)
+      for _ <- 1..60, do: assert(waiting?(conn, token))
     end
 
     test "each address can start ten logins every ten minutes", %{conn: conn} do

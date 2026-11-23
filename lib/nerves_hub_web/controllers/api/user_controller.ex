@@ -19,6 +19,19 @@ defmodule NervesHubWeb.API.UserController do
 
   tags(["Auth"])
 
+  # What `NervesHubWeb.Plugs.Attack` sends once an address has used up its
+  # allowance for starting or polling CLI logins.
+  @too_many_requests %OpenApiSpex.Response{
+    description: "Too many requests from this address. Retry once `Retry-After` has passed.",
+    headers: %{
+      "Retry-After" => %OpenApiSpex.Header{
+        description: "Whole seconds until the allowance starts again, at least 1",
+        schema: %OpenApiSpex.Schema{type: :integer, minimum: 1}
+      }
+    },
+    content: %{"application/json" => %OpenApiSpex.MediaType{schema: ErrorSchemas.ErrorResponse}}
+  }
+
   operation(:me,
     summary: "Show details of the currently logged in user",
     responses: [
@@ -70,7 +83,8 @@ defmodule NervesHubWeb.API.UserController do
     summary: "Start the CLI authentication process",
     request_body: {"CLI Session attributes", "application/json", UserAuthCLISessionRequest},
     responses: [
-      ok: {"Auth CLI session token response", "application/json", UserAuthCLISessionResponse}
+      ok: {"Auth CLI session token response", "application/json", UserAuthCLISessionResponse},
+      too_many_requests: @too_many_requests
     ],
     security: []
   )
@@ -115,7 +129,8 @@ defmodule NervesHubWeb.API.UserController do
     ],
     responses: [
       ok: {"Auth CLI session token response", "application/json", UserAuthCLISessionStatusResponse},
-      not_found: {"Not Found", "application/json", ErrorSchemas.ErrorResponse}
+      not_found: {"Not Found", "application/json", ErrorSchemas.ErrorResponse},
+      too_many_requests: @too_many_requests
     ],
     security: []
   )
