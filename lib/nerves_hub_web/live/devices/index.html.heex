@@ -348,7 +348,7 @@
 
                   <td class={[
                     "max-sm:col-span-3 max-sm:col-start-2 max-sm:row-start-2",
-                    !(@selecting? or @selected_devices != []) && "max-sm:pl-3.75",
+                    !(@selecting? or @selected_devices != []) && "max-sm:pl-5",
                     column_class(@current_scope.user, :firmware)
                   ]}>
                     <DeviceList.firmware device={device} progress={@progress[device.id]} />
@@ -360,7 +360,7 @@
 
                   <td class={[
                     "text-ui/4 whitespace-nowrap max-sm:col-start-2 max-sm:row-start-3 max-sm:max-w-40 max-sm:truncate max-sm:text-xs/4",
-                    !(@selecting? or @selected_devices != []) && "max-sm:pl-3.75",
+                    !(@selecting? or @selected_devices != []) && "max-sm:pl-5",
                     column_class(@current_scope.user, :deployment_group)
                   ]}>
                     <span :if={device.deployment_group} class="text-content-body">{device.deployment_group.name}</span>

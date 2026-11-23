@@ -817,10 +817,10 @@ defmodule NervesHubWeb.Components.DeviceList do
             <span class={["h-2.5", bar_width(:identifier, row), @bar]}></span>
             <span class={["ml-auto h-2 w-12", @bar]}></span>
           </span>
-          <span class="flex h-4 items-center pl-3.75">
+          <span class="flex h-4 items-center pl-5">
             <span class={["h-2", bar_width(:version, row), @bar]}></span>
           </span>
-          <span class="flex h-6 items-center justify-between pl-3.75">
+          <span class="flex h-6 items-center justify-between pl-5">
             <span class={["h-2", bar_width(:group, row), @bar]}></span>
             <span class={["h-2", bar_width(:connection, row), @bar]}></span>
           </span>
