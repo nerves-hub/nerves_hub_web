@@ -1427,7 +1427,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       |> within("#update-mode-menu", fn session -> click_button(session, "Off") end)
 
       assert [audit_log | _] = AuditLogs.logs_for(Repo.reload(device))
-      assert audit_log.description =~ "User #{user.name} set the update mode"
+      assert audit_log.description =~ "#{user.name} set the update mode"
       assert audit_log.description =~ "off"
     end
 

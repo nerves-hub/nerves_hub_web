@@ -7,6 +7,7 @@ defmodule NervesHub.AuditLogs.TemplateTest do
   alias NervesHub.Firmwares.FirmwareMetadata
   alias NervesHub.ManagedDeployments.DeploymentGroup
   alias NervesHub.Products.ApiKey
+  alias NervesHub.Products.Product
 
   doctest Template
 
@@ -42,6 +43,16 @@ defmodule NervesHub.AuditLogs.TemplateTest do
         |> Template.dump_values(%ApiKey{id: 5, name: "ci"}, @device)
 
       assert values["actor"] == %{"type" => "api_key", "id" => 5, "name" => "API key ci"}
+    end
+
+    test "stores a product as a reference under its name" do
+      values =
+        "%{actor} moved %{device}"
+        |> Template.new(device: @device)
+        |> Template.dump_values(@user, %Product{id: 6, name: "Hop"})
+
+      assert values["resource"] == %{"type" => "product", "id" => 6, "name" => "Hop"}
+      assert values["device"] == %{"type" => "device", "id" => 2, "name" => "abc123"}
     end
 
     test "stores firmware and archives by UUID, and text and numbers as text" do

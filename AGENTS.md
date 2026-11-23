@@ -235,8 +235,8 @@ when adding or removing one.
   in `audit_logs/templates/`. An entry a device's Activity tab shows passes a
   `kind:` (`AuditLog.kinds/0`), and the tab draws its icon from that, never
   from the description. A new kind of entry needs a kind and an icon in
-  `NervesHubWeb.Components.DevicePage.ActivityTab`. The device and
-  deployment group templates write their descriptions as an `AuditLogs.Template`
+  `NervesHubWeb.Components.DevicePage.ActivityTab`. Every entry about a
+  device or a deployment group writes its description as an `AuditLogs.Template`
   (`"%{actor} rebooted device %{resource}"`). The entry keeps the
   template and the records it names beside the plain description, so the
   device and deployment group Activity tabs show each user, device, deployment group, firmware

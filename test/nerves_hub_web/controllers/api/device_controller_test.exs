@@ -269,7 +269,7 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
 
       assert [%{actor_id: actor_id, description: description}] = AuditLogs.logs_for(granted)
       assert actor_id == user.id
-      assert description == "User #{user.name} allowed device-managed updates for device api-device-granted"
+      assert description == "#{user.name} allowed device-managed updates for device api-device-granted"
 
       default = Repo.get_by!(Device, identifier: "api-device-default")
       refute default.managed_updates_allowed
@@ -1237,8 +1237,8 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
       refute Repo.reload(device).managed_updates_allowed
 
       descriptions = device |> AuditLogs.logs_for() |> Enum.map(& &1.description)
-      assert "User #{user.name} allowed device-managed updates for device #{device.identifier}" in descriptions
-      assert "User #{user.name} disallowed device-managed updates for device #{device.identifier}" in descriptions
+      assert "#{user.name} allowed device-managed updates for device #{device.identifier}" in descriptions
+      assert "#{user.name} disallowed device-managed updates for device #{device.identifier}" in descriptions
     end
 
     test "writes no managed_updates_allowed audit entry when it doesn't change", %{
@@ -1343,7 +1343,7 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
       assert device.update_attempts == []
 
       descriptions = device |> AuditLogs.logs_for() |> Enum.map(& &1.description)
-      assert "User #{user.name} set the update mode for device #{device.identifier} to automatic" in descriptions
+      assert "#{user.name} set the update mode for device #{device.identifier} to automatic" in descriptions
     end
 
     test "moving out of automatic audits the mode and leaves the orchestrator alone", %{
@@ -1365,7 +1365,7 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
       assert Repo.reload(device).update_mode == :device_managed
 
       descriptions = device |> AuditLogs.logs_for() |> Enum.map(& &1.description)
-      assert "User #{user.name} set the update mode for device #{device.identifier} to device_managed" in descriptions
+      assert "#{user.name} set the update mode for device #{device.identifier} to device_managed" in descriptions
     end
 
     test "writes no update mode audit entry, and tells the orchestrator nothing, when the mode doesn't change", %{

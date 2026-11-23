@@ -29,6 +29,7 @@ defmodule NervesHub.AuditLogs.Template do
   alias NervesHub.Firmwares.FirmwareMetadata
   alias NervesHub.ManagedDeployments.DeploymentGroup
   alias NervesHub.Products.ApiKey
+  alias NervesHub.Products.Product
 
   @enforce_keys [:text]
   defstruct [:text, values: %{}]
@@ -48,6 +49,7 @@ defmodule NervesHub.AuditLogs.Template do
           | FirmwareMetadata.t()
           | FirmwareMetadata.metadata()
           | Archive.t()
+          | Product.t()
 
   @typedoc """
   A reference as an entry stores it. `id` is the record's id, or its UUID for
@@ -104,6 +106,10 @@ defmodule NervesHub.AuditLogs.Template do
   defp dump_value(%Firmware{uuid: uuid}), do: reference("firmware", uuid, uuid)
   defp dump_value(%FirmwareMetadata{uuid: uuid}), do: reference("firmware", uuid, uuid)
   defp dump_value(%Archive{uuid: uuid}), do: reference("archive", uuid, uuid)
+
+  # A product is the resource of a device move's entry in each product. Nothing
+  # loads it again, so it shows the name it had.
+  defp dump_value(%Product{} = product), do: reference("product", product.id, product.name)
 
   # Firmware metadata as `Firmwares.metadata_from_firmware/1` builds it, a
   # plain map, which is what a device holds right after an update.

@@ -14,6 +14,7 @@ defmodule NervesHub.Devices.Updates do
   alias Ecto.Multi
   alias NervesHub.AuditLogs
   alias NervesHub.AuditLogs.DeviceTemplates
+  alias NervesHub.AuditLogs.Template
   alias NervesHub.DeploymentOrchestratorEvents
   alias NervesHub.DeviceEvents
   alias NervesHub.DeviceLink.DeviceInfo
@@ -635,8 +636,8 @@ defmodule NervesHub.Devices.Updates do
   def save_update_mode(%Device{} = device, mode, actor) when mode in [:off, :automatic, :device_managed] do
     description =
       case actor do
-        :device -> "Device #{device.identifier} set its update mode to #{mode}"
-        actor -> "#{AuditLogs.actor_name(actor)} set the update mode for device #{device.identifier} to #{mode}"
+        :device -> Template.new("Device %{resource} set its update mode to %{mode}", mode: mode)
+        _actor -> Template.new("%{actor} set the update mode for device %{resource} to %{mode}", mode: mode)
       end
 
     params =
@@ -684,7 +685,7 @@ defmodule NervesHub.Devices.Updates do
           {:ok, Device.t()} | {:error, any(), any(), any()}
   def revert_unsupported_update_mode(%Device{} = device) do
     description =
-      "Device #{device.identifier} was returned to automatic updates: its firmware is too old to manage its own"
+      Template.new("Device %{resource} was returned to automatic updates: its firmware is too old to manage its own")
 
     params = %{update_mode: :automatic}
 
@@ -712,8 +713,7 @@ defmodule NervesHub.Devices.Updates do
   @spec pause_automatic_updates(Device.t(), AuditLogs.actor()) ::
           {:ok, Device.t()} | {:error, any(), any(), any()}
   def pause_automatic_updates(%Device{update_mode: :automatic} = device, actor) do
-    description =
-      "#{AuditLogs.actor_name(actor)} paused automatic updates for device #{device.identifier} to send firmware manually"
+    description = Template.new("%{actor} paused automatic updates for device %{resource} to send firmware manually")
 
     Devices.update_device_with_audit(device, %{update_mode: :off}, actor, description, :updates_disabled)
   end
@@ -731,7 +731,7 @@ defmodule NervesHub.Devices.Updates do
           {:ok, Device.t()} | {:error, any(), any(), any()}
   def set_managed_updates_allowed(%Device{} = device, enabled, actor) when is_boolean(enabled) do
     description =
-      "#{AuditLogs.actor_name(actor)} #{(enabled && "allowed") || "disallowed"} device-managed updates for device #{device.identifier}"
+      Template.new("%{actor} #{(enabled && "allowed") || "disallowed"} device-managed updates for device %{resource}")
 
     Devices.update_device_with_audit(
       device,
@@ -745,7 +745,7 @@ defmodule NervesHub.Devices.Updates do
   @spec enable_updates(Device.t() | [Device.t()], AuditLogs.actor()) ::
           {:ok, Device.t()} | {:error, any(), any(), any()}
   def enable_updates(%Device{} = device, actor) do
-    description = "#{AuditLogs.actor_name(actor)} enabled updates for device #{device.identifier}"
+    description = Template.new("%{actor} enabled updates for device %{resource}")
     params = %{update_mode: :automatic, update_attempts: []}
 
     case Devices.update_device_with_audit(device, params, actor, description, :updates_enabled) do
@@ -765,7 +765,7 @@ defmodule NervesHub.Devices.Updates do
   @spec disable_updates(Device.t() | [Device.t()], AuditLogs.actor()) ::
           {:ok, Device.t()} | {:error, any(), any(), any()}
   def disable_updates(%Device{} = device, actor) do
-    description = "#{AuditLogs.actor_name(actor)} disabled updates for device #{device.identifier}"
+    description = Template.new("%{actor} disabled updates for device %{resource}")
     params = %{update_mode: :off}
     Devices.update_device_with_audit(device, params, actor, description, :updates_disabled)
   end
@@ -842,7 +842,7 @@ defmodule NervesHub.Devices.Updates do
   end
 
   def clear_penalty_box(%Device{} = device, actor) do
-    description = "#{AuditLogs.actor_name(actor)} removed device #{device.identifier} from the penalty box"
+    description = Template.new("%{actor} removed device %{resource} from the penalty box")
     params = %{updates_blocked_until: nil, update_attempts: []}
     Devices.update_device_with_audit(device, params, actor, description, :penalty_box_cleared)
   end
