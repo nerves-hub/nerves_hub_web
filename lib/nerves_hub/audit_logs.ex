@@ -26,13 +26,6 @@ defmodule NervesHub.AuditLogs do
   @type actor() :: User.t() | ApiKey.t()
 
   @doc """
-  How an actor is named at the start of an audit log description.
-  """
-  @spec actor_name(actor()) :: String.t()
-  def actor_name(%User{name: name}), do: "User #{name}"
-  def actor_name(%ApiKey{name: name}), do: "API key #{name}"
-
-  @doc """
   The user behind `actor`, or nil when a product API key acted.
 
   For a column that names a user, such as who created or deleted something. A

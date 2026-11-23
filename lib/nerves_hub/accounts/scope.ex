@@ -40,7 +40,7 @@ defmodule NervesHub.Accounts.Scope do
   Who is acting: the API key when the request came with one, otherwise the
   user.
 
-  This is what the audit log records; see `NervesHub.AuditLogs.actor_name/1`.
+  This is what the audit log records; see `t:NervesHub.AuditLogs.actor/0`.
   """
   @spec actor(t()) :: User.t() | ApiKey.t() | nil
   def actor(%__MODULE__{api_key: %ApiKey{} = api_key}), do: api_key

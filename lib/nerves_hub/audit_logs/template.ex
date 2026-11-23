@@ -22,6 +22,7 @@ defmodule NervesHub.AuditLogs.Template do
   device sends (a failure reason) can't add a link or a reference.
   """
 
+  alias NervesHub.Accounts.Org
   alias NervesHub.Accounts.User
   alias NervesHub.Archives.Archive
   alias NervesHub.Devices.Device
@@ -50,6 +51,7 @@ defmodule NervesHub.AuditLogs.Template do
           | FirmwareMetadata.metadata()
           | Archive.t()
           | Product.t()
+          | Org.t()
 
   @typedoc """
   A reference as an entry stores it. `id` is the record's id, or its UUID for
@@ -107,9 +109,13 @@ defmodule NervesHub.AuditLogs.Template do
   defp dump_value(%FirmwareMetadata{uuid: uuid}), do: reference("firmware", uuid, uuid)
   defp dump_value(%Archive{uuid: uuid}), do: reference("archive", uuid, uuid)
 
-  # A product is the resource of a device move's entry in each product. Nothing
-  # loads it again, so it shows the name it had.
+  # A product is the resource of its own entries, and of a device move's entry
+  # in each product. Nothing loads it again, so it shows the name it had.
   defp dump_value(%Product{} = product), do: reference("product", product.id, product.name)
+
+  # An organization is the resource of its own entries, and the actor when
+  # something happened to it that no member did. Shown under the name it had.
+  defp dump_value(%Org{} = org), do: reference("org", org.id, org.name)
 
   # Firmware metadata as `Firmwares.metadata_from_firmware/1` builds it, a
   # plain map, which is what a device holds right after an update.

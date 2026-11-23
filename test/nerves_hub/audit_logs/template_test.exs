@@ -1,6 +1,7 @@
 defmodule NervesHub.AuditLogs.TemplateTest do
   use ExUnit.Case, async: true
 
+  alias NervesHub.Accounts.Org
   alias NervesHub.Accounts.User
   alias NervesHub.AuditLogs.Template
   alias NervesHub.Devices.Device
@@ -53,6 +54,12 @@ defmodule NervesHub.AuditLogs.TemplateTest do
 
       assert values["resource"] == %{"type" => "product", "id" => 6, "name" => "Hop"}
       assert values["device"] == %{"type" => "device", "id" => 2, "name" => "abc123"}
+    end
+
+    test "stores an organization as a reference under its name" do
+      values = "%{actor} %{resource}" |> Template.new() |> Template.dump_values(@user, %Org{id: 7, name: "Acme"})
+
+      assert values["resource"] == %{"type" => "org", "id" => 7, "name" => "Acme"}
     end
 
     test "stores firmware and archives by UUID, and text and numbers as text" do
