@@ -395,8 +395,8 @@ when adding or removing one.
   the firmware and archive pages, Slack or the API, needs
   `deployment_group:release:manage`, and so does creating a group, which starts
   with a release. `deployment_group:update` is the group's own settings.
-  Queueing a release's deltas runs a transaction of its own, so it happens after
-  the release's commits: a failed nested `Repo.transact` rolls back the outer
+|   Queueing a release's deltas runs a transaction of its own, so it happens after
+|   the release commits: a failed nested `Repo.transact` rolls back the outer
   one too, even when its result is ignored. So a release that will queue deltas
   starts `:preparing` (`DeploymentRelease.hold_for_deltas/2`) until the
   recalculation after the queueing settles it, and the group's orchestrator

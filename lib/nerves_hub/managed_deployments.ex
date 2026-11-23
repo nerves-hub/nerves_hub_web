@@ -350,12 +350,9 @@ defmodule NervesHub.ManagedDeployments do
     end)
     |> case do
       {:ok, deployment_group} ->
-        # After the commit, as in `create_deployment_release/6`: queueing a
-        # delta runs a transaction of its own, and one that fails would undo
-        # the change, turning delta updates on included. A delta that can't be
-        # queued says so in the log and in Sentry, and its devices are sent
-        # the whole firmware. Before the broadcast, so the orchestrator sees
-        # the releases waiting on the deltas that were queued.
+        # After the commit, so a failed delta can't undo the change (turning
+        # delta updates on included), and before the broadcast, so the
+        # orchestrator sees the releases waiting on the deltas that were queued.
         _ =
           queue_deltas_after_commit(deployment_group, changeset, fn ->
             recalculate_release_delta_statuses(deployment_group)
@@ -418,11 +415,9 @@ defmodule NervesHub.ManagedDeployments do
     end)
     |> case do
       {:ok, {release, deployment_group}} ->
-        # After the commit, because queueing a delta runs a transaction of its
-        # own, and one that fails would take the release down with it. A delta
-        # that can't be queued says so in the log and in Sentry, and its devices
-        # are sent the whole firmware. Before the broadcast, so the orchestrator
-        # sees the release waiting on the deltas that were queued.
+        # Before the broadcast, so the orchestrator sees the release waiting on
+        # the deltas that were queued. `queue_deltas_after_commit/3` says why
+        # it's after the commit.
         release =
           deployment_group
           |> queue_deltas_after_commit(release, fn -> recalculate_release_delta_status(release) end)
@@ -1077,11 +1072,8 @@ defmodule NervesHub.ManagedDeployments do
     |> case do
       {:ok, {release, deployment_group}} ->
         if required_changed? do
-          # After the commit, as in `create_deployment_release/6`: queueing a
-          # delta runs a transaction of its own, and one that fails would undo
-          # the change. The release is required either way, devices with no
-          # delta are sent the whole firmware, and the statuses report whatever
-          # the deltas did.
+          # After the commit, so a failed delta can't undo marking it required;
+          # see `queue_deltas_after_commit/3`.
           _ =
             queue_deltas_after_commit(deployment_group, release, fn ->
               recalculate_release_delta_statuses(deployment_group)
