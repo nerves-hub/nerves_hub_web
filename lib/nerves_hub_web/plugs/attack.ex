@@ -17,13 +17,16 @@ defmodule NervesHubWeb.Plugs.Attack do
 
   Off by default, which errs towards the shared bucket: too strict for everyone
   rather than absent for whoever thinks to forge a header.
+
+  There is no fallback rule. Every action behind `plug(Attack, ...)` needs a
+  rule of its own below, and one without it is not limited at all. A test
+  (`AttackTest`) fails when a listed action has no rule.
   """
 
   use PlugAttack
 
   alias NervesHub.PlugAttack.Storage
   alias NervesHubWeb.Helpers.ClientIP
-  alias NervesHubWeb.RateLimitPubSub
   alias PlugAttack.Storage.Ets
 
   if Mix.env() != :test do
@@ -34,10 +37,10 @@ defmodule NervesHubWeb.Plugs.Attack do
     end
   end
 
-  # Starting a CLI login and polling one each have an allowance of their own
-  # rather than a share of the one below. nh polls every two seconds while it
-  # waits, which is all thirty a minute of that one, leaving nothing for a
-  # second login from the same address or a poll that arrives a little early.
+  # Starting a CLI login and polling one each have an allowance of their own,
+  # because nh polls every two seconds while it waits and a shared allowance
+  # would leave nothing for a second login from the same address or a poll that
+  # arrives a little early.
   rule "throttle CLI logins by ip", conn do
     if conn.private[:phoenix_action] == :cli_session do
       cli_login_throttle(client_ip(conn))
@@ -48,18 +51,6 @@ defmodule NervesHubWeb.Plugs.Attack do
     if conn.private[:phoenix_action] == :check_cli_session do
       cli_poll_throttle(client_ip(conn))
     end
-  end
-
-  rule "throttle by ip", conn do
-    ip_throttle(client_ip(conn))
-  end
-
-  def ip_throttle(ip, opts \\ []) do
-    key = {:ip, ip}
-    time = opts[:time] || System.system_time(:millisecond)
-    if !opts[:time], do: RateLimitPubSub.broadcast(key, time)
-
-    do_throttle(key, time: time, limit: 30, period: 60_000)
   end
 
   @doc """

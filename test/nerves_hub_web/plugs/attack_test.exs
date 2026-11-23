@@ -5,7 +5,9 @@ defmodule NervesHubWeb.Plugs.AttackTest do
 
   alias NervesHubWeb.Plugs.Attack
 
-  @limit 30
+  # What one address may do starting a CLI login. Every request these tests send
+  # is one, since a request is only limited by the rule for its action.
+  @limit 10
 
   describe "behind a trusted proxy" do
     setup do: put_endpoint_config(rate_limit_by_forwarded_ip: true, forwarded_ip_header: "x-forwarded-for")
@@ -25,7 +27,7 @@ defmodule NervesHubWeb.Plugs.AttackTest do
     end
 
     test "falls back to the socket when the proxy announced nothing" do
-      conn = fn -> Plug.Test.conn(:get, "/") |> Map.put(:remote_ip, {203, 0, 113, 12}) end
+      conn = fn -> :get |> Plug.Test.conn("/") |> Map.put(:remote_ip, {203, 0, 113, 12}) |> cli_login() end
 
       for _ <- 1..@limit, do: Attack.call(conn.(), Attack.init([]))
 
@@ -81,12 +83,12 @@ defmodule NervesHubWeb.Plugs.AttackTest do
       assert data[:limit] == 120
       assert data[:remaining] == 0
 
-      # Another address, the next minute, and the general allowance are all
+      # Another address, the next minute, and the login allowance are all
       # untouched.
       assert {:allow, _} = Attack.cli_poll_throttle({203, 0, 113, 51}, time: time)
       assert {:allow, _} = Attack.cli_poll_throttle(ip, time: time + 60_000)
-      assert {:allow, {:throttle, general}} = Attack.ip_throttle(ip, time: time)
-      assert general[:remaining] == @limit - 1
+      assert {:allow, {:throttle, login}} = Attack.cli_login_throttle(ip, time: time)
+      assert login[:remaining] == @limit - 1
     end
 
     test "is refused with a 429 and how many seconds to wait" do
@@ -122,6 +124,31 @@ defmodule NervesHubWeb.Plugs.AttackTest do
     end
   end
 
+  describe "every action behind the plug" do
+    # There is no fallback rule, so an action added to a controller's
+    # `plug(Attack when action in [...])` without a rule of its own would not be
+    # limited at all. This finds each one in the controllers' source and checks
+    # it gets blocked.
+    test "has a rule of its own" do
+      actions = attacked_actions()
+
+      assert actions != [], "found no `plug(Attack when action in [...])`"
+
+      for {action, index} <- Enum.with_index(actions) do
+        conn = fn ->
+          :get
+          |> Plug.Test.conn("/")
+          |> Map.put(:remote_ip, {203, 0, 113, 100 + index})
+          |> Plug.Conn.put_private(:phoenix_action, action)
+        end
+
+        # The largest allowance is 120 a minute, so this is past any of them.
+        assert Enum.any?(1..200, fn _ -> Attack.call(conn.(), Attack.init([])).halted end),
+               "#{inspect(action)} is behind the Attack plug but no rule limits it"
+      end
+    end
+  end
+
   defp put_endpoint_config(overrides) do
     previous = Application.get_env(:nerves_hub, NervesHubWeb.Endpoint)
 
@@ -141,6 +168,40 @@ defmodule NervesHubWeb.Plugs.AttackTest do
     |> Plug.Test.conn("/")
     |> Map.put(:remote_ip, {10, 0, 0, 1})
     |> Plug.Conn.put_req_header("x-forwarded-for", announced)
+    |> cli_login()
+  end
+
+  defp cli_login(conn), do: Plug.Conn.put_private(conn, :phoenix_action, :cli_session)
+
+  # Every action named in a `plug(Attack when action in [...])`, read from the
+  # controllers. A use of the plug in any other shape fails the test, so it
+  # can't slip past it.
+  defp attacked_actions() do
+    "lib/nerves_hub_web/**/*.ex"
+    |> Path.wildcard()
+    |> Enum.flat_map(fn path ->
+      {_ast, found} =
+        path
+        |> File.read!()
+        |> Code.string_to_quoted!()
+        |> Macro.prewalk([], fn
+          {:plug, _, [{:when, _, [{:__aliases__, _, [:Attack]}, {:in, _, [{:action, _, _}, actions]}]}]} = node, acc
+          when is_list(actions) ->
+            {node, acc ++ actions}
+
+          {:plug, _, [{:__aliases__, _, [:Attack]} | _]} = node, _acc ->
+            flunk("#{path} uses the Attack plug in a shape this test can't read: #{Macro.to_string(node)}")
+
+          {:plug, _, [{:when, _, [{:__aliases__, _, [:Attack]} | _]}]} = node, _acc ->
+            flunk("#{path} uses the Attack plug in a shape this test can't read: #{Macro.to_string(node)}")
+
+          node, acc ->
+            {node, acc}
+        end)
+
+      found
+    end)
+    |> Enum.uniq()
   end
 
   defp exhaust(announced) do

@@ -78,7 +78,7 @@ instead, and tells the device page when it attaches or detaches.
 | `product:<id>`, `firmware:<id>`, `product_notifications:<id>` | `:group` | Consumers are open LiveViews. |
 | `access:device/<id>` — "check your access again" | `:group` | Members are open consoles, shells, device event streams and device pages. Published when the device's tags change, which decides which custom roles see it. |
 | `orchestrator:deployment:<id>` | `:group` | A single consumer — the one orchestrator for that deployment group — fed by every device node. |
-| Rate-limit throttle sync, CLI-session cache | `:group`, `"web"` cluster | Web-only state that should not exist on device nodes at all. |
+| CLI-session cache | `:group`, `"web"` cluster | Web-only state that should not exist on device nodes at all. |
 | `product:<id>:extensions` | `Phoenix.PubSub` | One operator toggle must reach *every* online device in the product. Genuine dense fan-out. |
 | `deployment:<id>` | `Phoenix.PubSub` | Multi-subscriber, not a sparse per-entity topic. |
 | `org_membership:<org_id>:<user_id>` — role changed or member removed | `Phoenix.PubSub` | Members are that user's open pages in the org and their consoles, shells and event streams, so sparse, but it is published only when an admin changes a membership. `:group` would replicate a join and a leave on every org page load to target a handful of messages a day. |
@@ -90,7 +90,7 @@ instead, and tells the device page when it attaches or detaches.
 | State | Cluster | Participating nodes |
 | --- | --- | --- |
 | Device ↔ UI topics (device, console, extension reports, product/firmware UI, orchestrator) | default (`nil`) | All |
-| Rate-limit throttle sync, CLI-session cache | `"web"` | Web/all nodes only |
+| CLI-session cache | `"web"` | Web/all nodes only |
 
 The **default** cluster needs no explicit `connect` — nodes join through
 automatic peer discovery on `:net_kernel` nodeup — so device-side senders and
@@ -98,8 +98,7 @@ web-side consumers find each other with no wiring.
 
 The **`"web"`** cluster is opt-in. `NervesHub.GroupClusterConnection` calls
 `Group.connect(NervesHub.Group, "web")` on startup for non-device nodes, and
-`NervesHub.CLISessionCache` / `NervesHubWeb.RateLimitPubSub` are gated off
-device nodes. All four sit under `NervesHub.GroupSupervisor` with a
+`NervesHub.CLISessionCache` is gated off device nodes. All three sit under `NervesHub.GroupSupervisor` with a
 `:rest_for_one` strategy: `Group` owns their cluster and group membership in
 ETS, so if it restarts they have to re-run `init/1` against the fresh tree.
 
@@ -148,9 +147,9 @@ one of three approaches:
   genuinely also a subscriber here: firmware create and delete run inside the
   Firmware LiveView, which is subscribed to the product and already refreshes
   from the mutation's own result.
-- **Origin-node stamping** — `RateLimitPubSub` and `CLISessionCache` put
-  `node()` in the message and drop it on receipt when it came from themselves,
-  because the local write already happened inline.
+- **Origin-node stamping** — `CLISessionCache` puts `node()` in the message and
+  drops it on receipt when it came from itself, because the local write
+  already happened inline.
 - **Direction split** — `Extensions.PubSub` splits the per-device extensions
   topic by direction, so the device-side channel is never a member of the group
   it publishes reports to.
@@ -185,18 +184,15 @@ disconnects from that node, then retries the connection. The disconnect takes
 everything else on that link with it, `Phoenix.PubSub` and ProcessHub included.
 Group logs a warning naming the node (`busy dist link to …; disconnecting`).
 
-**Cold start.** A freshly started web node does not exchange rate-limit
-increments or CLI-session writes with peers until `"web"` membership
-propagates. `CLISessionCache` retries its warm-up for about 1.25 s to cover
-this. The rate-limit increment always applies inline on the local node, so
-cross-node throttling is briefly per-node rather than cluster-wide — a
-defence-in-depth degradation, not a bypass.
+**Cold start.** A freshly started web node does not exchange CLI-session
+writes with peers until `"web"` membership propagates. `CLISessionCache`
+retries its warm-up for about 1.25 s to cover this.
 
 **Rolling deploys.** The two transports do not talk to each other. While a
 rollout has nodes on both sides of a change to which transport carries a topic,
 mixed-version pairs will not exchange that topic's messages: console and shell
-I/O, live device updates in the UI, health reports, rate-limit sync and
-CLI-session writes all degrade for the duration and recover once the rollout
+I/O, live device updates in the UI, health reports and CLI-session
+writes all degrade for the duration and recover once the rollout
 completes. Worth knowing before changing a topic's transport, and worth
 mentioning in release notes when you do.
 
@@ -215,7 +211,7 @@ two-minute backup timer bounds this to a delayed update rather than a lost one.
 ## The dependency
 
 `:group` is pre-1.0 and now carries console I/O, health reporting, the
-rate-limit throttle and the CLI-session auth cache. It is pure Elixir with no
+CLI-session auth cache. It is pure Elixir with no
 transitive dependencies and the `~> 0.3.1` requirement is tight, but its
 releases should be tracked and upgrades reviewed rather than taken
 automatically. The test suite runs on a single node and cannot catch a
