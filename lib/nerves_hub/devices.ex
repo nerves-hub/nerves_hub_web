@@ -253,12 +253,10 @@ defmodule NervesHub.Devices do
     end)
   end
 
-  # A product can have well over a hundred firmware versions, and a
-  # `count(...) FILTER` per version re-reads every device's version once per
-  # version. Grouping by the version reads it once per device instead. The
-  # groups are matched to the choices as `DeviceFiltering.value_dynamic/2`
-  # does: "Unknown" is no version at all (SQL NULL), and any other choice is
-  # a version equal to it.
+  # One `count(...) FILTER` per version re-reads every device once per
+  # version, and a product can have 100+ versions. Grouping reads each device
+  # once. Choices match as in `DeviceFiltering.value_dynamic/2`: "Unknown" is
+  # a NULL version, and any other choice is an exact version match.
   defp count_facet(:firmware_version, choices, product, user, opts) do
     groups =
       common_filter_query(user)
