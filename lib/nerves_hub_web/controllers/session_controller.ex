@@ -182,7 +182,7 @@ defmodule NervesHubWeb.SessionController do
       # the password resets it, which ends every other session and API token.
       if signed_in_as?(conn, user) do
         conn
-        |> put_flash(:info, "Welcome to NervesHub!")
+        |> put_flash(:info, "Welcome to #{NervesHub.Branding.friendly_platform_name()}!")
         |> redirect(to: ~p"/orgs")
       else
         conn

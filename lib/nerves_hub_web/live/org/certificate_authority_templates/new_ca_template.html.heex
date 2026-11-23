@@ -17,7 +17,7 @@
 
         <div :if={Keyword.has_key?(f.errors, :ski)} id="missing-ski-error" class="mb-4 rounded-card border border-alert bg-alert-soft p-4 text-sm text-alert-content">
           <p>
-            The CA certificate has no Subject Key Identifier extension, which NervesHub uses to match device certificates to it.
+            The CA certificate has no Subject Key Identifier extension, which {NervesHub.Branding.friendly_platform_name()} uses to match device certificates to it.
             Add one with <code>-addext "subjectKeyIdentifier=hash"</code> when creating the certificate, as in Step 1.
           </p>
         </div>

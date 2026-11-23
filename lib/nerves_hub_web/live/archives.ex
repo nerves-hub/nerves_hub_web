@@ -6,6 +6,7 @@ defmodule NervesHubWeb.Live.Archives do
   alias NervesHub.Accounts
   alias NervesHub.Archives
   alias NervesHub.Archives.Archive
+  alias NervesHub.Branding
   alias NervesHub.Uploads
   alias NervesHubWeb.Components.Dialog
   alias NervesHubWeb.Mounts.RequireEveryDevice
@@ -348,7 +349,8 @@ defmodule NervesHubWeb.Live.Archives do
       title: "fwup too old",
       tone: :warning,
       message:
-        "It needs fwup #{required} or newer, and NervesHub has #{installed}. Ask support to update NervesHub’s fwup.",
+        "It needs fwup #{required} or newer, and #{Branding.friendly_platform_name()} has #{installed}. " <>
+          "Ask support to update #{Branding.friendly_platform_name()}’s fwup.",
       action: nil
     }
   end

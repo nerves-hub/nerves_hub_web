@@ -81,7 +81,7 @@ defmodule NervesHub.Integrations.ChannelEvents do
       source: "product.notification_created",
       label: "Product notifications",
       description:
-        "Something NervesHub flags on a product's Notifications page, such as a halted deployment workflow or a webhook it turned off."
+        "Anything raised on a product's Notifications page, such as a halted deployment workflow or a webhook that was turned off."
     }
   ]
 

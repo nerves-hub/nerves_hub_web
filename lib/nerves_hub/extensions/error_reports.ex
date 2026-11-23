@@ -25,6 +25,7 @@ defmodule NervesHub.Extensions.ErrorReports do
 
   @behaviour NervesHub.Extensions
 
+  alias NervesHub.Branding
   alias NervesHub.DeviceLink.DeviceInfo
   # Aliased rather than used bare: this module is `Extensions.ErrorReports`,
   # and an unqualified `ErrorReports` next to it reads as a self-reference.
@@ -45,7 +46,7 @@ defmodule NervesHub.Extensions.ErrorReports do
   @impl NervesHub.Extensions
   def description() do
     """
-    Report exceptions and errors to NervesHub, grouped into issues you can resolve.
+    Report exceptions and errors to #{Branding.friendly_platform_name()}, grouped into issues you can resolve.
     """
   end
 
@@ -137,7 +138,8 @@ defmodule NervesHub.Extensions.ErrorReports do
       "kind" => "nerves_hub",
       "source" => "manual",
       "fingerprint" => "nerves_hub:dropped_error_reports",
-      "reason" => "NervesHub dropped #{dropped} error reports: a message may carry at most #{@max_reports_per_message}"
+      "reason" =>
+        "#{Branding.friendly_platform_name()} dropped #{dropped} error reports: a message may carry at most #{@max_reports_per_message}"
     })
   end
 end
