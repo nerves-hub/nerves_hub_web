@@ -31,16 +31,25 @@ defmodule NervesHubWeb.Components.AuditLogDescription do
   attr(:scope, Scope, required: true)
   attr(:current, :any, default: nil, doc: "The record whose page this is, named without a link to itself.")
 
+  attr(:text, :string,
+    default: nil,
+    doc: """
+    A piece of the entry to draw in place of all of it, such as its first
+    line: part of its template, or of its description for an entry written
+    without one.
+    """
+  )
+
   def description(%{entry: %{template: nil}} = assigns) do
-    ~H"{@entry.description}"
+    ~H"{@text || @entry.description}"
   end
 
   def description(assigns) do
-    %{entry: entry, references: references, scope: scope, current: current} = assigns
+    %{entry: entry, references: references, scope: scope, current: current, text: text} = assigns
     values = entry.template_values || %{}
 
     parts =
-      for part <- Template.parse(entry.template) do
+      for part <- Template.parse(text || entry.template) do
         case part do
           {:placeholder, name} -> placeholder(Map.get(values, name), name, references, scope, key(current))
           text -> {:text, text}

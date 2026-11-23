@@ -17,7 +17,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
 
   import NervesHubWeb.Components.Fleet, only: [count_noun: 3]
 
-  alias NervesHub.AuditLogs
+  alias NervesHub.AuditLogs.DeploymentGroupTemplates
   alias NervesHub.Devices
   alias NervesHub.ManagedDeployments
   alias NervesHub.ManagedDeployments.DeploymentGroup
@@ -886,7 +886,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
 
     case ManagedDeployments.update_deployment_group(deployment_group, card_params, user) do
       {:ok, %{name: name} = updated} when name != old_name ->
-        :ok = AuditLogs.audit!(user, updated, "User #{user.name} updated deployment group #{updated.name}")
+        :ok = DeploymentGroupTemplates.audit_deployment_updated(user, updated)
 
         # The page's address is the group's name, so it moves with it.
         socket
@@ -895,7 +895,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
         |> noreply()
 
       {:ok, updated} ->
-        :ok = AuditLogs.audit!(user, updated, "User #{user.name} updated deployment group #{updated.name}")
+        :ok = DeploymentGroupTemplates.audit_deployment_updated(user, updated)
 
         socket
         |> assign(:deployment_group, updated)
@@ -943,12 +943,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
 
     case ManagedDeployments.update_deployment_group(deployment_group, %{workflow_definition: nil}, user) do
       {:ok, updated} ->
-        :ok =
-          AuditLogs.audit!(
-            user,
-            updated,
-            "User #{user.name} removed the Workflow Definition from the deployment group #{updated.name}"
-          )
+        :ok = DeploymentGroupTemplates.audit_workflow_removed(user, updated)
 
         socket
         |> assign(deployment_group: updated, confirm: nil)
@@ -994,12 +989,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
 
     case ManagedDeployments.update_deployment_group(deployment_group, params, user) do
       {:ok, updated} ->
-        :ok =
-          AuditLogs.audit!(
-            user,
-            updated,
-            "User #{user.name} uploaded a new Workflow definition to the deployment group #{updated.name}"
-          )
+        :ok = DeploymentGroupTemplates.audit_workflow_uploaded(user, updated)
 
         socket
         |> assign(:deployment_group, updated)

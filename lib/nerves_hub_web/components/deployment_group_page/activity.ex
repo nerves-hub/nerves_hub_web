@@ -8,6 +8,12 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Activity do
   its workflow did something on its own. A description's first line is its
   headline; anything after it is the detail under it.
 
+  An entry written from a `NervesHub.AuditLogs.Template` names its users,
+  devices and deployment groups as they are now, linked when the viewer can
+  open them (`NervesHubWeb.Components.AuditLogDescription`). Its template is
+  split into headline and detail rather than its description, so a value
+  with a line break in it stays where it was put.
+
   The page and page size come from the URL (`page`, read by the LiveView's
   `handle_params/3`), so the page's refresh every few seconds keeps the page
   being read, and a link to page 3 opens on page 3.
@@ -17,6 +23,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Activity do
   alias NervesHub.AuditLogs
   alias NervesHub.Devices.Device
   alias NervesHub.ManagedDeployments.DeploymentGroup
+  alias NervesHubWeb.Components.AuditLogDescription
   alias NervesHubWeb.Components.Pager
 
   # The sizes `Pager.footer/1` offers.
@@ -48,10 +55,12 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Activity do
     %{deployment_group: deployment_group, page: %{page: page, page_size: page_size}} = socket.assigns
 
     {logs, pager} = AuditLogs.logs_for_feed(deployment_group, %{page: page, page_size: page_size})
+    %{org: org, user: user} = socket.assigns.current_scope
 
     assign(socket,
       activity: logs,
       devices: AuditLogs.actor_devices(logs),
+      references: AuditLogs.load_references(logs, org, user),
       audit_pager: Map.from_struct(pager)
     )
   end
@@ -100,14 +109,17 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Activity do
                   <%!-- A description can hold an unbroken token (a firmware
                         UUID), which breaks rather than running under the time. --%>
                   <p class="text-ui/4.5 wrap-break-word text-content-body">
+                    <%!-- A template names the device itself. --%>
                     <.device_identifier
-                      :if={entry.actor_type == Device && @devices[entry.actor_id]}
+                      :if={entry.actor_type == Device && entry.template == nil && @devices[entry.actor_id]}
                       device={@devices[entry.actor_id]}
                       path={~p"/org/#{@current_scope.org}/#{@current_scope.product}/devices/#{@devices[entry.actor_id].identifier}"}
                     />
-                    {headline}
+                    <.entry_text entry={entry} text={headline} references={@references} scope={@current_scope} current={@deployment_group} />
                   </p>
-                  <p :if={detail} class="text-xs/4.5 wrap-break-word text-content-muted">{detail}</p>
+                  <p :if={detail} class="text-xs/4.5 wrap-break-word text-content-muted">
+                    <.entry_text entry={entry} text={detail} references={@references} scope={@current_scope} current={@deployment_group} />
+                  </p>
                 </div>
 
                 <.local_datetime
@@ -135,6 +147,18 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Activity do
   defp actor_icon(Device), do: "lucide-cpu--bold"
   defp actor_icon(_), do: "lucide-user--bold"
 
+  attr(:entry, :map, required: true)
+  attr(:text, :string, required: true)
+  attr(:references, :map, required: true)
+  attr(:scope, :any, required: true)
+  attr(:current, :any, required: true)
+
+  defp entry_text(assigns) do
+    ~H"""
+    <AuditLogDescription.description entry={@entry} text={@text} references={@references} scope={@scope} current={@current} />
+    """
+  end
+
   attr(:device, :map, required: true)
   attr(:path, :string, required: true)
 
@@ -153,6 +177,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Activity do
 
   @doc false
   # An entry's first line, and the rest joined into one line under it, or nil.
+  # Takes a description or a template, whose placeholders hold no spaces.
   # Public so the tests can pin how stored descriptions split.
   @spec split_description(String.t()) :: {String.t(), String.t() | nil}
   def split_description(description) do
@@ -172,7 +197,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Activity do
     |> Enum.chunk_by(&day_key(&1.inserted_at, time_zone))
     |> Enum.map(fn [first | _] = day ->
       {to_local_string(first.inserted_at, time_zone, :medium_date, false),
-       Enum.map(day, &{&1, split_description(&1.description)})}
+       Enum.map(day, &{&1, split_description(&1.template || &1.description)})}
     end)
   end
 

@@ -3,6 +3,8 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show.ActivityTabTest do
 
   alias NervesHub.AuditLogs
   alias NervesHub.AuditLogs.DeploymentGroupTemplates
+  alias NervesHub.ManagedDeployments.DeploymentWorkflowStep
+  alias NervesHub.Repo
   alias NervesHubWeb.Components.DeploymentGroupPage.Activity
 
   setup context do
@@ -20,7 +22,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show.ActivityTabTest do
 
   test "shows an audit log message saying who created the deployment group", %{conn: conn, user: user} do
     conn
-    |> assert_has("[data-activity-entry]", text: "User #{user.name} created deployment group")
+    |> assert_has("[data-activity-entry]", text: "#{user.name} created deployment group")
     |> assert_has("#deployment-group-activity h2", text: "Activity")
   end
 
@@ -52,7 +54,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show.ActivityTabTest do
     end)
   end
 
-  test "names the device a device's entry is about", %{
+  test "names the device an entry written before templates is about", %{
     conn: conn,
     path: path,
     org: org,
@@ -60,7 +62,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show.ActivityTabTest do
     device: device,
     deployment_group: deployment_group
   } do
-    :ok = DeploymentGroupTemplates.audit_deployment_mismatch(device, deployment_group, "mismatched version")
+    :ok = AuditLogs.audit!(device, deployment_group, "Device no longer matches deployment group")
 
     conn
     |> visit(path)
@@ -68,6 +70,65 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show.ActivityTabTest do
       text: device.identifier
     )
     |> assert_has("[data-activity-entry]", text: "Device no longer matches deployment group")
+  end
+
+  describe "an entry written from a template" do
+    test "names the device once, linked, inside the text", %{
+      conn: conn,
+      path: path,
+      org: org,
+      product: product,
+      device: device,
+      deployment_group: deployment_group
+    } do
+      :ok = DeploymentGroupTemplates.audit_deployment_mismatch(device, deployment_group, "mismatched version")
+
+      conn
+      |> visit(path)
+      |> assert_has(
+        "[data-activity-entry] a[data-ref=device][href='/org/#{org.name}/#{product.name}/devices/#{device.identifier}']",
+        text: device.identifier,
+        count: 1
+      )
+      |> assert_has("[data-activity-entry]",
+        text: "Device #{device.identifier} no longer matches deployment group #{deployment_group.name}'s requirements"
+      )
+    end
+
+    test "names the user as they are now, and the group without a link to its own page", %{
+      conn: conn,
+      path: path,
+      user: user,
+      deployment_group: deployment_group
+    } do
+      Repo.update!(Ecto.Changeset.change(user, name: "Renamed"))
+
+      conn
+      |> visit(path)
+      |> assert_has("[data-activity-entry] span[data-ref=user]", text: "Renamed")
+      |> assert_has("[data-activity-entry] span[data-ref=deployment_group]", text: deployment_group.name)
+      |> refute_has("[data-activity-entry] a[data-ref=deployment_group]")
+    end
+
+    test "splits the template into headline and detail", %{
+      conn: conn,
+      path: path,
+      deployment_group: deployment_group
+    } do
+      step = %DeploymentWorkflowStep{number: 2, name: "Sites"}
+      :ok = DeploymentGroupTemplates.audit_workflow_step_failed(deployment_group, step, 3)
+
+      conn
+      |> visit(path)
+      |> within("[data-activity-entry]:first-child", fn session ->
+        session
+        |> assert_has("p",
+          text: "Workflow step 2 (Sites) failed for deployment group #{deployment_group.name}.",
+          exact: true
+        )
+        |> assert_has("p", text: "3 device(s) could not take the update", exact: false)
+      end)
+    end
   end
 
   describe "split_description/1" do
