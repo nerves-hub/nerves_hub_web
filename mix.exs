@@ -145,7 +145,7 @@ defmodule NervesHub.MixProject do
       {:ex_aws, "~> 2.0"},
       {:ex_aws_s3, "~> 2.0"},
       {:ex_json_schema, "~> 0.11.3"},
-      {:finch, "~> 0.24.0"},
+      {:finch, "~> 0.25.0"},
       {:gen_smtp, "~> 1.0"},
       {:gettext, "~> 1.0.2"},
       {:group, "~> 0.3.1"},
