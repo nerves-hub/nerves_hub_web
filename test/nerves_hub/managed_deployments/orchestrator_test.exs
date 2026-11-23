@@ -676,16 +676,10 @@ defmodule NervesHub.ManagedDeployments.OrchestratorTest do
   end
 
   describe "the backup tick" do
-    test "settles a release left reading preparing", %{deployment_group: deployment_group, user: user} = context do
+    test "settles a release left reading preparing, and takes up the group as it now is",
+         %{deployment_group: deployment_group, user: user} = context do
       next_firmware =
         Fixtures.firmware_fixture(context.org_key, context.product, %{version: "1.0.1", dir: context.tmp_dir})
-
-      {:ok, {release, deployment_group}} =
-        ManagedDeployments.create_deployment_release(deployment_group, next_firmware, nil, user, %{})
-
-      # As if the node went down after the release committed, before its
-      # status was recalculated.
-      {1, _} = Repo.update_all(where(DeploymentRelease, id: ^release.id), set: [delta_status: :preparing])
 
       {:ok, pid} =
         start_supervised(%{
@@ -694,9 +688,24 @@ defmodule NervesHub.ManagedDeployments.OrchestratorTest do
           restart: :temporary
         })
 
+      # As if the node saving the release went down after it committed: no
+      # `deployments/update`, and its status never recalculated.
+      {:ok, {release, _}} =
+        ManagedDeployments.create_deployment_release(deployment_group, next_firmware, nil, user, %{}, broadcast: false)
+
+      two_minutes_ago = NaiveDateTime.add(NaiveDateTime.utc_now(), -120)
+
+      {1, _} =
+        Repo.update_all(where(DeploymentRelease, id: ^release.id),
+          set: [delta_status: :preparing, updated_at: two_minutes_ago]
+        )
+
+      refute :sys.get_state(pid).deployment_group.current_deployment_release_id == release.id
+
       send(pid, :trigger_interval)
 
       assert_eventually Repo.reload(release).delta_status == :ready
+      assert_eventually :sys.get_state(pid).deployment_group.current_deployment_release_id == release.id
     end
   end
 

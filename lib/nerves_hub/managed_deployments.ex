@@ -356,8 +356,11 @@ defmodule NervesHub.ManagedDeployments do
         # queued says so in the log and in Sentry, and its devices are sent
         # the whole firmware. Before the broadcast, so the orchestrator sees
         # the releases waiting on the deltas that were queued.
-        _ = maybe_trigger_delta_generation(deployment_group, changeset)
-        {:ok, _releases} = recalculate_release_delta_statuses(deployment_group)
+        _ =
+          queue_deltas_after_commit(deployment_group, changeset, fn ->
+            recalculate_release_delta_statuses(deployment_group)
+          end)
+
         deployment_group = load_current_release(deployment_group, force: true)
 
         :ok = broadcast(deployment_group, "deployments/update")
@@ -420,8 +423,13 @@ defmodule NervesHub.ManagedDeployments do
         # that can't be queued says so in the log and in Sentry, and its devices
         # are sent the whole firmware. Before the broadcast, so the orchestrator
         # sees the release waiting on the deltas that were queued.
-        _ = maybe_trigger_delta_generation(deployment_group, release)
-        {:ok, release} = recalculate_release_delta_status(release)
+        release =
+          deployment_group
+          |> queue_deltas_after_commit(release, fn -> recalculate_release_delta_status(release) end)
+          |> case do
+            {:ok, recalculated} -> recalculated
+            _ -> release
+          end
 
         if Keyword.get(opts, :broadcast, true) do
           :ok = broadcast(deployment_group, "deployments/update")
@@ -504,11 +512,16 @@ defmodule NervesHub.ManagedDeployments do
   group's orchestrator calls this on its two-minute tick. A release whose
   deltas are still building stays `:preparing`, and one no device is headed
   for becomes `:ready`.
+
+  A release changed in the last minute is left for the next tick. It may be
+  one whose deltas are being queued right now, and settling it before they are
+  would find nothing to wait for and send its devices whole firmware.
   """
   @spec settle_delta_statuses(DeploymentGroup.t()) :: {:ok, [DeploymentRelease.t()]}
   def settle_delta_statuses(%DeploymentGroup{id: deployment_group_id}) do
     DeploymentRelease
     |> where([r], r.deployment_group_id == ^deployment_group_id and r.delta_status == :preparing)
+    |> where([r], r.updated_at < ago(1, "minute"))
     |> Repo.all()
     |> recalculate_delta_statuses()
   end
@@ -747,6 +760,34 @@ defmodule NervesHub.ManagedDeployments do
        ), do: trigger_delta_generation_for_deployment_group(deployment_group)
 
   defp maybe_trigger_delta_generation(_deployment_group, _changeset), do: {:ok, :no_deltas_started}
+
+  # Queues the deltas a change asks for, then records what they did with
+  # `recalculate`, once the change has committed. Both run outside the
+  # transaction, so a failure in either can't undo the change, and it mustn't
+  # stop the caller either: the broadcast after this is what tells the group's
+  # orchestrator about the change, and without it the orchestrator keeps
+  # working from the group as it was. So a raise is logged and reported, and
+  # `:error` returned. A release left `:preparing` by it is settled on the
+  # orchestrator's next tick (`settle_delta_statuses/1`), and devices with no
+  # delta are sent the whole firmware.
+  defp queue_deltas_after_commit(deployment_group, subject, recalculate) do
+    _ = maybe_trigger_delta_generation(deployment_group, subject)
+    recalculate.()
+  rescue
+    exception ->
+      Logger.error("Could not queue a deployment group's deltas: " <> Exception.message(exception),
+        deployment_id: deployment_group.id
+      )
+
+      _ =
+        Sentry.capture_exception(exception,
+          stacktrace: __STACKTRACE__,
+          tags: %{deployment_id: deployment_group.id},
+          result: :none
+        )
+
+      :error
+  end
 
   @spec trigger_delta_generation_for_deployment_group(DeploymentGroup.t()) ::
           {:ok, :deltas_started | :deltas_already_generated | :some_deltas_started | :no_delta_support}
@@ -1041,8 +1082,11 @@ defmodule NervesHub.ManagedDeployments do
           # the change. The release is required either way, devices with no
           # delta are sent the whole firmware, and the statuses report whatever
           # the deltas did.
-          _ = maybe_trigger_delta_generation(deployment_group, release)
-          {:ok, _releases} = recalculate_release_delta_statuses(deployment_group)
+          _ =
+            queue_deltas_after_commit(deployment_group, release, fn ->
+              recalculate_release_delta_statuses(deployment_group)
+            end)
+
           :ok = broadcast(deployment_group, "deployments/update")
         end
 

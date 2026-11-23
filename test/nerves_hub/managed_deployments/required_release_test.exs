@@ -3,7 +3,8 @@ defmodule NervesHub.ManagedDeployments.RequiredReleaseTest do
   use Mimic
 
   import Ecto.Changeset, only: [get_field: 2]
-  import Ecto.Query, only: [select: 3]
+  import Ecto.Query, only: [select: 3, where: 2]
+  import ExUnit.CaptureLog
 
   alias NervesHub.AuditLogs
   alias NervesHub.DeviceEvents
@@ -11,6 +12,7 @@ defmodule NervesHub.ManagedDeployments.RequiredReleaseTest do
   alias NervesHub.Devices.Deployments
   alias NervesHub.Devices.Updates
   alias NervesHub.Firmwares
+  alias NervesHub.Firmwares.FirmwareDelta
   alias NervesHub.FirmwareUpdates
   alias NervesHub.Fixtures
   alias NervesHub.ManagedDeployments
@@ -407,26 +409,53 @@ defmodule NervesHub.ManagedDeployments.RequiredReleaseTest do
       assert Repo.reload(release).delta_status == :ready
     end
 
-    test "is settled by settle_delta_statuses/1 when its recalculation never ran", context do
+    test "is saved and announced when queueing its deltas raises", context do
+      {:ok, deployment_group} =
+        ManagedDeployments.update_deployment_group(context.deployment_group, %{delta_updatable: true}, context.user)
+
+      _ = connected_device(context, deployment_group, context.fw1)
+      :ok = Phoenix.PubSub.subscribe(NervesHub.PubSub, "deployment:#{deployment_group.id}")
+
+      stub(Firmwares, :attempt_firmware_delta, fn _source, _target, _recalculate -> raise "queueing failed" end)
+
+      log =
+        capture_log(fn ->
+          assert {:ok, {release, _}} =
+                   ManagedDeployments.create_deployment_release(deployment_group, context.fw2, nil, context.user, %{})
+
+          # Nothing was recalculated, so it waits for the orchestrator's tick.
+          assert Repo.reload(release).delta_status == :preparing
+        end)
+
+      assert log =~ "Could not queue a deployment group's deltas: queueing failed"
+
+      # The orchestrator still hears about the new release.
+      assert_receive %Broadcast{event: "deployments/update"}
+    end
+
+    test "is settled by settle_delta_statuses/1 once it has waited a minute", context do
       {:ok, deployment_group} =
         ManagedDeployments.update_deployment_group(context.deployment_group, %{delta_updatable: true}, context.user)
 
       _ = connected_device(context, deployment_group, context.fw1)
 
-      # The node going down after the release committed, before the deltas
-      # were queued and the status recalculated.
-      stub(Firmwares, :attempt_firmware_delta, fn _source, _target, _recalculate -> raise "node went down" end)
-
-      assert_raise RuntimeError, fn ->
+      {:ok, {release, _}} =
         ManagedDeployments.create_deployment_release(deployment_group, context.fw2, nil, context.user, %{})
-      end
 
-      [stuck | _] = ManagedDeployments.list_deployment_releases(deployment_group)
-      assert stuck.number == 2
-      assert stuck.delta_status == :preparing
+      # As if the node went down after the release committed, before the deltas
+      # were queued and the status recalculated: no delta, and still held.
+      Repo.delete_all(FirmwareDelta)
+      {1, _} = Repo.update_all(where(DeploymentRelease, id: ^release.id), set: [delta_status: :preparing])
+
+      # Just saved, it may be one whose deltas are being queued right now.
+      assert {:ok, []} = ManagedDeployments.settle_delta_statuses(deployment_group)
+      assert Repo.reload(release).delta_status == :preparing
+
+      two_minutes_ago = NaiveDateTime.add(NaiveDateTime.utc_now(), -120)
+      {1, _} = Repo.update_all(where(DeploymentRelease, id: ^release.id), set: [updated_at: two_minutes_ago])
 
       assert {:ok, [settled]} = ManagedDeployments.settle_delta_statuses(deployment_group)
-      assert settled.id == stuck.id
+      assert settled.id == release.id
       assert settled.delta_status == :ready
     end
   end

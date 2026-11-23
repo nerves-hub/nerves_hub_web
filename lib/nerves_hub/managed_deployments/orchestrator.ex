@@ -225,9 +225,19 @@ defmodule NervesHub.ManagedDeployments.Orchestrator do
   end
 
   # A release whose deltas have just turned ready has devices waiting on it.
+  # The group is read again first: a release settled by the backup tick may be
+  # one whose `deployments/update` never went out, because the node saving it
+  # went down first, and the group held here would still name the release
+  # before it.
   @decorate with_span("ManagedDeployments.Distributed.Orchestrator.handle_info:release/delta_status")
   def handle_info(%Broadcast{topic: "deployment:" <> _, event: "release/delta_status"}, state) do
-    maybe_trigger_update(state)
+    {:ok, deployment_group} = ManagedDeployments.get_deployment_group(state.deployment_group)
+
+    maybe_trigger_update(%{
+      state
+      | deployment_group: deployment_group,
+        coordinator: select_coordinator(deployment_group)
+    })
   end
 
   def handle_info(%Broadcast{topic: "deployment:" <> _, event: "deleted"}, state) do
