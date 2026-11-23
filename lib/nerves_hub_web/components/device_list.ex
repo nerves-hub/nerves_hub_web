@@ -22,6 +22,8 @@ defmodule NervesHubWeb.Components.DeviceList do
   alias NervesHubWeb.Components.Sorting
   alias Phoenix.LiveView.JS
 
+  require DeviceSleep
+
   # Not seen for this long, a device needs attention: the cut-off in
   # `DeviceFiltering.reason_dynamic("not_seen")`.
   @not_seen_days DeviceFiltering.not_seen_days()
@@ -643,7 +645,7 @@ defmodule NervesHubWeb.Components.DeviceList do
     """
   end
 
-  def connection(%{status: status} = assigns) when status in ["asleep", "overdue"] do
+  def connection(%{status: status} = assigns) when DeviceSleep.sleeping_status?(status) do
     assigns = assign(assigns, :summary, sleep_summary(status, assigns.device.latest_connection))
 
     ~H"""

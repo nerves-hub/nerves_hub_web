@@ -16,12 +16,20 @@ defmodule NervesHubWeb.Components.DeviceSleep do
   alias NervesHub.Helpers.RelativeTime
   alias NervesHubWeb.Components.DateTimes
 
+  @sleeping_statuses ["asleep", "overdue"]
+
+  @doc """
+  Whether `status`, from `list_status/2`, is one shown as sleeping rather
+  than offline. Usable in guards; `require` this module first.
+  """
+  defguard sleeping_status?(status) when status in @sleeping_statuses
+
   @doc """
   The two z's that stand in for a sleeping device's status dot. The
   `sleep-mark` utility sizes them; add `sleep-mark-lg` for the device page
   header.
   """
-  attr(:status, :string, required: true, values: ["asleep", "overdue"])
+  attr(:status, :string, required: true, values: @sleeping_statuses)
   attr(:title, :string, required: true, doc: "what the mark says, for its tooltip and screen readers")
   attr(:class, :any, default: nil)
   attr(:rest, :global)
@@ -43,7 +51,7 @@ defmodule NervesHubWeb.Components.DeviceSleep do
   attr(:connection, :any, required: true, doc: "the device's latest `DeviceConnection`, or nil")
   attr(:class, :any, default: nil)
 
-  def status_mark(%{status: status} = assigns) when status in ["asleep", "overdue"] do
+  def status_mark(%{status: status} = assigns) when sleeping_status?(status) do
     ~H"""
     <.sleep_mark status={@status} title={mark_title(@status, @connection)} class={@class} />
     """
@@ -146,7 +154,7 @@ defmodule NervesHubWeb.Components.DeviceSleep do
 
   defp mark_title("online", _connection), do: "Online"
 
-  defp mark_title(status, connection) when status in ["asleep", "overdue"] do
+  defp mark_title(status, connection) when sleeping_status?(status) do
     describe(connection) || "Offline"
   end
 

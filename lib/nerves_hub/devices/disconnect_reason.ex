@@ -22,9 +22,8 @@ defmodule NervesHub.Devices.DisconnectReason do
   `nil` means the connection closed without NervesHub knowing why.
 
   A reason the device announced is written when it announces it, before the
-  socket closes, and only `:key_revoked` replaces it afterwards (see
-  `overrides_announced?/1`): see
-  `NervesHub.Devices.Connections.device_leaving/3`.
+  socket closes (see `NervesHub.Devices.Connections.device_leaving/3`), and
+  only `:key_revoked` replaces it afterwards (see `overrides_announced?/1`).
 
   Stored as a string rather than a Postgres enum, so adding a reason needs no
   migration. Loading is lenient: a string this version does not know loads as
@@ -42,6 +41,8 @@ defmodule NervesHub.Devices.DisconnectReason do
 
   @type t() :: planned() | :stale_connection | :duplicate_connection
 
+  @type overriding() :: :key_revoked
+
   @values [
     :light_sleep,
     :deep_sleep,
@@ -58,6 +59,8 @@ defmodule NervesHub.Devices.DisconnectReason do
   # Disconnects that were meant to happen, by the device or by an operator or
   # the platform, rather than the connection failing.
   @planned @sleep ++ [:rebooting, :reconnect_requested, :key_revoked, :platform_update]
+
+  @overriding [:key_revoked]
 
   @by_string Map.new(@values, &{Atom.to_string(&1), &1})
 
@@ -89,7 +92,11 @@ defmodule NervesHub.Devices.DisconnectReason do
   is what replaces that connection.
   """
   @spec overrides_announced?(t() | nil) :: boolean()
-  def overrides_announced?(reason), do: reason == :key_revoked
+  def overrides_announced?(reason), do: reason in @overriding
+
+  @doc "The reasons `overrides_announced?/1` is true for."
+  @spec overriding_values() :: nonempty_list(overriding())
+  def overriding_values(), do: @overriding
 
   @doc "Whether `reason` means the device went to sleep."
   @spec sleep?(t() | nil) :: boolean()

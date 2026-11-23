@@ -26,6 +26,8 @@ defmodule NervesHubWeb.Components.DevicePeek do
   alias Phoenix.LiveView.AsyncResult
   alias Phoenix.LiveView.JS
 
+  require DeviceSleep
+
   # The metrics shown beside an unhealthy device's reasons, as
   # `{key, label, unit}`, in the order shown. Others stay on the Health tab.
   @metrics [
@@ -107,7 +109,7 @@ defmodule NervesHubWeb.Components.DevicePeek do
       assigns
       |> assign(:reason, reason(assigns.device, assigns.status, assigns.progress))
       |> assign(:online?, assigns.status == "online")
-      |> assign(:sleeping?, assigns.status in ["asleep", "overdue"])
+      |> assign(:sleeping?, DeviceSleep.sleeping_status?(assigns.status))
       |> assign(:path, ~p"/org/#{assigns.current_scope.org}/#{assigns.current_scope.product}/devices/#{assigns.device}")
 
     ~H"""

@@ -23,6 +23,8 @@ defmodule NervesHubWeb.Components.DevicePage.Header do
   alias NervesHubWeb.Live.Devices.Show
   alias Phoenix.LiveView.JS
 
+  require DeviceSleep
+
   attr(:device, Device, required: true)
   attr(:device_connection, :any, required: true)
   attr(:org, :any, required: true)
@@ -695,14 +697,14 @@ defmodule NervesHubWeb.Components.DevicePage.Header do
 
   defp connection_status(%{status: status} = connection, now) when status in [:connected, :connecting, :disconnected] do
     case DeviceSleep.list_status(connection, now || DateTime.utc_now()) do
-      sleep when sleep in ["asleep", "overdue"] -> sleep
+      sleep when DeviceSleep.sleeping_status?(sleep) -> sleep
       _ -> to_string(status)
     end
   end
 
   defp connection_status(_connection, _now), do: "unknown"
 
-  defp sleeping?(status), do: status in ["asleep", "overdue"]
+  defp sleeping?(status), do: DeviceSleep.sleeping_status?(status)
 
   defp last_seen(connection), do: connection.last_seen_at || connection.disconnected_at
 

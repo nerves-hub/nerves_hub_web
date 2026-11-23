@@ -219,6 +219,11 @@ defmodule NervesHub.Devices.Connections do
   socket at all, leaving it to time out or to the stale sweep. Neither of
   those replaces a reason already written.
 
+  The message can reach the channel after the socket has closed. A reason
+  that overrides the device's (`DisconnectReason.overrides_announced?/1`) is
+  kept then, so a revoked key isn't replaced by a sleep the device announced
+  before it learned of it.
+
   The connection stays `:connected` until it closes, so whatever the device
   does in the meantime still reaches it. Listeners hear a heartbeat, which is
   what has the device page read the connection again.
@@ -227,6 +232,10 @@ defmodule NervesHub.Devices.Connections do
   def device_leaving(ref_id, reason, expected_wake_at \\ nil) do
     DeviceConnection
     |> where(id: ^ref_id)
+    |> where(
+      [dc],
+      is_nil(dc.disconnected_reason) or dc.disconnected_reason not in ^DisconnectReason.overriding_values()
+    )
     |> select([dc], dc)
     |> Repo.update_all(
       set: [
@@ -377,8 +386,7 @@ defmodule NervesHub.Devices.Connections do
           disconnected_at: ^now,
           # A device that said it was going to sleep, then dropped its radio
           # without closing the socket, went to sleep rather than stale.
-          disconnected_reason:
-            fragment("coalesce(?, ?)", dc.disconnected_reason, type(^:stale_connection, DisconnectReason))
+          disconnected_reason: coalesce(dc.disconnected_reason, type(^:stale_connection, DisconnectReason))
         ]
       )
       |> Repo.update_all([], timeout: 60_000)
@@ -472,8 +480,8 @@ defmodule NervesHub.Devices.Connections do
   is enabled first.
 
   Planned disconnects (`DisconnectReason.planned_values/0`: sleep, reboots,
-  reconnects someone asked for, server restarts) are not counted, since the
-  metric is about connectivity.
+  reconnects someone asked for, revoked keys, server restarts) are not
+  counted, since the metric is about connectivity.
   """
   @spec disconnection_counts(pos_integer(), pos_integer(), pos_integer(), {pos_integer(), pos_integer()}) ::
           {non_neg_integer(), non_neg_integer()}
@@ -502,7 +510,8 @@ defmodule NervesHub.Devices.Connections do
   1 warning, 2 unhealthy.
 
   Judged as `NervesHub.Devices.HealthEvaluation` judges one device: a
-  level engages when the count over its period reaches its threshold. Every
+  level engages when the count over its period reaches its threshold, and
+  planned disconnects aren't counted (see `disconnection_counts/4`). Every
   other device is healthy on this metric, so it's left out. For previewing a
   change to a health profile before it's saved. One query; callers are
   expected to check that analytics is enabled first.
@@ -524,6 +533,7 @@ defmodule NervesHub.Devices.Connections do
     DeviceConnectionHistory
     |> where([dc], dc.org_id == ^org_id and dc.product_id == ^product_id)
     |> where([dc], not is_nil(dc.disconnected_at))
+    |> where([dc], dc.disconnected_reason not in ^planned_reasons())
     |> where([dc], dc.disconnected_at >= ^widest)
     |> group_by([dc], dc.device_id)
     |> select(

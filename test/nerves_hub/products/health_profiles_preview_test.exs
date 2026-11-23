@@ -120,6 +120,24 @@ defmodule NervesHub.Products.HealthProfilesPreviewTest do
 
       assert Connections.fleet_disconnection_levels(org.id, product.id, disconnects) == %{flaky.id => 1}
     end
+
+    test "leaves out planned disconnects, as the evaluation does", %{
+      user: user,
+      org: org,
+      product: product,
+      firmware: firmware
+    } do
+      sleeper = Fixtures.device_fixture(org, product, firmware)
+      insert_disconnects(sleeper, 4, :deep_sleep)
+
+      {profile, profiles} = default_profile(product)
+      disconnects = %{metric(:gte, 3, 10) | key: "disconnects", built_in: true}
+
+      assert HealthProfiles.preview_counts(product, user, profile, profiles, [disconnects]) ==
+               %{healthy: 1, warning: 0, unhealthy: 0, unknown: 0}
+
+      assert Connections.fleet_disconnection_levels(org.id, product.id, disconnects) == %{}
+    end
   end
 
   test "is nil without analytics", %{user: user, product: product} do
@@ -163,7 +181,7 @@ defmodule NervesHub.Products.HealthProfilesPreviewTest do
 
   # Each row gets a distinct `established_at`: the ReplacingMergeTree dedupes
   # on (org_id, product_id, device_id, established_at).
-  defp insert_disconnects(device, count) do
+  defp insert_disconnects(device, count, reason \\ nil) do
     base = DateTime.add(DateTime.utc_now(), -5, :minute)
 
     for offset <- 1..count do
@@ -175,7 +193,8 @@ defmodule NervesHub.Products.HealthProfilesPreviewTest do
           device_id: device.id,
           established_at: DateTime.add(base, -offset, :second),
           last_seen_at: base,
-          disconnected_at: base
+          disconnected_at: base,
+          disconnected_reason: reason
         }
         |> DeviceConnectionHistory.from_device_connection_changeset()
         |> AnalyticsRepo.insert()

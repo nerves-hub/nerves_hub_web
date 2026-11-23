@@ -38,7 +38,7 @@ defmodule NervesHubWeb.API.Schemas.DeviceSchemas do
             state: %Schema{
               type: :string,
               description:
-                "going_to_sleep: it said so and its connection has not closed yet. asleep: not yet due back, or gave no time. overdue: later than it said, beyond a margin of two minutes or a tenth of how long it slept, whichever is longer.",
+                "going_to_sleep: it said so and its connection has not closed yet. asleep: not yet past the overdue margin, or gave no time. overdue: later than it said by more than two minutes or a tenth of how long it slept, whichever is longer.",
               enum: ["going_to_sleep", "asleep", "overdue"]
             },
             mode: %Schema{type: :string, enum: ["deep", "light"]},
