@@ -395,7 +395,7 @@
                     <span data-icon="check" class="lucide-check hidden size-3.5 text-success" aria-hidden="true"></span> Copy UUID
                   </button>
                   <.link
-                    :if={authorized?(:"deployment_group:create", @current_scope)}
+                    :if={authorized?(:"deployment_group:create", @current_scope) && authorized?(:"deployment_group:release:manage", @current_scope)}
                     role="menuitem"
                     navigate={~p"/org/#{@current_scope.org}/#{@product}/deployment_groups/new?firmware=#{firmware.uuid}"}
                     class="flex h-8 items-center gap-2 rounded px-2 text-ui/4 text-content-body hover:bg-surface-muted"

@@ -52,9 +52,35 @@ defmodule NervesHub.ManagedDeployments.DeploymentRelease do
     timestamps()
   end
 
+  # What a release takes from params when it's made. Its firmware and archive
+  # are given to `new_changeset/5` already found, and with the description and
+  # notes they're fixed from then on.
+  @create_fields [:description, :notes, :required, :connecting_code, :connecting_code_mode]
+
+  # What can still change once it's made, through `edit_changeset/2`.
+  @edit_fields [:required, :connecting_code, :connecting_code_mode]
+
+  @doc """
+  A changeset for a new release of `deployment_group`, numbered after its last.
+
+  `firmware` and `archive` come already loaded. From `params` it takes the
+  description, notes, whether it's required, and the connecting code and where
+  that runs, and ignores anything else there. It's refused if the firmware and
+  archive are the same as the current release's.
+
+  Inserting it doesn't make it the group's current release:
+  `NervesHub.ManagedDeployments.create_deployment_release/6` does that. The
+  Releases tab also builds one only to check a form's input.
+
+  In a group that's on with delta updates on, it starts `:preparing`, as
+  `hold_for_deltas/2` says.
+  """
+  @spec new_changeset(DeploymentGroup.t(), Firmware.t() | nil, Archive.t() | nil, map(), User.t() | ApiKey.t() | nil) ::
+          Ecto.Changeset.t()
   def new_changeset(deployment_group, firmware \\ nil, archive \\ nil, params \\ %{}, created_by \\ nil) do
     change(%__MODULE__{})
-    |> cast(params, [:description, :notes, :required, :connecting_code, :connecting_code_mode])
+    |> cast(params, @create_fields)
+    |> hold_for_deltas(deployment_group)
     |> put_assoc(:deployment_group, deployment_group)
     |> put_assoc(:firmware, firmware)
     |> put_assoc(:archive, archive)
@@ -63,7 +89,8 @@ defmodule NervesHub.ManagedDeployments.DeploymentRelease do
     |> put_change(:number, 1)
     |> validate_length(:description, max: 100)
     |> validate_length(:notes, max: 1_000)
-    |> validate_required([:firmware])
+    # A `null` in a request is cast over the defaults, and the columns refuse it.
+    |> validate_required([:firmware, :required, :connecting_code_mode])
     |> validate_firmware(deployment_group)
     |> validate_differs_from_current_release(deployment_group)
     |> validate_created_by_api_key(deployment_group.product_id)
@@ -90,6 +117,32 @@ defmodule NervesHub.ManagedDeployments.DeploymentRelease do
   end
 
   @doc """
+  Sets `delta_status` to `:preparing` when saving `changeset` will queue deltas.
+
+  That is a new release, or one just marked required, in a group that's on with
+  delta updates on. Any other changeset is returned unchanged.
+
+  The deltas are queued after the release commits, since queueing runs a
+  transaction of its own. Until then nothing has been queued for the release to
+  wait on, and a release reading `:ready` would be sent as whole firmware. The
+  recalculation that follows the queueing settles it. If that never runs, the
+  deployment group's orchestrator settles it on its next tick
+  (`NervesHub.ManagedDeployments.settle_delta_statuses/1`).
+  """
+  @spec hold_for_deltas(Ecto.Changeset.t(), DeploymentGroup.t()) :: Ecto.Changeset.t()
+  def hold_for_deltas(changeset, %DeploymentGroup{is_active: true, delta_updatable: true}) do
+    new? = is_nil(changeset.data.id)
+
+    if new? or get_change(changeset, :required) == true do
+      put_change(changeset, :delta_status, :preparing)
+    else
+      changeset
+    end
+  end
+
+  def hold_for_deltas(changeset, _deployment_group), do: changeset
+
+  @doc """
   Record whether the deltas this release's devices need are ready.
   """
   @spec delta_status_changeset(t(), delta_status()) :: Ecto.Changeset.t()
@@ -109,7 +162,7 @@ defmodule NervesHub.ManagedDeployments.DeploymentRelease do
   @spec edit_changeset(t(), map()) :: Ecto.Changeset.t()
   def edit_changeset(%__MODULE__{} = release, params) do
     release
-    |> cast(params, [:required, :connecting_code, :connecting_code_mode])
+    |> cast(params, @edit_fields)
     |> validate_required([:required, :connecting_code_mode])
   end
 

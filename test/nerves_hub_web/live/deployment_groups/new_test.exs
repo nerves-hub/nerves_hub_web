@@ -4,6 +4,7 @@ defmodule NervesHubWeb.Live.DelploymentGroups.NewTest do
 
   import Ecto.Query, only: [from: 2]
 
+  alias NervesHub.Accounts.OrgRoles
   alias NervesHub.AuditLogs
   alias NervesHub.Firmwares.Firmware
   alias NervesHub.Fixtures
@@ -90,6 +91,64 @@ defmodule NervesHubWeb.Live.DelploymentGroups.NewTest do
       conn
       |> visit(~p"/org/#{org}/#{product}/deployment_groups/new")
       |> assert_has("span", text: "Please upload your first firmware before creating a deployment group.")
+    end
+  end
+
+  describe "a role that can create groups but not manage releases" do
+    setup %{org: org, user: user} do
+      role = Fixtures.org_role_fixture(org, %{permissions: ["deployment_group:create"]})
+      {:ok, _} = NervesHub.Accounts.change_org_user_role(NervesHub.Accounts.get_org_user!(org, user.id), role)
+      %{role: role}
+    end
+
+    test "isn't offered New, and can't create one by sending the event", %{
+      conn: conn,
+      org: org,
+      product: product,
+      fixture: fixture
+    } do
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/deployment_groups")
+      |> refute_has("a", text: "New")
+
+      session = visit(conn, "/org/#{org.name}/#{product.name}/deployment_groups/new")
+      Process.flag(:trap_exit, true)
+
+      params = %{
+        "name" => "Sneaky",
+        "platform" => fixture.firmware.platform,
+        "architecture" => fixture.firmware.architecture,
+        "firmware" => fixture.firmware.id,
+        "conditions" => %{"tags" => "prod", "version" => ""}
+      }
+
+      assert {{%NervesHubWeb.UnauthorizedError{}, _}, _} =
+               catch_exit(render_submit(session.view, "create-deployment-group", %{"deployment_group" => params}))
+
+      refute Repo.get_by(DeploymentGroup, name: "Sneaky")
+    end
+
+    test "can create one once the role can manage releases too", %{
+      conn: conn,
+      org: org,
+      product: product,
+      role: role,
+      fixture: fixture
+    } do
+      {:ok, _} =
+        OrgRoles.update_org_role(role, %{
+          "permissions" => ["deployment_group:create", "deployment_group:release:manage"]
+        })
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/deployment_groups/new")
+      |> select("Platform", option: fixture.firmware.platform)
+      |> select("Architecture", option: fixture.firmware.architecture)
+      |> fill_in("Name", with: "Allowed")
+      |> fill_in("Tag(s) distributed to", with: "prod")
+      |> select("Firmware", option: fixture.firmware.uuid, exact_option: false)
+      |> click_button("Save changes")
+      |> assert_has("div", text: "Deployment Group created")
     end
   end
 

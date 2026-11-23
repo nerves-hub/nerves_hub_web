@@ -83,6 +83,14 @@ defmodule NervesHub.ManagedDeployments.Orchestrator do
     {:ok, state}
   end
 
+  # A release left reading `:preparing` holds its devices back, so the backup
+  # tick settles any whose recalculation never ran. One that changes is
+  # broadcast as `release/delta_status`, which triggers an update here.
+  defp settle_delta_statuses(state) do
+    {:ok, _releases} = ManagedDeployments.settle_delta_statuses(state.deployment_group)
+    :ok
+  end
+
   def terminate(reason, state) do
     Logger.info("Orchestrator terminated",
       deployment_id: state.deployment_group.id,
@@ -153,6 +161,7 @@ defmodule NervesHub.ManagedDeployments.Orchestrator do
 
   # if we don't have a `timer_ref` we can run `trigger_update`
   def handle_info(:trigger_interval, %State{timer_ref: nil} = state) do
+    :ok = settle_delta_statuses(state)
     deployment_group = trigger_update(state)
 
     {:noreply, %{state | deployment_group: deployment_group}}
@@ -160,6 +169,7 @@ defmodule NervesHub.ManagedDeployments.Orchestrator do
 
   # we can ignore `trigger_interval` since we have a `timer_ref`
   def handle_info(:trigger_interval, state) do
+    :ok = settle_delta_statuses(state)
     {:noreply, state}
   end
 
@@ -215,9 +225,19 @@ defmodule NervesHub.ManagedDeployments.Orchestrator do
   end
 
   # A release whose deltas have just turned ready has devices waiting on it.
+  # The group is read again first: a release settled by the backup tick may be
+  # one whose `deployments/update` never went out, because the node saving it
+  # went down first, and the group held here would still name the release
+  # before it.
   @decorate with_span("ManagedDeployments.Distributed.Orchestrator.handle_info:release/delta_status")
   def handle_info(%Broadcast{topic: "deployment:" <> _, event: "release/delta_status"}, state) do
-    maybe_trigger_update(state)
+    {:ok, deployment_group} = ManagedDeployments.get_deployment_group(state.deployment_group)
+
+    maybe_trigger_update(%{
+      state
+      | deployment_group: deployment_group,
+        coordinator: select_coordinator(deployment_group)
+    })
   end
 
   def handle_info(%Broadcast{topic: "deployment:" <> _, event: "deleted"}, state) do

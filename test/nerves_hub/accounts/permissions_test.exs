@@ -20,6 +20,7 @@ defmodule NervesHub.Accounts.PermissionsTest do
     "chat_webhook:update": :manage,
     "deployment_group:create": :manage,
     "deployment_group:delete": :manage,
+    "deployment_group:release:manage": :manage,
     "deployment_group:toggle": :manage,
     "deployment_group:toggle_delta_updates": :manage,
     "deployment_group:update": :manage,

@@ -33,7 +33,7 @@
           </form>
 
           <.button
-            :if={authorized?(:"deployment_group:update", @current_scope)}
+            :if={authorized?(:"deployment_group:release:manage", @current_scope)}
             id="new-release-button"
             style="primary"
             type="link"

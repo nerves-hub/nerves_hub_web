@@ -3,6 +3,8 @@ defmodule NervesHub.ManagedDeployments.OrchestratorTest do
   use Mimic
   use AssertEventually, timeout: 500, interval: 50
 
+  import Ecto.Query, only: [where: 2]
+
   alias NervesHub.DeploymentOrchestratorEvents
   alias NervesHub.DeviceEvents
   alias NervesHub.DeviceLink.DeviceInfo
@@ -19,6 +21,7 @@ defmodule NervesHub.ManagedDeployments.OrchestratorTest do
   alias NervesHub.FirmwareUpdates
   alias NervesHub.Fixtures
   alias NervesHub.ManagedDeployments
+  alias NervesHub.ManagedDeployments.DeploymentRelease
   alias NervesHub.ManagedDeployments.Orchestrator
   alias NervesHub.ManagedDeployments.Orchestrator.DefaultCoordinator
   alias NervesHub.Repo
@@ -670,6 +673,40 @@ defmodule NervesHub.ManagedDeployments.OrchestratorTest do
     assert Updates.available_for_update(deployment_group, 10) == []
 
     assert device.id in Enum.map(Devices.get_devices_by_org_id_and_product_id(org.id, product.id), & &1.id)
+  end
+
+  describe "the backup tick" do
+    test "settles a release left reading preparing, and takes up the group as it now is",
+         %{deployment_group: deployment_group, user: user} = context do
+      next_firmware =
+        Fixtures.firmware_fixture(context.org_key, context.product, %{version: "1.0.1", dir: context.tmp_dir})
+
+      {:ok, pid} =
+        start_supervised(%{
+          id: "Orchestrator##{deployment_group.id}",
+          start: {Orchestrator, :start_link, [deployment_group, false]},
+          restart: :temporary
+        })
+
+      # As if the node saving the release went down after it committed: no
+      # `deployments/update`, and its status never recalculated.
+      {:ok, {release, _}} =
+        ManagedDeployments.create_deployment_release(deployment_group, next_firmware, nil, user, %{}, broadcast: false)
+
+      two_minutes_ago = NaiveDateTime.add(NaiveDateTime.utc_now(), -120)
+
+      {1, _} =
+        Repo.update_all(where(DeploymentRelease, id: ^release.id),
+          set: [delta_status: :preparing, updated_at: two_minutes_ago]
+        )
+
+      refute :sys.get_state(pid).deployment_group.current_deployment_release_id == release.id
+
+      send(pid, :trigger_interval)
+
+      assert_eventually Repo.reload(release).delta_status == :ready
+      assert_eventually :sys.get_state(pid).deployment_group.current_deployment_release_id == release.id
+    end
   end
 
   describe "trigger_update/1" do

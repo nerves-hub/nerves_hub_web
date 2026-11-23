@@ -8,7 +8,7 @@ defmodule NervesHubWeb.Integrations.Slack.WorkflowSteps do
   NervesHub user the Slack user linked, checked as the device buttons are
   (`NervesHubWeb.Integrations.Slack.Actions.authorize_in/6`): the deployment group's
   organization is connected to the workspace the click came from, and the
-  user's role there has `deployment_group:update`, at that moment. The
+  user's role there has `deployment_group:release:manage`, at that moment. The
   button carries only the step's id.
 
   A message can be clicked long after it was posted, so the step is read
@@ -90,7 +90,7 @@ defmodule NervesHubWeb.Integrations.Slack.WorkflowSteps do
              click.team_id,
              user,
              deployment_group.org,
-             :"deployment_group:update",
+             :"deployment_group:release:manage",
              "#{verb(action)} deployment workflow steps",
              "that deployment group"
            ),

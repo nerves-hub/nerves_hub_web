@@ -144,7 +144,7 @@
               <div :if={@releases == []} id="no-releases" class="flex flex-wrap items-center gap-x-3 gap-y-1 px-5 py-2.5 text-ui text-content-muted">
                 No deployment group releases it.
                 <.link
-                  :if={!Firmware.deleted?(@firmware) && authorized?(:"deployment_group:create", @current_scope)}
+                  :if={!Firmware.deleted?(@firmware) && authorized?(:"deployment_group:create", @current_scope) && authorized?(:"deployment_group:release:manage", @current_scope)}
                   navigate={~p"/org/#{@current_scope.org}/#{@product}/deployment_groups/new?firmware=#{@firmware.uuid}"}
                   class="font-medium text-notice-content hover:underline"
                 >
@@ -200,7 +200,7 @@
                   <.status_dot class={["size-1.5", delta_status(delta.status).dot]} />
                   <span class={["text-ui", delta_status(delta.status).text]}>{delta_status(delta.status).label}</span>
                   <button
-                    :if={delta.status in [:failed, :timed_out] && authorized?(:"deployment_group:update", @current_scope)}
+                    :if={delta.status in [:failed, :timed_out] && authorized?(:"deployment_group:release:manage", @current_scope)}
                     type="button"
                     phx-click="retry-delta"
                     phx-value-id={delta.id}

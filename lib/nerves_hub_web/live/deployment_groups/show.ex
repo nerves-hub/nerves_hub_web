@@ -78,7 +78,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
     socket
     |> assign(
       :open_new_release,
-      params["new"] == "release" and authorized?(:"deployment_group:update", socket.assigns.current_scope)
+      params["new"] == "release" and authorized?(:"deployment_group:release:manage", socket.assigns.current_scope)
     )
     |> assign(:activity_page, ActivityTab.page_params(params))
     |> assign(:stats_release, params["release"])
@@ -109,14 +109,14 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
 
   # Approving and skipping send firmware to more devices, so both ask first.
   # Opening the dialog checks the same permission as acting on it.
-  @decorate requires_permission(:"deployment_group:update")
+  @decorate requires_permission(:"deployment_group:release:manage")
   def handle_event("approve", _params, socket) do
     socket
     |> ask(:approve, socket.assigns.entry.awaiting_step)
     |> noreply()
   end
 
-  @decorate requires_permission(:"deployment_group:update")
+  @decorate requires_permission(:"deployment_group:release:manage")
   def handle_event("skip", _params, socket) do
     socket
     |> ask(:skip, socket.assigns.entry.failed_step)
@@ -130,15 +130,15 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
     |> noreply()
   end
 
-  @decorate requires_permission(:"deployment_group:update")
+  @decorate requires_permission(:"deployment_group:release:manage")
   def handle_event("confirm-approve", _params, socket), do: act(socket, :approve)
 
-  @decorate requires_permission(:"deployment_group:update")
+  @decorate requires_permission(:"deployment_group:release:manage")
   def handle_event("confirm-skip", _params, socket), do: act(socket, :skip)
 
   # Retrying only offers the update again to the devices that failed it, so
   # it runs straight away.
-  @decorate requires_permission(:"deployment_group:update")
+  @decorate requires_permission(:"deployment_group:release:manage")
   def handle_event("retry", _params, socket), do: act(socket, :retry)
 
   @decorate requires_permission(:"deployment_group:delete")
