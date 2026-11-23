@@ -8,7 +8,7 @@
     </div>
 
     <.button
-      :if={authorized?(:"deployment_group:create", @current_scope)}
+      :if={authorized?(:"deployment_group:create", @current_scope) && authorized?(:"deployment_group:release:manage", @current_scope)}
       style="primary"
       type="link"
       navigate={~p"/org/#{@current_scope.org}/#{@current_scope.product}/deployment_groups/new"}
@@ -60,7 +60,7 @@
         </ol>
         <div class="flex items-center gap-2">
           <.button
-            :if={authorized?(:"deployment_group:create", @current_scope)}
+            :if={authorized?(:"deployment_group:create", @current_scope) && authorized?(:"deployment_group:release:manage", @current_scope)}
             style="primary"
             type="link"
             navigate={~p"/org/#{@current_scope.org}/#{@current_scope.product}/deployment_groups/new"}

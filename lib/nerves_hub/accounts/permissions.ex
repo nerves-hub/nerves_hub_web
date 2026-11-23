@@ -137,7 +137,9 @@ defmodule NervesHub.Accounts.Permissions do
      ]},
     {"Deployment groups",
      [
-       {:"deployment_group:create", :manage, :optional, "Create deployment groups"},
+       # A group starts with a release, so creating one takes
+       # `deployment_group:release:manage` as well.
+       {:"deployment_group:create", :manage, :optional, "Create deployment groups, along with managing releases"},
        {:"deployment_group:update", :manage, :optional, "Edit deployment group settings"},
        # A release is what sends firmware to the group's devices, so making and
        # moving one on is kept apart from changing how the group is set up.

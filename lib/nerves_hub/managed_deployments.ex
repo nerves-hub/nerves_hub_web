@@ -402,9 +402,7 @@ defmodule NervesHub.ManagedDeployments do
            :ok <- WorkflowEvents.release_replaced(previous_release_id, release),
            {:ok, deployment_group} = recalculate_current_release(deployment_group),
            deployment_group = load_current_release(deployment_group, force: true),
-           :ok <- maybe_audit_new_deployment_release(actor, deployment_group, opts),
-           {:ok, _} <- maybe_trigger_delta_generation(deployment_group, release),
-           {:ok, release} <- recalculate_release_delta_status(release) do
+           :ok <- maybe_audit_new_deployment_release(actor, deployment_group, opts) do
         {:ok, {release, deployment_group}}
       else
         {:error, _} = error -> error
@@ -412,7 +410,15 @@ defmodule NervesHub.ManagedDeployments do
       end
     end)
     |> case do
-      {:ok, {_release, deployment_group}} = result ->
+      {:ok, {release, deployment_group}} ->
+        # After the commit, because queueing a delta runs a transaction of its
+        # own, and one that fails would take the release down with it. A delta
+        # that can't be queued says so in the log and in Sentry, and its devices
+        # are sent the whole firmware. Before the broadcast, so the orchestrator
+        # sees the release waiting on the deltas that were queued.
+        _ = maybe_trigger_delta_generation(deployment_group, release)
+        {:ok, release} = recalculate_release_delta_status(release)
+
         if Keyword.get(opts, :broadcast, true) do
           :ok = broadcast(deployment_group, "deployments/update")
         end
@@ -424,7 +430,7 @@ defmodule NervesHub.ManagedDeployments do
             broadcast(deployment_group, "archives/updated", %{archive_id: archive.id})
           end
 
-        result
+        {:ok, {release, deployment_group}}
 
       error ->
         error
@@ -995,15 +1001,6 @@ defmodule NervesHub.ManagedDeployments do
            {:ok, deployment_group} <- get_deployment_group(release.deployment_group_id) do
         if required_changed? do
           :ok = DeploymentGroupTemplates.audit_release_required_changed(actor, deployment_group, release)
-
-          # Queueing the deltas can fail on its own, and says so in the log and in
-          # Sentry. The release is still required either way, devices that have no
-          # delta are sent the whole firmware, and the group's status below reports
-          # whatever the deltas did.
-          _ = maybe_trigger_delta_generation(deployment_group, release)
-
-          {:ok, _releases} = recalculate_release_delta_statuses(deployment_group)
-          :ok
         end
 
         if code_changed? do
@@ -1015,7 +1012,17 @@ defmodule NervesHub.ManagedDeployments do
     end)
     |> case do
       {:ok, {release, deployment_group}} ->
-        if required_changed?, do: :ok = broadcast(deployment_group, "deployments/update")
+        if required_changed? do
+          # After the commit, as in `create_deployment_release/6`: queueing a
+          # delta runs a transaction of its own, and one that fails would undo
+          # the change. The release is required either way, devices with no
+          # delta are sent the whole firmware, and the statuses report whatever
+          # the deltas did.
+          _ = maybe_trigger_delta_generation(deployment_group, release)
+          {:ok, _releases} = recalculate_release_delta_statuses(deployment_group)
+          :ok = broadcast(deployment_group, "deployments/update")
+        end
+
         {:ok, release}
 
       {:error, _} = error ->

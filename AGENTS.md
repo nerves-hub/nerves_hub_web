@@ -393,8 +393,11 @@ when adding or removing one.
   Anything done to a release (creating or editing one, approving, skipping or
   retrying its workflow step, retrying or deleting its deltas), on these pages,
   the firmware and archive pages, Slack or the API, needs
-  `deployment_group:release:manage`. `deployment_group:update` is the group's
-  own settings.
+  `deployment_group:release:manage`, and so does creating a group, which starts
+  with a release. `deployment_group:update` is the group's own settings.
+  Queueing a release's deltas runs a transaction of its own, so it happens after
+  the release's commits: a failed nested `Repo.transact` rolls back the outer
+  one too, even when its result is ignored.
   A product's settings are three LiveViews, General (`live/product/settings.ex`),
   Device health (`live/product/health_profiles.ex`) and API keys
   (`live/product/api_keys.ex`), sharing their title and tabs from

@@ -19,9 +19,18 @@ defmodule NervesHubWeb.API.DeploymentGroupController do
   plug(:require_membership when action in [:index, :show, :update])
   plug(:require_every_device)
   plug(:require_permission, :"deployment_group:create" when action in [:create])
+  # A group starts with a release of the firmware it's given.
+  plug(:require_permission, :"deployment_group:release:manage" when action in [:create])
   plug(:require_update_permission when action in [:update])
   plug(:require_toggle_permissions when action in [:update])
   plug(:require_permission, :"deployment_group:delete" when action in [:delete])
+
+  # An update naming firmware or an archive makes a release instead of changing
+  # the group. Both the permission it needs and the `update/2` clause it takes
+  # are picked by this, so the two can't disagree.
+  defguardp is_release_update(params)
+            when is_map_key(params, "firmware_id") or is_map_key(params, "archive_id") or
+                   is_map_key(params, "firmware") or is_map_key(params, "archive")
 
   operation(:index,
     summary: "List all Deployment Groups for a Product",
@@ -127,13 +136,11 @@ defmodule NervesHubWeb.API.DeploymentGroupController do
       ] ++ @auth_error_responses
   )
 
-  # Keep in step with `release_params?/1`, which picks the permission.
   def update(%{assigns: %{current_scope: %{product: product} = scope}} = conn, %{
         "name" => name,
         "deployment" => deployment_group_params
       })
-      when is_map_key(deployment_group_params, "firmware_id") or is_map_key(deployment_group_params, "archive_id") or
-             is_map_key(deployment_group_params, "firmware") or is_map_key(deployment_group_params, "archive") do
+      when is_release_update(deployment_group_params) do
     firmware = resolve_firmware(product, deployment_group_params)
     archive = resolve_archive(product, deployment_group_params)
 
@@ -197,7 +204,7 @@ defmodule NervesHubWeb.API.DeploymentGroupController do
   # group's settings alone, so it takes the permission the web UI's New release
   # does. Any other changes the group's settings.
   defp require_update_permission(%{params: %{"deployment" => params}} = conn, _opts) when is_map(params) do
-    if release_params?(params) do
+    if is_release_update(params) do
       require_permission(conn, :"deployment_group:release:manage")
     else
       require_permission(conn, :"deployment_group:update")
@@ -205,11 +212,6 @@ defmodule NervesHubWeb.API.DeploymentGroupController do
   end
 
   defp require_update_permission(conn, _opts), do: require_permission(conn, :"deployment_group:update")
-
-  # The same test as the clause of `update/2` that creates a release.
-  defp release_params?(params) do
-    Enum.any?(["firmware_id", "archive_id", "firmware", "archive"], &Map.has_key?(params, &1))
-  end
 
   # The dashboard turns a group, and its delta updates, on and off under their
   # own permissions, and an update through here can do either.

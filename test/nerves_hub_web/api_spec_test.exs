@@ -314,6 +314,33 @@ defmodule NervesHubWeb.ApiSpecTest do
       |> get(~p"/api/orgs/#{org.name}/products/#{product.name}/deployments")
       |> assert_documented_response()
     end
+
+    test "deployment group releases list, show, create and update",
+         %{conn: conn, org: org, product: product} = context do
+      firmware = Fixtures.firmware_fixture(context.org_key, product, %{dir: context.tmp_dir})
+      next_firmware = Fixtures.firmware_fixture(context.org_key, product, %{version: "1.0.1", dir: context.tmp_dir})
+      deployment_group = Fixtures.deployment_group_fixture(firmware, %{user: context.user})
+      releases = ~p"/api/orgs/#{org.name}/products/#{product.name}/deployments/#{deployment_group.name}/releases"
+
+      conn |> get(releases) |> assert_documented_response()
+      conn |> get(releases <> "/1") |> assert_documented_response()
+      conn |> get(releases <> "/9") |> assert_documented_response()
+
+      data =
+        conn
+        |> post(releases, %{firmware: next_firmware.uuid, description: "Spec"})
+        |> assert_documented_response()
+        |> json_response(201)
+        |> Map.fetch!("data")
+
+      assert %{"number" => 2, "is_current" => true} = data
+
+      conn |> post(releases, %{firmware: next_firmware.uuid}) |> assert_documented_response()
+
+      conn
+      |> patch(releases <> "/2", %{required: true, connecting_code_mode: "first"})
+      |> assert_documented_response()
+    end
   end
 
   describe "signing keys" do

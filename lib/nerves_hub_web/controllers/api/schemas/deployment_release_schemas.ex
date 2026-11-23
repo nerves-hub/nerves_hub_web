@@ -1,4 +1,5 @@
 defmodule NervesHubWeb.API.Schemas.DeploymentReleaseSchemas do
+  alias NervesHubWeb.API.OpenAPI.SchemaHelpers
   alias NervesHubWeb.API.Schemas.DeploymentGroupSchemas
   alias OpenApiSpex.Schema
 
@@ -52,8 +53,8 @@ defmodule NervesHubWeb.API.Schemas.DeploymentReleaseSchemas do
         },
         is_current: %Schema{type: :boolean, description: "Whether this is the deployment group's current release"},
         created_by: Author,
-        inserted_at: %Schema{type: :string, format: :"date-time"},
-        updated_at: %Schema{type: :string, format: :"date-time"}
+        inserted_at: SchemaHelpers.naive_timestamp("When it was created"),
+        updated_at: SchemaHelpers.naive_timestamp("When it was last changed")
       },
       example: %{
         "number" => 3,
@@ -72,8 +73,8 @@ defmodule NervesHubWeb.API.Schemas.DeploymentReleaseSchemas do
         "delta_status" => "ready",
         "is_current" => true,
         "created_by" => %{"type" => "user", "name" => "Jane Doe", "email" => "jane@example.com"},
-        "inserted_at" => "2024-01-01T00:00:00Z",
-        "updated_at" => "2024-01-01T00:00:00Z"
+        "inserted_at" => "2024-01-01T00:00:00",
+        "updated_at" => "2024-01-01T00:00:00"
       }
     })
   end

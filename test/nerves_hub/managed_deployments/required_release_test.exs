@@ -64,6 +64,18 @@ defmodule NervesHub.ManagedDeployments.RequiredReleaseTest do
     device
   end
 
+  # Queueing a delta runs a transaction of its own. Refusing its job makes that
+  # transaction roll back, the way a real failure would.
+  defp refuse_delta_jobs() do
+    stub(Oban, :insert, fn
+      %Ecto.Changeset{changes: %{worker: "NervesHub.Workers.FirmwareDeltaBuilder"}} = job ->
+        {:error, Ecto.Changeset.add_error(job, :args, "refused")}
+
+      job ->
+        call_original(Oban, :insert, [job])
+    end)
+  end
+
   # The banner on the group page reads this straight off the preloaded release
   defp delta_status(deployment_group) do
     {:ok, deployment_group} = ManagedDeployments.get_deployment_group(deployment_group)
@@ -331,6 +343,22 @@ defmodule NervesHub.ManagedDeployments.RequiredReleaseTest do
     end
   end
 
+  describe "creating a release" do
+    test "goes through even when the deltas it asks for can't be queued", context do
+      {:ok, deployment_group} =
+        ManagedDeployments.update_deployment_group(context.deployment_group, %{delta_updatable: true}, context.user)
+
+      _ = connected_device(context, deployment_group, context.fw1)
+      refuse_delta_jobs()
+
+      assert {:ok, {release, deployment_group}} =
+               ManagedDeployments.create_deployment_release(deployment_group, context.fw2, nil, context.user, %{})
+
+      assert deployment_group.current_deployment_release_id == release.id
+      assert [%{number: 2}, %{number: 1}] = ManagedDeployments.list_deployment_releases(deployment_group)
+    end
+  end
+
   describe "marking a release required" do
     test "goes through even when the deltas it asks for can't be queued", context do
       {:ok, deployment_group} =
@@ -340,13 +368,11 @@ defmodule NervesHub.ManagedDeployments.RequiredReleaseTest do
         add_releases(%{context | deployment_group: deployment_group}, [])
 
       _ = connected_device(context, deployment_group, context.fw1)
-
-      stub(Firmwares, :attempt_firmware_delta, fn _source, _target, _recalculate ->
-        {:error, :failed_to_insert_delta}
-      end)
+      refuse_delta_jobs()
 
       assert {:ok, release2} = ManagedDeployments.update_deployment_release(release2, %{required: true}, context.user)
       assert release2.required
+      assert Repo.reload(release2).required
     end
 
     test "changes where devices are sent, and audits it", context do
