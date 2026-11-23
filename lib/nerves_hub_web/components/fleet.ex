@@ -312,10 +312,10 @@ defmodule NervesHubWeb.Components.Fleet do
         <div class="flex shrink-0 md:w-32 md:justify-end">
           <.button
             type="link"
-            style={if authorized?(:"deployment_group:update", @item.entry.role), do: "primary", else: "secondary"}
+            style={if authorized?(:"deployment_group:release:manage", @item.entry.role), do: "primary", else: "secondary"}
             navigate={~p"/org/#{@item.entry.org}/#{@item.product}/deployment_groups/#{@item.step.deployment_release.deployment_group}"}
           >
-            {if authorized?(:"deployment_group:update", @item.entry.role), do: "Review release", else: "View release"}
+            {if authorized?(:"deployment_group:release:manage", @item.entry.role), do: "Review release", else: "View release"}
           </.button>
         </div>
       </div>

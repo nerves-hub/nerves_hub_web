@@ -165,7 +165,10 @@ defmodule NervesHubWeb.Live.DeploymentGroups.New do
   #   |> noreply()
   # end
 
+  # A group starts with a release of the firmware picked here, so making one
+  # takes the permission a release does as well.
   @decorate requires_permission(:"deployment_group:create")
+  @decorate requires_permission(:"deployment_group:release:manage")
   def handle_event("create-deployment-group", %{"deployment_group" => params}, socket) do
     %{user: user, org: org, product: product} = socket.assigns.current_scope
 

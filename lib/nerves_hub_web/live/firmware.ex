@@ -254,7 +254,7 @@ defmodule NervesHubWeb.Live.Firmware do
     end
   end
 
-  @decorate requires_permission(:"deployment_group:update")
+  @decorate requires_permission(:"deployment_group:release:manage")
   def handle_event("retry-delta", %{"id" => id}, socket) do
     case Enum.find(socket.assigns.deltas, &(to_string(&1.id) == id and &1.status in [:failed, :timed_out])) do
       nil ->

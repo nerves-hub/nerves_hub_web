@@ -128,6 +128,27 @@ defmodule NervesHubWeb.API.DeploymentGroupControllerTest do
       [params: params, firmware: firmware, org_key: org_key]
     end
 
+    test "needs deployment_group:release:manage as well, since a group starts with a release", %{
+      conn2: conn2,
+      user2: user2,
+      org: org,
+      params: params,
+      product: product
+    } do
+      role = Fixtures.org_role_fixture(org, %{permissions: ["deployment_group:create"]})
+      {:ok, _} = Accounts.add_org_user(org, user2, %{org_role_id: role.id})
+      path = Routes.api_deployment_group_path(conn2, :create, org.name, product.name)
+
+      assert_error_sent(401, fn -> post(conn2, path, params) end)
+
+      {:ok, _} =
+        Accounts.OrgRoles.update_org_role(role, %{
+          "permissions" => ["deployment_group:create", "deployment_group:release:manage"]
+        })
+
+      assert json_response(post(conn2, path, params), 201)["data"]
+    end
+
     test "renders deployment group when data is valid", %{
       conn: conn,
       org: org,
@@ -286,6 +307,34 @@ defmodule NervesHubWeb.API.DeploymentGroupControllerTest do
         })
 
       assert %{"is_active" => true} = json_response(put(conn2, path, deployment: %{"state" => "on"}), 200)["data"]
+    end
+
+    test "releasing through it needs deployment_group:release:manage, not deployment_group:update", %{
+      conn2: conn2,
+      user2: user2,
+      deployment_group: deployment_group,
+      org: org,
+      org_key: org_key,
+      product: product,
+      tmp_dir: tmp_dir
+    } do
+      new_firmware = Fixtures.firmware_fixture(org_key, product, %{version: "1.0.1", dir: tmp_dir})
+      role = Fixtures.org_role_fixture(org, %{permissions: ["deployment_group:update"]})
+      {:ok, _} = Accounts.add_org_user(org, user2, %{org_role_id: role.id})
+      path = Routes.api_deployment_group_path(conn2, :update, org.name, product.name, deployment_group.name)
+
+      assert_error_sent(401, fn -> put(conn2, path, deployment: %{"firmware" => new_firmware.uuid}) end)
+
+      {:ok, role} = Accounts.OrgRoles.update_org_role(role, %{"permissions" => ["deployment_group:release:manage"]})
+
+      assert %{"firmware_uuid" => uuid} =
+               json_response(put(conn2, path, deployment: %{"firmware" => new_firmware.uuid}), 200)["data"]
+
+      assert uuid == new_firmware.uuid
+
+      # Without `deployment_group:update` the group's own settings stay closed.
+      assert role.permissions == ["deployment_group:release:manage"]
+      assert_error_sent(401, fn -> put(conn2, path, deployment: %{"notes" => "hello"}) end)
     end
 
     test "can change firmware_id to release new firmware", %{

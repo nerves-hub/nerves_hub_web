@@ -2,7 +2,9 @@ defmodule NervesHub.ManagedDeployments.RequiredReleaseTest do
   use NervesHub.DataCase, async: true
   use Mimic
 
-  import Ecto.Query, only: [select: 3]
+  import Ecto.Changeset, only: [get_field: 2]
+  import Ecto.Query, only: [select: 3, where: 2]
+  import ExUnit.CaptureLog
 
   alias NervesHub.AuditLogs
   alias NervesHub.DeviceEvents
@@ -10,9 +12,11 @@ defmodule NervesHub.ManagedDeployments.RequiredReleaseTest do
   alias NervesHub.Devices.Deployments
   alias NervesHub.Devices.Updates
   alias NervesHub.Firmwares
+  alias NervesHub.Firmwares.FirmwareDelta
   alias NervesHub.FirmwareUpdates
   alias NervesHub.Fixtures
   alias NervesHub.ManagedDeployments
+  alias NervesHub.ManagedDeployments.DeploymentRelease
   alias NervesHub.ManagedDeployments.Orchestrator.WorkflowCoordinator
   alias NervesHub.ManagedDeployments.Workflows
   alias NervesHub.Repo
@@ -62,6 +66,18 @@ defmodule NervesHub.ManagedDeployments.RequiredReleaseTest do
 
     _ = Fixtures.device_connection_fixture(device)
     device
+  end
+
+  # Queueing a delta runs a transaction of its own. Refusing its job makes that
+  # transaction roll back, the way a real failure would.
+  defp refuse_delta_jobs() do
+    stub(Oban, :insert, fn
+      %Ecto.Changeset{changes: %{worker: "NervesHub.Workers.FirmwareDeltaBuilder"}} = job ->
+        {:error, Ecto.Changeset.add_error(job, :args, "refused")}
+
+      job ->
+        call_original(Oban, :insert, [job])
+    end)
   end
 
   # The banner on the group page reads this straight off the preloaded release
@@ -331,6 +347,136 @@ defmodule NervesHub.ManagedDeployments.RequiredReleaseTest do
     end
   end
 
+  describe "creating a release" do
+    test "goes through even when the deltas it asks for can't be queued", context do
+      {:ok, deployment_group} =
+        ManagedDeployments.update_deployment_group(context.deployment_group, %{delta_updatable: true}, context.user)
+
+      _ = connected_device(context, deployment_group, context.fw1)
+      refuse_delta_jobs()
+
+      assert {:ok, {release, deployment_group}} =
+               ManagedDeployments.create_deployment_release(deployment_group, context.fw2, nil, context.user, %{})
+
+      assert deployment_group.current_deployment_release_id == release.id
+      assert [%{number: 2}, %{number: 1}] = ManagedDeployments.list_deployment_releases(deployment_group)
+    end
+  end
+
+  describe "a release that will queue deltas" do
+    test "starts preparing in a group that's on with delta updates on, and ready otherwise", context do
+      %{deployment_group: deployment_group, fw2: fw2} = context
+      on = %{deployment_group | is_active: true, delta_updatable: true}
+
+      assert get_field(DeploymentRelease.new_changeset(on, fw2), :delta_status) == :preparing
+
+      for group <- [%{on | is_active: false}, %{on | delta_updatable: false}] do
+        assert get_field(DeploymentRelease.new_changeset(group, fw2), :delta_status) == :ready
+      end
+    end
+
+    test "is held when marked required, and not when unmarked", context do
+      %{deployment_group: deployment_group, release2: release2} = add_releases(context, [])
+      on = %{deployment_group | is_active: true, delta_updatable: true}
+
+      marking = DeploymentRelease.edit_changeset(release2, %{required: true})
+      assert get_field(DeploymentRelease.hold_for_deltas(marking, on), :delta_status) == :preparing
+
+      editing_code = DeploymentRelease.edit_changeset(release2, %{connecting_code: "IO.puts(1)"})
+      assert get_field(DeploymentRelease.hold_for_deltas(editing_code, on), :delta_status) == :ready
+    end
+
+    test "waits once saved while a delta it queued is building", context do
+      {:ok, deployment_group} =
+        ManagedDeployments.update_deployment_group(context.deployment_group, %{delta_updatable: true}, context.user)
+
+      _ = connected_device(context, deployment_group, context.fw1)
+
+      {:ok, {release, _}} =
+        ManagedDeployments.create_deployment_release(deployment_group, context.fw2, nil, context.user, %{})
+
+      assert Repo.reload(release).delta_status == :preparing
+    end
+
+    test "is ready once saved when it has no delta to wait for", context do
+      {:ok, deployment_group} =
+        ManagedDeployments.update_deployment_group(context.deployment_group, %{delta_updatable: true}, context.user)
+
+      {:ok, {release, _}} =
+        ManagedDeployments.create_deployment_release(deployment_group, context.fw2, nil, context.user, %{})
+
+      assert release.delta_status == :ready
+      assert Repo.reload(release).delta_status == :ready
+    end
+
+    test "is saved and announced when queueing its deltas raises", context do
+      {:ok, deployment_group} =
+        ManagedDeployments.update_deployment_group(context.deployment_group, %{delta_updatable: true}, context.user)
+
+      _ = connected_device(context, deployment_group, context.fw1)
+      :ok = Phoenix.PubSub.subscribe(NervesHub.PubSub, "deployment:#{deployment_group.id}")
+
+      stub(Firmwares, :attempt_firmware_delta, fn _source, _target, _recalculate -> raise "queueing failed" end)
+
+      log =
+        capture_log(fn ->
+          assert {:ok, {release, _}} =
+                   ManagedDeployments.create_deployment_release(deployment_group, context.fw2, nil, context.user, %{})
+
+          # Nothing was recalculated, so it waits for the orchestrator's tick.
+          assert Repo.reload(release).delta_status == :preparing
+        end)
+
+      assert log =~ "Could not queue a deployment group's deltas: queueing failed"
+
+      # The orchestrator still hears about the new release.
+      assert_receive %Broadcast{event: "deployments/update"}
+    end
+
+    test "is settled by settle_delta_statuses/1 once it has waited a minute", context do
+      {:ok, deployment_group} =
+        ManagedDeployments.update_deployment_group(context.deployment_group, %{delta_updatable: true}, context.user)
+
+      _ = connected_device(context, deployment_group, context.fw1)
+
+      {:ok, {release, _}} =
+        ManagedDeployments.create_deployment_release(deployment_group, context.fw2, nil, context.user, %{})
+
+      # As if the node went down after the release committed, before the deltas
+      # were queued and the status recalculated: no delta, and still held.
+      Repo.delete_all(FirmwareDelta)
+      {1, _} = Repo.update_all(where(DeploymentRelease, id: ^release.id), set: [delta_status: :preparing])
+
+      # Just saved, it may be one whose deltas are being queued right now.
+      assert {:ok, []} = ManagedDeployments.settle_delta_statuses(deployment_group)
+      assert Repo.reload(release).delta_status == :preparing
+
+      two_minutes_ago = NaiveDateTime.add(NaiveDateTime.utc_now(), -120)
+      {1, _} = Repo.update_all(where(DeploymentRelease, id: ^release.id), set: [updated_at: two_minutes_ago])
+
+      assert {:ok, [settled]} = ManagedDeployments.settle_delta_statuses(deployment_group)
+      assert settled.id == release.id
+      assert settled.delta_status == :ready
+    end
+  end
+
+  describe "turning a group's delta updates on" do
+    test "goes through even when the deltas it asks for can't be queued", context do
+      {:ok, deployment_group} =
+        ManagedDeployments.update_deployment_group(context.deployment_group, %{delta_updatable: false}, context.user)
+
+      %{deployment_group: deployment_group} = add_releases(%{context | deployment_group: deployment_group}, [])
+      _ = connected_device(context, deployment_group, context.fw1)
+      refuse_delta_jobs()
+
+      assert {:ok, deployment_group} =
+               ManagedDeployments.update_deployment_group(deployment_group, %{delta_updatable: true}, context.user)
+
+      assert deployment_group.delta_updatable
+      assert Repo.reload(deployment_group).delta_updatable
+    end
+  end
+
   describe "marking a release required" do
     test "goes through even when the deltas it asks for can't be queued", context do
       {:ok, deployment_group} =
@@ -340,13 +486,11 @@ defmodule NervesHub.ManagedDeployments.RequiredReleaseTest do
         add_releases(%{context | deployment_group: deployment_group}, [])
 
       _ = connected_device(context, deployment_group, context.fw1)
-
-      stub(Firmwares, :attempt_firmware_delta, fn _source, _target, _recalculate ->
-        {:error, :failed_to_insert_delta}
-      end)
+      refuse_delta_jobs()
 
       assert {:ok, release2} = ManagedDeployments.update_deployment_release(release2, %{required: true}, context.user)
       assert release2.required
+      assert Repo.reload(release2).required
     end
 
     test "changes where devices are sent, and audits it", context do

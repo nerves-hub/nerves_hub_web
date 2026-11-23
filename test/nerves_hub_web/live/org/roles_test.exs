@@ -79,7 +79,7 @@ defmodule NervesHubWeb.Live.Org.RolesTest do
       |> fill_in("Name", with: "Release Manager")
       |> fill_in("Description", with: "Ships firmware", exact: false)
       |> check("Upload firmware")
-      |> check("Edit deployment groups and their releases")
+      |> check("Create, edit and approve releases")
       |> click_button("Create role")
       |> assert_path("/org/#{org.name}/settings/roles")
       |> assert_has("div", text: "Role Release Manager created")
@@ -87,7 +87,7 @@ defmodule NervesHubWeb.Live.Org.RolesTest do
 
       assert [role] = OrgRoles.list_org_roles(org)
       assert role.description == "Ships firmware"
-      assert role.permissions == ["deployment_group:update", "firmware:upload"]
+      assert role.permissions == ["deployment_group:release:manage", "firmware:upload"]
     end
 
     test "copying a built-in role's permissions as a starting point", %{conn: conn, org: org} do

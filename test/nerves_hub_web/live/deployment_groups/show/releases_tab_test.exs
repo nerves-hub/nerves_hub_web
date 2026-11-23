@@ -416,6 +416,35 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show.ReleasesTabTest do
     |> refute_has("#new-release-button")
   end
 
+  test "offers release actions by deployment_group:release:manage, not deployment_group:update", %{
+    conn: conn,
+    org: org,
+    product: product,
+    user: user,
+    deployment_group: deployment_group
+  } do
+    [release] = ManagedDeployments.list_deployment_releases(deployment_group)
+    path = ~p"/org/#{org}/#{product}/deployment_groups/#{deployment_group}/releases"
+    org_user = NervesHub.Accounts.get_org_user!(org, user.id)
+
+    settings_only = Fixtures.org_role_fixture(org, %{name: "Settings", permissions: ["deployment_group:update"]})
+    {:ok, _} = NervesHub.Accounts.change_org_user_role(org_user, settings_only)
+
+    conn
+    |> visit(path)
+    |> assert_has("#release-#{release.id}-details")
+    |> refute_has("#release-#{release.id}-edit")
+    |> refute_has("#new-release-button")
+
+    releaser = Fixtures.org_role_fixture(org, %{name: "Releaser", permissions: ["deployment_group:release:manage"]})
+    {:ok, _} = NervesHub.Accounts.change_org_user_role(NervesHub.Accounts.get_org_user!(org, user.id), releaser)
+
+    conn
+    |> visit(path)
+    |> assert_has("#release-#{release.id}-edit")
+    |> assert_has("#new-release-button")
+  end
+
   test "shows a release's deltas, and retries a failed one", %{
     conn: conn,
     org: org,

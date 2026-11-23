@@ -345,17 +345,21 @@ defmodule NervesHub.ManagedDeployments do
     Repo.transact(fn ->
       with {:ok, deployment_group} <- Repo.update(changeset),
            :ok <- create_audit_logs!(deployment_group, changeset) do
-        {:ok, _} = maybe_trigger_delta_generation(deployment_group, changeset)
-
-        deployment_group = load_current_release(deployment_group, force: true)
-
-        {:ok, _releases} = recalculate_release_delta_statuses(deployment_group)
-
         {:ok, deployment_group}
       end
     end)
     |> case do
       {:ok, deployment_group} ->
+        # After the commit, so a failed delta can't undo the change (turning
+        # delta updates on included), and before the broadcast, so the
+        # orchestrator sees the releases waiting on the deltas that were queued.
+        _ =
+          queue_deltas_after_commit(deployment_group, changeset, fn ->
+            recalculate_release_delta_statuses(deployment_group)
+          end)
+
+        deployment_group = load_current_release(deployment_group, force: true)
+
         :ok = broadcast(deployment_group, "deployments/update")
 
         if Map.has_key?(changeset.changes, :is_active) do
@@ -402,9 +406,7 @@ defmodule NervesHub.ManagedDeployments do
            :ok <- WorkflowEvents.release_replaced(previous_release_id, release),
            {:ok, deployment_group} = recalculate_current_release(deployment_group),
            deployment_group = load_current_release(deployment_group, force: true),
-           :ok <- maybe_audit_new_deployment_release(actor, deployment_group, opts),
-           {:ok, _} <- maybe_trigger_delta_generation(deployment_group, release),
-           {:ok, release} <- recalculate_release_delta_status(release) do
+           :ok <- maybe_audit_new_deployment_release(actor, deployment_group, opts) do
         {:ok, {release, deployment_group}}
       else
         {:error, _} = error -> error
@@ -412,7 +414,18 @@ defmodule NervesHub.ManagedDeployments do
       end
     end)
     |> case do
-      {:ok, {_release, deployment_group}} = result ->
+      {:ok, {release, deployment_group}} ->
+        # Before the broadcast, so the orchestrator sees the release waiting on
+        # the deltas that were queued. `queue_deltas_after_commit/3` says why
+        # it's after the commit.
+        release =
+          deployment_group
+          |> queue_deltas_after_commit(release, fn -> recalculate_release_delta_status(release) end)
+          |> case do
+            {:ok, recalculated} -> recalculated
+            _ -> release
+          end
+
         if Keyword.get(opts, :broadcast, true) do
           :ok = broadcast(deployment_group, "deployments/update")
         end
@@ -424,7 +437,7 @@ defmodule NervesHub.ManagedDeployments do
             broadcast(deployment_group, "archives/updated", %{archive_id: archive.id})
           end
 
-        result
+        {:ok, {release, deployment_group}}
 
       error ->
         error
@@ -480,6 +493,30 @@ defmodule NervesHub.ManagedDeployments do
   def recalculate_release_delta_statuses(%DeploymentGroup{} = deployment_group) do
     releases_devices_are_headed_for_query()
     |> where([deployment_group: dg], dg.id == ^deployment_group.id)
+    |> Repo.all()
+    |> recalculate_delta_statuses()
+  end
+
+  @doc """
+  Recalculate every release of a deployment group that reads `:preparing`.
+
+  A release starts `:preparing` when saving it queues deltas
+  (`DeploymentRelease.hold_for_deltas/2`), and the recalculation after the
+  queueing settles it. One whose recalculation never ran, because the node
+  went down between the two, would hold its devices back for good, so the
+  group's orchestrator calls this on its two-minute tick. A release whose
+  deltas are still building stays `:preparing`, and one no device is headed
+  for becomes `:ready`.
+
+  A release changed in the last minute is left for the next tick. It may be
+  one whose deltas are being queued right now, and settling it before they are
+  would find nothing to wait for and send its devices whole firmware.
+  """
+  @spec settle_delta_statuses(DeploymentGroup.t()) :: {:ok, [DeploymentRelease.t()]}
+  def settle_delta_statuses(%DeploymentGroup{id: deployment_group_id}) do
+    DeploymentRelease
+    |> where([r], r.deployment_group_id == ^deployment_group_id and r.delta_status == :preparing)
+    |> where([r], r.updated_at < ago(1, "minute"))
     |> Repo.all()
     |> recalculate_delta_statuses()
   end
@@ -718,6 +755,34 @@ defmodule NervesHub.ManagedDeployments do
        ), do: trigger_delta_generation_for_deployment_group(deployment_group)
 
   defp maybe_trigger_delta_generation(_deployment_group, _changeset), do: {:ok, :no_deltas_started}
+
+  # Queues the deltas a change asks for, then records what they did with
+  # `recalculate`, once the change has committed. Both run outside the
+  # transaction, so a failure in either can't undo the change, and it mustn't
+  # stop the caller either: the broadcast after this is what tells the group's
+  # orchestrator about the change, and without it the orchestrator keeps
+  # working from the group as it was. So a raise is logged and reported, and
+  # `:error` returned. A release left `:preparing` by it is settled on the
+  # orchestrator's next tick (`settle_delta_statuses/1`), and devices with no
+  # delta are sent the whole firmware.
+  defp queue_deltas_after_commit(deployment_group, subject, recalculate) do
+    _ = maybe_trigger_delta_generation(deployment_group, subject)
+    recalculate.()
+  rescue
+    exception ->
+      Logger.error("Could not queue a deployment group's deltas: " <> Exception.message(exception),
+        deployment_id: deployment_group.id
+      )
+
+      _ =
+        Sentry.capture_exception(exception,
+          stacktrace: __STACKTRACE__,
+          tags: %{deployment_id: deployment_group.id},
+          result: :none
+        )
+
+      :error
+  end
 
   @spec trigger_delta_generation_for_deployment_group(DeploymentGroup.t()) ::
           {:ok, :deltas_started | :deltas_already_generated | :some_deltas_started | :no_delta_support}
@@ -971,39 +1036,34 @@ defmodule NervesHub.ManagedDeployments do
   next, so the deltas those devices need are queued, the group's status is
   recalculated against them, and the orchestrator is told to look again. A new
   connecting code reaches devices the next time they connect.
+
+  `actor` is who made the change, a user or a product API key, and is who the
+  audit log names.
   """
-  @spec update_deployment_release(DeploymentRelease.t(), map(), User.t()) ::
+  @spec update_deployment_release(DeploymentRelease.t(), map(), AuditLogs.actor()) ::
           {:ok, DeploymentRelease.t()} | {:error, Changeset.t() | :not_found}
-  def update_deployment_release(%DeploymentRelease{} = release, params, %User{} = user) do
+  def update_deployment_release(%DeploymentRelease{} = release, params, actor)
+      when is_struct(actor, User) or is_struct(actor, ApiKey) do
     release
     |> DeploymentRelease.edit_changeset(params)
-    |> save_release_changes(user)
+    |> save_release_changes(actor)
   end
 
-  defp save_release_changes(%Changeset{} = changeset, user) do
+  defp save_release_changes(%Changeset{} = changeset, actor) do
     required_changed? = Changeset.changed?(changeset, :required)
 
     code_changed? =
       Changeset.changed?(changeset, :connecting_code) or Changeset.changed?(changeset, :connecting_code_mode)
 
     Repo.transact(fn ->
-      with {:ok, release} <- Repo.update(changeset),
-           {:ok, deployment_group} <- get_deployment_group(release.deployment_group_id) do
+      with {:ok, deployment_group} <- get_deployment_group(changeset.data.deployment_group_id),
+           {:ok, release} <- changeset |> DeploymentRelease.hold_for_deltas(deployment_group) |> Repo.update() do
         if required_changed? do
-          :ok = DeploymentGroupTemplates.audit_release_required_changed(user, deployment_group, release)
-
-          # Queueing the deltas can fail on its own, and says so in the log and in
-          # Sentry. The release is still required either way, devices that have no
-          # delta are sent the whole firmware, and the group's status below reports
-          # whatever the deltas did.
-          _ = maybe_trigger_delta_generation(deployment_group, release)
-
-          {:ok, _releases} = recalculate_release_delta_statuses(deployment_group)
-          :ok
+          :ok = DeploymentGroupTemplates.audit_release_required_changed(actor, deployment_group, release)
         end
 
         if code_changed? do
-          :ok = DeploymentGroupTemplates.audit_release_connecting_code_changed(user, deployment_group, release)
+          :ok = DeploymentGroupTemplates.audit_release_connecting_code_changed(actor, deployment_group, release)
         end
 
         {:ok, {release, deployment_group}}
@@ -1011,7 +1071,17 @@ defmodule NervesHub.ManagedDeployments do
     end)
     |> case do
       {:ok, {release, deployment_group}} ->
-        if required_changed?, do: :ok = broadcast(deployment_group, "deployments/update")
+        if required_changed? do
+          # After the commit, so a failed delta can't undo marking it required;
+          # see `queue_deltas_after_commit/3`.
+          _ =
+            queue_deltas_after_commit(deployment_group, release, fn ->
+              recalculate_release_delta_statuses(deployment_group)
+            end)
+
+          :ok = broadcast(deployment_group, "deployments/update")
+        end
+
         {:ok, release}
 
       {:error, _} = error ->
@@ -1024,13 +1094,34 @@ defmodule NervesHub.ManagedDeployments do
   """
   @spec list_deployment_releases(DeploymentGroup.t()) :: [DeploymentRelease.t()]
   def list_deployment_releases(%DeploymentGroup{id: deployment_group_id}) do
+    deployment_group_id
+    |> releases_query()
+    |> order_by([r], desc: r.inserted_at, desc: r.id)
+    |> Repo.all()
+  end
+
+  @doc """
+  Fetches a deployment group's release by its number, which counts up from 1
+  within the group.
+
+  Preloads the authors, the archive, and the firmware with who deleted it, the
+  same as `list_deployment_releases/1`.
+  """
+  @spec get_deployment_release_by_number(DeploymentGroup.t(), integer()) ::
+          {:ok, DeploymentRelease.t()} | {:error, :not_found}
+  def get_deployment_release_by_number(%DeploymentGroup{id: deployment_group_id}, number) when is_integer(number) do
+    deployment_group_id
+    |> releases_query()
+    |> where([r], r.number == ^number)
+    |> Repo.fetch()
+  end
+
+  defp releases_query(deployment_group_id) do
     DeploymentRelease
     |> where([r], r.deployment_group_id == ^deployment_group_id)
-    |> order_by([r], desc: r.inserted_at, desc: r.id)
     # `deleted_by` because release history outlives the firmware it names: a
     # deleted release firmware is badged with who retired it.
     |> preload([:created_by, :created_by_api_key, :archive, firmware: :deleted_by])
-    |> Repo.all()
   end
 
   @spec broadcast(DeploymentGroup.t() | atom(), String.t(), map()) :: :ok | {:error, term()}

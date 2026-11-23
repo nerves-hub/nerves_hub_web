@@ -243,7 +243,7 @@
                 <% [] -> %>
                   <%!-- A release is the only way an archive reaches devices, so
                         a new upload points straight at making one. --%>
-                  <%= if archive.uuid == @new_archive_uuid && authorized?(:"deployment_group:update", @current_scope) do %>
+                  <%= if archive.uuid == @new_archive_uuid && authorized?(:"deployment_group:release:manage", @current_scope) do %>
                     <.link navigate={~p"/org/#{@current_scope.org}/#{@product}/deployment_groups"} class="text-ui font-medium text-notice-content hover:underline">
                       Add to a group’s release…
                     </.link>

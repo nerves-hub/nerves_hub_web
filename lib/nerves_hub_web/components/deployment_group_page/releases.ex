@@ -314,7 +314,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Releases do
               <.delta_detail delta={delta} firmware={@release.firmware} />
             </span>
             <.delta_status status={delta.status} />
-            <span :if={authorized?(:"deployment_group:update", @current_scope)} class="flex">
+            <span :if={authorized?(:"deployment_group:release:manage", @current_scope)} class="flex">
               <.button
                 :if={delta.status in [:failed, :timed_out]}
                 size="sm"
@@ -343,7 +343,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Releases do
 
         <div class="flex flex-wrap items-center gap-x-4 gap-y-2 pt-1">
           <.button
-            :if={authorized?(:"deployment_group:update", @current_scope)}
+            :if={authorized?(:"deployment_group:release:manage", @current_scope)}
             id={"release-#{@release.id}-edit"}
             size="sm"
             phx-click="edit-release"
@@ -800,7 +800,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Releases do
     |> noreply()
   end
 
-  @decorate requires_permission(:"deployment_group:update")
+  @decorate requires_permission(:"deployment_group:release:manage")
   def handle_event("create-release", %{"deployment_release" => params}, socket) do
     %{current_scope: scope, deployment_group: deployment_group} = socket.assigns
 
@@ -828,7 +828,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Releases do
     end
   end
 
-  @decorate requires_permission(:"deployment_group:update")
+  @decorate requires_permission(:"deployment_group:release:manage")
   def handle_event("edit-release", %{"id" => id}, socket) do
     case find_release(socket, id) do
       nil ->
@@ -858,14 +858,14 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Releases do
     end
   end
 
-  @decorate requires_permission(:"deployment_group:update")
+  @decorate requires_permission(:"deployment_group:release:manage")
   def handle_event("save-release", %{"release" => params}, socket) do
     save_release(socket, params)
   end
 
   # Empties the field rather than saving, so Save changes removes the code
   # and Cancel keeps it, and nothing needs asking in a second dialog.
-  @decorate requires_permission(:"deployment_group:update")
+  @decorate requires_permission(:"deployment_group:release:manage")
   def handle_event("remove-connecting-code", _params, socket) do
     case editing_release(socket) do
       nil ->
@@ -880,7 +880,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Releases do
     end
   end
 
-  @decorate requires_permission(:"deployment_group:update")
+  @decorate requires_permission(:"deployment_group:release:manage")
   def handle_event("retry-delta", %{"id" => id}, socket) do
     case find_delta(socket, id) do
       nil ->
@@ -898,7 +898,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Releases do
 
   # Every group sending the release shares a delta, so deleting one asks
   # first. Opening the dialog checks the same permission as deleting.
-  @decorate requires_permission(:"deployment_group:update")
+  @decorate requires_permission(:"deployment_group:release:manage")
   def handle_event("ask-delete-delta", %{"id" => id}, socket) do
     case find_delta(socket, id) do
       %{status: :completed} = delta -> socket |> assign(:deleting_delta, delta) |> noreply()
@@ -913,7 +913,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Releases do
     |> noreply()
   end
 
-  @decorate requires_permission(:"deployment_group:update")
+  @decorate requires_permission(:"deployment_group:release:manage")
   def handle_event("delete-delta", %{"id" => id}, socket) do
     socket = assign(socket, :deleting_delta, nil)
 

@@ -67,7 +67,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Overview do
           <DeploymentGroups.held_sentence entry={@entry} />
         </p>
       </div>
-      <.button :if={authorized?(:"deployment_group:update", @current_scope)} style="primary" size="sm" phx-click="approve" class="shrink-0">
+      <.button :if={authorized?(:"deployment_group:release:manage", @current_scope)} style="primary" size="sm" phx-click="approve" class="shrink-0">
         <span class="lucide-check" aria-hidden="true"></span> Approve and continue
       </.button>
     </div>
@@ -86,7 +86,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Overview do
           <DeploymentGroups.held_sentence entry={@entry} />
         </p>
       </div>
-      <div :if={authorized?(:"deployment_group:update", @current_scope)} class="flex shrink-0 gap-2 max-sm:*:flex-1 max-sm:*:justify-center">
+      <div :if={authorized?(:"deployment_group:release:manage", @current_scope)} class="flex shrink-0 gap-2 max-sm:*:flex-1 max-sm:*:justify-center">
         <.button size="sm" phx-click="skip">Skip step</.button>
         <.button style="primary" size="sm" phx-click="retry">
           <span class="lucide-rotate-ccw" aria-hidden="true"></span> Retry step
