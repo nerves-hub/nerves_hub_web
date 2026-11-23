@@ -117,16 +117,17 @@ defmodule NervesHub.ManagedDeployments.DeploymentRelease do
   end
 
   @doc """
-  Holds a release's devices back until its deltas are queued, when saving
-  `changeset` will queue some: a new release, or one just marked required, in a
-  group that's on with delta updates on.
+  Sets `delta_status` to `:preparing` when saving `changeset` will queue deltas.
+
+  That is a new release, or one just marked required, in a group that's on with
+  delta updates on. Any other changeset is returned unchanged.
 
   The deltas are queued after the release commits, since queueing runs a
   transaction of its own. Until then nothing has been queued for the release to
-  wait on, and a release reading `:ready` would be sent as whole firmware. So it
-  reads `:preparing`, and the recalculation that follows the queueing settles
-  it. If that never runs, the deployment group's orchestrator settles it on its
-  next tick (`NervesHub.ManagedDeployments.settle_delta_statuses/1`).
+  wait on, and a release reading `:ready` would be sent as whole firmware. The
+  recalculation that follows the queueing settles it. If that never runs, the
+  deployment group's orchestrator settles it on its next tick
+  (`NervesHub.ManagedDeployments.settle_delta_statuses/1`).
   """
   @spec hold_for_deltas(Ecto.Changeset.t(), DeploymentGroup.t()) :: Ecto.Changeset.t()
   def hold_for_deltas(changeset, %DeploymentGroup{is_active: true, delta_updatable: true}) do
