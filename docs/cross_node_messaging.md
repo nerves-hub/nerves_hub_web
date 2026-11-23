@@ -154,6 +154,35 @@ one of three approaches:
   topic by direction, so the device-side channel is never a member of the group
   it publishes reports to.
 
+## One owner per CLI login
+
+`CLISessionCache` keeps a copy of every CLI login on every web node, so any
+node can look one up by its confirmation code. Copies alone can't keep a
+change to a login atomic, though: two nodes confirming the same login at once
+would each read `:waiting` and mint an API token, and a poll reaching a node
+the `:collected` write hadn't reached yet would hand the token out again.
+
+So every change to a login runs on one node, its owner, through
+`CLISessionCache.get_and_update/2`. The owner is the cache in the
+`"cli_session_cache/owners"` group (`"web"` cluster) that wins a highest random
+weight hash of the login's token and its node's name. Every node computes the
+same order from the same membership, and when a node joins or leaves, only the
+logins it wins or held move. The call names the operation as
+`{module, function, args}` rather than passing a function, because a function
+fails with `:badfun` on a node running another build.
+
+A cache joins the owners group only after its warm-up, so it never owns a
+login before holding a copy of it. Nodes on a release from before owners
+existed never join, so they're never asked; they make their own changes
+locally, as before, and race with everyone else until the rollout completes.
+
+If the owner's cache has gone or its node can't be reached, the caller asks
+the next cache in the order, which is what every other node does too. An owner
+that took the call and is slow to answer isn't replaced, since it may already
+have acted: the call exits after five seconds. Two nodes can still pick
+different owners for a login while a membership change is on its way to them,
+and while the cluster is split.
+
 ## When a message does not arrive
 
 `:group` membership replicates asynchronously over Erlang distribution. Most
@@ -186,7 +215,8 @@ Group logs a warning naming the node (`busy dist link to …; disconnecting`).
 
 **Cold start.** A freshly started web node does not exchange CLI-session
 writes with peers until `"web"` membership propagates. `CLISessionCache`
-retries its warm-up for about 1.25 s to cover this.
+retries its warm-up for about 1.25 s to cover this, and doesn't own logins
+until it is done.
 
 **Rolling deploys.** The two transports do not talk to each other. While a
 rollout has nodes on both sides of a change to which transport carries a topic,

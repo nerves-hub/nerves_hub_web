@@ -256,6 +256,13 @@ when adding or removing one.
   if it's about something, and the add-then-write rollout `Notification`
   describes. Seed test or dev notifications through the
   `create_*` functions, not by hand, so they read as the real ones do.
+- CLI logins (`Accounts.generate_cli_session_token/2` and the functions after
+  it) live in `cli_session_cache.ex`, copied to every web node. Every change
+  to one runs on a single owner node, picked from the login's token, so a
+  change made there has to go through `CLISessionCache.get_and_update/2` with
+  a named `{module, function, args}`, never a function, which a node on
+  another build can't run. See
+  [docs/cross_node_messaging.md](docs/cross_node_messaging.md#one-owner-per-cli-login).
 - Cross-cutting: `clustering.ex`, `tracker.ex`,
   `rate_limit.ex`, `cli_session_cache.ex`, `device_link.ex`, `repo.ex`,
   `analytics_repo.ex`, `application.ex`. `list_query.ex` holds what the

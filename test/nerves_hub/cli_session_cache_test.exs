@@ -6,6 +6,15 @@ defmodule NervesHub.CLISessionCacheTest do
   alias NervesHub.CLISessionCache
   alias NervesHub.Fixtures
 
+  # Operations for get_and_update/2, which takes them by name.
+  defmodule Operations do
+    @moduledoc false
+    def read(current), do: {current, :noop}
+    def replace({:ok, _current}, return, cli_session), do: {return, {:put, cli_session}}
+    def boom(_current), do: raise("boom")
+    def where(_current), do: {node(), :noop}
+  end
+
   setup do
     CLISessionCache.clear()
 
@@ -180,7 +189,7 @@ defmodule NervesHub.CLISessionCacheTest do
   test "get_and_update/2 with :noop action returns value without writing" do
     token = Ecto.UUID.generate()
 
-    result = CLISessionCache.get_and_update(token, fn current -> {current, :noop} end)
+    result = CLISessionCache.get_and_update(token, {Operations, :read, []})
 
     assert result == :error
     assert CLISessionCache.get(token) == :error
@@ -200,7 +209,7 @@ defmodule NervesHub.CLISessionCacheTest do
     :ok = CLISessionCache.put(token, session)
 
     result =
-      CLISessionCache.get_and_update(token, fn {:ok, _} -> {:updated, {:put, updated}} end)
+      CLISessionCache.get_and_update(token, {Operations, :replace, [:updated, updated]})
 
     assert result == :updated
     assert CLISessionCache.get(token) == {:ok, updated}
@@ -210,10 +219,37 @@ defmodule NervesHub.CLISessionCacheTest do
     token = Ecto.UUID.generate()
 
     assert_raise RuntimeError, "boom", fn ->
-      CLISessionCache.get_and_update(token, fn _ -> raise "boom" end)
+      CLISessionCache.get_and_update(token, {Operations, :boom, []})
     end
 
     assert is_map(:sys.get_state(CLISessionCache))
+  end
+
+  describe "owners" do
+    test "a cache that only receives writes doesn't own logins" do
+      # As a node on a release from before owners existed would be: it joins the
+      # group writes go to, and nothing else.
+      :ok = Group.join(NervesHub.Group, "cli_session_cache", %{}, cluster: "web")
+
+      assert CLISessionCache.owners(Ecto.UUID.generate()) == [Process.whereis(CLISessionCache)]
+    end
+
+    test "an operation runs on this node when it is the only owner" do
+      assert CLISessionCache.get_and_update(Ecto.UUID.generate(), {Operations, :where, []}) == node()
+    end
+
+    test "an owner whose cache has gone is skipped for the next" do
+      gone = spawn(fn -> :ok end)
+      ref = Process.monitor(gone)
+      assert_receive {:DOWN, ^ref, _, _, _}
+
+      assert CLISessionCache.call_owners([gone, Process.whereis(CLISessionCache)], "token", {Operations, :where, []}) ==
+               node()
+    end
+
+    test "with no owner the operation runs on this node's cache" do
+      assert CLISessionCache.call_owners([], "token", {Operations, :where, []}) == node()
+    end
   end
 
   # The note becomes the note on the API token a confirmed login ends with, which
