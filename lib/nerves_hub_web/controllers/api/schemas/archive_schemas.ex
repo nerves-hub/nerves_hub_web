@@ -1,4 +1,5 @@
 defmodule NervesHubWeb.API.Schemas.ArchiveSchemas do
+  alias NervesHubWeb.API.OpenAPI.SchemaHelpers
   alias NervesHubWeb.API.Schemas.ErrorSchemas.ChangesetErrorResponse
   alias NervesHubWeb.API.Schemas.ErrorSchemas.ErrorResponse
   alias OpenApiSpex.Schema
@@ -18,7 +19,7 @@ defmodule NervesHubWeb.API.Schemas.ArchiveSchemas do
         misc: %Schema{type: :string, nullable: true},
         vcs_identifier: %Schema{type: :string, nullable: true},
         size: %Schema{type: :integer, description: "Size in bytes"},
-        inserted_at: %Schema{type: :string, format: :"date-time"}
+        inserted_at: SchemaHelpers.naive_timestamp("When it was created")
       },
       example: %{
         "uuid" => "d9f8c63a-1234-5678-abcd-ef0123456789",
@@ -32,6 +33,21 @@ defmodule NervesHubWeb.API.Schemas.ArchiveSchemas do
         "size" => 1_048_576,
         "inserted_at" => "2026-01-15T09:34:27"
       }
+    })
+  end
+
+  defmodule ArchiveUploadRequest do
+    OpenApiSpex.schema(%{
+      description: "The archive file, sent as the `archive` field of a multipart form",
+      type: :object,
+      properties: %{
+        archive: %Schema{
+          type: :string,
+          format: :binary,
+          description: "A signed fwup archive (`.fw`)"
+        }
+      },
+      required: [:archive]
     })
   end
 

@@ -1,4 +1,5 @@
 defmodule NervesHubWeb.API.Schemas.OrgSchemas do
+  alias NervesHubWeb.API.OpenAPI.SchemaHelpers
   alias NervesHubWeb.API.Schemas.ProductSchemas
   alias OpenApiSpex.Schema
 
@@ -11,8 +12,8 @@ defmodule NervesHubWeb.API.Schemas.OrgSchemas do
       type: :object,
       properties: %{
         name: %Schema{type: :string},
-        inserted_at: %Schema{type: :string, format: :"date-time"},
-        updated_at: %Schema{type: :string, format: :"date-time"},
+        inserted_at: SchemaHelpers.naive_timestamp("When it was created"),
+        updated_at: SchemaHelpers.naive_timestamp("When it was last changed"),
         products: %Schema{
           type: :array,
           items: ProductSchemas.Product,
@@ -22,8 +23,8 @@ defmodule NervesHubWeb.API.Schemas.OrgSchemas do
       },
       example: %{
         "name" => "example_org",
-        "inserted_at" => "2024-01-01T00:00:00Z",
-        "updated_at" => "2024-01-01T00:00:00Z",
+        "inserted_at" => "2024-01-01T00:00:00",
+        "updated_at" => "2024-01-01T00:00:00",
         "products" => [%{"name" => "MyProduct"}]
       }
     })
@@ -40,8 +41,8 @@ defmodule NervesHubWeb.API.Schemas.OrgSchemas do
         "data" => [
           %{
             "name" => "example_org",
-            "inserted_at" => "2024-01-01T00:00:00Z",
-            "updated_at" => "2024-01-01T00:00:00Z"
+            "inserted_at" => "2024-01-01T00:00:00",
+            "updated_at" => "2024-01-01T00:00:00"
           }
         ]
       }

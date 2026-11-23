@@ -8,6 +8,7 @@ defmodule NervesHubWeb.API.DeviceController do
   alias NervesHub.Devices
   alias NervesHub.Devices.AdvancedQuery
   alias NervesHub.Devices.BulkActions
+  alias NervesHub.Devices.BulkImport
   alias NervesHub.Devices.Certificates
   alias NervesHub.Devices.Device
   alias NervesHub.Devices.DeviceCertificate
@@ -134,7 +135,7 @@ defmodule NervesHubWeb.API.DeviceController do
     end
   end
 
-  def bulk_import(%{assigns: %{current_scope: %{org: org}, product: product}} = conn, import_list) do
+  def bulk_import(%{assigns: %{current_scope: %{org: org}, product: product}} = conn, params) do
     format = get_req_header(conn, "format") |> List.first()
     tags = get_req_header(conn, "tags") |> List.first()
 
@@ -142,8 +143,8 @@ defmodule NervesHubWeb.API.DeviceController do
            BulkActions.async_bulk_create(
              org.id,
              product.id,
-             import_list["_json"],
-             format || "microchip_trust_and_go",
+             params["_json"],
+             format || BulkImport.default_format(),
              tags
            ) do
       send_resp(conn, 201, "")
@@ -200,12 +201,17 @@ defmodule NervesHubWeb.API.DeviceController do
     end
   end
 
-  def auth(%{assigns: %{current_scope: %{org: org} = scope}} = conn, %{"certificate" => cert64}) do
+  # Only a device in the path's product matches. Anything else, an unknown
+  # certificate, a device in another of the org's products, or one the
+  # caller's role can't see, gets the same 403, so the response doesn't say
+  # whether a certificate is registered elsewhere.
+  def auth(%{assigns: %{current_scope: scope, product: product}} = conn, %{"certificate" => cert64})
+      when is_binary(cert64) do
     with {:ok, cert_pem} <- Base.decode64(cert64),
          {:ok, cert} <- X509.Certificate.from_pem(cert_pem),
          {:ok, %DeviceCertificate{device_id: device_id}} <-
            Certificates.get_device_certificate_by_x509(cert),
-         {:ok, device} <- Devices.get_device_by_org(org, device_id),
+         {:ok, device} <- Devices.get_device_by_product(product, device_id),
          # A role limited to tagged devices gets the same 403 for a device it
          # can't see as for an unknown certificate.
          [_visible] <- Devices.get_devices_by_id(scope, [device.id]) do
@@ -219,6 +225,10 @@ defmodule NervesHubWeb.API.DeviceController do
         conn
         |> send_resp(403, Jason.encode!(%{status: "Unauthorized"}))
     end
+  end
+
+  def auth(_conn, _params) do
+    {:error, {:invalid_params, [{"certificate", "must be a base64-encoded PEM certificate"}]}}
   end
 
   def reboot(%{assigns: %{current_scope: scope, device: device}} = conn, _params) do
@@ -327,9 +337,14 @@ defmodule NervesHubWeb.API.DeviceController do
   end
 
   # Tags decide which deployment groups a device can join, and which members
-  # see it, so changing them needs its own permission.
+  # see it, so changing them needs its own permission. Read them through
+  # `device_params/1`, as `update/2` does, or a client can send tags where
+  # they are saved but not checked.
+  #
+  # Adding a device doesn't need it: its first tags are part of adding it, as
+  # they are in the web UI's Add device dialog.
   defp require_tags_permission(%{params: params} = conn, _opts) do
-    if Map.has_key?(params, "tags"), do: require_permission(conn, :"device:tags"), else: conn
+    if Map.has_key?(device_params(params), "tags"), do: require_permission(conn, :"device:tags"), else: conn
   end
 
   # Moving a device into another org adds a device there, so the user has to be

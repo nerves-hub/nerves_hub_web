@@ -3,6 +3,38 @@ defmodule NervesHubWeb.API.OpenAPI.SchemaHelpers do
 
   alias NervesHubWeb.API.Schemas.ErrorSchemas
 
+  @doc """
+  A record's `inserted_at` or `updated_at`.
+
+  Ecto's `timestamps()` are naive, so the API writes them in UTC as ISO 8601
+  with no offset, such as `2026-01-15T09:34:27`. RFC 3339's `date-time` needs
+  an offset, so this gives no format: a client parsing `date-time` strictly
+  would reject every one of them.
+  """
+  def naive_timestamp(description) do
+    %OpenApiSpex.Schema{
+      type: :string,
+      description:
+        "#{description}, in UTC. Written without an offset, such as `2026-01-15T09:34:27`, so not an RFC 3339 `date-time`."
+    }
+  end
+
+  @doc """
+  Tags in a request body.
+
+  `NervesHub.Types.Tag` casts a list or one comma-separated string; responses
+  always give a list.
+  """
+  def request_tags() do
+    %OpenApiSpex.Schema{
+      description: "A list of tags, or one comma-separated string of them. A tag cannot contain spaces.",
+      oneOf: [
+        %OpenApiSpex.Schema{type: :array, items: %OpenApiSpex.Schema{type: :string}},
+        %OpenApiSpex.Schema{type: :string}
+      ]
+    }
+  end
+
   def auth_error_responses() do
     [
       unauthorized: {"Unauthorized", "application/json", ErrorSchemas.ErrorResponse},

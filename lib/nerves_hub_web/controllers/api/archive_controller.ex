@@ -36,6 +36,8 @@ defmodule NervesHubWeb.API.ArchiveController do
   operation(:create,
     summary: "Upload an Archive for a Product",
     description: """
+    Send the file as the `archive` field of a `multipart/form-data` body.
+
     Accepts an fwup archive (`.fw`) signed against an Ed25519 key registered to
     the organization. Its `meta-version` must be SemVer.
     """,
@@ -43,7 +45,7 @@ defmodule NervesHubWeb.API.ArchiveController do
       org_name: [in: :path, description: "Organization Name", type: :string, example: "example_org"],
       product_name: [in: :path, description: "Product Name", type: :string, example: "example_product"]
     ],
-    request_body: {"Archive file upload", "multipart/form-data", nil},
+    request_body: {"Archive file upload", "multipart/form-data", ArchiveSchemas.ArchiveUploadRequest, required: true},
     responses:
       [
         created: {"Archive response", "application/json", ArchiveSchemas.ArchiveResponse},

@@ -42,22 +42,26 @@ defmodule NervesHubWeb.API.FirmwareController do
   operation(:create,
     summary: "Upload a Firmware for a Product",
     description: """
-    Accepts an fwup archive (`.fw`) or an ESP-IDF application image (`.bin`).
-    The format is determined from the file itself, not its name or extension.
+    Send the file as the `firmware` field of a `multipart/form-data` body.
+
+    Accepts an fwup archive (`.fw`), an ESP-IDF application image (`.bin`), an
+    AtomVM packbeam (`.avm`) or a RAUC verity bundle (`.raucb`). The format is
+    determined from the file itself, not its name or extension.
 
     A product accepts only the formats listed in its `allowed_update_tools`,
-    which is `["fwup"]` by default. ESP-IDF additionally requires the platform
-    to have `ESP_IDF_FIRMWARE_ENABLED` set.
+    which is `["fwup"]` by default. ESP-IDF, AtomVM and RAUC each also have to
+    be enabled for the platform, with `ESP_IDF_FIRMWARE_ENABLED`,
+    `ATOMVM_FIRMWARE_ENABLED` or `RAUC_FIRMWARE_ENABLED`.
 
     **Firmware must be signed** against a key registered to the organization: an
-    Ed25519 key for fwup and AtomVM, or an RSA-3072 Secure Boot v2 key for
-    ESP-IDF.
+    `ed25519` key for fwup and AtomVM, a `secure_boot_v2_rsa` key for ESP-IDF,
+    or an `x509_certificate` key for RAUC.
 
     Two per-product settings excuse a *missing* signature, and nothing else.
     `allow_unsigned_esp_idf_firmware` accepts an ESP-IDF image with no signature
     block, and `allow_unsigned_atomvm_firmware` accepts a packbeam with no
-    signature entry. Firmware that does carry a signature is always verified,
-    and fwup archives are always verified.
+    signature entry. Firmware that does carry a signature is always verified.
+    fwup archives and RAUC bundles are always verified.
 
     The firmware's own metadata declares which product it belongs to, and that
     must match the product in the path.
@@ -66,7 +70,8 @@ defmodule NervesHubWeb.API.FirmwareController do
       org_name: [in: :path, description: "Organization Name", type: :string, example: "example_org"],
       product_name: [in: :path, description: "Product Name", type: :string, example: "example_product"]
     ],
-    request_body: {"Firmware file upload", "multipart/form-data", nil},
+    request_body:
+      {"Firmware file upload", "multipart/form-data", FirmwareSchemas.FirmwareUploadRequest, required: true},
     responses:
       [
         created: {"Firmware response", "application/json", FirmwareSchemas.FirmwareResponse},
