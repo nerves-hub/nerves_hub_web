@@ -2,6 +2,7 @@ defmodule NervesHubWeb.Components.DevicePage.ActivityTab do
   use NervesHubWeb, tab_component: :activity
 
   alias NervesHub.AuditLogs
+  alias NervesHubWeb.Components.AuditLogDescription
   alias NervesHubWeb.Components.Pager
 
   def tab_params(params, _uri, socket) do
@@ -14,7 +15,7 @@ defmodule NervesHubWeb.Components.DevicePage.ActivityTab do
   end
 
   def cleanup() do
-    [:activity, :audit_pager]
+    [:activity, :activity_references, :audit_pager]
   end
 
   defp logs_and_pager_assigns(socket, page_number, page_size) do
@@ -25,9 +26,11 @@ defmodule NervesHubWeb.Components.DevicePage.ActivityTab do
       })
 
     audit_pager = Map.from_struct(audit_pager)
+    %{org: org, user: user} = socket.assigns.current_scope
 
     socket
     |> assign(:activity, logs)
+    |> assign(:activity_references, AuditLogs.load_references(logs, org, user))
     |> assign(:audit_pager, audit_pager)
   end
 
@@ -70,7 +73,9 @@ defmodule NervesHubWeb.Components.DevicePage.ActivityTab do
                   <%!-- A description can hold an unbroken token (a shared secret's
                         key, a firmware UUID), which breaks rather than running
                         under the time. --%>
-                  <span class="min-w-0 grow text-ui/4.5 wrap-break-word text-content-body">{entry.description}</span>
+                  <span class="min-w-0 grow text-ui/4.5 wrap-break-word text-content-body">
+                    <AuditLogDescription.description entry={entry} references={@activity_references} scope={@current_scope} current={@device} />
+                  </span>
                   <.local_datetime
                     at={entry.inserted_at}
                     time_zone={@time_zone}

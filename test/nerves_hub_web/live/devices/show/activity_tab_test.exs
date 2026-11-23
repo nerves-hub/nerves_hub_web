@@ -1,10 +1,13 @@
 defmodule NervesHubWeb.Live.Devices.Show.ActivityTabTest do
   use NervesHubWeb.ConnCase.Browser, async: true
 
+  alias NervesHub.Accounts
   alias NervesHub.AuditLogs
   alias NervesHub.AuditLogs.AuditLog
   alias NervesHub.AuditLogs.DeviceTemplates
   alias NervesHub.Devices.Updates
+  alias NervesHub.Fixtures
+  alias NervesHub.Repo
   alias NervesHubWeb.Components.DevicePage.ActivityTab
 
   test "no audit log history exists for the device", %{
@@ -30,7 +33,7 @@ defmodule NervesHubWeb.Live.Devices.Show.ActivityTabTest do
 
     conn
     |> visit(~p"/org/#{org}/#{product}/devices/#{device}/activity")
-    |> assert_has("li[data-activity-entry]", text: "User #{user.name} rebooted device #{device.identifier}")
+    |> assert_has("li[data-activity-entry]", text: "#{user.name} rebooted device #{device.identifier}")
   end
 
   describe "icons" do
@@ -82,6 +85,115 @@ defmodule NervesHubWeb.Live.Devices.Show.ActivityTabTest do
       assert ActivityTab.kind_icon(:firmware_metadata_updated) == "lucide-file-text--bold"
       assert ActivityTab.kind_icon(:deployment_update_sent) == "lucide-download--bold"
       assert ActivityTab.kind_icon(:updates_enabled) == "lucide-toggle-right--bold"
+    end
+  end
+
+  describe "names and links" do
+    test "names a user as they are now, after a rename", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device,
+      user: user
+    } do
+      DeviceTemplates.audit_reboot(user, device)
+      Repo.update!(Ecto.Changeset.change(user, name: "Renamed"))
+
+      conn
+      |> visit(~p"/org/#{org}/#{product}/devices/#{device}/activity")
+      |> assert_has("li[data-activity-entry]", text: "Renamed rebooted device #{device.identifier}")
+      |> refute_has("li[data-activity-entry]", text: "#{user.name} rebooted")
+    end
+
+    test "links the deployment group and firmware, under the group's current name", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device,
+      deployment_group: group,
+      firmware: firmware
+    } do
+      DeviceTemplates.audit_device_deployment_group_update_triggered(device, group, firmware)
+      group = Repo.update!(Ecto.Changeset.change(group, name: "Renamed-group"))
+
+      conn
+      |> visit(~p"/org/#{org}/#{product}/devices/#{device}/activity")
+      |> assert_has(
+        ~s(li[data-activity-entry] a[href="/org/#{org.name}/#{product.name}/deployment_groups/#{group.name}"]),
+        text: "Renamed-group"
+      )
+      |> assert_has(~s(li[data-activity-entry] a[href="/org/#{org.name}/#{product.name}/firmware/#{firmware.uuid}"]),
+        text: firmware.uuid
+      )
+    end
+
+    test "sets each reference apart and says what it is, linked or not", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device,
+      deployment_group: group,
+      user: user
+    } do
+      DeviceTemplates.audit_device_deployment_group_update(user, device, group)
+
+      conn
+      |> visit(~p"/org/#{org}/#{product}/devices/#{device}/activity")
+      |> assert_has(~s(li[data-activity-entry] span[data-ref="user"]), text: user.name)
+      |> assert_has(~s(li[data-activity-entry] span[data-ref="device"]), text: device.identifier)
+      |> assert_has(~s(li[data-activity-entry] a[data-ref="deployment_group"]), text: group.name)
+      |> refute_has("li[data-activity-entry]", text: "User #{user.name}")
+    end
+
+    test "doesn't link the device to its own page", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device,
+      user: user
+    } do
+      DeviceTemplates.audit_reboot(user, device)
+
+      conn
+      |> visit(~p"/org/#{org}/#{product}/devices/#{device}/activity")
+      |> assert_has("li[data-activity-entry]", text: device.identifier)
+      |> refute_has("li[data-activity-entry] a", text: device.identifier)
+    end
+
+    test "shows a reason a device sent as it is, placeholders and markup included", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device
+    } do
+      device = %{device | inflight_update: %{deployment_group: nil}}
+      DeviceTemplates.audit_firmware_upgrade_failed(device, "%{actor} <b>bold</b>")
+
+      conn
+      |> visit(~p"/org/#{org}/#{product}/devices/#{device}/activity")
+      |> assert_has("li[data-activity-entry]", text: ~s[("%{actor} <b>bold</b>")])
+      |> refute_has("li[data-activity-entry] b")
+    end
+
+    test "a member limited to tagged devices sees the deployment group without a link", %{
+      conn: conn,
+      org: org,
+      product: product,
+      firmware: firmware,
+      deployment_group: group,
+      user: user
+    } do
+      device = Fixtures.device_fixture(org, product, firmware, %{tags: ["support"]})
+      DeviceTemplates.audit_device_deployment_group_update_triggered(device, group, firmware)
+
+      role = Fixtures.org_role_fixture(org, %{device_tags: ["support"]})
+      {:ok, org_user} = Accounts.get_org_user(org, user)
+      {:ok, _} = Accounts.change_org_user_role(org_user, role)
+
+      conn
+      |> visit(~p"/org/#{org}/#{product}/devices/#{device}/activity")
+      |> assert_has("li[data-activity-entry]", text: "Deployment #{group.name} update triggered")
+      |> refute_has("li[data-activity-entry] a")
     end
   end
 

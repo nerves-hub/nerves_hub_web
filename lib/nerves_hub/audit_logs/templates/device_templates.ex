@@ -1,10 +1,15 @@
 defmodule NervesHub.AuditLogs.DeviceTemplates do
   @moduledoc """
   Templates for and handling of audit logging for device operations.
+
+  Each description is a `NervesHub.AuditLogs.Template`, so the web UI names
+  the users, devices, deployment groups, firmware and archives in it as they
+  are when the entry is read, with a link to each.
   """
 
   alias NervesHub.Archives.Archive
   alias NervesHub.AuditLogs
+  alias NervesHub.AuditLogs.Template
   alias NervesHub.DeviceLink.DeviceInfo
   alias NervesHub.Devices.Device
   alias NervesHub.Devices.SharedSecretAuth
@@ -20,8 +25,8 @@ defmodule NervesHub.AuditLogs.DeviceTemplates do
   # the API, such as Slack.
   @spec audit_reboot(AuditLogs.actor(), Device.t(), String.t() | nil) :: :ok
   def audit_reboot(actor, device, via \\ nil) do
-    description = "#{AuditLogs.actor_name(actor)} rebooted device #{device.identifier}#{via(via)}"
-    AuditLogs.audit!(actor, device, description, kind: :device_rebooted)
+    template = via_template("%{actor} rebooted device %{resource}", via)
+    AuditLogs.audit!(actor, device, template, kind: :device_rebooted)
   end
 
   @spec audit_request_action(AuditLogs.actor(), Device.t(), :identify | :reconnect, String.t() | nil) :: :ok
@@ -32,33 +37,34 @@ defmodule NervesHub.AuditLogs.DeviceTemplates do
         :reconnect -> {"reconnect", :reconnect_requested}
       end
 
-    description = "#{AuditLogs.actor_name(actor)} requested the device (#{device.identifier}) #{wording}#{via(via)}"
-    AuditLogs.audit!(actor, device, description, kind: kind)
+    template = via_template("%{actor} requested the device (%{resource}) #{wording}", via)
+    AuditLogs.audit!(actor, device, template, kind: kind)
   end
 
   @spec audit_script_run(AuditLogs.actor(), Device.t(), String.t(), String.t() | nil) :: :ok
   def audit_script_run(actor, device, script_name, via \\ nil) do
-    description =
-      "#{AuditLogs.actor_name(actor)} ran support script #{script_name} on device #{device.identifier}#{via(via)}"
+    template =
+      via_template("%{actor} ran support script %{script} on device %{resource}", via, script: script_name)
 
-    AuditLogs.audit!(actor, device, description, kind: :script_run)
+    AuditLogs.audit!(actor, device, template, kind: :script_run)
   end
 
-  defp via(nil), do: ""
-  defp via(source), do: " from #{source}"
+  defp via_template(text, via, values \\ [])
+  defp via_template(text, nil, values), do: Template.new(text, values)
+  defp via_template(text, via, values), do: Template.new(text <> " from %{via}", [via: via] ++ values)
 
   ## Shared secrets
 
   @spec audit_shared_secret_created(AuditLogs.actor(), Device.t(), SharedSecretAuth.t()) :: :ok
   def audit_shared_secret_created(actor, device, auth) do
-    description = "#{AuditLogs.actor_name(actor)} created shared secret #{auth.key} for device #{device.identifier}"
-    AuditLogs.audit!(actor, device, description, kind: :shared_secret_created)
+    template = Template.new("%{actor} created shared secret %{key} for device %{resource}", key: auth.key)
+    AuditLogs.audit!(actor, device, template, kind: :shared_secret_created)
   end
 
   @spec audit_shared_secret_deactivated(AuditLogs.actor(), Device.t(), SharedSecretAuth.t()) :: :ok
   def audit_shared_secret_deactivated(actor, device, auth) do
-    description = "#{AuditLogs.actor_name(actor)} deactivated shared secret #{auth.key} for device #{device.identifier}"
-    AuditLogs.audit!(actor, device, description, kind: :shared_secret_deactivated)
+    template = Template.new("%{actor} deactivated shared secret %{key} for device %{resource}", key: auth.key)
+    AuditLogs.audit!(actor, device, template, kind: :shared_secret_deactivated)
   end
 
   ## Firmware and upgrades
@@ -70,30 +76,36 @@ defmodule NervesHub.AuditLogs.DeviceTemplates do
   end
 
   def audit_update_attempt(%Device{} = device) do
-    description = "Device #{device.identifier} is attempting to update"
-    AuditLogs.audit(device, device, description, kind: :update_attempted)
+    template = Template.new("Device %{resource} is attempting to update")
+    AuditLogs.audit(device, device, template, kind: :update_attempted)
   end
 
   @spec audit_pushed_available_update(AuditLogs.actor(), Device.t(), Firmware.t()) :: :ok
   def audit_pushed_available_update(actor, device, firmware) do
-    description =
-      "#{AuditLogs.actor_name(actor)} pushed available firmware update #{firmware.version} #{firmware.uuid} to device #{device.identifier}"
+    template =
+      Template.new("%{actor} pushed available firmware update %{version} %{firmware} to device %{resource}",
+        version: firmware.version,
+        firmware: firmware
+      )
 
-    AuditLogs.audit!(actor, device, description, kind: :firmware_pushed)
+    AuditLogs.audit!(actor, device, template, kind: :firmware_pushed)
   end
 
   @spec audit_firmware_pushed(AuditLogs.actor(), Device.t(), Firmware.t()) :: :ok
   def audit_firmware_pushed(actor, device, firmware) do
-    description =
-      "#{AuditLogs.actor_name(actor)} pushed firmware #{firmware.version} #{firmware.uuid} to device #{device.identifier}"
+    template =
+      Template.new("%{actor} pushed firmware %{version} %{firmware} to device %{resource}",
+        version: firmware.version,
+        firmware: firmware
+      )
 
-    AuditLogs.audit!(actor, device, description, kind: :firmware_pushed)
+    AuditLogs.audit!(actor, device, template, kind: :firmware_pushed)
   end
 
   @spec audit_firmware_metadata_updated(Device.t()) :: :ok
   def audit_firmware_metadata_updated(device) do
-    description = "Device #{device.identifier} updated firmware metadata"
-    AuditLogs.audit!(device, device, description, kind: :firmware_metadata_updated)
+    template = Template.new("Device %{resource} updated firmware metadata")
+    AuditLogs.audit!(device, device, template, kind: :firmware_metadata_updated)
   end
 
   @spec audit_firmware_validated(Device.t() | DeviceInfo.t()) :: :ok
@@ -103,40 +115,54 @@ defmodule NervesHub.AuditLogs.DeviceTemplates do
   end
 
   def audit_firmware_validated(%Device{} = device) do
-    description = "Device #{device.identifier} has validated its firmware"
-    AuditLogs.audit!(device, device, description, kind: :firmware_validated)
+    template = Template.new("Device %{resource} has validated its firmware")
+    AuditLogs.audit!(device, device, template, kind: :firmware_validated)
   end
 
   @spec audit_firmware_upgrade_ignored(Device.t(), DeploymentGroup.t() | nil, String.t() | nil) :: :ok
   def audit_firmware_upgrade_ignored(device, %DeploymentGroup{} = deployment_group, reason) do
     reason = truncate_reason(reason)
 
-    description = """
-    Device #{device.identifier} ignored the scheduled firmware upgrade request#{reason && " because of \"#{reason}\""}.
-    Firmware upgrades are blocked for #{deployment_group.penalty_timeout_minutes} minutes.
-    """
+    template =
+      Template.new(
+        """
+        Device %{resource} ignored the scheduled firmware upgrade request#{reason && " because of \"%{reason}\""}.
+        Firmware upgrades are blocked for %{minutes} minutes.
+        """,
+        reason: reason,
+        minutes: deployment_group.penalty_timeout_minutes
+      )
 
-    AuditLogs.audit!(deployment_group, device, description, kind: :update_ignored)
+    AuditLogs.audit!(deployment_group, device, template, kind: :update_ignored)
   end
 
   def audit_firmware_upgrade_ignored(device, _deployment_group, reason) do
     reason = truncate_reason(reason)
 
-    description = """
-    Device #{device.identifier} ignored the manual firmware upgrade request#{reason && " because of \"#{reason}\""}.
-    """
+    template =
+      Template.new(
+        """
+        Device %{resource} ignored the manual firmware upgrade request#{reason && " because of \"%{reason}\""}.
+        """,
+        reason: reason
+      )
 
-    AuditLogs.audit!(device, device, description, kind: :update_ignored)
+    AuditLogs.audit!(device, device, template, kind: :update_ignored)
   end
 
   @spec audit_firmware_upgrade_blocked(DeploymentGroup.t(), Device.t(), Firmware.t()) :: :ok
   def audit_firmware_upgrade_blocked(deployment_group, device, firmware) do
-    description = """
-    Device #{device.identifier} automatically blocked firmware upgrades for #{deployment_group.penalty_timeout_minutes} minutes.
-    Device failure rate met for firmware #{firmware.uuid} in deployment group #{deployment_group.name}.
-    """
+    template =
+      Template.new(
+        """
+        Device %{resource} automatically blocked firmware upgrades for %{minutes} minutes.
+        Device failure rate met for firmware %{firmware} in deployment group %{actor}.
+        """,
+        minutes: deployment_group.penalty_timeout_minutes,
+        firmware: firmware
+      )
 
-    AuditLogs.audit!(deployment_group, device, description, kind: :updates_blocked)
+    AuditLogs.audit!(deployment_group, device, template, kind: :updates_blocked)
   end
 
   @spec audit_firmware_upgrade_rescheduled(Device.t(), NaiveDateTime.t(), String.t() | nil) :: :ok
@@ -147,22 +173,32 @@ defmodule NervesHub.AuditLogs.DeviceTemplates do
       ) do
     reason = truncate_reason(reason)
 
-    description = """
-    During an update request from \"#{deployment_group.name}\", device #{device.identifier} requested firmware upgrades be rescheduled #{RelativeTime.from_now(blocked_until)} time #{reason && "because \"#{reason}\""}.
-    """
+    template =
+      Template.new(
+        """
+        During an update request from \"%{actor}\", device %{resource} requested firmware upgrades be rescheduled %{until} time #{reason && "because \"%{reason}\""}.
+        """,
+        until: RelativeTime.from_now(blocked_until),
+        reason: reason
+      )
 
-    AuditLogs.audit!(deployment_group, device, description, kind: :update_rescheduled)
+    AuditLogs.audit!(deployment_group, device, template, kind: :update_rescheduled)
   end
 
   def audit_firmware_upgrade_rescheduled(device, blocked_until, reason) do
     reason = truncate_reason(reason)
 
-    description = """
-    During a manual firmware update request, device #{device.identifier} requested firmware upgrades be rescheduled #{RelativeTime.from_now(blocked_until)} time #{reason && "because \"#{reason}\""}.
-    The update will not be automatically retried.
-    """
+    template =
+      Template.new(
+        """
+        During a manual firmware update request, device %{resource} requested firmware upgrades be rescheduled %{until} time #{reason && "because \"%{reason}\""}.
+        The update will not be automatically retried.
+        """,
+        until: RelativeTime.from_now(blocked_until),
+        reason: reason
+      )
 
-    AuditLogs.audit!(device, device, description, kind: :update_rescheduled)
+    AuditLogs.audit!(device, device, template, kind: :update_rescheduled)
   end
 
   @spec audit_firmware_upgrade_failed(Device.t(), String.t() | nil, Keyword.t()) :: :ok
@@ -175,29 +211,41 @@ defmodule NervesHub.AuditLogs.DeviceTemplates do
       ) do
     reason = truncate_reason(reason)
 
-    description = """
-    Device #{device.identifier} reported an error #{reason && "(\"#{reason}\") "}while trying to update its firmware during a deployment release. Updates will be blocked for #{opts[:penalty_timeout_minutes]} minutes.
-    """
+    template =
+      Template.new(
+        """
+        Device %{resource} reported an error #{reason && "(\"%{reason}\") "}while trying to update its firmware during a deployment release. Updates will be blocked for %{minutes} minutes.
+        """,
+        reason: reason,
+        minutes: opts[:penalty_timeout_minutes]
+      )
 
-    AuditLogs.audit!(deployment_group, device, description, kind: :update_failed)
+    AuditLogs.audit!(deployment_group, device, template, kind: :update_failed)
   end
 
   def audit_firmware_upgrade_failed(device, reason, _opts) do
     reason = truncate_reason(reason)
 
-    description = """
-    Device #{device.identifier} reported an error #{reason && "(\"#{reason}\") "}while trying to update its firmware.
-    """
+    template =
+      Template.new(
+        """
+        Device %{resource} reported an error #{reason && "(\"%{reason}\") "}while trying to update its firmware.
+        """,
+        reason: reason
+      )
 
-    AuditLogs.audit!(device, device, description, kind: :update_failed)
+    AuditLogs.audit!(device, device, template, kind: :update_failed)
   end
 
   @spec audit_firmware_updated(Device.t()) :: :ok
   def audit_firmware_updated(device) do
-    description =
-      "Device #{device.identifier} firmware set to version #{device.firmware_metadata.version} (#{device.firmware_metadata.uuid})"
+    template =
+      Template.new("Device %{resource} firmware set to version %{version} (%{firmware})",
+        version: device.firmware_metadata.version,
+        firmware: device.firmware_metadata
+      )
 
-    AuditLogs.audit!(device, device, description, kind: :firmware_updated)
+    AuditLogs.audit!(device, device, template, kind: :firmware_updated)
   end
 
   @spec audit_device_deployment_group_update_triggered(
@@ -206,10 +254,12 @@ defmodule NervesHub.AuditLogs.DeviceTemplates do
           Firmware.t()
         ) :: :ok
   def audit_device_deployment_group_update_triggered(device, deployment_group, firmware) do
-    description =
-      "Deployment #{deployment_group.name} update triggered device #{device.identifier} to update firmware #{firmware.uuid}"
+    template =
+      Template.new("Deployment %{actor} update triggered device %{resource} to update firmware %{firmware}",
+        firmware: firmware
+      )
 
-    AuditLogs.audit!(deployment_group, device, description, kind: :deployment_update_sent)
+    AuditLogs.audit!(deployment_group, device, template, kind: :deployment_update_sent)
   end
 
   @doc """
@@ -220,10 +270,13 @@ defmodule NervesHub.AuditLogs.DeviceTemplates do
   """
   @spec audit_device_requested_update(Device.t(), DeploymentGroup.t(), Firmware.t()) :: :ok
   def audit_device_requested_update(device, deployment_group, firmware) do
-    description =
-      "Device #{device.identifier} requested firmware #{firmware.uuid} from deployment #{deployment_group.name}"
+    template =
+      Template.new("Device %{resource} requested firmware %{firmware} from deployment %{deployment_group}",
+        firmware: firmware,
+        deployment_group: deployment_group
+      )
 
-    AuditLogs.audit!(device, device, description, kind: :update_requested)
+    AuditLogs.audit!(device, device, template, kind: :update_requested)
   end
 
   @spec audit_device_deployment_group_update(AuditLogs.actor(), Device.t(), DeploymentGroup.t()) :: :ok
@@ -231,7 +284,9 @@ defmodule NervesHub.AuditLogs.DeviceTemplates do
     AuditLogs.audit!(
       actor,
       device,
-      "#{AuditLogs.actor_name(actor)} set #{device.identifier}'s deployment group to #{deployment_group.name}",
+      Template.new("%{actor} set %{resource}'s deployment group to %{deployment_group}",
+        deployment_group: deployment_group
+      ),
       kind: :deployment_group_set
     )
   end
@@ -241,7 +296,9 @@ defmodule NervesHub.AuditLogs.DeviceTemplates do
     AuditLogs.audit!(
       device,
       device,
-      "Updating #{device.identifier}'s deployment group to #{deployment_group.name}",
+      Template.new("Updating %{resource}'s deployment group to %{deployment_group}",
+        deployment_group: deployment_group
+      ),
       kind: :deployment_group_set
     )
   end
@@ -250,17 +307,19 @@ defmodule NervesHub.AuditLogs.DeviceTemplates do
     AuditLogs.audit!(
       device,
       device,
-      "Multiple matching deployments found, updating #{device.identifier}'s deployment group to #{deployment_group.name}",
+      Template.new(
+        "Multiple matching deployments found, updating %{resource}'s deployment group to %{deployment_group}",
+        deployment_group: deployment_group
+      ),
       kind: :deployment_group_set
     )
   end
 
   @spec audit_device_archive_update_triggered(Device.t(), Archive.t(), Ecto.UUID.t()) :: :ok
   def audit_device_archive_update_triggered(device, archive, reference_id) do
-    description =
-      "Archive update triggered for #{device.identifier}. Sending archive #{archive.uuid}."
+    template = Template.new("Archive update triggered for %{resource}. Sending archive %{archive}.", archive: archive)
 
-    AuditLogs.audit_with_ref!(device, device, description, reference_id, kind: :archive_sent)
+    AuditLogs.audit_with_ref!(device, device, template, reference_id, kind: :archive_sent)
 
     :ok
   end

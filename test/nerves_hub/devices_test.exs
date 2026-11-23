@@ -1788,7 +1788,7 @@ defmodule NervesHub.DevicesTest do
       assert audit_log.actor_id == user.id
 
       assert audit_log.description ==
-               "User #{user.name} created shared secret #{auth.key} for device #{device.identifier}"
+               "#{user.name} created shared secret #{auth.key} for device #{device.identifier}"
     end
 
     test "lists the device's keys without their secrets", %{device: device, user: user} do
@@ -1954,7 +1954,7 @@ defmodule NervesHub.DevicesTest do
       assert audit_log.actor_id == user.id
 
       assert audit_log.description ==
-               "User #{user.name} deactivated shared secret #{auth.key} for device #{device.identifier}"
+               "#{user.name} deactivated shared secret #{auth.key} for device #{device.identifier}"
     end
 
     test "closes the connections made with the key, and no others", %{device: device, user: user} do

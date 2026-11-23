@@ -1,9 +1,15 @@
 defmodule NervesHub.AuditLogs do
   import Ecto.Query
 
+  alias NervesHub.Accounts.Org
+  alias NervesHub.Accounts.OrgUser
   alias NervesHub.Accounts.User
+  alias NervesHub.Archives.Archive
   alias NervesHub.AuditLogs.AuditLog
+  alias NervesHub.AuditLogs.Template
   alias NervesHub.Devices.Device
+  alias NervesHub.Devices.Visibility
+  alias NervesHub.Firmwares.Firmware
   alias NervesHub.ManagedDeployments.DeploymentGroup
   alias NervesHub.Products.ApiKey
   alias NervesHub.Repo
@@ -88,6 +94,77 @@ defmodule NervesHub.AuditLogs do
     |> order_by(desc: :inserted_at)
     |> Repo.all()
   end
+
+  @doc """
+  The records the template references in `entries` name, as `user` may see
+  them in `org`, keyed by `{type, id}` (see `Template.reference_keys/1`).
+
+  A reference whose record is gone, belongs to another org, or that `user`
+  can't see has no key, and is shown under the name it had when the entry was
+  written. That covers a device outside the tags a custom role is limited to,
+  and a user who is no longer a member of `org`, whose current name the org
+  has no reason to see. Devices, deployment groups, firmware and archives come
+  with their product, which a link to them needs.
+
+  One query for each type of record named, however many entries there are.
+  """
+  @spec load_references([AuditLog.t()], Org.t(), User.t()) :: %{{String.t(), term()} => struct()}
+  def load_references(entries, %Org{} = org, %User{} = user) do
+    entries
+    |> Enum.flat_map(&Template.reference_keys(&1.template_values))
+    |> Enum.group_by(&elem(&1, 0), &elem(&1, 1))
+    |> Enum.flat_map(fn {type, ids} -> load_references(type, Enum.uniq(ids), org, user) end)
+    |> Map.new()
+  end
+
+  defp load_references("user", ids, org, _user) do
+    from(u in User,
+      join: ou in OrgUser,
+      on: ou.user_id == u.id and ou.org_id == ^org.id and is_nil(ou.deleted_at),
+      where: u.id in ^ids and is_nil(u.deleted_at)
+    )
+    |> Repo.all()
+    |> Enum.map(&{{"user", &1.id}, &1})
+  end
+
+  defp load_references("device", ids, org, user) do
+    from(d in Device, where: d.id in ^ids and d.org_id == ^org.id and is_nil(d.deleted_at), preload: :product)
+    |> Visibility.where_visible(user)
+    |> Repo.all()
+    |> Enum.map(&{{"device", &1.id}, &1})
+  end
+
+  defp load_references("deployment_group", ids, org, _user) do
+    from(dg in DeploymentGroup, where: dg.id in ^ids and dg.org_id == ^org.id, preload: :product)
+    |> Repo.all()
+    |> Enum.map(&{{"deployment_group", &1.id}, &1})
+  end
+
+  # Firmware and archives are indexed by (product_id, uuid), so both are found
+  # through the org's products, which gives that index its first column.
+  defp load_references("firmware", uuids, org, _user) do
+    from(f in Firmware,
+      join: p in assoc(f, :product),
+      where: p.org_id == ^org.id and f.org_id == ^org.id,
+      where: f.uuid in ^uuids and is_nil(f.deleted_at),
+      preload: [product: p]
+    )
+    |> Repo.all()
+    |> Enum.map(&{{"firmware", &1.uuid}, &1})
+  end
+
+  defp load_references("archive", uuids, org, _user) do
+    from(a in Archive,
+      join: p in assoc(a, :product),
+      where: a.uuid in ^uuids and p.org_id == ^org.id,
+      preload: [product: p]
+    )
+    |> Repo.all()
+    |> Enum.map(&{{"archive", &1.uuid}, &1})
+  end
+
+  # A type this release doesn't know, written by a newer one.
+  defp load_references(_type, _ids, _org, _user), do: []
 
   def logs_for_feed(resource, %{page: page} = opts) when is_binary(page) do
     logs_for_feed(resource, Map.put(opts, :page, String.to_integer(page)))
