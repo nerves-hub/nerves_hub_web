@@ -51,12 +51,11 @@ defmodule NervesHub.Devices.Connections do
 
   A device often reconnects before the server has noticed its old socket is
   gone. If the previous connection is still open, it is closed as of its
-  `last_seen_at` with the reason `:duplicate_connection`, unless the device
-  already gave one (it said it was going to sleep, then woke before its old
-  socket closed), because once the row is
-  replaced neither its socket's `device_disconnected/2` nor
-  `clean_stale_connections/0` can find it. Its `device.disconnected` event
-  goes out only if it had reached `:connected`.
+  `last_seen_at`, because once the row is replaced neither its socket's
+  `device_disconnected/2` nor `clean_stale_connections/0` can find it. It keeps
+  a reason the device already gave (it said it was going to sleep, then woke
+  before its old socket closed), and is otherwise `:duplicate_connection`. Its
+  `device.disconnected` event goes out only if it had reached `:connected`.
   """
   @spec device_connecting(
           pos_integer(),
@@ -209,9 +208,10 @@ defmodule NervesHub.Devices.Connections do
   end
 
   @doc """
-  The device said why it is about to disconnect: it is going to sleep, or
-  rebooting. `expected_wake_at` is when a sleeping device said it would be
-  back, or `nil`.
+  Records the reason a device gave before disconnecting, `:rebooting` or a
+  sleep, and when a sleeping device said it would be back (`nil` if unknown).
+
+  Returns `:error` when the connection row has already been replaced.
 
   Written to the connection now, before the socket closes, rather than when it
   does: the socket is closed from another process, which never sees the
@@ -252,10 +252,12 @@ defmodule NervesHub.Devices.Connections do
 
   A reason the device gave first, through `device_leaving/3`, is kept over
   `reason`: the device knows better why it went than the socket closing does.
+  A revoked key is the exception (`DisconnectReason.overrides_announced?/1`).
   """
   @spec device_disconnected(Ecto.UUID.t(), DisconnectReason.t() | nil) :: :ok | {:error, any()}
   def device_disconnected(ref_id, reason \\ nil) do
     now = DateTime.utc_now()
+    override? = DisconnectReason.overrides_announced?(reason)
 
     DeviceConnection
     |> where(id: ^ref_id)
@@ -264,7 +266,14 @@ defmodule NervesHub.Devices.Connections do
       set: [
         last_seen_at: ^now,
         disconnected_at: ^now,
-        disconnected_reason: fragment("coalesce(?, ?)", dc.disconnected_reason, type(^reason, DisconnectReason)),
+        disconnected_reason:
+          fragment(
+            "CASE WHEN ? THEN ? ELSE coalesce(?, ?) END",
+            ^override?,
+            type(^reason, DisconnectReason),
+            dc.disconnected_reason,
+            type(^reason, DisconnectReason)
+          ),
         status: :disconnected
       ]
     )

@@ -126,11 +126,13 @@ defmodule NervesHubWeb.Components.DeviceSleep do
 
   @doc """
   A sentence for a `title` or tooltip about a sleeping device, such as
-  "Asleep, back in 5 minutes", or nil when it is not asleep.
+  "Asleep, back in 5 minutes" or "Going to sleep", or nil when the device has
+  not said it is going to sleep. Pass the page's ticking clock as `now` so
+  the sentence follows it.
   """
-  @spec describe(DeviceConnection.t() | nil) :: String.t() | nil
-  def describe(connection) do
-    now = DateTime.utc_now()
+  @spec describe(DeviceConnection.t() | nil, DateTime.t() | nil) :: String.t() | nil
+  def describe(connection, now \\ nil) do
+    now = now || DateTime.utc_now()
 
     case DeviceConnection.sleep_state(connection, now) do
       nil -> nil

@@ -356,6 +356,23 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       |> assert_has("#device-sleep-status [role=tooltip]", text: "In deep sleep. Expected back at")
     end
 
+    test "a device that goes to sleep while the page is open shows as asleep", %{conn: conn, fixture: fixture} do
+      device = fixture.device
+      {:ok, connection} = Connections.device_connecting(device.org_id, device.product_id, device.id)
+      :ok = Connections.device_connected(connection.id)
+
+      conn
+      |> visit(device_show_path(fixture))
+      |> assert_has("span[data-connection-status=connected]")
+      |> unwrap(fn view ->
+        :ok = Connections.device_leaving(connection.id, :deep_sleep, DateTime.add(DateTime.utc_now(), 10, :minute))
+        :ok = Connections.device_disconnected(connection.id)
+        render(view)
+      end)
+      |> assert_has("span.sleep-mark[data-connection-status=asleep][title='Asleep, back in 9 minutes']")
+      |> assert_has("#device-sleep-status span", text: "back in 9 minutes")
+    end
+
     test "a device later than it said shows as overdue", %{conn: conn, fixture: fixture} do
       device = fixture.device
       {:ok, connection} = Connections.device_connecting(device.org_id, device.product_id, device.id)

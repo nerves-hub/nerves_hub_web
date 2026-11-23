@@ -75,8 +75,8 @@ defmodule NervesHubWeb.API.DeviceJSON do
   defp connection_status(%{latest_connection: %{status: status}}), do: status
   defp connection_status(_), do: :not_seen
 
-  # Present only while the device's last connection ended in sleep: see
-  # `DeviceConnection.sleep_state/2`.
+  # Present from when the device says it is going to sleep until it connects
+  # again: see `DeviceConnection.sleep_state/2`.
   defp sleep(%{latest_connection: %DeviceConnection{} = connection}) do
     case DeviceConnection.sleep_state(connection) do
       nil ->

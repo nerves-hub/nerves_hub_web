@@ -1011,6 +1011,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
     socket
     |> update(:received_connection_change_identifiers, &Map.put(&1, device_id, status))
     |> update_device_statuses(device_id, status)
+    |> close_listed_connection(device_id, payload)
     |> noreply()
   end
 
@@ -1676,6 +1677,30 @@ defmodule NervesHubWeb.Live.Devices.Index do
       _offline -> DeviceSleep.list_status(device.latest_connection)
     end
   end
+
+  # The listed device's connection, closed as the broadcast describes it, so
+  # its row, Connection column and side panel say when a sleeping device is
+  # due back without waiting for the next refresh. Details a broadcast from
+  # an older node leaves out stay as they were.
+  defp close_listed_connection(%{assigns: %{devices: %AsyncResult{ok?: true} = devices}} = socket, device_id, payload) do
+    changes =
+      payload
+      |> Map.take([:disconnected_reason, :disconnected_at, :expected_wake_at])
+      |> Map.put(:status, :disconnected)
+
+    listed =
+      Enum.map(devices.result, fn
+        %Device{id: ^device_id, latest_connection: %DeviceConnection{} = connection} = device ->
+          %{device | latest_connection: struct(connection, changes)}
+
+        device ->
+          device
+      end)
+
+    assign(socket, :devices, %{devices | result: listed})
+  end
+
+  defp close_listed_connection(socket, _device_id, _payload), do: socket
 
   # The connection that just ended, as `Tracker.offline/1` describes it. A
   # broadcast from a node that does not send the details reads as offline.

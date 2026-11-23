@@ -166,6 +166,20 @@ defmodule NervesHub.Devices.ConnectionsTest do
       assert %DeviceConnection{disconnected_reason: :rebooting} = Connections.get_latest_for_device(device.id)
     end
 
+    test "a revoked key replaces a sleep the device announced", %{
+      device: device,
+      connection: connection,
+      wake_at: wake_at
+    } do
+      :ok = Connections.device_leaving(connection.id, :deep_sleep, wake_at)
+      :ok = Connections.device_disconnected(connection.id, :key_revoked)
+
+      assert %DeviceConnection{disconnected_reason: :key_revoked} =
+               connection = Connections.get_latest_for_device(device.id)
+
+      assert DeviceConnection.sleep_state(connection) == nil
+    end
+
     # The socket process and the channel process race; the reason lands
     # whichever wins.
     test "a reason that arrives after the disconnect is still recorded", %{device: device, connection: connection} do

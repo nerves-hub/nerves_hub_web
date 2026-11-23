@@ -124,7 +124,10 @@ defmodule NervesHubWeb.Live.Devices.Show do
   def handle_info(%Broadcast{event: "connection:heartbeat"}, socket) do
     %{device: device} = socket.assigns
 
-    {:noreply, assign(socket, :device_connection, Connections.get_latest_for_device(device.id))}
+    socket
+    |> assign(:device_connection, Connections.get_latest_for_device(device.id))
+    |> assign(:sleep_clock, DateTime.utc_now())
+    |> noreply()
   end
 
   def handle_info(%Broadcast{event: "connection:change", payload: payload}, socket) do
@@ -135,6 +138,9 @@ defmodule NervesHubWeb.Live.Devices.Show do
     socket
     |> assign(:device, device)
     |> assign(:device_connection, device.latest_connection)
+    # The clock only ticks while the device is asleep, so a device that has
+    # just gone to sleep is judged from now, not from the last tick.
+    |> assign(:sleep_clock, DateTime.utc_now())
     |> load_inprogress_firmware_update()
     |> then(fn socket ->
       if(payload.status == "online", do: clear_flash(socket), else: socket)
@@ -526,8 +532,6 @@ defmodule NervesHubWeb.Live.Devices.Show do
     :ok
   end
 
-  # The header dot: the connection's own status, except that a device asleep
-  # or overdue shows as that rather than as disconnected.
   defp general_assigns(socket, device) do
     socket
     |> assign(:device, device)

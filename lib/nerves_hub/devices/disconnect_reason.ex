@@ -4,25 +4,26 @@ defmodule NervesHub.Devices.DisconnectReason do
   `latest_device_connections.disconnected_reason` and copied into
   `device_connection_history`.
 
-    * `:light_sleep`, `:deep_sleep` — the device said it was going to sleep
+    * `:light_sleep`, `:deep_sleep` - the device said it was going to sleep
       (the `sleeping` message), usually with when it expects to wake
-    * `:rebooting` — the device said it was rebooting
-    * `:stale_connection` — the device stopped sending heartbeats, and the
+    * `:rebooting` - the device said it was rebooting
+    * `:stale_connection` - the device stopped sending heartbeats, and the
       sweep closed the connection
-    * `:duplicate_connection` — the device connected again while this
+    * `:duplicate_connection` - the device connected again while this
       connection was still open, and the new one replaced it (see
       `NervesHub.Devices.Connections.device_connecting/5`)
-    * `:reconnect_requested` — someone asked the device to reconnect, from the
+    * `:reconnect_requested` - someone asked the device to reconnect, from the
       web UI or the API
-    * `:key_revoked` — the shared secret key the device authenticated with was
+    * `:key_revoked` - the shared secret key the device authenticated with was
       deactivated
-    * `:platform_update` — the node holding the connection shut down, as it
+    * `:platform_update` - the node holding the connection shut down, as it
       does during a deploy
 
   `nil` means the connection closed without NervesHub knowing why.
 
   A reason the device announced is written when it announces it, before the
-  socket closes, and nothing written after replaces it: see
+  socket closes, and only `:key_revoked` replaces it afterwards (see
+  `overrides_announced?/1`): see
   `NervesHub.Devices.Connections.device_leaving/3`.
 
   Stored as a string rather than a Postgres enum, so adding a reason needs no
@@ -78,6 +79,17 @@ defmodule NervesHub.Devices.DisconnectReason do
   """
   @spec planned_values() :: nonempty_list(planned())
   def planned_values(), do: @planned
+
+  @doc """
+  Whether `reason`, found by the server as the connection closes, replaces
+  one the device announced before it. Only a revoked key does: the device
+  can't know about it, and a device that said it was going to sleep and then
+  lost its key must not go on showing as asleep. Every other reason keeps the
+  device's, since a sleeping device that wakes before its old socket closes
+  is what replaces that connection.
+  """
+  @spec overrides_announced?(t() | nil) :: boolean()
+  def overrides_announced?(reason), do: reason == :key_revoked
 
   @doc "Whether `reason` means the device went to sleep."
   @spec sleep?(t() | nil) :: boolean()

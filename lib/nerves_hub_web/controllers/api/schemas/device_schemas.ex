@@ -33,7 +33,7 @@ defmodule NervesHubWeb.API.Schemas.DeviceSchemas do
           type: :object,
           nullable: true,
           description:
-            "Set while the device's last connection ended with it going to sleep, and null otherwise. A device that wakes and connects again clears it.",
+            "Set from when the device says it is going to sleep until it connects again, and null otherwise.",
           properties: %{
             state: %Schema{
               type: :string,

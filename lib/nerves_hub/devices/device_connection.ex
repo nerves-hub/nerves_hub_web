@@ -23,8 +23,9 @@ defmodule NervesHub.Devices.DeviceConnection do
 
     field(:disconnected_reason, DisconnectReason)
 
-    # When a device that went to sleep said it would be back, and when it was
-    # found not to be. Both are cleared when the device connects again.
+    # When a device that went to sleep said it would be back, and (reserved,
+    # not yet set) when it was found not to be. Both are cleared when the
+    # device connects again.
     field(:expected_wake_at, :utc_datetime_usec)
     field(:wake_missed_at, :utc_datetime_usec)
 
@@ -104,13 +105,13 @@ defmodule NervesHub.Devices.DeviceConnection do
   @doc """
   Where a connection stands with respect to sleep, at `now`.
 
-    * `:going_to_sleep` — the device said it is going to sleep, and its
+    * `:going_to_sleep` - the device said it is going to sleep, and its
       connection has not closed yet
-    * `:asleep` — it is asleep, and either not yet due back or with no time
-      given
-    * `:overdue` — it is later than it said it would be, beyond a margin of
-      two minutes or a tenth of how long it slept, whichever is longer
-    * `nil` — the connection did not end in sleep
+    * `:asleep` - it is asleep, and either not yet past `wake_deadline/1` or
+      gave no time
+    * `:overdue` - it is past `wake_deadline/1`: later than it said by more
+      than two minutes or a tenth of how long it slept, whichever is longer
+    * `nil` - the device did not say it was going to sleep
   """
   @spec sleep_state(t() | nil, DateTime.t()) :: :going_to_sleep | :asleep | :overdue | nil
   def sleep_state(connection, now \\ DateTime.utc_now())

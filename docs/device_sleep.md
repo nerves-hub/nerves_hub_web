@@ -82,7 +82,8 @@ eleven hours.
   a row opens shows the z's and the device page's line, and its Reboot button
   says the device is asleep rather than offline.
 - **API**: a device's `sleep` field, `{"state", "mode", "expected_wake_at"}`,
-  is set while its last connection ended in sleep and is null otherwise.
+  is set from when the device says it is going to sleep until it connects
+  again, and is null otherwise.
 - **Webhooks**: `device.disconnected` carries `reason_code` and
   `expected_wake_at`; see [webhooks](webhooks.md#devicedisconnected).
 - **Insights and health**: a connection that ended in sleep does not count

@@ -58,7 +58,7 @@ defmodule NervesHubWeb.Components.DevicePage.Header do
           <DeviceSleep.sleep_mark
             :if={sleeping?(@status)}
             status={@status}
-            title={DeviceSleep.describe(@device_connection)}
+            title={DeviceSleep.describe(@device_connection, @sleep_clock)}
             data-connection-status={@status}
             class="sleep-mark-lg"
           />
@@ -205,7 +205,7 @@ defmodule NervesHubWeb.Components.DevicePage.Header do
       <DeviceSleep.sleep_mark
         :if={sleeping?(@status)}
         status={@status}
-        title={DeviceSleep.describe(@device_connection)}
+        title={DeviceSleep.describe(@device_connection, @sleep_clock)}
         data-connection-status={@status}
         class="mr-2 ml-1"
       />

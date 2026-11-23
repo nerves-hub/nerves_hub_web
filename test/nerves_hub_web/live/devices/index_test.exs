@@ -173,7 +173,10 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
 
         render(view)
       end)
-      |> assert_has("span.sleep-mark.text-status-asleep")
+      |> assert_has("span.sleep-mark.text-status-asleep[title^='Asleep, back in']")
+      |> assert_has("span", text: "Asleep, 4 minutes left")
+      |> unwrap(fn view -> view |> element("#device-row-#{device.id}") |> render_click() end)
+      |> assert_has("#peek-sleep-status span", text: "back in 4 minutes")
     end
 
     test "a device already asleep is shown asleep on load", %{conn: conn, fixture: fixture} do
