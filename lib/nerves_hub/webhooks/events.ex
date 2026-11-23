@@ -28,8 +28,7 @@ defmodule NervesHub.Webhooks.Events do
       type: "device.disconnected",
       group: "Connection",
       label: "Device disconnected",
-      description:
-        "A device's connection closed, either by the device or after it stopped sending heartbeats."
+      description: "A device's connection closed, either by the device or after it stopped sending heartbeats."
     },
     %{
       type: "device.health_reported",
