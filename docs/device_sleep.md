@@ -69,13 +69,18 @@ eleven hours.
 
 ## Where it shows
 
-- **Device page**: the status dot turns blue, with a badge such as "Asleep,
-  back in 5 minutes", and the expected time in its tooltip. Overdue turns both
-  amber. A device that has said it is going to sleep but not yet closed its
-  connection reads "Going to sleep".
-- **Devices list**: the same dot colours, the same sentence in the dot's
-  tooltip, and an "Asleep" choice in the Connection filter
+- **Device page**: two rising z's take the status dot's place, green while
+  asleep and orange once overdue, and the line beside the identifier reads
+  "Asleep back in 5 minutes" or "Overdue was due back 20 minutes ago", with
+  the expected time in its tooltip. A device that has said it is going to
+  sleep but not yet closed its connection reads "Online … going to sleep".
+- **Devices list**: the same z's in place of the dot, with the sentence in
+  their tooltip, "Asleep, 5 minutes left" or "Overdue 20 minutes" in the
+  Connection column, and an "Asleep" choice in the Connection filter
   (`connection = "asleep"` in the query bar). It matches overdue devices too.
+  Every row's dot keeps the z's width, so identifiers line up. The side panel
+  a row opens shows the z's and the device page's line, and its Reboot button
+  says the device is asleep rather than offline.
 - **API**: a device's `sleep` field, `{"state", "mode", "expected_wake_at"}`,
   is set while its last connection ended in sleep and is null otherwise.
 - **Webhooks**: `device.disconnected` carries `reason_code` and

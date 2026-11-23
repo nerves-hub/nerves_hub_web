@@ -321,13 +321,10 @@
                   </td>
                   <td class="max-sm:col-span-2 max-sm:col-start-2 max-sm:row-start-1 max-sm:min-w-0">
                     <div class="flex items-center gap-2">
-                      <.status_dot
-                        class={[
-                          "size-1.75",
-                          DeviceSleep.dot_class(@device_statuses.result[device.id]),
-                          (@selecting? or @selected_devices != []) && "max-sm:hidden"
-                        ]}
-                        title={DeviceSleep.dot_title(@device_statuses.result[device.id], device.latest_connection)}
+                      <DeviceSleep.status_mark
+                        status={@device_statuses.result[device.id]}
+                        connection={device.latest_connection}
+                        class={(@selecting? or @selected_devices != []) && "max-sm:hidden"}
                       />
                       <.link
                         navigate={~p"/org/#{@org}/#{@product}/devices/#{device}"}

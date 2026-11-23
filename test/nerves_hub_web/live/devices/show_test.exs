@@ -350,8 +350,9 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
 
       conn
       |> visit(device_show_path(fixture))
-      |> assert_has("span[data-connection-status=asleep]")
-      |> assert_has("#device-sleep-status", text: "Asleep, back in 9 minutes")
+      |> assert_has("span.sleep-mark[data-connection-status=asleep]")
+      |> assert_has("#device-sleep-status span", text: "Asleep")
+      |> assert_has("#device-sleep-status span", text: "back in 9 minutes")
       |> assert_has("#device-sleep-status [role=tooltip]", text: "In deep sleep. Expected back at")
     end
 
@@ -363,11 +364,12 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
 
       conn
       |> visit(device_show_path(fixture))
-      |> assert_has("span[data-connection-status=overdue]")
-      |> assert_has("#device-sleep-status", text: "Overdue, was due 20 minutes ago")
+      |> assert_has("span.sleep-mark[data-connection-status=overdue]")
+      |> assert_has("#device-sleep-status span", text: "Overdue")
+      |> assert_has("#device-sleep-status span", text: "was due back 20 minutes ago")
     end
 
-    test "a device that went offline without saying shows no sleep badge", %{conn: conn, fixture: fixture} do
+    test "a device that went offline without saying shows no sleep summary", %{conn: conn, fixture: fixture} do
       device = fixture.device
       {:ok, connection} = Connections.device_connecting(device.org_id, device.product_id, device.id)
       :ok = Connections.device_disconnected(connection.id)

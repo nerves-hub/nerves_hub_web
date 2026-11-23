@@ -335,10 +335,13 @@ defmodule NervesHubWeb.Components.DeviceList do
   def format_number(value), do: to_string(value)
 
   attr(:device, Device, required: true)
+
   attr(:status, :string,
     default: nil,
-    doc: ~s("online", "offline", or "asleep" or "overdue" for a device that said it was going to sleep, as the page tracks it)
+    doc:
+      ~s("online", "offline", or "asleep" or "overdue" for a device that said it was going to sleep, as the page tracks it)
   )
+
   attr(:reason, :string, default: "", doc: "the reason the list is filtered to, shown first")
   attr(:peeked, :boolean, default: false)
   attr(:path, :string, required: true, doc: "the device's page")
@@ -361,10 +364,7 @@ defmodule NervesHubWeb.Components.DeviceList do
         if(@peeked, do: "border-l-2 border-l-primary bg-primary/6 pl-3.5", else: "pl-4 hover:bg-primary/4")
       ]}
     >
-      <.status_dot
-        class={["size-1.75 shrink-0 max-sm:mt-1.75", DeviceSleep.dot_class(@status)]}
-        title={DeviceSleep.dot_title(@status, @device.latest_connection)}
-      />
+      <DeviceSleep.status_mark status={@status} connection={@device.latest_connection} class="max-sm:mt-1.75" />
       <div class="flex min-w-0 grow flex-col gap-0.75 max-sm:gap-1.5">
         <.link
           navigate={@path}
@@ -602,6 +602,19 @@ defmodule NervesHubWeb.Components.DeviceList do
     """
   end
 
+  # "Asleep, 9 minutes left" or "Overdue 25 minutes", counted from when the
+  # device said it would be back.
+  defp sleep_summary("overdue", %{expected_wake_at: %DateTime{} = at}),
+    do: "Overdue #{Fleet.duration(max(DateTime.diff(DateTime.utc_now(), at), 0))}"
+
+  defp sleep_summary("overdue", _connection), do: "Overdue"
+
+  defp sleep_summary(_asleep, %{expected_wake_at: %DateTime{} = at}) do
+    if DateTime.after?(at, DateTime.utc_now()), do: "Asleep, #{left(at)} left", else: "Asleep, due back now"
+  end
+
+  defp sleep_summary(_asleep, _connection), do: "Asleep"
+
   # "2 hours", or "a minute" for anything under one.
   defp left(until) do
     case DateTime.diff(until, DateTime.utc_now()) do
@@ -611,9 +624,11 @@ defmodule NervesHubWeb.Components.DeviceList do
   end
 
   attr(:device, Device, required: true)
+
   attr(:status, :string,
     default: nil,
-    doc: ~s("online", "offline", or "asleep" or "overdue" for a device that said it was going to sleep, as the page tracks it)
+    doc:
+      ~s("online", "offline", or "asleep" or "overdue" for a device that said it was going to sleep, as the page tracks it)
   )
 
   @doc """
@@ -629,10 +644,13 @@ defmodule NervesHubWeb.Components.DeviceList do
   end
 
   def connection(%{status: status} = assigns) when status in ["asleep", "overdue"] do
-    assigns = assign(assigns, :summary, DeviceSleep.describe(assigns.device.latest_connection))
+    assigns = assign(assigns, :summary, sleep_summary(status, assigns.device.latest_connection))
 
     ~H"""
-    <span class={["text-ui/4", if(@status == "overdue", do: "text-warning-content", else: "text-content-muted")]}>
+    <span
+      class={["text-ui/4", if(@status == "overdue", do: "text-warning-content", else: "text-content-body")]}
+      title={DeviceSleep.describe(@device.latest_connection)}
+    >
       {@summary}
     </span>
     """
@@ -795,7 +813,7 @@ defmodule NervesHubWeb.Components.DeviceList do
       <ul class="flex flex-col gap-2 sm:hidden" aria-hidden="true">
         <li :for={row <- 0..(@rows - 1)} class="flex flex-col gap-2 rounded-card border border-line-default bg-surface-raised p-3">
           <span class="flex h-4.5 items-center gap-2">
-            <.status_dot class="size-1.75 shrink-0 bg-status-offline" />
+            <.status_dot class="mr-1.25 size-1.75 shrink-0 bg-status-offline" />
             <span class={["h-2.5", bar_width(:identifier, row), @bar]}></span>
             <span class={["ml-auto h-2 w-12", @bar]}></span>
           </span>
@@ -837,7 +855,7 @@ defmodule NervesHubWeb.Components.DeviceList do
               </td>
               <td>
                 <span class="flex items-center gap-2">
-                  <.status_dot class="size-1.75 bg-status-offline" />
+                  <.status_dot class="mr-1.25 size-1.75 bg-status-offline" />
                   <span class={["h-2.5", bar_width(:identifier, row), @bar]}></span>
                 </span>
               </td>
@@ -916,7 +934,7 @@ defmodule NervesHubWeb.Components.DeviceList do
         aria-hidden="true"
         class="flex h-15 items-center gap-3 border-b border-line-subtle pr-5 pl-4 last:border-b-0 max-sm:h-auto max-sm:items-start max-sm:gap-2 max-sm:rounded-card max-sm:border max-sm:border-line-default max-sm:bg-surface-raised max-sm:p-3 max-sm:last:border-b"
       >
-        <.status_dot class="size-1.75 shrink-0 bg-status-offline max-sm:mt-1.75" />
+        <.status_dot class="mr-1.25 size-1.75 shrink-0 bg-status-offline max-sm:mt-1.75" />
         <span class="flex min-w-0 grow flex-col gap-2 max-sm:gap-2.5">
           <span class={["h-2.5", bar_width(:identifier, row), @bar]}></span>
           <span class={["h-2", Enum.at(~w(w-56 w-44 w-64 w-40), rem(row, 4)), @bar]}></span>
