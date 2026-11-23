@@ -2,13 +2,16 @@ defmodule NervesHubWeb.RateLimitPubSub do
   @moduledoc """
   Keeps PlugAttack IP-throttle counts in sync across web nodes.
 
-  Only the web endpoint runs the throttle (it guards the `check_cli_session` API
-  action), so this is scoped to the named "web" Group cluster — device nodes
-  neither run this process nor carry its membership. The originating node has
-  already applied the increment inline in `Attack.ip_throttle/1`; dispatching to
-  the group tells the *other* web nodes to apply the same increment, so their
-  local ETS agrees and the per-IP limit is enforced cluster-wide rather than
-  per-node.
+  Only the web endpoint runs the throttle, so this is scoped to the named "web"
+  Group cluster: device nodes neither run this process nor carry its
+  membership. The originating node has already applied the increment inline in
+  `Attack.ip_throttle/1`; dispatching to the group tells the *other* web nodes
+  to apply the same increment, so their local ETS agrees and the per-IP limit
+  is enforced cluster-wide rather than per-node.
+
+  Nothing reaches `Attack.ip_throttle/1` today: the only actions behind
+  `NervesHubWeb.Plugs.Attack`, starting and polling a CLI login, have allowances
+  of their own, counted per node.
   """
 
   use GenServer

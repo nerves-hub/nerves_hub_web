@@ -70,6 +70,58 @@ defmodule NervesHubWeb.Plugs.AttackTest do
     end
   end
 
+  describe "polling a CLI login" do
+    test "allows one address 120 polls a minute, counted apart from everything else" do
+      ip = {203, 0, 113, 50}
+      time = System.system_time(:millisecond)
+
+      for _ <- 1..120, do: assert({:allow, _} = Attack.cli_poll_throttle(ip, time: time))
+
+      assert {:block, {:throttle, data}} = Attack.cli_poll_throttle(ip, time: time)
+      assert data[:limit] == 120
+      assert data[:remaining] == 0
+
+      # Another address, the next minute, and the general allowance are all
+      # untouched.
+      assert {:allow, _} = Attack.cli_poll_throttle({203, 0, 113, 51}, time: time)
+      assert {:allow, _} = Attack.cli_poll_throttle(ip, time: time + 60_000)
+      assert {:allow, {:throttle, general}} = Attack.ip_throttle(ip, time: time)
+      assert general[:remaining] == @limit - 1
+    end
+
+    test "is refused with a 429 and how many seconds to wait" do
+      conn =
+        Attack.block_action(
+          Plug.Test.conn(:get, "/"),
+          {:throttle, expires_at: System.system_time(:millisecond) + 12_500},
+          []
+        )
+
+      assert conn.halted
+      assert conn.status == 429
+      assert Plug.Conn.get_resp_header(conn, "retry-after") == ["13"]
+      assert Jason.decode!(conn.resp_body) == %{"errors" => %{"detail" => "Too many requests"}}
+    end
+
+    test "refuses a block that isn't a throttle without a Retry-After" do
+      conn = Attack.block_action(Plug.Test.conn(:get, "/"), true, [])
+
+      assert conn.status == 429
+      assert Plug.Conn.get_resp_header(conn, "retry-after") == []
+    end
+
+    test "never says to retry in less than a second" do
+      conn =
+        Attack.block_action(
+          Plug.Test.conn(:get, "/"),
+          {:throttle, expires_at: System.system_time(:millisecond) - 5},
+          []
+        )
+
+      assert Plug.Conn.get_resp_header(conn, "retry-after") == ["1"]
+    end
+  end
+
   defp put_endpoint_config(overrides) do
     previous = Application.get_env(:nerves_hub, NervesHubWeb.Endpoint)
 

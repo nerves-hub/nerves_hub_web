@@ -1975,10 +1975,10 @@ defmodule NervesHub.Accounts do
 
         {:ok, {:put, cli_session}}
 
-      {:ok, %{status: :ready, user_id: user_id}} when user_id == user.id ->
+      {:ok, %{status: status, user_id: user_id}} when status in [:ready, :collected] and user_id == user.id ->
         {:ok, :noop}
 
-      {:ok, %{status: :ready}} ->
+      {:ok, %{status: status}} when status in [:ready, :collected] ->
         {{:error, :already_verified}, :noop}
 
       _ ->
@@ -2097,13 +2097,33 @@ defmodule NervesHub.Accounts do
     end
   end
 
-  def check_cli_session_ready(token) do
-    CLISessionCache.get_and_update(token, fn
-      {:ok, %{status: :ready} = cli_session} ->
-        cli_session = %{cli_session | status: :verified}
-        {{:ok, cli_session}, {:put, cli_session}}
+  @doc """
+  Polls the CLI login `token`, handing its API token to the first poll after
+  someone confirms it.
 
-      {:ok, %{status: :waiting} = cli_session} ->
+  A `:waiting` login comes back as it is. A `:ready` one comes back with its API
+  token, and is stored on every web node as `:collected` with the token dropped,
+  so later polls, whoever makes them, find `:collected` and no token. An expired
+  login isn't found at all.
+
+  A node the `:collected` write hasn't reached yet can still hand the token out,
+  for as long as the write takes to get there. A CLI that missed the response
+  carrying the token has to start another login. The token it missed stays on
+  the account, under the login's note, until the user revokes it.
+  """
+  @spec check_cli_session_ready(String.t()) :: {:ok, UserCLISession.t()} | {:error, :not_found}
+  def check_cli_session_ready(token) do
+    now = DateTime.to_unix(DateTime.utc_now())
+
+    CLISessionCache.get_and_update(token, fn
+      # The cache only clears expired logins once a minute.
+      {:ok, %{expires_at: expires_at}} when expires_at < now ->
+        {{:error, :not_found}, :noop}
+
+      {:ok, %{status: :ready} = cli_session} ->
+        {{:ok, cli_session}, {:put, %{cli_session | status: :collected, user_token: nil}}}
+
+      {:ok, %{status: status} = cli_session} when status in [:waiting, :collected] ->
         {{:ok, cli_session}, :noop}
 
       _ ->

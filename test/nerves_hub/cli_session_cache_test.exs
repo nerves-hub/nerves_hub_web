@@ -39,6 +39,55 @@ defmodule NervesHub.CLISessionCacheTest do
     refute_receive {:put, _origin, ^token, _}, 200
   end
 
+  describe "a write from a peer node" do
+    setup do
+      expires_at = DateTime.utc_now() |> DateTime.add(5, :minute) |> DateTime.to_unix()
+      waiting = %UserCLISession{token: Ecto.UUID.generate(), status: :waiting, expires_at: expires_at}
+
+      %{
+        waiting: waiting,
+        ready: %{waiting | status: :ready, user_id: 1, user_token: "nhu_secret"},
+        collected: %{waiting | status: :collected, user_id: 1}
+      }
+    end
+
+    test "moves a login forward", %{waiting: waiting, ready: ready, collected: collected} do
+      :ok = CLISessionCache.put(waiting.token, waiting)
+
+      for cli_session <- [ready, collected] do
+        send(CLISessionCache, {:put, :peer@example, waiting.token, cli_session})
+        assert eventually(fn -> CLISessionCache.get(waiting.token) == {:ok, cli_session} end)
+      end
+    end
+
+    # Writes from two nodes reach a third in no set order: the confirming
+    # node's :ready can arrive after the polled node's :collected.
+    test "that arrives late can't put a collected token back", %{waiting: waiting, ready: ready, collected: collected} do
+      :ok = CLISessionCache.put(collected.token, collected)
+
+      send(CLISessionCache, {:put, :confirmed@example, ready.token, ready})
+      send(CLISessionCache, {:put, :started@example, waiting.token, waiting})
+
+      # The cache handles its messages in order, so once it answers, both have
+      # been dropped.
+      _ = :sys.get_state(CLISessionCache)
+      assert CLISessionCache.get(collected.token) == {:ok, collected}
+    end
+
+    test "for a collected login from a node on an older release counts as collected", %{
+      ready: ready,
+      collected: collected
+    } do
+      verified = %{collected | status: :verified}
+      :ok = CLISessionCache.put(verified.token, verified)
+
+      send(CLISessionCache, {:put, :confirmed@example, ready.token, ready})
+
+      _ = :sys.get_state(CLISessionCache)
+      assert CLISessionCache.get(verified.token) == {:ok, verified}
+    end
+  end
+
   test "warm-up excludes the local node and no-ops when it is the only cache member" do
     # The running cache has joined the "web" group, so it is the only member in
     # this single-node test cluster. Warm-up must exclude self (never RPC itself)
@@ -288,6 +337,85 @@ defmodule NervesHub.CLISessionCacheTest do
 
       assert_received {:taken, taken}
       refute code == taken
+    end
+  end
+
+  describe "collecting a confirmed CLI login's API token" do
+    setup do
+      user = Fixtures.user_fixture()
+      {:ok, %{token: token}} = Accounts.generate_cli_session_token("nh")
+
+      %{user: user, token: token}
+    end
+
+    test "waits until someone confirms the login", %{token: token} do
+      assert {:ok, %{status: :waiting, user_token: nil}} = Accounts.check_cli_session_ready(token)
+      assert {:ok, %{status: :waiting}} = Accounts.check_cli_session_ready(token)
+    end
+
+    test "hands the token over once, then drops it from the cache", %{user: user, token: token} do
+      :ok = Accounts.verify_cli_session_token(user, token)
+
+      assert {:ok, %{status: :ready, user_token: "nhu_" <> _ = user_token}} = Accounts.check_cli_session_ready(token)
+      assert {:ok, %{id: user_id}, _api_token} = Accounts.fetch_user_by_api_token(user_token)
+      assert user_id == user.id
+
+      # Whoever asks next, the CLI retrying or someone else holding the
+      # login's token, gets no token.
+      for _ <- 1..3 do
+        assert {:ok, %{status: :collected, user_token: nil}} = Accounts.check_cli_session_ready(token)
+      end
+
+      assert {:ok, %{status: :collected, user_token: nil, user_id: user_id}} = CLISessionCache.get(token)
+      assert user_id == user.id
+    end
+
+    test "tells every other web node the token is gone", %{user: user, token: token} do
+      :ok = Accounts.verify_cli_session_token(user, token)
+
+      # Listen as a peer node's cache would.
+      :ok = Group.join(NervesHub.Group, "cli_session_cache", %{}, cluster: "web")
+
+      assert {:ok, %{status: :ready}} = Accounts.check_cli_session_ready(token)
+
+      assert_receive {:put, _origin, ^token, %UserCLISession{status: :collected, user_token: nil}}
+    end
+
+    test "only one of many concurrent polls gets the token", %{user: user, token: token} do
+      :ok = Accounts.verify_cli_session_token(user, token)
+
+      statuses =
+        1..10
+        |> Enum.map(fn _ -> Task.async(fn -> Accounts.check_cli_session_ready(token) end) end)
+        |> Task.await_many()
+        |> Enum.map(fn {:ok, cli_session} -> {cli_session.status, cli_session.user_token} end)
+
+      assert [{:ready, "nhu_" <> _}] = Enum.filter(statuses, &match?({:ready, _}, &1))
+      assert Enum.count(statuses, &(&1 == {:collected, nil})) == 9
+    end
+
+    test "the person who confirmed it can still confirm it again, and nobody else can", %{user: user, token: token} do
+      :ok = Accounts.verify_cli_session_token(user, token)
+      {:ok, %{status: :ready}} = Accounts.check_cli_session_ready(token)
+
+      assert :ok = Accounts.verify_cli_session_token(user, token)
+      assert {:error, :already_verified} = Accounts.verify_cli_session_token(Fixtures.user_fixture(), token)
+      assert {:ok, %{status: :collected, user_token: nil}} = CLISessionCache.get(token)
+    end
+
+    test "finds nothing once the login expires, even before the cache clears it", %{user: user, token: token} do
+      :ok = Accounts.verify_cli_session_token(user, token)
+      {:ok, cli_session} = CLISessionCache.get(token)
+
+      expired = DateTime.utc_now() |> DateTime.add(-1, :second) |> DateTime.to_unix()
+      :ok = CLISessionCache.put(token, %{cli_session | expires_at: expired})
+
+      assert {:error, :not_found} = Accounts.check_cli_session_ready(token)
+      assert {:ok, %{status: :ready}} = CLISessionCache.get(token)
+    end
+
+    test "finds nothing for a token no login has" do
+      assert {:error, :not_found} = Accounts.check_cli_session_ready(Ecto.UUID.generate())
     end
   end
 

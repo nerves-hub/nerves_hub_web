@@ -43,7 +43,7 @@ defmodule NervesHub.CLISessionCache do
     # A write from a peer node. Apply it locally, but do NOT re-broadcast:
     # otherwise every node re-emits every message it receives and they
     # ping-pong across the cluster forever.
-    :ets.insert(@table, {key, value, value.expires_at})
+    apply_from_peer({key, value, value.expires_at})
     {:noreply, state}
   end
 
@@ -57,7 +57,7 @@ defmodule NervesHub.CLISessionCache do
     _ =
       case fetch_data_from_cluster() do
         {:ok, data} ->
-          :ets.insert(@table, data)
+          Enum.each(data, &apply_from_peer/1)
 
         :no_nodes_available when attempts > 1 ->
           Process.send_after(self(), {:warm_up_from_cluster, attempts - 1}, @warm_up_interval)
@@ -68,6 +68,28 @@ defmodule NervesHub.CLISessionCache do
 
     {:noreply, state}
   end
+
+  # A login only moves forward, from waiting to ready to collected, and a peer's
+  # write can arrive late. Writes from two different nodes reach a third in no
+  # set order, so the confirming node's `:ready` can land after another node's
+  # `:collected`, and a peer's snapshot can be older than what this node has.
+  # Applying either would put the collected API token back on this node until
+  # the login expires, so a write that would move a login backwards is dropped.
+  defp apply_from_peer({key, value, _expires_at} = entry) do
+    case :ets.lookup(@table, key) do
+      [{^key, current, _}] ->
+        if stage(value) >= stage(current), do: :ets.insert(@table, entry)
+
+      [] ->
+        :ets.insert(@table, entry)
+    end
+  end
+
+  # `:verified` is what a node on an older release stores for a collected login.
+  defp stage(%{status: :waiting}), do: 0
+  defp stage(%{status: :ready}), do: 1
+  defp stage(%{status: status}) when status in [:collected, :verified], do: 2
+  defp stage(_unknown), do: 0
 
   def put(key, cli_session) do
     :ets.insert(@table, {key, cli_session, cli_session.expires_at})
