@@ -8,6 +8,7 @@ defmodule NervesHubWeb.API.UserControllerTest do
   alias NervesHub.Fixtures
   alias NervesHub.PlugAttack.Storage, as: PlugAttackStorage
   alias NervesHub.Repo
+  alias NervesHubWeb.Plugs.Attack
   alias PlugAttack.Storage.Ets, as: PlugAttackEts
 
   test "me", %{conn: conn, user: user} do
@@ -357,54 +358,66 @@ defmodule NervesHubWeb.API.UserControllerTest do
       assert {:error, :already_verified} = NervesHub.Accounts.verify_cli_session_token(user2, token)
     end
 
-    test "a NervesHubWeb.NotFoundError is raised when a verified tokens status is checked again", %{
+    test "the token is handed out once: polling again says it was collected, without it", %{
       conn: conn,
       user: user
     } do
-      conn = post(conn, ~p"/api/auth/cli_session")
-
-      token = json_response(conn, 200)["data"]["token"]
-
-      conn = get(conn, ~p"/api/auth/cli_session/#{token}")
-      data = json_response(conn, 200)["data"]
-
-      assert data["status"] == "waiting"
+      %{"token" => token} = start_cli_login(conn)
 
       :ok = NervesHub.Accounts.verify_cli_session_token(user, token)
 
-      conn = get(conn, ~p"/api/auth/cli_session/#{token}")
-      data = json_response(conn, 200)["data"]
+      data = conn |> get(~p"/api/auth/cli_session/#{token}") |> json_response(200) |> Map.fetch!("data")
 
       assert data["status"] == "ready"
       assert data["user_token"] =~ "nhu_"
 
+      # From the same CLI, or from anyone else holding the login's token.
+      for conn <- [conn, %{conn | remote_ip: {198, 51, 100, 9}}] do
+        assert conn |> get(~p"/api/auth/cli_session/#{token}") |> json_response(200) == %{
+                 "data" => %{"status" => "collected"}
+               }
+      end
+    end
+
+    test "a NervesHubWeb.NotFoundError is raised for a token no login has", %{conn: conn} do
       assert_raise(NervesHubWeb.NotFoundError, fn ->
-        get(conn, ~p"/api/auth/cli_session/#{token}")
+        get(conn, ~p"/api/auth/cli_session/#{Ecto.UUID.generate()}")
       end)
     end
 
-    # nh polls every two seconds, which is the whole allowance, so starting the
-    # login can't count towards it.
-    test "polling is limited to thirty a minute, not counting the start of the login", %{conn: conn} do
-      conn = post(conn, ~p"/api/auth/cli_session")
+    # nh polls every two seconds for the five minutes a login waits, 30 a
+    # minute, so the allowance leaves room for four of those from one address.
+    test "polling is limited to 120 a minute, then refused with a 429 saying when to retry", %{conn: conn} do
+      %{"token" => token} = start_cli_login(conn)
 
-      token = json_response(conn, 200)["data"]["token"]
+      # Counted straight into the bucket, so the requests below don't straddle
+      # the end of a minute and start a fresh count.
+      for _ <- 1..119, do: Attack.cli_poll_throttle(conn.remote_ip)
 
-      for _ <- 1..30 do
-        conn = get(conn, ~p"/api/auth/cli_session/#{token}")
-        data = json_response(conn, 200)["data"]
-
-        assert data["status"] == "waiting"
-      end
+      assert waiting?(conn, token)
 
       conn = get(conn, ~p"/api/auth/cli_session/#{token}")
-      assert response(conn, 403) =~ "Forbidden"
+
+      assert json_response(conn, 429) == %{"errors" => %{"detail" => "Too many requests"}}
+      assert [retry_after] = get_resp_header(conn, "retry-after")
+      assert String.to_integer(retry_after) in 1..60
+    end
+
+    test "polling and starting logins don't count against each other", %{conn: conn} do
+      %{"token" => token} = start_cli_login(conn)
+
+      # Ten starts in the middle of 120 polls, each its whole allowance: if
+      # polls counted towards starts the starts would be refused, and if starts
+      # counted towards polls the last polls would be.
+      for _ <- 1..60, do: assert(waiting?(conn, token))
+      for _ <- 1..9, do: start_cli_login(conn)
+      for _ <- 1..60, do: assert(waiting?(conn, token))
     end
 
     test "each address can start ten logins every ten minutes", %{conn: conn} do
       logins = for _ <- 1..10, do: start_cli_login(conn)
 
-      assert conn |> post(~p"/api/auth/cli_session") |> response(403) =~ "Forbidden"
+      assert conn |> post(~p"/api/auth/cli_session") |> json_response(429)
 
       # The logins already started still wait, and another address can start one.
       assert Enum.all?(logins, &waiting?(conn, &1["token"]))

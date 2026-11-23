@@ -1,5 +1,6 @@
 defmodule NervesHubWeb.API.Schemas.WebhookSchemas do
   alias NervesHub.Webhooks.Events
+  alias NervesHubWeb.API.OpenAPI.SchemaHelpers
   alias OpenApiSpex.Schema
 
   require OpenApiSpex
@@ -43,8 +44,8 @@ defmodule NervesHubWeb.API.Schemas.WebhookSchemas do
         },
         last_error: %Schema{type: :string, nullable: true, description: "The most recent delivery failure"},
         last_error_at: %Schema{type: :string, format: :"date-time", nullable: true},
-        inserted_at: %Schema{type: :string, format: :"date-time"},
-        updated_at: %Schema{type: :string, format: :"date-time"}
+        inserted_at: SchemaHelpers.naive_timestamp("When it was created"),
+        updated_at: SchemaHelpers.naive_timestamp("When it was last changed")
       },
       example: %{
         "id" => 12,

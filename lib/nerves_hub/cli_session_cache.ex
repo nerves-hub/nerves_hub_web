@@ -1,4 +1,18 @@
 defmodule NervesHub.CLISessionCache do
+  @moduledoc """
+  CLI logins in progress, held in ETS on every web node.
+
+  Every web node keeps a copy of every login, so any node can find one by its
+  confirmation code (`with_confirmation_code/1`) or read it (`get/1`). Writes
+  reach the other nodes over the `"cli_session_cache"` group in the `"web"`
+  cluster, a moment later.
+
+  Changes to a login go through one node, its owner, so that two nodes can't
+  both act on the same copy of it. That is what stops a login confirmed on two
+  nodes at once from minting two API tokens, and a ready login's token from
+  being collected twice. See `get_and_update/2`.
+  """
+
   use GenServer
 
   alias NervesHub.Accounts.UserCLISession
@@ -7,6 +21,13 @@ defmodule NervesHub.CLISessionCache do
   @table :cli_session_cache
   @group "cli_session_cache"
   @cluster "web"
+
+  # The caches that can own logins. Kept apart from @group, which every cache
+  # joins to receive writes, for two reasons. A node joins this one only once its
+  # warm-up is done, so it never owns a login before it holds a copy of it. And a
+  # node on a release from before owners existed never joins it, so it is never
+  # sent a call it has no clause for.
+  @owners "cli_session_cache/owners"
 
   # Peer "web" cluster membership propagates asynchronously after this node
   # joins, so the cache warm-up retries pulling from a peer for a short window.
@@ -23,14 +44,21 @@ defmodule NervesHub.CLISessionCache do
     :ok = Group.join(NervesHub.Group, @group, %{}, cluster: @cluster)
 
     _ =
-      if Application.get_env(:nerves_hub, :env) != :test do
+      if Application.get_env(:nerves_hub, :env) == :test do
+        join_owners()
+      else
         # Warm the cache from a peer once "web" membership has propagated (see
         # the note on @warm_up_attempts); best-effort, `put/2` fills it otherwise.
+        # This node starts owning logins once that is done.
         Process.send_after(self(), {:warm_up_from_cluster, @warm_up_attempts}, @warm_up_interval)
         Process.send_after(self(), :delete_expired_session, 60_000)
       end
 
     {:ok, %{}}
+  end
+
+  defp join_owners() do
+    :ok = Group.join(NervesHub.Group, @owners, %{}, cluster: @cluster)
   end
 
   def handle_info({:put, origin, _key, _value}, state) when origin == node() do
@@ -43,7 +71,7 @@ defmodule NervesHub.CLISessionCache do
     # A write from a peer node. Apply it locally, but do NOT re-broadcast:
     # otherwise every node re-emits every message it receives and they
     # ping-pong across the cluster forever.
-    :ets.insert(@table, {key, value, value.expires_at})
+    apply_from_peer({key, value, value.expires_at})
     {:noreply, state}
   end
 
@@ -57,17 +85,42 @@ defmodule NervesHub.CLISessionCache do
     _ =
       case fetch_data_from_cluster() do
         {:ok, data} ->
-          :ets.insert(@table, data)
+          Enum.each(data, &apply_from_peer/1)
+          join_owners()
 
         :no_nodes_available when attempts > 1 ->
           Process.send_after(self(), {:warm_up_from_cluster, attempts - 1}, @warm_up_interval)
 
         :no_nodes_available ->
-          :ok
+          # The first web node up, or none of the others answered. Either way
+          # there is nothing more to wait for.
+          join_owners()
       end
 
     {:noreply, state}
   end
+
+  # A login only moves forward, from waiting to ready to collected, and a peer's
+  # write can arrive late. Writes from two different nodes reach a third in no
+  # set order, so the confirming node's `:ready` can land after another node's
+  # `:collected`, and a peer's snapshot can be older than what this node has.
+  # Applying either would put the collected API token back on this node until
+  # the login expires, so a write that would move a login backwards is dropped.
+  defp apply_from_peer({key, value, _expires_at} = entry) do
+    case :ets.lookup(@table, key) do
+      [{^key, current, _}] ->
+        if stage(value) >= stage(current), do: :ets.insert(@table, entry)
+
+      [] ->
+        :ets.insert(@table, entry)
+    end
+  end
+
+  # `:verified` is what a node on an older release stores for a collected login.
+  defp stage(%{status: :waiting}), do: 0
+  defp stage(%{status: :ready}), do: 1
+  defp stage(%{status: status}) when status in [:collected, :verified], do: 2
+  defp stage(_unknown), do: 0
 
   def put(key, cli_session) do
     :ets.insert(@table, {key, cli_session, cli_session.expires_at})
@@ -84,32 +137,91 @@ defmodule NervesHub.CLISessionCache do
   end
 
   @doc """
-  Atomically read a session and conditionally write it back.
+  Reads the login under `key` and maybe writes it back, on the login's owner.
 
-  Runs `fun` inside the cache process so concurrent callers on this node cannot
-  interleave a read and a write (e.g. a double-clicked confirmation or a retried
-  request). `fun` receives the current value as `{:ok, cli_session}` or `:error`
-  and must return `{return_value, action}` where `action` is `{:put, cli_session}`
-  or `:noop`.
+  `operation` is `{module, function, args}`. It is called as
+  `apply(module, function, [current | args])`, where `current` is
+  `{:ok, cli_session}` or `:error`, and must return `{return_value, action}`,
+  where `action` is `{:put, cli_session}` or `:noop`. `get_and_update/2`
+  returns `return_value`, and raises whatever the operation raised.
 
-  Note: this serializes within a node only. Two different nodes can still race
-  on their node-local ETS copies until the group dispatch propagates between them,
-  matching the cache's best-effort cross-node consistency. Closing that window
-  fully would require single-owner routing per token or a DB-level uniqueness
-  guard on the minted token.
+  It runs in the owner's cache process, one call at a time, so two callers
+  can't both read a login before either writes it, whichever nodes they are on.
+  The owner writes to its own table and replicates the write as `put/2` does.
+  The operation is named rather than passed as a function, because a function
+  sent to a node running a different build fails there with `:badfun`, as it
+  would on every node during a rolling deploy.
+
+  The owner is picked from the token among the caches in the owners group, by
+  highest random weight (`owners/1`), so every node picks the same one and a
+  change in membership only moves the logins of the node that joined or left.
+  If the owner's cache has gone, or its node can't be reached, the next one in
+  that order is asked, as every other node would. With no owner to ask, the
+  operation runs on this node's cache.
+
+  An owner that takes the call but doesn't answer within five seconds isn't
+  replaced: it may already have run the operation, and running it again
+  elsewhere is the race this prevents. The call exits, as a local call that
+  timed out would.
+
+  Every node picks the same owner only while they agree on who is in the group.
+  For the moment after a node joins or leaves, while that news reaches the
+  others, two nodes can still pick different owners for the same login. Nodes
+  on a release from before owners existed don't route at all.
   """
-  def get_and_update(key, fun) do
-    case GenServer.call(__MODULE__, {:get_and_update, key, fun}) do
+  @spec get_and_update(term(), {module(), atom(), list()}) :: term()
+  def get_and_update(key, {module, function, args} = operation)
+      when is_atom(module) and is_atom(function) and is_list(args) do
+    case call_owners(owners(key), key, operation) do
       {:raise, exception, stacktrace} -> reraise(exception, stacktrace)
       return -> return
     end
   end
 
-  def handle_call({:get_and_update, key, fun}, _from, state) do
+  @doc false
+  # Asks each owner in turn until one runs `operation`. Public for its tests,
+  # which need an owner that has gone.
+  @spec call_owners([pid()], term(), {module(), atom(), list()}) :: term()
+  # No owners in sight: this node is still warming up and is the only web node
+  # it knows of, or it can't reach the others.
+  def call_owners([], key, operation) do
+    GenServer.call(__MODULE__, {:run, key, operation})
+  end
+
+  def call_owners([owner | rest], key, operation) do
+    GenServer.call(owner, {:run, key, operation})
+  catch
+    # The call never reached a running cache, so trying the next owner can't
+    # repeat it. A node that went down while running the call is the exception:
+    # nothing tells the two apart. It only matters if the operation had done
+    # something outside the cache, such as minting a token, and hadn't written
+    # the login back yet.
+    :exit, {:noproc, {GenServer, :call, _}} -> call_owners(rest, key, operation)
+    :exit, {{:nodedown, _node}, {GenServer, :call, _}} -> call_owners(rest, key, operation)
+  end
+
+  @doc """
+  The caches that can own `key`, the owner first.
+
+  Each cache in the owners group is weighed by a hash of `key` and its node's
+  name, and the heaviest owns the login. Every node computes the same order
+  from the same membership, and a cache joining or leaving only moves the
+  logins it wins or held, not everyone's, as hashing modulo the number of
+  nodes would.
+  """
+  @spec owners(term()) :: [pid()]
+  def owners(key) do
+    NervesHub.Group
+    |> Group.members(@owners, cluster: @cluster)
+    |> Enum.map(fn {pid, _meta} -> pid end)
+    |> Enum.sort_by(&{:erlang.phash2({key, node(&1)}), node(&1)}, :desc)
+  end
+
+  def handle_call({:run, key, {module, function, args}}, _from, state) do
     current = get(key)
 
     try do
-      case fun.(current) do
+      case apply(module, function, [current | args]) do
         {return, {:put, cli_session}} ->
           _ = put(key, cli_session)
           {:reply, return, state}
@@ -119,8 +231,8 @@ defmodule NervesHub.CLISessionCache do
       end
     rescue
       exception ->
-        # Never let a caller-supplied function crash the cache process; that
-        # would destroy the ETS table (it has no heir) and drop every session.
+        # Never let an operation crash the cache process; that would destroy
+        # the ETS table (it has no heir) and drop every session.
         {:reply, {:raise, exception, __STACKTRACE__}, state}
     end
   end

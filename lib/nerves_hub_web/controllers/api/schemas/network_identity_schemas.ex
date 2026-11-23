@@ -1,4 +1,5 @@
 defmodule NervesHubWeb.API.Schemas.NetworkIdentitySchemas do
+  alias NervesHubWeb.API.OpenAPI.SchemaHelpers
   alias OpenApiSpex.Schema
 
   require OpenApiSpex
@@ -35,8 +36,8 @@ defmodule NervesHubWeb.API.Schemas.NetworkIdentitySchemas do
           additionalProperties: true
         },
         last_reported_at: %Schema{type: :string, format: :"date-time", nullable: true},
-        inserted_at: %Schema{type: :string, format: :"date-time"},
-        updated_at: %Schema{type: :string, format: :"date-time"}
+        inserted_at: SchemaHelpers.naive_timestamp("When it was created"),
+        updated_at: SchemaHelpers.naive_timestamp("When it was last changed")
       },
       example: %{
         "identifier" => "c8924b6c9b7a8528b1365ebec4b2e43b6edebef684f8521f12b8caaf6e1b2302",
@@ -45,8 +46,8 @@ defmodule NervesHubWeb.API.Schemas.NetworkIdentitySchemas do
         "source" => "device_reported",
         "details" => %{"relay" => "https://relay.example.com"},
         "last_reported_at" => "2026-08-16T09:14:00Z",
-        "inserted_at" => "2026-08-14T11:02:31Z",
-        "updated_at" => "2026-08-16T09:14:00Z"
+        "inserted_at" => "2026-08-14T11:02:31",
+        "updated_at" => "2026-08-16T09:14:00"
       }
     })
   end
@@ -67,8 +68,8 @@ defmodule NervesHubWeb.API.Schemas.NetworkIdentitySchemas do
             "source" => "device_reported",
             "details" => %{"relay" => "https://relay.example.com"},
             "last_reported_at" => "2026-08-16T09:14:00Z",
-            "inserted_at" => "2026-08-14T11:02:31Z",
-            "updated_at" => "2026-08-16T09:14:00Z"
+            "inserted_at" => "2026-08-14T11:02:31",
+            "updated_at" => "2026-08-16T09:14:00"
           },
           %{
             "identifier" => "5f691e39f55415be337b2e4cc0dd7291586ab7c4356bf32bab60f46fc78f95d5",
@@ -77,8 +78,8 @@ defmodule NervesHubWeb.API.Schemas.NetworkIdentitySchemas do
             "source" => "device_reported",
             "details" => %{},
             "last_reported_at" => "2026-08-16T09:14:00Z",
-            "inserted_at" => "2026-08-14T11:02:31Z",
-            "updated_at" => "2026-08-16T09:14:00Z"
+            "inserted_at" => "2026-08-14T11:02:31",
+            "updated_at" => "2026-08-16T09:14:00"
           }
         ]
       }

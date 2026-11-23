@@ -13,27 +13,17 @@ defmodule NervesHubWeb.API.Schemas.UserResponse do
       description: "A registered user",
       type: :object,
       properties: %{
-        id: %Schema{type: :integer, description: "User ID"},
         name: %Schema{
           type: :string,
           description: "Users name",
           pattern: ~r/[a-zA-Z][a-zA-Z0-9_]+/
         },
-        email: %Schema{type: :string, description: "Email address", format: :email},
-        inserted_at: %Schema{
-          type: :string,
-          description: "Creation timestamp",
-          format: :"date-time"
-        },
-        updated_at: %Schema{type: :string, description: "Update timestamp", format: :"date-time"}
+        email: %Schema{type: :string, description: "Email address", format: :email}
       },
       required: [:name, :email],
       example: %{
-        "id" => 123,
         "name" => "Jane User",
-        "email" => "jane@iot-company.com",
-        "inserted_at" => "2017-09-12T12:34:55Z",
-        "updated_at" => "2017-09-13T10:11:12Z"
+        "email" => "jane@iot-company.com"
       }
     })
   end
@@ -47,11 +37,8 @@ defmodule NervesHubWeb.API.Schemas.UserResponse do
     },
     example: %{
       "data" => %{
-        "id" => 123,
         "name" => "Jane User",
-        "email" => "jane@iot-company.com",
-        "inserted_at" => "2017-09-12T12:34:55Z",
-        "updated_at" => "2017-09-13T10:11:12Z"
+        "email" => "jane@iot-company.com"
       }
     }
   })

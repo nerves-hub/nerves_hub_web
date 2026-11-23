@@ -1961,30 +1961,41 @@ defmodule NervesHub.Accounts do
     :ok = ChannelServer.broadcast(NervesHub.PubSub, socket_id, "disconnect", %{})
   end
 
-  def verify_cli_session_token(user, token) do
-    CLISessionCache.get_and_update(token, fn
-      {:ok, %{status: :waiting} = cli_session} ->
-        user_token = create_user_api_token(user, cli_session.note)
+  @doc """
+  Confirms the CLI login `token` for `user`, minting the API token the CLI
+  collects next time it polls.
 
-        cli_session = %{
-          cli_session
-          | status: :ready,
-            user_id: user.id,
-            user_token: user_token
-        }
+  Confirming a login `user` already confirmed is `:ok` and mints nothing more.
+  One somebody else confirmed is `{:error, :already_verified}`.
 
-        {:ok, {:put, cli_session}}
-
-      {:ok, %{status: :ready, user_id: user_id}} when user_id == user.id ->
-        {:ok, :noop}
-
-      {:ok, %{status: :ready}} ->
-        {{:error, :already_verified}, :noop}
-
-      _ ->
-        {{:error, :not_found}, :noop}
-    end)
+  The login's owner node runs this (see `NervesHub.CLISessionCache.get_and_update/2`),
+  so a Confirm submitted twice and split across two web nodes still mints one
+  token.
+  """
+  @spec verify_cli_session_token(User.t(), String.t()) :: :ok | {:error, :already_verified | :not_found}
+  def verify_cli_session_token(%User{id: user_id}, token) do
+    CLISessionCache.get_and_update(token, {__MODULE__, :confirm_cli_session, [user_id]})
   end
+
+  # The operations below run in the owner's CLISessionCache process, which may
+  # be on another node, and possibly one on a different build during a deploy.
+  # They are public so the cache can call them by name, and take plain data.
+
+  @doc false
+  def confirm_cli_session({:ok, %{status: :waiting} = cli_session}, user_id) do
+    # Building the token only reads the user's id.
+    user_token = create_user_api_token(%User{id: user_id}, cli_session.note)
+
+    {:ok, {:put, %{cli_session | status: :ready, user_id: user_id, user_token: user_token}}}
+  end
+
+  def confirm_cli_session({:ok, %{status: status, user_id: user_id}}, user_id) when status in [:ready, :collected],
+    do: {:ok, :noop}
+
+  def confirm_cli_session({:ok, %{status: status}}, _user_id) when status in [:ready, :collected],
+    do: {{:error, :already_verified}, :noop}
+
+  def confirm_cli_session(_current, _user_id), do: {{:error, :not_found}, :noop}
 
   @cli_code_range 10_000_000..99_999_999
 
@@ -2045,11 +2056,12 @@ defmodule NervesHub.Accounts do
       note: note
     }
 
-    CLISessionCache.get_and_update(token, fn
-      :error -> {{:ok, cli_session}, {:put, cli_session}}
-      {:ok, _existing} -> {{:error, :invalid_request}, :noop}
-    end)
+    CLISessionCache.get_and_update(token, {__MODULE__, :store_new_cli_session, [cli_session]})
   end
+
+  @doc false
+  def store_new_cli_session(:error, cli_session), do: {{:ok, cli_session}, {:put, cli_session}}
+  def store_new_cli_session({:ok, _existing}, _cli_session), do: {{:error, :invalid_request}, :noop}
 
   # Typed in by hand to find the login, so it has to be unpredictable, and
   # unique among the logins still waiting. Eight digits, because the CLIs already
@@ -2097,17 +2109,43 @@ defmodule NervesHub.Accounts do
     end
   end
 
-  def check_cli_session_ready(token) do
-    CLISessionCache.get_and_update(token, fn
-      {:ok, %{status: :ready} = cli_session} ->
-        cli_session = %{cli_session | status: :verified}
-        {{:ok, cli_session}, {:put, cli_session}}
+  @doc """
+  Polls the CLI login `token`, handing its API token to the first poll after
+  someone confirms it.
 
-      {:ok, %{status: :waiting} = cli_session} ->
+  A `:waiting` login comes back as it is. A `:ready` one comes back with its API
+  token, and is stored on every web node as `:collected` with the token dropped,
+  so later polls, whoever makes them, find `:collected` and no token. An expired
+  login isn't found at all.
+
+  Every poll is answered by the login's owner node (see
+  `NervesHub.CLISessionCache.get_and_update/2`), so the token goes out once,
+  whichever node each poll reaches. A CLI that missed the response carrying the
+  token has to start another login. The token it missed stays on the account,
+  under the login's note, until the user revokes it.
+  """
+  @spec check_cli_session_ready(String.t()) :: {:ok, UserCLISession.t()} | {:error, :not_found}
+  def check_cli_session_ready(token) do
+    CLISessionCache.get_and_update(token, {__MODULE__, :collect_cli_session, []})
+  end
+
+  @doc false
+  def collect_cli_session(current) do
+    now = DateTime.to_unix(DateTime.utc_now())
+
+    case current do
+      # The cache only clears expired logins once a minute.
+      {:ok, %{expires_at: expires_at}} when expires_at < now ->
+        {{:error, :not_found}, :noop}
+
+      {:ok, %{status: :ready} = cli_session} ->
+        {{:ok, cli_session}, {:put, %{cli_session | status: :collected, user_token: nil}}}
+
+      {:ok, %{status: status} = cli_session} when status in [:waiting, :collected] ->
         {{:ok, cli_session}, :noop}
 
       _ ->
         {{:error, :not_found}, :noop}
-    end)
+    end
   end
 end

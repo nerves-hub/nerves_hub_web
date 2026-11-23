@@ -9,6 +9,7 @@ defmodule NervesHubWeb.API.UserController do
   alias NervesHubWeb.API.Schemas.UserAuthCLISessionStatusResponse
   alias NervesHubWeb.API.Schemas.UserAuthWithNoteRequest
   alias NervesHubWeb.API.Schemas.UserResponse
+  alias NervesHubWeb.API.Schemas.UserTokenResponse
   alias NervesHubWeb.Helpers.ClientIP
   alias NervesHubWeb.Plugs.Attack
 
@@ -17,6 +18,19 @@ defmodule NervesHubWeb.API.UserController do
   plug(Attack when action in [:cli_session, :check_cli_session])
 
   tags(["Auth"])
+
+  # What `NervesHubWeb.Plugs.Attack` sends once an address has used up its
+  # allowance for starting or polling CLI logins.
+  @too_many_requests %OpenApiSpex.Response{
+    description: "Too many requests from this address. Retry once `Retry-After` has passed.",
+    headers: %{
+      "Retry-After" => %OpenApiSpex.Header{
+        description: "Whole seconds until the allowance starts again, at least 1",
+        schema: %OpenApiSpex.Schema{type: :integer, minimum: 1}
+      }
+    },
+    content: %{"application/json" => %OpenApiSpex.MediaType{schema: ErrorSchemas.ErrorResponse}}
+  }
 
   operation(:me,
     summary: "Show details of the currently logged in user",
@@ -35,7 +49,7 @@ defmodule NervesHubWeb.API.UserController do
     summary: "Authenticate a user",
     request_body: {"Authentication attributes", "application/json", UserAuthWithNoteRequest, required: true},
     responses: [
-      ok: {"User response", "application/json", UserResponse},
+      ok: {"User and API token", "application/json", UserTokenResponse},
       unauthorized: {"Unauthorized", "application/json", ErrorSchemas.ErrorResponse}
     ],
     security: []
@@ -52,7 +66,7 @@ defmodule NervesHubWeb.API.UserController do
     summary: "Authenticate a user (deprecated)",
     request_body: {"Authentication attributes", "application/json", UserAuthWithNoteRequest, required: true},
     responses: [
-      ok: {"User response", "application/json", UserResponse},
+      ok: {"User and API token", "application/json", UserTokenResponse},
       unauthorized: {"Unauthorized", "application/json", ErrorSchemas.ErrorResponse}
     ],
     security: []
@@ -69,7 +83,8 @@ defmodule NervesHubWeb.API.UserController do
     summary: "Start the CLI authentication process",
     request_body: {"CLI Session attributes", "application/json", UserAuthCLISessionRequest},
     responses: [
-      ok: {"Auth CLI session token response", "application/json", UserAuthCLISessionResponse}
+      ok: {"Auth CLI session token response", "application/json", UserAuthCLISessionResponse},
+      too_many_requests: @too_many_requests
     ],
     security: []
   )
@@ -99,6 +114,11 @@ defmodule NervesHubWeb.API.UserController do
 
   operation(:check_cli_session,
     summary: "Check the CLI authentication progress",
+    description: """
+    Poll until the status is `ready`, which carries the API token. The token is
+    handed out once: asking again finds `collected` and no token, until the
+    login expires, about five minutes after it started, and this returns 404.
+    """,
     parameters: [
       token: [
         in: :path,
@@ -109,7 +129,8 @@ defmodule NervesHubWeb.API.UserController do
     ],
     responses: [
       ok: {"Auth CLI session token response", "application/json", UserAuthCLISessionStatusResponse},
-      not_found: {"Not Found", "application/json", ErrorSchemas.ErrorResponse}
+      not_found: {"Not Found", "application/json", ErrorSchemas.ErrorResponse},
+      too_many_requests: @too_many_requests
     ],
     security: []
   )
@@ -120,8 +141,11 @@ defmodule NervesHubWeb.API.UserController do
       {:ok, %{status: :waiting}} ->
         render(conn, status: :waiting)
 
-      {:ok, cli_session} ->
-        render(conn, status: :ready, user_token: cli_session.user_token)
+      {:ok, %{status: :ready, user_token: user_token}} ->
+        render(conn, status: :ready, user_token: user_token)
+
+      {:ok, %{status: :collected}} ->
+        render(conn, status: :collected)
 
       {:error, :not_found} ->
         raise NervesHubWeb.NotFoundError

@@ -10,10 +10,13 @@ defmodule NervesHubWeb.API.Schemas.CACertificateSchemas do
         serial: %Schema{type: :string},
         description: %Schema{
           type: :string,
-          pattern: ~r/[a-zA-Z][a-zA-Z0-9_]+/
+          nullable: true
         },
         jitp: %Schema{
           type: :object,
+          description:
+            "Just-in-time provisioning: devices presenting a certificate signed by this CA are created in this product on first connect. Null when it is off.",
+          nullable: true,
           properties: %{
             description: %Schema{
               type: :string
@@ -35,16 +38,6 @@ defmodule NervesHubWeb.API.Schemas.CACertificateSchemas do
         not_before: %Schema{
           type: :string,
           description: "Certificate valid from timestamp",
-          format: :"date-time"
-        },
-        inserted_at: %Schema{
-          type: :string,
-          description: "Creation timestamp",
-          format: :"date-time"
-        },
-        updated_at: %Schema{
-          type: :string,
-          description: "Last updated timestamp",
           format: :"date-time"
         }
       },

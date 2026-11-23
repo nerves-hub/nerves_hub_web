@@ -14,7 +14,7 @@ defmodule NervesHubWeb.API.Schemas.KeySchemas do
         scheme: %Schema{
           type: :string,
           description: "Signature scheme this key belongs to",
-          enum: ["ed25519", "secure_boot_v2_rsa"]
+          enum: ["ed25519", "secure_boot_v2_rsa", "x509_certificate"]
         }
       },
       example: %{
@@ -81,7 +81,7 @@ defmodule NervesHubWeb.API.Schemas.KeySchemas do
         scheme: %Schema{
           type: :string,
           description: "Signature scheme this key belongs to",
-          enum: ["ed25519", "secure_boot_v2_rsa"]
+          enum: ["ed25519", "secure_boot_v2_rsa", "x509_certificate"]
         }
       },
       required: [:name, :key],

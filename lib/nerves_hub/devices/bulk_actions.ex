@@ -22,40 +22,59 @@ defmodule NervesHub.Devices.BulkActions do
   # How often `set_managed_updates_allowed_for_product/4` reports progress.
   @progress_every 25
 
-  def async_bulk_create(org_id, product_id, import_list, format, tags \\ [])
+  @doc """
+  Create devices from a manifest in the background, then raise a notification
+  on the product saying how many were created and how many failed.
 
-  def async_bulk_create(org_id, product_id, import_list, format, tags) when not is_binary(import_list) do
-    async_bulk_create(org_id, product_id, JSON.encode!(import_list), format, tags)
-  end
+  The manifest is read before anything starts, so one the import can't read
+  (an unknown format, a body that isn't a list of entries, an entry missing
+  what the format needs) is refused with `{:error, {:invalid_manifest,
+  problems}}` and nothing is created. See `NervesHub.Devices.BulkImport` for
+  the problems. An entry that is read but can't be created, such as a
+  duplicate identifier or a certificate that isn't valid X.509, counts as
+  failed in the notification.
 
-  def async_bulk_create(org_id, product_id, import_list, format, tags) do
-    Task.Supervisor.start_child(Tasks, fn ->
-      {successful_count, unsuccessful_count} = bulk_create(org_id, product_id, import_list, format, tags)
+  `import_list` is the manifest as JSON, or already decoded from it.
+  """
+  @spec async_bulk_create(pos_integer(), pos_integer(), binary() | term(), String.t() | nil, term()) ::
+          {:ok, pid()} | {:error, {:invalid_manifest, [BulkImport.problem()]}} | {:error, term()}
+  def async_bulk_create(org_id, product_id, import_list, format, tags \\ []) do
+    with {:ok, entries} <- validate_manifest(format, import_list) do
+      Task.Supervisor.start_child(Tasks, fn ->
+        {successful_count, unsuccessful_count} = create_entries(org_id, product_id, entries, tags)
 
-      _ =
-        ProductNotifications.create_device_async_bulk_create_notification!(
-          product_id,
-          successful_count,
-          unsuccessful_count,
-          format
-        )
-    end)
-    |> case do
-      :ignore -> {:error, :ignored}
-      {:error, _} = error -> error
-      {:ok, pid, _info} -> {:ok, pid}
-      ok -> ok
+        _ =
+          ProductNotifications.create_device_async_bulk_create_notification!(
+            product_id,
+            successful_count,
+            unsuccessful_count,
+            format
+          )
+      end)
+      |> case do
+        :ignore -> {:error, :ignored}
+        {:error, _} = error -> error
+        {:ok, pid, _info} -> {:ok, pid}
+        ok -> ok
+      end
     end
   end
 
-  def bulk_create(org_id, product_id, import_list, format, tags \\ []) do
+  defp validate_manifest(format, import_list) do
+    case BulkImport.validate(format, import_list) do
+      {:ok, entries} -> {:ok, entries}
+      {:error, problems} -> {:error, {:invalid_manifest, problems}}
+    end
+  end
+
+  defp create_entries(org_id, product_id, entries, tags) do
     product =
       Product
       |> where(org_id: ^org_id, id: ^product_id)
       |> Repo.exclude_deleted()
       |> Repo.one!()
 
-    BulkImport.parse_file(format, import_list)
+    entries
     |> Enum.map(fn details ->
       changeset =
         Device.changeset(%Device{}, %{

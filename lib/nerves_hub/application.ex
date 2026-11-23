@@ -81,8 +81,7 @@ defmodule NervesHub.Application do
           Cache,
           # Answers "does anyone want this event?" on every device event.
           NervesHub.Integrations.Cache,
-          # Ahead of the group tree: `RateLimitPubSub` applies peer throttle
-          # increments into this storage the moment it joins its group.
+          # Where `NervesHubWeb.Plugs.Attack` keeps its counts.
           {PlugAttackEts, name: PlugAttackStorage, clean_period: 60_000},
           NervesHub.GroupSupervisor,
           {Cluster.Supervisor, [NervesHub.Clustering.topologies()]},
