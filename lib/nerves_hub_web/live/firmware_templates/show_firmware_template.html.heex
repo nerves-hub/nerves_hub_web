@@ -200,7 +200,7 @@
                   <.status_dot class={["size-1.5", delta_status(delta.status).dot]} />
                   <span class={["text-ui", delta_status(delta.status).text]}>{delta_status(delta.status).label}</span>
                   <button
-                    :if={delta.status in [:failed, :timed_out] && authorized?(:"deployment_group:update", @current_scope)}
+                    :if={delta.status in [:failed, :timed_out] && authorized?(:"deployment_group:release:manage", @current_scope)}
                     type="button"
                     phx-click="retry-delta"
                     phx-value-id={delta.id}

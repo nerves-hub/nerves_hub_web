@@ -6,6 +6,7 @@ defmodule NervesHubWeb.API.DeploymentReleaseControllerTest do
   alias NervesHub.Fixtures
   alias NervesHub.ManagedDeployments
   alias NervesHub.Products.ApiKeys
+  alias NervesHub.Repo
 
   setup %{user: user, org: org, product: product, tmp_dir: tmp_dir} do
     org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
@@ -215,7 +216,7 @@ defmodule NervesHubWeb.API.DeploymentReleaseControllerTest do
       assert json_response(conn, 404)
     end
 
-    test "needs deployment_group:update", context do
+    test "needs deployment_group:release:manage", context do
       %{conn2: conn2, user2: user2, org: org, next_firmware: next_firmware} = context
       {:ok, _} = Accounts.add_org_user(org, user2, %{role: :view})
 
@@ -225,6 +226,27 @@ defmodule NervesHubWeb.API.DeploymentReleaseControllerTest do
       |> assert_authorization_error(401)
 
       assert [%{number: 1}] = ManagedDeployments.list_deployment_releases(context.deployment_group)
+    end
+
+    test "isn't open to a role that can only edit the group's settings", context do
+      %{conn2: conn2, user2: user2, org: org, next_firmware: next_firmware} = context
+      role = Fixtures.org_role_fixture(org, %{permissions: ["deployment_group:update"]})
+      {:ok, _} = Accounts.add_org_user(org, user2, %{org_role_id: role.id})
+
+      assert_error_sent(401, fn ->
+        post_json(conn2, releases_path(context), %{"firmware" => next_firmware.uuid})
+      end)
+      |> assert_authorization_error(401)
+    end
+
+    test "is open to a role that can manage releases but not edit the group", context do
+      %{conn2: conn2, user2: user2, org: org, next_firmware: next_firmware} = context
+      role = Fixtures.org_role_fixture(org, %{permissions: ["deployment_group:release:manage"]})
+      {:ok, _} = Accounts.add_org_user(org, user2, %{org_role_id: role.id})
+
+      conn2 = post_json(conn2, releases_path(context), %{"firmware" => next_firmware.uuid})
+
+      assert %{"number" => 2} = json_response(conn2, 201)["data"]
     end
 
     test "works with a product API key, and records it", context do
@@ -317,7 +339,7 @@ defmodule NervesHubWeb.API.DeploymentReleaseControllerTest do
       assert json_response(patch_json(conn, release_path(context, 1, "missing"), %{"required" => true}), 404)
     end
 
-    test "needs deployment_group:update", context do
+    test "needs deployment_group:release:manage", context do
       %{conn2: conn2, user2: user2, org: org, release: release} = context
       {:ok, _} = Accounts.add_org_user(org, user2, %{role: :view})
 
@@ -325,6 +347,29 @@ defmodule NervesHubWeb.API.DeploymentReleaseControllerTest do
         patch_json(conn2, release_path(context, release.number), %{"required" => true})
       end)
       |> assert_authorization_error(401)
+    end
+
+    test "isn't open to a role that can only edit the group's settings", context do
+      %{conn2: conn2, user2: user2, org: org, release: release} = context
+      role = Fixtures.org_role_fixture(org, %{permissions: ["deployment_group:update"]})
+      {:ok, _} = Accounts.add_org_user(org, user2, %{org_role_id: role.id})
+
+      assert_error_sent(401, fn ->
+        patch_json(conn2, release_path(context, release.number), %{"required" => true})
+      end)
+      |> assert_authorization_error(401)
+
+      refute Repo.reload(release).required
+    end
+
+    test "is open to a role that can manage releases but not edit the group", context do
+      %{conn2: conn2, user2: user2, org: org, release: release} = context
+      role = Fixtures.org_role_fixture(org, %{permissions: ["deployment_group:release:manage"]})
+      {:ok, _} = Accounts.add_org_user(org, user2, %{org_role_id: role.id})
+
+      conn2 = patch_json(conn2, release_path(context, release.number), %{"required" => true})
+
+      assert %{"required" => true} = json_response(conn2, 200)["data"]
     end
 
     test "works with a product API key, and audits it", context do
@@ -343,7 +388,7 @@ defmodule NervesHubWeb.API.DeploymentReleaseControllerTest do
   end
 
   describe "a role limited to tagged devices" do
-    # Such a role can't hold `deployment_group:update`, so it's the reads,
+    # Such a role can't hold `deployment_group:release:manage`, so it's the reads,
     # open to any member, that `require_every_device` closes.
     test "can't list or read a group's releases", %{conn2: conn2, org: org, user2: user2} = context do
       role = Fixtures.org_role_fixture(org, %{device_tags: ["support"], permissions: ["device:update"]})

@@ -112,7 +112,7 @@
               <div :if={@delivery.groups == []} id="no-delivery" class="flex flex-wrap items-center gap-x-3 gap-y-1 px-5 py-2.5 text-ui text-content-muted">
                 No deployment group’s current release includes it, so no device is sent it.
                 <.link
-                  :if={authorized?(:"deployment_group:update", @current_scope)}
+                  :if={authorized?(:"deployment_group:release:manage", @current_scope)}
                   navigate={~p"/org/#{@current_scope.org}/#{@product}/deployment_groups"}
                   class="font-medium text-notice-content hover:underline"
                 >

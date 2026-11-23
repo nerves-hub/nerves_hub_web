@@ -383,6 +383,11 @@ when adding or removing one.
   `deployment_group:toggle_delta_updates`, as it does in the API, and saving
   drops the field for a member without it). There's no Devices tab: the header's device count links to the
   devices list, filtered to the group.
+  Anything done to a release (creating or editing one, approving, skipping or
+  retrying its workflow step, retrying or deleting its deltas), on these pages,
+  the firmware and archive pages, Slack or the API, needs
+  `deployment_group:release:manage`. `deployment_group:update` is the group's
+  own settings.
   A product's settings are three LiveViews, General (`live/product/settings.ex`),
   Device health (`live/product/health_profiles.ex`) and API keys
   (`live/product/api_keys.ex`), sharing their title and tabs from

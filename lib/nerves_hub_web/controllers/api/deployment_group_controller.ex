@@ -16,10 +16,10 @@ defmodule NervesHubWeb.API.DeploymentGroupController do
 
   @auth_error_responses SchemaHelpers.auth_error_responses()
 
-  plug(:require_membership when action in [:index, :show])
+  plug(:require_membership when action in [:index, :show, :update])
   plug(:require_every_device)
   plug(:require_permission, :"deployment_group:create" when action in [:create])
-  plug(:require_permission, :"deployment_group:update" when action in [:update])
+  plug(:require_update_permission when action in [:update])
   plug(:require_toggle_permissions when action in [:update])
   plug(:require_permission, :"deployment_group:delete" when action in [:delete])
 
@@ -104,7 +104,9 @@ defmodule NervesHubWeb.API.DeploymentGroupController do
     summary: "Update a Deployment Group",
     description: """
     A body with `firmware` (or `archive`) creates a new release and ignores every other
-    group setting. Use `/deployments/{name}/releases` to create, list or change releases.
+    group setting. It needs `deployment_group:release:manage` rather than
+    `deployment_group:update`. Use `/deployments/{name}/releases` to create, list or
+    change releases.
     """,
     parameters: [
       org_name: [in: :path, description: "Organization Name", type: :string, example: "example_org"],
@@ -125,6 +127,7 @@ defmodule NervesHubWeb.API.DeploymentGroupController do
       ] ++ @auth_error_responses
   )
 
+  # Keep in step with `release_params?/1`, which picks the permission.
   def update(%{assigns: %{current_scope: %{product: product} = scope}} = conn, %{
         "name" => name,
         "deployment" => deployment_group_params
@@ -188,6 +191,24 @@ defmodule NervesHubWeb.API.DeploymentGroupController do
          {:ok, _deployment_group} <- ManagedDeployments.delete_deployment_group(deployment_group) do
       send_resp(conn, :no_content, "")
     end
+  end
+
+  # An update that names firmware or an archive makes a release and leaves the
+  # group's settings alone, so it takes the permission the web UI's New release
+  # does. Any other changes the group's settings.
+  defp require_update_permission(%{params: %{"deployment" => params}} = conn, _opts) when is_map(params) do
+    if release_params?(params) do
+      require_permission(conn, :"deployment_group:release:manage")
+    else
+      require_permission(conn, :"deployment_group:update")
+    end
+  end
+
+  defp require_update_permission(conn, _opts), do: require_permission(conn, :"deployment_group:update")
+
+  # The same test as the clause of `update/2` that creates a release.
+  defp release_params?(params) do
+    Enum.any?(["firmware_id", "archive_id", "firmware", "archive"], &Map.has_key?(params, &1))
   end
 
   # The dashboard turns a group, and its delta updates, on and off under their

@@ -78,14 +78,14 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Index do
 
   # Approving and skipping send firmware to more devices, so both ask first.
   # Opening the dialog checks the same permission as acting on it.
-  @decorate requires_permission(:"deployment_group:update")
+  @decorate requires_permission(:"deployment_group:release:manage")
   def handle_event("approve", %{"id" => id}, socket) do
     socket
     |> ask(:approve, id, & &1.awaiting_step)
     |> noreply()
   end
 
-  @decorate requires_permission(:"deployment_group:update")
+  @decorate requires_permission(:"deployment_group:release:manage")
   def handle_event("skip", %{"id" => id}, socket) do
     socket
     |> ask(:skip, id, & &1.failed_step)
@@ -99,15 +99,15 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Index do
     |> noreply()
   end
 
-  @decorate requires_permission(:"deployment_group:update")
+  @decorate requires_permission(:"deployment_group:release:manage")
   def handle_event("confirm-approve", %{"id" => id}, socket), do: act(socket, :approve, id)
 
-  @decorate requires_permission(:"deployment_group:update")
+  @decorate requires_permission(:"deployment_group:release:manage")
   def handle_event("confirm-skip", %{"id" => id}, socket), do: act(socket, :skip, id)
 
   # Retrying only offers the update again to the devices that failed it, so
   # it runs straight away.
-  @decorate requires_permission(:"deployment_group:update")
+  @decorate requires_permission(:"deployment_group:release:manage")
   def handle_event("retry", %{"id" => id}, socket), do: act(socket, :retry, id)
 
   @impl Phoenix.LiveView
@@ -416,7 +416,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Index do
 
   defp held_actions(assigns) do
     ~H"""
-    <%= if authorized?(:"deployment_group:update", @current_scope) do %>
+    <%= if authorized?(:"deployment_group:release:manage", @current_scope) do %>
       <.button :if={@entry.status == :awaiting_approval} style="primary" size="sm" phx-click="approve" phx-value-id={@entry.group.id}>
         <span class="lucide-check" aria-hidden="true"></span> Approve and continue
       </.button>

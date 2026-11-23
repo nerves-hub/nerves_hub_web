@@ -27,7 +27,7 @@ defmodule NervesHubWeb.API.DeploymentReleaseController do
   # The same checks as the deployment group page's Releases tab.
   plug(:require_membership when action in [:index, :show])
   plug(:require_every_device)
-  plug(:require_permission, :"deployment_group:update" when action in [:create, :update])
+  plug(:require_permission, :"deployment_group:release:manage" when action in [:create, :update])
 
   @group_params [
     org_name: [in: :path, description: "Organization Name", type: :string, example: "example_org"],
