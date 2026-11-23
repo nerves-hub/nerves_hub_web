@@ -249,16 +249,48 @@ defmodule NervesHub.Devices do
           %{atom() => %{String.t() => non_neg_integer()}}
   def facet_counts(product, user, opts, facets) do
     Map.new(facets, fn {key, choices} ->
-      counts =
-        Enum.flat_map(choices, fn choice ->
-          case DeviceFiltering.value_dynamic(key, choice) do
-            nil -> []
-            condition -> [{choice, dynamic([device: d], filter(count(d.id), ^condition))}]
-          end
-        end)
-
-      {key, count_choices(product, user, put_in(opts, [:filters, key], ""), Map.new(counts))}
+      {key, count_facet(key, choices, product, user, put_in(opts, [:filters, key], ""))}
     end)
+  end
+
+  # A product can have well over a hundred firmware versions, and a
+  # `count(...) FILTER` per version re-reads every device's version once per
+  # version. Grouping by the version reads it once per device instead. The
+  # groups are matched to the choices as `DeviceFiltering.value_dynamic/2`
+  # does: "Unknown" is no version at all (SQL NULL), and any other choice is
+  # a version equal to it.
+  defp count_facet(:firmware_version, choices, product, user, opts) do
+    groups =
+      common_filter_query(user)
+      |> CommonFiltering.filter_query(product, opts)
+      |> exclude(:order_by)
+      |> group_by([device: d], d.firmware_metadata["version"])
+      |> select([device: d], {
+        d.firmware_metadata["version"],
+        is_nil(d.firmware_metadata["version"]),
+        count(d.id)
+      })
+      |> Repo.all()
+
+    Map.new(choices, fn
+      "Unknown" ->
+        {"Unknown", Enum.sum(for {_version, true, count} <- groups, do: count)}
+
+      choice ->
+        {choice, Enum.sum(for {^choice, false, count} <- groups, do: count)}
+    end)
+  end
+
+  defp count_facet(key, choices, product, user, opts) do
+    counts =
+      Enum.flat_map(choices, fn choice ->
+        case DeviceFiltering.value_dynamic(key, choice) do
+          nil -> []
+          condition -> [{choice, dynamic([device: d], filter(count(d.id), ^condition))}]
+        end
+      end)
+
+    count_choices(product, user, opts, Map.new(counts))
   end
 
   defp count_choices(_product, _user, _opts, counts) when counts == %{}, do: %{}
@@ -1342,19 +1374,21 @@ defmodule NervesHub.Devices do
   firmware uploaded to the product.
   """
   def firmware_versions(product_id) do
-    Device
-    |> where([d], d.product_id == ^product_id)
-    |> where([d], not is_nil(fragment("?->>'version'", d.firmware_metadata)))
-    # `SELECT DISTINCT` requires the sort expression in the select list, so the
-    # semver key comes back alongside the version and is dropped afterwards.
-    |> select([d], %{
-      version: fragment("?->>'version'", d.firmware_metadata),
-      sort_key: fragment(~s|semver_sort_key(?->>'version') COLLATE "C"|, d.firmware_metadata)
-    })
-    |> distinct(true)
-    |> order_by([d], fragment(~s|semver_sort_key(?->>'version') COLLATE "C" DESC NULLS LAST|, d.firmware_metadata))
+    # The versions are made distinct first, and the semver key taken from each
+    # distinct version after: `semver_sort_key/1` runs a regex, and a product
+    # has a few dozen versions but can have hundreds of thousands of devices.
+    versions =
+      Device
+      |> where([d], d.product_id == ^product_id)
+      |> where([d], not is_nil(fragment("?->>'version'", d.firmware_metadata)))
+      |> select([d], %{version: fragment("?->>'version'", d.firmware_metadata)})
+      |> distinct(true)
+
+    versions
+    |> subquery()
+    |> select([v], v.version)
+    |> order_by([v], fragment(~s|semver_sort_key(?) COLLATE "C" DESC NULLS LAST|, v.version))
     |> Repo.all()
-    |> Enum.map(& &1.version)
   end
 
   @doc """
