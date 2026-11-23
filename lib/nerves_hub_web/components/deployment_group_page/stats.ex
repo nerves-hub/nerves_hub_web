@@ -20,6 +20,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Stats do
 
   import NervesHubWeb.Components.Fleet, only: [count_noun: 3, delimited: 1]
 
+  alias NervesHub.Branding
   alias NervesHub.ManagedDeployments
   alias NervesHub.ManagedDeployments.ReleaseStats
   alias NervesHubWeb.Components.DateTimes
@@ -757,7 +758,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Stats do
         </tbody>
       </table>
       <p :if={Enum.any?(@rows, & &1.dashed?)} class="border-t border-line-subtle px-5 py-3 text-xs text-content-muted max-sm:px-4">
-        A dash means NervesHub wasn’t keeping that number yet when the release went out.
+        A dash means {Branding.friendly_platform_name()} wasn’t keeping that number yet when the release went out.
       </p>
     </section>
     """
@@ -852,7 +853,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Stats do
   defp missing(:loading), do: "Loading…"
   defp missing(:disabled), do: "This server doesn’t keep update outcomes."
   defp missing(:failed), do: "The update history didn’t answer."
-  defp missing(_history), do: "NervesHub wasn’t keeping this yet when the release went out."
+  defp missing(_history), do: "#{Branding.friendly_platform_name()} wasn’t keeping this yet when the release went out."
 
   @chart_width 1000
   @chart_height 140

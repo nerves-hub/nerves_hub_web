@@ -143,7 +143,8 @@ defmodule NervesHub.Products.Product do
 
         disabled != [] ->
           [
-            allowed_update_tools: "not enabled on this NervesHub instance: #{Enum.join(disabled, ", ")}"
+            allowed_update_tools:
+              "not enabled on #{NervesHub.Branding.friendly_platform_name()}: #{Enum.join(disabled, ", ")}"
           ]
 
         true ->

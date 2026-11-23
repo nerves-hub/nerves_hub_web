@@ -501,6 +501,13 @@ when adding or removing one.
   `rounded-t-card` header and `rounded-b-card` footer. Controls keep
   `rounded`, menus `rounded-md`, meters `rounded-full`, and checkboxes and
   legend swatches `rounded-xs`.
+- **The instance's name:** NervesHub also runs under other names
+  (NervesCloud), so text a person reads, on a page, in a flash or an error, or
+  in a message sent to Slack, Teams or Discord, names the instance with
+  `NervesHub.Branding.friendly_platform_name()` (`FRIENDLY_PLATFORM_NAME`), not
+  "NervesHub". Call it as the text is built, never in a module attribute, which
+  would fix the name at compile time. Docs, API spec descriptions, user agents
+  and links to the NervesHub documentation keep the name.
 - **Boundaries:** contexts (`lib/nerves_hub/`) hold business logic; web modules
   stay thin and call into them. Match the surrounding module's conventions,
   error handling, and naming rather than importing your own.

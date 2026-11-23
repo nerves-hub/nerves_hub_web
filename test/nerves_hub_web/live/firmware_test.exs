@@ -734,12 +734,17 @@ defmodule NervesHubWeb.Live.FirmwareTest do
       {:ok, _} = Fwup.require_newer_fwup(tmp_dir, "unsigned", "newer")
       {:ok, signed_path} = Fwup.sign_firmware(tmp_dir, org_key.name, "newer", "signed")
 
+      # The message names the instance as it's configured.
+      previous = Application.get_env(:nerves_hub, :friendly_platform_name)
+      Application.put_env(:nerves_hub, :friendly_platform_name, "NervesCloud")
+      on_exit(fn -> Application.put_env(:nerves_hub, :friendly_platform_name, previous) end)
+
       conn
       |> visit("/org/#{org.name}/#{product.name}/firmware")
       |> upload("Upload firmware", signed_path)
       |> assert_path("/org/#{org.name}/#{product.name}/firmware")
-      |> assert_has("div", text: "This firmware requires fwup 99.0.0 or newer, and NervesHub has fwup")
-      |> assert_has("div", text: "Please contact support to have NervesHub's fwup updated.")
+      |> assert_has("div", text: "This firmware requires fwup 99.0.0 or newer, and NervesCloud has fwup")
+      |> assert_has("div", text: "Please contact support to have NervesCloud's fwup updated.")
     end
 
     # Previously this reported "No matching product could be found", which

@@ -228,7 +228,7 @@ defmodule NervesHubWeb.Live.Org.Integrations.ChatWebhookSection do
   defp event_labels(channel), do: Enum.map(channel.events, &ChannelEvents.label/1)
 
   defp error_message(provider, {:rate_limited, seconds}),
-    do: "#{service_name(provider)} asked NervesHub to wait #{seconds} seconds"
+    do: "#{service_name(provider)} asked #{NervesHub.Branding.friendly_platform_name()} to wait #{seconds} seconds"
 
   defp error_message(_provider, {:refused, reason}), do: reason
   defp error_message(_provider, error), do: to_string(error)

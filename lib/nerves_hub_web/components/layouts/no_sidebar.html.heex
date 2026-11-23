@@ -1,7 +1,7 @@
 <div class="flex h-full flex-col">
   <.live_component module={NervesHubWeb.Components.CommandPalette} id="command-palette" current_scope={@current_scope} />
   <header class="flex h-topbar shrink-0 items-center justify-between border-b border-line-default bg-surface-muted px-4 sm:px-6">
-    <.link navigate={~p"/orgs"} aria-label="NervesHub home">
+    <.link navigate={~p"/orgs"} aria-label={"#{NervesHub.Branding.friendly_platform_name()} home"}>
       <.logo class="h-6" />
     </.link>
 

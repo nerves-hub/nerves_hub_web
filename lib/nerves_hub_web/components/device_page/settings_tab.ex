@@ -3,6 +3,7 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
 
   import NervesHubWeb.Components.Switch, only: [switch: 1]
 
+  alias NervesHub.Branding
   alias NervesHub.Certificate
   alias NervesHub.DeviceLink
   alias NervesHub.Devices
@@ -394,7 +395,7 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
         <div class="flex min-w-0 grow basis-0 flex-col gap-1">
           <h2 class="text-sm/4.5 font-semibold text-content-strong">This device is deleted</h2>
           <p class="text-xs/4.5 text-content-muted">
-            It can't connect to NervesHub until it's restored. Deleting it permanently removes it for good.
+            It can't connect to {Branding.friendly_platform_name()} until it's restored. Deleting it permanently removes it for good.
           </p>
         </div>
         <div class="flex shrink-0 gap-2 max-sm:w-full max-sm:flex-col">
