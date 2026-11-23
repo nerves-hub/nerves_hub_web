@@ -56,11 +56,6 @@ defmodule NervesHub.Devices.CACertificate do
     cast_assoc(changeset, :jitp, with: &JITP.changeset(&1, &2, get_field(changeset, :org_id)))
   end
 
-  # With check_expiration on, NervesHub.SSL refuses to register a device
-  # certificate signed by the CA once the CA has expired, so registering an
-  # already-expired CA that way would leave it unable to register any device.
-  # Only checked on create: turning it on later, to stop an expired CA
-  # registering devices, is what the setting is for.
   # A device certificate names its signer by its AKI, which is matched against
   # the CA's SKI, so a CA without an SKI could never sign a device in.
   defp missing_ski_message() do
@@ -68,6 +63,11 @@ defmodule NervesHub.Devices.CACertificate do
       "which #{Branding.friendly_platform_name()} uses to match device certificates to it"
   end
 
+  # With check_expiration on, NervesHub.SSL refuses to register a device
+  # certificate signed by the CA once the CA has expired, so registering an
+  # already-expired CA that way would leave it unable to register any device.
+  # Only checked on create: turning it on later, to stop an expired CA
+  # registering devices, is what the setting is for.
   defp validate_not_expired_when_checked(changeset) do
     not_after = get_field(changeset, :not_after)
 
