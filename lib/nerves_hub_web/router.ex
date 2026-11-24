@@ -19,6 +19,7 @@ defmodule NervesHubWeb.Router do
   alias Live.Orgs.Index
   alias Live.Orgs.New
   alias Live.Product.ApiKeys
+  alias Live.Product.Components
   alias Live.Product.ErrorGroup
   alias Live.Product.Errors
   alias Live.Product.HealthProfiles
@@ -473,6 +474,7 @@ defmodule NervesHubWeb.Router do
       )
 
       live("/org/:org_name/:product_name/insights", Insights)
+      live("/org/:org_name/:product_name/components", Components)
       live("/org/:org_name/:product_name/errors", Errors)
       live("/org/:org_name/:product_name/errors/:id", ErrorGroup)
       live("/org/:org_name/:product_name/devices", Live.Devices.Index)
@@ -501,6 +503,12 @@ defmodule NervesHubWeb.Router do
         "/org/:org_name/:product_name/devices/:device_identifier/errors",
         Live.Devices.Show,
         :errors
+      )
+
+      live(
+        "/org/:org_name/:product_name/devices/:device_identifier/components",
+        Live.Devices.Show,
+        :components
       )
 
       live(

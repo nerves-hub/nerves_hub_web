@@ -4,6 +4,7 @@ defmodule NervesHub.Application do
   alias NervesHub.Analytics.Buffer
   alias NervesHub.DeviceLink.Handlers
   alias NervesHub.Devices.DeviceAlarmHistory
+  alias NervesHub.Devices.DeviceComponentHistory
   alias NervesHub.Devices.DeviceConnectionHistory
   alias NervesHub.Devices.DeviceHealthHistory
   alias NervesHub.Devices.DeviceMessage
@@ -19,6 +20,7 @@ defmodule NervesHub.Application do
   alias NervesHub.Products.HealthProfiles.Cache
   alias NervesHub.ProxyProtocol.Peers
   alias NervesHub.RateLimit.Alarms, as: AlarmsLimit
+  alias NervesHub.RateLimit.Components, as: ComponentsLimit
   alias NervesHub.RateLimit.ErrorReports, as: ErrorReportLimit
   alias NervesHub.RateLimit.LogLines
   alias NervesHub.RateLimit.Metrics, as: MetricsLimit
@@ -95,7 +97,8 @@ defmodule NervesHub.Application do
           {LogLines, [clean_period: to_timeout(minute: 5), key_older_than: to_timeout(hour: 1)]},
           {ErrorReportLimit, [clean_period: to_timeout(minute: 5), key_older_than: to_timeout(hour: 1)]},
           {MetricsLimit, [clean_period: to_timeout(minute: 5), key_older_than: to_timeout(hour: 1)]},
-          {AlarmsLimit, [clean_period: to_timeout(minute: 5), key_older_than: to_timeout(hour: 1)]}
+          {AlarmsLimit, [clean_period: to_timeout(minute: 5), key_older_than: to_timeout(hour: 1)]},
+          {ComponentsLimit, [clean_period: to_timeout(minute: 5), key_older_than: to_timeout(hour: 1)]}
         ] ++
         analytics_buffers() ++
         device_link_handlers() ++
@@ -218,6 +221,7 @@ defmodule NervesHub.Application do
         Buffer.child_spec([schema: ErrorReport] ++ opts),
         Buffer.child_spec([schema: DeviceMetric] ++ opts),
         Buffer.child_spec([schema: DeviceAlarmHistory] ++ opts),
+        Buffer.child_spec([schema: DeviceComponentHistory] ++ opts),
         Buffer.child_spec([schema: DeviceHealthHistory] ++ opts),
         Buffer.child_spec([schema: DeviceUpdateHistory] ++ opts),
         # Writes PostgreSQL, not ClickHouse, and is here anyway: it is the other

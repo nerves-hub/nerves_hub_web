@@ -60,6 +60,12 @@ defmodule NervesHub.Accounts.User.DisplayPreferences do
 
   def deployment_group_views(), do: @all_deployment_group_views
 
+  # How a device's Components tab lays out its components: rows in a table,
+  # or cards in a grid.
+  @all_component_views [:list, :grid]
+
+  def component_views(), do: @all_component_views
+
   @type t() :: %__MODULE__{}
 
   embedded_schema do
@@ -100,6 +106,10 @@ defmodule NervesHub.Accounts.User.DisplayPreferences do
     # How the user has picked to lay out the deployment groups list. Nil is a
     # list.
     field(:deployment_group_view, KnownAtom, values: @all_deployment_group_views, default: nil)
+
+    # How the user has picked to lay out a device's Components tab. Nil is a
+    # list.
+    field(:component_view, KnownAtom, values: @all_component_views, default: nil)
   end
 
   def changeset(%DisplayPreferences{} = preferences, attrs \\ %{}) do
@@ -111,7 +121,8 @@ defmodule NervesHub.Accounts.User.DisplayPreferences do
       :device_details_right,
       :map_style,
       :health_chart_style,
-      :deployment_group_view
+      :deployment_group_view,
+      :component_view
     ])
     |> validate_device_details_layout()
   end
@@ -171,6 +182,14 @@ defmodule NervesHub.Accounts.User.DisplayPreferences do
   @spec deployment_group_view(t() | nil) :: :list | :grid
   def deployment_group_view(%DisplayPreferences{deployment_group_view: :grid}), do: :grid
   def deployment_group_view(_preferences), do: :list
+
+  @doc """
+  How the user has picked to lay out a device's Components tab: `:list`
+  unless they picked `:grid`.
+  """
+  @spec component_view(t() | nil) :: :list | :grid
+  def component_view(%DisplayPreferences{component_view: :grid}), do: :grid
+  def component_view(_preferences), do: :list
 
   # A box can only be in one place.
   defp validate_device_details_layout(changeset) do

@@ -3,7 +3,8 @@ defmodule NervesHubWeb.Components.ProductSidebar do
   The product half of a product page's sidebar: its header, switcher and page links.
 
   The header names the organization and product and counts devices online. Devices
-  shows unhealthy devices (or, failing that, warnings), Deployment groups the group
+  shows unhealthy devices (or, failing that, warnings), Components the
+  components that need attention, Deployment groups the group
   count and any release awaiting approval, Errors the open issues and Notifications
   the total. Offline devices are never shown, since every product has some. On the
   rail a dot or count on the icon stands in for the line, and a tooltip spells it
@@ -22,6 +23,7 @@ defmodule NervesHubWeb.Components.ProductSidebar do
 
   alias NervesHub.Accounts
   alias NervesHub.Accounts.Scope
+  alias NervesHub.Devices.Components
   alias NervesHub.Devices.Health
   alias NervesHub.ErrorReports
   alias NervesHub.ManagedDeployments
@@ -90,6 +92,7 @@ defmodule NervesHubWeb.Components.ProductSidebar do
   @page_labels %{
     insights: "Insights",
     devices: "Devices",
+    components: "Components",
     deployments: "Deployment groups",
     firmware: "Firmware",
     archives: "Archives",
@@ -121,6 +124,7 @@ defmodule NervesHubWeb.Components.ProductSidebar do
         deployment_groups: nil,
         approvals: [],
         errors: nil,
+        components: nil,
         notifications: nil
       }
     else
@@ -131,6 +135,7 @@ defmodule NervesHubWeb.Components.ProductSidebar do
         deployment_groups: Map.get(ManagedDeployments.count_by_product([product.id]), product.id, 0),
         approvals: Workflows.awaiting_approval_in_products([product.id]),
         errors: if(product.extensions.error_reports, do: ErrorReports.status_counts(product).unresolved),
+        components: if(product.extensions.components, do: Components.product_missing_count(product)),
         notifications: ProductNotifications.count(product)
       }
     end
@@ -180,6 +185,10 @@ defmodule NervesHubWeb.Components.ProductSidebar do
   defp devices_status(%{health: %{warning: n}}) when n > 0, do: {:warning, "#{delimited(n)} warnings"}
   defp devices_status(_status), do: nil
 
+  # Missing components, the only kind of attention 0.1.0 can report.
+  defp components_status(%{components: n}) when is_integer(n) and n > 0, do: {:alert, "#{delimited(n)} need attention"}
+  defp components_status(_status), do: nil
+
   defp deployments_status(%{approvals: []}), do: nil
 
   defp deployments_status(%{approvals: [step]}) do
@@ -197,7 +206,8 @@ defmodule NervesHubWeb.Components.ProductSidebar do
     tones = [
       elem(devices_status(status) || {nil, nil}, 0),
       elem(deployments_status(status) || {nil, nil}, 0),
-      if((status.errors || 0) > 0, do: :alert)
+      if((status.errors || 0) > 0, do: :alert),
+      elem(components_status(status) || {nil, nil}, 0)
     ]
 
     Enum.find([:alert, :warning, :waiting], &(&1 in tones))
@@ -279,6 +289,16 @@ defmodule NervesHubWeb.Components.ProductSidebar do
             icon="lucide-cpu"
             selected_icon="lucide-cpu--bold"
             status={devices_status(@status)}
+          />
+          <.nav_link
+            :if={@status.every_device? and @current_scope.product.extensions.components}
+            id="nav-components"
+            label="Components"
+            path={~p"/org/#{@current_scope.org}/#{@current_scope.product}/components"}
+            selected={@selected_tab == :components}
+            icon="lucide-microchip"
+            selected_icon="lucide-microchip--bold"
+            status={components_status(@status)}
           />
           <.nav_link
             :if={@status.every_device?}

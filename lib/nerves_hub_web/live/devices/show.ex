@@ -6,6 +6,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
   alias NervesHub.Consoles
   alias NervesHub.DeviceEvents
   alias NervesHub.Devices
+  alias NervesHub.Devices.Components
   alias NervesHub.Devices.Connections
   alias NervesHub.Devices.Pinning
   alias NervesHub.Devices.PubSub
@@ -16,6 +17,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
   alias NervesHub.FirmwareUpdates
   alias NervesHub.Products
   alias NervesHubWeb.Components.DevicePage.ActivityTab
+  alias NervesHubWeb.Components.DevicePage.ComponentsTab
   alias NervesHubWeb.Components.DevicePage.ConsoleTab
   alias NervesHubWeb.Components.DevicePage.DataHistoryTab
   alias NervesHubWeb.Components.DevicePage.DetailsTab
@@ -35,6 +37,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
 
   @tab_components [
     ActivityTab,
+    ComponentsTab,
     ConsoleTab,
     DataHistoryTab,
     DetailsTab,
@@ -71,6 +74,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
     |> load_inprogress_firmware_update()
     |> assign(:pinned?, Pinning.device_pinned?(user.id, device.id))
     |> load_error_issue_count(product, device)
+    |> load_component_missing_count(product, device)
     |> setup_presence_tracking()
     |> setup_tab_components(@tab_components)
     |> ok()
@@ -178,6 +182,16 @@ defmodule NervesHubWeb.Live.Devices.Show do
     device = load_device(scope, device.identifier)
 
     {:noreply, assign(socket, :device, device)}
+  end
+
+  # A components snapshot changed something. The Components tab handles this
+  # itself while it is open; on any other tab only its dot needs recounting.
+  def handle_info(%Broadcast{event: "components:updated"}, socket) do
+    %{product: product, device: device} = socket.assigns
+
+    socket
+    |> load_component_missing_count(product, device)
+    |> noreply()
   end
 
   def handle_info(%Broadcast{event: "firmware:validated"}, socket) do
@@ -405,15 +419,26 @@ defmodule NervesHubWeb.Live.Devices.Show do
 
     [
       {:details, "Details", base, []},
-      {:health, "Health", base <> "/health", [dot: health_engaged?(device)]},
+      {:health, "Health", base <> "/health", [dot: health_engaged?(device)]}
+    ]
+    |> Kernel.++(components_tab(assigns, base))
+    |> Kernel.++([
       {:firmware_history, "Firmware History", base <> "/firmware_history", []},
       {:console, "Console", base <> "/console", [dimmed: offline?]},
       {:local_shell, "System Shell", base <> "/local_shell", [dimmed: offline?]},
       {:logs, "Logs", base <> "/logs", []},
       {:errors, "Errors", base <> "/errors", [count: nonzero(assigns[:error_issue_count])]},
       {:activity, "Activity", base <> "/activity", []}
-    ]
+    ])
   end
+
+  # Only for a product with components on. Its dot means a component the
+  # device can't reach or stopped listing.
+  defp components_tab(%{product: %{extensions: %{components: true}}} = assigns, base) do
+    [{:components, "Components", base <> "/components", [dot: (assigns[:component_missing_count] || 0) > 0]}]
+  end
+
+  defp components_tab(_assigns, _base), do: []
 
   @doc false
   def device_end_tabs(assigns) do
@@ -448,6 +473,14 @@ defmodule NervesHubWeb.Live.Devices.Show do
   defp error_issue_count?(%{extensions: %{error_reports: true}}, %{extensions: %{error_reports: false}}), do: false
   defp error_issue_count?(%{extensions: %{error_reports: true}}, _device), do: analytics_enabled?() == true
   defp error_issue_count?(_product, _device), do: false
+
+  # The Components tab's count, from Postgres: cheap enough to read on mount.
+  # The tab keeps it current while open, and `components:updated` otherwise.
+  defp load_component_missing_count(socket, %{extensions: %{components: true}}, device) do
+    assign(socket, :component_missing_count, Components.missing_count(device))
+  end
+
+  defp load_component_missing_count(socket, _product, _device), do: assign(socket, :component_missing_count, nil)
 
   defp nonzero(count) when is_integer(count) and count > 0, do: count
   defp nonzero(_count), do: nil
@@ -536,6 +569,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
   def render_tab(assigns) do
     ~H"""
     <ActivityTab.render :if={@tab == :activity} {assigns} />
+    <ComponentsTab.render :if={@tab == :components} {assigns} />
     <ConsoleTab.render :if={@tab == :console} {assigns} />
     <DataHistoryTab.render :if={@tab == :data_history} {assigns} />
     <DetailsTab.render :if={@tab == :details} {assigns} />

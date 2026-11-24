@@ -161,8 +161,18 @@ when adding or removing one.
   `devices/bulk_actions.ex`.
 - `extensions.ex` / `extensions/` — the device **extension framework**
   (`health`, `metrics`, `alarms`, `geo`, `local_shell`, `logging`,
-  `network_identity`, `error_reports`); extensions attach per-device and
-  exchange messages over the extensions channel.
+  `network_identity`, `error_reports`, `components`); extensions attach
+  per-device and exchange messages over the extensions channel.
+- `devices/components.ex` - what each device is connected to (a
+  microcontroller, Zigbee and Z-Wave nodes, USB), from the `components`
+  extension. A device sends its whole set as a snapshot, never a change, so
+  the stored set can't drift; the snapshot is diffed against
+  `device_components` in Postgres in one transaction, and what changed
+  (appeared, missing, returned, firmware changed, forgotten) goes to
+  `device_component_history` in ClickHouse. A component the device stops
+  listing or can't reach is kept as missing until it returns or someone
+  forgets it. The wire contract is
+  [docs/components.md](docs/components.md).
 - `error_reports.ex` / `error_reports/` — exceptions devices report, grouped
   into issues. Split across both stores: the group in Postgres, the
   occurrences in ClickHouse. See [docs/error_reports.md](docs/error_reports.md).
@@ -365,6 +375,13 @@ when adding or removing one.
   the release and integration dialogs do, so a new one uses it rather than
   writing its own. A short form, such as creating an API key, can use
   `Dialog.confirm/1`.
+  The device page's Components tab (`components/device_page/components_tab.ex`,
+  shown only for a product with components on) lists them by namespace as
+  rows or cards (the user's `component_view` preference) and opens one in a
+  side panel at `?component=`, where a member with `device:update` can ask
+  the device to look again or forget it. A product's Components page
+  (`live/product/components.ex`) counts them by model, and its sidebar link
+  carries the number missing.
   `components/product_list.ex` holds what the firmware and archive lists
   share: the footer pager, the sort arrow, and how a UUID, a size and an
   upload time are written.
