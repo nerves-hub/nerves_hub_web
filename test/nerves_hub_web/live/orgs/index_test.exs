@@ -232,8 +232,8 @@ defmodule NervesHubWeb.Live.Orgs.IndexTest do
       |> refute_has("nav[aria-label='Organizations']")
 
       {:ok, _view, html} = live(conn, "/orgs")
-      {bigger_at, _} = :binary.match(html, "org-title-#{bigger.id}")
-      {smaller_at, _} = :binary.match(html, "org-title-#{org.id}")
+      {bigger_at, _} = :binary.match(html, ~s(id="org-title-#{bigger.id}"))
+      {smaller_at, _} = :binary.match(html, ~s(id="org-title-#{org.id}"))
       assert bigger_at < smaller_at
     end
 
@@ -298,7 +298,7 @@ defmodule NervesHubWeb.Live.Orgs.IndexTest do
 
       {:ok, _view, html} = live(conn, "/orgs")
 
-      positions = for starred <- [a, b, d, org], do: html |> :binary.match("org-title-#{starred.id}") |> elem(0)
+      positions = for starred <- [a, b, d, org], do: html |> :binary.match(~s(id="org-title-#{starred.id}")) |> elem(0)
       assert positions == Enum.sort(positions)
 
       conn

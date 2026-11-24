@@ -1372,9 +1372,8 @@ defmodule NervesHub.Devices do
   firmware uploaded to the product.
   """
   def firmware_versions(product_id) do
-    # The versions are made distinct first, and the semver key taken from each
-    # distinct version after: `semver_sort_key/1` runs a regex, and a product
-    # has a few dozen versions but can have hundreds of thousands of devices.
+    # Distinct first so `semver_sort_key/1`, a regex, runs once per version
+    # rather than once per device.
     versions =
       Device
       |> where([d], d.product_id == ^product_id)
