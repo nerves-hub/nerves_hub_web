@@ -44,6 +44,7 @@ defmodule NervesHubWeb.Components.DevicePage.ConnectionLane do
         summary: ConnectionTimeline.summary(timeline, from, until),
         segments: segments(timeline, from, until),
         ticks: ticks(timeline.reconnects, from, until),
+        zoom_in: "Zoom in on the charts to see each one",
         labels: labels(from, until, assigns.time_zone)
       )
 
@@ -83,7 +84,7 @@ defmodule NervesHubWeb.Components.DevicePage.ConnectionLane do
                 data-from={segment.from_ms}
                 data-until={segment.until_ms}
                 aria-pressed="false"
-                aria-label={"#{offline_for(segment.span, @now)}, #{time_span(segment.span, @time_zone)}"}
+                aria-label={"#{headline(segment, @now)}, #{time_span(segment.span, @time_zone)}"}
                 class="absolute inset-0 cursor-pointer border border-offline-edge offline-hatch aria-pressed:border-[1.5px] aria-pressed:border-content-strong"
               ></button>
               <div
@@ -94,9 +95,13 @@ defmodule NervesHubWeb.Components.DevicePage.ConnectionLane do
                 ]}
               >
                 <span class="text-xs text-content-muted">{time_span(segment.span, @time_zone)}</span>
-                <span class="text-ui/4.5 font-semibold text-content-strong">{offline_for(segment.span, @now)}</span>
-                <span :if={reason(segment.span.reason)} class="text-xs text-content-muted">{reason(segment.span.reason)}</span>
-                <span class="text-xs text-content-faint">{came_back(segment.span)}</span>
+                <span class="text-ui/4.5 font-semibold text-content-strong">{headline(segment, @now)}</span>
+                <%= if segment.count == 1 do %>
+                  <span :if={reason(segment.span.reason)} class="text-xs text-content-muted">{reason(segment.span.reason)}</span>
+                  <span class="text-xs text-content-faint">{came_back(segment.span)}</span>
+                <% else %>
+                  <span class="text-xs text-content-faint">{@zoom_in}</span>
+                <% end %>
               </div>
             </div>
           <% end %>
@@ -126,11 +131,11 @@ defmodule NervesHubWeb.Components.DevicePage.ConnectionLane do
         style="display: none"
       >
         <div class="flex items-baseline justify-between gap-3">
-          <span class="text-ui/4.5 font-semibold text-content-strong">{offline_for(segment.span, @now)}</span>
+          <span class="text-ui/4.5 font-semibold text-content-strong">{headline(segment, @now)}</span>
           <span class="text-xs text-content-muted">{time_span(segment.span, @time_zone, :time)}</span>
         </div>
         <span class="text-xs text-content-muted">
-          {detail_line(segment.span)}
+          {if segment.count == 1, do: detail_line(segment.span), else: @zoom_in}
         </span>
       </div>
     </div>
@@ -192,12 +197,15 @@ defmodule NervesHubWeb.Components.DevicePage.ConnectionLane do
           kind: :offline,
           key: "#{DateTime.to_unix(span.from, :millisecond)}",
           span: span,
+          count: 1,
           start: start,
           stop: stop,
           from_ms: DateTime.to_unix(start, :millisecond),
           until_ms: DateTime.to_unix(stop, :millisecond)
         }
       end
+
+    offline = merge_close(offline, from, until)
 
     {online, covered_to} =
       Enum.flat_map_reduce(offline, from, fn %{start: start, stop: stop}, covered_to ->
@@ -213,6 +221,38 @@ defmodule NervesHubWeb.Components.DevicePage.ConnectionLane do
       })
     end)
   end
+
+  # Offline spans less than a tenth of a percent of the lane apart are drawn as
+  # one, which says how many it holds. The online time between them would be
+  # thinner than a pixel, and a device that connects for a moment and drops
+  # again, over and over, would otherwise put thousands of spans on the page.
+  # The summary still counts each one, and zooming in tells them apart.
+  defp merge_close(offline, from, until) do
+    closest_ms = div(total(from, until), 1000)
+
+    offline
+    |> Enum.reduce([], fn
+      %{from_ms: from_ms} = segment, [%{until_ms: until_ms} = last | merged] when from_ms - until_ms < closest_ms ->
+        [merge(last, segment) | merged]
+
+      segment, merged ->
+        [segment | merged]
+    end)
+    |> Enum.reverse()
+  end
+
+  defp merge(first, next) do
+    %{
+      first
+      | stop: next.stop,
+        until_ms: next.until_ms,
+        count: first.count + next.count,
+        span: %{first.span | until: next.span.until, interface: next.span.interface, ip_address: next.span.ip_address}
+    }
+  end
+
+  defp headline(%{count: 1, span: span}, now), do: offline_for(span, now)
+  defp headline(%{count: count}, _now), do: "Offline #{count} times"
 
   defp online(start, stop) do
     if DateTime.before?(start, stop), do: [%{kind: :online, start: start, stop: stop}], else: []
@@ -317,8 +357,7 @@ defmodule NervesHubWeb.Components.DevicePage.ConnectionLane do
     minute_of_day = local.hour * 60 + local.minute
     minutes_on = step - rem(minute_of_day, step)
 
-    local
-    |> Map.merge(%{second: 0, microsecond: {0, 0}})
+    %{local | second: 0, microsecond: {0, 0}}
     |> DateTime.add(minutes_on, :minute)
     |> DateTime.shift_zone!("Etc/UTC")
   end

@@ -115,8 +115,8 @@ defmodule NervesHub.Devices.ConnectionTimelineTest do
     test "is the share online, the disconnects that began in the span and its reconnects" do
       timeline = %ConnectionTimeline{
         offline: [
-          %{from: at(-20), until: at(15), reason: nil, interface: nil, ip_address: nil},
-          %{from: at(100), until: at(115), reason: nil, interface: nil, ip_address: nil}
+          %{from: at(-20), until: at(15), reason: "", interface: nil, ip_address: nil},
+          %{from: at(100), until: at(115), reason: "Stale connection", interface: nil, ip_address: nil}
         ],
         reconnects: [at(130), at(200)]
       }
@@ -126,6 +126,12 @@ defmodule NervesHub.Devices.ConnectionTimelineTest do
                disconnects: 1,
                reconnects: 1
              }
+    end
+
+    test "doesn't count a disconnect for offline time with no connection known before it" do
+      timeline = ConnectionTimeline.build([connection(at(30), nil)], nil, @from, @until)
+
+      assert %{disconnects: 0, online_percent: 83} = ConnectionTimeline.summary(timeline, @from, @until)
     end
 
     test "only says 100% online when the device was never offline" do

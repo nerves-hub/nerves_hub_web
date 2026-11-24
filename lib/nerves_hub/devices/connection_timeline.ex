@@ -123,7 +123,8 @@ defmodule NervesHub.Devices.ConnectionTimeline do
 
   # Counts one connection, oldest first: the time offline before it if there
   # was a minute or more without a connection, or a reconnect if there wasn't.
-  # One that opened before `from` or after `until` only extends the coverage.
+  # One that opened at or before `from` only extends the coverage, and one
+  # after `until` is never a reconnect.
   defp step(%{established_at: established_at} = connection, {{covered_to, last}, offline, reconnects}, from, until) do
     {offline, reconnects} =
       cond do
@@ -188,7 +189,8 @@ defmodule NervesHub.Devices.ConnectionTimeline do
   @doc """
   What the timeline adds up to between `from` and `until`: the share of it the
   device was online, as a whole percent, the times it disconnected (offline
-  times that began inside it) and the times it reconnected.
+  times that began inside it after a known connection) and the times it
+  reconnected.
 
   The share is only 100 when the device was never offline in the span, and
   only 0 when it was never online.
@@ -209,10 +211,15 @@ defmodule NervesHub.Devices.ConnectionTimeline do
 
     %{
       online_percent: percent(total - offline_ms, total),
-      disconnects: Enum.count(offline, &within?(&1.from, from, until)),
+      disconnects: Enum.count(offline, &disconnect_within?(&1, from, until)),
       reconnects: Enum.count(reconnects, &within?(&1, from, until))
     }
   end
+
+  # Offline time with no connection known before it (a nil reason) is a device
+  # that hadn't connected yet, not one that disconnected.
+  defp disconnect_within?(%{reason: nil}, _from, _until), do: false
+  defp disconnect_within?(span, from, until), do: within?(span.from, from, until)
 
   defp percent(part, total) when part >= total, do: 100
   defp percent(part, _total) when part <= 0, do: 0
