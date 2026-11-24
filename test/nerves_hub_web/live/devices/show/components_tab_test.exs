@@ -221,6 +221,30 @@ defmodule NervesHubWeb.Live.Devices.Show.ComponentsTabTest do
 
       assert_has(session, "#components-list td", text: "Jammed")
     end
+
+    test "an open panel shows a state change once it has been written", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device
+    } do
+      sync(device, [@lock])
+      [lock] = Components.list_for_device(device)
+      session = visit(conn, components_path(org, product, device) <> "?component=#{lock.id}")
+
+      info = %DeviceInfo{device_id: device.id, org_id: device.org_id, product_id: device.product_id}
+
+      :ok =
+        Components.record_state(info, %{
+          "namespace" => "zwave",
+          "serial" => "34028-23669",
+          "state" => "lock",
+          "value" => "jammed",
+          "detail" => "by keypad, user 3"
+        })
+
+      assert_has(session, "#component-history", text: "Jammed by keypad, user 3", timeout: 3000)
+    end
   end
 
   describe "a member with the view role" do

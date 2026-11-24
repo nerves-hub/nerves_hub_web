@@ -165,7 +165,7 @@ defmodule NervesHub.Extensions.Components do
   # crash, and not worth a token either: nothing was going to be written.
   def handle_in(event, payload, state) do
     Logger.warning(
-      "device #{state.device_info.device_id} sent components #{event}, which it doesn't have: #{inspect(payload, limit: 5)}"
+      "device #{state.device_info.device_id} sent components #{event}, which the contract doesn't define: #{inspect(payload, limit: 5)}"
     )
 
     {state, []}

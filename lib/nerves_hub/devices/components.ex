@@ -17,7 +17,7 @@ defmodule NervesHub.Devices.Components do
   its gateway is the one somebody is looking for.
 
   Version 0.2.0 of the extension adds what a component measures and what
-  state it is in. `record_readings/3` keeps each component's latest readings
+  state it is in. `record_readings/2` keeps each component's latest readings
   on its row and every reading in ClickHouse
   (`NervesHub.Devices.DeviceComponentReading`). `record_state/3` keeps the
   current state on the row and each change in the component's history. A
@@ -302,6 +302,10 @@ defmodule NervesHub.Devices.Components do
 
   # A snapshot's state replaces what is stored, keeping when each value it
   # repeats was set. One that says nothing about state leaves it alone.
+  #
+  # A snapshot carries no time for its state, so a value it sets is stamped
+  # with the platform's clock and marked as coming from a snapshot. A change
+  # is stamped with the device's clock, and the two can't be compared.
   defp stored_state(nil, previous, _now), do: (previous && previous.state) || %{}
 
   defp stored_state(state, previous, now) do
@@ -310,7 +314,7 @@ defmodule NervesHub.Devices.Components do
     Map.new(state, fn {name, value} ->
       case stored do
         %{^name => %{"value" => ^value} = kept} -> {name, kept}
-        _ -> {name, %{"value" => value, "since" => DateTime.to_iso8601(now), "detail" => nil}}
+        _ -> {name, %{"value" => value, "since" => DateTime.to_iso8601(now), "detail" => nil, "snapshot" => true}}
       end
     end)
   end
@@ -601,7 +605,9 @@ defmodule NervesHub.Devices.Components do
 
   Sending the value the state already has does nothing, so a device unsure
   whether a change arrived can send it again. So does a change older than the
-  stored value, which a later snapshot or change has already overtaken.
+  stored value, which a later change has already overtaken. A value a snapshot
+  set is stamped with the platform's clock rather than the device's, so any
+  change replaces it.
   """
   @spec record_state(DeviceInfo.t(), term(), DateTime.t()) :: :ok | {:error, state_rejection()}
   def record_state(%DeviceInfo{} = device_info, change, %DateTime{} = now \\ DateTime.utc_now()) do
@@ -659,6 +665,9 @@ defmodule NervesHub.Devices.Components do
     case state[change.state] do
       %{"value" => value} when value == change.value ->
         :unchanged
+
+      %{"snapshot" => true} ->
+        {:ok, Map.put(state, change.state, stored_change(change))}
 
       %{"since" => since} ->
         if DateTime.before?(change.changed_at, parse_time(since)),
@@ -845,7 +854,7 @@ defmodule NervesHub.Devices.Components do
         }
 
   @doc """
-  How each of the component's current states changed over the last 24 hours,
+  How each of the component's current states changed from `since` until now,
   for the timelines on its panel. Empty where analytics are off.
   """
   @spec state_history(DeviceComponent.t(), DateTime.t()) :: state_history()

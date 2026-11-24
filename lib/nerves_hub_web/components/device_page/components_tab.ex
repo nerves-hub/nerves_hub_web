@@ -19,8 +19,10 @@ defmodule NervesHubWeb.Components.DevicePage.ComponentsTab do
   Warning wait for thresholds and faults.
 
   A component's panel loads its history, its readings over the last few hours
-  and its state over the last day from ClickHouse in one task, and again when
-  a new reading or state change arrives for it.
+  and its state over the last day from ClickHouse in one task. When a new
+  reading or state change arrives for it, the panel loads them again once the
+  analytics buffer has written them, and at most once in that time however
+  many arrive.
   """
 
   use NervesHubWeb, tab_component: :components
@@ -45,7 +47,7 @@ defmodule NervesHubWeb.Components.DevicePage.ComponentsTab do
   # Only assigns this tab alone owns. `:component_missing_count` is the page's,
   # since the tab's dot reads it on every tab.
   def cleanup() do
-    [:components, :component_filter, :selected_component, :component_history, :component_series]
+    [:components, :component_filter, :selected_component, :component_history, :component_series, :component_reload]
   end
 
   defp load_components(socket) do
@@ -209,13 +211,39 @@ defmodule NervesHubWeb.Components.DevicePage.ComponentsTab do
         component ->
           socket
           |> assign(:selected_component, component)
-          |> then(&if(moved?(selected, component), do: load_detail(&1, component), else: &1))
+          |> then(&if(moved?(selected, component), do: schedule_reload(&1), else: &1))
       end
     end)
     |> halt()
   end
 
+  def hooked_info(:reload_component_detail, socket) do
+    socket = assign(socket, :component_reload, false)
+
+    case socket.assigns[:selected_component] do
+      nil -> socket
+      component -> load_detail(socket, component)
+    end
+    |> halt()
+  end
+
   def hooked_info(_message, socket), do: {:cont, socket}
+
+  # What changed was written to the analytics buffer just before the
+  # broadcast, and reaches ClickHouse up to the buffer's `max_delay` later, so
+  # reading straight away would miss it. One reload covers every change in
+  # that time, so a busy device costs one ClickHouse read a second at most.
+  defp schedule_reload(%{assigns: %{component_reload: true}} = socket), do: socket
+
+  defp schedule_reload(socket) do
+    _ = Process.send_after(self(), :reload_component_detail, reload_delay())
+    assign(socket, :component_reload, true)
+  end
+
+  defp reload_delay() do
+    max_delay = Application.get_env(:nerves_hub, :analytics_buffer, [])[:max_delay] || 500
+    max_delay + 500
+  end
 
   defp moved?(before, now) do
     before.readings_at != now.readings_at or before.state != now.state or

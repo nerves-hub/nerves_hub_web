@@ -491,6 +491,25 @@ defmodule NervesHub.Devices.ComponentsTest do
       assert [%{state: %{"lock" => %{"value" => "unlocked"}}}] = Components.list_for_device(device)
     end
 
+    test "a value a snapshot set is replaced by any change, whatever the device's clock says", %{
+      device: device,
+      device_info: info
+    } do
+      # The snapshot is stamped with the platform's clock; this device's runs
+      # two minutes slow.
+      sync(info, [lock(%{"state" => %{"lock" => "locked"}})])
+
+      :ok =
+        Components.record_state(
+          info,
+          state_change(%{"changed_at" => DateTime.to_iso8601(DateTime.add(@now, -120))}),
+          @now
+        )
+
+      assert [%{state: %{"lock" => %{"value" => "unlocked"} = lock}}] = Components.list_for_device(device)
+      refute Map.has_key?(lock, "snapshot")
+    end
+
     test "an unbelievable changed_at is replaced by the arrival time", %{device: device, device_info: info} do
       :ok = Components.record_state(info, state_change(%{"changed_at" => "1970-01-01T00:00:00Z"}), @now)
 
