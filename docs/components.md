@@ -258,8 +258,8 @@ dropped one would have said. However many are dropped, only one sync is sent.
 ## What is stored
 
 Each device's components are stored in PostgreSQL: identity, names, firmware
-version, status, when each was first seen, and when it was last listed. The
-device page's Components tab and the product's Components page read them. When
+version, status, when each was first seen, when the device last heard from
+it, and when it went missing. The device page's Components tab and the product's Components page read them. When
 a snapshot changes something, an open device page updates straight away.
 
 Each change is also recorded as **history** in ClickHouse: a component

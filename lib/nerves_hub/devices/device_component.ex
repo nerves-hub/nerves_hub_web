@@ -10,8 +10,9 @@ defmodule NervesHub.Devices.DeviceComponent do
   A component is **missing** when the device says it can't reach it
   (`reachable: false`) or stops listing it (`listed: false`). Either way the row
   stays, so a sensor whose battery died keeps where it was and when it went,
-  and comes back as the same component if the device lists it again. Only a
-  person forgetting it deletes it.
+  and comes back as the same component if the device lists it again. It is
+  deleted when a person forgets it, or when the device stores more than 1,000
+  and it is among those missing longest.
 
   Written only by `NervesHub.Devices.Components`, which compares each snapshot
   with these rows and records what changed.

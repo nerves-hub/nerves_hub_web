@@ -15,8 +15,6 @@ defmodule NervesHub.Devices.DeviceComponentHistory do
 
   @type t :: %__MODULE__{}
 
-  @events ~w(appeared missing returned firmware_changed forgotten)
-
   @primary_key false
   schema "device_component_history" do
     field(:timestamp, Ch, type: "DateTime64(6, 'UTC')")
@@ -28,6 +26,7 @@ defmodule NervesHub.Devices.DeviceComponentHistory do
     field(:namespace, Ch, type: "LowCardinality(String)")
     field(:serial, Ch, type: "String")
 
+    # appeared, missing, returned, firmware_changed or forgotten.
     field(:event, Ch, type: "LowCardinality(String)")
 
     # "unreachable" or "unlisted" for "missing"; the version moved from for
@@ -36,10 +35,6 @@ defmodule NervesHub.Devices.DeviceComponentHistory do
 
     field(:firmware_version, Ch, type: "String", default: "")
   end
-
-  @doc "Every event a row can record."
-  @spec events() :: [String.t()]
-  def events(), do: @events
 
   @doc """
   Builds a row for `NervesHub.Analytics.Buffer` to batch. Changes the struct
