@@ -13,9 +13,9 @@ defmodule NervesHubWeb.Components.DevicePage.ComponentsTab do
   (`components:updated`), which is rare, so there is no batching here as the
   Errors tab needs.
 
-  A component is Working or Missing. Version 0.2.0 of the extension adds
-  readings and state, which the Reading column, the cards and the panel show
-  (`ComponentReadings`) but which don't change a component's status. Error and
+  A component is Working or Missing. Its readings and state show in the
+  Reading column, the cards and the panel (`ComponentReadings`), but don't
+  change its status. Error and
   Warning wait for thresholds and faults.
 
   A component's panel loads its history, its readings over the last few hours

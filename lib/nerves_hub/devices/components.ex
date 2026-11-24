@@ -16,10 +16,9 @@ defmodule NervesHub.Devices.Components do
   Neither deletes it: only `forget/3` does, because a sensor that dropped off
   its gateway is the one somebody is looking for.
 
-  Version 0.2.0 of the extension adds what a component measures and what
-  state it is in. `record_readings/2` keeps each component's latest readings
-  on its row and every reading in ClickHouse
-  (`NervesHub.Devices.DeviceComponentReading`). `record_state/3` keeps the
+  A component can also report what it measures and what state it is in.
+  `record_readings/2` keeps each component's latest readings on its row and
+  every reading in ClickHouse (`NervesHub.Devices.DeviceComponentReading`). `record_state/3` keeps the
   current state on the row and each change in the component's history. A
   snapshot may carry state too, which replaces what is stored. Neither
   changes whether a component is working or missing.
@@ -44,7 +43,7 @@ defmodule NervesHub.Devices.Components do
   @max_string_length 255
   @namespace_pattern ~r/\A[a-z][a-z0-9_]{0,31}\z/
 
-  # Version 0.2.0: reading and state names, and how much of either is kept.
+  # Reading and state names, and how much of either is kept.
   @name_pattern ~r/\A[a-z][a-z0-9_]{0,63}\z/
   @max_states 8
   @max_state_value_length 64
@@ -429,7 +428,7 @@ defmodule NervesHub.Devices.Components do
     :ok
   end
 
-  # ------------------------------------------------------------------ 0.2.0
+  # ------------------------------------------------------- readings and state
 
   @typedoc """
   One `components:readings` report once `parse_readings/2` has read it: the

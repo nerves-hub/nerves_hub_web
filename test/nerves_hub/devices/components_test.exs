@@ -267,7 +267,7 @@ defmodule NervesHub.Devices.ComponentsTest do
     end
   end
 
-  # ------------------------------------------------------------------ 0.2.0
+  # ------------------------------------------------------- readings and state
 
   defp lock(overrides \\ %{}) do
     Map.merge(

@@ -2,8 +2,8 @@ defmodule NervesHub.Repo.Migrations.AddReadingsAndStateToDeviceComponents do
   use Ecto.Migration
 
   def change() do
-    # Version 0.2.0 of the `components` extension: what each component last
-    # measured and what state it is in, kept with the component for the device
+    # Readings and state, from the `components` extension: what each component
+    # last measured and what state it is in, kept with the component for the device
     # page's list and side panel. Their history is in ClickHouse
     # (`device_component_readings`, and `state_changed` rows in
     # `device_component_history`). See docs/components.md.

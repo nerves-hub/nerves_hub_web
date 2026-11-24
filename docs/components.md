@@ -10,10 +10,10 @@ nothing here is Elixir-shaped on purpose: the Rust agent and an ESP-IDF client
 report through the same frames.
 
 Version 0.1.0 is the inventory: which components a device has, what they are,
-and what firmware they run. Version 0.2.0 adds what each component measures and
+and what firmware they run. It also carries what each component measures and
 the state it is in (a lock being locked); see
-[Version 0.2.0](#version-020-readings-and-state). Updating a component's
-firmware comes later. Both build on the identity defined here.
+[Readings and state](#readings-and-state). Updating a component's firmware
+comes in a later version. All of it builds on the identity defined here.
 
 ## The frames
 
@@ -21,11 +21,17 @@ Negotiation is the shared handshake in
 [extensions_protocol.md](extensions_protocol.md). Once attached:
 
 ```text
-server -> device   components:sync      {}
+server -> device   components:sync      {} or {"refresh": true}
 device -> server   components:snapshot  {"components": [{"namespace": "zigbee", ..}, ..]}
+device -> server   components:readings  {"reports": [..]}
+device -> server   components:state     {"namespace": "zwave", "serial": "..", "state": "lock", "value": "unlocked", ..}
 ```
 
-There are no per-component events. A device's components change rarely, a set
+The last two are optional, and described under
+[Readings and state](#readings-and-state). A device that only keeps an
+inventory sends snapshots and nothing else.
+
+The inventory has no per-component events. A device's components change rarely, a set
 is easy to send whole, and a set can't drift the way a stream of events can: a
 missed "removed" event would leave a component listed for ever. The platform
 compares each snapshot with what it has stored and writes only what changed,
@@ -211,8 +217,8 @@ The platform works out each component's status from snapshots:
   the snapshot at all. The web UI says which: "can't reach it" or "stopped
   listing it".
 
-There is no way to say a component is reachable but faulty, in 0.1.0 or
-0.2.0. Error and Warning come in a later version.
+There is no way yet to say a component is reachable but faulty. Error and
+Warning come in a later version.
 
 A component that is no longer listed is kept, not deleted. A sensor whose
 battery has died often drops out of its gateway's list, and the interesting
@@ -264,34 +270,24 @@ ClickHouse keeps the current components and skips the history.
 Turning the extension off for a product or a device stops new snapshots and
 keeps what is stored.
 
-## Version 0.2.0: readings and state
+## Readings and state
 
-0.2.0 keeps every 0.1.0 frame as it is and adds two things a component can
-report:
+Besides being listed, a component can report two things:
 
 - **Readings**: numbers it measures, such as a probe's temperature or a lock's
   battery. A stream, kept as history.
 - **State**: named values that change now and then, such as a lock's `lock`
   being `locked`, `unlocked` or `jammed`. Every change is kept.
 
-Neither changes a component's status, which is Working or Missing as in 0.1.0.
-
-A device declares `components` at 0.2.0 to get them. The platform still serves
-a device that declares 0.1.0, which sends snapshots only.
-
-```text
-server -> device   components:sync      {} or {"refresh": true}
-device -> server   components:snapshot  {"components": [..]}
-device -> server   components:readings  {"reports": [..]}
-device -> server   components:state     {"namespace": "zwave", "serial": "..", "state": "lock", "value": "unlocked", ..}
-```
+Neither changes a component's status, which stays Working or Missing. Both
+are optional: a device sends them for the components that have them.
 
 Readings and state changes name their component by `namespace` and `serial`.
 A frame for a component the platform hasn't been sent in a snapshot is
 ignored, and the platform sends `components:sync`, at most once every thirty
 seconds, so the device can list it.
 
-### Snapshot entries in 0.2.0
+### State in a snapshot
 
 A snapshot entry may also carry the component's current state. State then
 can't drift: a change that was dropped, or made while the device was offline,
@@ -379,7 +375,7 @@ the most recently reported.
 A component may have at most **8** states. Sending the value it already has
 does nothing, so a device unsure whether a change arrived can send it again.
 
-### Rate limits in 0.2.0
+### Rate limits for readings and state
 
 - `components:readings`: one message a second, with a burst of five, per
   device. One token a message, whatever it carries.
@@ -387,9 +383,9 @@ does nothing, so a device unsure whether a change arrived can send it again.
   change over the limit is dropped, and the platform sends `components:sync`
   thirty seconds later; the snapshot that comes back carries the state the
   dropped changes would have.
-- Snapshots keep their own bucket, as in 0.1.0.
+- Snapshots keep their own bucket, described under [Rate limit](#rate-limit).
 
-### What 0.2.0 stores
+### What is stored for readings and state
 
 - The latest readings and current state of each component are kept in
   PostgreSQL with the component, for the lists and the side panel.

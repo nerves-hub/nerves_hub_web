@@ -171,8 +171,8 @@ when adding or removing one.
   (appeared, missing, returned, firmware changed, forgotten) goes to
   `device_component_history` in ClickHouse. A component the device stops
   listing or can't reach is kept as missing until it returns or someone
-  forgets it. From version 0.2.0 a component also reports readings (numbers,
-  the latest merged into `readings` on its row, every one in
+  forgets it. A component can also report readings (numbers, the latest
+  merged into `readings` on its row, every one in
   `device_component_readings` in ClickHouse) and state (named values, the
   current set in `state` on its row, each change a `state_changed` row of
   its history). Neither changes whether it is working or missing. A reading

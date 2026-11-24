@@ -49,7 +49,7 @@ defmodule NervesHub.Devices.DeviceComponent do
     field(:first_seen_at, :utc_datetime_usec)
     field(:missing_since, :utc_datetime_usec)
 
-    # Version 0.2.0. `readings` is `%{name => %{"value" => number, "at" => ISO 8601}}`,
+    # `readings` is `%{name => %{"value" => number, "at" => ISO 8601}}`,
     # `state` is `%{name => %{"value" => string, "since" => ISO 8601, "detail" => string | nil}}`.
     # Neither changes `status/1`.
     field(:readings, :map, default: %{})

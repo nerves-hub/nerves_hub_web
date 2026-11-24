@@ -3,8 +3,6 @@ defmodule NervesHub.Extensions.Components do
   The things a device is connected to, sent by the device as one set, and
   what they measure and what state they're in.
 
-  Version 0.1.0:
-
       server -> device   components:sync      %{} | %{"refresh" => true}
       device -> server   components:snapshot  %{"components" => [
                            %{"namespace" => "zigbee", "vendor" => "1286", "model" => "SNZB-02D",
@@ -12,7 +10,8 @@ defmodule NervesHub.Extensions.Components do
                            ..
                          ]}
 
-  Version 0.2.0 adds, and lets a snapshot entry carry `"state" => %{name => value}`:
+  and, for the components that have them, readings and state changes. A
+  snapshot entry may carry `"state" => %{name => value}` too:
 
       device -> server   components:readings  %{"reports" => [
                            %{"namespace" => "zigbee", "serial" => "..", "timestamp" => "..",
@@ -22,18 +21,16 @@ defmodule NervesHub.Extensions.Components do
       device -> server   components:state     %{"namespace" => "zwave", "serial" => "..",
                                                 "state" => "lock", "value" => "unlocked", ..}
 
-  One module serves both versions. A 0.1.0 device never sends the 0.2.0
-  frames, and one that did would only have them stored.
-
   docs/components.md is the contract for client authors, and
   `NervesHub.Devices.Components` is where a snapshot is read and stored.
 
   ## Why only a set
 
-  There are no per-component events. Components change rarely, a set is cheap
-  to send whole, and a set can't drift: a missed "removed" event would leave a
-  component listed for ever. The platform asks for the set when the extension
-  attaches, and the device sends it again whenever anything in it changes.
+  The inventory has no per-component events. Components change rarely, a
+  set is cheap to send whole, and a set can't drift: a missed "removed" event
+  would leave a component listed for ever. The platform asks for the set when
+  the extension attaches, and the device sends it again whenever anything in
+  it changes.
 
   ## Rate limit
 

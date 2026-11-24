@@ -80,10 +80,7 @@ defmodule NervesHub.Extensions do
     ],
     network_identity: [{"0.0.1", "~> 0.0.1", NetworkIdentity}],
     error_reports: [{"0.1.0", "~> 0.1.0", ErrorReports}],
-    components: [
-      {"0.2.0", "~> 0.2.0", Components},
-      {"0.1.0", "~> 0.1.0", Components}
-    ]
+    components: [{"0.1.0", "~> 0.1.0", Components}]
   ]
 
   @supported_extensions Keyword.keys(@implementations)

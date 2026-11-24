@@ -79,7 +79,7 @@ defmodule NervesHub.Extensions.ComponentsTest do
     assert {^state, []} = Components.handle_in("added", @mcu, state)
   end
 
-  describe "0.2.0" do
+  describe "readings and state" do
     setup %{state: state} do
       {state, []} = Components.handle_in("snapshot", %{"components" => [@mcu]}, state)
       %{state: state}
@@ -100,11 +100,6 @@ defmodule NervesHub.Extensions.ComponentsTest do
 
     defp lock_change(serial, value \\ "unlocked") do
       %{"namespace" => "mcu", "serial" => serial, "state" => "lock", "value" => value}
-    end
-
-    test "is advertised alongside 0.1.0" do
-      assert NervesHub.Extensions.versions(:components) == ["0.2.0", "0.1.0"]
-      assert NervesHub.Extensions.module(:components, Version.parse!("0.2.0")) == Components
     end
 
     test "stores readings", %{device: device, state: state} do
