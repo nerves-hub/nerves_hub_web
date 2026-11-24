@@ -116,7 +116,7 @@ defmodule NervesHubWeb.Live.SupportScriptsTest do
 
       conn
       |> visit("/org/#{org.name}/#{product.name}/scripts")
-      |> refute_has("button", text: "25", timeout: 1000)
+      |> refute_has("button.pager-button", text: "25", timeout: 1000)
     end
 
     test "paginate when more than 25 support scripts", %{
@@ -135,9 +135,9 @@ defmodule NervesHubWeb.Live.SupportScriptsTest do
 
       conn
       |> visit("/org/#{org.name}/#{product.name}/scripts")
-      |> assert_has("button", text: "25", timeout: 1000)
-      |> assert_has("button", text: "50", timeout: 1000)
-      |> assert_has("button", text: "2", timeout: 1000)
+      |> assert_has("button.pager-button", text: "25", timeout: 1000)
+      |> assert_has("button.pager-button", text: "50", timeout: 1000)
+      |> assert_has("button.pager-button", text: "2", timeout: 1000)
       |> click_button("button[phx-click='paginate'][phx-value-page='2']", "2")
       |> refute_has("a", text: first_script.name, exact: true, timeout: 1000)
     end

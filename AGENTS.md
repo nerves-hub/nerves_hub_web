@@ -347,6 +347,11 @@ when adding or removing one.
   mounts. On a phone the sidebar is a drawer, and the top bar reads menu
   button, then the page's breadcrumb (or the product and page names when it
   has none), then the avatar, which holds the user menu the drawer leaves out.
+  The user menu's contents are one component, `Layouts.user_menu_items/1`,
+  shared by the sidebar's footer, that avatar and the header of pages without
+  a sidebar, so a new link goes there once. A button that opens a menu points
+  its chevron the way the menu opens (up in the footer, down for the product
+  switcher) and flips it while open, read from its `aria-expanded`.
   Every detail, new and edit page draws its breadcrumb with
   `components/breadcrumb.ex` (the list's name, a chevron, then the item), so
   a new page uses it rather than writing its own. Asking before an action
