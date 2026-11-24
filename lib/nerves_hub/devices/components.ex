@@ -55,6 +55,9 @@ defmodule NervesHub.Devices.Components do
   @max_reports_per_message 60
   @max_readings 20
   @max_reading_skew_seconds 24 * 60 * 60
+  # Far past anything a sensor measures, and small enough that drawing a
+  # sparkline's range from two readings can't overflow a float.
+  @max_reading_magnitude 1.0e15
 
   # The same window `NervesHub.Extensions.Alarms` believes a device's clock in.
   @max_future_skew_seconds 60 * 60
@@ -518,7 +521,9 @@ defmodule NervesHub.Devices.Components do
   # depend on how the device's JSON library ordered them.
   defp readings(metrics) do
     metrics
-    |> Enum.filter(fn {name, value} -> is_number(value) and Regex.match?(@name_pattern, name) end)
+    |> Enum.filter(fn {name, value} ->
+      is_number(value) and abs(value) <= @max_reading_magnitude and Regex.match?(@name_pattern, name)
+    end)
     |> Enum.sort()
     |> Enum.take(@max_readings)
     |> Enum.map(fn {name, value} -> {name, value / 1} end)
@@ -546,7 +551,7 @@ defmodule NervesHub.Devices.Components do
       |> Enum.each(fn {key, component_reports} -> write_latest(Map.fetch!(stored, key), component_reports) end)
 
       :ok = write_readings(device_info, known, stored)
-      broadcast(device_info.device_id)
+      broadcast(device_info.device_id, "components:reported")
     end
 
     %{stored: length(known), unknown: length(unknown)}
@@ -668,7 +673,7 @@ defmodule NervesHub.Devices.Components do
         |> Map.merge(%{state: change.state, value: change.value})
 
       :ok = write_history(device_info, [event])
-      broadcast(device_info.device_id)
+      broadcast(device_info.device_id, "components:reported")
     else
       :unchanged -> :ok
       {:error, _reason} = error -> error
@@ -1006,9 +1011,12 @@ defmodule NervesHub.Devices.Components do
 
   # ------------------------------------------------------------------ effects
 
-  # Tells an open device page to re-read the device's components.
-  defp broadcast(device_id) do
-    ExtensionsPubSub.broadcast_report(device_id, "components:updated", %{})
+  # Tells an open device page to re-read the device's components:
+  # `components:updated` when the set or a status may have changed, so the
+  # Components tab's missing count needs recounting, and
+  # `components:reported` for readings and state, which never change it.
+  defp broadcast(device_id, event \\ "components:updated") do
+    ExtensionsPubSub.broadcast_report(device_id, event, %{})
   end
 
   # Gated explicitly, as `NervesHub.Devices.Alarms` gates its history: a

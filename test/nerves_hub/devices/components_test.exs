@@ -390,6 +390,13 @@ defmodule NervesHub.Devices.ComponentsTest do
       assert [%{serial: "a"}] = Components.parse_readings(reports, @now)
     end
 
+    test "drops a value too large to draw" do
+      metrics = %{"big" => 1.5e308, "small" => -1.0e16, "edge" => -1.0e15, "temperature" => 21.4}
+
+      assert [%{metrics: [{"edge", -1.0e15}, {"temperature", 21.4}]}] =
+               Components.parse_readings([report("a", metrics)], @now)
+    end
+
     test "reads at most 60 reports a message" do
       reports = for i <- 1..61, do: report("s#{i}", %{"temperature" => i})
 
@@ -452,6 +459,16 @@ defmodule NervesHub.Devices.ComponentsTest do
       assert readings == %{}
     end
 
+    test "tells an open device page with components:reported", %{device: device, device_info: info} do
+      sync(info, [probe()])
+      :ok = PubSub.subscribe_reports(device.id)
+
+      Components.record_readings(info, Components.parse_readings([report(probe()["serial"], %{"t" => 1})], @now))
+
+      assert_receive %Broadcast{event: "components:reported"}
+      refute_receive %Broadcast{event: "components:updated"}, 100
+    end
+
     test "doesn't touch another device's component with the same serial", %{device_info: info} = context do
       other = Fixtures.device_fixture(context.org, context.product, context.firmware)
       sync(%{info | device_id: other.id}, [probe()])
@@ -490,6 +507,14 @@ defmodule NervesHub.Devices.ComponentsTest do
       assert {:ok, at, 0} = DateTime.from_iso8601(since)
       assert at == DateTime.add(@now, -30)
       assert state_history(device) == [{"lock", "unlocked", "by keypad, user 3"}]
+    end
+
+    test "tells an open device page with components:reported", %{device: device, device_info: info} do
+      :ok = PubSub.subscribe_reports(device.id)
+      :ok = Components.record_state(info, state_change(), @now)
+
+      assert_receive %Broadcast{event: "components:reported"}
+      refute_receive %Broadcast{event: "components:updated"}, 100
     end
 
     test "sending the same value again does nothing", %{device: device, device_info: info} do

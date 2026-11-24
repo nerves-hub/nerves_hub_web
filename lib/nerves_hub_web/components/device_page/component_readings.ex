@@ -155,16 +155,16 @@ defmodule NervesHubWeb.Components.DevicePage.ComponentReadings do
         states: states(assigns.component),
         readings: readings(assigns.component)
       )
+      |> assign_firsts()
 
     ~H"""
     <div :if={@states == [] and @readings == []} class="text-xs text-content-faint">—</div>
 
     <div :if={@states != []} class={["flex min-w-0 flex-col gap-0.5", @missing? && "opacity-60"]}>
-      <% {name, value, since, _detail} = hd(@states) %>
       <span class="flex min-w-0 items-baseline gap-1.5">
-        <span :if={state_icon(name, value)} class={[state_icon(name, value), "size-3.5 shrink-0 self-center text-content-body"]} aria-hidden="true"></span>
-        <span class="truncate text-ui/4 font-medium text-content-strong">{state_value(value)}</span>
-        <span :if={!@missing?} class="shrink-0 text-xs text-content-faint">{for_how_long(since)}</span>
+        <span :if={@state_icon} class={[@state_icon, "size-3.5 shrink-0 self-center text-content-body"]} aria-hidden="true"></span>
+        <span class="truncate text-ui/4 font-medium text-content-strong">{state_value(@first_state.value)}</span>
+        <span :if={!@missing?} class="shrink-0 text-xs text-content-faint">{for_how_long(@first_state.since)}</span>
         <span :if={@missing?} class="shrink-0 text-xs text-content-faint">when last seen</span>
       </span>
       <span :if={@readings != []} class="truncate font-mono text-xs text-content-muted">
@@ -173,10 +173,9 @@ defmodule NervesHubWeb.Components.DevicePage.ComponentReadings do
     </div>
 
     <div :if={@states == [] and @readings != []} class={["flex min-w-0 flex-col gap-0.5", @missing? && "opacity-60"]}>
-      <% {name, value, _at} = hd(@readings) %>
       <span class="flex min-w-0 items-baseline gap-1">
-        <span class="font-mono text-ui/4 text-content-strong">{value(value)}</span>
-        <span class="truncate text-xs text-content-muted">{unit(name) || label(name)}</span>
+        <span class="font-mono text-ui/4 text-content-strong">{value(@first_reading.value)}</span>
+        <span class="truncate text-xs text-content-muted">{unit(@first_reading.name) || label(@first_reading.name)}</span>
       </span>
       <span :if={length(@readings) > 1} class="flex min-w-0 items-baseline gap-2 font-mono text-xs text-content-muted">
         <.inline_reading :for={reading <- @readings |> tl() |> Enum.take(2)} reading={reading} />
@@ -186,6 +185,28 @@ defmodule NervesHubWeb.Components.DevicePage.ComponentReadings do
       </span>
     </div>
     """
+  end
+
+  # The first state and reading as assigns of their own, rather than bound in
+  # the template, so LiveView can tell which parts changed.
+  defp assign_firsts(assigns) do
+    first_state =
+      case assigns.states do
+        [{name, value, since, _detail} | _] -> %{name: name, value: value, since: since}
+        [] -> nil
+      end
+
+    first_reading =
+      case assigns.readings do
+        [{name, value, _at} | _] -> %{name: name, value: value}
+        [] -> nil
+      end
+
+    assign(assigns,
+      first_state: first_state,
+      first_reading: first_reading,
+      state_icon: first_state && state_icon(first_state.name, first_state.value)
+    )
   end
 
   attr(:reading, :any, required: true)
@@ -221,13 +242,13 @@ defmodule NervesHubWeb.Components.DevicePage.ComponentReadings do
         states: states(assigns.component),
         readings: readings(assigns.component)
       )
+      |> assign_firsts()
 
     ~H"""
     <div :if={@states != []} class={["flex min-w-0 items-center gap-2", @missing? && "opacity-60"]}>
-      <% {name, value, since, _detail} = hd(@states) %>
-      <span :if={state_icon(name, value)} class={[state_icon(name, value), "size-4.5 shrink-0 text-content-strong"]} aria-hidden="true"></span>
-      <span class="truncate text-xl/6 font-medium text-content-strong">{state_value(value)}</span>
-      <span class="shrink-0 text-xs text-content-muted">{if @missing?, do: "when last seen", else: for_how_long(since)}</span>
+      <span :if={@state_icon} class={[@state_icon, "size-4.5 shrink-0 text-content-strong"]} aria-hidden="true"></span>
+      <span class="truncate text-xl/6 font-medium text-content-strong">{state_value(@first_state.value)}</span>
+      <span class="shrink-0 text-xs text-content-muted">{if @missing?, do: "when last seen", else: for_how_long(@first_state.since)}</span>
       <span :if={@readings != []} class="ml-auto shrink-0 font-mono text-xs text-content-muted">
         <.inline_reading reading={hd(@readings)} named />
       </span>
@@ -298,7 +319,7 @@ defmodule NervesHubWeb.Components.DevicePage.ComponentReadings do
   defp window_label(%{window: :fourteen_days}), do: "last 14 days"
   defp window_label(_history), do: "last 6 hours"
 
-  defp series(%{series: series}, name), do: Map.get(series, name)
+  defp series(%{series: series}, name), do: Map.get(series, name, [])
   defp series(_loading, _name), do: nil
 
   attr(:points, :any, required: true, doc: "`[{DateTime.t(), number}]`, oldest first, or `nil` while loading")

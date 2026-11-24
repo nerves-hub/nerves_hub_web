@@ -184,8 +184,10 @@ defmodule NervesHubWeb.Live.Devices.Show do
     {:noreply, assign(socket, :device, device)}
   end
 
-  # A components snapshot changed something. The Components tab handles this
-  # itself while it is open; on any other tab only its dot needs recounting.
+  # A components snapshot or a forget changed the set or a status. The
+  # Components tab handles this itself while it is open; on any other tab only
+  # its dot needs recounting. Readings and state send `components:reported`
+  # instead, which never changes the dot, so this page ignores it.
   def handle_info(%Broadcast{event: "components:updated"}, socket) do
     %{product: product, device: device} = socket.assigns
 

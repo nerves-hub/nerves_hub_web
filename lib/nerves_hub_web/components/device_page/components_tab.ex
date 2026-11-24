@@ -9,9 +9,11 @@ defmodule NervesHubWeb.Components.DevicePage.ComponentsTab do
   it is, what has happened to it, and the two things a person can do about a
   missing one: ask the device to look again, or forget it.
 
-  The list re-reads whenever a snapshot changes something
-  (`components:updated`), which is rare, so there is no batching here as the
-  Errors tab needs.
+  The list re-reads on `components:updated`, which a snapshot that changes
+  something sends, and on `components:reported`, which every readings message
+  and state change sends, so it can come several times a second. The first
+  re-reads straight away; any more in the next second are one re-read at the
+  end of it.
 
   A component is Working or Missing. Its readings and state show in the
   Reading column, the cards and the panel (`ComponentReadings`), but don't
@@ -46,7 +48,15 @@ defmodule NervesHubWeb.Components.DevicePage.ComponentsTab do
   # Only assigns this tab alone owns. `:component_missing_count` is the page's,
   # since the tab's dot reads it on every tab.
   def cleanup() do
-    [:components, :component_filter, :selected_component, :component_history, :component_series, :component_reload]
+    [
+      :components,
+      :component_filter,
+      :selected_component,
+      :component_history,
+      :component_series,
+      :component_reload,
+      :component_reread
+    ]
   end
 
   defp load_components(socket) do
@@ -192,27 +202,21 @@ defmodule NervesHubWeb.Components.DevicePage.ComponentsTab do
   @decorate requires_no_permission()
   def hooked_event(_event, _params, socket), do: {:cont, socket}
 
-  # Re-read, and keep the panel on the same component if it is still there.
-  # Its charts reload only when something of its own changed, so readings
-  # from the device's other components don't cost a ClickHouse read each.
   # Halts: the page's own clause only recounts the tab's dot, which
-  # `load_components/1` has just done.
-  def hooked_info(%Broadcast{event: "components:updated"}, socket) do
-    selected = socket.assigns[:selected_component]
+  # `load_components/1` does when the list is re-read.
+  def hooked_info(%Broadcast{event: event}, socket) when event in ["components:updated", "components:reported"] do
+    case socket.assigns[:component_reread] do
+      nil -> socket |> reread() |> hold_rereads()
+      _held -> assign(socket, :component_reread, :pending)
+    end
+    |> halt()
+  end
 
-    socket
-    |> load_components()
-    |> then(fn socket ->
-      case selected && Enum.find(socket.assigns.components, &(&1.id == selected.id)) do
-        nil ->
-          select_component(socket, nil)
-
-        component ->
-          socket
-          |> assign(:selected_component, component)
-          |> then(&if(moved?(selected, component), do: schedule_reload(&1), else: &1))
-      end
-    end)
+  def hooked_info(:reread_components, socket) do
+    case socket.assigns[:component_reread] do
+      :pending -> socket |> reread() |> hold_rereads()
+      _ -> assign(socket, :component_reread, nil)
+    end
     |> halt()
   end
 
@@ -227,6 +231,33 @@ defmodule NervesHubWeb.Components.DevicePage.ComponentsTab do
   end
 
   def hooked_info(_message, socket), do: {:cont, socket}
+
+  # Every accepted readings message and state change broadcasts, so a busy
+  # device could otherwise have each open tab read its whole list from
+  # Postgres several times a second. Holding re-reads for a second keeps that
+  # to one a second, and the first change still shows straight away.
+  defp hold_rereads(socket) do
+    _ = Process.send_after(self(), :reread_components, 1000)
+    assign(socket, :component_reread, :held)
+  end
+
+  # Re-read, and keep the panel on the same component if it is still there.
+  # Its charts reload only when something of its own changed, so readings
+  # from the device's other components don't cost a ClickHouse read each.
+  defp reread(socket) do
+    selected = socket.assigns[:selected_component]
+    socket = load_components(socket)
+
+    case selected && Enum.find(socket.assigns.components, &(&1.id == selected.id)) do
+      nil ->
+        select_component(socket, nil)
+
+      component ->
+        socket
+        |> assign(:selected_component, component)
+        |> then(&if(moved?(selected, component), do: schedule_reload(&1), else: &1))
+    end
+  end
 
   # What changed was written to the analytics buffer just before the
   # broadcast, and reaches ClickHouse up to the buffer's `max_delay` later, so

@@ -346,7 +346,8 @@ metrics, applied per component:
 - A `timestamp` more than **24 hours** from the platform's clock is unreadable,
   and the report is skipped.
 - A metric name must match `^[a-z][a-z0-9_]{0,63}$`. At most **20** names per
-  report are kept, in sorted order. A value that is not a number is dropped.
+  report are kept, in sorted order. A value that is not a number is dropped,
+  and so is one larger than **10¹⁵** either side of zero.
 
 Pick names a person can read, and the same names for the same quantity on
 every model: `temperature` in degrees Celsius, `humidity` and `battery` in
@@ -381,6 +382,9 @@ the most recently reported.
 
 A component may have at most **8** states. Sending the value it already has
 does nothing, so a device unsure whether a change arrived can send it again.
+A change whose `changed_at` is older than the one stored for that state is
+ignored too, so a retried change can't undo a newer one. A value set by a
+snapshot has no time from the device, so any change replaces it.
 
 ### Rate limits for readings and state
 
