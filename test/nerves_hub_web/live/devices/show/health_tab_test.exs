@@ -6,8 +6,11 @@ defmodule NervesHubWeb.Live.Devices.Show.HealthTabTest do
   alias NervesHub.Accounts
   alias NervesHub.Accounts.Scope
   alias NervesHub.Analytics.Buffer
+  alias NervesHub.AnalyticsRepo
   alias NervesHub.DeviceLink.DeviceInfo
   alias NervesHub.Devices.Alarms
+  alias NervesHub.Devices.DeviceConnection
+  alias NervesHub.Devices.DeviceConnectionHistory
   alias NervesHub.Devices.DeviceMetric
   alias NervesHub.Devices.Health
   alias NervesHub.Devices.Metrics
@@ -519,6 +522,60 @@ defmodule NervesHubWeb.Live.Devices.Show.HealthTabTest do
     end
   end
 
+  describe "connection lane" do
+    test "shows when the device was offline, why, and where it came back", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device
+    } do
+      assert {:ok, 7} = save_metrics_with_timestamp(device, DateTime.now!("Etc/UTC"))
+
+      now = DateTime.utc_now()
+      ago = fn minutes -> DateTime.add(now, -minutes, :minute) end
+
+      insert_history(device, ago.(240), ago.(60), reason: "Stale connection")
+      insert_history(device, ago.(46), ago.(20), network_interface: :wifi, ip_address: "10.0.4.17")
+
+      insert_history(device, DateTime.add(ago.(20), 10, :second), nil)
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}/health")
+      |> assert_has("#health-connection-lane", text: "Online 92% of this period", timeout: 2000)
+      |> assert_has("#health-connection-lane", text: "1 disconnect")
+      |> assert_has("#health-connection-lane", text: "1 reconnect")
+      |> assert_has("#health-connection-lane [role=tooltip]", text: "Offline for 14 min")
+      |> assert_has("#health-connection-lane [role=tooltip]", text: "Stopped sending heartbeats")
+      |> assert_has("#health-connection-lane [role=tooltip]", text: "Came back on Wi-Fi · 10.0.4.17")
+      |> assert_has("#health-connection-lane [data-offline-detail]",
+        text: "Stopped sending heartbeats · came back on Wi-Fi"
+      )
+    end
+
+    test "follows the zoom", %{conn: conn, org: org, product: product, device: device} do
+      assert {:ok, 7} = save_metrics_with_timestamp(device, DateTime.now!("Etc/UTC"))
+
+      now = DateTime.utc_now()
+      ago = fn minutes -> DateTime.add(now, -minutes, :minute) end
+
+      insert_history(device, ago.(240), ago.(60), reason: "Stale connection")
+      insert_history(device, ago.(46), nil)
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}/health")
+      |> assert_has("#health-connection-lane", text: "1 disconnect", timeout: 2000)
+      |> unwrap(fn view ->
+        render_hook(view, "charts-zoomed", %{
+          "from" => DateTime.to_unix(ago.(40), :millisecond),
+          "until" => DateTime.to_unix(ago.(10), :millisecond)
+        })
+      end)
+      |> assert_has("#health-connection-lane", text: "Online 100% of this period")
+      |> assert_has("#health-connection-lane", text: "0 disconnects")
+      |> refute_has("#health-connection-lane [data-offline-span]")
+    end
+  end
+
   defp save_metrics_with_timestamp(device, timestamp), do: record_metrics(device, @metrics, timestamp)
 
   defp to_device_info(device) do
@@ -538,5 +595,23 @@ defmodule NervesHubWeb.Live.Devices.Show.HealthTabTest do
     :ok = Buffer.flush(DeviceMetric)
 
     result
+  end
+
+  defp insert_history(device, established_at, disconnected_at, extra \\ []) do
+    %DeviceConnection{
+      id: Ecto.UUID.generate(),
+      org_id: device.org_id,
+      product_id: device.product_id,
+      device_id: device.id,
+      established_at: established_at,
+      last_seen_at: disconnected_at || established_at,
+      disconnected_at: disconnected_at,
+      disconnected_reason: extra[:reason],
+      network_interface: extra[:network_interface],
+      ip_address: extra[:ip_address]
+    }
+    |> DeviceConnectionHistory.from_device_connection_changeset()
+    |> Ecto.Changeset.apply_changes()
+    |> AnalyticsRepo.insert!()
   end
 end

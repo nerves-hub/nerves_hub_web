@@ -165,6 +165,14 @@
   --color-status-offline: var(--color-zinc-500);
   --color-status-connecting: var(--color-indigo-500);
 
+  /* The Health tab's connection lane: offline time is hatched (the
+     offline-hatch utility below) inside an edge, and a quick reconnect is a
+     tick across the lane. */
+  --color-offline-hatch: var(--color-zinc-500);
+  --color-offline-fill: var(--color-zinc-800);
+  --color-offline-edge: var(--color-zinc-400);
+  --color-reconnect-tick: var(--color-zinc-300);
+
   /* Text roles. Use these for text, not the base-* ramp they replaced:
      text-base-50/300/400/500 were the same colours under a second name.
      The other base-* shades have no text role yet. */
@@ -369,6 +377,11 @@
   --shade-strength: 1;
   --color-release: var(--color-indigo-500);
 
+  --color-offline-hatch: var(--color-zinc-400);
+  --color-offline-fill: var(--color-zinc-100);
+  --color-offline-edge: var(--color-zinc-300);
+  --color-reconnect-tick: var(--color-zinc-600);
+
   /* Semantic roles + neutral veil flip on the light canvas */
   --color-content-strong: var(--color-zinc-900); /* zinc-900 */
   --color-content-body: var(--color-zinc-700); /* zinc-700 */
@@ -504,6 +517,16 @@ html:has(#product-sidebar[data-attention="waiting"]) .menu-attention {
 @utility shadow-filter-slider {
   box-shadow: var(--shadow-filter-slider);
 }
+/* Time a device was offline, on the Health tab's connection lane: diagonal
+   stripes in offline-hatch over offline-fill. */
+@utility offline-hatch {
+  background: repeating-linear-gradient(
+    135deg,
+    var(--color-offline-hatch) 0 1.6px,
+    var(--color-offline-fill) 1.6px 5px
+  );
+}
+
 /* The error pages' backdrop: a 20px dot grid, like perfboard, that fades out
    behind the form so the dots never sit under text. */
 @utility perfboard {

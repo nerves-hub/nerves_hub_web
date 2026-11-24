@@ -277,7 +277,12 @@ when adding or removing one.
   - User-facing counterparts: `UserConsoleChannel`, `UserLocalShellChannel`.
 - `live/` — LiveViews (the dashboard). `live/devices/show.ex` is the device
   page; its tabs live in `components/device_page/*` as tab components that hook
-  into the LiveView. Below `sm` the device page scrolls as one, under tabs
+  into the LiveView. The Health tab's History card opens with a connection lane
+  (`components/device_page/connection_lane.ex`) over the span its charts show,
+  drawn from `Devices.ConnectionTimeline`: time offline with why it began and
+  where the device came back, and reconnects too quick to count as offline.
+  Hovering or tapping an offline span darkens the charts' matching Offline
+  bands (the `ConnectionLane` hook). Below `sm` the device page scrolls as one, under tabs
   that stick to the top, and each tab has its own `max-sm:` layout (a table
   becomes a card per row by restyling its rows, not by rendering them twice).
   Two states on a phone are marked on `<html>`, which a patch never touches,

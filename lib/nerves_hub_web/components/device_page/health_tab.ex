@@ -6,7 +6,7 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
   alias NervesHub.Accounts
   alias NervesHub.Accounts.User.DisplayPreferences
   alias NervesHub.Devices.Alarms
-  alias NervesHub.Devices.Connections
+  alias NervesHub.Devices.ConnectionTimeline
   alias NervesHub.Devices.Metrics
   alias NervesHub.Helpers.RelativeTime
   alias NervesHub.Products
@@ -15,6 +15,7 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
   alias NervesHubWeb.Components.DeviceHealth.AlarmsRow
   alias NervesHubWeb.Components.DeviceHealth.MetricLabels
   alias NervesHubWeb.Components.DeviceHealth.StatusBadge
+  alias NervesHubWeb.Components.DevicePage.ConnectionLane
   alias NervesHubWeb.Components.Utils
   alias Phoenix.LiveView.AsyncResult
 
@@ -98,6 +99,7 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
     |> assign(:chart_data, %{})
     |> assign(:has_chart_data, %{})
     |> assign(:offline_periods, [])
+    |> assign(:connection_timeline, nil)
     |> assign(:zoom, nil)
     |> async_assign_charts()
     |> load_offline_periods()
@@ -120,6 +122,7 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
       :health_profile,
       :health_alarms,
       :offline_periods,
+      :connection_timeline,
       :zoom
     ]
   end
@@ -159,8 +162,9 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
     halt(socket)
   end
 
-  def hooked_async("load_offline", {:ok, periods}, socket) do
+  def hooked_async("load_offline", {:ok, {timeline, periods}}, socket) do
     socket
+    |> assign(:connection_timeline, timeline)
     |> assign(:offline_periods, periods)
     |> push_event("offline-periods", %{periods: periods})
     |> halt()
@@ -449,6 +453,16 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
           </div>
         </div>
 
+        <ConnectionLane.lane
+          :if={@connection_timeline}
+          id="health-connection-lane"
+          timeline={@connection_timeline.timeline}
+          from={if @zoom, do: elem(@zoom, 0), else: @charts_from_timestamp}
+          until={if @zoom, do: elem(@zoom, 1), else: @charts_until_timestamp}
+          now={@connection_timeline.read_at}
+          time_zone={@time_zone}
+        />
+
         <div class="grid grid-cols-1 gap-x-8 px-4 pb-2 lg:grid-cols-2">
           <div :for={key <- metrics_to_chart(@latest_metrics)} id={"health-chart-#{key}"} class="flex min-w-0 flex-col gap-1.5 border-t border-line-subtle pt-3.5 pb-2">
             <div class="group/label flex min-h-5 items-center justify-between gap-3">
@@ -676,18 +690,20 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
     end)
   end
 
-  # When the device had no connection over the time frame, as
-  # `[[from, until]]` in unix milliseconds, for the charts to shade. Connection
-  # history lives in ClickHouse, so there's nothing to shade without it.
+  # When the device was connected over the time frame: the timeline for the
+  # connection lane, read at the frame's end, and the times it had no
+  # connection as `[[from, until]]` in unix milliseconds, for the charts to
+  # shade. Connection history lives in ClickHouse, so there's nothing to draw
+  # without it.
   defp load_offline_periods(%{assigns: %{analytics_enabled: false}} = socket), do: socket
 
   defp load_offline_periods(socket) do
     %{device: device, charts_from_timestamp: from, charts_until_timestamp: until} = socket.assigns
 
     start_async(socket, "load_offline", fn ->
-      for {from, until} <- Connections.offline_periods(device, from, until) do
-        [DateTime.to_unix(from, :millisecond), DateTime.to_unix(until, :millisecond)]
-      end
+      timeline = ConnectionTimeline.load(device, from, until)
+
+      {%{timeline: timeline, read_at: until}, ConnectionTimeline.offline_periods(timeline, from, until)}
     end)
   end
 
