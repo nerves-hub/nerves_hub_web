@@ -206,8 +206,6 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
       |> assert_has("#present-users > #presences-#{user_two.id} > img[src='#{picture}']")
 
-      # The first viewer has no picture, so their initials show, and the
-      # second viewer's picture stays theirs.
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
       |> assert_has("#present-users > #presences-#{user.id} > span", text: user_initials(user))
