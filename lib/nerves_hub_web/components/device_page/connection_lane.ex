@@ -43,7 +43,7 @@ defmodule NervesHubWeb.Components.DevicePage.ConnectionLane do
         now: assigns.now || until,
         summary: ConnectionTimeline.summary(timeline, from, until),
         segments: segments(timeline, from, until),
-        ticks: for(at <- timeline.reconnects, inside?(at, from, until), do: position(at, from, until)),
+        ticks: ticks(timeline.reconnects, from, until),
         labels: labels(from, until, assigns.time_zone)
       )
 
@@ -169,9 +169,10 @@ defmodule NervesHubWeb.Components.DevicePage.ConnectionLane do
   end
 
   @doc """
-  Why a connection ended, as `disconnected_reason` records it, in words. Nil
-  when no connection is known before the time offline, so there's no reason
-  to give.
+  Why a connection ended, as `disconnected_reason` records it, in words.
+
+  Nil when no connection is known before the time offline, so there's no reason
+  to give. A reason it doesn't know comes back as stored.
   """
   @spec reason(String.t() | nil) :: String.t() | nil
   def reason(nil), do: nil
@@ -215,6 +216,17 @@ defmodule NervesHubWeb.Components.DevicePage.ConnectionLane do
 
   defp online(start, stop) do
     if DateTime.before?(start, stop), do: [%{kind: :online, start: start, stop: stop}], else: []
+  end
+
+  # Where each reconnect sits, one tick per tenth of a percent at most. A device
+  # that reconnects every few seconds would otherwise put a tick on the page
+  # for every one; the summary still counts them all. Reconnects come in time
+  # order, so ticks that round to the same place are next to each other.
+  defp ticks(reconnects, from, until) do
+    reconnects
+    |> Enum.filter(&inside?(&1, from, until))
+    |> Enum.map(&position(&1, from, until))
+    |> Enum.dedup_by(&Float.round(&1, 1))
   end
 
   defp position(at, from, until) do

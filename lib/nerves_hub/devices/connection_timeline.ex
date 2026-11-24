@@ -24,8 +24,7 @@ defmodule NervesHub.Devices.ConnectionTimeline do
   alias NervesHub.AnalyticsRepo
   alias NervesHub.Devices.DeviceConnectionHistory
 
-  # Gaps shorter than this are a reconnect rather than time offline. Matches
-  # how long the device socket waits before calling a connection gone.
+  # Gaps shorter than this are a reconnect rather than time offline.
   @shortest_offline_seconds 60
 
   @type offline :: %{

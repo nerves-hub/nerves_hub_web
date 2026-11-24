@@ -719,9 +719,10 @@ defmodule NervesHub.Fixtures do
   end
 
   @doc """
-  A row in the device's connection history in ClickHouse, from
-  `established_at` to `disconnected_at` (nil while it's open). `extra` takes
-  `:reason`, `:network_interface` and `:ip_address`.
+  A row in the device's connection history in ClickHouse, from `established_at`
+  to `disconnected_at` (nil while it's open).
+
+  `extra` takes `:reason`, `:network_interface` and `:ip_address`.
   """
   def connection_history_fixture(%Devices.Device{} = device, established_at, disconnected_at, extra \\ []) do
     %DeviceConnection{
