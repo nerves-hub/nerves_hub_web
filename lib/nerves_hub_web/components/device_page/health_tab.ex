@@ -199,11 +199,18 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
   @decorate requires_membership()
   def hooked_event("charts-zoomed", %{"from" => from, "until" => until}, socket)
       when is_number(from) and is_number(until) do
-    %{charts_from_timestamp: frame_from, charts_until_timestamp: frame_until} = socket.assigns
+    %{charts_from_timestamp: frame_from, charts_until_timestamp: frame_until, zoom: current} = socket.assigns
 
-    # Inside the time frame: what the charts can show, and all the lane has.
+    # Inside what the charts hold: the time frame, reaching back to an earlier
+    # zoom's start, since the charts stay put while zoomed as the frame moves.
+    shown_from =
+      case current do
+        {zoom_from, _zoom_until} -> earliest(zoom_from, frame_from)
+        nil -> frame_from
+      end
+
     zoom = {
-      latest(unix_ms_datetime(from, frame_from), frame_from),
+      latest(unix_ms_datetime(from, shown_from), shown_from),
       earliest(unix_ms_datetime(until, frame_until), frame_until)
     }
 

@@ -187,13 +187,12 @@ defmodule NervesHub.Devices.ConnectionTimeline do
   end
 
   @doc """
-  What the timeline adds up to between `from` and `until`: the share of it the
-  device was online, as a whole percent, the times it disconnected (offline
-  times that began inside it after a known connection) and the times it
-  reconnected.
+  What the timeline adds up to between `from` and `until`.
 
-  The share is only 100 when the device was never offline in the span, and
-  only 0 when it was never online.
+  `online_percent` is the share of the span the device was online, as a whole
+  percent: 100 only when it was never offline, 0 only when it was never online.
+  `disconnects` counts offline times that began inside the span after a known
+  connection, and `reconnects` the reconnects inside it.
   """
   @spec summary(t(), DateTime.t(), DateTime.t()) :: %{
           online_percent: 0..100,

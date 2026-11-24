@@ -534,6 +534,37 @@ defmodule NervesHubWeb.Live.Devices.Show.HealthTabTest do
       |> refute_has("button", text: "Reset zoom")
       |> assert_has("#health-history", text: "Drag across a chart to zoom")
     end
+
+    test "zooming again reaches back to where the charts were left", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device
+    } do
+      assert {:ok, 7} = save_metrics_with_timestamp(device, DateTime.now!("Etc/UTC"))
+
+      # Before the time frame, so the first zoom starts where the frame did.
+      early = DateTime.to_unix(DateTime.add(DateTime.utc_now(), -4, :hour), :millisecond)
+      until = DateTime.to_unix(DateTime.add(DateTime.utc_now(), -2, :hour), :millisecond)
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}/health")
+      |> unwrap(fn view ->
+        render_hook(view, "charts-zoomed", %{"from" => early, "until" => until})
+        {first_from, _until} = :sys.get_state(view.pid).socket.assigns.zoom
+
+        # The frame moves on while the charts stay where the zoom put them.
+        Process.sleep(5)
+        send(view.pid, :tick)
+        render_hook(view, "charts-zoomed", %{"from" => early, "until" => until})
+        assigns = :sys.get_state(view.pid).socket.assigns
+
+        assert DateTime.after?(assigns.charts_from_timestamp, first_from)
+        assert {^first_from, _until} = assigns.zoom
+
+        render(view)
+      end)
+    end
   end
 
   describe "connection lane" do
