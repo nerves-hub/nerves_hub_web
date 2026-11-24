@@ -68,6 +68,7 @@ defmodule NervesHubWeb.Live.Devices.Show.ComponentsTabTest do
 
   test "says when the device has turned components off", %{conn: conn, org: org, product: product, device: device} do
     {:ok, _device} = device |> Device.changeset(%{"extensions" => %{"components" => false}}) |> Repo.update()
+    assert %{extensions: %{components: false}} = Repo.reload!(device)
 
     conn
     |> visit(components_path(org, product, device))
