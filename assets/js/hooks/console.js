@@ -181,8 +181,8 @@ export default {
         e.stopPropagation()
         if (!acceptsFiles(consoleVersion)) return
         if (e.dataTransfer.items) {
-          // A drag can carry text or a link beside the file, which has no
-          // file to send.
+          // A drag can carry text or links beside files; only file items have
+          // a file to send.
           const files = [...e.dataTransfer.items]
             .filter(item => item.kind === "file")
             .map(item => item.getAsFile())
