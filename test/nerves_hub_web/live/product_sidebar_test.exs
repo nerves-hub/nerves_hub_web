@@ -75,6 +75,24 @@ defmodule NervesHubWeb.ProductSidebarTest do
     end
   end
 
+  describe "the user menu" do
+    test "links to the account, its access tokens, the organizations and logging out", %{
+      conn: conn,
+      user: user,
+      org: org,
+      product: product
+    } do
+      conn
+      |> visit_product(org, product)
+      |> assert_has("#user-menu-toggle", text: user.name)
+      |> assert_has("#user-menu a[href='/account']", text: "Account")
+      |> assert_has("#user-menu a[href='/account/tokens']", text: "Access tokens")
+      |> assert_has("#user-menu a[href='/orgs']", text: "Organizations")
+      |> assert_has("#user-menu a[href='/logout']", text: "Log out")
+      |> assert_has("#user-menu button[data-theme-option='system']")
+    end
+  end
+
   describe "the links' statuses" do
     test "say nothing when there's nothing to look at", %{conn: conn, org: org, product: product} do
       conn
