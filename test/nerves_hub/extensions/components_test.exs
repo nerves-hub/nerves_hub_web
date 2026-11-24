@@ -124,10 +124,10 @@ defmodule NervesHub.Extensions.ComponentsTest do
     end
 
     test "readings over the limit are dropped", %{device: device, state: state} do
-      for _ <- 1..5, do: {_state, []} = Components.handle_in("readings", readings(@mcu["serial"]), state)
+      # Emptied straight before the message rather than by sending five, which
+      # a slow runner can take long enough over for the bucket to refill.
+      Stream.repeatedly(fn -> Components.allow_readings?(state.device_info) end) |> Enum.find(&(not &1))
 
-      Store.forget(device, hd(Store.list_for_device(device)).id, "test")
-      {_state, []} = Components.handle_in("snapshot", %{"components" => [@mcu]}, state)
       {_state, []} = Components.handle_in("readings", readings(@mcu["serial"]), state)
 
       assert [%{readings: readings}] = Store.list_for_device(device)
