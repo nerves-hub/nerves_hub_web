@@ -138,6 +138,36 @@ describe("sendChunks", () => {
     assert.ok(!server.sent.some(({ event }) => event === "file-data/stop"))
   })
 
+  it("stops at once when aborted, even with room in the window", async () => {
+    const sent = []
+    let abort
+    const aborted = new Promise((_resolve, reject) => (abort = reject))
+
+    // A server that answers straight away, so the window never fills.
+    const push = (event, payload) => {
+      sent.push({ event, payload })
+      if (event !== "file-data") return undefined
+      if (payload.chunk === 1) abort(new Error("device error"))
+      return Promise.resolve()
+    }
+
+    const done = sendChunks({
+      filename: "a.bin",
+      chunks: chunksOf(streamOf([1, 2, 3, 4, 5, 6, 7, 8]), 1),
+      push,
+      onSent: () => {},
+      aborted,
+      window: 8
+    })
+
+    await assert.rejects(done, /device error/)
+    assert.deepEqual(
+      sent.filter(({ event }) => event === "file-data").map(({ payload }) => payload.chunk),
+      [0, 1]
+    )
+    assert.ok(!sent.some(({ event }) => event === "file-data/stop"))
+  })
+
   it("stops when aborted while waiting on the server", async () => {
     const server = fakeServer()
     let abort

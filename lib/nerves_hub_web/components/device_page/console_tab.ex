@@ -162,12 +162,12 @@ defmodule NervesHubWeb.Components.DevicePage.ConsoleTab do
     """
   end
 
-  # How a file sent to the device is going, for whoever sent it. The Console
-  # hook (`assets/js/hooks/console.js`) shows these and fills them in, setting
-  # `data-state` to uploading, saving, saved or failed, and `data-acks` when
-  # the device reports each chunk it saves. Every state's words are here, and
-  # the state picks which show. Both are ignored by patches, which would
-  # otherwise put back what the hook changed.
+  # How a file sent to the device is going, for whoever sent it.
+  # `assets/js/helpers/consoleUploadView.js` shows these and fills them in,
+  # setting `data-state` to uploading, saving, saved or failed, `data-step` on
+  # each step, and `data-acks` when the device reports each chunk it saves.
+  # Every state's words are here, and the state picks which show. Both are
+  # ignored by patches, which would otherwise put back what the script changed.
   #
   # The dialog lies over the terminal. It opens if the file takes more than a
   # moment, and Hide leaves the strip under the terminal instead.

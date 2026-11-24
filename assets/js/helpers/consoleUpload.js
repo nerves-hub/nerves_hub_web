@@ -86,9 +86,16 @@ export async function sendChunks({ filename, chunks, push, onSent, aborted, wind
   const inFlight = new Set()
   let chunk = 0
 
+  // Checked before every chunk, not only when the window is full, so a file
+  // nobody wants any more stops at once even when the server keeps up.
+  let abortedWith = null
+  stopped.catch((reason) => (abortedWith = { reason }))
+
   push("file-data/start", { filename })
 
   for await (const data of chunks) {
+    if (abortedWith) throw abortedWith.reason
+
     const bytes = data.length
     const sent = push("file-data", { filename, chunk, data: encodeChunk(data) }).then(() => {
       inFlight.delete(sent)
