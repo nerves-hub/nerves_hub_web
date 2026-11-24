@@ -80,15 +80,15 @@ defmodule NervesHub.Consoles.PubSubTest do
     test "the console watcher receives what it is sent, and not the console's input", %{
       device_id: device_id
     } do
-      # The device Show LiveView flashes upload start and stop for the uploader.
+      # The device Show LiveView shows when the local shell attaches.
       :ok = PubSub.subscribe_console_watcher(device_id)
 
-      :ok = PubSub.broadcast_to_console_watchers(device_id, "file-data/start", %{"size" => 10})
+      :ok = PubSub.broadcast_to_console_watchers(device_id, "local_shell_attached", %{})
       :ok = PubSub.broadcast_to_console(device_id, "file-data", %{"chunk" => "abc"})
-      :ok = PubSub.broadcast_to_console_watchers(device_id, "file-data/stop", %{})
+      :ok = PubSub.broadcast_to_console_watchers(device_id, "local_shell_detached", %{})
 
-      assert_receive %Broadcast{event: "file-data/start", payload: %{"size" => 10}}, 500
-      assert_receive %Broadcast{event: "file-data/stop"}, 500
+      assert_receive %Broadcast{event: "local_shell_attached"}, 500
+      assert_receive %Broadcast{event: "local_shell_detached"}, 500
       refute_received %Broadcast{event: "file-data"}
     end
 

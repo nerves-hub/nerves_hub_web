@@ -1,4 +1,5 @@
-import { acceptsFiles, CHUNK_SIZE, encodeChunk } from "../helpers/consoleFiles.js"
+import { acceptsFiles } from "../helpers/consoleFiles.js"
+import { setupUploads } from "../helpers/consoleUploads.js"
 import {
   connectUserSocket,
   createTerminal,
@@ -26,11 +27,9 @@ export default {
 
     this.teardownOptionAsMetaToggle = setupOptionAsMetaToggle(term)
 
-    this.keyboard = setupPhoneKeyboard({
-      term,
-      fitAddon,
-      frame: this.el.closest("[data-terminal-frame]")
-    })
+    const frame = this.el.closest("[data-terminal-frame]")
+
+    this.keyboard = setupPhoneKeyboard({ term, fitAddon, frame })
 
     this.resizeEventListener = () => {
       fitAddon.fit()
@@ -41,6 +40,14 @@ export default {
 
     // resize terminal on window resize
     window.addEventListener("resize", this.resizeEventListener)
+
+    // The strip under the terminal comes and goes as files are sent, so the
+    // terminal fits the room it's left, not only the window.
+    this.boxObserver = new ResizeObserver(() => {
+      fitAddon.fit()
+      term.scrollToBottom()
+    })
+    this.boxObserver.observe(this.el.parentElement)
 
     term.onResize(
       debounce(() => {
@@ -63,17 +70,30 @@ export default {
       channel.push("dn", { data: this.keyboard.transform(data) })
     })
 
-    // The device's console version, which says whether it can take a file.
-    // It arrives once the device's console answers, so it may be unknown.
+    // The device's console version, which says whether it can take a file,
+    // and whether it reports how saving one is going. They arrive once the
+    // device's console answers, so they may be unknown.
     let consoleVersion = null
+    let fileAcks = false
 
     channel.on("metadata", payload => {
       consoleVersion = payload.version
+      fileAcks = payload.file_acks === true
+    })
+
+    this.uploads = setupUploads({
+      frame,
+      channel,
+      fileAcks: () => fileAcks,
+      focus: () => {
+        if (!isPhone()) term.focus()
+      }
     })
 
     // Write data from device to console
     channel.on("up", payload => {
       term.write(payload.data)
+      this.uploads.output(payload.data)
     })
 
     let downloadingFileBuffer = []
@@ -154,34 +174,6 @@ export default {
       e.dataTransfer.dropEffect = acceptsFiles(consoleVersion) ? "copy" : "none"
     })
 
-    // Sends a file to the device, a chunk at a time, numbered across the
-    // whole file.
-    const sendFile = file => {
-      const reader = file.stream().getReader()
-      let chunkNum = 0
-
-      channel.push("file-data/start", { filename: file.name })
-
-      reader.read().then(function process({ done, value }) {
-        if (done) {
-          channel.push("file-data/stop", { filename: file.name })
-          return
-        }
-
-        for (let i = 0; i < value.length; i += CHUNK_SIZE) {
-          channel.push("file-data", {
-            filename: file.name,
-            chunk: chunkNum,
-            data: encodeChunk(value.subarray(i, i + CHUNK_SIZE))
-          })
-
-          chunkNum += 1
-        }
-
-        return reader.read().then(process)
-      })
-    }
-
     dropzone.addEventListener(
       "drop",
       e => {
@@ -191,9 +183,11 @@ export default {
         if (e.dataTransfer.items) {
           // A drag can carry text or a link beside the file, which has no
           // file to send.
-          for (const item of e.dataTransfer.items) {
-            if (item.kind === "file") sendFile(item.getAsFile())
-          }
+          const files = [...e.dataTransfer.items]
+            .filter(item => item.kind === "file")
+            .map(item => item.getAsFile())
+
+          this.uploads.send(files)
         }
       },
       false
@@ -203,14 +197,16 @@ export default {
     const filePicker = document.getElementById("console-file")
 
     filePicker?.addEventListener("change", () => {
-      for (const file of filePicker.files) sendFile(file)
+      this.uploads.send([...filePicker.files])
       filePicker.value = ""
     })
   },
   destroyed() {
     window.removeEventListener("resize", this.resizeEventListener)
+    this.boxObserver.disconnect()
     this.teardownOptionAsMetaToggle()
     this.keyboard.teardown()
+    this.uploads.teardown()
     this.socket.disconnect()
   }
 }

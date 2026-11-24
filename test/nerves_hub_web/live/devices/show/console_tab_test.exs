@@ -70,69 +70,35 @@ defmodule NervesHubWeb.Live.Devices.Show.ConsoleTabTest do
   end
 
   describe "sending a file" do
-    test "tells whoever sent it, and that the console waits for the device to save it", %{
+    test "the dialog and strip that show how it goes are there, hidden, until the page sends one", %{
       conn: conn,
       org: org,
       product: product,
-      device: device,
-      user: user
+      device: device
     } do
       _console = ConsoleStandIn.start(device.id)
+      platform = NervesHub.Branding.friendly_platform_name()
 
-      session =
-        conn
-        |> visit(console_path(org, product, device))
-        |> assert_has("#console", timeout: 1000)
-
-      :ok =
-        Consoles.PubSub.broadcast_to_console_watchers(device.id, "file-data/start", %{
-          "filename" => "notes.txt",
-          uploaded_by: user.id
-        })
-
-      session = assert_has(session, "[role=alert]", text: "Sending notes.txt to the device.")
-
-      :ok =
-        Consoles.PubSub.broadcast_to_console_watchers(device.id, "file-data/stop", %{
-          "filename" => "notes.txt",
-          uploaded_by: user.id
-        })
-
-      assert_has(session, "[role=alert]",
-        text: "Sent notes.txt. The console takes typing again once the device has saved it"
-      )
+      conn
+      |> visit(console_path(org, product, device))
+      |> assert_has("#console", timeout: 1000)
+      |> assert_has("[data-upload-dialog][hidden] [role=dialog]", text: "Sending a file to the device")
+      |> assert_has("[data-upload-dialog] [data-upload-step=upload]", text: "Upload to #{platform}")
+      |> assert_has("[data-upload-dialog] [data-upload-step=save]", text: "Device receives and saves it")
+      |> assert_has("[data-upload-strip][hidden]", text: "Uploading to #{platform}")
     end
 
-    test "says nothing to someone else watching the console", %{
+    test "nothing to show it with when the console is unavailable", %{
       conn: conn,
       org: org,
       product: product,
-      device: device,
-      user: user
+      device: device
     } do
-      _console = ConsoleStandIn.start(device.id)
-
-      session =
-        conn
-        |> visit(console_path(org, product, device))
-        |> assert_has("#console", timeout: 1000)
-
-      :ok =
-        Consoles.PubSub.broadcast_to_console_watchers(device.id, "file-data/stop", %{
-          "filename" => "theirs.txt",
-          uploaded_by: user.id + 1
-        })
-
-      # Handled in order, so once our own shows, theirs has been and gone.
-      :ok =
-        Consoles.PubSub.broadcast_to_console_watchers(device.id, "file-data/start", %{
-          "filename" => "mine.txt",
-          uploaded_by: user.id
-        })
-
-      session
-      |> assert_has("[role=alert]", text: "Sending mine.txt to the device.")
-      |> refute_has("[role=alert]", text: "theirs.txt")
+      conn
+      |> visit(console_path(org, product, device))
+      |> assert_has("div", text: @unavailable)
+      |> refute_has("[data-upload-dialog]")
+      |> refute_has("[data-upload-strip]")
     end
   end
 

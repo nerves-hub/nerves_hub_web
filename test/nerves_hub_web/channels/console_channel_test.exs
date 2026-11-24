@@ -192,6 +192,94 @@ defmodule NervesHubWeb.ConsoleChannelTest do
     end
   end
 
+  describe "how a file sent to the device is going" do
+    test "asks a console from 2.1.0 on to report what it saves", %{tmp_dir: tmp_dir} do
+      {socket, device} = build_socket(tmp_dir)
+
+      {:ok, %{}, console_channel} =
+        subscribe_and_join(socket, ConsoleChannel, "console", %{"console_version" => "2.1.0"})
+
+      _state = :sys.get_state(console_channel.channel_pid)
+
+      send(console_channel.channel_pid, {:connect, self()})
+      assert_receive {:metadata, _pid, %{version: "2.1.0", file_acks: true}}, 500
+
+      send(console_channel.channel_pid, start_broadcast(device, %{"filename" => "a.bin"}))
+      assert_push("file-data/start", %{"filename" => "a.bin", "ack" => true})
+
+      close_cleanly(console_channel)
+    end
+
+    test "never asks an older console, whatever the page sent", %{tmp_dir: tmp_dir} do
+      {socket, device} = build_socket(tmp_dir)
+
+      {:ok, %{}, console_channel} =
+        subscribe_and_join(socket, ConsoleChannel, "console", %{"console_version" => "2.0.0"})
+
+      _state = :sys.get_state(console_channel.channel_pid)
+
+      send(console_channel.channel_pid, {:connect, self()})
+      assert_receive {:metadata, _pid, %{version: "2.0.0", file_acks: false}}, 500
+
+      send(console_channel.channel_pid, start_broadcast(device, %{"filename" => "a.bin", "ack" => true}))
+      assert_push("file-data/start", payload)
+      assert payload == %{"filename" => "a.bin"}
+
+      close_cleanly(console_channel)
+    end
+
+    test "never asks a console with no version, or one that isn't a version", %{tmp_dir: tmp_dir} do
+      {socket, _device} = build_socket(tmp_dir)
+
+      for params <- [%{}, %{"console_version" => "next"}] do
+        {:ok, %{}, console_channel} = subscribe_and_join(socket, ConsoleChannel, "console", params)
+
+        _state = :sys.get_state(console_channel.channel_pid)
+        send(console_channel.channel_pid, {:connect, self()})
+        assert_receive {:metadata, _pid, %{file_acks: false}}, 500
+
+        close_cleanly(console_channel)
+      end
+    end
+
+    test "passes the device's reports up to the user console", %{tmp_dir: tmp_dir} do
+      {socket, device} = build_socket(tmp_dir)
+
+      {:ok, %{}, console_channel} =
+        subscribe_and_join(socket, ConsoleChannel, "console", %{"console_version" => "2.1.0"})
+
+      ConsolePubSub.subscribe_user_console(device.id)
+
+      push(console_channel, "file-data/ack", %{"filename" => "a.bin", "chunk" => 0, "bytes" => 65_536})
+      push(console_channel, "file-data/saved", %{"filename" => "a.bin", "bytes" => 70_000})
+      push(console_channel, "file-data/error", %{"filename" => "b.bin", "reason" => "enospc"})
+
+      assert_receive %Broadcast{event: "file-data/ack", payload: %{"chunk" => 0, "bytes" => 65_536}}, 500
+      assert_receive %Broadcast{event: "file-data/saved", payload: %{"bytes" => 70_000}}, 500
+      assert_receive %Broadcast{event: "file-data/error", payload: %{"reason" => "enospc"}}, 500
+
+      close_cleanly(console_channel)
+    end
+
+    test "drops an event it doesn't know, and carries on", %{tmp_dir: tmp_dir} do
+      {socket, device} = build_socket(tmp_dir)
+
+      {:ok, %{}, console_channel} =
+        subscribe_and_join(socket, ConsoleChannel, "console", %{"console_version" => "9.0.0"})
+
+      ConsolePubSub.subscribe_user_console(device.id)
+
+      push(console_channel, "something-new", %{"x" => 1})
+      push(console_channel, "up", %{"data" => "still here"})
+
+      assert_receive %Broadcast{event: "up", payload: %{"data" => "still here"}}, 500
+      refute_received %Broadcast{event: "something-new"}
+      assert Process.alive?(console_channel.channel_pid)
+
+      close_cleanly(console_channel)
+    end
+  end
+
   describe "handle_info :connect" do
     test "sends {:metadata, pid, metadata} and {:cache, lines} to connecting pid", %{tmp_dir: tmp_dir} do
       {socket, _device} = build_socket(tmp_dir)
@@ -249,5 +337,11 @@ defmodule NervesHubWeb.ConsoleChannelTest do
 
       close_cleanly(console_channel)
     end
+  end
+
+  # Input from a user's console reaches this channel as a broadcast on a topic
+  # other than its own (see "handle_info Broadcast").
+  defp start_broadcast(device, payload) do
+    %Broadcast{topic: "user:console:#{device.id}", event: "file-data/start", payload: payload}
   end
 end

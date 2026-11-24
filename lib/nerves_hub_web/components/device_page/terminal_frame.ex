@@ -29,7 +29,8 @@ defmodule NervesHubWeb.Components.DevicePage.TerminalFrame do
   attr(:file_input, :string, default: nil, doc: "the ID of a file picker to send files with, on a phone")
   attr(:note, :string, default: nil, doc: "beside the status, such as who else sees the session")
   attr(:hint, :string, default: nil, doc: "at the end of the toolbar, before the controls")
-  slot(:inner_block, required: true, doc: "the terminal, or a message in its place")
+  slot(:inner_block, required: true, doc: "the terminal, or a message in its place, and anything laid over it")
+  slot(:footer, doc: "a row under the terminal, such as how a file sent to the device is going")
 
   def frame(assigns) do
     assigns = assign(assigns, :background, @terminal_background)
@@ -108,9 +109,11 @@ defmodule NervesHubWeb.Components.DevicePage.TerminalFrame do
           </div>
         </div>
 
-        <div class="flex min-h-0 flex-1 p-3 pl-4">
+        <div class="relative flex min-h-0 flex-1 overflow-hidden p-3 pl-4">
           {render_slot(@inner_block)}
         </div>
+
+        {render_slot(@footer)}
 
         <%!-- Ignored by patches, so a pressed Ctrl stays pressed. --%>
         <div
