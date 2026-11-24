@@ -34,16 +34,15 @@ defmodule NervesHubWeb.Layouts do
   end
 
   @doc false
-  # The user menu's contents: the design system's menu, with 32px rows, 14px
-  # icons and Log out last after a rule. Rendered by the sidebar footer, a
-  # phone's top bar and the no-sidebar header, so the theme buttons take their
-  # ids from `theme_id`.
+  # The user menu's contents, rendered by the sidebar footer, a phone's top bar
+  # and the no-sidebar header, so the theme buttons take their ids from
+  # `theme_id`.
   attr(:user, :map, required: true)
   attr(:theme_id, :string, required: true)
 
   attr(:identity_class, :string,
     default: "flex",
-    doc: "shows the name and email at the top, for a button that shows only the avatar"
+    doc: "display class for the name and email at the top and their rule; hide them when the button already shows them"
   )
 
   def user_menu_items(assigns) do

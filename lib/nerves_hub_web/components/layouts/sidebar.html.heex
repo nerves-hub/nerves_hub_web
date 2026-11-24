@@ -75,7 +75,6 @@
           <span aria-hidden="true" class="truncate text-xs/4 text-content-muted">{@current_scope.user.email}</span>
         </span>
 
-        <%!-- Points the way the menu opens, and flips while it's open. --%>
         <span
           class="lucide-chevron-up--bold size-3.5 text-content-faint group-hover:text-content-body group-aria-expanded:rotate-180 group-aria-expanded:text-content-strong collapsed:hidden"
           aria-hidden="true"
@@ -122,27 +121,30 @@
         {if(assigns[:top_bar], do: render_slot(@top_bar))}
       </div>
 
-      <button
-        id="phone-user-menu-toggle"
-        type="button"
-        aria-label="Your profile"
-        aria-controls="phone-user-menu"
-        aria-haspopup="menu"
-        aria-expanded="false"
-        phx-click={toggle_user_menu("#phone-user-menu", "#phone-user-menu-toggle")}
-        class="ml-2 flex shrink-0 cursor-pointer items-center sm:hidden header-scrolled:hidden"
-      >
-        <.user_avatar user={@current_scope.user} class="size-7! text-ui" />
-      </button>
+      <%!-- Click-away sits on a wrapper holding the avatar too, so tapping the
+            avatar to close the menu doesn't also count as a tap outside it. --%>
       <div
-        id="phone-user-menu"
-        class="absolute top-full right-2 z-50 mt-1 hidden w-66 sm:hidden"
+        class="ml-2 flex shrink-0 items-center sm:hidden header-scrolled:hidden"
         phx-click-away={hide_user_menu("#phone-user-menu", "#phone-user-menu-toggle")}
         phx-window-keydown={hide_user_menu("#phone-user-menu", "#phone-user-menu-toggle")}
         phx-key="escape"
       >
-        <div class="flex flex-col rounded-md border border-line-default bg-surface-overlay p-1 shadow-overlay">
-          <.user_menu_items user={@current_scope.user} theme_id="phone-theme" />
+        <button
+          id="phone-user-menu-toggle"
+          type="button"
+          aria-label="Your profile"
+          aria-controls="phone-user-menu"
+          aria-haspopup="menu"
+          aria-expanded="false"
+          phx-click={toggle_user_menu("#phone-user-menu", "#phone-user-menu-toggle")}
+          class="flex cursor-pointer items-center"
+        >
+          <.user_avatar user={@current_scope.user} class="size-7! text-ui" />
+        </button>
+        <div id="phone-user-menu" class="absolute top-full right-2 z-50 mt-1 hidden w-66">
+          <div class="flex flex-col rounded-md border border-line-default bg-surface-overlay p-1 shadow-overlay">
+            <.user_menu_items user={@current_scope.user} theme_id="phone-theme" />
+          </div>
         </div>
       </div>
     </div>
