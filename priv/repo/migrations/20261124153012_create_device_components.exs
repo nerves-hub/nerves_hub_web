@@ -26,7 +26,9 @@ defmodule NervesHub.Repo.Migrations.CreateDeviceComponents do
       add(:vendor_name, :string)
       add(:model_name, :string)
       add(:hardware_revision, :string)
-      add(:firmware_version, :string)
+      # What the component holds and which version of each, keyed by what
+      # it is: `{"firmware": "2.2.1", "keypad_config": "7"}`.
+      add(:versions, :map, null: false, default: %{})
       add(:address, :string)
 
       # `reachable` is the device's word. `listed` is whether the latest

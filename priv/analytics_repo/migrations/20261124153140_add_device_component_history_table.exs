@@ -27,15 +27,19 @@ defmodule NervesHub.AnalyticsRepo.Migrations.AddDeviceComponentHistoryTable do
       add(:namespace, :"LowCardinality(String)")
       add(:serial, :String)
 
-      # "appeared", "missing", "returned", "firmware_changed" or "forgotten".
+      # "appeared", "missing", "returned", "version_changed" or "forgotten".
       add(:event, :"LowCardinality(String)")
 
-      # For "missing", "unreachable" or "unlisted". For "firmware_changed",
+      # For "missing", "unreachable" or "unlisted". For "version_changed",
       # the version it moved from. Empty otherwise.
       add(:detail, :String)
 
-      # The firmware the component reported at the time.
-      add(:firmware_version, :String)
+      # For "version_changed", which of `versions` moved. Empty otherwise.
+      add(:version_key, :"LowCardinality(String)")
+
+      # Every version the component reported at the time, keyed by what it
+      # holds ("firmware", "keypad_config").
+      add(:versions, :"Map(LowCardinality(String), String)")
     end
   end
 end

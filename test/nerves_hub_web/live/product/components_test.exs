@@ -41,7 +41,7 @@ defmodule NervesHubWeb.Live.Product.ComponentsTest do
         "model" => "SNZB-02D",
         "serial" => serial,
         "vendor_name" => "Sonoff",
-        "firmware_version" => "2.1.0"
+        "versions" => %{"firmware" => "2.1.0"}
       },
       overrides
     )
@@ -68,7 +68,7 @@ defmodule NervesHubWeb.Live.Product.ComponentsTest do
 
     sync(device, [
       probe("a"),
-      probe("b", %{"reachable" => false, "firmware_version" => "2.0.8"}),
+      probe("b", %{"reachable" => false, "versions" => %{"firmware" => "2.0.8"}}),
       %{"namespace" => "mcu", "vendor" => "raspberrypi", "model" => "rp2350", "serial" => "e6614c311b4a2c2f"}
     ])
 

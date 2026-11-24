@@ -168,7 +168,7 @@ when adding or removing one.
   extension. A device sends its whole set as a snapshot, never a change, so
   the stored set can't drift; the snapshot is diffed against
   `device_components` in Postgres in one transaction, and what changed
-  (appeared, missing, returned, firmware changed, forgotten) goes to
+  (appeared, missing, returned, a version changed, forgotten) goes to
   `device_component_history` in ClickHouse. A component the device stops
   listing or can't reach is kept as missing until it returns or someone
   forgets it. A component can also report readings (numbers, the latest
@@ -177,7 +177,9 @@ when adding or removing one.
   current set in `state` on its row, each change a `state_changed` row of
   its history). Neither changes whether it is working or missing. A reading
   or state change for a component no snapshot listed is dropped, and the
-  extension asks the device for its set. The wire contract is
+  extension asks the device for its set. A component reports the version of
+  everything it holds as a `versions` map (`"firmware"` plus any
+  configuration or model), not one firmware version. The wire contract is
   [docs/components.md](docs/components.md).
 - `error_reports.ex` / `error_reports/` — exceptions devices report, grouped
   into issues. Split across both stores: the group in Postgres, the

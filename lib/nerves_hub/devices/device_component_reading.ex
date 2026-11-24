@@ -31,7 +31,8 @@ defmodule NervesHub.Devices.DeviceComponentReading do
     field(:key, Ch, type: "LowCardinality(String)")
     field(:value, Ch, type: "Float64")
 
-    # The device's firmware, and the component's, when the reading was taken.
+    # The device's firmware, and the component's (`versions["firmware"]`), when
+    # the reading was taken.
     field(:firmware_uuid, Ch, type: "LowCardinality(String)", default: "")
     field(:firmware_version, Ch, type: "LowCardinality(String)", default: "")
   end

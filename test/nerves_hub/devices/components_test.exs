@@ -56,7 +56,7 @@ defmodule NervesHub.Devices.ComponentsTest do
         "serial" => "00:12:4b:00:2a:3f:91:c7",
         "name" => "Freezer probe A",
         "vendor_name" => "Sonoff",
-        "firmware_version" => "2.1.0"
+        "versions" => %{"firmware" => "2.1.0"}
       },
       overrides
     )
@@ -98,11 +98,30 @@ defmodule NervesHub.Devices.ComponentsTest do
     end
 
     test "an empty optional string counts as left out, and an empty required one is rejected" do
-      assert {:ok, [entry]} = Components.parse([probe(%{"firmware_version" => "", "address" => ""})], @now)
-      assert entry.firmware_version == nil
+      assert {:ok, [entry]} = Components.parse([probe(%{"versions" => %{"firmware" => ""}, "address" => ""})], @now)
+      assert entry.versions == %{}
       assert entry.address == nil
 
       assert Components.parse([probe(%{"serial" => ""})], @now) == {:error, :malformed_entry}
+    end
+
+    test "reads every version a component holds, and none when it says nothing" do
+      versions = %{"firmware" => "2.2.1", "keypad_config" => "7"}
+
+      assert {:ok, [%{versions: ^versions}]} = Components.parse([probe(%{"versions" => versions})], @now)
+      assert {:ok, [%{versions: %{}}]} = Components.parse([probe(%{"versions" => nil})], @now)
+    end
+
+    test "rejects versions it can't read" do
+      assert Components.parse([probe(%{"versions" => "2.1.0"})], @now) == {:error, :malformed_entry}
+      assert Components.parse([probe(%{"versions" => %{"firmware" => 2}})], @now) == {:error, :malformed_entry}
+      assert Components.parse([probe(%{"versions" => %{"Keypad Config" => "7"}})], @now) == {:error, :bad_version_key}
+
+      assert Components.parse([probe(%{"versions" => %{"firmware" => String.duplicate("1", 256)}})], @now) ==
+               {:error, :too_long}
+
+      too_many = Map.new(1..17, &{"part_#{&1}", "1"})
+      assert Components.parse([probe(%{"versions" => too_many})], @now) == {:error, :too_many}
     end
 
     test "rejects anything that isn't a list" do
@@ -220,12 +239,36 @@ defmodule NervesHub.Devices.ComponentsTest do
       assert history(device) == [{"appeared", ""}, {"missing", "unreachable"}]
     end
 
-    test "a firmware change is recorded with the version it moved from", %{device: device, device_info: info} do
-      sync(info, [probe()])
-      sync(info, [probe(%{"firmware_version" => "2.2.0"})], DateTime.add(@now, 60))
+    test "a version change is recorded with what moved and the version it moved from", %{
+      device: device,
+      device_info: info
+    } do
+      sync(info, [probe(%{"versions" => %{"firmware" => "2.1.0", "keypad_config" => "6"}})])
+      sync(info, [probe(%{"versions" => %{"firmware" => "2.1.0", "keypad_config" => "7"}})], DateTime.add(@now, 60))
 
-      assert [%{firmware_version: "2.2.0"}] = Components.list_for_device(device)
-      assert history(device) == [{"appeared", ""}, {"firmware_changed", "2.1.0"}]
+      assert [component] = Components.list_for_device(device)
+      assert component.versions == %{"firmware" => "2.1.0", "keypad_config" => "7"}
+      assert DeviceComponent.firmware_version(component) == "2.1.0"
+      assert history(device) == [{"appeared", ""}, {"version_changed", "6"}]
+
+      :ok = Buffer.flush(DeviceComponentHistory)
+
+      assert %{version_key: "keypad_config", versions: %{"keypad_config" => "7"}} =
+               DeviceComponentHistory
+               |> where(device_id: ^device.id, event: "version_changed")
+               |> AnalyticsRepo.one()
+    end
+
+    test "a version reported for the first time, or no longer reported, isn't a change", %{
+      device: device,
+      device_info: info
+    } do
+      sync(info, [probe(%{"versions" => %{}})])
+      sync(info, [probe()], DateTime.add(@now, 60))
+      sync(info, [probe(%{"versions" => %{}})], DateTime.add(@now, 120))
+
+      assert [%{versions: %{}}] = Components.list_for_device(device)
+      assert history(device) == [{"appeared", ""}]
     end
 
     test "keeps the last believable last_seen_at", %{device: device, device_info: info} do
@@ -273,7 +316,7 @@ defmodule NervesHub.Devices.ComponentsTest do
       other = Fixtures.device_fixture(context.org, context.product, context.firmware)
       other_info = %{info | device_id: other.id}
 
-      sync(info, [probe(), probe(%{"serial" => "b", "reachable" => false, "firmware_version" => "2.0.8"})])
+      sync(info, [probe(), probe(%{"serial" => "b", "reachable" => false, "versions" => %{"firmware" => "2.0.8"}})])
       sync(other_info, [probe(%{"serial" => "c"})])
 
       assert [model] = Components.models(product)
@@ -298,7 +341,7 @@ defmodule NervesHub.Devices.ComponentsTest do
         "model" => "8002:0600",
         "serial" => "34028-23669",
         "name" => "Office lock",
-        "firmware_version" => "2.2.1"
+        "versions" => %{"firmware" => "2.2.1"}
       },
       overrides
     )
