@@ -66,6 +66,16 @@ defmodule NervesHub.Devices.DeviceComponent do
   def missing_reason(%__MODULE__{reachable: false}), do: :unreachable
   def missing_reason(%__MODULE__{}), do: nil
 
+  @doc "A namespace as a person writes it: `zwave` is Z-Wave. Others as sent."
+  @spec namespace_label(String.t()) :: String.t()
+  def namespace_label("mcu"), do: "MCU"
+  def namespace_label("zigbee"), do: "Zigbee"
+  def namespace_label("zwave"), do: "Z-Wave"
+  def namespace_label("ble"), do: "Bluetooth LE"
+  def namespace_label("usb"), do: "USB"
+  def namespace_label("custom"), do: "Custom"
+  def namespace_label(namespace), do: namespace
+
   @doc "What to call it: the device's name for it, else the model's name, else the model."
   @spec display_name(t()) :: String.t()
   def display_name(%__MODULE__{name: name}) when is_binary(name) and name != "", do: name

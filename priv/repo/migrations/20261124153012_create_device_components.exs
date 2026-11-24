@@ -35,7 +35,7 @@ defmodule NervesHub.Repo.Migrations.CreateDeviceComponents do
       add(:listed, :boolean, null: false, default: true)
 
       # When the device last heard from it, by the device's clock where that
-      # was believable and otherwise when a snapshot listed it reachable.
+      # was believable, and otherwise the last believable time it gave.
       add(:last_seen_at, :utc_datetime_usec)
 
       add(:first_seen_at, :utc_datetime_usec, null: false)

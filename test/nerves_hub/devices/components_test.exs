@@ -91,6 +91,14 @@ defmodule NervesHub.Devices.ComponentsTest do
       assert Components.parse(["zigbee"], @now) == {:error, :malformed_entry}
     end
 
+    test "an empty optional string counts as left out, and an empty required one is rejected" do
+      assert {:ok, [entry]} = Components.parse([probe(%{"firmware_version" => "", "address" => ""})], @now)
+      assert entry.firmware_version == nil
+      assert entry.address == nil
+
+      assert Components.parse([probe(%{"serial" => ""})], @now) == {:error, :malformed_entry}
+    end
+
     test "rejects anything that isn't a list" do
       assert Components.parse(%{}, @now) == {:error, :not_a_list}
     end
@@ -176,6 +184,19 @@ defmodule NervesHub.Devices.ComponentsTest do
       assert DeviceComponent.missing_reason(probe) == :unlisted
       assert probe.missing_since == DateTime.add(@now, 60)
       assert {"missing", "unlisted"} in history(device)
+    end
+
+    test "keeps at most 1,000 components, forgetting those missing longest", %{device: device, device_info: info} do
+      batch = fn prefix -> for i <- 1..500, do: probe(%{"serial" => "#{prefix}-#{i}"}) end
+
+      sync(info, batch.("a"))
+      sync(info, batch.("b"), DateTime.add(@now, 60))
+      sync(info, batch.("c"), DateTime.add(@now, 120))
+
+      serials = Enum.map(Components.list_for_device(device), & &1.serial)
+      assert length(serials) == 1000
+      refute Enum.any?(serials, &String.starts_with?(&1, "a-"))
+      assert Enum.count(history(device), &(&1 == {"forgotten", ""})) == 500
     end
 
     test "an empty snapshot marks every component unlisted", %{device: device, device_info: info} do

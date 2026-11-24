@@ -9,9 +9,9 @@ defmodule NervesHubWeb.Live.Product.Components do
   mounts. Built from every device in the product, so a member who sees only
   some devices doesn't get it (`RequireEveryDevice`).
 
-  Version 0.1.0 of the extension reports only whether a component is there,
-  so the board's Updating and Behind their release figures, and errors and
-  warnings in Needs attention, wait for later versions.
+  The extension reports only whether a component is there, so Needs attention
+  counts missing components alone. Errors, warnings and firmware rollout
+  figures wait for later versions.
   """
 
   use NervesHubWeb, :live_view
@@ -20,7 +20,6 @@ defmodule NervesHubWeb.Live.Product.Components do
 
   alias NervesHub.Devices.Components
   alias NervesHub.Devices.DeviceComponent
-  alias NervesHubWeb.Components.DevicePage.ComponentsTab
   alias NervesHubWeb.Mounts.RequireEveryDevice
 
   on_mount(RequireEveryDevice)
@@ -128,7 +127,7 @@ defmodule NervesHubWeb.Live.Product.Components do
             </div>
             <section :for={{namespace, models} <- @groups}>
               <div class="flex h-8.5 items-center gap-2 border-b border-line-subtle bg-surface-muted px-4 text-xs">
-                <span class="font-semibold text-content-strong">{ComponentsTab.namespace_label(namespace)}</span>
+                <span class="font-semibold text-content-strong">{DeviceComponent.namespace_label(namespace)}</span>
                 <span class="font-mono text-2xs text-content-faint">{namespace}</span>
               </div>
               <div
