@@ -165,7 +165,7 @@
   --color-status-offline: var(--color-zinc-500);
   --color-status-connecting: var(--color-indigo-500);
   /* The two z's of `sleep-mark`: green for a device that said it was going
-     to sleep and isn't yet due back, orange once it's later than it said. */
+     to sleep, orange once it is past its wake deadline. */
   --color-status-asleep: var(--color-emerald-400);
   --color-status-overdue: var(--color-amber-500);
 

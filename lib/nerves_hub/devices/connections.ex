@@ -211,7 +211,8 @@ defmodule NervesHub.Devices.Connections do
   Records the reason a device gave before disconnecting, `:rebooting` or a
   sleep, and when a sleeping device said it would be back (`nil` if unknown).
 
-  Returns `:error` when the connection row has already been replaced.
+  Returns `:error` when the connection row has been replaced, or already holds
+  a reason that overrides the device's.
 
   Written to the connection now, before the socket closes, rather than when it
   does: the socket is closed from another process, which never sees the
@@ -266,26 +267,12 @@ defmodule NervesHub.Devices.Connections do
   @spec device_disconnected(Ecto.UUID.t(), DisconnectReason.t() | nil) :: :ok | {:error, any()}
   def device_disconnected(ref_id, reason \\ nil) do
     now = DateTime.utc_now()
-    override? = DisconnectReason.overrides_announced?(reason)
 
     DeviceConnection
     |> where(id: ^ref_id)
     |> select([dc], dc)
-    |> update([dc],
-      set: [
-        last_seen_at: ^now,
-        disconnected_at: ^now,
-        disconnected_reason:
-          fragment(
-            "CASE WHEN ? THEN ? ELSE coalesce(?, ?) END",
-            ^override?,
-            type(^reason, DisconnectReason),
-            dc.disconnected_reason,
-            type(^reason, DisconnectReason)
-          ),
-        status: :disconnected
-      ]
-    )
+    |> update(set: [last_seen_at: ^now, disconnected_at: ^now, status: :disconnected])
+    |> set_disconnected_reason(reason)
     |> Repo.update_all([])
     |> case do
       {1, [device_connection]} ->
@@ -300,6 +287,14 @@ defmodule NervesHub.Devices.Connections do
 
       res ->
         {:error, res}
+    end
+  end
+
+  defp set_disconnected_reason(query, reason) do
+    if DisconnectReason.overrides_announced?(reason) do
+      update(query, set: [disconnected_reason: type(^reason, DisconnectReason)])
+    else
+      update(query, [dc], set: [disconnected_reason: coalesce(dc.disconnected_reason, type(^reason, DisconnectReason))])
     end
   end
 

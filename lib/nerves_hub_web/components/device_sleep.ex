@@ -1,11 +1,13 @@
 defmodule NervesHubWeb.Components.DeviceSleep do
   @moduledoc """
-  How a device that sleeps between reports is shown: two rising z's in place
-  of its status dot, green while it is asleep and orange once it is later
-  than it said it would be, rather than the grey dot of a device that has
-  gone.
+  Components that show a sleeping device in place of its status dot.
 
-  The state comes from `NervesHub.Devices.DeviceConnection.sleep_state/2`.
+  A sleeping device gets two rising z's rather than the grey dot of one that
+  has gone: green while asleep, orange once past
+  `NervesHub.Devices.DeviceConnection.wake_deadline/1`. The state comes from
+  `NervesHub.Devices.DeviceConnection.sleep_state/2`, and `list_status/2`
+  turns it into the status strings the devices list and its side panel pass
+  around.
   """
 
   use Phoenix.Component

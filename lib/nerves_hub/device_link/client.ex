@@ -37,9 +37,14 @@ defmodule NervesHub.DeviceLink.Client do
   @spec heartbeat(connection_ref :: String.t()) :: :ok | :error
   def heartbeat(connection_ref), do: Dispatcher.call(:heartbeat, [connection_ref])
 
+  # The reason goes as a string. A platform node on a release from before
+  # `DisconnectReason` stores the reason as a plain string and raises on an
+  # atom, so the disconnect would never be recorded during a rolling deploy.
+  # `NervesHub.DeviceLink.disconnect/2` reads it back.
   @spec disconnect(connection_ref :: String.t(), reason :: DisconnectReason.t() | nil) ::
           :ok | {:error, any()}
-  def disconnect(connection_ref, reason \\ nil), do: Dispatcher.call(:disconnect, [connection_ref, reason])
+  def disconnect(connection_ref, reason \\ nil),
+    do: Dispatcher.call(:disconnect, [connection_ref, reason && Atom.to_string(reason)])
 
   # ------------------------------------------------------------------- device
 

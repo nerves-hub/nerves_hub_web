@@ -670,11 +670,22 @@ defmodule NervesHub.DeviceLink do
   Returns an error when the reference is stale — the device may already have
   reconnected elsewhere, replacing the connection row — which callers can ignore.
   """
-  @spec disconnect(connection_ref :: String.t(), reason :: Devices.DisconnectReason.t() | nil) ::
+  @spec disconnect(connection_ref :: String.t(), reason :: Devices.DisconnectReason.t() | String.t() | nil) ::
           :ok | {:error, any()}
   def disconnect(connection_ref, reason \\ nil) do
-    Connections.device_disconnected(connection_ref, reason)
+    Connections.device_disconnected(connection_ref, disconnect_reason(reason))
   end
+
+  # `NervesHub.DeviceLink.Client.disconnect/2` sends the reason as a string.
+  # One this release doesn't know, from a newer node, is recorded as no reason.
+  defp disconnect_reason(reason) when is_binary(reason) do
+    case Devices.DisconnectReason.cast(reason) do
+      {:ok, reason} -> reason
+      :error -> nil
+    end
+  end
+
+  defp disconnect_reason(reason), do: reason
 
   # Anything but light sleep is taken as deep: it is what a device that sleeps
   # between reports almost always does, and a device that leaves `mode` out is

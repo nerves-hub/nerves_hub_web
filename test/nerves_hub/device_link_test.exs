@@ -507,6 +507,28 @@ defmodule NervesHub.DeviceLinkTest do
     end
   end
 
+  describe "disconnect/2" do
+    setup %{device: device} do
+      device_info = connected_device_info(device)
+      :ok = Connections.device_connected(device_info.connection_ref)
+
+      {:ok, %{device_info: device_info}}
+    end
+
+    test "reads the reason the Client sends as a string", %{device: device, device_info: device_info} do
+      assert :ok = DeviceLink.disconnect(device_info.connection_ref, "duplicate_connection")
+
+      assert Connections.get_latest_for_device(device.id).disconnected_reason == :duplicate_connection
+    end
+
+    test "records a reason this release doesn't know as none", %{device: device, device_info: device_info} do
+      assert :ok = DeviceLink.disconnect(device_info.connection_ref, "from_a_newer_release")
+
+      assert %DeviceConnection{status: :disconnected, disconnected_reason: nil} =
+               Connections.get_latest_for_device(device.id)
+    end
+  end
+
   describe "device_message/3 progress events" do
     setup %{device: device, firmware: firmware} do
       {:ok, inflight_update} = Fixtures.inflight_update(device, firmware)

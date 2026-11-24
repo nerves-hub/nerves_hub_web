@@ -82,6 +82,11 @@ defmodule NervesHub.DeviceLink.DispatcherTest do
 
       assert Client.disconnect("ref") == :recorded
       assert_received {:dispatched, :disconnect, ["ref", nil]}
+
+      # As a string, which a platform node from before the reason was an enum
+      # can still store.
+      assert Client.disconnect("ref", :duplicate_connection) == :recorded
+      assert_received {:dispatched, :disconnect, ["ref", "duplicate_connection"]}
     end
 
     test "device link" do
