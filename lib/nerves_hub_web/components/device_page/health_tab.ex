@@ -185,10 +185,8 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
 
   @decorate requires_membership()
   def hooked_event("set-time-frame", %{"unit" => unit, "amount" => amount}, socket) do
-    {parsed_amount, ""} = Integer.parse(amount)
-
     socket
-    |> assign(:time_frame, {validate_time_unit(unit), parsed_amount})
+    |> assign(:time_frame, offered_time_frame(unit, amount))
     |> assign(:zoom, nil)
     |> update_from_and_until_timestamps()
     |> update_charts()
@@ -201,7 +199,13 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
   @decorate requires_membership()
   def hooked_event("charts-zoomed", %{"from" => from, "until" => until}, socket)
       when is_number(from) and is_number(until) do
-    zoom = {DateTime.from_unix!(round(from), :millisecond), DateTime.from_unix!(round(until), :millisecond)}
+    %{charts_from_timestamp: frame_from, charts_until_timestamp: frame_until} = socket.assigns
+
+    # Inside the time frame: what the charts can show, and all the lane has.
+    zoom = {
+      latest(unix_ms_datetime(from, frame_from), frame_from),
+      earliest(unix_ms_datetime(until, frame_until), frame_until)
+    }
 
     socket
     |> assign(:zoom, zoom)
@@ -700,6 +704,14 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
   defp load_offline_periods(socket) do
     %{device: device, charts_from_timestamp: from, charts_until_timestamp: until} = socket.assigns
 
+    # The time frame moves on each tick while a zoom stays put, so the
+    # timeline reaches back to the zoom's start for the lane to draw it whole.
+    from =
+      case socket.assigns.zoom do
+        {zoom_from, _zoom_until} -> earliest(zoom_from, from)
+        nil -> from
+      end
+
     start_async(socket, "load_offline", fn ->
       timeline = ConnectionTimeline.load(device, from, until)
 
@@ -1167,6 +1179,21 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
     assign(socket, :has_chart_data, Map.put(socket.assigns.has_chart_data, key, has_data?))
   end
 
-  defp validate_time_unit(unit) when unit in ~w(hour day minute second), do: unit
-  defp validate_time_unit(_unit), do: elem(@default_time_frame, 0)
+  # One of the time frames the History card offers, or the default for any
+  # other: the amount sizes every chart query and the lane's labels.
+  defp offered_time_frame(unit, amount) do
+    Enum.find(@time_frame_opts, @default_time_frame, fn {offered_unit, offered_amount} ->
+      offered_unit == unit and Integer.to_string(offered_amount) == amount
+    end)
+  end
+
+  defp unix_ms_datetime(ms, fallback) do
+    case DateTime.from_unix(round(ms), :millisecond) do
+      {:ok, at} -> at
+      {:error, _reason} -> fallback
+    end
+  end
+
+  defp earliest(a, b), do: if(DateTime.before?(a, b), do: a, else: b)
+  defp latest(a, b), do: if(DateTime.after?(a, b), do: a, else: b)
 end

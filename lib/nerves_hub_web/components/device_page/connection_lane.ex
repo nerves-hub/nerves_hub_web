@@ -1,16 +1,14 @@
 defmodule NervesHubWeb.Components.DevicePage.ConnectionLane do
   @moduledoc """
-  The connection lane at the top of the Health tab's History card: when the
-  device was online, when it was offline and why, and where it reconnected
-  without being gone long enough to count as offline, over the same span the
-  charts show (the time frame, or the zoom).
+  The connection lane at the top of the Health tab's History card, drawn from a
+  `NervesHub.Devices.ConnectionTimeline` over the span the charts show.
 
-  On a pointer, hovering an offline span shows what happened in a tooltip. A
-  phone has no hover, so tapping one opens the same detail under the lane.
-  Either way the `ConnectionLane` hook darkens the charts' matching Offline
-  bands while it's open.
-
-  Drawn from a `NervesHub.Devices.ConnectionTimeline`.
+  It shows when the device was online, when it was offline and why, and where
+  it reconnected without being gone long enough to count as offline, over the
+  time frame or the zoom. On a pointer, hovering an offline span shows what
+  happened in a tooltip; a phone has no hover, so tapping one opens the same
+  detail under the lane. Either way the `ConnectionLane` hook darkens the
+  charts' matching Offline bands while it's open.
   """
 
   use NervesHubWeb, :component
@@ -97,7 +95,7 @@ defmodule NervesHubWeb.Components.DevicePage.ConnectionLane do
               >
                 <span class="text-xs text-content-muted">{time_span(segment.span, @time_zone)}</span>
                 <span class="text-ui/4.5 font-semibold text-content-strong">{offline_for(segment.span, @now)}</span>
-                <span class="text-xs text-content-muted">{reason(segment.span.reason)}</span>
+                <span :if={reason(segment.span.reason)} class="text-xs text-content-muted">{reason(segment.span.reason)}</span>
                 <span class="text-xs text-content-faint">{came_back(segment.span)}</span>
               </div>
             </div>
@@ -132,7 +130,7 @@ defmodule NervesHubWeb.Components.DevicePage.ConnectionLane do
           <span class="text-xs text-content-muted">{time_span(segment.span, @time_zone, :time)}</span>
         </div>
         <span class="text-xs text-content-muted">
-          {reason(segment.span.reason)} · {lowercase_first(came_back(segment.span, false))}
+          {detail_line(segment.span)}
         </span>
       </div>
     </div>
@@ -161,13 +159,25 @@ defmodule NervesHubWeb.Components.DevicePage.ConnectionLane do
 
   defp lowercase_first(<<first::utf8, rest::binary>>), do: String.downcase(<<first::utf8>>) <> rest
 
+  # The phone's line under the tapped span: "Stopped sending heartbeats · came
+  # back on Wi-Fi", or only where it came back when no reason is known.
+  defp detail_line(span) do
+    case reason(span.reason) do
+      nil -> came_back(span, false)
+      reason -> "#{reason} · #{lowercase_first(came_back(span, false))}"
+    end
+  end
+
   @doc """
-  Why a connection ended, as `disconnected_reason` records it, in words.
+  Why a connection ended, as `disconnected_reason` records it, in words. Nil
+  when no connection is known before the time offline, so there's no reason
+  to give.
   """
-  @spec reason(String.t() | nil) :: String.t()
+  @spec reason(String.t() | nil) :: String.t() | nil
+  def reason(nil), do: nil
   def reason("Stale connection"), do: "Stopped sending heartbeats"
   def reason("Reconnected"), do: "Dropped without closing the connection"
-  def reason(nil), do: "Closed the connection"
+  def reason(""), do: "Closed the connection"
   def reason(other), do: other
 
   # The lane in order: online stretches between the offline spans, each with
@@ -277,6 +287,7 @@ defmodule NervesHubWeb.Components.DevicePage.ConnectionLane do
     |> first_label(step, zone)
     |> Stream.iterate(&next_label(&1, step, zone))
     |> Stream.take_while(&(not DateTime.after?(&1, until)))
+    |> Stream.take(@most_labels + 1)
     |> Enum.map(fn at ->
       %{left: position(at, from, until), text: DateTimes.to_local_string(at, time_zone, format, false)}
     end)

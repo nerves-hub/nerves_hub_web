@@ -55,8 +55,15 @@ defmodule NervesHub.Devices.ConnectionTimelineTest do
       assert %ConnectionTimeline{offline: [offline]} =
                ConnectionTimeline.build([connection(at(-10), at(150))], nil, @from, @until)
 
-      assert %{from: from, until: nil, reason: nil} = offline
+      assert %{from: from, until: nil, reason: ""} = offline
       assert from == at(150)
+    end
+
+    test "gives no reason for offline time with no connection known before it" do
+      assert %ConnectionTimeline{offline: [offline]} =
+               ConnectionTimeline.build([connection(at(30), nil)], nil, @from, @until)
+
+      assert %{from: @from, reason: nil} = offline
     end
 
     test "marks a reconnect under a minute, or over a connection still open, rather than time offline" do

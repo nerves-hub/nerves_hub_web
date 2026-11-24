@@ -315,10 +315,10 @@ defmodule NervesHub.Devices.ConnectionHistoryTest do
       now = DateTime.utc_now()
       ago = fn minutes -> DateTime.add(now, -minutes, :minute) end
 
-      insert_history(device, ago.(300), ago.(200), reason: "Stale connection")
-      insert_history(device, ago.(150), ago.(100), reason: "Reconnected")
-      insert_history(device, ago.(70), nil, network_interface: :wifi, ip_address: "10.0.4.17")
-      insert_history(other_device, ago.(100), ago.(70))
+      Fixtures.connection_history_fixture(device, ago.(300), ago.(200), reason: "Stale connection")
+      Fixtures.connection_history_fixture(device, ago.(150), ago.(100), reason: "Reconnected")
+      Fixtures.connection_history_fixture(device, ago.(70), nil, network_interface: :wifi, ip_address: "10.0.4.17")
+      Fixtures.connection_history_fixture(other_device, ago.(100), ago.(70))
 
       assert_eventually(
         ConnectionTimeline.load(device, ago.(180), now) == %ConnectionTimeline{
@@ -330,23 +330,5 @@ defmodule NervesHub.Devices.ConnectionHistoryTest do
         }
       )
     end
-  end
-
-  defp insert_history(device, established_at, disconnected_at, extra \\ []) do
-    %DeviceConnection{
-      id: Ecto.UUID.generate(),
-      org_id: device.org_id,
-      product_id: device.product_id,
-      device_id: device.id,
-      established_at: established_at,
-      last_seen_at: disconnected_at || established_at,
-      disconnected_at: disconnected_at,
-      disconnected_reason: extra[:reason],
-      network_interface: extra[:network_interface],
-      ip_address: extra[:ip_address]
-    }
-    |> DeviceConnectionHistory.from_device_connection_changeset()
-    |> Ecto.Changeset.apply_changes()
-    |> AnalyticsRepo.insert!()
   end
 end

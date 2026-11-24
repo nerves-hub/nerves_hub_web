@@ -9,7 +9,7 @@
 // and its detail, when there's one, is the element with the same key in
 // `data-offline-detail`.
 //
-// The charts hear about it as a `offlineHighlighted` window event whose detail
+// The charts hear about it as an `offlineHighlighted` window event whose detail
 // is `{ period: [from, until] }`, or `{ period: null }` to clear it.
 
 // What the charts should show darkened: what's under the pointer, else what's
@@ -42,6 +42,13 @@ export default {
       this.apply()
     }
 
+    // Focus counts as hovering only from the keyboard. A browser that focuses
+    // a button when it's tapped would otherwise keep the bands dark after a
+    // second tap clears the selection, until focus moved elsewhere.
+    this.onFocus = (event) => {
+      if (event.target.matches?.(":focus-visible")) this.onOver(event)
+    }
+
     this.onOut = (event) => {
       const span = event.target.closest("[data-offline-span]")
       if (!span || span.contains(event.relatedTarget)) return
@@ -60,7 +67,7 @@ export default {
 
     this.el.addEventListener("pointerover", this.onOver)
     this.el.addEventListener("pointerout", this.onOut)
-    this.el.addEventListener("focusin", this.onOver)
+    this.el.addEventListener("focusin", this.onFocus)
     this.el.addEventListener("focusout", this.onOut)
     this.el.addEventListener("click", this.onClick)
   },

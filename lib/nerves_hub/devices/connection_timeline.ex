@@ -7,7 +7,8 @@ defmodule NervesHub.Devices.ConnectionTimeline do
   A timeline holds two things:
 
     * `offline`, the times the device had no connection for a minute or more,
-      oldest first. Each has the reason the connection before it ended, and
+      oldest first. Each has the reason the connection before it ended ("" if
+      it closed without one, nil if no connection is known before it), and
       the network interface and address the device came back on. One that
       began before the span starts when its connection really ended, and one
       the device hasn't come back from has no `until`.
@@ -87,12 +88,13 @@ defmodule NervesHub.Devices.ConnectionTimeline do
   end
 
   @doc """
-  Builds a timeline between `from` and `until` out of `connections`, in any
-  order and possibly overlapping, and `previous`, the last connection to end
-  before `from` (or nil). A connection with no `disconnected_at` is still open.
+  Builds a timeline between `from` and `until` out of `connections` and `previous`.
 
-  Empty strings, which the history stores for a value it didn't have, come
-  out as nil.
+  `connections` come in any order and may overlap; one with no
+  `disconnected_at` is still open. `previous` is the last connection to end
+  before `from`, or nil. An empty interface or address, which the history
+  stores for a value it didn't have, comes out as nil. An empty reason stays
+  empty, since it means the connection closed without one.
   """
   @spec build([connection()], connection() | nil, DateTime.t(), DateTime.t()) :: t()
   def build(connections, previous, from, until) do
@@ -166,15 +168,16 @@ defmodule NervesHub.Devices.ConnectionTimeline do
 
   defp clean(connection) do
     Map.new(connection, fn
-      {key, ""} -> {key, nil}
+      {key, ""} when key in [:interface, :ip_address] -> {key, nil}
       pair -> pair
     end)
   end
 
   @doc """
-  The offline times that fall between `from` and `until`, cut to it, as
-  `[[from, until]]` in unix milliseconds, for the charts to shade. One the
-  device hasn't come back from runs to `until`.
+  The offline times between `from` and `until`, cut to it, as `[[from, until]]`
+  in unix milliseconds, for the charts to shade.
+
+  One the device hasn't come back from runs to `until`.
   """
   @spec offline_periods(t(), DateTime.t(), DateTime.t()) :: [[integer()]]
   def offline_periods(%__MODULE__{offline: offline}, from, until) do
@@ -200,12 +203,10 @@ defmodule NervesHub.Devices.ConnectionTimeline do
     total = max(DateTime.diff(until, from, :millisecond), 1)
 
     offline_ms =
-      offline
-      |> Enum.map(fn span ->
+      Enum.sum_by(offline, fn span ->
         {start, stop} = clip(span, from, until)
         max(DateTime.diff(stop, start, :millisecond), 0)
       end)
-      |> Enum.sum()
 
     %{
       online_percent: percent(total - offline_ms, total),
