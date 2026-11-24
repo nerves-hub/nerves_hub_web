@@ -106,7 +106,7 @@ twenty sensors in a row sends one snapshot rather than twenty.
 | `namespace` | yes | What kind of component, and how to read `vendor`, `model` and `serial`. See [Namespaces](#namespaces). |
 | `vendor` | yes | Who made it, as its protocol identifies them. |
 | `model` | yes | What it is, as its protocol identifies it. |
-| `serial` | yes | Which one it is. Unique within its namespace on this device. |
+| `serial` | yes | Which one it is, as a string that stays the same for this component. Unique within its namespace on this device. It needn't be a serial number: see [Components without a serial number](#components-without-a-serial-number). |
 | `name` | no | What the device's application calls it ("Freezer probe A"). Shown in place of the model. |
 | `vendor_name` | no | The maker's name, when the component says ("Sonoff", from a Zigbee node's Basic cluster). |
 | `model_name` | no | The model's name, when the component says ("SNZB-02D"). |
@@ -172,6 +172,30 @@ Any other namespace is accepted and shown as written, so a client doesn't have
 to wait for the platform to report a new kind of component. Use `custom` until
 a convention is agreed, rather than inventing a namespace two clients might
 spell differently.
+
+### Components without a serial number
+
+Plenty of components have no serial number: an I2C sensor, a USB device that
+doesn't report one, a microcontroller without a unique ID. `serial` is still
+required, because it is how the platform tells one snapshot's components from
+the next, and how a reading or state change names its component. Send the
+first of these the component has:
+
+1. A hardware ID: a serial number, a unique chip ID, a radio address.
+2. Where it is on the device, when nothing else is connected there: the bus and
+   address (`i2c-1:76`), a USB port path (`1-1.3`), a slot or connector name.
+3. The application's own name for it, when the application knows which one it
+   is: `freezer-probe-a`.
+
+Whatever is sent becomes the component, so keep it the same for as long as
+the component is the same one. A component sent under a new `serial` is a new
+component, with no history, and the old one goes Missing until somebody
+forgets it. That is why a hardware ID comes first: a sensor moved to another
+port or renamed keeps it.
+
+Never send a value that changes on its own, such as an index in a list, a
+random ID made at boot, or a kernel device name like `ttyUSB0` that can swap
+with another device on the next boot.
 
 ## Status
 
