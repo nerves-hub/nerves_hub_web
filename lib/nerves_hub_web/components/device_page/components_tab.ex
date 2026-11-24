@@ -327,7 +327,7 @@ defmodule NervesHubWeb.Components.DevicePage.ComponentsTab do
               {component.serial}
             </td>
             <td class={["truncate pr-4 font-mono text-xs max-sm:hidden", if(missing?(component), do: "text-content-faint", else: "text-content-strong")]}>
-              {component.firmware_version || "—"}
+              {DeviceComponent.firmware_version(component) || "—"}
             </td>
             <td class="pr-4 text-xs text-content-muted max-sm:hidden">{last_seen(component, @device_seen)}</td>
             <td class="max-sm:col-start-2 max-sm:row-start-1">
@@ -380,7 +380,7 @@ defmodule NervesHubWeb.Components.DevicePage.ComponentsTab do
               "flex min-w-0 items-center gap-2 border-t border-line-subtle pt-2.5 font-mono text-xs",
               if(missing?(component), do: "text-content-faint", else: "text-content-body")
             ]}>
-              <span>{component.firmware_version || "—"}</span>
+              <span>{DeviceComponent.firmware_version(component) || "—"}</span>
               <span class="text-content-faint" aria-hidden="true">·</span>
               <span class={["truncate", !missing?(component) && "text-content-muted"]}>{component.serial}</span>
             </div>
@@ -465,8 +465,10 @@ defmodule NervesHubWeb.Components.DevicePage.ComponentsTab do
             <span>{DeviceComponent.model_label(@component)}</span>
             <span class="text-content-faint" aria-hidden="true">·</span>
             <span class="font-mono text-xs">{@component.namespace}</span>
-            <span :if={@component.firmware_version} class="text-content-faint" aria-hidden="true">·</span>
-            <span :if={@component.firmware_version} class="font-mono text-xs">{@component.firmware_version}</span>
+            <span :if={DeviceComponent.firmware_version(@component)} class="text-content-faint" aria-hidden="true">·</span>
+            <span :if={DeviceComponent.firmware_version(@component)} class="font-mono text-xs">
+              {DeviceComponent.firmware_version(@component)}
+            </span>
           </p>
         </header>
 
@@ -528,7 +530,11 @@ defmodule NervesHubWeb.Components.DevicePage.ComponentsTab do
             </div>
             <div>
               <dt class="w-36 shrink-0 text-content-muted">Firmware</dt>
-              <dd class="font-mono text-xs text-content-strong">{@component.firmware_version || "—"}</dd>
+              <dd class="font-mono text-xs text-content-strong">{DeviceComponent.firmware_version(@component) || "—"}</dd>
+            </div>
+            <div :for={{key, version} <- DeviceComponent.other_versions(@component)} id={"component-version-#{key}"}>
+              <dt class="w-36 shrink-0 truncate font-mono text-xs text-content-muted" title={key}>{key}</dt>
+              <dd class="min-w-0 font-mono text-xs break-all text-content-strong">{version}</dd>
             </div>
             <div>
               <dt class="w-36 shrink-0 text-content-muted">First seen</dt>
@@ -645,13 +651,19 @@ defmodule NervesHubWeb.Components.DevicePage.ComponentsTab do
   defp history_line(%{event: "missing", detail: "unreachable"}), do: "Device can't reach it"
   defp history_line(%{event: "missing"}), do: "Device stopped listing it"
   defp history_line(%{event: "returned"}), do: "Came back"
-  defp history_line(%{event: "firmware_changed", detail: from, firmware_version: to}), do: "Firmware #{from} → #{to}"
+
+  defp history_line(%{event: "version_changed", version_key: key, detail: from, versions: versions}),
+    do: "#{version_label(key)} #{from} → #{Map.get(versions, key, "?")}"
+
   defp history_line(%{event: "forgotten", detail: ""}), do: "Forgotten"
   defp history_line(%{event: "forgotten", detail: who}), do: "Forgotten by #{who}"
   defp history_line(%{event: event}), do: event
 
+  defp version_label("firmware"), do: "Firmware"
+  defp version_label(key), do: key
+
   defp history_dot("missing"), do: "border border-content-faint"
   defp history_dot("returned"), do: "bg-status-online"
-  defp history_dot("firmware_changed"), do: "bg-primary"
+  defp history_dot("version_changed"), do: "bg-primary"
   defp history_dot(_event), do: "bg-content-faint"
 end

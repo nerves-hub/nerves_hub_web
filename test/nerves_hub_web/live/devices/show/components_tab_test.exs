@@ -2,11 +2,13 @@ defmodule NervesHubWeb.Live.Devices.Show.ComponentsTabTest do
   use NervesHubWeb.ConnCase.Browser, async: false
 
   alias NervesHub.Accounts.OrgUser
+  alias NervesHub.Analytics.Buffer
   alias NervesHub.AnalyticsRepo
   alias NervesHub.DeviceLink.DeviceInfo
   alias NervesHub.Devices.Components
   alias NervesHub.Devices.Connections
   alias NervesHub.Devices.Device
+  alias NervesHub.Devices.DeviceComponentHistory
   alias NervesHub.Products.Product
   alias NervesHub.Repo
 
@@ -41,7 +43,7 @@ defmodule NervesHubWeb.Live.Devices.Show.ComponentsTabTest do
     "model" => "rp2350",
     "serial" => "e6614c311b4a2c2f",
     "name" => "Sensor board",
-    "firmware_version" => "1.4.2"
+    "versions" => %{"firmware" => "1.4.2"}
   }
 
   @door %{
@@ -155,6 +157,24 @@ defmodule NervesHubWeb.Live.Devices.Show.ComponentsTabTest do
     |> assert_has("#component-panel h2", text: "Dock door")
     |> assert_has("#component-why", text: "The device can't reach this component.")
     |> assert_has("#component-panel dd", text: "00:12:4b:00:2a:3f:91:c7")
+  end
+
+  test "the panel shows every version a component holds, and when one changed", %{
+    conn: conn,
+    org: org,
+    product: product,
+    device: device
+  } do
+    sync(device, [%{@mcu | "versions" => %{"firmware" => "1.4.2", "sensor_model" => "2026.10"}}])
+    sync(device, [%{@mcu | "versions" => %{"firmware" => "1.4.2", "sensor_model" => "2026.11"}}])
+    :ok = Buffer.flush(DeviceComponentHistory)
+    [mcu] = Components.list_for_device(device)
+
+    conn
+    |> visit(components_path(org, product, device) <> "?component=#{mcu.id}")
+    |> assert_has("#component-panel dd", text: "1.4.2")
+    |> assert_has("#component-version-sensor_model dd", text: "2026.11")
+    |> assert_has("#component-history", text: "sensor_model 2026.10 → 2026.11")
   end
 
   test "forgets a component", %{conn: conn, org: org, product: product, device: device} do

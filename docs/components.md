@@ -10,9 +10,10 @@ nothing here is Elixir-shaped on purpose: the Rust agent and an ESP-IDF client
 report through the same frames.
 
 Version 0.1.0 is the inventory only: which components a device has, what they
-are, and what firmware they run. A component's readings, its state (a lock
-being locked) and updating its firmware come in later versions, and build on
-the identity defined here.
+are, and which version of each thing they hold: their firmware, and any
+configuration or model loaded onto them. A component's readings, its state (a
+lock being locked) and updating what it holds come in later versions, and
+build on the identity defined here.
 
 ## The frames
 
@@ -65,7 +66,7 @@ device that can't just answers. Both are correct.
       "vendor_name": "Raspberry Pi",
       "model_name": "RP2350",
       "address": "UART0",
-      "firmware_version": "1.4.2"
+      "versions": {"firmware": "1.4.2", "sensor_model": "2026.11"}
     },
     {
       "namespace": "zigbee",
@@ -75,7 +76,7 @@ device that can't just answers. Both are correct.
       "name": "Freezer probe A",
       "vendor_name": "Sonoff",
       "hardware_revision": "B2",
-      "firmware_version": "2.1.0",
+      "versions": {"firmware": "2.1.0"},
       "last_seen_at": "2026-11-24T10:42:11Z"
     },
     {
@@ -85,7 +86,7 @@ device that can't just answers. Both are correct.
       "serial": "34028-23669-20938-46346-33746-07431-56821-14553",
       "name": "Office lock",
       "address": "node 9",
-      "firmware_version": "2.2.1",
+      "versions": {"firmware": "2.2.1", "keypad_config": "7"},
       "reachable": false,
       "last_seen_at": "2026-11-24T07:12:40Z"
     }
@@ -95,8 +96,8 @@ device that can't just answers. Both are correct.
 
 A device sends a snapshot when asked, and may send one at any time without
 being asked. It should send one whenever its set or anything in it changes: a
-component paired or removed, one that stops or starts answering, a new firmware
-version. Wait **five seconds** after a change before sending, so that pairing
+component paired or removed, one that stops or starts answering, a new version
+of anything one holds. Wait **five seconds** after a change before sending, so that pairing
 twenty sensors in a row sends one snapshot rather than twenty.
 
 `{"components": []}` says the device has none.
@@ -111,7 +112,7 @@ twenty sensors in a row sends one snapshot rather than twenty.
 | `vendor_name` | no | The maker's name, when the component says ("Sonoff", from a Zigbee node's Basic cluster). |
 | `model_name` | no | The model's name, when the component says ("SNZB-02D"). |
 | `hardware_revision` | no | A string. |
-| `firmware_version` | no | A string, stored as sent. It isn't read as semver: plenty of component firmware isn't. |
+| `versions` | no | An object: what the component holds, and which version of each. See [Versions](#versions). |
 | `address` | no | Where the component is on its bus ("UART0", "node 9", a USB port path). |
 | `reachable` | no | `false` when the device has the component but couldn't reach it the last time it tried. Defaults to `true`. |
 | `last_seen_at` | no | ISO 8601 with an offset. When the device last heard from the component. See [Timestamps](#timestamps). |
@@ -122,8 +123,37 @@ breaking a platform that doesn't know them yet.
 
 Together, `namespace`, `vendor` and `model` are the component's **model**. The
 product's Components page groups by it, and later versions hang thresholds and
-firmware off it. `namespace` and `serial` are the component's identity on the
+updates off it. `namespace` and `serial` are the component's identity on the
 device.
+
+### Versions
+
+`versions` says what the component holds and which version of each. Each key
+names one thing, written as a namespace is (lower case letters, digits and
+`_`, starting with a letter, at most 32 characters), and each value is that
+thing's version, as a string:
+
+```json
+"versions": {"firmware": "2.2.1", "keypad_config": "7"}
+```
+
+- **`firmware`** is the component's firmware, and the key every client uses
+  for it. Pages show it as the component's firmware.
+- **Any other key** is yours: a configuration file, a machine learning model,
+  a calibration table. Pick a name and keep it, since a change of name reads
+  as one thing removed and another added.
+
+A version is stored as sent and compared exactly, never read as semver: plenty
+of component firmware isn't, and a configuration may have no version scheme at
+all. Report the version of everything a component holds, firmware or not.
+When NervesHub sends updates to components, in a later version, an update
+counts as done once the component reports the version it carried, so a
+version NervesHub can't see is an update it can't confirm.
+
+`versions` is optional, and so is every key in it, `firmware` included: a USB
+peripheral or a Zigbee node that can't be asked for its firmware leaves it
+out, and pages show no firmware for it. A version sent empty counts as left
+out.
 
 ### What is rejected
 
@@ -134,7 +164,9 @@ A snapshot is rejected whole, and nothing stored changes, when:
 - any entry is missing a required field, or has one that is empty or isn't a
   string,
 - any string is longer than **255 characters**, or `namespace` breaks the rule
-  below, or
+  below,
+- `versions` isn't an object, has more than **16** keys, has a key that breaks
+  the namespace rule, or has a value that isn't a string, or
 - two entries share a `namespace` and `serial`.
 
 The set replaces what is stored, so applying the rest of a snapshot would mark
@@ -164,7 +196,7 @@ A few of these are chosen to survive things a gateway does routinely:
 - **Zigbee `model`** is the model identifier string every node answers with,
   not the image type it reports for firmware updates. Not every node supports
   updates, and every node has a Basic cluster. The image type comes in with
-  component firmware, in a later version.
+  updates, in a later version.
 - **Z-Wave `serial`** is the DSK where the node has one: the key printed on an
   S2 device, which stays the same when the node is excluded and included again.
   A node ID doesn't, so a node without a DSK shows as a new component after
@@ -257,13 +289,14 @@ dropped one would have said. However many are dropped, only one sync is sent.
 
 ## What is stored
 
-Each device's components are stored in PostgreSQL: identity, names, firmware
-version, status, when each was first seen, when the device last heard from
+Each device's components are stored in PostgreSQL: identity, names, versions,
+status, when each was first seen, when the device last heard from
 it, and when it went missing. The device page's Components tab and the product's Components page read them. When
 a snapshot changes something, an open device page updates straight away.
 
 Each change is also recorded as **history** in ClickHouse: a component
-appearing, going missing, coming back, changing firmware, or being forgotten.
+appearing, going missing, coming back, changing the version of something it
+holds, or being forgotten.
 A snapshot that changes nothing records nothing. A NervesHub deployment without
 ClickHouse keeps the current components and skips the history.
 

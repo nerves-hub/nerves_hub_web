@@ -40,7 +40,9 @@ defmodule NervesHub.Devices.DeviceComponent do
     field(:vendor_name, :string)
     field(:model_name, :string)
     field(:hardware_revision, :string)
-    field(:firmware_version, :string)
+    # What the component holds and which version of each, keyed by what it
+    # is: `%{"firmware" => "2.2.1", "keypad_config" => "7"}`.
+    field(:versions, :map, default: %{})
     field(:address, :string)
 
     field(:reachable, :boolean, default: true)
@@ -66,6 +68,17 @@ defmodule NervesHub.Devices.DeviceComponent do
   def missing_reason(%__MODULE__{listed: false}), do: :unlisted
   def missing_reason(%__MODULE__{reachable: false}), do: :unreachable
   def missing_reason(%__MODULE__{}), do: nil
+
+  @doc "The firmware version the component reported, or `nil`."
+  @spec firmware_version(t()) :: String.t() | nil
+  def firmware_version(%__MODULE__{versions: versions}), do: Map.get(versions, "firmware")
+
+  @doc """
+  The versions other than firmware, as `{key, version}` pairs sorted by key:
+  configuration, models and anything else the component holds.
+  """
+  @spec other_versions(t()) :: [{String.t(), String.t()}]
+  def other_versions(%__MODULE__{versions: versions}), do: versions |> Map.delete("firmware") |> Enum.sort()
 
   @doc "A namespace as a person writes it: `zwave` is Z-Wave. Others as sent."
   @spec namespace_label(String.t()) :: String.t()

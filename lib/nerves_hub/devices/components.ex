@@ -40,12 +40,17 @@ defmodule NervesHub.Devices.Components do
   @max_string_length 255
   @namespace_pattern ~r/\A[a-z][a-z0-9_]{0,31}\z/
 
+  # A key in `versions` names something the component holds ("firmware",
+  # "keypad_config"), written as a namespace is.
+  @max_versions 16
+  @version_key_pattern @namespace_pattern
+
   # The same window `NervesHub.Extensions.Alarms` believes a device's clock in.
   @max_future_skew_seconds 60 * 60
   @max_age_seconds 72 * 60 * 60
 
   @required ~w(namespace vendor model serial)
-  @optional ~w(name vendor_name model_name hardware_revision firmware_version address)
+  @optional ~w(name vendor_name model_name hardware_revision address)
 
   # Written on every upsert. `first_seen_at` and `inserted_at` are left alone,
   # since they say when the component was first seen, not last.
@@ -56,7 +61,7 @@ defmodule NervesHub.Devices.Components do
     :vendor_name,
     :model_name,
     :hardware_revision,
-    :firmware_version,
+    :versions,
     :address,
     :reachable,
     :listed,
@@ -78,14 +83,20 @@ defmodule NervesHub.Devices.Components do
           vendor_name: String.t() | nil,
           model_name: String.t() | nil,
           hardware_revision: String.t() | nil,
-          firmware_version: String.t() | nil,
+          versions: %{optional(String.t()) => String.t()},
           address: String.t() | nil,
           reachable: boolean(),
           last_seen_at: DateTime.t() | nil
         }
 
   @type rejection() ::
-          :not_a_list | :too_many | :malformed_entry | :bad_namespace | :too_long | :duplicate
+          :not_a_list
+          | :too_many
+          | :malformed_entry
+          | :bad_namespace
+          | :bad_version_key
+          | :too_long
+          | :duplicate
 
   @doc """
   Reads a snapshot's `components` list, or says why it is rejected.
@@ -123,10 +134,12 @@ defmodule NervesHub.Devices.Components do
     with {:ok, required} <- strings(component, @required, required: true),
          {:ok, optional} <- strings(component, @optional, required: false),
          :ok <- check_namespace(required["namespace"]),
+         {:ok, versions} <- versions(component["versions"]),
          {:ok, reachable} <- reachable(component["reachable"]) do
       entry =
         Map.merge(required, optional)
         |> Map.new(fn {key, value} -> {String.to_existing_atom(key), value} end)
+        |> Map.put(:versions, versions)
         |> Map.put(:reachable, reachable)
         |> Map.put(:last_seen_at, device_time(component["last_seen_at"], now))
 
@@ -160,6 +173,27 @@ defmodule NervesHub.Devices.Components do
   defp check_namespace(namespace) do
     if Regex.match?(@namespace_pattern, namespace), do: :ok, else: {:error, :bad_namespace}
   end
+
+  # What the component holds and which version of each. A version sent empty
+  # counts as left out, as an optional field does.
+  defp versions(nil), do: {:ok, %{}}
+  defp versions(versions) when is_map(versions) and map_size(versions) > @max_versions, do: {:error, :too_many}
+
+  defp versions(versions) when is_map(versions) do
+    Enum.reduce_while(versions, {:ok, %{}}, fn
+      {key, value}, {:ok, acc} when is_binary(key) and is_binary(value) ->
+        cond do
+          not Regex.match?(@version_key_pattern, key) -> {:halt, {:error, :bad_version_key}}
+          value == "" -> {:cont, {:ok, acc}}
+          true -> check_length(key, value, acc)
+        end
+
+      _entry, _acc ->
+        {:halt, {:error, :malformed_entry}}
+    end)
+  end
+
+  defp versions(_versions), do: {:error, :malformed_entry}
 
   defp reachable(nil), do: {:ok, true}
   defp reachable(reachable) when is_boolean(reachable), do: {:ok, reachable}
@@ -259,7 +293,7 @@ defmodule NervesHub.Devices.Components do
       vendor_name: entry.vendor_name,
       model_name: entry.model_name,
       hardware_revision: entry.hardware_revision,
-      firmware_version: entry.firmware_version,
+      versions: entry.versions,
       address: entry.address,
       reachable: entry.reachable,
       listed: true,
@@ -299,13 +333,22 @@ defmodule NervesHub.Devices.Components do
         true -> []
       end
 
-    firmware =
-      if previous.firmware_version && entry.firmware_version &&
-           previous.firmware_version != entry.firmware_version,
-         do: [event(entry, "firmware_changed", previous.firmware_version, now)],
-         else: []
+    status ++ version_changes(entry, previous, now)
+  end
 
-    status ++ firmware
+  # One event per version that moved. A version the component stops reporting,
+  # or reports for the first time, isn't a change: a node that can't be asked
+  # for its firmware on one snapshot would otherwise record a change every
+  # time it answered again.
+  defp version_changes(entry, previous, now) do
+    entry.versions
+    |> Enum.filter(fn {key, version} -> Map.get(previous.versions, key, version) != version end)
+    |> Enum.sort()
+    |> Enum.map(fn {key, _version} ->
+      entry
+      |> event("version_changed", Map.fetch!(previous.versions, key), now)
+      |> Map.put(:version_key, key)
+    end)
   end
 
   defp unlisted(entries, stored, now) do
@@ -331,7 +374,8 @@ defmodule NervesHub.Devices.Components do
       serial: component.serial,
       event: event,
       detail: detail,
-      firmware_version: component.firmware_version || "",
+      version_key: "",
+      versions: component.versions,
       timestamp: at
     }
   end
@@ -519,7 +563,8 @@ defmodule NervesHub.Devices.Components do
   @doc """
   The product's components by model, most common first: how many, on how many
   devices, how many are missing and on how many devices, and the firmware
-  versions they run, most common first (`nil` for those that don't say).
+  versions they run (`versions["firmware"]`), most common first (`nil` for
+  those that don't say).
   """
   @spec models(Product.t()) :: [map()]
   def models(%Product{id: product_id}) do
@@ -527,8 +572,8 @@ defmodule NervesHub.Devices.Components do
 
     versions =
       base
-      |> group_by([c], [c.namespace, c.vendor, c.model, c.firmware_version])
-      |> select([c], {{c.namespace, c.vendor, c.model}, {c.firmware_version, count(c.id)}})
+      |> group_by([c], [c.namespace, c.vendor, c.model, fragment("?->>'firmware'", c.versions)])
+      |> select([c], {{c.namespace, c.vendor, c.model}, {fragment("?->>'firmware'", c.versions), count(c.id)}})
       |> Repo.all()
       |> Enum.group_by(&elem(&1, 0), &elem(&1, 1))
 
