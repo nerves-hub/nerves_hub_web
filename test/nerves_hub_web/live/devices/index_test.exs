@@ -1237,6 +1237,29 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       |> assert_has("#filter-firmware_version label", text: "9.0.0 0", timeout: 1000)
     end
 
+    test "counts each firmware version's devices, and those with no version as Unknown", context do
+      %{conn: conn, fixture: fixture, tmp_dir: tmp_dir} = context
+      %{device: device, org: org, product: product, user: user, firmware: firmware} = fixture
+
+      org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
+      newer = Fixtures.firmware_fixture(org_key, product, %{version: "9.0.0", dir: tmp_dir})
+      Fixtures.device_fixture(org, product, newer)
+      Fixtures.device_fixture(org, product, firmware, %{firmware_metadata: nil})
+
+      conn
+      |> visit(device_index_path(fixture))
+      |> open_filters()
+      # the fixture's device and the setup's two, all on the fixture's firmware
+      |> assert_has("#filter-firmware_version label", text: "#{device.firmware_metadata.version} 3", timeout: 1000)
+      |> assert_has("#filter-firmware_version label", text: "9.0.0 1")
+      |> assert_has("#filter-firmware_version label", text: "Unknown 1")
+      # the versions' own filter doesn't narrow their counts, the others do
+      |> visit(device_index_path(fixture) <> "?connection=connected&firmware_version=9.0.0")
+      |> open_filters()
+      |> assert_has("#filter-firmware_version label", text: "#{device.firmware_metadata.version} 2", timeout: 1000)
+      |> assert_has("#filter-firmware_version label", text: "9.0.0 0")
+    end
+
     test "resets the panel's filters but keeps the tab", %{conn: conn, fixture: fixture} do
       conn
       |> visit(device_index_path(fixture) <> "?state=online&health_status=unhealthy")
