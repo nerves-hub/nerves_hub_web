@@ -11,6 +11,7 @@ import ActiveTabInView from "./hooks/activeTabInView.js"
 import AttentionList from "./hooks/attentionList.js"
 import AdvancedQueryEditor from "./hooks/advancedQueryEditor.js"
 import Chart from "./hooks/chart.js"
+import ConnectionLane from "./hooks/connectionLane.js"
 import CommandPalette from "./hooks/commandPalette.js"
 import Console from "./hooks/console.js"
 import CopyToClipboard from "./hooks/copyToClipboard.js"
@@ -71,6 +72,7 @@ let liveSocket = new LiveSocket("/live", Socket, {
     AdvancedQueryEditor,
     Chart,
     CommandPalette,
+    ConnectionLane,
     Console,
     CopyToClipboard,
     CrossFadeOnUpdate,

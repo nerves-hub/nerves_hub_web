@@ -2,12 +2,14 @@ import Chart from "chart.js/auto"
 import zoomPlugin from "chartjs-plugin-zoom"
 import { format } from "date-fns"
 import { whenFontsLoaded } from "../helpers/fonts.js"
+import { overlaps } from "./connectionLane.js"
 
 // A metric's history on the device Health tab: one line over the selected
 // time frame, or separate readings if the user picked scatter, with the
 // device's health profile thresholds drawn across it as dashed lines and the
 // area past the warning threshold tinted. Spans when the device had no
-// connection are shaded, and the line breaks across them. Hovering puts a
+// connection are shaded, and the line breaks across them; the connection lane
+// above the charts darkens the one it's pointing at. Hovering puts a
 // crosshair on the nearest reading; dragging across a chart zooms every chart
 // on the tab to that span.
 //
@@ -122,6 +124,11 @@ const offlinePeriods = new WeakMap()
 
 const periodsFor = (chart) => offlinePeriods.get(chart.canvas) || []
 
+// The offline span the connection lane has under the pointer or selected, as
+// [from, until] in unix ms, whose bands every chart darkens. One lane per
+// page, so one for all the charts.
+let highlightedOffline = null
+
 // Whether the device was offline at some point between two readings, so the
 // line between them would draw over a time it reported nothing.
 function offlineBetween(periods, from, to) {
@@ -155,7 +162,9 @@ const offlinePlugin = {
       const width = right - left
       if (width <= 0) continue
 
-      ctx.globalAlpha = 0.08
+      const highlighted = highlightedOffline && overlaps(highlightedOffline, [from, until])
+
+      ctx.globalAlpha = highlighted ? 0.2 : 0.08
       ctx.fillStyle = colors.offline
       ctx.fillRect(left, area.top, width, area.bottom - area.top)
       ctx.globalAlpha = 1
@@ -495,13 +504,22 @@ export default {
       this.chart.update()
     }
 
+    // The connection lane above the charts darkens the bands of the offline
+    // span under the pointer or selected there.
+    this.onOfflineHighlighted = ({ detail }) => {
+      highlightedOffline = detail.period
+      this.chart?.update("none")
+    }
+
     window.addEventListener("themeUpdated", this.onThemeUpdated)
     window.addEventListener("chartZoomed", this.onZoomed)
+    window.addEventListener("offlineHighlighted", this.onOfflineHighlighted)
   },
 
   destroyed() {
     window.removeEventListener("themeUpdated", this.onThemeUpdated)
     window.removeEventListener("chartZoomed", this.onZoomed)
+    window.removeEventListener("offlineHighlighted", this.onOfflineHighlighted)
     this.chart?.destroy()
   },
 }

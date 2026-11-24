@@ -11,6 +11,7 @@ defmodule NervesHubWeb.Live.Devices.Show.HealthTabTest do
   alias NervesHub.Devices.DeviceMetric
   alias NervesHub.Devices.Health
   alias NervesHub.Devices.Metrics
+  alias NervesHub.Fixtures
   alias NervesHub.Products
   alias NervesHubWeb.Endpoint
   alias Phoenix.Socket.Broadcast
@@ -495,6 +496,22 @@ defmodule NervesHubWeb.Live.Devices.Show.HealthTabTest do
     end
   end
 
+  test "a time frame the card doesn't offer falls back to the default", %{
+    conn: conn,
+    org: org,
+    product: product,
+    device: device
+  } do
+    assert {:ok, 7} = save_metrics_with_timestamp(device, DateTime.now!("Etc/UTC"))
+
+    conn
+    |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}/health")
+    |> click_button("1 day")
+    |> assert_has("button[aria-pressed=true]", text: "1 day")
+    |> unwrap(fn view -> render_click(view, "set-time-frame", %{"unit" => "day", "amount" => "100000"}) end)
+    |> assert_has("button[aria-pressed=true]", text: "3 hours")
+  end
+
   describe "zoom" do
     test "names the zoomed span and offers to reset it", %{conn: conn, org: org, product: product, device: device} do
       assert {:ok, 7} = save_metrics_with_timestamp(device, DateTime.now!("Etc/UTC"))
@@ -516,6 +533,108 @@ defmodule NervesHubWeb.Live.Devices.Show.HealthTabTest do
       |> click_button("Reset zoom")
       |> refute_has("button", text: "Reset zoom")
       |> assert_has("#health-history", text: "Drag across a chart to zoom")
+    end
+
+    test "zooming again reaches back to where the charts were left", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device
+    } do
+      assert {:ok, 7} = save_metrics_with_timestamp(device, DateTime.now!("Etc/UTC"))
+
+      # Before the time frame, so the first zoom starts where the frame did.
+      early = DateTime.to_unix(DateTime.add(DateTime.utc_now(), -4, :hour), :millisecond)
+      until = DateTime.to_unix(DateTime.add(DateTime.utc_now(), -2, :hour), :millisecond)
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}/health")
+      |> unwrap(fn view ->
+        render_hook(view, "charts-zoomed", %{"from" => early, "until" => until})
+        {first_from, _until} = :sys.get_state(view.pid).socket.assigns.zoom
+
+        # The frame moves on while the charts stay where the zoom put them.
+        Process.sleep(5)
+        send(view.pid, :tick)
+        render_hook(view, "charts-zoomed", %{"from" => early, "until" => until})
+        assigns = :sys.get_state(view.pid).socket.assigns
+
+        assert DateTime.after?(assigns.charts_from_timestamp, first_from)
+        assert {^first_from, _until} = assigns.zoom
+
+        render(view)
+      end)
+    end
+  end
+
+  describe "connection lane" do
+    test "shows when the device was offline, why, and where it came back", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device
+    } do
+      assert {:ok, 7} = save_metrics_with_timestamp(device, DateTime.now!("Etc/UTC"))
+
+      now = DateTime.utc_now()
+      ago = fn minutes -> DateTime.add(now, -minutes, :minute) end
+
+      Fixtures.connection_history_fixture(device, ago.(240), ago.(60), reason: "Stale connection")
+      Fixtures.connection_history_fixture(device, ago.(46), ago.(20), network_interface: :wifi, ip_address: "10.0.4.17")
+
+      Fixtures.connection_history_fixture(device, DateTime.add(ago.(20), 10, :second), nil)
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}/health")
+      |> assert_has("#health-connection-lane", text: "Online 92% of this period", timeout: 2000)
+      |> assert_has("#health-connection-lane", text: "1 disconnect")
+      |> assert_has("#health-connection-lane", text: "1 reconnect")
+      |> assert_has("#health-connection-lane [role=tooltip]", text: "Offline for 14 min")
+      |> assert_has("#health-connection-lane [role=tooltip]", text: "Stopped sending heartbeats")
+      |> assert_has("#health-connection-lane [role=tooltip]", text: "Came back on Wi-Fi · 10.0.4.17")
+      |> assert_has("#health-connection-lane [data-offline-detail]",
+        text: "Stopped sending heartbeats · came back on Wi-Fi"
+      )
+    end
+
+    test "gives no reason for offline time with no connection known before it", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device
+    } do
+      assert {:ok, 7} = save_metrics_with_timestamp(device, DateTime.now!("Etc/UTC"))
+
+      Fixtures.connection_history_fixture(device, DateTime.add(DateTime.utc_now(), -30, :minute), nil)
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}/health")
+      |> assert_has("#health-connection-lane [role=tooltip]", text: "Came back", timeout: 2000)
+      |> refute_has("#health-connection-lane", text: "Closed the connection")
+      |> assert_has("#health-connection-lane [data-offline-detail]", text: "Came back")
+    end
+
+    test "follows the zoom", %{conn: conn, org: org, product: product, device: device} do
+      assert {:ok, 7} = save_metrics_with_timestamp(device, DateTime.now!("Etc/UTC"))
+
+      now = DateTime.utc_now()
+      ago = fn minutes -> DateTime.add(now, -minutes, :minute) end
+
+      Fixtures.connection_history_fixture(device, ago.(240), ago.(60), reason: "Stale connection")
+      Fixtures.connection_history_fixture(device, ago.(46), nil)
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}/health")
+      |> assert_has("#health-connection-lane", text: "1 disconnect", timeout: 2000)
+      |> unwrap(fn view ->
+        render_hook(view, "charts-zoomed", %{
+          "from" => DateTime.to_unix(ago.(40), :millisecond),
+          "until" => DateTime.to_unix(ago.(10), :millisecond)
+        })
+      end)
+      |> assert_has("#health-connection-lane", text: "Online 100% of this period")
+      |> assert_has("#health-connection-lane", text: "0 disconnects")
+      |> refute_has("#health-connection-lane [data-offline-span]")
     end
   end
 

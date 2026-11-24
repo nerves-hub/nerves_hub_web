@@ -6,7 +6,7 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
   alias NervesHub.Accounts
   alias NervesHub.Accounts.User.DisplayPreferences
   alias NervesHub.Devices.Alarms
-  alias NervesHub.Devices.Connections
+  alias NervesHub.Devices.ConnectionTimeline
   alias NervesHub.Devices.Metrics
   alias NervesHub.Helpers.RelativeTime
   alias NervesHub.Products
@@ -15,6 +15,7 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
   alias NervesHubWeb.Components.DeviceHealth.AlarmsRow
   alias NervesHubWeb.Components.DeviceHealth.MetricLabels
   alias NervesHubWeb.Components.DeviceHealth.StatusBadge
+  alias NervesHubWeb.Components.DevicePage.ConnectionLane
   alias NervesHubWeb.Components.Utils
   alias Phoenix.LiveView.AsyncResult
 
@@ -98,6 +99,7 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
     |> assign(:chart_data, %{})
     |> assign(:has_chart_data, %{})
     |> assign(:offline_periods, [])
+    |> assign(:connection_timeline, nil)
     |> assign(:zoom, nil)
     |> async_assign_charts()
     |> load_offline_periods()
@@ -120,6 +122,7 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
       :health_profile,
       :health_alarms,
       :offline_periods,
+      :connection_timeline,
       :zoom
     ]
   end
@@ -159,8 +162,9 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
     halt(socket)
   end
 
-  def hooked_async("load_offline", {:ok, periods}, socket) do
+  def hooked_async("load_offline", {:ok, {timeline, periods}}, socket) do
     socket
+    |> assign(:connection_timeline, timeline)
     |> assign(:offline_periods, periods)
     |> push_event("offline-periods", %{periods: periods})
     |> halt()
@@ -181,10 +185,8 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
 
   @decorate requires_membership()
   def hooked_event("set-time-frame", %{"unit" => unit, "amount" => amount}, socket) do
-    {parsed_amount, ""} = Integer.parse(amount)
-
     socket
-    |> assign(:time_frame, {validate_time_unit(unit), parsed_amount})
+    |> assign(:time_frame, offered_time_frame(unit, amount))
     |> assign(:zoom, nil)
     |> update_from_and_until_timestamps()
     |> update_charts()
@@ -197,7 +199,20 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
   @decorate requires_membership()
   def hooked_event("charts-zoomed", %{"from" => from, "until" => until}, socket)
       when is_number(from) and is_number(until) do
-    zoom = {DateTime.from_unix!(round(from), :millisecond), DateTime.from_unix!(round(until), :millisecond)}
+    %{charts_from_timestamp: frame_from, charts_until_timestamp: frame_until, zoom: current} = socket.assigns
+
+    # Inside what the charts hold: the time frame, reaching back to an earlier
+    # zoom's start, since the charts stay put while zoomed as the frame moves.
+    shown_from =
+      case current do
+        {zoom_from, _zoom_until} -> earliest(zoom_from, frame_from)
+        nil -> frame_from
+      end
+
+    zoom = {
+      latest(unix_ms_datetime(from, shown_from), shown_from),
+      earliest(unix_ms_datetime(until, frame_until), frame_until)
+    }
 
     socket
     |> assign(:zoom, zoom)
@@ -449,6 +464,16 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
           </div>
         </div>
 
+        <ConnectionLane.lane
+          :if={@connection_timeline}
+          id="health-connection-lane"
+          timeline={@connection_timeline.timeline}
+          from={if @zoom, do: elem(@zoom, 0), else: @charts_from_timestamp}
+          until={if @zoom, do: elem(@zoom, 1), else: @charts_until_timestamp}
+          now={@connection_timeline.read_at}
+          time_zone={@time_zone}
+        />
+
         <div class="grid grid-cols-1 gap-x-8 px-4 pb-2 lg:grid-cols-2">
           <div :for={key <- metrics_to_chart(@latest_metrics)} id={"health-chart-#{key}"} class="flex min-w-0 flex-col gap-1.5 border-t border-line-subtle pt-3.5 pb-2">
             <div class="group/label flex min-h-5 items-center justify-between gap-3">
@@ -676,18 +701,28 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
     end)
   end
 
-  # When the device had no connection over the time frame, as
-  # `[[from, until]]` in unix milliseconds, for the charts to shade. Connection
-  # history lives in ClickHouse, so there's nothing to shade without it.
+  # When the device was connected over the time frame: the timeline for the
+  # connection lane, read at the frame's end, and the times it had no
+  # connection as `[[from, until]]` in unix milliseconds, for the charts to
+  # shade. Connection history lives in ClickHouse, so there's nothing to draw
+  # without it.
   defp load_offline_periods(%{assigns: %{analytics_enabled: false}} = socket), do: socket
 
   defp load_offline_periods(socket) do
     %{device: device, charts_from_timestamp: from, charts_until_timestamp: until} = socket.assigns
 
-    start_async(socket, "load_offline", fn ->
-      for {from, until} <- Connections.offline_periods(device, from, until) do
-        [DateTime.to_unix(from, :millisecond), DateTime.to_unix(until, :millisecond)]
+    # The time frame moves on each tick while a zoom stays put, so the
+    # timeline reaches back to the zoom's start for the lane to draw it whole.
+    from =
+      case socket.assigns.zoom do
+        {zoom_from, _zoom_until} -> earliest(zoom_from, from)
+        nil -> from
       end
+
+    start_async(socket, "load_offline", fn ->
+      timeline = ConnectionTimeline.load(device, from, until)
+
+      {%{timeline: timeline, read_at: until}, ConnectionTimeline.offline_periods(timeline, from, until)}
     end)
   end
 
@@ -1151,6 +1186,21 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
     assign(socket, :has_chart_data, Map.put(socket.assigns.has_chart_data, key, has_data?))
   end
 
-  defp validate_time_unit(unit) when unit in ~w(hour day minute second), do: unit
-  defp validate_time_unit(_unit), do: elem(@default_time_frame, 0)
+  # One of the time frames the History card offers, or the default for any
+  # other: the amount sizes every chart query and the lane's labels.
+  defp offered_time_frame(unit, amount) do
+    Enum.find(@time_frame_opts, @default_time_frame, fn {offered_unit, offered_amount} ->
+      offered_unit == unit and Integer.to_string(offered_amount) == amount
+    end)
+  end
+
+  defp unix_ms_datetime(ms, fallback) do
+    case DateTime.from_unix(round(ms), :millisecond) do
+      {:ok, at} -> at
+      {:error, _reason} -> fallback
+    end
+  end
+
+  defp earliest(a, b), do: if(DateTime.before?(a, b), do: a, else: b)
+  defp latest(a, b), do: if(DateTime.after?(a, b), do: a, else: b)
 end
