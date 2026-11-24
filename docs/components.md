@@ -186,6 +186,10 @@ first of these the component has:
    address (`i2c-1:76`), a USB port path (`1-1.3`), a slot or connector name.
 3. The application's own name for it, when the application knows which one it
    is: `freezer-probe-a`.
+4. The model, when the device can only ever have one of it: a power
+   controller soldered to the board, `rp2040`. A second one of the same model
+   would need a `serial` of its own, and changing the first one's then makes
+   it a new component, so don't use this where a second one could be added.
 
 Whatever is sent becomes the component, so keep it the same for as long as
 the component is the same one. A component sent under a new `serial` is a new
