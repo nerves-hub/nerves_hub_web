@@ -393,7 +393,11 @@ defmodule NervesHubWeb.Components.ProductSidebar do
           ]}
         >
           <span class="truncate text-section-title/6.5 text-content-strong">{@scope.product.name}</span>
-          <span class="lucide-chevrons-up-down size-4 text-content-faint" aria-hidden="true"></span>
+          <%!-- Points the way the switcher opens, and flips while it's open. --%>
+          <span
+            class={["lucide-chevron-down size-4", if(@switcher_open, do: "rotate-180 text-content-strong", else: "text-content-faint")]}
+            aria-hidden="true"
+          ></span>
         </button>
       </div>
 
