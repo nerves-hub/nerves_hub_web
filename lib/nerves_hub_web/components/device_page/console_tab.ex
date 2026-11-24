@@ -193,7 +193,7 @@ defmodule NervesHubWeb.Components.DevicePage.ConsoleTab do
               <span class="flex size-8 shrink-0 items-center justify-center rounded-lg bg-surface-muted text-content-body group-data-[state=failed]/upload:bg-alert-soft group-data-[state=failed]/upload:text-alert-content group-data-[state=saved]/upload:bg-success-soft group-data-[state=saved]/upload:text-success-content">
                 <span class="lucide-upload size-4 group-data-[state=failed]/upload:hidden group-data-[state=saved]/upload:hidden" aria-hidden="true"></span>
                 <span class="lucide-circle-check hidden size-4 group-data-[state=saved]/upload:block" aria-hidden="true"></span>
-                <span class="lucide-circle-alert hidden size-4 group-data-[state=failed]/upload:block" aria-hidden="true"></span>
+                <span class="lucide-circle-exclamation-point hidden size-4 group-data-[state=failed]/upload:block" aria-hidden="true"></span>
               </span>
               <div class="flex min-w-0 flex-1 flex-col gap-1">
                 <h2 id="console-upload-title" class="text-card-title font-semibold text-content-strong">
@@ -313,7 +313,7 @@ defmodule NervesHubWeb.Components.DevicePage.ConsoleTab do
         <div class="flex min-h-11 flex-wrap items-center gap-x-2.5 gap-y-2 border-t border-white/10 px-3.5 py-2.5 font-sans text-xs text-neutral-400">
           <span class="lucide-file size-4 text-neutral-400 group-data-[state=failed]/upload:hidden group-data-[state=saved]/upload:hidden" aria-hidden="true"></span>
           <span class="lucide-circle-check hidden size-4 text-emerald-400 group-data-[state=saved]/upload:block" aria-hidden="true"></span>
-          <span class="lucide-circle-alert hidden size-4 shrink-0 text-red-300 group-data-[state=failed]/upload:block" aria-hidden="true"></span>
+          <span class="lucide-circle-exclamation-point hidden size-4 text-red-300 group-data-[state=failed]/upload:block" aria-hidden="true"></span>
           <span data-upload-field="name" class="max-w-48 truncate font-mono font-medium text-neutral-200"></span>
           <span role="status" class="min-w-60 flex-1">
             <span class="hidden group-data-[state=uploading]/upload:inline">Uploading to {@platform}</span>

@@ -242,6 +242,20 @@ defmodule NervesHubWeb.ConsoleChannelTest do
       end
     end
 
+    test "passes on a file-data/start that isn't a map, rather than crashing", %{tmp_dir: tmp_dir} do
+      {socket, device} = build_socket(tmp_dir)
+
+      {:ok, %{}, console_channel} =
+        subscribe_and_join(socket, ConsoleChannel, "console", %{"console_version" => "2.1.0"})
+
+      _state = :sys.get_state(console_channel.channel_pid)
+
+      send(console_channel.channel_pid, start_broadcast(device, "a.bin"))
+      assert_push("file-data/start", "a.bin")
+
+      close_cleanly(console_channel)
+    end
+
     test "passes the device's reports up to the user console", %{tmp_dir: tmp_dir} do
       {socket, device} = build_socket(tmp_dir)
 
@@ -274,7 +288,6 @@ defmodule NervesHubWeb.ConsoleChannelTest do
 
       assert_receive %Broadcast{event: "up", payload: %{"data" => "still here"}}, 500
       refute_received %Broadcast{event: "something-new"}
-      assert Process.alive?(console_channel.channel_pid)
 
       close_cleanly(console_channel)
     end

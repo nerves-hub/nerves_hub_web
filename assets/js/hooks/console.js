@@ -1,5 +1,5 @@
 import { acceptsFiles } from "../helpers/consoleFiles.js"
-import { setupUploads } from "../helpers/consoleUploads.js"
+import { setupUploads } from "../helpers/consoleUploadView.js"
 import {
   connectUserSocket,
   createTerminal,

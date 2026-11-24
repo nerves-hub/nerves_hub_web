@@ -4,23 +4,16 @@ defmodule NervesHubWeb.ConsoleChannel do
   The device's end of its console: what the device prints goes up to whoever
   has the console open, and what they type comes down.
 
-  ## Files sent to the device
-
-  A file arrives as `file-data/start`, then `file-data` chunks, then
-  `file-data/stop`. The device saves each chunk before it reads anything after
-  it, typing included, so the console stops answering until the file is saved.
-
-  A device whose console is 2.1.0 or later can say how that's going. This
-  channel asks it to, by adding `"ack" => true` to `file-data/start`, and the
+  A file sent to the device arrives as `file-data/start`, its `file-data`
+  chunks, then `file-data/stop`, and the device reads nothing else, typing
+  included, until it has saved the file. A console from 2.1.0 on can say how
+  that goes: this channel adds `"ack" => true` to `file-data/start`, and the
   device answers with `file-data/ack` after each chunk it saves (with the bytes
-  saved so far), then `file-data/saved` once the file is complete, or
-  `file-data/error` if it couldn't write it. They go up to the user's console
-  like everything else, and `file_acks` in the metadata tells the page to
-  expect them.
-
-  Only this channel asks, never the page, so a device is only asked by a
-  channel that handles the answers. An older channel never asks, and the page
-  falls back to typing a character and deleting it, and waiting for the echo.
+  saved so far), then `file-data/saved` or `file-data/error`, which go up to
+  the user's console with `file_acks` in the metadata telling the page to
+  expect them. Only this channel asks, never the page, so a device is only
+  asked by a channel that handles the answers; with an older one the page
+  types a character and Delete and waits for the echo instead.
   """
   use Phoenix.Channel
 
@@ -119,7 +112,8 @@ defmodule NervesHubWeb.ConsoleChannel do
     {:noreply, socket}
   end
 
-  def handle_info(%Broadcast{event: "file-data/start", payload: payload}, socket) do
+  # Anything but a map, which a page can send, goes on as it is below.
+  def handle_info(%Broadcast{event: "file-data/start", payload: payload}, socket) when is_map(payload) do
     push(socket, "file-data/start", ask_for_acks(payload, socket.assigns.file_acks?))
     {:noreply, socket}
   end

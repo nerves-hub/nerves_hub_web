@@ -289,7 +289,7 @@ when adding or removing one.
   and read by the `header-scrolled:` and `terminal-typing:` variants in
   `app.css`. A file sent to a device on the Console tab shows how it's going
   in a dialog over the terminal and a strip under it, rendered by the tab and
-  driven by `assets/js/helpers/consoleUploads.js`. The device's console reads
+  driven by `assets/js/helpers/consoleUploadView.js`. The device's console reads
   nothing else while it saves a file, so the page has to learn when it's done:
   a console from 2.1.0 on is asked by `ConsoleChannel` to report each chunk it
   saves (`file-data/ack`, then `file-data/saved` or `file-data/error`), and an

@@ -169,6 +169,11 @@ describe("probeEchoed", () => {
     assert.equal(probeEchoed("x\u0008 \u0008"), true)
   })
 
+  it("ignores an x and a cursor movement that came apart", () => {
+    assert.equal(probeEchoed("iex(4)> ls\r\n\u001b[1D"), false)
+    assert.equal(probeEchoed("x = 1\u0008"), false)
+  })
+
   it("waits for the cursor to go back over the x", () => {
     assert.equal(probeEchoed(""), false)
     assert.equal(probeEchoed("x"), false)

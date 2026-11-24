@@ -37,9 +37,12 @@ export const OPEN_DELAY = 1000
 // How long the strip says a file was saved before it goes.
 export const SAVED_LINGER = 6000
 
-// The console's echo of `PROBE`: the "x", then the cursor going back over it,
-// as a backspace or as a cursor-left escape (IEx draws `\e[1D`).
-const PROBE_ECHO = /x[^]*?(?:\u0008|\u001b\[1?D)/
+// The console's echo of `PROBE`: the "x", then straight away the cursor going
+// back over it, as a backspace or as a cursor-left escape (IEx draws `\e[1D`).
+// Requiring the two together keeps earlier output from matching, such as the
+// "x" in a prompt and a later cursor movement. Only typing "x" then Delete
+// while the file was on its way still looks the same.
+const PROBE_ECHO = /x(?:\u0008|\u001b\[1?D)/
 
 // Whether what the console has printed since the probe was sent includes its
 // echo.
