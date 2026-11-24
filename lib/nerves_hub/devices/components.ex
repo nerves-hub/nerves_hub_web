@@ -13,15 +13,16 @@ defmodule NervesHub.Devices.Components do
   transitions do, and are skipped where analytics are off.
 
   A component is missing when the device can't reach it or stops listing it.
-  Neither deletes it: only `forget/3` does, because a sensor that dropped off
-  its gateway is the one somebody is looking for.
+  Neither deletes it, because a sensor that dropped off its gateway is the one
+  somebody is looking for. `forget/3` deletes one, and a device storing more
+  than 1,000 loses those missing longest.
 
   A component can also report what it measures and what state it is in.
   `record_readings/2` keeps each component's latest readings on its row and
-  every reading in ClickHouse (`NervesHub.Devices.DeviceComponentReading`). `record_state/3` keeps the
-  current state on the row and each change in the component's history. A
-  snapshot may carry state too, which replaces what is stored. Neither
-  changes whether a component is working or missing.
+  every reading in ClickHouse (`NervesHub.Devices.DeviceComponentReading`).
+  `record_state/3` keeps the current state on the row and each change in the
+  component's history. A snapshot may carry state too, which replaces what is
+  stored. Neither changes whether a component is working or missing.
   """
 
   import Ecto.Query
@@ -422,8 +423,9 @@ defmodule NervesHub.Devices.Components do
   # A device that keeps listing new serials, such as a gateway that sees
   # Bluetooth devices with rotating addresses, would otherwise grow its stored
   # set without end, and every snapshot, page and count would read all of it.
-  # Past `@max_stored`, the components missing longest are forgotten. Only
-  # counted when the snapshot could have taken the device past it.
+  # Past `@max_stored`, the components missing longest are forgotten. The size
+  # comes from what this transaction already read, so only the delete costs a
+  # query, and only when this snapshot takes the device past it.
   defp prune(device_id, entries, stored, now) do
     keys = MapSet.union(MapSet.new(Map.keys(stored)), MapSet.new(entries, &{&1.namespace, &1.serial}))
     over = MapSet.size(keys) - @max_stored
