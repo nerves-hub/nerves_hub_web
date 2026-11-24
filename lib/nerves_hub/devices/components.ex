@@ -40,6 +40,10 @@ defmodule NervesHub.Devices.Components do
   require Logger
 
   @max_components 500
+
+  # How many a device keeps, listed or not. Twice what one snapshot can list,
+  # so pruning only ever reaches components no snapshot lists any more.
+  @max_stored 1000
   @max_string_length 255
   @namespace_pattern ~r/\A[a-z][a-z0-9_]{0,31}\z/
 
@@ -151,10 +155,13 @@ defmodule NervesHub.Devices.Components do
 
   defp parse_entry(_component, _now), do: {:error, :malformed_entry}
 
+  # An optional field sent empty counts as left out. A required one can't be.
   defp strings(component, keys, opts) do
+    required = Keyword.fetch!(opts, :required)
+
     Enum.reduce_while(keys, {:ok, %{}}, fn key, {:ok, acc} ->
       case Map.get(component, key) do
-        nil when opts == [required: false] -> {:cont, {:ok, Map.put(acc, key, nil)}}
+        absent when absent in [nil, ""] and not required -> {:cont, {:ok, Map.put(acc, key, nil)}}
         value when is_binary(value) and value != "" -> check_length(key, value, acc)
         _missing_or_not_a_string -> {:halt, {:error, :malformed_entry}}
       end
@@ -234,8 +241,9 @@ defmodule NervesHub.Devices.Components do
 
       :ok = upsert(rows)
       :ok = mark_unlisted(unlisted, now)
+      pruned_events = prune(device_info.device_id, entries, stored, now)
 
-      {:ok, events ++ unlisted_events}
+      {:ok, events ++ unlisted_events ++ pruned_events}
     end)
     |> case do
       {:ok, []} ->
@@ -321,7 +329,8 @@ defmodule NervesHub.Devices.Components do
   # The device's time where it gave a believable one, and otherwise the last
   # one it gave. Never the arrival time: that would change every row on every
   # snapshot, and an unchanged snapshot is meant to write nothing. The web UI
-  # falls back to when the device itself was last seen.
+  # falls back to when the device itself was last seen for a working
+  # component, and to when it went missing for a missing one.
   defp last_seen_at(%{last_seen_at: %DateTime{} = at}, _previous, _now), do: usec(at)
   defp last_seen_at(_entry, %DeviceComponent{last_seen_at: at}, _now), do: at
   defp last_seen_at(_entry, nil, _now), do: nil
@@ -408,6 +417,35 @@ defmodule NervesHub.Devices.Components do
       )
 
     :ok
+  end
+
+  # A device that keeps listing new serials, such as a gateway that sees
+  # Bluetooth devices with rotating addresses, would otherwise grow its stored
+  # set without end, and every snapshot, page and count would read all of it.
+  # Past `@max_stored`, the components missing longest are forgotten. Only
+  # counted when the snapshot could have taken the device past it.
+  defp prune(device_id, entries, stored, now) do
+    keys = MapSet.union(MapSet.new(Map.keys(stored)), MapSet.new(entries, &{&1.namespace, &1.serial}))
+    over = MapSet.size(keys) - @max_stored
+
+    if over > 0 do
+      oldest =
+        DeviceComponent
+        |> where(device_id: ^device_id, listed: false)
+        |> order_by(asc: :missing_since, asc: :id)
+        |> limit(^over)
+        |> select([c], c.id)
+
+      {_count, pruned} =
+        DeviceComponent
+        |> where([c], c.id in subquery(oldest))
+        |> select([c], c)
+        |> Repo.delete_all()
+
+      Enum.map(pruned, &event(&1, "forgotten", "", now))
+    else
+      []
+    end
   end
 
   defp mark_unlisted([], _now), do: :ok

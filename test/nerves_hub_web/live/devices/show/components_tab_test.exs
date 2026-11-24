@@ -5,6 +5,7 @@ defmodule NervesHubWeb.Live.Devices.Show.ComponentsTabTest do
   alias NervesHub.AnalyticsRepo
   alias NervesHub.DeviceLink.DeviceInfo
   alias NervesHub.Devices.Components
+  alias NervesHub.Devices.Connections
   alias NervesHub.Devices.Device
   alias NervesHub.Products.Product
   alias NervesHub.Repo
@@ -100,6 +101,33 @@ defmodule NervesHubWeb.Live.Devices.Show.ComponentsTabTest do
     |> assert_has("#components-list", text: "Can't reach it since")
     |> assert_has("#components-list span", text: "Working")
     |> assert_has("#components-list span", text: "Missing")
+  end
+
+  test "without a time from the device, a missing component shows when it went missing", %{
+    conn: conn,
+    org: org,
+    product: product,
+    device: device
+  } do
+    sync(device, [@door])
+
+    conn
+    |> visit(components_path(org, product, device))
+    |> assert_has("#components-list td", text: "Just now")
+  end
+
+  test "without a time from the device, a working component shows when the device was last seen", %{
+    conn: conn,
+    org: org,
+    product: product,
+    device: device
+  } do
+    {:ok, _connection} = Connections.device_connecting(device.org_id, device.product_id, device.id, "198.51.100.2")
+    sync(device, [@mcu])
+
+    conn
+    |> visit(components_path(org, product, device))
+    |> assert_has("#components-list td", text: "Just now")
   end
 
   test "Needs attention shows only what's missing", %{conn: conn, org: org, product: product, device: device} do
@@ -263,7 +291,7 @@ defmodule NervesHubWeb.Live.Devices.Show.ComponentsTabTest do
         |> visit(components_path(org, product, device) <> "?component=#{door.id}")
         |> assert_has("#component-panel h2", text: "Dock door")
         |> refute_has("button", text: "Forget component")
-        |> refute_has("button", text: "Look again")
+        |> refute_has("button", text: "look again")
 
       Process.flag(:trap_exit, true)
 

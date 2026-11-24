@@ -420,16 +420,16 @@ defmodule NervesHubWeb.Live.Devices.Show do
     [
       {:details, "Details", base, []},
       {:health, "Health", base <> "/health", [dot: health_engaged?(device)]}
-    ]
-    |> Kernel.++(components_tab(assigns, base))
-    |> Kernel.++([
-      {:firmware_history, "Firmware History", base <> "/firmware_history", []},
-      {:console, "Console", base <> "/console", [dimmed: offline?]},
-      {:local_shell, "System Shell", base <> "/local_shell", [dimmed: offline?]},
-      {:logs, "Logs", base <> "/logs", []},
-      {:errors, "Errors", base <> "/errors", [count: nonzero(assigns[:error_issue_count])]},
-      {:activity, "Activity", base <> "/activity", []}
-    ])
+    ] ++
+      components_tab(assigns, base) ++
+      [
+        {:firmware_history, "Firmware History", base <> "/firmware_history", []},
+        {:console, "Console", base <> "/console", [dimmed: offline?]},
+        {:local_shell, "System Shell", base <> "/local_shell", [dimmed: offline?]},
+        {:logs, "Logs", base <> "/logs", []},
+        {:errors, "Errors", base <> "/errors", [count: nonzero(assigns[:error_issue_count])]},
+        {:activity, "Activity", base <> "/activity", []}
+      ]
   end
 
   # Only for a product with components on. Its dot means a component the

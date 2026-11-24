@@ -18,6 +18,7 @@ defmodule NervesHub.Devices do
   alias NervesHub.Devices.Certificates
   alias NervesHub.Devices.Device
   alias NervesHub.Devices.DeviceCertificate
+  alias NervesHub.Devices.DeviceComponent
   alias NervesHub.Devices.DeviceFiltering
   alias NervesHub.Devices.DeviceFirmwares
   alias NervesHub.Devices.NetworkIdentity
@@ -1006,6 +1007,14 @@ defmodule NervesHub.Devices do
       :network_identities,
       from(ei in NetworkIdentity, where: ei.device_id == ^device.id),
       set: [org_id: product.org_id, updated_at: DateTime.utc_now(:second)]
+    )
+    # Components carry their product for the product's Components page and
+    # sidebar count, so they go with the device. Their ClickHouse history keeps
+    # the product it was written under.
+    |> Multi.update_all(
+      :components,
+      from(c in DeviceComponent, where: c.device_id == ^device.id),
+      set: [product_id: product.id, updated_at: DateTime.utc_now()]
     )
     # From the device as it was before the move, whose org the keys come from.
     # Committed before `DeviceEvents.moved_product/1` below disconnects the

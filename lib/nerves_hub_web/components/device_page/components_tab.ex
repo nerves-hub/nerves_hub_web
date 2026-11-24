@@ -15,8 +15,7 @@ defmodule NervesHubWeb.Components.DevicePage.ComponentsTab do
 
   A component is Working or Missing. Its readings and state show in the
   Reading column, the cards and the panel (`ComponentReadings`), but don't
-  change its status. Error and
-  Warning wait for thresholds and faults.
+  change its status. Error and Warning wait for thresholds and faults.
 
   A component's panel loads its history, its readings over the last few hours
   and its state over the last day from ClickHouse in one task. When a new
@@ -274,6 +273,7 @@ defmodule NervesHubWeb.Components.DevicePage.ComponentsTab do
       |> assign(:view, DisplayPreferences.component_view(assigns.current_scope.user.display_preferences))
       |> assign(:groups, groups(assigns.components, assigns.component_filter))
       |> assign(:base, ~p"/org/#{assigns.org}/#{assigns.product}/devices/#{assigns.device}/components")
+      |> assign(:device_seen, assigns[:device_connection] && assigns.device_connection.last_seen_at)
 
     ~H"""
     <div id="components-tab" class="tab-content flex w-full flex-col gap-4 p-4 sm:p-6">
@@ -320,9 +320,16 @@ defmodule NervesHubWeb.Components.DevicePage.ComponentsTab do
       </div>
 
       <div :if={@groups != [] and @view == :list} class="overflow-clip rounded-card border border-line-default bg-surface-raised shadow-card">
-        <.list_view groups={@groups} base={@base} selected={@selected_component} time_zone={@time_zone} />
+        <.list_view groups={@groups} base={@base} selected={@selected_component} device_seen={@device_seen} time_zone={@time_zone} />
       </div>
-      <.grid_view :if={@groups != [] and @view == :grid} groups={@groups} base={@base} selected={@selected_component} time_zone={@time_zone} />
+      <.grid_view
+        :if={@groups != [] and @view == :grid}
+        groups={@groups}
+        base={@base}
+        selected={@selected_component}
+        device_seen={@device_seen}
+        time_zone={@time_zone}
+      />
 
       <.panel
         :if={@selected_component}
@@ -340,6 +347,7 @@ defmodule NervesHubWeb.Components.DevicePage.ComponentsTab do
   attr(:groups, :list, required: true)
   attr(:base, :string, required: true)
   attr(:selected, :any, required: true)
+  attr(:device_seen, :any, required: true)
   attr(:time_zone, :string, required: true)
 
   defp list_view(assigns) do
@@ -402,7 +410,7 @@ defmodule NervesHubWeb.Components.DevicePage.ComponentsTab do
               {component.firmware_version || "—"}
             </td>
             <td class="pr-4 max-sm:col-span-2 max-sm:p-0"><ComponentReadings.reading_cell component={component} /></td>
-            <td class="pr-4 text-xs text-content-muted max-sm:hidden">{last_seen(component)}</td>
+            <td class="pr-4 text-xs text-content-muted max-sm:hidden">{last_seen(component, @device_seen)}</td>
             <td class="max-sm:col-start-2 max-sm:row-start-1">
               <.link patch={"#{@base}?component=#{component.id}"} class="flex text-content-faint hover:text-content-body">
                 <span class="lucide-chevron-right size-4" aria-hidden="true"></span>
@@ -419,6 +427,7 @@ defmodule NervesHubWeb.Components.DevicePage.ComponentsTab do
   attr(:groups, :list, required: true)
   attr(:base, :string, required: true)
   attr(:selected, :any, required: true)
+  attr(:device_seen, :any, required: true)
   attr(:time_zone, :string, required: true)
 
   defp grid_view(assigns) do
@@ -439,7 +448,7 @@ defmodule NervesHubWeb.Components.DevicePage.ComponentsTab do
           >
             <div class="flex items-center justify-between gap-2">
               <.status_badge component={component} />
-              <span class="text-xs text-content-faint">{last_seen(component)}</span>
+              <span class="text-xs text-content-faint">{last_seen(component, @device_seen)}</span>
             </div>
             <div class="flex min-w-0 flex-col gap-0.75">
               <span class={["truncate text-sm/5 font-medium", if(missing?(component), do: "text-content-muted", else: "text-content-strong")]}>
@@ -469,7 +478,7 @@ defmodule NervesHubWeb.Components.DevicePage.ComponentsTab do
 
   defp group_heading(assigns) do
     ~H"""
-    <span class="font-semibold text-content-strong">{namespace_label(@namespace)}</span>
+    <span class="font-semibold text-content-strong">{DeviceComponent.namespace_label(@namespace)}</span>
     <span class="ml-1.5 font-mono text-2xs text-content-faint">{@namespace}</span>
     <span class="ml-1.5">· {length(@components)}</span>
     """
@@ -669,16 +678,6 @@ defmodule NervesHubWeb.Components.DevicePage.ComponentsTab do
 
   defp missing?(component), do: DeviceComponent.status(component) == :missing
 
-  @doc "A namespace as a person writes it: `zwave` is Z-Wave. Others as sent."
-  @spec namespace_label(String.t()) :: String.t()
-  def namespace_label("mcu"), do: "MCU"
-  def namespace_label("zigbee"), do: "Zigbee"
-  def namespace_label("zwave"), do: "Z-Wave"
-  def namespace_label("ble"), do: "Bluetooth LE"
-  def namespace_label("usb"), do: "USB"
-  def namespace_label("custom"), do: "Custom"
-  def namespace_label(namespace), do: namespace
-
   # The model, and where it is on its bus when the device said.
   defp subtitle(%DeviceComponent{address: nil} = component), do: DeviceComponent.model_label(component)
   defp subtitle(component), do: "#{DeviceComponent.model_label(component)} · #{component.address}"
@@ -710,8 +709,19 @@ defmodule NervesHubWeb.Components.DevicePage.ComponentsTab do
     DateTimes.to_local_string(at, time_zone, format, false)
   end
 
-  defp last_seen(%DeviceComponent{last_seen_at: %DateTime{} = at}), do: ago(at)
-  defp last_seen(_component), do: "—"
+  # The device's word where it gave a time. Otherwise, as docs/components.md
+  # promises client authors, when it went missing for a missing component,
+  # and when the device itself was last seen for one still working: the
+  # device listed it reachable then.
+  defp last_seen(%DeviceComponent{last_seen_at: %DateTime{} = at}, _device_seen), do: ago(at)
+
+  defp last_seen(%DeviceComponent{} = component, device_seen) do
+    case {DeviceComponent.status(component), component.missing_since, device_seen} do
+      {:missing, %DateTime{} = at, _device_seen} -> ago(at)
+      {:working, _missing_since, %DateTime{} = at} -> ago(at)
+      _unknown -> "—"
+    end
+  end
 
   defp since(nil), do: "a while"
   defp since(at), do: Fleet.duration(max(DateTime.diff(DateTime.utc_now(), at), 60))

@@ -123,7 +123,8 @@ twenty sensors in a row sends one snapshot rather than twenty.
 | `reachable` | no | `false` when the device has the component but couldn't reach it the last time it tried. Defaults to `true`. |
 | `last_seen_at` | no | ISO 8601 with an offset. When the device last heard from the component. See [Timestamps](#timestamps). |
 
-Fields not listed here are ignored, so a later version can add some without
+An optional field sent as an empty string counts as left out. Fields not
+listed here are ignored, so a later version can add some without
 breaking a platform that doesn't know them yet.
 
 Together, `namespace`, `vendor` and `model` are the component's **model**. The
@@ -137,7 +138,8 @@ A snapshot is rejected whole, and nothing stored changes, when:
 
 - `components` isn't a list,
 - it has more than **500** entries,
-- any entry is missing a required field, or has one that isn't a string,
+- any entry is missing a required field, or has one that is empty or isn't a
+  string,
 - any string is longer than **255 characters**, or `namespace` breaks the rule
   below, or
 - two entries share a `namespace` and `serial`.
@@ -225,6 +227,11 @@ battery has died often drops out of its gateway's list, and the interesting
 thing about it is where it was and when it went. If it is listed again it comes
 back as the same component, with its history. A person can forget a Missing
 component from the web UI; it comes back if the device lists it again.
+
+A device keeps at most **1,000** components, listed or not. Past that, the
+platform forgets the ones that have been missing longest. A device can't list
+more than 500 at once, so only components it has stopped listing are ever
+forgotten this way.
 
 A device that disconnects keeps its components as they were. Its connection
 status already says it has gone, and marking every component Missing at the
