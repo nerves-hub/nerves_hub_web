@@ -16,6 +16,7 @@ defmodule NervesHub.DevicesTest do
   alias NervesHub.Devices.CACertificate
   alias NervesHub.Devices.CACertificates
   alias NervesHub.Devices.Certificates
+  alias NervesHub.Devices.Components
   alias NervesHub.Devices.Deployments
   alias NervesHub.Devices.Device
   alias NervesHub.Devices.DeviceCertificate
@@ -2651,6 +2652,29 @@ defmodule NervesHub.DevicesTest do
       {:ok, _} = Devices.move(device, target_product, user)
 
       assert Repo.reload!(untouched).org_id == org.id
+    end
+  end
+
+  describe "move/3 and components" do
+    test "a device's components move product with it", %{device: device, user: user} do
+      info = %DeviceInfo{device_id: device.id, org_id: device.org_id, product_id: device.product_id}
+
+      component = %{
+        "namespace" => "mcu",
+        "vendor" => "raspberrypi",
+        "model" => "rp2350",
+        "serial" => "e6614c311b4a2c2f"
+      }
+
+      {:ok, entries} = Components.parse([component], DateTime.utc_now())
+      :ok = Components.sync_snapshot(info, entries)
+
+      other_org = Fixtures.org_fixture(user, %{name: "component-org"})
+      target_product = Fixtures.product_fixture(user, other_org)
+      {:ok, _} = Devices.move(device, target_product, user)
+
+      assert [%{product_id: product_id}] = Components.list_for_device(device)
+      assert product_id == target_product.id
     end
   end
 
