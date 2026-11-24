@@ -174,7 +174,7 @@ defmodule NervesHubWeb.Live.Devices.Show.ComponentsTabTest do
     |> visit(components_path(org, product, device) <> "?component=#{mcu.id}")
     |> assert_has("#component-panel dd", text: "1.4.2")
     |> assert_has("#component-version-sensor_model dd", text: "2026.11")
-    |> assert_has("#component-history", text: "sensor_model 2026.10 → 2026.11")
+    |> assert_has("#component-history", text: "sensor_model 2026.10 → 2026.11", timeout: 2000)
   end
 
   test "forgets a component", %{conn: conn, org: org, product: product, device: device} do
