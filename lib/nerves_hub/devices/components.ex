@@ -13,8 +13,9 @@ defmodule NervesHub.Devices.Components do
   transitions do, and are skipped where analytics are off.
 
   A component is missing when the device can't reach it or stops listing it.
-  Neither deletes it: only `forget/3` does, because a sensor that dropped off
-  its gateway is the one somebody is looking for.
+  Neither deletes it, because a sensor that dropped off its gateway is the one
+  somebody is looking for. `forget/3` deletes one, and a device storing more
+  than 1,000 loses those missing longest.
   """
 
   import Ecto.Query
@@ -350,8 +351,9 @@ defmodule NervesHub.Devices.Components do
   # A device that keeps listing new serials, such as a gateway that sees
   # Bluetooth devices with rotating addresses, would otherwise grow its stored
   # set without end, and every snapshot, page and count would read all of it.
-  # Past `@max_stored`, the components missing longest are forgotten. Only
-  # counted when the snapshot could have taken the device past it.
+  # Past `@max_stored`, the components missing longest are forgotten. The size
+  # comes from what this transaction already read, so only the delete costs a
+  # query, and only when this snapshot takes the device past it.
   defp prune(device_id, entries, stored, now) do
     keys = MapSet.union(MapSet.new(Map.keys(stored)), MapSet.new(entries, &{&1.namespace, &1.serial}))
     over = MapSet.size(keys) - @max_stored

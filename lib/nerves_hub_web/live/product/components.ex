@@ -9,7 +9,7 @@ defmodule NervesHubWeb.Live.Product.Components do
   mounts. Built from every device in the product, so a member who sees only
   some devices doesn't get it (`RequireEveryDevice`).
 
-  The extension reports only whether a component is there, so Needs attention
+  The extension reports only whether a component is there, so Need attention
   counts missing components alone. Errors, warnings and firmware rollout
   figures wait for later versions.
   """
