@@ -211,5 +211,22 @@ defmodule NervesHub.AuditLogsTest do
                "via" => "Slack"
              }
     end
+
+    test "is exported to CSV by its description, without the template", %{user: user, device: device} do
+      :ok = DeviceTemplates.audit_script_run(user, device, "Collect logs", "Slack")
+
+      [header, row] =
+        device
+        |> AuditLogs.logs_for()
+        |> AuditLogs.format_for_csv()
+        |> NimbleCSV.RFC4180.parse_string(skip_headers: false)
+
+      refute "template" in header
+      refute "template_values" in header
+      assert List.last(header) == "inserted_at"
+
+      assert Enum.at(row, Enum.find_index(header, &(&1 == "description"))) ==
+               Jason.encode!("#{user.name} ran support script Collect logs on device #{device.identifier} from Slack")
+    end
   end
 end

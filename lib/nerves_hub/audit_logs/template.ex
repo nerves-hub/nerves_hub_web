@@ -4,22 +4,20 @@ defmodule NervesHub.AuditLogs.Template do
   `"%{actor} rebooted device %{resource}"`.
 
   An entry written from a template keeps the template and the values that fill
-  it, as well as the plain `description` they make. A value is either text,
-  stored as given, or a reference to a record (a user, API key, device,
-  deployment group, firmware or archive), stored with the name it had when the entry was
-  written.
-
-  The web UI shows a reference under the record's current name and links to
-  it, so an entry follows a renamed user or deployment group. The stored name
-  is what it shows once the record is gone or the viewer can't see it, and
-  what `description` holds, so the CSV export and older releases read the
-  entry as before.
-
-  `%{actor}` and `%{resource}` always name the entry's actor and resource; a
-  template passes values for any other placeholder it uses.
-
-  Placeholders are found in the template only, never in the values, so text a
-  device sends (a failure reason) can't add a link or a reference.
+  it beside the plain `description` they make. A value is either text, stored
+  as given, or a reference to a record (a user, API key, device, deployment
+  group, firmware, archive, product or org), stored with the name it had when
+  the entry was written. Each text value, and each reference's name and id, is
+  cut to 500 characters, as `description` is. The web UI shows users,
+  devices, deployment groups, firmware and archives under their current name
+  and links to them, so an entry follows a rename. It shows the stored name
+  for every other reference and for a record that is gone or that the viewer
+  can't see. `description` holds the stored names too, so the CSV export and
+  older releases read the entry as before. `%{actor}` and `%{resource}` always
+  name the entry's actor and resource; a template passes values for any other
+  placeholder. Placeholders are found in the template only, never in the
+  values, so text a device sends (a failure reason) can't add a link or a
+  reference.
   """
 
   alias NervesHub.Accounts.Org
@@ -63,6 +61,7 @@ defmodule NervesHub.AuditLogs.Template do
   @type stored_value :: String.t() | ref()
 
   @placeholder ~r/%\{(\w+)\}/
+  @value_max_length 500
   @implicit ["actor", "resource"]
 
   @doc """
@@ -95,7 +94,7 @@ defmodule NervesHub.AuditLogs.Template do
   end
 
   defp dump_value(nil), do: ""
-  defp dump_value(value) when is_binary(value), do: value
+  defp dump_value(value) when is_binary(value), do: cap(value)
   defp dump_value(value) when is_integer(value), do: Integer.to_string(value)
   defp dump_value(%User{} = user), do: reference("user", user.id, user.name)
 
@@ -122,11 +121,22 @@ defmodule NervesHub.AuditLogs.Template do
   defp dump_value(%{uuid: uuid} = metadata) when is_binary(uuid) and not is_struct(metadata),
     do: reference("firmware", uuid, uuid)
 
-  # Anything else interpolation would have taken (an atom, a float), as text,
-  # so writing an entry never fails where an interpolated description didn't.
-  defp dump_value(value), do: to_string(value)
+  # Anything else `String.Chars` takes (an atom, a float), as text.
+  defp dump_value(value), do: value |> to_string() |> cap()
 
-  defp reference(type, id, name), do: %{"type" => type, "id" => id, "name" => name}
+  defp reference(type, id, name), do: %{"type" => type, "id" => cap(id), "name" => cap(name)}
+
+  # A device sends some of these (a failure reason, its firmware's UUID and
+  # version) with no limit on their length.
+  defp cap(value) when is_binary(value) do
+    if String.length(value) > @value_max_length do
+      String.slice(value, 0, @value_max_length - 1) <> "…"
+    else
+      value
+    end
+  end
+
+  defp cap(value), do: value
 
   @doc """
   Splits a template into its text and its placeholders, in order.

@@ -115,10 +115,10 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Activity do
                       device={@devices[entry.actor_id]}
                       path={~p"/org/#{@current_scope.org}/#{@current_scope.product}/devices/#{@devices[entry.actor_id].identifier}"}
                     />
-                    <.entry_text entry={entry} text={headline} references={@references} scope={@current_scope} current={@deployment_group} />
+                    <AuditLogDescription.description entry={entry} text={headline} references={@references} scope={@current_scope} current={@deployment_group} />
                   </p>
                   <p :if={detail} class="text-xs/4.5 wrap-break-word text-content-muted">
-                    <.entry_text entry={entry} text={detail} references={@references} scope={@current_scope} current={@deployment_group} />
+                    <AuditLogDescription.description entry={entry} text={detail} references={@references} scope={@current_scope} current={@deployment_group} />
                   </p>
                 </div>
 
@@ -146,18 +146,6 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Activity do
   defp actor_icon(DeploymentGroup), do: "lucide-workflow--bold"
   defp actor_icon(Device), do: "lucide-cpu--bold"
   defp actor_icon(_), do: "lucide-user--bold"
-
-  attr(:entry, :map, required: true)
-  attr(:text, :string, required: true)
-  attr(:references, :map, required: true)
-  attr(:scope, :any, required: true)
-  attr(:current, :any, required: true)
-
-  defp entry_text(assigns) do
-    ~H"""
-    <AuditLogDescription.description entry={@entry} text={@text} references={@references} scope={@scope} current={@current} />
-    """
-  end
 
   attr(:device, :map, required: true)
   attr(:path, :string, required: true)

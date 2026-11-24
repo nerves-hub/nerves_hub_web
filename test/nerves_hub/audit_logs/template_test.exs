@@ -56,6 +56,20 @@ defmodule NervesHub.AuditLogs.TemplateTest do
       assert values["device"] == %{"type" => "device", "id" => 2, "name" => "abc123"}
     end
 
+    test "cuts long text and reference names to 500 characters" do
+      long = String.duplicate("x", 600)
+
+      values =
+        "%{actor} %{reason} %{firmware}"
+        |> Template.new(reason: long, firmware: %FirmwareMetadata{uuid: long})
+        |> Template.dump_values(@user, @device)
+
+      assert String.length(values["reason"]) == 500
+      assert String.ends_with?(values["reason"], "…")
+      assert String.length(values["firmware"]["name"]) == 500
+      assert String.length(values["firmware"]["id"]) == 500
+    end
+
     test "stores an organization as a reference under its name" do
       values = "%{actor} %{resource}" |> Template.new() |> Template.dump_values(@user, %Org{id: 7, name: "Acme"})
 

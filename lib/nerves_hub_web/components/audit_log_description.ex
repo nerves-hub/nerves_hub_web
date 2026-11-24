@@ -3,18 +3,16 @@ defmodule NervesHubWeb.Components.AuditLogDescription do
   An audit log entry's description, with the records it names linked.
 
   An entry written from a `NervesHub.AuditLogs.Template` names each user,
-  device, deployment group, firmware and archive as it is now, from the
-  records `NervesHub.AuditLogs.load_references/3` loaded for the page, and
-  links to the ones the viewer can open. A record that is gone, or that the
-  viewer can't see, keeps the name it had when the entry was written, as plain
-  text. An entry written before templates shows its description as it is.
-
-  Each reference stands out from the text around it, linked or not, and
-  carries `data-ref` naming its type (`user`, `device`, `deployment_group`,
-  `firmware` or `archive`), so a type can be styled on its own.
-
-  Every part is rendered as text, a span or a link, never as raw HTML, so the
-  text a device sends can't add markup.
+  device, deployment group, firmware and archive as it is now, from the records
+  `NervesHub.AuditLogs.load_references/3` loaded for the page, and links to the
+  ones the viewer can open. An API key, a product, an org, and a record that is
+  gone or that the viewer can't see, keep the name they had when the entry was
+  written, as plain text. Each reference stands out from the text around it,
+  linked or not, and carries `data-ref` naming its stored type (`user`,
+  `api_key`, `device`, `deployment_group`, `firmware`, `archive`, `product`,
+  `org`), so a type can be styled on its own. Every part is rendered as text, a
+  span or a link, never as raw HTML, so text a device sends can't add markup.
+  An entry written before templates shows its description as it is.
   """
   use NervesHubWeb, :component
 
@@ -26,7 +24,7 @@ defmodule NervesHubWeb.Components.AuditLogDescription do
   alias NervesHub.Firmwares.Firmware
   alias NervesHub.ManagedDeployments.DeploymentGroup
 
-  attr(:entry, :map, required: true, doc: "An `NervesHub.AuditLogs.AuditLog`.")
+  attr(:entry, :map, required: true, doc: "A `NervesHub.AuditLogs.AuditLog`.")
   attr(:references, :map, default: %{}, doc: "From `NervesHub.AuditLogs.load_references/3`.")
   attr(:scope, Scope, required: true)
   attr(:current, :any, default: nil, doc: "The record whose page this is, named without a link to itself.")
@@ -79,9 +77,6 @@ defmodule NervesHubWeb.Components.AuditLogDescription do
     ~H|<.link navigate={@path} data-ref={@type} class="font-medium text-content-strong hover:underline">{@text}</.link>|
   end
 
-  # A reference shows the record as it is now, linked when the viewer can open
-  # it, or the name it had when the entry was written when it's gone or out of
-  # the viewer's sight.
   defp placeholder(%{"type" => type, "id" => id, "name" => stored}, _name, references, scope, current) do
     case Map.fetch(references, {type, id}) do
       {:ok, record} ->
@@ -95,8 +90,7 @@ defmodule NervesHubWeb.Components.AuditLogDescription do
 
   defp placeholder(text, _name, _references, _scope, _current) when is_binary(text), do: {:text, text}
 
-  # A placeholder with no stored value, which only a template changed after the
-  # entry was written could have.
+  # A placeholder the entry stored no value for.
   defp placeholder(_value, name, _references, _scope, _current), do: {:text, "%{#{name}}"}
 
   defp name(%User{name: name}), do: name

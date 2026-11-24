@@ -89,17 +89,17 @@ defmodule NervesHub.AuditLogs do
   end
 
   @doc """
-  The records the template references in `entries` name, as `user` may see
-  them in `org`, keyed by `{type, id}` (see `Template.reference_keys/1`).
+  The records referenced by the templates of `entries`, as `user` may see them
+  in `org`, keyed by `{type, id}` (see `Template.reference_keys/1`).
 
-  A reference whose record is gone, belongs to another org, or that `user`
-  can't see has no key, and is shown under the name it had when the entry was
-  written. That covers a device outside the tags a custom role is limited to,
-  and a user who is no longer a member of `org`, whose current name the org
-  has no reason to see. Devices, deployment groups, firmware and archives come
-  with their product, which a link to them needs.
-
-  One query for each type of record named, however many entries there are.
+  A reference has no key, and shows under the name it had when the entry was
+  written, when its record is gone, belongs to another org, or is out of
+  `user`'s sight: a device outside the tags a custom role is limited to, or a
+  user who is no longer a member of `org`, whose current name the org has no
+  reason to see. API keys, products and orgs are never loaded. Devices,
+  deployment groups, firmware and archives come with their product, which a
+  link to them needs. One query per type of record named, however many
+  entries there are.
   """
   @spec load_references([AuditLog.t()], Org.t(), User.t()) :: %{{String.t(), term()} => struct()}
   def load_references(entries, %Org{} = org, %User{} = user) do
@@ -156,7 +156,8 @@ defmodule NervesHub.AuditLogs do
     |> Enum.map(&{{"archive", &1.uuid}, &1})
   end
 
-  # A type this release doesn't know, written by a newer one.
+  # API keys, products and orgs keep their stored name, as does a type a newer
+  # release wrote.
   defp load_references(_type, _ids, _org, _user), do: []
 
   def logs_for_feed(resource, %{page: page} = opts) when is_binary(page) do
@@ -213,7 +214,8 @@ defmodule NervesHub.AuditLogs do
   end
 
   def format_for_csv(audit_logs) do
-    fields = AuditLog.__schema__(:fields)
+    # The template and its values are already written out in `description`.
+    fields = AuditLog.__schema__(:fields) -- [:template, :template_values]
     lines = for al <- audit_logs, do: Enum.map(fields, &(Map.get(al, &1) |> Jason.encode!()))
 
     [fields | lines]
