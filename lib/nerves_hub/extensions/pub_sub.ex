@@ -153,6 +153,20 @@ defmodule NervesHub.Extensions.PubSub do
     Phoenix.PubSub.broadcast!(NervesHub.PubSub, topic(device_id), {Extensions.module(extension), :watching})
   end
 
+  @doc """
+  Hand `msg` to the device's `extension`, as its `handle_info/2` sees it.
+
+  Goes out on the device's extensions topic, as `watch/2`'s announcement does,
+  and is dropped at the connection unless `extension` is attached. That is the
+  difference from `broadcast_to_device/3`, whose events go to the device
+  whatever it has attached: a request for something the device never agreed
+  to serve should not reach it.
+  """
+  @spec send_to_extension(integer(), Extensions.extension(), term()) :: :ok
+  def send_to_extension(device_id, extension, msg) do
+    Phoenix.PubSub.broadcast!(NervesHub.PubSub, topic(device_id), {Extensions.module(extension), msg})
+  end
+
   @doc "Is anybody watching this device's `extension` right now?"
   @spec watched?(integer(), Extensions.extension()) :: boolean()
   def watched?(device_id, extension) do

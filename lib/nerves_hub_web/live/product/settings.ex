@@ -534,7 +534,8 @@ defmodule NervesHubWeb.Live.Product.Settings do
     error_reports: {"Error reports", "Crashes and exceptions, grouped on the Errors page."},
     local_shell: {"Local shell", "A shell on the device's OS, beside the IEx console."},
     alarms: {"Alarms", "Alarms sent as they're raised and cleared, not on Health's schedule."},
-    network_identity: {"Network identity", "Identities the device holds on networks like NetBird or iroh."}
+    network_identity: {"Network identity", "Identities the device holds on networks like NetBird or iroh."},
+    components: {"Components", "What each device is connected to: microcontrollers, Zigbee and Z-Wave nodes, USB."}
   ]
 
   defp extensions() do

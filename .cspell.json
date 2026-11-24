@@ -184,6 +184,10 @@
     "unmute",
     "unmuted",
     "unmuting",
-    "referer"
+    "referer",
+    "zigbee",
+    "raspberrypi",
+    "Sonoff",
+    "SNZB"
   ]
 }
