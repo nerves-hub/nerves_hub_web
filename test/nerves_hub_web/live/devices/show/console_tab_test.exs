@@ -69,6 +69,73 @@ defmodule NervesHubWeb.Live.Devices.Show.ConsoleTabTest do
     assert_has(session, "#console", timeout: 1000)
   end
 
+  describe "sending a file" do
+    test "tells whoever sent it, and that the console waits for the device to save it", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device,
+      user: user
+    } do
+      _console = ConsoleStandIn.start(device.id)
+
+      session =
+        conn
+        |> visit(console_path(org, product, device))
+        |> assert_has("#console", timeout: 1000)
+
+      :ok =
+        Consoles.PubSub.broadcast_to_console_watchers(device.id, "file-data/start", %{
+          "filename" => "notes.txt",
+          uploaded_by: user.id
+        })
+
+      session = assert_has(session, "[role=alert]", text: "Sending notes.txt to the device.")
+
+      :ok =
+        Consoles.PubSub.broadcast_to_console_watchers(device.id, "file-data/stop", %{
+          "filename" => "notes.txt",
+          uploaded_by: user.id
+        })
+
+      assert_has(session, "[role=alert]",
+        text: "Sent notes.txt. The console takes typing again once the device has saved it"
+      )
+    end
+
+    test "says nothing to someone else watching the console", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device,
+      user: user
+    } do
+      _console = ConsoleStandIn.start(device.id)
+
+      session =
+        conn
+        |> visit(console_path(org, product, device))
+        |> assert_has("#console", timeout: 1000)
+
+      :ok =
+        Consoles.PubSub.broadcast_to_console_watchers(device.id, "file-data/stop", %{
+          "filename" => "theirs.txt",
+          uploaded_by: user.id + 1
+        })
+
+      # Handled in order, so once our own shows, theirs has been and gone.
+      :ok =
+        Consoles.PubSub.broadcast_to_console_watchers(device.id, "file-data/start", %{
+          "filename" => "mine.txt",
+          uploaded_by: user.id
+        })
+
+      session
+      |> assert_has("[role=alert]", text: "Sending mine.txt to the device.")
+      |> refute_has("[role=alert]", text: "theirs.txt")
+    end
+  end
+
   defp console_path(org, product, device) do
     "/org/#{org.name}/#{product.name}/devices/#{device.identifier}/console"
   end

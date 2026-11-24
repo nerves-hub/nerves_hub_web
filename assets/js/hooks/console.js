@@ -1,4 +1,4 @@
-import { acceptsFiles } from "../helpers/consoleFiles.js"
+import { acceptsFiles, CHUNK_SIZE, encodeChunk } from "../helpers/consoleFiles.js"
 import {
   connectUserSocket,
   createTerminal,
@@ -154,9 +154,11 @@ export default {
       e.dataTransfer.dropEffect = acceptsFiles(consoleVersion) ? "copy" : "none"
     })
 
-    // Sends a file to the device, a chunk at a time.
+    // Sends a file to the device, a chunk at a time, numbered across the
+    // whole file.
     const sendFile = file => {
       const reader = file.stream().getReader()
+      let chunkNum = 0
 
       channel.push("file-data/start", { filename: file.name })
 
@@ -166,18 +168,11 @@ export default {
           return
         }
 
-        const chunkSize = 1024
-        let chunkNum = 0
-
-        for (let i = 0; i < value.length; i += chunkSize) {
-          const chunk = value.slice(i, i + chunkSize)
-
-          const encoded = btoa(String.fromCharCode.apply(null, chunk))
-
+        for (let i = 0; i < value.length; i += CHUNK_SIZE) {
           channel.push("file-data", {
             filename: file.name,
             chunk: chunkNum,
-            data: encoded
+            data: encodeChunk(value.subarray(i, i + CHUNK_SIZE))
           })
 
           chunkNum += 1
@@ -194,8 +189,10 @@ export default {
         e.stopPropagation()
         if (!acceptsFiles(consoleVersion)) return
         if (e.dataTransfer.items) {
+          // A drag can carry text or a link beside the file, which has no
+          // file to send.
           for (const item of e.dataTransfer.items) {
-            sendFile(item.getAsFile())
+            if (item.kind === "file") sendFile(item.getAsFile())
           }
         }
       },

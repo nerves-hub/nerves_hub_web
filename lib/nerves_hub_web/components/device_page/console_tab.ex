@@ -73,9 +73,13 @@ defmodule NervesHubWeb.Components.DevicePage.ConsoleTab do
     |> halt()
   end
 
+  # Told to whoever sent the file. "Sent" is as far as we can see: the device
+  # saves each chunk before it reads anything after it, typing included, and
+  # says nothing when it's done, so the console can stay quiet for a while
+  # after the last chunk has left.
   def hooked_info(%Broadcast{event: "file-data/start", payload: payload}, socket) do
     if socket.assigns.user.id == payload.uploaded_by do
-      put_flash(socket, :info, "Upload started.")
+      put_flash(socket, :info, "Sending #{filename(payload)} to the device.")
     else
       socket
     end
@@ -84,7 +88,11 @@ defmodule NervesHubWeb.Components.DevicePage.ConsoleTab do
 
   def hooked_info(%Broadcast{event: "file-data/stop", payload: payload}, socket) do
     if socket.assigns.user.id == payload.uploaded_by do
-      put_flash(socket, :info, "Upload finished.")
+      put_flash(
+        socket,
+        :info,
+        "Sent #{filename(payload)}. The console takes typing again once the device has saved it, which can take a while for a large file."
+      )
     else
       socket
     end
@@ -92,6 +100,9 @@ defmodule NervesHubWeb.Components.DevicePage.ConsoleTab do
   end
 
   def hooked_info(_event, socket), do: {:cont, socket}
+
+  defp filename(%{"filename" => filename}) when is_binary(filename) and filename != "", do: filename
+  defp filename(_payload), do: "the file"
 
   # Only when the tab opens. While it stays open the indicator keeps what it last
   # knew during a new locate, so locating again never takes an open terminal off
