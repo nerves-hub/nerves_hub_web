@@ -181,6 +181,41 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       )
     end
 
+    test "each viewer shows their own picture, not the current user's", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device,
+      user: user,
+      user_two: user_two
+    } do
+      picture = "https://example.com/user-two.png"
+
+      user_two =
+        user_two
+        |> Ecto.Changeset.change(profile_picture_url: picture)
+        |> NervesHub.Repo.update!()
+
+      token_two = NervesHub.Accounts.create_user_session_token(user_two)
+
+      conn_two =
+        build_conn()
+        |> init_test_session(%{"user_token" => token_two})
+
+      conn_two
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      |> assert_has("#present-users > #presences-#{user_two.id} > img[src='#{picture}']")
+
+      # The first viewer has no picture, so their initials show, and the
+      # second viewer's picture stays theirs.
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      |> assert_has("#present-users > #presences-#{user.id} > span", text: user_initials(user))
+      |> refute_has("#present-users > #presences-#{user.id} > img")
+      |> assert_has("#present-users > #presences-#{user_two.id} > img[src='#{picture}']")
+      |> refute_has("#present-users > #presences-#{user_two.id} > span")
+    end
+
     test "two users, different devices", %{
       conn: conn,
       org: org,
