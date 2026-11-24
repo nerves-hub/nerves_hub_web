@@ -1,6 +1,7 @@
 defmodule NervesHub.Extensions.Components do
   @moduledoc """
-  The things a device is connected to, sent by the device as one set.
+  The things a device is connected to, sent by the device as one set, and
+  what they measure and what state they're in.
 
   Version 0.1.0:
 
@@ -10,6 +11,19 @@ defmodule NervesHub.Extensions.Components do
                              "serial" => "00:12:4b:00:2a:3f:91:c7", ..},
                            ..
                          ]}
+
+  Version 0.2.0 adds, and lets a snapshot entry carry `"state" => %{name => value}`:
+
+      device -> server   components:readings  %{"reports" => [
+                           %{"namespace" => "zigbee", "serial" => "..", "timestamp" => "..",
+                             "metrics" => %{"temperature" => -18.9}},
+                           ..
+                         ]}
+      device -> server   components:state     %{"namespace" => "zwave", "serial" => "..",
+                                                "state" => "lock", "value" => "unlocked", ..}
+
+  One module serves both versions. A 0.1.0 device never sends the 0.2.0
+  frames, and one that did would only have them stored.
 
   docs/components.md is the contract for client authors, and
   `NervesHub.Devices.Components` is where a snapshot is read and stored.
@@ -30,6 +44,19 @@ defmodule NervesHub.Extensions.Components do
   long way off. So a denied snapshot schedules a `sync`, and the device's answer
   carries whatever the dropped one said. One is scheduled however many are
   denied.
+
+  Readings have a bucket of their own, a message a second with a burst of
+  five, as `NervesHub.Extensions.Metrics` does: a dropped message is a gap in
+  a chart, and the next one carries on. State changes have another, five a
+  second with a burst of twenty. A dropped change would leave the wrong state
+  shown, so it schedules the same `sync` a dropped snapshot does, and the
+  snapshot carries the state.
+
+  ## Components the platform hasn't been told about
+
+  A reading or state change for a component no snapshot has listed is
+  ignored, and the platform asks for the set, at most once every thirty
+  seconds, so the next one is stored.
   """
 
   @behaviour NervesHub.Extensions
@@ -46,6 +73,15 @@ defmodule NervesHub.Extensions.Components do
   @rate_limit_tokens_per_sec 1
   @rate_limit_max_capacity 30
   @rate_limit_token_cost 10
+
+  @readings_tokens_per_sec 1
+  @readings_max_capacity 5
+
+  @state_tokens_per_sec 5
+  @state_max_capacity 20
+
+  # How often an unknown component may cost the device a sync.
+  @unknown_sync_interval_ms to_timeout(second: 30)
 
   # Long enough for the bucket to have refilled by the time the device answers.
   @resync_delay_ms to_timeout(second: 30)
@@ -96,12 +132,40 @@ defmodule NervesHub.Extensions.Components do
     end
   end
 
-  # A client that declared 0.1.0 and sent something else. Worth a log line and
-  # not worth a crash, and not worth a token either: nothing was going to be
-  # written.
+  def handle_in("readings", %{"reports" => reports}, state) when is_list(reports) do
+    if reports != [] and allow_readings?(state.device_info) do
+      %{unknown: unknown} = Store.record_readings(state.device_info, Store.parse_readings(reports))
+      sync_for_unknown(state, unknown)
+    else
+      {state, []}
+    end
+  end
+
+  def handle_in("state", change, state) when is_map(change) do
+    with true <- allow_state?(state.device_info),
+         :ok <- Store.record_state(state.device_info, change) do
+      {state, []}
+    else
+      false ->
+        schedule_resync(state)
+
+      {:error, :unknown_component} ->
+        sync_for_unknown(state, 1)
+
+      {:error, reason} ->
+        Logger.warning(
+          "device #{state.device_info.device_id} sent a components state change that was rejected (#{reason}): #{inspect(change, limit: 5)}"
+        )
+
+        {state, []}
+    end
+  end
+
+  # Something the contract doesn't have. Worth a log line and not worth a
+  # crash, and not worth a token either: nothing was going to be written.
   def handle_in(event, payload, state) do
     Logger.warning(
-      "device #{state.device_info.device_id} declared components 0.1.0 and sent #{event} #{inspect(payload, limit: 5)}"
+      "device #{state.device_info.device_id} sent components #{event}, which it doesn't have: #{inspect(payload, limit: 5)}"
     )
 
     {state, []}
@@ -131,6 +195,41 @@ defmodule NervesHub.Extensions.Components do
          ) do
       {:allow, _count} -> true
       {:deny, _ms} -> false
+    end
+  end
+
+  @doc "Whether this device may send a `components:readings` message now."
+  @spec allow_readings?(DeviceInfo.t()) :: boolean()
+  def allow_readings?(%DeviceInfo{} = device_info) do
+    hit("components_readings_device_#{device_info.device_id}", @readings_tokens_per_sec, @readings_max_capacity)
+  end
+
+  @doc "Whether this device may send a `components:state` change now."
+  @spec allow_state?(DeviceInfo.t()) :: boolean()
+  def allow_state?(%DeviceInfo{} = device_info) do
+    hit("components_state_device_#{device_info.device_id}", @state_tokens_per_sec, @state_max_capacity)
+  end
+
+  defp hit(key, tokens_per_sec, max_capacity) do
+    case RateLimit.hit(key, tokens_per_sec, max_capacity, 1) do
+      {:allow, _count} -> true
+      {:deny, _ms} -> false
+    end
+  end
+
+  # Asks for the set straight away, unless it was asked for in the last thirty
+  # seconds: a device sending readings every second for a component it forgot
+  # to list shouldn't be asked every second.
+  defp sync_for_unknown(state, 0), do: {state, []}
+
+  defp sync_for_unknown(state, _unknown) do
+    now = System.monotonic_time(:millisecond)
+    last = State.get(state, :unknown_synced_at)
+
+    if last && now - last < @unknown_sync_interval_ms do
+      {state, []}
+    else
+      {State.assign(state, :unknown_synced_at, now), [{:push, "components:sync", %{}}]}
     end
   end
 

@@ -1,7 +1,7 @@
 defmodule NervesHub.Devices.DeviceComponentHistory do
   @moduledoc """
   One change to one of a device's components: it appeared, went missing, came
-  back, changed firmware, or was forgotten.
+  back, changed firmware, changed state, or was forgotten.
 
   Rows are batched into ClickHouse by `NervesHub.Analytics.Buffer`. Where
   `NervesHub.Devices.DeviceComponent` is what a device has now, this is how it
@@ -15,7 +15,7 @@ defmodule NervesHub.Devices.DeviceComponentHistory do
 
   @type t :: %__MODULE__{}
 
-  @events ~w(appeared missing returned firmware_changed forgotten)
+  @events ~w(appeared missing returned firmware_changed forgotten state_changed)
 
   @primary_key false
   schema "device_component_history" do
@@ -35,6 +35,11 @@ defmodule NervesHub.Devices.DeviceComponentHistory do
     field(:detail, Ch, type: "String", default: "")
 
     field(:firmware_version, Ch, type: "String", default: "")
+
+    # For "state_changed": which state, and what it became. `detail` then holds
+    # who or what changed it, where the device said.
+    field(:state, Ch, type: "LowCardinality(String)", default: "")
+    field(:value, Ch, type: "String", default: "")
   end
 
   @doc "Every event a row can record."

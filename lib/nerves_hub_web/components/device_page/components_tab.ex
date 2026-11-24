@@ -13,9 +13,14 @@ defmodule NervesHubWeb.Components.DevicePage.ComponentsTab do
   (`components:updated`), which is rare, so there is no batching here as the
   Errors tab needs.
 
-  Version 0.1.0 of the extension reports only whether a component is there,
-  so a component is Working or Missing. Readings, state, and Error and Warning
-  come in later versions; the Reading column waits for them.
+  A component is Working or Missing. Version 0.2.0 of the extension adds
+  readings and state, which the Reading column, the cards and the panel show
+  (`ComponentReadings`) but which don't change a component's status. Error and
+  Warning wait for thresholds and faults.
+
+  A component's panel loads its history, its readings over the last few hours
+  and its state over the last day from ClickHouse in one task, and again when
+  a new reading or state change arrives for it.
   """
 
   use NervesHubWeb, tab_component: :components
@@ -25,6 +30,7 @@ defmodule NervesHubWeb.Components.DevicePage.ComponentsTab do
   alias NervesHub.Devices.Components
   alias NervesHub.Devices.DeviceComponent
   alias NervesHubWeb.Components.DateTimes
+  alias NervesHubWeb.Components.DevicePage.ComponentReadings
   alias NervesHubWeb.Components.DevicePage.TabNotice
   alias NervesHubWeb.Components.Fleet
 
@@ -39,7 +45,7 @@ defmodule NervesHubWeb.Components.DevicePage.ComponentsTab do
   # Only assigns this tab alone owns. `:component_missing_count` is the page's,
   # since the tab's dot reads it on every tab.
   def cleanup() do
-    [:components, :component_filter, :selected_component, :component_history]
+    [:components, :component_filter, :selected_component, :component_history, :component_series]
   end
 
   defp load_components(socket) do
@@ -54,6 +60,7 @@ defmodule NervesHubWeb.Components.DevicePage.ComponentsTab do
     socket
     |> assign(:selected_component, nil)
     |> assign(:component_history, nil)
+    |> assign(:component_series, nil)
   end
 
   defp select_component(socket, id) do
@@ -65,21 +72,50 @@ defmodule NervesHubWeb.Components.DevicePage.ComponentsTab do
         socket
         |> assign(:selected_component, component)
         |> assign(:component_history, nil)
-        |> start_async(:component_history, fn -> Components.history(component) end)
+        |> assign(:component_series, nil)
+        |> load_detail(component)
     end
   end
 
-  def hooked_async(:component_history, {:ok, history}, socket) do
+  # Everything the panel reads from ClickHouse, in one task. The window ends
+  # when the task runs, so the timeline and its "now" agree.
+  defp load_detail(socket, component) do
+    start_async(socket, :component_detail, fn ->
+      now = DateTime.utc_now()
+      from = DateTime.add(now, -24, :hour)
+
+      %{
+        history: Components.history(component),
+        series: %{
+          readings: if(component.readings != %{}, do: Components.readings_history(component, now)),
+          states: Components.state_history(component, from),
+          from: from,
+          now: now
+        }
+      }
+    end)
+  end
+
+  def hooked_async(:component_detail, {:ok, %{history: history, series: series}}, socket) do
     socket
     |> assign(:component_history, history)
+    |> assign(:component_series, series)
     |> halt()
   end
 
-  # ClickHouse not answering leaves the Recent list empty rather than the
-  # panel broken.
-  def hooked_async(:component_history, {:exit, _reason}, socket) do
+  # ClickHouse not answering leaves the Recent list and the charts empty
+  # rather than the panel broken.
+  def hooked_async(:component_detail, {:exit, _reason}, socket) do
+    now = DateTime.utc_now()
+
     socket
     |> assign(:component_history, [])
+    |> assign(:component_series, %{
+      readings: %{window: :six_hours, series: %{}},
+      states: %{},
+      from: DateTime.add(now, -24, :hour),
+      now: now
+    })
     |> halt()
   end
 
@@ -156,6 +192,8 @@ defmodule NervesHubWeb.Components.DevicePage.ComponentsTab do
   def hooked_event(_event, _params, socket), do: {:cont, socket}
 
   # Re-read, and keep the panel on the same component if it is still there.
+  # Its charts reload only when something of its own changed, so readings
+  # from the device's other components don't cost a ClickHouse read each.
   # Halts: the page's own clause only recounts the tab's dot, which
   # `load_components/1` has just done.
   def hooked_info(%Broadcast{event: "components:updated"}, socket) do
@@ -165,14 +203,25 @@ defmodule NervesHubWeb.Components.DevicePage.ComponentsTab do
     |> load_components()
     |> then(fn socket ->
       case selected && Enum.find(socket.assigns.components, &(&1.id == selected.id)) do
-        nil -> assign(socket, :selected_component, nil)
-        component -> assign(socket, :selected_component, component)
+        nil ->
+          select_component(socket, nil)
+
+        component ->
+          socket
+          |> assign(:selected_component, component)
+          |> then(&if(moved?(selected, component), do: load_detail(&1, component), else: &1))
       end
     end)
     |> halt()
   end
 
   def hooked_info(_message, socket), do: {:cont, socket}
+
+  defp moved?(before, now) do
+    before.readings_at != now.readings_at or before.state != now.state or
+      DeviceComponent.status(before) != DeviceComponent.status(now) or
+      before.firmware_version != now.firmware_version
+  end
 
   defp tab_path(socket) do
     %{org: org, product: product, device: device} = socket.assigns
@@ -251,6 +300,7 @@ defmodule NervesHubWeb.Components.DevicePage.ComponentsTab do
         :if={@selected_component}
         component={@selected_component}
         history={@component_history}
+        series={@component_series}
         device={@device}
         current_scope={@current_scope}
         time_zone={@time_zone}
@@ -272,8 +322,9 @@ defmodule NervesHubWeb.Components.DevicePage.ComponentsTab do
           <col class="w-36" />
           <col />
           <col class="w-56" />
-          <col class="w-36" />
           <col class="w-32" />
+          <col class="w-52" />
+          <col class="w-28" />
           <col class="w-10" />
         </colgroup>
         <thead class="max-sm:hidden">
@@ -282,13 +333,14 @@ defmodule NervesHubWeb.Components.DevicePage.ComponentsTab do
             <th class="h-8 pr-4 font-medium">Component</th>
             <th class="h-8 pr-4 font-medium">Serial</th>
             <th class="h-8 pr-4 font-medium">Firmware</th>
+            <th class="h-8 pr-4 font-medium">Reading</th>
             <th class="h-8 pr-4 font-medium">Last seen</th>
             <th class="h-8"><span class="sr-only">Details</span></th>
           </tr>
         </thead>
         <tbody :for={{namespace, components} <- @groups} class="max-sm:block">
           <tr class="border-t border-line-subtle bg-surface-muted max-sm:block">
-            <td colspan="6" class="h-8 px-4 text-xs text-content-muted max-sm:flex max-sm:items-center">
+            <td colspan="7" class="h-8 px-4 text-xs text-content-muted max-sm:flex max-sm:items-center">
               <.group_heading namespace={namespace} components={components} />
             </td>
           </tr>
@@ -321,6 +373,7 @@ defmodule NervesHubWeb.Components.DevicePage.ComponentsTab do
             <td class={["truncate pr-4 font-mono text-xs max-sm:hidden", if(missing?(component), do: "text-content-faint", else: "text-content-strong")]}>
               {component.firmware_version || "—"}
             </td>
+            <td class="pr-4 max-sm:col-span-2 max-sm:p-0"><ComponentReadings.reading_cell component={component} /></td>
             <td class="pr-4 text-xs text-content-muted max-sm:hidden">{last_seen(component)}</td>
             <td class="max-sm:col-start-2 max-sm:row-start-1">
               <.link patch={"#{@base}?component=#{component.id}"} class="flex text-content-faint hover:text-content-body">
@@ -367,6 +420,7 @@ defmodule NervesHubWeb.Components.DevicePage.ComponentsTab do
               <span class="truncate text-xs text-content-muted">{subtitle(component)}</span>
               <span :if={missing?(component)} class="truncate pt-2 text-xs text-content-body">{missing_line(component, @time_zone)}</span>
             </div>
+            <ComponentReadings.card_value :if={component.readings != %{} or component.state != %{}} component={component} />
             <div class={[
               "flex min-w-0 items-center gap-2 border-t border-line-subtle pt-2.5 font-mono text-xs",
               if(missing?(component), do: "text-content-faint", else: "text-content-body")
@@ -414,6 +468,7 @@ defmodule NervesHubWeb.Components.DevicePage.ComponentsTab do
 
   attr(:component, DeviceComponent, required: true)
   attr(:history, :any, required: true)
+  attr(:series, :any, required: true, doc: "readings and state history, `nil` while it loads")
   attr(:device, :any, required: true)
   attr(:current_scope, :any, required: true)
   attr(:time_zone, :string, required: true)
@@ -468,6 +523,15 @@ defmodule NervesHubWeb.Components.DevicePage.ComponentsTab do
             A component the device can't reach, or stops listing, stays here as missing until it comes back or you forget it.
           </p>
         </section>
+
+        <ComponentReadings.state_section
+          component={@component}
+          history={@series && @series.states}
+          from={(@series && @series.from) || DateTime.add(DateTime.utc_now(), -24, :hour)}
+          now={(@series && @series.now) || DateTime.utc_now()}
+          time_zone={@time_zone}
+        />
+        <ComponentReadings.readings_section component={@component} history={@series && @series.readings} />
 
         <section :if={authorized?(:"device:update", @current_scope)} class="border-b border-line-default px-6 py-5 max-sm:px-4">
           <p class="text-label font-medium text-content-muted uppercase">Actions</p>
@@ -638,10 +702,18 @@ defmodule NervesHubWeb.Components.DevicePage.ComponentsTab do
   defp history_line(%{event: "firmware_changed", detail: from, firmware_version: to}), do: "Firmware #{from} → #{to}"
   defp history_line(%{event: "forgotten", detail: ""}), do: "Forgotten"
   defp history_line(%{event: "forgotten", detail: who}), do: "Forgotten by #{who}"
+
+  # "Unlocked by keypad, user 3", as the device's detail reads after the value.
+  defp history_line(%{event: "state_changed", value: value, detail: ""}), do: ComponentReadings.state_value(value)
+
+  defp history_line(%{event: "state_changed", value: value, detail: detail}),
+    do: "#{ComponentReadings.state_value(value)} #{detail}"
+
   defp history_line(%{event: event}), do: event
 
   defp history_dot("missing"), do: "border border-content-faint"
   defp history_dot("returned"), do: "bg-status-online"
   defp history_dot("firmware_changed"), do: "bg-primary"
+  defp history_dot("state_changed"), do: "bg-content-strong"
   defp history_dot(_event), do: "bg-content-faint"
 end

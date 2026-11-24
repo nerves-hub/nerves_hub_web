@@ -15,6 +15,14 @@ defmodule NervesHub.Devices.Components do
   A component is missing when the device can't reach it or stops listing it.
   Neither deletes it: only `forget/3` does, because a sensor that dropped off
   its gateway is the one somebody is looking for.
+
+  Version 0.2.0 of the extension adds what a component measures and what
+  state it is in. `record_readings/3` keeps each component's latest readings
+  on its row and every reading in ClickHouse
+  (`NervesHub.Devices.DeviceComponentReading`). `record_state/3` keeps the
+  current state on the row and each change in the component's history. A
+  snapshot may carry state too, which replaces what is stored. Neither
+  changes whether a component is working or missing.
   """
 
   import Ecto.Query
@@ -25,6 +33,7 @@ defmodule NervesHub.Devices.Components do
   alias NervesHub.Devices.Device
   alias NervesHub.Devices.DeviceComponent
   alias NervesHub.Devices.DeviceComponentHistory
+  alias NervesHub.Devices.DeviceComponentReading
   alias NervesHub.Extensions.PubSub, as: ExtensionsPubSub
   alias NervesHub.Products.Product
   alias NervesHub.Repo
@@ -34,6 +43,14 @@ defmodule NervesHub.Devices.Components do
   @max_components 500
   @max_string_length 255
   @namespace_pattern ~r/\A[a-z][a-z0-9_]{0,31}\z/
+
+  # Version 0.2.0: reading and state names, and how much of either is kept.
+  @name_pattern ~r/\A[a-z][a-z0-9_]{0,63}\z/
+  @max_states 8
+  @max_state_value_length 64
+  @max_reports_per_message 60
+  @max_readings 20
+  @max_reading_skew_seconds 24 * 60 * 60
 
   # The same window `NervesHub.Extensions.Alarms` believes a device's clock in.
   @max_future_skew_seconds 60 * 60
@@ -57,6 +74,7 @@ defmodule NervesHub.Devices.Components do
     :listed,
     :last_seen_at,
     :missing_since,
+    :state,
     :updated_at
   ]
 
@@ -76,11 +94,12 @@ defmodule NervesHub.Devices.Components do
           firmware_version: String.t() | nil,
           address: String.t() | nil,
           reachable: boolean(),
-          last_seen_at: DateTime.t() | nil
+          last_seen_at: DateTime.t() | nil,
+          state: %{String.t() => String.t()} | nil
         }
 
   @type rejection() ::
-          :not_a_list | :too_many | :malformed_entry | :bad_namespace | :too_long | :duplicate
+          :not_a_list | :too_many | :malformed_entry | :bad_namespace | :too_long | :duplicate | :bad_state
 
   @doc """
   Reads a snapshot's `components` list, or says why it is rejected.
@@ -118,12 +137,14 @@ defmodule NervesHub.Devices.Components do
     with {:ok, required} <- strings(component, @required, required: true),
          {:ok, optional} <- strings(component, @optional, required: false),
          :ok <- check_namespace(required["namespace"]),
-         {:ok, reachable} <- reachable(component["reachable"]) do
+         {:ok, reachable} <- reachable(component["reachable"]),
+         {:ok, state} <- snapshot_state(component["state"]) do
       entry =
         Map.merge(required, optional)
         |> Map.new(fn {key, value} -> {String.to_existing_atom(key), value} end)
         |> Map.put(:reachable, reachable)
         |> Map.put(:last_seen_at, device_time(component["last_seen_at"], now))
+        |> Map.put(:state, state)
 
       {:ok, entry}
     end
@@ -152,6 +173,22 @@ defmodule NervesHub.Devices.Components do
   defp check_namespace(namespace) do
     if Regex.match?(@namespace_pattern, namespace), do: :ok, else: {:error, :bad_namespace}
   end
+
+  # `nil` when the entry says nothing about state, which leaves what is stored.
+  defp snapshot_state(nil), do: {:ok, nil}
+
+  defp snapshot_state(state) when is_map(state) and map_size(state) <= @max_states do
+    if Enum.all?(state, fn {name, value} -> state_name?(name) and state_value?(value) end),
+      do: {:ok, state},
+      else: {:error, :bad_state}
+  end
+
+  defp snapshot_state(_state), do: {:error, :bad_state}
+
+  defp state_name?(name), do: is_binary(name) and Regex.match?(@name_pattern, name)
+
+  defp state_value?(value),
+    do: is_binary(value) and value != "" and String.valid?(value) and String.length(value) <= @max_state_value_length
 
   defp reachable(nil), do: {:ok, true}
   defp reachable(reachable) when is_boolean(reachable), do: {:ok, reachable}
@@ -257,9 +294,25 @@ defmodule NervesHub.Devices.Components do
       last_seen_at: last_seen_at(entry, previous, now),
       first_seen_at: (previous && previous.first_seen_at) || now,
       missing_since: missing_since,
+      state: stored_state(entry.state, previous, now),
       inserted_at: now,
       updated_at: now
     }
+  end
+
+  # A snapshot's state replaces what is stored, keeping when each value it
+  # repeats was set. One that says nothing about state leaves it alone.
+  defp stored_state(nil, previous, _now), do: (previous && previous.state) || %{}
+
+  defp stored_state(state, previous, now) do
+    stored = (previous && previous.state) || %{}
+
+    Map.new(state, fn {name, value} ->
+      case stored do
+        %{^name => %{"value" => ^value} = kept} -> {name, kept}
+        _ -> {name, %{"value" => value, "since" => DateTime.to_iso8601(now), "detail" => nil}}
+      end
+    end)
   end
 
   # The device's time where it gave a believable one, and otherwise the last
@@ -276,7 +329,8 @@ defmodule NervesHub.Devices.Components do
 
   defp changes(entry, nil, now) do
     appeared = event(entry, "appeared", "", now)
-    if entry.reachable, do: [appeared], else: [appeared, event(entry, "missing", "unreachable", now)]
+    status = if entry.reachable, do: [appeared], else: [appeared, event(entry, "missing", "unreachable", now)]
+    status ++ state_changes(entry, %{}, now)
   end
 
   defp changes(entry, previous, now) do
@@ -295,7 +349,20 @@ defmodule NervesHub.Devices.Components do
          do: [event(entry, "firmware_changed", previous.firmware_version, now)],
          else: []
 
-    status ++ firmware
+    status ++ firmware ++ state_changes(entry, previous.state, now)
+  end
+
+  # A state the snapshot sets to a value it didn't have. One it leaves out is
+  # no longer shown but isn't a change: the device has stopped saying, not
+  # said something new.
+  defp state_changes(%{state: nil}, _stored, _now), do: []
+
+  defp state_changes(entry, stored, now) do
+    for {name, value} <- Enum.sort(entry.state), get_in(stored, [name, "value"]) != value do
+      entry
+      |> event("state_changed", "", now)
+      |> Map.merge(%{state: name, value: value})
+    end
   end
 
   defp unlisted(entries, stored, now) do
@@ -322,6 +389,8 @@ defmodule NervesHub.Devices.Components do
       event: event,
       detail: detail,
       firmware_version: component.firmware_version || "",
+      state: "",
+      value: "",
       timestamp: at
     }
   end
@@ -355,6 +424,257 @@ defmodule NervesHub.Devices.Components do
 
     :ok
   end
+
+  # ------------------------------------------------------------------ 0.2.0
+
+  @typedoc """
+  One `components:readings` report once `parse_readings/2` has read it: the
+  component, when the device took the readings, and the readings kept, sorted
+  by name.
+  """
+  @type readings_report() :: %{
+          namespace: String.t(),
+          serial: String.t(),
+          timestamp: DateTime.t(),
+          metrics: [{String.t(), float()}]
+        }
+
+  @doc """
+  Reads a `components:readings` message's reports, skipping the ones that
+  can't be read, as docs/components.md describes. Unlike a snapshot, one bad
+  report doesn't cost the rest: each stands alone.
+  """
+  @spec parse_readings(term(), DateTime.t()) :: [readings_report()]
+  def parse_readings(reports, now \\ DateTime.utc_now())
+
+  def parse_readings(reports, now) when is_list(reports) do
+    reports
+    |> Enum.take(@max_reports_per_message)
+    |> Enum.flat_map(&parse_report(&1, now))
+  end
+
+  def parse_readings(_reports, _now), do: []
+
+  defp parse_report(
+         %{"namespace" => namespace, "serial" => serial, "timestamp" => timestamp, "metrics" => metrics},
+         now
+       )
+       when is_binary(namespace) and is_binary(serial) and is_binary(timestamp) and is_map(metrics) do
+    with {:ok, at, _offset} <- DateTime.from_iso8601(timestamp),
+         true <- abs(DateTime.diff(at, now, :second)) <= @max_reading_skew_seconds,
+         [_ | _] = kept <- readings(metrics) do
+      [%{namespace: namespace, serial: serial, timestamp: usec(at), metrics: kept}]
+    else
+      _ -> []
+    end
+  end
+
+  defp parse_report(_report, _now), do: []
+
+  # At most `@max_readings` names, in sorted order, so which are kept doesn't
+  # depend on how the device's JSON library ordered them.
+  defp readings(metrics) do
+    metrics
+    |> Enum.filter(fn {name, value} -> is_number(value) and Regex.match?(@name_pattern, name) end)
+    |> Enum.sort()
+    |> Enum.take(@max_readings)
+    |> Enum.map(fn {name, value} -> {name, value / 1} end)
+  end
+
+  @doc """
+  Records what a device's components measured: the latest value of each
+  reading on the component's row, and every reading in ClickHouse.
+
+  Reports for a component the device hasn't listed in a snapshot are ignored.
+  How many there were comes back as `unknown`, so the extension can ask the
+  device for its set.
+  """
+  @spec record_readings(DeviceInfo.t(), [readings_report()]) :: %{
+          stored: non_neg_integer(),
+          unknown: non_neg_integer()
+        }
+  def record_readings(%DeviceInfo{} = device_info, reports) when is_list(reports) do
+    stored = components_by_key(device_info.device_id, reports)
+    {known, unknown} = Enum.split_with(reports, &Map.has_key?(stored, {&1.namespace, &1.serial}))
+
+    if known != [] do
+      known
+      |> Enum.group_by(&{&1.namespace, &1.serial})
+      |> Enum.each(fn {key, component_reports} -> write_latest(Map.fetch!(stored, key), component_reports) end)
+
+      :ok = write_readings(device_info, known, stored)
+      broadcast(device_info.device_id)
+    end
+
+    %{stored: length(known), unknown: length(unknown)}
+  end
+
+  defp components_by_key(_device_id, []), do: %{}
+
+  defp components_by_key(device_id, frames) do
+    keys = MapSet.new(frames, &{&1.namespace, &1.serial})
+    namespaces = keys |> Enum.map(&elem(&1, 0)) |> Enum.uniq()
+    serials = keys |> Enum.map(&elem(&1, 1)) |> Enum.uniq()
+
+    DeviceComponent
+    |> where(device_id: ^device_id)
+    |> where([c], c.namespace in ^namespaces and c.serial in ^serials)
+    |> Repo.all()
+    |> Enum.filter(&MapSet.member?(keys, {&1.namespace, &1.serial}))
+    |> Map.new(&{{&1.namespace, &1.serial}, &1})
+  end
+
+  # Merged into what is stored, so a component that reports its battery less
+  # often than its temperature keeps both, and a report older than the stored
+  # value of a reading doesn't replace it. The most recent `@max_readings`
+  # names are kept, so one that stops being reported eventually goes.
+  defp write_latest(component, reports) do
+    readings =
+      reports
+      |> Enum.sort_by(& &1.timestamp, DateTime)
+      |> Enum.reduce(component.readings, fn report, readings ->
+        Enum.reduce(report.metrics, readings, fn {name, value}, readings ->
+          if newer?(report.timestamp, readings[name]),
+            do: Map.put(readings, name, %{"value" => value, "at" => DateTime.to_iso8601(report.timestamp)}),
+            else: readings
+        end)
+      end)
+      |> Enum.sort_by(fn {_name, %{"at" => at}} -> at end, :desc)
+      |> Enum.take(@max_readings)
+      |> Map.new()
+
+    readings_at = readings |> Enum.map(fn {_name, %{"at" => at}} -> parse_time(at) end) |> Enum.max(DateTime)
+
+    {_count, _} =
+      DeviceComponent
+      |> where(id: ^component.id)
+      |> Repo.update_all(set: [readings: readings, readings_at: readings_at])
+
+    :ok
+  end
+
+  defp newer?(_at, nil), do: true
+  defp newer?(at, %{"at" => stored}), do: DateTime.compare(at, parse_time(stored)) != :lt
+
+  defp parse_time(iso8601) do
+    {:ok, at, _offset} = DateTime.from_iso8601(iso8601)
+    usec(at)
+  end
+
+  defp write_readings(device_info, reports, stored) do
+    if Application.get_env(:nerves_hub, :analytics_enabled) do
+      firmware_uuid = firmware_uuid(device_info)
+
+      reports
+      |> Enum.flat_map(fn report ->
+        component = Map.fetch!(stored, {report.namespace, report.serial})
+
+        Enum.map(report.metrics, fn {key, value} ->
+          %{
+            timestamp: report.timestamp,
+            org_id: device_info.org_id,
+            product_id: device_info.product_id,
+            device_id: device_info.device_id,
+            namespace: report.namespace,
+            serial: report.serial,
+            key: key,
+            value: value,
+            firmware_uuid: firmware_uuid,
+            firmware_version: component.firmware_version || ""
+          }
+        end)
+      end)
+      |> Enum.each(&Buffer.insert(DeviceComponentReading, DeviceComponentReading.changeset(&1)))
+    end
+
+    :ok
+  end
+
+  defp firmware_uuid(%DeviceInfo{firmware_metadata: %{uuid: uuid}}) when is_binary(uuid), do: uuid
+  defp firmware_uuid(_device_info), do: ""
+
+  @type state_rejection() :: :malformed | :unknown_component | :too_many_states
+
+  @doc """
+  Records a `components:state` change: the component's current state on its
+  row, and the change in its history.
+
+  Sending the value the state already has does nothing, so a device unsure
+  whether a change arrived can send it again. So does a change older than the
+  stored value, which a later snapshot or change has already overtaken.
+  """
+  @spec record_state(DeviceInfo.t(), term(), DateTime.t()) :: :ok | {:error, state_rejection()}
+  def record_state(%DeviceInfo{} = device_info, change, %DateTime{} = now \\ DateTime.utc_now()) do
+    now = usec(now)
+
+    with {:ok, change} <- parse_state(change, now),
+         %DeviceComponent{} = component <-
+           components_by_key(device_info.device_id, [change])[{change.namespace, change.serial}] ||
+             {:error, :unknown_component},
+         {:ok, state} <- put_state(component.state, change) do
+      {_count, _} =
+        DeviceComponent
+        |> where(id: ^component.id)
+        |> Repo.update_all(set: [state: state, updated_at: now])
+
+      event =
+        component
+        |> event("state_changed", change.detail || "", change.changed_at)
+        |> Map.merge(%{state: change.state, value: change.value})
+
+      :ok = write_history(device_info, [event])
+      broadcast(device_info.device_id)
+    else
+      :unchanged -> :ok
+      {:error, _reason} = error -> error
+    end
+  end
+
+  defp parse_state(%{"namespace" => namespace, "serial" => serial, "state" => state, "value" => value} = change, now)
+       when is_binary(namespace) and is_binary(serial) do
+    detail = change["detail"]
+
+    if state_name?(state) and state_value?(value) and detail?(detail) do
+      {:ok,
+       %{
+         namespace: namespace,
+         serial: serial,
+         state: state,
+         value: value,
+         detail: if(detail != "", do: detail),
+         changed_at: usec(device_time(change["changed_at"], now) || now)
+       }}
+    else
+      {:error, :malformed}
+    end
+  end
+
+  defp parse_state(_change, _now), do: {:error, :malformed}
+
+  defp detail?(nil), do: true
+
+  defp detail?(detail), do: is_binary(detail) and String.valid?(detail) and String.length(detail) <= @max_string_length
+
+  defp put_state(state, change) do
+    case state[change.state] do
+      %{"value" => value} when value == change.value ->
+        :unchanged
+
+      %{"since" => since} ->
+        if DateTime.before?(change.changed_at, parse_time(since)),
+          do: :unchanged,
+          else: {:ok, Map.put(state, change.state, stored_change(change))}
+
+      nil when map_size(state) >= @max_states ->
+        {:error, :too_many_states}
+
+      nil ->
+        {:ok, Map.put(state, change.state, stored_change(change))}
+    end
+  end
+
+  defp stored_change(change),
+    do: %{"value" => change.value, "since" => DateTime.to_iso8601(change.changed_at), "detail" => change.detail}
 
   @doc """
   Forgets one of the device's components: deletes it and records who did.
@@ -442,6 +762,126 @@ defmodule NervesHub.Devices.Components do
       []
     end
   end
+
+  @typedoc """
+  A component's readings over a window, for the sparklines on its panel:
+  each reading's averages, oldest first, and which window they cover.
+  """
+  @type readings_history() :: %{
+          window: :six_hours | :fourteen_days,
+          series: %{String.t() => [{DateTime.t(), float()}]}
+        }
+
+  @doc """
+  The component's readings over the last six hours, averaged in five-minute
+  steps. A component that reports too rarely to draw a line in six hours, such
+  as a lock's battery, gets the last fourteen days in four-hour steps instead.
+  Empty where analytics are off.
+  """
+  @spec readings_history(DeviceComponent.t(), DateTime.t()) :: readings_history()
+  def readings_history(%DeviceComponent{} = component, %DateTime{} = now \\ DateTime.utc_now()) do
+    if Application.get_env(:nerves_hub, :analytics_enabled) do
+      six_hours = readings_series(component, :six_hours, DateTime.add(now, -6, :hour))
+
+      if Enum.any?(six_hours, fn {_key, points} -> length(points) > 1 end),
+        do: %{window: :six_hours, series: six_hours},
+        else: %{
+          window: :fourteen_days,
+          series: readings_series(component, :fourteen_days, DateTime.add(now, -14, :day))
+        }
+    else
+      %{window: :six_hours, series: %{}}
+    end
+  end
+
+  defp readings_series(component, window, since) do
+    component
+    |> readings_since(since)
+    |> bucketed(window)
+    |> AnalyticsRepo.all()
+    |> Enum.group_by(& &1.key, &{to_utc_datetime(&1.at), &1.value})
+    |> Map.new(fn {key, points} -> {key, Enum.sort_by(points, &elem(&1, 0), DateTime)} end)
+  end
+
+  defp readings_since(component, since) do
+    DeviceComponentReading
+    |> where(product_id: ^component.product_id, device_id: ^component.device_id)
+    |> where(namespace: ^component.namespace, serial: ^component.serial)
+    |> where([r], r.timestamp >= ^since)
+  end
+
+  # Separate clauses because the interval has to be written into the SQL: a
+  # bound parameter in the select wouldn't match the one in the GROUP BY.
+  defp bucketed(query, :six_hours) do
+    query
+    |> group_by([r], [r.key, fragment("toStartOfFiveMinutes(?)", r.timestamp)])
+    |> select([r], %{key: r.key, at: fragment("toStartOfFiveMinutes(?)", r.timestamp), value: avg(r.value)})
+  end
+
+  defp bucketed(query, :fourteen_days) do
+    query
+    |> group_by([r], [r.key, fragment("toStartOfInterval(?, INTERVAL 4 HOUR)", r.timestamp)])
+    |> select([r], %{
+      key: r.key,
+      at: fragment("toStartOfInterval(?, INTERVAL 4 HOUR)", r.timestamp),
+      value: avg(r.value)
+    })
+  end
+
+  # Bucketing functions come back as a naive datetime or a datetime, depending
+  # on the column type; both name the same instant in UTC.
+  defp to_utc_datetime(%NaiveDateTime{} = at), do: DateTime.from_naive!(at, "Etc/UTC")
+  defp to_utc_datetime(%DateTime{} = at), do: at
+
+  @typedoc """
+  How one of a component's states changed over a window: its value when the
+  window began (`nil` if nothing says), and each change in it, oldest first.
+  """
+  @type state_history() :: %{
+          String.t() => %{
+            before: String.t() | nil,
+            changes: [%{at: DateTime.t(), value: String.t(), detail: String.t()}]
+          }
+        }
+
+  @doc """
+  How each of the component's current states changed over the last 24 hours,
+  for the timelines on its panel. Empty where analytics are off.
+  """
+  @spec state_history(DeviceComponent.t(), DateTime.t()) :: state_history()
+  def state_history(%DeviceComponent{state: state} = component, %DateTime{} = since) when map_size(state) > 0 do
+    if Application.get_env(:nerves_hub, :analytics_enabled) do
+      names = Map.keys(state)
+
+      base =
+        DeviceComponentHistory
+        |> where(product_id: ^component.product_id, device_id: ^component.device_id)
+        |> where(namespace: ^component.namespace, serial: ^component.serial)
+        |> where([h], h.event == "state_changed" and h.state in ^names)
+
+      before =
+        base
+        |> where([h], h.timestamp < ^since)
+        |> group_by([h], h.state)
+        |> select([h], {h.state, fragment("argMax(?, ?)", h.value, h.timestamp)})
+        |> AnalyticsRepo.all()
+        |> Map.new()
+
+      changes =
+        base
+        |> where([h], h.timestamp >= ^since)
+        |> order_by(asc: :timestamp)
+        |> select([h], %{state: h.state, at: h.timestamp, value: h.value, detail: h.detail})
+        |> AnalyticsRepo.all()
+        |> Enum.group_by(& &1.state, &Map.delete(&1, :state))
+
+      Map.new(names, &{&1, %{before: before[&1], changes: Map.get(changes, &1, [])}})
+    else
+      %{}
+    end
+  end
+
+  def state_history(%DeviceComponent{}, _since), do: %{}
 
   @doc """
   The product's components counted as the Components page shows them: how

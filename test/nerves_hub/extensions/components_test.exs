@@ -75,7 +75,85 @@ defmodule NervesHub.Extensions.ComponentsTest do
     assert {^state, [{:push, "components:sync", %{"refresh" => true}}]} = Components.handle_info(:refresh, state)
   end
 
-  test "an event 0.1.0 doesn't have is ignored", %{state: state} do
+  test "an event the contract doesn't have is ignored", %{state: state} do
     assert {^state, []} = Components.handle_in("added", @mcu, state)
+  end
+
+  describe "0.2.0" do
+    setup %{state: state} do
+      {state, []} = Components.handle_in("snapshot", %{"components" => [@mcu]}, state)
+      %{state: state}
+    end
+
+    defp readings(serial) do
+      %{
+        "reports" => [
+          %{
+            "namespace" => "mcu",
+            "serial" => serial,
+            "timestamp" => DateTime.to_iso8601(DateTime.utc_now()),
+            "metrics" => %{"voltage" => 5.02}
+          }
+        ]
+      }
+    end
+
+    defp lock_change(serial, value \\ "unlocked") do
+      %{"namespace" => "mcu", "serial" => serial, "state" => "lock", "value" => value}
+    end
+
+    test "is advertised alongside 0.1.0" do
+      assert NervesHub.Extensions.versions(:components) == ["0.2.0", "0.1.0"]
+      assert NervesHub.Extensions.module(:components, Version.parse!("0.2.0")) == Components
+    end
+
+    test "stores readings", %{device: device, state: state} do
+      {_state, []} = Components.handle_in("readings", readings(@mcu["serial"]), state)
+
+      assert [%{readings: %{"voltage" => %{"value" => 5.02}}}] = Store.list_for_device(device)
+    end
+
+    test "stores a state change", %{device: device, state: state} do
+      {_state, []} = Components.handle_in("state", lock_change(@mcu["serial"]), state)
+
+      assert [%{state: %{"lock" => %{"value" => "unlocked"}}}] = Store.list_for_device(device)
+    end
+
+    test "an unknown component asks for the set, at most once every thirty seconds", %{state: state} do
+      {state, [{:push, "components:sync", %{}}]} = Components.handle_in("readings", readings("unknown"), state)
+      {state, []} = Components.handle_in("state", lock_change("unknown"), state)
+
+      # Thirty seconds on, it may ask again.
+      state = State.assign(state, :unknown_synced_at, State.get(state, :unknown_synced_at) - 30_000)
+      assert {_state, [{:push, "components:sync", %{}}]} = Components.handle_in("state", lock_change("unknown"), state)
+    end
+
+    test "readings over the limit are dropped", %{device: device, state: state} do
+      for _ <- 1..5, do: {_state, []} = Components.handle_in("readings", readings(@mcu["serial"]), state)
+
+      Store.forget(device, hd(Store.list_for_device(device)).id, "test")
+      {_state, []} = Components.handle_in("snapshot", %{"components" => [@mcu]}, state)
+      {_state, []} = Components.handle_in("readings", readings(@mcu["serial"]), state)
+
+      assert [%{readings: readings}] = Store.list_for_device(device)
+      assert readings == %{}
+    end
+
+    test "a state change over the limit schedules a sync", %{state: state} do
+      state =
+        Enum.reduce(1..20, state, fn i, state ->
+          {state, []} = Components.handle_in("state", lock_change(@mcu["serial"], "v#{i}"), state)
+          state
+        end)
+
+      resync_ms = Components.resync_delay_ms()
+
+      assert {_state, [{:start_timer, :resync, ^resync_ms}]} =
+               Components.handle_in("state", lock_change(@mcu["serial"], "v21"), state)
+    end
+
+    test "a malformed state change is logged and ignored", %{state: state} do
+      assert {^state, []} = Components.handle_in("state", lock_change(@mcu["serial"], ""), state)
+    end
   end
 end
