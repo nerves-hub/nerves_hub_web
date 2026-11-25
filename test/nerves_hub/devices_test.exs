@@ -765,6 +765,208 @@ defmodule NervesHub.DevicesTest do
     end
   end
 
+  # The web UI's `filter/3` and the API's
+  # `get_devices_by_org_id_and_product_id_with_pager/3` start from one query,
+  # so the same filters, sorts and pages should list the same devices.
+  describe "the web UI and API devices lists" do
+    # The devices differ in everything the lists filter and sort on, and no two
+    # share a connection time or tags, so every sort has one right order.
+    setup context do
+      %{org: org, product: product, firmware: firmware, deployment_group: deployment_group} = context
+      %{device: online, device2: updating, device3: never_connected} = context
+
+      long_gone = Fixtures.device_fixture(org, product, firmware)
+      failing = Fixtures.device_fixture(org, product, firmware)
+      deleted = Fixtures.device_fixture(org, product, firmware)
+
+      hours_ago = &DateTime.add(DateTime.utc_now(), -&1, :hour)
+
+      for {device, status, established, last_seen, interface} <- [
+            {online, :connected, 2, 1, :wifi},
+            {updating, :connected, 5, 3, :ethernet},
+            {long_gone, :disconnected, 21 * 24, 20 * 24, :cellular},
+            {failing, :disconnected, 30, 26, :wifi},
+            {deleted, :connected, 8, 7, :wifi}
+          ] do
+        Fixtures.device_connection_fixture(device, %{
+          status: status,
+          established_at: hours_ago.(established),
+          last_seen_at: hours_ago.(last_seen),
+          network_interface: interface
+        })
+      end
+
+      for {device, status} <- [{online, "healthy"}, {updating, "unhealthy"}, {failing, "warning"}] do
+        {:ok, _} = Health.save_device_health(%{"device_id" => device.id, "status" => status})
+      end
+
+      {:ok, _} = Fixtures.inflight_update(updating, firmware)
+
+      for {device, set} <- [
+            {online, [tags: ["a-prod"], deployment_id: deployment_group.id]},
+            {updating, [tags: ["b-lab"]]},
+            {never_connected, [tags: nil, updates_enabled: false]},
+            {long_gone, [tags: ["d-field"]]},
+            {failing,
+             [
+               tags: ["e-prod"],
+               updates_blocked_until: DateTime.add(DateTime.utc_now(), 1, :hour),
+               consecutive_failed_updates: 3
+             ]},
+            {deleted, [tags: ["f-prod"], deleted_at: DateTime.utc_now()]}
+          ] do
+        {1, _} = Repo.update_all(where(Device, id: ^device.id), set: set)
+      end
+
+      %{online: online, updating: updating, deleted: deleted}
+    end
+
+    test "filter alike", %{product: product, user: user, firmware: firmware} = context do
+      filters = [
+        %{},
+        %{connection: "connected"},
+        %{connection: "disconnected,not_seen"},
+        %{connection: "not_seen_in_fourteen_days"},
+        %{connection_type: "wifi"},
+        %{health_status: "unhealthy,warning"},
+        %{health_status: "unknown"},
+        %{updates: "updating"},
+        %{updates: "failed-updates"},
+        %{updates: "disabled"},
+        %{only_updating: true},
+        %{deployment_id: context.deployment_group.id},
+        %{deployment_id: nil},
+        %{tags: "prod"},
+        %{has_no_tags: true},
+        %{identifier: context.online.identifier},
+        %{firmware_version: firmware.version},
+        %{state: "attention"},
+        %{state: "offline"},
+        %{state: "attention", reason: "not_seen"},
+        %{advanced_query: ~s|connection = "connected" or health_status = "unhealthy"|},
+        %{advanced_query: ~s|update_status is "updating"|},
+        %{advanced_query: ~s|deleted = "true"|},
+        %{advanced_query: "prod"}
+      ]
+
+      listed =
+        for filter <- filters do
+          opts = %{filters: Map.put(filter, :display_deleted, "exclude")}
+          web_ui = list(:web_ui, product, user, opts)
+
+          assert list(:api, product, user, opts) == web_ui, "the lists differ on #{inspect(filter)}"
+
+          web_ui
+        end
+
+      # The filters picked out different devices, so agreeing meant something.
+      assert listed |> Enum.uniq() |> length() > 10
+    end
+
+    test "sort alike", %{product: product, user: user} do
+      for field <- [:identifier, :connection_established_at, :connection_last_seen_at, :tags],
+          direction <- [:asc, :desc] do
+        opts = %{sort: {direction, field}, filters: %{display_deleted: "exclude"}}
+        web_ui = list(:web_ui, product, user, opts)
+
+        assert list(:api, product, user, opts) == web_ui, "the lists differ sorted by #{direction} #{field}"
+        assert length(web_ui) == 5
+      end
+    end
+
+    test "page alike", %{product: product, user: user} do
+      pages =
+        for page <- 1..4 do
+          opts = %{
+            sort: {:asc, :connection_last_seen_at},
+            filters: %{display_deleted: "exclude"},
+            pagination: %{page: page, page_size: 2}
+          }
+
+          {web_ui, web_ui_meta} = list_with_meta(:web_ui, product, user, opts)
+          {api, api_meta} = list_with_meta(:api, product, user, opts)
+
+          assert api == web_ui
+          assert {api_meta.total_count, api_meta.total_pages} == {5, 3}
+          assert {web_ui_meta.total_count, web_ui_meta.total_pages} == {5, 3}
+
+          web_ui
+        end
+
+      assert pages |> Enum.map(&length/1) == [2, 2, 1, 0]
+      assert pages |> List.flatten() |> Enum.uniq() |> length() == 5
+    end
+
+    test "load what each list shows", context do
+      %{product: product, user: user, org: org, firmware: firmware, deployment_group: group} = context
+      opts = %{sort: {:asc, :connection_last_seen_at}, filters: %{display_deleted: "exclude"}}
+
+      {[online, updating | _], _meta} = Devices.filter(product, user, opts)
+
+      assert online.id == context.online.id
+      assert online.latest_connection.status == :connected
+      assert online.latest_health.status == :healthy
+      assert online.deployment_group.id == group.id
+      assert online.deployment_group.current_release.firmware.id == firmware.id
+      assert online.inflight_update == nil
+
+      assert updating.id == context.updating.id
+      assert updating.latest_health.status == :unhealthy
+      assert updating.deployment_group == nil
+      assert updating.inflight_update.firmware.id == firmware.id
+
+      {[online, updating | _], _meta} =
+        Devices.get_devices_by_org_id_and_product_id_with_pager(org.id, product.id, Map.put(opts, :visible_to, user))
+
+      assert online.id == context.online.id
+      assert online.org.id == org.id
+      assert online.product.id == product.id
+      assert online.latest_connection.status == :connected
+      assert online.latest_health.status == :healthy
+      assert online.deployment_group.current_release.firmware.id == firmware.id
+
+      assert updating.id == context.updating.id
+      assert updating.latest_health.status == :unhealthy
+      assert updating.deployment_group == nil
+    end
+
+    # The API has never listed soft-deleted devices, whatever `display_deleted`
+    # asks for. The web UI leaves it to that filter. Either way, an advanced
+    # query that names `deleted` decides instead.
+    test "leave soft-deleted devices to an advanced query naming them", context do
+      %{product: product, user: user, deleted: deleted} = context
+
+      include = %{filters: %{display_deleted: "include"}}
+      assert deleted.id in list(:web_ui, product, user, include)
+      refute deleted.id in list(:api, product, user, include)
+
+      only = %{filters: %{display_deleted: "only"}}
+      assert list(:web_ui, product, user, only) == [deleted.id]
+      assert list(:api, product, user, only) == []
+
+      named = %{filters: %{display_deleted: "exclude", advanced_query: ~s|deleted = "true"|}}
+      assert list(:web_ui, product, user, named) == [deleted.id]
+      assert list(:api, product, user, named) == [deleted.id]
+    end
+  end
+
+  defp list(kind, product, user, opts) do
+    {ids, _meta} = list_with_meta(kind, product, user, opts)
+    ids
+  end
+
+  defp list_with_meta(:web_ui, product, user, opts) do
+    opts = Map.put_new(opts, :pagination, %{page: 1, page_size: 100})
+    {devices, meta} = Devices.filter(product, user, opts)
+    {Enum.map(devices, & &1.id), meta}
+  end
+
+  defp list_with_meta(:api, product, user, opts) do
+    opts = opts |> Map.put_new(:pagination, %{page: 1, page_size: 100}) |> Map.put(:visible_to, user)
+    {devices, meta} = Devices.get_devices_by_org_id_and_product_id_with_pager(product.org_id, product.id, opts)
+    {Enum.map(devices, & &1.id), meta}
+  end
+
   describe "distinct_tags_for_product/1" do
     test "returns the sorted, distinct union of device tags for the product", %{
       org: org,

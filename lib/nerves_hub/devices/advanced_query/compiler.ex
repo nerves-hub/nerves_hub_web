@@ -8,7 +8,7 @@ defmodule NervesHub.Devices.AdvancedQuery.Compiler do
   its bindings — `device` for the devices themselves (the alarm filters
   correlate a subquery back to it) and `latest_connection` — the same
   convention `DeviceFiltering` relies on (see
-  `NervesHub.Devices.common_filter_query/1`).
+  `NervesHub.Devices.list_query/1`).
   """
 
   import Ecto.Query
@@ -368,8 +368,9 @@ defmodule NervesHub.Devices.AdvancedQuery.Compiler do
       )
 
   # A device is soft deleted when it has a `deleted_at` timestamp. Note that
-  # `NervesHub.Filtering` drops the default "exclude deleted" filter whenever the
-  # advanced query references this column, so it controls deleted visibility.
+  # the devices lists drop their default "exclude deleted" filter whenever the
+  # advanced query references this column, so it controls deleted visibility
+  # (`NervesHub.Devices.filter_list/4`).
   defp comparison_dynamic("deleted", "=", "true"), do: dynamic([d], not is_nil(d.deleted_at))
   defp comparison_dynamic("deleted", "=", "false"), do: dynamic([d], is_nil(d.deleted_at))
   defp comparison_dynamic("deleted", "!=", "true"), do: dynamic([d], is_nil(d.deleted_at))
