@@ -16,6 +16,7 @@ defmodule NervesHub.DevicesTest do
   alias NervesHub.Devices.CACertificate
   alias NervesHub.Devices.CACertificates
   alias NervesHub.Devices.Certificates
+  alias NervesHub.Devices.Connections
   alias NervesHub.Devices.Deployments
   alias NervesHub.Devices.Device
   alias NervesHub.Devices.DeviceCertificate
@@ -718,6 +719,49 @@ defmodule NervesHub.DevicesTest do
       assert count == 3
 
       assert Enum.all?(devices, fn device -> Repo.reload(device).tags == [] end)
+    end
+  end
+
+  describe "get_devices_by_org_id_and_product_id_with_pager/3" do
+    test "pages in identifier order, with each page's associations loaded", %{
+      org: org,
+      user: user,
+      firmware: firmware,
+      deployment_group: deployment_group
+    } do
+      product = Fixtures.product_fixture(user, org, %{name: "Paged Product"})
+
+      [first, second, third] =
+        for identifier <- ["paged-c", "paged-a", "paged-b"] do
+          Fixtures.device_fixture(org, product, firmware, %{identifier: identifier})
+        end
+
+      {:ok, _first} = Devices.update_device(first, %{deployment_id: deployment_group.id})
+      {:ok, connection} = Connections.device_connecting(org.id, product.id, first.id)
+
+      page = fn number ->
+        Devices.get_devices_by_org_id_and_product_id_with_pager(org.id, product.id, %{
+          pagination: %{page: number, page_size: 2}
+        })
+      end
+
+      {page_one, meta} = page.(1)
+      {[last], _meta} = page.(2)
+
+      assert Enum.map(page_one ++ [last], & &1.id) == [second.id, third.id, first.id]
+      assert meta.total_count == 3
+
+      assert last.org.id == org.id
+      assert last.product.id == product.id
+      assert last.deployment_group.id == deployment_group.id
+      assert last.deployment_group.current_release.firmware.id == firmware.id
+      assert last.latest_connection.id == connection.id
+      assert last.latest_health == nil
+
+      for device <- page_one do
+        assert device.deployment_group == nil
+        assert device.latest_connection == nil
+      end
     end
   end
 
