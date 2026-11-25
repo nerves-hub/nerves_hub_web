@@ -148,7 +148,9 @@ when adding or removing one.
   filter or sort behaves the same in all three. Each pages a query that
   selects devices only and loads what it shows afterwards:
   Postgres builds every row before an OFFSET, so a selected join would cost a
-  whole product's lookups on every page.
+  whole product's lookups on every page. Every sort but identifier's (unique
+  in an org) ends on the device id, so devices that tie, such as every one
+  that never connected, keep their place from one page to the next.
 - `managed_deployments.ex` / `managed_deployments/` — deployment groups and the
   `Distributed.Orchestrator` (one per deployment). A release with a workflow
   is walked a step at a time (`Workflows`, `WorkflowCoordinator`); each step

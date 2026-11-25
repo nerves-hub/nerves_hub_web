@@ -960,6 +960,27 @@ defmodule NervesHub.DevicesTest do
       assert list(:web_ui, product, user, named) == [deleted.id]
       assert list(:api, product, user, named) == [deleted.id]
     end
+
+    # Postgres returns devices that tie on the sort key in whatever order it
+    # finds them, so paging by OFFSET could show a tied device twice and
+    # another never. Rewriting the first rows moves them after the rest of
+    # the table, so the order Postgres finds them in isn't their ids'.
+    test "page through devices tied on the sort key once each", %{org: org, user: user, firmware: firmware} do
+      product = Fixtures.product_fixture(user, org, %{name: "Tied Product"})
+      ids = for _ <- 1..6, do: Fixtures.device_fixture(org, product, firmware, %{tags: ["tied"]}).id
+      {3, _} = Repo.update_all(where(Device, [d], d.id in ^Enum.take(ids, 3)), set: [description: "moved"])
+
+      for kind <- [:web_ui, :api],
+          field <- [:connection_last_seen_at, :connection_established_at, :tags],
+          {direction, expected} <- [asc: ids, desc: Enum.reverse(ids)] do
+        listed =
+          Enum.flat_map(1..3, fn page ->
+            list(kind, product, user, %{sort: {direction, field}, pagination: %{page: page, page_size: 2}})
+          end)
+
+        assert listed == expected, "#{kind} sorted #{direction} by #{field}"
+      end
+    end
   end
 
   defp list(kind, product, user, opts) do
