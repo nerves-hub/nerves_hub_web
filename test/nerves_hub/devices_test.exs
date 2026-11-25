@@ -898,6 +898,20 @@ defmodule NervesHub.DevicesTest do
       assert pages |> List.flatten() |> Enum.uniq() |> length() == 5
     end
 
+    test "page a query that selects devices only", %{product: product, user: user} do
+      opts = %{sort: {:asc, :connection_last_seen_at}, filters: %{display_deleted: "exclude", health_status: "healthy"}}
+
+      for kind <- [:web_ui, :api] do
+        sql = paged_query(fn -> list(kind, product, user, opts) end)
+        [selected, _rest] = String.split(sql, " FROM ", parts: 2)
+
+        # Only the devices' own columns, `d0`: anything joined is loaded after
+        # paging, or Postgres would build it for every device before the page.
+        assert Regex.scan(~r/(\w+)\."/, selected, capture: :all_but_first) |> Enum.uniq() == [["d0"]],
+               "the #{kind} list's paged query selects #{selected}"
+      end
+    end
+
     test "load what each list shows", context do
       %{product: product, user: user, org: org, firmware: firmware, deployment_group: group} = context
       opts = %{sort: {:asc, :connection_last_seen_at}, filters: %{display_deleted: "exclude"}}
@@ -966,6 +980,39 @@ defmodule NervesHub.DevicesTest do
     opts = opts |> Map.put_new(:pagination, %{page: 1, page_size: 100}) |> Map.put(:visible_to, user)
     {devices, meta} = Devices.get_devices_by_org_id_and_product_id_with_pager(product.org_id, product.id, opts)
     {Enum.map(devices, & &1.id), meta}
+  end
+
+  # The SQL of the one query `fun` sends with a LIMIT: the page. The handler
+  # runs in whichever process sends a query, so other tests' are left out.
+  defp paged_query(fun) do
+    test_pid = self()
+    handler_id = "paged-query-#{System.unique_integer([:positive])}"
+
+    :telemetry.attach(
+      handler_id,
+      [:nerves_hub, :repo, :query],
+      fn _event, _measurements, %{query: query}, _config ->
+        if self() == test_pid, do: send(test_pid, {handler_id, query})
+      end,
+      nil
+    )
+
+    try do
+      fun.()
+    after
+      :telemetry.detach(handler_id)
+    end
+
+    [query] = handler_id |> sent_queries() |> Enum.filter(&(&1 =~ "LIMIT"))
+    query
+  end
+
+  defp sent_queries(handler_id) do
+    receive do
+      {^handler_id, query} -> [query | sent_queries(handler_id)]
+    after
+      0 -> []
+    end
   end
 
   describe "distinct_tags_for_product/1" do

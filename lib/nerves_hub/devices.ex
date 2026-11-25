@@ -143,9 +143,6 @@ defmodule NervesHub.Devices do
       |> filter_list(product_id, opts, hide_deleted: true)
       |> Flop.run(flop)
 
-    # Preloaded after paging, not joined: Postgres applies the offset only
-    # after building every earlier row, so selected joins would be looked up
-    # and sorted for every device in the product on each page.
     devices =
       Repo.preload(devices, [
         :org,
@@ -180,17 +177,23 @@ defmodule NervesHub.Devices do
     pagination = Map.get(opts, :pagination, %{})
     flop = %Flop{page: Map.get(pagination, :page, 1), page_size: Map.get(pagination, :page_size, 25)}
 
-    product
-    |> filter_query(user, opts)
-    |> join(:left, [device: d], dg in assoc(d, :deployment_group), as: :deployment_group)
-    |> preload([latest_connection: lc], latest_connection: lc)
-    |> preload([latest_health: lh], latest_health: lh)
-    # The firmware the list's Firmware column measures each device against:
-    # its group's release (up to date, waiting, failing to take it) and the
-    # firmware an update in progress is installing.
-    |> preload([deployment_group: dg], deployment_group: {dg, current_release: :firmware})
-    |> preload([inflight_update: ifu], inflight_update: {ifu, :firmware})
-    |> Flop.run(flop)
+    {devices, meta} =
+      product
+      |> filter_query(user, opts)
+      |> Flop.run(flop)
+
+    # The firmware is what the list's Firmware column measures each device
+    # against: its group's release (up to date, waiting, failing to take it)
+    # and the firmware an update in progress is installing.
+    devices =
+      Repo.preload(devices, [
+        :latest_connection,
+        :latest_health,
+        deployment_group: [current_release: :firmware],
+        inflight_update: :firmware
+      ])
+
+    {devices, meta}
   end
 
   @doc """
@@ -309,6 +312,11 @@ defmodule NervesHub.Devices do
   #   * `latest_connection`, `latest_health` and `inflight_update`, left joins
   #     only filters and sorts read. Each matches at most one row per device,
   #     so Postgres drops whichever a query doesn't use.
+  #
+  # Neither list selects a join. Postgres applies OFFSET only after building
+  # every row before it, so a selected join would be looked up, and sorted,
+  # for every device ahead of the page. Each list preloads what it shows once
+  # it has its page.
   #
   # Without `visible_to`, every device is listed. That is only right for a
   # caller that already knows its actor sees all of them.
