@@ -56,6 +56,7 @@ defmodule NervesHubWeb.Components.DeviceFilters do
     connection: [
       {"connected", "Online", nil},
       {"offline", "Offline", nil},
+      {"asleep", "Asleep", nil},
       {"not_seen_in_seven_days", "Not seen 7 d+", nil},
       {"not_seen_in_fourteen_days", "Not seen 14 d+", nil},
       {"not_seen", "Never connected", nil}

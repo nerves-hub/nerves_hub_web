@@ -176,7 +176,7 @@ defmodule NervesHub.Consoles.PubSub do
 
   @doc """
   Tell the device Show LiveViews about console activity they display, such as
-  an upload starting or finishing.
+  the local shell attaching or detaching.
   """
   @spec broadcast_to_console_watchers(integer(), String.t(), map()) :: :ok
   def broadcast_to_console_watchers(device_id, event, payload) do

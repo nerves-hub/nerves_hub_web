@@ -1,6 +1,7 @@
 defmodule NervesHubWeb.API.DeviceJSON do
   @moduledoc false
 
+  alias NervesHub.Devices.DeviceConnection
   alias NervesHubWeb.API.DeviceSharedSecretJSON
 
   @doc """
@@ -36,6 +37,7 @@ defmodule NervesHubWeb.API.DeviceJSON do
       tags: device.tags,
       online: connection_status(device),
       connection_status: connection_status(device),
+      sleep: sleep(device),
       firmware_metadata: device.firmware_metadata,
       version: version(device),
       deployment_group: deployment_group(device.deployment_group),
@@ -72,6 +74,24 @@ defmodule NervesHubWeb.API.DeviceJSON do
 
   defp connection_status(%{latest_connection: %{status: status}}), do: status
   defp connection_status(_), do: :not_seen
+
+  # Present from when the device says it is going to sleep until it connects
+  # again: see `DeviceConnection.sleep_state/2`.
+  defp sleep(%{latest_connection: %DeviceConnection{} = connection}) do
+    case DeviceConnection.sleep_state(connection) do
+      nil ->
+        nil
+
+      state ->
+        %{
+          state: state,
+          mode: if(connection.disconnected_reason == :light_sleep, do: :light, else: :deep),
+          expected_wake_at: connection.expected_wake_at
+        }
+    end
+  end
+
+  defp sleep(_device), do: nil
 
   defp deleted(%{deleted_at: nil}), do: false
   defp deleted(%{deleted_at: _}), do: true

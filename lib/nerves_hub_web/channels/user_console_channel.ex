@@ -32,26 +32,14 @@ defmodule NervesHubWeb.UserConsoleChannel do
     {:noreply, socket}
   end
 
-  def handle_in("file-data/start", payload, socket) do
-    payload = Map.put(payload, :uploaded_by, socket.assigns.user.id)
-    :ok = record(socket, :sent, "file-data/start", payload)
-    :ok = to_console(socket, "file-data/start", payload)
-    :ok = PubSub.broadcast_to_console_watchers(socket.assigns.device_id, "file-data/start", payload)
-    {:noreply, socket}
-  end
-
+  # A file sent to the device: `file-data/start`, its chunks, then
+  # `file-data/stop`. Each chunk is answered once it's on its way to the
+  # device, so the page can show how much of the file has left it, and can
+  # keep only a few chunks in flight rather than queueing the whole file.
   def handle_in("file-data", payload, socket) do
     :ok = record(socket, :sent, "file-data", payload)
     :ok = to_console(socket, "file-data", payload)
-    {:noreply, socket}
-  end
-
-  def handle_in("file-data/stop", payload, socket) do
-    payload = Map.put(payload, :uploaded_by, socket.assigns.user.id)
-    :ok = record(socket, :sent, "file-data/stop", payload)
-    :ok = to_console(socket, "file-data/stop", payload)
-    :ok = PubSub.broadcast_to_console_watchers(socket.assigns.device_id, "file-data/stop", payload)
-    {:noreply, socket}
+    {:reply, :ok, socket}
   end
 
   def handle_in(event, payload, socket) do

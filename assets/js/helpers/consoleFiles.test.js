@@ -1,11 +1,11 @@
-// Unit tests for which device consoles can be sent a file.
+// Unit tests for sending a file to a device console.
 // Runs on Node's built-in test runner - no DOM:
 //
 //   node --test assets/js
 import { describe, it } from "node:test"
 import assert from "node:assert/strict"
 
-import { acceptsFiles } from "./consoleFiles.js"
+import { acceptsFiles, CHUNK_SIZE, encodeChunk } from "./consoleFiles.js"
 
 describe("acceptsFiles", () => {
   it("accepts a console from 2.0.0 on", () => {
@@ -25,5 +25,23 @@ describe("acceptsFiles", () => {
     assert.equal(acceptsFiles(undefined), true)
     assert.equal(acceptsFiles(null), true)
     assert.equal(acceptsFiles("unknown"), true)
+  })
+})
+
+describe("encodeChunk", () => {
+  it("matches Node's base64 for a full chunk", () => {
+    const bytes = new Uint8Array(CHUNK_SIZE).map((_, i) => (i * 7) % 256)
+
+    assert.equal(encodeChunk(bytes), Buffer.from(bytes).toString("base64"))
+  })
+
+  it("handles a chunk that isn't a whole number of slices", () => {
+    const bytes = new Uint8Array(10_000).map((_, i) => (i * 13) % 256)
+
+    assert.equal(encodeChunk(bytes), Buffer.from(bytes).toString("base64"))
+  })
+
+  it("encodes an empty chunk as an empty string", () => {
+    assert.equal(encodeChunk(new Uint8Array(0)), "")
   })
 })

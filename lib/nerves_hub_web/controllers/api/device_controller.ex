@@ -18,7 +18,6 @@ defmodule NervesHubWeb.API.DeviceController do
   alias NervesHub.Products.ApiKey
   alias NervesHubWeb.API.PaginationHelpers
   alias NervesHubWeb.API.Plugs.RefuseDeletedDevice
-  alias NervesHubWeb.Endpoint
   alias NervesHubWeb.Helpers.Authorization
 
   require Logger
@@ -238,7 +237,7 @@ defmodule NervesHubWeb.API.DeviceController do
   end
 
   def reconnect(%{assigns: %{device: device}} = conn, _params) do
-    _ = Endpoint.broadcast("device_socket:#{device.id}", "disconnect", %{})
+    :ok = DeviceEvents.reconnect(device)
 
     send_resp(conn, :no_content, "")
   end
