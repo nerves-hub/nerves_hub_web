@@ -19,11 +19,16 @@ defmodule NervesHub.Devices.ReportedMetadata do
       the limit loses the same keys every time.
     * Metadata that isn't a map is dropped whole.
 
-  Whatever is left is still stored, and what was dropped is logged.
+  Whatever is left is still stored, and the product's operators are told what
+  was dropped (`ProductNotifications.create_invalid_device_metadata_notification!/4`),
+  at most once a minute per device.
   """
 
   alias NervesHub.DeviceLink.DeviceInfo
   alias NervesHub.Devices.Connections
+  alias NervesHub.Helpers.Logging
+  alias NervesHub.ProductNotifications
+  alias NervesHub.RateLimit.DeviceMetadata, as: RateLimit
 
   require Logger
 
@@ -32,6 +37,15 @@ defmodule NervesHub.Devices.ReportedMetadata do
   @max_keys 32
   @max_key_bytes 64
   @max_value_bytes 256
+
+  # One notification per device per minute, as `NervesHub.Devices.Metrics`
+  # raises its own and for the same reasons: a device sending bad metadata
+  # does it on every join and every health report, and one broken device in
+  # a large fleet shouldn't use up its neighbours' notifications. A bucket
+  # that takes sixty seconds to fill, emptied by each notification.
+  @rate_limit_tokens_per_sec 1
+  @rate_limit_max_capacity 60
+  @rate_limit_token_cost 60
 
   @typedoc """
   Why keys were dropped, in the order they are checked.
@@ -68,17 +82,14 @@ defmodule NervesHub.Devices.ReportedMetadata do
     {kept, dropped} = trim(metadata)
 
     if dropped.count > 0 do
-      Logger.info(
-        "[ReportedMetadata] dropped #{dropped.count} metadata keys from #{device_info.device_identifier}: #{inspect(dropped.reasons)}"
-      )
+      notify(device_info, dropped.reasons, dropped.count, dropped.example_key)
     end
 
     write(device_info, kept)
   end
 
   def merge(%DeviceInfo{} = device_info, _not_a_map) do
-    Logger.info("[ReportedMetadata] dropped metadata that isn't a map from #{device_info.device_identifier}")
-    :ok
+    notify(device_info, [:not_an_object], 0, nil)
   end
 
   @doc """
@@ -116,6 +127,30 @@ defmodule NervesHub.Devices.ReportedMetadata do
   defp example_key([]), do: nil
   defp example_key([key | _rest]) when is_binary(key), do: String.slice(key, 0, @max_key_bytes)
   defp example_key([key | _rest]), do: inspect(key)
+
+  defp notify(device_info, reasons, count, example_key) do
+    case RateLimit.hit(
+           "device_#{device_info.device_id}",
+           @rate_limit_tokens_per_sec,
+           @rate_limit_max_capacity,
+           @rate_limit_token_cost
+         ) do
+      {:allow, _count} ->
+        _ = ProductNotifications.create_invalid_device_metadata_notification!(device_info, reasons, count, example_key)
+        :ok
+
+      {:deny, _ms} ->
+        :ok
+    end
+  rescue
+    # Telling the operator is not worth the device's connection.
+    error ->
+      Logger.warning(
+        "[ReportedMetadata] could not raise the dropped metadata of #{device_info.device_identifier}: #{inspect(error)}"
+      )
+
+      Logging.log_to_sentry(device_info, error)
+  end
 
   defp write(_device_info, kept) when kept == %{}, do: :ok
 

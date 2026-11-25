@@ -586,6 +586,62 @@ defmodule NervesHub.DeviceLinkTest do
       assert %DeviceConnection{metadata: metadata} = Connections.get_latest_for_device(device.id)
       assert metadata == %{"device_api_version" => "2.3.0", "placement" => "the shed"}
     end
+
+    test "metadata within the limits raises nothing", %{session: session} do
+      DeviceLink.device_message(session, "report_device_metadata", %{"metadata" => %{"placement" => "the shed"}})
+
+      assert Repo.all(Notification) == []
+    end
+
+    test "dropped keys are raised to the product's operators, once a minute per device", %{
+      device: device,
+      session: session
+    } do
+      for _ <- 1..2 do
+        DeviceLink.device_message(session, "report_device_metadata", %{
+          "metadata" => %{"placement" => "the shed", "location" => %{}}
+        })
+      end
+
+      assert [notification] = Repo.all(Notification)
+      assert notification.kind == :invalid_device_metadata
+      assert notification.level == :warning
+      assert notification.occurrence_count == 1
+
+      assert notification.metadata == %{
+               "identifier" => device.identifier,
+               "reasons" => ["reserved"],
+               "count" => 1,
+               "example_key" => "location"
+             }
+    end
+
+    test "metadata that isn't an object is raised too", %{session: session} do
+      DeviceLink.device_message(session, "report_device_metadata", %{"metadata" => ["placement", "the shed"]})
+
+      assert [%Notification{kind: :invalid_device_metadata, metadata: %{"reasons" => ["not_an_object"], "count" => 0}}] =
+               Repo.all(Notification)
+    end
+
+    test "a notification that can't be written doesn't take the link down", %{device: device, session: session} do
+      stub(ProductNotifications, :create_invalid_device_metadata_notification!, fn _device_info,
+                                                                                   _reasons,
+                                                                                   _count,
+                                                                                   _key ->
+        raise "no database"
+      end)
+
+      log =
+        capture_log(fn ->
+          assert {_session, []} =
+                   DeviceLink.device_message(session, "report_device_metadata", %{
+                     "metadata" => %{"placement" => "the shed", "location" => %{}}
+                   })
+        end)
+
+      assert log =~ "could not raise the dropped metadata"
+      assert %DeviceConnection{metadata: %{"placement" => "the shed"}} = Connections.get_latest_for_device(device.id)
+    end
   end
 
   describe "disconnect/2" do

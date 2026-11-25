@@ -70,8 +70,10 @@ than trusted:
 - At most **32 keys** are kept, the first in sorted order, so a device over the
   limit loses the same keys every time.
 
-Whatever is left is still stored. The limits are the same for metadata in a
-health report.
+Whatever is left is still stored. The product's operators get a notification
+saying what was dropped and from which device, as they do for metadata that
+isn't an object, at most once a minute per device. The limits are the same for
+metadata in a health report.
 
 ## Older devices
 
