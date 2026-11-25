@@ -250,7 +250,7 @@ defmodule NervesHubWeb.API.UserControllerTest do
     # signed in was one click away from confirming it.
     test "a link can't find or confirm a login", %{conn: conn, user: user} do
       %{"token" => token, "confirmation_code" => code} = start_cli_login(conn)
-      api_tokens = NervesHub.Accounts.get_user_api_tokens(user)
+      api_token_ids = api_token_ids(user)
 
       assert user |> signed_in() |> get("/auth/cli/#{token}") |> response(404)
       assert user |> signed_in() |> post("/auth/cli/#{token}") |> response(404)
@@ -262,7 +262,7 @@ defmodule NervesHubWeb.API.UserControllerTest do
       refute page =~ token
 
       assert waiting?(conn, token)
-      assert NervesHub.Accounts.get_user_api_tokens(user) == api_tokens
+      assert api_token_ids(user) == api_token_ids
     end
 
     test "a code that isn't text finds nothing", %{conn: conn, user: user} do
@@ -452,6 +452,12 @@ defmodule NervesHubWeb.API.UserControllerTest do
   # A code no login is waiting with.
   defp another_code(99_999_999), do: 10_000_000
   defp another_code(code), do: code + 1
+
+  # Ids rather than whole tokens: a request made with the test's own API token
+  # (as `waiting?/2` does) moves that token's `last_used`.
+  defp api_token_ids(user) do
+    user |> NervesHub.Accounts.get_user_api_tokens() |> Enum.map(& &1.id) |> Enum.sort()
+  end
 
   defp waiting?(conn, token) do
     conn
