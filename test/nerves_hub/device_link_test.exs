@@ -507,6 +507,83 @@ defmodule NervesHub.DeviceLinkTest do
     end
   end
 
+  describe "device_message/3 report_device_metadata" do
+    setup %{device: device} do
+      device_info = connected_device_info(device)
+
+      {:ok, %{session: %Session{device_info: device_info}}}
+    end
+
+    test "merges the metadata into the connection", %{device: device, session: session} do
+      assert {_session, []} =
+               DeviceLink.device_message(session, "report_device_metadata", %{
+                 "metadata" => %{"placement" => "the shed", "board_revision" => "c"}
+               })
+
+      assert %DeviceConnection{metadata: %{"placement" => "the shed", "board_revision" => "c"}} =
+               Connections.get_latest_for_device(device.id)
+    end
+
+    test "a second message merges rather than replacing", %{device: device, session: session} do
+      DeviceLink.device_message(session, "report_device_metadata", %{
+        "metadata" => %{"placement" => "the shed", "board_revision" => "c"}
+      })
+
+      DeviceLink.device_message(session, "report_device_metadata", %{"metadata" => %{"placement" => "the barn"}})
+
+      assert %DeviceConnection{metadata: %{"placement" => "the barn", "board_revision" => "c"}} =
+               Connections.get_latest_for_device(device.id)
+    end
+
+    test "keeps what the platform put on the connection", %{device: device, session: session} do
+      :ok =
+        DeviceLink.update_connection_metadata(session.device_info.connection_ref, %{"device_api_version" => "2.3.0"})
+
+      DeviceLink.device_message(session, "report_device_metadata", %{"metadata" => %{"placement" => "the shed"}})
+
+      assert %DeviceConnection{metadata: %{"device_api_version" => "2.3.0", "placement" => "the shed"}} =
+               Connections.get_latest_for_device(device.id)
+    end
+
+    test "an empty map leaves the connection alone", %{device: device, session: session} do
+      DeviceLink.device_message(session, "report_device_metadata", %{"metadata" => %{"placement" => "the shed"}})
+
+      assert {_session, []} = DeviceLink.device_message(session, "report_device_metadata", %{"metadata" => %{}})
+
+      assert %DeviceConnection{metadata: %{"placement" => "the shed"}} = Connections.get_latest_for_device(device.id)
+    end
+
+    test "a malformed payload is ignored without taking the link down", %{device: device, session: session} do
+      DeviceLink.device_message(session, "report_device_metadata", %{"metadata" => %{"placement" => "the shed"}})
+
+      test_pid = self()
+      handler_id = {__MODULE__, make_ref()}
+
+      :ok =
+        :telemetry.attach(
+          handler_id,
+          [:nerves_hub, :devices, :unhandled_in],
+          fn _event, _measurements, metadata, _config -> send(test_pid, {:unhandled_in, metadata.msg}) end,
+          nil
+        )
+
+      on_exit(fn -> :telemetry.detach(handler_id) end)
+
+      for payload <- [
+            %{"metadata" => ["placement", "the barn"]},
+            %{"metadata" => "the barn"},
+            %{"metadata" => nil},
+            %{"placement" => "the barn"},
+            nil
+          ] do
+        assert {^session, []} = DeviceLink.device_message(session, "report_device_metadata", payload)
+        assert_receive {:unhandled_in, "report_device_metadata"}
+      end
+
+      assert %DeviceConnection{metadata: %{"placement" => "the shed"}} = Connections.get_latest_for_device(device.id)
+    end
+  end
+
   describe "disconnect/2" do
     setup %{device: device} do
       device_info = connected_device_info(device)

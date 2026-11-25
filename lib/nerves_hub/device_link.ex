@@ -305,6 +305,16 @@ defmodule NervesHub.DeviceLink do
     end
   end
 
+  # What the device says about itself (where it was installed, the board
+  # revision under it), sent once per join and again when it changes. It goes
+  # where a health report's metadata goes, which older firmware still sends.
+  # Anything but a map is left to the catch-all below. See
+  # docs/device_metadata.md.
+  defp do_device_message(session, "report_device_metadata", %{"metadata" => metadata}) when is_map(metadata) do
+    :ok = Connections.merge_reported_metadata(session.device_info.connection_ref, metadata)
+    {session, []}
+  end
+
   defp do_device_message(session, event, params) do
     # Ignore unhandled messages so that it doesn't crash the link process
     # preventing cascading problems.

@@ -41,8 +41,6 @@ defmodule NervesHub.Extensions.Health do
   alias NervesHub.Integrations
   alias NervesHub.Webhooks.Payloads
 
-  require Logger
-
   @default_interval_minutes 60
   @default_ui_polling_seconds 60
   @default_first_check_window_seconds 60
@@ -104,8 +102,10 @@ defmodule NervesHub.Extensions.Health do
     # followed soon by a fresh report (`attach/1` sends a check ahead of the
     # timer). Straight away if somebody has the device's page open, which is
     # the only place connection metadata is read; within the first check
-    # window otherwise.
-    :ok = merge_metadata(device_info, device_report["metadata"])
+    # window otherwise. Firmware from nerves_hub_link 3.0 on sends it on the
+    # device channel instead (`report_device_metadata`) and leaves it out of
+    # here; both end in the same column. See docs/device_metadata.md.
+    :ok = Connections.merge_reported_metadata(device_info.connection_ref, device_report["metadata"])
 
     in_hand = for {key, value} <- metrics, is_number(value), do: {key, now, value}
 
@@ -201,25 +201,6 @@ defmodule NervesHub.Extensions.Health do
   # map is still "none", and still resolves everything.
   defp sync_alarms(device_info, %{"alarms" => alarms}, now), do: Alarms.sync(device_info, alarms || %{}, now)
   defp sync_alarms(_device_info, _device_report, _now), do: :ok
-
-  # Merged rather than replaced, so a report that carries only part of what the
-  # device knows does not blank the rest. A report with no metadata at all
-  # leaves the connection alone; an error only means the connection row has
-  # already moved on, which the next report will correct.
-  defp merge_metadata(_device_info, metadata) when metadata == %{}, do: :ok
-
-  defp merge_metadata(device_info, metadata) when is_map(metadata) do
-    case Connections.merge_update_metadata(device_info.connection_ref, metadata) do
-      :ok ->
-        :ok
-
-      {:error, reason} ->
-        Logger.warning("[Health] failed to merge connection metadata: #{inspect(reason)}")
-        :ok
-    end
-  end
-
-  defp merge_metadata(_device_info, _absent_or_not_a_map), do: :ok
 
   defp health_interval_minutes() do
     case config([:health, :interval_minutes]) do

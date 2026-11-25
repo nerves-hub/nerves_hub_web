@@ -141,6 +141,12 @@ when adding or removing one.
   stored as a string), and a device that says it is going to sleep is shown
   as asleep until it is due back rather than offline; see
   [docs/device_sleep.md](docs/device_sleep.md).
+  The metadata a device reports about itself (where it was installed, its
+  board revision) is merged into its connection's `metadata` column by
+  `Connections.merge_reported_metadata/2`, so a reconnect resets it. It
+  arrives as the device channel's `report_device_metadata` message, or in
+  health reports from older firmware, and both must keep going through that
+  one function; see [docs/device_metadata.md](docs/device_metadata.md).
 - `managed_deployments.ex` / `managed_deployments/` — deployment groups and the
   `Distributed.Orchestrator` (one per deployment). A release with a workflow
   is walked a step at a time (`Workflows`, `WorkflowCoordinator`); each step
