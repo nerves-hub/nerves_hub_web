@@ -97,6 +97,21 @@ defmodule NervesHubWeb.ApiSpecTest do
       |> assert_documented_response()
     end
 
+    test "list with a page size over the maximum, and with an unusable one", %{conn: conn, org: org, product: product} do
+      path = ~p"/api/orgs/#{org.name}/products/#{product.name}/devices"
+
+      assert %{"pagination" => %{"page_size" => 100}} =
+               conn
+               |> get(path, %{pagination: %{page_size: "500"}})
+               |> assert_documented_response()
+               |> json_response(200)
+
+      conn
+      |> get(path, %{pagination: %{page_size: "0"}})
+      |> assert_documented_response()
+      |> json_response(422)
+    end
+
     test "show a connected device in a deployment group", %{conn: conn, connected: device} do
       data =
         conn
@@ -253,6 +268,33 @@ defmodule NervesHubWeb.ApiSpecTest do
       conn
       |> get(~p"/api/orgs/#{org.name}/products/#{product.name}/scripts")
       |> assert_documented_response()
+    end
+
+    test "list with a page size over the maximum, and with an unusable one", %{
+      conn: conn,
+      org: org,
+      product: product,
+      user: user,
+      tmp_dir: tmp_dir
+    } do
+      org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
+      device = Fixtures.device_fixture(org, product, Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir}))
+
+      for path <- [
+            ~p"/api/orgs/#{org.name}/products/#{product.name}/scripts",
+            ~p"/api/devices/#{device.identifier}/scripts"
+          ] do
+        assert %{"pagination" => %{"page_size" => 100}} =
+                 conn
+                 |> get(path, %{pagination: %{page_size: "500"}})
+                 |> assert_documented_response()
+                 |> json_response(200)
+
+        conn
+        |> get(path, %{pagination: %{page: "abc"}})
+        |> assert_documented_response()
+        |> json_response(422)
+      end
     end
   end
 

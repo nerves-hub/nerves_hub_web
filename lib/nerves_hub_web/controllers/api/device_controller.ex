@@ -39,14 +39,15 @@ defmodule NervesHubWeb.API.DeviceController do
   def index(%{assigns: %{current_scope: %{org: org}, product: product}} = conn, params) do
     filters = Map.get(params, "filters", %{}) |> Map.new(fn {k, v} -> {String.to_existing_atom(k), v} end)
 
-    with :ok <- validate_advanced_query(filters, product.id) do
-      list_devices(conn, org, product, params, filters)
+    with :ok <- validate_advanced_query(filters, product.id),
+         {:ok, pagination} <- PaginationHelpers.cast_pagination_params(params["pagination"]) do
+      list_devices(conn, org, product, params, filters, pagination)
     end
   end
 
-  defp list_devices(conn, org, product, params, filters) do
+  defp list_devices(conn, org, product, params, filters, pagination) do
     opts = %{
-      pagination: PaginationHelpers.atomize_pagination_params(Map.get(params, "pagination", %{})),
+      pagination: pagination,
       filters: filters,
       visible_to: Scope.actor(conn.assigns.current_scope)
     }

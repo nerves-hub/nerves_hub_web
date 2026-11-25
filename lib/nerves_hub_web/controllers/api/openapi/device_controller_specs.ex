@@ -9,7 +9,7 @@ defmodule NervesHubWeb.API.OpenAPI.DeviceControllerSpecs do
   @organization_parameter SchemaHelpers.org_param()
   @product_parameter SchemaHelpers.product_param()
   @device_parameter SchemaHelpers.device_param()
-  @pagination_parameter SchemaHelpers.pagination_param()
+  @pagination_parameter SchemaHelpers.pagination_param(10)
 
   @sort_by_parameter %OpenApiSpex.Parameter{
     name: :sort,
@@ -157,6 +157,7 @@ defmodule NervesHubWeb.API.OpenAPI.DeviceControllerSpecs do
   @common_errors SchemaHelpers.common_errors()
   @not_found_error SchemaHelpers.not_found_error()
   @validation_error SchemaHelpers.validation_error()
+  @query_param_error SchemaHelpers.query_param_error()
 
   # Actions that reach the device refuse a soft-deleted one; see
   # `NervesHubWeb.API.Plugs.RefuseDeletedDevice`.
@@ -251,7 +252,7 @@ defmodule NervesHubWeb.API.OpenAPI.DeviceControllerSpecs do
               @filters_parameter
             ],
             ["Devices"],
-            response: @device_list_response
+            response: Map.merge(@device_list_response, @query_param_error)
           ),
         post: create_device_action()
       }
