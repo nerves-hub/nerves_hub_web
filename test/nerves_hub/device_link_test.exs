@@ -43,14 +43,31 @@ defmodule NervesHub.DeviceLinkTest do
   end
 
   describe "status_update/2" do
-    test "creates an InflightUpdate if none exists", %{device: device} do
-      # Verify no InflightUpdates exists
+    # A device that was already updating when the server lost track of it, such
+    # as across a deploy, still has its progress followed.
+    test "creates an InflightUpdate for progress on an update nothing recorded", %{device: device} do
       refute Repo.exists?(where(InflightUpdate, device_id: ^device.id))
+
+      :ok = DeviceLink.status_update(to_device_info(device), %{"status" => "downloading", "progress" => 10})
+
+      assert %{status: :downloading, progress: 10} = Repo.get_by(InflightUpdate, device_id: device.id)
+    end
+
+    # nerves_hub_link reports `started` for every download it begins, archives
+    # included, and an archive is not an update.
+    test "'started' with no update recorded records none", %{device: device} do
+      :ok = DeviceLink.status_update(to_device_info(device), %{"status" => "started"})
+
+      refute Repo.exists?(where(InflightUpdate, device_id: ^device.id))
+      assert Repo.reload!(device).update_attempts == []
+    end
+
+    test "'started' moves an update that was recorded along", %{device: device, firmware: firmware} do
+      {:ok, _inflight_update} = Fixtures.inflight_update(device, firmware)
 
       :ok = DeviceLink.status_update(to_device_info(device), %{"status" => "started"})
 
-      # Verify the inflight update was created
-      assert Repo.exists?(where(InflightUpdate, device_id: ^device.id))
+      assert %{status: :started} = Repo.get_by(InflightUpdate, device_id: device.id)
     end
 
     test "manually requested firmware update is ignored by the device", %{device: device, firmware: firmware} do
