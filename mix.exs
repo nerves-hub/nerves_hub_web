@@ -150,7 +150,7 @@ defmodule NervesHub.MixProject do
       {:gettext, "~> 1.0.2"},
       {:group, "~> 0.3.1"},
       {:hackney, "~> 4.7"},
-      {:hammer, "~> 7.5.0"},
+      {:hammer, "~> 7.6.0"},
       {:igniter, "~> 0.8", only: [:dev, :test]},
       {:process_hub, "~> 0.8.0"},
       {:jason, "~> 1.2", override: true},
