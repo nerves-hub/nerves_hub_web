@@ -239,6 +239,9 @@ defmodule NervesHub.ManagedDeployments.RequiredReleaseTest do
       %{id: device_id} = connected_device(context, deployment_group, context.fw1)
       deployment_group = send_deltas(deployment_group)
 
+      # Only firmware that can take a delta holds devices back for one
+      for fw <- [context.fw2, context.fw3], do: Repo.update!(Ecto.Changeset.change(fw, delta_updatable: true))
+
       _ = Fixtures.firmware_delta_fixture(context.fw1, context.fw3, %{status: :processing})
       assert [%{id: ^device_id}] = Updates.available_for_update(deployment_group, 10)
 

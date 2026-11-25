@@ -224,12 +224,20 @@ defmodule NervesHub.Devices.Updates do
   # (`Firmwares.get_delta_or_firmware/3`), so none waits. Turning them off is
   # how a person sends the devices waiting on a failed delta the whole firmware
   # instead.
+  #
+  # Firmware that can't be delta updated is sent whole too, so a delta to it
+  # holds no one. The builder still starts one towards it, and for fwup
+  # firmware without delta support that build fails, which would otherwise
+  # leave its devices waiting on a delta they'd never be sent.
+  #
+  # `Rollout.unreached/3` lists the devices held here; keep the two in step.
   defp maybe_wait_for_delta(query, %DeploymentGroup{delta_updatable: false}), do: query
 
   defp maybe_wait_for_delta(query, _deployment_group) do
     query
-    |> join(:left, [firmware: f, target_release: tr], fd in FirmwareDelta,
-      on: fd.source_id == f.id and fd.target_id == tr.firmware_id,
+    |> join(:inner, [target_release: tr], tf in Firmware, on: tf.id == tr.firmware_id, as: :target_firmware)
+    |> join(:left, [firmware: f, target_release: tr, target_firmware: tf], fd in FirmwareDelta,
+      on: fd.source_id == f.id and fd.target_id == tr.firmware_id and tf.delta_updatable,
       as: :firmware_delta
     )
     |> where([firmware_delta: fd], is_nil(fd.id) or fd.status == :completed)

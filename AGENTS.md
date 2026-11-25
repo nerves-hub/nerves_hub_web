@@ -148,7 +148,11 @@ when adding or removing one.
   `Rollout` is how far a release has got, for the web UI: each group's and
   step's device counts from Postgres alone, the group's status (paused,
   stopped, awaiting approval, ...), and the devices it won't reach without
-  help (penalty box, failed, updates off).
+  help (penalty box, waiting on a delta that failed, failed, updates off).
+  Its count of devices waiting on a failed delta (`Rollout.failed_deltas/2`)
+  has to match the hold in `Updates.available_for_update/2`: only in a group
+  sending deltas, only devices it pushes updates to, and only towards
+  firmware that can take a delta.
   `ReleaseStats` is how each release went, for a group's Stats tab, counted
   over the release's window (from when it was made until the next one): what
   its updates downloaded from `update_stats` in Postgres, and how attempts
@@ -386,8 +390,10 @@ when adding or removing one.
   by the user's `deployment_group_view` preference. A group's page
   (`live/deployment_groups/show.ex`) opens on its Overview
   (`components/deployment_group_page/overview.ex`): a callout for a held
-  step, the rollout and its steps, the devices the release didn't reach, and
-  the release and matching rules. What both share (status badges, step bars,
+  step, the rollout and its steps, the devices the release didn't reach (with
+  a note on any waiting for a delta that failed, offering a retry or turning
+  delta updates off to whoever may do each), and the release and matching
+  rules. What both share (status badges, step bars,
   the approve and skip dialogs, and `DeploymentGroups.act/3`, which acts
   through `Workflows.act_on_held_step/3` so a step somebody already dealt with
   is refused) is in `components/deployment_groups.ex`, along

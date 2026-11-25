@@ -28,12 +28,16 @@ defmodule NervesHub.ManagedDeployments.Rollout do
   alias NervesHub.Devices.Device
   alias NervesHub.Devices.InflightUpdate
   alias NervesHub.Firmwares.Firmware
+  alias NervesHub.Firmwares.FirmwareDelta
+  alias NervesHub.ManagedDeployments
   alias NervesHub.ManagedDeployments.DeploymentGroup
   alias NervesHub.ManagedDeployments.DeploymentRelease
   alias NervesHub.ManagedDeployments.DeploymentWorkflowStep
   alias NervesHub.Repo
 
   @step_devices "deployment_workflow_steps_devices"
+
+  @failed_delta_statuses [:failed, :timed_out]
 
   @states [:updated, :updates_off, :updating, :penalty_box, :failed, :waiting]
 
@@ -55,9 +59,12 @@ defmodule NervesHub.ManagedDeployments.Rollout do
 
   @type unreached :: %{
           device: Device.t(),
-          state: :penalty_box | :failed | :updates_off,
-          step: DeploymentWorkflowStep.t() | nil
+          state: :penalty_box | :delta_failed | :failed | :updates_off,
+          step: DeploymentWorkflowStep.t() | nil,
+          delta_source: String.t() | nil
         }
+
+  @type failed_delta :: %{version: String.t(), devices: pos_integer()}
 
   @doc """
   Every state a device can be in, in the order they are checked.
@@ -229,30 +236,19 @@ defmodule NervesHub.ManagedDeployments.Rollout do
 
   @doc """
   The group's devices the release hasn't reached and won't without help: those
-  in the penalty box, those whose last attempt failed, and those with updates
-  turned off, in that order. Each comes with the release step it belongs to,
-  which for a device no step claimed is the catch-all, if there is one.
+  in the penalty box, those waiting on a delta that failed, those whose last
+  attempt failed, and those with updates turned off, in that order. Each comes
+  with the release step it belongs to, which for a device no step claimed is
+  the catch-all, if there is one, and, for one waiting on a failed delta, the
+  version of the firmware the delta was built from.
 
   Returns at most `limit` of them, along with how many there are in all.
   """
   @spec unreached(DeploymentGroup.t(), pos_integer(), DateTime.t()) :: {[unreached()], non_neg_integer()}
   def unreached(deployment_group, limit, now \\ DateTime.utc_now()) do
-    %{current_release: %{firmware: firmware, steps: steps}} = deployment_group
+    %{current_release: %{steps: steps}} = deployment_group
 
-    query =
-      Device
-      |> from(as: :device)
-      |> where([device: d], d.deployment_id == ^deployment_group.id)
-      |> where(
-        [device: d],
-        is_nil(d.firmware_metadata) or fragment("? ->> 'uuid'", d.firmware_metadata) != ^firmware.uuid
-      )
-      |> where(
-        [device: d],
-        d.update_mode == :off or d.updates_blocked_until > ^now or d.consecutive_failed_updates > 0
-      )
-      |> where([device: d], d.id not in subquery(updating_device_ids(deployment_group)))
-      |> Repo.exclude_deleted()
+    query = unreached_query(deployment_group, now)
 
     total = Repo.aggregate(query, :count)
 
@@ -262,41 +258,124 @@ defmodule NervesHub.ManagedDeployments.Rollout do
         on: c.device_id == d.id,
         as: :claim
       )
-      |> order_by([device: d],
+      |> order_by([device: d, failed_delta: fd],
         asc:
           fragment(
-            "CASE WHEN ? = 'off' THEN 2 WHEN ? > ? THEN 0 ELSE 1 END",
+            "CASE WHEN ? = 'off' THEN 3 WHEN ? > ? THEN 0 WHEN ? IS NOT NULL THEN 1 ELSE 2 END",
             d.update_mode,
             d.updates_blocked_until,
-            ^now
+            ^now,
+            fd.id
           ),
         desc: d.consecutive_failed_updates,
         asc: d.identifier
       )
       |> limit(^limit)
-      |> select([device: d, claim: c], {d, c.step_id})
+      |> select([device: d, claim: c, failed_delta: fd, delta_source: f], {d, c.step_id, fd.id, f.version})
       |> Repo.all()
 
     steps_by_id = Map.new(steps, &{&1.id, &1})
     catch_all = Enum.find(steps, &(&1.type == :catch_all))
 
     unreached =
-      Enum.map(rows, fn {device, step_id} ->
+      Enum.map(rows, fn {device, step_id, failed_delta_id, source_version} ->
         step = if step_id, do: Map.get(steps_by_id, step_id), else: catch_all
+        state = unreached_state(device, failed_delta_id, now)
+        delta_source = if state == :delta_failed, do: source_version
 
-        %{device: device, state: unreached_state(device, now), step: step}
+        %{device: device, state: state, step: step, delta_source: delta_source}
       end)
 
     {unreached, total}
   end
 
-  defp unreached_state(%Device{update_mode: :off}, _now), do: :updates_off
+  @doc """
+  The versions whose deltas failed, each with how many devices are waiting on
+  them: the devices `unreached/3` gives as `:delta_failed`, counted by the
+  version the delta was built from. Oldest version first.
 
-  defp unreached_state(%Device{updates_blocked_until: %DateTime{} = until}, now) do
-    if DateTime.after?(until, now), do: :penalty_box, else: :failed
+  They wait until the delta is built again, or until delta updates are turned
+  off and they are sent the whole firmware.
+  """
+  @spec failed_deltas(DeploymentGroup.t(), DateTime.t()) :: [failed_delta()]
+  def failed_deltas(deployment_group, now \\ DateTime.utc_now()) do
+    deployment_group
+    |> unreached_query(now)
+    |> where([failed_delta: fd], not is_nil(fd.id))
+    |> where([device: d], is_nil(d.updates_blocked_until) or d.updates_blocked_until <= ^now)
+    |> group_by([delta_source: f], f.version)
+    |> select([delta_source: f], %{version: f.version, devices: count()})
+    |> Repo.all()
+    |> Enum.sort_by(& &1.version, {:asc, Version})
   end
 
-  defp unreached_state(_device, _now), do: :failed
+  # The group's devices not on the release's firmware that won't get it
+  # without help, leaving out any taking an update now. The delta each is
+  # waiting on, if it failed, is joined as `:failed_delta`, and the firmware it
+  # runs as `:delta_source`.
+  defp unreached_query(deployment_group, now) do
+    %{current_release: %{firmware: firmware}} = deployment_group
+
+    Device
+    |> from(as: :device)
+    |> join(:inner, [device: d], dg in DeploymentGroup, on: dg.id == d.deployment_id, as: :deployment_group)
+    |> where([device: d], d.deployment_id == ^deployment_group.id)
+    |> where(
+      [device: d],
+      is_nil(d.firmware_metadata) or fragment("? ->> 'uuid'", d.firmware_metadata) != ^firmware.uuid
+    )
+    |> join_failed_delta(deployment_group)
+    |> where(
+      [device: d, failed_delta: fd],
+      d.update_mode == :off or d.updates_blocked_until > ^now or d.consecutive_failed_updates > 0 or
+        not is_nil(fd.id)
+    )
+    |> where([device: d], d.id not in subquery(updating_device_ids(deployment_group)))
+    |> Repo.exclude_deleted()
+  end
+
+  # The delta a device is held back for because it failed, matching
+  # `Updates.available_for_update/2`. A group sending deltas only sends a
+  # device the release once the delta from the firmware it runs to the
+  # firmware it is headed for (a required release's, if it has one to take
+  # first) is built, so a failed one holds it until it is built again or delta
+  # updates are turned off. Only devices the group pushes updates to wait: a
+  # device that manages its own updates is sent the whole firmware when it
+  # asks. Firmware that can't be delta updated is sent whole too
+  # (`Firmwares.get_delta_or_firmware/3`), so a failed delta to it holds no one.
+  # Keep this in step with `Updates`' own check.
+  defp join_failed_delta(query, deployment_group) do
+    query
+    |> join(:left, [device: d], f in Firmware,
+      on:
+        f.product_id == d.product_id and f.uuid == fragment("? ->> 'uuid'", d.firmware_metadata) and
+          is_nil(f.deleted_at),
+      as: :delta_source
+    )
+    |> ManagedDeployments.join_target_release(deployment_group)
+    |> join(:left, [target_release: tr], tf in Firmware, on: tf.id == tr.firmware_id, as: :delta_target)
+    |> join(
+      :left,
+      [device: d, deployment_group: dg, delta_source: f, target_release: tr, delta_target: tf],
+      fd in FirmwareDelta,
+      on:
+        fd.source_id == f.id and fd.target_id == tr.firmware_id and fd.status in ^@failed_delta_statuses and
+          dg.delta_updatable and tf.delta_updatable and d.update_mode == :automatic,
+      as: :failed_delta
+    )
+  end
+
+  defp unreached_state(device, failed_delta_id, now) do
+    cond do
+      device.update_mode == :off -> :updates_off
+      penalty_box?(device, now) -> :penalty_box
+      failed_delta_id -> :delta_failed
+      true -> :failed
+    end
+  end
+
+  defp penalty_box?(%Device{updates_blocked_until: %DateTime{} = until}, now), do: DateTime.after?(until, now)
+  defp penalty_box?(_device, _now), do: false
 
   defp updating_device_ids(deployment_group) do
     InflightUpdate

@@ -518,6 +518,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
 
     socket
     |> assign(:unreached, Rollout.unreached(deployment_group, @unreached_shown))
+    |> assign(:failed_deltas, Rollout.failed_deltas(deployment_group))
     |> assign(:matched_outside, ManagedDeployments.matched_devices_count(deployment_group, in_deployment: false))
     |> assign(:unmatched_inside, max(socket.assigns.entry.counts.total - matched, 0))
     |> assign(:deltas, Firmwares.get_deltas_by_target_firmware(release.firmware))

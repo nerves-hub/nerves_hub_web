@@ -6,7 +6,8 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Overview do
   a step stopped on failures, or the group paused). Under it, the rollout
   card counts the group's devices by state and walks the release's steps;
   the devices the release didn't reach are listed beside a rail with the
-  release itself and how the group matches devices.
+  release itself and how the group matches devices. Devices waiting on a
+  delta that failed are counted above that list, with what would free them.
 
   Everything here is drawn from what `NervesHubWeb.Live.DeploymentGroups.Show`
   loads, and its buttons send their events to it.
@@ -23,6 +24,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Overview do
 
   attr(:entry, :map, required: true)
   attr(:unreached, :any, required: true)
+  attr(:failed_deltas, :list, required: true, doc: "from `Rollout.failed_deltas/2`")
   attr(:matched_outside, :integer, required: true)
   attr(:unmatched_inside, :integer, required: true)
   attr(:deltas, :list, required: true)
@@ -37,7 +39,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Overview do
       <.rollout_card entry={@entry} time_zone={@time_zone} />
 
       <div class="grid items-start gap-6 @5xl:grid-cols-[minmax(0,1fr)_20rem]">
-        <.unreached_card unreached={@unreached} entry={@entry} current_scope={@current_scope} />
+        <.unreached_card unreached={@unreached} failed_deltas={@failed_deltas} entry={@entry} current_scope={@current_scope} />
         <.rail
           entry={@entry}
           matched_outside={@matched_outside}
@@ -246,6 +248,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Overview do
   defp step_when(_step, _state, _entry, _time_zone), do: nil
 
   attr(:unreached, :any, required: true)
+  attr(:failed_deltas, :list, required: true)
   attr(:entry, :map, required: true)
   attr(:current_scope, :map, required: true)
 
@@ -265,6 +268,8 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Overview do
           <span class="sm:hidden">View all</span><span class="max-sm:hidden">View the group’s devices</span>
         </.link>
       </div>
+
+      <.failed_deltas_note :if={@failed_deltas != []} failed_deltas={@failed_deltas} group={@entry.group} current_scope={@current_scope} />
 
       <p :if={@rows == []} class="px-4 py-6 text-ui text-content-muted">
         None. Every device in the group has {@entry.group.current_release.firmware.version}, is getting it, or is waiting for its step.
@@ -289,7 +294,10 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Overview do
           </span>
           <span role="cell" class="flex min-w-0 flex-1 items-center gap-2 text-ui text-content-body">
             <span class={[unreached_icon(row.state), "size-3.5 shrink-0"]} aria-hidden="true"></span>
-            <span class="min-w-0">{unreached_text(row)}</span>
+            <span :if={row.state == :delta_failed} class="min-w-0">
+              Waiting on the delta from <span class="font-mono">{row.delta_source}</span>, which failed to build
+            </span>
+            <span :if={row.state != :delta_failed} class="min-w-0">{unreached_text(row)}</span>
           </span>
           <span :if={@entry.steps != []} role="cell" class="w-40 shrink-0 truncate text-ui text-content-muted max-sm:w-full max-sm:pl-5.5 max-sm:text-xs">
             {(row.step && DeploymentGroups.step_name(row.step)) || "—"}
@@ -300,7 +308,55 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Overview do
     """
   end
 
+  attr(:failed_deltas, :list, required: true)
+  attr(:group, :map, required: true)
+  attr(:current_scope, :map, required: true)
+
+  # A failed delta holds back the devices it was for until it's built again or
+  # delta updates are turned off (`Rollout.failed_deltas/2`). Each is done
+  # elsewhere and needs its own permission, so the note offers whichever the
+  # member may do, and names the rest.
+  defp failed_deltas_note(assigns) do
+    %{failed_deltas: failed_deltas, group: group, current_scope: scope} = assigns
+
+    assigns =
+      assign(assigns,
+        devices: failed_deltas |> Enum.map(& &1.devices) |> Enum.sum(),
+        versions: Enum.map(failed_deltas, & &1.version),
+        deltas: length(failed_deltas),
+        releases_path: ~p"/org/#{scope.org}/#{scope.product}/deployment_groups/#{group}/releases",
+        settings_path: ~p"/org/#{scope.org}/#{scope.product}/deployment_groups/#{group}/settings"
+      )
+
+    ~H"""
+    <div id="unreached-failed-deltas" role="status" class="flex items-start gap-2.5 border-b border-line-default bg-surface-muted px-4 py-3">
+      <span class="mt-px lucide-file-x size-4 text-alert" aria-hidden="true"></span>
+      <p class="text-ui/4.5 text-content-body">
+        <span class="font-semibold text-content-strong">
+          {count_noun(@devices, "device", "devices")} on <.versions versions={@versions} />
+          {ngettext("is", "are", @devices)} waiting on {ngettext("a delta", "deltas", @deltas)} that failed to build.
+        </span>
+        <%= cond do %>
+          <% authorized?(:"deployment_group:release:manage", @current_scope) and authorized?(:"deployment_group:toggle_delta_updates", @current_scope) -> %>
+            <.link navigate={@releases_path} class="font-medium text-notice-content hover:underline">Retry {ngettext("it", "them", @deltas)}</.link>
+            on the Releases tab, or <.link navigate={@settings_path} class="font-medium text-notice-content hover:underline">turn delta updates off</.link>
+            to send the full firmware.
+          <% authorized?(:"deployment_group:release:manage", @current_scope) -> %>
+            <.link navigate={@releases_path} class="font-medium text-notice-content hover:underline">Retry {ngettext("it", "them", @deltas)}</.link>
+            on the Releases tab, or have delta updates turned off to send the full firmware.
+          <% authorized?(:"deployment_group:toggle_delta_updates", @current_scope) -> %>
+            <.link navigate={@settings_path} class="font-medium text-notice-content hover:underline">Turn delta updates off</.link>
+            to send the full firmware, or have {ngettext("it", "them", @deltas)} retried on the Releases tab.
+          <% true -> %>
+            {ngettext("The delta", "The deltas", @deltas)} can be retried on the Releases tab, or delta updates turned off to send the full firmware.
+        <% end %>
+      </p>
+    </div>
+    """
+  end
+
   defp unreached_icon(:penalty_box), do: "lucide-clock--bold text-warning"
+  defp unreached_icon(:delta_failed), do: "lucide-file-x--bold text-alert"
   defp unreached_icon(:failed), do: "lucide-circle-x--bold text-alert"
   defp unreached_icon(:updates_off), do: "lucide-circle-minus--bold text-content-faint"
 
@@ -467,16 +523,14 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Overview do
 
   attr(:versions, :list, required: true)
 
-  # "2.4.0", "2.4.0 and 2.3.2", "2.4.0, 2.3.2 and 2 more"
+  # "2.4.0", "2.4.0 and 2.3.2", "2.4.0, 2.3.2 and 2.1.0", "2.4.0, 2.3.2 and 2 more"
   defp versions(%{versions: versions} = assigns) do
-    {shown, rest} = Enum.split(versions, 2)
-    assigns = assign(assigns, shown: shown, rest: length(rest))
+    {shown, rest} = if length(versions) <= 3, do: {versions, []}, else: Enum.split(versions, 2)
+    assigns = assign(assigns, shown: Enum.with_index(shown), last: length(shown) - 1, rest: length(rest))
 
+    # On one line, so no whitespace lands between a version and the comma after it.
     ~H"""
-    <%= for {version, index} <- Enum.with_index(@shown) do %>
-      <span :if={index > 0}>{(index == length(@shown) - 1 && @rest == 0 && " and ") || ", "}</span><span class="font-mono">{version}</span>
-    <% end %>
-    <span :if={@rest > 0}> and {@rest} more</span>
+    <span :for={{version, index} <- @shown}><span :if={index > 0}>{(index == @last && @rest == 0 && " and ") || ", "}</span><span class="font-mono">{version}</span></span><span :if={@rest > 0}> and {@rest} more</span>
     """
   end
 end
