@@ -87,12 +87,12 @@ defmodule NervesHub.Devices.ConnectionHistoryTest do
     } do
       {:ok, connection} = Connections.device_connecting(device.org_id, device.product_id, device.id)
       :ok = Connections.device_connected(connection.id)
-      :ok = Connections.device_disconnected(connection.id, "Stale connection")
+      :ok = Connections.device_disconnected(connection.id, :stale_connection)
 
       # all three rows share the merge tree's sorting key, and the disconnect is
       # written last, so the merged view collapses to it
       assert_eventually(
-        [%DeviceConnectionHistory{disconnected_reason: "Stale connection"} = history] =
+        [%DeviceConnectionHistory{disconnected_reason: "stale_connection"} = history] =
           history_for(connection.id)
       )
 
@@ -108,7 +108,7 @@ defmodule NervesHub.Devices.ConnectionHistoryTest do
       {:ok, connection} = Connections.device_connecting(device.org_id, device.product_id, device.id)
 
       assert_eventually(
-        [%DeviceConnectionHistory{disconnected_reason: "Reconnected"} = closed] = history_for(replaced.id)
+        [%DeviceConnectionHistory{disconnected_reason: "duplicate_connection"} = closed] = history_for(replaced.id)
       )
 
       assert DateTime.compare(closed.disconnected_at, last_seen_at) == :eq
@@ -118,13 +118,13 @@ defmodule NervesHub.Devices.ConnectionHistoryTest do
     test "a reconnect leaves a connection that already disconnected as it was", %{device: device} do
       {:ok, replaced} = Connections.device_connecting(device.org_id, device.product_id, device.id)
       :ok = Connections.device_connected(replaced.id)
-      :ok = Connections.device_disconnected(replaced.id, "Manual disconnect")
+      :ok = Connections.device_disconnected(replaced.id, :reconnect_requested)
 
       {:ok, _connection} = Connections.device_connecting(device.org_id, device.product_id, device.id)
 
       :ok = Buffer.flush(DeviceConnectionHistory)
 
-      assert [%DeviceConnectionHistory{disconnected_reason: "Manual disconnect"}] = history_for(replaced.id)
+      assert [%DeviceConnectionHistory{disconnected_reason: "reconnect_requested"}] = history_for(replaced.id)
     end
 
     test "device_heartbeat/1 records a history row", %{device: device} do
@@ -155,7 +155,7 @@ defmodule NervesHub.Devices.ConnectionHistoryTest do
 
       assert_eventually(
         Enum.any?(history_for(connection.id), fn h ->
-          h.disconnected_reason == "Stale connection"
+          h.disconnected_reason == "stale_connection"
         end)
       )
     end
@@ -244,7 +244,7 @@ defmodule NervesHub.Devices.ConnectionHistoryTest do
 
       assert_eventually(
         Enum.any?(history_for(ref), fn h ->
-          h.disconnected_reason == "Stale connection" and not is_nil(h.disconnected_at) and
+          h.disconnected_reason == "stale_connection" and not is_nil(h.disconnected_at) and
             DateTime.compare(h.disconnected_at, last_seen_at) == :eq
         end)
       )
@@ -288,7 +288,7 @@ defmodule NervesHub.Devices.ConnectionHistoryTest do
         # stale last_seen_at, but the connection is already closed
         last_seen_at: stale_time(),
         disconnected_at: DateTime.add(now, -1, :hour),
-        disconnected_reason: "Original reason"
+        disconnected_reason: :reconnect_requested
       }
 
       {:ok, _} =
@@ -300,7 +300,7 @@ defmodule NervesHub.Devices.ConnectionHistoryTest do
 
       Process.sleep(200)
 
-      refute Enum.any?(history_for(ref), fn h -> h.disconnected_reason == "Stale connection" end)
+      refute Enum.any?(history_for(ref), fn h -> h.disconnected_reason == "stale_connection" end)
     end
   end
 

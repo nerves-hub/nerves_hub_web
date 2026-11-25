@@ -20,7 +20,7 @@ defmodule NervesHub.Devices.DeviceConnectionHistoryTest do
         established_at: established_at,
         last_seen_at: last_seen_at,
         disconnected_at: disconnected_at,
-        disconnected_reason: "Stale connection",
+        disconnected_reason: :stale_connection,
         lib: "nerves_hub_link",
         lib_version: "2.0.0",
         network_interface: "eth0",
@@ -35,7 +35,7 @@ defmodule NervesHub.Devices.DeviceConnectionHistoryTest do
       assert changes.established_at == established_at
       assert changes.last_seen_at == last_seen_at
       assert changes.disconnected_at == disconnected_at
-      assert changes.disconnected_reason == "Stale connection"
+      assert changes.disconnected_reason == "stale_connection"
       assert changes.lib == "nerves_hub_link"
       assert changes.lib_version == "2.0.0"
       assert changes.network_interface == "eth0"
@@ -157,7 +157,7 @@ defmodule NervesHub.Devices.DeviceConnectionHistoryTest do
 
       changes = DeviceConnectionHistory.mark_as_stale_and_disconnected_changeset(history).changes
 
-      assert changes.disconnected_reason == "Stale connection"
+      assert changes.disconnected_reason == "stale_connection"
       assert changes.disconnected_at == history.last_seen_at
       assert changes.version > history.version
     end

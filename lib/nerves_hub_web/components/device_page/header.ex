@@ -17,10 +17,13 @@ defmodule NervesHubWeb.Components.DevicePage.Header do
   alias NervesHub.Devices.Device
   alias NervesHub.Devices.Updates
   alias NervesHub.Helpers.RelativeTime
+  alias NervesHubWeb.Components.DeviceSleep
   alias NervesHubWeb.Components.DeviceUpdateStatus
   alias NervesHubWeb.Components.UpdateProgress
   alias NervesHubWeb.Live.Devices.Show
   alias Phoenix.LiveView.JS
+
+  require DeviceSleep
 
   attr(:device, Device, required: true)
   attr(:device_connection, :any, required: true)
@@ -33,20 +36,37 @@ defmodule NervesHubWeb.Components.DevicePage.Header do
   attr(:firmware_update_progress, :any, default: nil)
   attr(:inflight_version, :string, default: nil)
 
+  attr(:sleep_clock, DateTime,
+    default: nil,
+    doc: "the time a sleeping device is judged at, which the page moves on while it sleeps"
+  )
+
   attr(:end_tabs, :list,
     default: [],
     doc: "the tabs `tabs/1` puts at the right, which a phone reaches from the More sheet instead"
   )
 
   def render(assigns) do
-    assigns = assign(assigns, :offline?, disconnected?(assigns.device_connection))
+    assigns =
+      assign(assigns,
+        offline?: disconnected?(assigns.device_connection),
+        status: connection_status(assigns.device_connection, assigns.sleep_clock)
+      )
 
     ~H"""
     <div id="device-header" class="flex shrink-0 flex-col gap-3.5 px-4 pt-4 pb-5 sm:px-6 sm:pt-6 sm:pb-5.5">
       <div class="flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
         <div class="group/identifier flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
+          <DeviceSleep.sleep_mark
+            :if={sleeping?(@status)}
+            status={@status}
+            title={DeviceSleep.describe(@device_connection, @sleep_clock)}
+            data-connection-status={@status}
+            class="sleep-mark-lg"
+          />
           <span
-            data-connection-status={connection_status(@device_connection)}
+            :if={!sleeping?(@status)}
+            data-connection-status={@status}
             class={
               [
                 # A 4px halo in every state: tinted green when online, neutral
@@ -74,9 +94,11 @@ defmodule NervesHubWeb.Components.DevicePage.Header do
             <span data-icon="copy" class="lucide-copy size-3.75"></span>
             <span data-icon="check" class="lucide-check hidden size-3.75 text-success"></span>
           </button>
-          <%!-- On a phone the summary drops under the name, lined up with it. --%>
-          <span class="flex max-sm:w-full max-sm:pl-5.5">
-            <.connection_summary connection={@device_connection} device={@device} />
+          <%!-- On a phone the summary drops under the name, lined up with it
+                past the dot (10px and a 12px gap) or the wider z's. --%>
+          <span class={["flex max-sm:w-full", if(sleeping?(@status), do: "max-sm:pl-7.25", else: "max-sm:pl-5.5")]}>
+            <.connection_summary :if={!sleeping?(@status)} connection={@device_connection} device={@device} />
+            <DeviceSleep.sleep_summary id="device-sleep-status" connection={@device_connection} now={@sleep_clock} time_zone={@time_zone} />
           </span>
         </div>
 
@@ -168,8 +190,11 @@ defmodule NervesHubWeb.Components.DevicePage.Header do
   attr(:device_connection, :any, required: true)
   attr(:org, :any, required: true)
   attr(:product, :any, required: true)
+  attr(:sleep_clock, DateTime, default: nil)
 
   def compact_bar(assigns) do
+    assigns = assign(assigns, :status, connection_status(assigns.device_connection, assigns.sleep_clock))
+
     ~H"""
     <div id="device-compact-bar" class="hidden h-full min-w-0 flex-1 items-center header-scrolled:max-sm:flex">
       <.link
@@ -179,8 +204,16 @@ defmodule NervesHubWeb.Components.DevicePage.Header do
       >
         <span class="lucide-chevron-left size-5" aria-hidden="true"></span>
       </.link>
+      <DeviceSleep.sleep_mark
+        :if={sleeping?(@status)}
+        status={@status}
+        title={DeviceSleep.describe(@device_connection, @sleep_clock)}
+        data-connection-status={@status}
+        class="mr-2 ml-1"
+      />
       <span
-        data-connection-status={connection_status(@device_connection)}
+        :if={!sleeping?(@status)}
+        data-connection-status={@status}
         class={[
           "mr-2 ml-1 size-2 shrink-0 rounded-full bg-status-offline ring-3",
           "data-[connection-status=connected]:bg-status-online data-[connection-status=connected]:ring-success-soft",
@@ -658,10 +691,20 @@ defmodule NervesHubWeb.Components.DevicePage.Header do
     """
   end
 
-  defp connection_status(%{status: status}) when status in [:connected, :connecting, :disconnected],
-    do: to_string(status)
+  # A device that said it was going to sleep shows as asleep, or overdue once
+  # it is later than it said, rather than offline.
+  defp connection_status(nil, _now), do: "unknown"
 
-  defp connection_status(_connection), do: "unknown"
+  defp connection_status(%{status: status} = connection, now) when status in [:connected, :connecting, :disconnected] do
+    case DeviceSleep.list_status(connection, now || DateTime.utc_now()) do
+      sleep when DeviceSleep.sleeping_status?(sleep) -> sleep
+      _ -> to_string(status)
+    end
+  end
+
+  defp connection_status(_connection, _now), do: "unknown"
+
+  defp sleeping?(status), do: DeviceSleep.sleeping_status?(status)
 
   defp last_seen(connection), do: connection.last_seen_at || connection.disconnected_at
 

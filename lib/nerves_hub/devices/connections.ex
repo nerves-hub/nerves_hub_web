@@ -11,6 +11,7 @@ defmodule NervesHub.Devices.Connections do
   alias NervesHub.Devices.Device
   alias NervesHub.Devices.DeviceConnection
   alias NervesHub.Devices.DeviceConnectionHistory
+  alias NervesHub.Devices.DisconnectReason
   alias NervesHub.Integrations
   alias NervesHub.Products.Product
   alias NervesHub.Repo
@@ -50,10 +51,11 @@ defmodule NervesHub.Devices.Connections do
 
   A device often reconnects before the server has noticed its old socket is
   gone. If the previous connection is still open, it is closed as of its
-  `last_seen_at` with the reason `"Reconnected"`, because once the row is
-  replaced neither its socket's `device_disconnected/2` nor
-  `clean_stale_connections/0` can find it. Its `device.disconnected` event
-  goes out only if it had reached `:connected`.
+  `last_seen_at`, because once the row is replaced neither its socket's
+  `device_disconnected/2` nor `clean_stale_connections/0` can find it. It keeps
+  a reason the device already gave (it said it was going to sleep, then woke
+  before its old socket closed), and is otherwise `:duplicate_connection`. Its
+  `device.disconnected` event goes out only if it had reached `:connected`.
   """
   @spec device_connecting(
           pos_integer(),
@@ -80,6 +82,8 @@ defmodule NervesHub.Devices.Connections do
           last_seen_at: fragment("EXCLUDED.last_seen_at"),
           disconnected_at: fragment("EXCLUDED.disconnected_at"),
           disconnected_reason: fragment("EXCLUDED.disconnected_reason"),
+          expected_wake_at: fragment("EXCLUDED.expected_wake_at"),
+          wake_missed_at: fragment("EXCLUDED.wake_missed_at"),
           metadata: fragment("EXCLUDED.metadata"),
           status: fragment("EXCLUDED.status"),
           lib: fragment("EXCLUDED.lib"),
@@ -128,7 +132,7 @@ defmodule NervesHub.Devices.Connections do
       previous
       | status: :disconnected,
         disconnected_at: previous.last_seen_at,
-        disconnected_reason: "Reconnected"
+        disconnected_reason: previous.disconnected_reason || :duplicate_connection
     }
 
     async_device_connection_history_insert(closed)
@@ -204,29 +208,77 @@ defmodule NervesHub.Devices.Connections do
   end
 
   @doc """
-  Updates `status` and relevant timestamps for a device connection record,
-  and stores the reason for disconnection if provided.
-  """
-  @spec device_disconnected(Ecto.UUID.t(), String.t() | nil) :: :ok | {:error, any()}
-  def device_disconnected(ref_id, reason \\ nil) do
-    now = DateTime.utc_now()
+  Records the reason a device gave before disconnecting, `:rebooting` or a
+  sleep, and when a sleeping device said it would be back (`nil` if unknown).
 
+  Returns `:error` when the connection row has been replaced, or already holds
+  a reason that overrides the device's.
+
+  Written to the connection now, before the socket closes, rather than when it
+  does: the socket is closed from another process, which never sees the
+  message, and a device that sleeps may drop its radio without closing the
+  socket at all, leaving it to time out or to the stale sweep. Neither of
+  those replaces a reason already written.
+
+  The message can reach the channel after the socket has closed. A reason
+  that overrides the device's (`DisconnectReason.overrides_announced?/1`) is
+  kept then, so a revoked key isn't replaced by a sleep the device announced
+  before it learned of it.
+
+  The connection stays `:connected` until it closes, so whatever the device
+  does in the meantime still reaches it. Listeners hear a heartbeat, which is
+  what has the device page read the connection again.
+  """
+  @spec device_leaving(Ecto.UUID.t(), DisconnectReason.t(), DateTime.t() | nil) :: :ok | :error
+  def device_leaving(ref_id, reason, expected_wake_at \\ nil) do
     DeviceConnection
     |> where(id: ^ref_id)
+    |> where(
+      [dc],
+      is_nil(dc.disconnected_reason) or dc.disconnected_reason not in ^DisconnectReason.overriding_values()
+    )
     |> select([dc], dc)
     |> Repo.update_all(
       set: [
-        last_seen_at: now,
-        disconnected_at: now,
         disconnected_reason: reason,
-        status: :disconnected
+        expected_wake_at: expected_wake_at,
+        wake_missed_at: nil
       ]
     )
     |> case do
       {1, [%{device_id: device_id} = device_connection]} ->
         async_device_connection_history_insert(device_connection)
 
-        Tracker.offline(device_id)
+        Tracker.heartbeat(device_id)
+
+      _ ->
+        :error
+    end
+  end
+
+  @doc """
+  Updates `status` and relevant timestamps for a device connection record,
+  and stores the reason for disconnection if provided.
+
+  A reason the device gave first, through `device_leaving/3`, is kept over
+  `reason`: the device knows better why it went than the socket closing does.
+  A revoked key is the exception (`DisconnectReason.overrides_announced?/1`).
+  """
+  @spec device_disconnected(Ecto.UUID.t(), DisconnectReason.t() | nil) :: :ok | {:error, any()}
+  def device_disconnected(ref_id, reason \\ nil) do
+    now = DateTime.utc_now()
+
+    DeviceConnection
+    |> where(id: ^ref_id)
+    |> select([dc], dc)
+    |> update(set: [last_seen_at: ^now, disconnected_at: ^now, status: :disconnected])
+    |> set_disconnected_reason(reason)
+    |> Repo.update_all([])
+    |> case do
+      {1, [device_connection]} ->
+        async_device_connection_history_insert(device_connection)
+
+        Tracker.offline(device_connection)
 
         :ok =
           Integrations.dispatch(device_connection.product_id, "device.disconnected", fn ->
@@ -235,6 +287,14 @@ defmodule NervesHub.Devices.Connections do
 
       res ->
         {:error, res}
+    end
+  end
+
+  defp set_disconnected_reason(query, reason) do
+    if DisconnectReason.overrides_announced?(reason) do
+      update(query, set: [disconnected_reason: type(^reason, DisconnectReason)])
+    else
+      update(query, [dc], set: [disconnected_reason: coalesce(dc.disconnected_reason, type(^reason, DisconnectReason))])
     end
   end
 
@@ -315,16 +375,16 @@ defmodule NervesHub.Devices.Connections do
       DeviceConnection
       |> where([dc], dc.id in subquery(query))
       |> select([dc], dc)
-      |> Repo.update_all(
-        [
-          set: [
-            status: :disconnected,
-            disconnected_at: now,
-            disconnected_reason: "Stale connection"
-          ]
-        ],
-        timeout: 60_000
+      |> update([dc],
+        set: [
+          status: :disconnected,
+          disconnected_at: ^now,
+          # A device that said it was going to sleep, then dropped its radio
+          # without closing the socket, went to sleep rather than stale.
+          disconnected_reason: coalesce(dc.disconnected_reason, type(^:stale_connection, DisconnectReason))
+        ]
       )
+      |> Repo.update_all([], timeout: 60_000)
       |> case do
         {_count, device_connections} = results ->
           async_device_connection_history_insert(device_connections)
@@ -413,6 +473,10 @@ defmodule NervesHub.Devices.Connections do
   Backs the "disconnects" built-in health profile metric (a warning and an
   alert window per judgement); callers are expected to check that analytics
   is enabled first.
+
+  Planned disconnects (`DisconnectReason.planned_values/0`: sleep, reboots,
+  reconnects someone asked for, revoked keys, server restarts) are not
+  counted, since the metric is about connectivity.
   """
   @spec disconnection_counts(pos_integer(), pos_integer(), pos_integer(), {pos_integer(), pos_integer()}) ::
           {non_neg_integer(), non_neg_integer()}
@@ -425,6 +489,7 @@ defmodule NervesHub.Devices.Connections do
     DeviceConnectionHistory
     |> where([dc], dc.org_id == ^org_id and dc.product_id == ^product_id and dc.device_id == ^device_id)
     |> where([dc], not is_nil(dc.disconnected_at))
+    |> where([dc], dc.disconnected_reason not in ^planned_reasons())
     |> where([dc], dc.disconnected_at >= ^widest)
     |> select(
       [dc],
@@ -440,7 +505,8 @@ defmodule NervesHub.Devices.Connections do
   1 warning, 2 unhealthy.
 
   Judged as `NervesHub.Devices.HealthEvaluation` judges one device: a
-  level engages when the count over its period reaches its threshold. Every
+  level engages when the count over its period reaches its threshold, and
+  planned disconnects aren't counted (see `disconnection_counts/4`). Every
   other device is healthy on this metric, so it's left out. For previewing a
   change to a health profile before it's saved. One query; callers are
   expected to check that analytics is enabled first.
@@ -462,6 +528,7 @@ defmodule NervesHub.Devices.Connections do
     DeviceConnectionHistory
     |> where([dc], dc.org_id == ^org_id and dc.product_id == ^product_id)
     |> where([dc], not is_nil(dc.disconnected_at))
+    |> where([dc], dc.disconnected_reason not in ^planned_reasons())
     |> where([dc], dc.disconnected_at >= ^widest)
     |> group_by([dc], dc.device_id)
     |> select(
@@ -484,6 +551,9 @@ defmodule NervesHub.Devices.Connections do
     DeviceConnectionHistory
     |> where([dc], dc.org_id == ^product.org_id and dc.product_id == ^product.id)
     |> where([dc], dc.established_at >= fragment("now() - INTERVAL 1 HOUR"))
+    # A device that sleeps between reports connects every time it wakes; those
+    # connections end as planned, and only the rest say anything about flapping.
+    |> where([dc], dc.disconnected_reason not in ^planned_reasons())
     |> select([dc], %{device_id: dc.device_id, count: fragment("count() as count")})
     |> group_by([dc], dc.device_id)
     |> having([dc], fragment("count > 10"))
@@ -491,4 +561,7 @@ defmodule NervesHub.Devices.Connections do
     |> AnalyticsRepo.all(settings: [final: 1])
     |> Devices.with_counts(product)
   end
+
+  # As `device_connection_history` stores them.
+  defp planned_reasons(), do: Enum.map(DisconnectReason.planned_values(), &Atom.to_string/1)
 end

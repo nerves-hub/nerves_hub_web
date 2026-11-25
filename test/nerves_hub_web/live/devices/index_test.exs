@@ -146,6 +146,62 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       end)
       |> assert_has(online_indicator)
     end
+
+    test "a device that went to sleep is shown asleep when it goes offline", %{
+      conn: conn,
+      fixture: fixture,
+      online_indicator: online_indicator
+    } do
+      %{device: device, org: org, product: product} = fixture
+      {:ok, connection} = Connections.device_connecting(device.org_id, device.product_id, device.id)
+      :ok = Connections.device_connected(connection.id)
+
+      conn
+      |> visit(~p"/org/#{org}/#{product}/devices")
+      |> assert_has(online_indicator, timeout: 1000)
+      |> unwrap(fn view ->
+        send(view.pid, %Broadcast{
+          topic: "internal:device:#{device.id}",
+          event: "connection:change",
+          payload: %{
+            status: "offline",
+            disconnected_reason: :deep_sleep,
+            disconnected_at: DateTime.utc_now(),
+            expected_wake_at: DateTime.add(DateTime.utc_now(), 5, :minute)
+          }
+        })
+
+        render(view)
+      end)
+      |> assert_has("span.sleep-mark.text-status-asleep[title^='Asleep, back in']")
+      |> assert_has("span", text: "Asleep, 4 minutes left")
+      |> unwrap(fn view -> view |> element("#device-row-#{device.id}") |> render_click() end)
+      |> assert_has("#peek-sleep-status span", text: "back in 4 minutes")
+    end
+
+    test "a device already asleep is shown asleep on load", %{conn: conn, fixture: fixture} do
+      %{device: device, org: org, product: product} = fixture
+      {:ok, connection} = Connections.device_connecting(device.org_id, device.product_id, device.id)
+      :ok = Connections.device_leaving(connection.id, :deep_sleep, DateTime.add(DateTime.utc_now(), 5, :minute))
+      :ok = Connections.device_disconnected(connection.id)
+
+      conn
+      |> visit(~p"/org/#{org}/#{product}/devices")
+      |> assert_has("span.sleep-mark.text-status-asleep[title^='Asleep, back in']", timeout: 1000)
+      |> assert_has("span", text: "Asleep, 4 minutes left")
+    end
+
+    test "a device later than it said is shown overdue", %{conn: conn, fixture: fixture} do
+      %{device: device, org: org, product: product} = fixture
+      {:ok, connection} = Connections.device_connecting(device.org_id, device.product_id, device.id)
+      :ok = Connections.device_leaving(connection.id, :deep_sleep, DateTime.add(DateTime.utc_now(), -20, :minute))
+      :ok = Connections.device_disconnected(connection.id)
+
+      conn
+      |> visit(~p"/org/#{org}/#{product}/devices")
+      |> assert_has("span.sleep-mark.text-status-overdue[title^='Overdue, was due back']", timeout: 1000)
+      |> assert_has("span.text-warning-content", text: "Overdue 20 minutes")
+    end
   end
 
   describe "device firmware updates" do
@@ -1446,6 +1502,44 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       |> unwrap(fn view -> view |> element("#device-row-#{unrecorded.id}") |> render_click() end)
       |> assert_has("#peek-why", text: "Last seen unknown")
       |> assert_has("#peek-why", text: "First seen 4 Mar 2025")
+    end
+
+    test "shows a sleeping device as asleep, with when it's due back, and won't reboot it", %{
+      conn: conn,
+      fixture: %{org: org, product: product, firmware: firmware} = fixture
+    } do
+      sleeper = Fixtures.device_fixture(org, product, firmware)
+      {:ok, connection} = Connections.device_connecting(sleeper.org_id, sleeper.product_id, sleeper.id)
+      :ok = Connections.device_leaving(connection.id, :deep_sleep, DateTime.add(DateTime.utc_now(), 10, :minute))
+      :ok = Connections.device_disconnected(connection.id)
+
+      conn
+      |> visit(device_index_path(fixture))
+      |> assert_has("#device-row-#{sleeper.id}", timeout: 1000)
+      |> unwrap(fn view -> view |> element("#device-row-#{sleeper.id}") |> render_click() end)
+      |> assert_has("#device-peek header span.sleep-mark.text-status-asleep[title^='Asleep, back in']")
+      |> refute_has("#device-peek header", text: "Offline")
+      |> assert_has("#peek-sleep-status span.text-success-content", text: "Asleep")
+      |> assert_has("#peek-sleep-status span", text: "back in 9 minutes")
+      |> assert_has("#device-peek button[disabled][title='The device is asleep']", text: "Reboot…")
+    end
+
+    test "shows a sleeping device that's later than it said as overdue", %{
+      conn: conn,
+      fixture: %{org: org, product: product, firmware: firmware} = fixture
+    } do
+      sleeper = Fixtures.device_fixture(org, product, firmware)
+      {:ok, connection} = Connections.device_connecting(sleeper.org_id, sleeper.product_id, sleeper.id)
+      :ok = Connections.device_leaving(connection.id, :deep_sleep, DateTime.add(DateTime.utc_now(), -20, :minute))
+      :ok = Connections.device_disconnected(connection.id)
+
+      conn
+      |> visit(device_index_path(fixture))
+      |> assert_has("#device-row-#{sleeper.id}", timeout: 1000)
+      |> unwrap(fn view -> view |> element("#device-row-#{sleeper.id}") |> render_click() end)
+      |> assert_has("#device-peek header span.sleep-mark.text-status-overdue")
+      |> assert_has("#peek-sleep-status span.text-warning-content", text: "Overdue")
+      |> assert_has("#peek-sleep-status span", text: "was due back 20 minutes ago")
     end
 
     test "the arrow keys move along the page, and escape closes it", %{conn: conn, fixture: fixture, device2: device2} do

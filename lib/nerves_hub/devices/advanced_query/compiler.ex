@@ -16,6 +16,7 @@ defmodule NervesHub.Devices.AdvancedQuery.Compiler do
   alias NervesHub.Devices.AdvancedQuery.Parser
   alias NervesHub.Devices.AdvancedQuery.Schema
   alias NervesHub.Devices.DeviceAlarm
+  alias NervesHub.Devices.DisconnectReason
 
   @not_set_value Schema.not_set_value()
   @metric_prefix Schema.metric_prefix()
@@ -238,6 +239,23 @@ defmodule NervesHub.Devices.AdvancedQuery.Compiler do
 
   defp comparison_dynamic("connection", "=", "not_seen"), do: dynamic([d], d.status == :registered)
   defp comparison_dynamic("connection", "!=", "not_seen"), do: dynamic([d], d.status != :registered)
+
+  # Asleep: the last connection ended with the device saying it was going to
+  # sleep, whether or not it is now overdue. Waking replaces the connection.
+  defp comparison_dynamic("connection", "=", "asleep") do
+    dynamic(
+      [latest_connection: lc],
+      lc.status == :disconnected and lc.disconnected_reason in ^DisconnectReason.sleep_values()
+    )
+  end
+
+  defp comparison_dynamic("connection", "!=", "asleep") do
+    dynamic(
+      [latest_connection: lc],
+      is_nil(lc.status) or lc.status != :disconnected or is_nil(lc.disconnected_reason) or
+        lc.disconnected_reason not in ^DisconnectReason.sleep_values()
+    )
+  end
 
   defp comparison_dynamic("connection", "=", value) do
     status = String.to_existing_atom(value)

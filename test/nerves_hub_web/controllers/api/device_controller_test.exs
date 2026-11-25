@@ -10,6 +10,7 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
   alias NervesHub.AuditLogs
   alias NervesHub.DeploymentOrchestratorEvents
   alias NervesHub.Devices
+  alias NervesHub.Devices.Connections
   alias NervesHub.Devices.Device
   alias NervesHub.Devices.Updates
   alias NervesHub.Fixtures
@@ -585,6 +586,7 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
                "data" => [
                  %{
                    "connection_status" => "not_seen",
+                   "sleep" => nil,
                    "deleted" => false,
                    "deployment_group" => nil,
                    "description" => nil,
@@ -914,6 +916,36 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
       assert json_response(conn, 200)["data"]
 
       assert json_response(conn, 200)["data"]["identifier"] == device.identifier
+    end
+
+    test "says when a sleeping device is due back", %{conn: conn, user: user, org: org, tmp_dir: tmp_dir} do
+      product = Fixtures.product_fixture(user, org)
+      org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
+      firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+      device = Fixtures.device_fixture(org, product, firmware)
+
+      wake_at = DateTime.add(DateTime.utc_now(), 5, :minute)
+      {:ok, connection} = Connections.device_connecting(org.id, product.id, device.id)
+      :ok = Connections.device_leaving(connection.id, :light_sleep, wake_at)
+      :ok = Connections.device_disconnected(connection.id)
+
+      conn = get(conn, Routes.api_device_path(conn, :show, org.name, product.name, device.identifier))
+
+      assert %{"state" => "asleep", "mode" => "light", "expected_wake_at" => expected_wake_at} =
+               json_response(conn, 200)["data"]["sleep"]
+
+      assert {:ok, ^wake_at, 0} = DateTime.from_iso8601(expected_wake_at)
+    end
+
+    test "has no sleep for a device that is not asleep", %{conn: conn, user: user, org: org, tmp_dir: tmp_dir} do
+      product = Fixtures.product_fixture(user, org)
+      org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
+      firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+      device = Fixtures.device_fixture(org, product, firmware)
+
+      conn = get(conn, Routes.api_device_path(conn, :show, org.name, product.name, device.identifier))
+
+      assert %{"sleep" => nil} = json_response(conn, 200)["data"]
     end
 
     test "device that the user does not have access to, using nested url", %{

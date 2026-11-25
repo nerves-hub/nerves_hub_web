@@ -1149,6 +1149,77 @@ defmodule NervesHubWeb.WebsocketTest do
       assert recent_datetime(device_connection.disconnected_at)
     end
 
+    test "a device that says it is going to sleep is recorded as asleep when it closes", %{user: user} do
+      {socket, device} = shared_secret_device(user)
+
+      SocketClient.push(socket, "device", "sleeping", %{"mode" => "deep", "duration_ms" => 600_000})
+
+      eventually assert(Connections.get_latest_for_device(device.id).disconnected_reason == :deep_sleep)
+
+      _ = SocketClient.clean_close(socket)
+
+      eventually assert(Connections.get_latest_for_device(device.id).status == :disconnected)
+
+      assert %{disconnected_reason: :deep_sleep, expected_wake_at: %DateTime{} = wake_at} =
+               Connections.get_latest_for_device(device.id)
+
+      assert DateTime.diff(wake_at, DateTime.utc_now(), :second) in 590..600
+    end
+
+    test "a reconnect someone asked for is recorded as such", %{user: user} do
+      {socket, device} = shared_secret_device(user)
+
+      :ok = DeviceEvents.reconnect(device)
+
+      eventually refute SocketClient.connected?(socket)
+      eventually assert(Connections.get_latest_for_device(device.id).disconnected_reason == :reconnect_requested)
+    end
+
+    test "a connection closed with no reason records none", %{user: user} do
+      {socket, device} = shared_secret_device(user)
+
+      _ = SocketClient.clean_close(socket)
+
+      eventually assert(Connections.get_latest_for_device(device.id).status == :disconnected)
+      assert Connections.get_latest_for_device(device.id).disconnected_reason == nil
+    end
+
+    defp shared_secret_device(user) do
+      Application.put_env(:nerves_hub, NervesHubWeb.DeviceSocket, shared_secrets: [enabled: true])
+
+      on_exit(fn ->
+        Application.put_env(:nerves_hub, NervesHubWeb.DeviceSocket, shared_secrets: [enabled: false])
+      end)
+
+      org = Fixtures.org_fixture(user)
+      product = Fixtures.product_fixture(user, org)
+      assert {:ok, auth} = Products.create_shared_secret_auth(product)
+
+      identifier = Ecto.UUID.generate()
+
+      opts = [
+        mint_opts: [protocols: [:http1]],
+        uri: "ws://127.0.0.1:#{@web_port}/device-socket/websocket",
+        headers: Utils.nh1_key_secret_headers(auth, identifier)
+      ]
+
+      params = %{
+        "nerves_fw_uuid" => Ecto.UUID.generate(),
+        "nerves_fw_product" => product.name,
+        "nerves_fw_architecture" => "arm64",
+        "nerves_fw_version" => "0.0.0",
+        "nerves_fw_platform" => "test_host"
+      }
+
+      {:ok, socket} = SocketClient.start_link(with_serializer(opts))
+      SocketClient.join_and_wait(socket, params)
+
+      device = Repo.get_by!(Device, identifier: identifier)
+      eventually assert(Connections.get_latest_for_device(device.id).status == :connected), 3_000
+
+      {socket, device}
+    end
+
     defp recent_datetime(datetime) do
       DateTime.diff(DateTime.utc_now(), datetime, :second) <= 5
     end

@@ -20,6 +20,7 @@ defmodule NervesHub.Devices.DeviceConnectionHistory do
     field(:established_at, Ch, type: "DateTime64(6, 'UTC')")
     field(:last_seen_at, Ch, type: "DateTime64(6, 'UTC')")
     field(:disconnected_at, Ch, type: "Nullable(DateTime64(6, 'UTC'))")
+    field(:expected_wake_at, Ch, type: "Nullable(DateTime64(6, 'UTC'))")
 
     field(:org_id, Ch, type: "UInt64")
     field(:product_id, Ch, type: "UInt64")
@@ -46,9 +47,12 @@ defmodule NervesHub.Devices.DeviceConnectionHistory do
     |> put_change(:established_at, connection.established_at)
     |> put_change(:last_seen_at, connection.last_seen_at)
     |> put_change(:disconnected_at, connection.disconnected_at)
+    |> put_change(:expected_wake_at, connection.expected_wake_at)
     |> put_change(:ref, connection.id)
-    # `disconnected_at` is the only Nullable column on the table; the String
-    # columns below are not, so an unset one has to become "" rather than nil.
+    # `disconnected_at` and `expected_wake_at` are the only Nullable columns on
+    # the table; the String columns below are not, so an unset one has to
+    # become "" rather than nil. The reason is stored as
+    # `NervesHub.Devices.DisconnectReason` dumps it.
     |> put_change(:disconnected_reason, to_string(connection.disconnected_reason))
     |> put_change(:lib, to_string(connection.lib))
     |> put_change(:lib_version, to_string(connection.lib_version))
@@ -100,9 +104,14 @@ defmodule NervesHub.Devices.DeviceConnectionHistory do
     connection
     |> change()
     |> put_change(:disconnected_at, connection.last_seen_at)
-    |> put_change(:disconnected_reason, "Stale connection")
+    |> put_change(:disconnected_reason, stale_reason(connection.disconnected_reason))
     |> put_change(:version, current_version())
   end
+
+  # A reason already recorded, such as a sleep the device announced before its
+  # radio dropped, says more than "stale" does.
+  defp stale_reason(reason) when reason in [nil, ""], do: "stale_connection"
+  defp stale_reason(reason), do: reason
 
   # Keeps the counter across a code reload so the high water mark isn't reset
   # back behind the versions already handed out.

@@ -22,6 +22,7 @@ defmodule NervesHub.Webhooks.Payloads do
   alias NervesHub.Devices.Device
   alias NervesHub.Devices.DeviceConnection
   alias NervesHub.Devices.DeviceHealth
+  alias NervesHub.Devices.DisconnectReason
   alias NervesHub.Firmwares.Firmware
   alias NervesHub.ManagedDeployments.DeploymentGroup
   alias NervesHub.ManagedDeployments.DeploymentWorkflowStep
@@ -50,7 +51,9 @@ defmodule NervesHub.Webhooks.Payloads do
         id: connection.id,
         established_at: connection.established_at,
         disconnected_at: connection.disconnected_at,
-        reason: connection.disconnected_reason
+        reason: DisconnectReason.label(connection.disconnected_reason),
+        reason_code: connection.disconnected_reason,
+        expected_wake_at: connection.expected_wake_at
       }
     }
   end

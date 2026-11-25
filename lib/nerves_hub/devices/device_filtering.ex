@@ -184,7 +184,9 @@ defmodule NervesHub.Devices.DeviceFiltering do
   # devices that never connected.
   def value_dynamic(:connection, "offline"), do: state_dynamic("offline")
 
-  def value_dynamic(:connection, value) when value in ~w(connected disconnected not_seen),
+  # Asleep: the last connection ended with the device saying it was going to
+  # sleep, overdue or not.
+  def value_dynamic(:connection, value) when value in ~w(connected disconnected not_seen asleep),
     do: comparison("connection", "=", value)
 
   def value_dynamic(:connection_type, value) when value in ~w(cellular ethernet wifi unknown),
