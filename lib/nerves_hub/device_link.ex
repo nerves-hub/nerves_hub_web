@@ -19,6 +19,7 @@ defmodule NervesHub.DeviceLink do
   alias NervesHub.Devices.Device
   alias NervesHub.Devices.DeviceConnection
   alias NervesHub.Devices.DeviceMessages
+  alias NervesHub.Devices.ReportedMetadata
   alias NervesHub.Devices.Updates
   alias NervesHub.Extensions
   alias NervesHub.Extensions.Dispatch, as: ExtensionDispatch
@@ -307,11 +308,13 @@ defmodule NervesHub.DeviceLink do
 
   # What the device says about itself (where it was installed, the board
   # revision under it), sent once per join and again when it changes. It goes
-  # where a health report's metadata goes, which older firmware still sends.
-  # Anything but a map is left to the catch-all below. See
-  # docs/device_metadata.md.
-  defp do_device_message(session, "report_device_metadata", %{"metadata" => metadata}) when is_map(metadata) do
-    :ok = Connections.merge_reported_metadata(session.device_info.connection_ref, metadata)
+  # where a health report's metadata goes, which older firmware still sends,
+  # and `ReportedMetadata.merge/2` drops what it can't store and says so. A
+  # payload that isn't an object is passed on as it is, to be reported as
+  # metadata that isn't a map. See docs/device_metadata.md.
+  defp do_device_message(session, "report_device_metadata", payload) do
+    metadata = if is_map(payload), do: payload["metadata"], else: payload
+    :ok = ReportedMetadata.merge(session.device_info, metadata)
     {session, []}
   end
 

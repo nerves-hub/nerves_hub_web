@@ -18,8 +18,6 @@ defmodule NervesHub.Devices.Connections do
   alias NervesHub.Tracker
   alias NervesHub.Webhooks.Payloads
 
-  require Logger
-
   @doc """
   Whether `device` last connected before `latest_device_connections` existed.
 
@@ -340,36 +338,6 @@ defmodule NervesHub.Devices.Connections do
         :error
     end
   end
-
-  @doc """
-  Merges metadata a device reported about itself into its connection.
-
-  Both ways a device reports metadata end here: the device channel's
-  `report_device_metadata` message, and the `metadata` key of a health report
-  from firmware older than that message. See `docs/device_metadata.md`.
-
-  Merged rather than replaced, so a report that carries only part of what the
-  device knows does not blank the rest. An empty map leaves the connection
-  alone, and so does anything that isn't a map, which is how a health report
-  with no metadata says nothing about it. An error only means the connection
-  row has already moved on, which the next report will correct, so it is
-  logged and `:ok` is returned either way.
-  """
-  @spec merge_reported_metadata(Ecto.UUID.t(), term()) :: :ok
-  def merge_reported_metadata(_ref_id, metadata) when metadata == %{}, do: :ok
-
-  def merge_reported_metadata(ref_id, metadata) when is_map(metadata) do
-    case merge_update_metadata(ref_id, metadata) do
-      :ok ->
-        :ok
-
-      {:error, reason} ->
-        Logger.warning("[Connections] failed to merge reported metadata: #{inspect(reason)}")
-        :ok
-    end
-  end
-
-  def merge_reported_metadata(_ref_id, _absent_or_not_a_map), do: :ok
 
   @doc """
   Updates the connection `metadata` by merging in new metadata.

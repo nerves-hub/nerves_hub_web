@@ -38,10 +38,11 @@ again only when the metadata changes while the device is connected
 (`NervesHubLink.refresh_device_metadata/1` does this). A device with no
 metadata sends nothing.
 
-A payload without a `metadata` object (a list, a string, `null`, or no key at
-all) is ignored and logged as an unknown message, and the connection carries
-on. So is the whole message on a server that predates it, so a device can send
-it without checking which server it is talking to.
+A payload whose `metadata` isn't an object (a list, a string) is dropped, and
+the connection carries on. One with no `metadata`, or `null`, says nothing and
+changes nothing. A server that predates the message logs it as unknown and
+carries on, so a device can send it without checking which server it is
+talking to.
 
 ## What NervesHub does with it
 
@@ -54,7 +55,23 @@ The column is the connection's, not the device's. A reconnect replaces the row,
 and the metadata with it, which is why a device sends it on every join. The
 same column holds a few keys the platform writes itself, such as
 `device_api_version`, `connection_types` and `location` from the `geo`
-extension. A device's metadata is merged beside them.
+extension. A device's metadata is merged beside them, and can't replace them.
+
+## Limits
+
+A device can send this whenever it likes, so what it sends is trimmed rather
+than trusted:
+
+- A key the platform writes itself (`connection_types`, `device_api_version`,
+  `location`) is dropped.
+- A key longer than **64 bytes**, or a value longer than **256 bytes** once
+  encoded as JSON, is dropped. A short object or list is kept, measured the
+  same way.
+- At most **32 keys** are kept, the first in sorted order, so a device over the
+  limit loses the same keys every time.
+
+Whatever is left is still stored. The limits are the same for metadata in a
+health report.
 
 ## Older devices
 

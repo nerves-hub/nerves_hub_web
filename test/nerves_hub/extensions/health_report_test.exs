@@ -80,6 +80,22 @@ defmodule NervesHub.Extensions.HealthReportTest do
              Connections.get_latest_for_device(device.id)
   end
 
+  # The same limits as the device channel's `report_device_metadata`, since
+  # both go through `ReportedMetadata.merge/2`.
+  test "metadata over the limits is dropped and the rest stored", %{device: device, state: state} do
+    :ok =
+      report(state, %{
+        "metadata" => %{
+          "serial_number" => "SN-1234",
+          "location" => %{"latitude" => 0},
+          "notes" => String.duplicate("a", 300)
+        }
+      })
+
+    assert %{metadata: %{"serial_number" => "SN-1234"} = metadata} = Connections.get_latest_for_device(device.id)
+    assert map_size(metadata) == 1
+  end
+
   test "a report whose alarms are not a map leaves stored alarms alone", %{device: device, state: state} do
     :ok = report(state, %{"alarms" => %{"HighTemp" => "too hot"}})
     :ok = report(state, %{"alarms" => ["HighTemp"]})

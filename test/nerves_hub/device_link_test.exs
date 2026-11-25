@@ -556,31 +556,35 @@ defmodule NervesHub.DeviceLinkTest do
     test "a malformed payload is ignored without taking the link down", %{device: device, session: session} do
       DeviceLink.device_message(session, "report_device_metadata", %{"metadata" => %{"placement" => "the shed"}})
 
-      test_pid = self()
-      handler_id = {__MODULE__, make_ref()}
-
-      :ok =
-        :telemetry.attach(
-          handler_id,
-          [:nerves_hub, :devices, :unhandled_in],
-          fn _event, _measurements, metadata, _config -> send(test_pid, {:unhandled_in, metadata.msg}) end,
-          nil
-        )
-
-      on_exit(fn -> :telemetry.detach(handler_id) end)
-
       for payload <- [
             %{"metadata" => ["placement", "the barn"]},
             %{"metadata" => "the barn"},
             %{"metadata" => nil},
             %{"placement" => "the barn"},
+            ["placement", "the barn"],
             nil
           ] do
         assert {^session, []} = DeviceLink.device_message(session, "report_device_metadata", payload)
-        assert_receive {:unhandled_in, "report_device_metadata"}
       end
 
       assert %DeviceConnection{metadata: %{"placement" => "the shed"}} = Connections.get_latest_for_device(device.id)
+    end
+
+    test "keys over the limits are dropped and the rest stored", %{device: device, session: session} do
+      :ok =
+        DeviceLink.update_connection_metadata(session.device_info.connection_ref, %{"device_api_version" => "2.3.0"})
+
+      DeviceLink.device_message(session, "report_device_metadata", %{
+        "metadata" => %{
+          "placement" => "the shed",
+          "device_api_version" => "9.9.9",
+          "location" => %{"latitude" => 0, "longitude" => 0},
+          "notes" => String.duplicate("a", 300)
+        }
+      })
+
+      assert %DeviceConnection{metadata: metadata} = Connections.get_latest_for_device(device.id)
+      assert metadata == %{"device_api_version" => "2.3.0", "placement" => "the shed"}
     end
   end
 

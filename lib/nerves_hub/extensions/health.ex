@@ -32,9 +32,9 @@ defmodule NervesHub.Extensions.Health do
   @behaviour NervesHub.Extensions
 
   alias NervesHub.Devices.Alarms
-  alias NervesHub.Devices.Connections
   alias NervesHub.Devices.HealthEvaluation.Queue, as: HealthEvaluationQueue
   alias NervesHub.Devices.Metrics
+  alias NervesHub.Devices.ReportedMetadata
   alias NervesHub.Extensions.Jitter
   alias NervesHub.Extensions.PubSub
   alias NervesHub.Extensions.State
@@ -105,7 +105,7 @@ defmodule NervesHub.Extensions.Health do
     # window otherwise. Firmware from nerves_hub_link 3.0 on sends it on the
     # device channel instead (`report_device_metadata`) and leaves it out of
     # here; both end in the same column. See docs/device_metadata.md.
-    :ok = Connections.merge_reported_metadata(device_info.connection_ref, device_report["metadata"])
+    :ok = ReportedMetadata.merge(device_info, device_report["metadata"])
 
     in_hand = for {key, value} <- metrics, is_number(value), do: {key, now, value}
 
