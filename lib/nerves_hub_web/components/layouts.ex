@@ -9,87 +9,107 @@ defmodule NervesHubWeb.Layouts do
   alias NervesHubWeb.Live.Org.IrohEndpoints
   alias Phoenix.LiveView.JS
 
-  # The sidebar footer's menu, or the phone top bar's (`#phone-user-menu`).
-  defp toggle_user_menu(to \\ "#user-menu-container") do
-    JS.toggle(
+  # Opens or closes a user menu and marks its button `aria-expanded`, which
+  # styles the button as open. The sidebar footer's menu and the no-sidebar
+  # header's use the defaults; the phone top bar's is `#phone-user-menu`.
+  defp toggle_user_menu(menu \\ "#user-menu-container", toggle \\ "#user-menu-toggle") do
+    %JS{}
+    |> JS.toggle(
       in: {"ease-out duration-150", "opacity-0", "opacity-100"},
       out: {"ease-out duration-150", "opacity-100", "opacity-0"},
-      to: to
+      to: menu
     )
+    |> JS.toggle_attribute({"aria-expanded", "true", "false"}, to: toggle)
   end
 
   # Only ever closes the menu - used for Escape and click-away so those never
   # open the menu (JS.toggle would), and are no-ops when it's already closed.
-  defp hide_user_menu(to \\ "#user-menu-container") do
-    JS.hide(
+  defp hide_user_menu(menu \\ "#user-menu-container", toggle \\ "#user-menu-toggle") do
+    %JS{}
+    |> JS.hide(
       transition: {"ease-out duration-150", "opacity-100", "opacity-0"},
-      to: to
+      to: menu
     )
+    |> JS.set_attribute({"aria-expanded", "false"}, to: toggle)
   end
 
   @doc false
-  # Rendered twice, in the sidebar footer and behind a phone's top bar avatar,
-  # so the theme buttons take their ids from `theme_id`.
+  # The user menu's contents, rendered by the sidebar footer, a phone's top bar
+  # and the no-sidebar header, so the theme buttons take their ids from
+  # `theme_id`.
+  attr(:user, :map, required: true)
   attr(:theme_id, :string, required: true)
+
+  attr(:identity_class, :string,
+    default: "flex",
+    doc: "display class for the name and email at the top and their rule; hide them when the button already shows them"
+  )
 
   def user_menu_items(assigns) do
     ~H"""
-    <div class="justify-left flex items-center gap-1.5 rounded p-2 hover:bg-primary/20">
-      <span class="lucide-user-round size-5 text-content-body" />
-      <.link navigate={~p"/account"} class="text-sm font-light tracking-wide">Account</.link>
+    <div class={["items-center gap-2.5 px-2 pt-2 pb-2.5", @identity_class]}>
+      <.user_avatar user={@user} class="shrink-0 text-ui" />
+      <div class="flex min-w-0 flex-col gap-px">
+        <span class="truncate text-ui/4 font-semibold text-content-strong">{@user.name}</span>
+        <span class="truncate text-xs/4 text-content-muted">{@user.email}</span>
+      </div>
+    </div>
+    <div aria-hidden="true" class={["py-1", @identity_class]}>
+      <div class="h-px flex-1 bg-line-subtle"></div>
     </div>
 
-    <div class="justify-left flex items-center gap-1.5 rounded p-2 hover:bg-primary/20">
-      <span class="lucide-log-out size-5 text-alert" />
-      <.link navigate={~p"/logout"} class="text-sm font-light tracking-wide text-alert">Log out</.link>
+    <.link navigate={~p"/account"} class={user_menu_row_class()}>
+      <span class="lucide-user-round--bold size-3.5 text-content-faint group-hover:text-content-muted" aria-hidden="true"></span> Account
+    </.link>
+    <.link navigate={~p"/account/tokens"} class={user_menu_row_class()}>
+      <span class="lucide-key-round--bold size-3.5 text-content-faint group-hover:text-content-muted" aria-hidden="true"></span> Access tokens
+    </.link>
+    <.link navigate={~p"/orgs"} class={user_menu_row_class()}>
+      <span class="lucide-building--bold size-3.5 text-content-faint group-hover:text-content-muted" aria-hidden="true"></span> Organizations
+    </.link>
+
+    <div aria-hidden="true" class="flex py-1">
+      <div class="h-px flex-1 bg-line-subtle"></div>
     </div>
 
-    <div aria-hidden="true" class="col-span-full -mx-1.5 my-1.5 h-px border-t border-line-default"></div>
+    <a href="https://docs.nerves-hub.org" target="_blank" rel="noopener noreferrer" class={user_menu_row_class()}>
+      <span class="lucide-book-open-text--bold size-3.5 text-content-faint group-hover:text-content-muted" aria-hidden="true"></span>
+      <span class="flex-1">Documentation</span>
+      <span class="lucide-arrow-up-right--bold size-3 text-content-faint" aria-hidden="true"></span>
+    </a>
 
-    <div class="justify-left flex items-center gap-1.5 rounded p-2 hover:bg-primary/20">
-      <span class="lucide-book-open-text size-5 text-content-body" />
-      <a href="https://docs.nerves-hub.org" class="text-sm font-light tracking-wide">Documentation</a>
+    <div class="flex h-9 items-center gap-2 rounded pr-1 pl-2 text-ui/4 text-content-body">
+      <span class="lucide-contrast--bold size-3.5 text-content-faint" aria-hidden="true"></span>
+      <span class="flex-1">Theme</span>
+      <div id={"#{@theme_id}-selector"} phx-update="ignore" class="flex gap-0.5 rounded-md border border-line-subtle bg-surface-muted p-0.5">
+        <button
+          :for={{option, label, icon} <- [{"light", "Light theme", "lucide-sun--bold"}, {"dark", "Dark theme", "lucide-moon--bold"}, {"system", "System theme", "lucide-monitor--bold"}]}
+          id={"#{@theme_id}-#{option}"}
+          type="button"
+          aria-label={label}
+          title={label}
+          phx-hook="ThemeSwitcher"
+          data-theme-option={option}
+          class="theme-selectors flex h-5.5 w-6.5 cursor-pointer items-center justify-center rounded text-content-faint hover:text-content-strong data-[selected=true]:bg-base-700 data-[selected=true]:text-content-strong data-[selected=true]:shadow-control light:data-[selected=true]:bg-surface-raised"
+        >
+          <span class={[icon, "size-3.25"]} aria-hidden="true"></span>
+        </button>
+      </div>
     </div>
 
-    <div aria-hidden="true" class="col-span-full -mx-1.5 my-1.5 h-px border-t border-line-default"></div>
-
-    <div id={"#{@theme_id}-selector"} phx-update="ignore" class="ring-border relative isolate mt-2.5 mb-2 ml-2 flex h-8 w-fit gap-1.5 rounded-full p-1 ring-1 ring-line-default">
-      <button
-        id={"#{@theme_id}-light"}
-        aria-label="Light theme"
-        phx-hook="ThemeSwitcher"
-        data-theme-option="light"
-        class="group theme-selectors relative flex size-6 items-center justify-center rounded-full hover:border-primary data-[selected=true]:border-primary"
-        type="button"
-      >
-        <div class="absolute inset-0 hidden rounded-full bg-primary/10 group-data-[selected=true]:flex"></div>
-        <span class="lucide-sun size-5 text-base-600 group-hover:cursor-pointer group-hover:text-primary group-data-[selected=true]:text-primary" />
-      </button>
-      <button
-        id={"#{@theme_id}-dark"}
-        aria-label="Dark theme"
-        phx-hook="ThemeSwitcher"
-        data-theme-option="dark"
-        class="group theme-selectors relative flex size-6 items-center justify-center rounded-full hover:border-primary data-[selected=true]:border-primary"
-        type="button"
-      >
-        <div class="absolute inset-0 hidden rounded-full bg-primary/10 group-data-[selected=true]:flex"></div>
-        <span class="lucide-moon size-5 text-base-600 group-hover:cursor-pointer group-hover:text-primary group-data-[selected=true]:text-primary" />
-      </button>
-      <button
-        id={"#{@theme_id}-system"}
-        aria-label="System theme"
-        phx-hook="ThemeSwitcher"
-        data-theme-option="system"
-        class="group theme-selectors relative flex size-6 items-center justify-center rounded-full hover:border-primary data-[selected=true]:border-primary"
-        type="button"
-      >
-        <div class="absolute inset-0 hidden rounded-full bg-primary/10 group-data-[selected=true]:flex"></div>
-        <span class="lucide-monitor size-4.5 text-base-600 group-hover:cursor-pointer group-hover:text-primary group-data-[selected=true]:text-primary" />
-      </button>
+    <div aria-hidden="true" class="flex py-1">
+      <div class="h-px flex-1 bg-line-subtle"></div>
     </div>
+
+    <.link href={~p"/logout"} class={user_menu_row_class()}>
+      <span class="lucide-log-out--bold size-3.5 text-content-faint group-hover:text-content-muted" aria-hidden="true"></span> Log out
+    </.link>
     """
   end
+
+  defp user_menu_row_class(),
+    do:
+      "group flex h-8 shrink-0 items-center gap-2 rounded px-2 text-ui/4 text-content-body hover:bg-base-800 hover:text-content-strong light:hover:bg-surface-muted"
 
   # On a phone the sidebar is a drawer. An attribute rather than JS.show, so
   # the classes decide that it only hides below `sm`.

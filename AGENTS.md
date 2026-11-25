@@ -281,12 +281,25 @@ when adding or removing one.
   - User-facing counterparts: `UserConsoleChannel`, `UserLocalShellChannel`.
 - `live/` — LiveViews (the dashboard). `live/devices/show.ex` is the device
   page; its tabs live in `components/device_page/*` as tab components that hook
-  into the LiveView. Below `sm` the device page scrolls as one, under tabs
+  into the LiveView. The Health tab's History card opens with a connection lane
+  (`components/device_page/connection_lane.ex`) over the span its charts show,
+  drawn from `Devices.ConnectionTimeline`: time offline with why it began and
+  where the device came back, and reconnects too quick to count as offline.
+  Hovering or tapping an offline span darkens the charts' matching Offline
+  bands (the `ConnectionLane` hook). Below `sm` the device page scrolls as one, under tabs
   that stick to the top, and each tab has its own `max-sm:` layout (a table
   becomes a card per row by restyling its rows, not by rendering them twice).
   Two states on a phone are marked on `<html>`, which a patch never touches,
   and read by the `header-scrolled:` and `terminal-typing:` variants in
-  `app.css`. An organization's pages (`live/org/`, plus
+  `app.css`. A file sent to a device on the Console tab shows how it's going
+  in a dialog over the terminal and a strip under it, rendered by the tab and
+  driven by `assets/js/helpers/consoleUploadView.js`. The device's console reads
+  nothing else while it saves a file, so the page has to learn when it's done:
+  a console from 2.1.0 on is asked by `ConsoleChannel` to report each chunk it
+  saves (`file-data/ack`, then `file-data/saved` or `file-data/error`), and an
+  older one is typed a character and Delete, the file being saved once that
+  echoes. Only `ConsoleChannel` asks, never the page, since a channel that
+  doesn't know the answers would crash on them. An organization's pages (`live/org/`, plus
   `live/products/new.ex`) have no sidebar: they render inside `Layouts.org/1`,
   a centered column under the organization's name, counts and tabs, and mount
   `NervesHubWeb.Mounts.OrgCounts` for the counts. Product pages keep the
@@ -346,6 +359,11 @@ when adding or removing one.
   mounts. On a phone the sidebar is a drawer, and the top bar reads menu
   button, then the page's breadcrumb (or the product and page names when it
   has none), then the avatar, which holds the user menu the drawer leaves out.
+  The user menu's contents are one component, `Layouts.user_menu_items/1`,
+  shared by the sidebar's footer, that avatar and the header of pages without
+  a sidebar, so a new link goes there once. A button that opens a menu points
+  its chevron the way the menu opens (up in the footer, down for the product
+  switcher) and flips it while open, read from its `aria-expanded`.
   Every detail, new and edit page draws its breadcrumb with
   `components/breadcrumb.ex` (the list's name, a chevron, then the item), so
   a new page uses it rather than writing its own. Asking before an action

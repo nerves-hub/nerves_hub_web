@@ -7,6 +7,7 @@ defmodule NervesHub.Devices.ConnectionHistoryTest do
   alias NervesHub.Analytics.Buffer
   alias NervesHub.AnalyticsRepo
   alias NervesHub.Devices.Connections
+  alias NervesHub.Devices.ConnectionTimeline
   alias NervesHub.Devices.DeviceConnection
   alias NervesHub.Devices.DeviceConnectionHistory
   alias NervesHub.Fixtures
@@ -303,8 +304,8 @@ defmodule NervesHub.Devices.ConnectionHistoryTest do
     end
   end
 
-  describe "offline_periods/3" do
-    test "is when the device had no connection, and only for that device", %{
+  describe "ConnectionTimeline.load/3" do
+    test "reads the device's connections, and the last to end before the span", %{
       device: device,
       org: org,
       product: product,
@@ -314,26 +315,20 @@ defmodule NervesHub.Devices.ConnectionHistoryTest do
       now = DateTime.utc_now()
       ago = fn minutes -> DateTime.add(now, -minutes, :minute) end
 
-      insert_history(device, ago.(200), ago.(100))
-      insert_history(device, ago.(70), nil)
-      insert_history(other_device, ago.(100), ago.(70))
+      Fixtures.connection_history_fixture(device, ago.(300), ago.(200), reason: "Stale connection")
+      Fixtures.connection_history_fixture(device, ago.(150), ago.(100), reason: "Reconnected")
+      Fixtures.connection_history_fixture(device, ago.(70), nil, network_interface: :wifi, ip_address: "10.0.4.17")
+      Fixtures.connection_history_fixture(other_device, ago.(100), ago.(70))
 
-      assert_eventually(Connections.offline_periods(device, ago.(180), now) == [{ago.(100), ago.(70)}])
+      assert_eventually(
+        ConnectionTimeline.load(device, ago.(180), now) == %ConnectionTimeline{
+          offline: [
+            %{from: ago.(200), until: ago.(150), reason: "Stale connection", interface: nil, ip_address: nil},
+            %{from: ago.(100), until: ago.(70), reason: "Reconnected", interface: "wifi", ip_address: "10.0.4.17"}
+          ],
+          reconnects: []
+        }
+      )
     end
-  end
-
-  defp insert_history(device, established_at, disconnected_at) do
-    %DeviceConnection{
-      id: Ecto.UUID.generate(),
-      org_id: device.org_id,
-      product_id: device.product_id,
-      device_id: device.id,
-      established_at: established_at,
-      last_seen_at: disconnected_at || established_at,
-      disconnected_at: disconnected_at
-    }
-    |> DeviceConnectionHistory.from_device_connection_changeset()
-    |> Ecto.Changeset.apply_changes()
-    |> AnalyticsRepo.insert!()
   end
 end

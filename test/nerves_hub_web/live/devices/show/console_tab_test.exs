@@ -69,6 +69,39 @@ defmodule NervesHubWeb.Live.Devices.Show.ConsoleTabTest do
     assert_has(session, "#console", timeout: 1000)
   end
 
+  describe "sending a file" do
+    test "the dialog and strip that show how it goes are there, hidden, until the page sends one", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device
+    } do
+      _console = ConsoleStandIn.start(device.id)
+      platform = NervesHub.Branding.friendly_platform_name()
+
+      conn
+      |> visit(console_path(org, product, device))
+      |> assert_has("#console", timeout: 1000)
+      |> assert_has("[data-upload-dialog][hidden] [role=dialog]", text: "Sending a file to the device")
+      |> assert_has("[data-upload-dialog] [data-upload-step=upload]", text: "Upload to #{platform}")
+      |> assert_has("[data-upload-dialog] [data-upload-step=save]", text: "Device receives and saves it")
+      |> assert_has("[data-upload-strip][hidden]", text: "Uploading to #{platform}")
+    end
+
+    test "nothing to show it with when the console is unavailable", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device
+    } do
+      conn
+      |> visit(console_path(org, product, device))
+      |> assert_has("div", text: @unavailable)
+      |> refute_has("[data-upload-dialog]")
+      |> refute_has("[data-upload-strip]")
+    end
+  end
+
   defp console_path(org, product, device) do
     "/org/#{org.name}/#{product.name}/devices/#{device.identifier}/console"
   end

@@ -1,15 +1,32 @@
 # Channel the device is connected to
 defmodule NervesHubWeb.ConsoleChannel do
+  @moduledoc """
+  The device's end of its console: what the device prints goes up to whoever
+  has the console open, and what they type comes down.
+
+  A file sent to the device arrives as `file-data/start`, its `file-data`
+  chunks, then `file-data/stop`, and the device reads nothing else, typing
+  included, until it has saved the file. A console from 2.1.0 on can say how
+  that goes: this channel adds `"ack" => true` to `file-data/start`, and the
+  device answers with `file-data/ack` after each chunk it saves (with the bytes
+  saved so far), then `file-data/saved` or `file-data/error`, which go up to
+  the user's console with `file_acks` in the metadata telling the page to
+  expect them. Only this channel asks, never the page, so a device is only
+  asked by a channel that handles the answers; with an older one the page
+  types a character and Delete and waits for the echo instead.
+  """
   use Phoenix.Channel
 
   alias NervesHub.Consoles.PubSub
   alias NervesHubWeb.Channels.Scrollback
   alias Phoenix.Socket.Broadcast
 
+  require Logger
+
   def join("console", payload, socket) do
     send(self(), {:after_join, payload})
 
-    {:ok, assign(socket, :scrollback, Scrollback.new())}
+    {:ok, assign(socket, scrollback: Scrollback.new(), file_acks?: false)}
   end
 
   def terminate(_, _socket) do
@@ -43,8 +60,26 @@ defmodule NervesHubWeb.ConsoleChannel do
     {:noreply, socket}
   end
 
+  # How a file sent to the device is going, when this channel asked.
+  def handle_in(event, payload, socket) when event in ["file-data/ack", "file-data/saved", "file-data/error"] do
+    PubSub.broadcast_to_user_console(device_id(socket), event, payload)
+
+    {:noreply, socket}
+  end
+
+  # A newer device can send something this channel doesn't know yet. Dropped,
+  # rather than taking the console down with it.
+  def handle_in(event, _payload, socket) do
+    Logger.debug("Ignoring console event the server doesn't know: #{inspect(event)}")
+
+    {:noreply, socket}
+  end
+
   def handle_info({:after_join, payload}, socket) do
-    socket = assign(socket, :version, payload["console_version"])
+    socket =
+      socket
+      |> assign(:version, payload["console_version"])
+      |> assign(:file_acks?, file_acks?(payload["console_version"]))
 
     # all devices are lumped into a `console` topic (the name used in join/3)
     # this can be a security issue as pubsub messages can be sent to all connected devices
@@ -69,11 +104,17 @@ defmodule NervesHubWeb.ConsoleChannel do
   # A user console opening. Our pid is where it sends input from now on, rather
   # than broadcasting every keystroke to every node.
   def handle_info({:connect, pid}, socket) do
-    metadata = %{version: socket.assigns.version}
+    metadata = %{version: socket.assigns.version, file_acks: socket.assigns.file_acks?}
     send(pid, {:metadata, self(), metadata})
 
     send(pid, {:cache, Scrollback.text(socket.assigns.scrollback)})
 
+    {:noreply, socket}
+  end
+
+  # Anything but a map, which a page can send, goes on as it is below.
+  def handle_info(%Broadcast{event: "file-data/start", payload: payload}, socket) when is_map(payload) do
+    push(socket, "file-data/start", ask_for_acks(payload, socket.assigns.file_acks?))
     {:noreply, socket}
   end
 
@@ -83,4 +124,19 @@ defmodule NervesHubWeb.ConsoleChannel do
   end
 
   defp device_id(socket), do: socket.assigns.device_info.device_id
+
+  # Only this channel decides, so a page can't ask a device for answers that
+  # an older channel would crash on.
+  defp ask_for_acks(payload, true), do: Map.put(payload, "ack", true)
+  defp ask_for_acks(payload, false), do: Map.delete(payload, "ack")
+
+  # A console from 2.1.0 on says how a file it's sent is going, when asked.
+  defp file_acks?(version) when is_binary(version) do
+    case Version.parse(version) do
+      {:ok, version} -> Version.compare(version, "2.1.0") != :lt
+      :error -> false
+    end
+  end
+
+  defp file_acks?(_version), do: false
 end
