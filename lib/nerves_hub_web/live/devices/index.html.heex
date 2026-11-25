@@ -321,13 +321,10 @@
                   </td>
                   <td class="max-sm:col-span-2 max-sm:col-start-2 max-sm:row-start-1 max-sm:min-w-0">
                     <div class="flex items-center gap-2">
-                      <.status_dot
-                        class={[
-                          "size-1.75",
-                          if(@device_statuses.result[device.id] == "online", do: "bg-status-online", else: "bg-status-offline"),
-                          (@selecting? or @selected_devices != []) && "max-sm:hidden"
-                        ]}
-                        title={if @device_statuses.result[device.id] == "online", do: "Online", else: "Offline"}
+                      <DeviceSleep.status_mark
+                        status={@device_statuses.result[device.id]}
+                        connection={device.latest_connection}
+                        class={(@selecting? or @selected_devices != []) && "max-sm:hidden"}
                       />
                       <.link
                         navigate={~p"/org/#{@org}/#{@product}/devices/#{device}"}
@@ -351,7 +348,7 @@
 
                   <td class={[
                     "max-sm:col-span-3 max-sm:col-start-2 max-sm:row-start-2",
-                    !(@selecting? or @selected_devices != []) && "max-sm:pl-3.75",
+                    !(@selecting? or @selected_devices != []) && "max-sm:pl-5",
                     column_class(@current_scope.user, :firmware)
                   ]}>
                     <DeviceList.firmware device={device} progress={@progress[device.id]} />
@@ -363,7 +360,7 @@
 
                   <td class={[
                     "text-ui/4 whitespace-nowrap max-sm:col-start-2 max-sm:row-start-3 max-sm:max-w-40 max-sm:truncate max-sm:text-xs/4",
-                    !(@selecting? or @selected_devices != []) && "max-sm:pl-3.75",
+                    !(@selecting? or @selected_devices != []) && "max-sm:pl-5",
                     column_class(@current_scope.user, :deployment_group)
                   ]}>
                     <span :if={device.deployment_group} class="text-content-body">{device.deployment_group.name}</span>

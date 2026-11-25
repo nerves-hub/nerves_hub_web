@@ -204,9 +204,9 @@ defmodule NervesHubWeb.UserConsoleChannelTest do
       refute_receive {:error, _}, 100
     end
 
-    test "file-data event does not crash the channel", %{channel: channel} do
-      push(channel, "file-data", %{"chunk" => "abc"})
-      refute_receive {:error, _}, 100
+    test "file-data is answered, so the page can tell how much has left it", %{channel: channel} do
+      ref = push(channel, "file-data", %{"filename" => "test.txt", "chunk" => 0, "data" => "YWJj"})
+      assert_reply(ref, :ok)
     end
 
     test "file-data/stop event does not crash the channel", %{channel: channel} do
@@ -276,20 +276,27 @@ defmodule NervesHubWeb.UserConsoleChannelTest do
       assert_receive %Broadcast{event: "dn", payload: %{"data" => "y"}}, 500
     end
 
-    test "uploads are announced to the device page", %{socket: socket, device: device, user: user} do
-      :ok = PubSub.subscribe_console_watcher(device.id)
-
+    test "a file goes to the console, and how the device saves it comes back", %{
+      socket: socket,
+      device: device
+    } do
       {:ok, _reply, channel} =
         subscribe_and_join(socket, UserConsoleChannel, "user:console:identifier-#{device.identifier}")
 
+      send(channel.channel_pid, {:metadata, self(), %{version: "2.1.0", file_acks: true}})
+      assert_push("metadata", %{file_acks: true})
+
       push(channel, "file-data/start", %{"filename" => "test.txt"})
-      push(channel, "file-data", %{"chunk" => "abc"})
+      ref = push(channel, "file-data", %{"filename" => "test.txt", "chunk" => 0, "data" => "YWJj"})
       push(channel, "file-data/stop", %{"filename" => "test.txt"})
 
-      user_id = user.id
-      assert_receive %Broadcast{event: "file-data/start", payload: %{uploaded_by: ^user_id}}, 500
-      assert_receive %Broadcast{event: "file-data/stop", payload: %{uploaded_by: ^user_id}}, 500
-      refute_received %Broadcast{event: "file-data"}
+      assert_reply(ref, :ok)
+      assert_receive %Broadcast{event: "file-data/start", payload: %{"filename" => "test.txt"}}, 500
+      assert_receive %Broadcast{event: "file-data", payload: %{"chunk" => 0}}, 500
+      assert_receive %Broadcast{event: "file-data/stop", payload: %{"filename" => "test.txt"}}, 500
+
+      :ok = PubSub.broadcast_to_user_console(device.id, "file-data/saved", %{"filename" => "test.txt", "bytes" => 3})
+      assert_push("file-data/saved", %{"filename" => "test.txt", "bytes" => 3})
     end
   end
 

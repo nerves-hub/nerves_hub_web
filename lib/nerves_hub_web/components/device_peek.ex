@@ -20,10 +20,13 @@ defmodule NervesHubWeb.Components.DevicePeek do
   alias NervesHub.Devices.DeviceFiltering
   alias NervesHubWeb.Components.DeviceList
   alias NervesHubWeb.Components.DevicePage.ActivityTab
+  alias NervesHubWeb.Components.DeviceSleep
   alias NervesHubWeb.Components.Fleet
   alias NervesHubWeb.Components.HealthStatus
   alias Phoenix.LiveView.AsyncResult
   alias Phoenix.LiveView.JS
+
+  require DeviceSleep
 
   # The metrics shown beside an unhealthy device's reasons, as
   # `{key, label, unit}`, in the order shown. Others stay on the Health tab.
@@ -81,7 +84,12 @@ defmodule NervesHubWeb.Components.DevicePeek do
   end
 
   attr(:device, Device, required: true)
-  attr(:status, :string, default: nil, doc: ~s("online" or "offline", as the list tracks it))
+
+  attr(:status, :string,
+    default: nil,
+    doc: ~s("online", "offline", "asleep" or "overdue", as the list tracks it; see `DeviceSleep.list_status/2`)
+  )
+
   attr(:progress, :map, default: nil, doc: "the update in progress the list is tracking, if any")
   attr(:data, AsyncResult, required: true, doc: "`%{attempts:, attempt_count:, activity:, metrics:}`, loading at first")
   attr(:current_scope, :map, required: true)
@@ -101,6 +109,7 @@ defmodule NervesHubWeb.Components.DevicePeek do
       assigns
       |> assign(:reason, reason(assigns.device, assigns.status, assigns.progress))
       |> assign(:online?, assigns.status == "online")
+      |> assign(:sleeping?, DeviceSleep.sleeping_status?(assigns.status))
       |> assign(:path, ~p"/org/#{assigns.current_scope.org}/#{assigns.current_scope.product}/devices/#{assigns.device}")
 
     ~H"""
@@ -120,7 +129,8 @@ defmodule NervesHubWeb.Components.DevicePeek do
       <div class="min-h-0 flex-1 overflow-y-auto pb-10 max-sm:pb-0">
         <header class="border-b border-line-default px-6 pt-5 pb-4.5 max-sm:px-4 max-sm:pt-3 max-sm:pb-3.5">
           <div class="flex items-center gap-3 max-sm:gap-2">
-            <.status_dot class={["size-2 shrink-0", if(@online?, do: "bg-status-online", else: "bg-status-offline")]} />
+            <DeviceSleep.sleep_mark :if={@sleeping?} status={@status} title={DeviceSleep.describe(@device.latest_connection) || "Asleep"} />
+            <.status_dot :if={!@sleeping?} class={["size-2 shrink-0", if(@online?, do: "bg-status-online", else: "bg-status-offline")]} />
             <h2 id="peek-title" class="min-w-0 truncate font-mono text-xl/6.5 font-medium text-content-strong max-sm:text-base/6">
               {@device.identifier}
             </h2>
@@ -139,16 +149,21 @@ defmodule NervesHubWeb.Components.DevicePeek do
               <span class="lucide-x size-3.5 max-sm:size-4" aria-hidden="true"></span>
             </.button>
           </div>
-          <p class="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 pl-5 text-ui/4 text-content-muted max-sm:mt-1.5 max-sm:pl-4">
+          <%!-- Indented to the identifier: past the 8px dot or the 12px z's, and the gap after it. --%>
+          <div class={[
+            "mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-ui/4 text-content-muted max-sm:mt-1.5",
+            if(@sleeping?, do: "pl-6 max-sm:pl-5", else: "pl-5 max-sm:pl-4")
+          ]}>
             <span :if={@online?}><span class="font-medium text-success-content">Online</span> {DeviceList.connected_for(@device.latest_connection)}</span>
-            <span :if={!@online?} class="font-medium text-content-body">Offline</span>
+            <DeviceSleep.sleep_summary :if={@online? or @sleeping?} id="peek-sleep-status" connection={@device.latest_connection} compact />
+            <span :if={!@online? and !@sleeping?} class="font-medium text-content-body">Offline</span>
             <.dot_separator :if={@device.firmware_metadata} />
             <span :if={@device.firmware_metadata} class="font-mono text-xs">{@device.firmware_metadata.platform}</span>
             <.dot_separator :if={@device.deployment_group} />
             <span :if={@device.deployment_group}>{@device.deployment_group.name}</span>
             <.dot_separator :if={@device.firmware_metadata} />
             <span :if={@device.firmware_metadata} class="font-mono text-xs">{@device.firmware_metadata.version}</span>
-          </p>
+          </div>
         </header>
 
         <.why reason={@reason} device={@device} data={@data} />
@@ -170,7 +185,7 @@ defmodule NervesHubWeb.Components.DevicePeek do
             phx-click="peek-reboot"
             data-confirm={"Reboot #{@device.identifier}?"}
             disabled={!@online?}
-            title={if !@online?, do: "The device is offline"}
+            title={reboot_title(@online?, @sleeping?)}
           >
             <span class="lucide-rotate-ccw size-3.5" aria-hidden="true"></span> Reboot…
           </.button>
@@ -390,6 +405,10 @@ defmodule NervesHubWeb.Components.DevicePeek do
     <span class="text-content-faint" aria-hidden="true">·</span>
     """
   end
+
+  defp reboot_title(true, _sleeping?), do: nil
+  defp reboot_title(false, true), do: "The device is asleep"
+  defp reboot_title(false, false), do: "The device is offline"
 
   defp connection_label(_device, true), do: "Connected"
   defp connection_label(%Device{latest_connection: %{last_seen_at: %DateTime{}}}, false), do: "Last seen"

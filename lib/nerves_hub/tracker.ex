@@ -1,5 +1,6 @@
 defmodule NervesHub.Tracker do
   alias NervesHub.Devices.Device
+  alias NervesHub.Devices.DeviceConnection
   alias NervesHub.Devices.PubSub
   alias NervesHub.Repo
 
@@ -34,18 +35,32 @@ defmodule NervesHub.Tracker do
   end
 
   @doc """
-  Tell internal listeners that the device is offline, via a connection change
+  Tell internal listeners that the device is offline, via a connection change.
+
+  Given the connection that ended, the change also carries why
+  (`disconnected_reason`) and, for a device that went to sleep, when it said
+  it would be back (`expected_wake_at`), so a list of devices can show a
+  sleeping one as asleep without reading the connection again. Listeners that
+  only match on `status` are unaffected.
   """
   def offline(%Device{} = device) do
     offline(device.id)
+  end
+
+  def offline(%DeviceConnection{} = connection) do
+    publish(connection.device_id, "offline", %{
+      disconnected_reason: connection.disconnected_reason,
+      disconnected_at: connection.disconnected_at,
+      expected_wake_at: connection.expected_wake_at
+    })
   end
 
   def offline(device_id) when is_integer(device_id) do
     publish(device_id, "offline")
   end
 
-  defp publish(device_id, status) do
-    _ = PubSub.broadcast(device_id, "connection:change", %{status: status})
+  defp publish(device_id, status, details \\ %{}) do
+    _ = PubSub.broadcast(device_id, "connection:change", Map.put(details, :status, status))
 
     :ok
   end

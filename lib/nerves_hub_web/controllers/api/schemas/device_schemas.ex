@@ -29,6 +29,27 @@ defmodule NervesHubWeb.API.Schemas.DeviceSchemas do
           description: @connection_status_description,
           enum: ["connecting", "connected", "disconnected", "not_seen"]
         },
+        sleep: %Schema{
+          type: :object,
+          nullable: true,
+          description:
+            "Set from when the device says it is going to sleep until it connects again, and null otherwise.",
+          properties: %{
+            state: %Schema{
+              type: :string,
+              description:
+                "going_to_sleep: it said so and its connection has not closed yet. asleep: not yet past the overdue margin, or gave no time. overdue: later than it said by more than two minutes or a tenth of how long it slept, whichever is longer.",
+              enum: ["going_to_sleep", "asleep", "overdue"]
+            },
+            mode: %Schema{type: :string, enum: ["deep", "light"]},
+            expected_wake_at: %Schema{
+              type: :string,
+              format: :"date-time",
+              nullable: true,
+              description: "When the device said it would be back. Null when it gave no time."
+            }
+          }
+        },
         firmware_metadata: %Schema{
           type: :object,
           nullable: true,

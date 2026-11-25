@@ -4,17 +4,19 @@ defmodule NervesHubWeb.DeviceSocket do
 
   alias NervesHub.DeviceEvents
   alias NervesHub.DeviceLink.Client, as: DeviceLink
+  alias NervesHub.Devices.DisconnectReason
   alias NervesHub.ProductNotifications
   alias NervesHubWeb.Channels.Platform
   alias NervesHubWeb.Helpers.ClientIP
   alias NervesHubWeb.Helpers.ServerName
+  alias Phoenix.Socket.Broadcast
   alias Phoenix.Socket.Transport
 
   channel("console", NervesHubWeb.ConsoleChannel)
   channel("device:*", NervesHubWeb.DeviceChannel)
   channel("extensions", NervesHubWeb.ExtensionsChannel)
 
-  defoverridable init: 1, handle_in: 2, terminate: 2
+  defoverridable init: 1, handle_in: 2, handle_info: 2, terminate: 2
 
   @impl Transport
   def init(state_tuple) do
@@ -35,6 +37,36 @@ defmodule NervesHubWeb.DeviceSocket do
     socket = heartbeat(socket)
     super(msg, {state, socket})
   end
+
+  # Why the socket is about to be closed, noted before Phoenix closes it.
+  # `terminate/2` cannot tell: Bandit hands it `:normal` for a "disconnect"
+  # broadcast and a drain alike.
+  #
+  # A "disconnect" broadcast can say why in its payload
+  # (`DeviceEvents.disconnect/2`); one that does not, as older nodes send it,
+  # leaves the reason unknown. `:socket_drain` is Phoenix shutting the node
+  # down.
+  @impl Transport
+  def handle_info(%Broadcast{event: "disconnect", payload: payload} = message, {state, socket}) do
+    super(message, {state, note_disconnect_reason(socket, broadcast_reason(payload))})
+  end
+
+  def handle_info(:socket_drain = message, {state, socket}) do
+    super(message, {state, note_disconnect_reason(socket, :platform_update)})
+  end
+
+  def handle_info(message, state), do: super(message, state)
+
+  defp broadcast_reason(%{reason: reason}) do
+    case DisconnectReason.cast(reason) do
+      {:ok, reason} -> reason
+      :error -> nil
+    end
+  end
+
+  defp broadcast_reason(_payload), do: nil
+
+  defp note_disconnect_reason(socket, reason), do: assign(socket, :disconnect_reason, reason)
 
   # Runs on the socket process itself, so raising here would close the whole
   # connection. Unanswered or not, it counts as done: the next one is an
@@ -191,7 +223,10 @@ defmodule NervesHubWeb.DeviceSocket do
 
   defp socket_and_assigns(socket, device_info, connect_info) do
     # disconnect devices using the same identifier
-    _ = socket.endpoint.broadcast_from(self(), "device_socket:#{device_info.device_id}", "disconnect", %{})
+    _ =
+      socket.endpoint.broadcast_from(self(), "device_socket:#{device_info.device_id}", "disconnect", %{
+        reason: "duplicate_connection"
+      })
 
     # The User-Agent names the client library the device connects with; it is
     # read where the connection is recorded (`NervesHub.DeviceLink.connect/3`).
@@ -246,10 +281,11 @@ defmodule NervesHubWeb.DeviceSocket do
   end
 
   @decorate with_span("Channels.DeviceSocket.on_disconnect")
-  defp on_disconnect(reason, socket) do
+  defp on_disconnect(_reason, socket) do
     %{assigns: %{device_info: device_info}} = socket
+    reason = socket.assigns[:disconnect_reason]
 
-    if reason == {:error, {:shutdown, :disconnected}} do
+    if reason == :duplicate_connection do
       :telemetry.execute([:nerves_hub, :devices, :duplicate_connection], %{count: 1}, %{
         ref_id: device_info.connection_ref,
         device_id: device_info.device_id,
@@ -268,7 +304,7 @@ defmodule NervesHubWeb.DeviceSocket do
     # The same goes for no answer at all: the connection is closing either way.
     _ =
       Platform.ask(socket, :disconnect, fn ->
-        DeviceLink.disconnect(device_info.connection_ref)
+        DeviceLink.disconnect(device_info.connection_ref, reason)
       end)
 
     assign(socket, :disconnection_handled?, true)

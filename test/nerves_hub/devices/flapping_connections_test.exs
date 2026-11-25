@@ -29,7 +29,7 @@ defmodule NervesHub.Devices.FlappingConnectionsTest do
   # Each row gets a distinct `established_at` (a second apart): the underlying
   # ReplacingMergeTree dedupes on (org_id, product_id, device_id, established_at),
   # so reusing a timestamp would collapse the rows into one when queried FINAL.
-  defp insert_connections(device, count, minutes_ago \\ 5) do
+  defp insert_connections(device, count, minutes_ago \\ 5, reason \\ nil) do
     base = DateTime.add(DateTime.utc_now(), -minutes_ago, :minute)
 
     for offset <- 1..count do
@@ -42,7 +42,8 @@ defmodule NervesHub.Devices.FlappingConnectionsTest do
         device_id: device.id,
         established_at: established_at,
         last_seen_at: DateTime.utc_now(),
-        disconnected_at: DateTime.utc_now()
+        disconnected_at: DateTime.utc_now(),
+        disconnected_reason: reason
       }
 
       {:ok, _} =
@@ -52,6 +53,33 @@ defmodule NervesHub.Devices.FlappingConnectionsTest do
     end
 
     :ok
+  end
+
+  describe "planned disconnects" do
+    # A battery device that wakes every few minutes connects a dozen times an
+    # hour, and every one of those ends with it saying it is going to sleep.
+    test "a device that sleeps between reports is not flapping", %{product: product, device: device} do
+      insert_connections(device, 12, 5, :deep_sleep)
+
+      assert Connections.flapping_connections(product) == []
+    end
+
+    test "only the unplanned disconnects count toward flapping", %{product: product, device: device} do
+      insert_connections(device, 6, 5, :deep_sleep)
+      insert_connections(device, 11, 10)
+
+      assert [{_device, 11}] = Connections.flapping_connections(product)
+    end
+
+    test "disconnection_counts/4 leaves out sleep, reboots and server restarts", %{device: device} do
+      insert_connections(device, 3, 5, :deep_sleep)
+      insert_connections(device, 1, 6, :rebooting)
+      insert_connections(device, 1, 7, :platform_update)
+      insert_connections(device, 2, 8, :stale_connection)
+      insert_connections(device, 1, 9)
+
+      assert {3, 3} = Connections.disconnection_counts(device.org_id, device.product_id, device.id, {3600, 3600})
+    end
   end
 
   describe "flapping_connections/1" do

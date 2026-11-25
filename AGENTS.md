@@ -137,6 +137,10 @@ when adding or removing one.
   "never connected" (that is a device still `registered`): `last_seen <`
   filters match it, Insights counts it as not seen in 14 days, and pages show
   its last seen as unknown.
+  Each connection also records why it ended (`disconnect_reason.ex`, an enum
+  stored as a string), and a device that says it is going to sleep is shown
+  as asleep until it is due back rather than offline; see
+  [docs/device_sleep.md](docs/device_sleep.md).
 - `managed_deployments.ex` / `managed_deployments/` — deployment groups and the
   `Distributed.Orchestrator` (one per deployment). A release with a workflow
   is walked a step at a time (`Workflows`, `WorkflowCoordinator`); each step
@@ -299,7 +303,15 @@ when adding or removing one.
   becomes a card per row by restyling its rows, not by rendering them twice).
   Two states on a phone are marked on `<html>`, which a patch never touches,
   and read by the `header-scrolled:` and `terminal-typing:` variants in
-  `app.css`. An organization's pages (`live/org/`, plus
+  `app.css`. A file sent to a device on the Console tab shows how it's going
+  in a dialog over the terminal and a strip under it, rendered by the tab and
+  driven by `assets/js/helpers/consoleUploadView.js`. The device's console reads
+  nothing else while it saves a file, so the page has to learn when it's done:
+  a console from 2.1.0 on is asked by `ConsoleChannel` to report each chunk it
+  saves (`file-data/ack`, then `file-data/saved` or `file-data/error`), and an
+  older one is typed a character and Delete, the file being saved once that
+  echoes. Only `ConsoleChannel` asks, never the page, since a channel that
+  doesn't know the answers would crash on them. An organization's pages (`live/org/`, plus
   `live/products/new.ex`) have no sidebar: they render inside `Layouts.org/1`,
   a centered column under the organization's name, counts and tabs, and mount
   `NervesHubWeb.Mounts.OrgCounts` for the counts. Product pages keep the

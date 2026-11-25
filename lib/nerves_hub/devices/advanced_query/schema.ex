@@ -218,7 +218,7 @@ defmodule NervesHub.Devices.AdvancedQuery.Schema do
   end
 
   @doc false
-  def connection_values(_product_id), do: ["connected", "disconnected", "not_seen"]
+  def connection_values(_product_id), do: ["connected", "disconnected", "asleep", "not_seen"]
 
   @doc false
   def last_seen_values(_product_id), do: ["3 days ago", "7 days ago", "14 days ago", "4 weeks ago"]

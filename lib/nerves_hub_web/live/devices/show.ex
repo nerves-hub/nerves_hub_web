@@ -8,6 +8,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
   alias NervesHub.Devices
   alias NervesHub.Devices.Components
   alias NervesHub.Devices.Connections
+  alias NervesHub.Devices.DeviceConnection
   alias NervesHub.Devices.Pinning
   alias NervesHub.Devices.PubSub
   alias NervesHub.Devices.Updates
@@ -62,6 +63,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
       Consoles.PubSub.subscribe_console_watcher(device.id)
       Extensions.PubSub.subscribe_reports(device.id)
       Products.PubSub.subscribe(product.id)
+      schedule_sleep_clock()
     end
 
     socket
@@ -75,6 +77,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
     |> assign(:pinned?, Pinning.device_pinned?(user.id, device.id))
     |> load_error_issue_count(product, device)
     |> load_component_missing_count(product, device)
+    |> assign(:sleep_clock, DateTime.utc_now())
     |> setup_presence_tracking()
     |> setup_tab_components(@tab_components)
     |> ok()
@@ -85,6 +88,19 @@ defmodule NervesHubWeb.Live.Devices.Show do
     socket
     |> update_tab_component_hooks()
     |> noreply()
+  end
+
+  # A sleeping device's "back in 5 minutes", and its turn to overdue, follow
+  # the clock rather than any message, so the header is redrawn while the
+  # device is asleep. Awake, the tick changes nothing and nothing is sent.
+  def handle_info(:sleep_clock, socket) do
+    schedule_sleep_clock()
+
+    if DeviceConnection.sleep_state(socket.assigns.device_connection) do
+      {:noreply, assign(socket, :sleep_clock, DateTime.utc_now())}
+    else
+      {:noreply, socket}
+    end
   end
 
   def handle_info(:reload_device, socket) do
@@ -112,7 +128,10 @@ defmodule NervesHubWeb.Live.Devices.Show do
   def handle_info(%Broadcast{event: "connection:heartbeat"}, socket) do
     %{device: device} = socket.assigns
 
-    {:noreply, assign(socket, :device_connection, Connections.get_latest_for_device(device.id))}
+    socket
+    |> assign(:device_connection, Connections.get_latest_for_device(device.id))
+    |> assign(:sleep_clock, DateTime.utc_now())
+    |> noreply()
   end
 
   def handle_info(%Broadcast{event: "connection:change", payload: payload}, socket) do
@@ -123,6 +142,9 @@ defmodule NervesHubWeb.Live.Devices.Show do
     socket
     |> assign(:device, device)
     |> assign(:device_connection, device.latest_connection)
+    # The clock only ticks while the device is asleep, so a device that has
+    # just gone to sleep is judged from now, not from the last tick.
+    |> assign(:sleep_clock, DateTime.utc_now())
     |> load_inprogress_firmware_update()
     |> then(fn socket ->
       if(payload.status == "online", do: clear_flash(socket), else: socket)
@@ -268,7 +290,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
 
     DeviceTemplates.audit_request_action(user, device, :reconnect)
 
-    socket.endpoint.broadcast("device_socket:#{device.id}", "disconnect", %{})
+    :ok = DeviceEvents.reconnect(device)
 
     {:noreply, put_flash(socket, :info, "Device reconnection requested")}
   end
@@ -493,7 +515,11 @@ defmodule NervesHubWeb.Live.Devices.Show do
     socket = stream(socket, :presences, [])
 
     with true <- connected?(socket),
-         {:ok, _} <- Presence.track_user(topic, user.id, %{name: user.name}),
+         {:ok, _} <-
+           Presence.track_user(topic, user.id, %{
+             name: user.name,
+             profile_picture_url: user.profile_picture_url
+           }),
          :ok <- Presence.subscribe(topic) do
       stream(socket, :presences, Presence.list_present_users(topic))
     else
@@ -534,6 +560,13 @@ defmodule NervesHubWeb.Live.Devices.Show do
 
   defp disconnected?(connection) do
     is_nil(connection) || connection.status != :connected
+  end
+
+  @sleep_clock_interval to_timeout(second: 30)
+
+  defp schedule_sleep_clock() do
+    _ = Process.send_after(self(), :sleep_clock, @sleep_clock_interval)
+    :ok
   end
 
   defp general_assigns(socket, device) do
