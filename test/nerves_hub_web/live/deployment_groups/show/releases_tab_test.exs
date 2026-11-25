@@ -460,6 +460,9 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show.ReleasesTabTest do
     {:ok, {release, deployment_group}} =
       ManagedDeployments.create_deployment_release(deployment_group, next_firmware, nil, user, %{})
 
+    # With delta updates on, the devices on the older firmware wait for its delta
+    deployment_group = Repo.update!(Ecto.Changeset.change(deployment_group, %{delta_updatable: true}))
+
     # A device on the older firmware is what makes the release need a delta
     _ = Fixtures.device_fixture(org, product, firmware, %{deployment_id: deployment_group.id})
     delta = Fixtures.firmware_delta_fixture(firmware, next_firmware, %{status: :failed})
@@ -474,6 +477,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show.ReleasesTabTest do
     |> assert_has("#release-#{release.id}-delta-count .text-alert-content", text: "1 failed")
     |> assert_has("#release-delta-#{delta.id}", text: "From #{firmware.version}")
     |> assert_has("#release-delta-#{delta.id}", text: "Failed")
+    |> assert_has("#release-delta-#{delta.id}", text: "wait for a retry")
     |> click_button("#release-delta-#{delta.id} button", "Retry")
     |> assert_has("p", text: "Building the delta from #{firmware.version} again")
     # A retry starts a new delta in place of the failed one

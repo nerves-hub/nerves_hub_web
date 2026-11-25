@@ -136,16 +136,17 @@ defmodule NervesHub.Devices.Updates do
     |> join_release_firmware()
     |> join_firmware()
     |> ManagedDeployments.join_target_release(deployment_group)
-    |> join_firmware_deltas()
     |> where([device: d], d.deployment_id == ^deployment_group.id)
     |> where([device: d], d.update_mode == :automatic)
     |> where([device: d], not is_nil(d.firmware_metadata))
     |> where([device: d], d.firmware_validation_status in [:validated, :unknown])
     |> where([device: d], coalesce(d.updates_blocked_until, "1970-01-01 00:00:00") |> type(:naive_datetime) < ^now)
     |> where([deployment_group: dg], dg.is_active == true)
-    # A release whose deltas are still being built, or have failed, holds back the
-    # devices headed for it — and only those.
-    |> where([target_release: tr], tr.delta_status == :ready)
+    # A release whose deltas are still being queued or built holds back every
+    # device headed for it, since any of them may be waiting on one; devices
+    # headed elsewhere carry on. Once they are built, only a device whose own
+    # delta failed is held, by `maybe_wait_for_delta/2`.
+    |> where([target_release: tr], tr.delta_status != :preparing)
     # this is a short circuit to avoid a race condition where a new deployment release is created by
     # the orchestrator is about to run this query before the orchestrator has refreshed its information
     |> where(
@@ -162,8 +163,7 @@ defmodule NervesHub.Devices.Updates do
       fragment("(? #>> '{\"uuid\"}') IS DISTINCT FROM ?", d.firmware_metadata, rf.uuid)
     )
     |> where([inflight_update: ifu], is_nil(ifu))
-    # Only include devices where: delta is completed OR no delta row exists
-    |> where([firmware_delta: fd], is_nil(fd.id) or fd.status == :completed)
+    |> maybe_wait_for_delta(deployment_group)
     |> maybe_version_threshold(version_threshold)
     |> maybe_filter_by_network_interfaces(deployment_group.release_network_interfaces)
     |> maybe_release_tags(deployment_group.release_tags)
@@ -216,11 +216,23 @@ defmodule NervesHub.Devices.Updates do
     join(query, :inner, [current_release: cr], rf in Firmware, on: rf.id == cr.firmware_id, as: :release_firmware)
   end
 
-  defp join_firmware_deltas(query) do
-    join(query, :left, [firmware: f, target_release: tr], fd in FirmwareDelta,
+  # A device whose delta failed waits for it to be built again rather than being
+  # sent the whole firmware it was spared. A device with no delta, because none
+  # was built from the firmware it runs, is sent the whole firmware.
+  #
+  # With delta updates off every device is sent the whole firmware
+  # (`Firmwares.get_delta_or_firmware/3`), so none waits. Turning them off is
+  # how a person sends the devices waiting on a failed delta the whole firmware
+  # instead.
+  defp maybe_wait_for_delta(query, %DeploymentGroup{delta_updatable: false}), do: query
+
+  defp maybe_wait_for_delta(query, _deployment_group) do
+    query
+    |> join(:left, [firmware: f, target_release: tr], fd in FirmwareDelta,
       on: fd.source_id == f.id and fd.target_id == tr.firmware_id,
       as: :firmware_delta
     )
+    |> where([firmware_delta: fd], is_nil(fd.id) or fd.status == :completed)
   end
 
   # Filter by network interface if release_network_interfaces is specified

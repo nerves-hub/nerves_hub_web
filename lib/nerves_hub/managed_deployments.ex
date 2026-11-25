@@ -577,27 +577,32 @@ defmodule NervesHub.ManagedDeployments do
   The deltas that count are the ones its own devices need: from the firmware each
   device headed for this release is running, to the release's firmware. A release
   no device is headed for needs none, which counts as ready, and so does a group
-  with deltas turned off.
+  with delta updates off, whose devices are sent the whole firmware whatever
+  its deltas say.
   """
   @spec recalculate_release_delta_status(DeploymentRelease.t()) ::
           {:ok, DeploymentRelease.t()} | {:error, Changeset.t()}
   def recalculate_release_delta_status(%DeploymentRelease{} = release) do
     delta_status =
-      release
-      |> release_deltas_query()
-      |> select([firmware_delta: fd], fd.status)
-      |> Repo.all()
-      # A release's devices can be running several different firmware versions,
-      # so its deltas can be in several states at once. It waits while any is
-      # still being built, and reports the failures once nothing is left to wait
-      # for.
-      |> then(fn statuses ->
-        cond do
-          Enum.any?(statuses, &(&1 == :processing)) -> :preparing
-          Enum.any?(statuses, &(&1 in [:failed, :timed_out])) -> :failed
-          true -> :ready
-        end
-      end)
+      if group_sends_deltas?(release) do
+        release
+        |> release_deltas_query()
+        |> select([firmware_delta: fd], fd.status)
+        |> Repo.all()
+        # A release's devices can be running several different firmware versions,
+        # so its deltas can be in several states at once. It waits while any is
+        # still being built, and reports the failures once nothing is left to wait
+        # for.
+        |> then(fn statuses ->
+          cond do
+            Enum.any?(statuses, &(&1 == :processing)) -> :preparing
+            Enum.any?(statuses, &(&1 in [:failed, :timed_out])) -> :failed
+            true -> :ready
+          end
+        end)
+      else
+        :ready
+      end
 
     release
     |> DeploymentRelease.delta_status_changeset(delta_status)
@@ -664,6 +669,14 @@ defmodule NervesHub.ManagedDeployments do
         end
       end)
     end)
+  end
+
+  # Read from the database rather than a preloaded group, so a release
+  # recalculated just after delta updates were turned on or off sees the change.
+  defp group_sends_deltas?(%DeploymentRelease{deployment_group_id: deployment_group_id}) do
+    DeploymentGroup
+    |> where([dg], dg.id == ^deployment_group_id and dg.delta_updatable)
+    |> Repo.exists?()
   end
 
   # The deltas belonging to one release: from the firmware its own devices run to
