@@ -164,13 +164,10 @@ defmodule NervesHub.FirmwareUpdates do
     end)
   end
 
-  # An update is recorded before the device is told about it, and the device
-  # says it received the update before it says the download started. So
-  # `started` with nothing recorded is not an update starting: nerves_hub_link
-  # reports `started` for every download, archives included. Recording one for
-  # an archive would leave the device looking busy until it reconnects or the
-  # row expires: refused every update it asks for, skipped by its deployment
-  # group, and with the archive counted as an attempt at updating.
+  # The inflight row is written before an update is sent, and the device reports
+  # `received` before `started`. With no row, `started` is not an update:
+  # nerves_hub_link reports it for every download, archives included. Recording
+  # one would block updates to the device until it reconnects or the row expires.
   def status_update("started", device_id, info, _opts) do
     if Repo.exists?(where(InflightUpdate, device_id: ^device_id)) do
       record_status(device_id, "started", info)

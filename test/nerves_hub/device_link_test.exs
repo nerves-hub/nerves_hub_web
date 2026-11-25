@@ -45,7 +45,7 @@ defmodule NervesHub.DeviceLinkTest do
   describe "status_update/2" do
     # A device that was already updating when the server lost track of it, such
     # as across a deploy, still has its progress followed.
-    test "creates an InflightUpdate for progress on an update nothing recorded", %{device: device} do
+    test "creates an InflightUpdate for progress when none is recorded", %{device: device} do
       refute Repo.exists?(where(InflightUpdate, device_id: ^device.id))
 
       :ok = DeviceLink.status_update(to_device_info(device), %{"status" => "downloading", "progress" => 10})
