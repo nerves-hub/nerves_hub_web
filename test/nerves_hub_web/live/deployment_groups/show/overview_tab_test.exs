@@ -162,6 +162,94 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show.OverviewTabTest do
     |> assert_has("#unreached-#{off.id}", text: "Updates are turned off on this device")
   end
 
+  describe "devices waiting on a delta that failed" do
+    setup %{
+      org: org,
+      product: product,
+      deployment_group: deployment_group,
+      source_firmware: source,
+      target_firmware: target
+    } do
+      deployment_group = Repo.update!(Ecto.Changeset.change(deployment_group, delta_updatable: true))
+      target = Repo.update!(Ecto.Changeset.change(target, delta_updatable: true))
+      Fixtures.firmware_delta_fixture(source, target, %{status: :failed})
+
+      waiting = Fixtures.device_fixture(org, product, source, %{deployment_id: deployment_group.id})
+
+      %{waiting: waiting, deployment_group: deployment_group}
+    end
+
+    test "are listed, with the delta's version and both ways to free them", %{
+      conn: conn,
+      org: org,
+      product: product,
+      path: path,
+      source_firmware: source,
+      deployment_group: deployment_group,
+      waiting: waiting
+    } do
+      group_path = "/org/#{org.name}/#{product.name}/deployment_groups/#{URI.encode(deployment_group.name)}"
+
+      conn
+      |> visit(path)
+      |> assert_has("#unreached-failed-deltas",
+        text: "1 device on #{source.version} is waiting on a delta that failed to build."
+      )
+      |> assert_has("#unreached-failed-deltas a[href='#{group_path}/releases']", text: "Retry it")
+      |> assert_has("#unreached-failed-deltas a[href='#{group_path}/settings']", text: "turn delta updates off")
+      |> assert_has("#unreached-#{waiting.id}",
+        text: "Waiting on the delta from #{source.version}, which failed to build"
+      )
+    end
+
+    test "aren't held in a group with delta updates off", %{
+      conn: conn,
+      path: path,
+      deployment_group: deployment_group,
+      waiting: waiting
+    } do
+      Repo.update!(Ecto.Changeset.change(deployment_group, delta_updatable: false))
+
+      conn
+      |> visit(path)
+      |> refute_has("#unreached-failed-deltas")
+      |> refute_has("#unreached-#{waiting.id}")
+    end
+
+    test "a member who can only manage releases is offered the retry", %{conn: conn, org: org, path: path} do
+      role = Fixtures.org_role_fixture(org, %{permissions: ["deployment_group:release:manage"]})
+      Repo.update_all(OrgUser, set: [role: nil, org_role_id: role.id])
+
+      conn
+      |> visit(path)
+      |> assert_has("#unreached-failed-deltas a", text: "Retry it")
+      |> assert_has("#unreached-failed-deltas", text: "or have delta updates turned off to send the full firmware")
+      |> refute_has("#unreached-failed-deltas a", text: "delta updates")
+    end
+
+    test "a member who can only turn delta updates off is offered that", %{conn: conn, org: org, path: path} do
+      role = Fixtures.org_role_fixture(org, %{permissions: ["deployment_group:toggle_delta_updates"]})
+      Repo.update_all(OrgUser, set: [role: nil, org_role_id: role.id])
+
+      conn
+      |> visit(path)
+      |> assert_has("#unreached-failed-deltas a", text: "Turn delta updates off")
+      |> assert_has("#unreached-failed-deltas", text: "or have it retried on the Releases tab")
+      |> refute_has("#unreached-failed-deltas a", text: "Retry")
+    end
+
+    test "a member with the view role is told what would free them, with no links", %{conn: conn, path: path} do
+      Repo.update_all(OrgUser, set: [role: :view])
+
+      conn
+      |> visit(path)
+      |> assert_has("#unreached-failed-deltas",
+        text: "The delta can be retried on the Releases tab, or delta updates turned off to send the full firmware."
+      )
+      |> refute_has("#unreached-failed-deltas a")
+    end
+  end
+
   test "activating a release moves the delta subscription to the new firmware", %{
     conn: conn,
     deployment_group: deployment_group,

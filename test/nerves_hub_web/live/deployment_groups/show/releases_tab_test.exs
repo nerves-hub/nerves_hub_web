@@ -455,7 +455,11 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show.ReleasesTabTest do
     deployment_group: deployment_group,
     tmp_dir: tmp_dir
   } do
-    next_firmware = Fixtures.firmware_fixture(org_key, product, %{version: "2.0.0", dir: tmp_dir})
+    next_firmware =
+      org_key
+      |> Fixtures.firmware_fixture(product, %{version: "2.0.0", dir: tmp_dir})
+      |> Ecto.Changeset.change(delta_updatable: true)
+      |> Repo.update!()
 
     {:ok, {release, deployment_group}} =
       ManagedDeployments.create_deployment_release(deployment_group, next_firmware, nil, user, %{})
@@ -490,6 +494,34 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show.ReleasesTabTest do
     assert_received %Broadcast{event: "release/delta_status", payload: %{from: :failed, to: :preparing}}
     refute_received %Broadcast{event: "release/delta_status", payload: %{to: :ready}}
     refute_enqueued(worker: DeleteFirmware)
+  end
+
+  test "a failed delta to firmware that can't take one holds no one", %{
+    conn: conn,
+    org: org,
+    org_key: org_key,
+    product: product,
+    user: user,
+    firmware: firmware,
+    deployment_group: deployment_group,
+    tmp_dir: tmp_dir
+  } do
+    next_firmware = Fixtures.firmware_fixture(org_key, product, %{version: "2.0.0", dir: tmp_dir})
+    refute next_firmware.delta_updatable
+
+    {:ok, {_release, deployment_group}} =
+      ManagedDeployments.create_deployment_release(deployment_group, next_firmware, nil, user, %{})
+
+    deployment_group = Repo.update!(Ecto.Changeset.change(deployment_group, %{delta_updatable: true}))
+
+    _ = Fixtures.device_fixture(org, product, firmware, %{deployment_id: deployment_group.id})
+    delta = Fixtures.firmware_delta_fixture(firmware, next_firmware, %{status: :failed})
+
+    conn
+    |> visit(~p"/org/#{org}/#{product}/deployment_groups/#{deployment_group}/releases")
+    |> assert_has("#release-delta-#{delta.id}", text: "Failed")
+    |> assert_has("#release-delta-#{delta.id}", text: "get the full")
+    |> refute_has("#release-delta-#{delta.id}", text: "wait for a retry")
   end
 
   test "deletes a built delta after asking, for every group sending the release", %{

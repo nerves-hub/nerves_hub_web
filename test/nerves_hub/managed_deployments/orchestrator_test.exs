@@ -692,8 +692,10 @@ defmodule NervesHub.ManagedDeployments.OrchestratorTest do
         |> Repo.update!()
         |> ManagedDeployments.load_current_release(force: true)
 
-      _ =
-        Fixtures.firmware_delta_fixture(waiting_firmware, deployment_group.current_release.firmware, %{status: :failed})
+      # Firmware a delta can be sent for; one that can't take a delta is sent whole.
+      target = Repo.update!(Ecto.Changeset.change(deployment_group.current_release.firmware, delta_updatable: true))
+
+      _ = Fixtures.firmware_delta_fixture(waiting_firmware, target, %{status: :failed})
 
       {:ok, _releases} = ManagedDeployments.recalculate_release_delta_statuses(deployment_group)
       deployment_group = ManagedDeployments.load_current_release(deployment_group, force: true)
@@ -709,6 +711,15 @@ defmodule NervesHub.ManagedDeployments.OrchestratorTest do
 
     test "doesn't hold back the devices that don't need it", %{deployment_group: deployment_group, other: other} do
       assert other.id in available_ids(deployment_group)
+    end
+
+    test "doesn't hold back devices headed for firmware that can't take a delta", %{
+      deployment_group: deployment_group,
+      waiting: waiting
+    } do
+      Repo.update!(Ecto.Changeset.change(deployment_group.current_release.firmware, delta_updatable: false))
+
+      assert waiting.id in available_ids(deployment_group)
     end
 
     test "sends the devices waiting for it the whole firmware once delta updates are off", %{

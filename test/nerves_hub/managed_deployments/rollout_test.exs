@@ -165,6 +165,80 @@ defmodule NervesHub.ManagedDeployments.RolloutTest do
     end
   end
 
+  describe "waiting on a failed delta" do
+    setup context do
+      %{deployment_group: deployment_group, new_firmware: new, product: product} = context
+
+      Repo.update!(Ecto.Changeset.change(deployment_group, delta_updatable: true))
+      new = Repo.update!(Ecto.Changeset.change(new, delta_updatable: true))
+
+      %{deployment_group: reload(deployment_group, product), new_firmware: new}
+    end
+
+    test "is listed after the penalty box with the version its delta was from, and counted by version", context do
+      %{deployment_group: deployment_group, old_firmware: old, new_firmware: new} = context
+
+      older = Fixtures.firmware_fixture(context.org_key, context.product, %{version: "0.9.0"})
+      building = Fixtures.firmware_fixture(context.org_key, context.product, %{version: "0.8.0"})
+
+      Fixtures.firmware_delta_fixture(old, new, %{status: :failed})
+      Fixtures.firmware_delta_fixture(older, new, %{status: :timed_out})
+      Fixtures.firmware_delta_fixture(building, new, %{status: :processing})
+
+      waiting = device(context, old, %{identifier: "b-waiting", consecutive_failed_updates: 1})
+      device(context, old, %{identifier: "c-waiting"})
+      device(context, older, %{identifier: "d-waiting"})
+      boxed = device(context, old, %{identifier: "a-boxed", updates_blocked_until: in_an_hour()})
+      # It asks for its own updates, and is sent the whole firmware.
+      device(context, old, %{update_mode: :device_managed})
+      # Its delta is still being built, which holds the whole release.
+      device(context, building)
+
+      {rows, total} = Rollout.unreached(deployment_group, 2)
+
+      assert total == 4
+
+      assert [
+               %{device: %Device{id: boxed_id}, state: :penalty_box, delta_source: nil},
+               %{device: %Device{id: waiting_id}, state: :delta_failed, delta_source: "1.0.0"}
+             ] = rows
+
+      assert boxed_id == boxed.id
+      assert waiting_id == waiting.id
+
+      assert Rollout.failed_deltas(deployment_group) == [
+               %{version: "0.9.0", devices: 1},
+               %{version: "1.0.0", devices: 2}
+             ]
+    end
+
+    test "holds no one in a group with delta updates off", context do
+      %{deployment_group: deployment_group, old_firmware: old, new_firmware: new, product: product} = context
+
+      Fixtures.firmware_delta_fixture(old, new, %{status: :failed})
+      device(context, old)
+
+      Repo.update!(Ecto.Changeset.change(deployment_group, delta_updatable: false))
+      deployment_group = reload(deployment_group, product)
+
+      assert Rollout.unreached(deployment_group, 5) == {[], 0}
+      assert Rollout.failed_deltas(deployment_group) == []
+    end
+
+    test "holds no one for firmware that can't take a delta, which is sent whole", context do
+      %{deployment_group: deployment_group, old_firmware: old, new_firmware: new, product: product} = context
+
+      Fixtures.firmware_delta_fixture(old, new, %{status: :failed})
+      device(context, old)
+
+      Repo.update!(Ecto.Changeset.change(new, delta_updatable: false))
+      deployment_group = reload(deployment_group, product)
+
+      assert Rollout.unreached(deployment_group, 5) == {[], 0}
+      assert Rollout.failed_deltas(deployment_group) == []
+    end
+  end
+
   describe "status/4" do
     test "puts a paused group first, then a stopped or waiting step, then the counts", %{deployment_group: dg} do
       counts = %{Rollout.empty_counts() | total: 3, updated: 2, updates_off: 1}

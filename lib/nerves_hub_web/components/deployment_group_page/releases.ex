@@ -396,7 +396,8 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Releases do
 
   # A failed delta holds back the devices waiting for it, until it is built
   # again or delta updates are turned off (`Updates.available_for_update/2`).
-  defp delta_detail(%{sends_deltas?: true} = assigns) do
+  # Firmware that can't be delta updated is sent whole whatever its deltas say.
+  defp delta_detail(%{sends_deltas?: true, firmware: %Firmware{delta_updatable: true}} = assigns) do
     ~H"""
     <span class="text-xs/4 text-content-muted">
       Devices on <span class="font-mono">{@delta.source.version}</span>

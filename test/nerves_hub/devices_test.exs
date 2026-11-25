@@ -3282,9 +3282,15 @@ defmodule NervesHub.DevicesTest do
       user: user,
       tmp_dir: tmp_dir
     } do
-      # Create source and target firmwares
+      # Create source and target firmwares. Only firmware that can take a delta
+      # holds devices back for one; the rest is sent whole.
       source_firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
-      target_firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+
+      target_firmware =
+        org_key
+        |> Fixtures.firmware_fixture(product, %{dir: tmp_dir})
+        |> Ecto.Changeset.change(delta_updatable: true)
+        |> Repo.update!()
 
       # Create a new deployment release for the target firmware
       {:ok, {_release, deployment_group}} =
@@ -3348,9 +3354,15 @@ defmodule NervesHub.DevicesTest do
       user: user,
       tmp_dir: tmp_dir
     } do
-      # Create source and target firmwares
+      # Create source and target firmwares. Only firmware that can take a delta
+      # holds devices back for one; the rest is sent whole.
       source_firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
-      target_firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+
+      target_firmware =
+        org_key
+        |> Fixtures.firmware_fixture(product, %{dir: tmp_dir})
+        |> Ecto.Changeset.change(delta_updatable: true)
+        |> Repo.update!()
 
       # Create a new deployment release for the target firmware
       {:ok, {_release, deployment_group}} =
