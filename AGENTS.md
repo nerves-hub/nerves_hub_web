@@ -561,6 +561,16 @@ when adding or removing one.
   `require_membership`, or `plug(:require_no_permission, :reason)` for
   sign-in pages and requests that prove themselves (a Slack signature). A
   refusal raises `NervesHubWeb.UnauthorizedError` everywhere.
+- **Async work in LiveViews is traced.** `use NervesHubWeb, :live_view`,
+  `:live_component` and `tab_component:` import `start_async` and
+  `assign_async` from `NervesHub.Telemetry.AsyncTrace` in place of
+  `Phoenix.LiveView`'s, so a task's queries join the trace of the callback
+  that started it. Call them bare: `Phoenix.LiveView.start_async` written
+  out, or a module that imports `Phoenix.LiveView` itself, runs untraced.
+  The span is named for what the async is, so put which one after a `:` in
+  a string name (`"load_chart:#{key}"`) or after the first element of a
+  tuple (`{:send_test, id}`). There's no traced `stream_async`, since
+  nothing uses one.
 - Never weaken a test, disable a lint, or add a suppression to get green — if
   you're blocked, say so.
 
