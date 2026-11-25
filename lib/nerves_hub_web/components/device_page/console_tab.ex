@@ -217,7 +217,7 @@ defmodule NervesHubWeb.Components.DevicePage.ConsoleTab do
                       <span class="hidden group-data-[step=done]/step:inline">Uploaded to {@platform}</span>
                     </span>
                     <span class="shrink-0 font-mono text-xs text-content-muted">
-                      <span data-upload-field="sent" class="hidden group-data-[step=active]/step:inline"></span>
+                      <span data-upload-field="sent" class="hidden group-data-[step=active]/step:inline group-data-[step=stopped]/step:inline"></span>
                       <span data-upload-field="uploaded-in" class="hidden group-data-[step=done]/step:inline"></span>
                     </span>
                   </div>
@@ -289,8 +289,8 @@ defmodule NervesHubWeb.Components.DevicePage.ConsoleTab do
   end
 
   # A step's marker, drawn from the `data-step` of the step it's in: an empty
-  # ring before it starts, a dot while it's under way, a tick once it's done
-  # and a cross if it failed.
+  # ring before it starts or if it stopped short, a dot while it's under way, a
+  # tick once it's done and a cross if it failed.
   defp step_marker(assigns) do
     ~H"""
     <span

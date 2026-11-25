@@ -56,7 +56,10 @@ export function setupUploads({ frame, channel, fileAcks, focus }) {
     saving: ["done", "active"],
     saved: ["done", "done"],
     "failed-upload": ["failed", "todo"],
-    "failed-save": ["done", "failed"]
+    "failed-save": ["done", "failed"],
+    // A device that reports each chunk saves it as it arrives, so it can fail
+    // before the upload is done. The upload then stopped short.
+    "failed-save-early": ["stopped", "failed"]
   }
 
   const setState = (state, failedAt) => {
@@ -164,7 +167,7 @@ export function setupUploads({ frame, channel, fileAcks, focus }) {
   }
 
   const finish = (upload) => {
-    if (current !== upload || upload.state === "saved") return
+    if (current !== upload || upload.state === "saved" || upload.state === "failed") return
 
     const now = Date.now()
     upload.state = "saved"
@@ -204,7 +207,8 @@ export function setupUploads({ frame, channel, fileAcks, focus }) {
     if (!inProgress()) batch.hidden = false
   }
 
-  // Hide leaves the strip; the others put the console back as it was.
+  // Hide leaves the strip, Details (`open`) brings the dialog back, and close
+  // and dismiss put the console back as it was.
   const actions = {
     hide: () => {
       clearTimeout(openTimer)
@@ -259,7 +263,11 @@ export function setupUploads({ frame, channel, fileAcks, focus }) {
   channel.on(
     "file-data/error",
     byFilename((upload, { reason }) =>
-      fail(upload, "save", reason ? `The device couldn't save it: ${reason}.` : "The device couldn't save it.")
+      fail(
+        upload,
+        upload.state === "uploading" ? "save-early" : "save",
+        reason ? `The device couldn't save it: ${reason}.` : "The device couldn't save it."
+      )
     )
   )
 
