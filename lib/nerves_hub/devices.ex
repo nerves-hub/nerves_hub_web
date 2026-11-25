@@ -26,7 +26,6 @@ defmodule NervesHub.Devices do
   alias NervesHub.Devices.Updates
   alias NervesHub.Devices.Visibility
   alias NervesHub.Extensions
-  alias NervesHub.Filtering, as: CommonFiltering
   alias NervesHub.Firmwares.FirmwareMetadata
   alias NervesHub.ManagedDeployments
   alias NervesHub.ManagedDeployments.DeploymentRelease
@@ -126,38 +125,22 @@ defmodule NervesHub.Devices do
     entries
   end
 
+  @doc """
+  The API's devices list: a page of the product's devices that `opts[:visible_to]`
+  can see, filtered and sorted as `filter/3` would, 10 to a page by default.
+
+  Soft-deleted devices are never listed, whatever the `display_deleted`
+  filter asks for, unless the advanced query names `deleted`.
+  """
   def get_devices_by_org_id_and_product_id_with_pager(org_id, product_id, opts) do
-    pagination =
-      %{page: 1, page_size: 10}
-      |> Map.merge(Map.get(opts, :pagination, %{}))
-
-    sorting = Map.get(opts, :sort, {:asc, :identifier})
-    {advanced_query, filters} = Map.pop(Map.get(opts, :filters, %{}), :advanced_query)
-
-    # When the advanced query checks the `deleted` column, let it control whether
-    # soft-deleted devices appear instead of the default exclusion and the
-    # `display_deleted` filter (matching `NervesHub.Filtering` for the UI list).
-    query_controls_deleted = AdvancedQuery.references_column?(advanced_query, product_id, "deleted")
-    filters = if query_controls_deleted, do: Map.delete(filters, :display_deleted), else: filters
-
+    pagination = Map.merge(%{page: 1, page_size: 10}, Map.get(opts, :pagination, %{}))
     flop = %Flop{page: pagination[:page], page_size: pagination[:page_size]}
 
-    # The joins are only for the filters and sorts that name them; the device
-    # is named for the alarm filters, as in `common_filter_query/1`. Postgres
-    # drops a join that nothing uses.
     {devices, meta} =
-      Device
-      |> from(as: :device)
-      |> maybe_where_visible(opts[:visible_to])
-      |> where([d], d.org_id == ^org_id)
-      |> where([d], d.product_id == ^product_id)
-      |> join(:left, [d], lc in assoc(d, :latest_connection), as: :latest_connection)
-      |> join(:left, [d], lh in assoc(d, :latest_health), as: :latest_health)
-      |> join(:left, [d], ifu in assoc(d, :inflight_update), as: :inflight_update)
-      |> then(&if(query_controls_deleted, do: &1, else: Repo.exclude_deleted(&1)))
-      |> DeviceFiltering.sort(sorting)
-      |> DeviceFiltering.build_filters(filters)
-      |> AdvancedQuery.apply_to_query(advanced_query, product_id)
+      opts[:visible_to]
+      |> list_query()
+      |> where([device: d], d.org_id == ^org_id)
+      |> filter_list(product_id, opts, hide_deleted: true)
       |> Flop.run(flop)
 
     # Preloaded after paging, not joined: Postgres applies the offset only
@@ -175,12 +158,6 @@ defmodule NervesHub.Devices do
     {devices, meta}
   end
 
-  # Without `:visible_to`, every device in the product is listed. That is only
-  # right for a caller that already knows its user sees all of them.
-  defp maybe_where_visible(query, nil), do: query
-  defp maybe_where_visible(query, %User{} = user), do: Visibility.where_visible(query, user)
-  defp maybe_where_visible(query, %ApiKey{} = api_key), do: Visibility.where_visible(query, api_key)
-
   def get_device_count_by_org_id_and_product_id(org_id, product_id) do
     query =
       from(
@@ -194,9 +171,18 @@ defmodule NervesHub.Devices do
     |> Repo.one!()
   end
 
+  @doc """
+  The web UI's devices list: a page of `filter_query/3`, 25 to a page by
+  default, with what the list's rows show loaded.
+  """
   @spec filter(Product.t(), User.t(), map()) :: {[Device.t()], Flop.Meta.t()}
   def filter(product, user, opts) do
-    common_filter_query(user)
+    pagination = Map.get(opts, :pagination, %{})
+    flop = %Flop{page: Map.get(pagination, :page, 1), page_size: Map.get(pagination, :page_size, 25)}
+
+    product
+    |> filter_query(user, opts)
+    |> join(:left, [device: d], dg in assoc(d, :deployment_group), as: :deployment_group)
     |> preload([latest_connection: lc], latest_connection: lc)
     |> preload([latest_health: lh], latest_health: lh)
     # The firmware the list's Firmware column measures each device against:
@@ -204,13 +190,21 @@ defmodule NervesHub.Devices do
     # firmware an update in progress is installing.
     |> preload([deployment_group: dg], deployment_group: {dg, current_release: :firmware})
     |> preload([inflight_update: ifu], inflight_update: {ifu, :firmware})
-    |> CommonFiltering.filter(product, opts)
+    |> Flop.run(flop)
   end
 
+  @doc """
+  Every device in the product that the user can see and `opts`' filters
+  match, sorted by `opts[:sort]` (identifier, unless it says otherwise), with
+  nothing loaded but the devices. `filter/3` pages it, and the devices list's
+  counts, bulk actions and export start from it.
+  """
   @spec filter_query(Product.t(), User.t(), map()) :: Ecto.Query.t()
   def filter_query(product, user, opts) do
-    common_filter_query(user)
-    |> CommonFiltering.filter_query(product, opts)
+    user
+    |> list_query()
+    |> join_pinned(user)
+    |> filter_list(product.id, opts)
   end
 
   @doc """
@@ -236,8 +230,8 @@ defmodule NervesHub.Devices do
         {key, dynamic([device: d], filter(count(d.id), ^condition))}
       end)
 
-    common_filter_query(user)
-    |> CommonFiltering.filter_query(product, opts)
+    product
+    |> filter_query(user, opts)
     |> exclude(:order_by)
     |> select(^Map.put(counts, "all", dynamic([device: d], count(d.id))))
     |> Repo.one()
@@ -264,8 +258,8 @@ defmodule NervesHub.Devices do
   # a NULL version, and any other choice is an exact version match.
   defp count_facet(:firmware_version, choices, product, user, opts) do
     groups =
-      common_filter_query(user)
-      |> CommonFiltering.filter_query(product, opts)
+      product
+      |> filter_query(user, opts)
       |> exclude(:order_by)
       |> group_by([device: d], d.firmware_metadata["version"])
       |> select([device: d], {
@@ -299,27 +293,68 @@ defmodule NervesHub.Devices do
   defp count_choices(_product, _user, _opts, counts) when counts == %{}, do: %{}
 
   defp count_choices(product, user, opts, counts) do
-    common_filter_query(user)
-    |> CommonFiltering.filter_query(product, opts)
+    product
+    |> filter_query(user, opts)
     |> exclude(:order_by)
     |> select(^counts)
     |> Repo.one()
   end
 
-  defp common_filter_query(user) do
-    # Named so the alarm filters can correlate an EXISTS against `device_alarms`
-    # back to this device; see `NervesHub.Devices.AdvancedQuery.Compiler`.
+  # The query both devices lists start from, the web UI's (`filter_query/3`)
+  # and the API's (`get_devices_by_org_id_and_product_id_with_pager/3`), so a
+  # filter or sort finds what it refers to in either:
+  #
+  #   * `device`, which the alarm and metric filters correlate their
+  #     subqueries to (`NervesHub.Devices.AdvancedQuery.Compiler`)
+  #   * `latest_connection`, `latest_health` and `inflight_update`, left joins
+  #     only filters and sorts read. Each matches at most one row per device,
+  #     so Postgres drops whichever a query doesn't use.
+  #
+  # Without `visible_to`, every device is listed. That is only right for a
+  # caller that already knows its actor sees all of them.
+  defp list_query(visible_to) do
     Device
     |> from(as: :device)
-    |> Visibility.where_visible(user)
-    |> join(:left, [d], dc in assoc(d, :latest_connection), as: :latest_connection)
-    |> join(:left, [d, dc], dh in assoc(d, :latest_health), as: :latest_health)
-    |> join(:left, [d, dc, dh], pd in PinnedDevice,
-      on: pd.device_id == d.id and pd.user_id == ^user.id,
+    |> maybe_where_visible(visible_to)
+    |> join(:left, [device: d], lc in assoc(d, :latest_connection), as: :latest_connection)
+    |> join(:left, [device: d], lh in assoc(d, :latest_health), as: :latest_health)
+    |> join(:left, [device: d], ifu in assoc(d, :inflight_update), as: :inflight_update)
+  end
+
+  defp maybe_where_visible(query, nil), do: query
+  defp maybe_where_visible(query, %User{} = user), do: Visibility.where_visible(query, user)
+  defp maybe_where_visible(query, %ApiKey{} = api_key), do: Visibility.where_visible(query, api_key)
+
+  # The web UI's list also joins its user's pin on each device, as `pinned`.
+  # The API's doesn't: it lists for product API keys as well as users, and
+  # Postgres can't drop this join, as `pinned_devices` has no unique index.
+  defp join_pinned(query, %User{id: user_id}) do
+    join(query, :left, [device: d], pd in PinnedDevice,
+      on: pd.device_id == d.id and pd.user_id == ^user_id,
       as: :pinned
     )
-    |> join(:left, [d], dg in assoc(d, :deployment_group), as: :deployment_group)
-    |> join(:left, [d], ifu in assoc(d, :inflight_update), as: :inflight_update)
+  end
+
+  # Keeps a `list_query/1` to one product, then applies a list's sort, by
+  # identifier unless `opts` says otherwise, its filters and its advanced
+  # query.
+  #
+  # An advanced query that names `deleted` decides which soft-deleted devices
+  # are listed. The `display_deleted` filter is dropped then, and so is
+  # `hide_deleted`, the API's own exclusion. Otherwise `deleted = "true"`
+  # would be ANDed with `deleted_at IS NULL` and match nothing.
+  defp filter_list(query, product_id, opts, list_opts \\ []) do
+    {advanced_query, filters} = Map.pop(opts[:filters] || %{}, :advanced_query)
+    names_deleted? = AdvancedQuery.references_column?(advanced_query, product_id, "deleted")
+    hide_deleted? = Keyword.get(list_opts, :hide_deleted, false) and not names_deleted?
+    filters = if names_deleted?, do: Map.delete(filters, :display_deleted), else: filters
+
+    query
+    |> where([device: d], d.product_id == ^product_id)
+    |> then(&if(hide_deleted?, do: Repo.exclude_deleted(&1), else: &1))
+    |> DeviceFiltering.sort(opts[:sort] || {:asc, :identifier})
+    |> DeviceFiltering.build_filters(filters)
+    |> AdvancedQuery.apply_to_query(advanced_query, product_id)
   end
 
   def get_device_count_by_org_id(org_id) do
