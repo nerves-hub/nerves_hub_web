@@ -382,6 +382,40 @@ defmodule NervesHub.ProductNotifications do
     )
   end
 
+  @doc """
+  A device reported metadata that couldn't all be stored: keys the platform
+  writes itself, keys or values too long, more keys than are kept, or
+  metadata that wasn't an object at all. See `NervesHub.Devices.ReportedMetadata`.
+
+  `reasons` names why, as `ReportedMetadata.trim/1` gives them or
+  `:not_an_object`, and `count` how many keys were dropped. What was kept is
+  stored, so the device page shows some of the device's metadata and nothing
+  says the rest is missing.
+
+  Deduplicated on the device, for the reason
+  `create_oversized_metric_keys_notification!/4` gives.
+  """
+  @spec create_invalid_device_metadata_notification!(
+          DeviceInfo.t(),
+          [atom()],
+          non_neg_integer(),
+          String.t() | nil
+        ) :: Notification.t()
+  def create_invalid_device_metadata_notification!(device_info, reasons, count, example_key) do
+    raise!(
+      %Product{id: device_info.product_id},
+      :invalid_device_metadata,
+      :warning,
+      %{
+        identifier: device_info.device_identifier,
+        reasons: Enum.map(reasons, &Atom.to_string/1),
+        count: count,
+        example_key: example_key
+      },
+      "invalid_device_metadata-#{device_info.device_identifier}"
+    )
+  end
+
   @spec create_missing_firmware_metadata_notification!(device :: Device.t()) :: Notification.t()
   def create_missing_firmware_metadata_notification!(device) do
     raise!(

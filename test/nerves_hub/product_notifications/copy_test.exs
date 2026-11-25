@@ -118,5 +118,38 @@ defmodule NervesHub.ProductNotifications.CopyTest do
              "212 metrics"
 
     assert Copy.detail(notification(:wrong_websocket_host, %{identifier: "a", host: "b"})) == nil
+
+    assert Copy.detail(notification(:invalid_device_metadata, %{identifier: "a", reasons: ["too_many"], count: 8})) ==
+             "8 keys dropped"
+
+    assert Copy.detail(notification(:invalid_device_metadata, %{identifier: "a", reasons: ["not_an_object"], count: 0})) ==
+             "not an object"
+  end
+
+  describe "invalid_device_metadata" do
+    test "says why keys were dropped, and names one" do
+      metadata = %{identifier: "sp-0042", reasons: ["reserved", "too_many"], count: 9, example_key: "location"}
+
+      assert Copy.card(notification(:invalid_device_metadata, metadata)).message ==
+               "It sent metadata with names NervesHub sets itself and more than 32 keys. " <>
+                 "9 keys were dropped, such as 'location', and the rest was kept."
+
+      assert Copy.full(:invalid_device_metadata, metadata).message =~ "The device 'sp-0042' sent metadata"
+    end
+
+    test "says when none of it could be stored" do
+      metadata = %{identifier: "sp-0042", reasons: ["not_an_object"], count: 0, example_key: nil}
+
+      assert Copy.card(notification(:invalid_device_metadata, metadata)).message ==
+               "It sent metadata that wasn't an object of names and values, so none of it was stored. " <>
+                 "Check the metadata its firmware reports."
+    end
+
+    test "rolls many devices up into one card" do
+      latest = notification(:invalid_device_metadata, %{identifier: "a", reasons: ["too_long"], count: 1})
+
+      assert %{title: "12 devices reported metadata NervesHub couldn't store."} =
+               Copy.rollup(:invalid_device_metadata, 12, 12, latest)
+    end
   end
 end

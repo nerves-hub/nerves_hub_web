@@ -20,6 +20,7 @@ defmodule NervesHub.Products.Notification do
     :device_bulk_create,
     :duplicate_device_identifier,
     :extension_failure,
+    :invalid_device_metadata,
     :missing_firmware_metadata,
     :oversized_metric_keys,
     :slack_subscription_disabled,
@@ -36,6 +37,7 @@ defmodule NervesHub.Products.Notification do
   @device_kinds [
     :duplicate_device_identifier,
     :extension_failure,
+    :invalid_device_metadata,
     :missing_firmware_metadata,
     :oversized_metric_keys,
     :soft_deleted_device,
