@@ -101,12 +101,16 @@ defmodule NervesHub.FirmwareUpdates do
     )
   end
 
+  # `delay_for` is in minutes, which is what nerves_hub_link sends and what
+  # `update_rejected` gives a device back (docs/device_managed_updates.md).
   def status_update("rescheduled", device_id, %{"delay_for" => delay_for} = info, _opts) do
-    blocked_until = NaiveDateTime.utc_now(:second) |> NaiveDateTime.add(delay_for, :millisecond)
+    blocked_until = NaiveDateTime.utc_now(:second) |> NaiveDateTime.add(delay_for, :minute)
     payload = %{blocked_until: blocked_until, reason: info["reason"]}
 
     callback = fn device ->
       _ = record_outcome(device, :rescheduled, info["reason"])
+
+      :ok = withdraw_update_attempt(device)
 
       clear_inflight_update(device_id)
 
@@ -393,6 +397,23 @@ defmodule NervesHub.FirmwareUpdates do
   end
 
   defp maybe_update_update_attempts(device), do: device
+
+  # Asking for an update later is not failing to take it, so a reschedule takes
+  # back the attempt that the device's first report on the offer counted. That
+  # attempt is the last one: an offer is only made to a device with nothing
+  # inflight, so nothing else counts one while it is open. Left in, a device
+  # that asked to wait three times would go in the penalty box for its
+  # deployment group's whole penalty timeout.
+  defp withdraw_update_attempt(device) do
+    {_count, _} =
+      Device
+      |> where(id: ^device.id)
+      |> where([d], fragment("cardinality(?) > 0", d.update_attempts))
+      |> update(set: [update_attempts: fragment("update_attempts[1:cardinality(update_attempts) - 1]")])
+      |> Repo.update_all([])
+
+    :ok
+  end
 
   # The device's update ended. Reads the deployment group and the firmware it
   # was being moved to off the inflight row, which every caller is about to

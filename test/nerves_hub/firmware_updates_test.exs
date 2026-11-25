@@ -79,7 +79,7 @@ defmodule NervesHub.FirmwareUpdatesTest do
     end
 
     test "'rescheduled' doesn't block the device and records a device scoped audit log", %{device: device} do
-      info = %{"delay_for" => 60_000, "reason" => "on battery"}
+      info = %{"delay_for" => 15, "reason" => "on battery"}
 
       assert :ok = FirmwareUpdates.status_update("rescheduled", device.id, info)
 
@@ -135,17 +135,54 @@ defmodule NervesHub.FirmwareUpdatesTest do
       deployment_group: deployment_group,
       device: device
     } do
-      info = %{"delay_for" => 60_000, "reason" => "on battery"}
+      info = %{"delay_for" => 15, "reason" => "on battery"}
 
       assert :ok = FirmwareUpdates.status_update("rescheduled", device.id, info)
 
       assert blocked_until = Devices.get_device(device.id).updates_blocked_until
-      assert_blocked_for(blocked_until, 1)
+      assert_blocked_for(blocked_until, 15)
 
       assert [log] = AuditLogs.logs_for(device)
       assert_actor(log, deployment_group)
       assert log.description =~ "During an update request from \"#{deployment_group.name}\""
     end
+
+    # Asking to wait is the device choosing when to update, not failing to.
+    test "'rescheduled' takes back the attempt the offer counted", %{device: device} do
+      assert :ok = FirmwareUpdates.status_update("received", device.id)
+      assert [_attempt] = Devices.get_device(device.id).update_attempts
+
+      assert :ok = FirmwareUpdates.status_update("rescheduled", device.id, %{"delay_for" => 15})
+
+      assert Devices.get_device(device.id).update_attempts == []
+    end
+
+    test "asking to wait three times does not reach the failure threshold", %{
+      deployment_group: deployment_group,
+      device: device
+    } do
+      for round <- 1..3 do
+        if round > 1, do: offer_update(deployment_group, device)
+
+        assert :ok = FirmwareUpdates.status_update("received", device.id)
+        assert :ok = FirmwareUpdates.status_update("rescheduled", device.id, %{"delay_for" => 15})
+      end
+
+      refute Updates.failure_threshold_met?(Devices.get_device(device.id), deployment_group)
+    end
+
+    test "an attempt that goes ahead still counts", %{device: device} do
+      assert :ok = FirmwareUpdates.status_update("received", device.id)
+      assert :ok = FirmwareUpdates.status_update("failed", device.id, %{"reason" => "fwup error"})
+
+      assert [_attempt] = Devices.get_device(device.id).update_attempts
+    end
+  end
+
+  defp offer_update(deployment_group, device) do
+    {:ok, _inflight_update} =
+      InflightUpdate.deployment_requested_changeset(deployment_group, device.id, false)
+      |> Repo.insert()
   end
 
   describe "status_update/4 racing the update it reports on" do
