@@ -160,11 +160,9 @@ defmodule NervesHub.Devices do
       |> AdvancedQuery.apply_to_query(advanced_query, product_id)
       |> Flop.run(flop)
 
-    # Loaded for the page's devices once it is picked, not joined into the
-    # paged query. Postgres can only apply the page's offset once it has every
-    # row before it, so selecting the joined tables made it look up and sort
-    # them for every device in the product, and each page cost as much as
-    # reading the whole product.
+    # Preloaded after paging, not joined: Postgres applies the offset only
+    # after building every earlier row, so selected joins would be looked up
+    # and sorted for every device in the product on each page.
     devices =
       Repo.preload(devices, [
         :org,
