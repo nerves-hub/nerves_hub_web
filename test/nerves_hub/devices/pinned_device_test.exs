@@ -53,5 +53,13 @@ defmodule NervesHub.Devices.PinnedDeviceTest do
       assert {:error, cs} = NervesHub.Repo.insert(changeset)
       assert cs.errors[:device_id]
     end
+
+    test "a second pin of the same device by the same user fires the unique constraint", %{user: user, device: device} do
+      params = %{user_id: user.id, device_id: device.id}
+
+      assert {:ok, _} = NervesHub.Repo.insert(PinnedDevice.create(params))
+      assert {:error, cs} = NervesHub.Repo.insert(PinnedDevice.create(params))
+      assert {"has already been taken", _} = cs.errors[:user_id]
+    end
   end
 end

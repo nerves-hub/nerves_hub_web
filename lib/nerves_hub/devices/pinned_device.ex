@@ -23,5 +23,6 @@ defmodule NervesHub.Devices.PinnedDevice do
     |> validate_required(@required)
     |> foreign_key_constraint(:user_id)
     |> foreign_key_constraint(:device_id)
+    |> unique_constraint([:user_id, :device_id], name: :pinned_devices_user_id_device_id_unique_index)
   end
 end
