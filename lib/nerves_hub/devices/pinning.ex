@@ -37,8 +37,10 @@ defmodule NervesHub.Devices.Pinning do
   end
 
   @doc """
-  Pins the device for the user. Pinning one that's already pinned does
-  nothing, and the pin it returns then has no `id`.
+  Pins the device for the user.
+
+  Pinning an already pinned device changes nothing and returns a pin
+  without an `id`.
   """
   @spec pin_device(pos_integer(), pos_integer()) ::
           {:ok, PinnedDevice.t()} | {:error, Ecto.Changeset.t()}
@@ -49,8 +51,9 @@ defmodule NervesHub.Devices.Pinning do
   end
 
   @doc """
-  Unpins the device for the user. Unpinning one that isn't pinned does
-  nothing.
+  Unpins the device for the user.
+
+  Returns `:ok` whether or not the device was pinned.
   """
   @spec unpin_device(pos_integer(), pos_integer()) :: :ok
   def unpin_device(user_id, device_id) do
