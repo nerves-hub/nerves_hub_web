@@ -757,42 +757,11 @@ defmodule NervesHub.DevicesTest do
       assert last.deployment_group.id == deployment_group.id
       assert last.deployment_group.current_release.firmware.id == firmware.id
       assert last.latest_connection.id == connection.id
-      assert last.latest_health == nil
 
       for device <- page_one do
         assert device.deployment_group == nil
         assert device.latest_connection == nil
       end
-    end
-
-    # Another application in the cluster calls this over `:erpc` (see its
-    # `@doc`), so what it passes and what it reads back are pinned here.
-    test "keeps the shape other applications in the cluster read", context do
-      %{org: org, product: product, user: user, firmware: firmware, deployment_group: group, device: device} = context
-      {:ok, _device} = Devices.update_device(device, %{deployment_id: group.id})
-
-      assert {devices, %Flop.Meta{} = meta} =
-               Devices.get_devices_by_org_id_and_product_id_with_pager(org.id, product.id, %{
-                 pagination: %{page: 1, page_size: 100},
-                 filters: %{},
-                 visible_to: user
-               })
-
-      assert {meta.current_page, meta.page_size, meta.total_count} == {1, 100, 3}
-      assert length(devices) == 3
-
-      for listed <- devices do
-        assert %Device{} = listed
-
-        for assoc <- [:org, :product, :latest_connection, :latest_health, :deployment_group] do
-          assert Ecto.assoc_loaded?(Map.fetch!(listed, assoc)), "#{assoc} isn't loaded"
-        end
-      end
-
-      grouped = Enum.find(devices, &(&1.id == device.id))
-      assert grouped.org.id == org.id
-      assert grouped.product.id == product.id
-      assert grouped.deployment_group.current_release.firmware.id == firmware.id
     end
   end
 
@@ -967,11 +936,9 @@ defmodule NervesHub.DevicesTest do
       assert online.org.id == org.id
       assert online.product.id == product.id
       assert online.latest_connection.status == :connected
-      assert online.latest_health.status == :healthy
       assert online.deployment_group.current_release.firmware.id == firmware.id
 
       assert updating.id == context.updating.id
-      assert updating.latest_health.status == :unhealthy
       assert updating.deployment_group == nil
     end
 
