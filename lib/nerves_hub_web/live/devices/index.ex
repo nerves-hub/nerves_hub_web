@@ -21,6 +21,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
   alias NervesHub.FirmwareUpdates
   alias NervesHub.ManagedDeployments
   alias NervesHub.Products
+  alias NervesHub.Telemetry.AsyncTrace
   alias NervesHub.Tracker
   alias NervesHubWeb.Components.AddDevice
   alias NervesHubWeb.Components.AdvancedSearch
@@ -38,6 +39,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
   alias Phoenix.LiveView.JS
   alias Phoenix.Socket.Broadcast
 
+  require AsyncTrace
   require OpenTelemetry.Tracer, as: Tracer
 
   @list_refresh_time 60_000
@@ -1104,7 +1106,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
 
   defp assign_filter_data(%{assigns: %{current_scope: %{product: product, user: user}}} = socket) do
     socket
-    |> start_async(:update_filter_data, fn ->
+    |> AsyncTrace.start_async(:update_filter_data, fn ->
       distinct_metric_keys = Metrics.distinct_keys(product.id)
 
       [
@@ -1135,7 +1137,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
 
     socket
     |> assign(:facets_for, key)
-    |> start_async(:load_facets, fn ->
+    |> AsyncTrace.start_async(:load_facets, fn ->
       {key, Devices.facet_counts(scope.product, scope.user, opts, facets)}
     end)
   end
@@ -1231,7 +1233,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
       |> assign(:devices, AsyncResult.loading())
       |> assign(:device_statuses, AsyncResult.loading())
     end
-    |> start_async(:update_device_list, fn ->
+    |> AsyncTrace.start_async(:update_device_list, fn ->
       {updated_devices, pager} = Devices.filter(scope.product, scope.user, opts)
       state_counts = Devices.state_counts(scope.product, scope.user, opts)
       product_count = Map.get(Devices.count_by_product([scope.product.id], scope.user), scope.product.id, 0)
@@ -1550,7 +1552,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
     ecto_query = filter_query(socket)
 
     socket
-    |> start_async(name, fn -> apply(BulkActions, name, [ecto_query | args]) end)
+    |> AsyncTrace.start_async(name, fn -> apply(BulkActions, name, [ecto_query | args]) end)
     |> put_flash(:notice, "Updating devices, please wait...")
     |> noreply()
   end
@@ -1609,7 +1611,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
     socket
     |> assign(:peek_device_id, device.id)
     |> assign(:peek, AsyncResult.loading())
-    |> start_async(:load_peek, fn ->
+    |> AsyncTrace.start_async(:load_peek, fn ->
       {attempts, attempts_page} = UpdateHistory.device_attempts(device, 1, 5)
       {activity, _meta} = AuditLogs.logs_for_feed(device, %{page: 1, page_size: 3})
 
@@ -1940,7 +1942,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
 
       socket
       |> assign(:no_match_suggestions, nil)
-      |> start_async(:load_no_match_suggestions, fn ->
+      |> AsyncTrace.start_async(:load_no_match_suggestions, fn ->
         suggestions =
           removable
           |> Enum.map(fn removed ->
