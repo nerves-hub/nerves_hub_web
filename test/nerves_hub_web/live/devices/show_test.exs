@@ -2817,6 +2817,38 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       end)
       |> assert_has("button[aria-label='Pin device']")
     end
+
+    test "pinning a device another tab already pinned shows it pinned", context do
+      %{conn: conn, org: org, product: product, device: device, user: user} = context
+
+      session = visit(conn, "/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      {:ok, _} = Pinning.pin_device(user.id, device.id)
+
+      session
+      |> unwrap(fn view ->
+        render_click(view, "pin", %{})
+      end)
+      |> assert_has("button[aria-label='Unpin device']")
+      |> refute_has("div", text: "Could not pin device.")
+
+      assert Pinning.device_pinned?(user.id, device.id)
+    end
+
+    test "unpinning a device another tab already unpinned shows it unpinned", context do
+      %{conn: conn, org: org, product: product, device: device, user: user} = context
+      {:ok, _} = Pinning.pin_device(user.id, device.id)
+
+      session = visit(conn, "/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      :ok = Pinning.unpin_device(user.id, device.id)
+
+      session
+      |> unwrap(fn view ->
+        render_click(view, "unpin", %{})
+      end)
+      |> assert_has("button[aria-label='Pin device']")
+
+      refute Pinning.device_pinned?(user.id, device.id)
+    end
   end
 
   describe "on a phone" do
