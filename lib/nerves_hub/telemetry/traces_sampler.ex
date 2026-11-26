@@ -12,16 +12,20 @@ defmodule NervesHub.Telemetry.TracesSampler do
   There are six kinds, each with its own rate:
 
     * `:requests` - requests to the web UI and API, and LiveView mounts,
-      params and events. There are few of them, someone is waiting on each,
-      and a slow page is only worth looking into with enough samples to see
-      it. `SENTRY_REQUEST_TRACING_RATE`, `1.0` by default.
+      params and events, along with the async work they start
+      (`NervesHub.Telemetry.AsyncTrace`) and the component updates their
+      renders run (`NervesHub.Telemetry.ComponentTrace`). There are few of
+      them, someone is waiting on each, and a slow page is only worth looking
+      into with enough samples to see it. `SENTRY_REQUEST_TRACING_RATE`,
+      `1.0` by default.
     * `:jobs` - Oban jobs. Mostly crons and rare one-off work, such as
       deleting firmware or building a delta, which a small rate would almost
       never catch. `SENTRY_JOB_TRACING_RATE`, `1.0` by default.
     * `:default` - everything else: device connections and their messages,
-      deployment orchestrators, and queries run outside any request. Device
-      traffic dwarfs everything else, which is why this rate is the small one.
-      `SENTRY_TRACING_RATE`, `0.05` by default.
+      deployment orchestrators, and queries and LiveView async work run
+      outside any request. Device traffic dwarfs everything else, which is
+      why this rate is the small one. `SENTRY_TRACING_RATE`, `0.05` by
+      default.
     * `:flushes` - an analytics buffer writing a batch to ClickHouse. A busy
       buffer flushes about twice a second on every node, so these are kept at
       `SENTRY_TRACING_RATE` or 1%, whichever is lower. That is still enough to
@@ -48,6 +52,7 @@ defmodule NervesHub.Telemetry.TracesSampler do
   endpoint but the console's on the web one.
   """
 
+  alias NervesHub.Telemetry.AsyncTrace
   alias NervesHub.Telemetry.FilteredSampler
   alias OpenTelemetry.SemConv.HTTPAttributes
   alias OpenTelemetry.SemConv.Incubating.MessagingAttributes
@@ -152,7 +157,13 @@ defmodule NervesHub.Telemetry.TracesSampler do
   # list's own refresh spans follow it. A LiveComponent's events are named after
   # the LiveView it's in, not the component, because it names them from
   # `socket.view` and a component's socket is its LiveView's.
-  defp live_view?(name) when is_binary(name), do: String.starts_with?(name, "NervesHubWeb.Live.")
+  #
+  # An async task's span is named after the view too, but one that starts a
+  # trace was started outside any mount, params or event, so it isn't one.
+  # Inside one, it follows the trace's decision and never reaches here.
+  defp live_view?(name) when is_binary(name),
+    do: String.starts_with?(name, "NervesHubWeb.Live.") and not AsyncTrace.span?(name)
+
   defp live_view?(_name), do: false
 
   defp flush?(name) when is_binary(name), do: String.starts_with?(name, "Analytics.Buffer.flush[")

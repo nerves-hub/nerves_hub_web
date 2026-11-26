@@ -40,6 +40,16 @@ defmodule NervesHub.Telemetry.TracesSamplerTest do
       end
     end
 
+    # Inside a mount, params or event, it follows that trace's decision instead.
+    test "a LiveView's async work that starts a trace is default" do
+      for name <- [
+            "NervesHubWeb.Live.Devices.Index.start_async#update_device_list",
+            "NervesHubWeb.Live.Firmware.assign_async#failed_installs"
+          ] do
+        assert TracesSampler.kind(name, %{}) == :default
+      end
+    end
+
     test "websocket upgrades are not requests" do
       for path <- ["/socket/websocket", "/device-socket/websocket", "/events-socket/websocket"] do
         {name, attributes} = request(path)
