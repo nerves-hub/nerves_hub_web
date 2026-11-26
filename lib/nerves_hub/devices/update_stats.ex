@@ -145,9 +145,6 @@ defmodule NervesHub.Devices.UpdateStats do
     )
     |> Repo.insert()
     |> case do
-      # Nothing is broadcast on the deployment group's topic. Every device in the
-      # group follows it, so one message per finished update would reach every
-      # device in the group, which is most of the work in a large rollout.
       {:ok, _stat} ->
         :ok
 
