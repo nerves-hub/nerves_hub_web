@@ -757,7 +757,6 @@ defmodule NervesHub.DevicesTest do
       assert last.deployment_group.id == deployment_group.id
       assert last.deployment_group.current_release.firmware.id == firmware.id
       assert last.latest_connection.id == connection.id
-      assert last.latest_health == nil
 
       for device <- page_one do
         assert device.deployment_group == nil
@@ -765,6 +764,535 @@ defmodule NervesHub.DevicesTest do
       end
     end
   end
+
+  # The web UI's `filter/3` and the API's
+  # `get_devices_by_org_id_and_product_id_with_pager/3` start from one query,
+  # so the same filters, sorts and pages should list the same devices.
+  describe "the web UI and API devices lists" do
+    # The devices differ in everything the lists filter and sort on, and no two
+    # share a connection time or tags, so every sort has one right order.
+    setup context do
+      %{org: org, product: product, firmware: firmware, deployment_group: deployment_group} = context
+      %{device: online, device2: updating, device3: never_connected} = context
+
+      long_gone = Fixtures.device_fixture(org, product, firmware)
+      failing = Fixtures.device_fixture(org, product, firmware)
+      deleted = Fixtures.device_fixture(org, product, firmware)
+
+      hours_ago = &DateTime.add(DateTime.utc_now(), -&1, :hour)
+
+      for {device, status, established, last_seen, interface} <- [
+            {online, :connected, 2, 1, :wifi},
+            {updating, :connected, 5, 3, :ethernet},
+            {long_gone, :disconnected, 21 * 24, 20 * 24, :cellular},
+            {failing, :disconnected, 30, 26, :wifi},
+            {deleted, :connected, 8, 7, :wifi}
+          ] do
+        Fixtures.device_connection_fixture(device, %{
+          status: status,
+          established_at: hours_ago.(established),
+          last_seen_at: hours_ago.(last_seen),
+          network_interface: interface
+        })
+      end
+
+      for {device, status} <- [{online, "healthy"}, {updating, "unhealthy"}, {failing, "warning"}] do
+        {:ok, _} = Health.save_device_health(%{"device_id" => device.id, "status" => status})
+      end
+
+      {:ok, _} = Fixtures.inflight_update(updating, firmware)
+
+      for {device, set} <- [
+            {online, [tags: ["a-prod"], deployment_id: deployment_group.id]},
+            {updating, [tags: ["b-lab"]]},
+            {never_connected, [tags: nil, updates_enabled: false]},
+            {long_gone, [tags: ["d-field"]]},
+            {failing,
+             [
+               tags: ["e-prod"],
+               updates_blocked_until: DateTime.add(DateTime.utc_now(), 1, :hour),
+               consecutive_failed_updates: 3
+             ]},
+            {deleted, [tags: ["f-prod"], deleted_at: DateTime.utc_now()]}
+          ] do
+        {1, _} = Repo.update_all(where(Device, id: ^device.id), set: set)
+      end
+
+      %{online: online, updating: updating, deleted: deleted}
+    end
+
+    test "filter alike", %{product: product, user: user, firmware: firmware} = context do
+      filters = [
+        %{},
+        %{connection: "connected"},
+        %{connection: "disconnected,not_seen"},
+        %{connection: "not_seen_in_fourteen_days"},
+        %{connection_type: "wifi"},
+        %{health_status: "unhealthy,warning"},
+        %{health_status: "unknown"},
+        %{updates: "updating"},
+        %{updates: "failed-updates"},
+        %{updates: "disabled"},
+        %{only_updating: true},
+        %{deployment_id: context.deployment_group.id},
+        %{deployment_id: nil},
+        %{tags: "prod"},
+        %{has_no_tags: true},
+        %{identifier: context.online.identifier},
+        %{firmware_version: firmware.version},
+        %{state: "attention"},
+        %{state: "offline"},
+        %{state: "attention", reason: "not_seen"},
+        %{advanced_query: ~s|connection = "connected" or health_status = "unhealthy"|},
+        %{advanced_query: ~s|update_status is "updating"|},
+        %{advanced_query: ~s|deleted = "true"|},
+        %{advanced_query: "prod"}
+      ]
+
+      listed =
+        for filter <- filters do
+          opts = %{filters: Map.put(filter, :display_deleted, "exclude")}
+          web_ui = list(:web_ui, product, user, opts)
+
+          assert list(:api, product, user, opts) == web_ui, "the lists differ on #{inspect(filter)}"
+
+          web_ui
+        end
+
+      # The filters picked out different devices, so agreeing meant something.
+      assert listed |> Enum.uniq() |> length() > 10
+    end
+
+    test "sort alike", %{product: product, user: user} do
+      for field <- [:identifier, :connection_established_at, :connection_last_seen_at, :tags],
+          direction <- [:asc, :desc] do
+        opts = %{sort: {direction, field}, filters: %{display_deleted: "exclude"}}
+        web_ui = list(:web_ui, product, user, opts)
+
+        assert list(:api, product, user, opts) == web_ui, "the lists differ sorted by #{direction} #{field}"
+        assert length(web_ui) == 5
+      end
+    end
+
+    test "page alike", %{product: product, user: user} do
+      pages =
+        for page <- 1..4 do
+          opts = %{
+            sort: {:asc, :connection_last_seen_at},
+            filters: %{display_deleted: "exclude"},
+            pagination: %{page: page, page_size: 2}
+          }
+
+          {web_ui, web_ui_meta} = list_with_meta(:web_ui, product, user, opts)
+          {api, api_meta} = list_with_meta(:api, product, user, opts)
+
+          assert api == web_ui
+          assert {api_meta.total_count, api_meta.total_pages} == {5, 3}
+          assert {web_ui_meta.total_count, web_ui_meta.total_pages} == {5, 3}
+
+          web_ui
+        end
+
+      assert pages |> Enum.map(&length/1) == [2, 2, 1, 0]
+      assert pages |> List.flatten() |> Enum.uniq() |> length() == 5
+    end
+
+    test "page a query that selects devices only", %{product: product, user: user} do
+      opts = %{sort: {:asc, :connection_last_seen_at}, filters: %{display_deleted: "exclude", health_status: "healthy"}}
+
+      for kind <- [:web_ui, :api] do
+        sql = paged_query(fn -> list(kind, product, user, opts) end)
+        [selected, _rest] = String.split(sql, " FROM ", parts: 2)
+
+        # Only the devices' own columns, `d0`: anything joined is loaded after
+        # paging, or Postgres would build it for every device before the page.
+        assert Regex.scan(~r/(\w+)\."/, selected, capture: :all_but_first) |> Enum.uniq() == [["d0"]],
+               "the #{kind} list's paged query selects #{selected}"
+      end
+    end
+
+    test "load what each list shows", context do
+      %{product: product, user: user, org: org, firmware: firmware, deployment_group: group} = context
+      opts = %{sort: {:asc, :connection_last_seen_at}, filters: %{display_deleted: "exclude"}}
+
+      {[online, updating | _], _meta} = Devices.filter(product, user, opts)
+
+      assert online.id == context.online.id
+      assert online.latest_connection.status == :connected
+      assert online.latest_health.status == :healthy
+      assert online.deployment_group.id == group.id
+      assert online.deployment_group.current_release.firmware.id == firmware.id
+      assert online.inflight_update == nil
+
+      assert updating.id == context.updating.id
+      assert updating.latest_health.status == :unhealthy
+      assert updating.deployment_group == nil
+      assert updating.inflight_update.firmware.id == firmware.id
+
+      {[online, updating | _], _meta} =
+        Devices.get_devices_by_org_id_and_product_id_with_pager(org.id, product.id, Map.put(opts, :visible_to, user))
+
+      assert online.id == context.online.id
+      assert online.org.id == org.id
+      assert online.product.id == product.id
+      assert online.latest_connection.status == :connected
+      assert online.deployment_group.current_release.firmware.id == firmware.id
+
+      assert updating.id == context.updating.id
+      assert updating.deployment_group == nil
+    end
+
+    # Both lists leave soft-deleted devices to `display_deleted`, unless an
+    # advanced query names `deleted`.
+    test "list soft-deleted devices alike", context do
+      %{product: product, user: user, deleted: deleted} = context
+
+      include = %{filters: %{display_deleted: "include"}}
+      assert deleted.id in list(:web_ui, product, user, include)
+      assert list(:api, product, user, include) == list(:web_ui, product, user, include)
+
+      only = %{filters: %{display_deleted: "only"}}
+      assert list(:web_ui, product, user, only) == [deleted.id]
+      assert list(:api, product, user, only) == [deleted.id]
+
+      named = %{filters: %{display_deleted: "exclude", advanced_query: ~s|deleted = "true"|}}
+      assert list(:web_ui, product, user, named) == [deleted.id]
+      assert list(:api, product, user, named) == [deleted.id]
+
+      # The web UI always sends "exclude" or another choice; an API request
+      # that sends nothing, or something else, gets the same as "exclude".
+      exclude = list(:web_ui, product, user, %{filters: %{display_deleted: "exclude"}})
+      refute deleted.id in exclude
+      assert list(:api, product, user, %{}) == exclude
+      assert list(:api, product, user, %{filters: %{display_deleted: "everything"}}) == exclude
+    end
+
+    # Rewriting the first rows moves them after the rest of the table, so
+    # Postgres finds the devices in an order that isn't their ids'.
+    # `list_summaries/3` pages the same query, so it is held to this too.
+    test "page through devices tied on the sort key once each", %{org: org, user: user, firmware: firmware} do
+      product = Fixtures.product_fixture(user, org, %{name: "Tied Product"})
+      ids = for _ <- 1..6, do: Fixtures.device_fixture(org, product, firmware, %{tags: ["tied"]}).id
+      {3, _} = Repo.update_all(where(Device, [d], d.id in ^Enum.take(ids, 3)), set: [description: "moved"])
+
+      for kind <- [:web_ui, :api, :summaries],
+          field <- [:connection_last_seen_at, :connection_established_at, :tags],
+          {direction, expected} <- [asc: ids, desc: Enum.reverse(ids)] do
+        listed =
+          Enum.flat_map(1..3, fn page ->
+            list(kind, product, user, %{sort: {direction, field}, pagination: %{page: page, page_size: 2}})
+          end)
+
+        assert listed == expected, "#{kind} sorted #{direction} by #{field}"
+      end
+    end
+  end
+
+  defp list(kind, product, user, opts) do
+    {ids, _meta} = list_with_meta(kind, product, user, opts)
+    ids
+  end
+
+  defp list_with_meta(:web_ui, product, user, opts) do
+    opts = Map.put_new(opts, :pagination, %{page: 1, page_size: 100})
+    {devices, meta} = Devices.filter(product, user, opts)
+    {Enum.map(devices, & &1.id), meta}
+  end
+
+  defp list_with_meta(:api, product, user, opts) do
+    opts = opts |> Map.put_new(:pagination, %{page: 1, page_size: 100}) |> Map.put(:visible_to, user)
+    {devices, meta} = Devices.get_devices_by_org_id_and_product_id_with_pager(product.org_id, product.id, opts)
+    {Enum.map(devices, & &1.id), meta}
+  end
+
+  # A summary has no id, so each is looked up by its identifier, which is
+  # unique within an org.
+  defp list_with_meta(:summaries, product, user, opts) do
+    opts = Map.put_new(opts, :pagination, %{page: 1, page_size: 100})
+    {:ok, %{devices: devices, pagination: meta}} = Devices.list_summaries(product, user, opts)
+    identifiers = Enum.map(devices, & &1.identifier)
+
+    ids =
+      Device
+      |> where([d], d.org_id == ^product.org_id and d.identifier in ^identifiers)
+      |> select([d], {d.identifier, d.id})
+      |> Repo.all()
+      |> Map.new()
+
+    {Enum.map(identifiers, &Map.fetch!(ids, &1)), meta}
+  end
+
+  # The SQL of the one query `fun` sends with a LIMIT: the page.
+  defp paged_query(fun) do
+    [query] = fun |> queries_sent() |> Enum.filter(&(&1 =~ "LIMIT"))
+    query
+  end
+
+  # The SQL of each query `fun` sends, in order. The handler runs in whichever
+  # process sends a query, so other tests' are left out.
+  defp queries_sent(fun) do
+    test_pid = self()
+    handler_id = "queries-sent-#{System.unique_integer([:positive])}"
+
+    :telemetry.attach(
+      handler_id,
+      [:nerves_hub, :repo, :query],
+      fn _event, _measurements, %{query: query}, _config ->
+        if self() == test_pid, do: send(test_pid, {handler_id, query})
+      end,
+      nil
+    )
+
+    try do
+      fun.()
+    after
+      :telemetry.detach(handler_id)
+    end
+
+    sent_queries(handler_id)
+  end
+
+  defp sent_queries(handler_id) do
+    receive do
+      {^handler_id, query} -> [query | sent_queries(handler_id)]
+    after
+      0 -> []
+    end
+  end
+
+  describe "list_summaries/3" do
+    # No two devices share a connection time, so every sort has one right
+    # order, and each tab and reason lists a different set.
+    setup context do
+      %{org: org, product: product, firmware: firmware, deployment_group: group} = context
+      %{device: online, device2: unhealthy, device3: never_connected} = context
+
+      gone = Fixtures.device_fixture(org, product, firmware)
+      deleted = Fixtures.device_fixture(org, product, firmware)
+      hours_ago = &DateTime.add(DateTime.utc_now(), -&1, :hour)
+
+      for {device, status, last_seen} <- [
+            {online, :connected, 1},
+            {unhealthy, :connected, 3},
+            {gone, :disconnected, 20 * 24},
+            {deleted, :connected, 7}
+          ] do
+        Fixtures.device_connection_fixture(device, %{
+          status: status,
+          established_at: hours_ago.(last_seen + 1),
+          last_seen_at: hours_ago.(last_seen)
+        })
+      end
+
+      for {device, status} <- [{online, "healthy"}, {unhealthy, "unhealthy"}] do
+        {:ok, _} = Health.save_device_health(%{"device_id" => device.id, "status" => status})
+      end
+
+      for {device, set} <- [
+            {online, [tags: ["prod"], deployment_id: group.id]},
+            {unhealthy, [tags: ["lab"]]},
+            {never_connected, [tags: nil]},
+            {gone, [tags: ["prod"]]},
+            {deleted, [tags: ["prod"], deleted_at: DateTime.utc_now()]}
+          ] do
+        {1, _} = Repo.update_all(where(Device, id: ^device.id), set: set)
+      end
+
+      %{online: online, unhealthy: unhealthy, never_connected: never_connected, gone: gone, deleted: deleted}
+    end
+
+    test "lists what the web UI lists, totalled from its tab counts", %{product: product, user: user} do
+      filters = [
+        %{},
+        %{state: "online"},
+        %{state: "offline"},
+        %{state: "attention"},
+        %{state: "attention", reason: "not_seen"},
+        %{reason: "unhealthy"},
+        %{tags: "prod"},
+        %{connection: "connected"},
+        %{advanced_query: ~s|connection = "connected" or tags contains "lab"|},
+        %{advanced_query: ~s|deleted = "true"|},
+        %{display_deleted: "include"},
+        %{display_deleted: "only", state: "online"}
+      ]
+
+      listed =
+        for filter <- filters, sort <- [{:asc, :identifier}, {:asc, :connection_last_seen_at}] do
+          {:ok, page} =
+            Devices.list_summaries(product, user, %{filters: filter, sort: sort, pagination: %{page_size: 100}})
+
+          web_ui_opts = %{filters: Map.put_new(filter, :display_deleted, "exclude"), sort: sort}
+          web_ui = list(:web_ui, product, user, web_ui_opts)
+
+          assert Enum.map(page.devices, & &1.identifier) == identifiers_of(web_ui),
+                 "the lists differ on #{inspect(filter)} sorted by #{inspect(sort)}"
+
+          assert page.pagination.total_count == length(web_ui)
+          assert page.state_counts == Devices.state_counts(product, user, web_ui_opts)
+
+          web_ui
+        end
+
+      assert listed |> Enum.uniq() |> length() > 10
+    end
+
+    test "narrows only the Needs attention tab by reason", %{product: product, user: user} do
+      {:ok, online} = Devices.list_summaries(product, user, %{filters: %{state: "online"}})
+      {:ok, unhealthy} = Devices.list_summaries(product, user, %{filters: %{state: "online", reason: "unhealthy"}})
+
+      assert unhealthy == online
+      assert online.pagination.total_count == online.state_counts["online"]
+    end
+
+    test "pages through the tab it lists", %{product: product, user: user, gone: gone, never_connected: never_connected} do
+      pages =
+        for page <- 1..3 do
+          opts = %{
+            filters: %{state: "offline"},
+            sort: {:asc, :connection_last_seen_at},
+            pagination: %{page: page, page_size: 1}
+          }
+
+          {:ok, %{devices: devices, pagination: pagination}} = Devices.list_summaries(product, user, opts)
+          assert pagination == %{current_page: page, page_size: 1, total_count: 2, total_pages: 2}
+
+          Enum.map(devices, & &1.identifier)
+        end
+
+      assert pages == [[gone.identifier], [never_connected.identifier], []]
+    end
+
+    test "has at most 100 devices to a page, and 10 by default", %{product: product, user: user} do
+      {:ok, page} = Devices.list_summaries(product, user, %{pagination: %{page: 1, page_size: 500}})
+      assert page.pagination.page_size == 100
+
+      {:ok, page} = Devices.list_summaries(product, user, %{})
+      assert page.pagination == %{current_page: 1, page_size: 10, total_count: 4, total_pages: 1}
+    end
+
+    test "refuses an advanced query that doesn't parse", %{product: product, user: user} do
+      assert {:error, %{reason: :invalid_query, message: message, position: position}} =
+               Devices.list_summaries(product, user, %{filters: %{advanced_query: ~s|connection = |}})
+
+      assert is_binary(message)
+      assert is_integer(position)
+    end
+
+    test "says what free text ran as", %{product: product, user: user, unhealthy: unhealthy} do
+      {:ok, page} = Devices.list_summaries(product, user, %{filters: %{advanced_query: " lab "}})
+      assert page.query == ~s|search like "%lab%"|
+      assert Enum.map(page.devices, & &1.identifier) == [unhealthy.identifier]
+
+      {:ok, page} = Devices.list_summaries(product, user, %{filters: %{advanced_query: "   "}})
+      assert page.query == nil
+      assert page.pagination.total_count == 4
+    end
+
+    test "lists only the devices the user's role sees", %{org: org, product: product, online: online, gone: gone} do
+      member = Fixtures.user_fixture()
+      role = Fixtures.org_role_fixture(org, %{device_tags: ["prod"], device_tag_operator: :and})
+      {:ok, _} = Accounts.add_org_user(org, member, %{org_role_id: role.id})
+
+      {:ok, page} = Devices.list_summaries(product, member, %{})
+      assert page.devices |> Enum.map(& &1.identifier) |> Enum.sort() == Enum.sort([online.identifier, gone.identifier])
+      assert page.state_counts["all"] == 2
+
+      {:ok, page} = Devices.list_summaries(product, Fixtures.user_fixture(), %{})
+      assert page.devices == []
+      assert page.state_counts["all"] == 0
+    end
+
+    test "answers in three queries", %{product: product, user: user} do
+      assert [_counts, _page, _summaries] = queries_sent(fn -> Devices.list_summaries(product, user, %{}) end)
+
+      assert [_counts, _page] =
+               queries_sent(fn -> Devices.list_summaries(product, user, %{pagination: %{page: 9}}) end)
+    end
+
+    # Another application in the cluster calls this over `:erpc` (see its
+    # `@doc`), so the keys it reads, and that it reads plain maps, are pinned
+    # here.
+    test "keeps the shape other applications in the cluster read", context do
+      %{product: product, user: user, online: online, firmware: firmware, deployment_group: group} = context
+
+      {:ok, page} =
+        Devices.list_summaries(product, user, %{
+          filters: %{advanced_query: "prod", state: "online"},
+          sort: {:asc, :connection_last_seen_at},
+          pagination: %{page: 1, page_size: 100}
+        })
+
+      assert page |> Map.keys() |> Enum.sort() == [:devices, :pagination, :query, :state_counts]
+      assert page.query == ~s|search like "%prod%"|
+      assert page.pagination == %{current_page: 1, page_size: 100, total_count: 1, total_pages: 1}
+
+      assert page.state_counts |> Map.keys() |> Enum.sort() ==
+               ~w(all attention failing not_seen offline online unhealthy updating)
+
+      assert [summary] = page.devices
+      device = Repo.reload!(online)
+
+      assert summary |> Map.keys() |> Enum.sort() == [
+               :consecutive_failed_updates,
+               :deleted_at,
+               :deployment_group,
+               :description,
+               :firmware_auto_revert_detected,
+               :firmware_metadata,
+               :firmware_validation_status,
+               :first_update_failure_at,
+               :identifier,
+               :last_update_failure_at,
+               :latest_connection,
+               :latest_health,
+               :tags,
+               :update_mode,
+               :updates_blocked_until
+             ]
+
+      assert summary.identifier == device.identifier
+      assert summary.tags == ["prod"]
+      assert summary.update_mode == device.update_mode
+      assert summary.firmware_metadata == Map.from_struct(device.firmware_metadata)
+      assert summary.firmware_metadata.version == firmware.version
+      assert summary.latest_connection |> Map.keys() |> Enum.sort() == [:last_seen_at, :status]
+      assert summary.latest_connection.status == :connected
+      assert summary.latest_health |> Map.keys() |> Enum.sort() == [:status, :status_reasons, :updated_at]
+      assert summary.latest_health.status == :healthy
+
+      assert summary.deployment_group == %{
+               name: group.name,
+               is_active: true,
+               current_release: %{firmware: %{uuid: firmware.uuid, version: firmware.version}}
+             }
+
+      # A struct arriving on a node that doesn't define its module is a map
+      # pointing at nothing. Times are the exception: every node has them.
+      assert Enum.uniq(structs_in(page)) -- [DateTime, NaiveDateTime] == []
+    end
+
+    test "leaves out what a device doesn't have", %{product: product, user: user, never_connected: never_connected} do
+      {:ok, %{devices: [summary]}} =
+        Devices.list_summaries(product, user, %{filters: %{identifier: never_connected.identifier}})
+
+      assert summary.latest_connection == nil
+      assert summary.latest_health == nil
+      assert summary.deployment_group == nil
+      assert summary.tags == nil
+    end
+  end
+
+  defp identifiers_of(ids) do
+    by_id = Device |> where([d], d.id in ^ids) |> select([d], {d.id, d.identifier}) |> Repo.all() |> Map.new()
+    Enum.map(ids, &Map.fetch!(by_id, &1))
+  end
+
+  # Every struct's module in `term`, however deeply it's nested.
+  defp structs_in(%module{} = struct), do: [module | structs_in(Map.from_struct(struct))]
+  defp structs_in(map) when is_map(map), do: map |> Map.values() |> Enum.flat_map(&structs_in/1)
+  defp structs_in(list) when is_list(list), do: Enum.flat_map(list, &structs_in/1)
+  defp structs_in(_term), do: []
 
   describe "distinct_tags_for_product/1" do
     test "returns the sorted, distinct union of device tags for the product", %{
