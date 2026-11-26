@@ -942,23 +942,29 @@ defmodule NervesHub.DevicesTest do
       assert updating.deployment_group == nil
     end
 
-    # The API has never listed soft-deleted devices, whatever `display_deleted`
-    # asks for. The web UI leaves it to that filter. Either way, an advanced
-    # query that names `deleted` decides instead.
-    test "leave soft-deleted devices to an advanced query naming them", context do
+    # Both lists leave soft-deleted devices to `display_deleted`, unless an
+    # advanced query names `deleted`.
+    test "list soft-deleted devices alike", context do
       %{product: product, user: user, deleted: deleted} = context
 
       include = %{filters: %{display_deleted: "include"}}
       assert deleted.id in list(:web_ui, product, user, include)
-      refute deleted.id in list(:api, product, user, include)
+      assert list(:api, product, user, include) == list(:web_ui, product, user, include)
 
       only = %{filters: %{display_deleted: "only"}}
       assert list(:web_ui, product, user, only) == [deleted.id]
-      assert list(:api, product, user, only) == []
+      assert list(:api, product, user, only) == [deleted.id]
 
       named = %{filters: %{display_deleted: "exclude", advanced_query: ~s|deleted = "true"|}}
       assert list(:web_ui, product, user, named) == [deleted.id]
       assert list(:api, product, user, named) == [deleted.id]
+
+      # The web UI always sends "exclude" or another choice; an API request
+      # that sends nothing, or something else, gets the same as "exclude".
+      exclude = list(:web_ui, product, user, %{filters: %{display_deleted: "exclude"}})
+      refute deleted.id in exclude
+      assert list(:api, product, user, %{}) == exclude
+      assert list(:api, product, user, %{filters: %{display_deleted: "everything"}}) == exclude
     end
 
     # Rewriting the first rows moves them after the rest of the table, so

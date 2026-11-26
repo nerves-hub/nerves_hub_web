@@ -129,18 +129,20 @@ defmodule NervesHub.Devices do
   The API's devices list: a page of the product's devices that `opts[:visible_to]`
   can see, filtered and sorted as `filter/3` would, 10 to a page by default.
 
-  Soft-deleted devices are never listed, whatever the `display_deleted`
-  filter asks for, unless the advanced query names `deleted`.
+  Soft-deleted devices are left out unless the `display_deleted` filter is
+  `"include"`, which lists them too, or `"only"`, which lists them alone. An
+  advanced query that names `deleted` decides instead.
   """
   def get_devices_by_org_id_and_product_id_with_pager(org_id, product_id, opts) do
     pagination = Map.merge(%{page: 1, page_size: 10}, Map.get(opts, :pagination, %{}))
     flop = %Flop{page: pagination[:page], page_size: pagination[:page_size]}
+    opts = Map.put(opts, :filters, display_deleted_by_default(opts[:filters] || %{}))
 
     {devices, meta} =
       opts[:visible_to]
       |> list_query()
       |> where([device: d], d.org_id == ^org_id)
-      |> filter_list(product_id, opts, hide_deleted: true)
+      |> filter_list(product_id, opts)
       |> Flop.run(flop)
 
     # What `NervesHubWeb.API.DeviceJSON` shows.
@@ -154,6 +156,11 @@ defmodule NervesHub.Devices do
 
     {devices, meta}
   end
+
+  # The web UI always sends `display_deleted`; an API request may leave it out
+  # or send anything, so all but "include" and "only" mean "exclude".
+  defp display_deleted_by_default(%{display_deleted: value} = filters) when value in ["include", "only"], do: filters
+  defp display_deleted_by_default(filters), do: Map.put(filters, :display_deleted, "exclude")
 
   def get_device_count_by_org_id_and_product_id(org_id, product_id) do
     query =
@@ -584,19 +591,17 @@ defmodule NervesHub.Devices do
   # query.
   #
   # An advanced query that names `deleted` decides which soft-deleted devices
-  # are listed. The `display_deleted` filter is dropped then, and so is
-  # `hide_deleted`, the API's own exclusion. Otherwise `deleted = "true"`
-  # would be ANDed with `deleted_at IS NULL` and match nothing.
-  defp filter_list(query, product_id, opts, list_opts \\ []) do
+  # are listed, and the `display_deleted` filter is dropped then. Otherwise
+  # `deleted = "true"` would be ANDed with `deleted_at IS NULL` and match
+  # nothing.
+  defp filter_list(query, product_id, opts) do
     {advanced_query, filters} = Map.pop(opts[:filters] || %{}, :advanced_query)
     names_deleted? = AdvancedQuery.references_column?(advanced_query, product_id, "deleted")
-    hide_deleted? = Keyword.get(list_opts, :hide_deleted, false) and not names_deleted?
     filters = if names_deleted?, do: Map.delete(filters, :display_deleted), else: filters
     sort = opts[:sort] || {:asc, :identifier}
 
     query
     |> where([device: d], d.product_id == ^product_id)
-    |> then(&if(hide_deleted?, do: Repo.exclude_deleted(&1), else: &1))
     |> DeviceFiltering.sort(sort)
     |> DeviceFiltering.build_filters(filters)
     |> AdvancedQuery.apply_to_query(advanced_query, product_id)
