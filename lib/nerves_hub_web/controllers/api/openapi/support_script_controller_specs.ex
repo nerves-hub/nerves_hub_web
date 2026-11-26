@@ -10,6 +10,41 @@ defmodule NervesHubWeb.API.OpenAPI.SupportScriptControllerSpecs do
   @pagination_parameter SchemaHelpers.pagination_param(25)
   @query_param_error SchemaHelpers.query_param_error()
 
+  # The filters `ScriptFiltering.filter/4` applies.
+  @filters_parameter %OpenApiSpex.Parameter{
+    name: :filters,
+    description:
+      "Filtering. Each filter given narrows the list. " <>
+        "A key that isn't a filter, or a value its filter can't take, is refused with a 422. " <>
+        "An empty value leaves its filter unset.",
+    in: :query,
+    style: :deepObject,
+    required: false,
+    schema: %OpenApiSpex.Schema{
+      type: :object,
+      additionalProperties: false,
+      properties: %{
+        name: %OpenApiSpex.Schema{
+          type: :string,
+          description: "Scripts whose name contains this.",
+          example: "reset"
+        },
+        search: %OpenApiSpex.Schema{
+          type: :string,
+          description: "Scripts whose name or tags contain this.",
+          example: "network"
+        },
+        tags: %OpenApiSpex.Schema{
+          type: :string,
+          description:
+            "Tags, comma-separated: scripts with every one of them. A tag can't contain a space, " <>
+              "and matches any of a script's tags containing it.",
+          example: "diagnostics"
+        }
+      }
+    }
+  }
+
   @path_structures %{
     short: %{
       path_prefix: "/api/devices/{identifier}/scripts",
@@ -45,7 +80,7 @@ defmodule NervesHubWeb.API.OpenAPI.SupportScriptControllerSpecs do
       support_script_operation(
         "List Support Scripts",
         operation_id,
-        opts.parameters ++ [@pagination_parameter],
+        opts.parameters ++ [@pagination_parameter, @filters_parameter],
         opts.tags,
         response:
           Map.put(

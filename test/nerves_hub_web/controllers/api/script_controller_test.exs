@@ -193,6 +193,43 @@ defmodule NervesHubWeb.API.ScriptControllerTest do
         end
       end
     end
+
+    test "filters by name and search", %{conn: conn, org: org, product: product, user: user} do
+      reset = Fixtures.support_script_fixture(product, user, %{name: "Reset network", tags: "network"})
+      _other = Fixtures.support_script_fixture(product, user, %{name: "Reboot"})
+
+      for filters <- [%{name: "reset"}, %{search: "network"}] do
+        conn = get(conn, Routes.api_script_path(conn, :index, org.name, product.name), %{filters: filters})
+        assert [%{"id" => id}] = json_response(conn, 200)["data"]
+        assert id == reset.id
+      end
+    end
+
+    for {filters, message} <- [
+          {%{"tag" => "hello"}, "filters[tag] is not a support script filter. The filters are name, tags, search"},
+          {%{"inserted_at" => "2026"}, "filters[inserted_at] is not a support script filter"},
+          {%{"name" => %{"nested" => "x"}}, "filters[name] must be a string"},
+          {%{"tags" => "has space"}, ~s|filters[tags] tags cannot contain spaces, got "has space"|}
+        ] do
+      test "refuses #{inspect(filters)} with a 422", %{conn: conn, org: org, product: product, device: device} do
+        for path <- [
+              Routes.api_script_path(conn, :index, org.name, product.name),
+              Routes.api_script_path(conn, :index, device)
+            ] do
+          conn = get(conn, path, %{filters: unquote(Macro.escape(filters))})
+
+          assert %{"errors" => %{"detail" => detail}} = json_response(conn, 422)
+          assert detail =~ unquote(message)
+        end
+      end
+    end
+
+    test "refuses filters that aren't an object", %{conn: conn, org: org, product: product} do
+      conn = get(conn, Routes.api_script_path(conn, :index, org.name, product.name), %{filters: "reset"})
+
+      assert %{"errors" => %{"detail" => detail}} = json_response(conn, 422)
+      assert detail =~ "filters must be an object"
+    end
   end
 
   describe "show" do

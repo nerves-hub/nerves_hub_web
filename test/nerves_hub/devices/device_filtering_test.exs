@@ -14,6 +14,8 @@ defmodule NervesHub.Devices.DeviceFilteringTest do
   alias NervesHub.Fixtures
   alias NervesHub.Repo
 
+  doctest DeviceFiltering, import: true
+
   setup do
     user = Fixtures.user_fixture()
     org = Fixtures.org_fixture(user)
@@ -819,6 +821,40 @@ defmodule NervesHub.Devices.DeviceFilteringTest do
       result = base_query(product) |> DeviceFiltering.build_filters(%{}) |> identifiers()
       assert d1.identifier in result
       assert d2.identifier in result
+    end
+  end
+
+  describe "filter_values/1" do
+    test "lists only choices the multi-choice filters apply" do
+      for key <- DeviceFiltering.multi_filters(), value <- DeviceFiltering.filter_values(key) || [] do
+        assert DeviceFiltering.value_dynamic(key, value), "#{key}: #{value}"
+      end
+    end
+
+    test "lists the tabs and reasons the devices list has" do
+      assert DeviceFiltering.filter_values(:state) == DeviceFiltering.states()
+      assert DeviceFiltering.filter_values(:reason) == DeviceFiltering.reasons()
+    end
+  end
+
+  describe "cast_filters/1" do
+    test "casts as parse_filters/1 does" do
+      params = %{"has_no_tags" => "true", "only_updating" => "false", "connection" => "connected", "tags" => "prod"}
+
+      assert DeviceFiltering.cast_filters(params) == {:ok, DeviceFiltering.parse_filters(params)}
+      assert DeviceFiltering.cast_filters(%{}) == {:ok, DeviceFiltering.default_filters()}
+    end
+
+    test "leaves a filter with an empty value unset" do
+      assert DeviceFiltering.cast_filters(%{"has_no_tags" => "", "display_deleted" => ""}) ==
+               {:ok, DeviceFiltering.default_filters()}
+    end
+
+    test "reports the refused filter first by key, whatever order they came in" do
+      params = %{"state" => "asleep", "only_updating" => "yes", "has_no_tags" => "maybe"}
+
+      assert DeviceFiltering.cast_filters(params) ==
+               {:error, {:invalid_filter, :has_no_tags, "must be true or false"}}
     end
   end
 end

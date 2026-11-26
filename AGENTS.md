@@ -454,7 +454,13 @@ when adding or removing one.
   and edited metrics (`HealthProfiles.preview_counts/5`), which judge every
   device the way `HealthEvaluation` does but leave out readings still in the
   analytics buffer.
-- `controllers/` — JSON API (`controllers/api/`) and others.
+- `controllers/` — JSON API (`controllers/api/`) and others. The API's
+  devices list casts its filters with `DeviceFiltering.cast_filters/1`, as
+  the web UI casts them with `parse_filters/1`, but answers a key that isn't
+  a filter, or a value its filter can't take, with a 422 rather than dropping
+  it; the scripts list does the same with `ScriptFiltering.filters/0`. So a
+  new filter is taken by the API at once, and `api_spec_test.exs` fails until
+  the spec documents it.
 - `plugs/`, `router.ex`, `endpoint.ex`, `device_endpoint.ex`,
   `health_check_endpoint.ex`, `auth*.ex`.
 

@@ -12,6 +12,7 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
   alias NervesHub.Devices
   alias NervesHub.Devices.Connections
   alias NervesHub.Devices.Device
+  alias NervesHub.Devices.DeviceFiltering
   alias NervesHub.Devices.Pinning
   alias NervesHub.Devices.Updates
   alias NervesHub.Fixtures
@@ -1008,6 +1009,211 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
 
       assert %{"errors" => %{"detail" => detail}} = json_response(conn, 422)
       assert detail =~ "pagination must be an object"
+    end
+  end
+
+  describe "index: filter and sort params" do
+    # A value each filter the web UI takes can be given.
+    @usable_filters %{
+      advanced_query: ~s|connection = "connected"|,
+      alarm: "CableDown,Overheat",
+      alarm_status: "with",
+      connection: "connected,asleep",
+      connection_type: "wifi",
+      deployment_id: "-1",
+      display_deleted: "include",
+      firmware_validation_status: "validated",
+      firmware_version: "1.0.0,Unknown",
+      has_no_tags: "true",
+      health_status: "healthy,warning",
+      healthy: "true",
+      identifier: "sn",
+      is_pinned: "true",
+      metrics_key: "cpu_temp",
+      metrics_operator: "lt",
+      metrics_value: "70.5",
+      only_updating: "false",
+      platform: "Unknown",
+      reason: "not_seen",
+      search: "sn",
+      signer_ca: "1234",
+      state: "attention",
+      tags: "prod, beta",
+      updates: "updating,penalty-box"
+    }
+
+    setup %{org: org, product: product, user: user, tmp_dir: tmp_dir} do
+      org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
+      %{firmware: Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})}
+    end
+
+    defp list_devices(conn, org, product, params) do
+      get(conn, Routes.api_device_path(conn, :index, org.name, product.name, params))
+    end
+
+    defp listed_identifiers(conn) do
+      json_response(conn, 200)["data"] |> Enum.map(& &1["identifier"]) |> Enum.sort()
+    end
+
+    defp refusal(conn) do
+      assert %{"errors" => %{"detail" => detail}} = json_response(conn, 422)
+      detail
+    end
+
+    test "takes every filter the web UI takes", %{conn: conn, org: org, product: product} do
+      assert Enum.sort(Map.keys(@usable_filters)) == Enum.sort(Map.keys(DeviceFiltering.default_filters()))
+
+      for {key, value} <- @usable_filters do
+        conn = list_devices(conn, org, product, %{filters: %{key => value}})
+        assert json_response(conn, 200)["data"] == [], "filters[#{key}]=#{value}"
+      end
+
+      conn = list_devices(conn, org, product, %{filters: @usable_filters})
+      assert json_response(conn, 200)["data"] == []
+    end
+
+    test "takes each choice a filter lists", %{conn: conn, org: org, product: product} do
+      for key <- Map.keys(DeviceFiltering.default_filters()),
+          value <- DeviceFiltering.filter_values(key) || [] do
+        conn = list_devices(conn, org, product, %{filters: %{key => value}})
+        assert json_response(conn, 200)["data"] == [], "filters[#{key}]=#{value}"
+      end
+    end
+
+    test "refuses a key that isn't a filter, naming the filters", %{conn: conn, org: org, product: product} do
+      # `inserted_at` names an atom the server has, and the last names none.
+      for key <- ["tag", "inserted_at", "no_such_filter_#{System.unique_integer([:positive])}"] do
+        detail = conn |> list_devices(org, product, %{filters: %{key => "prod"}}) |> refusal()
+
+        assert detail =~ "filters[#{key}] is not a device filter"
+        assert detail =~ "advanced_query, alarm, alarm_status"
+      end
+    end
+
+    for {key, value, message} <- [
+          {"has_no_tags", "maybe", "must be true or false"},
+          {"only_updating", "yes", "must be true or false"},
+          {"connection", "online", "must be one or more of connected, offline, asleep"},
+          {"health_status", "healthy,sickly", "must be one or more of healthy, warning"},
+          {"state", "asleep", "must be one of attention, online, updating, offline"},
+          {"reason", "broken", "must be one of unhealthy, failing, not_seen"},
+          {"display_deleted", "everything", "must be one of exclude, include, only"},
+          {"metrics_operator", "eq", "must be one of gt, lt"},
+          {"metrics_value", "hot", "must be a number"},
+          {"deployment_id", "abc", "must be a deployment group's ID"},
+          {"deployment_id", "0", "must be a deployment group's ID"},
+          {"deployment_id", "99999999999999999999", "must be a deployment group's ID"},
+          {"tags", "has space", "tags cannot contain spaces"}
+        ] do
+      test "refuses filters[#{key}]=#{value} with a 422", %{conn: conn, org: org, product: product} do
+        detail = conn |> list_devices(org, product, %{filters: %{unquote(key) => unquote(value)}}) |> refusal()
+
+        assert detail =~ "filters[#{unquote(key)}] #{unquote(message)}"
+        assert detail =~ inspect(unquote(value))
+      end
+    end
+
+    test "refuses a filter value that isn't a string", %{conn: conn, org: org, product: product} do
+      detail = conn |> list_devices(org, product, %{filters: %{identifier: %{nested: "sn"}}}) |> refusal()
+
+      assert detail =~ "filters[identifier] must be a string"
+    end
+
+    test "refuses filters that aren't an object", %{conn: conn, org: org, product: product} do
+      detail = conn |> list_devices(org, product, %{filters: "prod"}) |> refusal()
+
+      assert detail =~ "filters must be an object"
+    end
+
+    test "an empty value leaves its filter unset", %{conn: conn, org: org, product: product, firmware: firmware} do
+      device = Fixtures.device_fixture(org, product, firmware)
+
+      conn = list_devices(conn, org, product, %{filters: %{has_no_tags: "", state: "", deployment_id: ""}})
+
+      assert listed_identifiers(conn) == [device.identifier]
+    end
+
+    test "only_updating=true lists only devices installing an update", %{
+      conn: conn,
+      org: org,
+      product: product,
+      firmware: firmware
+    } do
+      updating = Fixtures.device_fixture(org, product, firmware)
+      idle = Fixtures.device_fixture(org, product, firmware)
+      {:ok, _} = Fixtures.inflight_update(updating, firmware)
+
+      conn = list_devices(conn, org, product, %{filters: %{only_updating: "true"}})
+      assert listed_identifiers(conn) == [updating.identifier]
+
+      conn = list_devices(conn, org, product, %{filters: %{only_updating: "false"}})
+      assert listed_identifiers(conn) == Enum.sort([updating.identifier, idle.identifier])
+    end
+
+    test "has_no_tags=false doesn't filter", %{conn: conn, org: org, product: product, firmware: firmware} do
+      tagged = Fixtures.device_fixture(org, product, firmware, %{tags: ["prod"]})
+      untagged = Fixtures.device_fixture(org, product, firmware, %{tags: []})
+
+      conn = list_devices(conn, org, product, %{filters: %{has_no_tags: "false"}})
+      assert listed_identifiers(conn) == Enum.sort([tagged.identifier, untagged.identifier])
+
+      conn = list_devices(conn, org, product, %{filters: %{has_no_tags: "true"}})
+      assert listed_identifiers(conn) == [untagged.identifier]
+    end
+
+    test "deployment_id=-1 lists devices in no deployment group, as in the web UI", %{
+      conn: conn,
+      org: org,
+      product: product,
+      firmware: firmware,
+      user: user
+    } do
+      deployment_group = Fixtures.deployment_group_fixture(firmware, %{user: user})
+      grouped = Fixtures.device_fixture(org, product, firmware, %{deployment_id: deployment_group.id})
+      ungrouped = Fixtures.device_fixture(org, product, firmware)
+
+      conn = list_devices(conn, org, product, %{filters: %{deployment_id: "-1"}})
+      assert listed_identifiers(conn) == [ungrouped.identifier]
+
+      conn = list_devices(conn, org, product, %{filters: %{deployment_id: to_string(deployment_group.id)}})
+      assert listed_identifiers(conn) == [grouped.identifier]
+    end
+
+    test "sorts by each field it documents, either way", %{conn: conn, org: org, product: product} do
+      for field <- DeviceFiltering.sort_fields(), direction <- ["asc", "desc"] do
+        conn = list_devices(conn, org, product, %{sort: field, sort_direction: direction})
+        assert json_response(conn, 200)["data"] == [], "sort=#{field}&sort_direction=#{direction}"
+      end
+    end
+
+    test "sorts by identifier when given only a direction", %{
+      conn: conn,
+      org: org,
+      product: product,
+      firmware: firmware
+    } do
+      Fixtures.device_fixture(org, product, firmware, %{identifier: "sort-a"})
+      Fixtures.device_fixture(org, product, firmware, %{identifier: "sort-b"})
+
+      conn = list_devices(conn, org, product, %{sort_direction: "desc"})
+
+      assert json_response(conn, 200)["data"] |> Enum.map(& &1["identifier"]) == ["sort-b", "sort-a"]
+    end
+
+    test "refuses a sort field it doesn't document, naming the fields", %{conn: conn, org: org, product: product} do
+      # `inserted_at` names an atom the server has, and the last names none.
+      for field <- ["inserted_at", "no_such_field_#{System.unique_integer([:positive])}"] do
+        detail = conn |> list_devices(org, product, %{sort: field}) |> refusal()
+
+        assert detail =~ "sort must be one of identifier, connection_established_at, connection_last_seen_at, tags"
+        assert detail =~ inspect(field)
+      end
+    end
+
+    test "refuses a sort direction other than asc or desc", %{conn: conn, org: org, product: product} do
+      detail = conn |> list_devices(org, product, %{sort: "identifier", sort_direction: "up"}) |> refusal()
+
+      assert detail =~ ~s|sort_direction must be asc or desc, got "up"|
     end
   end
 
