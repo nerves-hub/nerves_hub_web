@@ -13,9 +13,11 @@ defmodule NervesHub.Telemetry.TracesSampler do
 
     * `:requests` - requests to the web UI and API, and LiveView mounts,
       params and events, along with the async work they start
-      (`NervesHub.Telemetry.AsyncTrace`). There are few of them, someone is
-      waiting on each, and a slow page is only worth looking into with enough
-      samples to see it. `SENTRY_REQUEST_TRACING_RATE`, `1.0` by default.
+      (`NervesHub.Telemetry.AsyncTrace`) and the component updates their
+      renders run (`NervesHub.Telemetry.ComponentTrace`). There are few of
+      them, someone is waiting on each, and a slow page is only worth looking
+      into with enough samples to see it. `SENTRY_REQUEST_TRACING_RATE`,
+      `1.0` by default.
     * `:jobs` - Oban jobs. Mostly crons and rare one-off work, such as
       deleting firmware or building a delta, which a small rate would almost
       never catch. `SENTRY_JOB_TRACING_RATE`, `1.0` by default.

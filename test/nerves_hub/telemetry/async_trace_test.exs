@@ -7,6 +7,7 @@ defmodule NervesHub.Telemetry.AsyncTraceTest do
   alias NervesHubWeb.Live.Devices.Index
   alias Phoenix.LiveView.Socket
 
+  require AsyncTrace
   require OpenTelemetry.Tracer, as: Tracer
   require Record
 
@@ -32,7 +33,7 @@ defmodule NervesHub.Telemetry.AsyncTraceTest do
     test "runs the work under the caller's span, and its queries under it, after the caller's span has ended" do
       {caller, trace} =
         Tracer.with_span "NervesHubWeb.Live.Devices.Index.handle_params" do
-          {Tracer.current_span_ctx(), AsyncTrace.trace(@socket, :update_device_list)}
+          {Tracer.current_span_ctx(), AsyncTrace.trace(@socket, :start_async, :update_device_list)}
         end
 
       task =
@@ -60,7 +61,7 @@ defmodule NervesHub.Telemetry.AsyncTraceTest do
     end
 
     test "starts a trace of its own where no span is current" do
-      work = AsyncTrace.run(AsyncTrace.trace(@socket, :load_peek), &Tracer.current_span_ctx/0)
+      work = AsyncTrace.run(AsyncTrace.trace(@socket, :start_async, :load_peek), &Tracer.current_span_ctx/0)
 
       assert [span(parent_span_id: :undefined)] =
                work
@@ -72,7 +73,7 @@ defmodule NervesHub.Telemetry.AsyncTraceTest do
     test "ends the span, marked as failed, and puts the context back when the work raises" do
       Tracer.with_span "caller" do
         caller = Tracer.current_span_ctx()
-        trace = AsyncTrace.trace(@socket, :load_facets)
+        trace = AsyncTrace.trace(@socket, :start_async, :load_facets)
 
         assert_raise RuntimeError, "boom", fn -> AsyncTrace.run(trace, fn -> raise "boom" end) end
         assert Tracer.current_span_ctx() == caller
@@ -87,7 +88,7 @@ defmodule NervesHub.Telemetry.AsyncTraceTest do
     test "ends the span, marked as failed, and puts the context back when the work exits" do
       Tracer.with_span "caller" do
         caller = Tracer.current_span_ctx()
-        trace = AsyncTrace.trace(@socket, :load_facets)
+        trace = AsyncTrace.trace(@socket, :start_async, :load_facets)
 
         assert catch_exit(AsyncTrace.run(trace, fn -> exit(:timeout) end)) == :timeout
         assert Tracer.current_span_ctx() == caller
@@ -100,16 +101,57 @@ defmodule NervesHub.Telemetry.AsyncTraceTest do
     end
   end
 
-  describe "trace/2" do
+  describe "start_async/4 and assign_async/4" do
+    test "run the task's work under the caller's span" do
+      caller =
+        Tracer.with_span "NervesHubWeb.Live.Devices.Index.handle_event#search" do
+          # Connected, so the tasks start, and their results come back here.
+          %Socket{view: Index, transport_pid: self()}
+          |> AsyncTrace.start_async(:load_peek, &Tracer.current_span_ctx/0)
+          |> AsyncTrace.assign_async(:peek, fn -> {:ok, %{peek: Tracer.current_span_ctx()}} end)
+
+          Tracer.current_span_ctx()
+        end
+
+      # Each arrives once its span has ended.
+      assert_receive {:phoenix, :async_result, {:start, {_ref, _cid, :load_peek, {:ok, started}}}}
+      assert_receive {:phoenix, :async_result, {:assign, {_ref, _cid, [:peek], {:ok, {:ok, %{peek: assigned}}}}}}
+
+      caller_id = OpenTelemetry.Span.span_id(caller)
+      started_id = OpenTelemetry.Span.span_id(started)
+      assigned_id = OpenTelemetry.Span.span_id(assigned)
+      spans = caller |> OpenTelemetry.Span.trace_id() |> exported()
+
+      assert [span(span_id: ^started_id, parent_span_id: ^caller_id)] =
+               named(spans, "NervesHubWeb.Live.Devices.Index.start_async#load_peek")
+
+      assert [span(span_id: ^assigned_id, parent_span_id: ^caller_id)] =
+               named(spans, "NervesHubWeb.Live.Devices.Index.assign_async#peek")
+    end
+  end
+
+  describe "trace/3" do
     test "names the span after the view and what the async is, not which one" do
-      for {name, span_name} <- [
-            {:update_device_list, "NervesHubWeb.Live.Devices.Index.start_async#update_device_list"},
-            {"load_chart:cpu", "NervesHubWeb.Live.Devices.Index.start_async#load_chart:cpu"},
-            {{:send_test, 12}, "NervesHubWeb.Live.Devices.Index.start_async#send_test"}
+      for {op, name, span_name} <- [
+            {:start_async, :update_device_list, "NervesHubWeb.Live.Devices.Index.start_async#update_device_list"},
+            {:start_async, {:send_test, 12}, "NervesHubWeb.Live.Devices.Index.start_async#send_test"},
+            {:start_async, "load_chart:cpu_temp", "NervesHubWeb.Live.Devices.Index.start_async#load_chart"},
+            {:start_async, "update_chart:a:b", "NervesHubWeb.Live.Devices.Index.start_async#update_chart"},
+            {:start_async, "load_offline", "NervesHubWeb.Live.Devices.Index.start_async#load_offline"},
+            {:assign_async, :failed_installs, "NervesHubWeb.Live.Devices.Index.assign_async#failed_installs"},
+            {:assign_async, [:profile, :rank], "NervesHubWeb.Live.Devices.Index.assign_async#profile,rank"}
           ] do
-        assert {_ctx, ^span_name} = AsyncTrace.trace(@socket, name)
+        assert {_ctx, ^span_name} = AsyncTrace.trace(@socket, op, name)
         assert AsyncTrace.span?(span_name)
       end
+    end
+  end
+
+  describe "span?/1" do
+    test "is false for a LiveView's own spans" do
+      refute AsyncTrace.span?("NervesHubWeb.Live.Devices.Index.handle_event#search")
+      refute AsyncTrace.span?("NervesHubWeb.Live.Devices.Index.handle_params")
+      refute AsyncTrace.span?(:undefined)
     end
   end
 
