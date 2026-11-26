@@ -26,17 +26,16 @@ defmodule NervesHub.Telemetry.TracesSampler do
       buffer flushes about twice a second on every node, so these are kept at
       `SENTRY_TRACING_RATE` or 1%, whichever is lower. That is still enough to
       see how long inserts take, which nothing else reports.
-    * `:reports` - what a device sends by itself, over and over. All day, what
-      its extensions send: health and metrics reports, alarms, log lines and
-      network identities, along with the health evaluation each health report
-      queues. Every device sends them every few minutes. And through an
-      update, its progress (`fwup_progress` or `update_progress`), which a
-      device can send for every percent, so a rollout to a whole product
-      sends about a hundred from each device. They are kept at the same rate
-      as flushes. Told apart by the event a span starts with, on the channel's
-      span or on the `DeviceLink.extension_message` or
-      `DeviceLink.device_message` a node holding the device's socket sent
-      without a decision of its own.
+    * `:reports` - what a device sends by itself, over and over: the health
+      and metrics reports, alarms, log lines and network identities its
+      extensions send every few minutes, with the health evaluation each
+      health report queues, and its progress through an update
+      (`fwup_progress` or `update_progress`), which can come for every
+      percent, so a rollout to a whole product sends about a hundred from each
+      device. Kept at the same rate as flushes. Told apart by the event a span
+      starts with, on the channel's span or on the
+      `DeviceLink.extension_message` or `DeviceLink.device_message` a node
+      holding the device's socket sent without a decision of its own.
     * `:none` - never kept: what `NervesHub.Telemetry.FilteredSampler` drops
       (health checks, static files, the LiveView socket, device heartbeats),
       Oban's own polling queries, and a database transaction's `begin`,
