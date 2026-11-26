@@ -1,19 +1,14 @@
 defmodule NervesHub.Repo.Migrations.AddPinnedDevicesIndexes do
   @moduledoc """
-  A user's pinned devices, and the pins on a device.
+  Index `pinned_devices` by user and by device.
 
-  `(user_id, device_id)` serves what starts from the user: the pinned devices
-  on their home page, whether they have pinned a device, unpinning one, the
-  devices list's join to their pins, removing their pins on an org's devices
-  when they leave it, and removing their pins when their account or user row
-  is deleted. Each of those looks up the user's rows, most of them for one
-  device among them.
-
-  `(device_id)` serves what starts from the device: removing its pins when it
-  is deleted or moved to another org, and the cascade when its row is
-  destroyed.
-
-  Without them, each of these reads every row in `pinned_devices`.
+  `(user_id, device_id)` serves lookups that start from a user: their home page
+  pins, whether they pinned a device, unpinning, the devices list's join, and
+  removing their pins when they leave an org or their account is deleted.
+  `(device_id)` serves removing a device's pins when it is deleted or moves org,
+  and the delete cascade. Neither is unique: nothing prevents a user pinning the
+  same device twice, so existing rows may hold duplicates and a unique build
+  would fail.
   """
   use Ecto.Migration
 
