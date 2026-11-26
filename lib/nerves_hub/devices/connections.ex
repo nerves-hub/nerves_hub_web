@@ -341,9 +341,12 @@ defmodule NervesHub.Devices.Connections do
 
   @doc """
   Updates the connection `metadata` by merging in new metadata.
+
+  Only a map: anything else cast to `jsonb` and concatenated would replace the
+  column with an array or a scalar.
   """
   @spec merge_update_metadata(Ecto.UUID.t(), map()) :: :ok | {:error, any()}
-  def merge_update_metadata(ref_id, new_metadata) do
+  def merge_update_metadata(ref_id, new_metadata) when is_map(new_metadata) do
     DeviceConnection
     |> where(id: ^ref_id)
     |> update([dc], set: [metadata: fragment("? || ?::jsonb", dc.metadata, ^new_metadata)])

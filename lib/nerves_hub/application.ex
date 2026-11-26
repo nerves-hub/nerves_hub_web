@@ -19,6 +19,7 @@ defmodule NervesHub.Application do
   alias NervesHub.Products.HealthProfiles.Cache
   alias NervesHub.ProxyProtocol.Peers
   alias NervesHub.RateLimit.Alarms, as: AlarmsLimit
+  alias NervesHub.RateLimit.DeviceMetadata, as: DeviceMetadataLimit
   alias NervesHub.RateLimit.ErrorReports, as: ErrorReportLimit
   alias NervesHub.RateLimit.LogLines
   alias NervesHub.RateLimit.Metrics, as: MetricsLimit
@@ -95,7 +96,8 @@ defmodule NervesHub.Application do
           {LogLines, [clean_period: to_timeout(minute: 5), key_older_than: to_timeout(hour: 1)]},
           {ErrorReportLimit, [clean_period: to_timeout(minute: 5), key_older_than: to_timeout(hour: 1)]},
           {MetricsLimit, [clean_period: to_timeout(minute: 5), key_older_than: to_timeout(hour: 1)]},
-          {AlarmsLimit, [clean_period: to_timeout(minute: 5), key_older_than: to_timeout(hour: 1)]}
+          {AlarmsLimit, [clean_period: to_timeout(minute: 5), key_older_than: to_timeout(hour: 1)]},
+          {DeviceMetadataLimit, [clean_period: to_timeout(minute: 5), key_older_than: to_timeout(hour: 1)]}
         ] ++
         analytics_buffers() ++
         device_link_handlers() ++

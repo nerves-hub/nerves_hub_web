@@ -14,6 +14,7 @@ defmodule NervesHub.ProductNotifications.Copy do
   """
 
   alias NervesHub.Branding
+  alias NervesHub.Devices.ReportedMetadata
   alias NervesHub.Products.Notification
 
   @type text :: %{title: String.t(), message: String.t()}
@@ -25,6 +26,7 @@ defmodule NervesHub.ProductNotifications.Copy do
     device_bulk_create: ~w(created failed),
     duplicate_device_identifier: ~w(identifier),
     extension_failure: ~w(identifier extension reason),
+    invalid_device_metadata: ~w(identifier reasons count),
     missing_firmware_metadata: ~w(identifier),
     oversized_metric_keys: ~w(identifier example_key count max_bytes),
     slack_subscription_disabled: ~w(channel reason),
@@ -105,6 +107,11 @@ defmodule NervesHub.ProductNotifications.Copy do
 
   defp detail(:extension_failure, %{"extension" => extension}), do: extension
 
+  defp detail(:invalid_device_metadata, %{"reasons" => ["not_an_object"]}), do: "not an object"
+
+  defp detail(:invalid_device_metadata, %{"count" => count}),
+    do: "#{delimited(count)} #{plural(count, "key", "keys")} dropped"
+
   defp detail(:oversized_metric_keys, %{"count" => count}),
     do: "#{delimited(count)} long #{plural(count, "name", "names")}"
 
@@ -127,6 +134,7 @@ defmodule NervesHub.ProductNotifications.Copy do
   defp title(:device_bulk_create, _m), do: "A device import finished."
   defp title(:duplicate_device_identifier, _m), do: "A device tried to connect with an identifier already in use."
   defp title(:extension_failure, _m), do: "A device could not start an extension."
+  defp title(:invalid_device_metadata, _m), do: "A device reported metadata #{platform()} couldn't store."
   defp title(:missing_firmware_metadata, _m), do: "A device connected without firmware metadata."
   defp title(:oversized_metric_keys, _m), do: "A device reported metric names too long to store."
   defp title(:slack_subscription_disabled, _m), do: "Slack notifications were turned off."
@@ -193,6 +201,19 @@ defmodule NervesHub.ProductNotifications.Copy do
     "#{it(form, m)} could not start the #{m["extension"]} extension#{reason_clause(m)}. " <>
       "It stays on in #{platform()}, but won't work on this device until the cause is fixed, " <>
       "usually in the device's firmware."
+  end
+
+  defp message(:invalid_device_metadata, %{"reasons" => ["not_an_object"]} = m, form) do
+    "#{it(form, m)} sent metadata that wasn't an object of names and values, so none of it was stored. " <>
+      "Check the metadata its firmware reports."
+  end
+
+  defp message(:invalid_device_metadata, m, form) do
+    count = m["count"]
+    such_as = if key = m["example_key"], do: ", such as '#{key}'", else: ""
+
+    "#{it(form, m)} sent metadata with #{metadata_problems(m["reasons"])}. " <>
+      "#{delimited(count)} #{plural(count, "key was", "keys were")} dropped#{such_as}, and the rest was kept."
   end
 
   defp message(:missing_firmware_metadata, m, form) do
@@ -284,6 +305,15 @@ defmodule NervesHub.ProductNotifications.Copy do
     }
   end
 
+  defp rolled_up(:invalid_device_metadata, count, _m) do
+    %{
+      title: "#{delimited(count)} devices reported metadata #{platform()} couldn't store.",
+      message:
+        "Keys #{platform()} sets itself, names or values too long to store, and keys past the first " <>
+          "#{ReportedMetadata.max_keys()} were dropped, and the rest of each device's metadata was kept."
+    }
+  end
+
   defp rolled_up(:missing_firmware_metadata, count, _m) do
     %{
       title: "#{delimited(count)} devices connected without firmware metadata.",
@@ -335,6 +365,31 @@ defmodule NervesHub.ProductNotifications.Copy do
       message: "They connected to the management host#{instead_of}, and were redirected."
     }
   end
+
+  # Why `ReportedMetadata.trim/1` dropped keys, in the order it checks.
+  defp metadata_problems(reasons) when is_list(reasons) do
+    reasons
+    |> Enum.flat_map(fn
+      "reserved" ->
+        ["names #{platform()} sets itself"]
+
+      "too_long" ->
+        ["names over #{ReportedMetadata.max_key_bytes()} bytes or values over #{ReportedMetadata.max_value_bytes()}"]
+
+      "too_many" ->
+        ["more than #{ReportedMetadata.max_keys()} keys"]
+
+      _unknown ->
+        []
+    end)
+    |> case do
+      [] -> "keys it couldn't store"
+      [one] -> one
+      problems -> Enum.join(Enum.drop(problems, -1), ", ") <> " and " <> List.last(problems)
+    end
+  end
+
+  defp metadata_problems(_reasons), do: "keys it couldn't store"
 
   defp it(:card, _m), do: "It"
   defp it(:full, m), do: "The device '#{m["identifier"]}'"

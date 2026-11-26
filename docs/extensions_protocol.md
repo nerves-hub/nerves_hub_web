@@ -107,7 +107,7 @@ attached is its own, scoped `<key>:<event>` in both directions.
 
 | Key | What it carries | Contract |
 | --- | --- | --- |
-| `health` | Metrics, metadata and alarms, on a pace the platform sets | `NervesHub.Extensions.Health` |
+| `health` | Metrics, metadata and alarms, on a pace the platform sets. Newer devices send metadata on the device channel instead ([device_metadata.md](device_metadata.md)) | `NervesHub.Extensions.Health` |
 | `metrics` | Numbers a device measures about itself, batched, on a pace the platform sets | [metrics.md](metrics.md) |
 | `alarms` | Alarms, sent by the device as they are raised and cleared | [alarms.md](alarms.md) |
 | `geo` | Device location | `NervesHub.Extensions.Geo` |

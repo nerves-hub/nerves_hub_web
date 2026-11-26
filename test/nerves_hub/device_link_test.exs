@@ -507,6 +507,143 @@ defmodule NervesHub.DeviceLinkTest do
     end
   end
 
+  describe "device_message/3 report_device_metadata" do
+    setup %{device: device} do
+      device_info = connected_device_info(device)
+
+      {:ok, %{session: %Session{device_info: device_info}}}
+    end
+
+    test "merges the metadata into the connection", %{device: device, session: session} do
+      assert {_session, []} =
+               DeviceLink.device_message(session, "report_device_metadata", %{
+                 "metadata" => %{"placement" => "the shed", "board_revision" => "c"}
+               })
+
+      assert %DeviceConnection{metadata: %{"placement" => "the shed", "board_revision" => "c"}} =
+               Connections.get_latest_for_device(device.id)
+    end
+
+    test "a second message merges rather than replacing", %{device: device, session: session} do
+      DeviceLink.device_message(session, "report_device_metadata", %{
+        "metadata" => %{"placement" => "the shed", "board_revision" => "c"}
+      })
+
+      DeviceLink.device_message(session, "report_device_metadata", %{"metadata" => %{"placement" => "the barn"}})
+
+      assert %DeviceConnection{metadata: %{"placement" => "the barn", "board_revision" => "c"}} =
+               Connections.get_latest_for_device(device.id)
+    end
+
+    test "keeps what the platform put on the connection", %{device: device, session: session} do
+      :ok =
+        DeviceLink.update_connection_metadata(session.device_info.connection_ref, %{"device_api_version" => "2.3.0"})
+
+      DeviceLink.device_message(session, "report_device_metadata", %{"metadata" => %{"placement" => "the shed"}})
+
+      assert %DeviceConnection{metadata: %{"device_api_version" => "2.3.0", "placement" => "the shed"}} =
+               Connections.get_latest_for_device(device.id)
+    end
+
+    test "an empty map leaves the connection alone", %{device: device, session: session} do
+      DeviceLink.device_message(session, "report_device_metadata", %{"metadata" => %{"placement" => "the shed"}})
+
+      assert {_session, []} = DeviceLink.device_message(session, "report_device_metadata", %{"metadata" => %{}})
+
+      assert %DeviceConnection{metadata: %{"placement" => "the shed"}} = Connections.get_latest_for_device(device.id)
+    end
+
+    test "a malformed payload is ignored without taking the link down", %{device: device, session: session} do
+      DeviceLink.device_message(session, "report_device_metadata", %{"metadata" => %{"placement" => "the shed"}})
+
+      for payload <- [
+            %{"metadata" => ["placement", "the barn"]},
+            %{"metadata" => "the barn"},
+            %{"metadata" => nil},
+            %{"placement" => "the barn"},
+            ["placement", "the barn"],
+            nil
+          ] do
+        assert {^session, []} = DeviceLink.device_message(session, "report_device_metadata", payload)
+      end
+
+      assert %DeviceConnection{metadata: %{"placement" => "the shed"}} = Connections.get_latest_for_device(device.id)
+    end
+
+    test "keys over the limits are dropped and the rest stored", %{device: device, session: session} do
+      :ok =
+        DeviceLink.update_connection_metadata(session.device_info.connection_ref, %{"device_api_version" => "2.3.0"})
+
+      DeviceLink.device_message(session, "report_device_metadata", %{
+        "metadata" => %{
+          "placement" => "the shed",
+          "device_api_version" => "9.9.9",
+          "location" => %{"latitude" => 0, "longitude" => 0},
+          "notes" => String.duplicate("a", 300)
+        }
+      })
+
+      assert %DeviceConnection{metadata: metadata} = Connections.get_latest_for_device(device.id)
+      assert metadata == %{"device_api_version" => "2.3.0", "placement" => "the shed"}
+    end
+
+    test "metadata within the limits raises nothing", %{session: session} do
+      DeviceLink.device_message(session, "report_device_metadata", %{"metadata" => %{"placement" => "the shed"}})
+
+      assert Repo.all(Notification) == []
+    end
+
+    test "dropped keys are raised to the product's operators, once a minute per device", %{
+      device: device,
+      session: session
+    } do
+      for _ <- 1..2 do
+        DeviceLink.device_message(session, "report_device_metadata", %{
+          "metadata" => %{"placement" => "the shed", "location" => %{}}
+        })
+      end
+
+      assert [notification] = Repo.all(Notification)
+      assert notification.kind == :invalid_device_metadata
+      assert notification.level == :warning
+      assert notification.occurrence_count == 1
+
+      assert notification.metadata == %{
+               "identifier" => device.identifier,
+               "reasons" => ["reserved"],
+               "count" => 1,
+               "example_key" => "location"
+             }
+    end
+
+    test "metadata that isn't an object is raised too", %{session: session} do
+      DeviceLink.device_message(session, "report_device_metadata", %{"metadata" => ["placement", "the shed"]})
+
+      assert [%Notification{kind: :invalid_device_metadata, metadata: %{"reasons" => ["not_an_object"], "count" => 0}}] =
+               Repo.all(Notification)
+    end
+
+    test "a notification that can't be written doesn't take the link down", %{device: device, session: session} do
+      stub(ProductNotifications, :create_invalid_device_metadata_notification!, fn _device_info,
+                                                                                   _reasons,
+                                                                                   _count,
+                                                                                   _key ->
+        raise "no database"
+      end)
+
+      log =
+        capture_log(fn ->
+          assert {_session, []} =
+                   DeviceLink.device_message(session, "report_device_metadata", %{
+                     "metadata" => %{"placement" => "the shed", "location" => %{}}
+                   })
+        end)
+
+      assert log =~ "could not raise the dropped metadata"
+      assert %DeviceConnection{metadata: %{"placement" => "the shed"}} = Connections.get_latest_for_device(device.id)
+    end
+  end
+
   describe "disconnect/2" do
     setup %{device: device} do
       device_info = connected_device_info(device)
