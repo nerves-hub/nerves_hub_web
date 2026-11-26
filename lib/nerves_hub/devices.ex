@@ -212,9 +212,11 @@ defmodule NervesHub.Devices do
 
   @doc """
   Every device in the product that the user can see and `opts`' filters
-  match, sorted by `opts[:sort]` (identifier, unless it says otherwise), with
-  nothing loaded but the devices. `filter/3` pages it, and the devices list's
-  counts, bulk actions and export start from it.
+  match, sorted by `opts[:sort]` (identifier by default), with nothing loaded
+  but the devices.
+
+  `filter/3` pages it, and the devices list's counts, bulk actions and export
+  start from it.
   """
   @spec filter_query(Product.t(), User.t(), map()) :: Ecto.Query.t()
   def filter_query(product, user, opts) do
