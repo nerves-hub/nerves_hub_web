@@ -26,13 +26,16 @@ defmodule NervesHub.Telemetry.TracesSampler do
       buffer flushes about twice a second on every node, so these are kept at
       `SENTRY_TRACING_RATE` or 1%, whichever is lower. That is still enough to
       see how long inserts take, which nothing else reports.
-    * `:reports` - what a device's extensions send all day: health and metrics
-      reports, alarms, log lines and network identities, along with the health
-      evaluation each health report queues. Every device sends them every few
-      minutes, so they
-      are kept at the same rate as flushes. Told apart by the event a span
-      starts with, on the extensions channel's span or on a
-      `DeviceLink.extension_message` a node holding the device's socket sent
+    * `:reports` - what a device sends by itself, over and over. All day, what
+      its extensions send: health and metrics reports, alarms, log lines and
+      network identities, along with the health evaluation each health report
+      queues. Every device sends them every few minutes. And through an
+      update, its progress (`fwup_progress` or `update_progress`), which a
+      device can send for every percent, so a rollout to a whole product
+      sends about a hundred from each device. They are kept at the same rate
+      as flushes. Told apart by the event a span starts with, on the channel's
+      span or on the `DeviceLink.extension_message` or
+      `DeviceLink.device_message` a node holding the device's socket sent
       without a decision of its own.
     * `:none` - never kept: what `NervesHub.Telemetry.FilteredSampler` drops
       (health checks, static files, the LiveView socket, device heartbeats),
@@ -61,7 +64,7 @@ defmodule NervesHub.Telemetry.TracesSampler do
   # device: `NervesHub.Extensions.Health`, `Metrics`, `Alarms`, `Logging` and
   # `NetworkIdentity`. A network identity is only sent when it changes, but one
   # whose details hold addresses that move changes on every poll.
-  @report_events [
+  @extension_reports [
     "health:report",
     "metrics:report",
     "alarms:snapshot",
@@ -71,7 +74,18 @@ defmodule NervesHub.Telemetry.TracesSampler do
     "network_identity:report"
   ]
 
-  @report_spans ["Channels.ExtensionsChannel.handle_in", "DeviceLink.extension_message"]
+  # What a device sends on its own channel through an update. `fwup_progress` is
+  # what NervesHubLink sends, and `update_progress` the same from other agents.
+  @update_progress ["fwup_progress", "update_progress"]
+
+  # The reports each span can start with: the channel's own, or the call a node
+  # holding the device's socket makes with it.
+  @report_events %{
+    "Channels.ExtensionsChannel.handle_in" => @extension_reports,
+    "DeviceLink.extension_message" => @extension_reports,
+    "Channels.DeviceChannel.handle_in" => @update_progress,
+    "DeviceLink.device_message" => @update_progress
+  }
 
   # Queued by each health report, and run in a trace of its own.
   @health_evaluation_span "Devices.HealthEvaluation.Queue.evaluate"
@@ -147,8 +161,8 @@ defmodule NervesHub.Telemetry.TracesSampler do
 
   defp report?(@health_evaluation_span, _attributes), do: true
 
-  defp report?(name, attributes) when name in @report_spans,
-    do: attributes[:"nerves_hub.channel.event"] in @report_events
+  defp report?(name, attributes) when is_map_key(@report_events, name),
+    do: attributes[:"nerves_hub.channel.event"] in Map.fetch!(@report_events, name)
 
   defp report?(_name, _attributes), do: false
 
