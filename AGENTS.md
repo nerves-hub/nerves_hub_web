@@ -626,6 +626,12 @@ moment a consumer changed.
   thing PhoenixTest doesn't cover, `unwrap(fn view -> … end)` drops down to
   `Phoenix.LiveViewTest` (both are imported by `ConnCase.Browser`) — reach for it
   only for the gaps.
+- **Tracing tests** capture spans by pointing the SDK's own batch processor at
+  the test process (`:otel_batch_processor.set_exporter(:otel_exporter_pid,
+  self())`), then in `on_exit` at an exporter that declines to start. Every
+  test shares that processor, so these modules can't be async. `config/test.exs`
+  lifts its queue limit: with the limit, the spans the rest of the suite makes
+  fill the buffer, and the processor drops the tracing test's own.
 - **Known-flaky / environment-dependent (not code smells):**
   - **ClickHouse is eventually consistent.** Connection-history and Insights
     tests assert with `assert_eventually`; under a loaded runner they can fail
