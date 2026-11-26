@@ -260,19 +260,11 @@ defmodule NervesHubWeb.Live.Devices.Show do
 
   @decorate requires_membership()
   def handle_event("unpin", _value, %{assigns: %{user: user, device: device}} = socket) do
-    case Pinning.unpin_device(user.id, device.id) do
-      {:ok, _} ->
-        socket
-        |> assign(:pinned?, false)
-        |> noreply()
+    :ok = Pinning.unpin_device(user.id, device.id)
 
-      {:error, changeset} ->
-        Logger.error("Could not unpin device: #{inspect(changeset)}")
-
-        socket
-        |> put_flash(:info, "Could not unpin device. Please contact support.")
-        |> noreply()
-    end
+    socket
+    |> assign(:pinned?, false)
+    |> noreply()
   end
 
   @decorate requires_permission(:"device:reboot")

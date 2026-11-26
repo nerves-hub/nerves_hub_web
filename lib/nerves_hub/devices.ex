@@ -143,32 +143,37 @@ defmodule NervesHub.Devices do
 
     flop = %Flop{page: pagination[:page], page_size: pagination[:page_size]}
 
-    # Named for the alarm filters, as in `common_filter_query/1`.
-    Device
-    |> from(as: :device)
-    |> maybe_where_visible(opts[:visible_to])
-    |> where([d], d.org_id == ^org_id)
-    |> where([d], d.product_id == ^product_id)
-    |> join(:left, [d], o in assoc(d, :org))
-    |> join(:left, [d, o], p in assoc(d, :product))
-    |> join(:left, [d, o, p], dg in assoc(d, :deployment_group))
-    |> join(:left, [d, o, p, dg], cr in assoc(dg, :current_release))
-    |> join(:left, [d, o, p, dg, cr], f in assoc(cr, :firmware))
-    |> join(:left, [d, o, p, dg, cr, f], lc in assoc(d, :latest_connection), as: :latest_connection)
-    |> join(:left, [d, o, p, dg, cr, f, lc], lh in assoc(d, :latest_health), as: :latest_health)
-    |> join(:left, [d], ifu in assoc(d, :inflight_update), as: :inflight_update)
-    |> then(&if(query_controls_deleted, do: &1, else: Repo.exclude_deleted(&1)))
-    |> DeviceFiltering.sort(sorting)
-    |> DeviceFiltering.build_filters(filters)
-    |> AdvancedQuery.apply_to_query(advanced_query, product_id)
-    |> preload([d, o, p, dg, cr, f, latest_connection: lc, latest_health: lh],
-      org: o,
-      product: p,
-      deployment_group: {dg, current_release: {cr, firmware: f}},
-      latest_connection: lc,
-      latest_health: lh
-    )
-    |> Flop.run(flop)
+    # The joins are only for the filters and sorts that name them; the device
+    # is named for the alarm filters, as in `common_filter_query/1`. Postgres
+    # drops a join that nothing uses.
+    {devices, meta} =
+      Device
+      |> from(as: :device)
+      |> maybe_where_visible(opts[:visible_to])
+      |> where([d], d.org_id == ^org_id)
+      |> where([d], d.product_id == ^product_id)
+      |> join(:left, [d], lc in assoc(d, :latest_connection), as: :latest_connection)
+      |> join(:left, [d], lh in assoc(d, :latest_health), as: :latest_health)
+      |> join(:left, [d], ifu in assoc(d, :inflight_update), as: :inflight_update)
+      |> then(&if(query_controls_deleted, do: &1, else: Repo.exclude_deleted(&1)))
+      |> DeviceFiltering.sort(sorting)
+      |> DeviceFiltering.build_filters(filters)
+      |> AdvancedQuery.apply_to_query(advanced_query, product_id)
+      |> Flop.run(flop)
+
+    # Preloaded after paging, not joined: Postgres applies the offset only
+    # after building every earlier row, so selected joins would be looked up
+    # and sorted for every device in the product on each page.
+    devices =
+      Repo.preload(devices, [
+        :org,
+        :product,
+        :latest_connection,
+        :latest_health,
+        deployment_group: [current_release: :firmware]
+      ])
+
+    {devices, meta}
   end
 
   # Without `:visible_to`, every device in the product is listed. That is only
