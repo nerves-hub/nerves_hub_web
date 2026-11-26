@@ -3,6 +3,7 @@ defmodule NervesHub.Telemetry.ComponentTraceTest do
   use ExUnit.Case, async: false
 
   alias NervesHub.Telemetry.ComponentTrace
+  alias NervesHubWeb.Components.CommandPalette
   alias NervesHubWeb.Components.DeploymentGroupPage.Stats
   alias NervesHubWeb.Live.DeploymentGroups.Show
   alias Phoenix.LiveView.Socket
@@ -61,6 +62,23 @@ defmodule NervesHub.Telemetry.ComponentTraceTest do
 
       assert render(fn -> update(&Tracer.current_span_ctx/0) end) == :undefined
     end
+  end
+
+  # It's in both layouts, so it updates on every page load, and only sets
+  # assigns.
+  test "the command palette's update runs without a span" do
+    Tracer.with_span "NervesHubWeb.Live.DeploymentGroups.Show.handle_params" do
+      callback_stop(socket())
+    end
+
+    palette = %{component: CommandPalette}
+
+    assert render(fn ->
+             handle_update(:start, palette)
+             current = Tracer.current_span_ctx()
+             handle_update(:stop, palette)
+             current
+           end) == :undefined
   end
 
   test "a render drops the callback's context when it ends" do

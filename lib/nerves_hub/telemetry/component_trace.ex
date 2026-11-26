@@ -31,8 +31,14 @@ defmodule NervesHub.Telemetry.ComponentTrace do
   A component's own `handle_event` isn't kept either: LiveView renders the
   component alone after it, with no render event, and calls no `update` but
   its children's.
+
+  The command palette's `update` never gets a span. It is in both layouts, so
+  it updates on every page load, and it only sets assigns: a span for it would
+  add a Sentry transaction to every page load and show nothing. Its search
+  runs in an `assign_async` from its `handle_event`, which `AsyncTrace` traces.
   """
 
+  alias NervesHubWeb.Components.CommandPalette
   alias Phoenix.LiveView.Socket
 
   require OpenTelemetry.Tracer, as: Tracer
@@ -40,6 +46,9 @@ defmodule NervesHub.Telemetry.ComponentTrace do
   @callback_key {__MODULE__, :callback}
   @render_key {__MODULE__, :render}
   @updates_key {__MODULE__, :updates}
+
+  # Components whose updates never get a span. See the moduledoc.
+  @untraced [CommandPalette]
 
   @callback_stops [
     [:phoenix, :live_view, :mount, :stop],
@@ -113,7 +122,7 @@ defmodule NervesHub.Telemetry.ComponentTrace do
         _config
       ) do
     update =
-      case parent() do
+      case parent(component) do
         nil ->
           nil
 
@@ -149,7 +158,9 @@ defmodule NervesHub.Telemetry.ComponentTrace do
 
   defp renders_next?(_socket), do: false
 
-  defp parent() do
+  defp parent(component) when component in @untraced, do: nil
+
+  defp parent(_component) do
     case Process.get(@render_key) do
       nil -> if Tracer.current_span_ctx() != :undefined, do: OpenTelemetry.Ctx.get_current()
       ctx -> ctx

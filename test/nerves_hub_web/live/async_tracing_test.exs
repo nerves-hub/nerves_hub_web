@@ -70,7 +70,9 @@ defmodule NervesHubWeb.Live.AsyncTracingTest do
   } do
     {:ok, lv, _html} = live(conn, "/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
     render_async(lv)
-    exported()
+
+    # Its update, on every page load, only sets assigns, so it gets no span.
+    assert named(exported(), "NervesHubWeb.Live.Devices.Show.update#NervesHubWeb.Components.CommandPalette") == []
 
     # The command palette's search, an `assign_async` in its `handle_event`.
     lv
