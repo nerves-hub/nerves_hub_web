@@ -90,8 +90,25 @@ defmodule NervesHub.Telemetry.TracesSamplerTest do
       end
     end
 
+    test "update progress is a report, from the channel or another node" do
+      for name <- ["Channels.DeviceChannel.handle_in", "DeviceLink.device_message"],
+          event <- ["fwup_progress", "update_progress"] do
+        assert TracesSampler.kind(name, %{"nerves_hub.channel.event": event}) == :reports
+      end
+    end
+
+    test "a device's other messages are default" do
+      for event <- ["status_update", "firmware_validated", "check_update", "request_update", "rebooting"] do
+        assert TracesSampler.kind("Channels.DeviceChannel.handle_in", %{"nerves_hub.channel.event": event}) ==
+                 :default
+      end
+    end
+
     test "a report's event on any other span is default" do
       assert TracesSampler.kind("Channels.DeviceChannel.handle_in", %{"nerves_hub.channel.event": "health:report"}) ==
+               :default
+
+      assert TracesSampler.kind("Channels.ExtensionsChannel.handle_in", %{"nerves_hub.channel.event": "fwup_progress"}) ==
                :default
     end
 
@@ -160,6 +177,10 @@ defmodule NervesHub.Telemetry.TracesSamplerTest do
 
       assert TracesSampler.sample_rate(report, @rates) == 0.01
       assert TracesSampler.sample_rate(report, Keyword.put(@rates, :default, 0.001)) == 0.001
+
+      progress = sampling_context("Channels.DeviceChannel.handle_in", %{"nerves_hub.channel.event": "fwup_progress"})
+
+      assert TracesSampler.sample_rate(progress, @rates) == 0.01
     end
 
     test "returns 0.0 for what is never kept, whatever the rates" do

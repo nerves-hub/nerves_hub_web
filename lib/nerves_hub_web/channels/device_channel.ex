@@ -41,6 +41,7 @@ defmodule NervesHubWeb.DeviceChannel do
   alias NervesHubWeb.Channels.Platform
 
   require Logger
+  require OpenTelemetry.Tracer, as: Tracer
 
   intercept(["updated", "deployment_updated"])
 
@@ -83,11 +84,26 @@ defmodule NervesHubWeb.DeviceChannel do
     end
   end
 
+  # The span is opened here rather than with `@decorate with_span`, which starts
+  # it with no attributes and adds them after. A sampler sees only what a span
+  # starts with, and keeps fewer of the progress reports a device sends through
+  # every update by looking at the event.
   @impl Phoenix.Channel
-  @decorate with_span("Channels.DeviceChannel.handle_in")
   def handle_in(event, payload, socket) do
-    :ok = DeviceInfo.set_span_attributes(socket.assigns.device_info, %{"nerves_hub.channel.event": event})
-    advance(socket, :device_message, &DeviceLink.device_message(&1, event, payload))
+    attributes =
+      socket.assigns.device_info
+      |> DeviceInfo.trace_attributes()
+      |> Map.put(:"nerves_hub.channel.event", event)
+
+    Tracer.with_span "Channels.DeviceChannel.handle_in", %{attributes: attributes} do
+      try do
+        advance(socket, :device_message, &DeviceLink.device_message(&1, event, payload))
+      catch
+        kind, reason ->
+          Tracer.set_status(:error, Exception.format_banner(kind, reason, __STACKTRACE__))
+          :erlang.raise(kind, reason, __STACKTRACE__)
+      end
+    end
   end
 
   @impl Phoenix.Channel
