@@ -12,6 +12,8 @@ defmodule NervesHub.Devices.LogLines do
   alias NervesHub.Devices.LogLine
   alias NervesHub.Devices.PubSub
 
+  require Logger
+
   @typedoc """
   One log line, as a device sends it.
 
@@ -92,6 +94,23 @@ defmodule NervesHub.Devices.LogLines do
     |> order_by([l], [{^order, l.timestamp}])
     |> limit(^limit)
     |> AnalyticsRepo.all()
+  end
+
+  @doc """
+  Whether any of the product's devices has a stored log line.
+
+  `:unknown` when ClickHouse can't say, so a caller needn't fail with it. What
+  went wrong is logged.
+  """
+  @spec any_for_product?(pos_integer()) :: boolean() | :unknown
+  def any_for_product?(product_id) do
+    LogLine
+    |> where(product_id: ^product_id)
+    |> AnalyticsRepo.exists?()
+  rescue
+    error ->
+      Logger.warning("Could not check a product's log lines: #{Exception.message(error)}")
+      :unknown
   end
 
   defp filter_levels(query, nil), do: query

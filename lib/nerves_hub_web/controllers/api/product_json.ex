@@ -9,6 +9,10 @@ defmodule NervesHubWeb.API.ProductJSON do
     %{data: product(product)}
   end
 
+  # Jason encodes the report's atoms (statuses, groups, levels) as the
+  # strings a client matches on.
+  def utilization(%{report: report}), do: %{data: report}
+
   def product(product) do
     %{
       name: product.name,

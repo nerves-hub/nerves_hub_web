@@ -51,7 +51,7 @@ defmodule NervesHubWeb.Live.TagRestrictedRolesTest do
 
   test "pages built from all of a product's devices are closed", %{conn: conn, org: org, product: product} do
     for page <-
-          ~w(insights firmware archives deployment_groups deployment_groups/new notifications settings settings/health) do
+          ~w(insights firmware archives deployment_groups deployment_groups/new notifications settings settings/health settings/utilization) do
       conn
       |> visit("/org/#{org.name}/#{product.name}/#{page}")
       |> assert_path("/org/#{org.name}/#{product.name}/devices")

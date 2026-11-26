@@ -21,6 +21,7 @@ defmodule NervesHubWeb.Live.Product.HealthProfiles do
   alias NervesHub.Products.ApiKeys
   alias NervesHub.Products.HealthProfileMetric
   alias NervesHub.Products.HealthProfiles
+  alias NervesHub.Products.Utilization
   alias NervesHubWeb.Components.Utils
   alias NervesHubWeb.Mounts.RequireEveryDevice
 
@@ -53,6 +54,7 @@ defmodule NervesHubWeb.Live.Product.HealthProfiles do
     |> assign(:product, product)
     |> assign(:custom_labels, Products.custom_health_metrics_labels(product))
     |> assign(:api_key_count, ApiKeys.active_count(product))
+    |> assign(:utilization, Utilization.score(product))
     |> assign(:analytics?, Application.get_env(:nerves_hub, :analytics_enabled, false))
     |> assign(:select_resets, 0)
     |> assign(:previews, %{saved_preview: @idle_preview, edited_preview: @idle_preview})

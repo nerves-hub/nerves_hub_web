@@ -163,6 +163,15 @@ when adding or removing one.
   grant new devices start with (applied in `Device.create_changeset/2`). Changes
   to a setting on every device in a product, from product settings, live in
   `devices/bulk_actions.ex`.
+  `products/utilization.ex` is the checklist of features a product is using,
+  for the Utilization tab of its settings, `GET .../products/:name/utilization`
+  and `nh checklist`: one authentication item, the recommended ones that make
+  up the score, and optional ones that don't. Each is judged from aggregate
+  queries over what the server holds, so a feature that leaves no trace here
+  (the remote console, a client module) has no item, and one the instance
+  can't offer is `:unavailable` and not scored. A new item is an entry in
+  `@items`, a `judge/2` clause and, when it is turned on in the dashboard, an
+  entry in the LiveView's `@places`. Its `key` is published through the API.
 - `extensions.ex` / `extensions/` — the device **extension framework**
   (`health`, `metrics`, `alarms`, `geo`, `local_shell`, `logging`,
   `network_identity`, `error_reports`); extensions attach per-device and
@@ -424,10 +433,13 @@ when adding or removing one.
   recalculation after the queueing settles it, and the group's orchestrator
   settles any left behind on its two-minute tick
   (`ManagedDeployments.settle_delta_statuses/1`).
-  A product's settings are three LiveViews, General (`live/product/settings.ex`),
-  Device health (`live/product/health_profiles.ex`) and API keys
-  (`live/product/api_keys.ex`), sharing their title and tabs from
-  `components/product_settings.ex`. General is titled cards in two columns,
+  A product's settings are four LiveViews, General (`live/product/settings.ex`),
+  Device health (`live/product/health_profiles.ex`), API keys
+  (`live/product/api_keys.ex`) and Utilization (`live/product/utilization.ex`),
+  sharing their title and tabs from `components/product_settings.ex`. The
+  Utilization tab carries the product's score, so every one of them assigns
+  `@utilization` (`NervesHub.Products.Utilization.score/1`) and assigns it
+  again after a change that moves it. General is titled cards in two columns,
   like the device page's Settings tab, and draws its toggles with
   `components/switch.ex`. Anything there that changes every device, or can't
   be undone, asks first in a `Dialog.confirm/1` that one assign drives
