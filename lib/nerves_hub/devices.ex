@@ -592,14 +592,29 @@ defmodule NervesHub.Devices do
     names_deleted? = AdvancedQuery.references_column?(advanced_query, product_id, "deleted")
     hide_deleted? = Keyword.get(list_opts, :hide_deleted, false) and not names_deleted?
     filters = if names_deleted?, do: Map.delete(filters, :display_deleted), else: filters
+    sort = opts[:sort] || {:asc, :identifier}
 
     query
     |> where([device: d], d.product_id == ^product_id)
     |> then(&if(hide_deleted?, do: Repo.exclude_deleted(&1), else: &1))
-    |> DeviceFiltering.sort(opts[:sort] || {:asc, :identifier})
+    |> DeviceFiltering.sort(sort)
     |> DeviceFiltering.build_filters(filters)
     |> AdvancedQuery.apply_to_query(advanced_query, product_id)
+    |> break_ties(sort)
   end
+
+  # Postgres returns devices that tie on every sort key in whatever order it
+  # finds them, and that order can change between one page's query and the
+  # next, so paging by OFFSET could show a tied device twice and another
+  # never. Many devices tie: every device that never connected has no
+  # connection times. The id goes last, after any key a filter adds, in the
+  # sort's direction, so the descending list is the ascending one reversed.
+  #
+  # Identifiers are unique within an org, so a sort by identifier has no ties.
+  # Leaving it alone lets Postgres read a page straight off
+  # `devices_product_id_identifier_index` instead of sorting.
+  defp break_ties(query, {_direction, field}) when field in [:identifier, :id], do: query
+  defp break_ties(query, {direction, _field}), do: order_by(query, [device: d], [{^direction, d.id}])
 
   def get_device_count_by_org_id(org_id) do
     q =

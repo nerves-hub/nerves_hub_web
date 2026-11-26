@@ -960,6 +960,26 @@ defmodule NervesHub.DevicesTest do
       assert list(:web_ui, product, user, named) == [deleted.id]
       assert list(:api, product, user, named) == [deleted.id]
     end
+
+    # Rewriting the first rows moves them after the rest of the table, so
+    # Postgres finds the devices in an order that isn't their ids'.
+    # `list_summaries/3` pages the same query, so it is held to this too.
+    test "page through devices tied on the sort key once each", %{org: org, user: user, firmware: firmware} do
+      product = Fixtures.product_fixture(user, org, %{name: "Tied Product"})
+      ids = for _ <- 1..6, do: Fixtures.device_fixture(org, product, firmware, %{tags: ["tied"]}).id
+      {3, _} = Repo.update_all(where(Device, [d], d.id in ^Enum.take(ids, 3)), set: [description: "moved"])
+
+      for kind <- [:web_ui, :api, :summaries],
+          field <- [:connection_last_seen_at, :connection_established_at, :tags],
+          {direction, expected} <- [asc: ids, desc: Enum.reverse(ids)] do
+        listed =
+          Enum.flat_map(1..3, fn page ->
+            list(kind, product, user, %{sort: {direction, field}, pagination: %{page: page, page_size: 2}})
+          end)
+
+        assert listed == expected, "#{kind} sorted #{direction} by #{field}"
+      end
+    end
   end
 
   defp list(kind, product, user, opts) do
@@ -977,6 +997,23 @@ defmodule NervesHub.DevicesTest do
     opts = opts |> Map.put_new(:pagination, %{page: 1, page_size: 100}) |> Map.put(:visible_to, user)
     {devices, meta} = Devices.get_devices_by_org_id_and_product_id_with_pager(product.org_id, product.id, opts)
     {Enum.map(devices, & &1.id), meta}
+  end
+
+  # A summary has no id, so each is looked up by its identifier, which is
+  # unique within an org.
+  defp list_with_meta(:summaries, product, user, opts) do
+    opts = Map.put_new(opts, :pagination, %{page: 1, page_size: 100})
+    {:ok, %{devices: devices, pagination: meta}} = Devices.list_summaries(product, user, opts)
+    identifiers = Enum.map(devices, & &1.identifier)
+
+    ids =
+      Device
+      |> where([d], d.org_id == ^product.org_id and d.identifier in ^identifiers)
+      |> select([d], {d.identifier, d.id})
+      |> Repo.all()
+      |> Map.new()
+
+    {Enum.map(identifiers, &Map.fetch!(ids, &1)), meta}
   end
 
   # The SQL of the one query `fun` sends with a LIMIT: the page.
