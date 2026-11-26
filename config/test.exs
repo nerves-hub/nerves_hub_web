@@ -99,14 +99,11 @@ config :nerves_hub, :firmware_download_options, plug: {Req.Test, NervesHub}
 config :nerves_hub, analytics_enabled: true
 config :nerves_hub, firmware_upload: NervesHub.Firmwares.Upload.File
 
-# The tracing tests point the SDK's batch processor at themselves. With its
-# default queue limit, the processor stops recording whenever it holds 2048
-# spans, and between those tests it holds what the rest of the suite makes: its
-# once-a-second size check turns recording back on with no exporter attached,
-# and it empties only every five seconds. So a tracing test could start with a
-# full buffer and lose its own spans at the next check. With no limit there is
-# no check: nothing is recorded until a test attaches an exporter, and nothing
-# that test makes is dropped.
+# The tracing tests point the SDK's batch processor at themselves. With the
+# default 2048-span limit, its size check turns recording back on with no
+# exporter attached, so the rest of the suite fills the buffer and a tracing
+# test loses its own spans. With no limit there is no check: nothing is
+# recorded until a test attaches an exporter, and nothing it makes is dropped.
 config :opentelemetry, processors: [{:otel_batch_processor, %{max_queue_size: :infinity}}]
 
 # Initialize plugs at runtime for faster test compilation
