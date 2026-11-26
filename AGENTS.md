@@ -141,10 +141,12 @@ when adding or removing one.
   stored as a string), and a device that says it is going to sleep is shown
   as asleep until it is due back rather than offline; see
   [docs/device_sleep.md](docs/device_sleep.md).
-  The web UI's devices list (`Devices.filter/3`) and the API's
-  (`get_devices_by_org_id_and_product_id_with_pager/3`) start from one query
-  (`list_query/1`), so a filter or sort behaves the same in both. Each pages a
-  query that selects devices only and preloads what it shows afterwards:
+  The web UI's devices list (`Devices.filter/3`), the API's
+  (`get_devices_by_org_id_and_product_id_with_pager/3`) and
+  `Devices.list_summaries/3`, which other applications in the cluster call for
+  plain maps and the tab counts, start from one query (`list_query/1`), so a
+  filter or sort behaves the same in all three. Each pages a query that
+  selects devices only and loads what it shows afterwards:
   Postgres builds every row before an OFFSET, so a selected join would cost a
   whole product's lookups on every page.
 - `managed_deployments.ex` / `managed_deployments/` — deployment groups and the

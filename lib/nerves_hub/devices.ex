@@ -240,6 +240,13 @@ defmodule NervesHub.Devices do
   def state_counts(product, user, opts) do
     opts = Map.update(opts, :filters, %{}, &Map.drop(&1, [:state, :reason]))
 
+    product
+    |> filter_query(user, opts)
+    |> count_states()
+  end
+
+  # `state_counts/3` of a query built without a tab or reason.
+  defp count_states(query) do
     conditions =
       Enum.map(DeviceFiltering.states(), &{&1, DeviceFiltering.state_dynamic(&1)}) ++
         Enum.map(DeviceFiltering.reasons(), &{&1, DeviceFiltering.reason_dynamic(&1)})
@@ -249,8 +256,7 @@ defmodule NervesHub.Devices do
         {key, dynamic([device: d], filter(count(d.id), ^condition))}
       end)
 
-    product
-    |> filter_query(user, opts)
+    query
     |> exclude(:order_by)
     |> select(^Map.put(counts, "all", dynamic([device: d], count(d.id))))
     |> Repo.one()
@@ -319,9 +325,237 @@ defmodule NervesHub.Devices do
     |> Repo.one()
   end
 
-  # The query both devices lists start from, the web UI's (`filter_query/3`)
-  # and the API's (`get_devices_by_org_id_and_product_id_with_pager/3`), so a
-  # filter or sort finds what it refers to in either:
+  @summary_fields [
+    :identifier,
+    :description,
+    :tags,
+    :firmware_metadata,
+    :firmware_validation_status,
+    :firmware_auto_revert_detected,
+    :update_mode,
+    :updates_blocked_until,
+    :consecutive_failed_updates,
+    :first_update_failure_at,
+    :last_update_failure_at,
+    :deleted_at
+  ]
+
+  @summaries_max_page_size 100
+
+  @doc """
+  A page of the product's devices that `user` can see, each as a plain map,
+  with the devices list's tab counts: what a devices list shows, in one call.
+
+  `opts` takes:
+
+    * `:pagination` - `%{page: page, page_size: page_size}`, page 1 and 10
+      devices by default, and at most #{@summaries_max_page_size} devices to a
+      page.
+    * `:filters` - the devices list's filters (`DeviceFiltering`). `:state`
+      picks a tab, and `:reason` one of the Needs attention tab's reasons, so
+      `:reason` is dropped with any other tab. Soft-deleted devices are left
+      out unless `:display_deleted` says otherwise or the advanced query names
+      `deleted`.
+    * `:sort` - `{direction, field}` as `filter/3` takes it, by identifier by
+      default.
+
+  Returns `{:ok, page}`, `page` a map of:
+
+    * `:devices` - one map per device, in the sort's order, of:
+      * `identifier`, `description`, `tags`, `firmware_validation_status`,
+        `firmware_auto_revert_detected`, `update_mode`,
+        `updates_blocked_until`, `consecutive_failed_updates`,
+        `first_update_failure_at`, `last_update_failure_at` and `deleted_at`,
+        as on `Device`
+      * `firmware_metadata`, the fields of `FirmwareMetadata` as a map, or
+        `nil`
+      * `latest_connection`, a map of `status` and `last_seen_at`, or `nil`
+        for a device that has never connected
+      * `latest_health`, a map of `status`, `status_reasons` and
+        `updated_at`, or `nil`
+      * `deployment_group`, a map of `name`, `is_active` and
+        `current_release`, or `nil`. `current_release` is
+        `%{firmware: %{uuid: uuid, version: version}}`, or `nil`.
+
+      The org and product aren't included: the caller named the product.
+    * `:pagination` - `current_page`, `page_size`, `total_count` and
+      `total_pages`, named as `Flop.Meta` names them. The total is the
+      listed tab's count from `:state_counts`, not a count of its own.
+    * `:state_counts` - as `state_counts/3` counts them.
+    * `:query` - the advanced query as it ran, or `nil` without one. Free
+      text comes back rewritten as a `search like` query
+      (`AdvancedQuery.interpret/2`).
+
+  The devices list ignores an advanced query that doesn't parse, and shows
+  the error beside its search bar. A caller without one would read the whole
+  product as the answer, so this returns
+  `{:error, %{reason: :invalid_query, message: message, position: position}}`
+  instead.
+
+  Three queries, two for a page past the last device: the counts, the page's
+  ids, and what the page shows. The first two read every device that
+  matches, so they select no joins; only the last joins, for the page's
+  devices alone.
+
+  ## Called over `:erpc` by other applications in the cluster
+
+  **This function has no callers inside nerves_hub_web, and that is
+  expected. It is not unused. Do not remove it.** See "Cross-application
+  contracts" in `AGENTS.md`.
+
+  Another application lists a product's devices with it, for a user whose
+  permission to view them it has already checked. Every key above is
+  published: adding one is safe, and renaming or removing one breaks a caller
+  this repository can't see. The test pins them.
+  """
+  @spec list_summaries(Product.t(), User.t(), map()) ::
+          {:ok,
+           %{
+             devices: [map()],
+             pagination: %{
+               current_page: pos_integer(),
+               page_size: pos_integer(),
+               total_count: non_neg_integer(),
+               total_pages: non_neg_integer()
+             },
+             state_counts: %{String.t() => non_neg_integer()},
+             query: String.t() | nil
+           }}
+          | {:error, %{reason: :invalid_query, message: String.t(), position: non_neg_integer()}}
+  def list_summaries(%Product{} = product, %User{} = user, opts) do
+    filters = Map.get(opts, :filters) || %{}
+
+    with {:ok, advanced_query} <- interpret_advanced_query(filters[:advanced_query], product.id) do
+      {tab, tab_filters} = listed_tab(filters)
+
+      filters =
+        filters
+        |> Map.drop([:state, :reason])
+        |> Map.put(:advanced_query, advanced_query)
+        |> Map.put_new(:display_deleted, "exclude")
+
+      matching =
+        user
+        |> list_query()
+        |> filter_list(product.id, Map.put(opts, :filters, filters))
+
+      counts = count_states(matching)
+      total = Map.fetch!(counts, tab)
+      {page, page_size} = summaries_page(opts)
+
+      ids =
+        matching
+        |> DeviceFiltering.build_filters(tab_filters)
+        |> limit(^page_size)
+        |> offset(^((page - 1) * page_size))
+        |> select([device: d], d.id)
+        |> Repo.all()
+
+      {:ok,
+       %{
+         devices: summaries(ids),
+         pagination: %{
+           current_page: page,
+           page_size: page_size,
+           total_count: total,
+           total_pages: div(total + page_size - 1, page_size)
+         },
+         state_counts: counts,
+         query: advanced_query
+       }}
+    end
+  end
+
+  # The form the advanced query runs in, which `filter_list/3` parses again:
+  # free text is rewritten as a `search like` query.
+  defp interpret_advanced_query(input, product_id) when is_binary(input) do
+    case String.trim(input) do
+      "" ->
+        {:ok, nil}
+
+      input ->
+        case AdvancedQuery.interpret(input, product_id) do
+          {:ok, canonical, _ast} -> {:ok, canonical}
+          {:error, message, position} -> {:error, %{reason: :invalid_query, message: message, position: position}}
+        end
+    end
+  end
+
+  defp interpret_advanced_query(_input, _product_id), do: {:ok, nil}
+
+  # The tab or reason the page lists, as its key in the state counts and as
+  # the filter that lists it. Every reason is part of Needs attention, so a
+  # reason filter alone lists the same devices as the tab and the reason.
+  # Anything the devices list doesn't have a tab or reason for lists every
+  # device, as `DeviceFiltering` ignores it there too.
+  defp listed_tab(filters) do
+    state = if filters[:state] in DeviceFiltering.states(), do: filters[:state]
+    reason = if state in [nil, "attention"] and filters[:reason] in DeviceFiltering.reasons(), do: filters[:reason]
+
+    cond do
+      reason -> {reason, %{reason: reason}}
+      state -> {state, %{state: state}}
+      true -> {"all", %{}}
+    end
+  end
+
+  defp summaries_page(opts) do
+    pagination = Map.get(opts, :pagination) || %{}
+    page = positive_integer(pagination[:page], 1)
+    page_size = pagination[:page_size] |> positive_integer(10) |> min(@summaries_max_page_size)
+    {page, page_size}
+  end
+
+  defp positive_integer(value, _default) when is_integer(value) and value > 0, do: value
+  defp positive_integer(_value, default), do: default
+
+  # What `list_summaries/3` shows of each device, in `ids`' order, in one
+  # query. A device deleted since its id was read is left out.
+  defp summaries([]), do: []
+
+  defp summaries(ids) do
+    rows =
+      Device
+      |> where([d], d.id in ^ids)
+      |> join(:left, [d], lc in assoc(d, :latest_connection))
+      |> join(:left, [d], lh in assoc(d, :latest_health))
+      |> join(:left, [d], dg in assoc(d, :deployment_group))
+      |> join(:left, [d, _lc, _lh, dg], r in assoc(dg, :current_release))
+      |> join(:left, [d, _lc, _lh, _dg, r], f in assoc(r, :firmware))
+      |> select([d, lc, lh, dg, _r, f], {
+        d.id,
+        map(d, ^@summary_fields),
+        {lc.id, map(lc, [:status, :last_seen_at])},
+        {lh.id, map(lh, [:status, :status_reasons, :updated_at])},
+        {dg.id, map(dg, [:name, :is_active])},
+        {f.id, map(f, [:uuid, :version])}
+      })
+      |> Repo.all()
+
+    by_id =
+      Map.new(rows, fn {id, device, connection, health, group, firmware} ->
+        [connection, health, group, firmware] = Enum.map([connection, health, group, firmware], &joined/1)
+        group = group && Map.put(group, :current_release, firmware && %{firmware: firmware})
+
+        summary =
+          device
+          |> Map.update!(:firmware_metadata, &(&1 && Map.from_struct(&1)))
+          |> Map.merge(%{latest_connection: connection, latest_health: health, deployment_group: group})
+
+        {id, summary}
+      end)
+
+    for id <- ids, Map.has_key?(by_id, id), do: Map.fetch!(by_id, id)
+  end
+
+  # A left join that matched nothing still selects its fields, all `nil`.
+  defp joined({nil, _fields}), do: nil
+  defp joined({_id, fields}), do: fields
+
+  # The query the devices lists start from, the web UI's (`filter_query/3`),
+  # the API's (`get_devices_by_org_id_and_product_id_with_pager/3`) and
+  # `list_summaries/3`, so a filter or sort finds what it refers to in any of
+  # them:
   #
   #   * `device`, which the alarm and metric filters correlate their
   #     subqueries to (`NervesHub.Devices.AdvancedQuery.Compiler`)
@@ -329,10 +563,10 @@ defmodule NervesHub.Devices do
   #     only filters and sorts read. Each matches at most one row per device,
   #     so Postgres drops whichever a query doesn't use.
   #
-  # Neither list selects a join. Postgres applies OFFSET only after building
-  # every row before it, so a selected join would be looked up, and sorted,
-  # for every device ahead of the page. Each list preloads what it shows once
-  # it has its page.
+  # No list selects a join. Postgres applies OFFSET only after building every
+  # row before it, so a selected join would be looked up, and sorted, for
+  # every device ahead of the page. Each list loads what it shows once it has
+  # its page.
   #
   # Without `visible_to`, every device is listed. That is only right for a
   # caller that already knows its actor sees all of them.
