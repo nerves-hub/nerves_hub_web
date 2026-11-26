@@ -157,9 +157,8 @@ defmodule NervesHub.Devices do
     {devices, meta}
   end
 
-  # The web UI's filters always say which soft-deleted devices to list,
-  # "exclude" unless someone picks another. An API request says so only when
-  # it asks, and anything but the two values that list them leaves them out.
+  # The web UI always sends `display_deleted`; an API request may leave it out
+  # or send anything, so all but "include" and "only" mean "exclude".
   defp display_deleted_by_default(%{display_deleted: value} = filters) when value in ["include", "only"], do: filters
   defp display_deleted_by_default(filters), do: Map.put(filters, :display_deleted, "exclude")
 

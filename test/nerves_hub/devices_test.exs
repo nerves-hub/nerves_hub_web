@@ -942,9 +942,8 @@ defmodule NervesHub.DevicesTest do
       assert updating.deployment_group == nil
     end
 
-    # The API has never listed soft-deleted devices, whatever `display_deleted`
-    # asks for. The web UI leaves it to that filter. Either way, an advanced
-    # query that names `deleted` decides instead.
+    # Both lists leave soft-deleted devices to `display_deleted`, unless an
+    # advanced query names `deleted`.
     test "list soft-deleted devices alike", context do
       %{product: product, user: user, deleted: deleted} = context
 
