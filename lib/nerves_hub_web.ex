@@ -166,7 +166,7 @@ defmodule NervesHubWeb do
   # `start_async` and `assign_async` that run the task's work in the trace of
   # the callback that started it. `use Phoenix.LiveView` and
   # `use Phoenix.LiveComponent` import all of `Phoenix.LiveView`, so its own
-  # are taken back out first.
+  # are taken back out.
   defp traced_async_imports() do
     quote do
       import NervesHub.Telemetry.AsyncTrace, only: [assign_async: 3, assign_async: 4, start_async: 3, start_async: 4]
