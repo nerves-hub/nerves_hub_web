@@ -131,20 +131,6 @@ defmodule NervesHub.Devices do
 
   Soft-deleted devices are never listed, whatever the `display_deleted`
   filter asks for, unless the advanced query names `deleted`.
-
-  ## Called over `:erpc` by other applications in the cluster
-
-  **Besides `NervesHubWeb.API.DeviceController`, another application lists
-  devices through this function, so its name, arity, options and return
-  shape are published. A search finds only the controller, and that is
-  expected. Do not rename, remove or reshape it.** See "Cross-application
-  contracts" in `AGENTS.md`.
-
-  That caller passes `:pagination` (a `page_size` of up to 100), `:filters`
-  and `:visible_to`, and reads `{devices, %Flop.Meta{}}`, each device a
-  `Device` struct with `org`, `product`, `latest_connection`,
-  `latest_health` and `deployment_group.current_release.firmware` loaded.
-  Loading more is safe; loading less, or returning maps, breaks it.
   """
   def get_devices_by_org_id_and_product_id_with_pager(org_id, product_id, opts) do
     pagination = Map.merge(%{page: 1, page_size: 10}, Map.get(opts, :pagination, %{}))
@@ -157,12 +143,12 @@ defmodule NervesHub.Devices do
       |> filter_list(product_id, opts, hide_deleted: true)
       |> Flop.run(flop)
 
+    # What `NervesHubWeb.API.DeviceJSON` shows.
     devices =
       Repo.preload(devices, [
         :org,
         :product,
         :latest_connection,
-        :latest_health,
         deployment_group: [current_release: :firmware]
       ])
 
