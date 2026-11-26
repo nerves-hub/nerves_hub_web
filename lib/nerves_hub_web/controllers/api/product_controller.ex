@@ -114,6 +114,10 @@ defmodule NervesHubWeb.API.ProductController do
     The score counts the `authentication` and `recommended` items that are
     `done` against those this instance can offer. `optional` items are
     situational and never scored.
+
+    A product API key reaches nothing about its organization, so the items
+    judged from the organization's settings (`two_factor`, `custom_roles`)
+    are left out for one, and its score is out of one less.
     """,
     parameters: [
       org_name: [
@@ -136,8 +140,8 @@ defmodule NervesHubWeb.API.ProductController do
       ] ++ @auth_error_responses
   )
 
-  def utilization(%{assigns: %{product: product}} = conn, _params) do
-    render(conn, :utilization, report: Utilization.report(product))
+  def utilization(%{assigns: %{product: product, current_scope: scope}} = conn, _params) do
+    render(conn, :utilization, report: Utilization.report(product, organization: is_nil(scope.api_key)))
   end
 
   @settable_params ~w(require_unique_firmware_version allowed_update_tools allow_unsigned_esp_idf_firmware allow_unsigned_atomvm_firmware default_managed_updates_allowed)

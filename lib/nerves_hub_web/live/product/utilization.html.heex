@@ -82,7 +82,7 @@
             <h2 class="text-sm/5 font-semibold text-content-strong">Recommended</h2>
             <p class="text-ui/4.5 text-content-muted">Features every product is better off using.</p>
           </div>
-          <span class="shrink-0 font-mono text-xs text-content-muted">{done_count(@recommended)}/{length(@recommended)}</span>
+          <span class="shrink-0 font-mono text-xs text-content-muted">{done_count(@recommended)}/{available_count(@recommended)}</span>
         </div>
         <.items items={@recommended} current_scope={@current_scope} />
       </section>

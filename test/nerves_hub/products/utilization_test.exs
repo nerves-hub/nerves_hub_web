@@ -1,9 +1,12 @@
 defmodule NervesHub.Products.UtilizationTest do
   use NervesHub.DataCase, async: true
 
+  import Ecto.Query, only: [where: 2]
+
   alias NervesHub.Accounts.Scope
   alias NervesHub.Devices
   alias NervesHub.Devices.DeviceLatestMetrics
+  alias NervesHub.Firmwares.Firmware
   alias NervesHub.Fixtures
   alias NervesHub.Products
   alias NervesHub.Products.Utilization
@@ -216,6 +219,22 @@ defmodule NervesHub.Products.UtilizationTest do
       firmware(context)
 
       assert status(context.product, "signed_firmware") == :done
+    end
+
+    test "an unsigned ESP-IDF image doesn't count as signed firmware", context do
+      firmware = firmware(context)
+      Repo.update_all(where(Firmware, id: ^firmware.id), set: [org_key_id: nil, tool: "esp-idf"])
+
+      assert %{status: :todo, summary: "1 firmware uploaded, none of them signed."} =
+               context.product |> Utilization.report() |> item("signed_firmware")
+    end
+
+    test "the organization's own items can be left out, and aren't scored then", context do
+      report = Utilization.report(context.product, organization: false)
+
+      refute item(report, "two_factor")
+      refute item(report, "custom_roles")
+      assert report.score.total == Utilization.report(context.product).score.total - 1
     end
 
     test "deployment groups need one turned on", context do

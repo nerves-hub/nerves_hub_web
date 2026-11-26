@@ -56,6 +56,9 @@ defmodule NervesHubWeb.Live.Product.Utilization do
 
   defp done_count(items), do: Enum.count(items, &(&1.status == :done))
 
+  # What the instance can't offer isn't scored, so it isn't counted here.
+  defp available_count(items), do: Enum.count(items, &(&1.status != :unavailable))
+
   # Where in the dashboard an item is turned on. One with no entry is turned
   # on in firmware.
   @places %{

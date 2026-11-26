@@ -136,7 +136,7 @@ defmodule NervesHubWeb.API.Schemas.ProductSchemas do
                 type: :string,
                 enum: ["good", "warning"],
                 description:
-                  "Whether the method is one to move away from (`warning`). A shared secret is `good` when every device using one has a secret of its own, and `warning` when any uses the product's."
+                  "Whether the method is one to move away from (`warning`). A shared secret is `good` when at least one device uses a secret of its own and none uses the product's, and `warning` otherwise, including when no device uses one."
               },
               devices: %Schema{type: :integer, description: "Devices using the method."}
             }

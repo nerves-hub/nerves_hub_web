@@ -48,6 +48,14 @@ defmodule NervesHubWeb.Live.Product.UtilizationTest do
       end)
       |> assert_has("#utilization-tab-score", text: "(3/13)")
     end
+
+    test "follows a product shared secret added in General", %{conn: conn, org: org, product: product} do
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/settings")
+      |> assert_has("#utilization-tab-score", text: "(2/13)")
+      |> unwrap(fn view -> render_click(view, "add-shared-secret", %{}) end)
+      |> assert_has("#utilization-tab-score", text: "(1/13)")
+    end
   end
 
   describe "the report" do

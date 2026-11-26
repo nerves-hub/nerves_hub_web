@@ -18,12 +18,11 @@ defmodule NervesHub.Products.Utilization do
 
   and a `status`:
 
-  - `:done` - in use. This is the reward.
+  - `:done` - in use.
   - `:attention` - a warning about something that is set up: it is risky
     (a shared secret), or it is switched on and nothing has arrived that
     would be expected to.
-  - `:todo` - not in use, or not all the way there. Never a warning: nobody
-    is in trouble for a feature they haven't set up.
+  - `:todo` - not in use, or not all the way there. Never a warning.
   - `:unavailable` - this instance can't offer it (no ClickHouse, no
     encryption key), so it isn't held against the product.
 
@@ -170,20 +169,34 @@ defmodule NervesHub.Products.Utilization do
      "Accept RAUC bundles, ESP-IDF images or AtomVM archives for devices that don't run Nerves.", "/updates/overview"}
   ]
 
+  # Items judged from the organization's settings, not the product's.
+  @organization_items ~w(two_factor custom_roles)
+
   @doc """
   The product's whole report: its score, how its devices authenticate, and
   every item in the order it is shown.
+
+  With `organization: false` the items judged from the organization's own
+  settings (whether it requires two-factor, its custom roles) are left out
+  and not scored. A product API key gets that report, since a key reaches
+  nothing about its organization.
   """
-  @spec report(Product.t()) :: t()
-  def report(%Product{} = product) do
+  @spec report(Product.t(), organization: boolean()) :: t()
+  def report(%Product{} = product, opts \\ []) do
     facts = facts(product)
-    items = Enum.map(@items, &item(&1, facts))
+
+    items =
+      @items
+      |> Enum.filter(&(Keyword.get(opts, :organization, true) or elem(&1, 0) not in @organization_items))
+      |> Enum.map(&item(&1, facts))
 
     %{score: score_items(items), device_auth: auth_methods(facts.devices), items: items}
   end
 
   @doc """
-  Just the product's score, for the count on the Utilization tab.
+  The product's score, for the count on the Utilization tab.
+
+  Builds the whole report, so it costs the same queries as `report/1`.
   """
   @spec score(Product.t()) :: score()
   def score(%Product{} = product), do: report(product).score
@@ -244,7 +257,12 @@ defmodule NervesHub.Products.Utilization do
     end
   end
 
-  defp judge("signed_firmware", %{firmware: 0}), do: {:todo, "No firmware has been uploaded."}
+  defp judge("signed_firmware", %{firmware: 0, unsigned_firmware: 0}), do: {:todo, "No firmware has been uploaded."}
+
+  defp judge("signed_firmware", %{firmware: 0, unsigned_firmware: n}) do
+    {:todo, "#{count(n, "firmware")} uploaded, none of them signed."}
+  end
+
   defp judge("signed_firmware", %{firmware: n}), do: {:done, "#{count(n, "signed firmware")} uploaded."}
 
   defp judge("deployments", %{groups: []}), do: {:todo, "There are no deployment groups."}
@@ -313,7 +331,7 @@ defmodule NervesHub.Products.Utilization do
   defp judge("error_reports", facts) do
     case {switch(facts, :error_reports), facts.error_groups} do
       {{:done, _on}, 0} ->
-        {:done, "The extension is on. No device has reported an error, which is what a healthy fleet looks like."}
+        {:done, "The extension is on. No device has reported an error."}
 
       {{:done, _on}, n} ->
         {:done, "#{count(n, "issue")} reported by devices."}
@@ -460,6 +478,7 @@ defmodule NervesHub.Products.Utilization do
 
   defp count(1, noun), do: "1 #{noun}"
   defp count(n, "signed firmware"), do: "#{n} signed firmwares"
+  defp count(n, "firmware"), do: "#{n} firmwares"
   defp count(n, noun), do: "#{n} #{noun}s"
 
   defp all(1, noun), do: "The 1 #{noun}"
@@ -497,7 +516,9 @@ defmodule NervesHub.Products.Utilization do
       two_factor_available?: TwoFactor.available?(),
       devices: devices(product_id),
       active_shared_secrets: count_where(SharedSecretAuth, product_id, &where(&1, [s], is_nil(s.deactivated_at))),
-      firmware: count_where(Firmware, product_id, &where(&1, [f], is_nil(f.deleted_at))),
+      firmware: count_where(Firmware, product_id, &where(&1, [f], is_nil(f.deleted_at) and not is_nil(f.org_key_id))),
+      unsigned_firmware:
+        count_where(Firmware, product_id, &where(&1, [f], is_nil(f.deleted_at) and is_nil(f.org_key_id))),
       groups: groups(product_id),
       connections: connections(product_id),
       health_reported?: Repo.exists?(where(DeviceLatestMetrics, product_id: ^product_id)),

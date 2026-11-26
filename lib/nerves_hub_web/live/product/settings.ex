@@ -474,7 +474,11 @@ defmodule NervesHubWeb.Live.Product.Settings do
 
   defp refresh_shared_secrets(socket) do
     secrets = Products.load_shared_secret_auth(socket.assigns.product).shared_secret_auths
-    assign(socket, :shared_secrets, sort_secrets(secrets))
+
+    # An active product shared secret can move the device authentication item.
+    socket
+    |> assign(:shared_secrets, sort_secrets(secrets))
+    |> assign(:utilization, Utilization.score(socket.assigns.product))
   end
 
   # Active before deactivated, newest first, so one just created is on top.

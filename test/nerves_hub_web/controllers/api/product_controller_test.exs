@@ -3,6 +3,7 @@ defmodule NervesHubWeb.API.ProductControllerTest do
 
   alias NervesHub.Accounts
   alias NervesHub.Fixtures
+  alias NervesHub.Products.ApiKeys
   alias NervesHub.Repo
 
   setup context do
@@ -97,6 +98,24 @@ defmodule NervesHubWeb.API.ProductControllerTest do
              } = hd(items)
 
       assert Enum.any?(items, &(&1["group"] == "optional"))
+    end
+
+    test "leaves the organization's own items out for a product API key", context do
+      %{org: org, product: product, user: user} = context
+      {:ok, _api_key, token} = ApiKeys.create(product, user, %{"name" => "CI", "role" => "view"})
+
+      conn =
+        build_conn()
+        |> put_req_header("accept", "application/json")
+        |> put_req_header("authorization", "token #{token}")
+        |> get(~p"/api/orgs/#{org.name}/products/#{product.name}/utilization")
+
+      assert %{"score" => %{"total" => 12}, "items" => items} = json_response(conn, 200)["data"]
+
+      keys = Enum.map(items, & &1["key"])
+      refute "two_factor" in keys
+      refute "custom_roles" in keys
+      assert "ci_api_key" in keys
     end
 
     test "is refused to someone outside the organization", %{conn2: conn, org: org, product: product} do
