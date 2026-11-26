@@ -715,6 +715,27 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       |> assert_has("div a", text: device2.identifier)
     end
 
+    test "by negative tag", %{conn: conn, fixture: fixture} do
+      %{device: device, firmware: firmware, org: org, product: product} = fixture
+
+      device2 = Fixtures.device_fixture(org, product, firmware, %{tags: ["filter-test"]})
+
+      conn
+      |> visit(device_index_path(fixture))
+      |> assert_has("#device-count", text: "2", timeout: 1000)
+      |> assert_has("div a", text: device.identifier)
+      |> assert_has("div a", text: device2.identifier)
+      |> open_filters()
+      |> fill_in("#filter-tags", "Tags", with: "-filter-test")
+      |> assert_has("#device-count", text: "1", timeout: 1_000)
+      |> assert_has("div a", text: device.identifier)
+      |> refute_has("div a", text: device2.identifier)
+      |> fill_in("#filter-tags", "Tags", with: "-filter-test-show-all")
+      |> assert_has("#device-count", text: "2", timeout: 1_000)
+      |> assert_has("div a", text: device.identifier)
+      |> assert_has("div a", text: device2.identifier)
+    end
+
     test "by metrics", %{conn: conn, fixture: fixture} do
       %{device: device, firmware: firmware, org: org, product: product} = fixture
 

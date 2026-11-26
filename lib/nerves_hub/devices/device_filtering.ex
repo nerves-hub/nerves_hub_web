@@ -390,11 +390,21 @@ defmodule NervesHub.Devices.DeviceFiltering do
     case Tag.cast(value) do
       {:ok, tags} ->
         Enum.reduce(tags, query, fn tag, query ->
-          where(
-            query,
-            [d],
-            fragment("string_array_to_string(?, ' ', ' ') ILIKE ?", d.tags, ^"%#{tag}%")
-          )
+          case tag do
+            "-" <> tag when tag != "" ->
+              where(
+                query,
+                [d],
+                fragment("string_array_to_string(?, ' ', ' ') NOT ILIKE ?", d.tags, ^"%#{tag}%")
+              )
+
+            tag ->
+              where(
+                query,
+                [d],
+                fragment("string_array_to_string(?, ' ', ' ') ILIKE ?", d.tags, ^"%#{tag}%")
+              )
+          end
         end)
 
       {:error, _} ->
