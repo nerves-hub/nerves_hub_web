@@ -125,7 +125,7 @@ defmodule NervesHub.Devices.AdvancedQueryTest do
 
   describe "Devices.filter/3 integration - binding coverage" do
     # These run through the real `Devices.filter` pipeline (and therefore the
-    # real `common_filter_query` bindings), so a rename of a named binding that
+    # real `list_query` bindings), so a rename of a named binding that
     # the compiler relies on would be caught here - the isolated compiler tests
     # supply their own bindings and would not notice.
 
