@@ -4,6 +4,7 @@ defmodule NervesHub.Devices.PinnedDevicesTest do
   alias NervesHub.Accounts
   alias NervesHub.Accounts.Scope
   alias NervesHub.Devices
+  alias NervesHub.Devices.DeviceFiltering
   alias NervesHub.Devices.PinnedDevice
   alias NervesHub.Devices.Pinning
   alias NervesHub.Fixtures
@@ -58,11 +59,54 @@ defmodule NervesHub.Devices.PinnedDevicesTest do
     assert length(devices) == 1
   end
 
+  test "Pinning a device twice leaves one pin", %{device: device, user: user} do
+    assert {:ok, %PinnedDevice{id: id}} = Pinning.pin_device(user.id, device.id)
+    assert {:ok, repeat} = Pinning.pin_device(user.id, device.id)
+
+    assert %PinnedDevice{id: nil, user_id: user_id, device_id: device_id} = repeat
+    assert user_id == user.id
+    assert device_id == device.id
+    assert [%PinnedDevice{id: ^id}] = Repo.all(PinnedDevice)
+  end
+
   test "Unpin device", %{device: device, user: user} do
     assert {:ok, _} =
              Pinning.pin_device(user.id, device.id)
 
-    {:ok, %PinnedDevice{}} = Pinning.unpin_device(user.id, device.id)
+    assert :ok = Pinning.unpin_device(user.id, device.id)
+    refute Pinning.device_pinned?(user.id, device.id)
+  end
+
+  test "Unpinning a device that isn't pinned does nothing", %{device: device, user: user, user2: user2} do
+    {:ok, _} = Pinning.pin_device(user2.id, device.id)
+
+    assert :ok = Pinning.unpin_device(user.id, device.id)
+
+    {:ok, _} = Pinning.pin_device(user.id, device.id)
+    assert :ok = Pinning.unpin_device(user.id, device.id)
+    assert :ok = Pinning.unpin_device(user.id, device.id)
+
+    refute Pinning.device_pinned?(user.id, device.id)
+    assert Pinning.device_pinned?(user2.id, device.id)
+  end
+
+  test "The devices list shows a device pinned twice once", %{device: device, user: user, product: product} do
+    {:ok, _} = Pinning.pin_device(user.id, device.id)
+    {:ok, _} = Pinning.pin_device(user.id, device.id)
+
+    # The database refuses a second row for the pair, however it's inserted.
+    assert {:error, changeset} =
+             %{user_id: user.id, device_id: device.id}
+             |> PinnedDevice.create()
+             |> Repo.insert()
+
+    assert {"has already been taken", _} = changeset.errors[:user_id]
+
+    opts = %{sort: {:asc, :identifier}, filters: DeviceFiltering.default_filters()}
+
+    assert {[listed], %{total_count: 1}} = Devices.filter(product, user, opts)
+    assert listed.id == device.id
+    assert %{"all" => 1} = Devices.state_counts(product, user, opts)
   end
 
   test "Move device to new org - unpin if user has no access to new org", %{
