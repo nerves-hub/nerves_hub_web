@@ -344,6 +344,17 @@ defmodule NervesHub.Devices.DeviceFiltering do
     filter_on_metric(query, filters)
   end
 
+  # Pins are each web UI user's own, so only a query joined to the user's
+  # pins as `:pinned` can apply this. Any other, such as the API's device
+  # list, ignores it, as it does every filter it can't apply.
+  def filter(query, _filters, :is_pinned, true) do
+    if has_named_binding?(query, :pinned) do
+      where(query, [pinned: pd], not is_nil(pd.id))
+    else
+      query
+    end
+  end
+
   def filter(query, _filters, :display_deleted, "include"), do: order_by(query, [d], asc_nulls_last: d.deleted_at)
 
   def filter(query, _filters, :display_deleted, "exclude"), do: advanced(query, "deleted", "=", "false")
