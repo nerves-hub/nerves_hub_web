@@ -392,9 +392,10 @@ defmodule NervesHub.Devices do
   `{:error, %{reason: :invalid_query, message: message, position: position}}`
   instead.
 
-  Three queries: the counts, the page's ids, and what the page shows. The
-  first two read every device that matches, so they select no joins; only
-  the last joins, for the page's devices alone.
+  Three queries, two for a page past the last device: the counts, the page's
+  ids, and what the page shows. The first two read every device that
+  matches, so they select no joins; only the last joins, for the page's
+  devices alone.
 
   ## Called over `:erpc` by other applications in the cluster
 
