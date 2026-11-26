@@ -961,10 +961,8 @@ defmodule NervesHub.DevicesTest do
       assert list(:api, product, user, named) == [deleted.id]
     end
 
-    # Postgres returns devices that tie on the sort key in whatever order it
-    # finds them, so paging by OFFSET could show a tied device twice and
-    # another never. Rewriting the first rows moves them after the rest of
-    # the table, so the order Postgres finds them in isn't their ids'.
+    # Rewriting the first rows moves them after the rest of the table, so
+    # Postgres finds the devices in an order that isn't their ids'.
     test "page through devices tied on the sort key once each", %{org: org, user: user, firmware: firmware} do
       product = Fixtures.product_fixture(user, org, %{name: "Tied Product"})
       ids = for _ <- 1..6, do: Fixtures.device_fixture(org, product, firmware, %{tags: ["tied"]}).id
