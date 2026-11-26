@@ -26,6 +26,7 @@ defmodule NervesHub.DevicesTest do
   alias NervesHub.Devices.Health
   alias NervesHub.Devices.InflightUpdate
   alias NervesHub.Devices.NetworkIdentities
+  alias NervesHub.Devices.Pinning
   alias NervesHub.Devices.PubSub
   alias NervesHub.Devices.SharedSecretAuth
   alias NervesHub.Devices.UpdatePayload
@@ -4182,6 +4183,54 @@ defmodule NervesHub.DevicesTest do
       {[%Device{} = filtered], _meta} = Devices.filter(product, user, opts)
 
       filtered.latest_health
+    end
+  end
+
+  describe "filter/3 with Pinned only" do
+    # The user pinned device; another member of the org pinned device2.
+    setup %{org: org, user: user, device: device, device2: device2} do
+      other_user = Fixtures.user_fixture()
+      {:ok, _} = Accounts.add_org_user(org, other_user, %{role: :view})
+      {:ok, _} = Pinning.pin_device(user.id, device.id)
+      {:ok, _} = Pinning.pin_device(other_user.id, device2.id)
+
+      %{other_user: other_user, filters: %{DeviceFiltering.default_filters() | is_pinned: true}}
+    end
+
+    test "lists only the devices the user pinned", context do
+      %{product: product, user: user, other_user: other_user, filters: filters} = context
+
+      assert pinned_ids(product, user, filters) == [context.device.id]
+      assert pinned_ids(product, other_user, filters) == [context.device2.id]
+    end
+
+    test "counts only the user's pinned devices, like any other filter", context do
+      %{product: product, user: user, device: device, filters: filters} = context
+      Fixtures.device_connection_fixture(device, %{status: :connected})
+      Fixtures.device_connection_fixture(context.device2, %{status: :connected})
+
+      assert %{"all" => 1, "online" => 1, "offline" => 0} = Devices.state_counts(product, user, %{filters: filters})
+
+      assert Devices.facet_counts(product, user, %{filters: filters}, %{connection: ["connected"]}) == %{
+               connection: %{"connected" => 1}
+             }
+    end
+
+    test "builds the query bulk actions use from only the user's pinned devices", context do
+      %{product: product, user: user, filters: filters} = context
+
+      ids =
+        product
+        |> Devices.filter_query(user, %{sort: {:asc, :identifier}, filters: filters})
+        |> Repo.all()
+        |> Enum.map(& &1.id)
+
+      assert ids == [context.device.id]
+    end
+
+    defp pinned_ids(product, user, filters) do
+      {devices, _meta} = Devices.filter(product, user, %{sort: {:asc, :identifier}, filters: filters})
+      Enum.map(devices, & &1.id)
     end
   end
 
