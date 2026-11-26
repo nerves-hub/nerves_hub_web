@@ -52,8 +52,6 @@ defmodule NervesHub.Filtering do
     |> filter_and_sort(base_query.from, sorting, filters)
   end
 
-  # Devices have their own, in `NervesHub.Devices`, which the web UI's and
-  # the API's devices lists share.
   defp filter_and_sort(query, %{source: {_, DeploymentGroup}}, sorting_opts, filter_opts) do
     query
     |> DeploymentGroupFiltering.sort(sorting_opts)
