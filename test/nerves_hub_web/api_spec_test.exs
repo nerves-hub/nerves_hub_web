@@ -192,6 +192,12 @@ defmodule NervesHubWeb.ApiSpecTest do
       |> get(~p"/api/orgs/#{org.name}/products/#{product.name}")
       |> assert_documented_response()
     end
+
+    test "utilization", %{conn: conn, org: org, product: product} do
+      conn
+      |> get(~p"/api/orgs/#{org.name}/products/#{product.name}/utilization")
+      |> assert_documented_response()
+    end
   end
 
   describe "users" do

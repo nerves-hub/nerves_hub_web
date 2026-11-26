@@ -24,6 +24,7 @@ defmodule NervesHubWeb.Router do
   alias Live.Product.HealthProfiles
   alias Live.Product.Insights
   alias Live.Product.Notifications
+  alias Live.Product.Utilization
   alias Live.SupportScripts.Edit
   alias NervesHub.Telemetry.LiveViewTrace
   alias NervesHubWeb.API.Plugs.Device
@@ -135,6 +136,7 @@ defmodule NervesHubWeb.Router do
       pipe_through([:api_require_authenticated_user_or_api_key, :api_product])
 
       get("/", ProductController, :show)
+      get("/utilization", ProductController, :utilization)
 
       scope "/devices" do
         get("/", DeviceController, :index)
@@ -581,6 +583,7 @@ defmodule NervesHubWeb.Router do
       live("/org/:org_name/:product_name/settings", Live.Product.Settings)
       live("/org/:org_name/:product_name/settings/health", HealthProfiles)
       live("/org/:org_name/:product_name/settings/api_keys", ApiKeys)
+      live("/org/:org_name/:product_name/settings/utilization", Utilization)
     end
   end
 

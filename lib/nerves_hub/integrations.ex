@@ -87,6 +87,24 @@ defmodule NervesHub.Integrations do
   end
 
   @doc """
+  The kinds of enabled integration that hear the product, whatever events
+  they want: `"webhook"`, `"slack"` and `"chat_webhook"` (Teams or Discord).
+
+  Read from the database rather than the cache, which holds only what
+  dispatching needs.
+  """
+  @spec kinds_hearing(Product.t()) :: [String.t()]
+  def kinds_hearing(%Product{id: product_id, org_id: org_id}) do
+    from(l in subquery(hearing(product_id)),
+      where: l.org_id == ^org_id,
+      distinct: true,
+      select: l.kind,
+      order_by: l.kind
+    )
+    |> Repo.all()
+  end
+
+  @doc """
   Forget who hears the organization's products, here and on every other
   node. Called after any change to the organization's integrations commits.
   """

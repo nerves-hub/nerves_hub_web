@@ -94,6 +94,20 @@ defmodule NervesHub.Devices.LogLines do
     |> AnalyticsRepo.all()
   end
 
+  @doc """
+  Whether any of the product's devices has a stored log line.
+
+  `:unknown` when ClickHouse can't say, so a caller needn't fail with it.
+  """
+  @spec any_for_product?(pos_integer()) :: boolean() | :unknown
+  def any_for_product?(product_id) do
+    LogLine
+    |> where(product_id: ^product_id)
+    |> AnalyticsRepo.exists?()
+  rescue
+    _error -> :unknown
+  end
+
   defp filter_levels(query, nil), do: query
   defp filter_levels(query, []), do: query
   defp filter_levels(query, levels), do: where(query, [l], l.level in ^levels)

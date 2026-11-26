@@ -4,7 +4,13 @@
   </:top_bar>
 
   <div class="flex h-0 flex-1 flex-col overflow-y-auto">
-    <NervesHubWeb.Components.ProductSettings.tabs current_scope={@current_scope} tab={:health} profile_count={length(@profiles)} api_key_count={@api_key_count} />
+    <NervesHubWeb.Components.ProductSettings.tabs
+      current_scope={@current_scope}
+      tab={:health}
+      profile_count={length(@profiles)}
+      api_key_count={@api_key_count}
+      utilization={@utilization}
+    />
 
     <div class="flex flex-1 max-sm:flex-col">
       <%!-- The profiles: a column of links from sm up, a select on a phone. --%>

@@ -70,6 +70,42 @@ defmodule NervesHubWeb.API.ProductControllerTest do
     end
   end
 
+  describe "utilization" do
+    setup [:create_product]
+
+    test "reports the product's score, device authentication and items", %{conn: conn, org: org, product: product} do
+      conn = get(conn, ~p"/api/orgs/#{org.name}/products/#{product.name}/utilization")
+
+      assert %{"score" => score, "device_auth" => device_auth, "items" => items} = json_response(conn, 200)["data"]
+
+      assert %{"done" => done, "total" => 13} = score
+      assert done == Enum.count(items, &(&1["group"] != "optional" and &1["status"] == "done"))
+
+      assert [
+               %{"key" => "shared_secret", "label" => "Shared Secret", "level" => "warning", "devices" => 0},
+               %{"key" => "local_cert", "label" => "LocalCert", "level" => "good", "devices" => 0},
+               %{"key" => "nerves_key", "label" => "NervesKey", "level" => "good", "devices" => 0}
+             ] = device_auth
+
+      assert %{
+               "key" => "device_auth",
+               "group" => "authentication",
+               "title" => "Device authentication",
+               "status" => "todo",
+               "summary" => "No device has connected yet.",
+               "docs_url" => "https://docs.nerves-hub.org/auth/device-certificates"
+             } = hd(items)
+
+      assert Enum.any?(items, &(&1["group"] == "optional"))
+    end
+
+    test "is refused to someone outside the organization", %{conn2: conn, org: org, product: product} do
+      assert_raise(Ecto.NoResultsError, fn ->
+        get(conn, ~p"/api/orgs/#{org.name}/products/#{product.name}/utilization")
+      end)
+    end
+  end
+
   describe "show" do
     setup [:create_product]
 

@@ -14,6 +14,7 @@ defmodule NervesHubWeb.Live.Product.Settings do
   alias NervesHub.Products.ApiKeys
   alias NervesHub.Products.HealthProfiles
   alias NervesHub.Products.Product
+  alias NervesHub.Products.Utilization
   alias NervesHubWeb.Components.Dialog
   alias NervesHubWeb.Mounts.RequireEveryDevice
 
@@ -65,6 +66,7 @@ defmodule NervesHubWeb.Live.Product.Settings do
     |> assign(:new_secret_id, nil)
     |> assign(:profile_count, HealthProfiles.count_for_product(product))
     |> assign(:api_key_count, ApiKeys.active_count(product))
+    |> assign(:utilization, Utilization.score(product))
     |> assign(:extensions, extensions())
     |> assign(:optional_tools, optional_tools())
     |> assign(:confirm, nil)
@@ -426,6 +428,7 @@ defmodule NervesHubWeb.Live.Product.Settings do
       {:ok, updated} ->
         socket
         |> assign(:product, %{product | extensions: updated.extensions})
+        |> assign(:utilization, Utilization.score(updated))
         |> put_flash(:info, "Turned #{name} #{(enabled && "on") || "off"} for #{product.name}.")
         |> noreply()
 

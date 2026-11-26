@@ -9,6 +9,18 @@ defmodule NervesHubWeb.API.ProductJSON do
     %{data: product(product)}
   end
 
+  # Statuses, groups and levels are atoms in the report; here they are the
+  # strings a client matches on.
+  def utilization(%{report: report}) do
+    %{
+      data: %{
+        score: report.score,
+        device_auth: report.device_auth,
+        items: report.items
+      }
+    }
+  end
+
   def product(product) do
     %{
       name: product.name,

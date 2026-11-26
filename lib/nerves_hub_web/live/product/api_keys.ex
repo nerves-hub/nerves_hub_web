@@ -24,6 +24,7 @@ defmodule NervesHubWeb.Live.Product.ApiKeys do
   alias NervesHub.Products.ApiKey
   alias NervesHub.Products.ApiKeys
   alias NervesHub.Products.HealthProfiles
+  alias NervesHub.Products.Utilization
   alias NervesHubWeb.Components.Dialog
   alias NervesHubWeb.Components.Utils
   alias NervesHubWeb.CoreComponents
@@ -326,5 +327,6 @@ defmodule NervesHubWeb.Live.Product.ApiKeys do
     socket
     |> assign(:api_keys, api_keys)
     |> assign(:api_key_count, Enum.count(api_keys, &is_nil(&1.deactivated_at)))
+    |> assign(:utilization, Utilization.score(socket.assigns.product))
   end
 end

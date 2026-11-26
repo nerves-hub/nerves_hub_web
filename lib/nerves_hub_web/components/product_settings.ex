@@ -23,16 +23,17 @@ defmodule NervesHubWeb.Components.ProductSettings do
   end
 
   attr(:current_scope, :map, required: true)
-  attr(:tab, :atom, required: true, values: [:general, :health, :api_keys])
+  attr(:tab, :atom, required: true, values: [:general, :health, :api_keys, :utilization])
   attr(:profile_count, :integer, required: true)
   attr(:api_key_count, :integer, required: true, doc: "keys that have not been deactivated")
+  attr(:utilization, :map, required: true, doc: "the score from `NervesHub.Products.Utilization.score/1`")
 
   @doc """
   Each tab is its own LiveView, so they navigate rather than patch.
   """
   def tabs(assigns) do
     ~H"""
-    <nav class="flex shrink-0 gap-6 border-b border-line-default px-6 max-sm:gap-5 max-sm:px-4" aria-label="Product settings">
+    <nav class="scrollbar-none flex shrink-0 gap-6 overflow-x-auto overflow-y-hidden border-b border-line-default px-6 max-sm:gap-5 max-sm:px-4" aria-label="Product settings">
       <.tab navigate={~p"/org/#{@current_scope.org}/#{@current_scope.product}/settings"} selected={@tab == :general}>
         General
       </.tab>
@@ -48,6 +49,9 @@ defmodule NervesHubWeb.Components.ProductSettings do
           {@api_key_count}<span class="max-sm:hidden"> active</span>
         </span>
       </.tab>
+      <.tab navigate={~p"/org/#{@current_scope.org}/#{@current_scope.product}/settings/utilization"} selected={@tab == :utilization}>
+        Utilization <span id="utilization-tab-score" class="font-mono text-xs font-normal text-content-muted">({@utilization.done}/{@utilization.total})</span>
+      </.tab>
     </nav>
     """
   end
@@ -62,7 +66,7 @@ defmodule NervesHubWeb.Components.ProductSettings do
       navigate={@navigate}
       aria-current={@selected && "page"}
       class={[
-        "-mb-px flex h-12 items-center gap-2 border-b-2 text-sm/5 max-sm:h-11",
+        "-mb-px flex h-12 shrink-0 items-center gap-2 border-b-2 text-sm/5 whitespace-nowrap max-sm:h-11",
         if(@selected,
           do: "border-primary font-semibold text-content-strong",
           else: "border-transparent text-content-body hover:text-content-strong"

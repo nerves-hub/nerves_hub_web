@@ -4,6 +4,7 @@ defmodule NervesHubWeb.API.ProductController do
 
   alias NervesHub.Products
   alias NervesHub.Products.Product
+  alias NervesHub.Products.Utilization
   alias NervesHubWeb.API.OpenAPI.SchemaHelpers
   alias NervesHubWeb.API.Schemas.ErrorSchemas
   alias NervesHubWeb.API.Schemas.ProductSchemas
@@ -13,7 +14,9 @@ defmodule NervesHubWeb.API.ProductController do
 
   @auth_error_responses SchemaHelpers.auth_error_responses()
 
-  plug(:require_membership when action in [:index, :show])
+  plug(:require_membership when action in [:index, :show, :utilization])
+  # The report counts all of the product's devices.
+  plug(:require_every_device when action in [:utilization])
   plug(:require_permission, :"product:create" when action in [:create])
   plug(:require_permission, :"product:update" when action in [:update])
   plug(:require_permission, :"product:delete" when action in [:delete])
@@ -98,6 +101,43 @@ defmodule NervesHubWeb.API.ProductController do
 
   def show(%{assigns: %{product: product}} = conn, _params) do
     render(conn, :show, product: product)
+  end
+
+  operation(:utilization,
+    summary: "Report which features a Product is using",
+    description: """
+    A checklist of NervesHub features, each judged from what the server can
+    see of the product, its devices and its organization. It is what the
+    Utilization tab of a product's settings shows and what `nh checklist`
+    prints.
+
+    The score counts the `authentication` and `recommended` items that are
+    `done` against those this instance can offer. `optional` items are
+    situational and never scored.
+    """,
+    parameters: [
+      org_name: [
+        in: :path,
+        description: "Organization Name",
+        type: :string,
+        example: "example_org"
+      ],
+      product_name: [
+        in: :path,
+        description: "Product Name",
+        type: :string,
+        example: "example_product"
+      ]
+    ],
+    responses:
+      [
+        ok: {"Utilization response", "application/json", ProductSchemas.ProductUtilizationResponse},
+        not_found: {"Not Found", "application/json", ErrorSchemas.ErrorResponse}
+      ] ++ @auth_error_responses
+  )
+
+  def utilization(%{assigns: %{product: product}} = conn, _params) do
+    render(conn, :utilization, report: Utilization.report(product))
   end
 
   @settable_params ~w(require_unique_firmware_version allowed_update_tools allow_unsigned_esp_idf_firmware allow_unsigned_atomvm_firmware default_managed_updates_allowed)
