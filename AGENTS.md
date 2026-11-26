@@ -570,7 +570,10 @@ when adding or removing one.
   The span is named for what the async is, so put which one after a `:` in
   a string name (`"load_chart:#{key}"`) or after the first element of a
   tuple (`{:send_test, id}`). There's no traced `stream_async`, since
-  nothing uses one.
+  nothing uses one. A LiveComponent's `update` runs during the render, after
+  the callback's span has ended, so `NervesHub.Telemetry.ComponentTrace`
+  opens a span for it under the callback that rendered it. Its handlers have
+  to be attached before `OpentelemetryPhoenix`'s.
 - Never weaken a test, disable a lint, or add a suppression to get green — if
   you're blocked, say so.
 

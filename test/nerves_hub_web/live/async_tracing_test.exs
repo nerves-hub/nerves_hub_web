@@ -88,6 +88,33 @@ defmodule NervesHubWeb.Live.AsyncTracingTest do
              for(span(span_id: ^parent_id) = span <- spans, do: span)
   end
 
+  # Stats loads from its `update`, which LiveView calls while rendering, after
+  # `handle_params` has returned (`NervesHub.Telemetry.ComponentTrace`).
+  test "a LiveComponent's update, and the load it starts, are in the trace of the handle_params whose render ran it",
+       %{conn: conn, org: org, product: product, deployment_group: deployment_group} do
+    {:ok, lv, _html} =
+      live(conn, "/org/#{org.name}/#{product.name}/deployment_groups/#{deployment_group.name}/stats")
+
+    render_async(lv)
+
+    spans = exported()
+
+    assert [span(trace_id: trace_id, span_id: update_id, parent_span_id: parent_id)] =
+             named(
+               spans,
+               "NervesHubWeb.Live.DeploymentGroups.Show.update#NervesHubWeb.Components.DeploymentGroupPage.Stats"
+             )
+
+    assert [span(trace_id: ^trace_id, name: "NervesHubWeb.Live.DeploymentGroups.Show.handle_params")] =
+             for(span(span_id: ^parent_id) = span <- spans, do: span)
+
+    assert [span(trace_id: ^trace_id, parent_span_id: ^update_id)] =
+             named(spans, "NervesHubWeb.Live.DeploymentGroups.Show.start_async#history")
+
+    # The queries `update` makes itself, such as the group's releases.
+    assert [_ | _] = for(span(name: "nerves_hub.repo.query" <> _, parent_span_id: ^update_id) = span <- spans, do: span)
+  end
+
   defp named(spans, name), do: for(span(name: ^name) = span <- spans, do: span)
 
   defp exported() do

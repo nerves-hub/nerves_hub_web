@@ -28,10 +28,14 @@ defmodule NervesHub.Telemetry.AsyncTrace do
   span processor then sends it as a transaction of its own in the parent's
   trace.
 
+  A LiveComponent's `update` runs while LiveView renders, after the callback's
+  span has ended. `NervesHub.Telemetry.ComponentTrace` runs it in a span of its
+  own under that callback's, so async work started there joins the callback's
+  trace too.
+
   Started where no span is current, as in a `handle_async` or `handle_info`
-  callback, or a LiveComponent's `update`, none of which opens one, the span
-  starts a trace of its own, which `NervesHub.Telemetry.TracesSampler`
-  samples as `:default`.
+  callback, which opens none, the span starts a trace of its own, which
+  `NervesHub.Telemetry.TracesSampler` samples as `:default`.
 
   A task cancelled with `cancel_async`, or killed with its LiveView, never ends
   its span, so the span is never sent.
