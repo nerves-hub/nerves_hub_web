@@ -63,7 +63,17 @@ defmodule NervesHubWeb.API.OpenAPI.DeviceControllerSpecs do
         alarm_status: %OpenApiSpex.Schema{type: :string, enum: ["with", "without"]},
         connection: %OpenApiSpex.Schema{type: :string, enum: ["connected", "disconnected", "not_seen"]},
         deployment_id: %OpenApiSpex.Schema{type: :string, example: "12"},
-        display_deleted: %OpenApiSpex.Schema{type: :string, enum: ["include", "exclude", "only"]},
+        display_deleted: %OpenApiSpex.Schema{
+          type: :string,
+          enum: ["include", "exclude", "only"],
+          default: "exclude",
+          description: """
+          Which soft-deleted devices to list: `exclude` leaves them out, `include`
+          lists them with the rest, and `only` lists them alone. Each device says
+          whether it is `deleted`. An `advanced_query` that names `deleted`
+          decides instead.
+          """
+        },
         firmware_validation_status: %OpenApiSpex.Schema{
           type: :string,
           enum: ["validated", "not_validated", "unknown"]

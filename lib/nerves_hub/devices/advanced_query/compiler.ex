@@ -370,7 +370,7 @@ defmodule NervesHub.Devices.AdvancedQuery.Compiler do
   # A device is soft deleted when it has a `deleted_at` timestamp. Note that
   # the devices lists drop their default "exclude deleted" filter whenever the
   # advanced query references this column, so it controls deleted visibility
-  # (`NervesHub.Devices.filter_list/4`).
+  # (`NervesHub.Devices.filter_list/3`).
   defp comparison_dynamic("deleted", "=", "true"), do: dynamic([d], not is_nil(d.deleted_at))
   defp comparison_dynamic("deleted", "=", "false"), do: dynamic([d], is_nil(d.deleted_at))
   defp comparison_dynamic("deleted", "!=", "true"), do: dynamic([d], is_nil(d.deleted_at))
