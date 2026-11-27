@@ -6,6 +6,15 @@ defmodule NervesHub.Scripts.ScriptFiltering do
 
   alias NervesHub.Types.Tag
 
+  # The filters `filter/4` applies, each to a string.
+  @filters [:name, :tags, :search]
+
+  @type filter() :: :name | :tags | :search
+
+  @doc "The filters a product's scripts can be filtered by, each by a string."
+  @spec filters() :: [filter(), ...]
+  def filters(), do: @filters
+
   @spec build_filters(Ecto.Query.t(), %{optional(atom) => String.t()}) :: Ecto.Query.t()
   def build_filters(query, filters) do
     Enum.reduce(filters, query, fn {key, value}, query ->

@@ -1,6 +1,7 @@
 defmodule NervesHubWeb.API.OpenAPI.DeviceControllerSpecs do
   import OpenApiSpex.Operation, only: [request_body: 4, response: 3]
 
+  alias NervesHub.Devices.DeviceFiltering
   alias NervesHubWeb.API.OpenAPI.SchemaHelpers
   alias NervesHubWeb.API.Schemas.DeviceCertificateSchemas
   alias NervesHubWeb.API.Schemas.DeviceSchemas
@@ -13,94 +14,24 @@ defmodule NervesHubWeb.API.OpenAPI.DeviceControllerSpecs do
 
   @sort_by_parameter %OpenApiSpex.Parameter{
     name: :sort,
-    description: "Sort By",
+    description: "The field to sort by. Any other is refused with a 422.",
     in: :query,
     required: false,
-    schema: %OpenApiSpex.Schema{type: :string},
+    schema: %OpenApiSpex.Schema{
+      type: :string,
+      enum: Enum.map(DeviceFiltering.sort_fields(), &Atom.to_string/1),
+      default: "identifier"
+    },
     example: "identifier"
   }
 
   @sort_direction_parameter %OpenApiSpex.Parameter{
     name: :sort_direction,
-    description: "Sort Direction",
+    description: "The direction to sort in. Any other is refused with a 422.",
     in: :query,
     required: false,
-    schema: %OpenApiSpex.Schema{type: :string},
+    schema: %OpenApiSpex.Schema{type: :string, enum: ["asc", "desc"], default: "asc"},
     example: "asc"
-  }
-
-  @filters_parameter %OpenApiSpex.Parameter{
-    name: :filters,
-    description: "Filtering",
-    in: :query,
-    style: :deepObject,
-    required: false,
-    schema: %OpenApiSpex.Schema{
-      type: :object,
-      properties: %{
-        advanced_query: %OpenApiSpex.Schema{
-          type: :string,
-          description: """
-          A query in the device list's advanced query language, the same one the
-          web UI's search bar uses. Values are quoted; expressions combine with
-          `and`/`or`/`not` and parentheses. Custom health metrics are queried as
-          `metric:<key>` with numeric comparisons against each device's latest
-          reading. Input that doesn't look like a query expression is treated as
-          a free-text search across the device's textual fields; an invalid
-          query expression is rejected with a 422 and the parse error.
-
-          Examples:
-          * `metric:cpu_temp > 70`
-          * `connection = "connected" and tags contains "prod"`
-          * `health_status != "healthy" or alarm_status = "with"`
-          * `metric:battery_soc < 20 and updates = "enabled"`
-          * `firmware_validation_status = "not_validated"`
-          * `signer_ca = "1234567890"`
-          """,
-          example: ~s|metric:cpu_temp > 70 and connection = "connected"|
-        },
-        alarm: %OpenApiSpex.Schema{type: :string, example: "SomeAlarm"},
-        alarm_status: %OpenApiSpex.Schema{type: :string, enum: ["with", "without"]},
-        connection: %OpenApiSpex.Schema{type: :string, enum: ["connected", "disconnected", "not_seen"]},
-        deployment_id: %OpenApiSpex.Schema{type: :string, example: "12"},
-        display_deleted: %OpenApiSpex.Schema{
-          type: :string,
-          enum: ["include", "exclude", "only"],
-          default: "exclude",
-          description: """
-          Which soft-deleted devices to list: `exclude` leaves them out, `include`
-          lists them with the rest, and `only` lists them alone. Each device says
-          whether it is `deleted`. An `advanced_query` that names `deleted`
-          decides instead.
-          """
-        },
-        firmware_validation_status: %OpenApiSpex.Schema{
-          type: :string,
-          enum: ["validated", "not_validated", "unknown"]
-        },
-        firmware_version: %OpenApiSpex.Schema{type: :string, example: "1.10.0"},
-        signer_ca: %OpenApiSpex.Schema{
-          type: :string,
-          description:
-            "The serial of the CA which signed the device's certificate, or `:not_set` for devices with no certificate from a registered CA.",
-          example: "1234567890"
-        },
-        has_no_tags: %OpenApiSpex.Schema{type: :string, enum: ["true", "false"]},
-        health_status: %OpenApiSpex.Schema{
-          type: :string,
-          enum: ["healthy", "unhealthy", "warning", "unknown"]
-        },
-        identifier: %OpenApiSpex.Schema{type: :string, example: "sn123"},
-        only_updating: %OpenApiSpex.Schema{type: :string, enum: ["true", "false"]},
-        platform: %OpenApiSpex.Schema{type: :string, example: "rpi4"},
-        search: %OpenApiSpex.Schema{type: :string, example: "sn123"},
-        tags: %OpenApiSpex.Schema{type: :string, example: "prod,staging"},
-        updates: %OpenApiSpex.Schema{
-          type: :string,
-          enum: ["enabled", "disabled", "automatic", "device-managed", "penalty-box", "failed-updates"]
-        }
-      }
-    }
   }
 
   @device_response %{
@@ -249,7 +180,7 @@ defmodule NervesHubWeb.API.OpenAPI.DeviceControllerSpecs do
               @sort_by_parameter,
               @sort_direction_parameter,
               @pagination_parameter,
-              @filters_parameter
+              filters_parameter()
             ],
             ["Devices"],
             response: Map.merge(@device_list_response, @query_param_error)
@@ -560,6 +491,170 @@ defmodule NervesHubWeb.API.OpenAPI.DeviceControllerSpecs do
   # document-wide.
   defp operation_id(controller, action, nil), do: "#{controller}.#{action}"
   defp operation_id(controller, action, path_structure), do: "#{controller}.#{action}.#{path_structure}"
+
+  # The filters `DeviceFiltering.cast_filters/1` takes, but for two. It takes
+  # the web UI's `is_pinned`, but pins are each web UI user's own, so the API's
+  # list ignores it. `healthy` filters nothing anywhere.
+  defp filters_parameter() do
+    %OpenApiSpex.Parameter{
+      name: :filters,
+      description:
+        "Filtering, as the web UI's devices list filters. Each filter given narrows the list. " <>
+          "A key that isn't a filter, or a value its filter can't take, is refused with a 422. " <>
+          "An empty value leaves its filter unset.",
+      in: :query,
+      style: :deepObject,
+      required: false,
+      schema: %OpenApiSpex.Schema{
+        type: :object,
+        additionalProperties: false,
+        properties: %{
+          advanced_query: %OpenApiSpex.Schema{
+            type: :string,
+            description: """
+            A query in the device list's advanced query language, the same one the
+            web UI's search bar uses. Values are quoted; expressions combine with
+            `and`/`or`/`not` and parentheses. Custom health metrics are queried as
+            `metric:<key>` with numeric comparisons against each device's latest
+            reading. Input that doesn't look like a query expression is treated as
+            a free-text search across the device's textual fields; an invalid
+            query expression is rejected with a 422 and the parse error.
+
+            Examples:
+            * `metric:cpu_temp > 70`
+            * `connection = "connected" and tags contains "prod"`
+            * `health_status != "healthy" or alarm_status = "with"`
+            * `metric:battery_soc < 20 and updates = "enabled"`
+            * `firmware_validation_status = "not_validated"`
+            * `signer_ca = "1234567890"`
+            """,
+            example: ~s|metric:cpu_temp > 70 and connection = "connected"|
+          },
+          alarm:
+            any_of(
+              "Devices with a raised alarm whose name contains this. Several, comma-separated, match any of them.",
+              "SomeAlarm"
+            ),
+          alarm_status: one_or_more(:alarm_status, "Devices with any alarm raised, or with none."),
+          connection:
+            one_or_more(
+              :connection,
+              "`offline` is every device not connected now, where `disconnected` leaves out devices that never " <>
+                "connected. `asleep` is a device whose last connection ended with it going to sleep."
+            ),
+          connection_type: one_or_more(:connection_type, "How the device last connected."),
+          deployment_id: %OpenApiSpex.Schema{
+            type: :integer,
+            description: "Devices in the deployment group with this ID, or `-1` for devices in none.",
+            minimum: -1,
+            example: 12
+          },
+          display_deleted: %OpenApiSpex.Schema{
+            type: :string,
+            enum: DeviceFiltering.filter_values(:display_deleted),
+            default: "exclude",
+            description: """
+            Which soft-deleted devices to list: `exclude` leaves them out, `include`
+            lists them with the rest, and `only` lists them alone. Each device says
+            whether it is `deleted`. An `advanced_query` that names `deleted`
+            decides instead.
+            """
+          },
+          firmware_validation_status:
+            one_or_more(:firmware_validation_status, "Whether the device's firmware is validated."),
+          firmware_version:
+            any_of(
+              "Devices running one of these firmware versions, comma-separated, or `Unknown` for none reported.",
+              "1.10.0"
+            ),
+          has_no_tags: %OpenApiSpex.Schema{type: :boolean, description: "`true` lists only devices with no tags."},
+          health_status: one_or_more(:health_status, "The device's health, judged by its product's health profile."),
+          identifier: %OpenApiSpex.Schema{
+            type: :string,
+            description: "Devices whose identifier contains this.",
+            example: "sn123"
+          },
+          metrics_key: %OpenApiSpex.Schema{
+            type: :string,
+            description:
+              "A custom health metric, whose latest reading on each device is compared with `metrics_value`. " <>
+                "Applied only with `metrics_value`.",
+            example: "cpu_temp"
+          },
+          metrics_operator: %OpenApiSpex.Schema{
+            type: :string,
+            enum: DeviceFiltering.filter_values(:metrics_operator),
+            default: "gt",
+            description: "Whether the reading is greater (`gt`) or less (`lt`) than `metrics_value`."
+          },
+          metrics_value: %OpenApiSpex.Schema{
+            type: :number,
+            description: "The number `metrics_key`'s reading is compared with.",
+            example: 70
+          },
+          only_updating: %OpenApiSpex.Schema{
+            type: :boolean,
+            description: "`true` lists only devices installing an update now."
+          },
+          platform: %OpenApiSpex.Schema{
+            type: :string,
+            description: "Devices whose firmware is for this platform, or `Unknown` for none reported.",
+            example: "rpi4"
+          },
+          reason: %OpenApiSpex.Schema{
+            type: :string,
+            enum: DeviceFiltering.filter_values(:reason),
+            description:
+              "Devices that need attention for this reason: unhealthy, updates on hold after repeated failures, " <>
+                "or not seen in #{DeviceFiltering.not_seen_days()} days or more."
+          },
+          search: %OpenApiSpex.Schema{
+            type: :string,
+            description: "Devices whose identifier, firmware version, platform or tags contain this.",
+            example: "sn123"
+          },
+          signer_ca: %OpenApiSpex.Schema{
+            type: :string,
+            description:
+              "The serial of the CA which signed the device's certificate, or `:not_set` for devices with no certificate from a registered CA.",
+            example: "1234567890"
+          },
+          state: %OpenApiSpex.Schema{
+            type: :string,
+            enum: DeviceFiltering.filter_values(:state),
+            description:
+              "One of the web UI's tabs: devices that need attention (see `reason`), connected now, " <>
+                "installing an update now, or not connected now."
+          },
+          tags: %OpenApiSpex.Schema{
+            type: :string,
+            description:
+              "Tags, comma-separated: devices with every one of them. A tag can't contain a space, " <>
+                "and matches any of a device's tags containing it.",
+            example: "prod,staging"
+          },
+          updates:
+            one_or_more(:updates, "How the device takes updates, or `updating` for one installing an update now.")
+        }
+      }
+    }
+  end
+
+  # A filter taking one or more of the choices `DeviceFiltering.filter_values/1`
+  # lists. An `enum` would refuse several.
+  defp one_or_more(key, description) do
+    values = DeviceFiltering.filter_values(key)
+
+    %OpenApiSpex.Schema{
+      type: :string,
+      description:
+        "#{description} One or more of #{Enum.map_join(values, ", ", &"`#{&1}`")}, comma-separated: " <>
+          "a device matches any of them.",
+      example: hd(values)
+    }
+  end
+
+  defp any_of(description, example), do: %OpenApiSpex.Schema{type: :string, description: description, example: example}
 
   defp device_operation(summary, operation_id, parameters, tags, opts) do
     %OpenApiSpex.Operation{

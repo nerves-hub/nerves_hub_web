@@ -4,6 +4,8 @@ defmodule NervesHubWeb.API.ScriptController do
 
   alias NervesHub.Accounts.Scope
   alias NervesHub.Scripts
+  alias NervesHub.Scripts.ScriptFiltering
+  alias NervesHub.Types.Tag
   alias NervesHubWeb.API.ErrorJSON
   alias NervesHubWeb.API.OpenAPI.SchemaHelpers
   alias NervesHubWeb.API.PaginationHelpers
@@ -17,6 +19,9 @@ defmodule NervesHubWeb.API.ScriptController do
   tags(["Support Scripts"])
 
   @auth_error_responses SchemaHelpers.auth_error_responses()
+
+  # Each filter the scripts list takes, under the name a request gives it.
+  @filters Map.new(ScriptFiltering.filters(), &{Atom.to_string(&1), &1})
 
   plug(:require_membership when action in [:index, :show])
   plug(:require_permission, :"support_script:run" when action in [:send])
@@ -238,12 +243,8 @@ defmodule NervesHubWeb.API.ScriptController do
   defp get_timeout_param(_params), do: {:ok, 30_000}
 
   defp get_and_render_scripts(conn, product, params) do
-    filters =
-      for {key, val} <- Map.get(params, "filters", %{}),
-          into: %{},
-          do: {String.to_existing_atom(key), val}
-
-    with {:ok, pagination} <- PaginationHelpers.cast_pagination_params(params["pagination"]) do
+    with {:ok, filters} <- cast_filters(params["filters"]),
+         {:ok, pagination} <- PaginationHelpers.cast_pagination_params(params["pagination"]) do
       {scripts, page} = Scripts.filter(product, %{pagination: pagination, filters: filters})
 
       conn
@@ -252,4 +253,37 @@ defmodule NervesHubWeb.API.ScriptController do
       |> render(:index)
     end
   end
+
+  # A key that isn't a filter, or a value its filter can't take, is a 422
+  # rather than dropped. A dropped filter lists scripts it was meant to leave
+  # out.
+  defp cast_filters(nil), do: {:ok, %{}}
+
+  defp cast_filters(filters) when is_map(filters) do
+    Enum.reduce_while(filters, {:ok, %{}}, fn {key, value}, {:ok, acc} ->
+      case cast_filter(Map.fetch(@filters, key), value) do
+        {:ok, filter} -> {:cont, {:ok, Map.put(acc, filter, value)}}
+        {:error, message} -> {:halt, {:error, {:invalid_query_param, "filters[#{key}] #{message}."}}}
+      end
+    end)
+  end
+
+  defp cast_filters(filters) do
+    {:error,
+     {:invalid_query_param, "filters must be an object, such as filters[search]=cleanup, got #{inspect(filters)}."}}
+  end
+
+  defp cast_filter(:error, _value) do
+    {:error, "is not a support script filter. The filters are #{Enum.join(ScriptFiltering.filters(), ", ")}"}
+  end
+
+  defp cast_filter({:ok, :tags}, value) when is_binary(value) do
+    case Tag.cast(value) do
+      {:ok, _tags} -> {:ok, :tags}
+      {:error, message: message} -> {:error, "#{message}, got #{inspect(value)}"}
+    end
+  end
+
+  defp cast_filter({:ok, filter}, value) when is_binary(value), do: {:ok, filter}
+  defp cast_filter({:ok, _filter}, value), do: {:error, "must be a string, got #{inspect(value)}"}
 end
