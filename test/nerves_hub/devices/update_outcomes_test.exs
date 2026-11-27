@@ -138,9 +138,7 @@ defmodule NervesHub.Devices.UpdateOutcomesTest do
     end
   end
 
-  # Progress with nothing inflight gets a row with no firmware. Nothing here
-  # sent that update, so however it ends it is not a failed update.
-  describe "a device that reports progress on an update nothing here sent it" do
+  describe "a device that reports progress on an update nothing here sent" do
     setup %{device: device} do
       :ok = FirmwareUpdates.status_update("downloading", device.id, %{"progress" => 40})
 

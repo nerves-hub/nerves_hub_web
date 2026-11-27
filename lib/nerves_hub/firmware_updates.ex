@@ -286,10 +286,8 @@ defmodule NervesHub.FirmwareUpdates do
   with nothing inflight is not an error.
 
   An update with no firmware is cleared without being recorded. Every update
-  sent from here records its firmware, so a row without one is progress the
-  device reported on an update the server had already let go of. That update
-  ended when the server let it go, so counting this row too would count one
-  update twice.
+  sent from here records its firmware, so a row without one is progress on an
+  update the server already ended, and ending it again is not another failure.
   """
   @spec abandon_inflight_update(Device.t()) :: :ok
   def abandon_inflight_update(%Device{} = device) do
@@ -481,12 +479,9 @@ defmodule NervesHub.FirmwareUpdates do
   defp inflight_field(nil, _field), do: nil
   defp inflight_field(inflight_update, field), do: Map.get(inflight_update, field)
 
-  # Whether an inflight row is an update this server sent. Every update sent
-  # from here records its firmware. A row without one is `fetch_device/2` making
-  # room for progress on an update the server lost track of, such as one whose
-  # row already expired and was recorded while the device carried on with it.
-  # Expiring or abandoning such a row is not a failed update, and counting it
-  # would put phantom failures on the device.
+  # A row with no firmware is one `fetch_device/2` made for progress on an
+  # update the server had already let go of. Every update sent from here
+  # records its firmware.
   defp sent_firmware?(nil), do: false
   defp sent_firmware?(_firmware_uuid), do: true
 
