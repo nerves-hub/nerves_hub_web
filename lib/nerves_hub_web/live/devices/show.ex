@@ -8,6 +8,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
   alias NervesHub.Devices
   alias NervesHub.Devices.Connections
   alias NervesHub.Devices.DeviceConnection
+  alias NervesHub.Devices.InflightUpdate
   alias NervesHub.Devices.Pinning
   alias NervesHub.Devices.PubSub
   alias NervesHub.Devices.Updates
@@ -400,6 +401,11 @@ defmodule NervesHubWeb.Live.Devices.Show do
   # The version an update is taking the device to, for the firmware fact in
   # the header. Looked up once, when the update is found, not on each progress
   # report.
+  #
+  # Progress on an update the server lost track of gets a row with no firmware
+  # (`FirmwareUpdates.status_update/4`), so there is no version to look up.
+  defp inflight_version(_product, %InflightUpdate{firmware_uuid: nil}), do: nil
+
   defp inflight_version(product, inflight_update) do
     case Firmwares.get_firmware_by_product_and_uuid(product, inflight_update.firmware_uuid) do
       {:ok, firmware} -> firmware.version
