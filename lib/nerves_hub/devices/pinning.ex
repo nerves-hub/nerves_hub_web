@@ -36,20 +36,33 @@ defmodule NervesHub.Devices.Pinning do
     |> Repo.all()
   end
 
-  @spec pin_device(non_neg_integer(), non_neg_integer()) ::
+  @doc """
+  Pins the device for the user.
+
+  Pinning an already pinned device changes nothing and returns a pin
+  without an `id`.
+  """
+  @spec pin_device(pos_integer(), pos_integer()) ::
           {:ok, PinnedDevice.t()} | {:error, Ecto.Changeset.t()}
   def pin_device(user_id, device_id) do
     %{user_id: user_id, device_id: device_id}
     |> PinnedDevice.create()
-    |> Repo.insert()
+    |> Repo.insert(on_conflict: :nothing, conflict_target: [:user_id, :device_id])
   end
 
-  @spec unpin_device(neg_integer(), non_neg_integer()) ::
-          {:ok, PinnedDevice.t()} | {:error, Ecto.Changeset.t()}
+  @doc """
+  Unpins the device for the user.
+
+  Returns `:ok` whether or not the device was pinned.
+  """
+  @spec unpin_device(pos_integer(), pos_integer()) :: :ok
   def unpin_device(user_id, device_id) do
-    PinnedDevice
-    |> Repo.get_by!(user_id: user_id, device_id: device_id)
-    |> Repo.delete()
+    {_count, _} =
+      PinnedDevice
+      |> where(user_id: ^user_id, device_id: ^device_id)
+      |> Repo.delete_all()
+
+    :ok
   end
 
   def device_pinned?(user_id, device_id) do

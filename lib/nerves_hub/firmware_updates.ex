@@ -19,6 +19,11 @@ defmodule NervesHub.FirmwareUpdates do
   alias NervesHub.Repo
   alias NervesHub.Webhooks.Payloads
 
+  # The shortest time a reschedule blocks a device for, the same minimum
+  # nerves_hub_link applies before it sends one. Without it a device asking for
+  # no delay would be offered the update again on the next pass.
+  @min_reschedule_minutes 5
+
   @spec firmware_update_successful(Device.t(), FirmwareMetadata.t() | nil) ::
           {:ok, Device.t()} | {:error, Changeset.t()}
   def firmware_update_successful(%Device{firmware_metadata: nil} = device, _previous_metadata) do
@@ -101,12 +106,17 @@ defmodule NervesHub.FirmwareUpdates do
     )
   end
 
+  # `delay_for` is in minutes, which is what nerves_hub_link sends and what
+  # `update_rejected` gives a device back (docs/device_managed_updates.md).
   def status_update("rescheduled", device_id, %{"delay_for" => delay_for} = info, _opts) do
-    blocked_until = NaiveDateTime.utc_now(:second) |> NaiveDateTime.add(delay_for, :millisecond)
+    delay_minutes = max(delay_for, @min_reschedule_minutes)
+    blocked_until = NaiveDateTime.utc_now(:second) |> NaiveDateTime.add(delay_minutes, :minute)
     payload = %{blocked_until: blocked_until, reason: info["reason"]}
 
     callback = fn device ->
       _ = record_outcome(device, :rescheduled, info["reason"])
+
+      :ok = withdraw_update_attempt(device)
 
       clear_inflight_update(device_id)
 
@@ -164,12 +174,30 @@ defmodule NervesHub.FirmwareUpdates do
     end)
   end
 
+  # The inflight row is written before an update is sent, and the device reports
+  # `received` before `started`. With no row, `started` is not an update:
+  # nerves_hub_link reports it for every download, archives included. Recording
+  # one would block updates to the device until it reconnects or the row expires.
+  def status_update("started", device_id, info, _opts) do
+    record_status(device_id, "started", info, record_missing: false)
+  end
+
   def status_update(status, device_id, info, _opts) do
-    do_status_update(device_id, status, info, fn device ->
-      InflightUpdate.update_status_changeset(device.inflight_update, status, nil)
-      |> Repo.update!()
-      |> dispatch_progress(device)
-    end)
+    record_status(device_id, status, info)
+  end
+
+  defp record_status(device_id, status, info, opts \\ []) do
+    do_status_update(
+      device_id,
+      status,
+      info,
+      fn device ->
+        InflightUpdate.update_status_changeset(device.inflight_update, status, nil)
+        |> Repo.update!()
+        |> dispatch_progress(device)
+      end,
+      opts
+    )
   end
 
   defp dispatch_progress(inflight_update, device) do
@@ -185,15 +213,20 @@ defmodule NervesHub.FirmwareUpdates do
 
   defp do_status_update(device_id, status, payload, update_fn, opts \\ []) do
     Repo.transaction(fn ->
-      device =
-        fetch_device(device_id, opts)
-        |> maybe_update_update_attempts()
+      case fetch_device(device_id, opts) do
+        # Only reached with `record_missing: false`
+        %{inflight_update: nil} = device ->
+          {:ok, device}
 
-      update_fn.(device)
+        device ->
+          device = maybe_update_update_attempts(device)
 
-      broadcast_firmware_update_status!(device_id, status, payload)
+          update_fn.(device)
 
-      {:ok, device}
+          broadcast_firmware_update_status!(device_id, status, payload)
+
+          {:ok, device}
+      end
     end)
     |> case do
       {:ok, _device} ->
@@ -394,6 +427,21 @@ defmodule NervesHub.FirmwareUpdates do
 
   defp maybe_update_update_attempts(device), do: device
 
+  # A reschedule is not a failed attempt, so it takes back the attempt its offer
+  # counted. That is the last one: an offer is only made to a device with nothing
+  # inflight, so nothing else counts one while it is open. Left in, three
+  # reschedules would put the device in the penalty box for the group's timeout.
+  defp withdraw_update_attempt(device) do
+    {_count, _} =
+      Device
+      |> where(id: ^device.id)
+      |> where([d], fragment("cardinality(?) > 0", d.update_attempts))
+      |> update(set: [update_attempts: fragment("update_attempts[1:cardinality(update_attempts) - 1]")])
+      |> Repo.update_all([])
+
+    :ok
+  end
+
   # The device's update ended. Reads the deployment group and the firmware it
   # was being moved to off the inflight row, which every caller is about to
   # delete, and the firmware it is running off the device itself.
@@ -416,7 +464,12 @@ defmodule NervesHub.FirmwareUpdates do
   defp inflight_field(nil, _field), do: nil
   defp inflight_field(inflight_update, field), do: Map.get(inflight_update, field)
 
+  # Records an empty update for a device with none, so progress on an update the
+  # server lost track of is still followed. `record_missing: false` leaves it
+  # with none.
   defp fetch_device(device_id, opts) do
+    record_missing? = Keyword.get(opts, :record_missing, true)
+
     Device
     |> join(:left, [d], ifu in assoc(d, :inflight_update))
     |> then(fn query ->
@@ -440,7 +493,7 @@ defmodule NervesHub.FirmwareUpdates do
     |> where([d], d.id == ^device_id)
     |> Repo.one!()
     |> case do
-      %{inflight_update: nil} = device ->
+      %{inflight_update: nil} = device when record_missing? ->
         # Another request can be recording an update for this device at the same
         # moment, in a transaction the read above could not see. The insert waits
         # for it to commit and then gives way, and the device is read again with

@@ -1,4 +1,5 @@
 defmodule NervesHubWeb.API.Schemas.DeviceSchemas do
+  alias NervesHubWeb.API.OpenAPI.SchemaHelpers
   alias NervesHubWeb.API.Schemas.DeviceSharedSecretSchemas.DeviceSharedSecretWithSecret
   alias OpenApiSpex.Schema
 
@@ -206,15 +207,7 @@ defmodule NervesHubWeb.API.Schemas.DeviceSchemas do
           type: :array,
           items: Device
         },
-        pagination: %Schema{
-          type: :object,
-          properties: %{
-            page_number: %Schema{type: :integer},
-            page_size: %Schema{type: :integer},
-            total_pages: %Schema{type: :integer},
-            total_entries: %Schema{type: :integer}
-          }
-        }
+        pagination: SchemaHelpers.pagination_meta()
       },
       example: %{
         "data" => [

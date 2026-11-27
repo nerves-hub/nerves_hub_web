@@ -144,6 +144,92 @@ defmodule NervesHubWeb.API.ScriptControllerTest do
       assert response["pagination"]["page_size"] == 1
       assert response["pagination"]["total_entries"] == 3
     end
+
+    test "lowers a page size over 100 to 100", %{conn: conn, org: org, product: product, device: device, user: user} do
+      for _ <- 1..101, do: Fixtures.support_script_fixture(product, user)
+
+      for path <- [
+            Routes.api_script_path(conn, :index, org.name, product.name),
+            Routes.api_script_path(conn, :index, device)
+          ] do
+        response = conn |> get(path, %{pagination: %{page_size: "100000"}}) |> json_response(200)
+
+        assert length(response["data"]) == 100
+
+        assert response["pagination"] == %{
+                 "page_number" => 1,
+                 "page_size" => 100,
+                 "total_entries" => 101,
+                 "total_pages" => 2
+               }
+
+        response = conn |> get(path, %{pagination: %{page: 2, page_size: 1000}}) |> json_response(200)
+
+        assert length(response["data"]) == 1
+        assert response["pagination"]["page_size"] == 100
+      end
+    end
+
+    for {param, value} <- [
+          {"page_size", "abc"},
+          {"page_size", "1.5"},
+          {"page_size", "0"},
+          {"page_size", "-5"},
+          {"page", "abc"},
+          {"page", "0"},
+          {"page", "-1"},
+          {"page", "99999999999999999999"}
+        ] do
+      test "refuses pagination[#{param}]=#{value} with a 422", %{conn: conn, org: org, product: product, device: device} do
+        for path <- [
+              Routes.api_script_path(conn, :index, org.name, product.name),
+              Routes.api_script_path(conn, :index, device)
+            ] do
+          conn = get(conn, path, %{pagination: %{unquote(param) => unquote(value)}})
+
+          assert %{"errors" => %{"detail" => detail}} = json_response(conn, 422)
+          assert detail =~ "pagination[#{unquote(param)}]"
+          assert detail =~ inspect(unquote(value))
+        end
+      end
+    end
+
+    test "filters by name and search", %{conn: conn, org: org, product: product, user: user} do
+      reset = Fixtures.support_script_fixture(product, user, %{name: "Reset network", tags: "network"})
+      _other = Fixtures.support_script_fixture(product, user, %{name: "Reboot"})
+
+      for filters <- [%{name: "reset"}, %{search: "network"}] do
+        conn = get(conn, Routes.api_script_path(conn, :index, org.name, product.name), %{filters: filters})
+        assert [%{"id" => id}] = json_response(conn, 200)["data"]
+        assert id == reset.id
+      end
+    end
+
+    for {filters, message} <- [
+          {%{"tag" => "hello"}, "filters[tag] is not a support script filter. The filters are name, tags, search"},
+          {%{"inserted_at" => "2026"}, "filters[inserted_at] is not a support script filter"},
+          {%{"name" => %{"nested" => "x"}}, "filters[name] must be a string"},
+          {%{"tags" => "has space"}, ~s|filters[tags] tags cannot contain spaces, got "has space"|}
+        ] do
+      test "refuses #{inspect(filters)} with a 422", %{conn: conn, org: org, product: product, device: device} do
+        for path <- [
+              Routes.api_script_path(conn, :index, org.name, product.name),
+              Routes.api_script_path(conn, :index, device)
+            ] do
+          conn = get(conn, path, %{filters: unquote(Macro.escape(filters))})
+
+          assert %{"errors" => %{"detail" => detail}} = json_response(conn, 422)
+          assert detail =~ unquote(message)
+        end
+      end
+    end
+
+    test "refuses filters that aren't an object", %{conn: conn, org: org, product: product} do
+      conn = get(conn, Routes.api_script_path(conn, :index, org.name, product.name), %{filters: "reset"})
+
+      assert %{"errors" => %{"detail" => detail}} = json_response(conn, 422)
+      assert detail =~ "filters must be an object"
+    end
   end
 
   describe "show" do
