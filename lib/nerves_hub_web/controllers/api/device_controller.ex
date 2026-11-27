@@ -37,10 +37,6 @@ defmodule NervesHubWeb.API.DeviceController do
 
   plug(RefuseDeletedDevice when action in [:reboot, :reconnect, :upgrade, :penalty, :code])
 
-  # Each field the devices list sorts by, under the name a request gives it.
-  # Looked up, never made into an atom, so any other name is a 422.
-  @sort_fields Map.new(DeviceFiltering.sort_fields(), &{Atom.to_string(&1), &1})
-
   def index(%{assigns: %{current_scope: %{org: org}, product: product}} = conn, params) do
     with {:ok, filters} <- cast_filters(params["filters"]),
          :ok <- validate_advanced_query(filters, product.id),
@@ -91,33 +87,21 @@ defmodule NervesHubWeb.API.DeviceController do
     {:error, {:invalid_query_param, "filters must be an object, such as filters[tags]=prod, got #{inspect(filters)}."}}
   end
 
-  # Either can be left out: the list is sorted by identifier, ascending, unless
-  # told otherwise, as in the web UI.
+  # The sort is cast as the web UI casts it, but a field or direction it
+  # doesn't take is a 422 rather than the default.
   defp cast_sort(field, direction) do
-    with {:ok, field} <- sort_field(field),
-         {:ok, direction} <- sort_direction(direction) do
-      {:ok, {direction, field}}
-    end
-  end
+    case DeviceFiltering.cast_sort(field, direction) do
+      {:ok, sort} ->
+        {:ok, sort}
 
-  defp sort_field(field) when field in [nil, ""], do: {:ok, :identifier}
-
-  defp sort_field(field) do
-    case Map.fetch(@sort_fields, field) do
-      {:ok, field} ->
-        {:ok, field}
-
-      :error ->
+      {:error, {:invalid_sort, :sort, value}} ->
         fields = Enum.join(DeviceFiltering.sort_fields(), ", ")
-        {:error, {:invalid_query_param, "sort must be one of #{fields}, got #{inspect(field)}."}}
+        {:error, {:invalid_query_param, "sort must be one of #{fields}, got #{inspect(value)}."}}
+
+      {:error, {:invalid_sort, :sort_direction, value}} ->
+        directions = Enum.join(DeviceFiltering.sort_directions(), " or ")
+        {:error, {:invalid_query_param, "sort_direction must be #{directions}, got #{inspect(value)}."}}
     end
-  end
-
-  defp sort_direction(direction) when direction in [nil, "", "asc"], do: {:ok, :asc}
-  defp sort_direction("desc"), do: {:ok, :desc}
-
-  defp sort_direction(direction) do
-    {:error, {:invalid_query_param, "sort_direction must be asc or desc, got #{inspect(direction)}."}}
   end
 
   # An invalid advanced query is a 422 with the parse error, rather than the

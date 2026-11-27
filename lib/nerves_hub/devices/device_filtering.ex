@@ -99,6 +99,8 @@ defmodule NervesHub.Devices.DeviceFiltering do
 
   @type sort_field() :: :identifier | :connection_established_at | :connection_last_seen_at | :tags
 
+  @type sort_direction() :: :asc | :desc
+
   # The values of each filter that takes one of a fixed set. A multi-choice
   # filter takes one or more, comma-separated, and `value_dynamic/2` is what
   # applies each; a value listed here must be one it applies.
@@ -122,7 +124,15 @@ defmodule NervesHub.Devices.DeviceFiltering do
   @sort_types %{sort_direction: :string, sort: :string}
   @sort_fields ~w(identifier connection_established_at connection_last_seen_at tags)a
   @sortable_fields Enum.map(@sort_fields, &Atom.to_string/1)
-  @sort_directions ~w(asc desc)
+  @sort_direction_atoms ~w(asc desc)a
+  @sort_directions Enum.map(@sort_direction_atoms, &Atom.to_string/1)
+
+  # Each sort field and direction under the name a request gives it, so that
+  # `cast_sort/2` looks it up rather than making an atom from the request.
+  @sort_names %{
+    sort: Map.new(@sort_fields, &{Atom.to_string(&1), &1}),
+    sort_direction: Map.new(@sort_direction_atoms, &{Atom.to_string(&1), &1})
+  }
 
   def default_filters(), do: @default_filters
 
@@ -131,6 +141,10 @@ defmodule NervesHub.Devices.DeviceFiltering do
   @doc "The fields the devices list can be sorted by."
   @spec sort_fields() :: [sort_field(), ...]
   def sort_fields(), do: @sort_fields
+
+  @doc "The directions the devices list can be sorted in."
+  @spec sort_directions() :: [String.t(), ...]
+  def sort_directions(), do: @sort_directions
 
   @doc """
   The values a filter takes, for one that takes one of a fixed set, or nil
@@ -373,6 +387,43 @@ defmodule NervesHub.Devices.DeviceFiltering do
   end
 
   defp validate_sort(sort_opts), do: sort_opts
+
+  @doc """
+  Casts an API request's sort field and direction into the `{direction, field}`
+  the devices list sorts by, as `parse_sort/1` casts the web UI's.
+
+  The web UI falls back to the default for a field or direction it doesn't
+  know. This refuses it instead, naming which of the two it was. Either can be
+  left out (nil or empty), and the default sort fills it in.
+
+  ## Examples
+
+      iex> cast_sort("connection_last_seen_at", "desc")
+      {:ok, {:desc, :connection_last_seen_at}}
+
+      iex> cast_sort(nil, "desc")
+      {:ok, {:desc, :identifier}}
+
+      iex> cast_sort("inserted_at", nil)
+      {:error, {:invalid_sort, :sort, "inserted_at"}}
+  """
+  @spec cast_sort(term(), term()) ::
+          {:ok, {sort_direction(), sort_field()}} | {:error, {:invalid_sort, :sort | :sort_direction, term()}}
+  def cast_sort(field, direction) do
+    with {:ok, field} <- sort_name(:sort, field),
+         {:ok, direction} <- sort_name(:sort_direction, direction) do
+      {:ok, {direction, field}}
+    end
+  end
+
+  defp sort_name(key, value) when value in [nil, ""], do: sort_name(key, @default_sort[key])
+
+  defp sort_name(key, value) do
+    case Map.fetch(@sort_names[key], value) do
+      {:ok, name} -> {:ok, name}
+      :error -> {:error, {:invalid_sort, key, value}}
+    end
+  end
 
   def transform_deployment_filter(%{deployment_id: ""} = filters), do: Map.delete(filters, :deployment_id)
 
