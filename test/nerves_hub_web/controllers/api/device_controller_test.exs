@@ -12,6 +12,7 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
   alias NervesHub.Devices
   alias NervesHub.Devices.Connections
   alias NervesHub.Devices.Device
+  alias NervesHub.Devices.Pinning
   alias NervesHub.Devices.Updates
   alias NervesHub.Fixtures
   alias NervesHub.Products.ApiKeys
@@ -761,18 +762,56 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
       assert %{"pagination" => %{"total_entries" => 20}} = json_response(conn, 200)
     end
 
-    test "does not return soft-deleted devices", %{conn: conn, user: user, org: org, tmp_dir: tmp_dir} do
+    # Pins are the web UI's, so the API ignores the web UI's Pinned only filter
+    # as it does any other filter it can't apply.
+    test "ignores the is_pinned filter", %{conn: conn, user: user, org: org, tmp_dir: tmp_dir} do
       product = Fixtures.product_fixture(user, org)
       org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
       firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+      pinned = Fixtures.device_fixture(org, product, firmware)
+      unpinned = Fixtures.device_fixture(org, product, firmware)
+      {:ok, _} = Pinning.pin_device(user.id, pinned.id)
 
-      {:ok, _device} =
-        Fixtures.device_fixture(org, product, firmware)
+      conn =
+        get(conn, Routes.api_device_path(conn, :index, org.name, product.name, %{filters: %{is_pinned: "true"}}))
+
+      identifiers = json_response(conn, 200)["data"] |> Enum.map(& &1["identifier"]) |> Enum.sort()
+      assert identifiers == Enum.sort([pinned.identifier, unpinned.identifier])
+    end
+
+    test "lists soft-deleted devices only when display_deleted asks", %{
+      conn: conn,
+      user: user,
+      org: org,
+      tmp_dir: tmp_dir
+    } do
+      product = Fixtures.product_fixture(user, org)
+      org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
+      firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+      live = Fixtures.device_fixture(org, product, firmware, %{identifier: "kept-live"})
+
+      {:ok, deleted} =
+        org
+        |> Fixtures.device_fixture(product, firmware, %{identifier: "kept-deleted"})
         |> Devices.update_device(%{deleted_at: DateTime.utc_now()})
 
-      conn = get(conn, Routes.api_device_path(conn, :index, org.name, product.name))
+      listed = fn params ->
+        conn
+        |> get(Routes.api_device_path(conn, :index, org.name, product.name, params))
+        |> json_response(200)
+        |> Map.fetch!("data")
+        |> Enum.map(&{&1["identifier"], &1["deleted"]})
+      end
 
-      assert json_response(conn, 200)["data"] == []
+      assert listed.(%{}) == [{live.identifier, false}]
+      assert listed.(%{filters: %{display_deleted: "exclude"}}) == [{live.identifier, false}]
+
+      assert listed.(%{filters: %{display_deleted: "include"}}) == [
+               {deleted.identifier, true},
+               {live.identifier, false}
+             ]
+
+      assert listed.(%{filters: %{display_deleted: "only"}}) == [{deleted.identifier, true}]
     end
   end
 

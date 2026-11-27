@@ -25,6 +25,7 @@ defmodule NervesHub.Application do
   alias NervesHub.RateLimit.ErrorReports, as: ErrorReportLimit
   alias NervesHub.RateLimit.LogLines
   alias NervesHub.RateLimit.Metrics, as: MetricsLimit
+  alias NervesHub.Telemetry.ComponentTrace
   alias NervesHub.Telemetry.Customizations
   alias NervesHub.Telemetry.LiveViewTrace
   alias NervesHubWeb.Integrations.Slack.Socket
@@ -148,9 +149,11 @@ defmodule NervesHub.Application do
 
     :ok = Customizations.setup()
 
-    # Before `OpentelemetryPhoenix`, whose mount span has to find the page's
-    # trace already in place.
+    # Before `OpentelemetryPhoenix`: its mount span has to find the page's
+    # trace already in place, and each LiveView callback's span has to still be
+    # current when `ComponentTrace` keeps it for the render that follows.
     :ok = LiveViewTrace.setup()
+    :ok = ComponentTrace.setup()
 
     :ok = OpentelemetryBandit.setup()
     :ok = OpentelemetryPhoenix.setup(adapter: :bandit)

@@ -17,6 +17,7 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
   alias NervesHub.Devices.Health
   alias NervesHub.Devices.InflightUpdate
   alias NervesHub.Devices.Metrics
+  alias NervesHub.Devices.Pinning
   alias NervesHub.FirmwareUpdates
   alias NervesHub.Fixtures
   alias NervesHub.Repo
@@ -914,6 +915,28 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       |> assert_has("#device-count", text: "1", timeout: 1000)
       |> assert_has("div a", text: device2.identifier)
       |> refute_has("div a", text: device3.identifier)
+    end
+
+    test "with only pinned", %{conn: conn, fixture: fixture} do
+      %{device: device, firmware: firmware, org: org, product: product, user: user} = fixture
+
+      pinned = Fixtures.device_fixture(org, product, firmware)
+      {:ok, _} = Pinning.pin_device(user.id, pinned.id)
+
+      # Pins are each user's own, so another member's pin doesn't count.
+      other_user = Fixtures.user_fixture()
+      {:ok, _} = Accounts.add_org_user(org, other_user, %{role: :view})
+      {:ok, _} = Pinning.pin_device(other_user.id, device.id)
+
+      conn
+      |> visit(device_index_path(fixture))
+      |> assert_has("#device-count", text: "2", timeout: 1000)
+      |> open_filters()
+      |> check("Pinned only")
+      |> assert_has("#device-count", text: "1", timeout: 1000)
+      |> assert_has("div a", text: pinned.identifier)
+      |> refute_has("div a", text: device.identifier)
+      |> assert_has("#filter-token-is_pinned", text: "pinned")
     end
 
     test "with alarms", %{conn: conn, fixture: fixture} do
@@ -2399,6 +2422,24 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       # Without the platform, the tag still matches nothing, so it isn't offered.
       |> refute_has("#no-matches-remove-platform")
       |> click_button("#no-matches-remove-tags", "Remove")
+      |> assert_has("a", text: device.identifier, timeout: 1_000)
+      |> refute_has("#no-matches")
+    end
+
+    test "says what removing Pinned only would bring back", %{conn: conn, fixture: fixture} do
+      %{org: org, product: product, device: device} = fixture
+
+      # Only another member pinned the device, so the user's Pinned only lists nothing.
+      other_user = Fixtures.user_fixture()
+      {:ok, _} = Accounts.add_org_user(org, other_user, %{role: :view})
+      {:ok, _} = Pinning.pin_device(other_user.id, device.id)
+
+      conn
+      |> visit(~p"/org/#{org}/#{product}/devices?is_pinned=true")
+      |> assert_has("#no-matches", text: "No devices match this filter", timeout: 1_000)
+      |> assert_has("#no-matches-remove-is_pinned", text: "pinned", timeout: 1_000)
+      |> assert_has("#no-matches-remove-is_pinned", text: "1")
+      |> click_button("#no-matches-remove-is_pinned", "Remove")
       |> assert_has("a", text: device.identifier, timeout: 1_000)
       |> refute_has("#no-matches")
     end
