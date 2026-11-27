@@ -164,12 +164,30 @@ defmodule NervesHub.FirmwareUpdates do
     end)
   end
 
+  # The inflight row is written before an update is sent, and the device reports
+  # `received` before `started`. With no row, `started` is not an update:
+  # nerves_hub_link reports it for every download, archives included. Recording
+  # one would block updates to the device until it reconnects or the row expires.
+  def status_update("started", device_id, info, _opts) do
+    record_status(device_id, "started", info, record_missing: false)
+  end
+
   def status_update(status, device_id, info, _opts) do
-    do_status_update(device_id, status, info, fn device ->
-      InflightUpdate.update_status_changeset(device.inflight_update, status, nil)
-      |> Repo.update!()
-      |> dispatch_progress(device)
-    end)
+    record_status(device_id, status, info)
+  end
+
+  defp record_status(device_id, status, info, opts \\ []) do
+    do_status_update(
+      device_id,
+      status,
+      info,
+      fn device ->
+        InflightUpdate.update_status_changeset(device.inflight_update, status, nil)
+        |> Repo.update!()
+        |> dispatch_progress(device)
+      end,
+      opts
+    )
   end
 
   defp dispatch_progress(inflight_update, device) do
@@ -185,15 +203,20 @@ defmodule NervesHub.FirmwareUpdates do
 
   defp do_status_update(device_id, status, payload, update_fn, opts \\ []) do
     Repo.transaction(fn ->
-      device =
-        fetch_device(device_id, opts)
-        |> maybe_update_update_attempts()
+      case fetch_device(device_id, opts) do
+        # Only reached with `record_missing: false`
+        %{inflight_update: nil} = device ->
+          {:ok, device}
 
-      update_fn.(device)
+        device ->
+          device = maybe_update_update_attempts(device)
 
-      broadcast_firmware_update_status!(device_id, status, payload)
+          update_fn.(device)
 
-      {:ok, device}
+          broadcast_firmware_update_status!(device_id, status, payload)
+
+          {:ok, device}
+      end
     end)
     |> case do
       {:ok, _device} ->
@@ -416,7 +439,12 @@ defmodule NervesHub.FirmwareUpdates do
   defp inflight_field(nil, _field), do: nil
   defp inflight_field(inflight_update, field), do: Map.get(inflight_update, field)
 
+  # Records an empty update for a device with none, so progress on an update the
+  # server lost track of is still followed. `record_missing: false` leaves it
+  # with none.
   defp fetch_device(device_id, opts) do
+    record_missing? = Keyword.get(opts, :record_missing, true)
+
     Device
     |> join(:left, [d], ifu in assoc(d, :inflight_update))
     |> then(fn query ->
@@ -440,7 +468,7 @@ defmodule NervesHub.FirmwareUpdates do
     |> where([d], d.id == ^device_id)
     |> Repo.one!()
     |> case do
-      %{inflight_update: nil} = device ->
+      %{inflight_update: nil} = device when record_missing? ->
         # Another request can be recording an update for this device at the same
         # moment, in a transaction the read above could not see. The insert waits
         # for it to commit and then gives way, and the device is read again with
