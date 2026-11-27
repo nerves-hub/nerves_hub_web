@@ -1,10 +1,10 @@
 defmodule NervesHub.RateLimit.FrozenClockTest do
   @moduledoc """
   `NervesHub.DataCase.freeze_rate_limit_clock/1` works only because Hammer
-  reads the time from `System.system_time(:second)`. If an upgrade moves that,
-  the freeze stops doing anything and the throttle tests that rely on it go
-  back to failing now and then, on unrelated changes. This fails straight away
-  instead.
+  reads the time from `System.system_time(:millisecond)`. If an upgrade moves
+  that, the freeze stops doing anything and the throttle tests that rely on it
+  go back to failing now and then, on unrelated changes. This fails straight
+  away instead.
   """
 
   use ExUnit.Case, async: true
@@ -22,10 +22,11 @@ defmodule NervesHub.RateLimit.FrozenClockTest do
     assert {:allow, 0} = RateLimit.hit(key, 1, 1, 1)
     assert {:deny, _ms} = RateLimit.hit(key, 1, 1, 1)
 
-    next_second = System.system_time(:second) + 1
+    # One token, at one token a second.
+    a_second_later = System.system_time(:millisecond) + 1000
 
     stub(System, :system_time, fn
-      :second -> next_second
+      :millisecond -> a_second_later
       unit -> call_original(System, :system_time, [unit])
     end)
 
