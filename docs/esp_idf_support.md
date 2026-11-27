@@ -206,6 +206,15 @@ This pairs with `esp_ota_mark_app_valid_cancel_rollback()`.
 Failure is reported through `status_update` with a status of `"failed"` and a
 `reason`.
 
+To put an update off, send `status_update` with a status of `"rescheduled"`,
+a `reason`, and `delay_for`: how many minutes NervesHub should wait before
+offering it again. NervesHub waits at least 5 minutes, however short a delay
+the device asks for.
+
+```json
+{"status": "rescheduled", "reason": "on battery", "delay_for": 15}
+```
+
 ### Identifying the client
 
 Optional, but it lets NervesHub record which agent and version each device

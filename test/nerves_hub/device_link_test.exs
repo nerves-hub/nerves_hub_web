@@ -126,7 +126,7 @@ defmodule NervesHub.DeviceLinkTest do
       :ok =
         DeviceLink.status_update(to_device_info(device), %{
           "status" => "rescheduled",
-          "delay_for" => to_timeout(minute: 15)
+          "delay_for" => 15
         })
 
       device = Repo.reload!(device)
@@ -153,7 +153,7 @@ defmodule NervesHub.DeviceLinkTest do
       :ok =
         DeviceLink.status_update(to_device_info(device), %{
           "status" => "rescheduled",
-          "delay_for" => to_timeout(minute: 15)
+          "delay_for" => 15
         })
 
       device = Repo.reload!(device)

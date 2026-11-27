@@ -19,6 +19,11 @@ defmodule NervesHub.FirmwareUpdates do
   alias NervesHub.Repo
   alias NervesHub.Webhooks.Payloads
 
+  # The shortest time a reschedule blocks a device for, the same minimum
+  # nerves_hub_link applies before it sends one. Without it a device asking for
+  # no delay would be offered the update again on the next pass.
+  @min_reschedule_minutes 5
+
   @spec firmware_update_successful(Device.t(), FirmwareMetadata.t() | nil) ::
           {:ok, Device.t()} | {:error, Changeset.t()}
   def firmware_update_successful(%Device{firmware_metadata: nil} = device, _previous_metadata) do
@@ -101,12 +106,17 @@ defmodule NervesHub.FirmwareUpdates do
     )
   end
 
+  # `delay_for` is in minutes, which is what nerves_hub_link sends and what
+  # `update_rejected` gives a device back (docs/device_managed_updates.md).
   def status_update("rescheduled", device_id, %{"delay_for" => delay_for} = info, _opts) do
-    blocked_until = NaiveDateTime.utc_now(:second) |> NaiveDateTime.add(delay_for, :millisecond)
+    delay_minutes = max(delay_for, @min_reschedule_minutes)
+    blocked_until = NaiveDateTime.utc_now(:second) |> NaiveDateTime.add(delay_minutes, :minute)
     payload = %{blocked_until: blocked_until, reason: info["reason"]}
 
     callback = fn device ->
       _ = record_outcome(device, :rescheduled, info["reason"])
+
+      :ok = withdraw_update_attempt(device)
 
       clear_inflight_update(device_id)
 
@@ -416,6 +426,21 @@ defmodule NervesHub.FirmwareUpdates do
   end
 
   defp maybe_update_update_attempts(device), do: device
+
+  # A reschedule is not a failed attempt, so it takes back the attempt its offer
+  # counted. That is the last one: an offer is only made to a device with nothing
+  # inflight, so nothing else counts one while it is open. Left in, three
+  # reschedules would put the device in the penalty box for the group's timeout.
+  defp withdraw_update_attempt(device) do
+    {_count, _} =
+      Device
+      |> where(id: ^device.id)
+      |> where([d], fragment("cardinality(?) > 0", d.update_attempts))
+      |> update(set: [update_attempts: fragment("update_attempts[1:cardinality(update_attempts) - 1]")])
+      |> Repo.update_all([])
+
+    :ok
+  end
 
   # The device's update ended. Reads the deployment group and the firmware it
   # was being moved to off the inflight row, which every caller is about to
