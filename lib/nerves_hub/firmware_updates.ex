@@ -19,6 +19,11 @@ defmodule NervesHub.FirmwareUpdates do
   alias NervesHub.Repo
   alias NervesHub.Webhooks.Payloads
 
+  # The shortest time a reschedule blocks a device for, the same minimum
+  # nerves_hub_link applies before it sends one. Without it a device asking for
+  # no delay would be offered the update again on the next pass.
+  @min_reschedule_minutes 5
+
   @spec firmware_update_successful(Device.t(), FirmwareMetadata.t() | nil) ::
           {:ok, Device.t()} | {:error, Changeset.t()}
   def firmware_update_successful(%Device{firmware_metadata: nil} = device, _previous_metadata) do
@@ -103,8 +108,10 @@ defmodule NervesHub.FirmwareUpdates do
 
   # `delay_for` is in minutes, which is what nerves_hub_link sends and what
   # `update_rejected` gives a device back (docs/device_managed_updates.md).
+  # A delay under the minimum blocks the device for the minimum.
   def status_update("rescheduled", device_id, %{"delay_for" => delay_for} = info, _opts) do
-    blocked_until = NaiveDateTime.utc_now(:second) |> NaiveDateTime.add(delay_for, :minute)
+    delay_minutes = max(delay_for, @min_reschedule_minutes)
+    blocked_until = NaiveDateTime.utc_now(:second) |> NaiveDateTime.add(delay_minutes, :minute)
     payload = %{blocked_until: blocked_until, reason: info["reason"]}
 
     callback = fn device ->

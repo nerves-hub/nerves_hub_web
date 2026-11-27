@@ -208,7 +208,8 @@ Failure is reported through `status_update` with a status of `"failed"` and a
 
 To put an update off, send `status_update` with a status of `"rescheduled"`,
 a `reason`, and `delay_for`: how many minutes NervesHub should wait before
-offering it again.
+offering it again. NervesHub waits at least 5 minutes, however short a delay
+the device asks for.
 
 ```json
 {"status": "rescheduled", "reason": "on battery", "delay_for": 15}
