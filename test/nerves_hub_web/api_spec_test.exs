@@ -11,9 +11,11 @@ defmodule NervesHubWeb.ApiSpecTest do
 
   alias NervesHub.Accounts
   alias NervesHub.Devices.CACertificates
+  alias NervesHub.Devices.DeviceFiltering
   alias NervesHub.Fixtures
   alias NervesHub.Products.Notification
   alias NervesHub.Repo
+  alias NervesHub.Scripts.ScriptFiltering
   alias NervesHub.Support.RaucBundle
   alias NervesHubWeb.APISpecAssertions
   alias NervesHubWeb.Router
@@ -95,6 +97,54 @@ defmodule NervesHubWeb.ApiSpecTest do
       conn
       |> get(~p"/api/orgs/#{org.name}/products/#{product.name}/devices")
       |> assert_documented_response()
+    end
+
+    test "list with a page size over the maximum, and with an unusable one", %{conn: conn, org: org, product: product} do
+      path = ~p"/api/orgs/#{org.name}/products/#{product.name}/devices"
+
+      assert %{"pagination" => %{"page_size" => 100}} =
+               conn
+               |> get(path, %{pagination: %{page_size: "500"}})
+               |> assert_documented_response()
+               |> json_response(200)
+
+      conn
+      |> get(path, %{pagination: %{page_size: "0"}})
+      |> assert_documented_response()
+      |> json_response(422)
+    end
+
+    test "list with filters and a sort, and with ones it doesn't take", %{conn: conn, org: org, product: product} do
+      path = ~p"/api/orgs/#{org.name}/products/#{product.name}/devices"
+
+      assert %{"data" => [_device]} =
+               conn
+               |> get(path, %{
+                 filters: %{tags: "prod", only_updating: "false", connection: "connected,asleep"},
+                 sort: "connection_last_seen_at",
+                 sort_direction: "desc"
+               })
+               |> assert_documented_response()
+               |> json_response(200)
+
+      for params <- [%{filters: %{tag: "prod"}}, %{filters: %{has_no_tags: "maybe"}}, %{sort: "inserted_at"}] do
+        conn
+        |> get(path, params)
+        |> assert_documented_response()
+        |> json_response(422)
+      end
+    end
+
+    test "list documents every filter and sort field it takes" do
+      params = list_parameters("/api/orgs/{org_name}/products/{product_name}/devices")
+
+      # Taken but not documented, as `DeviceControllerSpecs` says.
+      undocumented = [:healthy, :is_pinned]
+
+      assert params.filters.schema.properties |> Map.keys() |> Enum.sort() ==
+               Enum.sort(Map.keys(DeviceFiltering.default_filters()) -- undocumented)
+
+      assert params.sort.schema.enum == Enum.map(DeviceFiltering.sort_fields(), &Atom.to_string/1)
     end
 
     test "show a connected device in a deployment group", %{conn: conn, connected: device} do
@@ -254,6 +304,61 @@ defmodule NervesHubWeb.ApiSpecTest do
       |> get(~p"/api/orgs/#{org.name}/products/#{product.name}/scripts")
       |> assert_documented_response()
     end
+
+    test "list with a page size over the maximum, and with an unusable one", %{
+      conn: conn,
+      org: org,
+      product: product,
+      user: user,
+      tmp_dir: tmp_dir
+    } do
+      org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
+      device = Fixtures.device_fixture(org, product, Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir}))
+
+      for path <- [
+            ~p"/api/orgs/#{org.name}/products/#{product.name}/scripts",
+            ~p"/api/devices/#{device.identifier}/scripts"
+          ] do
+        assert %{"pagination" => %{"page_size" => 100}} =
+                 conn
+                 |> get(path, %{pagination: %{page_size: "500"}})
+                 |> assert_documented_response()
+                 |> json_response(200)
+
+        conn
+        |> get(path, %{pagination: %{page: "abc"}})
+        |> assert_documented_response()
+        |> json_response(422)
+      end
+    end
+
+    test "list with a filter, and with one it doesn't take", %{conn: conn, org: org, product: product, user: user} do
+      Fixtures.support_script_fixture(product, user, %{tags: "cleanup"})
+      path = ~p"/api/orgs/#{org.name}/products/#{product.name}/scripts"
+
+      assert %{"data" => [_script]} =
+               conn
+               |> get(path, %{filters: %{tags: "cleanup"}})
+               |> assert_documented_response()
+               |> json_response(200)
+
+      conn
+      |> get(path, %{filters: %{tag: "cleanup"}})
+      |> assert_documented_response()
+      |> json_response(422)
+    end
+
+    test "list documents every filter it takes" do
+      for path <- ["/api/orgs/{org_name}/products/{product_name}/scripts", "/api/devices/{identifier}/scripts"] do
+        assert list_parameters(path).filters.schema.properties |> Map.keys() |> Enum.sort() ==
+                 Enum.sort(ScriptFiltering.filters())
+      end
+    end
+  end
+
+  # A list operation's parameters, by name.
+  defp list_parameters(path) do
+    Map.new(APISpecAssertions.spec().paths[path].get.parameters, &{&1.name, &1})
   end
 
   describe "firmware, archives and deployment groups" do

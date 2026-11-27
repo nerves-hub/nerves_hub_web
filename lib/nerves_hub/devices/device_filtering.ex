@@ -97,14 +97,62 @@ defmodule NervesHub.Devices.DeviceFiltering do
           | :alarm_status
           | :alarm
 
+  @type sort_field() :: :identifier | :connection_established_at | :connection_last_seen_at | :tags
+
+  @type sort_direction() :: :asc | :desc
+
+  # The values of each filter that takes one of a fixed set. A multi-choice
+  # filter takes one or more, comma-separated, and `value_dynamic/2` is what
+  # applies each; a value listed here must be one it applies.
+  @filter_values %{
+    alarm_status: ~w(with without),
+    connection: ~w(connected offline asleep disconnected not_seen not_seen_in_seven_days not_seen_in_fourteen_days),
+    connection_type: ~w(cellular ethernet wifi unknown),
+    display_deleted: ~w(exclude include only),
+    firmware_validation_status: ~w(validated not_validated unknown),
+    health_status: ~w(healthy warning unhealthy unknown),
+    metrics_operator: ~w(gt lt),
+    reason: @reasons,
+    state: @states,
+    updates: ~w(enabled disabled automatic device-managed penalty-box failed-updates updating)
+  }
+
+  # A deployment group's ID is a bigint.
+  @max_deployment_id 9_223_372_036_854_775_807
+
   @default_sort %{sort_direction: "asc", sort: "identifier"}
   @sort_types %{sort_direction: :string, sort: :string}
-  @sortable_fields ~w(identifier connection_established_at connection_last_seen_at tags)
-  @sort_directions ~w(asc desc)
+  @sort_fields ~w(identifier connection_established_at connection_last_seen_at tags)a
+  @sortable_fields Enum.map(@sort_fields, &Atom.to_string/1)
+  @sort_direction_atoms ~w(asc desc)a
+  @sort_directions Enum.map(@sort_direction_atoms, &Atom.to_string/1)
+
+  # Each sort field and direction under the name a request gives it, so that
+  # `cast_sort/2` looks it up rather than making an atom from the request.
+  @sort_names %{
+    sort: Map.new(@sort_fields, &{Atom.to_string(&1), &1}),
+    sort_direction: Map.new(@sort_direction_atoms, &{Atom.to_string(&1), &1})
+  }
 
   def default_filters(), do: @default_filters
 
   def default_sort(), do: @default_sort
+
+  @doc "The fields the devices list can be sorted by."
+  @spec sort_fields() :: [sort_field(), ...]
+  def sort_fields(), do: @sort_fields
+
+  @doc "The directions the devices list can be sorted in."
+  @spec sort_directions() :: [String.t(), ...]
+  def sort_directions(), do: @sort_directions
+
+  @doc """
+  The values a filter takes, for one that takes one of a fixed set, or nil
+  for one that takes any text, a number, or true or false. A filter in
+  `multi_filters/0` takes one or more of them, comma-separated.
+  """
+  @spec filter_values(atom()) :: [String.t(), ...] | nil
+  def filter_values(key), do: Map.get(@filter_values, key)
 
   @doc "The states the devices list has a tab for, besides All."
   @spec states() :: [String.t()]
@@ -222,6 +270,105 @@ defmodule NervesHub.Devices.DeviceFiltering do
   end
 
   @doc """
+  Casts an API request's (string-keyed) filters into the filter map, as
+  `parse_filters/1` casts the web UI's, defaults included.
+
+  The web UI drops what it can't use, so that an old link still opens. This
+  refuses it instead: a key that isn't a filter, or a value its filter can't
+  take, such as `has_no_tags=maybe`, a choice `filter_values/1` doesn't list,
+  or a `deployment_id` that isn't an ID. An empty value leaves its filter
+  unset, as it does in the web UI.
+
+  ## Examples
+
+      iex> {:ok, filters} = cast_filters(%{"has_no_tags" => "false", "connection" => "connected,asleep"})
+      iex> Map.take(filters, [:has_no_tags, :connection, :display_deleted])
+      %{has_no_tags: false, connection: "connected,asleep", display_deleted: "exclude"}
+
+      iex> cast_filters(%{"tag" => "prod"})
+      {:error, {:unknown_filter, "tag"}}
+
+      iex> cast_filters(%{"only_updating" => "yes"})
+      {:error, {:invalid_filter, :only_updating, "must be true or false"}}
+  """
+  @spec cast_filters(%{optional(String.t()) => term()}) ::
+          {:ok, map()}
+          | {:error, {:unknown_filter, String.t()} | {:invalid_filter, atom(), String.t()}}
+  def cast_filters(params) when is_map(params) do
+    params = Map.reject(params, fn {_key, value} -> value == "" end)
+    known = Enum.map(Map.keys(@default_filters), &Atom.to_string/1)
+
+    with [] <- Enum.sort(Map.keys(params) -- known),
+         %{valid?: true, changes: changes} <- params |> filters_changeset() |> validate_filter_values() do
+      {:ok, Map.merge(@default_filters, changes)}
+    else
+      [key | _] -> {:error, {:unknown_filter, key}}
+      %{errors: errors} -> invalid_filter(errors)
+    end
+  end
+
+  # Ecto adds errors in front, so the one reported is picked by key to be the
+  # same whatever order the filters came in.
+  defp invalid_filter(errors) do
+    {key, {message, opts}} = Enum.min_by(errors, &elem(&1, 0))
+
+    message =
+      case {opts[:validation], opts[:type]} do
+        {:cast, :boolean} -> "must be true or false"
+        {:cast, _type} -> "must be a string"
+        _other -> message
+      end
+
+    {:error, {:invalid_filter, key, message}}
+  end
+
+  defp validate_filter_values(changeset) do
+    Enum.reduce(changeset.changes, changeset, fn {key, value}, changeset ->
+      case filter_value_error(key, value) do
+        nil -> changeset
+        message -> Ecto.Changeset.add_error(changeset, key, message)
+      end
+    end)
+  end
+
+  defp filter_value_error(key, value) when key in @multi_filters do
+    if Enum.any?(choices(value), &is_nil(value_dynamic(key, &1))) do
+      "must be one or more of #{list_values(key)}, comma-separated"
+    end
+  end
+
+  defp filter_value_error(key, value) when is_map_key(@filter_values, key) do
+    if value not in @filter_values[key], do: "must be one of #{list_values(key)}"
+  end
+
+  defp filter_value_error(:deployment_id, "-1"), do: nil
+
+  defp filter_value_error(:deployment_id, value) do
+    case Integer.parse(value) do
+      {id, ""} when id >= 1 and id <= @max_deployment_id -> nil
+      _other -> "must be a deployment group's ID, or -1 for devices in none"
+    end
+  end
+
+  defp filter_value_error(:metrics_value, value) do
+    case Float.parse(value) do
+      {_number, ""} -> nil
+      _other -> "must be a number"
+    end
+  end
+
+  defp filter_value_error(:tags, value) do
+    case Tag.cast(value) do
+      {:ok, _tags} -> nil
+      {:error, message: message} -> message
+    end
+  end
+
+  defp filter_value_error(_key, _value), do: nil
+
+  defp list_values(key), do: Enum.join(@filter_values[key], ", ")
+
+  @doc """
   Casts raw (string-keyed) params into a sort opts map, applying defaults for
   any missing/invalid values.
   """
@@ -241,6 +388,43 @@ defmodule NervesHub.Devices.DeviceFiltering do
 
   defp validate_sort(sort_opts), do: sort_opts
 
+  @doc """
+  Casts an API request's sort field and direction into the `{direction, field}`
+  the devices list sorts by, as `parse_sort/1` casts the web UI's.
+
+  The web UI falls back to the default for a field or direction it doesn't
+  know. This refuses it instead, naming which of the two it was. Either can be
+  left out (nil or empty), and the default sort fills it in.
+
+  ## Examples
+
+      iex> cast_sort("connection_last_seen_at", "desc")
+      {:ok, {:desc, :connection_last_seen_at}}
+
+      iex> cast_sort(nil, "desc")
+      {:ok, {:desc, :identifier}}
+
+      iex> cast_sort("inserted_at", nil)
+      {:error, {:invalid_sort, :sort, "inserted_at"}}
+  """
+  @spec cast_sort(term(), term()) ::
+          {:ok, {sort_direction(), sort_field()}} | {:error, {:invalid_sort, :sort | :sort_direction, term()}}
+  def cast_sort(field, direction) do
+    with {:ok, field} <- sort_name(:sort, field),
+         {:ok, direction} <- sort_name(:sort_direction, direction) do
+      {:ok, {direction, field}}
+    end
+  end
+
+  defp sort_name(key, value) when value in [nil, ""], do: sort_name(key, @default_sort[key])
+
+  defp sort_name(key, value) do
+    case Map.fetch(@sort_names[key], value) do
+      {:ok, name} -> {:ok, name}
+      :error -> {:error, {:invalid_sort, key, value}}
+    end
+  end
+
   def transform_deployment_filter(%{deployment_id: ""} = filters), do: Map.delete(filters, :deployment_id)
 
   def transform_deployment_filter(%{deployment_id: "-1"} = filters), do: %{filters | deployment_id: nil}
@@ -251,7 +435,9 @@ defmodule NervesHub.Devices.DeviceFiltering do
   Casts raw (string-keyed) params into only the filter fields present in
   `params`, without filling in defaults for missing ones.
   """
-  def filter_changes(params) do
+  def filter_changes(params), do: filters_changeset(params).changes
+
+  defp filters_changeset(params) do
     # when the metrics key is switched from being selected to being an empty value,
     # the metrics value is not cleared, this addresses that.
     params =
@@ -263,7 +449,7 @@ defmodule NervesHub.Devices.DeviceFiltering do
         params
       end
 
-    Ecto.Changeset.cast({@default_filters, @filter_types}, params, Map.keys(@default_filters), empty_values: []).changes
+    Ecto.Changeset.cast({@default_filters, @filter_types}, params, Map.keys(@default_filters), empty_values: [])
   end
 
   @doc """
@@ -342,6 +528,17 @@ defmodule NervesHub.Devices.DeviceFiltering do
 
   def filter(query, filters, :metrics_key, _value) do
     filter_on_metric(query, filters)
+  end
+
+  # Pins are each web UI user's own, so only a query joined to the user's
+  # pins as `:pinned` can apply this. Any other, such as the API's device
+  # list, ignores it, as it does every filter it can't apply.
+  def filter(query, _filters, :is_pinned, true) do
+    if has_named_binding?(query, :pinned) do
+      where(query, [pinned: pd], not is_nil(pd.id))
+    else
+      query
+    end
   end
 
   def filter(query, _filters, :display_deleted, "include"), do: order_by(query, [d], asc_nulls_last: d.deleted_at)

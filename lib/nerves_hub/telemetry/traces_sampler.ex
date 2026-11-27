@@ -12,28 +12,34 @@ defmodule NervesHub.Telemetry.TracesSampler do
   There are six kinds, each with its own rate:
 
     * `:requests` - requests to the web UI and API, and LiveView mounts,
-      params and events. There are few of them, someone is waiting on each,
-      and a slow page is only worth looking into with enough samples to see
-      it. `SENTRY_REQUEST_TRACING_RATE`, `1.0` by default.
+      params and events, along with the async work they start
+      (`NervesHub.Telemetry.AsyncTrace`) and the component updates their
+      renders run (`NervesHub.Telemetry.ComponentTrace`). There are few of
+      them, someone is waiting on each, and a slow page is only worth looking
+      into with enough samples to see it. `SENTRY_REQUEST_TRACING_RATE`,
+      `1.0` by default.
     * `:jobs` - Oban jobs. Mostly crons and rare one-off work, such as
       deleting firmware or building a delta, which a small rate would almost
       never catch. `SENTRY_JOB_TRACING_RATE`, `1.0` by default.
     * `:default` - everything else: device connections and their messages,
-      deployment orchestrators, and queries run outside any request. Device
-      traffic dwarfs everything else, which is why this rate is the small one.
-      `SENTRY_TRACING_RATE`, `0.05` by default.
+      deployment orchestrators, and queries and LiveView async work run
+      outside any request. Device traffic dwarfs everything else, which is
+      why this rate is the small one. `SENTRY_TRACING_RATE`, `0.05` by
+      default.
     * `:flushes` - an analytics buffer writing a batch to ClickHouse. A busy
       buffer flushes about twice a second on every node, so these are kept at
       `SENTRY_TRACING_RATE` or 1%, whichever is lower. That is still enough to
       see how long inserts take, which nothing else reports.
-    * `:reports` - what a device's extensions send all day: health and metrics
-      reports, alarms, log lines and network identities, along with the health
-      evaluation each health report queues. Every device sends them every few
-      minutes, so they
-      are kept at the same rate as flushes. Told apart by the event a span
-      starts with, on the extensions channel's span or on a
-      `DeviceLink.extension_message` a node holding the device's socket sent
-      without a decision of its own.
+    * `:reports` - what a device sends by itself, over and over: the health
+      and metrics reports, alarms, log lines and network identities its
+      extensions send every few minutes, with the health evaluation each
+      health report queues, and its progress through an update
+      (`fwup_progress` or `update_progress`), which can come for every
+      percent, so a rollout to a whole product sends about a hundred from each
+      device. Kept at the same rate as flushes. Told apart by the event a span
+      starts with, on the channel's span or on the
+      `DeviceLink.extension_message` or `DeviceLink.device_message` a node
+      holding the device's socket sent without a decision of its own.
     * `:none` - never kept: what `NervesHub.Telemetry.FilteredSampler` drops
       (health checks, static files, the LiveView socket, device heartbeats),
       Oban's own polling queries, and a database transaction's `begin`,
@@ -46,6 +52,7 @@ defmodule NervesHub.Telemetry.TracesSampler do
   endpoint but the console's on the web one.
   """
 
+  alias NervesHub.Telemetry.AsyncTrace
   alias NervesHub.Telemetry.FilteredSampler
   alias OpenTelemetry.SemConv.HTTPAttributes
   alias OpenTelemetry.SemConv.Incubating.MessagingAttributes
@@ -61,7 +68,7 @@ defmodule NervesHub.Telemetry.TracesSampler do
   # device: `NervesHub.Extensions.Health`, `Metrics`, `Alarms`, `Logging` and
   # `NetworkIdentity`. A network identity is only sent when it changes, but one
   # whose details hold addresses that move changes on every poll.
-  @report_events [
+  @extension_reports [
     "health:report",
     "metrics:report",
     "alarms:snapshot",
@@ -71,7 +78,18 @@ defmodule NervesHub.Telemetry.TracesSampler do
     "network_identity:report"
   ]
 
-  @report_spans ["Channels.ExtensionsChannel.handle_in", "DeviceLink.extension_message"]
+  # What a device sends on its own channel through an update. `fwup_progress` is
+  # what NervesHubLink sends, and `update_progress` the same from other agents.
+  @update_progress ["fwup_progress", "update_progress"]
+
+  # The reports each span can start with: the channel's own, or the call a node
+  # holding the device's socket makes with it.
+  @report_events %{
+    "Channels.ExtensionsChannel.handle_in" => @extension_reports,
+    "DeviceLink.extension_message" => @extension_reports,
+    "Channels.DeviceChannel.handle_in" => @update_progress,
+    "DeviceLink.device_message" => @update_progress
+  }
 
   # Queued by each health report, and run in a trace of its own.
   @health_evaluation_span "Devices.HealthEvaluation.Queue.evaluate"
@@ -139,7 +157,13 @@ defmodule NervesHub.Telemetry.TracesSampler do
   # list's own refresh spans follow it. A LiveComponent's events are named after
   # the LiveView it's in, not the component, because it names them from
   # `socket.view` and a component's socket is its LiveView's.
-  defp live_view?(name) when is_binary(name), do: String.starts_with?(name, "NervesHubWeb.Live.")
+  #
+  # An async task's span is named after the view too, but one that starts a
+  # trace was started outside any mount, params or event, so it isn't one.
+  # Inside one, it follows the trace's decision and never reaches here.
+  defp live_view?(name) when is_binary(name),
+    do: String.starts_with?(name, "NervesHubWeb.Live.") and not AsyncTrace.span?(name)
+
   defp live_view?(_name), do: false
 
   defp flush?(name) when is_binary(name), do: String.starts_with?(name, "Analytics.Buffer.flush[")
@@ -147,8 +171,8 @@ defmodule NervesHub.Telemetry.TracesSampler do
 
   defp report?(@health_evaluation_span, _attributes), do: true
 
-  defp report?(name, attributes) when name in @report_spans,
-    do: attributes[:"nerves_hub.channel.event"] in @report_events
+  defp report?(name, attributes) when is_map_key(@report_events, name),
+    do: attributes[:"nerves_hub.channel.event"] in Map.fetch!(@report_events, name)
 
   defp report?(_name, _attributes), do: false
 
