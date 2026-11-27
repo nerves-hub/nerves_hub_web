@@ -243,15 +243,13 @@ defmodule NervesHubWeb.API.ScriptController do
           into: %{},
           do: {String.to_existing_atom(key), val}
 
-    {scripts, page} =
-      Scripts.filter(product, %{
-        pagination: PaginationHelpers.atomize_pagination_params(Map.get(params, "pagination", %{})),
-        filters: filters
-      })
+    with {:ok, pagination} <- PaginationHelpers.cast_pagination_params(params["pagination"]) do
+      {scripts, page} = Scripts.filter(product, %{pagination: pagination, filters: filters})
 
-    conn
-    |> assign(:scripts, scripts)
-    |> assign(:pagination, PaginationHelpers.format_pagination_meta(page))
-    |> render(:index)
+      conn
+      |> assign(:scripts, scripts)
+      |> assign(:pagination, PaginationHelpers.format_pagination_meta(page))
+      |> render(:index)
+    end
   end
 end

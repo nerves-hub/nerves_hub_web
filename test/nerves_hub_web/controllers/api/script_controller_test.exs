@@ -144,6 +144,55 @@ defmodule NervesHubWeb.API.ScriptControllerTest do
       assert response["pagination"]["page_size"] == 1
       assert response["pagination"]["total_entries"] == 3
     end
+
+    test "lowers a page size over 100 to 100", %{conn: conn, org: org, product: product, device: device, user: user} do
+      for _ <- 1..101, do: Fixtures.support_script_fixture(product, user)
+
+      for path <- [
+            Routes.api_script_path(conn, :index, org.name, product.name),
+            Routes.api_script_path(conn, :index, device)
+          ] do
+        response = conn |> get(path, %{pagination: %{page_size: "100000"}}) |> json_response(200)
+
+        assert length(response["data"]) == 100
+
+        assert response["pagination"] == %{
+                 "page_number" => 1,
+                 "page_size" => 100,
+                 "total_entries" => 101,
+                 "total_pages" => 2
+               }
+
+        response = conn |> get(path, %{pagination: %{page: 2, page_size: 1000}}) |> json_response(200)
+
+        assert length(response["data"]) == 1
+        assert response["pagination"]["page_size"] == 100
+      end
+    end
+
+    for {param, value} <- [
+          {"page_size", "abc"},
+          {"page_size", "1.5"},
+          {"page_size", "0"},
+          {"page_size", "-5"},
+          {"page", "abc"},
+          {"page", "0"},
+          {"page", "-1"},
+          {"page", "99999999999999999999"}
+        ] do
+      test "refuses pagination[#{param}]=#{value} with a 422", %{conn: conn, org: org, product: product, device: device} do
+        for path <- [
+              Routes.api_script_path(conn, :index, org.name, product.name),
+              Routes.api_script_path(conn, :index, device)
+            ] do
+          conn = get(conn, path, %{pagination: %{unquote(param) => unquote(value)}})
+
+          assert %{"errors" => %{"detail" => detail}} = json_response(conn, 422)
+          assert detail =~ "pagination[#{unquote(param)}]"
+          assert detail =~ inspect(unquote(value))
+        end
+      end
+    end
   end
 
   describe "show" do

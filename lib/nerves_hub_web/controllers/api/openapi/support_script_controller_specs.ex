@@ -7,7 +7,8 @@ defmodule NervesHubWeb.API.OpenAPI.SupportScriptControllerSpecs do
   @organization_parameter SchemaHelpers.org_param()
   @product_parameter SchemaHelpers.product_param()
   @device_parameter SchemaHelpers.device_param()
-  @pagination_parameter SchemaHelpers.pagination_param()
+  @pagination_parameter SchemaHelpers.pagination_param(25)
+  @query_param_error SchemaHelpers.query_param_error()
 
   @path_structures %{
     short: %{
@@ -46,14 +47,16 @@ defmodule NervesHubWeb.API.OpenAPI.SupportScriptControllerSpecs do
         operation_id,
         opts.parameters ++ [@pagination_parameter],
         opts.tags,
-        response: %{
-          200 =>
+        response:
+          Map.put(
+            @query_param_error,
+            200,
             response(
               "Support Scripts List Response",
               "application/json",
               SupportScriptSchemas.SupportScriptIndexResponse
             )
-        }
+          )
       )
 
     add_to_paths(openapi, opts.path_prefix, :get, list_operation)

@@ -1,6 +1,7 @@
 defmodule NervesHubWeb.API.OpenAPI.SchemaHelpers do
   import OpenApiSpex.Operation, only: [response: 3]
 
+  alias NervesHubWeb.API.PaginationHelpers
   alias NervesHubWeb.API.Schemas.ErrorSchemas
 
   @doc """
@@ -57,6 +58,14 @@ defmodule NervesHubWeb.API.OpenAPI.SchemaHelpers do
     %{422 => response("Unprocessable Entity", "application/json", ErrorSchemas.ChangesetErrorResponse)}
   end
 
+  @doc """
+  A 422 for a query param that can't be used, such as a page that isn't a
+  whole number.
+  """
+  def query_param_error() do
+    %{422 => response("Unusable query parameter", "application/json", ErrorSchemas.ErrorResponse)}
+  end
+
   def org_param() do
     %OpenApiSpex.Parameter{
       name: :org_name,
@@ -90,19 +99,64 @@ defmodule NervesHubWeb.API.OpenAPI.SchemaHelpers do
     }
   end
 
-  def pagination_param() do
+  @doc """
+  The `pagination` query param of a paged list, whose page size defaults to
+  `default_page_size`. It is read by
+  `NervesHubWeb.API.PaginationHelpers.cast_pagination_params/1`.
+  """
+  def pagination_param(default_page_size) do
+    max_page_size = PaginationHelpers.max_page_size()
+
     %OpenApiSpex.Parameter{
       name: :pagination,
-      description: "Pagination",
+      description:
+        "Pagination. A page or page size that isn't a whole number of 1 or more is refused with a 422. " <>
+          "Find the last page from the response's `total_pages`, not from a page holding fewer records " <>
+          "than asked for: a page size over #{max_page_size} is lowered to #{max_page_size}.",
       in: :query,
       required: false,
       style: :deepObject,
       schema: %OpenApiSpex.Schema{
         type: :object,
         properties: %{
-          page: %OpenApiSpex.Schema{type: :integer, default: 1, example: "5"},
-          page_size: %OpenApiSpex.Schema{type: :integer, default: 10, example: "20"}
+          page: %OpenApiSpex.Schema{
+            type: :integer,
+            minimum: 1,
+            maximum: PaginationHelpers.max_page(),
+            default: 1,
+            example: "5"
+          },
+          page_size: %OpenApiSpex.Schema{
+            type: :integer,
+            description:
+              "How many records a page holds. A page size over #{max_page_size} is lowered to #{max_page_size}, " <>
+                "and the response's `pagination.page_size` says which was used.",
+            minimum: 1,
+            maximum: max_page_size,
+            default: default_page_size,
+            example: "20"
+          }
         }
+      }
+    }
+  end
+
+  @doc """
+  The `pagination` object a paged list answers with.
+  """
+  def pagination_meta() do
+    %OpenApiSpex.Schema{
+      type: :object,
+      properties: %{
+        page_number: %OpenApiSpex.Schema{type: :integer},
+        page_size: %OpenApiSpex.Schema{
+          type: :integer,
+          description:
+            "The page size used: the one asked for, lowered to #{PaginationHelpers.max_page_size()} " <>
+              "if it was more, or the list's default"
+        },
+        total_pages: %OpenApiSpex.Schema{type: :integer, description: "How many pages there are at that page size"},
+        total_entries: %OpenApiSpex.Schema{type: :integer}
       }
     }
   end

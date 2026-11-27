@@ -936,6 +936,81 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
     end
   end
 
+  describe "index: pagination limits" do
+    setup %{org: org, product: product, user: user, tmp_dir: tmp_dir} do
+      org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
+      %{firmware: Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})}
+    end
+
+    test "lowers a page size over 100 to 100", %{conn: conn, org: org, product: product, firmware: firmware} do
+      for _ <- 1..101, do: Fixtures.device_fixture(org, product, firmware)
+
+      conn =
+        get(conn, Routes.api_device_path(conn, :index, org.name, product.name, %{pagination: %{page_size: "100000"}}))
+
+      assert %{"data" => data, "pagination" => pagination} = json_response(conn, 200)
+      assert length(data) == 100
+      assert pagination == %{"page_number" => 1, "page_size" => 100, "total_entries" => 101, "total_pages" => 2}
+
+      conn =
+        get(
+          conn,
+          Routes.api_device_path(conn, :index, org.name, product.name, %{pagination: %{page: 2, page_size: 1000}})
+        )
+
+      assert %{"data" => [_last], "pagination" => %{"page_number" => 2, "page_size" => 100, "total_pages" => 2}} =
+               json_response(conn, 200)
+    end
+
+    test "uses the default page size when pagination is left out or empty", %{
+      conn: conn,
+      org: org,
+      product: product,
+      firmware: firmware
+    } do
+      for _ <- 1..11, do: Fixtures.device_fixture(org, product, firmware)
+
+      for params <- [%{}, %{pagination: %{page: "", page_size: ""}}] do
+        conn = get(conn, Routes.api_device_path(conn, :index, org.name, product.name, params))
+
+        assert %{"data" => data, "pagination" => %{"page_size" => 10, "total_pages" => 2}} = json_response(conn, 200)
+        assert length(data) == 10
+      end
+    end
+
+    for {param, value} <- [
+          {"page_size", "abc"},
+          {"page_size", "1.5"},
+          {"page_size", "0"},
+          {"page_size", "-5"},
+          {"page", "abc"},
+          {"page", "0"},
+          {"page", "-1"},
+          {"page", "99999999999999999999"}
+        ] do
+      test "refuses pagination[#{param}]=#{value} with a 422", %{conn: conn, org: org, product: product} do
+        conn =
+          get(
+            conn,
+            Routes.api_device_path(conn, :index, org.name, product.name, %{
+              pagination: %{unquote(param) => unquote(value)}
+            })
+          )
+
+        assert %{"errors" => %{"detail" => detail}} = json_response(conn, 422)
+        assert detail =~ "pagination[#{unquote(param)}]"
+        assert detail =~ inspect(unquote(value))
+      end
+    end
+
+    test "refuses a pagination param that isn't an object", %{conn: conn, org: org, product: product} do
+      conn = get(conn, Routes.api_device_path(conn, :index, org.name, product.name, %{pagination: "50"}))
+
+      assert %{"errors" => %{"detail" => detail}} = json_response(conn, 422)
+      assert detail =~ "pagination must be an object"
+    end
+  end
+
   describe "show" do
     test "device that the user has access to, using nested url", %{
       conn: conn,
