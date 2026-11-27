@@ -108,7 +108,6 @@ defmodule NervesHub.FirmwareUpdates do
 
   # `delay_for` is in minutes, which is what nerves_hub_link sends and what
   # `update_rejected` gives a device back (docs/device_managed_updates.md).
-  # A delay under the minimum blocks the device for the minimum.
   def status_update("rescheduled", device_id, %{"delay_for" => delay_for} = info, _opts) do
     delay_minutes = max(delay_for, @min_reschedule_minutes)
     blocked_until = NaiveDateTime.utc_now(:second) |> NaiveDateTime.add(delay_minutes, :minute)
@@ -428,12 +427,10 @@ defmodule NervesHub.FirmwareUpdates do
 
   defp maybe_update_update_attempts(device), do: device
 
-  # Asking for an update later is not failing to take it, so a reschedule takes
-  # back the attempt that the device's first report on the offer counted. That
-  # attempt is the last one: an offer is only made to a device with nothing
-  # inflight, so nothing else counts one while it is open. Left in, a device
-  # that asked to wait three times would go in the penalty box for its
-  # deployment group's whole penalty timeout.
+  # A reschedule is not a failed attempt, so it takes back the attempt its offer
+  # counted. That is the last one: an offer is only made to a device with nothing
+  # inflight, so nothing else counts one while it is open. Left in, three
+  # reschedules would put the device in the penalty box for the group's timeout.
   defp withdraw_update_attempt(device) do
     {_count, _} =
       Device

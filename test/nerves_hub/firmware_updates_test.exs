@@ -161,7 +161,6 @@ defmodule NervesHub.FirmwareUpdatesTest do
       end
     end
 
-    # Asking to wait is the device choosing when to update, not failing to.
     test "'rescheduled' takes back the attempt the offer counted", %{device: device} do
       assert :ok = FirmwareUpdates.status_update("received", device.id)
       assert [_attempt] = Devices.get_device(device.id).update_attempts
