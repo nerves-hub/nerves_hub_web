@@ -12,3 +12,24 @@ export const acceptsFiles = (version) => {
 
   return major === null || Number(major[0]) >= 2
 }
+
+// How much of a file goes in each "file-data" message. The device saves each
+// message before it reads the next, typing included, and opens and closes the
+// file for every one, so larger chunks give it back its console sooner.
+export const CHUNK_SIZE = 64 * 1024
+
+// `String.fromCharCode` takes a byte per argument, and engines cap how many
+// arguments a call can take (JavaScriptCore at 65,536), so a chunk is turned
+// into a string a slice at a time.
+const SLICE = 8 * 1024
+
+// Base64 of a chunk of a file, as the device's console expects it.
+export const encodeChunk = (bytes) => {
+  let binary = ""
+
+  for (let i = 0; i < bytes.length; i += SLICE) {
+    binary += String.fromCharCode.apply(null, bytes.subarray(i, i + SLICE))
+  }
+
+  return btoa(binary)
+}

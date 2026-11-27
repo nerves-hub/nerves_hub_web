@@ -1,7 +1,7 @@
 <div class="flex h-full flex-col">
   <.live_component module={NervesHubWeb.Components.CommandPalette} id="command-palette" current_scope={@current_scope} />
   <header class="flex h-topbar shrink-0 items-center justify-between border-b border-line-default bg-surface-muted px-4 sm:px-6">
-    <.link navigate={~p"/orgs"} aria-label="NervesHub home">
+    <.link navigate={~p"/orgs"} aria-label={"#{NervesHub.Branding.friendly_platform_name()} home"}>
       <.logo class="h-6" />
     </.link>
 
@@ -10,76 +10,19 @@
         id="user-menu-toggle"
         type="button"
         aria-haspopup="menu"
-        class="flex items-center gap-1.5 rounded-full p-1 pr-2 text-content-muted hover:bg-primary/10 hover:text-content-strong"
+        aria-expanded="false"
+        aria-controls="user-menu-container"
+        class="group flex items-center gap-1.5 rounded-full p-1 pr-2 text-content-muted hover:bg-primary/10 hover:text-content-strong"
         phx-click={toggle_user_menu()}
       >
         <span class="sr-only">Your profile</span>
         <.user_avatar user={@current_scope.user} />
-        <span class="lucide-chevron-down size-4" />
+        <span class="lucide-chevron-down size-4 group-aria-expanded:rotate-180" aria-hidden="true"></span>
       </button>
 
-      <div id="user-menu-container" class="absolute top-full right-0 z-40 mt-2 hidden w-64">
-        <div id="user-menu" class="flex flex-col rounded-md border border-line-default bg-surface-overlay p-2 shadow-overlay">
-          <div class="flex flex-col px-2 pt-1 pb-2">
-            <span class="truncate text-sm font-medium text-content-strong">{@current_scope.user.name}</span>
-            <span class="truncate text-xs text-content-muted">{@current_scope.user.email}</span>
-          </div>
-
-          <div aria-hidden="true" class="-mx-2 my-1 h-px bg-line-default"></div>
-
-          <.link navigate={~p"/account"} class="flex items-center gap-2 rounded p-2 text-sm text-content-body hover:bg-primary/10 hover:text-content-strong">
-            <span class="lucide-user-round size-4" /> Account
-          </.link>
-          <a href="https://docs.nerves-hub.org" class="flex items-center gap-2 rounded p-2 text-sm text-content-body hover:bg-primary/10 hover:text-content-strong">
-            <span class="lucide-book-open-text size-4" /> Documentation
-          </a>
-
-          <div aria-hidden="true" class="-mx-2 my-1 h-px bg-line-default"></div>
-
-          <div class="flex items-center justify-between p-2 text-sm text-content-body">
-            Theme
-            <div id="theme-selector" phx-update="ignore" class="relative isolate flex h-8 w-fit gap-1.5 rounded-full p-1 ring-1 ring-line-default">
-              <button
-                id="theme-light"
-                aria-label="Light theme"
-                phx-hook="ThemeSwitcher"
-                data-theme-option="light"
-                class="group theme-selectors relative flex size-6 items-center justify-center rounded-full hover:border-primary data-[selected=true]:border-primary"
-                type="button"
-              >
-                <div class="absolute inset-0 hidden rounded-full bg-primary/10 group-data-[selected=true]:flex"></div>
-                <span class="lucide-sun size-4 text-base-600 group-hover:cursor-pointer group-hover:text-primary group-data-[selected=true]:text-primary" />
-              </button>
-              <button
-                id="theme-dark"
-                aria-label="Dark theme"
-                phx-hook="ThemeSwitcher"
-                data-theme-option="dark"
-                class="group theme-selectors relative flex size-6 items-center justify-center rounded-full hover:border-primary data-[selected=true]:border-primary"
-                type="button"
-              >
-                <div class="absolute inset-0 hidden rounded-full bg-primary/10 group-data-[selected=true]:flex"></div>
-                <span class="lucide-moon size-4 text-base-600 group-hover:cursor-pointer group-hover:text-primary group-data-[selected=true]:text-primary" />
-              </button>
-              <button
-                id="theme-system"
-                aria-label="System theme"
-                phx-hook="ThemeSwitcher"
-                data-theme-option="system"
-                class="group theme-selectors relative flex size-6 items-center justify-center rounded-full hover:border-primary data-[selected=true]:border-primary"
-                type="button"
-              >
-                <div class="absolute inset-0 hidden rounded-full bg-primary/10 group-data-[selected=true]:flex"></div>
-                <span class="lucide-monitor size-4 text-base-600 group-hover:cursor-pointer group-hover:text-primary group-data-[selected=true]:text-primary" />
-              </button>
-            </div>
-          </div>
-
-          <div aria-hidden="true" class="-mx-2 my-1 h-px bg-line-default"></div>
-
-          <a href={~p"/logout"} class="flex items-center gap-2 rounded p-2 text-sm text-alert hover:bg-alert/10">
-            <span class="lucide-log-out size-4" /> Log out
-          </a>
+      <div id="user-menu-container" class="absolute top-full right-0 z-40 mt-2 hidden w-66">
+        <div id="user-menu" class="flex flex-col rounded-md border border-line-default bg-surface-overlay p-1 shadow-overlay">
+          <.user_menu_items user={@current_scope.user} theme_id="theme" />
         </div>
       </div>
     </div>

@@ -255,7 +255,7 @@ defmodule NervesHubWeb.API.ProductControllerPlatformGateTest do
       })
 
     assert json_response(conn, 422)["errors"]["allowed_update_tools"] == [
-             "not enabled on this NervesHub instance: esp-idf"
+             "not enabled on NervesHub: esp-idf"
            ]
 
     assert Repo.reload(product).allowed_update_tools == ["fwup"]

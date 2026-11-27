@@ -164,6 +164,18 @@
   --color-status-online: var(--color-emerald-500);
   --color-status-offline: var(--color-zinc-500);
   --color-status-connecting: var(--color-indigo-500);
+  /* The two z's of `sleep-mark`: green for a device that said it was going
+     to sleep, orange once it is past its wake deadline. */
+  --color-status-asleep: var(--color-emerald-400);
+  --color-status-overdue: var(--color-amber-500);
+
+  /* The Health tab's connection lane: offline time is hatched (the
+     offline-hatch utility below) inside an edge, and a quick reconnect is a
+     tick across the lane. */
+  --color-offline-hatch: var(--color-zinc-500);
+  --color-offline-fill: var(--color-zinc-800);
+  --color-offline-edge: var(--color-zinc-400);
+  --color-reconnect-tick: var(--color-zinc-300);
 
   /* Text roles. Use these for text, not the base-* ramp they replaced:
      text-base-50/300/400/500 were the same colours under a second name.
@@ -359,6 +371,10 @@
   --color-waiting-content: var(--color-sky-700);
   --color-waiting-soft: var(--color-sky-50);
 
+  /* Thin letters read paler than a filled dot, so a step darker on white. */
+  --color-status-asleep: var(--color-emerald-600);
+  --color-status-overdue: var(--color-amber-600);
+
   --color-chart-1: #2a78d6;
   --color-chart-2: #eb6834;
   --color-chart-3: #1baf7a;
@@ -368,6 +384,11 @@
   --color-chart-other: var(--color-zinc-400);
   --shade-strength: 1;
   --color-release: var(--color-indigo-500);
+
+  --color-offline-hatch: var(--color-zinc-400);
+  --color-offline-fill: var(--color-zinc-100);
+  --color-offline-edge: var(--color-zinc-300);
+  --color-reconnect-tick: var(--color-zinc-600);
 
   /* Semantic roles + neutral veil flip on the light canvas */
   --color-content-strong: var(--color-zinc-900); /* zinc-900 */
@@ -504,6 +525,16 @@ html:has(#product-sidebar[data-attention="waiting"]) .menu-attention {
 @utility shadow-filter-slider {
   box-shadow: var(--shadow-filter-slider);
 }
+/* Time a device was offline, on the Health tab's connection lane: diagonal
+   stripes in offline-hatch over offline-fill. */
+@utility offline-hatch {
+  background: repeating-linear-gradient(
+    135deg,
+    var(--color-offline-hatch) 0 1.6px,
+    var(--color-offline-fill) 1.6px 5px
+  );
+}
+
 /* The error pages' backdrop: a 20px dot grid, like perfboard, that fades out
    behind the form so the dots never sit under text. */
 @utility perfboard {
@@ -595,6 +626,32 @@ html:has(#product-sidebar[data-attention="waiting"]) .menu-attention {
 }
 @utility h-row {
   height: var(--row-height);
+}
+/* A sleeping device's mark in place of its status dot: a small z, then a
+   larger one a little higher. Sized by its font size, 10px beside a list's
+   7px dot and 14px in the device page header; the box is 12px wide at 10px,
+   so a list gives each dot the same 12px. Colour it with text-status-*. */
+@utility sleep-mark {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: flex-end;
+  gap: 0.05em;
+  width: 1.2em;
+  height: 1.1em;
+  font-family: var(--font-sans);
+  font-size: 10px;
+  font-weight: var(--font-weight-extrabold);
+  line-height: 1;
+  white-space: nowrap;
+  & > :first-child {
+    font-size: 0.8em;
+  }
+  & > :last-child {
+    margin-bottom: 0.2em;
+  }
+}
+@utility sleep-mark-lg {
+  font-size: 14px;
 }
 /* Holds a label at the width of its semibold weight, so text that turns
    semibold when selected doesn't push what follows it. The element needs

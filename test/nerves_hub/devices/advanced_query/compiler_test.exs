@@ -153,6 +153,18 @@ defmodule NervesHub.Devices.AdvancedQuery.CompilerTest do
       assert run(product, ~s|connection != "connected"|) == ["never_connected", "tagged", "untagged"]
     end
 
+    test "connection asleep matches devices whose last connection ended in sleep", %{
+      product: product,
+      tagged: tagged,
+      untagged: untagged
+    } do
+      Fixtures.device_connection_fixture(tagged, %{status: :disconnected, disconnected_reason: :deep_sleep})
+      Fixtures.device_connection_fixture(untagged, %{status: :disconnected, disconnected_reason: :stale_connection})
+
+      assert run(product, ~s|connection = "asleep"|) == ["tagged"]
+      assert run(product, ~s|connection != "asleep"|) == ["connected", "never_connected", "untagged"]
+    end
+
     test "connection not_seen matches devices that have never connected", %{product: product} do
       assert run(product, ~s|connection = "not_seen"|) == ["never_connected", "tagged", "untagged"]
       assert run(product, ~s|connection != "not_seen"|) == ["connected"]

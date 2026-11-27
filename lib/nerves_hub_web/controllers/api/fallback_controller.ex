@@ -6,6 +6,7 @@ defmodule NervesHubWeb.API.FallbackController do
   """
   use NervesHubWeb, :api_controller
 
+  alias NervesHub.Branding
   alias NervesHub.Firmwares.UpdateTool
   alias NervesHub.Webhooks
   alias NervesHubWeb.API.ChangesetJSON
@@ -65,8 +66,8 @@ defmodule NervesHubWeb.API.FallbackController do
     |> put_view(ErrorJSON)
     |> render(:"422", %{
       reason:
-        "This firmware requires fwup #{required} or newer, and NervesHub has fwup #{installed}. " <>
-          "Please contact support to have NervesHub's fwup updated."
+        "This firmware requires fwup #{required} or newer, and #{platform()} has fwup #{installed}. " <>
+          "Please contact support to have #{platform()}'s fwup updated."
     })
   end
 
@@ -118,7 +119,7 @@ defmodule NervesHubWeb.API.FallbackController do
     |> put_view(ErrorJSON)
     |> render(:"422", %{
       reason:
-        "This ESP-IDF image is signed with ECDSA. NervesHub can only verify RSA-3072 Secure Boot v2 signatures at present."
+        "This ESP-IDF image is signed with ECDSA. #{platform()} can only verify RSA-3072 Secure Boot v2 signatures at present."
     })
   end
 
@@ -126,7 +127,7 @@ defmodule NervesHubWeb.API.FallbackController do
     conn
     |> put_status(:unprocessable_entity)
     |> put_view(ErrorJSON)
-    |> render(:"422", %{reason: "This ESP-IDF image carries a signature block NervesHub does not recognise."})
+    |> render(:"422", %{reason: "This ESP-IDF image carries a signature block #{platform()} does not recognise."})
   end
 
   def call(conn, {:error, :signature_block_corrupt}) do
@@ -149,7 +150,7 @@ defmodule NervesHubWeb.API.FallbackController do
     |> put_view(ErrorJSON)
     |> render(:"422", %{
       reason:
-        "NervesHub could not verify this RAUC bundle: openssl exited #{status}. " <>
+        "#{platform()} could not verify this RAUC bundle: openssl exited #{status}. " <>
           "If the bundle is not corrupt, the server log has openssl's own message."
     })
   end
@@ -162,7 +163,7 @@ defmodule NervesHubWeb.API.FallbackController do
     |> put_view(ErrorJSON)
     |> render(:"422", %{
       reason:
-        "NervesHub could not create a temporary directory to verify this bundle. " <>
+        "#{platform()} could not create a temporary directory to verify this bundle. " <>
           "This is a server problem rather than something wrong with the bundle."
     })
   end
@@ -308,7 +309,7 @@ defmodule NervesHubWeb.API.FallbackController do
     conn
     |> put_status(422)
     |> put_view(ErrorJSON)
-    |> render(:"422", %{reason: "That is not a service this NervesHub knows about."})
+    |> render(:"422", %{reason: "That is not a service #{platform()} knows about."})
   end
 
   def call(conn, {:error, :too_many_webhooks}) do
@@ -379,4 +380,6 @@ defmodule NervesHubWeb.API.FallbackController do
   # An invalid changeset can have no errors of its own when they are all on a
   # nested changeset, such as the JITP cast onto a CA certificate.
   defp status_from_changeset_errors(_errors), do: :unprocessable_entity
+
+  defp platform(), do: Branding.friendly_platform_name()
 end

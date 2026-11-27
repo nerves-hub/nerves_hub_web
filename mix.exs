@@ -126,7 +126,7 @@ defmodule NervesHub.MixProject do
       {:recon, "~> 2.5"},
       {:assert_eventually, "~> 1.0.0", only: [:dev, :test]},
       {:bandit, "~> 1.14"},
-      {:bcrypt_elixir, "~> 3.0"},
+      {:bcrypt_elixir, "~> 4.0"},
       {:briefly, "~> 0.5.0"},
       {:castore, "~> 1.0"},
       {:circular_buffer, "~> 1.1.0"},
@@ -150,7 +150,7 @@ defmodule NervesHub.MixProject do
       {:gettext, "~> 1.0.2"},
       {:group, "~> 0.3.1"},
       {:hackney, "~> 4.7"},
-      {:hammer, "~> 7.5.0"},
+      {:hammer, "~> 7.6.0"},
       {:igniter, "~> 0.8", only: [:dev, :test]},
       {:process_hub, "~> 0.8.0"},
       {:jason, "~> 1.2", override: true},
@@ -160,7 +160,7 @@ defmodule NervesHub.MixProject do
       {:logfmt_ex, "~> 0.4"},
       {
         :lucide,
-        github: "lucide-icons/lucide", tag: "1.73.0", sparse: "icons", app: false, compile: false, depth: 1
+        github: "lucide-icons/lucide", tag: "1.78.0", sparse: "icons", app: false, compile: false, depth: 1
       },
       {:mimic, "~> 2.0", only: [:test, :dev]},
       {:mint_web_socket, "~> 1.0"},

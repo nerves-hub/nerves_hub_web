@@ -120,6 +120,136 @@ defmodule NervesHub.Devices.ConnectionsTest do
     end
   end
 
+  describe "device_leaving/3" do
+    setup %{device: device} do
+      {:ok, connection} = Connections.device_connecting(device.org_id, device.product_id, device.id)
+      :ok = Connections.device_connected(connection.id)
+
+      {:ok, %{connection: connection, wake_at: DateTime.add(DateTime.utc_now(), 5, :minute)}}
+    end
+
+    test "records the reason and wake time, and leaves the connection open", %{
+      device: device,
+      connection: connection,
+      wake_at: wake_at
+    } do
+      PubSub.subscribe(device.id)
+      topic = "internal:device:#{device.id}"
+
+      assert :ok = Connections.device_leaving(connection.id, :deep_sleep, wake_at)
+
+      # The device page reads the connection again on a heartbeat.
+      assert_receive %Broadcast{topic: ^topic, event: "connection:heartbeat"}, 500
+
+      assert %DeviceConnection{status: :connected, disconnected_reason: :deep_sleep, expected_wake_at: ^wake_at} =
+               Connections.get_latest_for_device(device.id)
+    end
+
+    # The socket closes with no reason of its own, from a process that never
+    # saw the `sleeping` message.
+    test "a disconnect after it keeps the reason the device gave", %{
+      device: device,
+      connection: connection,
+      wake_at: wake_at
+    } do
+      :ok = Connections.device_leaving(connection.id, :deep_sleep, wake_at)
+      :ok = Connections.device_disconnected(connection.id)
+
+      assert %DeviceConnection{status: :disconnected, disconnected_reason: :deep_sleep, expected_wake_at: ^wake_at} =
+               Connections.get_latest_for_device(device.id)
+    end
+
+    test "a disconnect after it keeps the reason over one the socket gives", %{device: device, connection: connection} do
+      :ok = Connections.device_leaving(connection.id, :rebooting)
+      :ok = Connections.device_disconnected(connection.id, :reconnect_requested)
+
+      assert %DeviceConnection{disconnected_reason: :rebooting} = Connections.get_latest_for_device(device.id)
+    end
+
+    test "a revoked key replaces a sleep the device announced", %{
+      device: device,
+      connection: connection,
+      wake_at: wake_at
+    } do
+      :ok = Connections.device_leaving(connection.id, :deep_sleep, wake_at)
+      :ok = Connections.device_disconnected(connection.id, :key_revoked)
+
+      assert %DeviceConnection{disconnected_reason: :key_revoked} =
+               connection = Connections.get_latest_for_device(device.id)
+
+      assert DeviceConnection.sleep_state(connection) == nil
+    end
+
+    test "a sleep that arrives after a revoked key doesn't replace it", %{
+      device: device,
+      connection: connection,
+      wake_at: wake_at
+    } do
+      :ok = Connections.device_disconnected(connection.id, :key_revoked)
+
+      assert :error = Connections.device_leaving(connection.id, :deep_sleep, wake_at)
+
+      assert %DeviceConnection{disconnected_reason: :key_revoked, expected_wake_at: nil} =
+               connection = Connections.get_latest_for_device(device.id)
+
+      assert DeviceConnection.sleep_state(connection) == nil
+    end
+
+    # The socket process and the channel process race; the reason lands
+    # whichever wins.
+    test "a reason that arrives after the disconnect is still recorded", %{device: device, connection: connection} do
+      :ok = Connections.device_disconnected(connection.id)
+      :ok = Connections.device_leaving(connection.id, :light_sleep)
+
+      assert %DeviceConnection{status: :disconnected, disconnected_reason: :light_sleep} =
+               Connections.get_latest_for_device(device.id)
+    end
+
+    test "the offline broadcast carries the reason and wake time", %{
+      device: device,
+      connection: connection,
+      wake_at: wake_at
+    } do
+      :ok = Connections.device_leaving(connection.id, :deep_sleep, wake_at)
+      PubSub.subscribe(device.id)
+
+      :ok = Connections.device_disconnected(connection.id)
+
+      assert_receive %Broadcast{
+                       event: "connection:change",
+                       payload: %{status: "offline", disconnected_reason: :deep_sleep, expected_wake_at: ^wake_at}
+                     },
+                     500
+    end
+
+    test "the stale sweep keeps a sleep the device announced", %{device: device, connection: connection} do
+      :ok = Connections.device_leaving(connection.id, :deep_sleep)
+
+      stale_time = DateTime.add(DateTime.utc_now(), -1, :day)
+      connection |> Ecto.Changeset.change(%{last_seen_at: stale_time}) |> Repo.update!()
+
+      assert :ok = Connections.clean_stale_connections()
+
+      assert %DeviceConnection{status: :disconnected, disconnected_reason: :deep_sleep} =
+               Connections.get_latest_for_device(device.id)
+    end
+
+    test "connecting again clears it", %{device: device, connection: connection, wake_at: wake_at} do
+      :ok = Connections.device_leaving(connection.id, :deep_sleep, wake_at)
+      :ok = Connections.device_disconnected(connection.id)
+
+      {:ok, _connection} = Connections.device_connecting(device.org_id, device.product_id, device.id)
+
+      assert %DeviceConnection{disconnected_reason: nil, expected_wake_at: nil, wake_missed_at: nil} =
+               Connections.get_latest_for_device(device.id)
+    end
+
+    test "returns :error for a connection that has been replaced", %{device: device} do
+      assert :error = Connections.device_leaving(Ecto.UUID.generate(), :deep_sleep)
+      assert Connections.get_latest_for_device(device.id).disconnected_reason == nil
+    end
+  end
+
   describe "update_network_interface/2" do
     test "updates device.network_interface", %{device: device} do
       assert {:ok, %DeviceConnection{id: ref, status: :connecting} = connection} =
@@ -180,7 +310,7 @@ defmodule NervesHub.Devices.ConnectionsTest do
 
       updated_connection = Repo.reload(connection)
       assert updated_connection.status == :disconnected
-      assert updated_connection.disconnected_reason == "Stale connection"
+      assert updated_connection.disconnected_reason == :stale_connection
       refute is_nil(updated_connection.disconnected_at)
     end
 
@@ -224,7 +354,7 @@ defmodule NervesHub.Devices.ConnectionsTest do
         |> Ecto.Changeset.change(%{
           status: :disconnected,
           disconnected_at: DateTime.utc_now(),
-          disconnected_reason: "Manual disconnect"
+          disconnected_reason: :reconnect_requested
         })
         |> Repo.update!()
 
@@ -232,7 +362,7 @@ defmodule NervesHub.Devices.ConnectionsTest do
 
       updated_connection = Repo.reload(disconnected_connection)
       assert updated_connection.status == :disconnected
-      assert updated_connection.disconnected_reason == "Manual disconnect"
+      assert updated_connection.disconnected_reason == :reconnect_requested
     end
 
     test "processes connections in batches respecting the update limit", %{
@@ -269,45 +399,11 @@ defmodule NervesHub.Devices.ConnectionsTest do
         for connection <- connections do
           updated = Repo.reload(connection)
           assert updated.status == :disconnected
-          assert updated.disconnected_reason == "Stale connection"
+          assert updated.disconnected_reason == :stale_connection
         end
       after
         Application.put_env(:nerves_hub, :device_connection_update_limit, original_limit)
       end
-    end
-  end
-
-  describe "offline_gaps/3" do
-    @from ~U[2026-11-12 08:00:00Z]
-    @until ~U[2026-11-12 11:00:00Z]
-
-    defp at(minutes), do: DateTime.add(@from, minutes, :minute)
-
-    test "is the whole window when the device had no connection in it" do
-      assert Connections.offline_gaps([], @from, @until) == [{@from, @until}]
-    end
-
-    test "is the time between connections, and before the first and after the last" do
-      connections = [{at(10), at(60)}, {at(90), at(150)}]
-
-      assert Connections.offline_gaps(connections, @from, @until) ==
-               [{@from, at(10)}, {at(60), at(90)}, {at(150), @until}]
-    end
-
-    test "counts a connection still open as lasting to the end of the window" do
-      assert Connections.offline_gaps([{at(-30), nil}], @from, @until) == []
-    end
-
-    test "merges connections that overlap, whatever order they come in" do
-      connections = [{at(50), at(180)}, {at(-10), at(70)}, {at(20), at(40)}]
-
-      assert Connections.offline_gaps(connections, @from, @until) == []
-    end
-
-    test "leaves out a reconnect shorter than a minute" do
-      connections = [{at(0), at(60)}, {DateTime.add(at(60), 30, :second), at(180)}]
-
-      assert Connections.offline_gaps(connections, @from, @until) == []
     end
   end
 end

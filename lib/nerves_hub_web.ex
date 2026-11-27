@@ -79,6 +79,8 @@ defmodule NervesHubWeb do
 
       use Gettext, backend: NervesHubWeb.Gettext
 
+      unquote(traced_async_imports())
+
       on_mount(Sentry.LiveViewHook)
     end
   end
@@ -161,6 +163,17 @@ defmodule NervesHubWeb do
     end
   end
 
+  # `start_async` and `assign_async` that run the task's work in the trace of
+  # the callback that started it. `use Phoenix.LiveView` and
+  # `use Phoenix.LiveComponent` import all of `Phoenix.LiveView`, so its own
+  # are taken back out.
+  defp traced_async_imports() do
+    quote do
+      import NervesHub.Telemetry.AsyncTrace, only: [assign_async: 3, assign_async: 4, start_async: 3, start_async: 4]
+      import Phoenix.LiveView, except: [assign_async: 3, assign_async: 4, start_async: 3, start_async: 4]
+    end
+  end
+
   def verified_routes() do
     quote do
       use Phoenix.VerifiedRoutes,
@@ -194,6 +207,8 @@ defmodule NervesHubWeb do
         ]
 
       import NervesHubWeb.Helpers.Authorization
+
+      unquote(traced_async_imports())
 
       def ok(socket), do: {:ok, socket}
 
@@ -298,6 +313,7 @@ defmodule NervesHubWeb do
 
   defp hooked_component_imports() do
     quote do
+      import NervesHub.Telemetry.AsyncTrace, only: [assign_async: 3, assign_async: 4, start_async: 3, start_async: 4]
       import NervesHubWeb.Components.DateTimes
       import NervesHubWeb.Components.Icons
 
@@ -320,15 +336,12 @@ defmodule NervesHubWeb do
 
       import Phoenix.LiveView,
         only: [
-          assign_async: 3,
-          assign_async: 4,
           allow_upload: 3,
           attach_hook: 4,
           detach_hook: 3,
           push_patch: 2,
           push_event: 3,
           push_navigate: 2,
-          start_async: 3,
           stream: 4,
           stream_configure: 3,
           stream_insert: 4,

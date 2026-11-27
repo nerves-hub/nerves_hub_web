@@ -540,7 +540,7 @@ Read in every environment.
 | Variable | Default | Description |
 | --- | --- | --- |
 | `WEB_TITLE_SUFFIX` | `NervesHub` | Suffix on browser page titles. |
-| `FRIENDLY_PLATFORM_NAME` | `NervesHub` | The name the instance uses for itself in what it tells people, such as Slack messages ("Open in NervesHub") and the Slack pages. |
+| `FRIENDLY_PLATFORM_NAME` | `NervesHub` | The name the instance uses for itself in what it tells people, such as Slack messages ("Open in NervesHub"), the Slack pages, and text in the web UI. |
 | `LOGO_URL` | — | Logo used in the UI. |
 | `LOGO_URL_LIGHT` | `LOGO_URL` | Logo for light mode. |
 | `LOGO_URL_DARK` | `LOGO_URL` | Logo for dark mode. Set both light and dark to serve a different image per theme. |
@@ -578,7 +578,7 @@ Read in every environment.
 | `SENTRY_DSN_URL` | — | Sentry DSN. Without it, nothing is sent. |
 | `SENTRY_ENABLE_LOGGING` | `false` | Forward logs at `info` and above to Sentry, not just exceptions. |
 | `SENTRY_ENABLE_TRACING` | `false` | Send traces to Sentry via OpenTelemetry. |
-| `SENTRY_TRACING_RATE` | `0.05` | Fraction of traces kept for device connections and messages, deployment orchestrators, and queries outside any request. Health checks, static files, device heartbeats and Oban's own polling queries are never kept. Analytics buffer flushes to ClickHouse, and the health and metrics reports, alarms, log lines and network identities devices send all day (with the health evaluation each health report queues), are kept at this rate or 1%, whichever is lower. See `NervesHub.Telemetry.TracesSampler`. |
+| `SENTRY_TRACING_RATE` | `0.05` | Fraction of traces kept for device connections and messages, deployment orchestrators, and queries and LiveView async work outside any request. Health checks, static files, device heartbeats and Oban's own polling queries are never kept. Analytics buffer flushes to ClickHouse, the health and metrics reports, alarms, log lines and network identities devices send all day (with the health evaluation each health report queues), and the progress a device reports through an update (`fwup_progress`, `update_progress`), are kept at this rate or 1%, whichever is lower. See `NervesHub.Telemetry.TracesSampler`. |
 | `SENTRY_REQUEST_TRACING_RATE` | `1.0` | Fraction of traces kept for web UI and API requests and LiveView events. |
 | `SENTRY_JOB_TRACING_RATE` | `1.0` | Fraction of traces kept for Oban jobs. |
 | `OTLP_ENDPOINT` | — | Send traces to an OTLP collector over HTTP instead. Only used when `SENTRY_ENABLE_TRACING` is off; with neither set, trace export is disabled entirely. |

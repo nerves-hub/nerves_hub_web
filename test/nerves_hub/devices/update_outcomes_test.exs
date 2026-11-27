@@ -74,7 +74,7 @@ defmodule NervesHub.Devices.UpdateOutcomesTest do
 
       assert :ok =
                FirmwareUpdates.status_update("rescheduled", device.id, %{
-                 "delay_for" => 60_000,
+                 "delay_for" => 15,
                  "reason" => "recording"
                })
 

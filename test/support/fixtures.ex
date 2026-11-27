@@ -5,6 +5,7 @@ defmodule NervesHub.Fixtures do
   alias NervesHub.Accounts.Org
   alias NervesHub.Accounts.OrgKey
   alias NervesHub.Accounts.TwoFactor
+  alias NervesHub.AnalyticsRepo
   alias NervesHub.Archives
   alias NervesHub.AuditLogs.AuditLog
   alias NervesHub.Certificate
@@ -13,6 +14,7 @@ defmodule NervesHub.Fixtures do
   alias NervesHub.Devices.CACertificates
   alias NervesHub.Devices.Certificates
   alias NervesHub.Devices.DeviceConnection
+  alias NervesHub.Devices.DeviceConnectionHistory
   alias NervesHub.Devices.InflightUpdate
   alias NervesHub.Devices.NetworkIdentity
   alias NervesHub.Firmwares
@@ -714,6 +716,30 @@ defmodule NervesHub.Fixtures do
       )
     )
     |> Repo.insert!()
+  end
+
+  @doc """
+  A row in the device's connection history in ClickHouse, from `established_at`
+  to `disconnected_at` (nil while it's open).
+
+  `extra` takes `:reason`, `:network_interface` and `:ip_address`.
+  """
+  def connection_history_fixture(%Devices.Device{} = device, established_at, disconnected_at, extra \\ []) do
+    %DeviceConnection{
+      id: Ecto.UUID.generate(),
+      org_id: device.org_id,
+      product_id: device.product_id,
+      device_id: device.id,
+      established_at: established_at,
+      last_seen_at: disconnected_at || established_at,
+      disconnected_at: disconnected_at,
+      disconnected_reason: extra[:reason],
+      network_interface: extra[:network_interface],
+      ip_address: extra[:ip_address]
+    }
+    |> DeviceConnectionHistory.from_device_connection_changeset()
+    |> Ecto.Changeset.apply_changes()
+    |> AnalyticsRepo.insert!()
   end
 
   def network_identity_fixture(%Devices.Device{} = device, params \\ %{}) do

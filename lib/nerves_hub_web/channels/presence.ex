@@ -21,7 +21,9 @@ defmodule NervesHubWeb.Presence do
   @impl Phoenix.Presence
   def fetch(_topic, presences) do
     for {key, %{metas: [meta | metas]}} <- presences, into: %{} do
-      {key, %{metas: [meta | metas], id: key, user: %{name: meta.name}}}
+      # A node still on an older build tracks no picture.
+      user = %{name: meta.name, profile_picture_url: Map.get(meta, :profile_picture_url)}
+      {key, %{metas: [meta | metas], id: key, user: user}}
     end
   end
 

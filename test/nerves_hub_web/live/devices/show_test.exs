@@ -181,6 +181,39 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       )
     end
 
+    test "each viewer shows their own picture, not the current user's", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device,
+      user: user,
+      user_two: user_two
+    } do
+      picture = "https://example.com/user-two.png"
+
+      user_two =
+        user_two
+        |> Ecto.Changeset.change(profile_picture_url: picture)
+        |> NervesHub.Repo.update!()
+
+      token_two = NervesHub.Accounts.create_user_session_token(user_two)
+
+      conn_two =
+        build_conn()
+        |> init_test_session(%{"user_token" => token_two})
+
+      conn_two
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      |> assert_has("#present-users > #presences-#{user_two.id} > img[src='#{picture}']")
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      |> assert_has("#present-users > #presences-#{user.id} > span", text: user_initials(user))
+      |> refute_has("#present-users > #presences-#{user.id} > img")
+      |> assert_has("#present-users > #presences-#{user_two.id} > img[src='#{picture}']")
+      |> refute_has("#present-users > #presences-#{user_two.id} > span")
+    end
+
     test "two users, different devices", %{
       conn: conn,
       org: org,
@@ -339,6 +372,62 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
         render(view)
       end)
       |> assert_has("span[data-connection-status=connected]")
+    end
+
+    test "a device that went to sleep shows as asleep, with when it is due back", %{conn: conn, fixture: fixture} do
+      device = fixture.device
+      {:ok, connection} = Connections.device_connecting(device.org_id, device.product_id, device.id)
+      :ok = Connections.device_connected(connection.id)
+      :ok = Connections.device_leaving(connection.id, :deep_sleep, DateTime.add(DateTime.utc_now(), 10, :minute))
+      :ok = Connections.device_disconnected(connection.id)
+
+      conn
+      |> visit(device_show_path(fixture))
+      |> assert_has("span.sleep-mark[data-connection-status=asleep]")
+      |> assert_has("#device-sleep-status span", text: "Asleep")
+      |> assert_has("#device-sleep-status span", text: "back in 9 minutes")
+      |> assert_has("#device-sleep-status [role=tooltip]", text: "In deep sleep. Expected back at")
+    end
+
+    test "a device that goes to sleep while the page is open shows as asleep", %{conn: conn, fixture: fixture} do
+      device = fixture.device
+      {:ok, connection} = Connections.device_connecting(device.org_id, device.product_id, device.id)
+      :ok = Connections.device_connected(connection.id)
+
+      conn
+      |> visit(device_show_path(fixture))
+      |> assert_has("span[data-connection-status=connected]")
+      |> unwrap(fn view ->
+        :ok = Connections.device_leaving(connection.id, :deep_sleep, DateTime.add(DateTime.utc_now(), 10, :minute))
+        :ok = Connections.device_disconnected(connection.id)
+        render(view)
+      end)
+      |> assert_has("span.sleep-mark[data-connection-status=asleep][title='Asleep, back in 9 minutes']")
+      |> assert_has("#device-sleep-status span", text: "back in 9 minutes")
+    end
+
+    test "a device later than it said shows as overdue", %{conn: conn, fixture: fixture} do
+      device = fixture.device
+      {:ok, connection} = Connections.device_connecting(device.org_id, device.product_id, device.id)
+      :ok = Connections.device_leaving(connection.id, :deep_sleep, DateTime.add(DateTime.utc_now(), -20, :minute))
+      :ok = Connections.device_disconnected(connection.id)
+
+      conn
+      |> visit(device_show_path(fixture))
+      |> assert_has("span.sleep-mark[data-connection-status=overdue]")
+      |> assert_has("#device-sleep-status span", text: "Overdue")
+      |> assert_has("#device-sleep-status span", text: "was due back 20 minutes ago")
+    end
+
+    test "a device that went offline without saying shows no sleep summary", %{conn: conn, fixture: fixture} do
+      device = fixture.device
+      {:ok, connection} = Connections.device_connecting(device.org_id, device.product_id, device.id)
+      :ok = Connections.device_disconnected(connection.id)
+
+      conn
+      |> visit(device_show_path(fixture))
+      |> assert_has("span[data-connection-status=disconnected]")
+      |> refute_has("#device-sleep-status")
     end
 
     test "connection:status updates assigns when coming online", %{
@@ -2727,6 +2816,38 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
         render_click(view, "unpin", %{})
       end)
       |> assert_has("button[aria-label='Pin device']")
+    end
+
+    test "pinning a device another tab already pinned shows it pinned", context do
+      %{conn: conn, org: org, product: product, device: device, user: user} = context
+
+      session = visit(conn, "/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      {:ok, _} = Pinning.pin_device(user.id, device.id)
+
+      session
+      |> unwrap(fn view ->
+        render_click(view, "pin", %{})
+      end)
+      |> assert_has("button[aria-label='Unpin device']")
+      |> refute_has("div", text: "Could not pin device.")
+
+      assert Pinning.device_pinned?(user.id, device.id)
+    end
+
+    test "unpinning a device another tab already unpinned shows it unpinned", context do
+      %{conn: conn, org: org, product: product, device: device, user: user} = context
+      {:ok, _} = Pinning.pin_device(user.id, device.id)
+
+      session = visit(conn, "/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      :ok = Pinning.unpin_device(user.id, device.id)
+
+      session
+      |> unwrap(fn view ->
+        render_click(view, "unpin", %{})
+      end)
+      |> assert_has("button[aria-label='Pin device']")
+
+      refute Pinning.device_pinned?(user.id, device.id)
     end
   end
 

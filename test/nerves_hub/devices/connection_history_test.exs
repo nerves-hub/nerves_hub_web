@@ -7,6 +7,7 @@ defmodule NervesHub.Devices.ConnectionHistoryTest do
   alias NervesHub.Analytics.Buffer
   alias NervesHub.AnalyticsRepo
   alias NervesHub.Devices.Connections
+  alias NervesHub.Devices.ConnectionTimeline
   alias NervesHub.Devices.DeviceConnection
   alias NervesHub.Devices.DeviceConnectionHistory
   alias NervesHub.Fixtures
@@ -86,12 +87,12 @@ defmodule NervesHub.Devices.ConnectionHistoryTest do
     } do
       {:ok, connection} = Connections.device_connecting(device.org_id, device.product_id, device.id)
       :ok = Connections.device_connected(connection.id)
-      :ok = Connections.device_disconnected(connection.id, "Stale connection")
+      :ok = Connections.device_disconnected(connection.id, :stale_connection)
 
       # all three rows share the merge tree's sorting key, and the disconnect is
       # written last, so the merged view collapses to it
       assert_eventually(
-        [%DeviceConnectionHistory{disconnected_reason: "Stale connection"} = history] =
+        [%DeviceConnectionHistory{disconnected_reason: "stale_connection"} = history] =
           history_for(connection.id)
       )
 
@@ -107,7 +108,7 @@ defmodule NervesHub.Devices.ConnectionHistoryTest do
       {:ok, connection} = Connections.device_connecting(device.org_id, device.product_id, device.id)
 
       assert_eventually(
-        [%DeviceConnectionHistory{disconnected_reason: "Reconnected"} = closed] = history_for(replaced.id)
+        [%DeviceConnectionHistory{disconnected_reason: "duplicate_connection"} = closed] = history_for(replaced.id)
       )
 
       assert DateTime.compare(closed.disconnected_at, last_seen_at) == :eq
@@ -117,13 +118,13 @@ defmodule NervesHub.Devices.ConnectionHistoryTest do
     test "a reconnect leaves a connection that already disconnected as it was", %{device: device} do
       {:ok, replaced} = Connections.device_connecting(device.org_id, device.product_id, device.id)
       :ok = Connections.device_connected(replaced.id)
-      :ok = Connections.device_disconnected(replaced.id, "Manual disconnect")
+      :ok = Connections.device_disconnected(replaced.id, :reconnect_requested)
 
       {:ok, _connection} = Connections.device_connecting(device.org_id, device.product_id, device.id)
 
       :ok = Buffer.flush(DeviceConnectionHistory)
 
-      assert [%DeviceConnectionHistory{disconnected_reason: "Manual disconnect"}] = history_for(replaced.id)
+      assert [%DeviceConnectionHistory{disconnected_reason: "reconnect_requested"}] = history_for(replaced.id)
     end
 
     test "device_heartbeat/1 records a history row", %{device: device} do
@@ -154,7 +155,7 @@ defmodule NervesHub.Devices.ConnectionHistoryTest do
 
       assert_eventually(
         Enum.any?(history_for(connection.id), fn h ->
-          h.disconnected_reason == "Stale connection"
+          h.disconnected_reason == "stale_connection"
         end)
       )
     end
@@ -243,7 +244,7 @@ defmodule NervesHub.Devices.ConnectionHistoryTest do
 
       assert_eventually(
         Enum.any?(history_for(ref), fn h ->
-          h.disconnected_reason == "Stale connection" and not is_nil(h.disconnected_at) and
+          h.disconnected_reason == "stale_connection" and not is_nil(h.disconnected_at) and
             DateTime.compare(h.disconnected_at, last_seen_at) == :eq
         end)
       )
@@ -287,7 +288,7 @@ defmodule NervesHub.Devices.ConnectionHistoryTest do
         # stale last_seen_at, but the connection is already closed
         last_seen_at: stale_time(),
         disconnected_at: DateTime.add(now, -1, :hour),
-        disconnected_reason: "Original reason"
+        disconnected_reason: :reconnect_requested
       }
 
       {:ok, _} =
@@ -299,12 +300,12 @@ defmodule NervesHub.Devices.ConnectionHistoryTest do
 
       Process.sleep(200)
 
-      refute Enum.any?(history_for(ref), fn h -> h.disconnected_reason == "Stale connection" end)
+      refute Enum.any?(history_for(ref), fn h -> h.disconnected_reason == "stale_connection" end)
     end
   end
 
-  describe "offline_periods/3" do
-    test "is when the device had no connection, and only for that device", %{
+  describe "ConnectionTimeline.load/3" do
+    test "reads the device's connections, and the last to end before the span", %{
       device: device,
       org: org,
       product: product,
@@ -314,26 +315,20 @@ defmodule NervesHub.Devices.ConnectionHistoryTest do
       now = DateTime.utc_now()
       ago = fn minutes -> DateTime.add(now, -minutes, :minute) end
 
-      insert_history(device, ago.(200), ago.(100))
-      insert_history(device, ago.(70), nil)
-      insert_history(other_device, ago.(100), ago.(70))
+      Fixtures.connection_history_fixture(device, ago.(300), ago.(200), reason: "Stale connection")
+      Fixtures.connection_history_fixture(device, ago.(150), ago.(100), reason: "Reconnected")
+      Fixtures.connection_history_fixture(device, ago.(70), nil, network_interface: :wifi, ip_address: "10.0.4.17")
+      Fixtures.connection_history_fixture(other_device, ago.(100), ago.(70))
 
-      assert_eventually(Connections.offline_periods(device, ago.(180), now) == [{ago.(100), ago.(70)}])
+      assert_eventually(
+        ConnectionTimeline.load(device, ago.(180), now) == %ConnectionTimeline{
+          offline: [
+            %{from: ago.(200), until: ago.(150), reason: "Stale connection", interface: nil, ip_address: nil},
+            %{from: ago.(100), until: ago.(70), reason: "Reconnected", interface: "wifi", ip_address: "10.0.4.17"}
+          ],
+          reconnects: []
+        }
+      )
     end
-  end
-
-  defp insert_history(device, established_at, disconnected_at) do
-    %DeviceConnection{
-      id: Ecto.UUID.generate(),
-      org_id: device.org_id,
-      product_id: device.product_id,
-      device_id: device.id,
-      established_at: established_at,
-      last_seen_at: disconnected_at || established_at,
-      disconnected_at: disconnected_at
-    }
-    |> DeviceConnectionHistory.from_device_connection_changeset()
-    |> Ecto.Changeset.apply_changes()
-    |> AnalyticsRepo.insert!()
   end
 end

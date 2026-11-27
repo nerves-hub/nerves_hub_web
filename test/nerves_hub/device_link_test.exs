@@ -43,14 +43,31 @@ defmodule NervesHub.DeviceLinkTest do
   end
 
   describe "status_update/2" do
-    test "creates an InflightUpdate if none exists", %{device: device} do
-      # Verify no InflightUpdates exists
+    # A device that was already updating when the server lost track of it, such
+    # as across a deploy, still has its progress followed.
+    test "creates an InflightUpdate for progress when none is recorded", %{device: device} do
       refute Repo.exists?(where(InflightUpdate, device_id: ^device.id))
+
+      :ok = DeviceLink.status_update(to_device_info(device), %{"status" => "downloading", "progress" => 10})
+
+      assert %{status: :downloading, progress: 10} = Repo.get_by(InflightUpdate, device_id: device.id)
+    end
+
+    # nerves_hub_link reports `started` for every download it begins, archives
+    # included, and an archive is not an update.
+    test "'started' with no update recorded records none", %{device: device} do
+      :ok = DeviceLink.status_update(to_device_info(device), %{"status" => "started"})
+
+      refute Repo.exists?(where(InflightUpdate, device_id: ^device.id))
+      assert Repo.reload!(device).update_attempts == []
+    end
+
+    test "'started' moves an update that was recorded along", %{device: device, firmware: firmware} do
+      {:ok, _inflight_update} = Fixtures.inflight_update(device, firmware)
 
       :ok = DeviceLink.status_update(to_device_info(device), %{"status" => "started"})
 
-      # Verify the inflight update was created
-      assert Repo.exists?(where(InflightUpdate, device_id: ^device.id))
+      assert %{status: :started} = Repo.get_by(InflightUpdate, device_id: device.id)
     end
 
     test "manually requested firmware update is ignored by the device", %{device: device, firmware: firmware} do
@@ -109,7 +126,7 @@ defmodule NervesHub.DeviceLinkTest do
       :ok =
         DeviceLink.status_update(to_device_info(device), %{
           "status" => "rescheduled",
-          "delay_for" => to_timeout(minute: 15)
+          "delay_for" => 15
         })
 
       device = Repo.reload!(device)
@@ -136,7 +153,7 @@ defmodule NervesHub.DeviceLinkTest do
       :ok =
         DeviceLink.status_update(to_device_info(device), %{
           "status" => "rescheduled",
-          "delay_for" => to_timeout(minute: 15)
+          "delay_for" => 15
         })
 
       device = Repo.reload!(device)
@@ -447,6 +464,85 @@ defmodule NervesHub.DeviceLinkTest do
       # end this update as abandoned rather than finish it.
       assert Repo.reload!(device).firmware_metadata.uuid == previous_uuid
       assert Repo.get_by(InflightUpdate, device_id: device.id)
+    end
+  end
+
+  describe "device_message/3 sleeping and rebooting" do
+    setup %{device: device} do
+      device_info = connected_device_info(device)
+      :ok = Connections.device_connected(device_info.connection_ref)
+
+      {:ok, %{session: %Session{device_info: device_info}}}
+    end
+
+    test "sleeping records deep sleep and when the device will be back", %{device: device, session: session} do
+      before = DateTime.utc_now()
+
+      assert {_session, []} =
+               DeviceLink.device_message(session, "sleeping", %{"mode" => "deep", "duration_ms" => 300_000})
+
+      connection = Connections.get_latest_for_device(device.id)
+      assert connection.disconnected_reason == :deep_sleep
+      assert connection.status == :connected
+
+      assert DateTime.diff(connection.expected_wake_at, before, :second) in 299..301
+    end
+
+    test "sleeping in light mode records light sleep", %{device: device, session: session} do
+      DeviceLink.device_message(session, "sleeping", %{"mode" => "light", "duration_ms" => 1_000})
+
+      assert Connections.get_latest_for_device(device.id).disconnected_reason == :light_sleep
+    end
+
+    # A device waiting on a GPIO or the ULP has no time to give.
+    test "sleeping with no duration records no wake time", %{device: device, session: session} do
+      DeviceLink.device_message(session, "sleeping", %{"mode" => "deep"})
+
+      assert %DeviceConnection{disconnected_reason: :deep_sleep, expected_wake_at: nil} =
+               Connections.get_latest_for_device(device.id)
+    end
+
+    test "a duration that is not a sensible number of milliseconds is ignored", %{device: device, session: session} do
+      for duration <- [-5, 0, "300000", 1.5, to_timeout(day: 400)] do
+        DeviceLink.device_message(session, "sleeping", %{"duration_ms" => duration})
+
+        assert %DeviceConnection{disconnected_reason: :deep_sleep, expected_wake_at: nil} =
+                 Connections.get_latest_for_device(device.id)
+      end
+    end
+
+    test "sleeping with no payload at all is taken as deep sleep", %{device: device, session: session} do
+      assert {_session, []} = DeviceLink.device_message(session, "sleeping", nil)
+
+      assert Connections.get_latest_for_device(device.id).disconnected_reason == :deep_sleep
+    end
+
+    test "rebooting records the reason", %{device: device, session: session} do
+      assert {_session, []} = DeviceLink.device_message(session, "rebooting", %{})
+
+      assert Connections.get_latest_for_device(device.id).disconnected_reason == :rebooting
+    end
+  end
+
+  describe "disconnect/2" do
+    setup %{device: device} do
+      device_info = connected_device_info(device)
+      :ok = Connections.device_connected(device_info.connection_ref)
+
+      {:ok, %{device_info: device_info}}
+    end
+
+    test "reads the reason the Client sends as a string", %{device: device, device_info: device_info} do
+      assert :ok = DeviceLink.disconnect(device_info.connection_ref, "duplicate_connection")
+
+      assert Connections.get_latest_for_device(device.id).disconnected_reason == :duplicate_connection
+    end
+
+    test "records a reason this release doesn't know as none", %{device: device, device_info: device_info} do
+      assert :ok = DeviceLink.disconnect(device_info.connection_ref, "from_a_newer_release")
+
+      assert %DeviceConnection{status: :disconnected, disconnected_reason: nil} =
+               Connections.get_latest_for_device(device.id)
     end
   end
 

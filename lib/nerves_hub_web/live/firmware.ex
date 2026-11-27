@@ -5,6 +5,7 @@ defmodule NervesHubWeb.Live.Firmware do
 
   alias NervesHub.Accounts
   alias NervesHub.AuditLogs.ProductTemplates
+  alias NervesHub.Branding
   alias NervesHub.Devices
   alias NervesHub.Devices.UpdateHistory
   alias NervesHub.Firmwares
@@ -534,8 +535,8 @@ defmodule NervesHubWeb.Live.Firmware do
   end
 
   defp upload_error({:fwup_too_old, required, installed}) do
-    "This firmware requires fwup #{required} or newer, and NervesHub has fwup #{installed}. " <>
-      "Please contact support to have NervesHub's fwup updated."
+    "This firmware requires fwup #{required} or newer, and #{platform()} has fwup #{installed}. " <>
+      "Please contact support to have #{platform()}'s fwup updated."
   end
 
   defp upload_error({:product_mismatch, declared, expected}) do
@@ -544,7 +545,7 @@ defmodule NervesHubWeb.Live.Firmware do
   end
 
   defp upload_error({:missing_manifest_field, field}) do
-    "This RAUC bundle's manifest has no #{field}. NervesHub needs it to match " <>
+    "This RAUC bundle's manifest has no #{field}. #{platform()} needs it to match " <>
       "the bundle to a deployment."
   end
 
@@ -558,20 +559,20 @@ defmodule NervesHubWeb.Live.Firmware do
   end
 
   defp upload_error({:invalid_manifest_field, field}) do
-    "This RAUC bundle's manifest has a #{field} that is not a UUID. NervesHub " <>
+    "This RAUC bundle's manifest has a #{field} that is not a UUID. #{platform()} " <>
       "stores firmware identifiers in a UUID column, so a declared uuid has to " <>
       "be one — a UUIDv4 generated once per build is the usual answer."
   end
 
   defp upload_error({:missing_manifest_section, key}) do
-    "This RAUC bundle's manifest has no [meta.nerveshub] section, so NervesHub " <>
+    "This RAUC bundle's manifest has no [meta.nerveshub] section, so #{platform()} " <>
       "cannot read #{key}. Meta sections require RAUC 1.9 or newer — older " <>
       "versions drop them silently while building the bundle, so the section " <>
       "can be present in your manifest and absent from the bundle."
   end
 
   defp upload_error(:plain_bundle_unsupported) do
-    "This is a RAUC bundle in the plain format. NervesHub reads verity bundles, " <>
+    "This is a RAUC bundle in the plain format. #{platform()} reads verity bundles, " <>
       "which is also the format required for the streaming installs that make " <>
       "RAUC worth using. Rebuild with `format=verity` in the manifest's " <>
       "[bundle] section."
@@ -584,19 +585,19 @@ defmodule NervesHubWeb.Live.Firmware do
   defp upload_error({:openssl_failed, status, output}) do
     Logger.error("openssl rejected a RAUC bundle (exit #{status}): #{output}")
 
-    "NervesHub could not verify this RAUC bundle: openssl exited #{status}. " <>
+    "#{platform()} could not verify this RAUC bundle: openssl exited #{status}. " <>
       "If the bundle is not corrupt, the server log has openssl's own message."
   end
 
   defp upload_error({:temp_dir_unavailable, reason}) do
     Logger.error("could not create a temporary directory to verify a RAUC bundle: #{inspect(reason)}")
 
-    "NervesHub could not create a temporary directory to verify this bundle. " <>
+    "#{platform()} could not create a temporary directory to verify this bundle. " <>
       "This is a server problem rather than something wrong with the bundle."
   end
 
   defp upload_error(:openssl_not_available) do
-    "NervesHub could not run `openssl`, which it needs to read a RAUC bundle's " <>
+    "#{platform()} could not run `openssl`, which it needs to read a RAUC bundle's " <>
       "signature. This is a server configuration problem rather than something " <>
       "wrong with the bundle — openssl has to be installed and on the path."
   end
@@ -611,11 +612,11 @@ defmodule NervesHubWeb.Live.Firmware do
   end
 
   defp upload_error(:esp_idf_ecdsa_signatures_not_supported) do
-    "This ESP-IDF image is signed with ECDSA. NervesHub can only verify RSA-3072 Secure Boot v2 signatures at present."
+    "This ESP-IDF image is signed with ECDSA. #{platform()} can only verify RSA-3072 Secure Boot v2 signatures at present."
   end
 
   defp upload_error(:unknown_signature_block_version) do
-    "This ESP-IDF image carries a signature block NervesHub does not recognise."
+    "This ESP-IDF image carries a signature block #{platform()} does not recognise."
   end
 
   defp upload_error(:signature_block_corrupt) do
@@ -647,6 +648,8 @@ defmodule NervesHubWeb.Live.Firmware do
   defp upload_error(%Ecto.Changeset{} = changeset), do: changeset
   defp upload_error(error) when is_binary(error), do: error
   defp upload_error(_error), do: "Unknown error uploading firmware. Please contact support."
+
+  defp platform(), do: Branding.friendly_platform_name()
 
   defp error_feedback(socket, %Ecto.Changeset{} = changeset) do
     put_flash(socket, :error, changeset_message(changeset))

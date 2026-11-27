@@ -51,22 +51,23 @@ defmodule NervesHub.DataCase do
   Stops the rate limiters' clock moving, for the rest of the test.
 
   The `Hammer` token buckets behind `NervesHub.RateLimit.*` refill from
-  `System.system_time(:second)`, in whole seconds. A test that spends a bucket
-  and then expects the next hit to be denied fails whenever the two hits land
-  either side of a second boundary, because a token arrives in between. With
-  the second held, a denial comes from the limit and never from when the test
-  happened to run.
+  `System.system_time(:millisecond)`, a fraction of a token at a time. A test
+  that spends a bucket and then expects the next hit to be denied fails
+  whenever enough time passes between the two hits for a token to arrive, as
+  it can on a loaded runner. With the clock held, a denial comes from the
+  limit and never from how long the test took.
 
-  Use it as `setup :freeze_rate_limit_clock`. Only `System.system_time(:second)`
-  is held, and only in the test process: other units, `DateTime.utc_now/0` and
-  every other process keep the real clock. `NervesHub.RateLimit.FrozenClockTest`
-  fails if Hammer stops reading the time from there.
+  Use it as `setup :freeze_rate_limit_clock`. Only
+  `System.system_time(:millisecond)` is held, and only in the test process:
+  other units, `DateTime.utc_now/0` and every other process keep the real
+  clock. `NervesHub.RateLimit.FrozenClockTest` fails if Hammer stops reading
+  the time from there.
   """
   def freeze_rate_limit_clock(_context) do
-    now = System.system_time(:second)
+    now = System.system_time(:millisecond)
 
     Mimic.stub(System, :system_time, fn
-      :second -> now
+      :millisecond -> now
       unit -> Mimic.call_original(System, :system_time, [unit])
     end)
 

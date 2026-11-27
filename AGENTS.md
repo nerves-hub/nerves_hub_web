@@ -137,6 +137,20 @@ when adding or removing one.
   "never connected" (that is a device still `registered`): `last_seen <`
   filters match it, Insights counts it as not seen in 14 days, and pages show
   its last seen as unknown.
+  Each connection also records why it ended (`disconnect_reason.ex`, an enum
+  stored as a string), and a device that says it is going to sleep is shown
+  as asleep until it is due back rather than offline; see
+  [docs/device_sleep.md](docs/device_sleep.md).
+  The web UI's devices list (`Devices.filter/3`), the API's
+  (`get_devices_by_org_id_and_product_id_with_pager/3`) and
+  `Devices.list_summaries/3`, which other applications in the cluster call for
+  plain maps and the tab counts, start from one query (`list_query/1`), so a
+  filter or sort behaves the same in all three. Each pages a query that
+  selects devices only and loads what it shows afterwards:
+  Postgres builds every row before an OFFSET, so a selected join would cost a
+  whole product's lookups on every page. Every sort but identifier's (unique
+  in an org) ends on the device id, so devices that tie, such as every one
+  that never connected, keep their place from one page to the next.
 - `managed_deployments.ex` / `managed_deployments/` — deployment groups and the
   `Distributed.Orchestrator` (one per deployment). A release with a workflow
   is walked a step at a time (`Workflows`, `WorkflowCoordinator`); each step
@@ -277,12 +291,25 @@ when adding or removing one.
   - User-facing counterparts: `UserConsoleChannel`, `UserLocalShellChannel`.
 - `live/` — LiveViews (the dashboard). `live/devices/show.ex` is the device
   page; its tabs live in `components/device_page/*` as tab components that hook
-  into the LiveView. Below `sm` the device page scrolls as one, under tabs
+  into the LiveView. The Health tab's History card opens with a connection lane
+  (`components/device_page/connection_lane.ex`) over the span its charts show,
+  drawn from `Devices.ConnectionTimeline`: time offline with why it began and
+  where the device came back, and reconnects too quick to count as offline.
+  Hovering or tapping an offline span darkens the charts' matching Offline
+  bands (the `ConnectionLane` hook). Below `sm` the device page scrolls as one, under tabs
   that stick to the top, and each tab has its own `max-sm:` layout (a table
   becomes a card per row by restyling its rows, not by rendering them twice).
   Two states on a phone are marked on `<html>`, which a patch never touches,
   and read by the `header-scrolled:` and `terminal-typing:` variants in
-  `app.css`. An organization's pages (`live/org/`, plus
+  `app.css`. A file sent to a device on the Console tab shows how it's going
+  in a dialog over the terminal and a strip under it, rendered by the tab and
+  driven by `assets/js/helpers/consoleUploadView.js`. The device's console reads
+  nothing else while it saves a file, so the page has to learn when it's done:
+  a console from 2.1.0 on is asked by `ConsoleChannel` to report each chunk it
+  saves (`file-data/ack`, then `file-data/saved` or `file-data/error`), and an
+  older one is typed a character and Delete, the file being saved once that
+  echoes. Only `ConsoleChannel` asks, never the page, since a channel that
+  doesn't know the answers would crash on them. An organization's pages (`live/org/`, plus
   `live/products/new.ex`) have no sidebar: they render inside `Layouts.org/1`,
   a centered column under the organization's name, counts and tabs, and mount
   `NervesHubWeb.Mounts.OrgCounts` for the counts. Product pages keep the
@@ -342,6 +369,11 @@ when adding or removing one.
   mounts. On a phone the sidebar is a drawer, and the top bar reads menu
   button, then the page's breadcrumb (or the product and page names when it
   has none), then the avatar, which holds the user menu the drawer leaves out.
+  The user menu's contents are one component, `Layouts.user_menu_items/1`,
+  shared by the sidebar's footer, that avatar and the header of pages without
+  a sidebar, so a new link goes there once. A button that opens a menu points
+  its chevron the way the menu opens (up in the footer, down for the product
+  switcher) and flips it while open, read from its `aria-expanded`.
   Every detail, new and edit page draws its breadcrumb with
   `components/breadcrumb.ex` (the list's name, a chevron, then the item), so
   a new page uses it rather than writing its own. Asking before an action
@@ -422,7 +454,13 @@ when adding or removing one.
   and edited metrics (`HealthProfiles.preview_counts/5`), which judge every
   device the way `HealthEvaluation` does but leave out readings still in the
   analytics buffer.
-- `controllers/` — JSON API (`controllers/api/`) and others.
+- `controllers/` — JSON API (`controllers/api/`) and others. The API's
+  devices list casts its filters with `DeviceFiltering.cast_filters/1`, as
+  the web UI casts them with `parse_filters/1`, but answers a key that isn't
+  a filter, or a value its filter can't take, with a 422 rather than dropping
+  it; the scripts list does the same with `ScriptFiltering.filters/0`. So a
+  new filter is taken by the API at once, and `api_spec_test.exs` fails until
+  the spec documents it.
 - `plugs/`, `router.ex`, `endpoint.ex`, `device_endpoint.ex`,
   `health_check_endpoint.ex`, `auth*.ex`.
 
@@ -497,6 +535,13 @@ when adding or removing one.
   `rounded-t-card` header and `rounded-b-card` footer. Controls keep
   `rounded`, menus `rounded-md`, meters `rounded-full`, and checkboxes and
   legend swatches `rounded-xs`.
+- **The instance's name:** NervesHub also runs under other names
+  (NervesCloud), so text a person reads, on a page, in a flash or an error, or
+  in a message sent to Slack, Teams or Discord, names the instance with
+  `NervesHub.Branding.friendly_platform_name()` (`FRIENDLY_PLATFORM_NAME`), not
+  "NervesHub". Call it as the text is built, never in a module attribute, which
+  would fix the name at compile time. Docs, API spec descriptions, user agents
+  and links to the NervesHub documentation keep the name.
 - **Boundaries:** contexts (`lib/nerves_hub/`) hold business logic; web modules
   stay thin and call into them. Match the surrounding module's conventions,
   error handling, and naming rather than importing your own.
@@ -522,6 +567,19 @@ when adding or removing one.
   `require_membership`, or `plug(:require_no_permission, :reason)` for
   sign-in pages and requests that prove themselves (a Slack signature). A
   refusal raises `NervesHubWeb.UnauthorizedError` everywhere.
+- **Async work in LiveViews is traced.** `use NervesHubWeb, :live_view`,
+  `:live_component` and `tab_component:` import `start_async` and
+  `assign_async` from `NervesHub.Telemetry.AsyncTrace` in place of
+  `Phoenix.LiveView`'s, so a task's queries join the trace of the callback
+  that started it. Call them bare: `Phoenix.LiveView.start_async` written
+  out, or a module that imports `Phoenix.LiveView` itself, runs untraced.
+  The span is named for what the async is, so put which one after a `:` in
+  a string name (`"load_chart:#{key}"`) or after the first element of a
+  tuple (`{:send_test, id}`). There's no traced `stream_async`, since
+  nothing uses one. A LiveComponent's `update` runs during the render, after
+  the callback's span has ended, so `NervesHub.Telemetry.ComponentTrace`
+  opens a span for it under the callback that rendered it. Its handlers have
+  to be attached before `OpentelemetryPhoenix`'s.
 - Never weaken a test, disable a lint, or add a suppression to get green — if
   you're blocked, say so.
 
@@ -597,6 +655,12 @@ moment a consumer changed.
   thing PhoenixTest doesn't cover, `unwrap(fn view -> … end)` drops down to
   `Phoenix.LiveViewTest` (both are imported by `ConnCase.Browser`) — reach for it
   only for the gaps.
+- **Tracing tests** capture spans by pointing the SDK's own batch processor at
+  the test process (`:otel_batch_processor.set_exporter(:otel_exporter_pid,
+  self())`), then in `on_exit` at an exporter that declines to start. Every
+  test shares that processor, so these modules can't be async. `config/test.exs`
+  lifts its queue limit: with the limit, the spans the rest of the suite makes
+  fill the buffer, and the processor drops the tracing test's own.
 - **Known-flaky / environment-dependent (not code smells):**
   - **ClickHouse is eventually consistent.** Connection-history and Insights
     tests assert with `assert_eventually`; under a loaded runner they can fail

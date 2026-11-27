@@ -67,15 +67,7 @@ defmodule NervesHubWeb.API.Schemas.SupportScriptSchemas do
       type: :object,
       properties: %{
         data: %Schema{description: "The Support Script details", type: :array, items: SupportScriptMinimal},
-        pagination: %Schema{
-          type: :object,
-          properties: %{
-            page_number: %Schema{type: :integer},
-            page_size: %Schema{type: :integer},
-            total_pages: %Schema{type: :integer},
-            total_entries: %Schema{type: :integer}
-          }
-        }
+        pagination: SchemaHelpers.pagination_meta()
       },
       example: %{
         "data" => [

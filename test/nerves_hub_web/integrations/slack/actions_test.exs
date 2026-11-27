@@ -188,7 +188,7 @@ defmodule NervesHubWeb.Integrations.Slack.ActionsTest do
 
     test "refuses an offline device", %{connection_id: connection_id, device: device, user: user} do
       :ok = link!(user)
-      :ok = Connections.device_disconnected(connection_id, "a test")
+      :ok = Connections.device_disconnected(connection_id, :reconnect_requested)
 
       assert {:error, :offline} = Actions.perform(click(device, "device.reboot"))
       assert %{"text" => text} = private_reply()

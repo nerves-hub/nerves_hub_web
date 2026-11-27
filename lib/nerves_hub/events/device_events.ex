@@ -62,9 +62,24 @@ defmodule NervesHub.DeviceEvents do
     |> Enum.each(&disconnect(%{id: &1}))
   end
 
-  defp disconnect(%{id: device_id}) do
+  @doc """
+  Closes a device's connection so that it connects again, as someone asked
+  from the web UI or the API. The connection ends with the reason
+  `:reconnect_requested`.
+  """
+  @spec reconnect(%{:id => pos_integer(), optional(atom()) => any()}) :: :ok
+  def reconnect(device) do
+    disconnect(device, :reconnect_requested)
+  end
+
+  # `reason` travels in the payload for `NervesHubWeb.DeviceSocket` to record
+  # as the connection's `disconnected_reason`. Sockets that do not look for it
+  # close all the same.
+  defp disconnect(%{id: device_id}, reason \\ nil) do
+    payload = if reason, do: %{reason: Atom.to_string(reason)}, else: %{}
+
     :ok =
-      ChannelServer.broadcast(NervesHub.PubSub, "device_socket:#{device_id}", "disconnect", %{})
+      ChannelServer.broadcast(NervesHub.PubSub, "device_socket:#{device_id}", "disconnect", payload)
   end
 
   @doc """
@@ -79,7 +94,7 @@ defmodule NervesHub.DeviceEvents do
   deactivated, and only those.
   """
   def shared_secret_deactivated(%{key: key}) do
-    :ok = ChannelServer.broadcast(NervesHub.PubSub, shared_secret_topic(key), "disconnect", %{})
+    :ok = ChannelServer.broadcast(NervesHub.PubSub, shared_secret_topic(key), "disconnect", %{reason: "key_revoked"})
   end
 
   @doc """

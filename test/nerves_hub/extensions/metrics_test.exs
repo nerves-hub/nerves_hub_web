@@ -260,8 +260,9 @@ defmodule NervesHub.Extensions.MetricsTest do
   end
 
   describe "rate limiting" do
-    # The bucket refills every second, so a test that empties it and expects
-    # a denial would otherwise fail whenever a second ticks over in between.
+    # The bucket refills as time passes, so a test that empties it and expects
+    # a denial would otherwise fail whenever it ran slowly enough for a token
+    # to arrive in between.
     setup :freeze_rate_limit_clock
 
     test "one message costs one token, whatever it carries", %{state: state} do

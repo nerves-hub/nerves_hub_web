@@ -143,8 +143,9 @@ defmodule NervesHub.DeviceMetricsTest do
   end
 
   describe "record/3 with metric names that are too long" do
-    # The notification throttle refills every second, so two reports either
-    # side of a boundary would each raise a notification.
+    # The notification throttle refills as time passes. Held, each test says
+    # how far apart its reports were, rather than leaving it to how long the
+    # test took.
     setup :freeze_rate_limit_clock
 
     setup do
@@ -190,7 +191,7 @@ defmodule NervesHub.DeviceMetricsTest do
       product: product,
       long_key: long_key
     } do
-      start = System.system_time(:second)
+      start = System.system_time(:millisecond)
 
       set_rate_limit_clock(start)
       assert {:ok, 0} = Metrics.record(device_info, %{long_key => 1})
@@ -198,11 +199,11 @@ defmodule NervesHub.DeviceMetricsTest do
 
       # Throttled per device, so a report inside the minute does not even reach
       # the upsert that would bump the count.
-      set_rate_limit_clock(start + 59)
+      set_rate_limit_clock(start + to_timeout(second: 59))
       assert {:ok, 0} = Metrics.record(device_info, %{long_key => 1})
       assert [%{occurrence_count: 1}] = notifications(product)
 
-      set_rate_limit_clock(start + 60)
+      set_rate_limit_clock(start + to_timeout(minute: 1))
       assert {:ok, 0} = Metrics.record(device_info, %{long_key => 1})
       assert [%{occurrence_count: 2}] = notifications(product)
     end
@@ -398,12 +399,12 @@ defmodule NervesHub.DeviceMetricsTest do
   end
 
   # The notification throttle is a Hammer token bucket, which reads the time
-  # from `System.system_time(:second)` and nowhere else. Setting that, in this
-  # process only, says exactly how far apart two reports were, so the test does
-  # not depend on when it runs or how long it takes.
-  defp set_rate_limit_clock(second) do
+  # from `System.system_time(:millisecond)` and nowhere else. Setting that, in
+  # this process only, says exactly how far apart two reports were, so the test
+  # does not depend on when it runs or how long it takes.
+  defp set_rate_limit_clock(millisecond) do
     Mimic.stub(System, :system_time, fn
-      :second -> second
+      :millisecond -> millisecond
       unit -> Mimic.call_original(System, :system_time, [unit])
     end)
   end

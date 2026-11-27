@@ -127,6 +127,11 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show.StatsTabTest do
     %{conn: conn, path: path, device: device, deployment_group: deployment_group, firmware: firmware} = context
     now = DateTime.utc_now()
 
+    # The explanation names the instance as it's configured.
+    previous = Application.get_env(:nerves_hub, :friendly_platform_name)
+    Application.put_env(:nerves_hub, :friendly_platform_name, "NervesCloud")
+    on_exit(fn -> Application.put_env(:nerves_hub, :friendly_platform_name, previous) end)
+
     # An update in PostgreSQL from before ClickHouse kept any, and one after.
     stat!(device, deployment_group, firmware, %{at: DateTime.add(now, -1, :hour)})
     record!(device, deployment_group, firmware, :succeeded, timestamp: now)
@@ -134,10 +139,10 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show.StatsTabTest do
 
     conn
     |> visit(path)
-    |> assert_has("[data-figure='Failed attempts']", text: "NervesHub wasn’t keeping this yet", timeout: 2000)
+    |> assert_has("[data-figure='Failed attempts']", text: "NervesCloud wasn’t keeping this yet", timeout: 2000)
     |> refute_has("#stats-attempts")
     |> visit(path <> "?release=all")
-    |> assert_has("#stats-releases", text: "A dash means NervesHub wasn’t keeping that number yet", timeout: 2000)
+    |> assert_has("#stats-releases", text: "A dash means NervesCloud wasn’t keeping that number yet", timeout: 2000)
   end
 
   test "says so in place of each chart while nothing has happened", %{conn: conn, path: path} do

@@ -4,17 +4,17 @@
       <:crumb mono class="hidden lg:flex">{@device.identifier}</:crumb>
     </.breadcrumb>
 
-    <Header.compact_bar device={@device} device_connection={@device_connection} org={@org} product={@product} />
+    <Header.compact_bar device={@device} device_connection={@device_connection} org={@org} product={@product} sleep_clock={@sleep_clock} />
 
     <%!-- On a phone the top bar's avatar is you; the others viewing the
           device show from sm up. --%>
     <div class="ml-auto flex items-center max-sm:hidden sm:mr-6">
       <div id="present-users" phx-update="stream" class="flex h-7 flex-row-reverse -space-x-1 space-x-reverse">
         <.tooltip :for={{id, %{user: user}} <- @streams.presences} id={id} class="z-10 inline-flex cursor-default items-center justify-center">
-          <span :if={!@user.profile_picture_url} class="inline-flex size-7 items-center justify-center rounded-full bg-base-800 px-1 text-sm font-medium text-content-muted ring-2 ring-surface-muted">
+          <span :if={!user.profile_picture_url} class="inline-flex size-7 items-center justify-center rounded-full bg-base-800 px-1 text-sm font-medium text-content-muted ring-2 ring-surface-muted">
             {String.split(user.name) |> Enum.map(fn w -> String.at(w, 0) |> String.upcase() end)}
           </span>
-          <img :if={@user.profile_picture_url} src={@user.profile_picture_url} alt="User Profile Picture" class="size-7 rounded-full object-cover ring-2 ring-surface-muted" />
+          <img :if={user.profile_picture_url} src={user.profile_picture_url} alt={user.name} class="size-7 rounded-full object-cover ring-2 ring-surface-muted" />
           <:content>
             {user.name}
           </:content>
@@ -46,6 +46,7 @@
         firmware_update_stage={@firmware_update_stage}
         firmware_update_progress={@firmware_update_progress}
         inflight_version={@inflight_version}
+        sleep_clock={@sleep_clock}
       />
     </div>
 

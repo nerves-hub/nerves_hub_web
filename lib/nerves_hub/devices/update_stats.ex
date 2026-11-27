@@ -16,7 +16,6 @@ defmodule NervesHub.Devices.UpdateStats do
   alias NervesHub.ManagedDeployments.DeploymentGroup
   alias NervesHub.Products.Product
   alias NervesHub.Repo
-  alias Phoenix.Channel.Server, as: ChannelServer
 
   require Logger
 
@@ -147,16 +146,6 @@ defmodule NervesHub.Devices.UpdateStats do
     |> Repo.insert()
     |> case do
       {:ok, _stat} ->
-        _ =
-          if device.deployment_id do
-            ChannelServer.broadcast(
-              NervesHub.PubSub,
-              "deployment:#{device.deployment_id}",
-              "stat:logged",
-              %{}
-            )
-          end
-
         :ok
 
       {:error, %Ecto.Changeset{} = changeset} = error ->

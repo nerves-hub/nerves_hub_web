@@ -9,6 +9,7 @@ defmodule NervesHub.Devices.UpdateStatsTest do
   alias NervesHub.Fixtures
   alias NervesHub.ManagedDeployments
   alias NervesHub.Repo
+  alias Phoenix.Socket.Broadcast
 
   setup %{tmp_dir: tmp_dir} do
     user = Fixtures.user_fixture()
@@ -144,6 +145,23 @@ defmodule NervesHub.Devices.UpdateStatsTest do
       [stat] = Repo.all(UpdateStat)
 
       refute stat.deployment_id
+    end
+
+    # Every device in the group follows its topic, so anything sent there for
+    # each finished update reaches every device in the group.
+    test "sends nothing to the deployment group's devices", %{
+      device: device,
+      source_firmware: source_firmware,
+      deployment_group: deployment_group
+    } do
+      device = Deployments.update_deployment_group(device, deployment_group)
+      :ok = Phoenix.PubSub.subscribe(NervesHub.PubSub, "deployment:#{deployment_group.id}")
+
+      {:ok, metadata} = Firmwares.metadata_from_firmware(source_firmware)
+      assert :ok = UpdateStats.log_update(device, metadata)
+
+      assert [%UpdateStat{}] = Repo.all(UpdateStat)
+      refute_receive %Broadcast{}
     end
   end
 
