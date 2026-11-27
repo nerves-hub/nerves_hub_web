@@ -3,13 +3,18 @@ defmodule NervesHub.Devices.DeviceFilteringTest do
 
   import Ecto.Query
 
+  alias NervesHub.Accounts
   alias NervesHub.Devices.AdvancedQuery.Schema
   alias NervesHub.Devices.Device
   alias NervesHub.Devices.DeviceFiltering
   alias NervesHub.Devices.Health
+  alias NervesHub.Devices.PinnedDevice
+  alias NervesHub.Devices.Pinning
   alias NervesHub.Devices.Updates
   alias NervesHub.Fixtures
   alias NervesHub.Repo
+
+  doctest DeviceFiltering, import: true
 
   setup do
     user = Fixtures.user_fixture()
@@ -126,6 +131,58 @@ defmodule NervesHub.Devices.DeviceFilteringTest do
 
       assert tagged.identifier in result
       assert no_tags.identifier in result
+    end
+  end
+
+  describe "filter/4 :is_pinned" do
+    setup %{org: org, product: product, firmware: firmware, user: user} do
+      pinned = Fixtures.device_fixture(org, product, firmware)
+      unpinned = Fixtures.device_fixture(org, product, firmware)
+      {:ok, _} = Pinning.pin_device(user.id, pinned.id)
+
+      %{pinned: pinned, unpinned: unpinned}
+    end
+
+    # Joined to one user's pins, as `NervesHub.Devices.filter/3` is.
+    defp pins_query(product, user) do
+      product
+      |> base_query()
+      |> join(:left, [d], pd in PinnedDevice, on: pd.device_id == d.id and pd.user_id == ^user.id, as: :pinned)
+    end
+
+    test "returns only the devices the user pinned when true", context do
+      %{product: product, user: user, pinned: pinned} = context
+
+      result = product |> pins_query(user) |> DeviceFiltering.filter(%{}, :is_pinned, true) |> identifiers()
+
+      assert result == [pinned.identifier]
+    end
+
+    test "leaves out devices only another user pinned", context do
+      %{org: org, product: product, user: user, unpinned: unpinned} = context
+      other_user = Fixtures.user_fixture()
+      {:ok, _} = Accounts.add_org_user(org, other_user, %{role: :view})
+      {:ok, _} = Pinning.pin_device(other_user.id, unpinned.id)
+
+      result = product |> pins_query(user) |> DeviceFiltering.filter(%{}, :is_pinned, true) |> identifiers()
+
+      refute unpinned.identifier in result
+    end
+
+    test "returns the query unchanged when false", context do
+      %{product: product, user: user, pinned: pinned, unpinned: unpinned} = context
+
+      result = product |> pins_query(user) |> DeviceFiltering.filter(%{}, :is_pinned, false) |> identifiers()
+
+      assert result == Enum.sort([pinned.identifier, unpinned.identifier])
+    end
+
+    test "returns a query with no pins joined unchanged", context do
+      %{product: product, pinned: pinned, unpinned: unpinned} = context
+
+      result = product |> base_query() |> DeviceFiltering.filter(%{}, :is_pinned, true) |> identifiers()
+
+      assert result == Enum.sort([pinned.identifier, unpinned.identifier])
     end
   end
 
@@ -764,6 +821,65 @@ defmodule NervesHub.Devices.DeviceFilteringTest do
       result = base_query(product) |> DeviceFiltering.build_filters(%{}) |> identifiers()
       assert d1.identifier in result
       assert d2.identifier in result
+    end
+  end
+
+  describe "filter_values/1" do
+    test "lists only choices the multi-choice filters apply" do
+      for key <- DeviceFiltering.multi_filters(), value <- DeviceFiltering.filter_values(key) || [] do
+        assert DeviceFiltering.value_dynamic(key, value), "#{key}: #{value}"
+      end
+    end
+
+    test "lists the tabs and reasons the devices list has" do
+      assert DeviceFiltering.filter_values(:state) == DeviceFiltering.states()
+      assert DeviceFiltering.filter_values(:reason) == DeviceFiltering.reasons()
+    end
+  end
+
+  describe "cast_filters/1" do
+    test "casts as parse_filters/1 does" do
+      params = %{"has_no_tags" => "true", "only_updating" => "false", "connection" => "connected", "tags" => "prod"}
+
+      assert DeviceFiltering.cast_filters(params) == {:ok, DeviceFiltering.parse_filters(params)}
+      assert DeviceFiltering.cast_filters(%{}) == {:ok, DeviceFiltering.default_filters()}
+    end
+
+    test "leaves a filter with an empty value unset" do
+      assert DeviceFiltering.cast_filters(%{"has_no_tags" => "", "display_deleted" => ""}) ==
+               {:ok, DeviceFiltering.default_filters()}
+    end
+
+    test "reports the refused filter first by key, whatever order they came in" do
+      params = %{"state" => "asleep", "only_updating" => "yes", "has_no_tags" => "maybe"}
+
+      assert DeviceFiltering.cast_filters(params) ==
+               {:error, {:invalid_filter, :has_no_tags, "must be true or false"}}
+    end
+  end
+
+  describe "cast_sort/2" do
+    test "sorts as parse_sort/1 does, for every field and direction" do
+      for field <- DeviceFiltering.sort_fields(), direction <- DeviceFiltering.sort_directions() do
+        params = %{"sort" => Atom.to_string(field), "sort_direction" => direction}
+        %{sort: sort, sort_direction: sort_direction} = DeviceFiltering.parse_sort(params)
+
+        assert DeviceFiltering.cast_sort(params["sort"], direction) ==
+                 {:ok, {String.to_existing_atom(sort_direction), String.to_existing_atom(sort)}}
+      end
+    end
+
+    test "fills in what's left out with parse_sort/1's default" do
+      %{sort: sort, sort_direction: direction} = DeviceFiltering.parse_sort(%{})
+      default = {:ok, {String.to_existing_atom(direction), String.to_existing_atom(sort)}}
+
+      assert DeviceFiltering.cast_sort(nil, nil) == default
+      assert DeviceFiltering.cast_sort("", "") == default
+    end
+
+    test "refuses a direction it doesn't take, or a value that isn't a string" do
+      assert DeviceFiltering.cast_sort("identifier", "DESC") == {:error, {:invalid_sort, :sort_direction, "DESC"}}
+      assert DeviceFiltering.cast_sort(%{"a" => "b"}, "asc") == {:error, {:invalid_sort, :sort, %{"a" => "b"}}}
     end
   end
 end

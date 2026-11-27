@@ -141,6 +141,16 @@ when adding or removing one.
   stored as a string), and a device that says it is going to sleep is shown
   as asleep until it is due back rather than offline; see
   [docs/device_sleep.md](docs/device_sleep.md).
+  The web UI's devices list (`Devices.filter/3`), the API's
+  (`get_devices_by_org_id_and_product_id_with_pager/3`) and
+  `Devices.list_summaries/3`, which other applications in the cluster call for
+  plain maps and the tab counts, start from one query (`list_query/1`), so a
+  filter or sort behaves the same in all three. Each pages a query that
+  selects devices only and loads what it shows afterwards:
+  Postgres builds every row before an OFFSET, so a selected join would cost a
+  whole product's lookups on every page. Every sort but identifier's (unique
+  in an org) ends on the device id, so devices that tie, such as every one
+  that never connected, keep their place from one page to the next.
 - `managed_deployments.ex` / `managed_deployments/` — deployment groups and the
   `Distributed.Orchestrator` (one per deployment). A release with a workflow
   is walked a step at a time (`Workflows`, `WorkflowCoordinator`); each step
@@ -444,7 +454,13 @@ when adding or removing one.
   and edited metrics (`HealthProfiles.preview_counts/5`), which judge every
   device the way `HealthEvaluation` does but leave out readings still in the
   analytics buffer.
-- `controllers/` — JSON API (`controllers/api/`) and others.
+- `controllers/` — JSON API (`controllers/api/`) and others. The API's
+  devices list casts its filters with `DeviceFiltering.cast_filters/1`, as
+  the web UI casts them with `parse_filters/1`, but answers a key that isn't
+  a filter, or a value its filter can't take, with a 422 rather than dropping
+  it; the scripts list does the same with `ScriptFiltering.filters/0`. So a
+  new filter is taken by the API at once, and `api_spec_test.exs` fails until
+  the spec documents it.
 - `plugs/`, `router.ex`, `endpoint.ex`, `device_endpoint.ex`,
   `health_check_endpoint.ex`, `auth*.ex`.
 
@@ -551,6 +567,19 @@ when adding or removing one.
   `require_membership`, or `plug(:require_no_permission, :reason)` for
   sign-in pages and requests that prove themselves (a Slack signature). A
   refusal raises `NervesHubWeb.UnauthorizedError` everywhere.
+- **Async work in LiveViews is traced.** `use NervesHubWeb, :live_view`,
+  `:live_component` and `tab_component:` import `start_async` and
+  `assign_async` from `NervesHub.Telemetry.AsyncTrace` in place of
+  `Phoenix.LiveView`'s, so a task's queries join the trace of the callback
+  that started it. Call them bare: `Phoenix.LiveView.start_async` written
+  out, or a module that imports `Phoenix.LiveView` itself, runs untraced.
+  The span is named for what the async is, so put which one after a `:` in
+  a string name (`"load_chart:#{key}"`) or after the first element of a
+  tuple (`{:send_test, id}`). There's no traced `stream_async`, since
+  nothing uses one. A LiveComponent's `update` runs during the render, after
+  the callback's span has ended, so `NervesHub.Telemetry.ComponentTrace`
+  opens a span for it under the callback that rendered it. Its handlers have
+  to be attached before `OpentelemetryPhoenix`'s.
 - Never weaken a test, disable a lint, or add a suppression to get green — if
   you're blocked, say so.
 
@@ -626,6 +655,12 @@ moment a consumer changed.
   thing PhoenixTest doesn't cover, `unwrap(fn view -> … end)` drops down to
   `Phoenix.LiveViewTest` (both are imported by `ConnCase.Browser`) — reach for it
   only for the gaps.
+- **Tracing tests** capture spans by pointing the SDK's own batch processor at
+  the test process (`:otel_batch_processor.set_exporter(:otel_exporter_pid,
+  self())`), then in `on_exit` at an exporter that declines to start. Every
+  test shares that processor, so these modules can't be async. `config/test.exs`
+  lifts its queue limit: with the limit, the spans the rest of the suite makes
+  fill the buffer, and the processor drops the tracing test's own.
 - **Known-flaky / environment-dependent (not code smells):**
   - **ClickHouse is eventually consistent.** Connection-history and Insights
     tests assert with `assert_eventually`; under a loaded runner they can fail

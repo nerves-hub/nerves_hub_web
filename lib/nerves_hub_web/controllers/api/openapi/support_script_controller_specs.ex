@@ -7,7 +7,43 @@ defmodule NervesHubWeb.API.OpenAPI.SupportScriptControllerSpecs do
   @organization_parameter SchemaHelpers.org_param()
   @product_parameter SchemaHelpers.product_param()
   @device_parameter SchemaHelpers.device_param()
-  @pagination_parameter SchemaHelpers.pagination_param()
+  @pagination_parameter SchemaHelpers.pagination_param(25)
+  @query_param_error SchemaHelpers.query_param_error()
+
+  # The filters `ScriptFiltering.filter/4` applies.
+  @filters_parameter %OpenApiSpex.Parameter{
+    name: :filters,
+    description:
+      "Filtering. Each filter given narrows the list. " <>
+        "A key that isn't a filter, or a value its filter can't take, is refused with a 422. " <>
+        "An empty value leaves its filter unset.",
+    in: :query,
+    style: :deepObject,
+    required: false,
+    schema: %OpenApiSpex.Schema{
+      type: :object,
+      additionalProperties: false,
+      properties: %{
+        name: %OpenApiSpex.Schema{
+          type: :string,
+          description: "Scripts whose name contains this.",
+          example: "reset"
+        },
+        search: %OpenApiSpex.Schema{
+          type: :string,
+          description: "Scripts whose name or tags contain this.",
+          example: "network"
+        },
+        tags: %OpenApiSpex.Schema{
+          type: :string,
+          description:
+            "Tags, comma-separated: scripts with every one of them. A tag can't contain a space, " <>
+              "and matches any of a script's tags containing it.",
+          example: "diagnostics"
+        }
+      }
+    }
+  }
 
   @path_structures %{
     short: %{
@@ -44,16 +80,18 @@ defmodule NervesHubWeb.API.OpenAPI.SupportScriptControllerSpecs do
       support_script_operation(
         "List Support Scripts",
         operation_id,
-        opts.parameters ++ [@pagination_parameter],
+        opts.parameters ++ [@pagination_parameter, @filters_parameter],
         opts.tags,
-        response: %{
-          200 =>
+        response:
+          Map.put(
+            @query_param_error,
+            200,
             response(
               "Support Scripts List Response",
               "application/json",
               SupportScriptSchemas.SupportScriptIndexResponse
             )
-        }
+          )
       )
 
     add_to_paths(openapi, opts.path_prefix, :get, list_operation)

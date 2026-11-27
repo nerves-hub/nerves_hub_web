@@ -12,6 +12,7 @@ defmodule NervesHubWeb.API.DeviceController do
   alias NervesHub.Devices.Certificates
   alias NervesHub.Devices.Device
   alias NervesHub.Devices.DeviceCertificate
+  alias NervesHub.Devices.DeviceFiltering
   alias NervesHub.Devices.Updates
   alias NervesHub.Firmwares
   alias NervesHub.Products
@@ -37,26 +38,21 @@ defmodule NervesHubWeb.API.DeviceController do
   plug(RefuseDeletedDevice when action in [:reboot, :reconnect, :upgrade, :penalty, :code])
 
   def index(%{assigns: %{current_scope: %{org: org}, product: product}} = conn, params) do
-    filters = Map.get(params, "filters", %{}) |> Map.new(fn {k, v} -> {String.to_existing_atom(k), v} end)
-
-    with :ok <- validate_advanced_query(filters, product.id) do
-      list_devices(conn, org, product, params, filters)
+    with {:ok, filters} <- cast_filters(params["filters"]),
+         :ok <- validate_advanced_query(filters, product.id),
+         {:ok, sort} <- cast_sort(params["sort"], params["sort_direction"]),
+         {:ok, pagination} <- PaginationHelpers.cast_pagination_params(params["pagination"]) do
+      list_devices(conn, org, product, filters, sort, pagination)
     end
   end
 
-  defp list_devices(conn, org, product, params, filters) do
+  defp list_devices(conn, org, product, filters, sort, pagination) do
     opts = %{
-      pagination: PaginationHelpers.atomize_pagination_params(Map.get(params, "pagination", %{})),
+      pagination: pagination,
       filters: filters,
+      sort: sort,
       visible_to: Scope.actor(conn.assigns.current_scope)
     }
-
-    opts =
-      if sort_field = Map.get(params, "sort") do
-        Map.put(opts, :sort, {sort_direction(params), String.to_existing_atom(sort_field)})
-      else
-        opts
-      end
 
     {devices, page} =
       Devices.get_devices_by_org_id_and_product_id_with_pager(org.id, product.id, opts)
@@ -65,6 +61,47 @@ defmodule NervesHubWeb.API.DeviceController do
     |> assign(:devices, devices)
     |> assign(:pagination, PaginationHelpers.format_pagination_meta(page))
     |> render(:index)
+  end
+
+  # Filters are cast as the web UI casts them, so a filter means the same on
+  # both, but a key that isn't a filter, or a value its filter can't take, is a
+  # 422 rather than dropped. A dropped filter lists devices it was meant to
+  # leave out.
+  defp cast_filters(nil), do: cast_filters(%{})
+
+  defp cast_filters(filters) when is_map(filters) do
+    case DeviceFiltering.cast_filters(filters) do
+      {:ok, filters} ->
+        {:ok, DeviceFiltering.transform_deployment_filter(filters)}
+
+      {:error, {:unknown_filter, key}} ->
+        keys = DeviceFiltering.default_filters() |> Map.keys() |> Enum.sort() |> Enum.join(", ")
+        {:error, {:invalid_query_param, "filters[#{key}] is not a device filter. The filters are #{keys}."}}
+
+      {:error, {:invalid_filter, key, message}} ->
+        {:error, {:invalid_query_param, "filters[#{key}] #{message}, got #{inspect(filters[to_string(key)])}."}}
+    end
+  end
+
+  defp cast_filters(filters) do
+    {:error, {:invalid_query_param, "filters must be an object, such as filters[tags]=prod, got #{inspect(filters)}."}}
+  end
+
+  # The sort is cast as the web UI casts it, but a field or direction it
+  # doesn't take is a 422 rather than the default.
+  defp cast_sort(field, direction) do
+    case DeviceFiltering.cast_sort(field, direction) do
+      {:ok, sort} ->
+        {:ok, sort}
+
+      {:error, {:invalid_sort, :sort, value}} ->
+        fields = Enum.join(DeviceFiltering.sort_fields(), ", ")
+        {:error, {:invalid_query_param, "sort must be one of #{fields}, got #{inspect(value)}."}}
+
+      {:error, {:invalid_sort, :sort_direction, value}} ->
+        directions = Enum.join(DeviceFiltering.sort_directions(), " or ")
+        {:error, {:invalid_query_param, "sort_direction must be #{directions}, got #{inspect(value)}."}}
+    end
   end
 
   # An invalid advanced query is a 422 with the parse error, rather than the
@@ -319,19 +356,6 @@ defmodule NervesHubWeb.API.DeviceController do
         {:error, _step, changeset, _changes} ->
           {:error, changeset}
       end
-    end
-  end
-
-  # `sort_direction` arrives as a raw query param — the OpenAPI spec types it as
-  # a free-form string and nothing casts it before we get here. Running it
-  # through `String.to_atom/1` minted a permanent atom per distinct value, so
-  # anyone with `org: :view` could grow the atom table until the node hit the
-  # limit and aborted. Only two directions mean anything; everything else is
-  # the default.
-  defp sort_direction(params) do
-    case Map.get(params, "sort_direction") do
-      "desc" -> :desc
-      _ -> :asc
     end
   end
 

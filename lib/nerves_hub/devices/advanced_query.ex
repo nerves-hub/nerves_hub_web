@@ -61,7 +61,7 @@ defmodule NervesHub.Devices.AdvancedQuery do
   Applies a raw query string to a query as an additional `where` clause.
 
   Assumes the query already has a `latest_connection` named binding (see
-  `NervesHub.Devices.common_filter_query/1`). Free-text input is applied via
+  `NervesHub.Devices.list_query/1`). Free-text input is applied via
   the `interpret/2` fallback; if the query string is blank or is an invalid
   query expression, the query is returned unchanged - invalid advanced
   queries don't affect the rest of the filter results.
