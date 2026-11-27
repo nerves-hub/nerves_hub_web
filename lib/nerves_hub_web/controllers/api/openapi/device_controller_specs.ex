@@ -20,7 +20,7 @@ defmodule NervesHubWeb.API.OpenAPI.DeviceControllerSpecs do
     schema: %OpenApiSpex.Schema{
       type: :string,
       enum: Enum.map(DeviceFiltering.sort_fields(), &Atom.to_string/1),
-      default: "identifier"
+      default: DeviceFiltering.default_sort().sort
     },
     example: "identifier"
   }
@@ -30,7 +30,11 @@ defmodule NervesHubWeb.API.OpenAPI.DeviceControllerSpecs do
     description: "The direction to sort in. Any other is refused with a 422.",
     in: :query,
     required: false,
-    schema: %OpenApiSpex.Schema{type: :string, enum: ["asc", "desc"], default: "asc"},
+    schema: %OpenApiSpex.Schema{
+      type: :string,
+      enum: DeviceFiltering.sort_directions(),
+      default: DeviceFiltering.default_sort().sort_direction
+    },
     example: "asc"
   }
 

@@ -857,4 +857,29 @@ defmodule NervesHub.Devices.DeviceFilteringTest do
                {:error, {:invalid_filter, :has_no_tags, "must be true or false"}}
     end
   end
+
+  describe "cast_sort/2" do
+    test "sorts as parse_sort/1 does, for every field and direction" do
+      for field <- DeviceFiltering.sort_fields(), direction <- DeviceFiltering.sort_directions() do
+        params = %{"sort" => Atom.to_string(field), "sort_direction" => direction}
+        %{sort: sort, sort_direction: sort_direction} = DeviceFiltering.parse_sort(params)
+
+        assert DeviceFiltering.cast_sort(params["sort"], direction) ==
+                 {:ok, {String.to_existing_atom(sort_direction), String.to_existing_atom(sort)}}
+      end
+    end
+
+    test "fills in what's left out with parse_sort/1's default" do
+      %{sort: sort, sort_direction: direction} = DeviceFiltering.parse_sort(%{})
+      default = {:ok, {String.to_existing_atom(direction), String.to_existing_atom(sort)}}
+
+      assert DeviceFiltering.cast_sort(nil, nil) == default
+      assert DeviceFiltering.cast_sort("", "") == default
+    end
+
+    test "refuses a direction it doesn't take, or a value that isn't a string" do
+      assert DeviceFiltering.cast_sort("identifier", "DESC") == {:error, {:invalid_sort, :sort_direction, "DESC"}}
+      assert DeviceFiltering.cast_sort(%{"a" => "b"}, "asc") == {:error, {:invalid_sort, :sort, %{"a" => "b"}}}
+    end
+  end
 end
