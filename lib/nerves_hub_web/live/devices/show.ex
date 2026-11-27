@@ -173,8 +173,10 @@ defmodule NervesHubWeb.Live.Devices.Show do
         socket
       )
       when stage in ["downloading", "updating"] do
+    # Loaded on the first report of an update the page didn't know about. Gated
+    # on the update having been found, since its version can be nil.
     socket
-    |> then(&if(&1.assigns.inflight_version, do: &1, else: load_inprogress_firmware_update(&1)))
+    |> then(&if(&1.assigns.inflight_started_at, do: &1, else: load_inprogress_firmware_update(&1)))
     |> assign(:firmware_update_progress, percent)
     |> assign(:firmware_update_stage, stage)
     |> noreply()
