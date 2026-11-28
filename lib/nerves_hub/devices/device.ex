@@ -19,6 +19,13 @@ defmodule NervesHub.Devices.Device do
   alias NervesHub.Products.Product
   alias NervesHub.Types.Tag
 
+  # `defaults_to_struct` builds the `extensions` default from
+  # `DeviceExtensionsSetting` as this module compiles, but Ecto doesn't make
+  # that a compile-time dependency. Without this, an incremental build that adds
+  # an extension leaves every new `%Device{}` without its setting, and a change
+  # to it is never saved.
+  require DeviceExtensionsSetting, warn: false
+
   @type t :: %__MODULE__{}
 
   @type firmware_validation_statuses :: :validated | :not_validated | :unknown

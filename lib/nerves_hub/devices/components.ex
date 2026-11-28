@@ -1,0 +1,635 @@
+defmodule NervesHub.Devices.Components do
+  @moduledoc """
+  What each device is connected to, from its `components` snapshots.
+
+  A device sends its whole component set, never single changes (see
+  docs/components.md for why). `sync_snapshot/3` compares the set with what is
+  stored, writes only the rows that changed, and records each change as
+  history. A snapshot that changes nothing costs one read.
+
+  Current components live in PostgreSQL (`NervesHub.Devices.DeviceComponent`),
+  where the device page and the product's Components page read them. Changes go
+  to ClickHouse (`NervesHub.Devices.DeviceComponentHistory`), as alarm
+  transitions do, and are skipped where analytics are off.
+
+  A component is missing when the device can't reach it or stops listing it.
+  Neither deletes it, because a sensor that dropped off its gateway is the one
+  somebody is looking for. `forget/3` deletes one, and a device storing more
+  than 1,000 loses those missing longest.
+  """
+
+  import Ecto.Query
+
+  alias NervesHub.Analytics.Buffer
+  alias NervesHub.AnalyticsRepo
+  alias NervesHub.DeviceLink.DeviceInfo
+  alias NervesHub.Devices.Device
+  alias NervesHub.Devices.DeviceComponent
+  alias NervesHub.Devices.DeviceComponentHistory
+  alias NervesHub.Extensions.PubSub, as: ExtensionsPubSub
+  alias NervesHub.Products.Product
+  alias NervesHub.Repo
+
+  require Logger
+
+  @max_components 500
+
+  # How many a device keeps, listed or not. Twice what one snapshot can list,
+  # so pruning only ever reaches components no snapshot lists any more.
+  @max_stored 1000
+  @max_string_length 255
+  @namespace_pattern ~r/\A[a-z][a-z0-9_]{0,31}\z/
+
+  # A key in `versions` names something the component holds ("firmware",
+  # "keypad_config"), written as a namespace is.
+  @max_versions 16
+  @version_key_pattern @namespace_pattern
+
+  # The same window `NervesHub.Extensions.Alarms` believes a device's clock in.
+  @max_future_skew_seconds 60 * 60
+  @max_age_seconds 72 * 60 * 60
+
+  @required ~w(namespace vendor model serial)
+  @optional ~w(name vendor_name model_name hardware_revision address)
+
+  # Written on every upsert. `first_seen_at` and `inserted_at` are left alone,
+  # since they say when the component was first seen, not last.
+  @replaced [
+    :vendor,
+    :model,
+    :name,
+    :vendor_name,
+    :model_name,
+    :hardware_revision,
+    :versions,
+    :address,
+    :reachable,
+    :listed,
+    :last_seen_at,
+    :missing_since,
+    :updated_at
+  ]
+
+  @typedoc """
+  One component from a snapshot once `parse/2` has read it. `last_seen_at` is
+  `nil` where the device gave no believable time.
+  """
+  @type entry() :: %{
+          namespace: String.t(),
+          vendor: String.t(),
+          model: String.t(),
+          serial: String.t(),
+          name: String.t() | nil,
+          vendor_name: String.t() | nil,
+          model_name: String.t() | nil,
+          hardware_revision: String.t() | nil,
+          versions: %{optional(String.t()) => String.t()},
+          address: String.t() | nil,
+          reachable: boolean(),
+          last_seen_at: DateTime.t() | nil
+        }
+
+  @type rejection() ::
+          :not_a_list
+          | :too_many
+          | :malformed_entry
+          | :bad_namespace
+          | :bad_version_key
+          | :too_long
+          | :duplicate
+
+  @doc """
+  Reads a snapshot's `components` list, or says why it is rejected.
+
+  All or nothing, as docs/components.md describes: the set replaces what is
+  stored, so an entry that can't be read would otherwise count as a component
+  the device no longer has. Fields the contract doesn't name are ignored.
+  """
+  @spec parse(term(), DateTime.t()) :: {:ok, [entry()]} | {:error, rejection()}
+  def parse(components, now \\ DateTime.utc_now())
+
+  def parse(components, _now) when is_list(components) and length(components) > @max_components, do: {:error, :too_many}
+
+  def parse(components, now) when is_list(components) do
+    components
+    |> Enum.reduce_while({:ok, [], MapSet.new()}, fn component, {:ok, acc, seen} ->
+      with {:ok, entry} <- parse_entry(component, now),
+           key = {entry.namespace, entry.serial},
+           false <- MapSet.member?(seen, key) do
+        {:cont, {:ok, [entry | acc], MapSet.put(seen, key)}}
+      else
+        true -> {:halt, {:error, :duplicate}}
+        {:error, reason} -> {:halt, {:error, reason}}
+      end
+    end)
+    |> case do
+      {:ok, entries, _seen} -> {:ok, Enum.reverse(entries)}
+      error -> error
+    end
+  end
+
+  def parse(_components, _now), do: {:error, :not_a_list}
+
+  defp parse_entry(component, now) when is_map(component) do
+    with {:ok, required} <- strings(component, @required, required: true),
+         {:ok, optional} <- strings(component, @optional, required: false),
+         :ok <- check_namespace(required["namespace"]),
+         {:ok, versions} <- versions(component["versions"]),
+         {:ok, reachable} <- reachable(component["reachable"]) do
+      entry =
+        Map.merge(required, optional)
+        |> Map.new(fn {key, value} -> {String.to_existing_atom(key), value} end)
+        |> Map.put(:versions, versions)
+        |> Map.put(:reachable, reachable)
+        |> Map.put(:last_seen_at, device_time(component["last_seen_at"], now))
+
+      {:ok, entry}
+    end
+  end
+
+  defp parse_entry(_component, _now), do: {:error, :malformed_entry}
+
+  # An optional field sent empty counts as left out. A required one can't be.
+  defp strings(component, keys, opts) do
+    required = Keyword.fetch!(opts, :required)
+
+    Enum.reduce_while(keys, {:ok, %{}}, fn key, {:ok, acc} ->
+      case Map.get(component, key) do
+        absent when absent in [nil, ""] and not required -> {:cont, {:ok, Map.put(acc, key, nil)}}
+        value when is_binary(value) and value != "" -> check_length(key, value, acc)
+        _missing_or_not_a_string -> {:halt, {:error, :malformed_entry}}
+      end
+    end)
+  end
+
+  # Counted in code points, as PostgreSQL counts a varchar, and refused when not
+  # valid UTF-8, which PostgreSQL can't store at all.
+  defp check_length(key, value, acc) do
+    if String.valid?(value) and length(String.to_charlist(value)) <= @max_string_length,
+      do: {:cont, {:ok, Map.put(acc, key, value)}},
+      else: {:halt, {:error, :too_long}}
+  end
+
+  defp check_namespace(namespace) do
+    if Regex.match?(@namespace_pattern, namespace), do: :ok, else: {:error, :bad_namespace}
+  end
+
+  # What the component holds and which version of each. A version sent empty
+  # counts as left out, as an optional field does.
+  defp versions(nil), do: {:ok, %{}}
+  defp versions(versions) when is_map(versions) and map_size(versions) > @max_versions, do: {:error, :too_many}
+
+  defp versions(versions) when is_map(versions) do
+    Enum.reduce_while(versions, {:ok, %{}}, fn
+      {key, value}, {:ok, acc} when is_binary(key) and is_binary(value) ->
+        cond do
+          not Regex.match?(@version_key_pattern, key) -> {:halt, {:error, :bad_version_key}}
+          value == "" -> {:cont, {:ok, acc}}
+          true -> check_length(key, value, acc)
+        end
+
+      _entry, _acc ->
+        {:halt, {:error, :malformed_entry}}
+    end)
+  end
+
+  defp versions(_versions), do: {:error, :malformed_entry}
+
+  defp reachable(nil), do: {:ok, true}
+  defp reachable(reachable) when is_boolean(reachable), do: {:ok, reachable}
+  defp reachable(_reachable), do: {:error, :malformed_entry}
+
+  # A time is used only where it is believable, as `NervesHub.Extensions.Alarms`
+  # does: a clock that hasn't caught up with NTP can say 1970.
+  defp device_time(timestamp, now) when is_binary(timestamp) do
+    with {:ok, parsed, _offset} <- DateTime.from_iso8601(timestamp),
+         ahead = DateTime.diff(parsed, now, :second),
+         true <- ahead <= @max_future_skew_seconds and -ahead <= @max_age_seconds do
+      parsed
+    else
+      _ -> nil
+    end
+  end
+
+  defp device_time(_absent, _now), do: nil
+
+  @doc """
+  Records a device's snapshot: `entries` is everything it has now.
+
+  New components are inserted, changed ones updated, and stored ones the
+  snapshot leaves out are marked unlisted. The comparison and the writes are
+  one transaction, so a page never reads half a snapshot. History is buffered
+  after the commit, outside it, so a ClickHouse hiccup can't lose the
+  PostgreSQL write, and an open device page is told only when something
+  changed.
+  """
+  @spec sync_snapshot(DeviceInfo.t(), [entry()], DateTime.t()) :: :ok
+  def sync_snapshot(%DeviceInfo{} = device_info, entries, %DateTime{} = now \\ DateTime.utc_now())
+      when is_list(entries) do
+    now = usec(now)
+
+    Repo.transact(fn ->
+      stored =
+        DeviceComponent
+        |> where(device_id: ^device_info.device_id)
+        |> Repo.all()
+        |> Map.new(&{{&1.namespace, &1.serial}, &1})
+
+      {rows, events} = plan(device_info, entries, stored, now)
+      {unlisted, unlisted_events} = unlisted(entries, stored, now)
+
+      :ok = upsert(rows)
+      :ok = mark_unlisted(unlisted, now)
+      pruned_events = prune(device_info.device_id, entries, stored, now)
+
+      {:ok, events ++ unlisted_events ++ pruned_events}
+    end)
+    |> case do
+      {:ok, []} ->
+        :ok
+
+      {:ok, events} ->
+        :ok = write_history(device_info, events)
+        broadcast(device_info.device_id)
+
+      {:error, reason} ->
+        Logger.warning("[Components] failed to sync device #{device_info.device_id}: #{inspect(reason)}")
+        :ok
+    end
+  end
+
+  # The rows to write and the history to record. A row only goes out when
+  # something in it differs from what is stored: an unchanged snapshot writes
+  # nothing.
+  defp plan(device_info, entries, stored, now) do
+    Enum.reduce(entries, {[], []}, fn entry, {rows, events} ->
+      previous = Map.get(stored, {entry.namespace, entry.serial})
+      row = row(device_info, entry, previous, now)
+
+      if previous && unchanged?(row, previous) do
+        {rows, events}
+      else
+        {[row | rows], changes(entry, previous, now) ++ events}
+      end
+    end)
+  end
+
+  defp row(device_info, entry, previous, now) do
+    missing_since =
+      cond do
+        entry.reachable -> nil
+        previous && previous.missing_since -> previous.missing_since
+        true -> now
+      end
+
+    %{
+      device_id: device_info.device_id,
+      product_id: device_info.product_id,
+      namespace: entry.namespace,
+      vendor: entry.vendor,
+      model: entry.model,
+      serial: entry.serial,
+      name: entry.name,
+      vendor_name: entry.vendor_name,
+      model_name: entry.model_name,
+      hardware_revision: entry.hardware_revision,
+      versions: entry.versions,
+      address: entry.address,
+      reachable: entry.reachable,
+      listed: true,
+      last_seen_at: last_seen_at(entry, previous, now),
+      first_seen_at: (previous && previous.first_seen_at) || now,
+      missing_since: missing_since,
+      inserted_at: now,
+      updated_at: now
+    }
+  end
+
+  # The device's time where it gave a believable one, and otherwise the last
+  # one it gave. Never the arrival time: that would change every row on every
+  # snapshot, and an unchanged snapshot is meant to write nothing. The web UI
+  # falls back to when the device itself was last seen for a working
+  # component, and to when it went missing for a missing one.
+  defp last_seen_at(%{last_seen_at: %DateTime{} = at}, _previous, _now), do: usec(at)
+  defp last_seen_at(_entry, %DeviceComponent{last_seen_at: at}, _now), do: at
+  defp last_seen_at(_entry, nil, _now), do: nil
+
+  defp unchanged?(row, previous) do
+    Enum.all?(@replaced -- [:updated_at], fn field -> Map.fetch!(row, field) == Map.fetch!(previous, field) end)
+  end
+
+  defp changes(entry, nil, now) do
+    appeared = event(entry, "appeared", "", now)
+    if entry.reachable, do: [appeared], else: [appeared, event(entry, "missing", "unreachable", now)]
+  end
+
+  defp changes(entry, previous, now) do
+    was_working? = DeviceComponent.status(previous) == :working
+
+    status =
+      cond do
+        was_working? and not entry.reachable -> [event(entry, "missing", "unreachable", now)]
+        not was_working? and entry.reachable -> [event(entry, "returned", "", now)]
+        true -> []
+      end
+
+    status ++ version_changes(entry, previous, now)
+  end
+
+  # One event per version that moved. A version the component stops reporting,
+  # or reports for the first time, isn't a change: a node that can't be asked
+  # for its firmware on one snapshot would otherwise record a change every
+  # time it answered again.
+  defp version_changes(entry, previous, now) do
+    entry.versions
+    |> Enum.filter(fn {key, version} -> Map.get(previous.versions, key, version) != version end)
+    |> Enum.sort()
+    |> Enum.map(fn {key, _version} ->
+      entry
+      |> event("version_changed", Map.fetch!(previous.versions, key), now)
+      |> Map.put(:version_key, key)
+    end)
+  end
+
+  defp unlisted(entries, stored, now) do
+    listed = MapSet.new(entries, &{&1.namespace, &1.serial})
+
+    stored
+    |> Enum.reject(fn {key, component} -> MapSet.member?(listed, key) or not component.listed end)
+    |> Enum.map(fn {_key, component} ->
+      events =
+        if DeviceComponent.status(component) == :working,
+          do: [event(component, "missing", "unlisted", now)],
+          else: []
+
+      {component.id, events}
+    end)
+    |> Enum.unzip()
+    |> then(fn {ids, events} -> {ids, List.flatten(events)} end)
+  end
+
+  defp event(component, event, detail, at) do
+    %{
+      namespace: component.namespace,
+      serial: component.serial,
+      event: event,
+      detail: detail,
+      version_key: "",
+      versions: component.versions,
+      timestamp: at
+    }
+  end
+
+  defp upsert([]), do: :ok
+
+  defp upsert(rows) do
+    {_count, _} =
+      Repo.insert_all(DeviceComponent, rows,
+        on_conflict: {:replace, @replaced},
+        conflict_target: [:device_id, :namespace, :serial]
+      )
+
+    :ok
+  end
+
+  # A device that keeps listing new serials, such as a gateway that sees
+  # Bluetooth devices with rotating addresses, would otherwise grow its stored
+  # set without end, and every snapshot, page and count would read all of it.
+  # Past `@max_stored`, the components missing longest are forgotten. The size
+  # comes from what this transaction already read, so only the delete costs a
+  # query, and only when this snapshot takes the device past it.
+  defp prune(device_id, entries, stored, now) do
+    keys = MapSet.union(MapSet.new(Map.keys(stored)), MapSet.new(entries, &{&1.namespace, &1.serial}))
+    over = MapSet.size(keys) - @max_stored
+
+    if over > 0 do
+      oldest =
+        DeviceComponent
+        |> where(device_id: ^device_id, listed: false)
+        |> order_by(asc: :missing_since, asc: :id)
+        |> limit(^over)
+        |> select([c], c.id)
+
+      {_count, pruned} =
+        DeviceComponent
+        |> where([c], c.id in subquery(oldest))
+        |> select([c], c)
+        |> Repo.delete_all()
+
+      Enum.map(pruned, &event(&1, "forgotten", "", now))
+    else
+      []
+    end
+  end
+
+  defp mark_unlisted([], _now), do: :ok
+
+  defp mark_unlisted(ids, now) do
+    {_count, _} =
+      DeviceComponent
+      |> where([c], c.id in ^ids)
+      |> update([c],
+        set: [
+          listed: false,
+          missing_since: fragment("COALESCE(?, ?)", c.missing_since, ^now),
+          updated_at: ^now
+        ]
+      )
+      |> Repo.update_all([])
+
+    :ok
+  end
+
+  @doc """
+  Forgets one of the device's components: deletes it and records who did.
+
+  It comes back, as a new component, if the device lists it again.
+  """
+  @spec forget(Device.t(), pos_integer(), String.t()) :: :ok | {:error, :not_found}
+  def forget(%Device{} = device, component_id, actor_name) do
+    DeviceComponent
+    |> where(id: ^component_id, device_id: ^device.id)
+    |> select([c], c)
+    |> Repo.delete_all()
+    |> case do
+      {1, [component]} ->
+        device_info = %{org_id: device.org_id, product_id: device.product_id, device_id: device.id}
+        event = event(component, "forgotten", actor_name, usec(DateTime.utc_now()))
+        :ok = write_history(device_info, [event])
+        broadcast(device.id)
+
+      {0, _} ->
+        {:error, :not_found}
+    end
+  end
+
+  @doc """
+  Asks the device for a fresh snapshot, having checked on its components where
+  it can. Reaches the device only if it has the extension attached.
+  """
+  @spec request_refresh(Device.t()) :: :ok
+  def request_refresh(%Device{id: device_id}) do
+    ExtensionsPubSub.send_to_extension(device_id, :components, :refresh)
+  end
+
+  # ------------------------------------------------------------------ reads
+
+  @doc """
+  The device's components, grouped by namespace in the order the device page
+  shows them: missing first within each group, then by name.
+  """
+  @spec list_for_device(Device.t()) :: [DeviceComponent.t()]
+  def list_for_device(%Device{id: device_id}) do
+    DeviceComponent
+    |> where(device_id: ^device_id)
+    |> order_by([c],
+      asc: c.namespace,
+      asc: c.listed and c.reachable,
+      asc_nulls_last: c.name,
+      asc: c.serial
+    )
+    |> Repo.all()
+  end
+
+  @doc "One of the device's components, or `nil`."
+  @spec get_for_device(Device.t(), term()) :: DeviceComponent.t() | nil
+  def get_for_device(%Device{id: device_id}, component_id) do
+    case Integer.parse(to_string(component_id)) do
+      {id, ""} -> Repo.get_by(DeviceComponent, id: id, device_id: device_id)
+      _ -> nil
+    end
+  end
+
+  @doc "How many of the device's components are missing."
+  @spec missing_count(Device.t()) :: non_neg_integer()
+  def missing_count(%Device{id: device_id}) do
+    DeviceComponent
+    |> where(device_id: ^device_id)
+    |> where([c], not (c.listed and c.reachable))
+    |> Repo.aggregate(:count)
+  end
+
+  @doc """
+  The component's recent changes, newest first, from ClickHouse. Empty where
+  analytics are off.
+  """
+  @spec history(DeviceComponent.t(), pos_integer()) :: [DeviceComponentHistory.t()]
+  def history(%DeviceComponent{} = component, limit \\ 10) do
+    if Application.get_env(:nerves_hub, :analytics_enabled) do
+      DeviceComponentHistory
+      |> where(product_id: ^component.product_id, device_id: ^component.device_id)
+      |> where(namespace: ^component.namespace, serial: ^component.serial)
+      |> order_by(desc: :timestamp)
+      |> limit(^limit)
+      |> AnalyticsRepo.all()
+    else
+      []
+    end
+  end
+
+  @doc """
+  The product's components counted as the Components page shows them: how
+  many there are, on how many devices, and how many are missing.
+  """
+  @spec product_counts(Product.t()) :: %{
+          components: non_neg_integer(),
+          devices: non_neg_integer(),
+          working: non_neg_integer(),
+          missing: non_neg_integer()
+        }
+  def product_counts(%Product{id: product_id}) do
+    DeviceComponent
+    |> where(product_id: ^product_id)
+    |> select([c], %{
+      components: count(c.id),
+      devices: count(c.device_id, :distinct),
+      missing: filter(count(c.id), not (c.listed and c.reachable))
+    })
+    |> Repo.one()
+    |> then(&Map.put(&1, :working, &1.components - &1.missing))
+  end
+
+  @doc "How many of the product's components are missing, for the sidebar."
+  @spec product_missing_count(Product.t() | pos_integer()) :: non_neg_integer()
+  def product_missing_count(%Product{id: product_id}), do: product_missing_count(product_id)
+
+  def product_missing_count(product_id) when is_integer(product_id) do
+    DeviceComponent
+    |> where(product_id: ^product_id)
+    |> where([c], not (c.listed and c.reachable))
+    |> Repo.aggregate(:count)
+  end
+
+  @doc """
+  The product's components by model, most common first: how many, on how many
+  devices, how many are missing and on how many devices, and the firmware
+  versions they run (`versions["firmware"]`), most common first (`nil` for
+  those that don't say).
+  """
+  @spec models(Product.t()) :: [map()]
+  def models(%Product{id: product_id}) do
+    base = where(DeviceComponent, product_id: ^product_id)
+
+    versions =
+      base
+      |> group_by([c], [c.namespace, c.vendor, c.model, fragment("?->>'firmware'", c.versions)])
+      |> select([c], {{c.namespace, c.vendor, c.model}, {fragment("?->>'firmware'", c.versions), count(c.id)}})
+      |> Repo.all()
+      |> Enum.group_by(&elem(&1, 0), &elem(&1, 1))
+
+    base
+    |> group_by([c], [c.namespace, c.vendor, c.model])
+    |> select([c], %{
+      namespace: c.namespace,
+      vendor: c.vendor,
+      model: c.model,
+      vendor_name: max(c.vendor_name),
+      model_name: max(c.model_name),
+      count: count(c.id),
+      devices: count(c.device_id, :distinct),
+      missing: filter(count(c.id), not (c.listed and c.reachable)),
+      missing_devices: filter(count(c.device_id, :distinct), not (c.listed and c.reachable))
+    })
+    |> order_by([c], desc: count(c.id), asc: c.namespace, asc: c.vendor, asc: c.model)
+    |> Repo.all()
+    |> Enum.map(fn model ->
+      key = {model.namespace, model.vendor, model.model}
+
+      model
+      |> Map.put(:working, model.count - model.missing)
+      |> Map.put(:firmware_versions, versions |> Map.get(key, []) |> Enum.sort_by(&elem(&1, 1), :desc))
+    end)
+  end
+
+  # ------------------------------------------------------------------ effects
+
+  # Tells an open device page to re-read the device's components.
+  defp broadcast(device_id) do
+    ExtensionsPubSub.broadcast_report(device_id, "components:updated", %{})
+  end
+
+  # Gated explicitly, as `NervesHub.Devices.Alarms` gates its history: a
+  # deployment without analytics is a decision this code made.
+  defp write_history(device_info, events) do
+    if Application.get_env(:nerves_hub, :analytics_enabled) do
+      Enum.each(events, fn event ->
+        Buffer.insert(
+          DeviceComponentHistory,
+          DeviceComponentHistory.changeset(
+            Map.merge(event, %{
+              org_id: device_info.org_id,
+              product_id: device_info.product_id,
+              device_id: device_info.device_id
+            })
+          )
+        )
+      end)
+    end
+
+    :ok
+  end
+
+  # `insert_all` doesn't cast, and a time with no fractional seconds raises
+  # against a `:utc_datetime_usec` column instead of being padded.
+  defp usec(%DateTime{microsecond: {microsecond, _precision}} = at), do: %{at | microsecond: {microsecond, 6}}
+end

@@ -187,6 +187,18 @@ defmodule NervesHub.Accounts do
   end
 
   @doc """
+  Saves how a user has picked to lay out a device's Components tab, one of
+  `NervesHub.Accounts.User.DisplayPreferences.component_views/0`.
+  """
+  @spec update_user_component_view(User.t(), atom() | String.t()) ::
+          {:ok, User.t()} | {:error, Ecto.Changeset.t()}
+  def update_user_component_view(%User{} = user, view) do
+    user
+    |> User.display_preferences_changeset(%{component_view: view})
+    |> Repo.update()
+  end
+
+  @doc """
   Creates a new user, and an org if one does not exist yet
   """
   @spec create_user(map()) :: {:ok, User.t()} | {:error, Ecto.Changeset.t()}
