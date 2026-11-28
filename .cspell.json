@@ -92,6 +92,7 @@
     "getstat",
     "guint",
     "haspopup",
+    "hcho",
     "healthcheck",
     "healthz",
     "heatshrink",

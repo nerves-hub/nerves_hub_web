@@ -52,6 +52,14 @@ defmodule NervesHub.Devices.DeviceComponent do
     field(:first_seen_at, :utc_datetime_usec)
     field(:missing_since, :utc_datetime_usec)
 
+    # `readings` is `%{name => %{"value" => number, "at" => ISO 8601}}`,
+    # `state` is `%{name => %{"value" => string, "since" => ISO 8601, "detail" => string | nil}}`,
+    # plus `"snapshot" => true` where a snapshot set the value: its `since` is
+    # the platform's clock, so any change replaces it. Neither changes `status/1`.
+    field(:readings, :map, default: %{})
+    field(:readings_at, :utc_datetime_usec)
+    field(:state, :map, default: %{})
+
     timestamps(type: :utc_datetime_usec)
   end
 

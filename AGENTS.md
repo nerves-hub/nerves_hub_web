@@ -185,9 +185,15 @@ when adding or removing one.
   (appeared, missing, returned, a version changed, forgotten) goes to
   `device_component_history` in ClickHouse. A component the device stops
   listing or can't reach is kept as missing until it returns or someone
-  forgets it. A component reports the version of everything it holds as a
-  `versions` map (`"firmware"` plus any configuration or model), not one
-  firmware version. The wire contract is
+  forgets it. A component can also report readings (numbers, the latest
+  merged into `readings` on its row, every one in
+  `device_component_readings` in ClickHouse) and state (named values, the
+  current set in `state` on its row, each change a `state_changed` row of
+  its history). Neither changes whether it is working or missing. A reading
+  or state change for a component no snapshot listed is dropped, and the
+  extension asks the device for its set. A component reports the version of
+  everything it holds as a `versions` map (`"firmware"` plus any
+  configuration or model), not one firmware version. The wire contract is
   [docs/components.md](docs/components.md).
 - `error_reports.ex` / `error_reports/` — exceptions devices report, grouped
   into issues. Split across both stores: the group in Postgres, the
@@ -403,7 +409,12 @@ when adding or removing one.
   shown only for a product with components on) lists them by namespace as
   rows or cards (the user's `component_view` preference) and opens one in a
   side panel at `?component=`, where a member with `device:update` can ask
-  the device to look again or forget it. A product's Components page
+  the device to look again or forget it. Readings and state are drawn by
+  `components/device_page/component_readings.ex`: a Reading column and card
+  value from Postgres, and in the panel a sparkline per reading and a 24-hour
+  timeline per state, loaded from ClickHouse in one task with the Recent
+  list. Reading names and units are a convention (`temperature` is °C), so a
+  name it doesn't know is shown as sent. A product's Components page
   (`live/product/components.ex`) counts them by model, and its sidebar link
   carries the number missing.
   `components/product_list.ex` holds what the firmware and archive lists

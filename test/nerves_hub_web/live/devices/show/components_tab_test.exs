@@ -1,6 +1,8 @@
 defmodule NervesHubWeb.Live.Devices.Show.ComponentsTabTest do
   use NervesHubWeb.ConnCase.Browser, async: false
 
+  import Ecto.Query
+
   alias NervesHub.Accounts.OrgUser
   alias NervesHub.Analytics.Buffer
   alias NervesHub.AnalyticsRepo
@@ -8,13 +10,19 @@ defmodule NervesHubWeb.Live.Devices.Show.ComponentsTabTest do
   alias NervesHub.Devices.Components
   alias NervesHub.Devices.Connections
   alias NervesHub.Devices.Device
+  alias NervesHub.Devices.DeviceComponent
   alias NervesHub.Devices.DeviceComponentHistory
   alias NervesHub.Products.Product
   alias NervesHub.Repo
 
   setup %{product: product, device: device} do
     AnalyticsRepo.query!("TRUNCATE TABLE device_component_history")
-    on_exit(fn -> AnalyticsRepo.query!("TRUNCATE TABLE device_component_history") end)
+    AnalyticsRepo.query!("TRUNCATE TABLE device_component_readings")
+
+    on_exit(fn ->
+      AnalyticsRepo.query!("TRUNCATE TABLE device_component_history")
+      AnalyticsRepo.query!("TRUNCATE TABLE device_component_readings")
+    end)
 
     {:ok, product} = product |> Product.changeset(%{"extensions" => %{"components" => true}}) |> Repo.update()
 
@@ -196,6 +204,142 @@ defmodule NervesHubWeb.Live.Devices.Show.ComponentsTabTest do
     sync(device, [@mcu])
 
     assert_has(session, "#components-list", text: "Sensor board")
+  end
+
+  describe "readings and state" do
+    @lock %{
+      "namespace" => "zwave",
+      "vendor" => "0129",
+      "model" => "8002:0600",
+      "serial" => "34028-23669",
+      "name" => "Office lock",
+      "state" => %{"lock" => "unlocked"}
+    }
+
+    defp record_readings(device, serial, metrics) do
+      info = %DeviceInfo{device_id: device.id, org_id: device.org_id, product_id: device.product_id}
+      now = DateTime.utc_now()
+
+      report = %{
+        "namespace" => "zigbee",
+        "serial" => serial,
+        "timestamp" => DateTime.to_iso8601(now),
+        "metrics" => metrics
+      }
+
+      Components.record_readings(info, Components.parse_readings([report], now))
+    end
+
+    test "the list shows a component's state, or its readings", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device
+    } do
+      sync(device, [@lock, %{@door | "reachable" => true}])
+      record_readings(device, @door["serial"], %{"temperature" => -18.4, "battery" => 87})
+
+      conn
+      |> visit(components_path(org, product, device))
+      |> assert_has("#components-list td", text: "Unlocked")
+      |> assert_has("#components-list td", text: "-18.4")
+      |> assert_has("#components-list td", text: "°C")
+    end
+
+    test "the panel shows state and readings", %{conn: conn, org: org, product: product, device: device} do
+      sync(device, [%{@lock | "namespace" => "zigbee"}])
+      record_readings(device, @lock["serial"], %{"battery" => 18})
+      [lock] = Components.list_for_device(device)
+
+      conn
+      |> visit(components_path(org, product, device) <> "?component=#{lock.id}")
+      |> assert_has("#component-state", text: "Unlocked")
+      |> assert_has("#component-readings #component-reading-battery", text: "18")
+    end
+
+    test "a reading with nothing in ClickHouse says so rather than loading for good", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device
+    } do
+      sync(device, [%{@door | "reachable" => true}])
+      [door] = Components.list_for_device(device)
+
+      # The latest value is on the row, but no reading reached ClickHouse.
+      {1, _} =
+        Repo.update_all(where(DeviceComponent, id: ^door.id),
+          set: [readings: %{"battery" => %{"value" => 87.0, "at" => DateTime.to_iso8601(DateTime.utc_now())}}]
+        )
+
+      conn
+      |> visit(components_path(org, product, device) <> "?component=#{door.id}")
+      |> assert_has("#component-reading-battery", text: "Not enough to draw yet", timeout: 2000)
+    end
+
+    test "changes close together are one re-read, and the last still shows", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device
+    } do
+      sync(device, [@lock])
+      session = visit(conn, components_path(org, product, device))
+      info = %DeviceInfo{device_id: device.id, org_id: device.org_id, product_id: device.product_id}
+
+      for value <- ["jammed", "locked", "unlocked", "open"] do
+        :ok =
+          Components.record_state(info, %{
+            "namespace" => "zwave",
+            "serial" => "34028-23669",
+            "state" => "lock",
+            "value" => value
+          })
+      end
+
+      assert_has(session, "#components-list td", text: "Open", timeout: 2000)
+    end
+
+    test "a state change shows without a reload", %{conn: conn, org: org, product: product, device: device} do
+      sync(device, [@lock])
+      session = visit(conn, components_path(org, product, device))
+
+      info = %DeviceInfo{device_id: device.id, org_id: device.org_id, product_id: device.product_id}
+
+      :ok =
+        Components.record_state(info, %{
+          "namespace" => "zwave",
+          "serial" => "34028-23669",
+          "state" => "lock",
+          "value" => "jammed"
+        })
+
+      assert_has(session, "#components-list td", text: "Jammed")
+    end
+
+    test "an open panel shows a state change once it has been written", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device
+    } do
+      sync(device, [@lock])
+      [lock] = Components.list_for_device(device)
+      session = visit(conn, components_path(org, product, device) <> "?component=#{lock.id}")
+
+      info = %DeviceInfo{device_id: device.id, org_id: device.org_id, product_id: device.product_id}
+
+      :ok =
+        Components.record_state(info, %{
+          "namespace" => "zwave",
+          "serial" => "34028-23669",
+          "state" => "lock",
+          "value" => "jammed",
+          "detail" => "by keypad, user 3"
+        })
+
+      assert_has(session, "#component-history", text: "Jammed by keypad, user 3", timeout: 3000)
+    end
   end
 
   describe "a member with the view role" do

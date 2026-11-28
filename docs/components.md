@@ -9,11 +9,12 @@ This document is the contract. `nerves_hub_link` is the reference client, but
 nothing here is Elixir-shaped on purpose: the Rust agent and an ESP-IDF client
 report through the same frames.
 
-Version 0.1.0 is the inventory only: which components a device has, what they
-are, and which version of each thing they hold: their firmware, and any
-configuration or model loaded onto them. A component's readings, its state (a
-lock being locked) and updating what it holds come in later versions, and
-build on the identity defined here.
+Version 0.1.0 is the inventory: which components a device has, what they are,
+and which version of each thing they hold: their firmware, and any
+configuration or model loaded onto them. It also carries what each component
+measures and the state it is in (a lock being locked); see
+[Readings and state](#readings-and-state). Updating what a component holds
+comes in a later version. All of it builds on the identity defined here.
 
 ## The frames
 
@@ -21,11 +22,17 @@ Negotiation is the shared handshake in
 [extensions_protocol.md](extensions_protocol.md). Once attached:
 
 ```text
-server -> device   components:sync      {}
+server -> device   components:sync      {} or {"refresh": true}
 device -> server   components:snapshot  {"components": [{"namespace": "zigbee", ..}, ..]}
+device -> server   components:readings  {"reports": [..]}
+device -> server   components:state     {"namespace": "zwave", "serial": "..", "state": "lock", "value": "unlocked", ..}
 ```
 
-There are no per-component events. A device's components change rarely, a set
+The last two are optional, and described under
+[Readings and state](#readings-and-state). A device that only keeps an
+inventory sends snapshots and nothing else.
+
+The inventory has no per-component events. A device's components change rarely, a set
 is easy to send whole, and a set can't drift the way a stream of events can: a
 missed "removed" event would leave a component listed for ever. The platform
 compares each snapshot with what it has stored and writes only what changed,
@@ -244,8 +251,8 @@ The platform works out each component's status from snapshots:
   the snapshot at all. The web UI says which: "can't reach it" or "stopped
   listing it".
 
-There is no way in 0.1.0 to say a component is reachable but faulty. Error and
-Warning come with component state and readings, in a later version.
+There is no way yet to say a component is reachable but faulty. Error and
+Warning come in a later version.
 
 A component that is no longer listed is kept, not deleted. A sensor whose
 battery has died often drops out of its gateway's list, and the interesting
@@ -302,3 +309,131 @@ ClickHouse keeps the current components and skips the history.
 
 Turning the extension off for a product or a device stops new snapshots and
 keeps what is stored.
+
+## Readings and state
+
+Besides being listed, a component can report two things:
+
+- **Readings**: numbers it measures, such as a probe's temperature or a lock's
+  battery. A stream, kept as history.
+- **State**: named values that change now and then, such as a lock's `lock`
+  being `locked`, `unlocked` or `jammed`. Every change is kept.
+
+Neither changes a component's status, which stays Working or Missing. Both
+are optional: a device sends them for the components that have them.
+
+Readings and state changes name their component by `namespace` and `serial`.
+A frame for a component the platform hasn't been sent in a snapshot is
+ignored, and the platform sends `components:sync`, at most once every thirty
+seconds, so the device can list it.
+
+### State in a snapshot
+
+A snapshot entry may also carry the component's current state. State then
+can't drift: a change that was dropped, or made while the device was offline,
+is put right by the next snapshot.
+
+```json
+{
+  "namespace": "zwave",
+  "vendor": "0129",
+  "model": "8002:0600",
+  "serial": "34028-23669-20938-46346-33746-07431-56821-14553",
+  "name": "Office lock",
+  "state": {"lock": "unlocked"}
+}
+```
+
+`state` is `{state: value}` and replaces the component's stored state, so a
+state left out is no longer shown. Leave the field out to say nothing about
+state. Readings are never part of a snapshot.
+
+### `components:readings`
+
+```json
+{
+  "reports": [
+    {
+      "namespace": "zigbee",
+      "serial": "00:12:4b:00:2a:3f:91:c7",
+      "timestamp": "2026-11-24T10:40:00Z",
+      "metrics": {"temperature": -18.9, "battery": 87}
+    },
+    {
+      "namespace": "zigbee",
+      "serial": "a4:c1:38:5e:20:7b:91:04",
+      "timestamp": "2026-11-24T10:41:00Z",
+      "metrics": {"co2": 1240, "temperature": 21.4, "humidity": 48}
+    }
+  ]
+}
+```
+
+The rules are the ones [metrics.md](metrics.md) sets for a device's own
+metrics, applied per component:
+
+- One message may carry **60 reports**, for any mix of components. Send what
+  the components measured since the last message, rather than one message per
+  reading.
+- A report missing a field is skipped, and the rest of the batch is stored.
+- A `timestamp` more than **24 hours** from the platform's clock is unreadable,
+  and the report is skipped.
+- A metric name must match `^[a-z][a-z0-9_]{0,63}$`. At most **20** names per
+  report are kept, in sorted order. A value that is not a number is dropped,
+  and so is one larger than **10¹⁵** either side of zero.
+
+Pick names a person can read, and the same names for the same quantity on
+every model: `temperature` in degrees Celsius, `humidity` and `battery` in
+percent, `co2` in ppm.
+
+The platform keeps the latest value of each reading with the component,
+merged from every report, so a component that reports its battery less often
+than its temperature keeps both. A report older than the stored value of a
+reading doesn't replace it. A component keeps at most **20** latest values,
+the most recently reported.
+
+### `components:state`
+
+```json
+{
+  "namespace": "zwave",
+  "serial": "34028-23669-20938-46346-33746-07431-56821-14553",
+  "state": "lock",
+  "value": "unlocked",
+  "changed_at": "2026-11-24T09:41:00Z",
+  "detail": "by keypad, user 3"
+}
+```
+
+| Field | Required | Notes |
+| --- | --- | --- |
+| `namespace`, `serial` | yes | The component. |
+| `state` | yes | What changed. Matches `^[a-z][a-z0-9_]{0,63}$`. |
+| `value` | yes | What it is now. A string of at most 64 characters. |
+| `changed_at` | no, but send it | ISO 8601 with an offset. Believed within **1 hour** ahead and **72 hours** behind the platform's clock, as in [alarms.md](alarms.md#timestamps), and otherwise replaced by the time the message arrived. |
+| `detail` | no | Who or what changed it, shown beside the change. At most 255 characters. |
+
+A component may have at most **8** states. Sending the value it already has
+does nothing, so a device unsure whether a change arrived can send it again.
+A change whose `changed_at` is older than the one stored for that state is
+ignored too, so a retried change can't undo a newer one. A value set by a
+snapshot has no time from the device, so any change replaces it.
+
+### Rate limits for readings and state
+
+- `components:readings`: one message a second, with a burst of five, per
+  device. One token a message, whatever it carries.
+- `components:state`: five a second, with a burst of twenty, per device. A
+  change over the limit is dropped, and the platform sends `components:sync`
+  thirty seconds later; the snapshot that comes back carries the state the
+  dropped changes would have.
+- Snapshots keep their own bucket, described under [Rate limit](#rate-limit).
+
+### What is stored for readings and state
+
+- The latest readings and current state of each component are kept in
+  PostgreSQL with the component, for the lists and the side panel.
+- Every reading is kept as history in ClickHouse for **30 days**, for the
+  charts, with the device's firmware at the time.
+- Every state change is added to the component's history in ClickHouse, which
+  is kept for **90 days**.

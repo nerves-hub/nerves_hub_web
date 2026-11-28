@@ -14,6 +14,7 @@ defmodule NervesHub.Devices.ComponentsTest do
   alias NervesHub.Devices.Components
   alias NervesHub.Devices.DeviceComponent
   alias NervesHub.Devices.DeviceComponentHistory
+  alias NervesHub.Devices.DeviceComponentReading
   alias NervesHub.Extensions.PubSub
   alias NervesHub.Fixtures
   alias Phoenix.Socket.Broadcast
@@ -36,7 +37,12 @@ defmodule NervesHub.Devices.ComponentsTest do
     }
 
     AnalyticsRepo.query!("TRUNCATE TABLE device_component_history")
-    on_exit(fn -> AnalyticsRepo.query!("TRUNCATE TABLE device_component_history") end)
+    AnalyticsRepo.query!("TRUNCATE TABLE device_component_readings")
+
+    on_exit(fn ->
+      AnalyticsRepo.query!("TRUNCATE TABLE device_component_history")
+      AnalyticsRepo.query!("TRUNCATE TABLE device_component_readings")
+    end)
 
     %{device: device, product: product, device_info: device_info, org: org, firmware: firmware}
   end
@@ -323,5 +329,352 @@ defmodule NervesHub.Devices.ComponentsTest do
       assert Components.product_counts(product) == %{components: 3, devices: 2, working: 2, missing: 1}
       assert Components.product_missing_count(product) == 1
     end
+  end
+
+  # ------------------------------------------------------- readings and state
+
+  defp lock(overrides \\ %{}) do
+    Map.merge(
+      %{
+        "namespace" => "zwave",
+        "vendor" => "0129",
+        "model" => "8002:0600",
+        "serial" => "34028-23669",
+        "name" => "Office lock",
+        "versions" => %{"firmware" => "2.2.1"}
+      },
+      overrides
+    )
+  end
+
+  defp state_history(device) do
+    :ok = Buffer.flush(DeviceComponentHistory)
+
+    DeviceComponentHistory
+    |> where(device_id: ^device.id, event: "state_changed")
+    |> order_by(asc: :timestamp)
+    |> AnalyticsRepo.all()
+    |> Enum.map(&{&1.state, &1.value, &1.detail})
+  end
+
+  defp report(serial, metrics, at \\ @now) do
+    %{"namespace" => "zigbee", "serial" => serial, "timestamp" => DateTime.to_iso8601(at), "metrics" => metrics}
+  end
+
+  describe "snapshot state" do
+    test "stores it, and records each value as a change", %{device: device, device_info: info} do
+      sync(info, [lock(%{"state" => %{"lock" => "locked"}})])
+
+      assert [%{state: %{"lock" => %{"value" => "locked", "since" => since}}}] = Components.list_for_device(device)
+      assert {:ok, @now, 0} = DateTime.from_iso8601(since)
+      assert state_history(device) == [{"lock", "locked", ""}]
+    end
+
+    test "keeps when a repeated value was set", %{device: device, device_info: info} do
+      sync(info, [lock(%{"state" => %{"lock" => "locked"}})])
+      sync(info, [lock(%{"state" => %{"lock" => "locked"}})], DateTime.add(@now, 60))
+
+      assert [%{state: %{"lock" => %{"since" => since}}}] = Components.list_for_device(device)
+      assert {:ok, @now, 0} = DateTime.from_iso8601(since)
+      assert state_history(device) == [{"lock", "locked", ""}]
+    end
+
+    test "replaces what is stored, dropping a state left out", %{device: device, device_info: info} do
+      sync(info, [lock(%{"state" => %{"lock" => "locked", "door" => "closed"}})])
+      sync(info, [lock(%{"state" => %{"lock" => "unlocked"}})], DateTime.add(@now, 60))
+
+      assert [%{state: state}] = Components.list_for_device(device)
+      assert Map.keys(state) == ["lock"]
+      assert state["lock"]["value"] == "unlocked"
+    end
+
+    test "an entry without state leaves it alone", %{device: device, device_info: info} do
+      sync(info, [lock(%{"state" => %{"lock" => "locked"}})])
+      sync(info, [lock(%{"name" => "Front lock"})], DateTime.add(@now, 60))
+
+      assert [%{name: "Front lock", state: %{"lock" => %{"value" => "locked"}}}] = Components.list_for_device(device)
+    end
+
+    test "a bad state rejects the snapshot" do
+      for state <- [
+            %{"Lock" => "locked"},
+            %{"lock" => 1},
+            %{"lock" => ""},
+            %{"lock" => String.duplicate("a", 65)},
+            Map.new(1..9, &{"s#{&1}", "on"}),
+            "locked"
+          ] do
+        assert Components.parse([lock(%{"state" => state})], @now) == {:error, :bad_state}
+      end
+    end
+  end
+
+  describe "parse_readings/2" do
+    test "keeps at most 20 names a report, in sorted order, and only numbers" do
+      metrics =
+        1..25
+        |> Map.new(&{"m#{String.pad_leading(to_string(&1), 2, "0")}", &1})
+        |> Map.merge(%{"Bad" => 1, "label" => "warm"})
+
+      assert [%{metrics: kept}] = Components.parse_readings([report("a", metrics)], @now)
+      assert length(kept) == 20
+      assert hd(kept) == {"m01", 1.0}
+      assert List.last(kept) == {"m20", 20.0}
+    end
+
+    test "skips a report it can't read, and keeps the rest" do
+      reports = [
+        report("a", %{"temperature" => 21.4}),
+        report("b", %{"temperature" => 21.4}, DateTime.add(@now, 25, :hour)),
+        %{"namespace" => "zigbee", "metrics" => %{"temperature" => 1}},
+        report("c", %{"label" => "warm"})
+      ]
+
+      assert [%{serial: "a"}] = Components.parse_readings(reports, @now)
+    end
+
+    test "drops a value too large to draw" do
+      metrics = %{"big" => 1.5e308, "small" => -1.0e16, "edge" => -1.0e15, "temperature" => 21.4}
+
+      assert [%{metrics: [{"edge", -1.0e15}, {"temperature", 21.4}]}] =
+               Components.parse_readings([report("a", metrics)], @now)
+    end
+
+    test "reads at most 60 reports a message" do
+      reports = for i <- 1..61, do: report("s#{i}", %{"temperature" => i})
+
+      assert length(Components.parse_readings(reports, @now)) == 60
+    end
+  end
+
+  describe "record_readings/2" do
+    test "keeps the latest of each reading on the component, and every one in ClickHouse",
+         %{device: device, device_info: info} do
+      sync(info, [probe()])
+      serial = probe()["serial"]
+
+      reports = [
+        report(serial, %{"temperature" => -18.6, "battery" => 88}, DateTime.add(@now, -60)),
+        report(serial, %{"temperature" => -18.4}, @now)
+      ]
+
+      assert Components.record_readings(info, Components.parse_readings(reports, @now)) == %{stored: 2, unknown: 0}
+
+      assert [%{readings: readings, readings_at: readings_at}] = Components.list_for_device(device)
+      assert readings["temperature"]["value"] == -18.4
+      assert readings["battery"]["value"] == 88.0
+      assert readings_at == @now
+
+      :ok = Buffer.flush(DeviceComponentReading)
+
+      assert DeviceComponentReading
+             |> where(device_id: ^device.id)
+             |> select([r], {r.key, r.value, r.firmware_version})
+             |> AnalyticsRepo.all()
+             |> Enum.sort() ==
+               [{"battery", 88.0, "2.1.0"}, {"temperature", -18.6, "2.1.0"}, {"temperature", -18.4, "2.1.0"}]
+    end
+
+    test "an older report doesn't replace a newer value", %{device: device, device_info: info} do
+      sync(info, [probe()])
+      serial = probe()["serial"]
+
+      Components.record_readings(info, Components.parse_readings([report(serial, %{"temperature" => -18.4})], @now))
+
+      Components.record_readings(
+        info,
+        Components.parse_readings([report(serial, %{"temperature" => -20.0}, DateTime.add(@now, -60))], @now)
+      )
+
+      assert [%{readings: %{"temperature" => %{"value" => -18.4}}}] = Components.list_for_device(device)
+    end
+
+    test "ignores a component no snapshot listed, and says how many", %{device: device, device_info: info} do
+      sync(info, [probe()])
+
+      assert Components.record_readings(
+               info,
+               Components.parse_readings([report("unknown", %{"temperature" => 1})], @now)
+             ) ==
+               %{stored: 0, unknown: 1}
+
+      assert [%{readings: readings}] = Components.list_for_device(device)
+      assert readings == %{}
+    end
+
+    test "tells an open device page with components:reported", %{device: device, device_info: info} do
+      sync(info, [probe()])
+      :ok = PubSub.subscribe_reports(device.id)
+
+      Components.record_readings(info, Components.parse_readings([report(probe()["serial"], %{"t" => 1})], @now))
+
+      assert_receive %Broadcast{event: "components:reported"}
+      refute_receive %Broadcast{event: "components:updated"}, 100
+    end
+
+    test "doesn't touch another device's component with the same serial", %{device_info: info} = context do
+      other = Fixtures.device_fixture(context.org, context.product, context.firmware)
+      sync(%{info | device_id: other.id}, [probe()])
+
+      assert Components.record_readings(info, Components.parse_readings([report(probe()["serial"], %{"t" => 1})], @now)) ==
+               %{stored: 0, unknown: 1}
+    end
+  end
+
+  describe "record_state/3" do
+    setup %{device_info: info} do
+      sync(info, [lock()])
+      :ok
+    end
+
+    defp state_change(overrides \\ %{}) do
+      Map.merge(
+        %{
+          "namespace" => "zwave",
+          "serial" => "34028-23669",
+          "state" => "lock",
+          "value" => "unlocked",
+          "changed_at" => DateTime.to_iso8601(DateTime.add(@now, -30)),
+          "detail" => "by keypad, user 3"
+        },
+        overrides
+      )
+    end
+
+    test "stores the change and records it", %{device: device, device_info: info} do
+      assert Components.record_state(info, state_change(), @now) == :ok
+
+      assert [%{state: %{"lock" => %{"value" => "unlocked", "detail" => "by keypad, user 3", "since" => since}}}] =
+               Components.list_for_device(device)
+
+      assert {:ok, at, 0} = DateTime.from_iso8601(since)
+      assert at == DateTime.add(@now, -30)
+      assert state_history(device) == [{"lock", "unlocked", "by keypad, user 3"}]
+    end
+
+    test "tells an open device page with components:reported", %{device: device, device_info: info} do
+      :ok = PubSub.subscribe_reports(device.id)
+      :ok = Components.record_state(info, state_change(), @now)
+
+      assert_receive %Broadcast{event: "components:reported"}
+      refute_receive %Broadcast{event: "components:updated"}, 100
+    end
+
+    test "sending the same value again does nothing", %{device: device, device_info: info} do
+      :ok = Components.record_state(info, state_change(), @now)
+      :ok = Components.record_state(info, state_change(%{"changed_at" => DateTime.to_iso8601(@now)}), @now)
+
+      assert length(state_history(device)) == 1
+    end
+
+    test "a change older than the stored value is ignored", %{device: device, device_info: info} do
+      :ok = Components.record_state(info, state_change(), @now)
+
+      :ok =
+        Components.record_state(
+          info,
+          state_change(%{"value" => "locked", "changed_at" => "2026-11-24T11:00:00Z"}),
+          @now
+        )
+
+      assert [%{state: %{"lock" => %{"value" => "unlocked"}}}] = Components.list_for_device(device)
+    end
+
+    test "a value a snapshot set is replaced by any change, whatever the device's clock says", %{
+      device: device,
+      device_info: info
+    } do
+      # The snapshot is stamped with the platform's clock; this device's runs
+      # two minutes slow.
+      sync(info, [lock(%{"state" => %{"lock" => "locked"}})])
+
+      :ok =
+        Components.record_state(
+          info,
+          state_change(%{"changed_at" => DateTime.to_iso8601(DateTime.add(@now, -120))}),
+          @now
+        )
+
+      assert [%{state: %{"lock" => %{"value" => "unlocked"} = lock}}] = Components.list_for_device(device)
+      refute Map.has_key?(lock, "snapshot")
+    end
+
+    test "an unbelievable changed_at is replaced by the arrival time", %{device: device, device_info: info} do
+      :ok = Components.record_state(info, state_change(%{"changed_at" => "1970-01-01T00:00:00Z"}), @now)
+
+      assert [%{state: %{"lock" => %{"since" => since}}}] = Components.list_for_device(device)
+      assert {:ok, @now, 0} = DateTime.from_iso8601(since)
+    end
+
+    test "at most 8 states", %{device_info: info} do
+      for i <- 1..8, do: :ok = Components.record_state(info, state_change(%{"state" => "s#{i}"}), @now)
+
+      assert Components.record_state(info, state_change(%{"state" => "s9"}), @now) == {:error, :too_many_states}
+    end
+
+    test "rejects a malformed change or an unknown component", %{device_info: info} do
+      assert Components.record_state(info, state_change(%{"state" => "Lock"}), @now) == {:error, :malformed}
+
+      assert Components.record_state(info, state_change(%{"value" => String.duplicate("a", 65)}), @now) ==
+               {:error, :malformed}
+
+      assert Components.record_state(info, state_change(%{"detail" => String.duplicate("a", 256)}), @now) ==
+               {:error, :malformed}
+
+      assert Components.record_state(info, Map.delete(state_change(), "value"), @now) == {:error, :malformed}
+      assert Components.record_state(info, state_change(%{"serial" => "other"}), @now) == {:error, :unknown_component}
+    end
+  end
+
+  describe "history reads" do
+    test "readings_history/2 averages the last six hours", %{device: device, device_info: info} do
+      sync(info, [probe()])
+      serial = probe()["serial"]
+
+      reports =
+        for minutes <- [30, 20, 10],
+            do: report(serial, %{"temperature" => minutes}, DateTime.add(@now, -minutes, :minute))
+
+      Components.record_readings(info, Components.parse_readings(reports, @now))
+      :ok = Buffer.flush(DeviceComponentReading)
+
+      [component] = Components.list_for_device(device)
+
+      assert %{window: :six_hours, series: %{"temperature" => points}} = Components.readings_history(component, @now)
+      assert Enum.map(points, &elem(&1, 1)) == [30.0, 20.0, 10.0]
+    end
+
+    test "readings_history/2 falls back to fourteen days for a rare reading", %{device: device, device_info: info} do
+      sync(info, [probe()])
+      serial = probe()["serial"]
+
+      reports = for days <- [3, 2], do: report(serial, %{"battery" => 90 - days}, DateTime.add(@now, -days, :day))
+      Components.record_readings(info, Components.parse_readings(reports, DateTime.add(@now, -2, :day)))
+      Components.record_readings(info, Components.parse_readings([report(serial, %{"battery" => 88})], @now))
+      :ok = Buffer.flush(DeviceComponentReading)
+
+      [component] = Components.list_for_device(device)
+
+      assert %{window: :fourteen_days, series: %{"battery" => [_, _, _]}} = Components.readings_history(component, @now)
+    end
+
+    test "state_history/2 gives the value before the window and the changes in it", %{device: device, device_info: info} do
+      at = fn hours -> DateTime.to_iso8601(DateTime.add(@now, -hours, :hour)) end
+
+      sync(info, [lock()], DateTime.add(@now, -30, :hour))
+      :ok = Components.record_state(info, change_at("locked", at.(30)), @now)
+      :ok = Components.record_state(info, change_at("unlocked", at.(5)), @now)
+      :ok = Components.record_state(info, change_at("locked", at.(1)), @now)
+      :ok = Buffer.flush(DeviceComponentHistory)
+
+      [component] = Components.list_for_device(device)
+
+      assert %{"lock" => %{before: "locked", changes: [%{value: "unlocked"}, %{value: "locked"}]}} =
+               Components.state_history(component, DateTime.add(@now, -24, :hour))
+    end
+  end
+
+  defp change_at(value, at) do
+    %{"namespace" => "zwave", "serial" => "34028-23669", "state" => "lock", "value" => value, "changed_at" => at}
   end
 end
