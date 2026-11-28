@@ -141,7 +141,7 @@ defmodule NervesHub.MixProject do
       {:ecto_psql_extras, "~> 0.7"},
       {:ecto_sql, "~> 3.0"},
       {:esbuild, "~> 0.8", runtime: Mix.env() == :dev},
-      {:eqrcode, "~> 0.2.1"},
+      {:eqrcode, "~> 0.3.0"},
       {:ex_aws, "~> 2.0"},
       {:ex_aws_s3, "~> 2.0"},
       {:ex_json_schema, "~> 0.11.3"},
