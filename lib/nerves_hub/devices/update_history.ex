@@ -44,6 +44,12 @@ defmodule NervesHub.Devices.UpdateHistory do
   updates while they are busy. The other four all mean the device did not take
   the firmware it was sent, so `failure_statuses/0` covers them and the counter
   moves on each.
+
+  `:expired` and `:abandoned` are worked out by `NervesHub.FirmwareUpdates`
+  rather than reported, so it records them only for an update this server sent,
+  which is one with a firmware. A device that reports progress on an update the
+  server already stopped tracking gets an inflight update with no firmware, and
+  that one ends unrecorded unless the device comes back running new firmware.
   """
 
   import Ecto.Query

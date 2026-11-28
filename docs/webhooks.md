@@ -347,6 +347,11 @@ installed.
 | `expired` | The device stopped reporting progress for 30 minutes. |
 | `abandoned` | The device reconnected still running its old firmware, without saying why. |
 
+`expired` and `abandoned` are only sent for an update NervesHub sent the
+device. A device that reports progress on an update NervesHub had already
+stopped tracking, such as one that carried on after its update expired, gets
+no second event when that progress goes quiet.
+
 `reason` is whatever the device said, if anything, cut to 200 characters.
 `source_firmware`, `target_firmware` and `deployment_group` are `null` when
 not known, and a firmware's `version` is `null` once it has been deleted.

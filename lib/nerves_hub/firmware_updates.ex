@@ -284,6 +284,10 @@ defmodule NervesHub.FirmwareUpdates do
 
   Returns `:ok` whether or not there was an update to end, so a device joining
   with nothing inflight is not an error.
+
+  An update with no firmware is cleared without being recorded. Every update
+  sent from here records its firmware, so a row without one is progress on an
+  update the server already ended, and ending it again is not another failure.
   """
   @spec abandon_inflight_update(Device.t()) :: :ok
   def abandon_inflight_update(%Device{} = device) do
@@ -296,7 +300,9 @@ defmodule NervesHub.FirmwareUpdates do
         :ok
 
       {_count, abandoned} ->
-        Enum.each(abandoned, fn inflight_update ->
+        abandoned
+        |> Enum.filter(&sent_firmware?(&1.firmware_uuid))
+        |> Enum.each(fn inflight_update ->
           UpdateHistory.record(device, :abandoned,
             deployment_id: inflight_update.deployment_id,
             source_firmware_uuid: firmware_uuid(device.firmware_metadata),
@@ -306,6 +312,13 @@ defmodule NervesHub.FirmwareUpdates do
     end
   end
 
+  @doc """
+  Ends every update that has made no progress for 30 minutes, recording each as
+  `:expired`, and returns how many it ended.
+
+  An update with no firmware is ended without being recorded, as in
+  `abandon_inflight_update/1`.
+  """
   @spec delete_expired_inflight_updates() :: integer
   def delete_expired_inflight_updates() do
     {counts, results} =
@@ -326,13 +339,15 @@ defmodule NervesHub.FirmwareUpdates do
 
     Enum.each(results, fn result ->
       _ =
-        UpdateHistory.record(
-          %{id: result.device_id, org_id: result.org_id, product_id: result.product_id},
-          :expired,
-          deployment_id: result.deployment_id,
-          source_firmware_uuid: result.source_firmware_uuid,
-          target_firmware_uuid: result.target_firmware_uuid
-        )
+        if sent_firmware?(result.target_firmware_uuid) do
+          UpdateHistory.record(
+            %{id: result.device_id, org_id: result.org_id, product_id: result.product_id},
+            :expired,
+            deployment_id: result.deployment_id,
+            source_firmware_uuid: result.source_firmware_uuid,
+            target_firmware_uuid: result.target_firmware_uuid
+          )
+        end
 
       update_inflight_update(result.device_id, "expired", nil, false)
     end)
@@ -463,6 +478,12 @@ defmodule NervesHub.FirmwareUpdates do
   # when the device took firmware nobody here asked it to take.
   defp inflight_field(nil, _field), do: nil
   defp inflight_field(inflight_update, field), do: Map.get(inflight_update, field)
+
+  # A row with no firmware is one `fetch_device/2` made for progress on an
+  # update the server had already let go of. Every update sent from here
+  # records its firmware.
+  defp sent_firmware?(nil), do: false
+  defp sent_firmware?(_firmware_uuid), do: true
 
   # Records an empty update for a device with none, so progress on an update the
   # server lost track of is still followed. `record_missing: false` leaves it

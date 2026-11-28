@@ -48,6 +48,16 @@ defmodule NervesHub.Devices.UpdateOutcomesTest do
 
   defp failure_count(device), do: Devices.get_device(device.id).consecutive_failed_updates
 
+  # `updated_at` is a NaiveDateTime, and the expiry worker compares it against
+  # the database's `NOW()`.
+  defp make_stale(inflight_update) do
+    stale = NaiveDateTime.add(NaiveDateTime.utc_now(:second), -31, :minute)
+
+    InflightUpdate
+    |> where(id: ^inflight_update.id)
+    |> Repo.update_all(set: [updated_at: stale])
+  end
+
   describe "a device that reports how its update went" do
     test "'failed' counts against it", %{device: device, deployment_group: deployment_group} do
       _ = request_update(deployment_group, device)
@@ -100,15 +110,9 @@ defmodule NervesHub.Devices.UpdateOutcomesTest do
       device: device,
       deployment_group: deployment_group
     } do
-      inflight_update = request_update(deployment_group, device)
-
-      # `updated_at` is a NaiveDateTime, and the expiry worker compares it
-      # against the database's `NOW()`.
-      stale = NaiveDateTime.add(NaiveDateTime.utc_now(:second), -31, :minute)
-
-      InflightUpdate
-      |> where(id: ^inflight_update.id)
-      |> Repo.update_all(set: [updated_at: stale])
+      deployment_group
+      |> request_update(device)
+      |> make_stale()
 
       assert FirmwareUpdates.delete_expired_inflight_updates() == 1
 
@@ -131,6 +135,52 @@ defmodule NervesHub.Devices.UpdateOutcomesTest do
       assert :ok = FirmwareUpdates.abandon_inflight_update(device)
 
       assert failure_count(device) == 0
+    end
+  end
+
+  describe "a device that reports progress on an update nothing here sent" do
+    setup %{device: device} do
+      :ok = FirmwareUpdates.status_update("downloading", device.id, %{"progress" => 40})
+
+      assert %InflightUpdate{firmware_uuid: nil} = FirmwareUpdates.inflight_update_for(device)
+
+      :ok
+    end
+
+    test "rejoining still on its old firmware does not count against it", %{device: device} do
+      assert :ok = FirmwareUpdates.abandon_inflight_update(device)
+
+      assert failure_count(device) == 0
+      assert is_nil(Devices.get_device(device.id).last_update_failure_at)
+      assert is_nil(FirmwareUpdates.inflight_update_for(device))
+    end
+
+    test "going quiet does not count against it, though the update is still ended", %{device: device} do
+      make_stale(FirmwareUpdates.inflight_update_for(device))
+
+      assert FirmwareUpdates.delete_expired_inflight_updates() == 1
+
+      assert failure_count(device) == 0
+      assert is_nil(FirmwareUpdates.inflight_update_for(device))
+    end
+  end
+
+  describe "a device that carries on with an update after it has expired" do
+    test "counts it against the device once", %{device: device, deployment_group: deployment_group} do
+      deployment_group
+      |> request_update(device)
+      |> make_stale()
+
+      assert FirmwareUpdates.delete_expired_inflight_updates() == 1
+      assert failure_count(device) == 1
+
+      # The device is still downloading, so its next report finds no row and
+      # gets one with no firmware.
+      :ok = FirmwareUpdates.status_update("downloading", device.id, %{"progress" => 80})
+
+      assert :ok = FirmwareUpdates.abandon_inflight_update(device)
+
+      assert failure_count(device) == 1
     end
   end
 
