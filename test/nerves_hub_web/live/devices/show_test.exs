@@ -665,6 +665,43 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       |> assert_has("#updating-panel", text: "Installed · rebooting")
     end
 
+    # A device can carry on with an update after the server has let it go (its
+    # inflight update expired, or it reconnected without saying it was still
+    # downloading). Its progress then gets an inflight update with no firmware.
+    test "opens on an update the server lost track of", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device
+    } do
+      :ok = FirmwareUpdates.status_update("downloading", device.id, %{"progress" => 35})
+
+      assert %InflightUpdate{firmware_uuid: nil} = Repo.get_by!(InflightUpdate, device_id: device.id)
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      |> assert_has("#updating-panel", text: "Updating firmware")
+      |> assert_has("#updating-panel", text: "Downloading · 35%")
+      |> assert_has("#device-header", text: device.firmware_metadata.version)
+    end
+
+    test "follows an update the server lost track of", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device
+    } do
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      |> refute_has("#updating-panel")
+      |> unwrap(fn view ->
+        :ok = FirmwareUpdates.status_update("downloading", device.id, %{"progress" => 20})
+        render(view)
+      end)
+      |> assert_has("#updating-panel", text: "Updating firmware")
+      |> assert_has("#updating-panel", text: "Downloading · 20%")
+    end
+
     test "hides the update after the device has restarted", %{
       conn: conn,
       org: org,
