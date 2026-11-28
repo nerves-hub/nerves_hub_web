@@ -104,8 +104,9 @@ defmodule NervesHub.ManagedDeployments.Orchestrator do
   Trigger an update for a deployments devices.
 
   A device is held back while the deltas for the release it is headed for are
-  still being built, or have failed; devices headed elsewhere carry on. That is
-  the release's own `delta_status`, checked by the query below.
+  still being queued or built, which is the release's own `delta_status`;
+  devices headed elsewhere carry on. After that, only a device whose own delta
+  failed waits, until it is built again or delta updates are turned off.
 
   Finds devices matching:
 

@@ -675,6 +675,74 @@ defmodule NervesHub.ManagedDeployments.OrchestratorTest do
     assert device.id in Enum.map(Devices.get_devices_by_org_id_and_product_id(org.id, product.id), & &1.id)
   end
 
+  describe "a release with a failed delta" do
+    # Devices on one version have a delta that failed to build. Devices on
+    # another have no delta at all, and would be sent the whole firmware.
+    setup %{deployment_group: deployment_group, org_key: org_key, product: product, org: org, tmp_dir: tmp_dir} do
+      waiting_firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+      other_firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+
+      # In before delta updates are on, which would queue a delta for each.
+      waiting = connected_device(org, product, waiting_firmware, deployment_group)
+      other = connected_device(org, product, other_firmware, deployment_group)
+
+      deployment_group =
+        deployment_group
+        |> Ecto.Changeset.change(%{delta_updatable: true})
+        |> Repo.update!()
+        |> ManagedDeployments.load_current_release(force: true)
+
+      _ =
+        Fixtures.firmware_delta_fixture(waiting_firmware, deployment_group.current_release.firmware, %{status: :failed})
+
+      {:ok, _releases} = ManagedDeployments.recalculate_release_delta_statuses(deployment_group)
+      deployment_group = ManagedDeployments.load_current_release(deployment_group, force: true)
+
+      assert deployment_group.current_release.delta_status == :failed
+
+      %{deployment_group: deployment_group, waiting: waiting, other: other}
+    end
+
+    test "holds back the devices waiting for it", %{deployment_group: deployment_group, waiting: waiting} do
+      refute waiting.id in available_ids(deployment_group)
+    end
+
+    test "doesn't hold back the devices that don't need it", %{deployment_group: deployment_group, other: other} do
+      assert other.id in available_ids(deployment_group)
+    end
+
+    test "sends the devices waiting for it the whole firmware once delta updates are off", %{
+      deployment_group: deployment_group,
+      waiting: waiting,
+      user: user
+    } do
+      {:ok, deployment_group} =
+        ManagedDeployments.update_deployment_group(deployment_group, %{delta_updatable: false}, user)
+
+      deployment_group = ManagedDeployments.load_current_release(deployment_group, force: true)
+
+      assert deployment_group.current_release.delta_status == :ready
+      assert waiting.id in available_ids(deployment_group)
+    end
+  end
+
+  defp connected_device(org, product, firmware, deployment_group) do
+    device =
+      Fixtures.device_fixture(org, product, firmware)
+      |> Deployments.update_deployment_group(deployment_group)
+
+    {:ok, connection} = Connections.device_connecting(device.org_id, device.product_id, device.id)
+    :ok = Connections.device_connected(connection.id)
+
+    device
+  end
+
+  defp available_ids(deployment_group) do
+    deployment_group
+    |> Updates.available_for_update(10)
+    |> Enum.map(& &1.id)
+  end
+
   describe "the backup tick" do
     test "settles a release left reading preparing, and takes up the group as it now is",
          %{deployment_group: deployment_group, user: user} = context do

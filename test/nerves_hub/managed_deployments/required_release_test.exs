@@ -68,6 +68,12 @@ defmodule NervesHub.ManagedDeployments.RequiredReleaseTest do
     device
   end
 
+  # A release only waits on deltas in a group that sends them. Turned on
+  # directly, so nothing is queued for the test to wait on.
+  defp send_deltas(deployment_group) do
+    deployment_group |> Ecto.Changeset.change(delta_updatable: true) |> Repo.update!()
+  end
+
   # Queueing a delta runs a transaction of its own. Refusing its job makes that
   # transaction roll back, the way a real failure would.
   defp refuse_delta_jobs() do
@@ -231,6 +237,7 @@ defmodule NervesHub.ManagedDeployments.RequiredReleaseTest do
     test "waits for the delta to the required release, not the one to the current release", context do
       %{deployment_group: deployment_group} = add_releases(context)
       %{id: device_id} = connected_device(context, deployment_group, context.fw1)
+      deployment_group = send_deltas(deployment_group)
 
       _ = Fixtures.firmware_delta_fixture(context.fw1, context.fw3, %{status: :processing})
       assert [%{id: ^device_id}] = Updates.available_for_update(deployment_group, 10)
@@ -242,6 +249,7 @@ defmodule NervesHub.ManagedDeployments.RequiredReleaseTest do
     test "works out a release's delta status from the deltas its own devices need", context do
       %{deployment_group: deployment_group, release2: release2} = add_releases(context)
       _ = connected_device(context, deployment_group, context.fw1)
+      _ = send_deltas(deployment_group)
 
       # The device is headed for release 2, so a delta to the current release's
       # firmware is nothing release 2 is waiting on
@@ -258,6 +266,7 @@ defmodule NervesHub.ManagedDeployments.RequiredReleaseTest do
     test "a delta built for a required release brings that release out of preparing", context do
       %{deployment_group: deployment_group, release2: release2} = add_releases(context)
       _ = connected_device(context, deployment_group, context.fw1)
+      _ = send_deltas(deployment_group)
 
       delta = Fixtures.firmware_delta_fixture(context.fw1, context.fw2, %{status: :processing})
       assert {:ok, %{delta_status: :preparing}} = ManagedDeployments.recalculate_release_delta_status(release2)
@@ -274,6 +283,7 @@ defmodule NervesHub.ManagedDeployments.RequiredReleaseTest do
       %{deployment_group: deployment_group, release2: release2, release3: release3} = add_releases(context)
       _ = connected_device(context, deployment_group, context.fw1)
       _ = connected_device(context, deployment_group, context.fw2)
+      deployment_group = send_deltas(deployment_group)
 
       # The device on fw1 is headed for the required release and waits on this
       # delta, but the group is about the release every device ends up on
@@ -298,6 +308,7 @@ defmodule NervesHub.ManagedDeployments.RequiredReleaseTest do
       %{deployment_group: deployment_group, release2: release2, release3: release3} = add_releases(context)
       _ = connected_device(context, deployment_group, context.fw1)
       _ = connected_device(context, deployment_group, context.fw2)
+      deployment_group = send_deltas(deployment_group)
 
       _ = Fixtures.firmware_delta_fixture(context.fw1, context.fw2, %{status: :completed})
       building = Fixtures.firmware_delta_fixture(context.fw2, context.fw3, %{status: :processing})

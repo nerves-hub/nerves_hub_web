@@ -3871,6 +3871,9 @@ defmodule NervesHub.DevicesTest do
           audit: false
         )
 
+      # Only a group that sends deltas holds devices back for them
+      deployment_group = deployment_group |> Ecto.Changeset.change(delta_updatable: true) |> Repo.update!()
+
       # Create device with source firmware
       device =
         Fixtures.device_fixture(org, product, source_firmware, %{
@@ -3933,6 +3936,9 @@ defmodule NervesHub.DevicesTest do
           broadcast: false,
           audit: false
         )
+
+      # Only a group that sends deltas holds devices back for them
+      deployment_group = deployment_group |> Ecto.Changeset.change(delta_updatable: true) |> Repo.update!()
 
       # Create device with source firmware
       device =

@@ -128,6 +128,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Releases do
             :if={MapSet.member?(@expanded, release.id)}
             release={release}
             deltas={Map.get(@deltas, release.id, [])}
+            sends_deltas?={@deployment_group.delta_updatable}
             current_scope={@current_scope}
             time_zone={@time_zone}
             myself={@myself}
@@ -279,6 +280,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Releases do
 
   attr(:release, DeploymentRelease, required: true)
   attr(:deltas, :list, required: true)
+  attr(:sends_deltas?, :boolean, required: true)
   attr(:current_scope, :map, required: true)
   attr(:time_zone, :string, required: true)
   attr(:myself, :any, required: true)
@@ -311,7 +313,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Releases do
           >
             <span class="flex min-w-0 flex-wrap items-baseline gap-x-6 gap-y-0.5">
               <span class="w-24 shrink-0 text-content-body">From <span class="font-mono">{delta.source.version}</span></span>
-              <.delta_detail delta={delta} firmware={@release.firmware} />
+              <.delta_detail delta={delta} firmware={@release.firmware} sends_deltas?={@sends_deltas?} />
             </span>
             <.delta_status status={delta.status} />
             <span :if={authorized?(:"deployment_group:release:manage", @current_scope)} class="flex">
@@ -375,6 +377,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Releases do
 
   attr(:delta, :map, required: true)
   attr(:firmware, Firmware, required: true)
+  attr(:sends_deltas?, :boolean, required: true)
 
   defp delta_detail(%{delta: %{status: :completed}} = assigns) do
     ~H"""
@@ -388,6 +391,18 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Releases do
   defp delta_detail(%{delta: %{status: :processing}} = assigns) do
     ~H"""
     <span class="text-xs/4 text-content-muted">Building from <span class="font-mono">{@delta.source.version}</span></span>
+    """
+  end
+
+  # A failed delta holds back the devices waiting for it, until it is built
+  # again or delta updates are turned off (`Updates.available_for_update/2`).
+  defp delta_detail(%{sends_deltas?: true} = assigns) do
+    ~H"""
+    <span class="text-xs/4 text-content-muted">
+      Devices on <span class="font-mono">{@delta.source.version}</span>
+      wait for a retry, or get the full <span :if={@firmware.size} class="font-mono">{format_megabytes(@firmware.size)}</span><span :if={!@firmware.size}>firmware</span>
+      with delta updates off
+    </span>
     """
   end
 
