@@ -1417,7 +1417,7 @@ defmodule NervesHubWeb.WebsocketTest do
       [log, _, _] = AuditLogs.logs_by(device)
 
       assert log.description ==
-               "Device no longer matches deployment group Every Device's requirements because of mismatched platform"
+               "Device #{device.identifier} no longer matches deployment group Every Device's requirements because of mismatched platform"
 
       close_socket_cleanly(socket)
     end

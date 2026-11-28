@@ -92,7 +92,7 @@ defmodule NervesHubWeb.Integrations.Slack.ActionsTest do
       assert [log | _] = AuditLogs.logs_for(device)
 
       assert log.description ==
-               "User #{user.name} rebooted device #{device.identifier} from Slack user U0ALICE (@alice, workspace T0ACME)"
+               "#{user.name} rebooted device #{device.identifier} from Slack user U0ALICE (@alice, workspace T0ACME)"
 
       assert log.actor_id == user.id
 

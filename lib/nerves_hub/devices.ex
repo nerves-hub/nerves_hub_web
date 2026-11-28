@@ -12,6 +12,7 @@ defmodule NervesHub.Devices do
   alias NervesHub.AuditLogs
   alias NervesHub.AuditLogs.AuditLog
   alias NervesHub.AuditLogs.DeviceTemplates
+  alias NervesHub.AuditLogs.Template
   alias NervesHub.DeviceEvents
   alias NervesHub.DeviceLink
   alias NervesHub.Devices.AdvancedQuery
@@ -1317,8 +1318,14 @@ defmodule NervesHub.Devices do
       deployment_id: nil
     }
 
+    # Written to the device and both products, so the device is a value of its
+    # own rather than the entry's resource.
     description =
-      "User #{user.name} moved device #{device.identifier} to #{product.org.name} : #{product.name}"
+      Template.new("%{actor} moved device %{device} to %{org} : %{product}",
+        device: device,
+        org: product.org.name,
+        product: product.name
+      )
 
     source_product = %Product{
       id: device.product_id,
@@ -1383,7 +1390,7 @@ defmodule NervesHub.Devices do
   @spec tag_device(Device.t() | [Device.t()], User.t(), list(String.t()) | String.t()) ::
           {:ok, Device.t()} | {:error, any(), any(), any()}
   def tag_device(%Device{} = device, user, tags) when is_list(tags) or is_binary(tags) do
-    description = "User #{user.name} updated device #{device.identifier} tags"
+    description = Template.new("%{actor} updated device %{resource} tags")
     params = %{tags: tags}
     update_device_with_audit(device, params, user, description, :tags_changed)
   end
@@ -1450,7 +1457,9 @@ defmodule NervesHub.Devices do
             {:ok, device}
 
           added ->
-            description = "User #{user.name} added the tags #{Enum.join(added, ", ")} to device #{device.identifier}"
+            description =
+              Template.new("%{actor} added the tags %{tags} to device %{resource}", tags: Enum.join(added, ", "))
+
             update_device_with_audit(device, %{tags: current_tags ++ added}, user, description, :tags_changed)
         end
 
@@ -1480,7 +1489,7 @@ defmodule NervesHub.Devices do
 
           {removed, remaining} ->
             description =
-              "User #{user.name} removed the tags #{Enum.join(removed, ", ")} from device #{device.identifier}"
+              Template.new("%{actor} removed the tags %{tags} from device %{resource}", tags: Enum.join(removed, ", "))
 
             update_device_with_audit(device, %{tags: remaining}, user, description, :tags_changed)
         end
@@ -1507,7 +1516,13 @@ defmodule NervesHub.Devices do
   `kind` says what sort of change it is, for the icon the device's Activity
   tab draws (see `NervesHub.AuditLogs.AuditLog.kinds/0`).
   """
-  @spec update_device_with_audit(Device.t(), map(), AuditLogs.actor() | Device.t(), String.t(), AuditLog.kind()) ::
+  @spec update_device_with_audit(
+          Device.t(),
+          map(),
+          AuditLogs.actor() | Device.t(),
+          String.t() | Template.t(),
+          AuditLog.kind()
+        ) ::
           {:ok, Device.t()} | {:error, any(), any(), any()}
   def update_device_with_audit(device, params, actor, description, kind) do
     Multi.new()
@@ -1556,7 +1571,7 @@ defmodule NervesHub.Devices do
   @spec update_device_settings(Device.t(), map(), AuditLogs.actor(), keyword()) ::
           {:ok, Device.t()} | {:error, Changeset.t()}
   def update_device_settings(%Device{} = device, params, actor, opts \\ []) do
-    description = "#{AuditLogs.actor_name(actor)} updated device #{device.identifier}"
+    description = Template.new("%{actor} updated device %{resource}")
 
     Repo.transact(fn ->
       with {:ok, updated} <- device |> Device.update_changeset(params) |> Repo.update(),

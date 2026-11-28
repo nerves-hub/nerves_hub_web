@@ -292,8 +292,8 @@ defmodule NervesHub.Accounts.TwoFactorTest do
       {:ok, org} = TwoFactor.set_org_requirement(org, user, false)
 
       assert [stopped, started] = AuditLogs.logs_for(org)
-      assert started.description == "User #{user.name} started requiring two-factor authentication of every member"
-      assert stopped.description == "User #{user.name} stopped requiring two-factor authentication of members"
+      assert started.description == "#{user.name} started requiring two-factor authentication of every member"
+      assert stopped.description == "#{user.name} stopped requiring two-factor authentication of members"
       assert started.actor_id == user.id
     end
 

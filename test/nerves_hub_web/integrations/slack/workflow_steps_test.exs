@@ -166,7 +166,7 @@ defmodule NervesHubWeb.Integrations.Slack.WorkflowStepsTest do
       assert [log | _] = AuditLogs.logs_for(deployment_group)
 
       assert log.description ==
-               "User #{user.name} approved workflow step 1 (Sign-off) for deployment group #{deployment_group.name} from Slack user U0ALICE (@alice, workspace T0ACME)"
+               "#{user.name} approved workflow step 1 (Sign-off) for deployment group #{deployment_group.name} from Slack user U0ALICE (@alice, workspace T0ACME)"
 
       assert thread_reply() ==
                ":white_check_mark: #{user.name} approved *Sign-off* for *#{deployment_group.name}* from Slack. The rollout carries on."
@@ -243,7 +243,7 @@ defmodule NervesHubWeb.Integrations.Slack.WorkflowStepsTest do
       assert step(context.release, 2).status == :in_progress
 
       assert [log | _] = AuditLogs.logs_for(deployment_group)
-      assert log.description =~ "User #{user.name} retried workflow step 2 (Canary)"
+      assert log.description =~ "#{user.name} retried workflow step 2 (Canary)"
       assert log.description =~ "from Slack user U0ALICE"
 
       assert thread_reply() =~ "retried *Canary*"

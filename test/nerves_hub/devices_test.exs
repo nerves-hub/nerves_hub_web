@@ -131,7 +131,7 @@ defmodule NervesHub.DevicesTest do
       assert Repo.reload(device).managed_updates_allowed
 
       assert [%{description: description}] = AuditLogs.logs_for(device)
-      assert description == "User #{user.name} allowed device-managed updates for device granted"
+      assert description == "#{user.name} allowed device-managed updates for device granted"
     end
 
     test "a grant equal to the product's default writes no audit entry", %{product: product, user: user} do
@@ -163,8 +163,8 @@ defmodule NervesHub.DevicesTest do
       assert device.update_mode == :off
 
       descriptions = device |> AuditLogs.logs_for() |> Enum.map(& &1.description)
-      assert "User #{user.name} updated device #{device.identifier}" in descriptions
-      assert "User #{user.name} set the update mode for device #{device.identifier} to off" in descriptions
+      assert "#{user.name} updated device #{device.identifier}" in descriptions
+      assert "#{user.name} set the update mode for device #{device.identifier} to off" in descriptions
     end
   end
 
@@ -184,8 +184,8 @@ defmodule NervesHub.DevicesTest do
       assert device.managed_updates_allowed
 
       descriptions = device |> AuditLogs.logs_for() |> Enum.map(& &1.description)
-      assert "User #{user.name} updated device #{device.identifier}" in descriptions
-      assert "User #{user.name} allowed device-managed updates for device #{device.identifier}" in descriptions
+      assert "#{user.name} updated device #{device.identifier}" in descriptions
+      assert "#{user.name} allowed device-managed updates for device #{device.identifier}" in descriptions
     end
   end
 
@@ -595,7 +595,7 @@ defmodule NervesHub.DevicesTest do
       {:ok, _device} = Devices.add_tags(device, user, ["moussaka"])
 
       assert [audit_log] = AuditLogs.logs_for(device)
-      assert audit_log.description == "User #{user.name} added the tags moussaka to device #{device.identifier}"
+      assert audit_log.description == "#{user.name} added the tags moussaka to device #{device.identifier}"
     end
 
     test "rejects tags containing spaces", %{user: user, device: device} do
@@ -642,7 +642,7 @@ defmodule NervesHub.DevicesTest do
       {:ok, _device} = Devices.remove_tags(device, user, ["beta", "moussaka"])
 
       assert [audit_log] = AuditLogs.logs_for(device)
-      assert audit_log.description == "User #{user.name} removed the tags beta from device #{device.identifier}"
+      assert audit_log.description == "#{user.name} removed the tags beta from device #{device.identifier}"
     end
 
     # See `add_tags/3` for why a nil would otherwise strip every tag off the device.
@@ -1491,7 +1491,7 @@ defmodule NervesHub.DevicesTest do
       [audit_log] = AuditLogs.logs_for(device)
 
       assert audit_log.actor_type == User
-      assert audit_log.description =~ "User #{user.name} set the update mode"
+      assert audit_log.description =~ "#{user.name} set the update mode"
       assert audit_log.description =~ "device_managed"
     end
 
@@ -2361,7 +2361,7 @@ defmodule NervesHub.DevicesTest do
       assert audit_log.actor_id == user.id
 
       assert audit_log.description ==
-               "User #{user.name} created shared secret #{auth.key} for device #{device.identifier}"
+               "#{user.name} created shared secret #{auth.key} for device #{device.identifier}"
     end
 
     test "lists the device's keys without their secrets", %{device: device, user: user} do
@@ -2527,7 +2527,7 @@ defmodule NervesHub.DevicesTest do
       assert audit_log.actor_id == user.id
 
       assert audit_log.description ==
-               "User #{user.name} deactivated shared secret #{auth.key} for device #{device.identifier}"
+               "#{user.name} deactivated shared secret #{auth.key} for device #{device.identifier}"
     end
 
     test "closes the connections made with the key, and no others", %{device: device, user: user} do
@@ -3362,6 +3362,28 @@ defmodule NervesHub.DevicesTest do
       assert [kept] = Accounts.list_org_keys(target_org.id, false)
       assert kept.id == existing.id
       assert kept.key == existing.key
+    end
+  end
+
+  describe "move/3 audit entries" do
+    test "name the device in the entry written to it and to both products", %{
+      org: org,
+      product: product,
+      device: device,
+      user: user
+    } do
+      target_product = Fixtures.product_fixture(user, org, %{name: "Target"})
+
+      {:ok, _moved} = Devices.move(device, target_product, user)
+
+      expected = "#{user.name} moved device #{device.identifier} to #{org.name} : Target"
+      device_ref = %{"type" => "device", "id" => device.id, "name" => device.identifier}
+
+      for resource <- [device, product, target_product] do
+        assert [log] = AuditLogs.logs_for(resource)
+        assert log.description == expected
+        assert log.template_values["device"] == device_ref
+      end
     end
   end
 

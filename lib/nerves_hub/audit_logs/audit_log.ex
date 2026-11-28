@@ -4,6 +4,7 @@ defmodule NervesHub.AuditLogs.AuditLog do
   import Ecto.Changeset
 
   alias NervesHub.Accounts.Org
+  alias NervesHub.AuditLogs.Template
   alias NervesHub.Types.Resource
 
   @type t :: %__MODULE__{}
@@ -58,7 +59,7 @@ defmodule NervesHub.AuditLogs.AuditLog do
     :resource_type,
     :org_id
   ]
-  @optional_params [:kind, :reference_id]
+  @optional_params [:kind, :reference_id, :template, :template_values]
 
   @description_max_length 500
 
@@ -73,6 +74,9 @@ defmodule NervesHub.AuditLogs.AuditLog do
     field(:resource_id, :id)
     field(:resource_type, Resource)
     field(:reference_id, :string)
+    # Set when the description was written from a `NervesHub.AuditLogs.Template`.
+    field(:template, :string)
+    field(:template_values, :map)
 
     timestamps(type: :naive_datetime_usec, updated_at: false)
   end
@@ -80,14 +84,26 @@ defmodule NervesHub.AuditLogs.AuditLog do
   @doc """
   Build an entry recording that `actor` did something to `resource`.
 
+  `description` is either plain text or a `NervesHub.AuditLogs.Template`. An
+  entry from a template stores the template and its values as well as the
+  text they make, so the web UI can show the records it names as they are now.
+
   ## Options
 
     * `:kind` - what happened, one of `kinds/0`. Set it for anything a device's
       Activity tab shows, which draws an icon for it.
     * `:reference_id` - ties together entries written for one operation.
   """
-  @spec build(struct(), struct(), String.t(), keyword()) :: t()
-  def build(%actor_type{} = actor, %resource_type{} = resource, description, opts \\ []) do
+  @spec build(struct(), struct(), String.t() | Template.t(), keyword()) :: t()
+  def build(actor, resource, description, opts \\ [])
+
+  def build(actor, resource, %Template{text: text} = template, opts) do
+    values = Template.dump_values(template, actor, resource)
+
+    %{build(actor, resource, Template.to_text(text, values), opts) | template: text, template_values: values}
+  end
+
+  def build(%actor_type{} = actor, %resource_type{} = resource, description, opts) do
     %__MODULE__{
       actor_id: actor.id,
       actor_type: actor_type,

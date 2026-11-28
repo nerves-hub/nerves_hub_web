@@ -296,7 +296,7 @@ defmodule NervesHub.ManagedDeployments.WorkflowsTest do
 
       assert Enum.any?(
                AuditLogs.logs_for(deployment_group),
-               &(&1.description =~ "User #{user.name} skipped workflow step 1" and
+               &(&1.description =~ "#{user.name} skipped workflow step 1" and
                    &1.description =~ "from Slack user U0ALICE")
              )
     end

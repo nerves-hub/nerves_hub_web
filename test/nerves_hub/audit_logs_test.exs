@@ -1,8 +1,11 @@
 defmodule NervesHub.AuditLogsTest do
   use NervesHub.DataCase, async: true
 
+  alias NervesHub.Accounts
   alias NervesHub.AuditLogs
   alias NervesHub.AuditLogs.AuditLog
+  alias NervesHub.AuditLogs.DeviceTemplates
+  alias NervesHub.Devices
   alias NervesHub.Fixtures
   alias NervesHub.Repo
 
@@ -106,6 +109,124 @@ defmodule NervesHub.AuditLogsTest do
 
       assert %{^device_id => %{deleted?: true}} =
                deployment_group |> AuditLogs.logs_for() |> AuditLogs.actor_devices()
+    end
+  end
+
+  describe "load_references/3" do
+    @describetag :tmp_dir
+
+    setup %{tmp_dir: tmp_dir} do
+      Fixtures.standard_fixture(tmp_dir)
+    end
+
+    test "loads the records an entry names, under their current names", %{
+      user: user,
+      org: org,
+      device: device,
+      deployment_group: group,
+      firmware: firmware
+    } do
+      :ok = DeviceTemplates.audit_device_deployment_group_update_triggered(device, group, firmware)
+      :ok = DeviceTemplates.audit_reboot(user, device)
+
+      Repo.update!(Ecto.Changeset.change(user, name: "Renamed"))
+
+      references = AuditLogs.load_references(AuditLogs.logs_for(device), org, user)
+
+      assert %{name: "Renamed"} = references[{"user", user.id}]
+      assert %{identifier: identifier, product: %{}} = references[{"device", device.id}]
+      assert identifier == device.identifier
+      assert %{id: group_id, product: %{}} = references[{"deployment_group", group.id}]
+      assert group_id == group.id
+      assert %{uuid: uuid} = references[{"firmware", firmware.uuid}]
+      assert uuid == firmware.uuid
+    end
+
+    test "leaves out a user who is no longer a member of the org", %{user: user, org: org, device: device} do
+      other = Fixtures.user_fixture()
+      {:ok, _} = Accounts.add_org_user(org, other, %{role: :view})
+      :ok = DeviceTemplates.audit_reboot(other, device)
+      :ok = Accounts.remove_org_user(org, other)
+
+      references = AuditLogs.load_references(AuditLogs.logs_for(device), org, user)
+
+      refute Map.has_key?(references, {"user", other.id})
+    end
+
+    test "leaves out a deleted device", %{user: user, org: org, device: device} do
+      :ok = DeviceTemplates.audit_reboot(user, device)
+      logs = AuditLogs.logs_for(device)
+      {:ok, _} = Devices.delete_device(device)
+
+      refute Map.has_key?(AuditLogs.load_references(logs, org, user), {"device", device.id})
+    end
+
+    test "leaves out a device a custom role's tags don't match", %{user: user, org: org, device: device} do
+      :ok = DeviceTemplates.audit_reboot(user, device)
+
+      role = Fixtures.org_role_fixture(org, %{device_tags: ["support"]})
+      {:ok, org_user} = Accounts.get_org_user(org, user)
+      {:ok, _} = Accounts.change_org_user_role(org_user, role)
+
+      references = AuditLogs.load_references(AuditLogs.logs_for(device), org, user)
+
+      refute Map.has_key?(references, {"device", device.id})
+    end
+
+    test "never loads a record from another org", %{user: user, device: device} do
+      :ok = DeviceTemplates.audit_reboot(user, device)
+      other_org = Fixtures.org_fixture(user, %{name: "Other-Org"})
+
+      refute Map.has_key?(AuditLogs.load_references(AuditLogs.logs_for(device), other_org, user), {"device", device.id})
+    end
+
+    test "an entry written without a template names nothing", %{user: user, org: org, device: device} do
+      :ok = AuditLogs.audit!(user, device, "User #{user.name} did something")
+
+      assert AuditLogs.load_references(AuditLogs.logs_for(device), org, user) == %{}
+    end
+  end
+
+  describe "an entry written from a template" do
+    @describetag :tmp_dir
+
+    setup %{tmp_dir: tmp_dir} do
+      Fixtures.standard_fixture(tmp_dir)
+    end
+
+    test "keeps the template and its values beside the text they make", %{user: user, device: device} do
+      :ok = DeviceTemplates.audit_script_run(user, device, "Collect logs", "Slack")
+
+      assert [log] = AuditLogs.logs_for(device)
+
+      assert log.description ==
+               "#{user.name} ran support script Collect logs on device #{device.identifier} from Slack"
+
+      assert log.template == "%{actor} ran support script %{script} on device %{resource} from %{via}"
+
+      assert log.template_values == %{
+               "actor" => %{"type" => "user", "id" => user.id, "name" => user.name},
+               "resource" => %{"type" => "device", "id" => device.id, "name" => device.identifier},
+               "script" => "Collect logs",
+               "via" => "Slack"
+             }
+    end
+
+    test "is exported to CSV by its description, without the template", %{user: user, device: device} do
+      :ok = DeviceTemplates.audit_script_run(user, device, "Collect logs", "Slack")
+
+      [header, row] =
+        device
+        |> AuditLogs.logs_for()
+        |> AuditLogs.format_for_csv()
+        |> NimbleCSV.RFC4180.parse_string(skip_headers: false)
+
+      refute "template" in header
+      refute "template_values" in header
+      assert List.last(header) == "inserted_at"
+
+      assert Enum.at(row, Enum.find_index(header, &(&1 == "description"))) ==
+               Jason.encode!("#{user.name} ran support script Collect logs on device #{device.identifier} from Slack")
     end
   end
 end
